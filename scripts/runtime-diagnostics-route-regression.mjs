@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.1";
+const appVersion = "0.33.5.22.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-diagnostics-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-runtime-diagnostics.db");
@@ -41,9 +41,11 @@ try {
   assert.match(appSource, /runtimeDiagnosticsRoutes/, "app startup should mount the runtime diagnostics route after auth");
   assert.match(serviceSource, /workspace_settings\.manage/, "runtime diagnostics service should require workspace_settings.manage");
   assert.match(serviceSource, /readDatabaseHealth/, "runtime diagnostics service should reuse the database health contract");
+  assert.match(serviceSource, /readSafeStorageHealth/, "runtime diagnostics service should expose safe storage provider health");
+  assert.match(serviceSource, /\.health\(\)/, "runtime diagnostics service should call the storage adapter health hook");
   assert.match(serviceSource, /configurationWarnings/, "runtime diagnostics service should expose safe config warnings");
   assert.doesNotMatch(serviceSource, /process\.env/, "runtime diagnostics service must not expose raw environment variables");
-  assert.doesNotMatch(serviceSource, /localRoot|clamdHost|clamdPort|clamscanPath|masterKey/i, "runtime diagnostics service must not expose storage roots, scanner internals, or key material");
+  assert.doesNotMatch(serviceSource, /clamdHost|clamdPort|clamscanPath|masterKey/i, "runtime diagnostics service must not expose scanner internals or key material");
   assert.match(regressionSuite, /scripts\/runtime-diagnostics-route-regression\.mjs/, "regression suite should include runtime diagnostics route coverage");
 
   await initializeDatabase();
@@ -100,6 +102,13 @@ function assertRuntimeDiagnostics(diagnostics) {
   assert.equal(diagnostics.data.directoryLocation.relativeTo, "outside-app-root");
   assert.match(diagnostics.data.directoryLocation.display, /^<redacted>\//);
   assert.equal(diagnostics.storage.provider, "local");
+  assert.equal(diagnostics.storage.health.status, "ok");
+  assert.equal(diagnostics.storage.health.available, true);
+  assert.deepEqual(diagnostics.storage.rootLocation, {
+    display: "<data-dir>/files",
+    redacted: false,
+    relativeTo: "data-dir",
+  });
   assert.equal(diagnostics.scanner.mode, "none");
   assert.equal(diagnostics.worker.mode, "inline");
   assert.equal(diagnostics.worker.status.state, "stopped");
@@ -120,6 +129,7 @@ function assertRuntimeDiagnostics(diagnostics) {
 
   const serialized = JSON.stringify(diagnostics);
   assert.doesNotMatch(serialized, new RegExp(escapeRegExp(normalizePath(tempDir))), "diagnostics should not expose the absolute temp data path");
+  assert.doesNotMatch(serialized, new RegExp(escapeRegExp(normalizePath(path.join(tempDir, "files")))), "diagnostics should not expose the absolute local storage root path");
   assert.doesNotMatch(serialized, new RegExp(escapeRegExp(normalizePath(process.env.LONGTAIL_DATABASE_FILE))), "diagnostics should not expose the absolute database file path");
   assert.doesNotMatch(serialized, /Runtime-Diagnostics-Test-123|SUPER_ADMIN_PASSWORD|LONGTAIL_SECURE_NOTES|SECURE_NOTES_MASTER_KEY|CLAMD|CLAMSCAN|signedUrl|storageKey/i, "diagnostics should not expose secrets, scanner internals, signed URLs, or storage keys");
 }
@@ -256,7 +266,9 @@ function closeServer(serverInstance) {
 }
 
 function normalizePath(value) {
-  return String(value || "").replaceAll(path.sep, "/");
+  return String(value || "")
+    .replaceAll("\\", "/")
+    .replace(/\/+/g, "/");
 }
 
 function readText(filePath) {

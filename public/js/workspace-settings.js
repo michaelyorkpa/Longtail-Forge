@@ -237,7 +237,9 @@ function renderRuntimeDiagnostics(diagnostics) {
     createRuntimeDiagnosticItem("Foreign Keys", sqlite.foreignKeysEnabled ? "Enabled" : "Disabled"),
     createRuntimeDiagnosticItem("Database File", formatRuntimeLocation(database.fileLocation)),
     createRuntimeDiagnosticItem("Data Directory", formatRuntimeLocation(data.directoryLocation)),
-    createRuntimeDiagnosticItem("Storage Provider", formatRuntimeValue(storage.provider)),
+    createRuntimeDiagnosticItem("Storage Provider", formatStorageProvider(storage)),
+    createRuntimeDiagnosticItem("Storage Status", formatStorageStatus(storage.health)),
+    createRuntimeDiagnosticItem("Local Storage Root", formatRuntimeLocation(storage.rootLocation)),
     createRuntimeDiagnosticItem("Scanner Mode", formatRuntimeValue(scanner.mode)),
     createRuntimeDiagnosticItem("Worker Mode", formatRuntimeValue(worker.mode)),
     createRuntimeDiagnosticItem("Worker State", formatRuntimeValue(workerStatus.state)),
@@ -412,6 +414,10 @@ function readRuntimeDiagnosticWarnings(diagnostics) {
     warnings.push("Review this storage provider before relying on SQLite small-office mode.");
   }
 
+  if (storage.health?.status === "unavailable") {
+    warnings.push("Storage provider health is unavailable.");
+  }
+
   if (scanner.mode && !["none", "local"].includes(scanner.mode)) {
     warnings.push("Review this scanner mode before relying on SQLite small-office mode.");
   }
@@ -454,6 +460,27 @@ function renderRuntimeDiagnosticWarnings(warnings) {
 
 function formatRuntimeLocation(location) {
   return String(location?.display || "").trim() || "Unavailable";
+}
+
+function formatStorageProvider(storage = {}) {
+  const provider = formatRuntimeValue(storage.provider);
+  const status = formatStorageStatus(storage.health);
+
+  return status === "Unavailable" ? provider : `${provider} (${status})`;
+}
+
+function formatStorageStatus(health = {}) {
+  const status = String(health.status || "").trim().toLowerCase();
+
+  if (status === "ok" || health.available === true) {
+    return "Available";
+  }
+
+  if (status === "unavailable" || health.available === false) {
+    return "Unavailable";
+  }
+
+  return formatRuntimeValue(status);
 }
 
 function formatRuntimeNumber(value) {

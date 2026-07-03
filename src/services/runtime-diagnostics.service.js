@@ -2,6 +2,7 @@ import path from "node:path";
 import { config } from "../config.js";
 import { getJobWorkerStatus } from "../core/jobs/index.js";
 import { readDatabaseHealth } from "../db/index.js";
+import { filesService } from "./files.service.js";
 import { permissionsService } from "./permissions.service.js";
 
 const REQUIRED_PERMISSION = "workspace_settings.manage";
@@ -13,6 +14,7 @@ async function read(session) {
   });
 
   const databaseHealth = await readSafeDatabaseHealth();
+  const storageHealth = await readSafeStorageHealth();
   const workerStatus = getJobWorkerStatus();
 
   return {
@@ -41,7 +43,12 @@ async function read(session) {
       directoryLocation: safeDataDirectoryLocation(config.dataDir),
     },
     storage: {
-      provider: config.storage.provider,
+      provider: storageHealth.provider,
+      health: {
+        available: storageHealth.available,
+        status: storageHealth.status,
+      },
+      rootLocation: safeStorageRootLocation(storageHealth.rootDir || config.storage.localRoot),
     },
     scanner: {
       mode: config.scanner.mode,
@@ -72,6 +79,29 @@ async function read(session) {
   };
 }
 
+async function readSafeStorageHealth() {
+  const provider = safeText(config.storage?.provider || "local") || "local";
+
+  try {
+    const adapter = filesService.getFileStorageAdapter(provider);
+    const health = await adapter.health();
+
+    return {
+      available: health?.ok !== false,
+      provider: safeText(health?.provider || provider),
+      rootDir: safeText(health?.rootDir || config.storage.localRoot),
+      status: health?.ok === false ? "unavailable" : "ok",
+    };
+  } catch {
+    return {
+      available: false,
+      provider,
+      rootDir: safeText(config.storage.localRoot),
+      status: "unavailable",
+    };
+  }
+}
+
 async function readSafeDatabaseHealth() {
   try {
     const health = await readDatabaseHealth();
@@ -94,6 +124,28 @@ async function readSafeDatabaseHealth() {
       status: "unavailable",
     };
   }
+}
+
+function safeStorageRootLocation(rootDir) {
+  const resolved = path.resolve(rootDir || config.storage.localRoot);
+
+  if (isInside(resolved, config.dataDir)) {
+    return {
+      display: joinSafePath("<data-dir>", relativeSafePath(config.dataDir, resolved)),
+      redacted: false,
+      relativeTo: "data-dir",
+    };
+  }
+
+  if (isInside(resolved, config.root)) {
+    return {
+      display: `./${relativeSafePath(config.root, resolved)}`,
+      redacted: false,
+      relativeTo: "app-root",
+    };
+  }
+
+  return redactedPathLocation(resolved);
 }
 
 function safeDatabaseFileLocation(databaseFile) {

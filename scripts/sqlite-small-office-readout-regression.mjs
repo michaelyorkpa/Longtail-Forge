@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.1";
+const appVersion = "0.33.5.22.2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -38,7 +38,7 @@ assert.match(workspaceSettingsView, /data-runtime-diagnostics-fieldset/, "Worksp
 assert.match(workspaceSettingsView, /data-runtime-diagnostics-summary/, "Workspace Settings should include the diagnostics summary target");
 assert.match(workspaceSettingsView, /data-runtime-diagnostics-warnings/, "Workspace Settings should include diagnostics warning copy target");
 assert.match(workspaceSettingsView, /data-job-observability-fieldset/, "Workspace Settings should include a Jobs readout fieldset");
-assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=5/, "Workspace Settings should load the diagnostics readout script cache key");
+assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=6/, "Workspace Settings should load the diagnostics readout script cache key");
 assert.equal(existsSync(path.join(root, "views/protected/runtime-diagnostics.html")), false, "runtime diagnostics should not add a new dashboard page");
 
 assert.match(workspaceSettingsScript, /loadRuntimeDiagnostics\(\)/, "Workspace Settings should load runtime diagnostics separately from editable settings");
@@ -50,12 +50,15 @@ assert.match(workspaceSettingsScript, /Foreign Keys/, "readout should render for
 assert.match(workspaceSettingsScript, /Database File/, "readout should render safe database file location");
 assert.match(workspaceSettingsScript, /Data Directory/, "readout should render safe data directory location");
 assert.match(workspaceSettingsScript, /Storage Provider/, "readout should render storage provider");
+assert.match(workspaceSettingsScript, /Storage Status/, "readout should render storage provider availability");
+assert.match(workspaceSettingsScript, /Local Storage Root/, "readout should render safe local storage root location");
 assert.match(workspaceSettingsScript, /Scanner Mode/, "readout should render scanner mode");
 assert.match(workspaceSettingsScript, /Worker Mode/, "readout should render worker mode");
 assert.match(workspaceSettingsScript, /Worker State/, "readout should render worker state");
 assert.match(workspaceSettingsScript, /Pending/, "readout should render pending job count");
 assert.match(workspaceSettingsScript, /Dead-letter/, "readout should render dead-letter job count");
 assert.match(workspaceSettingsScript, /Confirm redacted runtime paths are on local or attached storage/, "readout should warn when paths need operator review");
+assert.match(workspaceSettingsScript, /Storage provider health is unavailable/, "readout should warn when storage provider health is unavailable");
 assert.doesNotMatch(workspaceSettingsScript, /DATABASE_URL|process\.env|localRoot|storageKey|signedUrl|masterKey|SECURE_NOTES|CLAMD|CLAMSCAN/i, "Workspace Settings readout must not expose raw env, storage, scanner, or key internals");
 
 assert.match(styles, /\.runtime-diagnostics-readout/, "styles should cover the runtime diagnostics fieldset");

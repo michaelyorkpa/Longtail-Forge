@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.1";
+const appVersion = "0.33.5.22.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-admin-job-observability-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-admin-job-observability.db");
@@ -70,7 +70,7 @@ function assertStaticContract() {
   assert.match(workspaceSettingsView, /data-job-observability-summary/, "Workspace Settings should include a Jobs summary target");
   assert.match(workspaceSettingsView, /data-job-observability-failures/, "Workspace Settings should include a recent failures target");
   assert.match(workspaceSettingsView, /data-job-observability-more/, "Workspace Settings should include a bounded pagination load-more control");
-  assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=5/, "Workspace Settings should bump its script cache key");
+  assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=6/, "Workspace Settings should bump its script cache key");
 
   assert.match(workspaceSettingsScript, /loadJobObservability\(\)/, "Workspace Settings should load job observability separately");
   assert.match(workspaceSettingsScript, /\/api\/jobs\/status\?\$\{params\.toString\(\)\}/, "Workspace Settings should consume the protected jobs route");
@@ -86,7 +86,7 @@ function assertStaticContract() {
   assert.match(jobsServiceSource, /boundedPaginationEnvelope/, "jobs service should return the shared bounded pagination envelope");
   assert.doesNotMatch(jobsServiceSource, /payload_json|dedupe_key/, "jobs service must not expose job payloads or dedupe keys");
   assert.match(runtimeDiagnosticsSource, /lastRunAt[\s\S]*lastSuccessAt/, "runtime diagnostics should include worker health timestamps");
-  assert.doesNotMatch(runtimeDiagnosticsSource, /payload_json|dedupe_key|process\.env|localRoot|clamdHost|clamscanPath|masterKey/i, "runtime diagnostics must not expose sensitive internals");
+  assert.doesNotMatch(runtimeDiagnosticsSource, /payload_json|dedupe_key|process\.env|storageKey|signedUrl|clamdHost|clamscanPath|masterKey/i, "runtime diagnostics must not expose sensitive internals");
 
   assert.match(regressionSuite, /scripts\/admin-job-observability-regression\.mjs/, "regression suite should include admin job observability coverage");
   assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");

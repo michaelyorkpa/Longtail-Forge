@@ -79,7 +79,7 @@ Do not run SQLite small-office mode with:
 
 ## Backups
 
-Backups should preserve the database and local runtime data together. Include the SQLite database file and any active SQLite sidecar files, such as WAL or shared-memory files, or use a SQLite-aware backup method. Also include the configured data directory and local file-storage root when attachments are stored locally.
+Backups should preserve the database and local runtime data together. Include the SQLite database file and any active SQLite sidecar files, such as WAL or shared-memory files, or use a SQLite-aware backup method. Also include the configured data directory and local file-storage root when attachments are stored locally. The local file-storage root defaults to `<data-dir>/files` through `LONGTAIL_LOCAL_STORAGE_ROOT`.
 
 For the safest filesystem backup, stop the app first or take a storage snapshot that is consistent across the database and local runtime data. Always test restore into a separate install before relying on a backup plan.
 
@@ -95,6 +95,6 @@ SQLite small-office mode is designed to stay simple. If the install starts needi
 
 ## Admin Readout
 
-Workspace Settings includes a read-only Runtime Diagnostics panel for users with `workspace_settings.manage`. The panel consumes `GET /api/runtime-diagnostics` and shows database provider, SQLite journal mode, foreign-key status, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, and worker state. The API response also includes safe worker status counters for diagnostics; pending/running/dead-letter queue counts and recent failure summaries remain later admin-readout work.
+Workspace Settings includes a read-only Runtime Diagnostics panel for users with `workspace_settings.manage`. The panel consumes `GET /api/runtime-diagnostics` and shows database provider, SQLite journal mode, foreign-key status, safe database file location, safe data directory location, storage provider, storage availability, a safe local storage root label, scanner mode, worker mode, and worker state. The API response also includes safe worker status counters for diagnostics; pending/running/dead-letter queue counts and recent failure summaries remain later admin-readout work.
 
-The readout is diagnostic only. It does not edit runtime configuration, write `.env` values, reveal raw environment variables, expose local storage roots, reveal protected paths, expose scanner internals, or show secure-note key material.
+The readout is diagnostic only. It does not edit runtime configuration, write `.env` values, reveal raw environment variables, expose raw local storage roots, reveal protected paths, expose scanner internals, or show secure-note key material.

@@ -145,16 +145,16 @@ Acceptance criteria:
 
 ### Version 0.33.5.22.2 - Storage diagnostics and local storage docs
 
-- [ ] Add provider health checks: call the adapter `health()` method (already implemented for local at `local-storage-adapter.js:20-23`) from the diagnostics path and normalize the result into a safe availability status without leaking the absolute root path.
-- [ ] Extend the existing admin diagnostics (do not add a new surface): the `storage` block returned by `runtimeDiagnosticsService.read` (`runtime-diagnostics.service.js:43-45`) and its "Storage Provider" row in `public/js/workspace-settings.js:240` should expose:
-  - [ ] Provider ID.
-  - [ ] Availability status from the provider `health()` check.
-  - [ ] Local root path as a safe/redacted label, reusing the existing `safeDataDirectoryLocation`/redaction helpers in `runtime-diagnostics.service.js:121-141` so the raw filesystem path is not exposed.
-- [ ] Add local storage docs and update runtime-configuration docs so `LONGTAIL_STORAGE_PROVIDER=local` and `LONGTAIL_LOCAL_STORAGE_ROOT` are marked live rather than merely reserved.
-- [ ] Add regressions proving:
-  - [ ] Runtime diagnostics reports safe storage provider health.
-  - [ ] The Workspace Settings readout renders provider status without a new admin surface.
-  - [ ] File routes and diagnostics do not expose storage keys, protected paths, raw local roots, or signed URLs.
+- [x] Add provider health checks: call the adapter `health()` method (already implemented for local at `local-storage-adapter.js:20-23`) from the diagnostics path and normalize the result into a safe availability status without leaking the absolute root path.
+- [x] Extend the existing admin diagnostics (do not add a new surface): the `storage` block returned by `runtimeDiagnosticsService.read` (`runtime-diagnostics.service.js:43-45`) and its "Storage Provider" row in `public/js/workspace-settings.js:240` should expose:
+  - [x] Provider ID.
+  - [x] Availability status from the provider `health()` check.
+  - [x] Local root path as a safe/redacted label, reusing the existing `safeDataDirectoryLocation`/redaction helpers in `runtime-diagnostics.service.js:121-141` so the raw filesystem path is not exposed.
+- [x] Add local storage docs and update runtime-configuration docs so `LONGTAIL_STORAGE_PROVIDER=local` and `LONGTAIL_LOCAL_STORAGE_ROOT` are marked live rather than merely reserved.
+- [x] Add regressions proving:
+  - [x] Runtime diagnostics reports safe storage provider health.
+  - [x] The Workspace Settings readout renders provider status without a new admin surface.
+  - [x] File routes and diagnostics do not expose storage keys, protected paths, raw local roots, or signed URLs.
 
 Acceptance criteria:
 
@@ -559,116 +559,198 @@ Acceptance criteria:
 
 ## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
 
-### Version 0.33.6.1 - Dashboard and Workbench Surface Contracts
+Purpose:
 
-- [ ] Define Dashboard as the workspace overview/orientation surface.
-- [ ] Define Workbench as the active work/resumption/focus surface.
-- [ ] Keep Dashboard and Workbench separate.
-- [ ] Add framework-owned contribution contracts for:
-  - [ ] Dashboard panels.
-  - [ ] Workbench cards.
-  - [ ] Focus modes.
-  - [ ] Work item sources.
-  - [ ] Next action candidates.
-  - [ ] Resume state/context snippets.
-- [ ] Remove remaining hardcoded Task/Time assumptions from Dashboard and Workbench where a module contribution can own the behavior.
-- [ ] Preserve permission checks, module enabled/disabled checks, and workspace boundaries for every contribution.
+Turn the already-existing Dashboard and Workbench surfaces into framework-owned hosts that render module *contributions* instead of hardcoded Tasks/Time-Tracking behavior. Dashboard becomes the workspace overview/orientation surface; Workbench becomes the active work/resumption/focus surface driven by a single normalized work-candidate model, focus modes, the existing resume-state service, a floating Quick Action Capture (QAC) drawer, and a Workbench Inspector.
 
-### Version 0.33.6.2 - Workbench Focus Modes
+This is a formalization and de-hardcoding pass, not greenfield. Dashboard, Workbench, and the resume-state service already exist; several contribution contracts already exist. The work is finishing/converting them, adding the net-new contracts, and reconciling the QAC/Inspector direction from `TODO.md`.
 
-- [ ] Add Workbench focus selector.
-- [ ] Initial modes:
-  - [ ] Pick up where I left off.
-  - [ ] Today.
-  - [ ] Next due.
-  - [ ] This week.
-  - [ ] Blocked.
-  - [ ] In progress.
-  - [ ] Project focus.
-  - [ ] Client focus for Business workspaces.
-- [ ] Each focus mode should resolve to a normalized focus context passed to module work item providers.
-- [ ] Focus modes should be user-friendly labels over deterministic filters, not separate hardcoded pages.
+Dependencies and framework baseline:
 
-### Version 0.33.6.3 - Next Action Candidates
+- 0.33.5.9 shipped the framework-owned resume-state service and `/api/work-resume`.
+- 0.33.5.15/0.33.5.16/0.33.5.18 provide the `LongtailForge.view` primitives, validated `viewSurfaces`/`renderSurface(...)`, minimal protected hosts, and the finalized view baseline. Dashboard/Workbench hosts must consume this baseline rather than hand-building framework-owned anatomy (mirrors the Reporting host rule in 0.33.8).
 
-- [ ] Add normalized next action candidate shape.
-- [ ] Tasks should provide first next action candidates.
-- [ ] Time Tracking should provide running/paused timer candidates.
-- [ ] Lists should provide active/incomplete/needed-soon list candidates when Lists integrations are ready.
-- [ ] Notes should provide resume/supporting-context candidates for Active Work notes when Notes integrations are ready.
-- [ ] Future Tickets should provide waiting/urgent/assigned ticket candidates.
-- [ ] Add deterministic ranking:
-  - [ ] Running timers.
-  - [ ] Paused timers.
-  - [ ] Overdue assigned work.
-  - [ ] Due today.
-  - [ ] Blocked/stale work.
-  - [ ] Recently touched work.
-  - [ ] Due this week.
-- [ ] Every candidate should provide a reason string, primary action, safe context label, and source URL.
+Current wiring (grounding for this branch):
 
-### Version 0.33.6.4 - Resume State Consumption / Where I Left Off UI
+- Contribution contracts already half-exist. The module manifest already validates `dashboard` and `workbench` contributions (plus `timerSources`/`workItemSources`) in `src/core/modules/manifest-contract.js:1019-1047`, and `modulesService` already exposes `listDashboardPanels`, `listWorkbenchCards`, `listTimerSources`, `listWorkItemSources` (`src/core/modules/modules.service.js:997-1023`), all filtered through the shared `listWorkspaceContributions(workspaceId, session, fieldName)` path (enabled-module + `requiredPermissions` + `requiredWorkspaceCapabilities` + `requiresEnabledModules`). The **net-new** contracts are focus modes and a candidate source; a resume-snippet producer contract already exists (below).
+- Workbench still hardcodes Tasks + Time-Tracking despite having the registry: `src/services/workbench.service.js:1-21` imports `tasksService`/`activeTimersService` and calls them directly alongside `listWorkbenchCards`/`listTimerSources`/`listWorkItemSources`. This is the primary de-hardcoding target.
+- Dashboard is hand-built static HTML, not a framework host: `views/protected/dashboard.html` hardcodes the client/billing panels inline and exposes only a hidden `data-dashboard-extension-panels` stub for contributions. Converting it to a minimal host is in scope for this version.
+- Resume state is fully built and safe by construction. `GET /api/work-resume` + `POST /api/work-resume/:id/dismiss` (`src/routes/work-resume.routes.js`) return a rich normalized item (`title`, `contextLabel`, `nextAction`, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, `resumeRankHint`, `lastActionLabel`, `metadata`, `mode`). It is fed by an event-driven producer registry (`src/services/work-resume-state-producers.js`) with a strict field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `encrypt`, `storage.key`, `scanner`, ...). This producer payload is the basis for the shared work-candidate shape below.
+- Global chrome is injected per protected page via the shared `navigation.js` + `footer.js` includes (see `views/protected/dashboard.html`); the QAC floating drawer hooks into that app-shell include so it appears on all protected screens.
 
-- [ ] Consume the framework-owned resume state service introduced in 0.33.5.9.
-- [ ] Workbench "Pick up where I left off" should use `/api/work-resume` first.
-- [ ] Fall back to recent activity only when no active resume rows exist.
-- [ ] Show one recommended resume candidate first.
-- [ ] Keep secondary candidates available but visually subordinate.
-- [ ] Allow users to dismiss stale resume candidates.
-- [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries.
+Sizing rule for this branch:
 
-### Version 0.33.6.5 - Guided Workbench UI
+- Each sub-slice below should have one primary blast radius and should be completable in a single focused implementation session.
+- Each implementation sub-slice follows the normal release ceremony: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
+- Do not combine adjacent slices just because the same helper file is already open. In particular, the candidate model (0.33.6.2) is split from its ranking/sources (0.33.6.3), and the Dashboard host conversion (0.33.6.8) is split from moving Time-Tracking's panels into contributions (0.33.6.9).
 
-- [ ] Add question-led Workbench entry:
-  - [ ] "Pick up where I left off"
-  - [ ] "Start with what's due"
-  - [ ] "Work this week"
-  - [ ] "Review blocked work"
-  - [ ] "Focus on a project"
-- [ ] Show one recommended next action before showing longer lists.
-- [ ] Keep secondary lists available but visually subordinate.
-- [ ] Avoid turning Workbench into another full module index.
+Key decisions for this branch:
+
+- QAC is a floating bottom-right drawer available on all protected pages, NOT a permanent right-side rail (reconciling `TODO.md` against the earlier rail wording). Record this in `DECISIONS.md`.
+- The Workbench Inspector is a persistent right panel on wide Workbench layouts showing related record titles and read-only previews. It is a distinct surface from QAC and must not steal the same screen space.
+- Next-action candidates and resume state share ONE normalized work-candidate shape derived from the existing resume-producer payload; there is no second parallel candidate contract. The candidate model inherits the producer allowlist/forbidden-field safety so candidates can never leak body/secure/storage-key content.
+
+### Version 0.33.6.1 - Surface contracts and scope (plan only)
+
+- [ ] Define Dashboard as the workspace overview/orientation surface and Workbench as the active work/resumption/focus surface, and keep them separate.
+- [ ] Confirm and document the already-existing contribution contracts (`dashboard`, `workbench`, `timerSources`, `workItemSources`) and the resume-state producer registry, so later slices extend rather than reinvent them.
+- [ ] Name the net-new contracts this branch adds: a focus-mode contract/registry (0.33.6.4) and a normalized work-candidate source (0.33.6.2-0.33.6.3).
+- [ ] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls; the inline panels in `views/protected/dashboard.html`) and assign each to its owning slice.
+- [ ] Preserve, as a standing requirement for every slice, permission checks, module enabled/disabled checks, workspace boundaries, and private/secure/deleted-record handling.
+- [ ] Update the implementation plan only; do not change runtime behavior in this slice.
+
+Acceptance criteria:
+
+- The Dashboard/Workbench boundary, the existing vs. net-new contracts, and the de-hardcoding targets are documented, with each target assigned to a later slice.
+
+### Version 0.33.6.2 - Normalized work-candidate contract and service
+
+- [ ] Promote the resume-producer payload shape (`src/services/work-resume-state-producers.js`) into a single normalized work-candidate shape reused by both next-action ranking and resume state: `moduleId`, `recordType`, `recordId`, `title`, `contextLabel`, `reason`, primary-action descriptor, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, and a rank hint.
+- [ ] Add a framework-owned candidate service that assembles candidates from resume-state rows plus live signals (e.g. running/paused timers) behind one shape.
+- [ ] Inherit the producer safety rules verbatim: the same field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `storage.key`, `scanner`, ...) so a candidate can never carry body text, secure content, storage keys, or raw IDs in labels.
+- [ ] Every candidate must expose a reason string, a primary action, a safe context label, and a source URL; labels follow the `docs/workflow-context-contract.md` no-raw-ID rule.
+- [ ] Add regressions proving the shape is stable and that forbidden fields are stripped even if a source tries to supply them.
+
+Acceptance criteria:
+
+- One normalized, safe-by-construction work-candidate shape backs both next-action and resume behavior, with no second parallel contract.
+
+### Version 0.33.6.3 - Deterministic ranking and module candidate sources
+
+- [ ] Add deterministic candidate ranking: running timers, paused timers, overdue assigned work, due today, blocked/stale work, recently touched work, due this week.
+- [ ] Tasks contributes task candidates and Time Tracking contributes running/paused timer candidates through the shared contract; Lists, Notes (Active Work), and future Tickets contribute when their integrations are ready.
+- [ ] Reuse the existing resume-state producer registry where a candidate is event-driven; add a pull-style candidate source only where live state (e.g. active timers) is not captured by producers.
+- [ ] Keep ranking a pure function of candidate fields (no hidden per-module ordering) so the "one recommended next action" is deterministic and testable.
+- [ ] Add regressions for ranking order across mixed candidate types and for disabled-module/permission filtering of sources.
+
+Acceptance criteria:
+
+- Candidates from multiple modules rank deterministically into a single ordered list, permission- and module-aware.
+
+### Version 0.33.6.4 - Focus-mode contract and resolver
+
+- [ ] Add a focus-mode contract/registry (following the `listWorkspaceContributions` pattern) with the canonical modes: Start my day, Pick up where I left off, What's due next, Work this week, Review blocked work, In progress, Project focus, and Client focus (Business workspaces only).
+- [ ] Each focus mode resolves to a normalized focus context (scope, client/project, status/date filters) passed to the candidate sources from 0.33.6.3.
+- [ ] Focus modes are user-friendly labels over deterministic filters, not separate hardcoded pages.
+- [ ] Client focus must be hidden outside Business workspaces; Personal/Family must not surface client scope or labels.
+- [ ] Add regressions for mode-to-context resolution and workspace-type gating.
+
+Acceptance criteria:
+
+- A canonical focus-mode set resolves to normalized focus contexts that drive the candidate sources, with correct workspace-type gating.
+
+### Version 0.33.6.5 - De-hardcode the Workbench service
+
+- [ ] Remove the direct `tasksService`/`activeTimersService` imports and hardcoded `tasks`/`time-tracking` branches from `src/services/workbench.service.js`; drive timers and work items purely through the contribution registry and the candidate service.
+- [ ] Keep the existing Workbench bootstrap response shape working for the browser during the transition (adapt internals without breaking the page contract).
+- [ ] Preserve enabled/disabled-module handling, permission checks, and workspace boundaries already enforced in `bootstrap`.
+- [ ] Add regressions proving Workbench renders the same live data with Tasks/Time enabled and degrades cleanly when either is disabled, without importing them directly.
+
+Acceptance criteria:
+
+- Workbench data comes entirely from contributions and the candidate service, with no hardcoded module imports and no behavior regression.
+
+### Version 0.33.6.6 - Guided Workbench UI
+
+- [ ] Add a question-led Workbench entry that presents the focus modes as friendly questions ("Pick up where I left off", "Start with what's due", "Work this week", "Review blocked work", "Focus on a project") over the 0.33.6.4 deterministic filters.
+- [ ] Show one recommended next action (top-ranked candidate) before showing longer lists.
+- [ ] Keep secondary lists available but visually subordinate; do not turn Workbench into another full module index.
 - [ ] Add empty states that suggest a useful next step instead of dead ends.
+- [ ] Build on `LongtailForge.view` primitives and framework view states; do not hand-build framework-owned anatomy.
+- [ ] Add focused browser/static regressions for focus selection, recommended-action rendering, and empty states.
 
-### Version 0.33.6.6 - Quick Action Capture Utility Rail
+Acceptance criteria:
+
+- Workbench opens as a guided, focus-led surface that highlights one recommended action first and keeps secondary work subordinate.
+
+### Version 0.33.6.7 - Resume "Pick up where I left off" UI
+
+- [ ] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to recent activity only when no active resume rows exist.
+- [ ] Show one recommended resume candidate first; keep secondary candidates subordinate.
+- [ ] Allow users to dismiss stale resume candidates via `POST /api/work-resume/:id/dismiss`.
+- [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries (already enforced by the producer allowlist).
+- [ ] Add regressions for resume-first ordering, activity fallback, dismiss behavior, and safe handling of stale/unavailable targets.
+
+Acceptance criteria:
+
+- The resume focus consumes the existing resume-state service, recommends one candidate first, supports dismissal, and never exposes unsafe content.
+
+### Version 0.33.6.8 - Dashboard host conversion
+
+- [ ] Convert `views/protected/dashboard.html` into a minimal framework host that renders contributed dashboard panels via `modulesService.listDashboardPanels` and registered panel renderers, using `LongtailForge.view` primitives for shell/header/status/empty/error states.
+- [ ] Keep the existing panels working through the host during the conversion (no visual/data regression), retiring the hidden `data-dashboard-extension-panels` stub.
+- [ ] Do not hand-build framework-owned Dashboard anatomy in static HTML or ad-hoc DOM when a view primitive or descriptor field covers it.
+- [ ] Add a focused static regression proving the Dashboard page is a minimal framework host.
+
+Acceptance criteria:
+
+- Dashboard renders module-contributed panels through a framework host rather than hardcoded static markup, with existing panels preserved.
+
+### Version 0.33.6.9 - Move Time-Tracking dashboard panels into contributions
+
+- [ ] Move the currently-inline billing/client Dashboard panels (client summary, current-month billables, hours-and-billables chart) out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
+- [ ] Keep Time Tracking responsible for the billing/time data and calculations; keep the framework responsible only for panel hosting, placement, and status/empty/error states.
+- [ ] Ensure the panels disappear cleanly when Time Tracking is disabled or the user lacks the required permissions, via the existing contribution filtering.
+- [ ] Add regressions proving the panels appear only when Time Tracking is enabled and permitted, and that no hardcoded Task/Time assumptions remain in the Dashboard host.
+
+Acceptance criteria:
+
+- The Dashboard billing/client panels are module contributions gated by enabled-module and permission checks, with no remaining hardcoded Time-Tracking markup in the host.
+
+### Version 0.33.6.10 - Quick Action Capture floating drawer
 
 Decision:
 
-Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the user's current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to:
+QAC is app-shell utility behavior, not a Workbench focus mode. It provides low-distraction access to common capture and recovery tools without navigating away from the current work surface: reduce focus/workflow interruption, keep productivity focused, and allow quick idea/thought capture without derailing the work train. QAC is a floating bottom-right drawer (not a permanent rail).
 
-- Reduce the likelihood of focus/workflow being interrupted
-- Keep productivity focused
-- Allow easy idea/concept/thought expungement without derailing the entire work train
+- [ ] Add a floating, drawer-style QAC control anchored bottom-right, available on ALL protected screens via the shared app-shell include (`navigation.js`/`footer.js`), quiet until the user opens it.
+  - [ ] Use an icon that communicates action/capture rather than words that consume screen real estate (evaluate a "runner"/lightning-style glyph against the existing icon registry at build time).
+  - [ ] On wide screens the drawer may show icon + small text; on narrow screens it collapses to icon-only.
+- [ ] Drawer actions are contributed by enabled modules or mapped from registered module actions; since the user may not yet have a target record, capture actions should offer an initial find-or-create modal.
+- [ ] First actions and their target behavior:
+  - [ ] Timer - opens the future 2-timer modal when it exists; temporary fallback to `time-tracker.html` (see deferred follow-ups in 0.33.6.12).
+  - [ ] Task - opens a task picker with an Add Task button, then the appropriate task modal.
+  - [ ] Note - opens a note picker with an Add Note button, then the appropriate note modal.
+  - [ ] List - opens a picker to add an item to a list or add a list, then the appropriate modal.
+  - [ ] File - opens the Add File modal.
+  - [ ] Reporting - opens the future report-creation modal when it exists; temporary fallback to `reporting.html`.
+  - [ ] Search - opens the future advanced-search modal when it exists; temporary fallback to `search.html`.
+- [ ] Actions open modals without changing the current page, receive safe current-page context when available, and return focus to the triggering control when closed.
+- [ ] If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback; temporary navigation fallbacks must be removed once the modal action exists.
+- [ ] Do not use badges, alerts, or recommendation behavior in the drawer; notifications and Workbench own those concerns.
+- [ ] Add regressions for drawer presence on protected pages, contributed-action gating, focus return, quiet-until-opened behavior, and temporary-fallback labeling.
 
-- [ ] Add a compact right-side Utility Rail on protected app pages.
-  - [ ] Should be icons + small text on wide screens, can be narrowed to strictly icons on narrow screens
-  - [ ] Should be available on ALL protected screens (not just the workbench)
-  - [ ] A single, drawer-style Quick Action Capture button should float on mobile
-    - [ ] The QAC menu drawer button should be an icon that indicates what it is, rather than words that would steal valuable screen real estate
-      - Action or Capture should be the main icon driver; Perhaps a fast moving runner? Is there an icon for that?
+Acceptance criteria:
 
-- [ ] Rail actions should be contributed by enabled modules or mapped from registered module actions.
-  - Since we don't know if the user has an idea/thought to contribute to an existing, task, list, or note we should offer an initial modal that allows for finding of the item or creating a new one.
-  - [ ] Timer (Should open a modal capable of 2 timers, eventually; for now take you to time-tracker.html)
-    - [ ] Add documentation for 0.33.6.7 for creating the timer modal funcationality with a limit of 2 timers
-      - Within this documentation include instructions to redirect the QAC timer button to this new modal timer.
-  - [ ] Task (Should open a picker to find a task with a button to Add Task, then open the appropriate modal)
-  - [ ] Note (Should open a picker to find a note with a button to Add Note, then direct to the appropriate modal)
-  - [ ] List (Should open a picker to add an item to a list or add a list, then open the appropriate modal)
-  - [ ] Reporting (Should open a report creation modal, eventually; for now take you to reporting.html)
-    - [ ] Add documentation for 0.37.5 for creating the reporting modal
-  - [ ] File (Should open the Add file modal)
-  - [ ] Search (Should open an advanced search modal, eventually; for now take you to search.html)
-    - [ ] Add documentation for 0.33.6.8 for creating the advanced search modal functionality with a search result display modal
-      - Add documentation in 0.33.6.9 to update all search results to display in this modal, even searches from the main menu ribbon. Yes, this might be a complete overhaul of the search system (or at least a major extension of it) if this needs to go into its own ROADMAP version in 0.33.9, that's also fine. Evaluate at the time of building the documentation, please
-  - If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback.
-  - Temporary navigation fallbacks must be removed once the modal action exists.
+- A quiet floating QAC drawer is available on all protected pages, opens contributed capture actions as modals (with explicit temporary page fallbacks), preserves focus, and adds no badge/alert noise.
 
-- [ ] Actions should open modals without changing the current page.
-- [ ] Actions should receive safe current-page context when available.
-- [ ] Actions must return focus to the triggering control when closed.
-- [ ] The rail must stay visually quiet unless opened by the user.
-- [ ] Do not use badges, alerts, or recommendation behavior in the rail; notifications and Workbench own those concerns.
+### Version 0.33.6.11 - Workbench Inspector panel
+
+- [ ] Add a persistent Inspector panel on wide Workbench layouts (subordinate to the main surface) that stays out of the QAC drawer's space.
+- [ ] Show related record titles when idle; clicking a related title opens a read-only preview inside the Inspector (reuse existing preview/linked-context infrastructure rather than a new viewer).
+- [ ] Keep the Inspector permission-safe and workspace-aware, and apply the no-raw-ID/`docs/workflow-context-contract.md` label rules; non-Workbench screens remain centered unless they explicitly opt into Inspector behavior.
+- [ ] Degrade gracefully on narrow screens (collapse/hide) and when there is no related context.
+- [ ] Add regressions for related-title rendering, read-only preview, permission scoping, and narrow-screen behavior.
+
+Acceptance criteria:
+
+- The Workbench Inspector shows permission-safe related titles and read-only previews on wide layouts without competing with the QAC drawer or leaking unsafe content.
+
+### Version 0.33.6.12 - Guardrails, docs, decisions, and closeout
+
+- [ ] Record the branch decisions in `DECISIONS.md`: QAC as a floating drawer (not a permanent rail), the single shared work-candidate shape, and the Workbench Inspector as a distinct surface.
+- [ ] Add guardrails so Dashboard/Workbench hosts do not hand-build framework-owned page/header/filter/status anatomy when a view primitive covers it, and do not reintroduce hardcoded module assumptions.
+- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, and `docs/view-building-contract.md` with the Dashboard/Workbench host status and the focus-mode/candidate/QAC contribution boundaries.
+- [ ] Define the deferred future-modal follow-ups the QAC actions temporarily fall back to, as explicit cross-referenced items (not hidden inside QAC bullets):
+  - [ ] 2-timer Timer modal (redirect the QAC Timer action to it once built).
+  - [ ] Advanced-search modal + search-result display modal, including routing all search results (even main-ribbon searches) through it; evaluate at build time whether this needs its own roadmap version (e.g. 0.33.9) given the potential search overhaul.
+  - [ ] Report-creation modal, cross-referenced to 0.37.5.
+- [ ] Run the Dashboard/Workbench regressions, `npm run check`, and `npm run test:permissions` (re-running any transiently-flaky isolated-DB regressions standalone to confirm).
+- [ ] Verify `/api/app-info` reports the expected version after restart and that Dashboard/Workbench render correctly with modules enabled and disabled.
+
+Acceptance criteria:
+
+- Dashboard/Workbench are framework-owned hosts driven by contributions and the shared candidate model, decisions and docs are recorded, deferred modal follow-ups are cross-referenced, and the regression suite covers the new surfaces.
 
 ## Version 0.33.7 - Task Calendar Views (lean, read-only)
 

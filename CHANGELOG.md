@@ -1,3 +1,11 @@
+## Version 0.33.5.22.2 - 2026-07-03
+
+- Added safe Files storage provider health to runtime diagnostics, including provider ID, availability, and a data-root/app-root relative or redacted local storage root label.
+- Updated the existing Workspace Settings Runtime Diagnostics panel to show storage provider status and the safe local storage root without adding a new admin surface.
+- Preserved Files route safety: file route payloads and diagnostics continue to avoid storage keys, protected paths, signed URLs, scanner internals, and raw local filesystem roots.
+- Added `scripts/file-storage-diagnostics-regression.mjs`, wired it into the file-storage regression bucket, refreshed runtime/SQLite docs and decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.2.
+- Verification 2026-07-03 07:52 -04:00: `scripts/file-storage-diagnostics-regression.mjs`, `scripts/runtime-diagnostics-route-regression.mjs`, `scripts/sqlite-small-office-readout-regression.mjs`, `scripts/file-storage-provider-configuration-regression.mjs`, `scripts/file-api-lifecycle-regression.mjs`, `scripts/runtime-configuration-contract-regression.mjs`, and `scripts/regression-clean-clone-contract.mjs` targeted checks passed; `npm run check` passed 244/244 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.2 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.1 - 2026-07-03
 
 - Routed Files upload writes through a service-owned configured storage provider resolver instead of hardcoding `local`, while keeping `local` as the default and only built-in provider for this slice.
