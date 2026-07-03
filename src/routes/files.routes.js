@@ -6,6 +6,7 @@ import { asyncRoute, readJsonBody } from "../utils/http.js";
 
 const filesRoutes = Router();
 const MAX_FILE_JSON_BODY_BYTES = 8 * 1024 * 1024;
+const MAX_MULTIPART_BATCH_FILES = 50;
 const MAX_MULTIPART_FIELD_BYTES = 64 * 1024;
 const MAX_MULTIPART_FIELDS = 20;
 
@@ -18,6 +19,11 @@ filesRoutes.post("/files", asyncRoute(async (request, response) => {
 filesRoutes.post("/files/upload", asyncRoute(async (request, response) => {
   const result = await readMultipartUpload(request);
   response.status(201).json(result);
+}));
+
+filesRoutes.post("/files/upload/batch", asyncRoute(async (request, response) => {
+  const result = await readMultipartBatchUpload(request);
+  response.status(result.failed > 0 ? 207 : 201).json(result);
 }));
 
 filesRoutes.post("/files/batch", asyncRoute(async (request, response) => {
@@ -257,15 +263,149 @@ function readMultipartUpload(request) {
   });
 }
 
-function buildMultipartUploadPayload(fields, fileStream, info = {}) {
+function readMultipartBatchUpload(request) {
+  const contentType = String(request.headers["content-type"] || "").toLowerCase();
+
+  if (!contentType.includes("multipart/form-data")) {
+    throw new AppError("Multipart file uploads require multipart/form-data.", 415);
+  }
+
+  return new Promise((resolve, reject) => {
+    let parser;
+
+    try {
+      parser = Busboy({
+        headers: request.headers,
+        limits: {
+          fields: MAX_MULTIPART_FIELDS,
+          fieldSize: MAX_MULTIPART_FIELD_BYTES,
+          files: MAX_MULTIPART_BATCH_FILES,
+        },
+      });
+    } catch {
+      reject(new AppError("Multipart upload could not be parsed.", 400));
+      return;
+    }
+
+    const fields = new Map();
+    const uploadPromises = [];
+    let settled = false;
+    let uploadCount = 0;
+
+    const fail = (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(error instanceof AppError ? error : new AppError("Multipart upload could not be parsed.", 400));
+    };
+
+    parser.on("field", (name, value, info = {}) => {
+      if (settled) {
+        return;
+      }
+      if (info.valueTruncated) {
+        fail(new AppError("Multipart upload metadata field is too large.", 413));
+        return;
+      }
+      fields.set(name, value);
+    });
+
+    parser.on("file", (fieldName, file, info = {}) => {
+      if (settled) {
+        file.resume();
+        return;
+      }
+      if (!["file", "files"].includes(fieldName)) {
+        file.resume();
+        fail(new AppError("Multipart batch upload expects file fields named 'files'.", 400));
+        return;
+      }
+
+      let payload;
+      const index = uploadCount;
+      uploadCount += 1;
+
+      try {
+        payload = buildMultipartUploadPayload(fields, file, info, index);
+      } catch (error) {
+        file.resume();
+        fail(error);
+        return;
+      }
+
+      uploadPromises.push(
+        filesService.uploadStreamAndAttach(request.session, payload)
+          .then((result) => ({
+            attachment: result.attachment,
+            file: result.file,
+            index,
+            ok: true,
+            originalFilename: payload.originalFilename || payload.filename || "",
+          }))
+          .catch((error) => {
+            file.resume();
+            return {
+              error: error?.message || "Upload failed.",
+              index,
+              ok: false,
+              originalFilename: payload.originalFilename || payload.filename || "",
+              status: error?.status || error?.statusCode || 400,
+            };
+          }),
+      );
+    });
+
+    parser.on("fieldsLimit", () => {
+      fail(new AppError("Multipart upload has too many metadata fields.", 400));
+    });
+    parser.on("filesLimit", () => {
+      fail(new AppError("Multipart batch upload accepts up to 50 files.", 400));
+    });
+    parser.on("error", () => {
+      fail(new AppError("Multipart upload could not be parsed.", 400));
+    });
+    parser.on("finish", async () => {
+      if (settled) {
+        return;
+      }
+      if (uploadPromises.length === 0) {
+        fail(new AppError("Multipart batch upload requires at least one file.", 400));
+        return;
+      }
+
+      const results = (await Promise.all(uploadPromises)).sort((left, right) => left.index - right.index);
+      const succeeded = results.filter((result) => result.ok).length;
+      const failed = results.length - succeeded;
+
+      settled = true;
+      resolve({
+        failed,
+        ok: failed === 0,
+        results,
+        succeeded,
+        total: results.length,
+      });
+    });
+
+    request.pipe(parser);
+  });
+}
+
+function buildMultipartUploadPayload(fields, fileStream, info = {}, batchIndex = null) {
   for (const fieldName of ["moduleId", "targetType", "targetId"]) {
     if (!fieldValue(fields, fieldName)) {
       throw new AppError("Multipart upload metadata fields must be sent before the file field.", 400);
     }
   }
 
+  const attachmentMetadata = parseOptionalJsonObject(fieldValue(fields, "attachmentMetadata"));
+  if (batchIndex !== null) {
+    attachmentMetadata.batch_index = batchIndex;
+  }
+
   return {
-    attachmentMetadata: parseOptionalJsonObject(fieldValue(fields, "attachmentMetadata")),
+    attachmentMetadata,
     attachmentRole: fieldValue(fields, "attachmentRole"),
     caption: fieldValue(fields, "caption"),
     displayName: fieldValue(fields, "displayName"),

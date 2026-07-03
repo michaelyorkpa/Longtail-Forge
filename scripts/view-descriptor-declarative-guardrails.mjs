@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.22.4";
+const appVersion = "0.33.5.22.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -356,16 +356,18 @@ assert.match(functionBlock(fileAttachmentsJs, "createUploadShell"), /view\?\.cre
   "Upload shell should use shared list-shell anatomy with a centralized fallback");
 assert.match(functionBlock(fileAttachmentsJs, "createAttachmentActions"), /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore[\s\S]*view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/,
   "Attachment actions should stay in a shared dense action shell with Files action IDs");
-assert.match(functionBlock(fileAttachmentsJs, "uploadFiles"), /readFileBase64\(file\)[\s\S]*\/api\/files\/batch[\s\S]*visibility:\s*options\.visibility/,
-  "Attachment upload behavior should keep Files-owned file reads, payloads, route calls, and visibility");
-assert.match(functionBlock(fileAttachmentsJs, "readFileBase64"), /new FileReader\(\)[\s\S]*readAsDataURL\(file\)/,
-  "FileReader conversion should remain a documented Files-owned escape hatch");
+assert.match(functionBlock(fileAttachmentsJs, "uploadFiles"), /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/,
+  "Attachment upload behavior should keep Files-owned streamed route calls");
+assert.match(functionBlock(fileAttachmentsJs, "buildUploadForm"), /appendFormField\(form, "visibility", options\.visibility\)[\s\S]*form\.append\("files", file, file\.name\)/,
+  "Attachment upload behavior should keep Files-owned metadata and file payload construction");
+assert.doesNotMatch(fileAttachmentsJs, /FileReader|function readFileBase64/,
+  "Attachment helper should not use FileReader for the normal browser upload path");
 assert.match(functionBlock(fileAttachmentsJs, "acceptedExtensions"), /archive[\s\S]*document[\s\S]*image[\s\S]*pdf[\s\S]*presentation[\s\S]*text/,
   "Accepted file categories should remain Files-owned");
 for (const routeCheck of [
   [functionBlock(fileAttachmentsJs, "refresh"), /\/api\/files\/attachments\?/, "Attachment refresh should use the Files attachment route"],
   [functionBlock(fileAttachmentsJs, "createAttachmentDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download/, "Attachment downloads should use the Files download route"],
-  [functionBlock(fileAttachmentsJs, "uploadFiles"), /\/api\/files\/batch/, "Attachment uploads should use the Files batch route"],
+  [functionBlock(fileAttachmentsJs, "uploadFiles"), /\/api\/files\/upload\/batch/, "Attachment uploads should use the streamed Files batch route"],
   [functionBlock(fileAttachmentsJs, "removeAttachment"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(attachmentId\)\}\/remove/, "Attachment removal should use the Files attachment route"],
   [functionBlock(fileAttachmentsJs, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report/, "Attachment Report should use the Files route"],
   [functionBlock(fileAttachmentsJs, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine/, "Attachment Review should use the quarantine route"],

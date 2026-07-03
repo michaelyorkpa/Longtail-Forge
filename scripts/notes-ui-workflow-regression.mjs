@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.22.4");
+  assert.equal(notesModule.version, "0.33.5.22.5");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -58,7 +58,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
   assert.match(html, /js\/notes\.js\?v=70/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
-  assert.match(html, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/);
+  assert.match(html, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
   assert.match(html, /css\/longtail-forge\.css\?v=56/);
   // No static read chrome or dialog markup remains in the host page.

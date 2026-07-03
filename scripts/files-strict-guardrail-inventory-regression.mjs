@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.4";
+const appVersion = "0.33.5.22.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -29,7 +29,7 @@ assert.match(declarativeGuide, /Strict guardrails currently enforce[\s\S]*`files
 assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.12\.7/, "Files inventory should report the current slice");
 assert.match(inventoryDoc, /strict enforcement is active/, "Files inventory should document active strict enforcement");
 assert.match(inventoryDoc, /Framework-Owned Anatomy Strictly Guarded[\s\S]*Page host and header[\s\S]*Slide-out sidebar and filters[\s\S]*Results list and table shell[\s\S]*Dense row actions[\s\S]*File Context modal placement[\s\S]*Preview modal placement[\s\S]*Attachment panel shell[\s\S]*Upload and dropzone shell[\s\S]*Empty and status states[\s\S]*Modal and overlay stacking/, "Files inventory should map framework-owned guarded anatomy");
-assert.match(inventoryDoc, /Allowed Files-Owned Escape Hatches[\s\S]*File reading and upload payloads[\s\S]*Attachment reads and host callbacks[\s\S]*Scan, review, download, and preview availability[\s\S]*Files route calls[\s\S]*Confirmations and lifecycle meaning[\s\S]*Permission-aware visibility[\s\S]*Target metadata and readable labels[\s\S]*Deleted, unavailable, and in-review recovery states[\s\S]*File Context modal opener[\s\S]*Preview modal opener/, "Files inventory should document Files-owned escape hatches");
+assert.match(inventoryDoc, /Allowed Files-Owned Escape Hatches[\s\S]*Upload payloads[\s\S]*Attachment reads and host callbacks[\s\S]*Scan, review, download, and preview availability[\s\S]*Files route calls[\s\S]*Confirmations and lifecycle meaning[\s\S]*Permission-aware visibility[\s\S]*Target metadata and readable labels[\s\S]*Deleted, unavailable, and in-review recovery states[\s\S]*File Context modal opener[\s\S]*Preview modal opener/, "Files inventory should document Files-owned escape hatches");
 assert.match(inventoryDoc, /Forbidden In Strict Enforcement[\s\S]*Persistent inline Browse Summary panels[\s\S]*Selected-file detail headers[\s\S]*Inline Preview panes[\s\S]*Inline Metadata panels[\s\S]*Inspector-style browse behavior/, "Files inventory should forbid inline browse detail patterns");
 assert.match(inventoryDoc, /Files strict enforcement now fails if `public\/js\/files\.js` reintroduces direct DOM construction/, "Files inventory regression should fail direct Files DOM construction");
 assert.match(inventoryDoc, /Closeout Coverage In 0\.33\.5\.18\.12\.7[\s\S]*compact listing-first browse[\s\S]*route-backed Preview[\s\S]*strict `files\.browse` guardrails/,
@@ -114,10 +114,12 @@ assert.match(attachmentActions, /files\.removeAttachment[\s\S]*files\.report[\s\
   "Attachment actions should stay in a shared dense action shell with Files action IDs");
 assert.match(functionBlock(attachmentHelper, "createAttachmentEmptyState"), /view\?\.createEmptyState/,
   "Attachment empty states should use the shared empty-state helper when available");
-assert.match(uploadFiles, /readFileBase64\(file\)[\s\S]*\/api\/files\/batch[\s\S]*visibility:\s*options\.visibility/,
-  "Attachment upload behavior should keep Files-owned file reads, payloads, route calls, and visibility");
-assert.match(functionBlock(attachmentHelper, "readFileBase64"), /new FileReader\(\)[\s\S]*readAsDataURL\(file\)/,
-  "FileReader conversion should remain a documented Files-owned escape hatch");
+assert.match(uploadFiles, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/,
+  "Attachment upload behavior should keep Files-owned streamed route calls");
+assert.match(functionBlock(attachmentHelper, "buildUploadForm"), /appendFormField\(form, "visibility", options\.visibility\)[\s\S]*form\.append\("files", file, file\.name\)/,
+  "Attachment upload behavior should keep Files-owned metadata and file payload construction");
+assert.doesNotMatch(attachmentHelper, /FileReader|function readFileBase64/,
+  "Attachment helper should not use FileReader for the normal browser upload path");
 assert.match(functionBlock(attachmentHelper, "acceptedExtensions"), /archive[\s\S]*document[\s\S]*image[\s\S]*pdf[\s\S]*presentation[\s\S]*text/,
   "Accepted file categories should remain Files-owned");
 assert.match(functionBlock(attachmentHelper, "refresh"), /\/api\/files\/attachments\?/,

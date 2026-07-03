@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.4";
+const appVersion = "0.33.5.22.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-upload-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -78,7 +78,7 @@ function assertStaticContracts() {
   assert.match(filesServiceSource, /queueFileScanJob\(session, file/, "Streamed uploads should keep the normal scan-job handoff");
   assert.match(filesServiceSource, /attachFile\(session, \{/, "Streamed uploads should keep the normal attachment lifecycle");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.4[\s\S]*multipart upload route/, "runtime docs should mark the multipart route active");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.5[\s\S]*`POST \/api\/files\/upload` accepts one multipart file/, "runtime docs should mark the single-file multipart route active");
   assert.match(moduleDocs, /multipart upload route[\s\S]*file\.scan/, "module docs should record that multipart uploads keep the scan lifecycle");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the multipart route slice");
   assert.match(roadmap, /### Version 0\.33\.5\.22\.4 - Multipart upload route and Files lifecycle[\s\S]*- \[x\] Add the first streamed\/multipart upload route/, "roadmap should mark the multipart route slice complete");

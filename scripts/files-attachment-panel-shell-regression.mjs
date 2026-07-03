@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.4";
+const appVersion = "0.33.5.22.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -85,8 +85,9 @@ const recovery = functionBlock(helper, "attachmentRecoveryMessage");
 const refresh = functionBlock(helper, "refresh");
 assert.match(refresh, /api\.getJson\(`\/api\/files\/attachments\?/, "Attachment list reads should remain Files-owned route calls");
 const uploadFiles = functionBlock(helper, "uploadFiles");
-assert.match(uploadFiles, /readFileBase64\(file\)/, "Upload file reading should remain Files-owned helper behavior");
-assert.match(uploadFiles, /api\.postJson\("\/api\/files\/batch"/, "Upload should keep using the Files batch route");
+assert.match(uploadFiles, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/, "Upload should use the Files streamed batch route");
+assert.doesNotMatch(uploadFiles, /readFileBase64|contentBase64|\/api\/files\/batch/, "Attachment helper should not use base64 JSON for normal uploads");
+assert.match(functionBlock(helper, "buildUploadForm"), /form\.append\("files", file, file\.name\)/, "Upload form should keep file selection handling Files-owned");
 assert.match(functionBlock(helper, "removeAttachment"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(attachmentId\)\}\/remove/, "Remove should keep using the Files attachment route");
 assert.match(functionBlock(helper, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/, "Delete should keep using the Files lifecycle route");
 assert.match(functionBlock(helper, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Restore should keep using the Files lifecycle route");
@@ -105,11 +106,11 @@ assert.match(styles, /\.file-attachment-recovery-state\s*\{[\s\S]*color:\s*var\(
 assert.match(styles, /\.file-attachment-actions\s*\{[\s\S]*flex-wrap:\s*wrap/, "Attachment action shell should wrap safely in stacked dialogs");
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for attachment panel shell changes");
-assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper for panel shell changes");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper for panel shell changes");
 assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74/, "Tasks should cache-bust the shared stylesheet for attachment panel shell changes");
-assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper for panel shell changes");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper for panel shell changes");
 assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=22/, "Workbench should cache-bust the shared stylesheet for attachment panel shell changes");
-assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper for panel shell changes");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper for panel shell changes");
 
 assert.match(functionBlock(notesJs, "openFilesDialog"), /view\.showModal\(filesDialog, \{ parent: dialog, trigger: filesToggle \}\)[\s\S]*data-file-attachment-input[\s\S]*focusTarget\?\.focus\(\)/, "Notes Files utility should still open as a stacked child dialog and focus the helper input when available");
 assert.match(functionBlock(taskDialog, "openTaskFilesDialog"), /showTaskModal\(filesDialog, \{ parent: dialog, trigger: fields\.fileToggle \}\)[\s\S]*\[data-file-attachment-input\]/, "Tasks Files utility should still open as a stacked child dialog and focus the helper input when saved");

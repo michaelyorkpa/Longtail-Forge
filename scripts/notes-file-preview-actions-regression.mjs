@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.4";
+const appVersion = "0.33.5.22.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -70,11 +70,11 @@ for (const [icon, action] of [
 
 assert.match(filesView, /js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/,
   "Files view should load the shared preview helper before Files browser code");
-assert.match(notesView, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/notes\.js\?v=70/,
+assert.match(notesView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/notes\.js\?v=70/,
   "Notes view should load updated attachment actions and shared preview before Notes mounts panels");
-assert.match(tasksView, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
+assert.match(tasksView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
   "Tasks view should load updated attachment actions and shared preview before Task Files dialogs");
-assert.match(workbenchView, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
+assert.match(workbenchView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
   "Workbench should load updated attachment actions and shared preview before Task Files dialogs");
 
 assert.match(roadmap, /0\.33\.5\.21\.9\.3[\s\S]*\[x\] Extract the file preview flow[\s\S]*\[x\] Add a preview action[\s\S]*\[x\] Convert the shared attachment component's text-label buttons to icon buttons/,

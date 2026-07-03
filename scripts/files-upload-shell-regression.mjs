@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.4";
+const appVersion = "0.33.5.22.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/file-attachments.js");
@@ -54,28 +54,30 @@ assert.match(uploadStatusMessage, /state\.uploadResults\.length > 0[\s\S]*failed
 assert.match(uploadStatusMessage, /Select files to upload/, "Upload status should have an idle instruction");
 
 const uploadFiles = functionBlock(helper, "uploadFiles");
-assert.match(uploadFiles, /readFileBase64\(file\)/, "File reading should remain in the Files-owned helper");
-assert.match(uploadFiles, /api\.postJson\("\/api\/files\/batch"/, "Uploads should continue using the Files batch route");
+assert.match(uploadFiles, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/, "Uploads should prefer the streamed multipart batch route");
+assert.doesNotMatch(uploadFiles, /readFileBase64|contentBase64|\/api\/files\/batch/, "Upload helper should no longer require base64 JSON for normal browser uploads");
+const buildUploadForm = functionBlock(helper, "buildUploadForm");
 [
-  "files: uploadPayloads",
-  "moduleId: options.moduleId",
-  "targetType: options.targetType",
-  "targetId: options.targetId",
-  "clientId: options.clientId",
-  "projectId: options.projectId",
-  "visibility: options.visibility",
+  "appendFormField(form, \"moduleId\", options.moduleId)",
+  "appendFormField(form, \"targetType\", options.targetType)",
+  "appendFormField(form, \"targetId\", options.targetId)",
+  "appendFormField(form, \"clientId\", options.clientId)",
+  "appendFormField(form, \"projectId\", options.projectId)",
+  "appendFormField(form, \"visibility\", options.visibility)",
+  "form.append(\"files\", file, file.name)",
 ].forEach((snippet) => {
-  assert.ok(uploadFiles.includes(snippet), `Upload payload should preserve ${snippet}`);
+  assert.ok(buildUploadForm.includes(snippet), `Upload form should preserve ${snippet}`);
 });
 ["uploadStarted", "uploadCompleted", "attachmentAdded", "uploadFailed"].forEach((eventName) => {
   assert.match(uploadFiles, new RegExp(`"${eventName}"`), `Upload flow should still emit ${eventName}`);
 });
 
-assert.match(functionBlock(helper, "readFileBase64"), /new FileReader\(\)[\s\S]*readAsDataURL\(file\)/, "Base64 conversion should stay Files-owned");
+assert.match(functionBlock(helper, "postMultipartJson"), /fetch\(url[\s\S]*body: form[\s\S]*method: "POST"/, "Multipart upload posting should keep browser upload transport Files-owned");
+assert.doesNotMatch(helper, /FileReader|function readFileBase64/, "Attachment helper should not require FileReader for normal uploads");
 assert.match(functionBlock(helper, "acceptedFileHint"), /acceptedExtensions\(categories\)\.join\(", "\)/, "Accepted-file hint should derive from the existing extension map");
 
-assert.doesNotMatch(functionBlock(filesScript, "openFileEditor"), /file-attachment-upload|createUploadShell|\/api\/files\/batch/, "File Context modal should not gain upload UI");
-assert.doesNotMatch(functionBlock(filePreviewScript, "openFilePreview"), /file-attachment-upload|createUploadShell|\/api\/files\/batch/, "Files Preview modal should not gain upload UI");
+assert.doesNotMatch(functionBlock(filesScript, "openFileEditor"), /file-attachment-upload|createUploadShell|\/api\/files\/upload\/batch|\/api\/files\/batch/, "File Context modal should not gain upload UI");
+assert.doesNotMatch(functionBlock(filePreviewScript, "openFilePreview"), /file-attachment-upload|createUploadShell|\/api\/files\/upload\/batch|\/api\/files\/batch/, "Files Preview modal should not gain upload UI");
 
 assert.match(styles, /\.file-attachment-upload-shell\s*\{[\s\S]*gap:\s*10px/, "Upload shell should have explicit spacing on top of the shared list shell");
 assert.match(styles, /\.file-attachment-upload-status\s*\{[\s\S]*color:\s*var\(--color-muted\)[\s\S]*font-size:\s*13px/, "Upload shell status should use the shared subdued visual language");
@@ -84,11 +86,11 @@ assert.match(styles, /\.file-attachment-upload-actions\s*\{[\s\S]*display:\s*fle
 assert.match(styles, /\.file-attachment-upload-results\s*\{[\s\S]*display:\s*grid/, "Upload result rows should remain grouped and readable");
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for upload shell changes");
-assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper");
 assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74/, "Tasks should cache-bust the shared stylesheet for upload shell changes");
-assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper");
 assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=22/, "Workbench should cache-bust the shared stylesheet for upload shell changes");
-assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper");
 
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View-building contract should document the Files upload-shell slice");
 assert.match(regressionSuite, /scripts\/files-upload-shell-regression\.mjs/, "Regression suite should include the Files upload-shell regression");

@@ -1,4 +1,4 @@
-/* global CustomEvent, FileReader */
+/* global CustomEvent, FormData, fetch */
 
 (function attachFileAttachments(global) {
   const namespace = global.LongtailForge || {};
@@ -655,23 +655,7 @@
     emit(container, state, "uploadStarted", { files });
 
     try {
-      const uploadPayloads = [];
-      for (const file of files) {
-        uploadPayloads.push({
-          contentBase64: await readFileBase64(file),
-          displayName: file.name,
-          originalFilename: file.name,
-        });
-      }
-      const result = await api.postJson("/api/files/batch", {
-        files: uploadPayloads,
-        moduleId: options.moduleId,
-        targetType: options.targetType,
-        targetId: options.targetId,
-        clientId: options.clientId,
-        projectId: options.projectId,
-        visibility: options.visibility,
-      });
+      const result = await postMultipartJson("/api/files/upload/batch", buildUploadForm(options, files));
 
       state.uploadResults = result.results || [];
       if (result.failed > 0) {
@@ -686,6 +670,65 @@
     } finally {
       state.isUploading = false;
       render(container, state);
+    }
+  }
+
+  function buildUploadForm(options, files) {
+    const form = new FormData();
+
+    appendFormField(form, "moduleId", options.moduleId);
+    appendFormField(form, "targetType", options.targetType);
+    appendFormField(form, "targetId", options.targetId);
+    appendFormField(form, "clientId", options.clientId);
+    appendFormField(form, "projectId", options.projectId);
+    appendFormField(form, "visibility", options.visibility);
+    if (options.attachmentMetadata) {
+      appendFormField(form, "attachmentMetadata", JSON.stringify(options.attachmentMetadata));
+    }
+
+    files.forEach((file) => {
+      form.append("files", file, file.name);
+    });
+    return form;
+  }
+
+  function appendFormField(form, name, value) {
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      form.append(name, String(value));
+    }
+  }
+
+  async function postMultipartJson(url, form) {
+    const response = await fetch(url, {
+      body: form,
+      method: "POST",
+    });
+    const body = await parseMultipartJsonResponse(response);
+
+    if (!response.ok) {
+      const error = new Error(body?.error || body?.message || `Upload failed: ${response.status}`);
+      error.status = response.status;
+      error.body = body;
+      throw error;
+    }
+
+    return body;
+  }
+
+  async function parseMultipartJsonResponse(response) {
+    const text = await response.text();
+
+    if (!text) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      if (!response.ok) {
+        return { error: text || response.statusText };
+      }
+      throw new Error("Upload response could not be read.");
     }
   }
 
@@ -891,16 +934,6 @@
       visibility: "private",
       ...options,
     };
-  }
-
-  function readFileBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.addEventListener("load", () => resolve(String(reader.result || "").split(",").pop() || ""));
-      reader.addEventListener("error", () => reject(reader.error || new Error("File could not be read.")));
-      reader.readAsDataURL(file);
-    });
   }
 
   function acceptedExtensions(categories) {

@@ -1,3 +1,11 @@
+## Version 0.33.5.22.5 - 2026-07-03
+
+- Added `POST /api/files/upload/batch` as the streamed multipart batch upload route with ordered per-file results and HTTP 207 partial-failure responses.
+- Migrated the shared attachment helper's normal browser upload path to `FormData` and `/api/files/upload/batch` while preserving the existing upload UI, dropzone, save-first behavior, pending-review result copy, host callbacks, custom events, and attachment refresh.
+- Preserved the existing JSON/base64 upload routes (`POST /api/files` and `POST /api/files/batch`) during the transition window.
+- Added `scripts/file-multipart-batch-upload-helper-regression.mjs`, wired it into the file-storage regression bucket, refreshed Files/module/runtime docs and decisions, marked the roadmap slice complete, cache-busted attachment helper hosts, and advanced package/regression version metadata to 0.33.5.22.5.
+- Verification 2026-07-03 12:16 -04:00: `scripts/file-multipart-batch-upload-helper-regression.mjs`, `scripts/file-multipart-upload-route-regression.mjs`, `scripts/files-upload-shell-regression.mjs`, `scripts/files-attachment-panel-shell-regression.mjs`, `scripts/files-strict-guardrail-inventory-regression.mjs`, `scripts/view-descriptor-declarative-guardrails.mjs`, `scripts/file-api-lifecycle-regression.mjs`, `scripts/file-storage-provider-configuration-regression.mjs`, `scripts/file-storage-diagnostics-regression.mjs`, `scripts/file-storage-streaming-contract-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`, and related cache-bust/preview guardrails passed; `npm run check` passed 247/247 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.4 - 2026-07-03
 
 - Added `POST /api/files/upload` as the first single-file Busboy multipart upload route for local/self-hosted mode while preserving the existing `POST /api/files` JSON/base64 upload contract.

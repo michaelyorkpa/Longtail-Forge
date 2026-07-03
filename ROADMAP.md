@@ -193,14 +193,14 @@ Acceptance criteria:
 
 ### Version 0.33.5.22.5 - Streamed batch upload and attachment helper migration
 
-- [ ] Add streamed/multipart batch upload support with per-file result reporting.
-- [ ] Update the shared attachment helper to prefer the streamed batch route while preserving the current upload UI, dropzone, save-first behavior, host refresh callbacks, and upload-result messages.
-- [ ] Preserve existing route compatibility for the base64 JSON route during the transition window.
-- [ ] Add regressions for:
-  - [ ] Successful multi-file upload.
-  - [ ] Partial batch failure.
-  - [ ] Browser helper result rendering for pending-review uploads.
-  - [ ] Host refresh/event callbacks after streamed batch completion.
+- [x] Add streamed/multipart batch upload support with per-file result reporting.
+- [x] Update the shared attachment helper to prefer the streamed batch route while preserving the current upload UI, dropzone, save-first behavior, host refresh callbacks, and upload-result messages.
+- [x] Preserve existing route compatibility for the base64 JSON route during the transition window.
+- [x] Add regressions for:
+  - [x] Successful multi-file upload.
+  - [x] Partial batch failure.
+  - [x] Browser helper result rendering for pending-review uploads.
+  - [x] Host refresh/event callbacks after streamed batch completion.
 
 Acceptance criteria:
 
