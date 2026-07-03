@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notification-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notification-jobs.db");
@@ -44,7 +44,7 @@ try {
   assert.match(notificationsSource, /return createFromEvent\(event, declaration, \{ job \}\)/, "notification jobs should reuse the fan-out path with job retry context");
   assert.match(workerCliSource, /registerNotificationJobHandlers/, "separate worker startup should register notification job handlers");
   assert.match(regressionSuite, /scripts\/notification-jobs-regression\.mjs/, "regression suite should include notification job coverage");
-  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the notification jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.5[\s\S]*notification\.event/, "architecture docs should document notification fan-out jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.5[\s\S]*Notification fan-out uses the durable job runner/, "database docs should document the notification job handoff");

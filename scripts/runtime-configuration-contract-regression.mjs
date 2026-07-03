@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -106,6 +106,7 @@ assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read t
 assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
 assert.match(configSource, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS/, "config should read the SQLite busy-timeout setting");
 assert.match(configSource, /LONGTAIL_WORKER_MODE[\s\S]*WORKER_MODES/, "config should validate active worker modes");
+assert.match(configSource, /LONGTAIL_FILE_SCANNER[\s\S]*FILE_SCANNER_MODES/, "config should validate active file scanner modes");
 assert.doesNotMatch(configSource, /DEFAULT_SQLITE_COMMAND|sqliteCommand|SQLITE_COMMAND/, "config should ignore the retired SQLITE_COMMAND setting");
 assert.match(configSource, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/, "config should fail clearly when production bootstrap password is missing");
 assert.match(configSource, /LONGTAIL_INITIAL_WORKSPACE_NAME/, "config should read the initial workspace name from runtime config");
@@ -159,7 +160,7 @@ const custom = readConfig({
   LONGTAIL_SECURE_NOTES_KEY_VERSION: "v9",
   LONGTAIL_STORAGE_PROVIDER: "local",
   LONGTAIL_LOCAL_STORAGE_ROOT: "./custom-data/files",
-  LONGTAIL_FILE_SCANNER: "none",
+  LONGTAIL_FILE_SCANNER: "noop",
   LONGTAIL_WORKER_ID: "custom-worker",
   LONGTAIL_WORKER_MODE: "separate",
   LONGTAIL_JOB_POLL_INTERVAL_MS: "2500",
@@ -182,6 +183,7 @@ assert.equal(custom.superAdminDisplayName, "Custom Admin");
 assert.equal(custom.workspaceInstallMode, "saas");
 assert.equal(custom.workspaceTypeLimit, "business");
 assert.equal(custom.secureNotesKeyVersion, "v9");
+assert.equal(custom.scannerMode, "noop");
 assert.equal(custom.workerMode, "separate");
 assert.equal(custom.workerId, "custom-worker");
 assert.equal(custom.workerPollIntervalMs, 2500);
@@ -204,6 +206,14 @@ const legacySqliteCommand = readConfig({
 assert.equal(legacySqliteCommand.databaseProvider, "sqlite", "legacy SQLITE_COMMAND should not affect config creation");
 assert.equal(legacySqliteCommand.sqliteJournalMode, "wal", "legacy SQLITE_COMMAND should not affect SQLite runtime settings");
 
+for (const scannerMode of ["none", "noop", "clamd", "clamscan"]) {
+  assert.equal(
+    readConfig({ LONGTAIL_FILE_SCANNER: scannerMode }).scannerMode,
+    scannerMode,
+    `${scannerMode} should be an accepted file scanner mode`,
+  );
+}
+
 assertConfigFails({ PORT: "not-a-number" }, /PORT must be an integer/);
 assertConfigFails({ PORT: "70000" }, /PORT must be at most 65535/);
 assertConfigFails({ LONGTAIL_DATABASE_PROVIDER: "postgres" }, /LONGTAIL_DATABASE_PROVIDER must be sqlite/);
@@ -215,6 +225,7 @@ assertConfigFails({ LONGTAIL_JOB_POLL_INTERVAL_MS: "999" }, /LONGTAIL_JOB_POLL_I
 assertConfigFails({ LONGTAIL_JOB_LOCK_TTL_SECONDS: "29" }, /LONGTAIL_JOB_LOCK_TTL_SECONDS must be at least 30/);
 assertConfigFails({ LONGTAIL_JOB_COMPLETED_RETENTION_DAYS: "0" }, /LONGTAIL_JOB_COMPLETED_RETENTION_DAYS must be at least 1/);
 assertConfigFails({ LONGTAIL_JOB_DEAD_RETENTION_DAYS: "3651" }, /LONGTAIL_JOB_DEAD_RETENTION_DAYS must be at most 3650/);
+assertConfigFails({ LONGTAIL_FILE_SCANNER: "mystery" }, /LONGTAIL_FILE_SCANNER must be none or noop or clamd or clamscan/);
 assertConfigFails({ LONGTAIL_ENV: "production" }, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/);
 assertConfigFails({
   LONGTAIL_SESSION_COOKIE_SAMESITE: "None",

@@ -83,7 +83,7 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
 `);
 
     assert.equal(rows[0].status, "available");
-    assert.equal(rows[0].scan_status, "passed");
+    assert.equal(rows[0].scan_status, "not_required");
     assert.ok(capturedFileEvents.some((event) => event.name === "file.scan.passed"));
     assert.ok(capturedFileEvents.some((event) => event.name === "file.available"));
   });

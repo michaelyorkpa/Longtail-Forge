@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-better-sqlite3-closeout-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -50,7 +50,7 @@ try {
   assert.match(sqliteAdapterSource, /adapter:\s*"better-sqlite3"/, "SQLite adapter should report better-sqlite3");
   assert.doesNotMatch(sqliteAdapterSource, /adapter:\s*"sqlite-process"/, "SQLite adapter should not report sqlite-process");
   assert.match(regressionSuite, /scripts\/better-sqlite3-driver-closeout-regression\.mjs/, "regression suite should include the driver closeout regression");
-  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the driver closeout slice");
 
   await initializeDatabase();

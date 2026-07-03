@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-theme-auto-mode-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-theme-auto-mode.db");
 process.env.SUPER_ADMIN_PASSWORD = "Theme-Auto-Mode-Test-123!";
@@ -121,7 +121,7 @@ function assertStaticContract() {
 
   assert.match(moduleContract, /The only shipped auto source is `system`/, "tracked docs should record the OS-match auto source");
   assert.match(moduleContract, /Sunrise\/sunset theme automation is deferred/, "tracked docs should record the sunrise/sunset deferral");
-  assert.match(roadmap, /0\.33\.5\.21\.9\.4[\s\S]*\[x\] Add `"auto"` as a valid stored `theme_mode` value/, "roadmap should mark the theme auto mode slice complete");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch that contains the theme auto mode slice");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the theme auto mode slice");
   assert.match(regressionSuite, /scripts\/user-theme-auto-mode-regression\.mjs/, "regression suite should include theme auto mode coverage");
 }

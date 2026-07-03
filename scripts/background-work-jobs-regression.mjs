@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-background-work-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-background-work-jobs.db");
@@ -57,7 +57,7 @@ try {
   assert.match(workerCliSource, /registerFileScanJobHandlers/, "separate worker startup should register file scan handlers");
   assert.match(workerCliSource, /registerFutureImportJobHandlers/, "separate worker startup should register future import handlers");
   assert.match(regressionSuite, /scripts\/background-work-jobs-regression\.mjs/, "regression suite should include background work job coverage");
-  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the background work jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "architecture docs should document background work jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "database docs should document background work jobs");
@@ -202,7 +202,7 @@ async function assertFileScanJobsAreDurableAndIdempotent(session) {
 
   assert.ok(summary.completed >= 1, "worker should process the file scan job");
   assert.equal(fileAfterWorker.status, "available");
-  assert.equal(fileAfterWorker.scan_status, "passed");
+  assert.equal(fileAfterWorker.scan_status, "not_required");
 
   await runSql(`
 UPDATE jobs
@@ -219,7 +219,7 @@ WHERE job_id = ${sqlText(scanJob.job_id)};
   const fileAfterSecondRun = await readFileRow(fileId);
 
   assert.equal(fileAfterSecondRun.status, "available", "rerunning a scan job for an already scanned file should be harmless");
-  assert.equal(fileAfterSecondRun.scan_status, "passed");
+  assert.equal(fileAfterSecondRun.scan_status, "not_required");
 }
 
 async function assertFutureImportJobIsReservedAndSafe(session) {

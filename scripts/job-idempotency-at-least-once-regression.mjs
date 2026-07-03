@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-idempotency-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-idempotency.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -71,7 +71,7 @@ function assertStaticContract() {
   assert.match(filesSource, /file\.status !== "pending" \|\| file\.scan_status !== "pending"/, "file scan jobs should skip already scanned rows");
   assert.match(importJobsSource, /reserved:\s*true[\s\S]*skipped:\s*true/, "future imports should remain a reserved no-op handler");
   assert.match(regressionSuite, /scripts\/job-idempotency-at-least-once-regression\.mjs/, "regression suite should include at-least-once idempotency coverage");
-  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the idempotency slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.3[\s\S]*notification_delivery_key[\s\S]*at-least-once/, "database docs should document durable idempotency behavior");
   assert.match(moduleDocs, /As of 0\.33\.5\.21\.7\.3[\s\S]*at-least-once worker behavior/, "module docs should document current durable job idempotency expectations");

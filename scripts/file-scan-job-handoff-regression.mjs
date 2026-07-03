@@ -70,7 +70,7 @@ try {
   assert.equal(summary.completed, 1, "worker should complete the queued file.scan job");
   assert.equal(completedJob.status, "completed");
   assert.equal(scannedFile.status, "available");
-  assert.equal(scannedFile.scan_status, "passed");
+  assert.equal(scannedFile.scan_status, "not_required");
 
   const download = await filesService.downloadFile(session, fileId);
   assert.equal(await streamToText(download.stream), "file scan handoff body");

@@ -13,7 +13,12 @@ import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/b
 import { enqueueJob } from "../core/jobs/job-queue.js";
 import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { createLocalFileStorageAdapter } from "../core/files/local-storage-adapter.js";
-import { createNoopFileScannerAdapter } from "../core/files/scanner-adapter.js";
+import {
+  createClamdFileScannerAdapter,
+  createClamscanFileScannerAdapter,
+  createNoneFileScannerAdapter,
+  createNoopFileScannerAdapter,
+} from "../core/files/scanner-adapter.js";
 import { config } from "../config.js";
 import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
 import { permissionsService } from "./permissions.service.js";
@@ -91,7 +96,12 @@ const DEFAULT_BLOCKED_EXTENSIONS = Object.freeze([
 const storageAdapters = new Map([
   ["local", createLocalFileStorageAdapter()],
 ]);
-let scannerAdapter = createNoopFileScannerAdapter();
+const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
+const scannerAdapters = new Map([
+  ["clamd", createClamdFileScannerAdapter({ host: config.scanner?.clamdHost, port: config.scanner?.clamdPort })],
+  ["clamscan", createClamscanFileScannerAdapter({ executablePath: config.scanner?.clamscanPath })],
+  ["noop", createNoopFileScannerAdapter()],
+]);
 const FILE_SCAN_JOB_TYPE = "file.scan";
 const FILE_SCAN_JOB_PRIORITY = 10;
 let fileScanJobHandlersRegistered = false;
@@ -125,13 +135,21 @@ function registerFileStorageAdapter(providerId, adapter) {
   return normalizedProviderId;
 }
 
-function registerFileScannerAdapter(adapter) {
+function registerFileScannerAdapter(modeOrAdapter, maybeAdapter = null) {
+  const adapter = maybeAdapter || modeOrAdapter;
+  const scannerMode = maybeAdapter
+    ? normalizeFileScannerMode(modeOrAdapter)
+    : normalizeFileScannerMode(adapter?.id || "");
+
+  if (scannerMode === "none") {
+    throw new TypeError("The 'none' file scanner mode is built in and cannot be replaced.");
+  }
   if (typeof adapter?.scan !== "function") {
-    throw new TypeError("File scanner adapter must implement scan().");
+    throw new TypeError(`File scanner adapter '${scannerMode}' must implement scan().`);
   }
 
-  scannerAdapter = adapter;
-  return adapter.id || "custom";
+  scannerAdapters.set(scannerMode, adapter);
+  return scannerMode;
 }
 
 function getFileStorageAdapter(providerId = "local") {
@@ -152,6 +170,40 @@ function resolveConfiguredFileStorageProvider() {
     adapter: getFileStorageAdapter(providerId),
     providerId,
   };
+}
+
+function getFileScannerAdapter(scannerMode = "none") {
+  const normalizedMode = normalizeFileScannerMode(scannerMode || "none");
+
+  if (normalizedMode === "none") {
+    return createNoneFileScannerAdapter();
+  }
+
+  const adapter = scannerAdapters.get(normalizedMode);
+  if (!adapter) {
+    throw new AppError(`File scanner mode '${normalizedMode}' is not configured.`, 500);
+  }
+
+  return adapter;
+}
+
+function resolveConfiguredFileScannerAdapter() {
+  const scannerMode = normalizeFileScannerMode(config.scanner?.mode || "none");
+
+  return {
+    adapter: getFileScannerAdapter(scannerMode),
+    scannerMode,
+  };
+}
+
+function normalizeFileScannerMode(value) {
+  const scannerMode = String(value || "").trim();
+
+  if (!FILE_SCANNER_MODES.has(scannerMode)) {
+    throw new AppError(`File scanner mode '${scannerMode || "unknown"}' is not supported.`, 500);
+  }
+
+  return scannerMode;
 }
 
 function listAttachableTypes() {
@@ -1710,9 +1762,11 @@ async function scanFile(session, file) {
     scanStatus: "pending",
   });
 
-  const scanResult = await scannerAdapter.scan(file);
+  const scanner = resolveConfiguredFileScannerAdapter();
+  const scanResult = await scanner.adapter.scan(createFileScanContext(file, scanner.scannerMode));
   const scanStatus = FILE_SCAN_STATUS_SET.has(scanResult.scanStatus) ? scanResult.scanStatus : "error";
   const status = FILE_STATUS_SET.has(scanResult.status) ? scanResult.status : "quarantined";
+  const successfulScan = status === "available" && ["not_required", "passed"].includes(scanStatus);
   const reason = normalizeOptionalText(scanResult.reason, { maxLength: 250 });
   const now = new Date().toISOString();
 
@@ -1726,7 +1780,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   AND file_id = ${sqlText(file.file_id)};
 `);
 
-  if (scanStatus === "passed") {
+  if (successfulScan) {
     await emitFileLifecycleEvent("file.scan.passed", {
       session,
       fileId: file.file_id,
@@ -1767,7 +1821,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     });
   }
 
-  if (status === "quarantined" || scanStatus !== "passed") {
+  if (status === "quarantined" || !["not_required", "passed"].includes(scanStatus)) {
     await recordFileAudit(session, {
       action: status === "quarantined" ? "file.quarantined" : "file.scan_failed",
       changeType: "update",
@@ -1782,6 +1836,25 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   }
 
   return { scanStatus, status };
+}
+
+function createFileScanContext(file, scannerMode) {
+  return {
+    displayName: file.display_name || "",
+    extension: file.extension || "",
+    fileId: file.file_id || "",
+    fileSizeBytes: Number(file.file_size_bytes) || 0,
+    mimeTypeClaimed: file.mime_type_claimed || "",
+    mimeTypeDetected: file.mime_type_detected || "",
+    originalFilename: file.original_filename || "",
+    scannerMode,
+    storageProvider: file.storage_provider || "local",
+    workspaceId: file.workspace_id || "",
+    async openReadStream() {
+      const adapter = getFileStorageAdapter(file.storage_provider || "local");
+      return adapter.read(file.storage_key);
+    },
+  };
 }
 
 async function attachFile(session, payload = {}, context = {}) {
@@ -3515,6 +3588,7 @@ export const filesService = {
   deleteFile,
   downloadFile,
   emitFileLifecycleEvent,
+  getFileScannerAdapter,
   getFileStorageAdapter,
   listActiveAttachableTypes,
   listAttachableTargetOptions,
@@ -3536,6 +3610,7 @@ export const filesService = {
   registerFileStorageAdapter,
   removeAttachment,
   reportFile,
+  resolveConfiguredFileScannerAdapter,
   resolveConfiguredFileStorageProvider,
   resolveAttachableType,
   restoreFile,

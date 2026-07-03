@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-external-links-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-external-links.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-External-Links-Test-123!";
@@ -79,7 +79,7 @@ function assertStaticContract() {
   assert.match(notesScript, /anchor\.removeAttribute\("target"\)/, "disabled preference should leave external links as same-tab anchors");
 
   assert.match(regressionSuite, /scripts\/notes-external-markdown-links-preference-regression\.mjs/, "regression suite should include this preference coverage");
-  assert.match(roadmap, /0\.33\.5\.21\.9\.1[\s\S]*\[x\] Add a user-level boolean preference "Open external links in a new tab"/, "roadmap should mark the preference slice complete");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch that contains this preference slice");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the external Markdown links preference slice");
 }
 

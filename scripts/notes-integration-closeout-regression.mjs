@@ -42,7 +42,7 @@ try {
 async function assertManifestIntegrationContract() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.22.6");
+  assert.equal(notesModule.version, "0.33.5.22.11");
   assert.equal(notesModule.publicApiRoutes.length, 1, "Notes should expose only the read-only public API router");
   assert.deepEqual(notesModule.apiScopes.map((scope) => scope.id), ["notes:read"]);
   assert.deepEqual(

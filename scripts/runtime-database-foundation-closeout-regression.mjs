@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -42,8 +42,13 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /## Version 0\.33\.5\.21 - Durable Jobs and Outbox Foundation[\s\S]*Entry contract from 0\.33\.5\.19:[\s\S]*transaction helper[\s\S]*reserved worker runtime config names/,
-  "0.33.5.21 should inherit transaction and worker runtime config boundaries",
+  /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
+  "roadmap should point the completed durable-jobs branch to the archive",
+);
+assert.doesNotMatch(
+  roadmap,
+  /^## Version 0\.33\.5\.21 - Durable Jobs and Outbox Foundation/m,
+  "live roadmap should not keep the completed durable-jobs branch open",
 );
 assert.match(
   roadmap,
@@ -52,8 +57,13 @@ assert.match(
 );
 assert.match(
   roadmap,
-  /## Version 0\.33\.5\.23 - PostgreSQL Adapter and SaaS Runtime Proof[\s\S]*Entry contract from 0\.33\.5\.19:[\s\S]*database provider config[\s\S]*adapter boundary[\s\S]*migration-lock strategy/,
-  "0.33.5.23 should inherit provider, adapter, health, and migration-lock boundaries",
+  /## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration[\s\S]*Entry contract from 0\.33\.5\.19:[\s\S]*parameterized-query conventions[\s\S]*adapter boundary/,
+  "0.33.5.23 should inherit the parameterized-query conventions and adapter boundary",
+);
+assert.match(
+  roadmap,
+  /### Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*database seam from 0\.33\.5\.19[\s\S]*advisory-lock/,
+  "the deferred PostgreSQL/database-extraction work should inherit the 0.33.5.19 seam and carry the migration advisory-lock boundary",
 );
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the runtime/database closeout");
@@ -68,7 +78,7 @@ assert.match(runtimeDocs, /`GET \/api\/runtime-diagnostics`[\s\S]*workspace_sett
 
 assert.match(databaseDocs, /As of version 0\.33\.5\.19\.9/, "database docs should report the closeout database version");
 assert.match(databaseDocs, /The completed 0\.33\.5\.19 foundation covers runtime config[\s\S]*SQLite startup hardening[\s\S]*provider-neutral adapter boundary[\s\S]*parameterized-query and transaction pilots[\s\S]*SQLite migration locking[\s\S]*runtime diagnostics\/admin readout/, "database docs should summarize shipped runtime/database foundation behavior");
-assert.match(databaseDocs, /Later durable-job work consumes this boundary[\s\S]*PostgreSQL[\s\S]*storage-provider switching[\s\S]*scanner adapters remain future branches/, "database docs should keep provider/storage/scanner branches out of the closeout scope");
+assert.match(databaseDocs, /Later durable-job work consumes this boundary[\s\S]*0\.33\.5\.22 branch makes local Files storage-provider selection[\s\S]*optional `clamscan` executable adapter active[\s\S]*optional `clamd` TCP adapter active[\s\S]*PostgreSQL[\s\S]*alternate object storage providers remain future branches/, "database docs should keep provider/storage/scanner branch handoffs current");
 assert.match(databaseDocs, /As of version 0\.33\.5\.20\.5[\s\S]*bounded-query branch covers[\s\S]*Audit Log[\s\S]*Notifications[\s\S]*Search results[\s\S]*Files browse/, "database docs should record the shipped bounded-query branch");
 assert.match(databaseDocs, /Parameterized Query Style/, "database docs should keep the parameterized query style");
 assert.match(databaseDocs, /Transaction Style/, "database docs should keep the transaction style");
@@ -76,7 +86,7 @@ assert.match(databaseDocs, /Migration Locking and Startup Ownership/, "database 
 
 assert.match(architectureDocs, /As of 0\.33\.5\.19\.9[\s\S]*SQLite is still the only implemented provider/, "architecture docs should summarize the active provider boundary");
 assert.match(architectureDocs, /src\/core\/database\.js[\s\S]*health\/capability reporting[\s\S]*named-parameter support[\s\S]*callback transactions[\s\S]*SQLite migration locking/, "architecture docs should document the shipped adapter foundation");
-assert.match(architectureDocs, /0\.33\.5\.20 bounded-query branch consumes that foundation[\s\S]*0\.33\.5\.21\.1 adds the first checksum-tracked durable job\/outbox schema migration[\s\S]*0\.33\.5\.21\.2 adds the v1 inline\/separate worker runner[\s\S]*Storage\/scanner and PostgreSQL work should keep consuming/, "architecture docs should hand off later provider branches");
+assert.match(architectureDocs, /0\.33\.5\.20 bounded-query branch consumes that foundation[\s\S]*0\.33\.5\.21\.1 adds the first checksum-tracked durable job\/outbox schema migration[\s\S]*0\.33\.5\.21\.2 adds the v1 inline\/separate worker runner[\s\S]*0\.33\.5\.22\.7 resolves Files scanner modes[\s\S]*0\.33\.5\.22\.8 adds safe scanner health diagnostics[\s\S]*0\.33\.5\.22\.9 adds the optional `clamscan` executable adapter[\s\S]*0\.33\.5\.22\.11 adds the optional `clamd` TCP adapter[\s\S]*alternate database providers remain later work/, "architecture docs should hand off later provider branches");
 
 assert.match(sqliteDocs, /one Longtail Forge app process\/server/i, "SQLite small-office docs should keep the one-server boundary");
 assert.match(sqliteDocs, /roughly 50 total users[\s\S]*5-15 concurrent users/i, "SQLite small-office docs should keep the support target");

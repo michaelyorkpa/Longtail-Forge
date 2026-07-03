@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-batch-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -90,9 +90,9 @@ function assertStaticContracts() {
   assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the streamed attachment helper");
   assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the streamed attachment helper");
   assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the streamed attachment helper");
-  assert.match(moduleContract, /As of 0\.33\.5\.22\.6[\s\S]*\/api\/files\/upload\/batch/, "module contract should record the streamed batch boundary");
+  assert.match(moduleContract, /As of 0\.33\.5\.22\.11[\s\S]*\/api\/files\/upload\/batch/, "module contract should record the streamed batch boundary");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streamed batch upload slice");
-  assert.match(roadmap, /### Version 0\.33\.5\.22\.5 - Streamed batch upload and attachment helper migration[\s\S]*- \[x\] Add streamed\/multipart batch upload support/, "roadmap should mark the streamed batch slice complete");
+  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.11 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
   assert.match(regressionSuite, /scripts\/file-multipart-batch-upload-helper-regression\.mjs/, "regression suite should include streamed batch upload coverage");
 }
 

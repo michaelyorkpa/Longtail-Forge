@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-better-sqlite3-helper-core-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-helper-core.db");
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "3210";
@@ -52,7 +52,7 @@ try {
   assert.doesNotMatch(sqliteAdapterSource, /expandSqlParameters|sqliteParameterLiteral/, "SQLite adapter should no longer inline parameters after the parameter-binding slice");
   assert.match(regressionSuite, /scripts\/better-sqlite3-helper-core-regression\.mjs/, "regression suite should include the helper-core regression");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.0\.2[\s\S]*long-lived[\s\S]*better-sqlite3/, "database docs should describe the in-process helper core");
-  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the helper-core slice");
 
   const health = await initializeSqliteRuntime();

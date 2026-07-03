@@ -15,6 +15,7 @@ async function read(session) {
 
   const databaseHealth = await readSafeDatabaseHealth();
   const storageHealth = await readSafeStorageHealth();
+  const scannerHealth = await readSafeScannerHealth();
   const workerStatus = getJobWorkerStatus();
 
   return {
@@ -51,7 +52,12 @@ async function read(session) {
       rootLocation: safeStorageRootLocation(storageHealth.rootDir || config.storage.localRoot),
     },
     scanner: {
-      mode: config.scanner.mode,
+      mode: scannerHealth.mode,
+      health: {
+        available: scannerHealth.available,
+        status: scannerHealth.status,
+        warning: scannerHealth.warning,
+      },
     },
     worker: {
       mode: config.worker.mode,
@@ -98,6 +104,32 @@ async function readSafeStorageHealth() {
       provider,
       rootDir: safeText(config.storage.localRoot),
       status: "unavailable",
+    };
+  }
+}
+
+async function readSafeScannerHealth() {
+  const mode = safeText(config.scanner?.mode || "none") || "none";
+
+  try {
+    const scanner = filesService.resolveConfiguredFileScannerAdapter();
+    const health = typeof scanner.adapter?.health === "function"
+      ? await scanner.adapter.health()
+      : null;
+    const status = safeScannerStatus(health?.status, health?.available);
+
+    return {
+      available: booleanOrNull(health?.available ?? health?.ok),
+      mode: safeText(scanner.scannerMode || mode) || mode,
+      status,
+      warning: scannerHealthWarning(scanner.scannerMode || mode, status),
+    };
+  } catch {
+    return {
+      available: false,
+      mode,
+      status: "unavailable",
+      warning: scannerHealthWarning(mode, "unavailable"),
     };
   }
 }
@@ -213,6 +245,51 @@ function normalizePathSeparators(value) {
 
 function numberOrNull(value) {
   return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function booleanOrNull(value) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function safeScannerStatus(status, available) {
+  const normalized = safeText(status).toLowerCase();
+  const allowedStatuses = new Set(["disabled", "ok", "pass_through", "unavailable", "unknown"]);
+
+  if (allowedStatuses.has(normalized)) {
+    return normalized;
+  }
+
+  if (available === true) {
+    return "ok";
+  }
+
+  if (available === false) {
+    return "unavailable";
+  }
+
+  return "unknown";
+}
+
+function scannerHealthWarning(mode, status) {
+  const scannerMode = safeText(mode);
+
+  if (scannerMode === "none") {
+    return "File scanning is disabled; uploads are marked not required.";
+  }
+
+  if (scannerMode === "noop") {
+    return "File scanner is in pass-through mode; files are trusted without an external scan.";
+  }
+
+  if (status === "unavailable") {
+    return "Scanner health is unavailable for the configured mode.";
+  }
+
+  if (status === "unknown") {
+    return "Scanner health is not reported for the configured mode.";
+  }
+
+  return "";
 }
 
 function safeText(value) {

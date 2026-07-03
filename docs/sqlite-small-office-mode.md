@@ -85,7 +85,7 @@ For the safest filesystem backup, stop the app first or take a storage snapshot 
 
 ## File Scanning
 
-File scanning is optional in SQLite small-office mode. The current default scanner mode is `none`. Future scanner adapters should run locally or on a trusted attached service and continue to keep scanner internals, storage paths, and quarantine details behind framework-owned permission checks.
+File scanning is optional in SQLite small-office mode. The current default scanner mode is `none`, which is an explicit disabled-scanning choice that completes queued scan jobs as `not_required`/`available`. Installs that want ClamAV scanning can use the local `clamscan` executable adapter or the TCP `clamd` daemon adapter; setup guidance is in [file-scanner-setup.md](file-scanner-setup.md). Unavailable ClamAV scanners quarantine files for review instead of silently passing them or automatically deleting stored bytes. Scanner internals, storage paths, and quarantine details stay behind framework-owned permission checks.
 
 ## Memory And Disk Guidance
 
@@ -95,6 +95,6 @@ SQLite small-office mode is designed to stay simple. If the install starts needi
 
 ## Admin Readout
 
-Workspace Settings includes a read-only Runtime Diagnostics panel for users with `workspace_settings.manage`. The panel consumes `GET /api/runtime-diagnostics` and shows database provider, SQLite journal mode, foreign-key status, safe database file location, safe data directory location, storage provider, storage availability, a safe local storage root label, scanner mode, worker mode, and worker state. The API response also includes safe worker status counters for diagnostics; pending/running/dead-letter queue counts and recent failure summaries remain later admin-readout work.
+Workspace Settings includes a read-only Runtime Diagnostics panel for users with `workspace_settings.manage`. The panel consumes `GET /api/runtime-diagnostics` and shows database provider, SQLite journal mode, foreign-key status, safe database file location, safe data directory location, storage provider, storage availability, a safe local storage root label, scanner mode, scanner status, server-provided scanner disabled/pass-through warnings, worker mode, and worker state. The API response also includes safe worker status counters for diagnostics; pending/running/dead-letter queue counts and recent failure summaries remain later admin-readout work.
 
 The readout is diagnostic only. It does not edit runtime configuration, write `.env` values, reveal raw environment variables, expose raw local storage roots, reveal protected paths, expose scanner internals, or show secure-note key material.

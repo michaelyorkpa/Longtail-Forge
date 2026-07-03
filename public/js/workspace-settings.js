@@ -241,6 +241,7 @@ function renderRuntimeDiagnostics(diagnostics) {
     createRuntimeDiagnosticItem("Storage Status", formatStorageStatus(storage.health)),
     createRuntimeDiagnosticItem("Local Storage Root", formatRuntimeLocation(storage.rootLocation)),
     createRuntimeDiagnosticItem("Scanner Mode", formatRuntimeValue(scanner.mode)),
+    createRuntimeDiagnosticItem("Scanner Status", formatScannerStatus(scanner.health)),
     createRuntimeDiagnosticItem("Worker Mode", formatRuntimeValue(worker.mode)),
     createRuntimeDiagnosticItem("Worker State", formatRuntimeValue(workerStatus.state)),
     createRuntimeDiagnosticItem("Worker Timer", workerStatus.timerActive ? "Active" : "Inactive"),
@@ -418,8 +419,10 @@ function readRuntimeDiagnosticWarnings(diagnostics) {
     warnings.push("Storage provider health is unavailable.");
   }
 
-  if (scanner.mode && !["none", "local"].includes(scanner.mode)) {
-    warnings.push("Review this scanner mode before relying on SQLite small-office mode.");
+  if (scanner.health?.warning) {
+    warnings.push(String(scanner.health.warning));
+  } else if (scanner.health?.status === "unavailable") {
+    warnings.push("Scanner health is unavailable.");
   }
 
   if (worker.mode === "disabled") {
@@ -471,6 +474,28 @@ function formatStorageProvider(storage = {}) {
 
 function formatStorageStatus(health = {}) {
   const status = String(health.status || "").trim().toLowerCase();
+
+  if (status === "ok" || health.available === true) {
+    return "Available";
+  }
+
+  if (status === "unavailable" || health.available === false) {
+    return "Unavailable";
+  }
+
+  return formatRuntimeValue(status);
+}
+
+function formatScannerStatus(health = {}) {
+  const status = String(health.status || "").trim().toLowerCase();
+
+  if (status === "disabled") {
+    return "Disabled";
+  }
+
+  if (status === "pass_through") {
+    return "Pass-through";
+  }
 
   if (status === "ok" || health.available === true) {
     return "Available";

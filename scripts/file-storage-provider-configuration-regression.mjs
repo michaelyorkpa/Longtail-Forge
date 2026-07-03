@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-provider-config-"));
 
 delete process.env.LONGTAIL_STORAGE_PROVIDER;
@@ -102,8 +102,8 @@ async function assertStaticContracts() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the storage provider resolver version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the storage provider resolver version");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage provider resolver slice");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.6, `LONGTAIL_STORAGE_PROVIDER` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
-  assert.match(roadmap, /### Version 0\.33\.5\.22\.1 - Storage provider resolver and local write path[\s\S]*- \[x\] Add a service-owned configured storage provider resolver/, "roadmap should mark the storage provider resolver slice complete");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.11, `LONGTAIL_STORAGE_PROVIDER` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
+  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.11 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
   assert.match(filesServiceSource, /function resolveConfiguredFileStorageProvider\(\)/, "Files service should own configured provider resolution");
   assert.doesNotMatch(functionBlock(filesServiceSource, "uploadAndAttach"), /getFileStorageAdapter\("local"\)|storageProvider:\s*"local"/, "upload writes should not hardcode the local provider");
   assert.match(regressionSuite, /scripts\/file-storage-provider-configuration-regression\.mjs/, "regression suite should include the storage provider configuration regression");

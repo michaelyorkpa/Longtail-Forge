@@ -8,7 +8,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { clearTimeout, setTimeout } from "node:timers";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.6";
+const appVersion = "0.33.5.22.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-separate-worker-e2e-"));
 const dataDir = path.join(tempDir, "data");
 const databaseFile = path.join(dataDir, "longtail-forge-separate-worker-e2e.db");
@@ -85,7 +85,7 @@ function assertStaticContract() {
   assert.match(appSource, /config\.worker\.mode === "separate"[\s\S]*state=external/, "app separate mode should leave processing to node worker.js");
   assert.match(appSource, /config\.worker\.mode === "disabled"[\s\S]*state=disabled/, "app disabled mode should report that jobs will not process");
   assert.match(regressionSuite, /scripts\/separate-worker-end-to-end-regression\.mjs/, "regression suite should include separate-worker end-to-end coverage");
-  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the separate-worker end-to-end slice");
   assert.match(architectureDocs, /0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "architecture docs should document separate-worker validation");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "database docs should document separate-worker validation");
@@ -325,7 +325,7 @@ WHERE workspace_id = ${sqlText(targets.workspaceId)}
 LIMIT 1;
 `);
   assert.equal(fileRows[0]?.status, "available", "separate worker should make scanned files available");
-  assert.equal(fileRows[0]?.scan_status, "passed", "separate worker should mark scanned files passed");
+  assert.equal(fileRows[0]?.scan_status, "not_required", "separate worker should mark disabled-scan files not required");
 
   const reminderJob = await readJobById(targets.reminderJobId);
   assert.equal(reminderJob.status, "completed", "separate worker should complete due task reminders");

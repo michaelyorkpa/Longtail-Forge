@@ -1,3 +1,43 @@
+## Version 0.33.5.22.11 - 2026-07-03
+
+- Added `docs/file-scanner-setup.md` with Linux `clamd`, Windows `clamscan`, macOS/Homebrew, and scanner-unavailable behavior guidance.
+- Refreshed runtime configuration docs, SQLite small-office docs, `.env.example`, and scanner decisions so live scanner keys are explicit, `LONGTAIL_CLAMD_SOCKET` remains deferred, `none` vs. `noop` stays deliberate, and unavailable ClamAV scans quarantine without auto-deleting stored files.
+- Cleaned up completed roadmap sections by archiving 0.33.5.21 and completed 0.33.5.22.1 through 0.33.5.22.11 details, added `scripts/file-scanner-setup-docs-regression.mjs`, and wired it into the file storage/scanner regression bucket.
+- Verification 2026-07-03 16:26 -04:00: `scripts/file-scanner-setup-docs-regression.mjs`, scanner adapter/resolver/health diagnostics, storage/upload neighbor regressions, archive handoff spot checks, and clean-clone guardrails passed; `npm run check` passed 253/253 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.11 after restarting the local 8001 server.
+
+## Version 0.33.5.22.10 - 2026-07-03
+
+- Added the optional `clamd` TCP scanner adapter, resolved from `LONGTAIL_CLAMD_HOST` / `LONGTAIL_CLAMD_PORT` with internal defaults of `127.0.0.1:3310`, without requiring ClamAV for installs that keep scanner mode disabled.
+- Implemented safe `clamd` health checks with `PING` and streaming scan execution with `INSTREAM` through the Files-owned scan context, keeping hostnames, ports, storage keys, protected paths, scanner output, sockets, and raw scanner internals out of diagnostics, lifecycle metadata, and UI payloads.
+- Mapped clean daemon responses to `available`/`passed`, infected responses to `quarantined`/`failed`, and unavailable, malformed, or timed-out TCP scanner executions to `quarantined`/`error` without auto-deleting stored files; Unix-socket support remains deferred until an explicit config key is added.
+- Added `scripts/file-clamd-adapter-regression.mjs` with mocked TCP daemon coverage for clean, infected, unavailable, and timeout outcomes; refreshed scanner docs/decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.10.
+- Verification 2026-07-03 15:48 -04:00: `scripts/file-clamd-adapter-regression.mjs`, scanner resolver/health diagnostics, `clamscan` adapter coverage, runtime diagnostics/configuration/database closeout checks, file scan job handoff, storage/upload neighbor regressions, and clean-clone guardrails passed; `npm run check` passed 252/252 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.10 after restarting the local 8001 server.
+
+## Version 0.33.5.22.9 - 2026-07-03
+
+- Added the optional `clamscan` executable scanner adapter, resolved from `LONGTAIL_CLAMSCAN_PATH` or the `clamscan` command on `PATH`, without making ClamAV a hard dependency for installs that keep scanner mode disabled.
+- Implemented safe `clamscan` health checks via `--version` and streaming scan execution through the Files-owned scan context, keeping executable paths, storage keys, protected paths, scanner output, and raw scanner internals out of diagnostics, lifecycle metadata, and UI payloads.
+- Mapped clean scans to `available`/`passed`, infected scans to `quarantined`/`failed`, and unavailable or timed-out scanner executions to `quarantined`/`error` without auto-deleting stored files.
+- Added `scripts/file-clamscan-adapter-regression.mjs` with mocked executable coverage for clean, infected, unavailable, and timeout outcomes; refreshed scanner docs/decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.9.
+- Verification 2026-07-03 15:21 -04:00: `scripts/file-clamscan-adapter-regression.mjs`, scanner resolver/health diagnostics, runtime diagnostics/configuration/database closeout checks, file scan job handoff, storage/upload neighbor regressions, and clean-clone guardrails passed; `npm run check` passed 251/251 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.9 after restarting the local 8001 server.
+
+## Version 0.33.5.22.8 - 2026-07-03
+
+- Added safe `health()` support to the built-in Files scanner adapters so `none` reports disabled and `noop` reports pass-through instead of appearing as an unqualified scanner mode.
+- Extended Runtime Diagnostics with scanner health/status and server-derived warnings for disabled or pass-through scanner modes while keeping scanner hostnames, ports, executable paths, storage keys, protected paths, signed URLs, raw environment values, and scanner internals out of diagnostics payloads.
+- Updated Workspace Settings to show scanner status beside scanner mode and render the server-provided scanner warning in the existing Runtime Diagnostics warning channel.
+- Added `scripts/file-scanner-health-diagnostics-regression.mjs`, wired it into the file-storage regression bucket, refreshed runtime docs and decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.8.
+- Verification 2026-07-03 14:32 -04:00: `scripts/file-scanner-health-diagnostics-regression.mjs`, `scripts/runtime-diagnostics-route-regression.mjs`, `scripts/file-scanner-mode-resolver-regression.mjs`, `scripts/file-storage-diagnostics-regression.mjs`, `scripts/file-storage-provider-configuration-regression.mjs`, `scripts/sqlite-small-office-readout-regression.mjs`, upload/docs guardrails, `scripts/runtime-database-foundation-closeout-regression.mjs`, `scripts/admin-job-observability-regression.mjs`, and scanner worker neighbor checks passed; `npm run check` passed 250/250 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.8 after restarting the local 8001 server.
+
+## Version 0.33.5.22.7 - 2026-07-03
+
+- Made Files scanner mode resolution configuration-owned through `LONGTAIL_FILE_SCANNER`, with recognized modes `none`, `noop`, `clamd`, and `clamscan`.
+- Defined `none` as the default disabled-scanning mode: uploads still queue `file.scan`, and the worker resolves pending files to `available` with `scan_status = not_required` so files do not stay unavailable forever when scanning is off.
+- Kept `noop` as an explicit pass-through scanner mode that resolves to `scan_status = passed`, while `clamd` and `clamscan` remain recognized names that fail clearly until their adapters ship.
+- Updated `scanFile` to pass scanner adapters a Files-service-owned scan context with a read-stream helper instead of raw storage keys or paths, preserving Files permissions, download gates, preview gates, and quarantine/review lifecycle boundaries.
+- Added `scripts/file-scanner-mode-resolver-regression.mjs`, wired it into the file-storage regression bucket, refreshed runtime/module docs and decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.7.
+- Verification 2026-07-03 14:06 -04:00: `scripts/file-scanner-mode-resolver-regression.mjs`, `scripts/runtime-configuration-contract-regression.mjs`, `scripts/file-scan-job-handoff-regression.mjs`, `scripts/file-api-lifecycle-regression.mjs`, `scripts/background-work-jobs-regression.mjs`, `scripts/separate-worker-end-to-end-regression.mjs`, `scripts/runtime-diagnostics-route-regression.mjs`, storage/upload neighbor regressions, and `scripts/regression-clean-clone-contract.mjs` targeted checks passed; `npm run check` passed 249/249 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.7 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.6 - 2026-07-03
 
 - Defined the Files upload transition window: JSON/base64 routes (`POST /api/files` and `POST /api/files/batch`) remain compatibility routes through the 0.33.5.22 storage/scanner branch and are retired no earlier than 0.33.5.23.0 by a later explicit roadmap slice.

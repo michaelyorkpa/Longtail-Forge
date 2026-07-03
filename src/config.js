@@ -37,6 +37,7 @@ const DATABASE_PROVIDERS = new Set(["sqlite"]);
 const SQLITE_JOURNAL_MODES = new Set(["delete", "truncate", "persist", "memory", "wal", "off"]);
 const WORKSPACE_INSTALL_MODES = new Set(["self_hosted", "saas"]);
 const WORKSPACE_TYPE_LIMITS = new Set(["", "business"]);
+const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
 const WORKER_MODES = new Set(["inline", "separate", "disabled"]);
 
 function toDisplayName(packageName) {
@@ -135,7 +136,7 @@ function createConfig(env = process.env) {
       localRoot: resolveRuntimePath(readText(env, "LONGTAIL_LOCAL_STORAGE_ROOT", path.join(dataDir, "files"))),
     },
     scanner: {
-      mode: readText(env, "LONGTAIL_FILE_SCANNER", DEFAULT_FILE_SCANNER),
+      mode: readEnum(env, "LONGTAIL_FILE_SCANNER", DEFAULT_FILE_SCANNER, FILE_SCANNER_MODES),
       clamdHost: readText(env, "LONGTAIL_CLAMD_HOST", ""),
       clamdPort: readText(env, "LONGTAIL_CLAMD_PORT", ""),
       clamscanPath: readText(env, "LONGTAIL_CLAMSCAN_PATH", ""),
