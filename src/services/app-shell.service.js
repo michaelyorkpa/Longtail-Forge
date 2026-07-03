@@ -4,7 +4,7 @@ import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.j
 import { usersRepository } from "../repositories/users.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { settingsService } from "./settings.service.js";
-import { normalizeThemeMode } from "../utils/normalizers.js";
+import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
 import { notificationsService } from "./notifications.service.js";
 import { searchService } from "./search.service.js";
 
@@ -47,11 +47,13 @@ async function bootstrap(session) {
     searchTargets,
     viewSurfaces,
     themeMode: normalizeThemeMode(user?.theme_mode),
+    themeAutoSource: normalizeThemeAutoSource(user?.theme_auto_source),
     timezone: session.timezone || user?.timezone || "",
     user: {
       user_id: session.user_id,
       username: session.username,
       themeMode: normalizeThemeMode(user?.theme_mode),
+      themeAutoSource: normalizeThemeAutoSource(user?.theme_auto_source),
       timezone: session.timezone || user?.timezone || "",
     },
     workspaceContext: {

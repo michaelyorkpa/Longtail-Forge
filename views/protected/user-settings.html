@@ -16,11 +16,40 @@
           <fieldset class="settings-fieldset">
             <legend>Appearance</legend>
 
-            <label class="theme-mode-switch">
-              <span>Light</span>
-              <input type="checkbox" data-theme-mode-toggle>
-              <span class="theme-switch-track" aria-hidden="true"></span>
-              <span>Dark</span>
+            <div class="theme-mode-control" role="radiogroup" aria-label="Theme mode">
+              <label class="settings-segmented-option">
+                <input type="radio" name="themeMode" value="light" data-theme-mode-option>
+                <span>Light</span>
+              </label>
+              <label class="settings-segmented-option">
+                <input type="radio" name="themeMode" value="auto" data-theme-mode-option>
+                <span>Auto</span>
+              </label>
+              <label class="settings-segmented-option">
+                <input type="radio" name="themeMode" value="dark" data-theme-mode-option>
+                <span>Dark</span>
+              </label>
+            </div>
+
+            <div class="theme-auto-source" data-theme-auto-source-controls hidden>
+              <span class="settings-field-label">Auto source</span>
+              <div class="theme-auto-source-options" role="radiogroup" aria-label="Auto source">
+                <label class="settings-segmented-option">
+                  <input type="radio" name="themeAutoSource" value="system" data-theme-auto-source>
+                  <span>Match operating system</span>
+                </label>
+              </div>
+            </div>
+          </fieldset>
+        </form>
+
+        <form class="settings-form" data-user-markdown-rendering-form>
+          <fieldset class="settings-fieldset">
+            <legend>Markdown Rendering</legend>
+
+            <label class="settings-checkbox-line">
+              <input type="checkbox" data-open-external-links-new-tab>
+              <span>Open external links in a new tab</span>
             </label>
           </fieldset>
         </form>
@@ -139,7 +168,7 @@
     <script src="js/shared/settings-normalizers.js?v=1"></script>
     <script src="js/shared/settings-controls.js?v=2"></script>
     <script src="js/shared/notification-preferences.js?v=4"></script>
-    <script src="js/user-settings.js?v=2"></script>
+    <script src="js/user-settings.js?v=4"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

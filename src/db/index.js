@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
-import { normalizeSettings } from "../utils/normalizers.js";
+import { normalizeSettings, normalizeThemeMode } from "../utils/normalizers.js";
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
 import { DEFAULT_WORKSPACE_TYPE } from "../utils/workspaces.js";
 import { hashPassword, createGeneratedPassword, validatePassword } from "../security/passwords.js";
@@ -199,7 +199,9 @@ ORDER BY created_at, workspace_id;
     const activeWorkspaceId = activeWorkspaceIds.has(canonical.active_workspace_id)
       ? canonical.active_workspace_id
       : activeMemberships[0]?.workspace_id || canonical.active_workspace_id || canonical.home_workspace_id;
-    const preferredTheme = rows.some((row) => row.theme_mode === "dark") ? "dark" : canonical.theme_mode || "light";
+    const preferredTheme = rows.some((row) => row.theme_mode === "dark")
+      ? "dark"
+      : normalizeThemeMode(canonical.theme_mode);
     const protectedUser = rows.some((row) => row.protected_user === "yes") ? "yes" : canonical.protected_user || "no";
     const activeStatus = rows.some((row) => row.user_status === "active") ? "active" : canonical.user_status || "inactive";
     const duplicateRowIds = rows.slice(1).map((row) => row.rowid);

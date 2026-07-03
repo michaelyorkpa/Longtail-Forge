@@ -117,6 +117,7 @@ function createConfig(env = process.env) {
     cookies: {
       sessionName: "longtail_forge_session",
       themeName: "lf_theme",
+      themeAutoSourceName: "lf_theme_auto_source",
       httpOnly: true,
       secure: sessionCookieSecure,
       sameSite: sessionCookieSameSite,

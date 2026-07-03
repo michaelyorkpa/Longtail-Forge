@@ -21,6 +21,7 @@
   let form = null;
   let fields = {};
   let currentTaskEditorRequest = null;
+  const TASK_COMPLETE_VISIBLE_STATUSES = new Set(["open", "in_progress", "blocked"]);
 
   function configure(options = {}) {
     context = {
@@ -253,6 +254,7 @@
     mountTaskFileAttachments(isDuplicate ? null : task);
     mountTaskNotesPanel(isDuplicate ? null : task, { focus: focusNotes === true });
     writeTaskNotificationFollowFields(isDuplicate ? null : task);
+    updateCompleteTaskActionState();
 
     showTaskModal(dialog, { trigger: returnFocusTo });
 
@@ -301,6 +303,7 @@
       checklistInput: dialog.querySelector("[data-task-checklist-input]"),
       checklistList: dialog.querySelector("[data-task-checklist-list]"),
       checklistStatus: dialog.querySelector("[data-task-checklist-status]"),
+      complete: dialog.querySelector("[data-complete-task]"),
       copyLink: dialog.querySelector("[data-copy-task-link]"),
       description: dialog.querySelector("[data-task-description]"),
       dueDate: dialog.querySelector("[data-task-due-date]"),
@@ -379,6 +382,7 @@
     });
     fields.status?.addEventListener("change", updateBlockedReasonState);
     fields.status?.addEventListener("change", writeTaskMetadataRibbon);
+    fields.status?.addEventListener("change", updateCompleteTaskActionState);
     fields.priority?.addEventListener("change", writeTaskMetadataRibbon);
     fields.client?.addEventListener("change", writeTaskMetadataRibbon);
     fields.project?.addEventListener("change", writeTaskMetadataRibbon);
@@ -394,6 +398,7 @@
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
+    fields.complete?.addEventListener("click", saveAndCompleteTask);
     fields.tagToggle?.addEventListener("click", openTaskTagsDialog);
     fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
     fields.notificationToggle?.addEventListener("click", toggleTaskNotificationFollow);
@@ -416,6 +421,7 @@
     icons.decorateButton(fields.tagToggle, { icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false });
     icons.decorateButton(fields.fileToggle, { icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false });
     icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false });
+    icons.decorateButton(fields.complete, { icon: "complete", label: "Complete task", text: "Complete", title: "Complete task", iconOnly: false });
     icons.decorateButton(fields.cancel, { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
     icons.decorateButton(fields.save, { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
   }
@@ -552,6 +558,14 @@
 
   async function saveTask(event) {
     event.preventDefault();
+    try {
+      await saveTaskForm({ closeOnSuccess: true });
+    } catch {
+      // saveTaskForm reports validation and route errors through the modal status.
+    }
+  }
+
+  async function saveTaskForm({ closeOnSuccess = true, statusMessage = "" } = {}) {
     const payload = readTaskFormPayload();
     const editingTask = currentTask || (context?.tasks || []).find((task) => task.task_id === currentTaskId);
     const wasEditing = Boolean(currentTaskId);
@@ -566,7 +580,7 @@
       payload.recurrence.applyTo = applyFuture ? "future" : "instance";
     }
 
-    setStatus(wasEditing ? "Saving task..." : "Creating task...");
+    setStatus(statusMessage || (wasEditing ? "Saving task..." : "Creating task..."));
 
     try {
       const result = wasEditing
@@ -575,17 +589,98 @@
       await syncParentTaskRelationship(result.task?.task_id || "");
       currentTask = result.task;
       currentTaskId = result.task?.task_id || "";
+      rememberTaskInContext(currentTask);
+      updateCompleteTaskActionState();
       await notifyTaskEditorSaved(result);
-      context?.hostContext?.complete?.({
-        actionId: wasEditing ? "tasks.edit" : "tasks.add",
-        recordId: result.task?.task_id || "",
-        title: result.task?.title || "",
-      });
-      closeTaskModal(dialog, "complete");
-      setStatus("");
+      if (closeOnSuccess) {
+        context?.hostContext?.complete?.({
+          actionId: wasEditing ? "tasks.edit" : "tasks.add",
+          recordId: result.task?.task_id || "",
+          title: result.task?.title || "",
+        });
+        closeTaskModal(dialog, "complete");
+        setStatus("");
+      }
+      return result;
     } catch (error) {
       setStatus(error.message || "Task was not saved.", { isError: true });
+      throw error;
     }
+  }
+
+  async function saveAndCompleteTask(event) {
+    event?.preventDefault();
+    if (!canCompleteCurrentTask()) {
+      setStatus("Task cannot be completed from this state.", { isError: true });
+      updateCompleteTaskActionState();
+      return;
+    }
+
+    if (fields.complete) {
+      fields.complete.disabled = true;
+    }
+
+    try {
+      const saveResult = await saveTaskForm({
+        closeOnSuccess: false,
+        statusMessage: "Saving task before completion...",
+      });
+      const taskId = saveResult.task?.task_id || currentTaskId;
+      setStatus("Completing task...");
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(taskId)}/complete`, {});
+      applyTaskCompletionResult(result);
+      await notifyTaskEditorSaved(result);
+      context?.hostContext?.complete?.(taskCompletionHostDetail(result));
+      setTaskCompletionStatus(result);
+      closeTaskModal(dialog, "complete");
+    } catch (error) {
+      setStatus(error.message || "Task was not completed.", { isError: true });
+      updateCompleteTaskActionState();
+    }
+  }
+
+  function applyTaskCompletionResult(result = {}) {
+    if (!result.task) {
+      return;
+    }
+
+    currentTask = result.task;
+    currentTaskId = result.task.task_id || currentTaskId;
+    rememberTaskInContext(currentTask);
+    syncTaskStatusField(currentTask);
+    updateBlockedReasonState();
+    writeTaskCompletionFields(currentTask);
+    writeTaskMetadataRibbon(currentTask);
+    writeTaskTimerFields(currentTask);
+    updateCompleteTaskActionState();
+  }
+
+  function taskCompletionHostDetail(result = {}) {
+    return {
+      actionId: "tasks.complete",
+      createdTask: result.createdTask
+        ? {
+            task_id: result.createdTask.task_id || "",
+            title: result.createdTask.title || "",
+          }
+        : null,
+      recordId: result.task?.task_id || currentTaskId || "",
+      recurrenceQueued: result.recurrenceJob?.queued === true,
+      taskLifecycleAction: "complete",
+      title: result.task?.title || currentTask?.title || "",
+    };
+  }
+
+  function setTaskCompletionStatus(result = {}) {
+    if (result.createdTask) {
+      setStatus(`Created next recurring task: ${result.createdTask.title}`);
+      return;
+    }
+    if (result.recurrenceJob?.queued === true) {
+      setStatus("Next recurring task queued.");
+      return;
+    }
+    setStatus("");
   }
 
   async function writeParentTaskFields(task) {
@@ -1041,6 +1136,43 @@
     if ([...fields.status.options].some((item) => item.value === task.status)) {
       fields.status.value = task.status;
     }
+    updateCompleteTaskActionState();
+  }
+
+  function updateCompleteTaskActionState() {
+    if (!fields.complete) {
+      return;
+    }
+
+    const visible = canCompleteCurrentTask();
+    fields.complete.hidden = !visible;
+    fields.complete.disabled = !visible;
+  }
+
+  function canCompleteCurrentTask() {
+    const status = fields.status?.value || currentTask?.status || "";
+    return Boolean(
+      currentTaskId &&
+      TASK_COMPLETE_VISIBLE_STATUSES.has(status) &&
+      hasTaskCompletePermission(),
+    );
+  }
+
+  function hasTaskCompletePermission() {
+    const permissions = taskDialogWorkspacePermissionSet();
+    return !permissions || permissions.has("tasks.complete");
+  }
+
+  function taskDialogWorkspacePermissionSet() {
+    const rawPermissions = namespace.workspaceContext?.permissionIds ||
+      namespace.workspaceContext?.permissions;
+    if (!Array.isArray(rawPermissions)) {
+      return null;
+    }
+
+    return new Set(rawPermissions
+      .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
+      .filter(Boolean));
   }
 
   function rememberTaskInContext(task) {
@@ -1984,6 +2116,7 @@
         { id: "copy-link", label: "Copy task link", icon: "copy", role: "utility", text: "Copy Link" },
       ],
       footerActions: [
+        { id: "complete", label: "Complete", icon: "complete", role: "primary" },
         { id: "cancel", label: "Cancel", role: "secondary" },
         { id: "save", label: "Save task", role: "primary" },
       ],
@@ -2022,13 +2155,20 @@
       const button = view.createActionButton({
         action: action.id,
         className: "surface-modal-footer-action",
+        icon: action.icon,
+        iconOnly: action.iconOnly === true,
         label: action.label,
         role: action.role,
+        text: action.text === undefined ? (action.icon ? action.label : action.label) : action.text,
+        title: action.title || action.label,
         type: action.id === "save" ? "submit" : "button",
       });
 
       if (action.id === "cancel") {
         button.dataset.cancelTask = "";
+      } else if (action.id === "complete") {
+        button.dataset.completeTask = "";
+        button.hidden = true;
       } else if (action.id === "save") {
         button.dataset.saveTask = "";
       }

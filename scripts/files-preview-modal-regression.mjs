@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -49,6 +49,7 @@ const packageJson = JSON.parse(read("package.json"));
 const packageLock = JSON.parse(read("package-lock.json"));
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
+const filePreviewScript = read("public/js/shared/file-preview.js");
 const filesStyles = read("public/css/longtail-forge.css");
 const icons = read("public/js/shared/icons.js");
 const regressionSuite = read("scripts/regression-suite.mjs");
@@ -57,7 +58,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(filesPage, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust preview modal styling");
-assert.match(filesPage, /js\/files\.js\?v=13/, "Files page should cache-bust the preview modal browser wiring");
+assert.match(filesPage, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should load shared preview before Files browser wiring");
 assert.match(icons, /eye:\s*Object\.freeze/, "Shared icon registry should include the Preview eye icon");
 assert.match(regressionSuite, /scripts\/files-preview-modal-regression\.mjs/, "Regression suite should include the Files preview modal regression");
 
@@ -67,26 +68,26 @@ const previewAction = functionBlock(filesScript, "createPreviewAction");
 const downloadOnlyMarker = functionBlock(filesScript, "createDownloadOnlyMarker");
 const rowOpen = functionBlock(filesScript, "wireFileTableRow");
 const actionIsolation = functionBlock(filesScript, "isFileRowActionEvent");
-const openPreview = functionBlock(filesScript, "openFilePreview");
-const buildPreview = functionBlock(filesScript, "buildFilePreviewDialog");
-const loadPreview = functionBlock(filesScript, "loadFilePreview");
-const renderContent = functionBlock(filesScript, "renderFilePreviewContent");
-const renderImage = functionBlock(filesScript, "renderFilePreviewImage");
-const renderText = functionBlock(filesScript, "renderFilePreviewText");
-const renderMarkdown = functionBlock(filesScript, "renderFilePreviewMarkdown");
-const downloadAction = functionBlock(filesScript, "createPreviewDownloadAction");
-const previewAvailability = functionBlock(filesScript, "previewAvailabilityForRow");
-const previewKind = functionBlock(filesScript, "previewKindForExtension");
-const previewStateMessage = functionBlock(filesScript, "previewStateMessage");
+const openPreview = functionBlock(filePreviewScript, "openFilePreview");
+const buildPreview = functionBlock(filePreviewScript, "buildFilePreviewDialog");
+const loadPreview = functionBlock(filePreviewScript, "loadFilePreview");
+const renderContent = functionBlock(filePreviewScript, "renderFilePreviewContent");
+const renderImage = functionBlock(filePreviewScript, "renderFilePreviewImage");
+const renderText = functionBlock(filePreviewScript, "renderFilePreviewText");
+const renderMarkdown = functionBlock(filePreviewScript, "renderFilePreviewMarkdown");
+const downloadAction = functionBlock(filePreviewScript, "createPreviewDownloadAction");
+const previewAvailability = functionBlock(filePreviewScript, "previewAvailabilityForRow");
+const previewKind = functionBlock(filePreviewScript, "previewKindForExtension");
+const previewStateMessage = functionBlock(filePreviewScript, "previewStateMessage");
 
-assert.match(fileRow, /const canManageReview = canManageFileReview\(attachment, file, fileId\)[\s\S]*const preview = previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/, "Files rows should derive local preview affordance state");
+assert.match(fileRow, /const canManageReview = canManageFileReview\(attachment, file, fileId\)[\s\S]*const preview = filePreview\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/, "Files rows should derive local preview affordance state");
 assert.match(fileRow, /previewKind:\s*preview\.kind[\s\S]*previewable:\s*preview\.state === "previewable"[\s\S]*previewState:\s*preview\.state/, "Files rows should expose preview kind/state for action rendering");
 assert.match(previewAvailability, /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*scanStatus[\s\S]*"unsupported"[\s\S]*TEXT_PREVIEW_MAX_BYTES[\s\S]*state:\s*"previewable"/, "Preview affordance should mirror status, scan, supported type, review permission, and size-cap gates");
 assert.match(previewKind, /IMAGE_PREVIEW_EXTENSIONS[\s\S]*MARKDOWN_PREVIEW_EXTENSIONS[\s\S]*TEXT_PREVIEW_EXTENSIONS[\s\S]*return "unsupported"/, "Preview kind should cover image, Markdown, text, and unsupported rows");
 
 assert.match(actions, /if \(row\.previewable\)[\s\S]*createPreviewAction\(row\)[\s\S]*else if \(row\.downloadable\)[\s\S]*createDownloadOnlyMarker\(row\)[\s\S]*createDownloadAction\(row\)/, "Files rows should show Preview for previewable rows and a quiet download-only marker for non-previewable downloadable rows");
 assert.match(previewAction, /icon:\s*"eye"[\s\S]*iconOnly:\s*true[\s\S]*label:\s*`Preview \$\{row\.fileName\}`[\s\S]*title:\s*`Preview \$\{row\.fileName\}`/, "Preview should use an icon-only eye action with accessible label/title");
-assert.match(previewAction, /stopFileRowActionEvent\(event\)[\s\S]*openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "Preview button should open Preview without triggering row edit");
+assert.match(previewAction, /stopFileRowActionEvent\(event\)[\s\S]*filePreview\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "Preview button should open Preview without triggering row edit");
 assert.doesNotMatch(previewAction, /openFileEditor/, "Preview button must not open the File Context editor");
 assert.match(previewAction, /button\.dataset\.fileAction = "preview"/, "Preview button should participate in row action isolation");
 assert.match(downloadOnlyMarker, /files-row-preview-unavailable[\s\S]*"aria-label": label[\s\S]*role: "img"[\s\S]*fileAction: "preview-unavailable"/, "Download-only marker should be visible, accessible, and isolated from row-open");
@@ -95,7 +96,7 @@ assert.match(rowOpen, /openFileEditor\(row,\s*\{\s*trigger:\s*rowElement\s*\}\)/
 assert.doesNotMatch(rowOpen, /openFilePreview/, "Row click/Enter should not open Preview");
 assert.match(actionIsolation, /\[data-file-action\], a, button, input, select, textarea/, "Row-open isolation should include Preview and download-only row controls");
 
-assert.match(openPreview, /requireFilesViewHelper\("createModal"\)[\s\S]*requireFilesViewHelper\("showModal"\)/, "Preview should use the shared modal stack helpers");
+assert.match(openPreview, /requireFilePreviewViewHelper\("createModal"\)[\s\S]*requireFilePreviewViewHelper\("showModal"\)/, "Preview should use the shared modal stack helpers");
 assert.match(openPreview, /activeFilePreviewDialog[\s\S]*view\.closeModal\(activeFilePreviewDialog, "replace"\)[\s\S]*view\.showModal\(dialog, \{ parent: options\.parent \|\| null, trigger \}\)[\s\S]*loadFilePreview\(dialog, row\)/, "Preview should replace an existing preview modal, return focus through the trigger, and load route-backed content");
 assert.match(buildPreview, /view\.createModal\(\{[\s\S]*title:\s*`Preview \$\{row\.fileName\}`[\s\S]*className:\s*"files-preview-dialog"[\s\S]*size:\s*"wide"[\s\S]*actions:\s*\[downloadAction,\s*closeButton\]\.filter\(Boolean\)/, "Preview modal should use the shared wide modal with Download and Close actions");
 assert.match(buildPreview, /dialog\.dataset\.filePreviewDialog = ""[\s\S]*dialog\.dataset\.fileAttachmentId = row\.attachmentId \|\| ""/, "Preview modal should expose stable markers for tests and focus/debugging");
@@ -105,8 +106,8 @@ assert.match(loadPreview, /preview\.state !== "previewable" \|\| !preview\.conte
 assert.match(loadPreview, /preview\.kind === "image"[\s\S]*renderFilePreviewImage\(dialog, preview\)/, "Image previews should render from the authenticated content URL");
 assert.match(loadPreview, /api\.getJson\(preview\.contentUrl[\s\S]*renderFilePreviewContent\(dialog, preview, contentResponse\.content \|\| \{\}\)/, "Text and Markdown previews should load content through the route-backed content URL");
 assert.match(renderContent, /content\.kind === "text"[\s\S]*content\.kind === "markdown"/, "Preview content should branch only on server-provided safe content kinds");
-assert.match(renderImage, /createFilesElement\("img"[\s\S]*src: preview\.contentUrl[\s\S]*image\.addEventListener\("load"[\s\S]*image\.addEventListener\("error"/, "Image previews should use the authenticated content route and handle load/error states");
-assert.match(renderText, /createFilesElement\("code", \{ text: text \|\| "" \}\)/, "Text previews should render as textContent, not HTML");
+assert.match(renderImage, /createFilePreviewElement\("img"[\s\S]*src: preview\.contentUrl[\s\S]*image\.addEventListener\("load"[\s\S]*image\.addEventListener\("error"/, "Image previews should use the authenticated content route and handle load/error states");
+assert.match(renderText, /createFilePreviewElement\("code", \{ text: text \|\| "" \}\)/, "Text previews should render as textContent, not HTML");
 assert.match(renderMarkdown, /content\.innerHTML = html \|\| ""/, "Markdown previews should render the server-sanitized HTML payload");
 assert.doesNotMatch(renderMarkdown, /MarkdownIt|marked|showdown|markdown-it|DOMParser/, "Preview modal should not add a browser Markdown parser");
 assert.match(previewStateMessage, /download-only[\s\S]*too large[\s\S]*permission[\s\S]*not available/i, "Preview modal should explain download-only, too-large, permission, and unavailable states");

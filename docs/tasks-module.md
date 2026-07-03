@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.21.8. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.21.9.4. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -85,6 +85,8 @@ As of 0.33.5.21.7.2, task reminder scheduling is durable but bounded. Task creat
 
 As of 0.33.5.21.8, fired task reminders reach the in-app Notifications surface. The reminder job passes explicit reminder recipients from the current task read: assigned tasks notify their assignees, unassigned tasks notify the creator, and existing task followers remain additive through the framework notification subscription path. `task.due_soon` keeps the declared high priority, respects per-user notification preferences for default responsible recipients, links to `tasks.html?task=...`, and includes the reminder offset in the title/body so the notification says how soon the task is due. Email and calendar delivery remain future work.
 
+As of 0.33.5.21.9.2, the Task editor modal footer includes a Complete button for already-saved active tasks with `open`, `in_progress`, or `blocked` status when the current user has `tasks.complete`. The button saves pending editor changes first, then calls the dedicated `POST /api/tasks/:taskId/complete` route instead of relying on the generic update route. This preserves the active-timer guard, `task_completed` audit/event behavior, search updates, parent recovery, and asynchronous recurrence queuing. Completion feedback mirrors the list lifecycle action: recurring completions can show "Next recurring task queued." while Workbench keeps completion-specific status instead of flattening the action into a generic task update.
+
 The task dialog includes a Notes panel mounted through the Notes-owned linked-record helper. Saved tasks show notes linked through task context or `note_links`, permitted create/link/unlink actions, and the empty state "No notes linked to this task." Unsaved tasks show "Save the task before adding notes." New notes created from a task carry task context, available project/client context, Note Kind `log`, the Active Work Library suggestion, and the normal internal visibility default unless the user changes it. Linked note rows use the shared linked-context read-list anatomy, but Notes remains the source of truth for which notes are readable, linkable, unlinkable, private, secure, disabled, or archived.
 
 Task list rows show compact linked-note count badges where the current user may read linked notes. Clicking a note count opens the Task detail dialog focused on the Notes panel. Counts come from the Notes target read model, so inaccessible private, secure, disabled, or otherwise unreadable notes do not leak through task-row metadata.
@@ -152,6 +154,7 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/tasks-bulk-lifecycle-toolbar-regression.mjs`
 - `scripts/tasks-list-surface-boundary-regression.mjs`
 - `scripts/tasks-modal-shell-regression.mjs`
+- `scripts/task-modal-complete-action-regression.mjs`
 - `scripts/tasks-recurrence-reminder-escape-hatch-regression.mjs`
 - `scripts/tasks-checklist-escape-hatch-regression.mjs`
 - `scripts/tasks-timer-utility-escape-hatch-regression.mjs`

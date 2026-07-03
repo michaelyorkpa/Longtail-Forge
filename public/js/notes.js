@@ -46,6 +46,7 @@ const LINK_TARGET_TYPE_LABELS = {
 };
 const DEFAULT_LINK_TARGET_TYPE = "project";
 const LINK_TARGET_TYPE_ORDER = ["project", "task", "note", "list", "client", "user"];
+const OPEN_EXTERNAL_LINKS_STORAGE_KEY = "lf_open_external_links_new_tab";
 const NOTE_WORKFLOW_HANDLERS = {
   "notes.workflow.edit": (note) => openEditor(note),
   "notes.workflow.archive": (note) => archiveNote(note),
@@ -89,12 +90,14 @@ let state = {
   primaryContextClients: [],
   primaryContextProjects: [],
   previewRequestId: 0,
+  settingsLoaded: false,
   selectedNote: null,
   selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
   filesDialogNoteId: "",
   tagPicker: null,
   tagsDialogNoteId: "",
   workspaceType: "",
+  openExternalLinksNewTab: readStoredOpenExternalLinksPreference(),
 };
 
 buildNotesViewShell();
@@ -1047,7 +1050,7 @@ async function initialize() {
   try {
     await window.LongtailForge.workspaceContextReady;
     applyWorkspaceContext();
-    await Promise.all([loadTags(), loadCollections(), loadNotes()]);
+    await Promise.all([loadMarkdownRenderingPreference(), loadTags(), loadCollections(), loadNotes()]);
     renderCollections();
     populateCollectionFilter();
     renderNotes();
@@ -1462,6 +1465,7 @@ function renderDetail(note) {
 
   const body = view.createElement("div", { className: "notes-rendered-body" });
   body.innerHTML = note.body_html || "";
+  applyExternalMarkdownLinkPreference(body);
   if (!body.textContent.trim() && !note.body_html) {
     body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
   }
@@ -2529,6 +2533,7 @@ async function renderPreview() {
       return;
     }
     preview.innerHTML = result.bodyHtml || "";
+    applyExternalMarkdownLinkPreference(preview);
     if (!preview.textContent.trim()) {
       preview.replaceChildren(emptyPreviewNode());
     }
@@ -3561,6 +3566,54 @@ function emptyPreviewNode() {
   const empty = document.createElement("p");
   empty.textContent = "No preview.";
   return empty;
+}
+
+async function loadMarkdownRenderingPreference() {
+  try {
+    const settings = await api.getJson("/api/user/settings", { cache: "no-store" });
+    state.openExternalLinksNewTab = settings.openExternalLinksNewTab === true;
+    state.settingsLoaded = true;
+    storeOpenExternalLinksPreference(state.openExternalLinksNewTab);
+  } catch {
+    state.settingsLoaded = false;
+  }
+}
+
+function applyExternalMarkdownLinkPreference(container) {
+  if (!container) {
+    return;
+  }
+
+  container.querySelectorAll("a[href]").forEach((anchor) => {
+    if (!isAbsoluteHttpUrl(anchor.getAttribute("href"))) {
+      return;
+    }
+
+    if (state.openExternalLinksNewTab) {
+      anchor.setAttribute("target", "_blank");
+      anchor.setAttribute("rel", "noopener noreferrer");
+    } else {
+      anchor.removeAttribute("target");
+      anchor.removeAttribute("rel");
+    }
+  });
+}
+
+function isAbsoluteHttpUrl(value = "") {
+  try {
+    const parsed = new window.URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function readStoredOpenExternalLinksPreference() {
+  return window.localStorage.getItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY) === "true";
+}
+
+function storeOpenExternalLinksPreference(value) {
+  window.localStorage.setItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY, value ? "true" : "false");
 }
 
 function formatDate(value) {

@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -25,6 +25,7 @@ const tasksJs = readText("public/js/tasks.js");
 const taskDialogJs = readText("public/js/task-dialog.js");
 const tasksHtml = readText("views/protected/tasks.html");
 const filesJs = readText("public/js/files.js");
+const filePreviewJs = readText("public/js/shared/file-preview.js");
 const fileAttachmentsJs = readText("public/js/shared/file-attachments.js");
 const filesHtml = readText("views/protected/files.html");
 const filesStrictInventoryDoc = readText("docs/files-strict-guardrail-inventory.md");
@@ -220,8 +221,9 @@ assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/m
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html", /\b(data-file-filters|data-file-list|data-file-table-mount|data-file-status|data-file-editor-row)\b/, "Files");
 assert.doesNotMatch(filesJs, /files\.browse\.legacy|createFilesBrowseChrome/, "Strict Files source should not keep the legacy full-page browse fallback");
 assert.doesNotMatch(filesJs, /document\.createElement\(/, "Strict Files source should create elements through shared view helpers");
-assert.equal(countMatches(filesJs, /innerHTML/g), 1, "Strict Files source should only use innerHTML for route-sanitized Markdown preview content");
-assert.match(functionBlock(filesJs, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/, "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
+assert.equal(countMatches(filesJs, /innerHTML/g), 0, "Strict Files source should not keep direct innerHTML writes after preview extraction");
+assert.equal(countMatches(filePreviewJs, /innerHTML/g), 1, "Shared preview source should only use innerHTML for route-sanitized Markdown preview content");
+assert.match(functionBlock(filePreviewJs, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/, "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
 assert.match(functionBlock(filesJs, "createFilesElement"), /requireFilesViewHelper\("createElement"\)[\s\S]*view\.createElement\(tagName, options\)/, "Files helper-backed fragments should use the shared createElement primitive");
 for (const helper of [
   "renderSurface",
@@ -229,11 +231,17 @@ for (const helper of [
   "createDataTable",
   "createDetailActionStrip",
   "createActionButton",
-  "createModal",
   "renderDescriptorModalForm",
   "createFieldGrid",
 ]) {
   assert.match(filesJs, new RegExp(`view\\.${helper}`), `Strict declarative Files source should consume ${helper}`);
+}
+for (const helper of [
+  "createActionButton",
+  "createModal",
+  "showModal",
+]) {
+  assert.match(filePreviewJs, new RegExp(`\\.${helper}`), `Shared Files preview source should consume ${helper}`);
 }
 for (const behaviorId of [
   "files.browse.filters",
@@ -250,12 +258,12 @@ assert.match(functionBlock(filesJs, "createFileActions"), /view\.createDetailAct
   "Files row actions should use the shared dense action strip");
 assert.match(functionBlock(filesJs, "buildFileEditorDialog"), /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
   "File Context should use the shared modal form while keeping Files-owned body behavior");
-assert.match(functionBlock(filesJs, "buildFilePreviewDialog"), /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
+assert.match(functionBlock(filePreviewJs, "buildFilePreviewDialog"), /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
   "Preview should use the shared modal shell");
 for (const routeCheck of [
   [functionBlock(filesJs, "loadFiles"), /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*\/api\/files\/attachments\?\$\{params\.toString\(\)\}/, "Files browse reads should stay behind the attachment route"],
   [functionBlock(filesJs, "createDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download/, "Files browse downloads should stay behind the Files download route"],
-  [functionBlock(filesJs, "loadFilePreview"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*api\.getJson\(preview\.contentUrl/, "Files Preview should stay descriptor/content route-backed"],
+  [functionBlock(filePreviewJs, "loadFilePreview"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*api\.getJson\(preview\.contentUrl/, "Files Preview should stay descriptor/content route-backed"],
   [functionBlock(filesJs, "loadFileEditorTargetOptions"), /\/api\/files\/attachable-targets\?\$\{params\.toString\(\)\}/, "File Context target choices should stay provider-backed"],
   [functionBlock(filesJs, "saveFileEditorContext"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/context/, "File Context saves should stay attachment-context route-backed"],
   [functionBlock(filesJs, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report[\s\S]*FILE_REPORT_REASON/, "Files Report should use the existing Files route"],
@@ -265,7 +273,7 @@ for (const routeCheck of [
 ]) {
   assert.match(routeCheck[0], routeCheck[1], routeCheck[2]);
 }
-assert.match(functionBlock(filesJs, "previewAvailabilityForRow"), /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
+assert.match(functionBlock(filePreviewJs, "previewAvailabilityForRow"), /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
   "Files should keep preview/download availability decisions as a documented escape hatch");
 assert.match(functionBlock(filesJs, "workspaceHasPermission"), /files\.manage_quarantine/,
   "Files browse permission-shaped visibility should stay Files-owned");
@@ -370,8 +378,10 @@ assert.match(functionBlock(fileAttachmentsJs, "emit"), /CustomEvent\(`longtailfo
   "Attachment helper should keep host callbacks/events as a documented escape hatch");
 assert.match(functionBlock(fileAttachmentsJs, "attachmentRecoveryMessage"), /recovery window[\s\S]*in review[\s\S]*review completes/,
   "Attachment recovery states should stay Files-owned");
-assert.doesNotMatch(fileAttachmentsJs, /openFileEditor|openFilePreview|createFilesMetadataPanel|Inspector|data-file-selected-row/,
-  "Attachment helper should not become inline File Context, Preview, Metadata, or Inspector UI");
+assert.doesNotMatch(fileAttachmentsJs, /openFileEditor|createFilesMetadataPanel|Inspector|data-file-selected-row/,
+  "Attachment helper should not become inline File Context, Metadata, or Inspector UI");
+assert.match(fileAttachmentsJs, /namespace\.filePreview\.openFilePreview\(row, \{ trigger: event\?\.currentTarget \|\| null \}\)/,
+  "Attachment helper may open only the shared route-backed Preview modal");
 assert.match(filesStrictInventoryDoc, /Current as of 0\.33\.5\.18\.12\.7[\s\S]*strict enforcement is active/, "Files strict inventory should document active strict enforcement");
 assert.match(filesStrictInventoryDoc, /Strict Enforcement Coverage In 0\.33\.5\.18\.12\.6/, "Files strict inventory should preserve the enforcement coverage section");
 

@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 
-import { modulesService } from "../src/core/modules/modules.service.js";
-import { appShellService } from "../src/services/app-shell.service.js";
-import { querySql, runSql, sqlText } from "../src/db/index.js";
+const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-descriptor-host-"));
+process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-descriptor-host.db");
+process.env.SUPER_ADMIN_PASSWORD = "Files-Descriptor-Host-Test-123!";
 
-const appVersion = "0.33.5.21.8";
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
+const { appShellService } = await import("../src/services/app-shell.service.js");
+
+const appVersion = "0.33.5.21.9.4";
 const workspaceId = "files-descriptor-host-workspace";
 const protectedUserId = "files-descriptor-host-protected-user";
 const deniedUserId = "files-descriptor-host-denied-user";
@@ -25,7 +32,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should be a minimal descriptor host");
-assert.match(filesHtml, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/files\.js\?v=13/, "Files host should load client/project helpers plus the view builder and renderer before the Files adapter");
+assert.match(filesHtml, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files host should load client/project helpers plus the view builder, renderer, and shared preview before the Files adapter");
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
 
 assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without letting the renderer fetch the browse data yet");
@@ -46,27 +53,33 @@ assert.match(modulesServiceSource, /listFrameworkViewSurfaces\(\)/, "Modules ser
 assert.match(modulesServiceSource, /listFrameworkProtectedViews\(\)/, "Modules service should merge framework-owned protected view gates into descriptor delivery");
 assert.match(regressionSuite, /scripts\/files-descriptor-host-regression\.mjs/, "Regression suite should include the Files descriptor host regression");
 
-await ensureRegressionUsers();
-await modulesService.syncModuleRegistry(workspaceId);
+try {
+  await initializeDatabase();
+  await ensureRegressionUsers();
+  await modulesService.syncModuleRegistry(workspaceId);
 
-const activeSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, protectedSession);
-assertFilesSurface(activeSurfaces.find((surface) => surface.id === "files.browse"), "modulesService.listActiveViewSurfaces");
+  const activeSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, protectedSession);
+  assertFilesSurface(activeSurfaces.find((surface) => surface.id === "files.browse"), "modulesService.listActiveViewSurfaces");
 
-const allowedShell = await appShellService.bootstrap(protectedSession);
-assertFilesSurface(allowedShell.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap top-level viewSurfaces");
-assertFilesSurface(allowedShell.workspaceContext.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap workspaceContext.viewSurfaces");
+  const allowedShell = await appShellService.bootstrap(protectedSession);
+  assertFilesSurface(allowedShell.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap top-level viewSurfaces");
+  assertFilesSurface(allowedShell.workspaceContext.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap workspaceContext.viewSurfaces");
 
-const deniedSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, deniedSession);
-assert.equal(deniedSurfaces.some((surface) => surface.id === "files.browse"), false, "Files descriptor should not be delivered when files.view is denied");
+  const deniedSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, deniedSession);
+  assert.equal(deniedSurfaces.some((surface) => surface.id === "files.browse"), false, "Files descriptor should not be delivered when files.view is denied");
 
-const deniedShell = await appShellService.bootstrap(deniedSession);
-assert.equal(deniedShell.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied app shell should not receive files.browse");
-assert.equal(deniedShell.workspaceContext.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied workspace context should not cache files.browse");
+  const deniedShell = await appShellService.bootstrap(deniedSession);
+  assert.equal(deniedShell.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied app shell should not receive files.browse");
+  assert.equal(deniedShell.workspaceContext.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied workspace context should not cache files.browse");
 
-const integrityRows = await querySql("PRAGMA integrity_check;");
-assert.equal(integrityRows[0]?.integrity_check, "ok", "Database integrity check should pass after Files descriptor regression setup");
+  const integrityRows = await querySql("PRAGMA integrity_check;");
+  assert.equal(integrityRows[0]?.integrity_check, "ok", "Database integrity check should pass after Files descriptor regression setup");
 
-console.log("Files descriptor host regression passed.");
+  console.log("Files descriptor host regression passed.");
+} finally {
+  await closeSqlite();
+  await fs.rm(tempDir, { recursive: true, force: true });
+}
 
 async function ensureRegressionUsers() {
   await runSql(`

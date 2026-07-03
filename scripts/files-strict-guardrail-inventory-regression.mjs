@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesScript = readText("public/js/files.js");
+const filePreviewScript = readText("public/js/shared/file-preview.js");
 const attachmentHelper = readText("public/js/shared/file-attachments.js");
 const declarativeGuardrails = readText("scripts/view-descriptor-declarative-guardrails.mjs");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
@@ -40,13 +41,14 @@ const fileStatusCell = functionBlock(filesScript, "createFileStatusCell");
 const fileActions = functionBlock(filesScript, "createFileActions");
 const fileEditorDialog = functionBlock(filesScript, "buildFileEditorDialog");
 const fileEditorControls = functionBlock(filesScript, "createFileEditorControlsSection");
-const filePreviewDialog = functionBlock(filesScript, "buildFilePreviewDialog");
-const filePreviewLoader = functionBlock(filesScript, "loadFilePreview");
-const previewAvailability = functionBlock(filesScript, "previewAvailabilityForRow");
+const filePreviewDialog = functionBlock(filePreviewScript, "buildFilePreviewDialog");
+const filePreviewLoader = functionBlock(filePreviewScript, "loadFilePreview");
+const previewAvailability = functionBlock(filePreviewScript, "previewAvailabilityForRow");
 
 assert.equal(countMatches(filesScript, /document\.createElement/g), 0, "Files browse should not create DOM nodes directly after strict enforcement");
-assert.equal(countMatches(filesScript, /innerHTML/g), 1, "Files browse should only use innerHTML for route-sanitized Markdown preview content");
-assert.match(functionBlock(filesScript, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/,
+assert.equal(countMatches(filesScript, /innerHTML/g), 0, "Files browse should not keep direct innerHTML writes after preview extraction");
+assert.equal(countMatches(filePreviewScript, /innerHTML/g), 1, "Shared preview should only use innerHTML for route-sanitized Markdown preview content");
+assert.match(functionBlock(filePreviewScript, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/,
   "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
 assert.equal(countMatches(attachmentHelper, /document\.createElement/g), 1, "Attachment helper should only keep direct DOM creation in the centralized fallback");
 assert.match(functionBlock(attachmentHelper, "createAttachmentElement"), /document\.createElement\(tagName\)/,

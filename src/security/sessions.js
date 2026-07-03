@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
-import { normalizeThemeMode, normalizeTimezone } from "../utils/normalizers.js";
+import { normalizeThemeAutoSource, normalizeThemeMode, normalizeTimezone } from "../utils/normalizers.js";
 
 async function createSession(user) {
   const sessionId = randomBytes(32).toString("base64url");
@@ -126,8 +126,24 @@ function buildThemeCookie(themeMode) {
   });
 }
 
+function buildThemeAutoSourceCookie(themeAutoSource) {
+  return buildCookie(config.cookies.themeAutoSourceName, normalizeThemeAutoSource(themeAutoSource), {
+    maxAgeSeconds: config.cookies.maxAgeSeconds,
+    sameSite: config.cookies.sameSite,
+    secure: config.cookies.secure,
+  });
+}
+
 function buildExpiredThemeCookie() {
   return buildCookie(config.cookies.themeName, "", {
+    maxAgeSeconds: 0,
+    sameSite: config.cookies.sameSite,
+    secure: config.cookies.secure,
+  });
+}
+
+function buildExpiredThemeAutoSourceCookie() {
+  return buildCookie(config.cookies.themeAutoSourceName, "", {
     maxAgeSeconds: 0,
     sameSite: config.cookies.sameSite,
     secure: config.cookies.secure,
@@ -157,9 +173,11 @@ function buildCookie(name, value, options = {}) {
 }
 
 export {
+  buildExpiredThemeAutoSourceCookie,
   buildExpiredSessionCookie,
   buildExpiredThemeCookie,
   buildSessionCookie,
+  buildThemeAutoSourceCookie,
   buildThemeCookie,
   createSession,
   deleteSession,

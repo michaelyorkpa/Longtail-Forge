@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesScript = readText("public/js/files.js");
+const filePreviewScript = readText("public/js/shared/file-preview.js");
 const attachmentHelper = readText("public/js/shared/file-attachments.js");
 const styles = readText("public/css/longtail-forge.css");
 const filesHtml = readText("views/protected/files.html");
@@ -24,10 +25,10 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(filesHtml, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust the visual parity stylesheet");
 assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared action icons");
-assert.match(filesHtml, /js\/files\.js\?v=13/, "Files page should cache-bust the visual parity adapter");
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=56[\s\S]*js\/shared\/file-attachments\.js\?v=6/, "Notes should cache-bust shared attachment visuals");
-assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74[\s\S]*js\/shared\/file-attachments\.js\?v=6/, "Tasks should cache-bust shared attachment visuals");
-assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=22[\s\S]*js\/shared\/file-attachments\.js\?v=6/, "Workbench should cache-bust shared attachment visuals");
+assert.match(filesHtml, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should cache-bust the visual parity adapter");
+assert.match(notesHtml, /css\/longtail-forge\.css\?v=56[\s\S]*js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust shared attachment visuals");
+assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74[\s\S]*js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust shared attachment visuals");
+assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=22[\s\S]*js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust shared attachment visuals");
 
 const filesTable = functionBlock(filesScript, "createFilesTable");
 assert.match(filesTable, /emptyMessage:\s*"No file attachments match the current filters\."/,
@@ -71,9 +72,9 @@ assert.match(functionBlock(filesScript, "quarantineFile"), /title:\s*"Move file 
   "Review action should preserve the protected quarantine route with review-oriented confirmation copy");
 assert.match(functionBlock(filesScript, "reportFile"), /Downloads will be paused until a workspace admin reviews it/,
   "Report confirmation should use review-oriented availability copy");
-assert.match(functionBlock(filesScript, "buildFileEditorDialog"), /action:\s*"files\.preview"[\s\S]*openFilePreview\(row/,
+assert.match(functionBlock(filesScript, "buildFileEditorDialog"), /action:\s*"files\.preview"[\s\S]*filePreview\.openFilePreview\(row/,
   "File Context may keep its Preview control without reimplementing Preview behavior");
-assert.match(functionBlock(filesScript, "createPreviewDownloadAction"), /surfaceAction: "files\.download"/,
+assert.match(functionBlock(filePreviewScript, "createPreviewDownloadAction"), /surfaceAction: "files\.download"/,
   "Preview modal download should stay tied to the shared Files download action vocabulary");
 
 const attachmentItem = functionBlock(attachmentHelper, "attachmentItem");
@@ -84,10 +85,10 @@ assert.match(attachmentItem, /createAttachmentRecoveryState\(view, recoveryMessa
 assert.match(functionBlock(attachmentHelper, "createAttachmentMetaChip"), /surface-chip[\s\S]*file-attachment-meta-chip[\s\S]*aria-label/,
   "Attachment chips should use shared chip styling and accessible labels");
 const attachmentActions = functionBlock(attachmentHelper, "createAttachmentActions");
-assert.match(attachmentActions, /action:\s*"files\.report"[\s\S]*label:\s*"Report"/,
-  "Attachment Report should keep visible text with the Files report action ID");
-assert.match(attachmentActions, /action:\s*"files\.quarantine"[\s\S]*label:\s*"Review"/,
-  "Attachment Review should keep visible text with the Files quarantine action ID");
+assert.match(attachmentActions, /action:\s*"files\.report"[\s\S]*icon:\s*"alert"[\s\S]*iconOnly:\s*true[\s\S]*label:\s*`Report \$\{name\}`/,
+  "Attachment Report should keep an accessible icon-only Files report action");
+assert.match(attachmentActions, /action:\s*"files\.quarantine"[\s\S]*icon:\s*"shield-alert"[\s\S]*iconOnly:\s*true[\s\S]*label:\s*`Review \$\{name\}`/,
+  "Attachment Review should keep an accessible icon-only Files quarantine action");
 
 const attachmentStatusMessage = functionBlock(attachmentHelper, "statusMessage");
 assert.match(attachmentStatusMessage, /Uploading attachments[\s\S]*Loading attachments[\s\S]*1 attachment[\s\S]*attachments/,

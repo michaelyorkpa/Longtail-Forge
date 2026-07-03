@@ -1,16 +1,23 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import os from "node:os";
+import path from "node:path";
 
-import { modulesService } from "../src/core/modules/modules.service.js";
-import { appShellService } from "../src/services/app-shell.service.js";
-import { querySql, runSql, sqlText } from "../src/db/index.js";
-import { clientsService } from "../src/modules/client-projects/clients.service.js";
-import { clientsRepository } from "../src/modules/client-projects/clients.repo.js";
-import { projectsRepository } from "../src/modules/client-projects/projects.repo.js";
-import { clientProjectsModule } from "../src/modules/client-projects/module.js";
+const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-clients-projects-descriptor-host-"));
+process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-clients-projects-descriptor-host.db");
+process.env.SUPER_ADMIN_PASSWORD = "Clients-Projects-Descriptor-Host-Test-123!";
 
-const appVersion = "0.33.5.21.8";
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
+const { appShellService } = await import("../src/services/app-shell.service.js");
+const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
+const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
+const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
+const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
+
+const appVersion = "0.33.5.21.9.4";
 const businessWorkspaceId = "clients-projects-descriptor-business";
 const personalWorkspaceId = "clients-projects-descriptor-personal";
 const familyWorkspaceId = "clients-projects-descriptor-family";
@@ -127,51 +134,57 @@ assert.match(clientsServiceSource, /function buildProjectReadShape[\s\S]*project
 assert.match(clientsServiceSource, /billing_display: formatBillingDisplay/, "Descriptor reads should expose a server-shaped billing display field");
 assert.match(clientsServiceSource, /tag_summary: formatTagSummary/, "Descriptor reads should expose a server-shaped tag summary field");
 
-await ensureWorkspace(businessWorkspaceId, "business", businessUserId);
-await ensureWorkspace(personalWorkspaceId, "personal", personalUserId);
-await ensureWorkspace(familyWorkspaceId, "family", familyUserId);
-await seedBusinessReadRecords();
-await Promise.all([
-  modulesService.syncModuleRegistry(businessWorkspaceId),
-  modulesService.syncModuleRegistry(personalWorkspaceId),
-  modulesService.syncModuleRegistry(familyWorkspaceId),
-]);
+try {
+  await initializeDatabase();
+  await ensureWorkspace(businessWorkspaceId, "business", businessUserId);
+  await ensureWorkspace(personalWorkspaceId, "personal", personalUserId);
+  await ensureWorkspace(familyWorkspaceId, "family", familyUserId);
+  await seedBusinessReadRecords();
+  await Promise.all([
+    modulesService.syncModuleRegistry(businessWorkspaceId),
+    modulesService.syncModuleRegistry(personalWorkspaceId),
+    modulesService.syncModuleRegistry(familyWorkspaceId),
+  ]);
 
-const businessShell = await appShellService.bootstrap(sessionFor(businessWorkspaceId, businessUserId));
-const personalShell = await appShellService.bootstrap(sessionFor(personalWorkspaceId, personalUserId));
-const familyShell = await appShellService.bootstrap(sessionFor(familyWorkspaceId, familyUserId));
+  const businessShell = await appShellService.bootstrap(sessionFor(businessWorkspaceId, businessUserId));
+  const personalShell = await appShellService.bootstrap(sessionFor(personalWorkspaceId, personalUserId));
+  const familyShell = await appShellService.bootstrap(sessionFor(familyWorkspaceId, familyUserId));
 
-assertSurfaceDelivery(businessShell, { clients: true, projects: true, label: "Business" });
-assertSurfaceDelivery(personalShell, { clients: false, projects: true, label: "Personal" });
-assertSurfaceDelivery(familyShell, { clients: false, projects: true, label: "Family" });
+  assertSurfaceDelivery(businessShell, { clients: true, projects: true, label: "Business" });
+  assertSurfaceDelivery(personalShell, { clients: false, projects: true, label: "Personal" });
+  assertSurfaceDelivery(familyShell, { clients: false, projects: true, label: "Family" });
 
-const businessRead = await clientsService.listClients(sessionFor(businessWorkspaceId, businessUserId), {
-  include_depth: "true",
-  status: "All",
-});
-assert.ok(businessRead.clients.some((client) => client.id === "cpd-child-client" && client.depth === 1), "Clients read should expose hierarchy depth for descriptor binding");
-assert.ok(businessRead.clients.some((client) => client.id === "cpd-parent-client" && client.billing_display), "Clients read should expose billing display metadata");
+  const businessRead = await clientsService.listClients(sessionFor(businessWorkspaceId, businessUserId), {
+    include_depth: "true",
+    status: "All",
+  });
+  assert.ok(businessRead.clients.some((client) => client.id === "cpd-child-client" && client.depth === 1), "Clients read should expose hierarchy depth for descriptor binding");
+  assert.ok(businessRead.clients.some((client) => client.id === "cpd-parent-client" && client.billing_display), "Clients read should expose billing display metadata");
 
-const projectRead = await clientsService.listProjects(sessionFor(personalWorkspaceId, personalUserId), {
-  include_depth: "true",
-  status: "All",
-});
-assert.ok(Array.isArray(projectRead.projects), "Projects read should be available in Personal project-only workspaces");
+  const projectRead = await clientsService.listProjects(sessionFor(personalWorkspaceId, personalUserId), {
+    include_depth: "true",
+    status: "All",
+  });
+  assert.ok(Array.isArray(projectRead.projects), "Projects read should be available in Personal project-only workspaces");
 
-await assert.rejects(
-  () => clientsService.listClients(sessionFor(personalWorkspaceId, personalUserId), { include_depth: "true" }),
-  (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
-  "Clients read should remain Business-only in Personal workspaces",
-);
-await assert.rejects(
-  () => clientsService.listClients(sessionFor(familyWorkspaceId, familyUserId), { include_depth: "true" }),
-  (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
-  "Clients read should remain Business-only in Family workspaces",
-);
+  await assert.rejects(
+    () => clientsService.listClients(sessionFor(personalWorkspaceId, personalUserId), { include_depth: "true" }),
+    (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
+    "Clients read should remain Business-only in Personal workspaces",
+  );
+  await assert.rejects(
+    () => clientsService.listClients(sessionFor(familyWorkspaceId, familyUserId), { include_depth: "true" }),
+    (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
+    "Clients read should remain Business-only in Family workspaces",
+  );
 
-assert.match(regressionSuite, /scripts\/clients-projects-read-descriptor-host-regression\.mjs/, "Regression suite should include the 13.2 Clients/Projects descriptor host regression");
+  assert.match(regressionSuite, /scripts\/clients-projects-read-descriptor-host-regression\.mjs/, "Regression suite should include the 13.2 Clients/Projects descriptor host regression");
 
-console.log("Clients/Projects read descriptor and minimal host regression passed.");
+  console.log("Clients/Projects read descriptor and minimal host regression passed.");
+} finally {
+  await closeSqlite();
+  await fs.rm(tempDir, { recursive: true, force: true });
+}
 
 function assertMinimalHost(html, { label, hostClass, forbiddenHooks }) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));

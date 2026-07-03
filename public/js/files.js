@@ -1,5 +1,6 @@
 const api = window.LongtailForge.api;
 const view = window.LongtailForge?.view;
+const filePreview = window.LongtailForge?.filePreview;
 const state = {
   workspaceType: "business",
   attachments: [],
@@ -10,10 +11,6 @@ const state = {
   },
   projects: [],
 };
-const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
-const IMAGE_PREVIEW_EXTENSIONS = new Set(["gif", "jpg", "jpeg", "png"]);
-const MARKDOWN_PREVIEW_EXTENSIONS = new Set(["md"]);
-const TEXT_PREVIEW_EXTENSIONS = new Set(["txt"]);
 const FILE_REPORT_REASON = "security";
 const FILE_QUARANTINE_REASON = "manual_quarantine";
 const FILES_PAGE_SIZE = 50;
@@ -38,13 +35,12 @@ let loadMoreFilesButton = null;
 let activeFilesTooltip = null;
 let activeFilesTooltipTarget = null;
 let activeFileEditorDialog = null;
-let activeFilePreviewDialog = null;
 let fileEditorOptionRequestId = 0;
 
 window.LongtailForge.filesDialog = Object.freeze({
   ...(window.LongtailForge.filesDialog || {}),
   openFileEditor,
-  openFilePreview,
+  openFilePreview: (...args) => filePreview.openFilePreview(...args),
 });
 
 buildFilesViewShell();
@@ -520,7 +516,7 @@ function fileRow(attachment) {
   const extension = file.extension || extensionFromFilename(file.originalFilename || fileName);
   const fileSizeBytes = Number(file.fileSizeBytes || file.file_size_bytes || 0);
   const canManageReview = canManageFileReview(attachment, file, fileId);
-  const preview = previewAvailabilityForRow({
+  const preview = filePreview.previewAvailabilityForRow({
     canPreviewInReview: canManageReview,
     extension,
     fileSizeBytes,
@@ -842,7 +838,7 @@ function createPreviewAction(row) {
     className: "files-row-action",
     onClick: (event) => {
       stopFileRowActionEvent(event);
-      openFilePreview(row, { trigger: event.currentTarget });
+      filePreview.openFilePreview(row, { trigger: event.currentTarget });
     },
   });
 
@@ -851,7 +847,7 @@ function createPreviewAction(row) {
 }
 
 function createDownloadOnlyMarker(row) {
-  const label = previewUnavailableLabel(row);
+  const label = filePreview.previewUnavailableLabel(row);
   const icon = window.LongtailForge.icons?.createIcon?.("eye", { decorative: true });
   const marker = createFilesElement("span", {
     className: "action-button icon-button files-row-action files-row-preview-unavailable",
@@ -985,234 +981,6 @@ function stopFileRowActionEvent(event) {
   event?.stopPropagation?.();
 }
 
-function openFilePreview(attachmentOrRow = {}, options = {}) {
-  requireFilesViewHelper("createActionButton");
-  requireFilesViewHelper("closeModal");
-  requireFilesViewHelper("createModal");
-  requireFilesViewHelper("showModal");
-
-  const row = normalizeFileEditorRow(attachmentOrRow);
-  const trigger = options.trigger && typeof options.trigger.focus === "function"
-    ? options.trigger
-    : document.activeElement;
-
-  if (activeFilePreviewDialog?.isConnected) {
-    view.closeModal(activeFilePreviewDialog, "replace");
-  }
-
-  const dialog = buildFilePreviewDialog(row);
-
-  dialog.addEventListener("close", () => {
-    if (activeFilePreviewDialog === dialog) {
-      activeFilePreviewDialog = null;
-    }
-    dialog.remove();
-  }, { once: true });
-
-  document.body.appendChild(dialog);
-  activeFilePreviewDialog = dialog;
-  view.showModal(dialog, { parent: options.parent || null, trigger });
-  loadFilePreview(dialog, row);
-  return dialog;
-}
-
-function buildFilePreviewDialog(row) {
-  let dialog = null;
-  const body = view.createElement("div", {
-    className: "files-preview-body",
-    attrs: { "aria-live": "polite" },
-    dataset: { filePreviewBody: "" },
-    children: [createFilePreviewStatus("Loading preview...")],
-  });
-  const downloadAction = createPreviewDownloadAction(row);
-  const closeButton = view.createActionButton({
-    action: "close-file-preview",
-    className: "surface-modal-footer-action",
-    icon: "close",
-    iconOnly: true,
-    label: "Close Preview",
-    role: "secondary",
-    text: "",
-    title: "Close Preview",
-    onClick: () => view.closeModal(dialog, "close"),
-  });
-
-  dialog = view.createModal({
-    title: `Preview ${row.fileName}`,
-    className: "files-preview-dialog",
-    size: "wide",
-    body: [body],
-    actions: [downloadAction, closeButton].filter(Boolean),
-  });
-  dialog.dataset.filePreviewDialog = "";
-  dialog.dataset.fileAttachmentId = row.attachmentId || "";
-  if (dialog.viewParts?.body) {
-    dialog.viewParts.body.classList.add("files-preview-modal-body");
-  }
-  if (dialog.viewParts?.footer) {
-    dialog.viewParts.footer.classList.add("files-preview-actions");
-    dialog.viewParts.footer.dataset.modalFooter = "";
-  }
-  return dialog;
-}
-
-function createPreviewDownloadAction(row) {
-  if (!row.downloadable || !row.fileId) {
-    return null;
-  }
-
-  const label = `Download ${row.fileName}`;
-  const icon = window.LongtailForge.icons?.createIcon?.("download", { decorative: true });
-  const link = createFilesElement("a", {
-    className: "action-button icon-button surface-modal-footer-action files-preview-download",
-    attrs: {
-      "aria-label": label,
-      download: true,
-      href: `/api/files/${encodeURIComponent(row.fileId)}/download`,
-      title: label,
-    },
-    dataset: {
-      fileAction: "preview-download",
-      surfaceAction: "files.download",
-      surfaceActionRole: "utility",
-    },
-  });
-
-  if (icon) {
-    link.appendChild(icon);
-  } else {
-    link.textContent = "Download";
-  }
-  return link;
-}
-
-async function loadFilePreview(dialog, row) {
-  if (!row.attachmentId) {
-    renderFilePreviewUnavailable(dialog, "Preview is not available for this file.");
-    return;
-  }
-
-  setFilePreviewStatus(dialog, "Checking preview availability...");
-
-  try {
-    const descriptorResponse = await api.getJson(`/api/files/attachments/${encodeURIComponent(row.attachmentId)}/preview`, { cache: "no-store" });
-    const preview = descriptorResponse.preview || {};
-
-    if (!dialog.isConnected) {
-      return;
-    }
-
-    if (preview.state !== "previewable" || !preview.contentUrl) {
-      renderFilePreviewState(dialog, preview);
-      return;
-    }
-
-    if (preview.kind === "image") {
-      renderFilePreviewImage(dialog, preview);
-      return;
-    }
-
-    setFilePreviewStatus(dialog, "Loading preview...");
-    const contentResponse = await api.getJson(preview.contentUrl, { cache: "no-store" });
-
-    if (!dialog.isConnected) {
-      return;
-    }
-
-    renderFilePreviewContent(dialog, preview, contentResponse.content || {});
-  } catch (error) {
-    if (error.status === 401) {
-      window.location.replace("/login.html");
-      return;
-    }
-
-    renderFilePreviewUnavailable(dialog, error.message || "Preview could not be loaded.", true);
-  }
-}
-
-function renderFilePreviewContent(dialog, preview, content) {
-  if (content.kind === "text") {
-    renderFilePreviewText(dialog, content.text || "");
-    return;
-  }
-
-  if (content.kind === "markdown") {
-    renderFilePreviewMarkdown(dialog, content.bodyHtml || "");
-    return;
-  }
-
-  renderFilePreviewState(dialog, preview);
-}
-
-function renderFilePreviewImage(dialog, preview) {
-  const image = createFilesElement("img", {
-    attrs: {
-      alt: preview.filename ? `Preview of ${preview.filename}` : "File preview",
-      src: preview.contentUrl,
-    },
-  });
-  const wrapper = view.createElement("div", {
-    className: "files-preview-image-frame",
-    children: [image],
-  });
-
-  image.addEventListener("load", () => {
-    setFilePreviewBody(dialog, wrapper);
-  }, { once: true });
-  image.addEventListener("error", () => {
-    renderFilePreviewUnavailable(dialog, "Image preview could not be loaded.", true);
-  }, { once: true });
-  setFilePreviewStatus(dialog, "Loading image preview...");
-}
-
-function renderFilePreviewText(dialog, text) {
-  setFilePreviewBody(dialog, createFilesElement("pre", {
-    className: "files-preview-text",
-    children: [
-      createFilesElement("code", { text: text || "" }),
-    ],
-  }));
-}
-
-function renderFilePreviewMarkdown(dialog, html) {
-  const content = view.createElement("div", {
-    className: "files-preview-markdown notes-preview",
-    attrs: { "data-file-preview-markdown": "" },
-  });
-
-  content.innerHTML = html || "";
-  setFilePreviewBody(dialog, content);
-}
-
-function renderFilePreviewState(dialog, preview = {}) {
-  const state = preview.state || "unavailable";
-  const message = previewStateMessage(state);
-
-  renderFilePreviewUnavailable(dialog, message, state === "unauthorized");
-}
-
-function renderFilePreviewUnavailable(dialog, message, isError = false) {
-  setFilePreviewBody(dialog, createFilePreviewStatus(message, isError));
-}
-
-function createFilePreviewStatus(message, isError = false) {
-  return view.createElement("p", {
-    className: ["files-preview-status", isError ? "error-text" : ""],
-    attrs: { role: "status" },
-    text: message,
-  });
-}
-
-function setFilePreviewStatus(dialog, message, isError = false) {
-  setFilePreviewBody(dialog, createFilePreviewStatus(message, isError));
-}
-
-function setFilePreviewBody(dialog, content) {
-  const body = dialog.querySelector("[data-file-preview-body]");
-
-  body?.replaceChildren(content);
-}
-
 function openFileEditor(attachmentOrRow = {}, options = {}) {
   requireFilesViewHelper("renderDescriptorModalForm");
   requireFilesViewHelper("createActionButton");
@@ -1265,7 +1033,7 @@ function buildFileEditorDialog(row, options = {}) {
     onClick: (event) => {
       event.preventDefault();
       event.stopPropagation();
-      openFilePreview(row, { trigger: event.currentTarget });
+      filePreview.openFilePreview(row, { trigger: event.currentTarget });
     },
   });
   const markReviewedButton = view.createActionButton({
@@ -1881,84 +1649,6 @@ function applyWorkspaceContext() {
 
 function usesBusinessScope() {
   return state.workspaceType === "business";
-}
-
-function previewAvailabilityForRow(row) {
-  const kind = previewKindForExtension(row.extension);
-  const status = String(row.status || "").trim();
-  const scanStatus = String(row.scanStatus || "").trim();
-  const canPreviewInReview = row.canPreviewInReview === true;
-  const reviewPreviewAllowed = status === "quarantined" && canPreviewInReview;
-
-  if ((status !== "available" && !reviewPreviewAllowed) || !["not_required", "passed"].includes(scanStatus)) {
-    return {
-      kind,
-      reason: status !== "available" && !reviewPreviewAllowed
-        ? `file_${status || "unavailable"}`
-        : `scan_${scanStatus || "unavailable"}`,
-      state: "unavailable",
-    };
-  }
-
-  if (kind === "unsupported") {
-    return {
-      kind,
-      reason: "unsupported_file_type",
-      state: "download_only",
-    };
-  }
-
-  if ((kind === "text" || kind === "markdown") && Number(row.fileSizeBytes || 0) > TEXT_PREVIEW_MAX_BYTES) {
-    return {
-      kind,
-      reason: "too_large_for_preview",
-      state: "too_large_for_preview",
-    };
-  }
-
-  return {
-    kind,
-    reason: "",
-    state: "previewable",
-  };
-}
-
-function previewKindForExtension(extension) {
-  const normalizedExtension = String(extension || "").replace(/^\./, "").toLowerCase();
-
-  if (IMAGE_PREVIEW_EXTENSIONS.has(normalizedExtension)) {
-    return "image";
-  }
-  if (MARKDOWN_PREVIEW_EXTENSIONS.has(normalizedExtension)) {
-    return "markdown";
-  }
-  if (TEXT_PREVIEW_EXTENSIONS.has(normalizedExtension)) {
-    return "text";
-  }
-  return "unsupported";
-}
-
-function previewUnavailableLabel(row) {
-  if (row.previewState === "too_large_for_preview") {
-    return `Preview too large; download ${row.fileName}`;
-  }
-  if (row.previewState === "download_only") {
-    return `Download-only ${row.fileName}`;
-  }
-  return `Preview unavailable for ${row.fileName}`;
-}
-
-function previewStateMessage(state) {
-  if (state === "download_only") {
-    return "This file type is download-only.";
-  }
-  if (state === "too_large_for_preview") {
-    return "This file is too large to preview. Use Download to open it outside Longtail Forge.";
-  }
-  if (state === "unauthorized") {
-    return "You do not have permission to preview this file.";
-  }
-  return "Preview is not available for this file.";
 }
 
 function canReportFileRow(attachment, file, fileId, status) {

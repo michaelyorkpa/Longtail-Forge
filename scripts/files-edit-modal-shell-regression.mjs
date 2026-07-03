@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -55,7 +55,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(filesPage, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust modal styling");
-assert.match(filesPage, /js\/files\.js\?v=13/, "Files page should cache-bust the Files adapter");
+assert.match(filesPage, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should cache-bust the Files adapter");
 assert.match(regressionSuite, /scripts\/files-edit-modal-shell-regression\.mjs/, "Regression suite should include the Files edit modal shell regression");
 
 const openerBlock = functionBlock(filesScript, "openFileEditor");
@@ -96,8 +96,8 @@ const editorSource = [
 assert.match(filesScript, /LongtailForge\.filesDialog = Object\.freeze\(\{[\s\S]*openFileEditor/, "Files should expose a canonical filesDialog.openFileEditor opener");
 assert.match(openerBlock, /view\.showModal\(dialog,\s*\{[\s\S]*trigger/, "File editor opener should use the shared modal stack with trigger focus return");
 assert.match(openerBlock, /loadFileEditorTargetOptions\(dialog,\s*row\)/, "File editor opener should load route-backed target choices");
-assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*label:\s*`Preview \$\{row\.fileName\}`[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File editor should expose the same standalone Preview footer action as the Files list");
-assert.doesNotMatch(buildBlock, /openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File editor Preview should not bind the Preview modal to the edit modal");
+assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*label:\s*`Preview \$\{row\.fileName\}`[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*filePreview\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File editor should expose the same standalone Preview footer action as the Files list");
+assert.doesNotMatch(buildBlock, /filePreview\.openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File editor Preview should not bind the Preview modal to the edit modal");
 assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""[\s\S]*previewButton\.hidden = !row\.previewable[\s\S]*previewButton\.disabled = !row\.previewable/, "File editor Preview action should have a stable marker and hide for non-previewable rows");
 assert.match(buildBlock, /const markReviewedButton = view\.createActionButton\(\{[\s\S]*action:\s*"files\.restore"[\s\S]*label:\s*`Mark \$\{row\.fileName\} reviewed`[\s\S]*markFileReviewedFromContext\(dialog,\s*row,\s*options\)/, "File editor should expose Mark Reviewed as a modal-only review recovery action");
 assert.match(buildBlock, /markReviewedButton\.dataset\.fileContextMarkReviewed = ""[\s\S]*markReviewedButton\.hidden = !row\.reviewable[\s\S]*markReviewedButton\.disabled = !row\.reviewable/, "File editor Mark Reviewed action should have a stable marker and hide outside in-review recovery");

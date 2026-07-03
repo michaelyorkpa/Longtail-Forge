@@ -1,6 +1,9 @@
 // Shared authenticated app shell. Add/remove menu items here instead of editing every page.
 const DEFAULT_WORKSPACE_NAME = "Workspace";
 const WORKSPACE_CONTEXT_STORAGE_KEY = "lf_workspace_context";
+const THEME_STORAGE_KEY = "lf_theme";
+const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
+const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
   { label: "Workbench", href: "workbench.html" },
@@ -40,6 +43,8 @@ const globalSearchForm = siteHeader.querySelector("[data-global-search-form]");
 const globalSearchInput = siteHeader.querySelector("[data-global-search-input]");
 const globalSearchTarget = siteHeader.querySelector("[data-global-search-target]");
 const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
+let systemThemeModeQuery = null;
+let systemThemeModeListenerAttached = false;
 
 applyCachedWorkspaceContext();
 
@@ -372,7 +377,7 @@ async function loadAppShellBootstrap() {
     applyWorkspaceName(workspaceContext.workspaceName);
     applyWorkspaceCapabilities(workspaceContext);
     if (shell.themeMode) {
-      applyThemeMode(shell.themeMode);
+      applyThemeMode(shell.themeMode, shell.themeAutoSource);
     }
     populateWorkspaceSelector(shell.workspaces || [], shell.activeWorkspaceId || workspaceContext.workspaceId);
   } catch {
@@ -816,7 +821,7 @@ async function loadSessionWorkspaces() {
       applyWorkspaceCapabilities(workspaceContext);
     }
     if (user.themeMode) {
-      applyThemeMode(user.themeMode);
+      applyThemeMode(user.themeMode, user.themeAutoSource);
     }
     const workspaces = Array.isArray(user.workspaces) ? user.workspaces : [];
 
@@ -843,13 +848,78 @@ function populateWorkspaceSelector(workspaces, activeWorkspaceId) {
   applyActiveWorkspaceLabel();
 }
 
-function applyThemeMode(themeMode) {
-  const normalizedThemeMode = themeMode === "dark" ? "dark" : "light";
+function applyThemeMode(themeMode, themeAutoSource = "system") {
+  const normalizedThemeMode = normalizeThemeMode(themeMode);
+  const normalizedThemeAutoSource = normalizeThemeAutoSource(themeAutoSource);
+  const effectiveTheme = resolveThemeMode(normalizedThemeMode, normalizedThemeAutoSource);
 
-  window.localStorage.setItem("lf_theme", normalizedThemeMode);
+  window.localStorage.setItem(THEME_STORAGE_KEY, normalizedThemeMode);
+  window.localStorage.setItem(THEME_AUTO_SOURCE_STORAGE_KEY, normalizedThemeAutoSource);
   document.documentElement.dataset.themeMode = normalizedThemeMode;
-  document.documentElement.dataset.theme = normalizedThemeMode;
-  document.documentElement.style.colorScheme = normalizedThemeMode;
+  document.documentElement.dataset.themeAutoSource = normalizedThemeAutoSource;
+  document.documentElement.dataset.theme = effectiveTheme;
+  document.documentElement.style.colorScheme = effectiveTheme;
+  ensureSystemThemeModeWatcher();
+}
+
+function normalizeThemeMode(value) {
+  return ["light", "auto", "dark"].includes(value) ? value : "light";
+}
+
+function normalizeThemeAutoSource(value) {
+  return value === "system" ? "system" : "system";
+}
+
+function resolveThemeMode(themeMode, themeAutoSource = "system") {
+  const normalizedThemeMode = normalizeThemeMode(themeMode);
+
+  if (normalizedThemeMode !== "auto") {
+    return normalizedThemeMode;
+  }
+
+  return resolveAutoThemeMode(themeAutoSource);
+}
+
+function resolveAutoThemeMode(themeAutoSource = "system") {
+  if (normalizeThemeAutoSource(themeAutoSource) === "system" && typeof window.matchMedia === "function") {
+    return getSystemThemeModeQuery().matches ? "dark" : "light";
+  }
+
+  return "light";
+}
+
+function getSystemThemeModeQuery() {
+  if (!systemThemeModeQuery && typeof window.matchMedia === "function") {
+    systemThemeModeQuery = window.matchMedia(SYSTEM_THEME_QUERY);
+  }
+
+  return systemThemeModeQuery || { matches: false };
+}
+
+function ensureSystemThemeModeWatcher() {
+  if (systemThemeModeListenerAttached || typeof window.matchMedia !== "function") {
+    return;
+  }
+
+  const query = getSystemThemeModeQuery();
+  const listener = () => {
+    if (
+      document.documentElement.dataset.themeMode === "auto" &&
+      document.documentElement.dataset.themeAutoSource === "system"
+    ) {
+      const effectiveTheme = resolveThemeMode("auto", "system");
+      document.documentElement.dataset.theme = effectiveTheme;
+      document.documentElement.style.colorScheme = effectiveTheme;
+    }
+  };
+
+  if (typeof query.addEventListener === "function") {
+    query.addEventListener("change", listener);
+  } else if (typeof query.addListener === "function") {
+    query.addListener(listener);
+  }
+
+  systemThemeModeListenerAttached = true;
 }
 
 function createWorkspaceOption(label, value = label) {
@@ -1031,7 +1101,8 @@ async function logOut() {
       method: "POST",
     });
   } finally {
-    window.localStorage.removeItem("lf_theme");
+    window.localStorage.removeItem(THEME_STORAGE_KEY);
+    window.localStorage.removeItem(THEME_AUTO_SOURCE_STORAGE_KEY);
     window.localStorage.removeItem("lf_timezone");
     window.localStorage.removeItem(WORKSPACE_CONTEXT_STORAGE_KEY);
     window.location.replace("/login.html");

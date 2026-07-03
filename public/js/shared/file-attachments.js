@@ -397,46 +397,69 @@
     const fileId = attachment.fileId || attachment.file_id;
     const isReportable = isAttachmentReportable(attachment, file, fileId, isDeleted, options);
     const isQuarantineable = isAttachmentQuarantineable(attachment, file, fileId, isDeleted, options);
+    const previewRow = createAttachmentPreviewRow(attachment, file, options);
+    const preview = createAttachmentPreviewAction(view, previewRow);
     const download = createAttachmentDownloadAction(view, fileId, file, isDownloadable);
+    const name = file.displayName || file.originalFilename || "file";
     const remove = createAttachmentActionButton(view, {
       action: "files.removeAttachment",
       hidden: options.canRemove === false || isDeleted,
-      label: "Remove",
+      icon: "delete",
+      iconOnly: true,
+      label: `Remove attachment ${name}`,
       onClick: () => removeAttachment(container, state, attachment),
       role: "secondary",
+      text: "",
+      title: `Remove attachment ${name}`,
     });
     const report = createAttachmentActionButton(view, {
       action: "files.report",
       hidden: !isReportable,
-      label: "Report",
+      icon: "alert",
+      iconOnly: true,
+      label: `Report ${name}`,
       onClick: () => reportFile(container, state, attachment),
       role: "secondary",
+      text: "",
+      title: `Report ${name}`,
     });
     const quarantine = createAttachmentActionButton(view, {
       action: "files.quarantine",
       hidden: !isQuarantineable,
-      label: "Review",
+      icon: "shield-alert",
+      iconOnly: true,
+      label: `Review ${name}`,
       onClick: () => quarantineFile(container, state, attachment),
       role: "danger",
+      text: "",
+      title: `Review ${name}`,
       variant: "danger",
     });
     const deleteButton = createAttachmentActionButton(view, {
       action: "files.delete",
       hidden: options.canRemove === false || isDeleted,
-      label: "Delete File",
+      icon: "delete",
+      iconOnly: true,
+      label: `Delete ${name}`,
       onClick: () => deleteFile(container, state, attachment),
       role: "danger",
+      text: "",
+      title: `Delete ${name}`,
       variant: "danger",
     });
     const restore = createAttachmentActionButton(view, {
       action: "files.restore",
       hidden: options.canRemove === false || !isDeleted,
-      label: "Restore",
+      icon: "restore",
+      iconOnly: true,
+      label: `Restore ${name}`,
       onClick: () => restoreFile(container, state, attachment),
       role: "secondary",
+      text: "",
+      title: `Restore ${name}`,
     });
 
-    const actionNodes = [download, remove, report, quarantine, deleteButton, restore];
+    const actionNodes = [preview, download, remove, report, quarantine, deleteButton, restore];
     const actions = view?.createDetailActionStrip
       ? view.createDetailActionStrip({
         className: "file-attachment-actions",
@@ -452,21 +475,47 @@
     return actions;
   }
 
+  function createAttachmentPreviewAction(view, row) {
+    const name = row?.fileName || "file";
+
+    return createAttachmentActionButton(view, {
+      action: "files.preview",
+      hidden: !row?.previewable || !namespace.filePreview?.openFilePreview,
+      icon: "eye",
+      iconOnly: true,
+      label: `Preview ${name}`,
+      onClick: (event) => {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        namespace.filePreview.openFilePreview(row, { trigger: event?.currentTarget || null });
+      },
+      role: "secondary",
+      text: "",
+      title: `Preview ${name}`,
+    });
+  }
+
   function createAttachmentDownloadAction(view, fileId, file, isDownloadable) {
     const name = file.displayName || file.originalFilename || "file";
+    const label = `Download ${name}`;
+    const icon = namespace.icons?.createIcon?.("download", { decorative: true });
     const download = createAttachmentElement(view, "a", {
-      className: "button-link action-button view-action-button file-attachment-action",
+      className: "button-link action-button view-action-button icon-button file-attachment-action",
       attrs: {
-        "aria-label": `Download ${name}`,
+        "aria-label": label,
         "data-surface-action": "files.download",
         "data-surface-action-role": "secondary",
         download: true,
         href: `/api/files/${encodeURIComponent(fileId)}/download`,
-        title: `Download ${name}`,
+        title: label,
       },
-      text: "Download",
     });
 
+    if (icon) {
+      download.appendChild(icon);
+    } else {
+      download.textContent = "Download";
+    }
     download.hidden = !isDownloadable;
     return download;
   }
@@ -476,9 +525,12 @@
       ? view.createActionButton({
         action: options.action,
         className: "file-attachment-action",
+        icon: options.icon,
+        iconOnly: options.iconOnly,
         label: options.label,
         onClick: options.onClick,
         role: options.role,
+        text: options.text,
         title: options.title || options.label,
         variant: options.variant,
       })
@@ -486,7 +538,7 @@
 
     if (!view?.createActionButton) {
       button.type = "button";
-      button.textContent = options.label;
+      button.textContent = options.text || options.label;
       button.title = options.title || options.label;
       button.className = "file-attachment-action";
       button.addEventListener("click", options.onClick);
@@ -496,6 +548,26 @@
 
     button.hidden = Boolean(options.hidden);
     return button;
+  }
+
+  function createAttachmentPreviewRow(attachment, file, options) {
+    if (!namespace.filePreview?.normalizeFilePreviewRow) {
+      return null;
+    }
+
+    return namespace.filePreview.normalizeFilePreviewRow(attachment, {
+      canPreviewInReview: canPreviewAttachmentInReview(attachment, file, options),
+    });
+  }
+
+  function canPreviewAttachmentInReview(attachment, file, options) {
+    return readActionBooleanFlag([
+      options.canQuarantine,
+      attachment.canQuarantine,
+      attachment.can_quarantine,
+      file.canQuarantine,
+      file.can_quarantine,
+    ], workspaceHasPermission("files.manage_quarantine")) === true;
   }
 
   function createAttachmentRecoveryState(view, message) {

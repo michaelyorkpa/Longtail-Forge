@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildThemeCookie, getSessionIdFromRequest } from "../security/sessions.js";
+import { buildThemeAutoSourceCookie, buildThemeCookie, getSessionIdFromRequest } from "../security/sessions.js";
 import { authService } from "../services/auth.service.js";
 import { usersService } from "../services/users.service.js";
 import { asyncRoute, readJsonBody } from "../utils/http.js";
@@ -53,7 +53,10 @@ usersRoutes.delete("/users/:userId", asyncRoute(async (request, response) => {
 usersRoutes.get("/user/settings", asyncRoute(async (request, response) => {
   const result = await usersService.readSettings(request.session);
 
-  response.setHeader("Set-Cookie", buildThemeCookie(result.themeMode));
+  response.setHeader("Set-Cookie", [
+    buildThemeCookie(result.themeMode),
+    buildThemeAutoSourceCookie(result.themeAutoSource),
+  ]);
   response.status(200).json(result);
 }));
 
@@ -61,7 +64,10 @@ usersRoutes.put("/user/settings", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await usersService.saveSettings(payload, request.session);
 
-  response.setHeader("Set-Cookie", buildThemeCookie(result.themeMode));
+  response.setHeader("Set-Cookie", [
+    buildThemeCookie(result.themeMode),
+    buildThemeAutoSourceCookie(result.themeAutoSource),
+  ]);
   response.status(200).json(result);
 }));
 

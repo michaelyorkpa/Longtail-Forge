@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 const asyncRecurrenceVersion = "0.33.5.21.7.7";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-async-recurrence-response-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -44,7 +44,9 @@ try {
   assert.match(tasksPageSource, /const recurrenceQueued = result\.recurrenceJob\?\.queued === true/, "Tasks page should read the queued recurrence hint");
   assert.match(tasksPageSource, /setStatus\("Next recurring task queued\."\)/, "Tasks page should surface the queued recurrence affordance");
   assert.match(tasksPageSource, /if \(!result\.createdTask && !recurrenceQueued\)/, "Tasks page should not immediately clear the queued recurrence affordance");
-  assert.doesNotMatch(workbenchSource, /createdTask/, "Workbench completion should not assume a synchronous recurring task response");
+  assert.match(workbenchSource, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
+  assert.match(functionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.createdTask\?\.title[\s\S]*detail\.recurrenceQueued === true/, "Workbench completion should prefer the queued recurrence hint over assuming synchronous recurrence");
+  assert.doesNotMatch(functionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
   assert.match(tasksDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "Tasks docs should describe the async recurrence response contract");
   assert.match(publicApiDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "public API docs should describe the safe recurrence queued hint");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(asyncRecurrenceVersion)} - `), "changelog should include the async recurrence closeout slice");

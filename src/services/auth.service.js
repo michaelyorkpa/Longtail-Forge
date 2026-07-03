@@ -9,6 +9,7 @@ import { settingsService } from "./settings.service.js";
 import { AppError } from "../utils/app-error.js";
 import {
   normalizeOptionalEmail,
+  normalizeThemeAutoSource,
   normalizeThemeMode,
   normalizeTimezone,
   normalizeUserStatus,
@@ -69,6 +70,7 @@ async function login(payload, context = {}) {
   return {
     session,
     themeMode: normalizeThemeMode(user.theme_mode),
+    themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
     user: {
       workspace_id: activeWorkspaceId,
       active_workspace_id: activeWorkspaceId,
@@ -81,6 +83,7 @@ async function login(payload, context = {}) {
       altEmail: normalizeOptionalEmail(user.alt_email),
       timezone: normalizeTimezone(user.timezone),
       themeMode: normalizeThemeMode(user.theme_mode),
+      themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
     },
   };
 }
@@ -128,6 +131,7 @@ async function readSession(session) {
       username: session.username,
       timezone: normalizeTimezone(session.timezone),
       themeMode: normalizeThemeMode(user?.theme_mode),
+      themeAutoSource: normalizeThemeAutoSource(user?.theme_auto_source),
     },
   };
 }

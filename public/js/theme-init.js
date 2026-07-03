@@ -1,26 +1,53 @@
 (function () {
   const THEME_STORAGE_KEY = "lf_theme";
+  const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
+  const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
 
-  const themeCookie = document.cookie
-    .split(";")
-    .map((cookie) => cookie.trim())
-    .find((cookie) => cookie.startsWith(`${THEME_STORAGE_KEY}=`));
-  const cookieTheme = themeCookie
-    ? decodeURIComponent(themeCookie.split("=").slice(1).join("="))
-    : "";
+  const cookieTheme = readCookie(THEME_STORAGE_KEY);
+  const cookieThemeAutoSource = readCookie(THEME_AUTO_SOURCE_STORAGE_KEY);
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY) || "";
+  const storedThemeAutoSource = window.localStorage.getItem(THEME_AUTO_SOURCE_STORAGE_KEY) || "";
   const themeMode = normalizeThemeMode(cookieTheme || storedTheme);
-  const theme = resolveThemeMode(themeMode);
+  const themeAutoSource = normalizeThemeAutoSource(cookieThemeAutoSource || storedThemeAutoSource);
+  const theme = resolveThemeMode(themeMode, themeAutoSource);
 
   document.documentElement.dataset.themeMode = themeMode;
+  document.documentElement.dataset.themeAutoSource = themeAutoSource;
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
 
-  function normalizeThemeMode(value) {
-    return value === "dark" ? "dark" : "light";
+  function readCookie(name) {
+    const cookie = document.cookie
+      .split(";")
+      .map((item) => item.trim())
+      .find((item) => item.startsWith(`${name}=`));
+
+    return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
   }
 
-  function resolveThemeMode(value) {
-    return normalizeThemeMode(value);
+  function normalizeThemeMode(value) {
+    return ["light", "auto", "dark"].includes(value) ? value : "light";
+  }
+
+  function normalizeThemeAutoSource(value) {
+    return value === "system" ? "system" : "system";
+  }
+
+  function resolveThemeMode(themeModeValue, themeAutoSourceValue) {
+    const normalizedThemeMode = normalizeThemeMode(themeModeValue);
+
+    if (normalizedThemeMode !== "auto") {
+      return normalizedThemeMode;
+    }
+
+    return resolveAutoThemeMode(themeAutoSourceValue);
+  }
+
+  function resolveAutoThemeMode(themeAutoSourceValue) {
+    if (normalizeThemeAutoSource(themeAutoSourceValue) === "system" && typeof window.matchMedia === "function") {
+      return window.matchMedia(SYSTEM_THEME_QUERY).matches ? "dark" : "light";
+    }
+
+    return "light";
   }
 })();

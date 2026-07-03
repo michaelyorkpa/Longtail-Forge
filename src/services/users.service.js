@@ -17,9 +17,11 @@ import {
 import {
   isValidEmail,
   isValidTimezone,
+  normalizeBooleanPreference,
   normalizeDisplayName,
   normalizeOptionalEmail,
   normalizeProtectedUserFlag,
+  normalizeThemeAutoSource,
   normalizeThemeMode,
   normalizeTimezone,
   normalizeUsername,
@@ -426,6 +428,8 @@ async function readSettings(session) {
     altEmail: appUser.altEmail,
     timezone: appUser.timezone,
     themeMode: appUser.themeMode,
+    themeAutoSource: appUser.themeAutoSource,
+    openExternalLinksNewTab: appUser.openExternalLinksNewTab,
     workspaceCreation: await readWorkspaceCreationOptions(session),
     activeWorkspaceId: session.active_workspace_id || session.workspace_id,
     workspaces: await workspacesRepository.readForUser(session.user_id),
@@ -580,6 +584,8 @@ async function saveSettings(payload, session) {
   const previousValue = userRowToAppValue(user);
   let nextValue = previousValue;
   let themeMode = previousValue.themeMode;
+  let themeAutoSource = previousValue.themeAutoSource;
+  let openExternalLinksNewTab = previousValue.openExternalLinksNewTab;
   const metadata = {
     setting_group: "user",
     setting_names: [],
@@ -593,6 +599,26 @@ async function saveSettings(payload, session) {
       themeMode,
     };
     metadata.setting_names.push("themeMode");
+  }
+
+  if (Object.hasOwn(payload, "themeAutoSource")) {
+    themeAutoSource = normalizeThemeAutoSource(payload.themeAutoSource);
+    await usersRepository.updateThemeAutoSource(session.workspace_id, session.user_id, themeAutoSource);
+    nextValue = {
+      ...nextValue,
+      themeAutoSource,
+    };
+    metadata.setting_names.push("themeAutoSource");
+  }
+
+  if (Object.hasOwn(payload, "openExternalLinksNewTab")) {
+    openExternalLinksNewTab = normalizeBooleanPreference(payload.openExternalLinksNewTab);
+    await usersRepository.updateOpenExternalLinksNewTab(session.workspace_id, session.user_id, openExternalLinksNewTab);
+    nextValue = {
+      ...nextValue,
+      openExternalLinksNewTab,
+    };
+    metadata.setting_names.push("openExternalLinksNewTab");
   }
 
   if (
@@ -645,6 +671,8 @@ async function saveSettings(payload, session) {
     altEmail: nextValue.altEmail,
     timezone: nextValue.timezone,
     themeMode,
+    themeAutoSource,
+    openExternalLinksNewTab,
   };
 }
 

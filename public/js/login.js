@@ -1,4 +1,6 @@
 // Login is the only public form that creates a session cookie.
+const THEME_STORAGE_KEY = "lf_theme";
+const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
 const loginForm = document.querySelector("[data-login-form]");
 const loginStatus = document.querySelector("[data-login-status]");
 
@@ -29,8 +31,10 @@ if (loginForm) {
         throw new Error(body.error || "Login failed.");
       }
 
-      const themeMode = body.user?.themeMode === "dark" ? "dark" : "light";
-      window.localStorage.setItem("lf_theme", themeMode);
+      const themeMode = normalizeThemeMode(body.user?.themeMode);
+      const themeAutoSource = normalizeThemeAutoSource(body.user?.themeAutoSource);
+      window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+      window.localStorage.setItem(THEME_AUTO_SOURCE_STORAGE_KEY, themeAutoSource);
       window.localStorage.setItem("lf_timezone", body.user?.timezone || "America/New_York");
       if (body.user?.workspaceContext) {
         window.localStorage.setItem("lf_workspace_context", JSON.stringify(body.user.workspaceContext));
@@ -52,8 +56,10 @@ async function redirectIfLoggedIn() {
       if (response.ok) {
         const body = await response.json().catch(() => ({}));
 
-        const themeMode = body.user?.themeMode === "dark" ? "dark" : "light";
-        window.localStorage.setItem("lf_theme", themeMode);
+        const themeMode = normalizeThemeMode(body.user?.themeMode);
+        const themeAutoSource = normalizeThemeAutoSource(body.user?.themeAutoSource);
+        window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+        window.localStorage.setItem(THEME_AUTO_SOURCE_STORAGE_KEY, themeAutoSource);
         window.localStorage.setItem("lf_timezone", body.user?.timezone || "America/New_York");
         if (body.user?.workspaceContext) {
           window.localStorage.setItem("lf_workspace_context", JSON.stringify(body.user.workspaceContext));
@@ -69,6 +75,14 @@ function setLoginStatus(message) {
   if (loginStatus) {
     loginStatus.textContent = message;
   }
+}
+
+function normalizeThemeMode(value) {
+  return ["light", "auto", "dark"].includes(value) ? value : "light";
+}
+
+function normalizeThemeAutoSource(value) {
+  return value === "system" ? "system" : "system";
 }
 
 redirectIfLoggedIn();

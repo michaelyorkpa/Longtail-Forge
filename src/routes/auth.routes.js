@@ -1,8 +1,10 @@
 import { Router } from "express";
 import {
   buildExpiredSessionCookie,
+  buildExpiredThemeAutoSourceCookie,
   buildExpiredThemeCookie,
   buildSessionCookie,
+  buildThemeAutoSourceCookie,
   buildThemeCookie,
   getRequestSession,
   getSessionIdFromRequest,
@@ -21,6 +23,7 @@ authRoutes.post("/login", asyncRoute(async (request, response) => {
   response.setHeader("Set-Cookie", [
     buildSessionCookie(result.session.sessionId, result.session.maxAgeSeconds),
     buildThemeCookie(result.themeMode),
+    buildThemeAutoSourceCookie(result.themeAutoSource),
   ]);
   response.status(200).json({ user: result.user });
 }));
@@ -32,6 +35,7 @@ authRoutes.post("/logout", asyncRoute(async (request, response) => {
   response.setHeader("Set-Cookie", [
     buildExpiredSessionCookie(),
     buildExpiredThemeCookie(),
+    buildExpiredThemeAutoSourceCookie(),
   ]);
   response.status(200).json(result);
 }));

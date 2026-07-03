@@ -3,6 +3,7 @@ import { querySql, runSql, sqlText } from "../db/index.js";
 import {
   normalizeDisplayName,
   normalizeOptionalEmail,
+  normalizeThemeAutoSource,
   normalizeThemeMode,
   normalizeTimezone,
   normalizeUserStatus,
@@ -18,6 +19,8 @@ const USER_SELECT_COLUMNS = `
   timezone,
   password,
   theme_mode,
+  theme_auto_source,
+  open_external_links_new_tab,
   user_status,
   protected_user,
   active_workspace_id
@@ -133,6 +136,8 @@ INSERT INTO users (
   timezone,
   password,
   theme_mode,
+  theme_auto_source,
+  open_external_links_new_tab,
   user_status,
   protected_user,
   active_workspace_id
@@ -146,6 +151,8 @@ VALUES (
   ${sqlText(timezone)},
   ${sqlText(passwordHash)},
   'light',
+  'system',
+  0,
   'active',
   'no',
   ${sqlText(workspaceId)}
@@ -159,6 +166,8 @@ VALUES (
     altEmail,
     timezone,
     themeMode: "light",
+    themeAutoSource: "system",
+    openExternalLinksNewTab: false,
     userStatus: "active",
     protectedUser: false,
   };
@@ -190,6 +199,22 @@ async function updateThemeMode(workspaceId, userId, themeMode) {
   await runSql(`
 UPDATE users
 SET theme_mode = ${sqlText(normalizeThemeMode(themeMode))}
+WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
+`);
+}
+
+async function updateThemeAutoSource(workspaceId, userId, themeAutoSource) {
+  await runSql(`
+UPDATE users
+SET theme_auto_source = ${sqlText(normalizeThemeAutoSource(themeAutoSource))}
+WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
+`);
+}
+
+async function updateOpenExternalLinksNewTab(workspaceId, userId, openExternalLinksNewTab) {
+  await runSql(`
+UPDATE users
+SET open_external_links_new_tab = ${openExternalLinksNewTab ? 1 : 0}
 WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
 `);
 }
@@ -363,6 +388,8 @@ export const usersRepository = {
   remove,
   updatePassword,
   updateActiveWorkspace,
+  updateThemeAutoSource,
+  updateOpenExternalLinksNewTab,
   updateProfile,
   updateStatus,
   updateThemeMode,

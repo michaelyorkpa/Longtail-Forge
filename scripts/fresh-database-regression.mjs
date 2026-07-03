@@ -40,6 +40,16 @@ ORDER BY version;
       module_id: "core",
       name: "job_outbox_schema",
     },
+    {
+      version: "066",
+      module_id: "core",
+      name: "user_markdown_link_preference",
+    },
+    {
+      version: "067",
+      module_id: "core",
+      name: "user_theme_auto_source",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 

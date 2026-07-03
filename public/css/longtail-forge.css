@@ -3074,52 +3074,95 @@ a.search-result-title:hover {
     gap: 12px;
 }
 
-.theme-mode-switch {
+.settings-checkbox-line {
     width: fit-content;
-    min-height: 40px;
-    display: flex;
+    min-height: 36px;
+    display: inline-flex;
     align-items: center;
     gap: 10px;
     color: var(--color-text);
     cursor: pointer;
 }
 
-.theme-mode-switch input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
+.settings-checkbox-line input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    accent-color: var(--color-accent);
 }
 
-.theme-switch-track {
-    width: 52px;
-    height: 28px;
-    position: relative;
+.theme-mode-control,
+.theme-auto-source-options {
+    width: fit-content;
+    max-width: 100%;
+    display: inline-grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(80px, 1fr);
     border: 1px solid var(--color-border-strong);
-    border-radius: 999px;
-    background: var(--color-hover);
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.12);
-}
-
-.theme-switch-track::after {
-    content: "";
-    width: 22px;
-    height: 22px;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    border-radius: 50%;
+    border-radius: 8px;
+    overflow: hidden;
     background: var(--color-surface);
-    box-shadow: var(--shadow-control);
-    transition: transform 0.16s ease;
 }
 
-.theme-mode-switch input:checked + .theme-switch-track::after {
-    transform: translateX(24px);
+.theme-auto-source {
+    display: grid;
+    gap: 8px;
 }
 
-.theme-mode-switch input:focus-visible + .theme-switch-track {
+.theme-auto-source[hidden] {
+    display: none;
+}
+
+.settings-field-label {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+}
+
+.settings-segmented-option {
+    min-height: 38px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.settings-segmented-option + .settings-segmented-option {
+    border-left: 1px solid var(--color-border);
+}
+
+.settings-segmented-option input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: inherit;
+}
+
+.settings-segmented-option span {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 14px;
+    text-align: center;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.settings-segmented-option input:checked + span {
+    background: var(--color-accent);
+    color: var(--color-surface);
+}
+
+.settings-segmented-option input:focus-visible + span {
     outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+    outline-offset: -2px;
+}
+
+.settings-segmented-option input:disabled + span {
+    cursor: not-allowed;
+    color: var(--color-text-muted);
+    background: var(--color-hover);
 }
 
 .generated-password-panel {

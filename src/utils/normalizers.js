@@ -94,7 +94,15 @@ function normalizeProtectedUserFlag(value) {
 }
 
 function normalizeThemeMode(value) {
-  return value === "dark" ? "dark" : "light";
+  return ["light", "auto", "dark"].includes(value) ? value : "light";
+}
+
+function normalizeThemeAutoSource(value) {
+  return value === "system" ? "system" : "system";
+}
+
+function normalizeBooleanPreference(value) {
+  return value === true || value === 1 || value === "1" || value === "true" || value === "yes" || value === "on";
 }
 
 function userRowToAppValue(row) {
@@ -105,6 +113,8 @@ function userRowToAppValue(row) {
     altEmail: normalizeOptionalEmail(row.alt_email),
     timezone: normalizeTimezone(row.timezone),
     themeMode: normalizeThemeMode(row.theme_mode),
+    themeAutoSource: normalizeThemeAutoSource(row.theme_auto_source),
+    openExternalLinksNewTab: normalizeBooleanPreference(row.open_external_links_new_tab),
     userStatus: normalizeUserStatus(row.user_status),
     protectedUser: normalizeProtectedUserFlag(row.protected_user),
   };
@@ -322,6 +332,7 @@ export {
   normalizeBillingPeriod,
   normalizeBillingRate,
   normalizeBillingRounding,
+  normalizeBooleanPreference,
   normalizeClientProjectData,
   normalizeDisplayName,
   normalizeEmail,
@@ -329,6 +340,7 @@ export {
   normalizeProtectedUserFlag,
   normalizeSettings,
   normalizeProjectTaskDefaults,
+  normalizeThemeAutoSource,
   normalizeThemeMode,
   normalizeWorkspaceType,
   normalizeTimeEntry,

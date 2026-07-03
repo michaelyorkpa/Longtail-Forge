@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -57,7 +57,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(filesPage, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust row affordance and modal styling");
-assert.match(filesPage, /js\/files\.js\?v=13/, "Files page should cache-bust the Files adapter");
+assert.match(filesPage, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should cache-bust the Files adapter");
 assert.match(regressionSuite, /scripts\/files-edit-modal-save-regression\.mjs/, "Regression suite should include the Files edit modal save regression");
 
 const fileRowBlock = functionBlock(filesScript, "fileRow");
@@ -96,8 +96,8 @@ assert.match(actionIsolationBlock, /\[data-file-action\], a, button, input, sele
 assert.match(filesStyles, /\.files-table tbody tr\[data-file-editor-row\][\s\S]*cursor: pointer/, "Files rows should advertise clickability without adding selected-row state");
 assert.match(filesStyles, /\.files-table tbody tr\[data-file-editor-row\]:focus-visible[\s\S]*outline: 2px solid var\(--color-accent\)/, "Files rows should expose a visible keyboard focus ring");
 
-assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*iconOnly:\s*true[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File Context modal should expose the same standalone icon-only Preview action as the Files list");
-assert.doesNotMatch(buildBlock, /openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File Context Preview should not bind the Preview modal to the edit modal");
+assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*iconOnly:\s*true[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*filePreview\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File Context modal should expose the same standalone icon-only Preview action as the Files list");
+assert.doesNotMatch(buildBlock, /filePreview\.openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File Context Preview should not bind the Preview modal to the edit modal");
 assert.match(buildBlock, /const markReviewedButton = view\.createActionButton\(\{[\s\S]*action:\s*"files\.restore"[\s\S]*icon:\s*"complete"[\s\S]*label:\s*`Mark \$\{row\.fileName\} reviewed`[\s\S]*markFileReviewedFromContext\(dialog,\s*row,\s*options\)/, "File Context should expose a modal-only Mark Reviewed action for in-review files");
 assert.match(buildBlock, /const saveButton = view\.createActionButton\(\{[\s\S]*icon:\s*"save"[\s\S]*iconOnly:\s*true[\s\S]*type:\s*"submit"/, "File Context modal should expose an icon-only Save footer action");
 assert.match(buildBlock, /utilityActions:\s*\[previewButton,\s*markReviewedButton\][\s\S]*actions:\s*\[closeButton,\s*saveButton\]/, "File Context footer should keep Preview and Mark Reviewed as utilities to the left of Close and Save");

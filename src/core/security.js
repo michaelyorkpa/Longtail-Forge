@@ -1,5 +1,7 @@
 export {
+  buildExpiredThemeAutoSourceCookie,
   buildSessionCookie,
+  buildThemeAutoSourceCookie,
   buildThemeCookie,
   createSession,
   deleteSession,

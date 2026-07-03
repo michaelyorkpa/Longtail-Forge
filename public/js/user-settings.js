@@ -1,7 +1,14 @@
 // User settings owns per-user preferences and password changes for the signed-in account.
 const THEME_STORAGE_KEY = "lf_theme";
+const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
+const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
+const OPEN_EXTERNAL_LINKS_STORAGE_KEY = "lf_open_external_links_new_tab";
 const themeForm = document.querySelector("[data-user-theme-form]");
-const themeModeToggle = document.querySelector("[data-theme-mode-toggle]");
+const themeModeInputs = [...document.querySelectorAll("[data-theme-mode-option]")];
+const themeAutoSourceControls = document.querySelector("[data-theme-auto-source-controls]");
+const themeAutoSourceInputs = [...document.querySelectorAll("[data-theme-auto-source]")];
+const markdownRenderingForm = document.querySelector("[data-user-markdown-rendering-form]");
+const openExternalLinksNewTabToggle = document.querySelector("[data-open-external-links-new-tab]");
 const passwordForm = document.querySelector("[data-user-password-form]");
 const currentPasswordInput = document.querySelector("[data-current-password]");
 const newPasswordInput = document.querySelector("[data-new-password]");
@@ -32,13 +39,21 @@ let currentWorkspaces = [];
 let activeWorkspaceId = "";
 let lastSuggestedWorkspaceName = "";
 let workspaceNameEditedByUser = false;
+let systemThemeModeQuery = null;
+let systemThemeModeListenerAttached = false;
 
 loadUserSettings();
 loadNotificationPreferences();
 
 themeForm.addEventListener("change", async (event) => {
-  if (event.target.matches("[data-theme-mode-toggle]")) {
+  if (event.target.matches("[data-theme-mode-option], [data-theme-auto-source]")) {
     await saveThemeMode();
+  }
+});
+
+markdownRenderingForm?.addEventListener("change", async (event) => {
+  if (event.target.matches("[data-open-external-links-new-tab]")) {
+    await saveMarkdownRendering();
   }
 });
 
@@ -78,7 +93,8 @@ async function loadUserSettings() {
   try {
     const body = await window.LongtailForge.api.getJson("/api/user/settings", { cache: "no-store" });
 
-    applyThemeMode(body.themeMode);
+    applyThemeMode(body.themeMode, body.themeAutoSource);
+    applyMarkdownRendering(body);
     applyProfile(body);
     applyWorkspaceAccess(body);
     applyWorkspaceCreation(body.workspaceCreation);
@@ -138,28 +154,67 @@ async function saveNotificationPreferences() {
 
 async function saveThemeMode() {
   const themeMode = getSelectedThemeMode();
-  applyThemeMode(themeMode);
+  const themeAutoSource = getSelectedThemeAutoSource();
+  applyThemeMode(themeMode, themeAutoSource);
   setUserSettingsStatus("Saving appearance...");
 
   try {
-    const body = await window.LongtailForge.api.putJson("/api/user/settings", { themeMode });
+    const body = await window.LongtailForge.api.putJson("/api/user/settings", { themeMode, themeAutoSource });
 
-    applyThemeMode(body.themeMode);
+    applyThemeMode(body.themeMode, body.themeAutoSource);
     setUserSettingsStatus("Appearance saved.", false, { type: "success", clearAfter: 1600 });
   } catch (error) {
     handleApiError(error, "Appearance was not saved.");
   }
 }
 
-function applyThemeMode(themeMode) {
+async function saveMarkdownRendering() {
+  const openExternalLinksNewTab = openExternalLinksNewTabToggle?.checked === true;
+  applyMarkdownRendering({ openExternalLinksNewTab });
+  setUserSettingsStatus("Saving Markdown rendering...");
+
+  try {
+    const body = await window.LongtailForge.api.putJson("/api/user/settings", { openExternalLinksNewTab });
+
+    applyMarkdownRendering(body);
+    setUserSettingsStatus("Markdown rendering saved.", false, { type: "success", clearAfter: 1600 });
+  } catch (error) {
+    handleApiError(error, "Markdown rendering was not saved.");
+  }
+}
+
+function applyThemeMode(themeMode, themeAutoSource = "system") {
   const normalizedThemeMode = normalizeThemeMode(themeMode);
-  const effectiveTheme = resolveThemeMode(normalizedThemeMode);
+  const normalizedThemeAutoSource = normalizeThemeAutoSource(themeAutoSource);
+  const effectiveTheme = resolveThemeMode(normalizedThemeMode, normalizedThemeAutoSource);
 
   document.documentElement.dataset.themeMode = normalizedThemeMode;
+  document.documentElement.dataset.themeAutoSource = normalizedThemeAutoSource;
   document.documentElement.dataset.theme = effectiveTheme;
   document.documentElement.style.colorScheme = effectiveTheme;
   window.localStorage.setItem(THEME_STORAGE_KEY, normalizedThemeMode);
-  themeModeToggle.checked = normalizedThemeMode === "dark";
+  window.localStorage.setItem(THEME_AUTO_SOURCE_STORAGE_KEY, normalizedThemeAutoSource);
+  themeModeInputs.forEach((input) => {
+    input.checked = input.value === normalizedThemeMode;
+  });
+  themeAutoSourceInputs.forEach((input) => {
+    input.checked = input.value === normalizedThemeAutoSource;
+    input.disabled = normalizedThemeMode !== "auto";
+  });
+  if (themeAutoSourceControls) {
+    themeAutoSourceControls.hidden = normalizedThemeMode !== "auto";
+  }
+  ensureSystemThemeModeWatcher();
+}
+
+function applyMarkdownRendering(settings) {
+  const openExternalLinksNewTab = settings?.openExternalLinksNewTab === true;
+
+  if (openExternalLinksNewTabToggle) {
+    openExternalLinksNewTabToggle.checked = openExternalLinksNewTab;
+  }
+
+  window.localStorage.setItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY, openExternalLinksNewTab ? "true" : "false");
 }
 
 function applyWorkspaceCreation(workspaceCreation) {
@@ -478,19 +533,75 @@ function formatWorkspaceType(workspaceType) {
 }
 
 function getSelectedThemeMode() {
-  return themeModeToggle.checked ? "dark" : "light";
+  return normalizeThemeMode(themeModeInputs.find((input) => input.checked)?.value);
+}
+
+function getSelectedThemeAutoSource() {
+  return normalizeThemeAutoSource(themeAutoSourceInputs.find((input) => input.checked)?.value);
 }
 
 function normalizeThemeMode(value) {
-  return value === "dark" ? "dark" : "light";
+  return ["light", "auto", "dark"].includes(value) ? value : "light";
+}
+
+function normalizeThemeAutoSource(value) {
+  return value === "system" ? "system" : "system";
 }
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
-function resolveThemeMode(themeMode) {
-  return normalizeThemeMode(themeMode);
+function resolveThemeMode(themeMode, themeAutoSource = "system") {
+  const normalizedThemeMode = normalizeThemeMode(themeMode);
+
+  if (normalizedThemeMode !== "auto") {
+    return normalizedThemeMode;
+  }
+
+  return resolveAutoThemeMode(themeAutoSource);
+}
+
+function resolveAutoThemeMode(themeAutoSource = "system") {
+  if (normalizeThemeAutoSource(themeAutoSource) === "system" && typeof window.matchMedia === "function") {
+    return getSystemThemeModeQuery().matches ? "dark" : "light";
+  }
+
+  return "light";
+}
+
+function getSystemThemeModeQuery() {
+  if (!systemThemeModeQuery && typeof window.matchMedia === "function") {
+    systemThemeModeQuery = window.matchMedia(SYSTEM_THEME_QUERY);
+  }
+
+  return systemThemeModeQuery || { matches: false };
+}
+
+function ensureSystemThemeModeWatcher() {
+  if (systemThemeModeListenerAttached || typeof window.matchMedia !== "function") {
+    return;
+  }
+
+  const query = getSystemThemeModeQuery();
+  const listener = () => {
+    if (
+      document.documentElement.dataset.themeMode === "auto" &&
+      document.documentElement.dataset.themeAutoSource === "system"
+    ) {
+      const effectiveTheme = resolveThemeMode("auto", "system");
+      document.documentElement.dataset.theme = effectiveTheme;
+      document.documentElement.style.colorScheme = effectiveTheme;
+    }
+  };
+
+  if (typeof query.addEventListener === "function") {
+    query.addEventListener("change", listener);
+  } else if (typeof query.addListener === "function") {
+    query.addListener(listener);
+  }
+
+  systemThemeModeListenerAttached = true;
 }
 
 async function changePassword() {

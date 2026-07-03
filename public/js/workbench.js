@@ -450,6 +450,11 @@ async function openTaskAction(task) {
       taskId: task.task_id,
     }, { refresh: loadWorkbench, setStatus });
     if (result.completed) {
+      const detail = result.detail || {};
+      if (detail.taskLifecycleAction === "complete") {
+        setTaskCompletionStatus(detail);
+        return;
+      }
       setStatus("Task updated.");
       return;
     }
@@ -457,6 +462,18 @@ async function openTaskAction(task) {
   } catch (error) {
     setStatus(error.message || "Task could not be opened.", { isError: true });
   }
+}
+
+function setTaskCompletionStatus(detail = {}) {
+  if (detail.createdTask?.title) {
+    setStatus(`Created next recurring task: ${detail.createdTask.title}`);
+    return;
+  }
+  if (detail.recurrenceQueued === true) {
+    setStatus("Next recurring task queued.");
+    return;
+  }
+  setStatus("Task completed.");
 }
 
 async function finalizeTimer(timer) {

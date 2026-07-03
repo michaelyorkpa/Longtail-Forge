@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.8";
+const appVersion = "0.33.5.21.9.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/file-attachments.js");
 const filesScript = readText("public/js/files.js");
+const filePreviewScript = readText("public/js/shared/file-preview.js");
 const styles = readText("public/css/longtail-forge.css");
 const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
@@ -74,7 +75,7 @@ assert.match(functionBlock(helper, "readFileBase64"), /new FileReader\(\)[\s\S]*
 assert.match(functionBlock(helper, "acceptedFileHint"), /acceptedExtensions\(categories\)\.join\(", "\)/, "Accepted-file hint should derive from the existing extension map");
 
 assert.doesNotMatch(functionBlock(filesScript, "openFileEditor"), /file-attachment-upload|createUploadShell|\/api\/files\/batch/, "File Context modal should not gain upload UI");
-assert.doesNotMatch(functionBlock(filesScript, "openFilePreview"), /file-attachment-upload|createUploadShell|\/api\/files\/batch/, "Files Preview modal should not gain upload UI");
+assert.doesNotMatch(functionBlock(filePreviewScript, "openFilePreview"), /file-attachment-upload|createUploadShell|\/api\/files\/batch/, "Files Preview modal should not gain upload UI");
 
 assert.match(styles, /\.file-attachment-upload-shell\s*\{[\s\S]*gap:\s*10px/, "Upload shell should have explicit spacing on top of the shared list shell");
 assert.match(styles, /\.file-attachment-upload-status\s*\{[\s\S]*color:\s*var\(--color-muted\)[\s\S]*font-size:\s*13px/, "Upload shell status should use the shared subdued visual language");
@@ -83,11 +84,11 @@ assert.match(styles, /\.file-attachment-upload-actions\s*\{[\s\S]*display:\s*fle
 assert.match(styles, /\.file-attachment-upload-results\s*\{[\s\S]*display:\s*grid/, "Upload result rows should remain grouped and readable");
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for upload shell changes");
-assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=6/, "Notes should cache-bust the attachment helper");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper");
 assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74/, "Tasks should cache-bust the shared stylesheet for upload shell changes");
-assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=6/, "Tasks should cache-bust the attachment helper");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper");
 assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=22/, "Workbench should cache-bust the shared stylesheet for upload shell changes");
-assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=6/, "Workbench should cache-bust the attachment helper");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=7[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper");
 
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View-building contract should document the Files upload-shell slice");
 assert.match(regressionSuite, /scripts\/files-upload-shell-regression\.mjs/, "Regression suite should include the Files upload-shell regression");

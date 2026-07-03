@@ -27,6 +27,60 @@ async function simulateCurrentSchemaWithHistoricalMigrationRows() {
   await runSql(`
 DROP TABLE IF EXISTS jobs;
 
+PRAGMA foreign_keys = OFF;
+PRAGMA legacy_alter_table = ON;
+
+ALTER TABLE users
+RENAME TO users_with_markdown_link_preference;
+
+CREATE TABLE users (
+  user_id TEXT PRIMARY KEY,
+  home_workspace_id TEXT NOT NULL,
+  username TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL DEFAULT '',
+  alt_email TEXT,
+  timezone TEXT NOT NULL DEFAULT 'America/New_York',
+  password TEXT NOT NULL,
+  theme_mode TEXT NOT NULL DEFAULT 'light',
+  user_status TEXT NOT NULL DEFAULT 'active',
+  protected_user TEXT NOT NULL DEFAULT 'no',
+  active_workspace_id TEXT,
+  FOREIGN KEY (home_workspace_id) REFERENCES workspaces(workspace_id),
+  FOREIGN KEY (active_workspace_id) REFERENCES workspaces(workspace_id)
+);
+
+INSERT INTO users (
+  user_id,
+  home_workspace_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user,
+  active_workspace_id
+)
+SELECT
+  user_id,
+  home_workspace_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user,
+  active_workspace_id
+FROM users_with_markdown_link_preference;
+
+DROP TABLE users_with_markdown_link_preference;
+
+PRAGMA legacy_alter_table = OFF;
+PRAGMA foreign_keys = ON;
+
 INSERT INTO users (
   user_id,
   home_workspace_id,
@@ -81,6 +135,16 @@ ORDER BY version;
       version: "065",
       module_id: "core",
       name: "job_outbox_schema",
+    },
+    {
+      version: "066",
+      module_id: "core",
+      name: "user_markdown_link_preference",
+    },
+    {
+      version: "067",
+      module_id: "core",
+      name: "user_theme_auto_source",
     },
   ]);
 }

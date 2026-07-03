@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.21.8, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
+As of 0.33.5.21.9.4, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -59,7 +59,7 @@ As of 0.33.5.21.0.6, `SQLITE_COMMAND` is a legacy ignored setting. Normal databa
 | --- | --- | --- |
 | `LONGTAIL_SESSION_COOKIE_SECURE` | `false` | Adds the `Secure` cookie attribute when true. |
 | `LONGTAIL_SESSION_COOKIE_SAMESITE` | `Lax` | Must be `Lax`, `Strict`, or `None`. `None` requires secure cookies. |
-| `LONGTAIL_SESSION_TTL_SECONDS` | `43200` | Session and theme-cookie lifetime. Must be between 300 seconds and 30 days. |
+| `LONGTAIL_SESSION_TTL_SECONDS` | `43200` | Session, theme, and theme auto-source cookie lifetime. Must be between 300 seconds and 30 days. |
 
 ### Secure Notes
 

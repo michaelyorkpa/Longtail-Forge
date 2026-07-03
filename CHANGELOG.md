@@ -1,3 +1,35 @@
+## Version 0.33.5.21.9.4 - 2026-07-02
+
+- Added `auto` as a stored per-user theme mode alongside `light` and `dark`, preserving `light` as the default for existing and new users.
+- Added a persisted `theme_auto_source` user preference with the shipped `system` source, plus first-paint cookie/localStorage handling so auto mode resolves through `prefers-color-scheme` before async settings loads.
+- Replaced the User Settings Appearance binary switch with a light / auto / dark segmented control and an auto-source section that appears only for auto mode.
+- Updated authenticated shell, login/session bootstrap, settings routes, docs, decisions, roadmap bookkeeping, package/module version metadata, and regressions for OS-match theme auto mode. Sunrise/sunset automation is deferred until the app has an explicit location contract.
+- Verification 2026-07-02 22:28 -04:00: `scripts/user-theme-auto-mode-regression.mjs`, external Markdown preference, fresh database, baseline adoption, job/outbox schema, and surface-token targeted checks passed; `npm run check` passed 242/242 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; live SQLite `PRAGMA integrity_check` returned `ok` and migration 067 `user_theme_auto_source` was applied; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.9.4 after restarting the local 8001 server.
+
+## Version 0.33.5.21.9.3 - 2026-07-02
+
+- Extracted the route-backed Files Preview modal into `public/js/shared/file-preview.js`, exposing `LongtailForge.filePreview.openFilePreview()` while preserving `LongtailForge.filesDialog.openFilePreview()`.
+- Added a Preview action to shared attachment rows so Notes file panels and editor Files dialogs use the same Files Preview modal as the Files page.
+- Converted shared attachment row actions to icon-only controls for Preview, Download, Remove, Report, Review, Delete, and Restore while preserving accessible labels, titles, authenticated routes, confirmations, and refresh behavior.
+- Updated Files/Notes/Tasks/Workbench protected view script loading, docs, roadmap bookkeeping, package/module version metadata, and regressions for the shared preview helper.
+- Verification 2026-07-02 20:44 -04:00: `scripts/notes-file-preview-actions-regression.mjs`, Files preview/action regressions, attachment panel shell, view descriptor guardrails, and personal/family workspace scope targeted checks passed; `npm run check` passed 241/241 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.9.3 after restarting the local 8001 server.
+
+## Version 0.33.5.21.9.2 - 2026-07-02
+
+- Added a saved-task-only Complete action to the Task editor modal footer for active `open`, `in_progress`, and `blocked` tasks when the user has `tasks.complete`.
+- The modal Complete action now saves pending edits first, then calls the dedicated `POST /api/tasks/:taskId/complete` route so active-timer blocking, `task_completed` audit/event behavior, search updates, parent recovery, and recurrence job queuing stay on the canonical lifecycle path.
+- Preserved completion-specific status feedback for Tasks and Workbench, including the existing "Next recurring task queued." message when completion queues asynchronous recurrence work.
+- Added `scripts/task-modal-complete-action-regression.mjs` and refreshed Task dialog/Workbench cache keys, package/module version metadata, current docs, and roadmap bookkeeping.
+- Verification 2026-07-02 19:44 -04:00: `scripts/task-modal-complete-action-regression.mjs`, `scripts/async-recurrence-response-closeout-regression.mjs`, nearby Task modal/lifecycle regressions, `npm run check` passed 240/240 regression scripts plus ESLint, `npm run test:permissions` passed 236 checks, SQLite `PRAGMA integrity_check` returned `ok`, `git diff --check` reported no whitespace errors after normal LF/CRLF warnings, and `/api/app-info` returned 0.33.5.21.9.2 after restarting the local 8001 server.
+
+## Version 0.33.5.21.9.1 - 2026-07-02
+
+- Added a default-off User Settings -> Markdown Rendering preference for opening external Markdown links in a new tab.
+- Applied the preference client-side to Notes detail and live Preview rendered Markdown so shared server-rendered `body_html` remains user-agnostic; wiki links, relative app links, and `mailto:` links are unaffected.
+- Restored the live roadmap archive handoff for completed foundation branches, including the line that archived the completed 0.33.5.19 roadmap branch. Runtime configuration, SQLite hardening, database adapter, parameter pilot, transaction pilot, migration locking, diagnostics, and small-office readout remain archived foundation work.
+- Added `scripts/notes-external-markdown-links-preference-regression.mjs` and refreshed schema migration expectations, settings UI cache keys, package/module version metadata, and roadmap bookkeeping.
+- Verification 2026-07-02 17:58 -04:00: `scripts/notes-external-markdown-links-preference-regression.mjs` passed; `npm run check` passed 239/239 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.9.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.8 - 2026-07-02
 
 - Delivered task due reminders to the in-app notification surface by passing explicit responsible recipients from the reminder job: assignees for assigned tasks and the task creator for unassigned tasks, with task followers still delivered through existing notification subscriptions.
