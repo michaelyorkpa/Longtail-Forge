@@ -1,4 +1,4 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -23,15 +23,15 @@ Sizing rule for this branch:
 
 ### Version 0.33.5.23.1 - Parameter-binding audit (inventory and plan only)
 
-- [ ] Produce a documented, plan-only audit; do not change runtime behavior in this slice.
-- [ ] Quantify parameter binding per repository: how many values are interpolated via `sqlText()/sqlInteger()/sqlNullableText()` (~1,763 calls / ~314 call sites today) vs. bound `params`.
-- [ ] Order the repositories by interpolation count and risk to produce a prioritized conversion burndown (highest-traffic first: sessions, workspaces, permissions, tasks, notes, files metadata, notifications).
-- [ ] Record confirmed non-issues for scope clarity: no `RETURNING`, no SQLite JSON functions, and no `LIMIT`/`OFFSET` inside `UPDATE`/`DELETE` exist today (re-verify at audit time).
-- [ ] Output: a per-repository parameter-binding plan that slices 0.33.5.23.2-0.33.5.23.3 consume. SQLite-vs-PostgreSQL dialect portability (`INSERT OR IGNORE`, `COLLATE NOCASE`, PRAGMA, FTS5, JSON, boolean storage, `julianday(...)`, `rowid`) and the read-modify-write serialization inventory are out of scope here and live with the PostgreSQL work in 0.40.0.
+- [x] Produce a documented, plan-only audit; do not change runtime behavior in this slice. See `docs/database-parameter-binding-audit.md`.
+- [x] Quantify parameter binding per repository: the 0.33.5.23.1 runtime scan found 1,680 helper invocations across 262 direct interpolated SQL operation sites, plus 49 existing direct bound-`params` operation sites.
+- [x] Order the repositories by interpolation count and risk to produce a prioritized conversion burndown (highest-traffic first: sessions already converted, then workspaces/users/permissions, tasks, notes, files metadata, notifications/tags/search/resume helpers).
+- [x] Record confirmed non-issues for scope clarity: no SQLite JSON SQL functions and no top-level `LIMIT`/`OFFSET` inside `UPDATE`/`DELETE` exist today. `RETURNING` exists in four durable-job statements and is recorded for the 0.40.0 dialect portability audit rather than treated as a non-issue.
+- [x] Output: a per-repository parameter-binding plan that slices 0.33.5.23.2-0.33.5.23.3 consume. SQLite-vs-PostgreSQL dialect portability (`INSERT OR IGNORE`, `COLLATE NOCASE`, PRAGMA, FTS5, JSON, boolean storage, `julianday(...)`, `rowid`, and the corrected `RETURNING` inventory) and the read-modify-write serialization inventory are out of scope here and live with the PostgreSQL work in 0.40.0.
 
 Acceptance criteria:
 
-- The parameter-binding conversion is quantified and grouped into a documented, prioritized plan without any runtime change.
+- [x] The parameter-binding conversion is quantified and grouped into a documented, prioritized plan without any runtime change.
 
 ### Version 0.33.5.23.2 - Named/positional parameter binding layer
 
@@ -1243,7 +1243,7 @@ Additional required hardening before hosted SaaS:
 - [ ] Backup/restore testing.
 - [ ] Runtime secret documentation.
 
-### Version 0.38.4
+### Version 0.38.4 - Backup and Restore
 
 Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
 
@@ -1262,6 +1262,68 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
   - [ ] "Perform restore" button
     - this should only accept zip files
     - this should verify files, checksum, etc. before installing/overwriting current data
+
+### Version 0.38.8 - MCP Server for AI Task access
+
+## Slice: LTF ChatGPT Read-Only MCP Connector Foundation
+
+Goal:
+Create a private read-only MCP connector so ChatGPT can retrieve LTF context for daily briefings.
+
+Scope:
+- Add an integration layer separate from feature modules.
+- Do not wire ChatGPT directly into Tasks, Notes, Lists, or Projects UI code.
+- Do not add write actions in this slice.
+- Do not expose unauthenticated real user data.
+
+Deliverables:
+1. Add MCP server endpoint:
+   - `GET/POST /mcp` as required by the MCP server package being used.
+   - Endpoint must advertise tools and metadata.
+
+2. Add read-only tools:
+   - `ltf_get_daily_briefing_context`
+   - `ltf_list_due_tasks`
+   - `ltf_list_overdue_tasks`
+   - `ltf_list_recent_activity`
+   - `ltf_search`
+   - `ltf_fetch`
+
+3. Add service-layer query functions:
+   - Retrieve tasks due today.
+   - Retrieve overdue tasks.
+   - Retrieve upcoming tasks.
+   - Retrieve active projects/actions with blockers.
+   - Retrieve recently changed notes/lists.
+   - Return structured JSON only; no HTML rendering.
+
+4. Add auth placeholder:
+   - Development may allow local/test mode only.
+   - Production path must support OAuth-based user auth before exposing real data.
+   - Define future read scopes:
+     - `tasks:read`
+     - `projects:read`
+     - `notes:read`
+     - `lists:read`
+     - `activity:read`
+
+5. Add audit logging:
+   - Log connector tool name.
+   - Log authenticated user/workspace.
+   - Log timestamp.
+   - Do not log full private record bodies unless debug mode is explicitly enabled.
+
+6. Add documentation:
+   - How to run locally.
+   - How to expose via tunnel for testing.
+   - How to connect in ChatGPT Settings → Connectors → Create.
+   - Security warning that tunnels/no-auth are for dev only.
+
+Non-goals:
+- No write actions.
+- No public app directory submission.
+- No UI widgets inside ChatGPT yet.
+- No broad data sync/indexing yet.
 
 ### Version 0.39.0 - Creator Studio / Content Studio Module
 

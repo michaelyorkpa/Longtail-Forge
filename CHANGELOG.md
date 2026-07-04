@@ -1,3 +1,11 @@
+## Version 0.33.5.23.1 - 2026-07-04
+
+- Completed the plan-only SQL parameter-binding audit for the 0.33.5.23 branch without runtime behavior changes.
+- Added `docs/database-parameter-binding-audit.md` with the runtime source inventory: 1,680 literal-helper invocations, 262 direct interpolated SQL operation sites, and 49 existing direct bound-params operation sites, plus the conversion-wave plan for 0.33.5.23.2-0.33.5.23.3.
+- Rechecked the scoped non-issues: no SQLite JSON SQL functions and no top-level `UPDATE`/`DELETE ... LIMIT/OFFSET` runtime statements were found; the audit corrected the stale `RETURNING` assumption by recording four durable-job `RETURNING` statements for the later 0.40.0 dialect portability audit.
+- Added `scripts/parameter-binding-audit-regression.mjs`, wired it into `npm run check`, marked `ROADMAP.md` slice 0.33.5.23.1 complete, and advanced current app/module version metadata to 0.33.5.23.1.
+- Verification 2026-07-04 08:16 -04:00: `scripts/parameter-binding-audit-regression.mjs` passed; `npm run check` passed 258/258 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.23.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.15 - 2026-07-04
 
 - Closed the 0.33.5.22 storage/scanner runtime branch by confirming the active storage-provider, streamed-upload, scanner-mode, scanner-unavailable, S3 diagnostics, and signed-URL exception decisions.

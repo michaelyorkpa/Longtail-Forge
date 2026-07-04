@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.15";
+const appVersion = "0.33.5.23.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-batch-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
