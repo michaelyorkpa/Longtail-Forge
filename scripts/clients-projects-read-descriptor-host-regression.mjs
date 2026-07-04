@@ -17,7 +17,7 @@ const { clientsRepository } = await import("../src/modules/client-projects/clien
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
 
-const appVersion = "0.33.5.23.4";
+const appVersion = "0.33.5.24.4";
 const businessWorkspaceId = "clients-projects-descriptor-business";
 const personalWorkspaceId = "clients-projects-descriptor-personal";
 const familyWorkspaceId = "clients-projects-descriptor-family";

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.5.23.4";
+const appVersion = "0.33.5.24.4";
 const scenarioArgIndex = process.argv.indexOf("--scenario");
 const resolveArgIndex = process.argv.indexOf("--resolve-only");
 

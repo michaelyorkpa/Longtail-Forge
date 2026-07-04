@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.4";
+const appVersion = "0.33.5.24.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -117,7 +117,7 @@ assert.match(auditDocs, /0\.33\.5\.23\.4 Closeout[\s\S]*final 0\.33\.5\.23 branc
 assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 
-assert.match(roadmap, /^## Version 0\.33\.5\.24 - Node 24 LTS Upgrade/m, "live roadmap should advance to the Node 24 slice after parameter-binding closeout");
+assert.match(roadmap, /^## Version 0\.33\.5\.25 - Storage branch cleanup/m, "live roadmap should continue past the closed parameter-binding and Node 24 branches");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration/m, "live roadmap should not keep the completed parameter-binding branch open");
 assert.match(regressionSuite, /scripts\/parameter-binding-audit-regression\.mjs/, "regression suite should include the parameter-binding audit regression");
 assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/, "regression suite should include the parameter-binding layer regression");

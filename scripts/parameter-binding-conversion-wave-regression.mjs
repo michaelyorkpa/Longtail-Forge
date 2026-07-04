@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.4";
+const appVersion = "0.33.5.24.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-wave-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-wave.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Wave-Test-123!";
@@ -53,7 +53,7 @@ try {
   assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the conversion wave: 233/, "audit docs should record the wave operation-site burndown");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.3[\s\S]*auth, workspace, permission, and settings repositories/, "database docs should record the converted wave");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
-  assert.match(roadmap, /^## Version 0\.33\.5\.24 - Node 24 LTS Upgrade/m, "live roadmap should advance after the parameter-binding branch");
+  assert.match(roadmap, /^## Version 0\.33\.5\.25 - Storage branch cleanup/m, "live roadmap should continue past the closed parameter-binding and Node 24 branches");
   assert.match(changelog, /## Version 0\.33\.5\.23\.3 - [\s\S]*Converted the first parameter-binding wave/, "changelog should include the conversion-wave slice");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the parameter-binding closeout");
   assert.match(regressionSuite, /scripts\/parameter-binding-conversion-wave-regression\.mjs/, "regression suite should include conversion-wave coverage");

@@ -2,65 +2,6 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.24 - Node 24 LTS Upgrade
-
-Purpose:
-
-Move the dev/runtime baseline off end-of-life Node 20 onto Node 24 LTS, rebuild the native `better-sqlite3` driver for the new ABI, and pin the repo's supported-Node contract. This is a runtime/toolchain upgrade, not an app-code change: an audit of the app source found no APIs removed or deprecated through Node 24 (no `new Buffer(...)`, `crypto.createCipher`, legacy `url.parse`, `punycode`, or `process.binding`). The one native dependency (`better-sqlite3`) already declares Node 24 in its engine range, so the risk is entirely mechanical — the native-module ABI rebuild, prebuild/toolchain availability, the npm 10 -> 11 jump, and a version-pinned smoke test. Note that the end-of-life concern is the Node **runtime** major, not npm; upgrading npm alone would neither address the EOL runtime nor rebuild the native module.
-
-Grounding for this branch:
-
-- The dev machine is currently Node 20.13.1 / npm 10.8.1 with the native module built for ABI 115. Node 24 LTS is ABI 137 and bundles npm 11.x. Running the existing (ABI 115) `node_modules` under Node 24 fails at startup with a module-version mismatch until the driver is rebuilt.
-- `better-sqlite3@12.11.1` declares engines `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; its install step is `prebuild-install || node-gyp rebuild --release` — it fetches a prebuilt binary for the active ABI and silently compiles from source if none matches (needs Python 3 + Visual Studio Build Tools on Windows). Longtail Forge's own app runtime contract remains Node `>=24 <25`.
-- Before 0.33.5.24.3, `scripts/better-sqlite3-install-smoke.mjs` hard-asserted the driver was **exactly** `12.11.1` while `package.json` allowed `^12.11.1`, so a clean install could resolve a newer 12.x and break those equality assertions. 0.33.5.24.3 pins the dependency exactly and keeps the smoke test aligned with that pin.
-- Before 0.33.5.24.2, `package.json` had no `engines` field, and the `README.md` requirement line still read "Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release."
-- `src/db/adapters/sqlite-adapter.js` relies on `AsyncLocalStorage` for transaction-context detection; Node 24 enables `AsyncContextFrame` for ALS by default (a behavior change to confirm via the transaction/isolated-DB regressions, not something to fix).
-
-Sizing rule for this branch:
-
-- Each sub-slice below has one primary blast radius and should be completable in a single focused session, following the normal release ceremony where a version changes.
-
-### Version 0.33.5.24.1 - Install Node 24 and rebuild the native driver
-
-- [x] Install Node 24 LTS on the dev machine and confirm the bundled npm 11.x.
-- [x] Confirm the Windows compile fallback is available (Python 3 + Visual Studio Build Tools C++ workload) in case no `better-sqlite3` prebuilt binary exists for the Node 24 ABI.
-- [x] Reinstall dependencies from clean (`node_modules` removed) so `better-sqlite3` is rebuilt/re-fetched for ABI 137; do not run against the Node 20 (ABI 115) build.
-- [x] Run `npm run test:sqlite-driver` and confirm the driver loads and the FTS5/RETURNING smoke passes on Node 24.
-
-Acceptance criteria:
-
-- Node 24 + npm 11 are installed, the native driver is rebuilt for the new ABI, and the driver smoke passes on Node 24.
-
-### Version 0.33.5.24.2 - Pin the supported-Node contract
-
-- [x] Add an `engines.node` field to `package.json` (root + `packages[""]`) declaring the supported Node range with a Node 24 floor, so the repo records its runtime contract (this is the concrete form of "add Node 24 as a dependency in the repo").
-- [x] Update the `README.md` Node requirement line from "Node.js 20.x..." to the Node 24 baseline.
-- [x] Record the runtime baseline change in `DECISIONS.md`: Node 20 EOL -> Node 24 LTS, and that the breaking action is the runtime major/ABI rather than npm.
-
-Acceptance criteria:
-
-- The repo declares Node 24 as its supported runtime, and the docs/decision record match.
-
-### Version 0.33.5.24.3 - Reconcile the version-pinned driver smoke test and lockfile
-
-- [x] Resolve the smoke-test pin mismatch: either pin `better-sqlite3` to an exact `12.11.1` in `package.json`, or relax the smoke test's exact-version and exact-engines-string assertions to a range check. Keep the two consistent so a clean install cannot leave `npm run check` red.
-- [x] Regenerate `package-lock.json` (root + `packages[""]`) under npm 11 as its own isolated committed step so the lockfile churn is separated from logic changes.
-- [x] Confirm `lockfileVersion` stays 3 and no dependency resolutions changed unexpectedly.
-
-Acceptance criteria:
-
-- The `better-sqlite3` pin and the driver smoke test agree, and the npm 11 lockfile regeneration is an isolated, reviewed commit.
-
-### Version 0.33.5.24.4 - Full-suite check and closeout
-
-- [ ] Run `npm run check` and `npm run test:permissions` on Node 24 (re-running any transiently-flaky isolated-DB regressions standalone to confirm), paying attention to the transaction/isolated-DB regressions given the Node 24 `AsyncLocalStorage`/`AsyncContextFrame` behavior change.
-- [ ] For any failure: fix it here if small, or open a follow-up ROADMAP slice to correct it.
-- [ ] Bump `package.json`/`package-lock.json` version + add a dated `CHANGELOG.md` entry, and verify `/api/app-info` reports the expected version after restart on Node 24.
-
-Acceptance criteria:
-
-- The full suite passes on Node 24 (or any remaining failures are captured as follow-up slices), and the version/changelog ceremony is complete.
-
 ## Version 0.33.5.25 - Storage branch cleanup (0.33.5.22 follow-ups)
 
 Purpose:
@@ -167,6 +108,130 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Each future conversion wave has a documented, minimal update checklist that keeps the burndown ratchet green and honest, so the migration can proceed module by module without silent gaps.
+
+## Version 0.33.5.27 - Database extraction contract: finish the conversion and make the app agnostic-by-contract
+
+Purpose:
+
+Pull the *contract and completion* portion of database-agnosticism forward from 0.40.0 so the app stops accumulating database rework. This version finishes moving the whole app off value interpolation onto bound params, funnels the remaining SQLite-specific dialect through provider-neutral seams instead of scattering it at call sites, and — critically — adds enforcement so every future module (Knowledge Base in 0.34, Support Tickets in 0.35, and everything after) is built against the agnostic contract from day one and never needs re-conversion. Doing this before those modules exist is the whole point: converting ~233 known sites now is cheaper than converting them plus the hundreds of new calls those modules would otherwise add on the legacy interpolation path.
+
+Key decision (record in `DECISIONS.md`):
+
+- This version makes the app **agnostic by contract and enforced**, not agnostic-proven. It deliberately does NOT build a working second backend. The live PostgreSQL adapter, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof remain at **0.40.0**. The effect is that 0.40.0 shrinks from an app-wide rewrite to an adapter-implement-and-prove step behind the seams established here. Agnosticism is only *proven* when a second backend runs the suite at 0.40.0; until then the guarantee is "no call site hardcodes a dialect a future adapter cannot satisfy."
+- If the team instead wants a live PostgreSQL backend pulled forward into this version, that is a materially larger scope and should be decided explicitly here rather than assumed.
+
+Entry contract and grounding:
+
+- 0.33.5.23 built the named-to-positional binding layer (`src/db/parameter-bindings.js`) and converted the auth/workspace/permission core. 0.33.5.26 adds the `IN (...)` array-expansion helper and the burndown tracking those later waves depend on. This version consumes the recorded burndown (233 interpolated operation sites across ~20 files) and the audit's prioritized wave order in `docs/database-parameter-binding-audit.md`.
+- Dialect-sensitive operations to abstract behind seams (from the audit's 0.40.0 handoff, all currently SQLite-only): `INSERT OR IGNORE` upserts, `COLLATE NOCASE` comparisons, `PRAGMA` usage, FTS5 full-text search, JSON functions/operators, boolean-as-0/1 storage, `julianday(...)`/time math, `rowid`, and the four durable-job `RETURNING` statements.
+- Prerequisite ordering: 0.33.5.26.1 (array expansion) should land before the high-traffic conversion waves here, since those repos rely on variable-length `IN (...)` lists.
+
+Sizing rule for this branch:
+
+- Each sub-slice below has one primary blast radius and should be completable in a single focused session. The conversion waves may be sub-sliced further at implementation time (per repository) if a wave is too large; do not merge a wave with the seam work it depends on.
+
+### Version 0.33.5.27.1 - Portability contract and dialect seam decisions (plan only)
+
+- [ ] Define the single agnostic data-access contract that all new and converted code must use: named bound params through `db.query/get/run` and `db.transaction`; no `sqlText()/sqlInteger()/sqlNullableText()/sqlNullableInteger()` interpolation; and no raw SQLite-only dialect at call sites.
+- [ ] For each dialect-sensitive operation (upsert, case-insensitive compare, boolean storage, timestamp/interval math, full-text search, JSON access, `RETURNING`, `rowid`/identity), decide the seam: a provider-neutral helper, a capability flag, or a provider-adapter method. Record the chosen seam per operation.
+- [ ] Confirm the compatibility allowlist that may legitimately stay on interpolation: no-parameter multi-statement startup/migration paths only (`src/db/index.js`, `src/db/migrations.js`), and document that nothing else may.
+- [ ] Do not change runtime behavior in this slice; keep SQLite identical. Record decisions in `DECISIONS.md` and `docs/database.md`, and reconcile scope with the 0.40.0 database-extraction section.
+
+Acceptance criteria:
+
+- The agnostic contract, the per-operation dialect seams, and the narrow interpolation allowlist are documented, with each remaining repository assigned to a conversion wave below.
+
+### Version 0.33.5.27.2 - Dialect-portability seams on SQLite
+
+- [ ] Implement the seams decided in 0.33.5.27.1 as provider-neutral helpers/adapter methods backed by SQLite today: e.g. an upsert helper that expresses `INSERT ... ON CONFLICT`, a case-insensitive comparison seam, a boolean/timestamp normalization seam, a full-text search abstraction over FTS5, and a `RETURNING`/last-insert seam.
+- [ ] Route the already-converted core repositories plus one proof module through the seams to prove the shape end-to-end without a second backend.
+- [ ] Keep SQLite behavior byte-for-byte identical; the seams must lower to today's SQLite SQL.
+- [ ] Add focused regressions for each seam on SQLite (upsert, case-insensitive match, boolean round-trip, timestamp math, search, `RETURNING`).
+
+Acceptance criteria:
+
+- Every dialect-sensitive operation has a provider-neutral seam that lowers to identical SQLite behavior, proven by regressions and one converted proof module.
+
+### Version 0.33.5.27.3 - Conversion wave: Tasks and Time Tracking
+
+- [ ] Convert `tasks/tasks.repo`, `task-checklists.repo`, `task-relationships.repo`, `task-recurrence.repo`, `task-reminders.repo`, and the Time Tracking repositories (`active-timers.repo`, `time-entries.repo`) to bound params and onto the seams.
+- [ ] Preserve task read/list behavior, recurrence/reminder job semantics, and timer behavior exactly.
+- [ ] Update the burndown ratchet and add/extend focused regressions before moving on.
+
+Acceptance criteria:
+
+- The Tasks and Time Tracking repositories are fully on bound params and seams with identical SQLite behavior.
+
+### Version 0.33.5.27.4 - Conversion wave: Notes
+
+- [ ] Convert `notes/notes.repo` (the largest single repository) to bound params and seams.
+- [ ] Preserve secure/private/read-model shaping and collection/visibility filtering exactly, with focused regression coverage for those paths.
+- [ ] Update the burndown ratchet before moving on.
+
+Acceptance criteria:
+
+- The Notes repository is fully converted with secure/private/read-model behavior unchanged on SQLite.
+
+### Version 0.33.5.27.5 - Conversion wave: Files metadata
+
+- [ ] Convert `services/files.service` database access to bound params and seams without changing storage, scan, preview, download, quarantine, or attachment lifecycle behavior.
+- [ ] Coordinate with any open storage follow-ups (0.33.5.25) so the two branches do not fight over the same statements.
+- [ ] Update the burndown ratchet and extend file regressions before moving on.
+
+Acceptance criteria:
+
+- Files metadata access is fully converted with all storage/attachment behavior unchanged.
+
+### Version 0.33.5.27.6 - Conversion wave: Notifications, tags, search, and resume state
+
+- [ ] Convert `notifications.repo` (including per-user notification and display preferences), `tags.repo`, `services/tag-propagation-registry`, `services/tags.service`, the SQLite search adapter/`tag-text` helpers, `services/search-index-rebuild.service`, and the work-resume-state services to bound params and seams.
+- [ ] Route full-text search through the search seam rather than raw FTS5 at call sites.
+- [ ] Update the burndown ratchet and extend regressions before moving on.
+
+Acceptance criteria:
+
+- Notifications, tags, search, and resume-state code is fully converted, with full-text search behind the search seam.
+
+### Version 0.33.5.27.7 - Conversion wave: client/project and remaining framework/admin repositories
+
+- [ ] Convert `client-projects/clients.repo`, `client-projects/projects.repo`, `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, `core/search/adapters/sqlite-search-adapter`, `services/help.service`, and any other remaining low-count app repositories to bound params and seams.
+- [ ] Update the burndown ratchet and extend regressions before moving on.
+
+Acceptance criteria:
+
+- All remaining application repositories are on bound params and seams; only the startup/migration compatibility paths remain interpolated.
+
+### Version 0.33.5.27.8 - Startup and migration compatibility paths
+
+- [ ] Decide the multi-statement/no-parameter shape the layer must support for `src/db/index.js` startup maintenance and `src/db/migrations.js`, then either convert them onto that supported shape or formally confirm them as the only sanctioned interpolation allowlist with a recorded rationale.
+- [ ] Ensure the dialect-sensitive statements in these paths (`INSERT OR IGNORE`, `julianday(...)`, `rowid`, list rebuilds) route through the seams or are explicitly flagged for the 0.40.0 migration runner.
+- [ ] Update the burndown ratchet to reflect the final allowlist.
+
+Acceptance criteria:
+
+- Startup/migration paths are either converted or documented as the sole sanctioned interpolation allowlist, with dialect-sensitive statements accounted for.
+
+### Version 0.33.5.27.9 - Enforcement guardrail so future calls cannot regress
+
+- [ ] Add a lint/regression guardrail that fails the suite if new or changed runtime SQL uses an interpolation helper outside the sanctioned startup/migration allowlist, or hardcodes a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, etc.) outside the provider adapter.
+- [ ] Drive the audit ratchet target to zero interpolated operation sites for application repositories (allowlist excepted), so the burndown is provably complete rather than "mostly done."
+- [ ] Document the guardrail in `docs/module-contract.md`/`docs/database.md` so module authors know new database access must go through the agnostic contract and seams — this is what guarantees Knowledge Base, Tickets, and later modules are built agnostic and never re-converted.
+- [ ] Add regressions proving the guardrail rejects a reintroduced interpolation call and a raw dialect-ism.
+
+Acceptance criteria:
+
+- New database code cannot merge on the legacy interpolation path or a raw dialect-ism, and the app-repository burndown is enforced at zero.
+
+### Version 0.33.5.27.10 - Docs, decisions, 0.40.0 reconciliation, and closeout
+
+- [ ] Update `DECISIONS.md`, `docs/database.md`, `docs/database-parameter-binding-audit.md`, and the module/view contract docs to describe the finished agnostic contract, the seams, and the enforcement rule for new modules.
+- [ ] Reconcile the 0.40.0 database-extraction section: 0.40.0 now implements the actual PostgreSQL adapter behind the seams, provider gating, the migration runner, dual-backend contract tests, and the SaaS seed/load proof — not an app-wide SQL rewrite.
+- [ ] Run `npm run check` and `npm run test:permissions`; confirm the burndown ratchet is at the enforced target and `PRAGMA integrity_check` is `ok`; verify `/api/app-info` after restart.
+- [ ] Complete the standing per-slice version/`CHANGELOG.md`/package metadata ceremony and archive the completed branch.
+
+Acceptance criteria:
+
+- The whole app is on bound params and provider-neutral seams, new database code is enforced onto the agnostic contract, docs/decisions are captured, and 0.40.0 is reduced to implementing and proving a second backend rather than rewriting call sites.
 
 ## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
 

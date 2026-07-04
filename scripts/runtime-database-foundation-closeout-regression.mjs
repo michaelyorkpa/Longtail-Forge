@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.4";
+const appVersion = "0.33.5.24.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -61,8 +61,8 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /## Version 0\.33\.5\.24 - Node 24 LTS Upgrade[\s\S]*better-sqlite3[\s\S]*Node 24/,
-  "0.33.5.24 should be the active branch after parameter-binding closeout",
+  /## Version 0\.33\.5\.25 - Storage branch cleanup[\s\S]*storage\/upload branch[\s\S]*S3 provider/,
+  "0.33.5.25 should be the active branch after Node 24 closeout",
 );
 assert.match(
   roadmap,

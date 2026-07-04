@@ -1,3 +1,11 @@
+## Version 0.33.5.24.4 - 2026-07-04
+
+- Closed the Node 24 LTS upgrade branch by validating the full regression and permission suites under Node `v24.18.0` / npm `11.16.0`.
+- Pinned the supported app runtime contract to Node `>=24 <25`, kept `.nvmrc` on `24`, and documented the Node 20 retirement as a runtime-major/native-ABI change rather than an npm-only concern.
+- Pinned `better-sqlite3` exactly to `12.11.1`, kept `lockfileVersion` at 3, and tightened `scripts/better-sqlite3-install-smoke.mjs` so the smoke asserts the app's Node 24 baseline plus the exact native-driver pin.
+- Moved the completed 0.33.5.24 roadmap branch details into `ROADMAP-ARCHIVE.md` and advanced the live `ROADMAP.md` cursor to 0.33.5.25.
+- Verification 2026-07-04 11:07 -04:00: `npm run check` passed 260/260 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.24.4 after restarting the local 8001 server on Node 24.
+
 ## Version 0.33.5.23.4 - 2026-07-04
 
 - Closed the 0.33.5.23 SQL parameter-binding migration branch by confirming the active named-to-positional binding decision and the deprecated interpolation-helper compatibility boundary.
