@@ -11,8 +11,8 @@ Move the dev/runtime baseline off end-of-life Node 20 onto Node 24 LTS, rebuild 
 Grounding for this branch:
 
 - The dev machine is currently Node 20.13.1 / npm 10.8.1 with the native module built for ABI 115. Node 24 LTS is ABI 137 and bundles npm 11.x. Running the existing (ABI 115) `node_modules` under Node 24 fails at startup with a module-version mismatch until the driver is rebuilt.
-- `better-sqlite3@^12.11.1` declares engines `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; its install step is `prebuild-install || node-gyp rebuild --release` — it fetches a prebuilt binary for the active ABI and silently compiles from source if none matches (needs Python 3 + Visual Studio Build Tools on Windows).
-- `scripts/better-sqlite3-install-smoke.mjs` hard-asserts the driver is **exactly** `12.11.1` and matches an exact engines string, and it is registered in `scripts/regression-suite.mjs`, so `npm run check` runs it. Because `package.json` allows `^12.11.1`, a clean install may resolve a newer 12.x and break those equality assertions.
+- `better-sqlite3@12.11.1` declares engines `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; its install step is `prebuild-install || node-gyp rebuild --release` — it fetches a prebuilt binary for the active ABI and silently compiles from source if none matches (needs Python 3 + Visual Studio Build Tools on Windows). Longtail Forge's own app runtime contract remains Node `>=24 <25`.
+- Before 0.33.5.24.3, `scripts/better-sqlite3-install-smoke.mjs` hard-asserted the driver was **exactly** `12.11.1` while `package.json` allowed `^12.11.1`, so a clean install could resolve a newer 12.x and break those equality assertions. 0.33.5.24.3 pins the dependency exactly and keeps the smoke test aligned with that pin.
 - Before 0.33.5.24.2, `package.json` had no `engines` field, and the `README.md` requirement line still read "Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release."
 - `src/db/adapters/sqlite-adapter.js` relies on `AsyncLocalStorage` for transaction-context detection; Node 24 enables `AsyncContextFrame` for ALS by default (a behavior change to confirm via the transaction/isolated-DB regressions, not something to fix).
 
@@ -43,9 +43,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.24.3 - Reconcile the version-pinned driver smoke test and lockfile
 
-- [ ] Resolve the smoke-test pin mismatch: either pin `better-sqlite3` to an exact `12.11.1` in `package.json`, or relax the smoke test's exact-version and exact-engines-string assertions to a range check. Keep the two consistent so a clean install cannot leave `npm run check` red.
-- [ ] Regenerate `package-lock.json` (root + `packages[""]`) under npm 11 as its own isolated committed step so the lockfile churn is separated from logic changes.
-- [ ] Confirm `lockfileVersion` stays 3 and no dependency resolutions changed unexpectedly.
+- [x] Resolve the smoke-test pin mismatch: either pin `better-sqlite3` to an exact `12.11.1` in `package.json`, or relax the smoke test's exact-version and exact-engines-string assertions to a range check. Keep the two consistent so a clean install cannot leave `npm run check` red.
+- [x] Regenerate `package-lock.json` (root + `packages[""]`) under npm 11 as its own isolated committed step so the lockfile churn is separated from logic changes.
+- [x] Confirm `lockfileVersion` stays 3 and no dependency resolutions changed unexpectedly.
 
 Acceptance criteria:
 

@@ -16,11 +16,14 @@ const databaseFile = path.join(tempDir, "driver-smoke.db");
 let database = null;
 
 try {
-  assert.equal(packageJson.dependencies?.["better-sqlite3"], "^12.11.1", "package.json should pin the selected better-sqlite3 dependency range");
+  assert.equal(packageJson.engines?.node, ">=24 <25", "package.json should declare the supported Node 24 runtime range");
+  assert.equal(packageLock.packages?.[""]?.engines?.node, packageJson.engines.node, "package-lock root package should mirror the supported Node runtime range");
+  assert.equal(packageJson.dependencies?.["better-sqlite3"], "12.11.1", "package.json should pin the selected better-sqlite3 release exactly");
+  assert.equal(packageLock.packages?.[""]?.dependencies?.["better-sqlite3"], packageJson.dependencies["better-sqlite3"], "package-lock root package should mirror the better-sqlite3 pin");
   assert.equal(packageLock.packages?.["node_modules/better-sqlite3"]?.version, driverPackage.version, "package-lock should capture the installed better-sqlite3 release");
   assert.equal(driverPackage.version, "12.11.1", "the selected better-sqlite3 release should remain explicit");
   assert.equal(driverPackage.engines?.node, "20.x || 22.x || 23.x || 24.x || 25.x || 26.x", "better-sqlite3 should document the selected release's Node engine range");
-  assert.match(process.versions.node, /^(20|22|23|24|25|26)\./, "the active Node runtime should be in the selected better-sqlite3 engine range");
+  assert.match(process.versions.node, /^24\./, "the active Node runtime should match Longtail Forge's supported Node 24 baseline");
 
   database = new Database(databaseFile);
   const sqliteVersion = database.prepare("SELECT sqlite_version() AS sqlite_version;").get().sqlite_version;
