@@ -83,6 +83,10 @@ Backups should preserve the database and local runtime data together. Include th
 
 For the safest filesystem backup, stop the app first or take a storage snapshot that is consistent across the database and local runtime data. Always test restore into a separate install before relying on a backup plan.
 
+## File Storage Providers
+
+SQLite small-office mode continues to default to local file storage through `LONGTAIL_STORAGE_PROVIDER=local` and `LONGTAIL_LOCAL_STORAGE_ROOT`. As of 0.33.5.22.12, `LONGTAIL_STORAGE_PROVIDER=s3` can select the registered S3-compatible provider stub and read S3 bucket, region, endpoint, and credential settings from server runtime configuration, but S3 object operations remain intentionally inactive until 0.33.5.22.13. Missing S3 settings fail clearly as configuration errors, and configured S3 operations fail safely as not implemented rather than partially writing files. Diagnostics and browser payloads must not expose bucket names, endpoints, credential values, storage keys, protected paths, or signed URLs.
+
 ## File Scanning
 
 File scanning is optional in SQLite small-office mode. The current default scanner mode is `none`, which is an explicit disabled-scanning choice that completes queued scan jobs as `not_required`/`available`. Installs that want ClamAV scanning can use the local `clamscan` executable adapter or the TCP `clamd` daemon adapter; setup guidance is in [file-scanner-setup.md](file-scanner-setup.md). Unavailable ClamAV scanners quarantine files for review instead of silently passing them or automatically deleting stored bytes. Scanner internals, storage paths, and quarantine details stay behind framework-owned permission checks.

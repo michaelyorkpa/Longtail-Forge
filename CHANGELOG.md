@@ -1,3 +1,11 @@
+## Version 0.33.5.22.12 - 2026-07-03
+
+- Added server-side S3-compatible storage provider configuration under `config.storage.s3`, documented the `LONGTAIL_S3_*` settings in `.env.example`, and registered the explicit `s3` provider key without changing the default local provider.
+- Added a safe S3 provider stub that reports unavailable health, fails missing S3 settings clearly, and fails configured object operations as not implemented instead of attempting partial writes.
+- Recorded the S3 dependency/client decision for this slice: no S3 SDK or object client is added until the mocked object-operation proof in 0.33.5.22.13.
+- Added `scripts/file-s3-provider-registration-regression.mjs`, wired it into the file storage regression bucket, archived completed 0.33.5.22.12 roadmap details, and advanced package/regression version metadata to 0.33.5.22.12.
+- Verification 2026-07-03 22:23 -04:00: `scripts/file-s3-provider-registration-regression.mjs`, storage provider/diagnostics/streaming, multipart upload, scanner resolver/health/adapter, scanner setup docs, and runtime/database handoff regressions passed; `npm run check` passed 254/254 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.12 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.11 - 2026-07-03
 
 - Added `docs/file-scanner-setup.md` with Linux `clamd`, Windows `clamscan`, macOS/Homebrew, and scanner-unavailable behavior guidance.

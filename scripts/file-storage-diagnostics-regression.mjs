@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.11";
+const appVersion = "0.33.5.22.12";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-diagnostics-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -86,10 +86,10 @@ function assertStaticContracts() {
   assert.doesNotMatch(workspaceSettingsScript, /process\.env|localRoot|storageKey|signedUrl|protectedPath|DATABASE_URL|CLAMD|CLAMSCAN|masterKey/i, "Workspace Settings storage diagnostics must not expose raw runtime or storage internals");
   assert.equal(existsSync(path.join(root, "views/protected/runtime-diagnostics.html")), false, "storage diagnostics should not add a new admin diagnostics surface");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.11[\s\S]*storage provider diagnostics are active/, "runtime docs should mark storage diagnostics active");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*storage provider diagnostics are active/, "runtime docs should mark storage diagnostics active");
   assert.match(sqliteDocs, /safe local storage root label/i, "SQLite small-office docs should mention the safe storage root label");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage diagnostics slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.11 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
   assert.match(regressionSuite, /scripts\/file-storage-diagnostics-regression\.mjs/, "regression suite should include storage diagnostics coverage");
 }
 

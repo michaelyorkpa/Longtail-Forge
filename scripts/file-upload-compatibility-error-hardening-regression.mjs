@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.11";
+const appVersion = "0.33.5.22.12";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-upload-hardening-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -74,12 +74,12 @@ function assertStaticContracts() {
   assert.match(filesServiceSource, /Uploaded file could not be stored/, "storage stream failures should have bounded response copy");
   assert.match(filesServiceSource, /error instanceof AppError/, "storage stream failures should preserve known upload errors");
 
-  assert.match(moduleContract, /As of 0\.33\.5\.22\.11[\s\S]*POST \/api\/files[\s\S]*POST \/api\/files\/batch/, "module contract should record legacy JSON compatibility");
-  assert.match(moduleDevelopment, /As of 0\.33\.5\.22\.11[\s\S]*base64 compatibility routes/, "module docs should guide new module uploads to streamed routes");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.11[\s\S]*retired no earlier than 0\.33\.5\.23\.0/, "runtime docs should define the base64 retirement floor");
+  assert.match(moduleContract, /As of 0\.33\.5\.22\.12[\s\S]*POST \/api\/files[\s\S]*POST \/api\/files\/batch/, "module contract should record legacy JSON compatibility");
+  assert.match(moduleDevelopment, /As of 0\.33\.5\.22\.12[\s\S]*base64 compatibility routes/, "module docs should guide new module uploads to streamed routes");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*retired no earlier than 0\.33\.5\.23\.0/, "runtime docs should define the base64 retirement floor");
   assert.match(previewRegression, /download_only[\s\S]*unsupported_file_type/, "preview coverage should keep unsupported files download-only");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the upload hardening slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.11 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
   assert.match(regressionSuite, /scripts\/file-upload-compatibility-error-hardening-regression\.mjs/, "regression suite should include upload hardening coverage");
 }
 

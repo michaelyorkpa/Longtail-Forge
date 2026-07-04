@@ -13,6 +13,7 @@ import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/b
 import { enqueueJob } from "../core/jobs/job-queue.js";
 import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { createLocalFileStorageAdapter } from "../core/files/local-storage-adapter.js";
+import { createS3FileStorageAdapter } from "../core/files/s3-storage-adapter.js";
 import {
   createClamdFileScannerAdapter,
   createClamscanFileScannerAdapter,
@@ -95,6 +96,7 @@ const DEFAULT_BLOCKED_EXTENSIONS = Object.freeze([
 
 const storageAdapters = new Map([
   ["local", createLocalFileStorageAdapter()],
+  ["s3", createS3FileStorageAdapter(config.storage?.s3)],
 ]);
 const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
 const scannerAdapters = new Map([

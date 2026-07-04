@@ -49,7 +49,7 @@ async function read(session) {
         available: storageHealth.available,
         status: storageHealth.status,
       },
-      rootLocation: safeStorageRootLocation(storageHealth.rootDir || config.storage.localRoot),
+      rootLocation: storageHealth.rootDir ? safeStorageRootLocation(storageHealth.rootDir) : null,
     },
     scanner: {
       mode: scannerHealth.mode,
@@ -95,14 +95,14 @@ async function readSafeStorageHealth() {
     return {
       available: health?.ok !== false,
       provider: safeText(health?.provider || provider),
-      rootDir: safeText(health?.rootDir || config.storage.localRoot),
+      rootDir: safeText(health?.rootDir || (provider === "local" ? config.storage.localRoot : "")),
       status: health?.ok === false ? "unavailable" : "ok",
     };
   } catch {
     return {
       available: false,
       provider,
-      rootDir: safeText(config.storage.localRoot),
+      rootDir: safeText(provider === "local" ? config.storage.localRoot : ""),
       status: "unavailable",
     };
   }

@@ -134,6 +134,13 @@ function createConfig(env = process.env) {
     storage: {
       provider: readText(env, "LONGTAIL_STORAGE_PROVIDER", DEFAULT_STORAGE_PROVIDER),
       localRoot: resolveRuntimePath(readText(env, "LONGTAIL_LOCAL_STORAGE_ROOT", path.join(dataDir, "files"))),
+      s3: {
+        accessKeyId: readRuntimeSecret("LONGTAIL_S3_ACCESS_KEY_ID", env),
+        bucket: readText(env, "LONGTAIL_S3_BUCKET", ""),
+        endpoint: readText(env, "LONGTAIL_S3_ENDPOINT", ""),
+        region: readText(env, "LONGTAIL_S3_REGION", ""),
+        secretAccessKey: readRuntimeSecret("LONGTAIL_S3_SECRET_ACCESS_KEY", env),
+      },
     },
     scanner: {
       mode: readEnum(env, "LONGTAIL_FILE_SCANNER", DEFAULT_FILE_SCANNER, FILE_SCANNER_MODES),

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.5.22.11";
+const appVersion = "0.33.5.22.12";
 const scenarioArgIndex = process.argv.indexOf("--scenario");
 const scannerSecretExecutable = "secret-clamscan-path";
 const scannerSecretOutput = "Eicar-Test-Signature FOUND";
@@ -71,10 +71,10 @@ function assertStaticContracts() {
   assert.match(filesServiceSource, /"clamscan", createClamscanFileScannerAdapter\(\{ executablePath: config\.scanner\?\.clamscanPath \}\)/, "Files service should register clamscan from runtime config");
   assert.match(filesServiceSource, /status === "quarantined"[\s\S]*file\.quarantined/, "scan lifecycle should keep quarantine review behavior service-owned");
   assert.doesNotMatch(runtimeDiagnosticsSource, /clamscanPath|process\.env|storageKey|protectedPath/i, "runtime diagnostics must not expose clamscan paths or storage internals");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.11[\s\S]*`clamscan`[\s\S]*executable scanner adapter[\s\S]*executable paths/, "runtime docs should describe clamscan adapter redaction");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*`clamscan`[\s\S]*executable scanner adapter[\s\S]*executable paths/, "runtime docs should describe clamscan adapter redaction");
   assert.match(changelog, /clamscan[\s\S]*unavailable or timed-out scanner executions[\s\S]*without auto-deleting stored files/i, "tracked docs should record clamscan quarantine policy");
   assert.match(changelog, /## Version 0\.33\.5\.22\.9 - /, "changelog should include the clamscan adapter slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.11 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
   assert.match(regressionSuite, /scripts\/file-clamscan-adapter-regression\.mjs/, "regression suite should include clamscan adapter coverage");
 }
 

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const appVersion = "0.33.5.22.11";
+const appVersion = "0.33.5.22.12";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-modal-complete-action-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-modal-complete-action.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";

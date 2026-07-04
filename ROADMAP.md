@@ -26,25 +26,7 @@ Sizing rule for this branch:
 - Each implementation sub-slice still follows the normal release ceremony for the version it lands: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
 - Do not combine adjacent slices just because the same helper file is already open.
 
-Completed 0.33.5.22.1 through 0.33.5.22.11 are archived in `ROADMAP-ARCHIVE.md`. Remaining slices in this branch start at 0.33.5.22.12.
-
-### Version 0.33.5.22.12 - S3 configuration and provider registration
-
-- [ ] Add S3-compatible provider config keys (bucket/region/endpoint/credentials) to `config.storage` in `src/config.js` and `.env.example`.
-- [ ] Keep secrets out of diagnostics, browser payloads, docs examples, and committed files.
-- [ ] Register the S3 provider under a new key via `registerFileStorageAdapter` (do not overload `local`).
-- [ ] Support provider configuration through `.env`/runtime config.
-- [ ] Do not require S3 for SQLite/self-hosted installs.
-- [ ] Decide and record the S3 dependency/client strategy before implementing object operations.
-- [ ] If object operations are not implemented in this slice, the registered provider must fail with safe "not implemented/configured" errors rather than partial writes.
-- [ ] Add regressions proving:
-  - [ ] Local storage remains the default when S3 config is absent.
-  - [ ] S3 can be selected only through the explicit provider key.
-  - [ ] Missing required S3 config fails clearly when the provider is selected.
-
-Acceptance criteria:
-
-- The S3 provider can be selected explicitly through runtime configuration, while self-hosted local storage remains unchanged.
+Completed 0.33.5.22.1 through 0.33.5.22.12 are archived in `ROADMAP-ARCHIVE.md`. Remaining slices in this branch start at 0.33.5.22.13.
 
 ### Version 0.33.5.22.13 - S3 object operation proof
 
