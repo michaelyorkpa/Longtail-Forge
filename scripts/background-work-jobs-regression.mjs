@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-background-work-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-background-work-jobs.db");
@@ -57,7 +57,7 @@ try {
   assert.match(workerCliSource, /registerFileScanJobHandlers/, "separate worker startup should register file scan handlers");
   assert.match(workerCliSource, /registerFutureImportJobHandlers/, "separate worker startup should register future import handlers");
   assert.match(regressionSuite, /scripts\/background-work-jobs-regression\.mjs/, "regression suite should include background work job coverage");
-  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the background work jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "architecture docs should document background work jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "database docs should document background work jobs");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -116,11 +116,11 @@ assert.match(surfaceContract, /As of 0\.33\.5\.18\.13\.3[\s\S]*table row actions
 assert.match(surfaceContract, /As of 0\.33\.5\.18\.14\.1[\s\S]*shared module-action registry[\s\S]*dialog bodies[\s\S]*payload construction/, "Surface contract should document the action ownership boundary");
 assert.match(surfaceContract, /As of 0\.33\.5\.18\.14\.2[\s\S]*related rows[\s\S]*shared list\/table\/action anatomy/, "Surface contract should document the related-region ownership boundary");
 assert.match(surfaceContract, /As of 0\.33\.5\.18\.14\.3[\s\S]*descriptor row-selection checkbox anatomy[\s\S]*shared bulk toolbar shell[\s\S]*Business-only Client reassignment visibility/, "Surface contract should document the bulk-control ownership boundary");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.13\.1 through 0\.33\.5\.18\.13\.3 are archived/, "Roadmap should point completed Clients/Projects slices to the archive");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.14\.1 is archived/, "Roadmap should point the completed action cleanup slice to the archive");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.14\.2 is archived/, "Roadmap should point the completed related-region slice to the archive");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.14\.3 is archived/, "Roadmap should point the completed bulk-control slice to the archive");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "Roadmap should point the completed strict cleanup slice to the archive");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.13\.1 through 0\.33\.5\.18\.13\.3 are archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.1 is archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.2 is archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.3 is archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(changelog, /Version 0\.33\.5\.18\.14\.5[\s\S]*slide-out filter surface[\s\S]*secondary tag rows[\s\S]*icon-only repeated edit controls[\s\S]*clients-projects-strict-closeout-regression\.mjs/, "Changelog should record the completed 0.33.5.18.14.5 slice");
 assert.match(regressionSuite, /scripts\/clients-projects-strict-guardrail-inventory-regression\.mjs/, "Regression suite should include the Clients/Projects readiness regression");
 

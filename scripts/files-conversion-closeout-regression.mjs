@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const filesCloseoutVersion = "0.33.5.18.12.7";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
@@ -23,10 +23,10 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should track the current app version");
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should track the current app version");
 
-assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files 0.33.5.18.12 branch");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.15 is archived/, "Roadmap should archive the completed view-conversion branch closeout");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.15 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /## Files \(0\.33\.5\.18\.11 - 0\.33\.5\.18\.12\)/, "Live roadmap should not keep the completed Files branch open");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.12\.7 - Files docs, changelog, and closeout/, "Completed Files closeout slice should be archived out of the live roadmap");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.12\.7 - Files docs, changelog, and closeout/, "live roadmap should not keep completed branch bodies");
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(filesCloseoutVersion)} - `), "Changelog should include the Files conversion closeout version");
 assert.match(changelog, /Closed the Files browse\/edit\/preview\/upload\/action\/strict-guardrail conversion branch/, "Changelog should describe the completed Files conversion branch");

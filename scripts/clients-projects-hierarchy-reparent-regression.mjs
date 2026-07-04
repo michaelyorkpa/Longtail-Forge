@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -155,7 +155,7 @@ assert.match(
   /As of 0\.33\.5\.18\.14\.4[\s\S]*Projects read surface[\s\S]*service-owned ordering[\s\S]*No drag\/drop/,
   "Surface contract should record the converted UI hierarchy boundary",
 );
-assert.match(
+assert.doesNotMatch(
   roadmap,
   /Completed 0\.33\.5\.18\.14\.4 is archived/,
   "Roadmap should move the completed hierarchy/reparent slice to the archive pointer",

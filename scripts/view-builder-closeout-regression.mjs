@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -18,7 +18,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.14 - /m, "Completed 0.33.5.14 should be archived out of the live roadmap");
+assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.14 - /m, "live roadmap should not keep completed branch bodies");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.15 - Framework View Builder Contract and Lists Pilot/m, "Completed 0.33.5.15 should be archived out of the live roadmap after 0.33.5.16 closes");
 
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "View-building contract should report the closeout version");

@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-upload-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -78,10 +78,10 @@ function assertStaticContracts() {
   assert.match(filesServiceSource, /queueFileScanJob\(session, file/, "Streamed uploads should keep the normal scan-job handoff");
   assert.match(filesServiceSource, /attachFile\(session, \{/, "Streamed uploads should keep the normal attachment lifecycle");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*`POST \/api\/files\/upload` accepts one multipart file/, "runtime docs should mark the single-file multipart route active");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`POST \/api\/files\/upload` accepts one multipart file/, "runtime docs should mark the single-file multipart route active");
   assert.match(moduleDocs, /multipart upload route[\s\S]*file\.scan/, "module docs should record that multipart uploads keep the scan lifecycle");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the multipart route slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(regressionSuite, /scripts\/file-multipart-upload-route-regression\.mjs/, "regression suite should include multipart upload route coverage");
 }
 

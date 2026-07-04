@@ -94,9 +94,9 @@ try {
 }
 
 function assertStaticContracts() {
-  assert.equal(packageJson.version, "0.33.5.22.12", "package.json should report the current app version");
-  assert.equal(packageLock.version, "0.33.5.22.12", "package-lock root should report the current app version");
-  assert.equal(packageLock.packages[""].version, "0.33.5.22.12", "package-lock package entry should report the current app version");
+  assert.equal(packageJson.version, "0.33.5.22.15", "package.json should report the current app version");
+  assert.equal(packageLock.version, "0.33.5.22.15", "package-lock root should report the current app version");
+  assert.equal(packageLock.packages[""].version, "0.33.5.22.15", "package-lock package entry should report the current app version");
 
   assert.match(listEnrichment, /function createVisibleRecordBatch/, "Framework should expose a visible-record batch helper");
   assert.match(listEnrichment, /function groupRowsByRecordId/, "Framework should expose shared record-id grouping");
@@ -120,7 +120,7 @@ function assertStaticContracts() {
   assert.match(listsServiceSource, /readSourceContextsForLists\(session, batch\)/, "Lists service should batch source-list context");
   assert.match(listsServiceSource, /tagsService\.decorateRecordsForTarget\([\s\S]*"list"[\s\S]*shapedLists/, "Lists tags should decorate shaped visible rows through the existing multi-record tag path");
 
-  assert.match(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "Roadmap should point the completed 0.33.5.20 branch to the archive");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, /Version 0\.33\.5\.20\.4[\s\S]*visible-record batching helper/, "Changelog should record the 0.33.5.20.4 release");
   assert.match(regressionSuite, /scripts\/batched-list-enrichment-regression\.mjs/, "Regression suite should include this batched enrichment regression");
 }

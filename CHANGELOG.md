@@ -1,3 +1,27 @@
+## Version 0.33.5.22.15 - 2026-07-04
+
+- Closed the 0.33.5.22 storage/scanner runtime branch by confirming the active storage-provider, streamed-upload, scanner-mode, scanner-unavailable, S3 diagnostics, and signed-URL exception decisions.
+- Collected the branch docs into the runtime/database/module handoffs, including live storage/scanner keys, inert `LONGTAIL_CLAMD_SOCKET`/direct-transfer/S3-client settings, and the corrected PostgreSQL handoff to the 0.40.0 database extraction layer.
+- Added `scripts/file-storage-scanner-runtime-closeout-regression.mjs`, wired it into the file storage regression bucket, and asserted the storage/scanner regressions from 0.33.5.22.1 through 0.33.5.22.14 remain suite-covered.
+- Moved the completed 0.33.5.22 branch details into `ROADMAP-ARCHIVE.md`, kept `ROADMAP.md` focused on the active 0.33.5.23 plan, and added a regression guard against live-roadmap `Completed` breadcrumbs.
+- Verification 2026-07-04 07:59 -04:00: `scripts/file-storage-scanner-runtime-closeout-regression.mjs`, `scripts/runtime-database-foundation-closeout-regression.mjs`, `scripts/tasks-conversion-closeout-regression.mjs`, `scripts/file-scanner-setup-docs-regression.mjs`, and `npm run check` passed 257/257 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; unauthenticated `/api/runtime-diagnostics` returned `401 Login required`; and `/api/app-info` returned 0.33.5.22.15 on the local 8001 server.
+
+## Version 0.33.5.22.14 - 2026-07-04
+
+- Added the S3 diagnostics and signed-URL boundary slice: runtime diagnostics now have regression coverage proving S3 provider readouts expose only provider id and safe availability while redacting bucket, endpoint, credential, storage-key, provider-response, protected-path, and signed-URL details.
+- Documented the direct/presigned upload/download plan without implementing a presigned route: future signed URL behavior must be route-designed, per-object permission-checked, short-expiring, audit/lifecycle-aware, and absent from normal Files payloads.
+- Added `scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs`, wired it into the file storage regression bucket, and covered normal S3-backed Files upload/read/list/preview/download payloads against signed URL and provider-internal leaks.
+- Updated storage/runtime/module/database docs, decisions, roadmap/archive bookkeeping, and package/regression version metadata for 0.33.5.22.14.
+- Verification 2026-07-04 07:24 -04:00: `scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs`, S3 provider/object-operation regressions, storage/runtime diagnostics and upload compatibility neighbors, and `npm run check` passed 256/256 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.14 after restarting the local 8001 server.
+
+## Version 0.33.5.22.13 - 2026-07-03
+
+- Implemented the S3-compatible storage adapter object path behind the Files provider contract: `save()` and `saveStream()` call `putObject`, `read()` calls `getObject` and returns a Node `Readable`, `metadata()` calls `headObject`, `delete()` calls `deleteObject`, and `health()` reports safe provider availability.
+- Kept the proof behind a narrow injectable client interface without adding an S3 SDK, signed URLs, direct object-store routes, or changes to the default local/self-hosted provider.
+- Added `scripts/file-s3-object-operation-proof-regression.mjs`, wired it into the file storage regression bucket, and covered mocked S3 save/read/metadata/delete/health plus the Files-service streamed upload/download lifecycle through stored `files.storage_provider = s3`.
+- Updated storage/runtime/module/database docs, decisions, roadmap/archive bookkeeping, and package/regression version metadata for 0.33.5.22.13.
+- Verification 2026-07-03 23:19 -04:00: `scripts/file-s3-object-operation-proof-regression.mjs`, `scripts/file-s3-provider-registration-regression.mjs`, neighboring storage/upload/scanner/runtime handoff regressions, and `npm run check` passed 255/255 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.13 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.12 - 2026-07-03
 
 - Added server-side S3-compatible storage provider configuration under `config.storage.s3`, documented the `LONGTAIL_S3_*` settings in `.env.example`, and registered the explicit `s3` provider key without changing the default local provider.

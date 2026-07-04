@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -29,14 +29,14 @@ assert.match(scannerDocs, /`none`[\s\S]*not_required[\s\S]*`noop`[\s\S]*pass-thr
 assert.match(scannerDocs, /no active `LONGTAIL_CLAMD_SOCKET` setting/, "scanner docs should explicitly defer socket scanning");
 assert.match(scannerDocs, /without exposing executable paths, hostnames, ports, sockets, raw scanner output, storage keys, protected paths, signed URLs, or raw environment values/, "scanner docs should document scanner/storage redaction boundaries");
 
-assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*file-scanner-setup\.md/, "runtime docs should link ClamAV setup guidance");
+assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*file-scanner-setup\.md/, "runtime docs should link ClamAV setup guidance");
 assert.match(runtimeDocs, /Live settings:[\s\S]*`LONGTAIL_FILE_SCANNER`[\s\S]*`LONGTAIL_CLAMSCAN_PATH`[\s\S]*`LONGTAIL_CLAMD_HOST`[\s\S]*`LONGTAIL_CLAMD_PORT`/, "runtime docs should mark scanner settings live");
 assert.match(runtimeDocs, /Deferred setting:[\s\S]*no `LONGTAIL_CLAMD_SOCKET` key is active/, "runtime docs should mark socket scanning deferred");
 assert.match(sqliteDocs, /file-scanner-setup\.md[\s\S]*Unavailable ClamAV scanners quarantine files for review/, "SQLite docs should point to scanner setup and unavailable behavior");
 assert.match(envExample, /docs\/file-scanner-setup\.md[\s\S]*Optional live settings when LONGTAIL_FILE_SCANNER=clamd[\s\S]*Optional live setting when LONGTAIL_FILE_SCANNER=clamscan/, ".env.example should point operators to scanner docs and mark scanner keys live");
 
-assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive completed storage/scanner setup slices after closeout");
-assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.22\.12 - Scanner setup docs and ClamAV closeout/, "live roadmap should not keep the completed scanner setup closeout slice open");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.22\.15 - Scanner setup docs and ClamAV closeout/, "live roadmap should not keep the completed scanner setup closeout slice open");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the scanner setup docs slice");
 
 for (const scriptName of [

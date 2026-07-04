@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-modal-complete-action-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-modal-complete-action.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -76,8 +76,8 @@ function assertStaticContract() {
   assert.match(tasksView, /js\/task-dialog\.js\?v=23/, "Tasks view should load the updated Task dialog cache key");
   assert.match(workbenchView, /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=15/, "Workbench should load the updated Task dialog and Workbench cache keys");
   assert.match(regressionSuite, /scripts\/task-modal-complete-action-regression\.mjs/, "Regression suite should include modal complete action coverage");
-  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
-    "Roadmap should archive the completed durable-jobs branch that contains the task modal complete slice");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
+    "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the task modal complete action slice");
   assert.match(docs, /As of 0\.33\.5\.21\.9\.2[\s\S]*Complete button[\s\S]*dedicated `POST \/api\/tasks\/:taskId\/complete` route/,
     "Tasks docs should document the modal Complete action contract");

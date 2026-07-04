@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const migrationVersion = "065";
 const migrationFile = "src/db/migrations/065_job_outbox_schema.sql";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-outbox-schema-"));
@@ -45,7 +45,7 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.1[\s\S]*`jobs`[\s\S]*pending[\s\S]*running[\s\S]*completed[\s\S]*failed[\s\S]*dead/i, "database docs should explain the shipped job states");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.2[\s\S]*framework-owned `jobs` table[\s\S]*v1 worker runner/, "architecture docs should record the durable job table handoff into the worker runner");
   assert.match(databaseDocs, /table shipped as schema only in 0\.33\.5\.21\.1[\s\S]*v1 worker runner shipped in 0\.33\.5\.21\.2/, "database docs should preserve the schema-only handoff while documenting the worker runner");
-  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the job/outbox schema slice");
 
   await initializeDatabase();

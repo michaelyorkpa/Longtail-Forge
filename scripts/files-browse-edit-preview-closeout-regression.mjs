@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -20,11 +20,11 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should track the current app version");
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should track the current app version");
 
-assert.match(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "Roadmap should identify the closeout as archived");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should identify the completed Files upload/action branch as archived");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.12 - Files preview modal and browse row preview action/, "Completed 0.33.5.18.11.12 should be archived out of the live roadmap");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.13 - Files browse\/edit\/preview closeout and 0\.33\.5\.18\.12 handoff/, "Completed 0.33.5.18.11.13 should be archived out of the live roadmap");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.12\.7 - Files docs, changelog, and closeout/, "Completed 0.33.5.18.12.7 should be archived out of the live roadmap");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.12 - Files preview modal and browse row preview action/, "live roadmap should not keep completed branch bodies");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.13 - Files browse\/edit\/preview closeout and 0\.33\.5\.18\.12 handoff/, "live roadmap should not keep completed branch bodies");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.12\.7 - Files docs, changelog, and closeout/, "live roadmap should not keep completed branch bodies");
 
 [
   viewContract,

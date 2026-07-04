@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -21,11 +21,11 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Tasks conversion closeout version");
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the Tasks conversion closeout version");
 
-assert.match(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "Roadmap should archive completed Files browse/edit/preview slices");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files upload/action/guardrail branch");
-assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Live roadmap should archive the completed modal action standardization branch");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, changelog, and closeout/, "Live roadmap should archive the previous completed Tasks closeout slice");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should archive the previous completed Tasks slice");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
+assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Live roadmap should not keep completed modal action branch bodies");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, changelog, and closeout/, "Live roadmap should not keep previous completed Tasks closeout slice bodies");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should not keep previous completed Tasks slice bodies");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the Tasks conversion closeout version");
 
 assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Tasks closeout version");

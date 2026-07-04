@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-diagnostics-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-runtime-diagnostics.db");
@@ -68,7 +68,7 @@ try {
 
   assert.match(runtimeDocs, /`GET \/api\/runtime-diagnostics`/, "runtime docs should document the protected runtime diagnostics route");
   assert.match(runtimeDocs, /Runtime diagnostics[\s\S]*workspace_settings\.manage/i, "runtime docs should record the diagnostics permission boundary");
-  assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed runtime diagnostics branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the runtime diagnostics slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");

@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -98,7 +98,7 @@ assert.doesNotMatch(runtimeDocs, /\|\s*`SQLITE_COMMAND`\s*\|/, "runtime docs sho
 assert.match(runtimeDocs, /`SQLITE_COMMAND` is a legacy ignored setting[\s\S]*`better-sqlite3`/, "runtime docs should mark SQLITE_COMMAND as legacy/ignored");
 assert.match(runtimeDocs, /Reserved settings may appear in `config` for readout consistency[\s\S]*does not implement PostgreSQL/, "runtime docs should keep future settings dormant");
 assert.match(runtimeDocs, /Startup fails clearly when active settings are invalid/, "runtime docs should document validation");
-assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed runtime configuration foundation branch");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 assert.match(configSource, /function createConfig\(env = process\.env\)/, "config should expose a testable runtime config builder");
 assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/, "config should validate the database provider");

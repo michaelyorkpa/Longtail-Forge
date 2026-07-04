@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-adapter-contract-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-adapter-contract.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Adapter-Test-123!";
@@ -105,7 +105,7 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.19\.5[\s\S]*provider-neutral database adapter/, "database docs should describe the adapter contract");
   assert.match(databaseDocs, /Repositories and module services should not import `src\/db\/sqlite\.js` directly/, "database docs should document the direct SQLite import guardrail");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
-  assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed adapter contract branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the adapter contract slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");

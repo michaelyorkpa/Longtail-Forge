@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const asyncRecurrenceVersion = "0.33.5.21.7.7";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-async-recurrence-response-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -50,8 +50,8 @@ try {
   assert.match(tasksDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "Tasks docs should describe the async recurrence response contract");
   assert.match(publicApiDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "public API docs should describe the safe recurrence queued hint");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(asyncRecurrenceVersion)} - `), "changelog should include the async recurrence closeout slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
-  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(regressionSuite, /scripts\/async-recurrence-response-closeout-regression\.mjs/, "regression suite should include async recurrence response closeout coverage");
 
   await initializeDatabase();

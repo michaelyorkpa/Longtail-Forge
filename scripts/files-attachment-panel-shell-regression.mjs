@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -119,7 +119,7 @@ assert.match(functionBlock(taskDialog, "mountTaskFileAttachments"), /saveFirstMe
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.2/, "View-building contract should document the attachment-panel shell slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.2, the shared Files attachment helper wraps its reusable attachment panel/, "Module contract should document the panel shell boundary");
 assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.2, the shared Files attachment helper also standardizes its reusable attachment panel/, "Declarative surface contract should mention the panel shell standardization");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files panel shell branch");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(regressionSuite, /scripts\/files-attachment-panel-shell-regression\.mjs/, "Full regression suite should include the attachment-panel shell regression");
 
 console.log("Files attachment panel shell regression passed.");

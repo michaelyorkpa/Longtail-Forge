@@ -7,7 +7,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-transaction-helper-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-transaction-helper.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Transaction-Test-123!";
@@ -66,7 +66,7 @@ try {
   assert.match(databaseDocs, /Nested transactions are not supported/, "database docs should document nested transaction behavior");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.0\.4[\s\S]*transaction-only tail[\s\S]*migration scripts/, "database docs should describe the transaction and migration fidelity slice");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
-  assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed transaction helper branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the transaction helper slice");
   assert.match(regressionSuite, /scripts\/database-transaction-helper-regression\.mjs/, "regression suite should include transaction helper coverage");
 

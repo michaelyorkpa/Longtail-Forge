@@ -7,7 +7,7 @@ import { Readable } from "node:stream";
 import { createLocalFileStorageAdapter } from "../src/core/files/local-storage-adapter.js";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-streaming-"));
 const storageRoot = path.join(tempDir, "files");
 
@@ -73,7 +73,7 @@ function assertStaticContracts() {
   assert.match(localStorageAdapter, /pipeline\(readable, createWriteStream\(target\.filePath\)\)/, "local saveStream should pipe directly into the storage file");
   assert.match(localStorageAdapter, /fs\.rm\(target\.filePath, \{ force: true \}\)/, "local saveStream should clean up partial files on stream errors");
   assert.match(filesService, /\["save", "saveStream", "read", "metadata", "delete", "health"\]/, "Files storage adapter registration should require saveStream");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streaming storage contract slice");
   assert.match(regressionSuite, /scripts\/file-storage-streaming-contract-regression\.mjs/, "regression suite should include the streaming storage contract regression");
 }

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const modeArgIndex = process.argv.indexOf("--mode");
 const scannerSecretHost = "scanner-secret-host.internal";
 const scannerSecretExecutable = "scanner-secret-clamscan.exe";
@@ -76,9 +76,9 @@ function assertStaticContracts() {
   assert.match(workspaceSettingsScript, /Scanner Status/, "Workspace Settings should render scanner availability status");
   assert.match(workspaceSettingsScript, /formatScannerStatus/, "Workspace Settings should format scanner health safely");
   assert.match(workspaceSettingsScript, /scanner\.health\?\.warning/, "Workspace Settings warnings should consume the server-provided scanner warning");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*scanner mode[\s\S]*scanner health[\s\S]*disabled/, "runtime docs should document scanner health diagnostics");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*scanner mode[\s\S]*scanner health[\s\S]*disabled/, "runtime docs should document scanner health diagnostics");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the scanner health diagnostics slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(regressionSuite, /scripts\/file-scanner-health-diagnostics-regression\.mjs/, "regression suite should include scanner health diagnostics coverage");
 }
 

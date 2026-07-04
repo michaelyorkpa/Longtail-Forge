@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-s3-provider-registration-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -102,7 +102,7 @@ async function assertStaticContracts() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the S3 provider registration version");
   assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this slice should not add an S3 SDK dependency");
 
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed S3 provider registration slice");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the S3 provider registration slice");
   assert.match(regressionSuite, /scripts\/file-s3-provider-registration-regression\.mjs/, "regression suite should include S3 provider registration coverage");
 
@@ -123,10 +123,14 @@ async function assertStaticContracts() {
   assert.match(filesServiceSource, /createS3FileStorageAdapter/, "Files service should import the S3 storage adapter");
   assert.match(filesServiceSource, /\["s3", createS3FileStorageAdapter\(config\.storage\?\.s3\)\]/, "Files service should register the S3 provider under the explicit s3 key");
   assert.match(s3AdapterSource, /S3 file storage provider is not configured/, "S3 adapter should fail clearly when required config is missing");
-  assert.match(s3AdapterSource, /object operations are not implemented/, "S3 adapter should fail safely while object operations are out of scope");
+  assert.match(s3AdapterSource, /S3 file storage client is not configured/, "S3 adapter should fail safely when no provider client is installed");
+  assert.match(s3AdapterSource, /putObject/, "S3 adapter should expose putObject behind the client contract");
+  assert.match(s3AdapterSource, /getObject/, "S3 adapter should expose getObject behind the client contract");
+  assert.match(s3AdapterSource, /headObject/, "S3 adapter should expose headObject behind the client contract");
+  assert.match(s3AdapterSource, /deleteObject/, "S3 adapter should expose deleteObject behind the client contract");
   assert.doesNotMatch(s3AdapterSource, /@aws-sdk|client-s3/i, "S3 adapter should not wire an object client in this slice");
-  assert.match(runtimeDocs, /S3 object operations are not implemented until 0\.33\.5\.22\.13/, "runtime docs should keep object operations out of this slice");
-  assert.match(sqliteDocs, /S3 object operations remain intentionally inactive until 0\.33\.5\.22\.13/, "SQLite docs should preserve local storage as the small-office default");
+  assert.match(runtimeDocs, /S3 object operations are contract-tested through a mocked client path/, "runtime docs should describe the S3 object-operation proof");
+  assert.match(sqliteDocs, /mocked S3 client proof/, "SQLite docs should preserve local storage while describing the S3 proof");
   assert.doesNotMatch(runtimeDocs + envExample + sqliteDocs, /AKIA|private-secret|private-bucket|example-secret/i, "docs and examples should not contain fake S3 credentials that look reusable");
 }
 
@@ -175,19 +179,19 @@ async function assertS3AdapterContracts() {
   assert.deepEqual(configuredHealth, {
     ok: false,
     provider: "s3",
-    status: "not_implemented",
-  }, "configured S3 provider should remain unavailable until object operations land");
+    status: "client_unavailable",
+  }, "configured S3 provider should remain unavailable until a provider client is installed");
   assertSafeS3Payload(configuredHealth, "configured S3 health");
 
   await assert.rejects(
     () => configuredAdapter.save(Buffer.from("body")),
     (error) => {
-      assert.equal(error.statusCode, 501, "configured S3 object operations should fail as not implemented");
-      assert.match(error.message, /registered, but object operations are not implemented/);
+      assert.equal(error.statusCode, 500, "configured S3 object operations should fail safely without a provider client");
+      assert.match(error.message, /S3 file storage client is not configured/);
       assertSafeS3Payload(error.message, "configured S3 operation error");
       return true;
     },
-    "configured S3 operations should fail safely before the object-operation proof slice",
+    "configured S3 operations should fail safely before a provider client is installed",
   );
 }
 

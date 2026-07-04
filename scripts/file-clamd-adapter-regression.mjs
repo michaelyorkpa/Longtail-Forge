@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const scenarioArgIndex = process.argv.indexOf("--scenario");
 const scannerSecretHost = "scanner-secret-clamd.internal";
 const scannerSecretPort = "3317";
@@ -73,11 +73,11 @@ function assertStaticContracts() {
   assert.match(filesServiceSource, /"clamd", createClamdFileScannerAdapter\(\{ host: config\.scanner\?\.clamdHost, port: config\.scanner\?\.clamdPort \}\)/, "Files service should register clamd from runtime config");
   assert.match(filesServiceSource, /status === "quarantined"[\s\S]*file\.quarantined/, "scan lifecycle should keep quarantine review behavior service-owned");
   assert.doesNotMatch(runtimeDiagnosticsSource, /clamdHost|clamdPort|process\.env|storageKey|protectedPath/i, "runtime diagnostics must not expose clamd host/port or storage internals");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*`clamd`[\s\S]*TCP scanner adapter[\s\S]*without exposing hostnames or ports/, "runtime docs should describe clamd adapter redaction");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`clamd`[\s\S]*TCP scanner adapter[\s\S]*without exposing hostnames or ports/, "runtime docs should describe clamd adapter redaction");
   assert.match(runtimeDocs, /Unix-socket[\s\S]*deferred/i, "runtime docs should explicitly defer socket support");
   assert.match(changelog, /clamd[\s\S]*TCP[\s\S]*without auto-deleting stored files/i, "tracked docs should record clamd quarantine policy");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the clamd adapter slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(regressionSuite, /scripts\/file-clamd-adapter-regression\.mjs/, "regression suite should include clamd adapter coverage");
 }
 

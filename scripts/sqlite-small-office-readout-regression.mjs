@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -65,7 +65,7 @@ assert.match(styles, /\.runtime-diagnostics-readout/, "styles should cover the r
 assert.match(styles, /\.runtime-diagnostics-warning/, "styles should cover runtime diagnostics warnings");
 
 assert.match(regressionSuite, /scripts\/sqlite-small-office-readout-regression\.mjs/, "regression suite should include SQLite small-office readout coverage");
-assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed SQLite small-office readout branch");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the SQLite small-office readout slice");
 
 console.log("SQLite small-office readout regression passed.");

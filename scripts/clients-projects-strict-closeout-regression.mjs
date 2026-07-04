@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
@@ -76,7 +76,7 @@ assert.match(clientsProjectsScript, /\/api\/projects/, "Project saves should kee
 
 assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.15[\s\S]*strict enforcement is active/, "Inventory should mark Clients/Projects strict guardrails active at branch closeout");
 assert.match(changelog, /Version 0\.33\.5\.18\.14\.5[\s\S]*no database schema, route payload, permission, or workflow changes/, "Changelog should record the no-contract-change boundary");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "Roadmap should archive the completed strict cleanup slice");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(regressionSuite, /scripts\/clients-projects-strict-closeout-regression\.mjs/, "Regression suite should include the strict cleanup closeout regression");
 
 console.log("Clients/Projects strict closeout regression passed.");

@@ -7,7 +7,7 @@ import path from "node:path";
 import { clearTimeout, setTimeout } from "node:timers";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-migration-locking-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-migration-locking.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Migration-Locking-Test-123!";
@@ -61,7 +61,7 @@ try {
   assert.match(databaseDocs, /PostgreSQL[\s\S]*(advisory lock|migration lock table)/, "database docs should document the future PostgreSQL migration lock strategy");
   assert.match(databaseDocs, /Self-hosted SQLite mode[\s\S]*one app process runs startup migrations/, "database docs should document self-hosted startup ownership");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
-  assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed migration locking branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the migration locking slice");
   assert.match(regressionSuite, /scripts\/database-migration-locking-regression\.mjs/, "regression suite should include migration locking coverage");
 

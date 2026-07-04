@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -77,8 +77,8 @@ assert.match(tasksView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\
 assert.match(workbenchView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
   "Workbench should load updated attachment actions and shared preview before Task Files dialogs");
 
-assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
-  "Roadmap should archive the completed durable-jobs branch that contains the Notes file preview action slice");
+assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
+  "live roadmap should not carry completed-history breadcrumbs");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `),
   "Changelog should include the Notes file preview action slice");
 assert.match(notesDocs, /As of 0\.33\.5\.21\.9\.3[\s\S]*shared Files Preview modal[\s\S]*icon-only action buttons/,

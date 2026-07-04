@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const scenarioArgIndex = process.argv.indexOf("--scenario");
 const resolveArgIndex = process.argv.indexOf("--resolve-only");
 
@@ -72,10 +72,10 @@ function assertStaticContracts() {
   assert.match(filesServiceSource, /scanner\.adapter\.scan\(createFileScanContext/, "scanFile should pass a service-owned scan context");
   assert.doesNotMatch(functionBlock(filesServiceSource, "createFileScanContext"), /storageKey:|storage_key:|storagePath|protectedPath/, "scan context should not expose storage keys or paths");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.12[\s\S]*`none`[\s\S]*`noop`[\s\S]*`clamd`[\s\S]*`clamscan`/, "runtime docs should formalize scanner modes");
-  assert.match(moduleDocs, /As of 0\.33\.5\.22\.12[\s\S]*file\.scan[\s\S]*not_required/, "module docs should record none-mode file.scan disposition");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`none`[\s\S]*`noop`[\s\S]*`clamd`[\s\S]*`clamscan`/, "runtime docs should formalize scanner modes");
+  assert.match(moduleDocs, /As of 0\.33\.5\.22\.15[\s\S]*file\.scan[\s\S]*not_required/, "module docs should record none-mode file.scan disposition");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the scanner resolver slice");
-  assert.match(roadmap, /Completed 0\.33\.5\.22\.1 through 0\.33\.5\.22\.12 are archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed storage/scanner setup slices");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(regressionSuite, /scripts\/file-scanner-mode-resolver-regression\.mjs/, "regression suite should include scanner resolver coverage");
 }
 

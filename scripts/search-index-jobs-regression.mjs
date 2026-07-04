@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-index-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-index-jobs.db");
@@ -69,7 +69,7 @@ try {
   assert.match(workerCliSource, /registerSearchIndexJobHandlers/, "separate worker startup should register search index job handlers");
   assert.doesNotMatch(appSource, /searchIndexRebuildService\.rebuildApp|scheduleStartupSearchIndexRebuild/, "normal startup must not run a full synchronous app rebuild");
   assert.match(regressionSuite, /scripts\/search-index-jobs-regression\.mjs/, "regression suite should include search index job coverage");
-  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the search index jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.4[\s\S]*search\.index/, "architecture docs should document search indexing jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.4[\s\S]*Search indexing uses the durable job runner/, "database docs should document the search job handoff");

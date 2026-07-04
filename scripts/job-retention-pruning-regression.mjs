@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.12";
+const appVersion = "0.33.5.22.15";
 const now = new Date("2026-07-02T12:00:00.000Z");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-retention-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -63,7 +63,7 @@ function assertStaticContract() {
   assert.match(appSource, /queueStartupJobRetentionPrune/, "app startup should queue job retention pruning");
   assert.match(workerCliSource, /jobsService\.pruneOldJobs/, "separate worker startup should run job retention pruning");
   assert.match(regressionSuite, /scripts\/job-retention-pruning-regression\.mjs/, "regression suite should include job retention coverage");
-  assert.match(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "roadmap should archive the completed durable-jobs branch");
+  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the job retention slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.4[\s\S]*completed[\s\S]*dead-letter[\s\S]*retention/, "database docs should document job retention");
   assert.match(runtimeDocs, /`LONGTAIL_JOB_COMPLETED_RETENTION_DAYS`[\s\S]*`LONGTAIL_JOB_DEAD_RETENTION_DAYS`/, "runtime docs should document job retention settings");
