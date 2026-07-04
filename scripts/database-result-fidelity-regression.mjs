@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.1";
+const appVersion = "0.33.5.23.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-result-fidelity-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-result-fidelity.db");
@@ -36,6 +36,8 @@ try {
 
   assert.deepEqual(db.capabilities, {
     adapter: "better-sqlite3",
+    bindingLayer: "named-to-positional",
+    driverParameterStyle: "positional",
     health: true,
     migrationLocking: true,
     migrationLockStrategy: "lock-file",

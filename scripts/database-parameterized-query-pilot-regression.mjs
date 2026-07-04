@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.1";
+const appVersion = "0.33.5.23.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-params-pilot-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-params-pilot.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Params-Test-123!";
@@ -46,8 +46,8 @@ try {
   assert.equal(db.capabilities.parameterStyle, "named", "SQLite adapter should document named parameter style");
   assert.doesNotMatch(sqliteSource, /\.parameter set/, "raw SQLite process helper should stay unaware of app-level parameter binding");
   assert.doesNotMatch(sqliteAdapterSource, /expandSqlParameters|sqliteParameterLiteral|addNamedBinding/, "SQLite adapter should no longer inline parameters into SQL literals");
-  assert.match(sqliteAdapterSource, /querySql\(sql, params\)/, "SQLite adapter should pass query parameters through to the helper");
-  assert.match(sqliteAdapterSource, /runSql\(sql, params\)/, "SQLite adapter should pass run parameters through to the helper");
+  assert.match(sqliteAdapterSource, /prepareDatabaseBindings/, "SQLite adapter should route parameters through the shared binding layer");
+  assert.match(sqliteAdapterSource, /placeholderStyle: QUESTION_PLACEHOLDERS/, "SQLite adapter should translate named params to positional driver bindings");
   assert.match(sqliteSource, /normalizeSqliteParameterValue/, "SQLite helper should normalize parameter values before driver binding");
   assert.match(sqliteSource, /statement\.all\(bindings\)/, "SQLite helper should execute bound reads through the driver");
   assert.match(sqliteSource, /statement\.run\(bindings\)/, "SQLite helper should execute bound writes through the driver");

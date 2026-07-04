@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.1";
+const appVersion = "0.33.5.23.2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -20,11 +20,11 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 49,
+  boundOperationSites: 50,
   dbOperationSites: 399,
-  helperCalls: 1680,
-  interpolatedOperationSites: 262,
-}, "parameter-binding audit totals should match the documented runtime inventory");
+  helperCalls: 1677,
+  interpolatedOperationSites: 261,
+}, "parameter-binding audit totals should match the current post-proof runtime inventory");
 
 const expectedTopGroups = [
   ["notes/notes.repo", 212, 14],
@@ -56,6 +56,11 @@ assert.equal(sessionsRow.helperCalls, 0, "sessions repository should remain a co
 assert.equal(sessionsRow.boundOperationSites, 8, "sessions repository should keep bound operation sites visible");
 assert.match(auditDocs, /\| sessions\.repo \| 0 \| 0 \| 8 \| 8 \|/, "audit should record sessions as already converted");
 
+const tagTextRow = audit.groups.find((candidate) => candidate.group === "core/search/tag-text");
+assert.equal(tagTextRow.helperCalls, 0, "search tag-text proof conversion should remove literal helpers from the current audit");
+assert.equal(tagTextRow.interpolatedOperationSites, 0, "search tag-text proof conversion should remove interpolated operation sites");
+assert.equal(tagTextRow.boundOperationSites, 1, "search tag-text proof conversion should add one bound operation site");
+
 assert.deepEqual(
   returningMatches.map((match) => `${match.file}:${match.line}`),
   [
@@ -73,6 +78,9 @@ assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the s
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
+assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record current helper-call burndown");
+assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the proof conversion: 261/, "audit docs should record current interpolated-site burndown");
+assert.match(auditDocs, /Existing direct bound-params operation sites after the proof conversion: 50/, "audit docs should record current bound-site burndown");
 assert.match(auditDocs, /No SQLite JSON SQL functions were found/, "audit docs should record the JSON-function non-issue");
 assert.match(auditDocs, /No top-level `UPDATE` or `DELETE` statements with `LIMIT` or `OFFSET` were found/, "audit docs should record the UPDATE/DELETE LIMIT non-issue");
 assert.match(auditDocs, /`RETURNING` is present in four durable-job statements/, "audit docs should correct the RETURNING assumption");

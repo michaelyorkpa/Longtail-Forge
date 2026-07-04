@@ -8,6 +8,10 @@ import {
   readSqliteHealth,
   runSql,
 } from "../sqlite.js";
+import {
+  prepareDatabaseBindings,
+  QUESTION_PLACEHOLDERS,
+} from "../parameter-bindings.js";
 
 const SQLITE_CAPABILITIES = Object.freeze({
   provider: "sqlite",
@@ -15,6 +19,8 @@ const SQLITE_CAPABILITIES = Object.freeze({
   stringSql: true,
   parameterizedQueries: true,
   parameterStyle: "named",
+  bindingLayer: "named-to-positional",
+  driverParameterStyle: "positional",
   transactions: true,
   transactionApi: "callback",
   migrationLocking: true,
@@ -37,7 +43,8 @@ function createSqliteAdapter() {
   }
 
   async function executeQuery(sql, params = []) {
-    return querySql(sql, params);
+    const statement = prepareSqliteStatement(sql, params);
+    return querySql(statement.sql, statement.params);
   }
 
   async function executeGet(sql, params = []) {
@@ -46,7 +53,14 @@ function createSqliteAdapter() {
   }
 
   async function executeRun(sql, params = []) {
-    return runSql(sql, params);
+    const statement = prepareSqliteStatement(sql, params);
+    return runSql(statement.sql, statement.params);
+  }
+
+  function prepareSqliteStatement(sql, params) {
+    return prepareDatabaseBindings(sql, params, {
+      placeholderStyle: QUESTION_PLACEHOLDERS,
+    });
   }
 
   async function query(sql, params = []) {

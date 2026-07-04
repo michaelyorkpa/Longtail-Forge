@@ -1,0 +1,398 @@
+const DOLLAR_PLACEHOLDERS = "dollar";
+const QUESTION_PLACEHOLDERS = "question";
+
+function prepareDatabaseBindings(sql, params = undefined, options = {}) {
+  const text = String(sql || "").trim();
+  const placeholderStyle = normalizePlaceholderStyle(options.placeholderStyle || DOLLAR_PLACEHOLDERS);
+  const parameters = normalizeDatabaseParameters(params);
+  const tokens = collectSqlParameterTokens(text);
+  const namedTokens = tokens.filter((token) => token.type === "named");
+  const positionalTokens = tokens.filter((token) => token.type === "positional");
+
+  if (namedTokens.length > 0 && positionalTokens.length > 0) {
+    throw new Error("Database statements cannot mix named and positional parameters.");
+  }
+
+  if (namedTokens.length > 0) {
+    return resolveNamedDatabaseBindings(text, namedTokens, parameters, placeholderStyle);
+  }
+
+  if (positionalTokens.length > 0) {
+    return resolvePositionalDatabaseBindings(text, positionalTokens, parameters, placeholderStyle);
+  }
+
+  assertNoProvidedParameters(parameters);
+  return {
+    hasBindings: false,
+    params: undefined,
+    sql: text,
+  };
+}
+
+function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle) {
+  const expectedNames = uniqueTokenNames(tokens);
+  const expectedNameSet = new Set(expectedNames);
+  const firstName = expectedNames[0];
+
+  if (parameters.kind !== "object") {
+    throw new Error(`Missing database query parameter: :${firstName}.`);
+  }
+
+  for (const name of expectedNames) {
+    if (!parameters.values.has(name)) {
+      throw new Error(`Missing database query parameter: :${name}.`);
+    }
+  }
+
+  for (const name of parameters.values.keys()) {
+    if (!expectedNameSet.has(name)) {
+      throw new Error(`Unknown database query parameter: ${name}.`);
+    }
+  }
+
+  const indexByName = new Map(expectedNames.map((name, index) => [name, index + 1]));
+  const positionalParams = placeholderStyle === DOLLAR_PLACEHOLDERS
+    ? expectedNames.map((name) => parameters.values.get(name))
+    : [];
+  const rewrittenSql = rewriteSqlTokens(sql, tokens, (token) => {
+    if (placeholderStyle === DOLLAR_PLACEHOLDERS) {
+      return `$${indexByName.get(token.name)}`;
+    }
+
+    positionalParams.push(parameters.values.get(token.name));
+    return "?";
+  });
+
+  return {
+    hasBindings: true,
+    params: positionalParams,
+    sql: rewrittenSql,
+  };
+}
+
+function resolvePositionalDatabaseBindings(sql, tokens, parameters, placeholderStyle) {
+  const expectedCount = tokens.reduce((count, token) => Math.max(count, token.position), 0);
+
+  if (parameters.kind !== "array") {
+    throw new Error("SQLite positional parameters require an array.");
+  }
+
+  if (parameters.values.length < expectedCount) {
+    throw new Error(`Missing database query parameter: ?${parameters.values.length + 1}.`);
+  }
+
+  if (parameters.values.length > expectedCount) {
+    throw new Error(`Unknown database query parameter: ?${expectedCount + 1}.`);
+  }
+
+  const positionalParams = placeholderStyle === DOLLAR_PLACEHOLDERS
+    ? parameters.values
+    : tokens.map((token) => parameters.values[token.position - 1]);
+  const rewrittenSql = rewriteSqlTokens(sql, tokens, (token) => (
+    placeholderStyle === DOLLAR_PLACEHOLDERS ? `$${token.position}` : "?"
+  ));
+
+  return {
+    hasBindings: true,
+    params: positionalParams,
+    sql: rewrittenSql,
+  };
+}
+
+function uniqueTokenNames(tokens) {
+  const names = [];
+  const seen = new Set();
+
+  for (const token of tokens) {
+    if (seen.has(token.name)) {
+      continue;
+    }
+
+    names.push(token.name);
+    seen.add(token.name);
+  }
+
+  return names;
+}
+
+function rewriteSqlTokens(sql, tokens, replacementForToken) {
+  let rewritten = "";
+  let lastIndex = 0;
+
+  for (const token of tokens) {
+    rewritten += sql.slice(lastIndex, token.start);
+    rewritten += replacementForToken(token);
+    lastIndex = token.end;
+  }
+
+  return rewritten + sql.slice(lastIndex);
+}
+
+function normalizePlaceholderStyle(style) {
+  if ([DOLLAR_PLACEHOLDERS, QUESTION_PLACEHOLDERS].includes(style)) {
+    return style;
+  }
+
+  throw new Error(`Unsupported database placeholder style: ${style}.`);
+}
+
+function normalizeDatabaseParameters(params) {
+  if (params === undefined || params === null) {
+    return {
+      kind: "none",
+      values: null,
+    };
+  }
+
+  if (Array.isArray(params)) {
+    return {
+      kind: "array",
+      values: params.map(normalizeDatabaseParameterValue),
+    };
+  }
+
+  if (typeof params !== "object") {
+    throw new Error("Database query parameters must be an array or object.");
+  }
+
+  const values = new Map();
+
+  for (const [name, value] of Object.entries(params)) {
+    values.set(normalizeDatabaseParameterName(name), normalizeDatabaseParameterValue(value));
+  }
+
+  return {
+    kind: "object",
+    values,
+  };
+}
+
+function assertNoProvidedParameters(parameters) {
+  if (parameters.kind === "object" && parameters.values.size > 0) {
+    throw new Error(`Unknown database query parameter: ${parameters.values.keys().next().value}.`);
+  }
+
+  if (parameters.kind === "array" && parameters.values.length > 0) {
+    throw new Error("Unknown database query parameter: ?1.");
+  }
+}
+
+function normalizeDatabaseParameterName(name) {
+  const text = String(name || "").trim();
+  const bareName = text.match(/^[:@$]?([A-Za-z_][A-Za-z0-9_]*)$/)?.[1];
+
+  if (!bareName) {
+    throw new Error(`Invalid database query parameter name: ${text || "(empty)"}.`);
+  }
+
+  return bareName;
+}
+
+function normalizeDatabaseParameterValue(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+
+  if (typeof value === "boolean") {
+    return value ? 1 : 0;
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("Database query number parameters must be finite.");
+    }
+
+    return value;
+  }
+
+  if (typeof value === "bigint") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  throw new Error("Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined.");
+}
+
+function collectSqlParameterTokens(sql) {
+  const tokens = [];
+  let anonymousIndex = 0;
+  let index = 0;
+  let state = "sql";
+
+  while (index < sql.length) {
+    const char = sql[index];
+    const next = sql[index + 1] || "";
+
+    if (state === "line-comment") {
+      if (char === "\n") {
+        state = "sql";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (state === "block-comment") {
+      if (char === "*" && next === "/") {
+        state = "sql";
+        index += 2;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "single-quote") {
+      if (char === "'" && next === "'") {
+        index += 2;
+      } else if (char === "'") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "double-quote") {
+      if (char === "\"" && next === "\"") {
+        index += 2;
+      } else if (char === "\"") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "backtick") {
+      if (char === "`" && next === "`") {
+        index += 2;
+      } else if (char === "`") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "bracket") {
+      if (char === "]") {
+        state = "sql";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (char === "-" && next === "-") {
+      state = "line-comment";
+      index += 2;
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      state = "block-comment";
+      index += 2;
+      continue;
+    }
+
+    if (char === "'") {
+      state = "single-quote";
+      index += 1;
+      continue;
+    }
+
+    if (char === "\"") {
+      state = "double-quote";
+      index += 1;
+      continue;
+    }
+
+    if (char === "`") {
+      state = "backtick";
+      index += 1;
+      continue;
+    }
+
+    if (char === "[") {
+      state = "bracket";
+      index += 1;
+      continue;
+    }
+
+    if (char === ":" && next === ":") {
+      index += 2;
+      continue;
+    }
+
+    if ([":", "@", "$"].includes(char) && /[A-Za-z_]/.test(next)) {
+      const parameter = readNamedParameter(sql, index);
+      tokens.push({
+        ...parameter,
+        start: index,
+        type: "named",
+      });
+      index = parameter.end;
+      continue;
+    }
+
+    if (char === "?") {
+      const parameter = readQuestionParameter(sql, index, ++anonymousIndex);
+      tokens.push({
+        ...parameter,
+        start: index,
+        type: "positional",
+      });
+      index = parameter.end;
+      continue;
+    }
+
+    index += 1;
+  }
+
+  return tokens;
+}
+
+function readNamedParameter(sql, start) {
+  let end = start + 2;
+
+  while (end < sql.length && /[A-Za-z0-9_]/.test(sql[end])) {
+    end += 1;
+  }
+
+  return {
+    end,
+    name: sql.slice(start + 1, end),
+  };
+}
+
+function readQuestionParameter(sql, start, fallbackPosition) {
+  let end = start + 1;
+
+  while (end < sql.length && /\d/.test(sql[end])) {
+    end += 1;
+  }
+
+  return {
+    end,
+    position: end === start + 1 ? fallbackPosition : Number.parseInt(sql.slice(start + 1, end), 10),
+  };
+}
+
+export {
+  DOLLAR_PLACEHOLDERS,
+  QUESTION_PLACEHOLDERS,
+  prepareDatabaseBindings,
+};

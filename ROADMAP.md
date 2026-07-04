@@ -35,15 +35,15 @@ Acceptance criteria:
 
 ### Version 0.33.5.23.2 - Named/positional parameter binding layer
 
-- [ ] Add a named-to-positional (`:name` -> `$n`) parameter translation layer at the adapter boundary so the app-facing `db.query(sql, params)` contract stays stable and is ready for a second provider later without reworking call sites.
-- [ ] Keep SQLite working through the same layer (SQLite already accepts `params` on `query/get/run`), so there is one binding path.
-- [ ] Decide and document the migration path for the `sqlText()/sqlInteger()/sqlNullableText()` interpolation helpers (`src/db/sql-literals.js`): whether they become param-emitting shims, are deprecated in favor of `params`, or are gated later per provider. Record the decision in `DECISIONS.md`.
-- [ ] Do not mass-convert call sites in this slice; land only the layer plus a small proof conversion.
-- [ ] Add focused regressions proving named params translate correctly, escaping/edge cases are safe, and SQLite behavior is unchanged.
+- [x] Add a named-to-positional (`:name` -> `$n`) parameter translation layer at the adapter boundary so the app-facing `db.query(sql, params)` contract stays stable and is ready for a second provider later without reworking call sites. `src/db/parameter-bindings.js` now emits `$n` for future providers and positional `?` bindings for SQLite.
+- [x] Keep SQLite working through the same layer (SQLite already accepts `params` on `query/get/run`), so there is one binding path. `src/db/adapters/sqlite-adapter.js` now routes query/get/run and transaction-client operations through the shared binding layer before the `better-sqlite3` helper.
+- [x] Decide and document the migration path for the `sqlText()/sqlInteger()/sqlNullableText()` interpolation helpers (`src/db/sql-literals.js`): they are deprecated compatibility escape hatches for unconverted literal SQL and no-parameter multi-statement startup/migration paths, not param-emitting shims. Recorded in `DECISIONS.md`, `docs/database.md`, and `docs/database-parameter-binding-audit.md`.
+- [x] Do not mass-convert call sites in this slice; land only the layer plus a small proof conversion. The proof conversion is `src/core/search/tag-text.js`, reducing the live burndown to 1,677 helper invocations, 261 direct interpolated operation sites, and 50 existing bound operation sites.
+- [x] Add focused regressions proving named params translate correctly, escaping/edge cases are safe, and SQLite behavior is unchanged. See `scripts/parameter-binding-layer-regression.mjs`.
 
 Acceptance criteria:
 
-- One binding layer keeps `db.query(sql, params)` stable and is ready for staged call-site conversion.
+- [x] One binding layer keeps `db.query(sql, params)` stable and is ready for staged call-site conversion.
 
 ### Version 0.33.5.23.3 - Parameter-binding conversion waves
 
@@ -66,6 +66,15 @@ Acceptance criteria:
 Acceptance criteria:
 
 - App SQL is on the bound-`params` channel (or has a recorded burndown of what remains), the decision and docs are captured, and SQLite behavior is unchanged.
+
+## 0.33.5.24 - Node 24 LTS Upgrade
+
+- [ ] Upgrade this machine to Node 24 LTS
+- [ ] Add Node 24 as a dependency in the repo
+- [ ] Ensure all existing dependencies are functional
+  - [ ] Rebuild/repair any failed dependencies
+- [ ] Complete full suite check and ensure there are no failures
+  - [ ] Identify any failures and correct them, or make a ROADMAP slice to correct them
 
 ## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
 

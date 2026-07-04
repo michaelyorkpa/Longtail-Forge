@@ -88,6 +88,24 @@ Out of scope for this slice and still deferred to 0.40.0:
 
 0.33.5.23.2 should land the named-to-positional binding layer and one small proof conversion. It should also decide the future of `sqlText()`, `sqlInteger()`, `sqlNullableText()`, and `sqlNullableInteger()`: deprecated compatibility helpers, param-emitting shims, or provider-gated escape hatches. Do not mass-convert the table above in that slice.
 
+## 0.33.5.23.2 Proof Conversion
+
+0.33.5.23.2 landed `src/db/parameter-bindings.js` as the shared named-to-positional binding layer. App-facing calls keep named params. SQLite consumes the same layer with positional `?` bindings, while the layer can emit `$n` placeholders for a future PostgreSQL adapter.
+
+Decision for the literal helpers: `sqlText()`, `sqlInteger()`, `sqlNullableText()`, and `sqlNullableInteger()` remain deprecated compatibility escape hatches for unconverted literal SQL and no-parameter multi-statement startup/migration paths. They should not become param-emitting shims, and new or touched single-statement repository queries should use named params through `db.query(sql, params)`, `db.get(sql, params)`, or `db.run(sql, params)`.
+
+Small proof conversion:
+
+- `src/core/search/tag-text.js` moved from `sqlText()` interpolation to named params.
+
+Current live burndown after that proof conversion:
+
+- Remaining runtime literal-helper invocations after the proof conversion: 1,677.
+- Remaining direct interpolated SQL operation sites after the proof conversion: 261.
+- Existing direct bound-params operation sites after the proof conversion: 50.
+
+The table above remains the 0.33.5.23.1 inventory snapshot. 0.33.5.23.3 should consume the current live burndown and continue reducing the remaining helper/interpolated-site counts in explicit waves.
+
 0.33.5.23.3 should consume this audit as conversion waves. Suggested order:
 
 1. Auth, workspace, and permission core: `sessions.repo` is already bound, then convert remaining `users.repo`, `workspaces.repo`, `user-workspaces.repo`, `permissions.repo`, `settings.repo`, and `app-settings.repo` paths. Include `db/index` startup maintenance only after the layer supports the needed compatibility shape for multi-statement startup repairs.

@@ -9,6 +9,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/sqlite-small-office-readout-regression.mjs",
   "scripts/runtime-database-foundation-closeout-regression.mjs",
   "scripts/parameter-binding-audit-regression.mjs",
+  "scripts/parameter-binding-layer-regression.mjs",
   "scripts/better-sqlite3-install-smoke.mjs",
   "scripts/better-sqlite3-helper-core-regression.mjs",
   "scripts/audit-extensibility-regression.mjs",

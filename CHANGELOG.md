@@ -1,3 +1,12 @@
+## Version 0.33.5.23.2 - 2026-07-04
+
+- Added `src/db/parameter-bindings.js` as the shared named-to-positional parameter binding layer, keeping app-facing named params stable while letting adapters emit SQLite `?` bindings or future `$n` placeholders.
+- Routed SQLite adapter query/get/run and transaction-client calls through the shared binding layer, while preserving no-parameter multi-statement compatibility SQL.
+- Recorded the interpolation-helper migration decision: `sqlText()`, `sqlInteger()`, `sqlNullableText()`, and `sqlNullableInteger()` are deprecated compatibility escape hatches, not param-emitting shims.
+- Converted the small `src/core/search/tag-text.js` proof site to bound named params and recorded the updated live burndown: 1,677 helper invocations, 261 direct interpolated operation sites, and 50 bound operation sites.
+- Added `scripts/parameter-binding-layer-regression.mjs`, updated the audit and parameterized-query regressions, and marked `ROADMAP.md` slice 0.33.5.23.2 complete.
+- Verification 2026-07-04 08:38 -04:00: `scripts/parameter-binding-layer-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/database-parameterized-query-pilot-regression.mjs`, `scripts/database-adapter-contract-regression.mjs`, `scripts/better-sqlite3-helper-core-regression.mjs`, `scripts/database-result-fidelity-regression.mjs`, and `scripts/better-sqlite3-driver-closeout-regression.mjs` passed; `npm run check` passed 259/259 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.23.2 after restarting the local 8001 server.
+
 ## Version 0.33.5.23.1 - 2026-07-04
 
 - Completed the plan-only SQL parameter-binding audit for the 0.33.5.23 branch without runtime behavior changes.
