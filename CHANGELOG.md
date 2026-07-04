@@ -1,3 +1,19 @@
+## Version 0.33.5.23.4 - 2026-07-04
+
+- Closed the 0.33.5.23 SQL parameter-binding migration branch by confirming the active named-to-positional binding decision and the deprecated interpolation-helper compatibility boundary.
+- Confirmed the parameter-binding audit, binding-layer, and conversion-wave regressions are suite-wired, and recorded the final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls seen by the scanner.
+- Updated `docs/database-parameter-binding-audit.md`, `docs/database.md`, runtime/module handoff docs, and package/module/regression version metadata for 0.33.5.23.4.
+- Moved the completed 0.33.5.23 roadmap branch details into `ROADMAP-ARCHIVE.md` and advanced the live `ROADMAP.md` cursor to 0.33.5.24.
+- Verification 2026-07-04 09:28 -04:00: parameter-binding audit/layer/conversion-wave, runtime-configuration, storage/scanner closeout, runtime/database closeout, view-conversion closeout, and clean-clone guardrail regressions passed; `npm run check` passed 260/260 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.23.4 after restarting the local 8001 server.
+
+## Version 0.33.5.23.3 - 2026-07-04
+
+- Converted the first parameter-binding wave from literal-helper interpolation to named bound params across the auth/workspace/permission core: `users.repo`, `workspaces.repo`, `user-workspaces.repo`, `permissions.repo`, `settings.repo`, and `app-settings.repo`.
+- Kept behavior on SQLite by routing converted reads/writes and multi-step saves through `db.query/get/run` and `db.transaction` with named parameters, including user cleanup, workspace creation, permission assignment replacement, and workspace/app settings saves.
+- Added `scripts/parameter-binding-conversion-wave-regression.mjs`, updated the parameter-binding audit regression, and recorded the post-wave burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls seen by the scanner.
+- Updated `docs/database-parameter-binding-audit.md`, `docs/database.md`, runtime/module handoff docs, and marked `ROADMAP.md` slice 0.33.5.23.3 complete.
+- Verification 2026-07-04 09:16 -04:00: `scripts/parameter-binding-conversion-wave-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/database-parameterized-query-pilot-regression.mjs`, `scripts/workspace-storage-regression.mjs`, `scripts/legacy-cleanup-regression.mjs`, and `scripts/database-adapter-contract-regression.mjs` passed; `npm run check` passed 260/260 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.23.3 after restarting the local 8001 server.
+
 ## Version 0.33.5.23.2 - 2026-07-04
 
 - Added `src/db/parameter-bindings.js` as the shared named-to-positional parameter binding layer, keeping app-facing named params stable while letting adapters emit SQLite `?` bindings or future `$n` placeholders.

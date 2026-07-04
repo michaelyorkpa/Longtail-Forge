@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
-import { db, runSql, sqlInteger, sqlText } from "../core/database.js";
+import { db } from "../core/database.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { normalizeWorkspaceType } from "../utils/workspaces.js";
 
@@ -99,6 +99,8 @@ WHERE workspace_id = :workspaceId;
 
 async function createWorkspace({ ownerUser, workspaceName, workspaceType }) {
   const workspaceId = randomUUID();
+  const membershipId = randomUUID();
+  const assignmentId = randomUUID();
   const now = new Date().toISOString();
   const normalizedSettings = normalizeSettings({
     workspaceName,
@@ -106,8 +108,8 @@ async function createWorkspace({ ownerUser, workspaceName, workspaceType }) {
   });
   const normalizedType = normalizeWorkspaceType(normalizedSettings.workspaceType);
 
-  await runSql(`
-BEGIN TRANSACTION;
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
 INSERT INTO workspaces (
   workspace_id,
   name,
@@ -118,14 +120,24 @@ INSERT INTO workspaces (
   updated_at
 )
 VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(normalizedSettings.workspaceName)},
+  :workspaceId,
+  :workspaceName,
   'Active',
-  ${sqlText(normalizedType)},
-  ${sqlText(ownerUser.user_id)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :workspaceType,
+  :ownerUserId,
+  :createdAt,
+  :updatedAt
 );
+`, {
+      createdAt: now,
+      ownerUserId: ownerUser.user_id,
+      updatedAt: now,
+      workspaceId,
+      workspaceName: normalizedSettings.workspaceName,
+      workspaceType: normalizedType,
+    });
+
+    await transaction.run(`
 INSERT INTO workspace_settings (
   workspace_id,
   fiscal_year_start_month,
@@ -142,20 +154,37 @@ INSERT INTO workspace_settings (
   updated_at
 )
 VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlInteger(normalizedSettings.fiscalYear.startMonth)},
-  ${sqlInteger(normalizedSettings.fiscalYear.startDay)},
-  ${sqlText(normalizedSettings.defaultBillingRate)},
-  ${sqlText(normalizedSettings.billingPeriod.type)},
-  ${sqlInteger(normalizedSettings.billingPeriod.startDay)},
-  ${sqlInteger(normalizedSettings.billingRounding.enabled ? 1 : 0)},
-  ${sqlText(normalizedSettings.billingRounding.increment)},
-  ${sqlInteger(normalizedSettings.audit.loggingEnabled ? 1 : 0)},
-  ${sqlInteger(normalizedSettings.audit.retentionDays)},
-  ${sqlText(now)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :workspaceId,
+  :fiscalYearStartMonth,
+  :fiscalYearStartDay,
+  :defaultBillingRate,
+  :billingPeriodType,
+  :billingPeriodStartDay,
+  :roundingEnabled,
+  :roundingIncrement,
+  :auditLoggingEnabled,
+  :auditRetentionDays,
+  :auditSettingsUpdatedAt,
+  :createdAt,
+  :updatedAt
 );
+`, {
+      auditLoggingEnabled: normalizedSettings.audit.loggingEnabled ? 1 : 0,
+      auditRetentionDays: normalizedSettings.audit.retentionDays,
+      auditSettingsUpdatedAt: now,
+      billingPeriodStartDay: normalizedSettings.billingPeriod.startDay,
+      billingPeriodType: normalizedSettings.billingPeriod.type,
+      createdAt: now,
+      defaultBillingRate: normalizedSettings.defaultBillingRate,
+      fiscalYearStartDay: normalizedSettings.fiscalYear.startDay,
+      fiscalYearStartMonth: normalizedSettings.fiscalYear.startMonth,
+      roundingEnabled: normalizedSettings.billingRounding.enabled ? 1 : 0,
+      roundingIncrement: normalizedSettings.billingRounding.increment,
+      updatedAt: now,
+      workspaceId,
+    });
+
+    await transaction.run(`
 INSERT INTO user_workspaces (
   user_workspace_id,
   user_id,
@@ -165,16 +194,25 @@ INSERT INTO user_workspaces (
   updated_at
 )
 VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(ownerUser.user_id)},
-  ${sqlText(workspaceId)},
+  :membershipId,
+  :userId,
+  :workspaceId,
   'active',
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :createdAt,
+  :updatedAt
 )
 ON CONFLICT(user_id, workspace_id) DO UPDATE SET
   status = 'active',
   updated_at = excluded.updated_at;
+`, {
+      createdAt: now,
+      membershipId,
+      updatedAt: now,
+      userId: ownerUser.user_id,
+      workspaceId,
+    });
+
+    await transaction.run(`
 INSERT INTO user_role_assignments (
   assignment_id,
   workspace_id,
@@ -189,20 +227,26 @@ INSERT INTO user_role_assignments (
   updated_at
 )
 VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(workspaceId)},
-  ${sqlText(ownerUser.user_id)},
+  :assignmentId,
+  :workspaceId,
+  :userId,
   'workspace_admin',
   'workspace',
-  ${sqlText(workspaceId)},
+  :workspaceId,
   NULL,
   NULL,
   NULL,
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :createdAt,
+  :updatedAt
 );
-COMMIT;
-`);
+`, {
+      assignmentId,
+      createdAt: now,
+      updatedAt: now,
+      userId: ownerUser.user_id,
+      workspaceId,
+    });
+  });
 
   await modulesService.syncModuleRegistry(workspaceId);
   return {

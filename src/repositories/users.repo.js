@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { querySql, runSql, sqlText } from "../db/index.js";
+import { db } from "../core/database.js";
 import {
   normalizeDisplayName,
   normalizeOptionalEmail,
@@ -26,82 +26,84 @@ const USER_SELECT_COLUMNS = `
   active_workspace_id
 `;
 
-async function readByUsername(username) {
-  const rows = await querySql(`
-SELECT
-${USER_SELECT_COLUMNS}
-FROM users
-WHERE username = ${sqlText(username)}
-ORDER BY username
-LIMIT 1;
-`);
-
-  return rows[0] || null;
-}
-
-async function readByUsernameExcludingUser(username, userId) {
-  const rows = await querySql(`
-SELECT
-${USER_SELECT_COLUMNS}
-FROM users
-WHERE username = ${sqlText(username)}
-  AND user_id != ${sqlText(userId)}
-ORDER BY username
-LIMIT 1;
-`);
-
-  return rows[0] || null;
-}
-
-async function readByUsernameForWorkspace(workspaceId, username) {
-  const rows = await querySql(`
-SELECT
-${USER_SELECT_COLUMNS}
-FROM users
-WHERE username = ${sqlText(username)}
+const USER_BELONGS_TO_WORKSPACE_SQL = `
+user_id = :userId
   AND (
-    home_workspace_id = ${sqlText(workspaceId)}
+    home_workspace_id = :workspaceId
     OR EXISTS (
       SELECT 1
       FROM user_workspaces
       WHERE user_workspaces.user_id = users.user_id
-        AND user_workspaces.workspace_id = ${sqlText(workspaceId)}
+        AND user_workspaces.workspace_id = :workspaceId
+    )
+  )`;
+
+async function readByUsername(username) {
+  return db.get(`
+SELECT
+${USER_SELECT_COLUMNS}
+FROM users
+WHERE username = :username
+ORDER BY username
+LIMIT 1;
+`, { username });
+}
+
+async function readByUsernameExcludingUser(username, userId) {
+  return db.get(`
+SELECT
+${USER_SELECT_COLUMNS}
+FROM users
+WHERE username = :username
+  AND user_id != :userId
+ORDER BY username
+LIMIT 1;
+`, { userId, username });
+}
+
+async function readByUsernameForWorkspace(workspaceId, username) {
+  return db.get(`
+SELECT
+${USER_SELECT_COLUMNS}
+FROM users
+WHERE username = :username
+  AND (
+    home_workspace_id = :workspaceId
+    OR EXISTS (
+      SELECT 1
+      FROM user_workspaces
+      WHERE user_workspaces.user_id = users.user_id
+        AND user_workspaces.workspace_id = :workspaceId
     )
   )
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, { username, workspaceId });
 }
 
 async function readById(workspaceId, userId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)}
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL}
 ORDER BY rowid
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, { userId, workspaceId });
 }
 
 async function readFirstByUserId(userId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
-WHERE user_id = ${sqlText(userId)}
+WHERE user_id = :userId
 ORDER BY rowid
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, { userId });
 }
 
 async function readAll(workspaceId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
@@ -110,11 +112,11 @@ WHERE rowid IN (
   FROM user_workspaces
   INNER JOIN users AS user_rows
     ON user_rows.user_id = user_workspaces.user_id
-  WHERE user_workspaces.workspace_id = ${sqlText(workspaceId)}
+  WHERE user_workspaces.workspace_id = :workspaceId
   GROUP BY user_workspaces.user_id
 )
 ORDER BY username;
-`);
+`, { workspaceId });
 
   return rows.map(userRowToAppValue);
 }
@@ -126,7 +128,7 @@ async function create(workspaceId, profile, passwordHash) {
   const altEmail = normalizeOptionalEmail(profile.altEmail);
   const timezone = normalizeTimezone(profile.timezone);
 
-  await runSql(`
+  await db.run(`
 INSERT INTO users (
   user_id,
   home_workspace_id,
@@ -143,21 +145,29 @@ INSERT INTO users (
   active_workspace_id
 )
 VALUES (
-  ${sqlText(userId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(username)},
-  ${sqlText(displayName)},
-  ${altEmail === null ? "NULL" : sqlText(altEmail)},
-  ${sqlText(timezone)},
-  ${sqlText(passwordHash)},
+  :userId,
+  :workspaceId,
+  :username,
+  :displayName,
+  :altEmail,
+  :timezone,
+  :passwordHash,
   'light',
   'system',
   0,
   'active',
   'no',
-  ${sqlText(workspaceId)}
+  :workspaceId
 );
-`);
+`, {
+    altEmail,
+    displayName,
+    passwordHash,
+    timezone,
+    userId,
+    username,
+    workspaceId,
+  });
 
   return {
     user_id: userId,
@@ -174,208 +184,169 @@ VALUES (
 }
 
 async function updatePassword(workspaceId, userId, passwordHash) {
-  await runSql(`
+  await db.run(`
 UPDATE users
-SET password = ${sqlText(passwordHash)}
-WHERE user_id = ${sqlText(userId)}
-  AND ${userBelongsToWorkspaceSql(workspaceId, userId)};
-`);
+SET password = :passwordHash
+WHERE user_id = :userId
+  AND ${USER_BELONGS_TO_WORKSPACE_SQL};
+`, { passwordHash, userId, workspaceId });
 }
 
 async function updateProfile(workspaceId, userId, profile) {
-  const altEmail = normalizeOptionalEmail(profile.altEmail);
-
-  await runSql(`
+  await db.run(`
 UPDATE users
-SET username = ${sqlText(profile.username)},
-    display_name = ${sqlText(normalizeDisplayName(profile.displayName, profile.username))},
-    alt_email = ${altEmail === null ? "NULL" : sqlText(altEmail)},
-    timezone = ${sqlText(normalizeTimezone(profile.timezone))}
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
-`);
+SET username = :username,
+    display_name = :displayName,
+    alt_email = :altEmail,
+    timezone = :timezone
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
+`, {
+    altEmail: normalizeOptionalEmail(profile.altEmail),
+    displayName: normalizeDisplayName(profile.displayName, profile.username),
+    timezone: normalizeTimezone(profile.timezone),
+    userId,
+    username: profile.username,
+    workspaceId,
+  });
 }
 
 async function updateThemeMode(workspaceId, userId, themeMode) {
-  await runSql(`
+  await db.run(`
 UPDATE users
-SET theme_mode = ${sqlText(normalizeThemeMode(themeMode))}
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
-`);
+SET theme_mode = :themeMode
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
+`, { themeMode: normalizeThemeMode(themeMode), userId, workspaceId });
 }
 
 async function updateThemeAutoSource(workspaceId, userId, themeAutoSource) {
-  await runSql(`
+  await db.run(`
 UPDATE users
-SET theme_auto_source = ${sqlText(normalizeThemeAutoSource(themeAutoSource))}
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
-`);
+SET theme_auto_source = :themeAutoSource
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
+`, { themeAutoSource: normalizeThemeAutoSource(themeAutoSource), userId, workspaceId });
 }
 
 async function updateOpenExternalLinksNewTab(workspaceId, userId, openExternalLinksNewTab) {
-  await runSql(`
+  await db.run(`
 UPDATE users
-SET open_external_links_new_tab = ${openExternalLinksNewTab ? 1 : 0}
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
-`);
+SET open_external_links_new_tab = :openExternalLinksNewTab
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
+`, {
+    openExternalLinksNewTab: openExternalLinksNewTab ? 1 : 0,
+    userId,
+    workspaceId,
+  });
 }
 
 async function updateStatus(workspaceId, userId, userStatus) {
-  await runSql(`
+  await db.run(`
 UPDATE users
-SET user_status = ${sqlText(normalizeUserStatus(userStatus))}
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
-`);
+SET user_status = :userStatus
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
+`, { userId, userStatus: normalizeUserStatus(userStatus), workspaceId });
 }
 
 async function updateActiveWorkspace(userId, workspaceId) {
-  await runSql(`
+  await db.run(`
 UPDATE users
-SET active_workspace_id = ${sqlText(workspaceId)}
-WHERE user_id = ${sqlText(userId)};
-`);
+SET active_workspace_id = :workspaceId
+WHERE user_id = :userId;
+`, { userId, workspaceId });
 }
 
 async function remove(workspaceId, userId) {
-  const deletableRows = await querySql(`
+  const deletable = await db.get(`
 SELECT user_id
 FROM users
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)}
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL}
 LIMIT 1;
-`);
+`, { userId, workspaceId });
 
-  if (deletableRows.length === 0) {
+  if (!deletable) {
     return;
   }
 
-  await runSql(`
-DELETE FROM sessions
-WHERE user_id = ${sqlText(userId)};
+  await db.transaction(async (transaction) => {
+    for (const statement of USER_REMOVAL_STATEMENTS) {
+      await transaction.run(statement, { userId });
+    }
 
-DELETE FROM user_workspaces
-WHERE user_id = ${sqlText(userId)};
+    await transaction.run(`
+DELETE FROM users
+WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
+`, { userId, workspaceId });
+  });
+}
 
-DELETE FROM user_workspace_creation_permissions
-WHERE user_id = ${sqlText(userId)};
-
-DELETE FROM user_role_assignments
-WHERE user_id = ${sqlText(userId)};
-
-DELETE FROM notification_user_preferences
-WHERE user_id = ${sqlText(userId)};
-
-DELETE FROM notification_subscriptions
-WHERE user_id = ${sqlText(userId)};
-
-DELETE FROM notifications
-WHERE recipient_user_id = ${sqlText(userId)};
-
-UPDATE notifications
-SET actor_user_id = NULL
-WHERE actor_user_id = ${sqlText(userId)};
-
-DELETE FROM work_resume_state
-WHERE user_id = ${sqlText(userId)};
-
+const USER_REMOVAL_STATEMENTS = [
+  "DELETE FROM sessions WHERE user_id = :userId;",
+  "DELETE FROM user_workspaces WHERE user_id = :userId;",
+  "DELETE FROM user_workspace_creation_permissions WHERE user_id = :userId;",
+  "DELETE FROM user_role_assignments WHERE user_id = :userId;",
+  "DELETE FROM notification_user_preferences WHERE user_id = :userId;",
+  "DELETE FROM notification_subscriptions WHERE user_id = :userId;",
+  "DELETE FROM notifications WHERE recipient_user_id = :userId;",
+  "UPDATE notifications SET actor_user_id = NULL WHERE actor_user_id = :userId;",
+  "DELETE FROM work_resume_state WHERE user_id = :userId;",
+  `
 DELETE FROM api_key_scopes
 WHERE api_key_id IN (
   SELECT api_key_id
   FROM api_keys
-  WHERE created_by_user_id = ${sqlText(userId)}
+  WHERE created_by_user_id = :userId
 );
-
-DELETE FROM api_keys
-WHERE created_by_user_id = ${sqlText(userId)};
-
-UPDATE tags
-SET created_by_user_id = NULL
-WHERE created_by_user_id = ${sqlText(userId)};
-
-UPDATE tag_assignments
-SET created_by_user_id = NULL
-WHERE created_by_user_id = ${sqlText(userId)};
-
-UPDATE tag_assignment_suppressions
-SET suppressed_by_user_id = NULL
-WHERE suppressed_by_user_id = ${sqlText(userId)};
-
-UPDATE files
-SET uploaded_by_user_id = NULL
-WHERE uploaded_by_user_id = ${sqlText(userId)};
-
-UPDATE file_attachments
-SET attached_by_user_id = NULL
-WHERE attached_by_user_id = ${sqlText(userId)};
-
-UPDATE note_links
-SET created_by_user_id = NULL
-WHERE created_by_user_id = ${sqlText(userId)};
-
-UPDATE note_library_collections
-SET created_by_user_id = NULL
-WHERE created_by_user_id = ${sqlText(userId)};
-
+`,
+  "DELETE FROM api_keys WHERE created_by_user_id = :userId;",
+  "UPDATE tags SET created_by_user_id = NULL WHERE created_by_user_id = :userId;",
+  "UPDATE tag_assignments SET created_by_user_id = NULL WHERE created_by_user_id = :userId;",
+  "UPDATE tag_assignment_suppressions SET suppressed_by_user_id = NULL WHERE suppressed_by_user_id = :userId;",
+  "UPDATE files SET uploaded_by_user_id = NULL WHERE uploaded_by_user_id = :userId;",
+  "UPDATE file_attachments SET attached_by_user_id = NULL WHERE attached_by_user_id = :userId;",
+  "UPDATE note_links SET created_by_user_id = NULL WHERE created_by_user_id = :userId;",
+  "UPDATE note_library_collections SET created_by_user_id = NULL WHERE created_by_user_id = :userId;",
+  `
 UPDATE lists
-SET created_by_user_id = CASE WHEN created_by_user_id = ${sqlText(userId)} THEN NULL ELSE created_by_user_id END,
-    updated_by_user_id = CASE WHEN updated_by_user_id = ${sqlText(userId)} THEN NULL ELSE updated_by_user_id END,
-    finalized_by_user_id = CASE WHEN finalized_by_user_id = ${sqlText(userId)} THEN NULL ELSE finalized_by_user_id END
-WHERE created_by_user_id = ${sqlText(userId)}
-   OR updated_by_user_id = ${sqlText(userId)}
-   OR finalized_by_user_id = ${sqlText(userId)};
-
+SET created_by_user_id = CASE WHEN created_by_user_id = :userId THEN NULL ELSE created_by_user_id END,
+    updated_by_user_id = CASE WHEN updated_by_user_id = :userId THEN NULL ELSE updated_by_user_id END,
+    finalized_by_user_id = CASE WHEN finalized_by_user_id = :userId THEN NULL ELSE finalized_by_user_id END
+WHERE created_by_user_id = :userId
+   OR updated_by_user_id = :userId
+   OR finalized_by_user_id = :userId;
+`,
+  `
 UPDATE list_items
-SET assigned_user_id = CASE WHEN assigned_user_id = ${sqlText(userId)} THEN NULL ELSE assigned_user_id END,
-    created_by_user_id = CASE WHEN created_by_user_id = ${sqlText(userId)} THEN NULL ELSE created_by_user_id END,
-    updated_by_user_id = CASE WHEN updated_by_user_id = ${sqlText(userId)} THEN NULL ELSE updated_by_user_id END,
-    checked_by_user_id = CASE WHEN checked_by_user_id = ${sqlText(userId)} THEN NULL ELSE checked_by_user_id END,
-    completed_by_user_id = CASE WHEN completed_by_user_id = ${sqlText(userId)} THEN NULL ELSE completed_by_user_id END
-WHERE assigned_user_id = ${sqlText(userId)}
-   OR created_by_user_id = ${sqlText(userId)}
-   OR updated_by_user_id = ${sqlText(userId)}
-   OR checked_by_user_id = ${sqlText(userId)}
-   OR completed_by_user_id = ${sqlText(userId)};
-
+SET assigned_user_id = CASE WHEN assigned_user_id = :userId THEN NULL ELSE assigned_user_id END,
+    created_by_user_id = CASE WHEN created_by_user_id = :userId THEN NULL ELSE created_by_user_id END,
+    updated_by_user_id = CASE WHEN updated_by_user_id = :userId THEN NULL ELSE updated_by_user_id END,
+    checked_by_user_id = CASE WHEN checked_by_user_id = :userId THEN NULL ELSE checked_by_user_id END,
+    completed_by_user_id = CASE WHEN completed_by_user_id = :userId THEN NULL ELSE completed_by_user_id END
+WHERE assigned_user_id = :userId
+   OR created_by_user_id = :userId
+   OR updated_by_user_id = :userId
+   OR checked_by_user_id = :userId
+   OR completed_by_user_id = :userId;
+`,
+  `
 UPDATE list_item_catalog
-SET created_by_user_id = CASE WHEN created_by_user_id = ${sqlText(userId)} THEN NULL ELSE created_by_user_id END,
-    updated_by_user_id = CASE WHEN updated_by_user_id = ${sqlText(userId)} THEN NULL ELSE updated_by_user_id END
-WHERE created_by_user_id = ${sqlText(userId)}
-   OR updated_by_user_id = ${sqlText(userId)};
-
-UPDATE list_links
-SET created_by_user_id = NULL
-WHERE created_by_user_id = ${sqlText(userId)};
-
+SET created_by_user_id = CASE WHEN created_by_user_id = :userId THEN NULL ELSE created_by_user_id END,
+    updated_by_user_id = CASE WHEN updated_by_user_id = :userId THEN NULL ELSE updated_by_user_id END
+WHERE created_by_user_id = :userId
+   OR updated_by_user_id = :userId;
+`,
+  "UPDATE list_links SET created_by_user_id = NULL WHERE created_by_user_id = :userId;",
+  `
 UPDATE notes
-SET linked_user_id = CASE WHEN linked_user_id = ${sqlText(userId)} THEN NULL ELSE linked_user_id END,
-    owner_user_id = CASE WHEN owner_user_id = ${sqlText(userId)} THEN NULL ELSE owner_user_id END,
-    created_by_user_id = CASE WHEN created_by_user_id = ${sqlText(userId)} THEN NULL ELSE created_by_user_id END,
-    updated_by_user_id = CASE WHEN updated_by_user_id = ${sqlText(userId)} THEN NULL ELSE updated_by_user_id END
-WHERE linked_user_id = ${sqlText(userId)}
-   OR owner_user_id = ${sqlText(userId)}
-   OR created_by_user_id = ${sqlText(userId)}
-   OR updated_by_user_id = ${sqlText(userId)};
-
-UPDATE note_revisions
-SET changed_by_user_id = NULL
-WHERE changed_by_user_id = ${sqlText(userId)};
-
-DELETE FROM users
-WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
-`);
-}
-
-function userBelongsToWorkspaceSql(workspaceId, userId) {
-  return `
-user_id = ${sqlText(userId)}
-  AND (
-    home_workspace_id = ${sqlText(workspaceId)}
-    OR EXISTS (
-      SELECT 1
-      FROM user_workspaces
-      WHERE user_workspaces.user_id = users.user_id
-        AND user_workspaces.workspace_id = ${sqlText(workspaceId)}
-    )
-  )`;
-}
+SET linked_user_id = CASE WHEN linked_user_id = :userId THEN NULL ELSE linked_user_id END,
+    owner_user_id = CASE WHEN owner_user_id = :userId THEN NULL ELSE owner_user_id END,
+    created_by_user_id = CASE WHEN created_by_user_id = :userId THEN NULL ELSE created_by_user_id END,
+    updated_by_user_id = CASE WHEN updated_by_user_id = :userId THEN NULL ELSE updated_by_user_id END
+WHERE linked_user_id = :userId
+   OR owner_user_id = :userId
+   OR created_by_user_id = :userId
+   OR updated_by_user_id = :userId;
+`,
+  "UPDATE note_revisions SET changed_by_user_id = NULL WHERE changed_by_user_id = :userId;",
+];
 
 export const usersRepository = {
   create,

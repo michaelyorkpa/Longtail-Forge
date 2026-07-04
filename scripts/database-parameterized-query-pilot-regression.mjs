@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.2";
+const appVersion = "0.33.5.23.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-params-pilot-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-params-pilot.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Params-Test-123!";
@@ -115,7 +115,8 @@ function assertPilotSourceShape() {
 
   assert.match(workspacesSource, /db\.query\(`[\s\S]*user_workspaces\.user_id = :userId/, "workspace list reads should use named params");
   assert.match(workspacesSource, /db\.get\(`[\s\S]*workspace_id = :workspaceId/, "workspace single reads should use named params");
-  assert.match(workspacesSource, /createWorkspace[\s\S]*BEGIN TRANSACTION/, "workspace creation should remain on compatibility helpers because it is not a transaction pilot path");
+  assert.match(workspacesSource, /createWorkspace[\s\S]*db\.transaction/, "workspace creation should use the adapter transaction helper after the conversion wave");
+  assert.doesNotMatch(workspacesSource, /\bsqlText\b|\bsqlInteger\b|\bquerySql\b|\brunSql\b/, "workspace repository should stay off interpolation helpers after the conversion wave");
 
   assert.match(tasksSource, /db\.query\(taskSelectSql\(`[\s\S]*tasks\.workspace_id = :workspaceId[\s\S]*tasks\.task_id = :taskId/, "Tasks readById should use named params");
   assert.match(notesSource, /db\.get\(`[\s\S]*workspace_id = :workspaceId[\s\S]*note_id = :noteId/, "Notes readById should use named params");

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.2";
+const appVersion = "0.33.5.23.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";
@@ -57,8 +57,9 @@ try {
   assert.match(databaseDocs, /sqlText[\s\S]*deprecated compatibility escape hatches/, "database docs should record the SQL literal helper migration path");
   assert.match(auditDocs, /0\.33\.5\.23\.2 Proof Conversion/, "audit docs should record the proof conversion");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
-  assert.match(roadmap, /### Version 0\.33\.5\.23\.2 - Named\/positional parameter binding layer[\s\S]*- \[x\] Add a named-to-positional/, "roadmap should mark the binding layer slice complete");
+  assert.match(roadmap, /^## Version 0\.33\.5\.24 - Node 24 LTS Upgrade/m, "live roadmap should advance after the parameter-binding branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
+  assert.match(changelog, /## Version 0\.33\.5\.23\.2 - [\s\S]*named-to-positional parameter binding layer/, "changelog should retain the binding-layer slice");
   assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/, "regression suite should include binding-layer coverage");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");

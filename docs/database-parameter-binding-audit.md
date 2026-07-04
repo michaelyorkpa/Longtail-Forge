@@ -106,9 +106,40 @@ Current live burndown after that proof conversion:
 
 The table above remains the 0.33.5.23.1 inventory snapshot. 0.33.5.23.3 should consume the current live burndown and continue reducing the remaining helper/interpolated-site counts in explicit waves.
 
-0.33.5.23.3 should consume this audit as conversion waves. Suggested order:
+## 0.33.5.23.3 Conversion Wave
 
-1. Auth, workspace, and permission core: `sessions.repo` is already bound, then convert remaining `users.repo`, `workspaces.repo`, `user-workspaces.repo`, `permissions.repo`, `settings.repo`, and `app-settings.repo` paths. Include `db/index` startup maintenance only after the layer supports the needed compatibility shape for multi-statement startup repairs.
+0.33.5.23.3 converted the auth/workspace/permission core wave from literal SQL interpolation to named bound params. This wave intentionally stayed smaller than the full audit inventory and covered these repositories:
+
+- `src/repositories/users.repo.js`
+- `src/repositories/workspaces.repo.js`
+- `src/repositories/user-workspaces.repo.js`
+- `src/repositories/permissions.repo.js`
+- `src/repositories/settings.repo.js`
+- `src/repositories/app-settings.repo.js`
+
+Converted wave rows in the current runtime audit:
+
+| Owner | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
+| --- | ---: | ---: | ---: | ---: |
+| users.repo | 0 | 0 | 17 | 17 |
+| workspaces.repo | 0 | 0 | 10 | 10 |
+| permissions.repo | 0 | 0 | 8 | 10 |
+| user-workspaces.repo | 0 | 0 | 6 | 7 |
+| settings.repo | 0 | 0 | 4 | 4 |
+| app-settings.repo | 0 | 0 | 2 | 3 |
+
+Current live burndown after the conversion wave:
+
+- Remaining runtime literal-helper invocations after the conversion wave: 1,499.
+- Remaining direct interpolated SQL operation sites after the conversion wave: 233.
+- Existing direct bound-params operation sites after the conversion wave: 91.
+- Total runtime database operation calls seen by the scanner after the conversion wave: 407.
+
+Remaining conversion waves still include Tasks and Time Tracking repositories, Notes, Files metadata, Notifications, Tags, Search/recovery helpers, Work Resume State, client/project repositories, admin/framework repositories, and low-count migration or startup compatibility paths.
+
+Further conversion waves should continue in this order:
+
+1. Auth, workspace, and permission core is converted as of 0.33.5.23.3: `sessions.repo`, `users.repo`, `workspaces.repo`, `user-workspaces.repo`, `permissions.repo`, `settings.repo`, and `app-settings.repo`. Include `db/index` startup maintenance only after the layer supports the needed compatibility shape for multi-statement startup repairs.
 2. Tasks and time-sensitive work: `tasks/tasks.repo`, `task-checklists.repo`, `task-relationships.repo`, `task-recurrence.repo`, `task-reminders.repo`, and the Time Tracking repositories. Preserve existing task read/list behavior and recurrence/reminder job semantics.
 3. Notes: convert `notes/notes.repo` after Tasks because it has the largest single repository count and secure/private/read-model shaping needs focused regression coverage.
 4. Files metadata: convert `services/files.service` without changing storage, scan, preview, download, quarantine, or attachment lifecycle behavior.
@@ -116,3 +147,19 @@ The table above remains the 0.33.5.23.1 inventory snapshot. 0.33.5.23.3 should c
 6. Remaining low-count framework/admin paths: audit logs, API keys, Help, module registry reads, and migration-maintenance paths. Keep migration files and multi-statement schema repair on the documented no-parameter compatibility path unless a later slice explicitly changes that contract.
 
 Each wave should update this audit or a visible burndown with remaining literal-helper counts before closeout, then run the focused regression for the touched repository plus the normal release checks.
+
+## 0.33.5.23.4 Closeout
+
+0.33.5.23.4 closed the parameter-binding branch without changing the runtime SQL surface beyond the completed conversion wave. The active decision remains:
+
+- `src/db/parameter-bindings.js` owns named-to-positional translation at the adapter boundary.
+- App-facing repository code should use named params through `db.query(sql, params)`, `db.get(sql, params)`, and `db.run(sql, params)`.
+- `sqlText()`, `sqlInteger()`, `sqlNullableText()`, and `sqlNullableInteger()` remain deprecated compatibility escape hatches for unconverted literal SQL and no-parameter multi-statement startup/migration paths; they should not become param-emitting shims.
+
+Closeout confirmations:
+
+- `scripts/parameter-binding-audit-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` are wired into the regression suite.
+- The live roadmap now advances to 0.33.5.24, while the completed 0.33.5.23 branch details live in the roadmap archive.
+- The final 0.33.5.23 branch burndown remains 1,499 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 91 existing bound operation sites, and 407 total runtime database operation calls seen by the scanner.
+
+Further conversion waves and the dialect portability audit are future work. The 0.40.0 database-extraction branch should consume this recorded remaining inventory instead of treating 0.33.5.23 as fully removing every legacy helper call.

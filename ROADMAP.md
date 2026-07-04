@@ -2,79 +2,171 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.23 - SQL Parameter-Binding Migration
+## Version 0.33.5.24 - Node 24 LTS Upgrade
 
 Purpose:
 
-Migrate app SQL off value interpolation onto the existing, already-forwarded bound-`params` channel. This is a provider-neutral hardening step: it removes inlined value interpolation (injection-safety and correctness), keeps the `db.query(sql, params)` contract stable, and de-risks the future PostgreSQL/database-extraction work in 0.40.0 without committing to it now. It is done here, early, because its cost grows with every module that adds new interpolated SQL. The PostgreSQL adapter, dialect compatibility helpers, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof have moved to 0.40.0 (Database extraction layer).
+Move the dev/runtime baseline off end-of-life Node 20 onto Node 24 LTS, rebuild the native `better-sqlite3` driver for the new ABI, and pin the repo's supported-Node contract. This is a runtime/toolchain upgrade, not an app-code change: an audit of the app source found no APIs removed or deprecated through Node 24 (no `new Buffer(...)`, `crypto.createCipher`, legacy `url.parse`, `punycode`, or `process.binding`). The one native dependency (`better-sqlite3`) already declares Node 24 in its engine range, so the risk is entirely mechanical — the native-module ABI rebuild, prebuild/toolchain availability, the npm 10 -> 11 jump, and a version-pinned smoke test. Note that the end-of-life concern is the Node **runtime** major, not npm; upgrading npm alone would neither address the EOL runtime nor rebuild the native module.
 
-Entry contract from 0.33.5.19: consume the parameterized-query conventions and the `src/db/provider.js` adapter boundary while keeping SQLite defaults intact.
+Grounding for this branch:
 
-Current wiring (grounding for this branch):
-
-- The app-facing helpers `querySql/getSql/runSql` (`provider.js:20-30`) already forward a `params` argument to `db.query`, but ~94% of app SQL interpolates values via `sqlText()/sqlInteger()/sqlNullableText()` from `src/db/sql-literals.js` instead of using that channel. This work is therefore migrating interpolation onto the existing-but-unused `params` channel, not inventing a new API.
-- SQLite already accepts `params` on `query/get/run` (`sqlite-adapter.js`), so the whole conversion is verifiable end-to-end on SQLite alone, with no second backend required.
+- The dev machine is currently Node 20.13.1 / npm 10.8.1 with the native module built for ABI 115. Node 24 LTS is ABI 137 and bundles npm 11.x. Running the existing (ABI 115) `node_modules` under Node 24 fails at startup with a module-version mismatch until the driver is rebuilt.
+- `better-sqlite3@^12.11.1` declares engines `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; its install step is `prebuild-install || node-gyp rebuild --release` — it fetches a prebuilt binary for the active ABI and silently compiles from source if none matches (needs Python 3 + Visual Studio Build Tools on Windows).
+- `scripts/better-sqlite3-install-smoke.mjs` hard-asserts the driver is **exactly** `12.11.1` and matches an exact engines string, and it is registered in `scripts/regression-suite.mjs`, so `npm run check` runs it. Because `package.json` allows `^12.11.1`, a clean install may resolve a newer 12.x and break those equality assertions.
+- `package.json` has no `engines` field, and the `README.md` requirement line still reads "Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release."
+- `src/db/adapters/sqlite-adapter.js` relies on `AsyncLocalStorage` for transaction-context detection; Node 24 enables `AsyncContextFrame` for ALS by default (a behavior change to confirm via the transaction/isolated-DB regressions, not something to fix).
 
 Sizing rule for this branch:
 
-- Each sub-slice below should have one primary blast radius and should be completable in a single focused implementation session.
-- Each implementation sub-slice still follows the normal release ceremony for the version it lands: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
-- Do not combine adjacent slices just because the same helper file is already open; the parameter-binding conversion is intentionally split from the translation-layer foundation it depends on.
+- Each sub-slice below has one primary blast radius and should be completable in a single focused session, following the normal release ceremony where a version changes.
 
-### Version 0.33.5.23.1 - Parameter-binding audit (inventory and plan only)
+### Version 0.33.5.24.1 - Install Node 24 and rebuild the native driver
 
-- [x] Produce a documented, plan-only audit; do not change runtime behavior in this slice. See `docs/database-parameter-binding-audit.md`.
-- [x] Quantify parameter binding per repository: the 0.33.5.23.1 runtime scan found 1,680 helper invocations across 262 direct interpolated SQL operation sites, plus 49 existing direct bound-`params` operation sites.
-- [x] Order the repositories by interpolation count and risk to produce a prioritized conversion burndown (highest-traffic first: sessions already converted, then workspaces/users/permissions, tasks, notes, files metadata, notifications/tags/search/resume helpers).
-- [x] Record confirmed non-issues for scope clarity: no SQLite JSON SQL functions and no top-level `LIMIT`/`OFFSET` inside `UPDATE`/`DELETE` exist today. `RETURNING` exists in four durable-job statements and is recorded for the 0.40.0 dialect portability audit rather than treated as a non-issue.
-- [x] Output: a per-repository parameter-binding plan that slices 0.33.5.23.2-0.33.5.23.3 consume. SQLite-vs-PostgreSQL dialect portability (`INSERT OR IGNORE`, `COLLATE NOCASE`, PRAGMA, FTS5, JSON, boolean storage, `julianday(...)`, `rowid`, and the corrected `RETURNING` inventory) and the read-modify-write serialization inventory are out of scope here and live with the PostgreSQL work in 0.40.0.
+- [x] Install Node 24 LTS on the dev machine and confirm the bundled npm 11.x.
+- [x] Confirm the Windows compile fallback is available (Python 3 + Visual Studio Build Tools C++ workload) in case no `better-sqlite3` prebuilt binary exists for the Node 24 ABI.
+- [x] Reinstall dependencies from clean (`node_modules` removed) so `better-sqlite3` is rebuilt/re-fetched for ABI 137; do not run against the Node 20 (ABI 115) build.
+- [x] Run `npm run test:sqlite-driver` and confirm the driver loads and the FTS5/RETURNING smoke passes on Node 24.
 
 Acceptance criteria:
 
-- [x] The parameter-binding conversion is quantified and grouped into a documented, prioritized plan without any runtime change.
+- Node 24 + npm 11 are installed, the native driver is rebuilt for the new ABI, and the driver smoke passes on Node 24.
 
-### Version 0.33.5.23.2 - Named/positional parameter binding layer
+### Version 0.33.5.24.2 - Pin the supported-Node contract
 
-- [x] Add a named-to-positional (`:name` -> `$n`) parameter translation layer at the adapter boundary so the app-facing `db.query(sql, params)` contract stays stable and is ready for a second provider later without reworking call sites. `src/db/parameter-bindings.js` now emits `$n` for future providers and positional `?` bindings for SQLite.
-- [x] Keep SQLite working through the same layer (SQLite already accepts `params` on `query/get/run`), so there is one binding path. `src/db/adapters/sqlite-adapter.js` now routes query/get/run and transaction-client operations through the shared binding layer before the `better-sqlite3` helper.
-- [x] Decide and document the migration path for the `sqlText()/sqlInteger()/sqlNullableText()` interpolation helpers (`src/db/sql-literals.js`): they are deprecated compatibility escape hatches for unconverted literal SQL and no-parameter multi-statement startup/migration paths, not param-emitting shims. Recorded in `DECISIONS.md`, `docs/database.md`, and `docs/database-parameter-binding-audit.md`.
-- [x] Do not mass-convert call sites in this slice; land only the layer plus a small proof conversion. The proof conversion is `src/core/search/tag-text.js`, reducing the live burndown to 1,677 helper invocations, 261 direct interpolated operation sites, and 50 existing bound operation sites.
-- [x] Add focused regressions proving named params translate correctly, escaping/edge cases are safe, and SQLite behavior is unchanged. See `scripts/parameter-binding-layer-regression.mjs`.
+- [ ] Add an `engines.node` field to `package.json` (root + `packages[""]`) declaring the supported Node range with a Node 24 floor, so the repo records its runtime contract (this is the concrete form of "add Node 24 as a dependency in the repo").
+- [ ] Update the `README.md` Node requirement line from "Node.js 20.x..." to the Node 24 baseline.
+- [ ] Record the runtime baseline change in `DECISIONS.md`: Node 20 EOL -> Node 24 LTS, and that the breaking action is the runtime major/ABI rather than npm.
 
 Acceptance criteria:
 
-- [x] One binding layer keeps `db.query(sql, params)` stable and is ready for staged call-site conversion.
+- The repo declares Node 24 as its supported runtime, and the docs/decision record match.
 
-### Version 0.33.5.23.3 - Parameter-binding conversion waves
+### Version 0.33.5.24.3 - Reconcile the version-pinned driver smoke test and lockfile
 
-- [ ] Convert interpolated SQL to bound `params` in prioritized per-repository/per-module waves, each wave sized to a single session (do not attempt all ~314 sites at once).
-- [ ] Order waves by the audit's per-repository counts and risk (start with the highest-traffic repositories: sessions, workspaces, permissions, tasks, notes, files metadata, notifications).
-- [ ] For each wave, keep behavior identical on SQLite and add/extend regressions before moving on.
-- [ ] Track remaining interpolation sites so the conversion has a visible burndown and no silent "mostly done" gaps.
-
-Acceptance criteria:
-
-- Value interpolation is replaced by bound parameters in prioritized waves, each independently verified on SQLite.
-
-### Version 0.33.5.23.4 - Docs, decisions, regression wiring, and closeout
-
-- [ ] Confirm the branch decision in `DECISIONS.md`: the parameter-binding/interpolation-helper migration from 0.33.5.23.2.
-- [ ] Confirm the standing per-slice version ceremony was followed for each landed slice: `package.json` + `package-lock.json` (root + `packages[""]`), version-pinned regression scripts where applicable, and dated `CHANGELOG.md` entries.
-- [ ] Run `npm run check` and `npm run test:permissions` (re-running any transiently-flaky isolated-DB regressions standalone to confirm), and add the parameter-binding regressions from 0.33.5.23.1-0.33.5.23.3 to the suite.
-- [ ] Confirm the remaining-interpolation burndown is recorded so the 0.40.0 database-extraction work can pick up any deferred call sites.
+- [ ] Resolve the smoke-test pin mismatch: either pin `better-sqlite3` to an exact `12.11.1` in `package.json`, or relax the smoke test's exact-version and exact-engines-string assertions to a range check. Keep the two consistent so a clean install cannot leave `npm run check` red.
+- [ ] Regenerate `package-lock.json` (root + `packages[""]`) under npm 11 as its own isolated committed step so the lockfile churn is separated from logic changes.
+- [ ] Confirm `lockfileVersion` stays 3 and no dependency resolutions changed unexpectedly.
 
 Acceptance criteria:
 
-- App SQL is on the bound-`params` channel (or has a recorded burndown of what remains), the decision and docs are captured, and SQLite behavior is unchanged.
+- The `better-sqlite3` pin and the driver smoke test agree, and the npm 11 lockfile regeneration is an isolated, reviewed commit.
 
-## 0.33.5.24 - Node 24 LTS Upgrade
+### Version 0.33.5.24.4 - Full-suite check and closeout
 
-- [ ] Upgrade this machine to Node 24 LTS
-- [ ] Add Node 24 as a dependency in the repo
-- [ ] Ensure all existing dependencies are functional
-  - [ ] Rebuild/repair any failed dependencies
-- [ ] Complete full suite check and ensure there are no failures
-  - [ ] Identify any failures and correct them, or make a ROADMAP slice to correct them
+- [ ] Run `npm run check` and `npm run test:permissions` on Node 24 (re-running any transiently-flaky isolated-DB regressions standalone to confirm), paying attention to the transaction/isolated-DB regressions given the Node 24 `AsyncLocalStorage`/`AsyncContextFrame` behavior change.
+- [ ] For any failure: fix it here if small, or open a follow-up ROADMAP slice to correct it.
+- [ ] Bump `package.json`/`package-lock.json` version + add a dated `CHANGELOG.md` entry, and verify `/api/app-info` reports the expected version after restart on Node 24.
+
+Acceptance criteria:
+
+- The full suite passes on Node 24 (or any remaining failures are captured as follow-up slices), and the version/changelog ceremony is complete.
+
+## Version 0.33.5.25 - Storage branch cleanup (0.33.5.22 follow-ups)
+
+Purpose:
+
+Close the gaps left by the 0.33.5.22 storage/upload branch. The buffered/local path shipped production-ready, but two scope items were only partially delivered — a selectable S3 provider that cannot function, and workspace/per-user storage quotas that are persisted but never enforced — plus a few robustness gaps in the streamed-upload and download paths. This slice resolves or explicitly defers each, so the storage contract matches what is actually wired.
+
+Grounding for this branch:
+
+- `src/services/files.service.js` registers the `s3` provider via `createS3FileStorageAdapter(config.storage.s3)`, but `config.storage.s3` (`src/config.js`) carries no client, no AWS SDK/minio dependency exists in `package.json`, and `registerFileStorageAdapter('s3', ...)` is never called with a real client. Every S3 operation throws `AppError("S3 file storage client is not configured.", 500)`, and `resolveConfiguredFileStorageProvider()` resolves the broken adapter without failing fast at startup — so selecting `s3` turns every upload/download into a request-time 500.
+- `internal_storage_limit_bytes` / `per_user_storage_limit_bytes` are written and read into settings/accounting shapes only; no upload path (`prepareUpload`, `prepareStreamedUpload`, `uploadAndAttach`) compares them against actual usage. The only live cap is the hard 5 MB per-file `DEFAULT_MAX_FILE_SIZE_BYTES`, so configured caps are a no-op.
+- `prepareStreamedUpload` fully writes the object to storage before content-type validation, then deletes on mismatch; on the S3 path that cleanup delete is swallowed (`.catch(() => {})`), risking orphaned objects. The buffered path validates before writing.
+- The download/preview routes pipe `adapter.read()` straight to the response without a `metadata()` existence pre-check, so storage/DB drift yields an aborted 200 instead of a clean 404. The pre-check method exists but is unused.
+- Some adapter surface is dead: local `quarantine()`/`resolveStoragePath()` and both adapters' `metadata()` are never invoked, and `quarantineFile` only flips DB status without relocating the object.
+
+Sizing rule for this branch:
+
+- Each sub-slice below has one primary blast radius and follows the normal release ceremony: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
+
+### Version 0.33.5.25.1 - Resolve the S3 provider state and fail fast on misconfiguration
+
+- [ ] Decide S3's status: either (a) deliver a real S3 client (add the SDK dependency and wire `registerFileStorageAdapter('s3', ...)` with the configured credentials/endpoint through the existing adapter contract), or (b) keep S3 as explicitly deferred scaffolding.
+- [ ] Either way, make provider selection fail fast at startup: if `config.storage.provider` selects a provider whose adapter cannot function (no client), refuse to boot with a clear error instead of 500ing every upload/download at request time.
+- [ ] If deferring S3, mark it as not-yet-functional in config/docs so an operator cannot silently select it.
+- [ ] Add a regression proving a misconfigured/unavailable provider is rejected at startup, not per request.
+
+Acceptance criteria:
+
+- A selectable storage provider either works or fails fast at boot; S3's status is explicit and a request-time 500 storm is no longer possible.
+
+### Version 0.33.5.25.2 - Enforce workspace and per-user storage quotas
+
+- [ ] Read `internal_storage_limit_bytes` / `per_user_storage_limit_bytes` in the upload paths and reject over-quota uploads with a clear error before persisting.
+- [ ] Enforce for both the buffered (`prepareUpload`) and streamed (`prepareStreamedUpload`) paths; for streaming, stop and clean up the partial write when the quota would be exceeded, mirroring the existing size-limit handling.
+- [ ] Treat NULL limits as unlimited, preserving current behavior when no cap is configured.
+- [ ] Add regressions for at-limit, over-limit, and unlimited (NULL) cases at both workspace and per-user scope.
+
+Acceptance criteria:
+
+- Configured storage caps are enforced on upload at both workspace and per-user scope, with the streamed path cleaning up partial writes on rejection.
+
+### Version 0.33.5.25.3 - Harden streamed-upload validation and download existence checks
+
+- [ ] For streamed uploads, avoid persisting an object that fails content-type validation where practical (validate the sampled header before commit), and ensure the mismatch-cleanup delete is awaited/logged rather than swallowed so a failed-type object cannot orphan (especially on S3).
+- [ ] For download/preview, use the existing `metadata()` pre-check before streaming so a missing/rotated storage object returns a clean 404 instead of an aborted 200.
+- [ ] Add regressions for a wrong-type streamed upload (no orphan left behind) and a download of a missing storage object (clean 404).
+
+Acceptance criteria:
+
+- Streamed uploads do not leave orphaned objects on type mismatch, and downloads of missing objects return a clean 404.
+
+### Version 0.33.5.25.4 - Batch-failure consistency, dead adapter surface, and closeout
+
+- [ ] Make the multipart batch route record a single malformed file as a per-file failure instead of rejecting the whole batch, consistent with its per-file failure model.
+- [ ] Resolve the unused adapter surface: either wire `quarantine()`/`metadata()` where intended (noting `quarantineFile` currently only flips DB status and never relocates the object) or remove the dead methods so the adapter contract matches what is wired.
+- [ ] Run the file/upload regressions, `npm run check`, and `npm run test:permissions`; complete the version/`CHANGELOG.md` ceremony and verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- Batch uploads fail per-file, the storage adapter contract matches what is actually wired, and the branch closes with the standard ceremony.
+
+## Version 0.33.5.26 - Parameter-binding gap review (0.33.5.23 follow-ups)
+
+Purpose:
+
+Capture the verified gaps from a post-branch review of the 0.33.5.23 SQL parameter-binding migration so the deferred module conversion waves (Tasks, Notes, Lists, Files, Notifications, Tags, Time Tracking, client/project repositories) do not inherit hidden problems. The 0.33.5.23 branch was intentionally scoped to the auth/workspace/permission core and it delivered that scope correctly; this section records what remains and the two tooling/tracking gaps that will otherwise compound with every future wave.
+
+What the review confirmed as solid (no action needed):
+
+- The six converted core repositories (`users`, `workspaces`, `user-workspaces`, `permissions`, `settings`, `app-settings`) contain zero residual interpolation-helper calls, and `settings.repo.js saveWorkspaceSettings` binds cleanly (each `transaction.run` uses its own correctly-scoped param object; an earlier "shared superset params" concern did not reproduce against the working tree).
+- The binding layer is applied on every path: `src/db/adapters/sqlite-adapter.js` routes `query`/`get`/`run` and the transaction client through `prepareDatabaseBindings`, and `src/db/provider.js` now routes the legacy `querySql`/`getSql`/`runSql` helpers through the same layer, so even unconverted interpolated call sites still get the in-transaction guard.
+- No untracked raw value interpolation exists: every raw `${...}` reaching SQL is either one of the four tracked `sql*` helpers or a constant identifier (column/table name), so there is no injection blind spot and no interpolation the burndown fails to see.
+- The remaining work is recorded: `docs/database-parameter-binding-audit.md` holds a per-owner inventory, a prioritized wave order, and an explicit 0.40.0 handoff, and `scripts/parameter-binding-audit-regression.mjs` is a live-scan ratchet asserting exact totals (1,499 helper invocations / 233 interpolated sites / 91 bound sites / 407 operation calls) plus per-group counts, so a converted repository cannot silently regress.
+
+### Version 0.33.5.26.1 - Array-expansion binding for variable-length IN-lists and bulk VALUES
+
+- [ ] Add array/list expansion support to the binding layer (`src/db/parameter-bindings.js`) so a named param bound to an array expands to the correct number of driver placeholders — e.g. `db.query("... WHERE id IN (:ids)", { ids: [...] })` emits `IN (?, ?, ?)` on SQLite and `$n` sequences for a future provider.
+- [ ] This is a prerequisite for the high-traffic waves, not an optional nicety: the current layer handles only fixed named/positional params, while the unconverted modules interpolate variable-length lists that cannot be mechanically converted without it. Confirmed sites include `src/modules/lists/lists.repo.js:284`, `src/modules/notes/notes.repo.js:954`, `src/services/files.service.js:2935` and `:2950`, `src/repositories/audit-logs.repo.js:270` and `:278` (one built list reused across two clauses), `src/core/modules/modules.service.js:584`, `src/db/index.js:219`, and `src/db/migrations.js:586`.
+- [ ] Decide and document how a single logical list reused in multiple clauses (as in `audit-logs.repo.js`) binds under positional drivers (duplicate the values, or support named reuse), so later waves have one pattern.
+- [ ] Handle the empty-array case explicitly (an empty `IN ()` is a SQL error) with a documented, safe convention.
+- [ ] Also cover dynamic bulk `VALUES (...)` construction where values are joined today (e.g. the search adapter insert path), or explicitly record it as staying on the compatibility path.
+- [ ] Add focused regressions for single-element, multi-element, reused-list, and empty-array expansion on SQLite before any module wave depends on it.
+
+Acceptance criteria:
+
+- The binding layer expands array-valued named params into correct placeholder sequences, empty and reused-list cases are defined, and the Tasks/Notes/Lists/Files waves can convert their `IN (...)` sites without reinventing expansion per module.
+
+### Version 0.33.5.26.2 - Make the audit inventory a single source of truth
+
+- [ ] Update `docs/database-parameter-binding-audit.md` so the main per-owner inventory table reflects current reality instead of the frozen 0.33.5.23.1 snapshot: the six converted repositories still appear in the master table with their pre-conversion counts while a separate sub-table lists them as `0`, which reads as contradictory to anyone scanning "what is left."
+- [ ] Choose one canonical presentation — update the master table in place each wave, or annotate converted rows as done with a completion marker — and stop appending a new per-wave sub-table that diverges from the master.
+- [ ] Clarify that `sessions.repo` was an already-bound pilot before this branch rather than something the 0.33.5.23.3 wave converted, so the "converted core" list is accurate.
+- [ ] Keep the recorded totals and the ratchet regression in agreement with the corrected table.
+
+Acceptance criteria:
+
+- A reader can look at one inventory table and see exactly which repositories remain interpolated and which are converted, with no contradictory counts.
+
+### Version 0.33.5.26.3 - Per-wave ratchet update checklist
+
+- [ ] Document, next to the audit doc or in `docs/database.md`, the exact set of artifacts each future conversion wave must update in lockstep so the exact-equality ratchet stays correct rather than being weakened when it goes red: the hardcoded totals and `expectedTopGroups` in `scripts/parameter-binding-audit-regression.mjs`, the audit inventory table, and the recorded burndown in `CHANGELOG.md`.
+- [ ] Note the standing rule (already in `DECISIONS.md`) that new or touched single-statement queries must use named params, so a wave cannot both convert a repo and leave the ratchet asserting the old count.
+- [ ] Add the checklist as a short, referenceable heading so a later engineer picking up a single module wave does not have to reverse-engineer the ceremony.
+
+Acceptance criteria:
+
+- Each future conversion wave has a documented, minimal update checklist that keeps the burndown ratchet green and honest, so the migration can proceed module by module without silent gaps.
 
 ## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
 

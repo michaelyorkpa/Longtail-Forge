@@ -1,8 +1,11 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.5.23.2",
+  "version": "0.33.5.23.4",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "start": "node server.js",
     "check": "node scripts/run-regressions.mjs && eslint .",

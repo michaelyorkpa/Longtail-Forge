@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.2";
+const appVersion = "0.33.5.23.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -61,8 +61,8 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration[\s\S]*Entry contract from 0\.33\.5\.19:[\s\S]*parameterized-query conventions[\s\S]*adapter boundary/,
-  "0.33.5.23 should inherit the parameterized-query conventions and adapter boundary",
+  /## Version 0\.33\.5\.24 - Node 24 LTS Upgrade[\s\S]*better-sqlite3[\s\S]*Node 24/,
+  "0.33.5.24 should be the active branch after parameter-binding closeout",
 );
 assert.match(
   roadmap,

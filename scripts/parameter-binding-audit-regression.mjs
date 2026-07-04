@@ -3,11 +3,13 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.23.2";
+const appVersion = "0.33.5.23.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
+const changelog = readText("CHANGELOG.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
+const databaseDocs = readText("docs/database.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
 const audit = buildParameterBindingAudit();
@@ -20,11 +22,11 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 50,
-  dbOperationSites: 399,
-  helperCalls: 1677,
-  interpolatedOperationSites: 261,
-}, "parameter-binding audit totals should match the current post-proof runtime inventory");
+  boundOperationSites: 91,
+  dbOperationSites: 407,
+  helperCalls: 1499,
+  interpolatedOperationSites: 233,
+}, "parameter-binding audit totals should match the current post-wave runtime inventory");
 
 const expectedTopGroups = [
   ["notes/notes.repo", 212, 14],
@@ -33,10 +35,10 @@ const expectedTopGroups = [
   ["notifications.repo", 99, 20],
   ["db/index", 99, 19],
   ["tags.repo", 84, 17],
-  ["users.repo", 78, 13],
   ["tasks/tasks.repo", 71, 7],
   ["time-tracking/active-timers.repo", 62, 12],
   ["client-projects/clients.repo", 60, 5],
+  ["services/work-resume-state.service", 53, 7],
 ];
 
 for (const [group, helperCalls, interpolatedOperationSites] of expectedTopGroups) {
@@ -61,6 +63,28 @@ assert.equal(tagTextRow.helperCalls, 0, "search tag-text proof conversion should
 assert.equal(tagTextRow.interpolatedOperationSites, 0, "search tag-text proof conversion should remove interpolated operation sites");
 assert.equal(tagTextRow.boundOperationSites, 1, "search tag-text proof conversion should add one bound operation site");
 
+const convertedWaveRows = [
+  ["app-settings.repo", 2],
+  ["permissions.repo", 8],
+  ["settings.repo", 4],
+  ["user-workspaces.repo", 6],
+  ["users.repo", 17],
+  ["workspaces.repo", 10],
+];
+
+for (const [group, boundOperationSites] of convertedWaveRows) {
+  const row = audit.groups.find((candidate) => candidate.group === group);
+  assert.ok(row, `${group} should remain visible as a converted wave row`);
+  assert.equal(row.helperCalls, 0, `${group} should have no remaining literal-helper calls`);
+  assert.equal(row.interpolatedOperationSites, 0, `${group} should have no remaining interpolated operation sites`);
+  assert.equal(row.boundOperationSites, boundOperationSites, `${group} bound operation-site count should match the converted wave audit`);
+  assert.match(
+    auditDocs,
+    new RegExp(`\\| ${escapeRegExp(group)} \\| 0 \\| 0 \\| ${boundOperationSites} \\|`),
+    `${group} should be documented as converted in the audit table`,
+  );
+}
+
 assert.deepEqual(
   returningMatches.map((match) => `${match.file}:${match.line}`),
   [
@@ -81,16 +105,23 @@ assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "aud
 assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record current helper-call burndown");
 assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the proof conversion: 261/, "audit docs should record current interpolated-site burndown");
 assert.match(auditDocs, /Existing direct bound-params operation sites after the proof conversion: 50/, "audit docs should record current bound-site burndown");
+assert.match(auditDocs, /Remaining runtime literal-helper invocations after the conversion wave: 1,499/, "audit docs should record current helper-call wave burndown");
+assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the conversion wave: 233/, "audit docs should record current interpolated-site wave burndown");
+assert.match(auditDocs, /Existing direct bound-params operation sites after the conversion wave: 91/, "audit docs should record current bound-site wave burndown");
 assert.match(auditDocs, /No SQLite JSON SQL functions were found/, "audit docs should record the JSON-function non-issue");
 assert.match(auditDocs, /No top-level `UPDATE` or `DELETE` statements with `LIMIT` or `OFFSET` were found/, "audit docs should record the UPDATE/DELETE LIMIT non-issue");
 assert.match(auditDocs, /`RETURNING` is present in four durable-job statements/, "audit docs should correct the RETURNING assumption");
 assert.match(auditDocs, /0\.33\.5\.23\.2[\s\S]*named-to-positional binding layer/, "audit docs should hand off binding-layer work");
-assert.match(auditDocs, /0\.33\.5\.23\.3[\s\S]*conversion waves/, "audit docs should hand off conversion waves");
+assert.match(auditDocs, /0\.33\.5\.23\.3 Conversion Wave[\s\S]*auth\/workspace\/permission core/, "audit docs should record the first conversion wave");
+assert.match(auditDocs, /0\.33\.5\.23\.4 Closeout[\s\S]*final 0\.33\.5\.23 branch burndown remains 1,499/, "audit docs should record the closeout burndown");
+assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
+assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 
-assert.match(roadmap, /### Version 0\.33\.5\.23\.1 - Parameter-binding audit \(inventory and plan only\)[\s\S]*- \[x\] Produce a documented, plan-only audit/, "roadmap should mark the audit slice complete");
-assert.match(roadmap, /1,680 helper invocations[\s\S]*262 direct interpolated SQL operation sites/, "roadmap should carry the audited totals");
-assert.match(roadmap, /`RETURNING` exists in four durable-job statements/, "roadmap should carry the corrected RETURNING inventory");
+assert.match(roadmap, /^## Version 0\.33\.5\.24 - Node 24 LTS Upgrade/m, "live roadmap should advance to the Node 24 slice after parameter-binding closeout");
+assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration/m, "live roadmap should not keep the completed parameter-binding branch open");
 assert.match(regressionSuite, /scripts\/parameter-binding-audit-regression\.mjs/, "regression suite should include the parameter-binding audit regression");
+assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/, "regression suite should include the parameter-binding layer regression");
+assert.match(regressionSuite, /scripts\/parameter-binding-conversion-wave-regression\.mjs/, "regression suite should include the parameter-binding conversion-wave regression");
 
 console.log("Parameter-binding audit regression passed.");
 

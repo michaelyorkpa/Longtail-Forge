@@ -1,4 +1,4 @@
-import { querySql, runSql, sqlText } from "../core/database.js";
+import { db } from "../core/database.js";
 
 const DEFAULT_APP_SETTINGS = {
   workspace_creation_enabled: "true",
@@ -7,7 +7,7 @@ const DEFAULT_APP_SETTINGS = {
 };
 
 async function readAll() {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT setting_key, setting_value
 FROM app_settings
 ORDER BY setting_key;
@@ -23,24 +23,32 @@ ORDER BY setting_key;
 
 async function ensureDefaults() {
   const now = new Date().toISOString();
-  const statements = Object.entries(DEFAULT_APP_SETTINGS).map(([key, value]) => `
-INSERT INTO app_settings (setting_key, setting_value, created_at, updated_at)
-VALUES (${sqlText(key)}, ${sqlText(value)}, ${sqlText(now)}, ${sqlText(now)})
-ON CONFLICT(setting_key) DO NOTHING;
-`);
 
-  await runSql(statements.join("\n"));
+  await db.transaction(async (transaction) => {
+    for (const [key, value] of Object.entries(DEFAULT_APP_SETTINGS)) {
+      await transaction.run(`
+INSERT INTO app_settings (setting_key, setting_value, created_at, updated_at)
+VALUES (:key, :value, :createdAt, :updatedAt)
+ON CONFLICT(setting_key) DO NOTHING;
+`, {
+        createdAt: now,
+        key,
+        updatedAt: now,
+        value,
+      });
+    }
+  });
 }
 
 async function readWorkspaceCreationPermission(userId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT can_create_workspaces, allowed_workspace_types_json
 FROM user_workspace_creation_permissions
-WHERE user_id = ${sqlText(userId)}
+WHERE user_id = :userId
 LIMIT 1;
-`);
+`, { userId });
 
-  if (!rows[0]) {
+  if (!row) {
     return {
       canCreateWorkspaces: true,
       allowedWorkspaceTypes: ["business", "personal", "family"],
@@ -48,8 +56,8 @@ LIMIT 1;
   }
 
   return {
-    canCreateWorkspaces: Number(rows[0].can_create_workspaces) === 1,
-    allowedWorkspaceTypes: parseWorkspaceTypes(rows[0].allowed_workspace_types_json),
+    canCreateWorkspaces: Number(row.can_create_workspaces) === 1,
+    allowedWorkspaceTypes: parseWorkspaceTypes(row.allowed_workspace_types_json),
   };
 }
 

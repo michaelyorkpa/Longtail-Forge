@@ -1,18 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { querySql, runSql, sqlText, sqlNullableText } from "../db/index.js";
+import { db } from "../core/database.js";
 
 async function readRoles() {
-  const roles = await querySql(`
+  return db.query(`
 SELECT role_id, role_name, description, assignable_scope_type
 FROM roles
 ORDER BY sort_order, role_name;
 `);
-
-  return roles;
 }
 
 async function readRolePermissions() {
-  return querySql(`
+  return db.query(`
 SELECT role_id, permission_id
 FROM role_permissions
 ORDER BY role_id, permission_id;
@@ -20,33 +18,44 @@ ORDER BY role_id, permission_id;
 }
 
 async function ensurePermissionContracts(permissions, roleDefaults) {
-  const permissionStatements = permissions.map((permission) => `
+  await db.transaction(async (transaction) => {
+    for (const permission of permissions) {
+      const params = {
+        description: permission.description || permission.id,
+        permissionId: permission.id,
+        permissionName: permission.label || permission.id,
+      };
+
+      await transaction.run(`
 INSERT OR IGNORE INTO permissions (permission_id, permission_name, description)
-VALUES (
-  ${sqlText(permission.id)},
-  ${sqlText(permission.label || permission.id)},
-  ${sqlText(permission.description || permission.id)}
-);
-
+VALUES (:permissionId, :permissionName, :description);
+`, params);
+      await transaction.run(`
 UPDATE permissions
-SET permission_name = ${sqlText(permission.label || permission.id)},
-    description = ${sqlText(permission.description || permission.id)}
-WHERE permission_id = ${sqlText(permission.id)};
-`).join("\n");
-  const rolePermissionStatements = roleDefaults.flatMap((mapping) => (
-    mapping.permissions || []
-  ).map((permissionId) => `
-INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
-SELECT ${sqlText(mapping.roleId)}, ${sqlText(permissionId)}
-WHERE EXISTS (SELECT 1 FROM roles WHERE role_id = ${sqlText(mapping.roleId)})
-  AND EXISTS (SELECT 1 FROM permissions WHERE permission_id = ${sqlText(permissionId)});
-`)).join("\n");
+SET permission_name = :permissionName,
+    description = :description
+WHERE permission_id = :permissionId;
+`, params);
+    }
 
-  await runSql([permissionStatements, rolePermissionStatements].filter(Boolean).join("\n"));
+    for (const mapping of roleDefaults) {
+      for (const permissionId of mapping.permissions || []) {
+        await transaction.run(`
+INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+SELECT :roleId, :permissionId
+WHERE EXISTS (SELECT 1 FROM roles WHERE role_id = :roleId)
+  AND EXISTS (SELECT 1 FROM permissions WHERE permission_id = :permissionId);
+`, {
+          permissionId,
+          roleId: mapping.roleId,
+        });
+      }
+    }
+  });
 }
 
 async function readAssignmentsForWorkspace(workspaceId) {
-  return querySql(`
+  return db.query(`
 SELECT
   assignment_id,
   workspace_id,
@@ -60,13 +69,13 @@ SELECT
   created_at,
   updated_at
 FROM user_role_assignments
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 ORDER BY updated_at DESC, assignment_id;
-`);
+`, { workspaceId });
 }
 
 async function readAssignmentsForUser(workspaceId, userId) {
-  return querySql(`
+  return db.query(`
 SELECT
   assignment_id,
   workspace_id,
@@ -80,14 +89,14 @@ SELECT
   created_at,
   updated_at
 FROM user_role_assignments
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
 ORDER BY updated_at DESC, assignment_id;
-`);
+`, { userId, workspaceId });
 }
 
 async function readOldestActiveUserForRoleScope(workspaceId, roleId, scopeType, scopeId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT
   user_role_assignments.user_id,
   users.username,
@@ -97,21 +106,33 @@ SELECT
 FROM user_role_assignments
 INNER JOIN users
   ON users.user_id = user_role_assignments.user_id
-WHERE user_role_assignments.workspace_id = ${sqlText(workspaceId)}
-  AND user_role_assignments.role_id = ${sqlText(roleId)}
-  AND user_role_assignments.scope_type = ${sqlText(scopeType)}
-  AND user_role_assignments.scope_id = ${sqlText(scopeId)}
+WHERE user_role_assignments.workspace_id = :workspaceId
+  AND user_role_assignments.role_id = :roleId
+  AND user_role_assignments.scope_type = :scopeType
+  AND user_role_assignments.scope_id = :scopeId
   AND users.user_status = 'active'
 ORDER BY user_role_assignments.created_at ASC, user_role_assignments.assignment_id ASC
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, {
+    roleId,
+    scopeId,
+    scopeType,
+    workspaceId,
+  });
 }
 
 async function replaceUserAssignments(workspaceId, userId, assignments) {
   const now = new Date().toISOString();
-  const inserts = assignments.map((assignment) => `
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+DELETE FROM user_role_assignments
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId;
+`, { userId, workspaceId });
+
+    for (const assignment of assignments) {
+      await transaction.run(`
 INSERT INTO user_role_assignments (
   assignment_id,
   workspace_id,
@@ -126,28 +147,33 @@ INSERT INTO user_role_assignments (
   updated_at
 )
 VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(workspaceId)},
-  ${sqlText(userId)},
-  ${sqlText(assignment.role_id)},
-  ${sqlText(assignment.scope_type)},
-  ${sqlNullableText(assignment.scope_id)},
-  ${sqlNullableText(assignment.client_id)},
-  ${sqlNullableText(assignment.project_id)},
-  ${sqlNullableText(assignment.permission_overrides_json)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :assignmentId,
+  :workspaceId,
+  :userId,
+  :roleId,
+  :scopeType,
+  :scopeId,
+  :clientId,
+  :projectId,
+  :permissionOverridesJson,
+  :createdAt,
+  :updatedAt
 );
-`).join("\n");
-
-  await runSql(`
-BEGIN TRANSACTION;
-DELETE FROM user_role_assignments
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)};
-${inserts}
-COMMIT;
-`);
+`, {
+        assignmentId: randomUUID(),
+        clientId: assignment.client_id || null,
+        createdAt: now,
+        permissionOverridesJson: assignment.permission_overrides_json || null,
+        projectId: assignment.project_id || null,
+        roleId: assignment.role_id,
+        scopeId: assignment.scope_id || null,
+        scopeType: assignment.scope_type,
+        updatedAt: now,
+        userId,
+        workspaceId,
+      });
+    }
+  });
 }
 
 export const permissionsRepository = {

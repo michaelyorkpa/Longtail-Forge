@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { querySql, runSql, sqlText } from "../db/index.js";
+import { db } from "../core/database.js";
 
 async function readByUserAndWorkspace(userId, workspaceId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT
   user_workspace_id,
   user_id,
@@ -11,16 +11,14 @@ SELECT
   created_at,
   updated_at
 FROM user_workspaces
-WHERE user_id = ${sqlText(userId)}
-  AND workspace_id = ${sqlText(workspaceId)}
+WHERE user_id = :userId
+  AND workspace_id = :workspaceId
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, { userId, workspaceId });
 }
 
 async function readForUser(userId) {
-  return querySql(`
+  return db.query(`
 SELECT
   user_workspaces.user_workspace_id,
   user_workspaces.user_id,
@@ -31,9 +29,9 @@ SELECT
   user_workspaces.updated_at
 FROM user_workspaces
 INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
-WHERE user_workspaces.user_id = ${sqlText(userId)}
+WHERE user_workspaces.user_id = :userId
 ORDER BY workspaces.name;
-`);
+`, { userId });
 }
 
 async function readActiveForUser(userId) {
@@ -42,7 +40,7 @@ async function readActiveForUser(userId) {
 }
 
 async function readAllWorkspaces() {
-  return querySql(`
+  return db.query(`
 SELECT
   workspaces.workspace_id,
   workspaces.name AS workspace_name,
@@ -57,20 +55,20 @@ ORDER BY name;
 }
 
 async function countActiveForWorkspace(workspaceId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT COUNT(1) AS count
 FROM user_workspaces
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
   AND status = 'active';
-`);
+`, { workspaceId });
 
-  return Number(rows[0]?.count) || 0;
+  return Number(row?.count) || 0;
 }
 
 async function upsert({ userId, workspaceId, status = "active" }) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO user_workspaces (
   user_workspace_id,
   user_id,
@@ -80,17 +78,24 @@ INSERT INTO user_workspaces (
   updated_at
 )
 VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(userId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(normalizeStatus(status))},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :userWorkspaceId,
+  :userId,
+  :workspaceId,
+  :status,
+  :createdAt,
+  :updatedAt
 )
 ON CONFLICT(user_id, workspace_id) DO UPDATE SET
   status = excluded.status,
   updated_at = excluded.updated_at;
-`);
+`, {
+    createdAt: now,
+    status: normalizeStatus(status),
+    updatedAt: now,
+    userId,
+    userWorkspaceId: randomUUID(),
+    workspaceId,
+  });
 
   return readByUserAndWorkspace(userId, workspaceId);
 }
@@ -98,23 +103,28 @@ ON CONFLICT(user_id, workspace_id) DO UPDATE SET
 async function updateStatus(userId, workspaceId, status) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE user_workspaces
-SET status = ${sqlText(normalizeStatus(status))},
-    updated_at = ${sqlText(now)}
-WHERE user_id = ${sqlText(userId)}
-  AND workspace_id = ${sqlText(workspaceId)};
-`);
+SET status = :status,
+    updated_at = :updatedAt
+WHERE user_id = :userId
+  AND workspace_id = :workspaceId;
+`, {
+    status: normalizeStatus(status),
+    updatedAt: now,
+    userId,
+    workspaceId,
+  });
 
   return readByUserAndWorkspace(userId, workspaceId);
 }
 
 async function remove(userId, workspaceId) {
-  await runSql(`
+  await db.run(`
 DELETE FROM user_workspaces
-WHERE user_id = ${sqlText(userId)}
-  AND workspace_id = ${sqlText(workspaceId)};
-`);
+WHERE user_id = :userId
+  AND workspace_id = :workspaceId;
+`, { userId, workspaceId });
 }
 
 function normalizeStatus(status) {
