@@ -13,7 +13,7 @@ Grounding for this branch:
 - The dev machine is currently Node 20.13.1 / npm 10.8.1 with the native module built for ABI 115. Node 24 LTS is ABI 137 and bundles npm 11.x. Running the existing (ABI 115) `node_modules` under Node 24 fails at startup with a module-version mismatch until the driver is rebuilt.
 - `better-sqlite3@^12.11.1` declares engines `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; its install step is `prebuild-install || node-gyp rebuild --release` — it fetches a prebuilt binary for the active ABI and silently compiles from source if none matches (needs Python 3 + Visual Studio Build Tools on Windows).
 - `scripts/better-sqlite3-install-smoke.mjs` hard-asserts the driver is **exactly** `12.11.1` and matches an exact engines string, and it is registered in `scripts/regression-suite.mjs`, so `npm run check` runs it. Because `package.json` allows `^12.11.1`, a clean install may resolve a newer 12.x and break those equality assertions.
-- `package.json` has no `engines` field, and the `README.md` requirement line still reads "Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release."
+- Before 0.33.5.24.2, `package.json` had no `engines` field, and the `README.md` requirement line still read "Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release."
 - `src/db/adapters/sqlite-adapter.js` relies on `AsyncLocalStorage` for transaction-context detection; Node 24 enables `AsyncContextFrame` for ALS by default (a behavior change to confirm via the transaction/isolated-DB regressions, not something to fix).
 
 Sizing rule for this branch:
@@ -33,9 +33,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.24.2 - Pin the supported-Node contract
 
-- [ ] Add an `engines.node` field to `package.json` (root + `packages[""]`) declaring the supported Node range with a Node 24 floor, so the repo records its runtime contract (this is the concrete form of "add Node 24 as a dependency in the repo").
-- [ ] Update the `README.md` Node requirement line from "Node.js 20.x..." to the Node 24 baseline.
-- [ ] Record the runtime baseline change in `DECISIONS.md`: Node 20 EOL -> Node 24 LTS, and that the breaking action is the runtime major/ABI rather than npm.
+- [x] Add an `engines.node` field to `package.json` (root + `packages[""]`) declaring the supported Node range with a Node 24 floor, so the repo records its runtime contract (this is the concrete form of "add Node 24 as a dependency in the repo").
+- [x] Update the `README.md` Node requirement line from "Node.js 20.x..." to the Node 24 baseline.
+- [x] Record the runtime baseline change in `DECISIONS.md`: Node 20 EOL -> Node 24 LTS, and that the breaking action is the runtime major/ABI rather than npm.
 
 Acceptance criteria:
 

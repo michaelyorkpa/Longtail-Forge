@@ -73,7 +73,7 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 
 ### Requirements
 
-- Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release
+- Node.js 24.x, matching the root package `engines.node` range `>=24 <25`
 - npm
 - Python and a C++ toolchain, such as Visual Studio Build Tools on Windows, only if npm cannot use a prebuilt `better-sqlite3` binary
 
