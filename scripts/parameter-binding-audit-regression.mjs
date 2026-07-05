@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.26.2";
+const appVersion = "0.33.5.27.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -46,33 +46,27 @@ for (const [group, helperCalls, interpolatedOperationSites] of expectedTopGroups
   assert.ok(row, `${group} should be present in the parameter-binding audit`);
   assert.equal(row.helperCalls, helperCalls, `${group} helper-call count should match the audit`);
   assert.equal(row.interpolatedOperationSites, interpolatedOperationSites, `${group} interpolated operation-site count should match the audit`);
-  assert.match(
-    auditDocs,
-    new RegExp(`\\| ${escapeRegExp(group)} \\| ${helperCalls} \\| ${interpolatedOperationSites} \\|`),
-    `${group} should be documented in the audit table`,
-  );
+  assertInventoryRow(group, "Remaining", row);
 }
 
 const sessionsRow = audit.groups.find((candidate) => candidate.group === "sessions.repo");
 assert.equal(sessionsRow.helperCalls, 0, "sessions repository should remain a converted bound-params pilot");
 assert.equal(sessionsRow.boundOperationSites, 8, "sessions repository should keep bound operation sites visible");
-assert.match(auditDocs, /\| sessions\.repo \| 0 \| 0 \| 8 \| 8 \|/, "audit should record sessions as already converted");
+assertInventoryRow("sessions.repo", "Already bound", sessionsRow);
+assert.match(auditDocs, /`sessions\.repo` is not part of this converted wave; it was already a bound-params pilot/, "audit should record sessions as an already-bound pilot, not a converted wave row");
 
 const tagTextRow = audit.groups.find((candidate) => candidate.group === "core/search/tag-text");
 assert.equal(tagTextRow.helperCalls, 0, "search tag-text proof conversion should remove literal helpers from the current audit");
 assert.equal(tagTextRow.interpolatedOperationSites, 0, "search tag-text proof conversion should remove interpolated operation sites");
 assert.equal(tagTextRow.boundOperationSites, 1, "search tag-text proof conversion should add one bound operation site");
+assertInventoryRow("core/search/tag-text", "Converted", tagTextRow);
 
 const sqliteSearchAdapterRow = audit.groups.find((candidate) => candidate.group === "core/search/adapters/sqlite-search-adapter");
 assert.equal(sqliteSearchAdapterRow.helperCalls, 40, "SQLite search adapter should reduce one literal helper through the bulk VALUES helper");
 assert.equal(sqliteSearchAdapterRow.interpolatedOperationSites, 2, "SQLite search adapter should keep the remaining search/filter direct interpolation sites unchanged");
 assert.equal(sqliteSearchAdapterRow.boundOperationSites, 1, "SQLite search adapter canonical upsert should add one bound bulk VALUES operation site");
 assert.equal(sqliteSearchAdapterRow.dbOperationSites, 12, "SQLite search adapter operation count should include the separated bound canonical upsert");
-assert.match(
-  auditDocs,
-  /\| core\/search\/adapters\/sqlite-search-adapter \| 40 \| 2 \| 1 \| 12 \|/,
-  "audit docs should record the current SQLite search adapter bulk VALUES proof row",
-);
+assertInventoryRow("core/search/adapters/sqlite-search-adapter", "Remaining", sqliteSearchAdapterRow);
 
 const convertedWaveRows = [
   ["app-settings.repo", 2],
@@ -89,11 +83,7 @@ for (const [group, boundOperationSites] of convertedWaveRows) {
   assert.equal(row.helperCalls, 0, `${group} should have no remaining literal-helper calls`);
   assert.equal(row.interpolatedOperationSites, 0, `${group} should have no remaining interpolated operation sites`);
   assert.equal(row.boundOperationSites, boundOperationSites, `${group} bound operation-site count should match the converted wave audit`);
-  assert.match(
-    auditDocs,
-    new RegExp(`\\| ${escapeRegExp(group)} \\| 0 \\| 0 \\| ${boundOperationSites} \\|`),
-    `${group} should be documented as converted in the audit table`,
-  );
+  assertInventoryRow(group, "Converted", row);
 }
 
 assert.deepEqual(
@@ -110,9 +100,23 @@ assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSO
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.1:[\s\S]*Remaining runtime literal-helper invocations: 1,498[\s\S]*Remaining direct interpolated SQL operation sites: 233[\s\S]*Existing direct bound-params operation sites: 93[\s\S]*Total runtime database operation calls seen by the audit scanner: 409/, "audit docs should record the current canonical totals");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
+assert.match(auditDocs, /The inventory below is the canonical per-owner view/, "audit docs should make the inventory the canonical per-owner view");
+assert.match(auditDocs, /Do not add separate per-wave owner tables with different counts/, "audit docs should forbid divergent per-wave owner tables");
+assert.match(auditDocs, /0\.33\.5\.26\.3 Inventory Canonicalization[\s\S]*single source of truth/, "audit docs should record the single-source inventory cleanup");
+assert.match(auditDocs, /Future Conversion Wave Ratchet Checklist[\s\S]*docs\/database-parameter-binding-audit\.md[\s\S]*scripts\/parameter-binding-audit-regression\.mjs[\s\S]*audit\.totals[\s\S]*expectedTopGroups[\s\S]*CHANGELOG\.md/, "audit docs should name the future-wave ratchet artifacts");
+assert.match(auditDocs, /Do not weaken the exact-equality ratchet when it fails/, "audit docs should keep the exact ratchet strict");
+assert.match(auditDocs, /Standing query rule from `DECISIONS\.md`:[\s\S]*new or touched single-statement repository queries must use named params[\s\S]*db\.query\(sql, params\)[\s\S]*deprecated compatibility escape hatches/, "audit docs should carry the standing named-params rule for future waves");
+assert.match(auditDocs, /0\.33\.5\.27 Conversion Wave Assignments[\s\S]*0\.33\.5\.27\.3 - Tasks and Time Tracking[\s\S]*`tasks\/tasks\.repo`[\s\S]*0\.33\.5\.27\.5 - Lists[\s\S]*`lists\/lists\.repo`[\s\S]*0\.33\.5\.27\.9 - Startup and migration compatibility paths[\s\S]*`db\/index`[\s\S]*`db\/migrations`/, "audit docs should assign every remaining owner to a 0.33.5.27 conversion wave");
+assert.match(auditDocs, /only sanctioned interpolation compatibility allowlist[\s\S]*`src\/db\/index\.js`[\s\S]*`src\/db\/migrations\.js`/, "audit docs should record the narrow startup/migration compatibility allowlist");
+assert.match(auditDocs, /0\.33\.5\.26\.4 Ratchet Checklist[\s\S]*Future Conversion Wave Ratchet Checklist/, "audit docs should record the checklist slice");
+assert.match(auditDocs, /0\.33\.5\.27\.1 Portability Contract and Dialect Seams[\s\S]*single agnostic data-access contract[\s\S]*No runtime SQL behavior changed/, "audit docs should record the plan-only portability contract slice");
+assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
+assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
+assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
 assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record current helper-call burndown");
 assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the proof conversion: 261/, "audit docs should record current interpolated-site burndown");
 assert.match(auditDocs, /Existing direct bound-params operation sites after the proof conversion: 50/, "audit docs should record current bound-site burndown");
@@ -130,10 +134,20 @@ assert.match(auditDocs, /0\.33\.5\.26\.2 Bulk VALUES Binding[\s\S]*1,498 runtime
 assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
 assert.match(databaseDocs, /As of version 0\.33\.5\.25\.2[\s\S]*92 existing bound operation sites, and 408 runtime DB operation calls/, "database docs should record the current quota-query audit ratchet");
 assert.match(databaseDocs, /As of version 0\.33\.5\.26\.2[\s\S]*`createBulkValuesBindings\(\)`/, "database docs should record the current bulk VALUES helper contract");
+assert.match(databaseDocs, /As of version 0\.33\.5\.26\.4[\s\S]*Future Conversion Wave Ratchet Checklist[\s\S]*expectedTopGroups[\s\S]*CHANGELOG\.md/, "database docs should point future conversion waves to the ratchet checklist");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.1[\s\S]*agnostic by contract and enforcement, not agnostic-proven[\s\S]*0\.40\.0 database-extraction branch/, "database docs should record the agnostic-by-contract boundary and the 0.40.0 proof handoff");
+assert.match(databaseDocs, /active agnostic data-access contract[\s\S]*`src\/core\/database\.js`[\s\S]*`db\.query\(sql, params\)`[\s\S]*`sqlText\(\)`[\s\S]*raw SQLite-only dialect/, "database docs should publish the active agnostic data-access contract");
+assert.match(databaseDocs, /only sanctioned interpolation compatibility allowlist[\s\S]*`src\/db\/index\.js`[\s\S]*`src\/db\/migrations\.js`/, "database docs should publish the narrow interpolation allowlist");
+assert.match(databaseDocs, /Dialect-sensitive operation seams:[\s\S]*Upsert\/conflict writes[\s\S]*Case-insensitive compare\/order[\s\S]*Boolean storage[\s\S]*Timestamp and interval math[\s\S]*Full-text search[\s\S]*JSON access[\s\S]*`RETURNING` and identity reads[\s\S]*`rowid` \/ physical identity[\s\S]*PRAGMA\/introspection/, "database docs should record every planned dialect seam");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*agnostic data-access contract[\\s\\S]*Lists conversion wave[\\s\\S]*0\\.40\\.0`), "changelog should record the portability contract slice");
 
-assert.match(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should continue past the closed parameter-binding, Node 24, and storage cleanup branches");
+assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should now start at the database extraction contract branch");
+assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");
+assert.match(roadmap, /0\.33\.5\.27\.5 - Conversion wave: Lists[\s\S]*`lists\/lists\.repo`/, "live roadmap should give Lists its own conversion wave");
+assert.match(roadmap, /0\.33\.5\.27\.11 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should keep closeout after the enforcement guardrail");
+assert.match(roadmap, /Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*0\.33\.5\.27 agnostic-by-contract conversion\/seam branch[\s\S]*not an app-wide SQL rewrite[\s\S]*Dialect seam implementation recheck[\s\S]*consume the 0\.33\.5\.27 decisions/, "0.40.0 should be reconciled as PostgreSQL implementation/proof behind the 0.33.5.27 seams");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration/m, "live roadmap should not keep the completed parameter-binding branch open");
 assert.match(regressionSuite, /scripts\/parameter-binding-audit-regression\.mjs/, "regression suite should include the parameter-binding audit regression");
 assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/, "regression suite should include the parameter-binding layer regression");
@@ -419,6 +433,14 @@ function sourceGroup(filePath) {
   }
 
   return filePath.replace(/^src\//, "").replace(/\.js$/, "");
+}
+
+function assertInventoryRow(group, status, row) {
+  assert.match(
+    auditDocs,
+    new RegExp(`\\| ${escapeRegExp(group)} \\| ${escapeRegExp(status)} \\| ${row.helperCalls} \\| ${row.interpolatedOperationSites} \\| ${row.boundOperationSites} \\| ${row.dbOperationSites} \\|`),
+    `${group} should be documented as ${status} in the canonical audit inventory`,
+  );
 }
 
 function readText(filePath) {

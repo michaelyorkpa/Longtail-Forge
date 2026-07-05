@@ -12,7 +12,7 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { appShellService } = await import("../src/services/app-shell.service.js");
 
-const appVersion = "0.33.5.26.2";
+const appVersion = "0.33.5.27.1";
 const workspaceId = "files-descriptor-host-workspace";
 const protectedUserId = "files-descriptor-host-protected-user";
 const deniedUserId = "files-descriptor-host-denied-user";

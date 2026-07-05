@@ -34,6 +34,34 @@ As of version 0.33.5.26.1, `src/db/parameter-bindings.js` supports array-valued 
 
 As of version 0.33.5.26.2, dynamic bulk `VALUES (...)` row groups are supported through `createBulkValuesBindings()` from `src/core/database.js` / `src/db/parameter-bindings.js`. The helper returns `{ sql, params }`, where `sql` is a comma-separated set of named placeholder row groups and `params` is a scalar value map for the adapter binding layer. It is value-only: table names, column names, conflict targets, sort clauses, operators, and SQL fragments must remain static or come from validated allowlists. The helper requires at least one row and at least one column, rejects invalid parameter prefixes, and does not treat nested cell arrays as list expansion. The SQLite search adapter canonical `search_index` upsert is the proof case. SQLite FTS maintenance remains on the existing compatibility path until the 0.33.5.27 search/dialect seam work. The live parameter-binding audit after this proof is 1,498 remaining helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 runtime DB operation calls.
 
+As of version 0.33.5.26.4, future parameter-binding conversion waves should use the Future Conversion Wave Ratchet Checklist in [database-parameter-binding-audit.md](database-parameter-binding-audit.md). The checklist keeps the canonical inventory table, `scripts/parameter-binding-audit-regression.mjs` exact totals/`expectedTopGroups`, and `CHANGELOG.md` burndown in lockstep instead of weakening the ratchet when counts change.
+
+As of version 0.33.5.27.1, the 0.33.5.27 database-extraction line makes Longtail Forge agnostic by contract and enforcement, not agnostic-proven. SQLite remains the only live provider in this branch. The live PostgreSQL adapter, provider gating, PostgreSQL migration runner, dual-backend contract tests, and SaaS seed/load proof remain in the 0.40.0 database-extraction branch, which should implement and prove a second backend behind the seams established here rather than rewrite application call sites.
+
+The active agnostic data-access contract for new and converted code is:
+
+- Import database access from `src/core/database.js`.
+- Use named value bindings through `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, and `db.transaction(callback)`.
+- Keep identifiers, column lists, conflict targets, operators, sort clauses, and SQL fragments static or allowlisted. Bound params are for values only.
+- Do not use `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` in new or converted single-statement repository/service code.
+- Do not leave raw SQLite-only dialect at application call sites once a repository is converted.
+
+The only sanctioned interpolation compatibility allowlist is no-parameter multi-statement startup/migration code in `src/db/index.js` and `src/db/migrations.js`. Those paths are handled in the 0.33.5.27 startup/migration slice; no other owner may add new interpolation-helper usage.
+
+Dialect-sensitive operation seams:
+
+| Operation | 0.33.5.27 seam decision |
+| --- | --- |
+| Upsert/conflict writes | Provider-neutral write helper or adapter method; SQLite lowers to the current `INSERT ... ON CONFLICT` / `INSERT OR IGNORE` behavior. |
+| Case-insensitive compare/order | Provider-neutral comparison/order helper; SQLite lowers to `COLLATE NOCASE`. |
+| Boolean storage | Adapter-owned normalization and row mapping; app code binds/reads logical booleans while SQLite stores `0` / `1`. |
+| Timestamp and interval math | Provider date/time helper or adapter method; converted repositories must not embed raw `julianday(...)`. |
+| Full-text search | Framework search adapter/service seam owns backend search syntax; modules must not emit raw FTS5 SQL. |
+| JSON access | Provider capability/helper if JSON SQL becomes necessary; app call sites must not add raw SQLite JSON functions/operators. |
+| `RETURNING` and identity reads | Adapter method/helper for returned rows or last-insert identity; durable-job `RETURNING` statements are reviewed under this seam. |
+| `rowid` / physical identity | Provider-owned startup/migration/maintenance method only; app repositories must not rely on raw SQLite `rowid`. |
+| PRAGMA/introspection | Provider startup, health, migration, or repair methods only; modules must not call SQLite PRAGMAs directly. |
+
 As of version 0.33.5.21.0.4, the SQLite adapter has retired the former global operation queue now that normal calls use the in-process synchronous driver path. `db.transaction(callback)` still owns explicit `BEGIN TRANSACTION`, `COMMIT`, and `ROLLBACK` behavior, still passes a transaction client with `query`, `get`, `run`, `capabilities`, and nested-transaction rejection, and still rejects direct `db.query` / `db.get` / `db.run` use inside the callback. Open transactions are protected by a transaction-only tail so outside adapter calls wait until the callback commits or rolls back. Migration, baseline, and schema-repair scripts that already embed `BEGIN ... COMMIT` remain no-parameter multi-statement `runSql()` calls that route through the `exec()` compatibility path; do not wrap those migration scripts in `db.transaction(callback)`.
 
 As of version 0.33.5.21.0.5, SQLite adapter capabilities report `adapter: "better-sqlite3"` while preserving the rest of the provider-neutral capability shape. Native driver result rows remain plain objects keyed by selected column names and aliases. Current value semantics stay compatible for app callers: boolean values are stored as `0` / `1`, SQL `NULL` reads as `null`, BLOB values round-trip as Node `Buffer` instances when bound through parameters, and normal counters/counts remain JavaScript numbers. The helper does not enable `safeIntegers` because the current TEXT-key schema uses TEXT keys for identifiers and current numeric values are expected to stay within JavaScript's safe-integer range; any future 64-bit INTEGER identifier or exact large-integer workflow must revisit that decision before shipping.

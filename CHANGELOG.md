@@ -1,3 +1,28 @@
+## Version 0.33.5.27.1 - 2026-07-05 13:34 -04:00
+
+- Defined the 0.33.5.27 agnostic data-access contract: new and converted code must use `src/core/database.js`, named bound params, and `db.transaction(callback)` without interpolation helpers or raw SQLite-only dialect at application call sites.
+- Recorded the dialect seam decisions for upsert/conflict writes, case-insensitive comparisons, boolean storage, timestamp math, full-text search, JSON access, `RETURNING`/identity reads, `rowid`, and PRAGMA/introspection.
+- Confirmed the only interpolation compatibility allowlist as no-parameter multi-statement startup/migration code in `src/db/index.js` and `src/db/migrations.js`.
+- Added a dedicated Lists conversion wave, shifted later 0.33.5.27 slice numbers, assigned each remaining audit owner to a conversion wave, and archived the completed 0.33.5.26 roadmap branch.
+- Reconciled 0.40.0 as the future PostgreSQL adapter/provider-gating/migration-runner/dual-backend proof branch behind the seams established here.
+- Verification 2026-07-05 13:43 -04:00: `scripts/parameter-binding-audit-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, `scripts/runtime-database-foundation-closeout-regression.mjs`, `scripts/file-storage-quota-enforcement-regression.mjs`, `scripts/file-streamed-validation-download-metadata-regression.mjs`, `scripts/file-storage-scanner-runtime-closeout-regression.mjs`, and `scripts/view-conversion-branch-closeout-regression.mjs` passed; `npm run lint` passed; `npm run check` passed 262/262 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.27.1 after restarting the local 8001 server.
+
+## Version 0.33.5.26.4 - 2026-07-05 13:04 -04:00
+
+- Added the Future Conversion Wave Ratchet Checklist to `docs/database-parameter-binding-audit.md`, naming the canonical inventory table, `audit.totals`, `expectedTopGroups`, and `CHANGELOG.md` as lockstep updates for every future parameter-binding conversion wave.
+- Added a `docs/database.md` pointer to the checklist so later database work can find the ratchet ceremony without duplicating it.
+- Reaffirmed the standing named-params rule for new or touched single-statement repository queries inside the checklist.
+- Tightened `scripts/parameter-binding-audit-regression.mjs` so the checklist, database-doc pointer, and exact-ratchet guidance remain present.
+- Verification 2026-07-05 13:07 -04:00: `scripts/parameter-binding-audit-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, and `scripts/parameter-binding-layer-regression.mjs` passed; `npm run lint` passed; `npm run check` passed 262/262 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.26.4 after restarting the local 8001 server.
+
+## Version 0.33.5.26.3 - 2026-07-05 12:38 -04:00
+
+- Made `docs/database-parameter-binding-audit.md` use one canonical per-owner inventory table with explicit `Remaining`, `Converted`, and `Already bound` statuses.
+- Updated the current inventory counts to the live 0.33.5.26.3 audit totals and removed the divergent converted-wave and SQLite-search proof subtables.
+- Clarified that `sessions.repo` was an already-bound pilot before the 0.33.5.23.3 conversion wave, while the six auth/workspace/permission repositories are the converted wave.
+- Tightened the parameter-binding audit and conversion-wave regressions so future waves must keep the canonical inventory and ratchet totals aligned.
+- Verification 2026-07-05 12:42 -04:00: `scripts/parameter-binding-audit-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, and `scripts/parameter-binding-layer-regression.mjs` passed; `npm run lint` passed; `npm run check` passed 262/262 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.26.3 after restarting the local 8001 server.
+
 ## Version 0.33.5.26.2 - 2026-07-05 11:52 -04:00
 
 - Added `createBulkValuesBindings()` as the shared dynamic bulk `VALUES (...)` helper, returning provider-neutral named row placeholder groups plus scalar params for adapter binding.

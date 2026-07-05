@@ -2,69 +2,6 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.26 - Parameter-binding gap review (0.33.5.23 follow-ups)
-
-Purpose:
-
-Capture the verified gaps from a post-branch review of the 0.33.5.23 SQL parameter-binding migration so the deferred module conversion waves (Tasks, Notes, Lists, Files, Notifications, Tags, Time Tracking, client/project repositories) do not inherit hidden problems. The 0.33.5.23 branch was intentionally scoped to the auth/workspace/permission core and it delivered that scope correctly; this section records what remains and the tooling/tracking gaps that will otherwise compound with every future wave.
-
-What the review confirmed as solid (no action needed):
-
-- The six converted core repositories (`users`, `workspaces`, `user-workspaces`, `permissions`, `settings`, `app-settings`) contain zero residual interpolation-helper calls, and `settings.repo.js saveWorkspaceSettings` binds cleanly (each `transaction.run` uses its own correctly-scoped param object; an earlier "shared superset params" concern did not reproduce against the working tree).
-- The binding layer is applied on every path: `src/db/adapters/sqlite-adapter.js` routes `query`/`get`/`run` and the transaction client through `prepareDatabaseBindings`, and `src/db/provider.js` now routes the legacy `querySql`/`getSql`/`runSql` helpers through the same layer, so even unconverted interpolated call sites still get the in-transaction guard.
-- No untracked raw value interpolation exists: every raw `${...}` reaching SQL is either one of the four tracked `sql*` helpers or a constant identifier (column/table name), so there is no injection blind spot and no interpolation the burndown fails to see.
-- The remaining work is recorded: `docs/database-parameter-binding-audit.md` holds a per-owner inventory, a prioritized wave order, and an explicit 0.40.0 handoff, and `scripts/parameter-binding-audit-regression.mjs` is a live-scan ratchet asserting exact totals (1,499 helper invocations / 233 interpolated sites / 92 bound sites / 408 operation calls after the 0.33.5.25.2 Files quota read) plus per-group counts, so a converted repository cannot silently regress.
-
-Sizing result:
-
-- Each sub-slice below has one primary blast radius and should be completable in a single focused session. The original array-expansion slice mixed `IN (...)` list binding with the search adapter bulk `VALUES (...)` decision, so those are split before implementation starts.
-
-### Version 0.33.5.26.1 - Array-expansion binding for variable-length IN-lists
-
-- [x] Add array/list expansion support to the binding layer (`src/db/parameter-bindings.js`) so a named param bound to an array expands to the correct number of driver placeholders — e.g. `db.query("... WHERE id IN (:ids)", { ids: [...] })` emits `IN (?, ?, ?)` on SQLite and `$n` sequences for a future provider.
-- [x] This is a prerequisite for the high-traffic waves, not an optional nicety: the current layer handles only fixed named/positional params, while the unconverted modules interpolate variable-length lists that cannot be mechanically converted without it. Confirmed sites include `src/modules/lists/lists.repo.js:284`, `src/modules/notes/notes.repo.js:954`, `src/services/files.service.js:2935` and `:2950`, `src/repositories/audit-logs.repo.js:270` and `:278` (one built list reused across two clauses), `src/core/modules/modules.service.js:584`, `src/db/index.js:219`, and `src/db/migrations.js:586`.
-- [x] Decide and document how a single logical list reused in multiple clauses (as in `audit-logs.repo.js`) binds under positional drivers (duplicate the values, or support named reuse), so later waves have one pattern.
-- [x] Handle the empty-array case explicitly (an empty `IN ()` is a SQL error) with a documented, safe convention.
-- [x] Keep this slice to the binding helper, documentation, and focused coverage; do not convert the high-traffic module repositories here.
-- [x] Add focused regressions for single-element, multi-element, reused-list, and empty-array expansion on SQLite before any module wave depends on it.
-
-Acceptance criteria:
-
-- The binding layer expands array-valued named params into correct placeholder sequences, empty and reused-list cases are defined, and the Tasks/Notes/Lists/Files waves can convert their `IN (...)` sites without reinventing expansion per module.
-
-### Version 0.33.5.26.2 - Bulk VALUES binding decision for dynamic row groups
-
-- [x] Decide whether the binding layer should support dynamic bulk `VALUES (...)` row-group construction now, or whether those paths stay on the documented compatibility path until the 0.33.5.27 search/dialect seam work.
-- [x] Use the SQLite search adapter upsert path (`src/core/search/adapters/sqlite-search-adapter.js`) as the concrete proof case, because it currently builds per-document `VALUES (...)` statements from joined literal values.
-- [x] If bulk row binding is supported now, add a small provider-neutral helper/shape that builds row placeholder groups plus params without teaching each repository its own pattern.
-- [x] Because bulk row binding is supported now, record the helper contract in `docs/database.md` and `docs/database-parameter-binding-audit.md`, and pin a regression so later conversion waves do not mistake array expansion for bulk row support.
-- [x] Add focused coverage for the chosen path: either a successful bound bulk-row proof, or a regression that the search adapter remains intentionally listed as deferred compatibility work.
-
-Acceptance criteria:
-
-- Dynamic bulk `VALUES (...)` construction has an explicit, documented contract before repository conversion waves begin, and later waves know whether to use a shared helper or leave those paths to the search/dialect seam work.
-
-### Version 0.33.5.26.3 - Make the audit inventory a single source of truth
-
-- [ ] Update `docs/database-parameter-binding-audit.md` so the main per-owner inventory table reflects current reality instead of the frozen 0.33.5.23.1 snapshot: the six converted repositories still appear in the master table with their pre-conversion counts while a separate sub-table lists them as `0`, which reads as contradictory to anyone scanning "what is left."
-- [ ] Choose one canonical presentation — update the master table in place each wave, or annotate converted rows as done with a completion marker — and stop appending a new per-wave sub-table that diverges from the master.
-- [ ] Clarify that `sessions.repo` was an already-bound pilot before this branch rather than something the 0.33.5.23.3 wave converted, so the "converted core" list is accurate.
-- [ ] Keep the recorded totals and the ratchet regression in agreement with the corrected table.
-
-Acceptance criteria:
-
-- A reader can look at one inventory table and see exactly which repositories remain interpolated and which are converted, with no contradictory counts.
-
-### Version 0.33.5.26.4 - Per-wave ratchet update checklist
-
-- [ ] Document, next to the audit doc or in `docs/database.md`, the exact set of artifacts each future conversion wave must update in lockstep so the exact-equality ratchet stays correct rather than being weakened when it goes red: the hardcoded totals and `expectedTopGroups` in `scripts/parameter-binding-audit-regression.mjs`, the audit inventory table, and the recorded burndown in `CHANGELOG.md`.
-- [ ] Note the standing rule (already in `DECISIONS.md`) that new or touched single-statement queries must use named params, so a wave cannot both convert a repo and leave the ratchet asserting the old count.
-- [ ] Add the checklist as a short, referenceable heading so a later engineer picking up a single module wave does not have to reverse-engineer the ceremony.
-
-Acceptance criteria:
-
-- Each future conversion wave has a documented, minimal update checklist that keeps the burndown ratchet green and honest, so the migration can proceed module by module without silent gaps.
-
 ## Version 0.33.5.27 - Database extraction contract: finish the conversion and make the app agnostic-by-contract
 
 Purpose:
@@ -84,104 +21,336 @@ Entry contract and grounding:
 
 Sizing rule for this branch:
 
-- Each sub-slice below has one primary blast radius and should be completable in a single focused session. The conversion waves may be sub-sliced further at implementation time (per repository) if a wave is too large; do not merge a wave with the seam work it depends on.
+- Each sub-slice below has one primary blast radius and should be completable in a single focused session. If implementation proves a listed sub-slice larger than expected, split it before coding rather than carrying a multi-session partial. Do not merge repository conversion work with the seam or enforcement work it depends on.
 
 ### Version 0.33.5.27.1 - Portability contract and dialect seam decisions (plan only)
 
-- [ ] Define the single agnostic data-access contract that all new and converted code must use: named bound params through `db.query/get/run` and `db.transaction`; no `sqlText()/sqlInteger()/sqlNullableText()/sqlNullableInteger()` interpolation; and no raw SQLite-only dialect at call sites.
-- [ ] For each dialect-sensitive operation (upsert, case-insensitive compare, boolean storage, timestamp/interval math, full-text search, JSON access, `RETURNING`, `rowid`/identity), decide the seam: a provider-neutral helper, a capability flag, or a provider-adapter method. Record the chosen seam per operation.
-- [ ] Confirm the compatibility allowlist that may legitimately stay on interpolation: no-parameter multi-statement startup/migration paths only (`src/db/index.js`, `src/db/migrations.js`), and document that nothing else may.
-- [ ] Do not change runtime behavior in this slice; keep SQLite identical. Record decisions in `DECISIONS.md` and `docs/database.md`, and reconcile scope with the 0.40.0 database-extraction section.
+- [x] Define the single agnostic data-access contract that all new and converted code must use: named bound params through `db.query/get/run` and `db.transaction`; no `sqlText()/sqlInteger()/sqlNullableText()/sqlNullableInteger()` interpolation; and no raw SQLite-only dialect at call sites.
+- [x] For each dialect-sensitive operation (upsert, case-insensitive compare, boolean storage, timestamp/interval math, full-text search, JSON access, `RETURNING`, `rowid`/identity), decide the seam: a provider-neutral helper, a capability flag, or a provider-adapter method. Record the chosen seam per operation.
+- [x] Confirm the compatibility allowlist that may legitimately stay on interpolation: no-parameter multi-statement startup/migration paths only (`src/db/index.js`, `src/db/migrations.js`), and document that nothing else may.
+- [x] Do not change runtime behavior in this slice; keep SQLite identical. Record decisions in `DECISIONS.md` and `docs/database.md`, and reconcile scope with the 0.40.0 database-extraction section.
 
 Acceptance criteria:
 
 - The agnostic contract, the per-operation dialect seams, and the narrow interpolation allowlist are documented, with each remaining repository assigned to a conversion wave below.
 
-### Version 0.33.5.27.2 - Dialect-portability seams on SQLite
+### Version 0.33.5.27.2 - Dialect seam scaffold and SQLite proof harness
 
-- [ ] Implement the seams decided in 0.33.5.27.1 as provider-neutral helpers/adapter methods backed by SQLite today: e.g. an upsert helper that expresses `INSERT ... ON CONFLICT`, a case-insensitive comparison seam, a boolean/timestamp normalization seam, a full-text search abstraction over FTS5, and a `RETURNING`/last-insert seam.
-- [ ] Route the already-converted core repositories plus one proof module through the seams to prove the shape end-to-end without a second backend.
-- [ ] Keep SQLite behavior byte-for-byte identical; the seams must lower to today's SQLite SQL.
-- [ ] Add focused regressions for each seam on SQLite (upsert, case-insensitive match, boolean round-trip, timestamp math, search, `RETURNING`).
-
-Acceptance criteria:
-
-- Every dialect-sensitive operation has a provider-neutral seam that lowers to identical SQLite behavior, proven by regressions and one converted proof module.
-
-### Version 0.33.5.27.3 - Conversion wave: Tasks and Time Tracking
-
-- [ ] Convert `tasks/tasks.repo`, `task-checklists.repo`, `task-relationships.repo`, `task-recurrence.repo`, `task-reminders.repo`, and the Time Tracking repositories (`active-timers.repo`, `time-entries.repo`) to bound params and onto the seams.
-- [ ] Preserve task read/list behavior, recurrence/reminder job semantics, and timer behavior exactly.
-- [ ] Update the burndown ratchet and add/extend focused regressions before moving on.
+- [ ] Add the provider-neutral seam surface in the adapter/core database layer for the operations decided in 0.33.5.27.1, without converting high-traffic repositories yet.
+- [ ] Keep the first pass focused on stable helper names, adapter method boundaries, exported test hooks where needed, and SQLite-backed proof fixtures.
+- [ ] Add a focused regression proving the seam surface lowers to the current SQLite helper path and does not change existing query behavior.
 
 Acceptance criteria:
 
-- The Tasks and Time Tracking repositories are fully on bound params and seams with identical SQLite behavior.
+- The seam API locations are real, documented in code/docs where needed, and ready for per-operation implementation without converting application repositories in this slice.
 
-### Version 0.33.5.27.4 - Conversion wave: Notes
+### Version 0.33.5.27.3 - Upsert/conflict and identity/RETURNING seams
 
-- [ ] Convert `notes/notes.repo` (the largest single repository) to bound params and seams.
-- [ ] Preserve secure/private/read-model shaping and collection/visibility filtering exactly, with focused regression coverage for those paths.
-- [ ] Update the burndown ratchet before moving on.
-
-Acceptance criteria:
-
-- The Notes repository is fully converted with secure/private/read-model behavior unchanged on SQLite.
-
-### Version 0.33.5.27.5 - Conversion wave: Files metadata
-
-- [ ] Convert `services/files.service` database access to bound params and seams without changing storage, scan, preview, download, quarantine, or attachment lifecycle behavior.
-- [ ] Coordinate with any open storage follow-ups (0.33.5.25) so the two branches do not fight over the same statements.
-- [ ] Update the burndown ratchet and extend file regressions before moving on.
+- [ ] Implement the provider-neutral upsert/conflict helper or adapter method, with SQLite lowering to the current `INSERT ... ON CONFLICT` / `INSERT OR IGNORE` shapes.
+- [ ] Implement the returned-row/last-insert identity seam and review the existing durable-job `RETURNING` statements against that seam.
+- [ ] Convert one low-risk proof path for each helper and add focused SQLite regressions.
 
 Acceptance criteria:
 
-- Files metadata access is fully converted with all storage/attachment behavior unchanged.
+- Conflict writes and returned identity reads have provider-neutral seams, with SQLite behavior unchanged and the existing durable-job `RETURNING` paths intentionally accounted for.
 
-### Version 0.33.5.27.6 - Conversion wave: Notifications, tags, search, and resume state
+### Version 0.33.5.27.4 - Case-insensitive comparison and ordering seams
 
-- [ ] Convert `notifications.repo` (including per-user notification and display preferences), `tags.repo`, `services/tag-propagation-registry`, `services/tags.service`, the SQLite search adapter/`tag-text` helpers, `services/search-index-rebuild.service`, and the work-resume-state services to bound params and seams.
-- [ ] Route full-text search through the search seam rather than raw FTS5 at call sites.
-- [ ] Update the burndown ratchet and extend regressions before moving on.
-
-Acceptance criteria:
-
-- Notifications, tags, search, and resume-state code is fully converted, with full-text search behind the search seam.
-
-### Version 0.33.5.27.7 - Conversion wave: client/project and remaining framework/admin repositories
-
-- [ ] Convert `client-projects/clients.repo`, `client-projects/projects.repo`, `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, `core/search/adapters/sqlite-search-adapter`, `services/help.service`, and any other remaining low-count app repositories to bound params and seams.
-- [ ] Update the burndown ratchet and extend regressions before moving on.
+- [ ] Implement provider-neutral helpers for case-insensitive equality, search pattern matching, and ordering where current call sites rely on `COLLATE NOCASE`, `LOWER(...) LIKE`, or local LIKE escaping.
+- [ ] Convert one proof read/filter path and keep identifiers, operators, and sort clauses static or allowlisted.
+- [ ] Add focused regressions for case-insensitive match/order behavior on SQLite.
 
 Acceptance criteria:
 
-- All remaining application repositories are on bound params and seams; only the startup/migration compatibility paths remain interpolated.
+- Converted code can express case-insensitive comparisons and ordering without raw SQLite collation syntax at the application call site.
 
-### Version 0.33.5.27.8 - Startup and migration compatibility paths
+### Version 0.33.5.27.5 - Boolean and timestamp/interval seams
 
-- [ ] Decide the multi-statement/no-parameter shape the layer must support for `src/db/index.js` startup maintenance and `src/db/migrations.js`, then either convert them onto that supported shape or formally confirm them as the only sanctioned interpolation allowlist with a recorded rationale.
-- [ ] Ensure the dialect-sensitive statements in these paths (`INSERT OR IGNORE`, `julianday(...)`, `rowid`, list rebuilds) route through the seams or are explicitly flagged for the 0.40.0 migration runner.
-- [ ] Update the burndown ratchet to reflect the final allowlist.
-
-Acceptance criteria:
-
-- Startup/migration paths are either converted or documented as the sole sanctioned interpolation allowlist, with dialect-sensitive statements accounted for.
-
-### Version 0.33.5.27.9 - Enforcement guardrail so future calls cannot regress
-
-- [ ] Add a lint/regression guardrail that fails the suite if new or changed runtime SQL uses an interpolation helper outside the sanctioned startup/migration allowlist, or hardcodes a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, etc.) outside the provider adapter.
-- [ ] Drive the audit ratchet target to zero interpolated operation sites for application repositories (allowlist excepted), so the burndown is provably complete rather than "mostly done."
-- [ ] Document the guardrail in `docs/module-contract.md`/`docs/database.md` so module authors know new database access must go through the agnostic contract and seams — this is what guarantees Knowledge Base, Tickets, and later modules are built agnostic and never re-converted.
-- [ ] Add regressions proving the guardrail rejects a reintroduced interpolation call and a raw dialect-ism.
+- [ ] Implement adapter-owned logical boolean normalization and row-mapping helpers so converted repositories bind/read booleans without owning SQLite `0`/`1` storage rules.
+- [ ] Implement the provider date/time helper or adapter method needed to replace raw `julianday(...)`/interval arithmetic in converted application repositories.
+- [ ] Convert one small proof path and add focused regressions for boolean round-trip and timestamp/interval behavior.
 
 Acceptance criteria:
 
-- New database code cannot merge on the legacy interpolation path or a raw dialect-ism, and the app-repository burndown is enforced at zero.
+- Boolean storage and timestamp/interval math have provider-neutral SQLite-backed seams that converted repositories can use without embedding raw SQLite behavior.
 
-### Version 0.33.5.27.10 - Docs, decisions, 0.40.0 reconciliation, and closeout
+### Version 0.33.5.27.6 - Search/FTS seam extraction
 
-- [ ] Update `DECISIONS.md`, `docs/database.md`, `docs/database-parameter-binding-audit.md`, and the module/view contract docs to describe the finished agnostic contract, the seams, and the enforcement rule for new modules.
-- [ ] Reconcile the 0.40.0 database-extraction section: 0.40.0 now implements the actual PostgreSQL adapter behind the seams, provider gating, the migration runner, dual-backend contract tests, and the SaaS seed/load proof — not an app-wide SQL rewrite.
+- [ ] Move backend search syntax ownership into the framework search adapter/service seam so application code does not emit raw FTS5 SQL.
+- [ ] Keep canonical `search_index` rows as the source of truth and preserve indexed LIKE fallback behavior when FTS5 is unavailable.
+- [ ] Add focused search regressions for FTS query lowering, fallback query lowering, and repair/read behavior.
+
+Acceptance criteria:
+
+- Search callers use a backend-neutral search seam, while SQLite FTS5 and fallback SQL remain isolated inside the search adapter boundary.
+
+### Version 0.33.5.27.7 - PRAGMA, rowid, and introspection seam boundaries
+
+- [ ] Move or document provider-owned entry points for PRAGMA/introspection and physical identity (`rowid`) usage before startup and migration paths are reviewed.
+- [ ] Confirm no module or application repository owns raw PRAGMA/rowid calls; any remaining legitimate use must be startup, migration, health, repair, or adapter-owned.
+- [ ] Add a focused regression or audit assertion covering the provider-only boundary.
+
+Acceptance criteria:
+
+- PRAGMA/introspection and `rowid` usage are isolated to provider/startup/migration/repair ownership before repository conversion waves continue.
+
+### Version 0.33.5.27.8 - Conversion wave: Tasks primary repository
+
+- [ ] Convert `tasks/tasks.repo` to named bound params and the dialect seams.
+- [ ] Preserve task list/detail reads, saved-view filters, assignee filters, due/reminder candidate reads, and `last_worked_at` updates exactly.
+- [ ] Update the burndown ratchet and extend focused Tasks regressions before moving on.
+
+Acceptance criteria:
+
+- `tasks/tasks.repo` is fully converted with identical SQLite task read/write behavior.
+
+### Version 0.33.5.27.9 - Conversion wave: Task checklist repository
+
+- [ ] Convert `tasks/task-checklists.repo` to named bound params and the dialect seams.
+- [ ] Preserve checklist read/progress, create/update/reorder, soft-delete, and next-sort-order behavior exactly.
+- [ ] Update the burndown ratchet and extend checklist-focused Tasks regressions before moving on.
+
+Acceptance criteria:
+
+- Task checklist persistence is fully converted with checklist display/edit behavior unchanged on SQLite.
+
+### Version 0.33.5.27.10 - Conversion wave: Task relationships repository
+
+- [ ] Convert `tasks/task-relationships.repo` to named bound params and the dialect seams.
+- [ ] Preserve parent/child reads, blocking summaries, cycle/path checks, and relationship lifecycle behavior exactly.
+- [ ] Update the burndown ratchet and extend relationship-focused Tasks regressions before moving on.
+
+Acceptance criteria:
+
+- Task relationship persistence is fully converted with blocking and relationship summaries unchanged on SQLite.
+
+### Version 0.33.5.27.11 - Conversion wave: Task recurrence and reminders
+
+- [ ] Convert `tasks/task-recurrence.repo` and `tasks/task-reminders.repo` to named bound params and the dialect seams.
+- [ ] Preserve recurrence template reads/writes, template assignees, reminder offsets, and durable reminder/recurrence job semantics exactly.
+- [ ] Update the burndown ratchet and extend recurrence/reminder regressions before moving on.
+
+Acceptance criteria:
+
+- Task recurrence and reminder persistence is fully converted without changing queued worker handoff or reminder delivery semantics.
+
+### Version 0.33.5.27.12 - Conversion wave: Active timers
+
+- [ ] Convert `time-tracking/active-timers.repo` to named bound params and the dialect seams.
+- [ ] Preserve active timer reads, slot/source behavior, pause/remove flows, and manual slot compaction exactly.
+- [ ] Update the burndown ratchet and extend timer-focused regressions before moving on.
+
+Acceptance criteria:
+
+- Active timer persistence is fully converted with timer behavior unchanged on SQLite.
+
+### Version 0.33.5.27.13 - Conversion wave: Time entries
+
+- [ ] Convert `time-tracking/time-entries.repo` to named bound params and the dialect seams.
+- [ ] Preserve entry reads, create/update/remove, project-scope updates, and reporting-facing read behavior exactly.
+- [ ] Update the burndown ratchet and extend Time Tracking regressions before moving on.
+
+Acceptance criteria:
+
+- Time entry persistence is fully converted with entry and report input behavior unchanged on SQLite.
+
+### Version 0.33.5.27.14 - Conversion wave: Notes records and filters
+
+- [ ] Convert the note record list/read/filter paths in `notes/notes.repo` to named bound params and the dialect seams.
+- [ ] Preserve secure/private placeholders, note kind/status filters, context filters, collection filters, owner filters, search filters, ordering, and paging exactly.
+- [ ] Update the burndown ratchet and extend Notes read/filter regressions before moving on.
+
+Acceptance criteria:
+
+- Notes record reads and filters are fully converted with secure/private/read-model behavior unchanged on SQLite.
+
+### Version 0.33.5.27.15 - Conversion wave: Notes writes, revisions, links, and collections
+
+- [ ] Convert the remaining `notes/notes.repo` write, revision, linked-record, collection, and count paths to named bound params and the dialect seams.
+- [ ] Preserve revision numbering, link lifecycle, collection nesting/counts, and plaintext secure-placeholder checks exactly.
+- [ ] Update the burndown ratchet and extend Notes mutation/collection regressions before moving on.
+
+Acceptance criteria:
+
+- `notes/notes.repo` is fully converted with secure note, revision, link, and collection behavior unchanged on SQLite.
+
+### Version 0.33.5.27.16 - Conversion wave: Lists records and items
+
+- [ ] Convert list record and list item read/write paths in `lists/lists.repo` to named bound params and the dialect seams.
+- [ ] Preserve list execution, item progress, item ordering, item create/update/delete behavior, and service-owned read shaping exactly.
+- [ ] Update the burndown ratchet and extend Lists record/item regressions before moving on.
+
+Acceptance criteria:
+
+- Lists records and items are converted with operational execution behavior unchanged on SQLite.
+
+### Version 0.33.5.27.17 - Conversion wave: Lists catalog and linked records
+
+- [ ] Convert the remaining `lists/lists.repo` catalog, catalog-usage, linked-record/source-list, and batch read paths to named bound params and the dialect seams.
+- [ ] Preserve catalog suggestions, linked-record/source-list context, tag decoration inputs, and modal/editor behavior exactly.
+- [ ] Update the burndown ratchet and extend Lists catalog/link regressions before moving on.
+
+Acceptance criteria:
+
+- `lists/lists.repo` is fully converted with catalog and linked-record behavior unchanged on SQLite.
+
+### Version 0.33.5.27.18 - Conversion wave: Files browse and attachment reads
+
+- [ ] Convert Files browse, attachment list, visible attachment page, attachment count, preview access, download/read, and attachment-by-id reads in `services/files.service` to named bound params and the dialect seams.
+- [ ] Preserve compact browse/recovery listing, scan/download/preview gates, permission-shaped visibility, and unsupported download-only behavior exactly.
+- [ ] Coordinate with storage follow-ups so this slice does not change storage adapters, scanner adapters, streamed upload behavior, or lifecycle semantics.
+- [ ] Update the burndown ratchet and extend Files browse/preview/download regressions before moving on.
+
+Acceptance criteria:
+
+- Files browse/read metadata paths are converted while storage, preview, download, and attachment visibility behavior stays unchanged.
+
+### Version 0.33.5.27.19 - Conversion wave: Files context and attachable targets
+
+- [ ] Convert File Context update reads/writes, attachable-target option reads, readable target label/context reads, duplicate-context checks, and safe target lookup SQL in `services/files.service` to named bound params and the dialect seams.
+- [ ] Preserve attachment-scoped File Context behavior, Client/Project/Target selector ordering, readable labels, safe unavailable states, and no-raw-ID label rules exactly.
+- [ ] Update the burndown ratchet and extend File Context/target-option regressions before moving on.
+
+Acceptance criteria:
+
+- Files attachment context and target-option SQL is converted without adding inline metadata, preview, rename, replacement, storage move, hard purge, or Inspector behavior.
+
+### Version 0.33.5.27.20 - Conversion wave: Files lifecycle, settings, quota, and accounting
+
+- [ ] Convert the remaining `services/files.service` lifecycle writes, report/quarantine/review paths, workspace file settings, storage accounting, quota reads, and file record create/update paths to named bound params and the dialect seams.
+- [ ] Preserve upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, and scan state transitions exactly.
+- [ ] Update the burndown ratchet and extend Files lifecycle/quota regressions before moving on.
+
+Acceptance criteria:
+
+- `services/files.service` database access is fully converted with all storage, scan, preview, download, quarantine, attachment, quota, and lifecycle behavior unchanged.
+
+### Version 0.33.5.27.21 - Conversion wave: Notifications inbox and lifecycle
+
+- [ ] Convert notification create, list/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths in `notifications.repo` to named bound params and the dialect seams.
+- [ ] Preserve in-app notification display, unread counts, filtering, lifecycle, and archive behavior exactly.
+- [ ] Update the burndown ratchet and extend notification inbox/lifecycle regressions before moving on.
+
+Acceptance criteria:
+
+- Notification inbox and lifecycle persistence is converted with user-visible notification behavior unchanged on SQLite.
+
+### Version 0.33.5.27.22 - Conversion wave: Notification preferences and subscriptions
+
+- [ ] Convert notification user preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications.repo` to named bound params and the dialect seams.
+- [ ] Preserve per-user preferences, workspace defaults, follow/unfollow behavior, and notification fan-out inputs exactly.
+- [ ] Update the burndown ratchet and extend preference/subscription regressions before moving on.
+
+Acceptance criteria:
+
+- `notifications.repo` is fully converted with preference and subscription behavior unchanged on SQLite.
+
+### Version 0.33.5.27.23 - Conversion wave: Tags repository
+
+- [ ] Convert `tags.repo` to named bound params and the dialect seams.
+- [ ] Preserve tag create/update/archive, tag list/read, assignments, suppressions, propagation-context reads, and tag filter behavior exactly.
+- [ ] Update the burndown ratchet and extend tag regressions before moving on.
+
+Acceptance criteria:
+
+- `tags.repo` is fully converted with tag assignment and suppression behavior unchanged on SQLite.
+
+### Version 0.33.5.27.24 - Conversion wave: Tag propagation and tags service
+
+- [ ] Convert `services/tag-propagation-registry` and `services/tags.service` to named bound params and the dialect seams.
+- [ ] Preserve Client/Project/Task/Note propagation targets, resolver behavior, and service-owned tag read shaping exactly.
+- [ ] Update the burndown ratchet and extend propagation-focused tag regressions before moving on.
+
+Acceptance criteria:
+
+- Tag propagation and service helper SQL is fully converted without changing propagated-tag behavior.
+
+### Version 0.33.5.27.25 - Conversion wave: Search adapter and rebuild service
+
+- [ ] Convert `core/search/adapters/sqlite-search-adapter`, `core/search/tag-text`, and `services/search-index-rebuild.service` to named bound params and the search/dialect seams.
+- [ ] Keep FTS5 maintenance, indexed LIKE fallback, repair/rebuild behavior, canonical `search_index` writes, and permission-safe search request shaping unchanged.
+- [ ] Update the burndown ratchet and extend search indexing/rebuild regressions before moving on.
+
+Acceptance criteria:
+
+- Search persistence and rebuild SQL is fully converted, with raw FTS5 isolated inside the provider-owned search adapter seam.
+
+### Version 0.33.5.27.26 - Conversion wave: Work resume state
+
+- [ ] Convert `services/work-resume-state.service` and `services/work-resume-state-initial-producers` to named bound params and the dialect seams.
+- [ ] Preserve resume state upsert, dismiss, list ranking, read checks, source removal, initial producer behavior, and Workbench-facing read models exactly.
+- [ ] Update the burndown ratchet and extend work-resume regressions before moving on.
+
+Acceptance criteria:
+
+- Work resume state SQL is fully converted with resume/recovery behavior unchanged on SQLite.
+
+### Version 0.33.5.27.27 - Conversion wave: Clients and Projects repositories
+
+- [ ] Convert `client-projects/clients.repo` and `client-projects/projects.repo` to named bound params and the dialect seams.
+- [ ] Preserve hierarchy-aware reads, create/update/archive, Business-only Client behavior, billing/task-default rows, project ordering, and readable label shaping exactly.
+- [ ] Update the burndown ratchet and extend Clients/Projects regressions before moving on.
+
+Acceptance criteria:
+
+- Clients and Projects repositories are fully converted with hierarchy, billing, and module behavior unchanged on SQLite.
+
+### Version 0.33.5.27.28 - Conversion wave: Framework and admin low-count repositories
+
+- [ ] Convert `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, `services/help.service`, and any other remaining low-count application repository from the audit inventory to named bound params and the dialect seams.
+- [ ] Preserve module registry sync/status, audit search/retention, API key reads/writes/scopes, Help workspace visibility, and admin/security behavior exactly.
+- [ ] Update the burndown ratchet and focused regressions before moving on.
+
+Acceptance criteria:
+
+- All remaining application repositories are on bound params and seams; only startup/migration compatibility paths remain interpolated.
+
+### Version 0.33.5.27.29 - Startup maintenance compatibility path
+
+- [ ] Review `src/db/index.js` startup maintenance SQL against the seam decisions and the no-parameter multi-statement compatibility allowlist.
+- [ ] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining `src/db/index.js` statements as sanctioned startup compatibility with recorded rationale.
+- [ ] Account for dialect-sensitive startup statements such as `INSERT OR IGNORE`, `julianday(...)`, PRAGMAs, and repair/list rebuild work.
+- [ ] Update the burndown ratchet to reflect the final startup allowlist.
+
+Acceptance criteria:
+
+- `src/db/index.js` is either converted where practical or documented as a sanctioned startup-only compatibility path, with dialect-sensitive statements accounted for.
+
+### Version 0.33.5.27.30 - Migration compatibility path
+
+- [ ] Review `src/db/migrations.js` and active migration SQL handling against the seam decisions and the no-parameter multi-statement compatibility allowlist.
+- [ ] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining migration statements as sanctioned migration compatibility with recorded rationale.
+- [ ] Account for dialect-sensitive migration statements such as PRAGMAs, `rowid`, schema introspection, checksum validation, and baseline repair.
+- [ ] Update the burndown ratchet to reflect the final migration allowlist.
+
+Acceptance criteria:
+
+- `src/db/migrations.js` is either converted where practical or documented as a sanctioned migration-only compatibility path, with dialect-sensitive statements accounted for.
+
+### Version 0.33.5.27.31 - Interpolation enforcement guardrail
+
+- [ ] Add a lint/regression guardrail that fails the suite if runtime SQL uses `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` outside the sanctioned startup/migration allowlist.
+- [ ] Drive the audit ratchet target to zero interpolated operation sites for application repositories, allowlist excepted.
+- [ ] Add regressions proving the guardrail rejects a reintroduced interpolation call outside the allowlist.
+
+Acceptance criteria:
+
+- New application database code cannot merge on the legacy interpolation path, and the application-repository burndown is enforced at zero.
+
+### Version 0.33.5.27.32 - Dialect enforcement guardrail
+
+- [ ] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, etc.) outside the provider adapter/startup/migration allowlist.
+- [ ] Add regressions proving the guardrail rejects raw dialect use outside sanctioned provider-owned paths.
+- [ ] Document the dialect guardrail in `docs/module-contract.md` and `docs/database.md` so future modules start from the agnostic contract.
+
+Acceptance criteria:
+
+- New database code cannot merge with raw dialect-isms outside provider-owned or sanctioned compatibility paths.
+
+### Version 0.33.5.27.33 - Docs, decisions, 0.40.0 reconciliation, and closeout
+
+- [ ] Update `DECISIONS.md`, `docs/database.md`, `docs/database-parameter-binding-audit.md`, and the module/view contract docs to describe the finished agnostic contract, the seams, and the enforcement rules for new modules.
+- [ ] Reconcile the 0.40.0 database-extraction section: 0.40.0 now implements the actual PostgreSQL adapter behind the seams, provider gating, the migration runner, dual-backend contract tests, and the SaaS seed/load proof -- not an app-wide SQL rewrite.
 - [ ] Run `npm run check` and `npm run test:permissions`; confirm the burndown ratchet is at the enforced target and `PRAGMA integrity_check` is `ok`; verify `/api/app-info` after restart.
 - [ ] Complete the standing per-slice version/`CHANGELOG.md`/package metadata ceremony and archive the completed branch.
 
@@ -1673,22 +1842,22 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 
 ### Database extraction layer - PostgreSQL adapter and dual-backend support
 
-Deferred here from the 0.33.5 line (originally 0.33.5.23, "PostgreSQL Adapter and SaaS Runtime Proof"). Its prerequisites are the provider-neutral database seam from 0.33.5.19 and the parameter-binding migration from 0.33.5.23; this is the actual PostgreSQL backend plus the dialect, migration, and dual-backend proof work. Nothing before 0.40.0 depends on it, so it waits for the SaaS/production push. SQLite stays the self-hosted default throughout. See also the PostgreSQL bullets in 0.50.0 and 0.60.0, which this section is the concrete plan for.
+Deferred here from the 0.33.5 line (originally 0.33.5.23, "PostgreSQL Adapter and SaaS Runtime Proof"). Its prerequisites are the provider-neutral database seam from 0.33.5.19, the parameter-binding migration from 0.33.5.23, the array/bulk binding follow-ups from 0.33.5.26, and the 0.33.5.27 agnostic-by-contract conversion/seam branch. By the time this section starts, application call sites should already use named bound params and provider-neutral dialect seams. 0.40.0 is the actual PostgreSQL backend, provider gating, migration-runner, dual-backend test, and SaaS seed/load proof work behind those seams, not an app-wide SQL rewrite. SQLite stays the self-hosted default throughout. See also the PostgreSQL bullets in 0.50.0 and 0.60.0, which this section is the concrete plan for.
 
-Purpose: add the hosted-SaaS database backend behind the provider-neutral database contract while preserving SQLite small-office support.
+Purpose: implement and prove the hosted-SaaS PostgreSQL database backend behind the provider-neutral database contract while preserving SQLite small-office support.
 
 Grounding (re-verify at implementation time - code will have drifted):
 
 - The real adapter seam is `createDatabaseAdapter(provider)` in `src/db/provider.js`, which throws for anything but `"sqlite"` and returns `createSqliteAdapter()`. PostgreSQL plugs in as a new `src/db/adapters/postgres-adapter.js` plus a branch in the factory, not by editing `core/database.js` (a re-export).
 - Adapter contract shape (from `sqlite-adapter.js`): `provider`, a `capabilities` object (`transactions: true`, `transactionApi: "callback"`), `query/get/run(sql, params)`, `transaction(callback)`, `health`, `initializeRuntime`.
 - `assertNotInsideTransactionContext` (AsyncLocalStorage) guards top-level `db.*` inside a transaction; nested `transaction()` throws. Re-verify the `db.transaction(...)` call-site count (5 at time of writing: `jobs.service.js`, `job-queue.js`, `job-runner.js`, `notes.repo.js`, `tasks.repo.js`).
-- SQLite-only introspection/repair lives in two places: `src/db/migrations.js` and `src/db/index.js` startup maintenance (~86 SQLite-specific constructs across ~19 files total). Both must be provider-gated.
+- SQLite-only introspection/repair historically lived in `src/db/migrations.js` and `src/db/index.js` startup maintenance. Re-verify the 0.33.5.27 startup/migration allowlist and provider gates before adding PostgreSQL equivalents.
 - The migration lock is file-based (`src/db/migration-lock.js`, `fs.open(path, "wx")`) and single-host; PostgreSQL needs an advisory-lock equivalent.
 - Search is behind a search adapter (`src/core/search/adapters/sqlite-search-adapter.js`, FTS5 `MATCH`/`bm25()`); PostgreSQL needs a parallel `tsvector`/`tsquery` search adapter, not an inline SQL port.
 
-- [ ] **Dialect portability audit** - extend the parameter-binding audit (0.33.5.23.1) with the SQLite-specific SQL inventory deferred from it: `INSERT OR IGNORE`/SQLite `ON CONFLICT`, `COLLATE NOCASE` (~21 sites), PRAGMA usage, FTS5 (`MATCH`/`bm25()`), JSON assumptions, boolean `0/1` + `CHECK (col IN (0,1))`, `julianday(...)`/date arithmetic, and `rowid` reliance in dedup/repair; plus the read-modify-write sequences that rely on SQLite's global operation serialization (counters, read-then-write upserts, claim/allocate). Output a portability plan + the intentional SQLite-only paths list.
+- [ ] **Dialect seam implementation recheck** - consume the 0.33.5.27 decisions and audit wave assignments, then re-scan for drift before building PostgreSQL support. Confirm every active call site uses the established seams for `INSERT OR IGNORE`/SQLite `ON CONFLICT`, `COLLATE NOCASE`, PRAGMA usage, FTS5 (`MATCH`/`bm25()`), JSON assumptions, boolean storage, `julianday(...)`/date arithmetic, `rowid`, and `RETURNING`/identity. Output only the PostgreSQL implementation gap list and intentional provider-specific paths.
 - [ ] **PostgreSQL adapter skeleton and factory wiring** - add `src/db/adapters/postgres-adapter.js`, register it in `createDatabaseAdapter(provider)` (replace the `"postgres"` throw), match the adapter contract exactly, support `DATABASE_URL`/pool/TLS via runtime config, add health checks in the shape diagnostics already consume, and docs for local Postgres dev. No SQLite default changes; connection + contract only.
-- [ ] **SQLite dialect compatibility helpers** - provider-aware helpers/translations for the non-FTS dialect items (`INSERT OR IGNORE`/`ON CONFLICT`, `COLLATE NOCASE` vs `ILIKE`/`citext`, boolean vs `boolean`, `julianday(...)` vs interval math, `rowid`). SQLite output stays identical; PostgreSQL routes to the compatible form behind the same call. Document intentional SQLite-only paths.
+- [ ] **PostgreSQL implementations for established dialect seams** - implement provider translations for the non-FTS seams established in 0.33.5.27 (`INSERT OR IGNORE`/`ON CONFLICT`, case-insensitive compare/order, boolean storage, date/interval math, `rowid`/identity). SQLite output stays identical; PostgreSQL routes to the compatible form behind the same call. Document intentional provider-specific paths.
 - [ ] **Full-text search portability** - a PostgreSQL search adapter behind the existing search-adapter seam, mapping FTS5 `MATCH`/`bm25()` to `tsvector`/`tsquery` + ranking, preserving the search result/permission-scoping contract. SQLite FTS5 adapter unchanged.
 - [ ] **Read-modify-write transaction hardening** - wrap the RMW sequences from the audit in `db.transaction(...)` so they stay correct on a pooled/concurrent backend without SQLite's global serialization; reuse the callback-transaction contract and `assertNotInsideTransactionContext`; no nested transactions.
 - [ ] **Provider-gate SQLite-only introspection and repair** - gate the SQLite-only routines in both `src/db/index.js` startup maintenance and `src/db/migrations.js` behind the SQLite provider; provide provider-appropriate equivalents (or explicit no-ops) so a PostgreSQL boot does not silently skip required repairs. SQLite behavior unchanged.
@@ -1696,7 +1865,7 @@ Grounding (re-verify at implementation time - code will have drifted):
 - [ ] **PostgreSQL schema baseline and checksum** - a PostgreSQL-compatible schema baseline/translation (`src/db/schema/current.sql` is SQLite DDL today), verified from an empty PG database, with checksum validation; docs for the SQLite self-hosted path vs the PostgreSQL SaaS path, migration ownership, and backups.
 - [ ] **Dual-backend repository contract tests** - a runner that executes repository contract tests against SQLite and (opt-in via `DATABASE_URL`, Docker or local Postgres) PostgreSQL; prioritize sessions, workspaces, permissions, tasks, notes, files metadata, search index, notifications; prove `db.transaction(...)` pins one connection for the whole callback on PG and that no path uses top-level `db.*` inside a transaction.
 - [ ] **SaaS seed and load smoke test** - a Postgres seed profile for many workspaces + basic load-smoke scripts covering login/session, app shell, tasks, notes, files, search, notifications, and the job worker; record baseline performance numbers and document what is and is not proven.
-- [ ] **Closeout** - record decisions in `DECISIONS.md` (advisory-lock strategy, FTS `tsvector` boundary, intentional SQLite-only paths), update runtime-configuration docs so `LONGTAIL_DATABASE_PROVIDER`/`DATABASE_URL`/pool/TLS keys are marked live vs. reserved accurately, add the dual-backend/portability regressions to the suite, and verify `/api/runtime-diagnostics` reports the configured provider/health on both backends.
+- [ ] **Closeout** - record decisions in `DECISIONS.md` (advisory-lock strategy, FTS `tsvector` boundary, intentional provider-specific paths), update runtime-configuration docs so `LONGTAIL_DATABASE_PROVIDER`/`DATABASE_URL`/pool/TLS keys are marked live vs. reserved accurately, add the dual-backend/portability regressions to the suite, and verify `/api/runtime-diagnostics` reports the configured provider/health on both backends.
 
 ### Database Tools
 

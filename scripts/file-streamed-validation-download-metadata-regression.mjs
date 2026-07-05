@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.26.2";
+const appVersion = "0.33.5.27.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-streamed-validation-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -76,7 +76,7 @@ async function assertStaticContracts() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the streamed validation version");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streamed validation slice");
   assert.match(changelog, /Version 0\.33\.5\.25\.3[\s\S]*Hardened streamed Files uploads/, "changelog should preserve the shipped streamed validation history");
-  assert.match(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should hand off after the completed storage cleanup branch");
+  assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should hand off after the completed storage cleanup and parameter-binding gap review branches");
   assert.match(moduleContract, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "module contract should describe route-backed storage metadata prechecks");
   assert.match(moduleDevelopment, /0\.33\.5\.25\.3[\s\S]*streamed upload signature validation/, "module docs should describe service-owned streamed validation");
   assert.match(runtimeDocs, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "runtime docs should describe storage object drift handling");

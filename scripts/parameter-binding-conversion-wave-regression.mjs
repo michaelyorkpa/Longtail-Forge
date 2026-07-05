@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.26.2";
+const appVersion = "0.33.5.27.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-wave-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-wave.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Wave-Test-123!";
@@ -49,11 +49,15 @@ try {
   await assertConvertedRepositoriesRuntime();
 
   assert.match(auditDocs, /0\.33\.5\.23\.3 Conversion Wave/, "audit docs should record the conversion wave");
+  assert.match(auditDocs, /The canonical Inventory table above now marks these six repositories as `Converted`/, "audit docs should point converted wave rows back to the canonical inventory");
+  assert.match(auditDocs, /`sessions\.repo` is not part of this converted wave; it was already a bound-params pilot/, "audit docs should keep the sessions pilot separate from the converted wave");
+  assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
+  assertConvertedInventoryRows();
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the conversion wave: 1,499/, "audit docs should record the wave helper burndown");
   assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the conversion wave: 233/, "audit docs should record the wave operation-site burndown");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.3[\s\S]*auth, workspace, permission, and settings repositories/, "database docs should record the converted wave");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
-  assert.match(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should continue past the closed parameter-binding, Node 24, and storage cleanup branches");
+  assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should continue to the database extraction contract branch");
   assert.match(changelog, /## Version 0\.33\.5\.23\.3 - [\s\S]*Converted the first parameter-binding wave/, "changelog should include the conversion-wave slice");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the parameter-binding closeout");
   assert.match(regressionSuite, /scripts\/parameter-binding-conversion-wave-regression\.mjs/, "regression suite should include conversion-wave coverage");
@@ -82,6 +86,31 @@ function assertConvertedSourceShape() {
   assert.match(convertedSources.get("permissions.repo"), /ensurePermissionContracts[\s\S]*db\.transaction/, "permission contract repair should use adapter transactions");
   assert.match(convertedSources.get("settings.repo"), /saveWorkspaceSettings[\s\S]*db\.transaction/, "settings save should use adapter transactions");
   assert.match(convertedSources.get("app-settings.repo"), /ensureDefaults[\s\S]*db\.transaction/, "app settings defaults should use adapter transactions");
+}
+
+function assertConvertedInventoryRows() {
+  const convertedRows = [
+    ["users.repo", 17, 17],
+    ["workspaces.repo", 10, 10],
+    ["permissions.repo", 8, 10],
+    ["user-workspaces.repo", 6, 7],
+    ["settings.repo", 4, 4],
+    ["app-settings.repo", 2, 3],
+  ];
+
+  for (const [group, boundOperationSites, dbOperationSites] of convertedRows) {
+    assert.match(
+      auditDocs,
+      new RegExp(`\\| ${escapeRegExp(group)} \\| Converted \\| 0 \\| 0 \\| ${boundOperationSites} \\| ${dbOperationSites} \\|`),
+      `${group} should be marked Converted in the canonical audit inventory`,
+    );
+  }
+
+  assert.match(
+    auditDocs,
+    /\| sessions\.repo \| Already bound \| 0 \| 0 \| 8 \| 8 \|/,
+    "sessions.repo should be marked Already bound in the canonical audit inventory",
+  );
 }
 
 async function assertConvertedRepositoriesRuntime() {
