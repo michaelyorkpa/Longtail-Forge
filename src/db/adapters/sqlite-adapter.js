@@ -12,6 +12,7 @@ import {
   prepareDatabaseBindings,
   QUESTION_PLACEHOLDERS,
 } from "../parameter-bindings.js";
+import { createSqliteDialectSeams } from "./sqlite-dialect-seams.js";
 
 const SQLITE_CAPABILITIES = Object.freeze({
   provider: "sqlite",
@@ -30,6 +31,7 @@ const SQLITE_CAPABILITIES = Object.freeze({
 
 function createSqliteAdapter() {
   const transactionContext = new AsyncLocalStorage();
+  const dialect = createSqliteDialectSeams();
   let transactionTail = Promise.resolve();
 
   function assertNotInsideTransactionContext(operationName) {
@@ -91,6 +93,7 @@ function createSqliteAdapter() {
     const transactionResult = runAfterOpenTransaction.then(() => transactionContext.run({ active: true }, async () => {
       const transactionClient = Object.freeze({
         capabilities: SQLITE_CAPABILITIES,
+        dialect,
         get: executeGet,
         query: executeQuery,
         run: executeRun,
@@ -123,6 +126,7 @@ function createSqliteAdapter() {
     provider: "sqlite",
     capabilities: SQLITE_CAPABILITIES,
     close: closeSqlite,
+    dialect,
     formatHealth: formatSqliteHealth,
     get,
     getLastHealth: getLastSqliteHealth,

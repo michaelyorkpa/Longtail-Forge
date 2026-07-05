@@ -182,6 +182,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/database-transaction-helper-regression.mjs",
   "scripts/database-migration-locking-regression.mjs",
   "scripts/database-result-fidelity-regression.mjs",
+  "scripts/database-dialect-seam-scaffold-regression.mjs",
   "scripts/better-sqlite3-driver-closeout-regression.mjs",
   "scripts/job-outbox-schema-regression.mjs",
   "scripts/worker-runner-regression.mjs",

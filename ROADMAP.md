@@ -36,9 +36,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.2 - Dialect seam scaffold and SQLite proof harness
 
-- [ ] Add the provider-neutral seam surface in the adapter/core database layer for the operations decided in 0.33.5.27.1, without converting high-traffic repositories yet.
-- [ ] Keep the first pass focused on stable helper names, adapter method boundaries, exported test hooks where needed, and SQLite-backed proof fixtures.
-- [ ] Add a focused regression proving the seam surface lowers to the current SQLite helper path and does not change existing query behavior.
+- [x] Add the provider-neutral seam surface in the adapter/core database layer for the operations decided in 0.33.5.27.1, without converting high-traffic repositories yet.
+- [x] Keep the first pass focused on stable helper names, adapter method boundaries, exported test hooks where needed, and SQLite-backed proof fixtures.
+- [x] Add a focused regression proving the seam surface lowers to the current SQLite helper path and does not change existing query behavior.
 
 Acceptance criteria:
 
@@ -48,11 +48,12 @@ Acceptance criteria:
 
 - [ ] Implement the provider-neutral upsert/conflict helper or adapter method, with SQLite lowering to the current `INSERT ... ON CONFLICT` / `INSERT OR IGNORE` shapes.
 - [ ] Implement the returned-row/last-insert identity seam and review the existing durable-job `RETURNING` statements against that seam.
+- [ ] Decide the durable-job `RETURNING` outcome explicitly (these four statements in `core/jobs/job-queue.js`, `core/jobs/job-runner.js`, and `services/jobs.service.js` are `Already bound` in the audit inventory, so no conversion wave touches them): either convert them to the identity/RETURNING seam here, or record them as a sanctioned raw-dialect exception. Whichever is chosen must be reflected in the 0.33.5.27.32 dialect-guardrail allowlist so that guardrail does not fail on or silently exempt them.
 - [ ] Convert one low-risk proof path for each helper and add focused SQLite regressions.
 
 Acceptance criteria:
 
-- Conflict writes and returned identity reads have provider-neutral seams, with SQLite behavior unchanged and the existing durable-job `RETURNING` paths intentionally accounted for.
+- Conflict writes and returned identity reads have provider-neutral seams, with SQLite behavior unchanged and the existing durable-job `RETURNING` paths explicitly resolved (converted to the seam or recorded as a sanctioned exception that 0.33.5.27.32 allowlists).
 
 ### Version 0.33.5.27.4 - Case-insensitive comparison and ordering seams
 
@@ -188,11 +189,12 @@ Acceptance criteria:
 
 - [ ] Convert the remaining `lists/lists.repo` catalog, catalog-usage, linked-record/source-list, and batch read paths to named bound params and the dialect seams.
 - [ ] Preserve catalog suggestions, linked-record/source-list context, tag decoration inputs, and modal/editor behavior exactly.
+- [ ] Because the 0.33.5.27.16/0.33.5.27.17 split is by functional area rather than a pure "everything else" catch-all, close this slice against the ratchet, not just the named path list: confirm `lists/lists.repo` reaches zero remaining literal-helper/direct-interpolation sites so no path falls between the two Lists waves.
 - [ ] Update the burndown ratchet and extend Lists catalog/link regressions before moving on.
 
 Acceptance criteria:
 
-- `lists/lists.repo` is fully converted with catalog and linked-record behavior unchanged on SQLite.
+- `lists/lists.repo` is fully converted with catalog and linked-record behavior unchanged on SQLite, and the audit ratchet shows the repository at zero remaining interpolated sites.
 
 ### Version 0.33.5.27.18 - Conversion wave: Files browse and attachment reads
 
@@ -339,7 +341,8 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.32 - Dialect enforcement guardrail
 
-- [ ] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, etc.) outside the provider adapter/startup/migration allowlist.
+- [ ] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, `RETURNING`, etc.) outside the provider adapter/startup/migration allowlist.
+- [ ] Reconcile the guardrail with the 0.33.5.27.3 durable-job `RETURNING` decision: if those `core/jobs`/`services/jobs.service` statements were not converted to the seam, add them to this guardrail's allowlist as a sanctioned exception with recorded rationale; otherwise confirm no raw `RETURNING` remains outside the allowlist.
 - [ ] Add regressions proving the guardrail rejects raw dialect use outside sanctioned provider-owned paths.
 - [ ] Document the dialect guardrail in `docs/module-contract.md` and `docs/database.md` so future modules start from the agnostic contract.
 
@@ -357,6 +360,41 @@ Acceptance criteria:
 Acceptance criteria:
 
 - The whole app is on bound params and provider-neutral seams, new database code is enforced onto the agnostic contract, docs/decisions are captured, and 0.40.0 is reduced to implementing and proving a second backend rather than rewriting call sites.
+
+## Version 0.33.5.28 - Parameter-binding gap closeout (post-0.33.5.26 review)
+
+Purpose:
+
+Close the latent gaps a post-branch review surfaced in the completed 0.33.5.26 parameter-binding work (array-expansion binding and the bulk `VALUES (...)` helper). These are pre-emptive hardening items for the future 0.33.5.27 conversion waves; they are recorded here rather than folded silently into those waves so the burndown ratchet stays honest.
+
+Resolved during the review (no action left):
+
+- The audit ratchet had briefly gone red because `scripts/parameter-binding-audit-regression.mjs` still asserted the superseded coarse 0.33.5.27 wave numbering (`.3` Tasks, `.5` Lists, `.9` startup/migration) after 0.33.5.27.1 renumbered the audit doc to the expanded per-repository scheme. This was reconciled during the 0.33.5.27.2 work — the assertion now matches the expanded table (`.8` Tasks, `.16` Lists, `.29`/`.30` startup/migration) and all three parameter-binding regressions pass. No further action is needed for this item; it stands as a reminder to keep the audit doc, the audit-regression ratchet, and `CHANGELOG.md` in lockstep per the 0.33.5.26.4 checklist.
+
+Entry contract and grounding:
+
+- 0.33.5.26 was archived to `ROADMAP-ARCHIVE.md` as complete (0.33.5.26.1 through 0.33.5.26.4). The array-expansion and bulk `VALUES` helpers live in `src/db/parameter-bindings.js`, the bulk helper is wired into `src/core/search/adapters/sqlite-search-adapter.js` `upsertDocuments`, and the ratchet is enforced by `scripts/parameter-binding-audit-regression.mjs` / `scripts/parameter-binding-layer-regression.mjs` (both in `scripts/regression-suite.mjs`).
+
+### Version 0.33.5.28.1 - Guard the bulk `VALUES` helper against the SQLite bound-parameter ceiling
+
+- [ ] Note the latent regression the review found: converting the canonical `search_index` upsert from joined literal `VALUES` to `createBulkValuesBindings()` bound params (0.33.5.26.2) introduced a per-statement bound-parameter ceiling (`SQLITE_MAX_VARIABLE_NUMBER`) that the literal path never had. With ~20 columns per row, a single upsert statement caps near ~1,600 rows before the driver rejects it.
+- [ ] Confirm current safety and document it: today the only caller path is `searchService.indexSearchDocument` -> `upsertSearchDocuments([document])`, i.e. one row per statement, so the ceiling cannot be hit yet. The helper is nevertheless advertised for "dynamic bulk row groups," so a future batched caller (notably the 0.33.5.27.25 search adapter / rebuild wave) could pass a large array and fail at runtime.
+- [ ] Add a guard before a bulk caller relies on it: either chunk large row sets inside the helper/adapter, or make `createBulkValuesBindings()` reject a row/column count that would exceed a documented safe placeholder budget with a clear error, and document the ceiling in `docs/database.md` next to the 0.33.5.26.2 helper contract.
+- [ ] Add a focused regression for the large-batch boundary (chunking or explicit rejection), so the search conversion wave cannot reintroduce an unbounded single-statement bulk upsert.
+
+Acceptance criteria:
+
+- The bulk `VALUES` helper has a documented, tested bound-parameter ceiling (chunked or explicitly rejected), so batched callers cannot silently exceed the SQLite variable limit that the pre-conversion literal path avoided.
+
+### Version 0.33.5.28.2 - Empty-list `NOT IN` converter guardrail (minor)
+
+- [ ] The array-expansion empty-list convention (`IN (:ids)` with `[]` expands to `IN (NULL)` -> no rows) is safe and correct for `IN`, but is silently inverted for `NOT IN`: `x NOT IN (NULL)` matches zero rows where an empty exclusion set should match all rows. `docs/database.md` already delegates non-`IN` empty-list meaning to caller code, and no current runtime site uses `NOT IN (:boundArray)` (existing `NOT IN` sites use literal value lists), so this is pre-emptive.
+- [ ] Add a short converter checklist item (audit doc / `docs/database.md`) reminding the high-traffic conversion waves that a variable-length `NOT IN (:ids)` needs an explicit empty-array branch, so a mechanical conversion cannot invert exclusion semantics.
+- [ ] Optionally add a focused regression asserting the documented `NOT IN` empty-list handling for any site that converts one.
+
+Acceptance criteria:
+
+- Conversion waves have an explicit guardrail against inverting `NOT IN` semantics when mechanically converting variable-length lists to bound arrays.
 
 ## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
 

@@ -1,5 +1,7 @@
 export {
   db,
+  databaseDialect,
+  getDatabaseDialect,
   querySql,
   getSql,
   runSql,

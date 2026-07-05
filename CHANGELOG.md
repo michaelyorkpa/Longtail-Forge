@@ -1,3 +1,11 @@
+## Version 0.33.5.27.2 - 2026-07-05 18:14 -04:00
+
+- Added the SQLite-backed dialect seam scaffold on `db.dialect`, re-exported through the database facades and available inside transaction clients.
+- Introduced stable helper groups for conflict writes, case-insensitive comparison/order, boolean bind/read mapping, timestamp interval math, FTS5 search lowering, JSON capability status, `RETURNING`/identity, physical `rowid`, and PRAGMA/introspection.
+- Added `scripts/database-dialect-seam-scaffold-regression.mjs` as the SQLite proof harness, exercising the helper lowering against disposable tables without converting application repositories.
+- Updated database docs, current decisions, the parameter-binding audit note, and marked roadmap slice 0.33.5.27.2 complete. The parameter-binding burndown remains 1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls.
+- Verification 2026-07-05 18:41 -04:00: `scripts/database-dialect-seam-scaffold-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, `scripts/database-adapter-contract-regression.mjs`, `scripts/database-transaction-helper-regression.mjs`, `scripts/database-result-fidelity-regression.mjs`, `scripts/better-sqlite3-driver-closeout-regression.mjs`, and `scripts/runtime-configuration-contract-regression.mjs` passed; `npm run check` passed 263/263 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.27.2 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.1 - 2026-07-05 13:34 -04:00
 
 - Defined the 0.33.5.27 agnostic data-access contract: new and converted code must use `src/core/database.js`, named bound params, and `db.transaction(callback)` without interpolation helpers or raw SQLite-only dialect at application call sites.

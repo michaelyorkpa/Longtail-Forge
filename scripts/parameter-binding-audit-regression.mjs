@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.1";
+const appVersion = "0.33.5.27.2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -92,15 +92,16 @@ assert.deepEqual(
     "src/core/jobs/job-queue.js:36",
     "src/core/jobs/job-queue.js:148",
     "src/core/jobs/job-runner.js:267",
+    "src/db/adapters/sqlite-dialect-seams.js:135",
     "src/services/jobs.service.js:100",
   ],
-  "RETURNING inventory should stay explicit until the 0.40 dialect audit",
+  "RETURNING inventory should stay explicit and provider-owned outside the existing durable-job statements",
 );
 assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSON SQL functions in this audit");
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.1:[\s\S]*Remaining runtime literal-helper invocations: 1,498[\s\S]*Remaining direct interpolated SQL operation sites: 233[\s\S]*Existing direct bound-params operation sites: 93[\s\S]*Total runtime database operation calls seen by the audit scanner: 409/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.2:[\s\S]*Remaining runtime literal-helper invocations: 1,498[\s\S]*Remaining direct interpolated SQL operation sites: 233[\s\S]*Existing direct bound-params operation sites: 93[\s\S]*Total runtime database operation calls seen by the audit scanner: 409/, "audit docs should record the current canonical totals");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
@@ -110,10 +111,11 @@ assert.match(auditDocs, /0\.33\.5\.26\.3 Inventory Canonicalization[\s\S]*single
 assert.match(auditDocs, /Future Conversion Wave Ratchet Checklist[\s\S]*docs\/database-parameter-binding-audit\.md[\s\S]*scripts\/parameter-binding-audit-regression\.mjs[\s\S]*audit\.totals[\s\S]*expectedTopGroups[\s\S]*CHANGELOG\.md/, "audit docs should name the future-wave ratchet artifacts");
 assert.match(auditDocs, /Do not weaken the exact-equality ratchet when it fails/, "audit docs should keep the exact ratchet strict");
 assert.match(auditDocs, /Standing query rule from `DECISIONS\.md`:[\s\S]*new or touched single-statement repository queries must use named params[\s\S]*db\.query\(sql, params\)[\s\S]*deprecated compatibility escape hatches/, "audit docs should carry the standing named-params rule for future waves");
-assert.match(auditDocs, /0\.33\.5\.27 Conversion Wave Assignments[\s\S]*0\.33\.5\.27\.3 - Tasks and Time Tracking[\s\S]*`tasks\/tasks\.repo`[\s\S]*0\.33\.5\.27\.5 - Lists[\s\S]*`lists\/lists\.repo`[\s\S]*0\.33\.5\.27\.9 - Startup and migration compatibility paths[\s\S]*`db\/index`[\s\S]*`db\/migrations`/, "audit docs should assign every remaining owner to a 0.33.5.27 conversion wave");
+assert.match(auditDocs, /0\.33\.5\.27 Conversion Wave Assignments[\s\S]*0\.33\.5\.27\.8 - Tasks primary repository[\s\S]*`tasks\/tasks\.repo`[\s\S]*0\.33\.5\.27\.16 - Lists records and items[\s\S]*`lists\/lists\.repo` partial[\s\S]*0\.33\.5\.27\.29 - Startup maintenance compatibility path[\s\S]*`db\/index`[\s\S]*0\.33\.5\.27\.30 - Migration compatibility path[\s\S]*`db\/migrations`/, "audit docs should assign every remaining owner to a 0.33.5.27 conversion wave");
 assert.match(auditDocs, /only sanctioned interpolation compatibility allowlist[\s\S]*`src\/db\/index\.js`[\s\S]*`src\/db\/migrations\.js`/, "audit docs should record the narrow startup/migration compatibility allowlist");
 assert.match(auditDocs, /0\.33\.5\.26\.4 Ratchet Checklist[\s\S]*Future Conversion Wave Ratchet Checklist/, "audit docs should record the checklist slice");
 assert.match(auditDocs, /0\.33\.5\.27\.1 Portability Contract and Dialect Seams[\s\S]*single agnostic data-access contract[\s\S]*No runtime SQL behavior changed/, "audit docs should record the plan-only portability contract slice");
+assert.match(auditDocs, /0\.33\.5\.27\.2 Dialect Seam Scaffold[\s\S]*SQLite-backed `db\.dialect` seam scaffold[\s\S]*No application repository conversion happened/, "audit docs should record the dialect seam scaffold slice");
 assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
 assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
 assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
@@ -139,14 +141,15 @@ assert.match(databaseDocs, /As of version 0\.33\.5\.27\.1[\s\S]*agnostic by cont
 assert.match(databaseDocs, /active agnostic data-access contract[\s\S]*`src\/core\/database\.js`[\s\S]*`db\.query\(sql, params\)`[\s\S]*`sqlText\(\)`[\s\S]*raw SQLite-only dialect/, "database docs should publish the active agnostic data-access contract");
 assert.match(databaseDocs, /only sanctioned interpolation compatibility allowlist[\s\S]*`src\/db\/index\.js`[\s\S]*`src\/db\/migrations\.js`/, "database docs should publish the narrow interpolation allowlist");
 assert.match(databaseDocs, /Dialect-sensitive operation seams:[\s\S]*Upsert\/conflict writes[\s\S]*Case-insensitive compare\/order[\s\S]*Boolean storage[\s\S]*Timestamp and interval math[\s\S]*Full-text search[\s\S]*JSON access[\s\S]*`RETURNING` and identity reads[\s\S]*`rowid` \/ physical identity[\s\S]*PRAGMA\/introspection/, "database docs should record every planned dialect seam");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.2[\s\S]*`db\.dialect`[\s\S]*conflict writes[\s\S]*case-insensitive comparison[\s\S]*SQLite `julianday\(\.\.\.\)`[\s\S]*FTS5 `MATCH`\/`bm25\(\)`[\s\S]*PRAGMA\/introspection/, "database docs should record the concrete dialect seam scaffold");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*agnostic data-access contract[\\s\\S]*Lists conversion wave[\\s\\S]*0\\.40\\.0`), "changelog should record the portability contract slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*dialect seam scaffold[\\s\\S]*SQLite proof harness[\\s\\S]*burndown remains 1,498`), "changelog should record the dialect seam scaffold slice");
 
 assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should now start at the database extraction contract branch");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");
-assert.match(roadmap, /0\.33\.5\.27\.5 - Conversion wave: Lists[\s\S]*`lists\/lists\.repo`/, "live roadmap should give Lists its own conversion wave");
-assert.match(roadmap, /0\.33\.5\.27\.11 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should keep closeout after the enforcement guardrail");
+assert.match(roadmap, /0\.33\.5\.27\.16 - Conversion wave: Lists records and items[\s\S]*Convert list record and list item read\/write paths in `lists\/lists\.repo`/, "live roadmap should give Lists record/item work its own conversion wave");
+assert.match(roadmap, /0\.33\.5\.27\.33 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should keep closeout after the enforcement guardrail");
 assert.match(roadmap, /Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*0\.33\.5\.27 agnostic-by-contract conversion\/seam branch[\s\S]*not an app-wide SQL rewrite[\s\S]*Dialect seam implementation recheck[\s\S]*consume the 0\.33\.5\.27 decisions/, "0.40.0 should be reconciled as PostgreSQL implementation/proof behind the 0.33.5.27 seams");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration/m, "live roadmap should not keep the completed parameter-binding branch open");
 assert.match(regressionSuite, /scripts\/parameter-binding-audit-regression\.mjs/, "regression suite should include the parameter-binding audit regression");

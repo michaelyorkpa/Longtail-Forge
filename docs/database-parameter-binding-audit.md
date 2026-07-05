@@ -12,7 +12,7 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.1:
+Current totals as of 0.33.5.27.2:
 
 - Remaining runtime literal-helper invocations: 1,498.
 - Remaining direct interpolated SQL operation sites: 233.
@@ -137,7 +137,7 @@ Confirmed non-issues for this parameter-binding slice:
 
 Corrected audit finding:
 
-- `RETURNING` is present in four durable-job statements: `src/core/jobs/job-queue.js`, `src/core/jobs/job-runner.js`, and `src/services/jobs.service.js`. This is not part of the 0.33.5.23 parameter-binding conversion. It belongs with the 0.40.0 dialect portability audit because SQLite and PostgreSQL both support `RETURNING`, but the exact statement shapes should still be reviewed with the future adapter.
+- `RETURNING` is present in four durable-job statements: `src/core/jobs/job-queue.js`, `src/core/jobs/job-runner.js`, and `src/services/jobs.service.js`. As of 0.33.5.27.2, `src/db/adapters/sqlite-dialect-seams.js` also owns the provider seam helper that emits `RETURNING ...` for future converted paths. The durable-job statements are not part of the 0.33.5.23 parameter-binding conversion; they are reviewed under the 0.33.5.27 identity/RETURNING seam and the later 0.40.0 PostgreSQL adapter proof.
 
 Out of scope for the original 0.33.5.23 parameter-binding slice:
 
@@ -280,3 +280,9 @@ The current live audit totals remain 1,498 runtime literal-helper invocations, 2
 0.33.5.27.1 is a plan-only slice. It defines the single agnostic data-access contract, records the dialect seam decisions in `DECISIONS.md` and `docs/database.md`, reconciles the 0.40.0 scope as the future PostgreSQL implementation/proof branch, and assigns the remaining inventory owners to the 0.33.5.27 conversion waves above.
 
 No runtime SQL behavior changed. The current live audit totals remain 1,498 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 total runtime database operation calls.
+
+## 0.33.5.27.2 Dialect Seam Scaffold
+
+0.33.5.27.2 adds the SQLite-backed `db.dialect` seam scaffold and a focused proof harness for conflict writes, case-insensitive SQL, boolean mapping, timestamp math, FTS5 search lowering, JSON capability status, `RETURNING`/identity, `rowid`, and PRAGMA/introspection helpers.
+
+No application repository conversion happened in this slice, and the helper/direct-interpolation burndown is intentionally unchanged. The current live audit totals remain 1,498 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 total runtime database operation calls.

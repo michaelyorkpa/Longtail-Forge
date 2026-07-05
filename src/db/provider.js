@@ -8,6 +8,7 @@ import {
 } from "./sql-literals.js";
 
 const db = createDatabaseAdapter(config.databaseProvider);
+const databaseDialect = db.dialect;
 
 function createDatabaseAdapter(provider) {
   if (provider === "sqlite") {
@@ -31,6 +32,10 @@ function runSql(sql, params = undefined) {
 
 function closeDatabase() {
   return db.close();
+}
+
+function getDatabaseDialect() {
+  return db.dialect;
 }
 
 async function initializeDatabaseRuntime() {
@@ -65,7 +70,13 @@ export {
   closeDatabase,
   createDatabaseAdapter,
   db,
+  db as databaseAdapter,
+  db as database,
+  databaseDialect,
   formatDatabaseHealth,
+  getDatabaseDialect,
+  getDatabaseDialect as readDatabaseDialect,
+  getDatabaseDialect as resolveDatabaseDialect,
   getLastDatabaseHealth,
   getSql,
   initializeDatabaseRuntime,

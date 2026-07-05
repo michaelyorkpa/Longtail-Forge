@@ -9,8 +9,10 @@ import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { runMigrations } from "./migrations.js";
 import {
   closeDatabase,
+  databaseDialect,
   db,
   formatDatabaseHealth,
+  getDatabaseDialect,
   getLastDatabaseHealth,
   getSql,
   initializeDatabaseRuntime,
@@ -813,7 +815,9 @@ async function columnsExist(tableName, columnNames) {
 export {
   closeDatabase,
   ensureDatabase,
+  databaseDialect,
   formatDatabaseHealth,
+  getDatabaseDialect,
   getLastDatabaseHealth,
   getSql,
   initializeDatabase,
