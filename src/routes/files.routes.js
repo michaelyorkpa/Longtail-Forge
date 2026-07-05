@@ -361,7 +361,12 @@ function readMultipartBatchUpload(request) {
       trackMultipartFileStream(file, activeFileStreams);
       if (!["file", "files"].includes(fieldName)) {
         file.resume();
-        fail(new AppError("Multipart batch upload expects file fields named 'files'.", 400));
+        uploadPromises.push(Promise.resolve(multipartBatchFailureResult({
+          error: new AppError("Multipart batch upload expects file fields named 'files'.", 400),
+          index: uploadCount,
+          info,
+        })));
+        uploadCount += 1;
         return;
       }
 
@@ -373,7 +378,11 @@ function readMultipartBatchUpload(request) {
         payload = buildMultipartUploadPayload(fields, file, info, index);
       } catch (error) {
         file.resume();
-        fail(error);
+        uploadPromises.push(Promise.resolve(multipartBatchFailureResult({
+          error,
+          index,
+          info,
+        })));
         return;
       }
 
@@ -434,6 +443,16 @@ function readMultipartBatchUpload(request) {
 
     request.pipe(parser);
   });
+}
+
+function multipartBatchFailureResult({ error, index, info = {} }) {
+  return {
+    error: error?.message || "Upload failed.",
+    index,
+    ok: false,
+    originalFilename: info.filename || "",
+    status: error?.status || error?.statusCode || 400,
+  };
 }
 
 function trackMultipartFileStream(file, activeFileStreams) {

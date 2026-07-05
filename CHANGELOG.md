@@ -1,3 +1,34 @@
+## Version 0.33.5.25.4 - 2026-07-04 14:10 -04:00
+
+- Changed streamed multipart batch uploads so a malformed individual file part is returned as a failed per-file result while valid file parts in the same parseable request can still attach.
+- Removed the unused local storage adapter `quarantine()` surface; `metadata()` remains active for download and preview pre-checks, and `quarantineFile()` remains a database lifecycle/status transition without stored-object relocation.
+- Updated Files storage docs/decisions, archived the completed 0.33.5.25 roadmap branch to `ROADMAP-ARCHIVE.md`, and moved the live roadmap cursor to 0.33.5.26.
+- Verification 2026-07-04 14:16 -04:00: `npm run check` passed 262/262 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.25.4 from the local 8018 verification server.
+
+## Version 0.33.5.25.3 - 2026-07-04 13:45 -04:00
+
+- Hardened streamed Files uploads so sampled file signatures can reject wrong-type content during the stream before the storage write completes where practical.
+- Replaced swallowed rejected-upload cleanup deletes with an awaited/logged cleanup helper and normalized S3-style missing-object errors to 404.
+- Added storage-object `metadata()` prechecks before download and preview-content reads so missing local/S3 objects return a clean 404 before the route starts streaming.
+- Added `scripts/file-streamed-validation-download-metadata-regression.mjs`, wired it into the Files storage regression group, updated Files storage docs/decisions, and marked the 0.33.5.25.3 roadmap checklist complete.
+- Verification 2026-07-04 13:54 -04:00: `npm run check` passed 262/262 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.25.3 from the local 8017 verification server.
+
+## Version 0.33.5.25.2 - 2026-07-04 12:48 -04:00
+
+- Activated workspace and per-user Files storage quota enforcement for both JSON/base64 compatibility uploads and streamed multipart uploads.
+- Added service-owned quota usage checks against internal stored bytes, treating `NULL` limits as unlimited and counting stored pending, available, quarantined, and staged-deleted files by workspace and uploader.
+- Tightened streamed uploads so the remaining quota becomes the active stream guard, causing over-quota streams to fail with the existing partial local-file cleanup behavior and without active file rows or attachments.
+- Kept quota accounting on named bound params and updated the parameter-binding audit ratchet to 92 bound operation sites and 408 runtime DB operation calls while leaving helper and direct-interpolation counts unchanged.
+- Added `scripts/file-storage-quota-enforcement-regression.mjs`, wired it into the Files storage regression group, updated Files quota docs/decisions, and marked the 0.33.5.25.2 roadmap checklist complete.
+- Verification 2026-07-04 13:03 -04:00: `npm run check` passed 261/261 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.25.2 after restarting the local 8001 server on Node 24.
+
+## Version 0.33.5.25.1 - 2026-07-04 11:29 -04:00
+
+- Resolved the current S3 provider state as explicitly deferred scaffolding rather than a selectable runtime provider, keeping the adapter proof and reserved config keys for future provider-client work without adding an S3 SDK/client dependency.
+- Added startup validation for app and separate-worker startup so `LONGTAIL_STORAGE_PROVIDER=s3` fails before listening or polling when no functional provider client is wired, instead of producing request-time upload/download failures.
+- Refreshed runtime, SQLite, module, architecture, `.env.example`, and decision docs for the corrected storage-provider boundary, marked the 0.33.5.25.1 roadmap checklist complete, and updated the S3 provider regression to prove startup rejection.
+- Verification 2026-07-04 11:37 -04:00: `npm run check` passed 260/260 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.25.1 after restarting the local 8001 server on Node 24.
+
 ## Version 0.33.5.24.4 - 2026-07-04
 
 - Closed the Node 24 LTS upgrade branch by validating the full regression and permission suites under Node `v24.18.0` / npm `11.16.0`.

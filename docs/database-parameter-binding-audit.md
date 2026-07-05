@@ -163,3 +163,18 @@ Closeout confirmations:
 - The final 0.33.5.23 branch burndown remains 1,499 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 91 existing bound operation sites, and 407 total runtime database operation calls seen by the scanner.
 
 Further conversion waves and the dialect portability audit are future work. The 0.40.0 database-extraction branch should consume this recorded remaining inventory instead of treating 0.33.5.23 as fully removing every legacy helper call.
+
+## 0.33.5.25.2 Quota-Bound Query Update
+
+0.33.5.25.2 added one Files quota accounting read in `src/services/files.service.js` using named bound params. This is new quota enforcement behavior, not a reopened 0.33.5.23 conversion wave, and it keeps the remaining helper and direct-interpolation counts unchanged.
+
+Current live audit totals after that quota query:
+
+- Remaining runtime literal-helper invocations: 1,499.
+- Remaining direct interpolated SQL operation sites: 233.
+- Existing direct bound-params operation sites: 92.
+- Total runtime database operation calls seen by the scanner: 408.
+
+In compact form, the current live ratchet is 1,499 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 92 existing bound operation sites, and 408 total runtime database operation calls.
+
+The current `services/files.service` row is 148 runtime literal-helper invocations, 27 direct interpolated operation sites, 1 existing bound operation site, and 31 runtime database operation calls. Future Files metadata conversion should consume that updated current row while preserving the Files storage, scan, preview, download, quarantine, attachment lifecycle, and quota behavior.

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 
-const appVersion = "0.33.5.24.4";
+const appVersion = "0.33.5.25.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-s3-object-proof-"));
 const privateBucket = "private-proof-bucket";
 const privateEndpoint = "https://objects.private.invalid";
@@ -85,14 +85,14 @@ async function assertStaticContracts() {
   assert.doesNotMatch(s3AdapterSource, /@aws-sdk|client-s3/i, "S3 object proof should stay behind the narrow client contract");
   assert.doesNotMatch(s3AdapterSource, /signedUrl|presigned/i, "S3 object proof should not add signed URL behavior");
 
-  assert.match(filesServiceSource, /getFileStorageAdapter\(file\.storage_provider\)\.read\(file\.storage_key\)/, "download and preview reads should stay behind stored provider metadata");
+  assert.match(filesServiceSource, /assertStoredFileObjectExists\(file,[\s\S]*\.read\(file\.storage_key\)/, "download and preview reads should stay behind stored provider metadata prechecks");
   assert.match(filesServiceSource, /storageProvider\.adapter\.saveStream/, "streamed uploads should still use the selected storage provider adapter");
   assert.match(filesServiceSource, /storageProvider: storageProvider\.providerId/, "new file rows should continue to store the resolved provider id");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*S3 object operations are contract-tested through a mocked client path/, "runtime docs should record the mocked S3 object-operation proof");
-  assert.match(sqliteDocs, /As of 0\.33\.5\.22\.15[\s\S]*mocked S3 client proof/, "SQLite docs should preserve local default while documenting the object proof");
-  assert.match(moduleContract, /As of 0\.33\.5\.22\.15[\s\S]*S3-compatible provider[\s\S]*mocked client/, "module contract should describe the provider-owned S3 proof");
-  assert.match(moduleDevelopment, /As of 0\.33\.5\.22\.15[\s\S]*S3-compatible provider[\s\S]*mocked client/, "module docs should keep modules behind filesService");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.25\.1[\s\S]*mocked object-operation proof coverage/, "runtime docs should record the mocked S3 object-operation proof");
+  assert.match(sqliteDocs, /As of 0\.33\.5\.25\.1[\s\S]*S3 remains deferred scaffolding[\s\S]*mocked proof coverage/, "SQLite docs should preserve local default while documenting the object proof");
+  assert.match(moduleContract, /As of 0\.33\.5\.22\.15[\s\S]*S3-compatible adapter scaffold[\s\S]*mocked client/, "module contract should describe the adapter-owned S3 proof");
+  assert.match(moduleDevelopment, /As of 0\.33\.5\.22\.15[\s\S]*S3-compatible adapter object operations[\s\S]*mocked client/, "module docs should keep modules behind filesService");
   assert.doesNotMatch(runtimeDocs + sqliteDocs + moduleContract + moduleDevelopment, /private-proof-bucket|private-proof-access-key|private-proof-secret-key|objects\.private\.invalid/i, "docs should not leak regression S3 config values");
 }
 
@@ -127,7 +127,7 @@ async function assertAdapterObjectOperations() {
   await assert.rejects(
     () => adapter.read(saved.storageKey),
     (error) => {
-      assert.equal(error.statusCode, 502, "client read failures should be normalized");
+      assert.equal(error.statusCode, 404, "missing object read failures should be normalized");
       assertSafeS3Payload(error.message, "read error");
       return true;
     },

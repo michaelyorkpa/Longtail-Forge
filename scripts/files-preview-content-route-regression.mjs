@@ -491,7 +491,7 @@ async function assertPreviewSourceBoundary() {
   const contentBlock = functionBlock(serviceSource, "readAttachmentPreviewContent");
 
   assert.doesNotMatch(descriptorBlock, /recordFileAudit|emitFileLifecycleEvent|getFileStorageAdapter|\.read\(/, "Preview descriptors should not read content, audit, or emit lifecycle events");
-  assert.match(contentBlock, /getFileStorageAdapter\([\s\S]*\.read\(/, "Preview content should read storage only through the Files storage adapter");
+  assert.match(contentBlock, /assertStoredFileObjectExists\([\s\S]*\.read\(/, "Preview content should precheck storage metadata before reading through the Files storage adapter");
   assert.match(contentBlock, /renderMarkdownToHtml/, "Markdown preview content should use the shared Markdown service");
   assert.doesNotMatch(contentBlock, /MarkdownIt|marked|showdown|recordFileAudit|emitFileLifecycleEvent/, "Preview content should not add another Markdown parser or preview audit/lifecycle event in this slice");
 }

@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.24.4";
+const appVersion = "0.33.5.25.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-batch-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -33,6 +33,7 @@ try {
 
   await checkSuccessfulMultiFileUpload(api, fixtures);
   await checkPartialBatchFailure(api, fixtures);
+  await checkMalformedFilePartBatchFailure(api, fixtures);
   await checkJsonBatchRouteCompatibility(api, fixtures);
   await assertIntegrity();
 
@@ -51,7 +52,9 @@ function assertStaticContracts() {
   const roadmap = readText("ROADMAP.md");
   const changelog = readText("CHANGELOG.md");
   const filesRoutes = readText("src/routes/files.routes.js");
+  const filesService = readText("src/services/files.service.js");
   const helper = readText("public/js/shared/file-attachments.js");
+  const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
   const moduleContract = readText("docs/module-contract.md");
   const notesHtml = readText("views/protected/notes.html");
   const tasksHtml = readText("views/protected/tasks.html");
@@ -68,6 +71,11 @@ function assertStaticContracts() {
   assert.match(filesRoutes, /uploadStreamAndAttach/, "Multipart batch uploads should use the streamed Files lifecycle per file");
   assert.match(filesRoutes, /response\.status\(result\.failed > 0 \? 207 : 201\)/, "Multipart batch route should preserve partial-failure status semantics");
   assert.match(filesRoutes, /originalFilename: payload\.originalFilename/, "Multipart batch results should preserve per-file result labels");
+  assert.match(filesRoutes, /function multipartBatchFailureResult/, "Multipart batch uploads should shape malformed file parts as per-file failures");
+  assert.match(filesRoutes, /multipartBatchFailureResult\(\{[\s\S]*info[\s\S]*\}\)/, "Multipart batch malformed file parts should preserve their filename when available");
+  assert.match(filesService, /assertStoredFileObjectExists\(file,[\s\S]*adapter\.metadata\(file\.storage_key\)/, "metadata() should remain an active storage adapter contract for download and preview pre-checks");
+  assert.doesNotMatch(localStorageAdapter, /async quarantine\(/, "Local storage adapter should not expose unused quarantine() surface");
+  assert.match(functionBlock(filesService, "quarantineFile"), /SET status = 'quarantined'/, "Quarantine remains DB lifecycle state until storage relocation is explicitly designed");
 
   assert.match(helper, /FormData/, "Attachment helper should build multipart form uploads");
   assert.match(helper, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/, "Attachment helper should prefer the streamed multipart batch route");
@@ -169,6 +177,53 @@ WHERE original_filename = 'partial-bad.exe';
   assert.equal(Number(badRows[0].count), 0, "failed streamed batch items should not create file rows");
 }
 
+async function checkMalformedFilePartBatchFailure(api, fixtures) {
+  const form = new FormData();
+  form.append("moduleId", "tasks");
+  form.append("targetType", "task");
+  form.append("targetId", fixtures.malformedTaskId);
+  form.append("visibility", "private");
+  form.append("files", new Blob(["valid streamed body"], {
+    type: "text/plain",
+  }), "malformed-part-good.txt");
+  form.append("wrongFileField", new Blob(["wrong field body"], {
+    type: "text/plain",
+  }), "malformed-part-bad.txt");
+
+  const response = await api.postForm("/api/files/upload/batch", form, { cookie: fixtures.adminSessionId });
+
+  assert.equal(response.status, 207, "single malformed streamed batch file should use multi-status response");
+  assert.equal(response.body.total, 2);
+  assert.equal(response.body.succeeded, 1);
+  assert.equal(response.body.failed, 1);
+  assert.equal(response.body.results[0].ok, true);
+  assert.equal(response.body.results[0].originalFilename, "malformed-part-good.txt");
+  assert.equal(response.body.results[1].ok, false);
+  assert.equal(response.body.results[1].originalFilename, "malformed-part-bad.txt");
+  assert.match(response.body.results[1].error, /file fields named 'files'/);
+
+  const attachedRows = await querySql(`
+SELECT files.original_filename, files.status, files.scan_status
+FROM file_attachments
+INNER JOIN files
+  ON files.workspace_id = file_attachments.workspace_id
+  AND files.file_id = file_attachments.file_id
+WHERE file_attachments.target_id = ${sqlText(fixtures.malformedTaskId)}
+ORDER BY files.original_filename;
+`);
+  assert.equal(attachedRows.length, 1);
+  assert.equal(attachedRows[0].original_filename, "malformed-part-good.txt");
+  assert.equal(attachedRows[0].status, "pending");
+  assert.equal(attachedRows[0].scan_status, "pending");
+
+  const badRows = await querySql(`
+SELECT COUNT(*) AS count
+FROM files
+WHERE original_filename = 'malformed-part-bad.txt';
+`);
+  assert.equal(Number(badRows[0].count), 0, "malformed streamed batch file parts should not create file rows");
+}
+
 async function checkJsonBatchRouteCompatibility(api, fixtures) {
   const response = await api.postJson("/api/files/batch", {
     files: [
@@ -195,6 +250,7 @@ async function seedFixtures() {
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const taskIds = {
     legacyTaskId: randomUUID(),
+    malformedTaskId: randomUUID(),
     multiTaskId: randomUUID(),
     partialTaskId: randomUUID(),
   };

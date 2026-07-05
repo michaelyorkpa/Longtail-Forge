@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.24.4";
+const appVersion = "0.33.5.25.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-provider-config-"));
 
 delete process.env.LONGTAIL_STORAGE_PROVIDER;
@@ -102,7 +102,7 @@ async function assertStaticContracts() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the storage provider resolver version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the storage provider resolver version");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage provider resolver slice");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15, `LONGTAIL_STORAGE_PROVIDER` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15, `LONGTAIL_STORAGE_PROVIDER=local` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(filesServiceSource, /function resolveConfiguredFileStorageProvider\(\)/, "Files service should own configured provider resolution");
   assert.doesNotMatch(functionBlock(filesServiceSource, "uploadAndAttach"), /getFileStorageAdapter\("local"\)|storageProvider:\s*"local"/, "upload writes should not hardcode the local provider");

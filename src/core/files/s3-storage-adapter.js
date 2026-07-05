@@ -102,9 +102,26 @@ async function callS3Client(client, settings, methodName, payload) {
     if (error instanceof AppError) {
       throw error;
     }
+    if (isS3ObjectNotFoundError(error)) {
+      throw new AppError("S3 file storage object was not found.", 404);
+    }
 
     throw new AppError("S3 file storage operation failed.", 502);
   }
+}
+
+function isS3ObjectNotFoundError(error) {
+  const statusCode = Number(error?.statusCode || error?.status || error?.$metadata?.httpStatusCode);
+  if (statusCode === 404) {
+    return true;
+  }
+
+  const code = String(error?.code || error?.name || error?.Code || "").toLowerCase();
+  if (["nosuchkey", "notfound", "notfounderror", "notfoundexception"].includes(code)) {
+    return true;
+  }
+
+  return /not found|no such key|object missing|missing object/i.test(String(error?.message || ""));
 }
 
 function createWriteTarget(options = {}) {

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.24.4";
+const appVersion = "0.33.5.25.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-s3-provider-registration-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -21,16 +21,12 @@ delete process.env.LONGTAIL_S3_SECRET_ACCESS_KEY;
 const { config, createConfig } = await import("../src/config.js");
 const { createS3FileStorageAdapter } = await import("../src/core/files/s3-storage-adapter.js");
 const { filesService } = await import("../src/services/files.service.js");
-const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
   await assertStaticContracts();
   assertConfigContracts();
   await assertS3AdapterContracts();
-
-  await initializeDatabase();
-  const session = await readSeedSession();
-  const taskId = await createTask(session, "S3 provider registration task");
+  await assertServerStartupRejectsUnavailableS3Provider();
 
   assert.equal(config.storage.provider, "s3", "the regression should exercise the explicit S3 provider key");
   assert.deepEqual(config.storage.s3, {
@@ -41,32 +37,8 @@ try {
     secretAccessKey: "",
   });
 
-  await assert.rejects(
-    () => filesService.uploadAndAttach(session, uploadPayload(taskId)),
-    (error) => {
-      assert.equal(error.statusCode, 500, "missing S3 settings should be reported as configuration errors");
-      assert.match(error.message, /S3 file storage provider is not configured\./);
-      assert.match(error.message, /LONGTAIL_S3_BUCKET/);
-      assert.match(error.message, /LONGTAIL_S3_REGION/);
-      assert.match(error.message, /LONGTAIL_S3_ACCESS_KEY_ID/);
-      assert.match(error.message, /LONGTAIL_S3_SECRET_ACCESS_KEY/);
-      assert.doesNotMatch(error.message, /File-S3-Provider-Registration-Test|private-bucket|private-secret/i);
-      return true;
-    },
-    "missing S3 provider config should fail before any file row is created",
-  );
-
-  const leakedRows = await querySql(`
-SELECT file_id
-FROM files
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND original_filename = 'missing-s3-config.txt';
-`);
-  assert.equal(leakedRows.length, 0, "missing S3 config should not leave active file records behind");
-
-  console.log("File S3 provider registration regression passed.");
+  console.log("File S3 provider startup regression passed.");
 } finally {
-  await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
@@ -80,6 +52,8 @@ async function assertStaticContracts() {
     runtimeDocs,
     sqliteDocs,
     configSource,
+    appSource,
+    workerSource,
     filesServiceSource,
     s3AdapterSource,
     regressionSuite,
@@ -92,6 +66,8 @@ async function assertStaticContracts() {
     readText("docs/runtime-configuration.md"),
     readText("docs/sqlite-small-office-mode.md"),
     readText("src/config.js"),
+    readText("src/core/app.js"),
+    readText("src/core/jobs/worker-cli.js"),
     readText("src/services/files.service.js"),
     readText("src/core/files/s3-storage-adapter.js"),
     readText("scripts/regression-suite.mjs"),
@@ -122,6 +98,9 @@ async function assertStaticContracts() {
   assert.match(configSource, /readRuntimeSecret\("LONGTAIL_S3_SECRET_ACCESS_KEY", env\)/, "S3 secret key should be read as a server-side runtime secret");
   assert.match(filesServiceSource, /createS3FileStorageAdapter/, "Files service should import the S3 storage adapter");
   assert.match(filesServiceSource, /\["s3", createS3FileStorageAdapter\(config\.storage\?\.s3\)\]/, "Files service should register the S3 provider under the explicit s3 key");
+  assert.match(filesServiceSource, /async function assertConfiguredFileStorageProviderReady/, "Files service should expose startup storage provider validation");
+  assert.match(appSource, /filesService\.assertConfiguredFileStorageProviderReady\(\)/, "app startup should validate the configured storage provider before listening");
+  assert.match(workerSource, /filesService\.assertConfiguredFileStorageProviderReady\(\)/, "separate worker startup should validate the configured storage provider before polling jobs");
   assert.match(s3AdapterSource, /S3 file storage provider is not configured/, "S3 adapter should fail clearly when required config is missing");
   assert.match(s3AdapterSource, /S3 file storage client is not configured/, "S3 adapter should fail safely when no provider client is installed");
   assert.match(s3AdapterSource, /putObject/, "S3 adapter should expose putObject behind the client contract");
@@ -129,8 +108,9 @@ async function assertStaticContracts() {
   assert.match(s3AdapterSource, /headObject/, "S3 adapter should expose headObject behind the client contract");
   assert.match(s3AdapterSource, /deleteObject/, "S3 adapter should expose deleteObject behind the client contract");
   assert.doesNotMatch(s3AdapterSource, /@aws-sdk|client-s3/i, "S3 adapter should not wire an object client in this slice");
-  assert.match(runtimeDocs, /S3 object operations are contract-tested through a mocked client path/, "runtime docs should describe the S3 object-operation proof");
-  assert.match(sqliteDocs, /mocked S3 client proof/, "SQLite docs should preserve local storage while describing the S3 proof");
+  assert.match(runtimeDocs, /S3 storage is explicitly deferred scaffolding/i, "runtime docs should mark S3 as deferred scaffolding");
+  assert.match(runtimeDocs, /LONGTAIL_STORAGE_PROVIDER=s3[\s\S]*fails during app and worker startup/i, "runtime docs should document S3 startup rejection");
+  assert.match(sqliteDocs, /S3 remains deferred scaffolding/i, "SQLite docs should preserve local storage while describing the deferred S3 proof");
   assert.doesNotMatch(runtimeDocs + envExample + sqliteDocs, /AKIA|private-secret|private-bucket|example-secret/i, "docs and examples should not contain fake S3 credentials that look reusable");
 }
 
@@ -168,6 +148,18 @@ async function assertS3AdapterContracts() {
     status: "not_configured",
   }, "registered S3 provider should expose safe unavailable health when config is missing");
 
+  await assert.rejects(
+    () => filesService.assertConfiguredFileStorageProviderReady(),
+    (error) => {
+      assert.match(error.message, /File storage provider 's3' is not available at startup/);
+      assert.match(error.message, /S3 storage is deferred/);
+      assert.match(error.message, /LONGTAIL_STORAGE_PROVIDER=local/);
+      assert.doesNotMatch(error.message, /File-S3-Provider-Registration-Test|private-bucket|private-secret|LONGTAIL_S3_/i);
+      return true;
+    },
+    "configured S3 should fail startup validation before request handling",
+  );
+
   const configuredAdapter = createS3FileStorageAdapter({
     accessKeyId: "private-access-key",
     bucket: "private-bucket",
@@ -195,6 +187,57 @@ async function assertS3AdapterContracts() {
   );
 }
 
+async function assertServerStartupRejectsUnavailableS3Provider() {
+  const serverEnv = {
+    ...process.env,
+    LONGTAIL_DATA_DIR: tempDir,
+    LONGTAIL_DATABASE_FILE: path.join(tempDir, "startup-rejects-s3.db"),
+    LONGTAIL_ENV: "development",
+    LONGTAIL_S3_ACCESS_KEY_ID: "",
+    LONGTAIL_S3_BUCKET: "",
+    LONGTAIL_S3_ENDPOINT: "",
+    LONGTAIL_S3_REGION: "",
+    LONGTAIL_S3_SECRET_ACCESS_KEY: "",
+    LONGTAIL_STORAGE_PROVIDER: "s3",
+    LONGTAIL_WORKER_MODE: "disabled",
+    PORT: "65534",
+    SUPER_ADMIN_PASSWORD: "File-S3-Provider-Registration-Test-123!",
+  };
+  const result = await runNode(["server.js"], { env: serverEnv });
+  const output = `${result.stdout}\n${result.stderr}`;
+
+  assert.equal(result.code, 1, "server startup should exit unsuccessfully when S3 is selected without a client");
+  assert.match(output, /Longtail Forge could not be started/);
+  assert.match(output, /File storage provider 's3' is not available at startup/);
+  assert.match(output, /S3 storage is deferred until a provider-specific client is wired/);
+  assert.doesNotMatch(output, /Longtail Forge running at/);
+  assert.doesNotMatch(output, /File-S3-Provider-Registration-Test|private-bucket|private-secret|LONGTAIL_S3_BUCKET|LONGTAIL_S3_SECRET_ACCESS_KEY/i);
+}
+
+function runNode(args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, args, {
+      cwd: process.cwd(),
+      env: options.env,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      resolve({ code, stderr, stdout });
+    });
+  });
+}
+
 function assertSafeS3Payload(payload, label) {
   const serialized = JSON.stringify(payload);
   assert.doesNotMatch(serialized, /private-bucket|objects\.invalid|private-access-key|private-secret/i, `${label} should not expose S3 config values`);
@@ -207,81 +250,6 @@ async function readJson(relativePath) {
 
 async function readText(relativePath) {
   return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
-}
-
-async function readSeedSession() {
-  const rows = await querySql(`
-SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
-FROM users
-WHERE users.protected_user = 'yes'
-LIMIT 1;
-`);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  const workspaceId = user.active_workspace_id || user.home_workspace_id;
-
-  return {
-    active_workspace_id: workspaceId,
-    display_name: "Admin User",
-    role: "super_admin",
-    timezone: user.timezone || "UTC",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
-}
-
-async function createTask(session, title) {
-  const taskId = randomUUID();
-  const now = new Date().toISOString();
-
-  await runSql(`
-INSERT INTO tasks (
-  task_id,
-  workspace_id,
-  client_id,
-  project_id,
-  title,
-  description,
-  status,
-  priority,
-  created_by_user_id,
-  updated_by_user_id,
-  created_at,
-  updated_at
-) VALUES (
-  ${sqlText(taskId)},
-  ${sqlText(session.workspace_id)},
-  NULL,
-  NULL,
-  ${sqlText(title)},
-  '',
-  'open',
-  'normal',
-  ${sqlText(session.user_id)},
-  ${sqlText(session.user_id)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-);
-`);
-
-  return taskId;
-}
-
-function uploadPayload(taskId) {
-  const text = "missing S3 config body";
-
-  return {
-    contentBase64: Buffer.from(text).toString("base64"),
-    mimeType: "text/plain",
-    moduleId: "tasks",
-    originalFilename: "missing-s3-config.txt",
-    sizeBytes: Buffer.byteLength(text),
-    targetId: taskId,
-    targetType: "task",
-  };
 }
 
 function escapeRegExp(value) {

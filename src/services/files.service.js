@@ -21,7 +21,7 @@ import {
   createNoopFileScannerAdapter,
 } from "../core/files/scanner-adapter.js";
 import { config } from "../config.js";
-import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
+import { db, querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
@@ -42,6 +42,19 @@ const FILE_TYPE_POLICY_MODES = new Set(["safe_default", "allowlist", "blocklist"
 const IMAGE_PREVIEW_EXTENSIONS = new Set([".gif", ".jpg", ".jpeg", ".png"]);
 const MARKDOWN_PREVIEW_EXTENSIONS = new Set([".md"]);
 const TEXT_PREVIEW_EXTENSIONS = new Set([".txt"]);
+const STREAM_SAMPLE_LIMIT_BYTES = 1024;
+const STREAM_SIGNATURE_SAMPLE_BYTES = new Map([
+  [".docx", 2],
+  [".gif", 6],
+  [".jpeg", 3],
+  [".jpg", 3],
+  [".pdf", 4],
+  [".png", 8],
+  [".pptx", 2],
+  [".xlsx", 2],
+  [".zip", 2],
+]);
+const STREAM_TEXT_SAMPLE_EXTENSIONS = new Set([".csv", ".md", ".txt"]);
 const ALLOWED_EXTENSIONS = new Map([
   [".csv", { category: "spreadsheet", mime: "text/csv", risky: false }],
   [".doc", { category: "document", mime: "application/msword", risky: true }],
@@ -174,6 +187,45 @@ function resolveConfiguredFileStorageProvider() {
   };
 }
 
+async function assertConfiguredFileStorageProviderReady() {
+  const { adapter, providerId } = resolveConfiguredFileStorageProvider();
+  let health;
+
+  try {
+    health = await adapter.health();
+  } catch {
+    throw new Error(storageProviderStartupError(providerId, "unavailable"));
+  }
+
+  if (health?.ok !== true && health?.available !== true) {
+    throw new Error(storageProviderStartupError(providerId, health?.status));
+  }
+
+  return {
+    providerId,
+    status: sanitizeStorageProviderStatus(health?.status || "ok"),
+  };
+}
+
+function storageProviderStartupError(providerId, status) {
+  const safeProviderId = String(providerId || "local").trim() || "local";
+  const safeStatus = sanitizeStorageProviderStatus(status || "unavailable");
+
+  if (safeProviderId === "s3") {
+    return `File storage provider 's3' is not available at startup (${safeStatus}). S3 storage is deferred until a provider-specific client is wired; set LONGTAIL_STORAGE_PROVIDER=local.`;
+  }
+
+  return `File storage provider '${safeProviderId}' is not available at startup (${safeStatus}). Set LONGTAIL_STORAGE_PROVIDER to a configured provider.`;
+}
+
+function sanitizeStorageProviderStatus(status) {
+  return String(status || "unavailable")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "_")
+    .slice(0, 80) || "unavailable";
+}
+
 function getFileScannerAdapter(scannerMode = "none") {
   const normalizedMode = normalizeFileScannerMode(scannerMode || "none");
 
@@ -248,6 +300,7 @@ async function uploadAndAttach(session, payload = {}) {
     const { attachableType, fileSettings, target } = await resolveUploadTarget(session, payload);
 
     const prepared = prepareUpload(payload, attachableType, fileSettings);
+    await assertStorageQuotaAllowsUpload(session, fileSettings, prepared.fileSizeBytes);
     const storageProvider = resolveConfiguredFileStorageProvider();
     const storage = await storageProvider.adapter.save(prepared.buffer, { workspaceId: session.workspace_id });
 
@@ -710,7 +763,8 @@ async function downloadFile(session, fileId) {
     operation: "download",
   });
 
-  const stream = await getFileStorageAdapter(file.storage_provider).read(file.storage_key);
+  const storageAdapter = await assertStoredFileObjectExists(file, "download");
+  const stream = await storageAdapter.read(file.storage_key);
   await emitFileLifecycleEvent("file.downloaded", {
     session,
     fileId: file.file_id,
@@ -761,7 +815,8 @@ async function readAttachmentPreviewContent(session, attachmentId) {
     throw new AppError("File not found.", 404);
   }
 
-  const stream = await getFileStorageAdapter(file.storage_provider).read(file.storage_key);
+  const storageAdapter = await assertStoredFileObjectExists(file, "preview");
+  const stream = await storageAdapter.read(file.storage_key);
 
   if (availability.kind === "image") {
     return {
@@ -1995,7 +2050,11 @@ async function prepareStreamedUpload(session, payload = {}, attachableType = {},
   }
 
   const storageProvider = resolveConfiguredFileStorageProvider();
-  const tracker = createStreamUploadTracker(policy.maxSize);
+  const uploadLimit = await resolveStreamedUploadLimit(session, fileSettings, policy.maxSize);
+  const tracker = createStreamUploadTracker(uploadLimit, {
+    extension: policy.extension,
+    extensionRule: policy.extensionRule,
+  });
   tracker.stream.on("error", () => {});
   fileStream.on("error", (error) => {
     tracker.stream.destroy(error);
@@ -2013,14 +2072,20 @@ async function prepareStreamedUpload(session, payload = {}, attachableType = {},
   const streamed = tracker.result();
 
   if (streamed.fileSizeBytes < 1) {
-    await storageProvider.adapter.delete(storage.storageKey).catch(() => {});
+    await deleteRejectedUploadStorage(storageProvider, storage, "empty_stream");
     throw new AppError("Uploaded file content is required.", 400);
   }
 
   const detected = detectFileType(streamed.sampleBuffer, policy.extension, policy.extensionRule);
   if (!detected.ok) {
-    await storageProvider.adapter.delete(storage.storageKey).catch(() => {});
+    await deleteRejectedUploadStorage(storageProvider, storage, "file_type_mismatch");
     throw new AppError("Uploaded file content does not match the allowed file type.", 400);
+  }
+  try {
+    await assertStorageQuotaAllowsUpload(session, fileSettings, streamed.fileSizeBytes);
+  } catch (error) {
+    await deleteRejectedUploadStorage(storageProvider, storage, "quota_rejected_after_stream");
+    throw error;
   }
 
   return {
@@ -2036,6 +2101,117 @@ async function prepareStreamedUpload(session, payload = {}, attachableType = {},
     storageProvider: storageProvider.providerId,
     storedFilename: storage.storedFilename,
   };
+}
+
+async function resolveStreamedUploadLimit(session, fileSettings, maxFileSizeBytes) {
+  const quotaLimit = await readStorageQuotaUploadLimit(session, fileSettings);
+  const fileSizeLimit = {
+    exceededMessage: "Uploaded file exceeds the allowed size.",
+    maxBytes: maxFileSizeBytes,
+    statusCode: 413,
+  };
+
+  if (!quotaLimit || quotaLimit.remainingBytes >= maxFileSizeBytes) {
+    return fileSizeLimit;
+  }
+
+  return {
+    exceededMessage: storageQuotaExceededMessage(quotaLimit.scope),
+    maxBytes: quotaLimit.remainingBytes,
+    statusCode: 413,
+  };
+}
+
+async function assertStorageQuotaAllowsUpload(session, fileSettings, uploadBytes) {
+  const quota = await readStorageQuotaState(session, fileSettings);
+
+  if (!quota.limitsActive) {
+    return;
+  }
+
+  if (quota.workspaceLimitBytes !== null && quota.workspaceBytes + uploadBytes > quota.workspaceLimitBytes) {
+    throw storageQuotaExceededError("workspace");
+  }
+
+  if (quota.perUserLimitBytes !== null && quota.userBytes + uploadBytes > quota.perUserLimitBytes) {
+    throw storageQuotaExceededError("user");
+  }
+}
+
+async function readStorageQuotaUploadLimit(session, fileSettings) {
+  const quota = await readStorageQuotaState(session, fileSettings);
+
+  if (!quota.limitsActive) {
+    return null;
+  }
+
+  const candidates = [];
+  if (quota.workspaceLimitBytes !== null) {
+    candidates.push({
+      remainingBytes: Math.max(0, quota.workspaceLimitBytes - quota.workspaceBytes),
+      scope: "workspace",
+    });
+  }
+  if (quota.perUserLimitBytes !== null) {
+    candidates.push({
+      remainingBytes: Math.max(0, quota.perUserLimitBytes - quota.userBytes),
+      scope: "user",
+    });
+  }
+
+  return candidates.sort((left, right) => left.remainingBytes - right.remainingBytes)[0] || null;
+}
+
+async function readStorageQuotaState(session, fileSettings) {
+  const workspaceLimitBytes = nullableInteger(fileSettings?.internalStorageLimitBytes);
+  const perUserLimitBytes = nullableInteger(fileSettings?.perUserStorageLimitBytes);
+
+  if (workspaceLimitBytes === null && perUserLimitBytes === null) {
+    return {
+      limitsActive: false,
+      perUserLimitBytes,
+      userBytes: 0,
+      workspaceBytes: 0,
+      workspaceLimitBytes,
+    };
+  }
+
+  const usage = await readInternalStorageQuotaUsage(session.workspace_id, session.user_id);
+
+  return {
+    limitsActive: true,
+    perUserLimitBytes,
+    userBytes: usage.userBytes,
+    workspaceBytes: usage.workspaceBytes,
+    workspaceLimitBytes,
+  };
+}
+
+async function readInternalStorageQuotaUsage(workspaceId, userId) {
+  const row = await db.get(`
+SELECT
+  COALESCE(SUM(file_size_bytes), 0) AS workspace_bytes,
+  COALESCE(SUM(CASE WHEN uploaded_by_user_id = :userId THEN file_size_bytes ELSE 0 END), 0) AS user_bytes
+FROM files
+WHERE workspace_id = :workspaceId
+  AND COALESCE(storage_kind, 'internal') = 'internal'
+  AND status IN ('pending', 'available', 'quarantined', 'deleted');
+`, { userId, workspaceId });
+
+  return {
+    userBytes: Number(row?.user_bytes || 0),
+    workspaceBytes: Number(row?.workspace_bytes || 0),
+  };
+}
+
+function storageQuotaExceededError(scope) {
+  return new AppError(storageQuotaExceededMessage(scope), 413);
+}
+
+function storageQuotaExceededMessage(scope) {
+  return scope === "workspace"
+    ? "Upload would exceed the workspace storage quota."
+    : "Upload would exceed your per-user storage quota.";
 }
 
 function prepareUploadPolicy(payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
@@ -2068,20 +2244,81 @@ function prepareUploadPolicy(payload = {}, attachableType = {}, fileSettings = d
   };
 }
 
-function createStreamUploadTracker(maxSize) {
+async function assertStoredFileObjectExists(file, operation = "read") {
+  const adapter = getFileStorageAdapter(file.storage_provider);
+
+  try {
+    await adapter.metadata(file.storage_key);
+  } catch (error) {
+    throw storageObjectUnavailableError(error, operation);
+  }
+
+  return adapter;
+}
+
+function storageObjectUnavailableError(error, operation) {
+  if (isStorageObjectNotFoundError(error)) {
+    return new AppError("File content is no longer available.", 404);
+  }
+
+  if (error instanceof AppError) {
+    return error;
+  }
+
+  const message = operation === "download"
+    ? "File content is not available for download."
+    : "Preview content is not available for that file.";
+  return new AppError(message, 502);
+}
+
+function isStorageObjectNotFoundError(error) {
+  const statusCode = Number(error?.statusCode || error?.status || error?.code);
+  if (statusCode === 404) {
+    return true;
+  }
+
+  return ["ENOENT", "NoSuchKey", "NotFound", "NotFoundError"].includes(String(error?.code || error?.name || ""));
+}
+
+async function deleteRejectedUploadStorage(storageProvider, storage, reason) {
+  if (!storage?.storageKey) {
+    return;
+  }
+
+  try {
+    await storageProvider.adapter.delete(storage.storageKey);
+  } catch (error) {
+    console.warn("[files] Rejected upload storage cleanup failed.", {
+      error: safeLogErrorMessage(error),
+      provider: sanitizeStorageProviderStatus(storageProvider.providerId),
+      reason: sanitizeStorageProviderStatus(reason),
+    });
+  }
+}
+
+function safeLogErrorMessage(error) {
+  return String(error?.message || error || "storage cleanup failed")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 200) || "storage cleanup failed";
+}
+
+function createStreamUploadTracker(limit, options = {}) {
+  const normalizedLimit = normalizeUploadLimit(limit);
   const hash = createHash("sha256");
   const sampleChunks = [];
-  const sampleLimit = 1024;
+  const sampleLimit = STREAM_SAMPLE_LIMIT_BYTES;
   let fileSizeBytes = 0;
   let sampleBytes = 0;
+  let sampleValidationComplete = false;
 
   const stream = new Transform({
     transform(chunk, encoding, callback) {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
       const nextSize = fileSizeBytes + buffer.length;
 
-      if (nextSize > maxSize) {
-        callback(new AppError("Uploaded file exceeds the allowed size.", 413));
+      if (nextSize > normalizedLimit.maxBytes) {
+        callback(new AppError(normalizedLimit.exceededMessage, normalizedLimit.statusCode));
         return;
       }
 
@@ -2093,6 +2330,15 @@ function createStreamUploadTracker(maxSize) {
         const sample = buffer.subarray(0, Math.min(buffer.length, remaining));
         sampleChunks.push(sample);
         sampleBytes += sample.length;
+      }
+
+      if (!sampleValidationComplete && sampleBytes > 0) {
+        const validation = validateStreamedUploadSample(Buffer.concat(sampleChunks), options, sampleLimit);
+        if (!validation.ok) {
+          callback(new AppError("Uploaded file content does not match the allowed file type.", 400));
+          return;
+        }
+        sampleValidationComplete = validation.complete;
       }
 
       callback(null, buffer);
@@ -2108,6 +2354,53 @@ function createStreamUploadTracker(maxSize) {
       };
     },
     stream,
+  };
+}
+
+function validateStreamedUploadSample(sampleBuffer, options = {}, sampleLimit = STREAM_SAMPLE_LIMIT_BYTES) {
+  const extension = String(options.extension || "").toLowerCase();
+  const extensionRule = options.extensionRule || ALLOWED_EXTENSIONS.get(extension);
+
+  if (!extensionRule) {
+    return { complete: true, ok: true };
+  }
+
+  if (STREAM_TEXT_SAMPLE_EXTENSIONS.has(extension)) {
+    const detected = detectFileType(sampleBuffer, extension, extensionRule);
+    return {
+      complete: sampleBuffer.length >= sampleLimit,
+      ok: detected.ok,
+    };
+  }
+
+  const requiredBytes = STREAM_SIGNATURE_SAMPLE_BYTES.get(extension);
+  if (!requiredBytes) {
+    return { complete: true, ok: true };
+  }
+  if (sampleBuffer.length < requiredBytes) {
+    return { complete: false, ok: true };
+  }
+
+  const detected = detectFileType(sampleBuffer, extension, extensionRule);
+  return {
+    complete: true,
+    ok: detected.ok,
+  };
+}
+
+function normalizeUploadLimit(limit) {
+  if (limit && typeof limit === "object") {
+    return {
+      exceededMessage: normalizeOptionalText(limit.exceededMessage, { maxLength: 200 }) || "Uploaded file exceeds the allowed size.",
+      maxBytes: clampInteger(limit.maxBytes, DEFAULT_MAX_FILE_SIZE_BYTES, 0, Number.MAX_SAFE_INTEGER),
+      statusCode: clampInteger(limit.statusCode, 413, 400, 599),
+    };
+  }
+
+  return {
+    exceededMessage: "Uploaded file exceeds the allowed size.",
+    maxBytes: clampInteger(limit, DEFAULT_MAX_FILE_SIZE_BYTES, 0, Number.MAX_SAFE_INTEGER),
+    statusCode: 413,
   };
 }
 
@@ -3440,13 +3733,23 @@ function normalizeWorkspaceFileSettingsRow(row = {}) {
 
 function normalizeWorkspaceFileSettingsPayload(payload = {}, previous = defaultWorkspaceFileSettings("")) {
   const mode = String(payload.fileTypePolicyMode || payload.file_type_policy_mode || previous.fileTypePolicyMode || "safe_default").trim();
+  const internalStorageLimitBytes = Object.prototype.hasOwnProperty.call(payload, "internalStorageLimitBytes")
+    ? payload.internalStorageLimitBytes
+    : Object.prototype.hasOwnProperty.call(payload, "internal_storage_limit_bytes")
+      ? payload.internal_storage_limit_bytes
+      : previous.internalStorageLimitBytes;
+  const perUserStorageLimitBytes = Object.prototype.hasOwnProperty.call(payload, "perUserStorageLimitBytes")
+    ? payload.perUserStorageLimitBytes
+    : Object.prototype.hasOwnProperty.call(payload, "per_user_storage_limit_bytes")
+      ? payload.per_user_storage_limit_bytes
+      : previous.perUserStorageLimitBytes;
 
   return {
     allowedExtensions: normalizeExtensionList(payload.allowedExtensions || payload.allowed_extensions, previous.allowedExtensions),
     blockedExtensions: normalizeExtensionList(payload.blockedExtensions || payload.blocked_extensions, previous.blockedExtensions),
     fileTypePolicyMode: FILE_TYPE_POLICY_MODES.has(mode) ? mode : "safe_default",
-    internalStorageLimitBytes: nullableInteger(payload.internalStorageLimitBytes ?? payload.internal_storage_limit_bytes ?? previous.internalStorageLimitBytes),
-    perUserStorageLimitBytes: nullableInteger(payload.perUserStorageLimitBytes ?? payload.per_user_storage_limit_bytes ?? previous.perUserStorageLimitBytes),
+    internalStorageLimitBytes: nullableInteger(internalStorageLimitBytes),
+    perUserStorageLimitBytes: nullableInteger(perUserStorageLimitBytes),
   };
 }
 
@@ -3584,6 +3887,7 @@ async function recordFileAudit(session, event = {}) {
 }
 
 export const filesService = {
+  assertConfiguredFileStorageProviderReady,
   attachExistingFile,
   assertCanUseAttachableTarget,
   countAttachmentsForTargets,

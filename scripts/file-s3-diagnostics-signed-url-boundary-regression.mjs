@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 
-const appVersion = "0.33.5.24.4";
+const appVersion = "0.33.5.25.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-s3-diagnostics-boundary-"));
 const privateBucket = "private-diagnostics-bucket";
 const privateEndpoint = "https://objects.diagnostics.private.invalid";
@@ -153,8 +153,8 @@ async function assertStaticContracts() {
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the S3 diagnostics boundary slice");
   assert.match(regressionSuite, /scripts\/file-s3-diagnostics-signed-url-boundary-regression\.mjs/, "regression suite should include S3 diagnostics boundary coverage");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*S3 diagnostics expose only provider id and safe availability/, "runtime docs should record the S3 diagnostics redaction boundary");
-  assert.match(runtimeDocs, /No direct\/presigned S3 upload or download route is implemented in 0\.33\.5\.22\.15/, "runtime docs should keep signed URL implementation out of scope");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.25\.1[\s\S]*S3 bucket names[\s\S]*must not appear in diagnostics/, "runtime docs should record the S3 diagnostics redaction boundary");
+  assert.match(runtimeDocs, /No direct\/presigned S3 upload or download route is implemented in 0\.33\.5\.25\.1/, "runtime docs should keep signed URL implementation out of scope");
   assert.match(sqliteDocs, /local-vs-S3 deployment guidance/i, "SQLite docs should include local-vs-S3 deployment guidance");
   assert.match(moduleContract, /signed URL exception[\s\S]*permission-checked[\s\S]*expir/, "module contract should describe future signed URL exception rules");
   assert.match(moduleDevelopment, /Normal module payloads[\s\S]*must not expose signed URLs/, "module docs should keep modules behind Files routes");
@@ -279,6 +279,16 @@ function createMockS3Client() {
         bucket: privateBucket,
         endpoint: privateEndpoint,
         ok: true,
+      };
+    },
+    async headObject(payload = {}) {
+      const object = objects.get(objectMapKey(payload));
+      if (!object) {
+        throw new Error("object missing");
+      }
+      return {
+        contentLength: object.length,
+        lastModified: new Date("2026-01-01T00:00:00.000Z"),
       };
     },
     async putObject(payload = {}) {

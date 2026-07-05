@@ -27,14 +27,6 @@ function createLocalFileStorageAdapter(options = {}) {
       const stats = await fs.stat(filePath);
       return { size: stats.size, updatedAt: stats.mtime.toISOString() };
     },
-    async quarantine(storageKey) {
-      const currentPath = resolveStoragePath(rootDir, storageKey);
-      const quarantineKey = createStorageKey("quarantine");
-      const quarantinePath = resolveStoragePath(rootDir, quarantineKey);
-      await fs.mkdir(path.dirname(quarantinePath), { recursive: true });
-      await fs.rename(currentPath, quarantinePath);
-      return { storageKey: quarantineKey };
-    },
     async read(storageKey) {
       const filePath = resolveStoragePath(rootDir, storageKey);
       return createReadStream(filePath);

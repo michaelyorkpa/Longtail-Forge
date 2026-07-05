@@ -2,66 +2,6 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.25 - Storage branch cleanup (0.33.5.22 follow-ups)
-
-Purpose:
-
-Close the gaps left by the 0.33.5.22 storage/upload branch. The buffered/local path shipped production-ready, but two scope items were only partially delivered — a selectable S3 provider that cannot function, and workspace/per-user storage quotas that are persisted but never enforced — plus a few robustness gaps in the streamed-upload and download paths. This slice resolves or explicitly defers each, so the storage contract matches what is actually wired.
-
-Grounding for this branch:
-
-- `src/services/files.service.js` registers the `s3` provider via `createS3FileStorageAdapter(config.storage.s3)`, but `config.storage.s3` (`src/config.js`) carries no client, no AWS SDK/minio dependency exists in `package.json`, and `registerFileStorageAdapter('s3', ...)` is never called with a real client. Every S3 operation throws `AppError("S3 file storage client is not configured.", 500)`, and `resolveConfiguredFileStorageProvider()` resolves the broken adapter without failing fast at startup — so selecting `s3` turns every upload/download into a request-time 500.
-- `internal_storage_limit_bytes` / `per_user_storage_limit_bytes` are written and read into settings/accounting shapes only; no upload path (`prepareUpload`, `prepareStreamedUpload`, `uploadAndAttach`) compares them against actual usage. The only live cap is the hard 5 MB per-file `DEFAULT_MAX_FILE_SIZE_BYTES`, so configured caps are a no-op.
-- `prepareStreamedUpload` fully writes the object to storage before content-type validation, then deletes on mismatch; on the S3 path that cleanup delete is swallowed (`.catch(() => {})`), risking orphaned objects. The buffered path validates before writing.
-- The download/preview routes pipe `adapter.read()` straight to the response without a `metadata()` existence pre-check, so storage/DB drift yields an aborted 200 instead of a clean 404. The pre-check method exists but is unused.
-- Some adapter surface is dead: local `quarantine()`/`resolveStoragePath()` and both adapters' `metadata()` are never invoked, and `quarantineFile` only flips DB status without relocating the object.
-
-Sizing rule for this branch:
-
-- Each sub-slice below has one primary blast radius and follows the normal release ceremony: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
-
-### Version 0.33.5.25.1 - Resolve the S3 provider state and fail fast on misconfiguration
-
-- [ ] Decide S3's status: either (a) deliver a real S3 client (add the SDK dependency and wire `registerFileStorageAdapter('s3', ...)` with the configured credentials/endpoint through the existing adapter contract), or (b) keep S3 as explicitly deferred scaffolding.
-- [ ] Either way, make provider selection fail fast at startup: if `config.storage.provider` selects a provider whose adapter cannot function (no client), refuse to boot with a clear error instead of 500ing every upload/download at request time.
-- [ ] If deferring S3, mark it as not-yet-functional in config/docs so an operator cannot silently select it.
-- [ ] Add a regression proving a misconfigured/unavailable provider is rejected at startup, not per request.
-
-Acceptance criteria:
-
-- A selectable storage provider either works or fails fast at boot; S3's status is explicit and a request-time 500 storm is no longer possible.
-
-### Version 0.33.5.25.2 - Enforce workspace and per-user storage quotas
-
-- [ ] Read `internal_storage_limit_bytes` / `per_user_storage_limit_bytes` in the upload paths and reject over-quota uploads with a clear error before persisting.
-- [ ] Enforce for both the buffered (`prepareUpload`) and streamed (`prepareStreamedUpload`) paths; for streaming, stop and clean up the partial write when the quota would be exceeded, mirroring the existing size-limit handling.
-- [ ] Treat NULL limits as unlimited, preserving current behavior when no cap is configured.
-- [ ] Add regressions for at-limit, over-limit, and unlimited (NULL) cases at both workspace and per-user scope.
-
-Acceptance criteria:
-
-- Configured storage caps are enforced on upload at both workspace and per-user scope, with the streamed path cleaning up partial writes on rejection.
-
-### Version 0.33.5.25.3 - Harden streamed-upload validation and download existence checks
-
-- [ ] For streamed uploads, avoid persisting an object that fails content-type validation where practical (validate the sampled header before commit), and ensure the mismatch-cleanup delete is awaited/logged rather than swallowed so a failed-type object cannot orphan (especially on S3).
-- [ ] For download/preview, use the existing `metadata()` pre-check before streaming so a missing/rotated storage object returns a clean 404 instead of an aborted 200.
-- [ ] Add regressions for a wrong-type streamed upload (no orphan left behind) and a download of a missing storage object (clean 404).
-
-Acceptance criteria:
-
-- Streamed uploads do not leave orphaned objects on type mismatch, and downloads of missing objects return a clean 404.
-
-### Version 0.33.5.25.4 - Batch-failure consistency, dead adapter surface, and closeout
-
-- [ ] Make the multipart batch route record a single malformed file as a per-file failure instead of rejecting the whole batch, consistent with its per-file failure model.
-- [ ] Resolve the unused adapter surface: either wire `quarantine()`/`metadata()` where intended (noting `quarantineFile` currently only flips DB status and never relocates the object) or remove the dead methods so the adapter contract matches what is wired.
-- [ ] Run the file/upload regressions, `npm run check`, and `npm run test:permissions`; complete the version/`CHANGELOG.md` ceremony and verify `/api/app-info` after restart.
-
-Acceptance criteria:
-
-- Batch uploads fail per-file, the storage adapter contract matches what is actually wired, and the branch closes with the standard ceremony.
-
 ## Version 0.33.5.26 - Parameter-binding gap review (0.33.5.23 follow-ups)
 
 Purpose:
@@ -73,7 +13,7 @@ What the review confirmed as solid (no action needed):
 - The six converted core repositories (`users`, `workspaces`, `user-workspaces`, `permissions`, `settings`, `app-settings`) contain zero residual interpolation-helper calls, and `settings.repo.js saveWorkspaceSettings` binds cleanly (each `transaction.run` uses its own correctly-scoped param object; an earlier "shared superset params" concern did not reproduce against the working tree).
 - The binding layer is applied on every path: `src/db/adapters/sqlite-adapter.js` routes `query`/`get`/`run` and the transaction client through `prepareDatabaseBindings`, and `src/db/provider.js` now routes the legacy `querySql`/`getSql`/`runSql` helpers through the same layer, so even unconverted interpolated call sites still get the in-transaction guard.
 - No untracked raw value interpolation exists: every raw `${...}` reaching SQL is either one of the four tracked `sql*` helpers or a constant identifier (column/table name), so there is no injection blind spot and no interpolation the burndown fails to see.
-- The remaining work is recorded: `docs/database-parameter-binding-audit.md` holds a per-owner inventory, a prioritized wave order, and an explicit 0.40.0 handoff, and `scripts/parameter-binding-audit-regression.mjs` is a live-scan ratchet asserting exact totals (1,499 helper invocations / 233 interpolated sites / 91 bound sites / 407 operation calls) plus per-group counts, so a converted repository cannot silently regress.
+- The remaining work is recorded: `docs/database-parameter-binding-audit.md` holds a per-owner inventory, a prioritized wave order, and an explicit 0.40.0 handoff, and `scripts/parameter-binding-audit-regression.mjs` is a live-scan ratchet asserting exact totals (1,499 helper invocations / 233 interpolated sites / 92 bound sites / 408 operation calls after the 0.33.5.25.2 Files quota read) plus per-group counts, so a converted repository cannot silently regress.
 
 ### Version 0.33.5.26.1 - Array-expansion binding for variable-length IN-lists and bulk VALUES
 

@@ -103,6 +103,7 @@ function createApp() {
 async function startServer() {
   try {
     logRuntimeConfigWarnings();
+    await filesService.assertConfiguredFileStorageProviderReady();
     const databaseHealth = await initializeDatabase();
     console.log(formatDatabaseHealth(databaseHealth));
     queueStartupJobRetentionPrune();
@@ -118,7 +119,7 @@ async function startServer() {
     });
     registerGracefulShutdown(server);
   } catch (error) {
-    console.error("The local database could not be initialized.");
+    console.error("Longtail Forge could not be started.");
     console.error(error.message || error);
     process.exitCode = 1;
   }

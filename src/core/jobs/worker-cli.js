@@ -34,6 +34,7 @@ async function startWorkerProcess(options = {}) {
     throw new Error("node worker.js requires LONGTAIL_WORKER_MODE=separate. Use inline mode from the app server, or disabled mode for troubleshooting.");
   }
 
+  await filesService.assertConfiguredFileStorageProviderReady();
   workerLock = await acquireWorkerProcessLock();
   logger.log(`[job-worker] acquired_lock=${workerLock.lockPath}`);
 
