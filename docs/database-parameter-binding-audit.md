@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.2:
+Current totals as of 0.33.5.27.3:
 
 - Remaining runtime literal-helper invocations: 1,498.
 - Remaining direct interpolated SQL operation sites: 233.
-- Existing direct bound-params operation sites: 93.
-- Total runtime database operation calls seen by the audit scanner: 409.
+- Existing direct bound-params operation sites: 94.
+- Total runtime database operation calls seen by the audit scanner: 410.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -44,7 +44,7 @@ Status legend:
 | lists/lists.repo | Remaining | 178 | 17 | 0 | 21 |
 | services/files.service | Remaining | 148 | 27 | 1 | 31 |
 | notifications.repo | Remaining | 99 | 20 | 0 | 25 |
-| db/index | Remaining | 99 | 19 | 0 | 34 |
+| db/index | Remaining | 99 | 19 | 1 | 35 |
 | tags.repo | Remaining | 84 | 17 | 0 | 17 |
 | tasks/tasks.repo | Remaining | 71 | 7 | 8 | 15 |
 | time-tracking/active-timers.repo | Remaining | 62 | 12 | 0 | 12 |
@@ -137,7 +137,7 @@ Confirmed non-issues for this parameter-binding slice:
 
 Corrected audit finding:
 
-- `RETURNING` is present in four durable-job statements: `src/core/jobs/job-queue.js`, `src/core/jobs/job-runner.js`, and `src/services/jobs.service.js`. As of 0.33.5.27.2, `src/db/adapters/sqlite-dialect-seams.js` also owns the provider seam helper that emits `RETURNING ...` for future converted paths. The durable-job statements are not part of the 0.33.5.23 parameter-binding conversion; they are reviewed under the 0.33.5.27 identity/RETURNING seam and the later 0.40.0 PostgreSQL adapter proof.
+- Raw `RETURNING` is now provider-owned in `src/db/adapters/sqlite-dialect-seams.js`. The four durable-job returned-row statements in `src/core/jobs/job-queue.js`, `src/core/jobs/job-runner.js`, and `src/services/jobs.service.js` were converted in 0.33.5.27.3 to use `transaction.dialect.returning.columns(...)`, so the later dialect guardrail should not add durable-job exceptions for them.
 
 Out of scope for the original 0.33.5.23 parameter-binding slice:
 
@@ -285,4 +285,12 @@ No runtime SQL behavior changed. The current live audit totals remain 1,498 runt
 
 0.33.5.27.2 adds the SQLite-backed `db.dialect` seam scaffold and a focused proof harness for conflict writes, case-insensitive SQL, boolean mapping, timestamp math, FTS5 search lowering, JSON capability status, `RETURNING`/identity, `rowid`, and PRAGMA/introspection helpers.
 
-No application repository conversion happened in this slice, and the helper/direct-interpolation burndown is intentionally unchanged. The current live audit totals remain 1,498 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 total runtime database operation calls.
+No application repository conversion happened in this slice, and the helper/direct-interpolation burndown was intentionally unchanged. The 0.33.5.27.2 audit totals at that point were 1,498 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 total runtime database operation calls.
+
+## 0.33.5.27.3 Upsert/Conflict and Identity Seams
+
+0.33.5.27.3 adds provider-neutral upsert/conflict statement builders to `db.dialect.conflict` and converts the low-risk startup role-permission repair in `src/db/index.js` to `databaseDialect.conflict.buildInsertOrIgnore(...)` with named params.
+
+The durable-job `RETURNING` statements are converted to the provider returning seam through `transaction.dialect.returning.columns(...)` in `src/core/jobs/job-queue.js`, `src/core/jobs/job-runner.js`, and `src/services/jobs.service.js`. This is the explicit 0.33.5.27.3 durable-job outcome: conversion, not a sanctioned raw-dialect exception.
+
+The helper/direct-interpolation burndown is unchanged at 1,498 runtime literal-helper invocations and 233 direct interpolated SQL operation sites. The startup proof path adds one existing bound operation site and one runtime database operation call, so the current live audit totals are 94 existing bound operation sites and 410 total runtime database operation calls.

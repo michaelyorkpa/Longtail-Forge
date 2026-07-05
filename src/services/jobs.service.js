@@ -92,12 +92,12 @@ DELETE FROM jobs
 WHERE job_id IN (
   SELECT job_id
   FROM jobs
-  WHERE status = :status
+WHERE status = :status
     AND COALESCE(${options.timestampColumn}, updated_at, created_at) < :cutoff
   ORDER BY COALESCE(${options.timestampColumn}, updated_at, created_at) ASC, job_id ASC
   LIMIT :batchSize
 )
-RETURNING job_id;
+${transaction.dialect.returning.columns(["job_id"])};
 `, {
       batchSize: options.batchSize,
       cutoff: options.cutoff,

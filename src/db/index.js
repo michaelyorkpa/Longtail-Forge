@@ -241,10 +241,23 @@ async function ensureWorkspacePermissionContracts() {
 DELETE FROM role_permissions
 WHERE role_id IN ('client_admin', 'project_admin')
   AND permission_id = 'users.manage';
-
-INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
-VALUES ('project_admin', 'roles.assign');
 `);
+
+  const ensureRolePermissionSql = databaseDialect.conflict.buildInsertOrIgnore({
+    columns: ["role_id", "permission_id"],
+    tableName: "role_permissions",
+    valueExpressions: {
+      permission_id: ":permissionId",
+      role_id: ":roleId",
+    },
+  });
+
+  await db.run(`
+${ensureRolePermissionSql};
+`, {
+    permissionId: "roles.assign",
+    roleId: "project_admin",
+  });
 }
 
 async function repairRedactedSeedUsers(workspaceId) {

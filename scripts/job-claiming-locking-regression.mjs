@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.2";
+const appVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-claiming-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-claiming.db");
@@ -50,7 +50,7 @@ try {
 
   assert.match(runnerSource, /db\.transaction\(async \(transaction\)/, "job claiming should run inside db.transaction");
   assert.match(runnerSource, /WHERE job_id = \(\s*SELECT job_id[\s\S]*LIMIT 1/, "SQLite claiming should use one atomic scalar subquery claim per transaction loop");
-  assert.match(runnerSource, /RETURNING[\s\S]*job_id/, "job claiming should read claimed rows through RETURNING");
+  assert.match(runnerSource, /transaction\.dialect\.returning\.columns\(CLAIMED_JOB_RETURN_COLUMNS\)/, "job claiming should read claimed rows through the returning seam");
   assert.match(runnerSource, /locked_at <= :expiredBefore/, "claiming should reclaim expired running locks");
   assert.match(runnerSource, /calculateRetryDelayMs/, "runner should keep retry backoff active");
   assert.match(runnerSource, /status = 'dead'/, "runner should move exhausted failures to dead-letter state");

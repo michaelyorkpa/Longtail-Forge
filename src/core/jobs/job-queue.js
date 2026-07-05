@@ -4,6 +4,24 @@ import { db } from "../database.js";
 const DEFAULT_JOB_PRIORITY = 0;
 const DEFAULT_MAX_ATTEMPTS = 3;
 const ACTIVE_DEDUPE_STATUSES = Object.freeze(["pending", "running", "failed"]);
+const JOB_RETURN_COLUMNS = Object.freeze([
+  "job_id",
+  "workspace_id",
+  "job_type",
+  "dedupe_key",
+  "status",
+  "priority",
+  "available_at",
+  "attempt_count",
+  "max_attempts",
+  "locked_at",
+  "locked_by",
+  "last_error",
+  "created_at",
+  "updated_at",
+  "completed_at",
+  "dead_at",
+]);
 
 async function enqueueJob(options = {}) {
   const now = new Date().toISOString();
@@ -33,23 +51,7 @@ WHERE workspace_id = :workspaceId
   AND job_type = :jobType
   AND dedupe_key = :dedupeKey
   AND status IN ('pending', 'failed')
-RETURNING
-  job_id,
-  workspace_id,
-  job_type,
-  dedupe_key,
-  status,
-  priority,
-  available_at,
-  attempt_count,
-  max_attempts,
-  locked_at,
-  locked_by,
-  last_error,
-  created_at,
-  updated_at,
-  completed_at,
-  dead_at;
+${transaction.dialect.returning.columns(JOB_RETURN_COLUMNS)};
 `, {
         availableAt,
         dedupeKey,
@@ -145,23 +147,7 @@ VALUES (
   NULL,
   NULL
 )
-RETURNING
-  job_id,
-  workspace_id,
-  job_type,
-  dedupe_key,
-  status,
-  priority,
-  available_at,
-  attempt_count,
-  max_attempts,
-  locked_at,
-  locked_by,
-  last_error,
-  created_at,
-  updated_at,
-  completed_at,
-  dead_at;
+${transaction.dialect.returning.columns(JOB_RETURN_COLUMNS)};
 `, {
       availableAt,
       dedupeKey,

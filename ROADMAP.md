@@ -46,10 +46,10 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.3 - Upsert/conflict and identity/RETURNING seams
 
-- [ ] Implement the provider-neutral upsert/conflict helper or adapter method, with SQLite lowering to the current `INSERT ... ON CONFLICT` / `INSERT OR IGNORE` shapes.
-- [ ] Implement the returned-row/last-insert identity seam and review the existing durable-job `RETURNING` statements against that seam.
-- [ ] Decide the durable-job `RETURNING` outcome explicitly (these four statements in `core/jobs/job-queue.js`, `core/jobs/job-runner.js`, and `services/jobs.service.js` are `Already bound` in the audit inventory, so no conversion wave touches them): either convert them to the identity/RETURNING seam here, or record them as a sanctioned raw-dialect exception. Whichever is chosen must be reflected in the 0.33.5.27.32 dialect-guardrail allowlist so that guardrail does not fail on or silently exempt them.
-- [ ] Convert one low-risk proof path for each helper and add focused SQLite regressions.
+- [x] Implement the provider-neutral upsert/conflict helper or adapter method, with SQLite lowering to the current `INSERT ... ON CONFLICT` / `INSERT OR IGNORE` shapes.
+- [x] Implement the returned-row/last-insert identity seam and review the existing durable-job `RETURNING` statements against that seam.
+- [x] Decide the durable-job `RETURNING` outcome explicitly (these four statements in `core/jobs/job-queue.js`, `core/jobs/job-runner.js`, and `services/jobs.service.js` are `Already bound` in the audit inventory, so no conversion wave touches them): either convert them to the identity/RETURNING seam here, or record them as a sanctioned raw-dialect exception. Whichever is chosen must be reflected in the 0.33.5.27.32 dialect-guardrail allowlist so that guardrail does not fail on or silently exempt them.
+- [x] Convert one low-risk proof path for each helper and add focused SQLite regressions.
 
 Acceptance criteria:
 
@@ -342,7 +342,7 @@ Acceptance criteria:
 ### Version 0.33.5.27.32 - Dialect enforcement guardrail
 
 - [ ] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, `RETURNING`, etc.) outside the provider adapter/startup/migration allowlist.
-- [ ] Reconcile the guardrail with the 0.33.5.27.3 durable-job `RETURNING` decision: if those `core/jobs`/`services/jobs.service` statements were not converted to the seam, add them to this guardrail's allowlist as a sanctioned exception with recorded rationale; otherwise confirm no raw `RETURNING` remains outside the allowlist.
+- [ ] Reconcile the guardrail with the 0.33.5.27.3 durable-job `RETURNING` decision: those `core/jobs`/`services/jobs.service` statements were converted to the provider returning seam, so confirm no raw `RETURNING` remains outside provider/test allowlists instead of adding durable-job exceptions.
 - [ ] Add regressions proving the guardrail rejects raw dialect use outside sanctioned provider-owned paths.
 - [ ] Document the dialect guardrail in `docs/module-contract.md` and `docs/database.md` so future modules start from the agnostic contract.
 

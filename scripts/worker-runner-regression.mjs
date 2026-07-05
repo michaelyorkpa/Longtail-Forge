@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.2";
+const appVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-worker-runner-"));
 const dataDir = path.join(tempDir, "data");
 process.env.LONGTAIL_DATA_DIR = dataDir;
@@ -68,7 +68,7 @@ try {
   assert.match(handlersSource, /registerJobHandler/, "framework should expose registered job handlers");
   assert.match(runnerSource, /setInterval/, "inline and separate workers should use a poll timer");
   assert.match(runnerSource, /db\.transaction\(async \(transaction\)/, "job claiming should run inside the adapter transaction helper");
-  assert.match(runnerSource, /RETURNING[\s\S]*job_id/, "job claiming should read claimed rows through RETURNING");
+  assert.match(runnerSource, /transaction\.dialect\.returning\.columns\(CLAIMED_JOB_RETURN_COLUMNS\)/, "job claiming should read claimed rows through the returning seam");
   assert.match(runnerSource, /status = 'completed'/, "runner should mark successful jobs complete");
   assert.match(runnerSource, /status = 'failed'/, "runner should keep retryable failures failed");
   assert.match(runnerSource, /status = 'dead'/, "runner should move exhausted jobs to dead-letter state");

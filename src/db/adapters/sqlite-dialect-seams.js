@@ -13,7 +13,7 @@ const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
 function createSqliteDialectSeams() {
   return Object.freeze({
     provider: "sqlite",
-    contractVersion: "0.33.5.27.2",
+    contractVersion: "0.33.5.27.3",
     capabilities: SQLITE_DIALECT_SEAM_CAPABILITIES,
     boolean: Object.freeze({
       bind: bindSqliteBoolean,
@@ -26,6 +26,9 @@ function createSqliteDialectSeams() {
       orderByNoCase,
     }),
     conflict: Object.freeze({
+      buildInsertOnConflictDoNothing,
+      buildInsertOnConflictDoUpdate,
+      buildInsertOrIgnore,
       excludedColumn,
       insertOrIgnoreInto,
       onConflictDoNothing,
@@ -62,6 +65,35 @@ function createSqliteDialectSeams() {
 
 function insertOrIgnoreInto(tableName) {
   return `INSERT OR IGNORE INTO ${normalizeSqlIdentifier(tableName, "table name")}`;
+}
+
+function buildInsertOrIgnore(options = {}) {
+  const statement = normalizeInsertStatement(options);
+  return composeSqlLines([
+    `${insertOrIgnoreInto(statement.tableName)} (${statement.columnsSql})`,
+    `VALUES (${statement.valuesSql})`,
+    statement.returningSql,
+  ]);
+}
+
+function buildInsertOnConflictDoNothing(options = {}) {
+  const statement = normalizeInsertStatement(options);
+  return composeSqlLines([
+    `INSERT INTO ${statement.tableName} (${statement.columnsSql})`,
+    `VALUES (${statement.valuesSql})`,
+    onConflictDoNothing(options.conflictColumns),
+    statement.returningSql,
+  ]);
+}
+
+function buildInsertOnConflictDoUpdate(options = {}) {
+  const statement = normalizeInsertStatement(options);
+  return composeSqlLines([
+    `INSERT INTO ${statement.tableName} (${statement.columnsSql})`,
+    `VALUES (${statement.valuesSql})`,
+    onConflictDoUpdateSet(options.conflictColumns, options.updateColumns),
+    statement.returningSql,
+  ]);
 }
 
 function onConflictDoNothing(conflictColumns) {
@@ -172,6 +204,58 @@ function tableInfo(tableName) {
 
 function unsupportedJsonAccess() {
   throw new Error("Database JSON access seam is not implemented because runtime SQL does not currently require JSON operators.");
+}
+
+function normalizeInsertStatement(options) {
+  const tableName = normalizeSqlIdentifier(options.tableName || options.table, "table name");
+  const columnNames = normalizeIdentifierArray(options.columns, "insert column");
+  const valuesSql = normalizeInsertValues(columnNames, options.valueExpressions || options.values);
+  const returningSql = Array.isArray(options.returningColumns) && options.returningColumns.length > 0
+    ? columns(options.returningColumns)
+    : "";
+
+  return {
+    columnsSql: columnNames.join(", "),
+    returningSql,
+    tableName,
+    valuesSql,
+  };
+}
+
+function normalizeInsertValues(columnNames, valueExpressions) {
+  if (!valueExpressions) {
+    return columnNames.map((columnName) => `:${columnName}`).join(", ");
+  }
+
+  if (Array.isArray(valueExpressions)) {
+    if (valueExpressions.length !== columnNames.length) {
+      throw new Error("insert value expression list must match the insert column list.");
+    }
+
+    return valueExpressions
+      .map((expression) => normalizeSqlFragment(expression, "insert value expression"))
+      .join(", ");
+  }
+
+  if (typeof valueExpressions === "object") {
+    return columnNames
+      .map((columnName) => {
+        if (!Object.hasOwn(valueExpressions, columnName)) {
+          throw new Error(`Missing insert value expression for column ${columnName}.`);
+        }
+
+        return normalizeSqlFragment(valueExpressions[columnName], "insert value expression");
+      })
+      .join(", ");
+  }
+
+  throw new Error("insert value expressions must be an array or object keyed by insert column.");
+}
+
+function composeSqlLines(lines) {
+  return lines
+    .filter((line) => String(line || "").trim())
+    .join("\n");
 }
 
 function normalizeIdentifierList(identifiers, label) {

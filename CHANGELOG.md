@@ -1,3 +1,11 @@
+## Version 0.33.5.27.3 - 2026-07-05 19:24 -04:00
+
+- Added the upsert/conflict and identity seams, including provider-neutral statement builders on `db.dialect.conflict` for insert-or-ignore, conflict-do-nothing, and conflict-do-update SQL shapes.
+- Converted the startup role-permission repair to the conflict builder with named params as the low-risk conflict proof path.
+- Converted durable job enqueue, claim, and retention-prune returned-row reads to `transaction.dialect.returning.columns(...)`, resolving the durable-job `RETURNING` decision as converted rather than allowlisted.
+- Added `scripts/database-conflict-identity-seam-regression.mjs` for SQLite proof coverage across conflict builders, last-insert identity, and durable-job returned-row behavior. The helper/direct-interpolation burndown remains 1,498 helper invocations and 233 direct interpolated operation sites; the startup proof path raises the audit to 94 bound operation sites and 410 runtime DB operation calls.
+- Verification 2026-07-05 19:35 -04:00: `scripts/database-conflict-identity-seam-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/database-dialect-seam-scaffold-regression.mjs`, `scripts/worker-runner-regression.mjs`, `scripts/job-claiming-locking-regression.mjs`, `scripts/job-retention-pruning-regression.mjs`, `scripts/database-adapter-contract-regression.mjs`, `scripts/database-transaction-helper-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, `scripts/database-result-fidelity-regression.mjs`, `scripts/better-sqlite3-driver-closeout-regression.mjs`, and `scripts/runtime-configuration-contract-regression.mjs` passed; `npm run check` passed 264/264 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.27.3 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.2 - 2026-07-05 18:14 -04:00
 
 - Added the SQLite-backed dialect seam scaffold on `db.dialect`, re-exported through the database facades and available inside transaction clients.

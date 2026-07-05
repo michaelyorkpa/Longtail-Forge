@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.2";
+const appVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-dialect-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-dialect-seams.db");
@@ -79,7 +79,7 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.2[\s\S]*`db\.dialect`[\s\S]*conflict writes[\s\S]*case-insensitive comparison[\s\S]*timestamp math[\s\S]*FTS5[\s\S]*PRAGMA/, "database docs should describe the dialect seam scaffold");
   assert.match(auditDocs, /0\.33\.5\.27\.2 Dialect Seam Scaffold[\s\S]*No application repository conversion happened[\s\S]*1,498 runtime literal-helper invocations/, "audit docs should record the no-burndown seam scaffold");
   assert.match(roadmap, /### Version 0\.33\.5\.27\.2 - Dialect seam scaffold and SQLite proof harness[\s\S]*- \[x\] Add the provider-neutral seam surface[\s\S]*- \[x\] Keep the first pass focused[\s\S]*- \[x\] Add a focused regression/, "roadmap should mark the dialect scaffold slice complete");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*dialect seam scaffold[\\s\\S]*SQLite proof harness`), "changelog should record the dialect seam scaffold slice");
+  assert.match(changelog, /## Version 0\.33\.5\.27\.2 - [\s\S]*dialect seam scaffold[\s\S]*SQLite proof harness/, "changelog should record the dialect seam scaffold slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "dialect seam scaffold regression database should pass integrity check");
@@ -306,8 +306,4 @@ function assertJsonAndValidationSeams(dialect) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -10,6 +10,25 @@ const MAX_ERROR_LENGTH = 1000;
 const MIN_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 60 * 1000;
 const RUNNER_MODES = new Set(["inline", "separate", "disabled"]);
+const CLAIMED_JOB_RETURN_COLUMNS = Object.freeze([
+  "job_id",
+  "workspace_id",
+  "job_type",
+  "dedupe_key",
+  "payload_json",
+  "status",
+  "priority",
+  "available_at",
+  "attempt_count",
+  "max_attempts",
+  "locked_at",
+  "locked_by",
+  "last_error",
+  "created_at",
+  "updated_at",
+  "completed_at",
+  "dead_at",
+]);
 
 let pollTimer = null;
 let activeRun = null;
@@ -264,24 +283,7 @@ WHERE job_id = (
     job_id ASC
   LIMIT 1
 )
-RETURNING
-  job_id,
-  workspace_id,
-  job_type,
-  dedupe_key,
-  payload_json,
-  status,
-  priority,
-  available_at,
-  attempt_count,
-  max_attempts,
-  locked_at,
-  locked_by,
-  last_error,
-  created_at,
-  updated_at,
-  completed_at,
-  dead_at;
+${transaction.dialect.returning.columns(CLAIMED_JOB_RETURN_COLUMNS)};
 `, {
         expiredBefore,
         now,

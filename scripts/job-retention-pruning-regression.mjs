@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.2";
+const appVersion = "0.33.5.27.3";
 const now = new Date("2026-07-02T12:00:00.000Z");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-retention-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -59,7 +59,7 @@ function assertStaticContract() {
   assert.match(configSource, /LONGTAIL_JOB_COMPLETED_RETENTION_DAYS/, "runtime config should read completed job retention");
   assert.match(configSource, /LONGTAIL_JOB_DEAD_RETENTION_DAYS/, "runtime config should read dead-letter job retention");
   assert.match(serviceSource, /async function pruneOldJobs/, "jobs service should own pruning behavior");
-  assert.match(serviceSource, /status = :status[\s\S]*RETURNING job_id/, "pruning should delete by explicit job status and return counts");
+  assert.match(serviceSource, /transaction\.dialect\.returning\.columns\(\["job_id"\]\)/, "pruning should delete by explicit job status and count rows through the returning seam");
   assert.match(appSource, /queueStartupJobRetentionPrune/, "app startup should queue job retention pruning");
   assert.match(workerCliSource, /jobsService\.pruneOldJobs/, "separate worker startup should run job retention pruning");
   assert.match(regressionSuite, /scripts\/job-retention-pruning-regression\.mjs/, "regression suite should include job retention coverage");
