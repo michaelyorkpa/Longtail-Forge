@@ -30,6 +30,8 @@ As of version 0.33.5.23.4, the SQL parameter-binding branch is closed at that re
 
 As of version 0.33.5.25.2, Files quota enforcement added one new named-bound database read in `src/services/files.service.js`. The live parameter-binding scanner now reports 1,499 remaining helper invocations, 233 remaining direct interpolated operation sites, 92 existing bound operation sites, and 408 runtime DB operation calls. This updates the current audit ratchet without reopening the closed 0.33.5.23 conversion branch.
 
+As of version 0.33.5.26.1, `src/db/parameter-bindings.js` supports array-valued named parameters for variable-length `IN (...)` lists. Non-empty arrays expand to the correct driver placeholder sequence. Dollar-style placeholders reuse a repeated named array as the same `$n` sequence, while SQLite/question-style placeholders duplicate the array values at each occurrence because positional `?` placeholders cannot be reused by name. Empty arrays expand to `NULL`, so `column IN (:ids)` remains valid SQL and returns no rows instead of broadening a read. This slice does not convert high-traffic repositories and does not define the dynamic bulk `VALUES (...)` row-group contract; that remains the 0.33.5.26.2 follow-up.
+
 As of version 0.33.5.21.0.4, the SQLite adapter has retired the former global operation queue now that normal calls use the in-process synchronous driver path. `db.transaction(callback)` still owns explicit `BEGIN TRANSACTION`, `COMMIT`, and `ROLLBACK` behavior, still passes a transaction client with `query`, `get`, `run`, `capabilities`, and nested-transaction rejection, and still rejects direct `db.query` / `db.get` / `db.run` use inside the callback. Open transactions are protected by a transaction-only tail so outside adapter calls wait until the callback commits or rolls back. Migration, baseline, and schema-repair scripts that already embed `BEGIN ... COMMIT` remain no-parameter multi-statement `runSql()` calls that route through the `exec()` compatibility path; do not wrap those migration scripts in `db.transaction(callback)`.
 
 As of version 0.33.5.21.0.5, SQLite adapter capabilities report `adapter: "better-sqlite3"` while preserving the rest of the provider-neutral capability shape. Native driver result rows remain plain objects keyed by selected column names and aliases. Current value semantics stay compatible for app callers: boolean values are stored as `0` / `1`, SQL `NULL` reads as `null`, BLOB values round-trip as Node `Buffer` instances when bound through parameters, and normal counters/counts remain JavaScript numbers. The helper does not enable `safeIntegers` because the current TEXT-key schema uses TEXT keys for identifiers and current numeric values are expected to stay within JavaScript's safe-integer range; any future 64-bit INTEGER identifier or exact large-integer workflow must revisit that decision before shipping.
@@ -90,6 +92,22 @@ LIMIT 1;
 Do not interpolate user-supplied values into SQL strings. Table and column names must stay static or come from validated allowlists before building SQL. Bound parameters are for values only; they do not parameterize identifiers, sort clauses, operators, or SQL fragments.
 
 As of 0.33.5.23.4, named parameters are translated at the adapter boundary into provider-driver positional bindings. SQLite receives positional `?` bindings through the shared layer, and the same layer can produce `$n` placeholders for a future PostgreSQL adapter. The legacy `sqlText`, `sqlInteger`, `sqlNullableText`, and `sqlNullableInteger` helpers are deprecated compatibility escape hatches for unconverted code and no-parameter multi-statement startup/migration paths. They should not become param-emitting shims, and new or touched single-statement repository queries should use named parameters unless a slice explicitly keeps the code on the compatibility path. The auth, workspace, permission, and settings repositories are now converted examples for this style.
+
+For variable-length `IN (...)` lists, pass an array as a named parameter:
+
+```js
+await db.query(`
+SELECT task_id
+FROM tasks
+WHERE workspace_id = :workspaceId
+  AND task_id IN (:taskIds);
+`, {
+  taskIds,
+  workspaceId,
+});
+```
+
+Do not manually join values into `IN (...)` lists in new or converted repository code. A repeated named array may be reused in more than one clause; future `$n` providers reuse the same placeholder sequence, while SQLite duplicates values for each positional occurrence. Empty arrays expand to `NULL` so `IN (:ids)` returns no rows. If a workflow needs a different empty-list meaning, handle that explicitly in service/repository code before issuing the query.
 
 ## Transaction Style
 

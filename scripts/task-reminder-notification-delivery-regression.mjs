@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.25.4";
+const appVersion = "0.33.5.26.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-reminder-delivery-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-reminder-delivery.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";

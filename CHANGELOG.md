@@ -1,3 +1,11 @@
+## Version 0.33.5.26.1 - 2026-07-05 11:35 -04:00
+
+- Added array-valued named parameter expansion to `src/db/parameter-bindings.js` so future repository conversion waves can bind variable-length `IN (...)` lists without manual value interpolation.
+- Defined the list expansion contract: future dollar-style providers reuse a repeated named array as the same `$n` sequence, SQLite/question-style binding duplicates values per occurrence, and empty arrays expand to `NULL` so `IN (:ids)` returns no rows instead of broadening reads.
+- Extended `scripts/parameter-binding-layer-regression.mjs` with direct translation and SQLite runtime coverage for single-element, multi-element, reused-list, and empty-array expansion while leaving high-traffic repository conversions to later waves.
+- Updated database docs, the parameter-binding audit, current decisions, module/version metadata, and marked the 0.33.5.26.1 roadmap checklist complete.
+- Verification 2026-07-05 11:41 -04:00: `scripts/parameter-binding-layer-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` passed; `npm run check` passed 262/262 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.26.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.25.4 - 2026-07-04 14:10 -04:00
 
 - Changed streamed multipart batch uploads so a malformed individual file part is returned as a failed per-file result while valid file parts in the same parseable request can still attach.

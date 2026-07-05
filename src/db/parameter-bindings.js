@@ -50,17 +50,30 @@ function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle)
     }
   }
 
-  const indexByName = new Map(expectedNames.map((name, index) => [name, index + 1]));
+  const bindingsByName = createNamedBindingEntries(expectedNames, parameters.values, placeholderStyle);
   const positionalParams = placeholderStyle === DOLLAR_PLACEHOLDERS
-    ? expectedNames.map((name) => parameters.values.get(name))
+    ? expectedNames.flatMap((name) => bindingsByName.get(name).values)
     : [];
   const rewrittenSql = rewriteSqlTokens(sql, tokens, (token) => {
-    if (placeholderStyle === DOLLAR_PLACEHOLDERS) {
-      return `$${indexByName.get(token.name)}`;
+    const binding = bindingsByName.get(token.name);
+
+    if (binding.isArray) {
+      if (binding.placeholders.length === 0) {
+        return "NULL";
+      }
+
+      if (placeholderStyle === QUESTION_PLACEHOLDERS) {
+        positionalParams.push(...binding.values);
+      }
+
+      return binding.placeholders.join(", ");
     }
 
-    positionalParams.push(parameters.values.get(token.name));
-    return "?";
+    if (placeholderStyle === QUESTION_PLACEHOLDERS) {
+      positionalParams.push(binding.value);
+    }
+
+    return binding.placeholder;
   });
 
   return {
@@ -68,6 +81,40 @@ function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle)
     params: positionalParams,
     sql: rewrittenSql,
   };
+}
+
+function createNamedBindingEntries(expectedNames, values, placeholderStyle) {
+  const bindingsByName = new Map();
+  let nextPosition = 1;
+
+  for (const name of expectedNames) {
+    const value = values.get(name);
+
+    if (Array.isArray(value)) {
+      const placeholders = value.map(() => {
+        if (placeholderStyle === DOLLAR_PLACEHOLDERS) {
+          return `$${nextPosition++}`;
+        }
+
+        return "?";
+      });
+      bindingsByName.set(name, {
+        isArray: true,
+        placeholders,
+        values: value,
+      });
+      continue;
+    }
+
+    bindingsByName.set(name, {
+      isArray: false,
+      placeholder: placeholderStyle === DOLLAR_PLACEHOLDERS ? `$${nextPosition++}` : "?",
+      value,
+      values: [value],
+    });
+  }
+
+  return bindingsByName;
 }
 
 function resolvePositionalDatabaseBindings(sql, tokens, parameters, placeholderStyle) {
@@ -158,13 +205,21 @@ function normalizeDatabaseParameters(params) {
   const values = new Map();
 
   for (const [name, value] of Object.entries(params)) {
-    values.set(normalizeDatabaseParameterName(name), normalizeDatabaseParameterValue(value));
+    values.set(normalizeDatabaseParameterName(name), normalizeNamedDatabaseParameterValue(value));
   }
 
   return {
     kind: "object",
     values,
   };
+}
+
+function normalizeNamedDatabaseParameterValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(normalizeDatabaseParameterValue);
+  }
+
+  return normalizeDatabaseParameterValue(value);
 }
 
 function assertNoProvidedParameters(parameters) {

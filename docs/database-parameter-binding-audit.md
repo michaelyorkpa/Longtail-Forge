@@ -178,3 +178,17 @@ Current live audit totals after that quota query:
 In compact form, the current live ratchet is 1,499 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 92 existing bound operation sites, and 408 total runtime database operation calls.
 
 The current `services/files.service` row is 148 runtime literal-helper invocations, 27 direct interpolated operation sites, 1 existing bound operation site, and 31 runtime database operation calls. Future Files metadata conversion should consume that updated current row while preserving the Files storage, scan, preview, download, quarantine, attachment lifecycle, and quota behavior.
+
+## 0.33.5.26.1 Array-Expansion Binding
+
+0.33.5.26.1 added array-valued named parameter expansion to `src/db/parameter-bindings.js` so later repository conversion waves can replace variable-length `IN (...)` interpolation without inventing per-module placeholder builders.
+
+Binding contract:
+
+- Non-empty named arrays expand to the correct driver placeholder sequence.
+- Dollar-style placeholders reuse a repeated named array as the same `$n` sequence and flatten the array once.
+- SQLite/question-style placeholders duplicate values each time a repeated named array appears, because positional `?` placeholders cannot be reused by name.
+- Empty arrays expand to `NULL`, keeping `column IN (:ids)` syntactically valid and fail-closed with no matching rows.
+- Top-level positional parameter arrays keep their existing meaning and do not opt into nested list expansion.
+
+This slice intentionally does not convert the high-traffic repositories listed in the inventory above. The live audit totals therefore remain 1,499 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 92 existing bound operation sites, and 408 runtime database operation calls. Dynamic bulk `VALUES (...)` row groups, including the SQLite search adapter upsert path, remain the separate 0.33.5.26.2 decision/proof slice.

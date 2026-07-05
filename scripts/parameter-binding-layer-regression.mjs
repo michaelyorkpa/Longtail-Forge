@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.25.4";
+const appVersion = "0.33.5.26.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";
@@ -39,6 +39,7 @@ try {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding layer version");
 
   assert.match(parameterBindingSource, /function prepareDatabaseBindings/, "parameter binding layer should expose the shared translator");
+  assert.match(parameterBindingSource, /createNamedBindingEntries/, "binding layer should centralize named list expansion");
   assert.match(parameterBindingSource, /DOLLAR_PLACEHOLDERS/, "binding layer should support future dollar placeholders");
   assert.match(parameterBindingSource, /QUESTION_PLACEHOLDERS/, "binding layer should support SQLite positional placeholders");
   assert.match(sqliteAdapterSource, /prepareDatabaseBindings/, "SQLite adapter should use the shared binding layer");
@@ -47,15 +48,19 @@ try {
   assert.match(sqliteAdapterSource, /driverParameterStyle:\s*"positional"/, "SQLite capabilities should expose driver positional binding");
 
   assertBindingTranslation();
+  assertArrayBindingTranslation();
   await assertSqliteRuntimeBinding();
+  await assertSqliteRuntimeArrayBinding();
   await assertSearchTagProofConversion();
 
   assert.doesNotMatch(tagTextSource, /\bsqlText\b|\bquerySql\b/, "search tag-text proof conversion should not use interpolation helpers");
   assert.match(tagTextSource, /db\.query\(`[\s\S]*:workspaceId[\s\S]*:targetType[\s\S]*:targetId/, "search tag-text proof conversion should use named params");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.2[\s\S]*named-to-positional binding layer/, "database docs should describe the binding layer");
+  assert.match(databaseDocs, /As of version 0\.33\.5\.26\.1[\s\S]*array-valued named parameters/, "database docs should describe array-valued named params");
   assert.match(databaseDocs, /`src\/db\/parameter-bindings\.js`/, "database docs should name the shared binding layer module");
   assert.match(databaseDocs, /sqlText[\s\S]*deprecated compatibility escape hatches/, "database docs should record the SQL literal helper migration path");
   assert.match(auditDocs, /0\.33\.5\.23\.2 Proof Conversion/, "audit docs should record the proof conversion");
+  assert.match(auditDocs, /0\.33\.5\.26\.1 Array-Expansion Binding/, "audit docs should record the array-expansion helper");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
   assert.match(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should continue past the closed parameter-binding, Node 24, and storage cleanup branches");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
@@ -113,6 +118,66 @@ WHERE cast_probe::text = :castProbe;
   });
   assert.equal(positionalDollar.sql, "SELECT $1 AS first_value, $2 AS second_value;");
   assert.deepEqual(positionalDollar.params, ["first", "second"]);
+}
+
+function assertArrayBindingTranslation() {
+  const sql = `
+SELECT record_id
+FROM binding_layer_records
+WHERE record_id IN (:ids)
+  OR parent_id IN (:ids)
+  OR workspace_id = :workspaceId
+  OR record_id IN (:emptyIds);
+`;
+
+  const dollar = prepareDatabaseBindings(sql, {
+    emptyIds: [],
+    ids: ["record-1", "record-2"],
+    workspaceId: "workspace-1",
+  }, {
+    placeholderStyle: DOLLAR_PLACEHOLDERS,
+  });
+  assert.match(dollar.sql, /record_id IN \(\$1, \$2\)[\s\S]*parent_id IN \(\$1, \$2\)/, "dollar translation should reuse one named array sequence by name");
+  assert.match(dollar.sql, /workspace_id = \$3/, "dollar translation should continue numbering after array values");
+  assert.match(dollar.sql, /record_id IN \(NULL\)/, "empty named arrays should expand to a SQL-safe NULL list");
+  assert.deepEqual(dollar.params, ["record-1", "record-2", "workspace-1"], "dollar array params should be flattened once per distinct name");
+
+  const question = prepareDatabaseBindings(sql, {
+    emptyIds: [],
+    ids: ["record-1", "record-2"],
+    workspaceId: "workspace-1",
+  }, {
+    placeholderStyle: QUESTION_PLACEHOLDERS,
+  });
+  assert.match(question.sql, /record_id IN \(\?, \?\)[\s\S]*parent_id IN \(\?, \?\)/, "question translation should expand arrays into SQLite placeholders");
+  assert.match(question.sql, /record_id IN \(NULL\)/, "empty SQLite arrays should expand to a SQL-safe NULL list");
+  assert.deepEqual(
+    question.params,
+    ["record-1", "record-2", "record-1", "record-2", "workspace-1"],
+    "SQLite positional binding should duplicate reused named array values per occurrence",
+  );
+
+  const single = prepareDatabaseBindings("SELECT id FROM records WHERE id IN (:ids);", {
+    ids: ["record-1"],
+  }, {
+    placeholderStyle: QUESTION_PLACEHOLDERS,
+  });
+  assert.equal(single.sql, "SELECT id FROM records WHERE id IN (?);");
+  assert.deepEqual(single.params, ["record-1"], "single-element arrays should use one placeholder");
+
+  const emptyOnly = prepareDatabaseBindings("SELECT id FROM records WHERE id IN (:ids);", {
+    ids: [],
+  }, {
+    placeholderStyle: DOLLAR_PLACEHOLDERS,
+  });
+  assert.equal(emptyOnly.sql, "SELECT id FROM records WHERE id IN (NULL);");
+  assert.deepEqual(emptyOnly.params, [], "empty arrays should not add driver params");
+
+  assert.throws(
+    () => prepareDatabaseBindings("SELECT ? AS nested_value;", [["nested"]]),
+    /Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined/,
+    "top-level positional params should not treat nested arrays as expansion lists",
+  );
 }
 
 async function assertSqliteRuntimeBinding() {
@@ -190,6 +255,80 @@ VALUES (:id);
     /Parameterized SQLite statements must be single statements/,
     "parameterized multi-statement SQL should stay blocked",
   );
+}
+
+async function assertSqliteRuntimeArrayBinding() {
+  await db.run(`
+CREATE TABLE binding_layer_array_records (
+  record_id TEXT PRIMARY KEY,
+  parent_id TEXT,
+  workspace_id TEXT NOT NULL,
+  label TEXT NOT NULL
+);
+INSERT INTO binding_layer_array_records (record_id, parent_id, workspace_id, label)
+VALUES
+  ('record-1', NULL, 'workspace-1', 'Alpha'),
+  ('record-2', 'record-1', 'workspace-1', 'Beta'),
+  ('record-3', 'record-9', 'workspace-1', 'Gamma'),
+  ('record-4', 'record-2', 'workspace-2', 'Delta');
+`);
+
+  const multiRows = await db.query(`
+SELECT record_id
+FROM binding_layer_array_records
+WHERE workspace_id = :workspaceId
+  AND record_id IN (:ids)
+ORDER BY record_id;
+`, {
+    ids: ["record-1", "record-3"],
+    workspaceId: "workspace-1",
+  });
+  assert.deepEqual(
+    multiRows.map((row) => row.record_id),
+    ["record-1", "record-3"],
+    "SQLite runtime should bind multi-element named arrays in IN lists",
+  );
+
+  const singleRows = await db.query(`
+SELECT record_id
+FROM binding_layer_array_records
+WHERE record_id IN (:ids);
+`, {
+    ids: ["record-2"],
+  });
+  assert.deepEqual(
+    singleRows.map((row) => row.record_id),
+    ["record-2"],
+    "SQLite runtime should bind single-element named arrays",
+  );
+
+  const reusedRows = await db.query(`
+SELECT record_id
+FROM binding_layer_array_records
+WHERE workspace_id = :workspaceId
+  AND (
+    record_id IN (:ids)
+    OR parent_id IN (:ids)
+  )
+ORDER BY record_id;
+`, {
+    ids: ["record-1"],
+    workspaceId: "workspace-1",
+  });
+  assert.deepEqual(
+    reusedRows.map((row) => row.record_id),
+    ["record-1", "record-2"],
+    "SQLite runtime should duplicate reused named arrays for positional driver binding",
+  );
+
+  const emptyRows = await db.query(`
+SELECT record_id
+FROM binding_layer_array_records
+WHERE record_id IN (:ids);
+`, {
+    ids: [],
+  });
+  assert.deepEqual(emptyRows, [], "empty named arrays should execute as an empty result set for IN lists");
 }
 
 async function assertSearchTagProofConversion() {

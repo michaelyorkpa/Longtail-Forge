@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.25.4";
+const appVersion = "0.33.5.26.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-quota-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;

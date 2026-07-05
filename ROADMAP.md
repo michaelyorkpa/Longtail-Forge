@@ -6,7 +6,7 @@ This file is the detailed per-version forward plan for Longtail Forge. README.md
 
 Purpose:
 
-Capture the verified gaps from a post-branch review of the 0.33.5.23 SQL parameter-binding migration so the deferred module conversion waves (Tasks, Notes, Lists, Files, Notifications, Tags, Time Tracking, client/project repositories) do not inherit hidden problems. The 0.33.5.23 branch was intentionally scoped to the auth/workspace/permission core and it delivered that scope correctly; this section records what remains and the two tooling/tracking gaps that will otherwise compound with every future wave.
+Capture the verified gaps from a post-branch review of the 0.33.5.23 SQL parameter-binding migration so the deferred module conversion waves (Tasks, Notes, Lists, Files, Notifications, Tags, Time Tracking, client/project repositories) do not inherit hidden problems. The 0.33.5.23 branch was intentionally scoped to the auth/workspace/permission core and it delivered that scope correctly; this section records what remains and the tooling/tracking gaps that will otherwise compound with every future wave.
 
 What the review confirmed as solid (no action needed):
 
@@ -15,20 +15,36 @@ What the review confirmed as solid (no action needed):
 - No untracked raw value interpolation exists: every raw `${...}` reaching SQL is either one of the four tracked `sql*` helpers or a constant identifier (column/table name), so there is no injection blind spot and no interpolation the burndown fails to see.
 - The remaining work is recorded: `docs/database-parameter-binding-audit.md` holds a per-owner inventory, a prioritized wave order, and an explicit 0.40.0 handoff, and `scripts/parameter-binding-audit-regression.mjs` is a live-scan ratchet asserting exact totals (1,499 helper invocations / 233 interpolated sites / 92 bound sites / 408 operation calls after the 0.33.5.25.2 Files quota read) plus per-group counts, so a converted repository cannot silently regress.
 
-### Version 0.33.5.26.1 - Array-expansion binding for variable-length IN-lists and bulk VALUES
+Sizing result:
 
-- [ ] Add array/list expansion support to the binding layer (`src/db/parameter-bindings.js`) so a named param bound to an array expands to the correct number of driver placeholders — e.g. `db.query("... WHERE id IN (:ids)", { ids: [...] })` emits `IN (?, ?, ?)` on SQLite and `$n` sequences for a future provider.
-- [ ] This is a prerequisite for the high-traffic waves, not an optional nicety: the current layer handles only fixed named/positional params, while the unconverted modules interpolate variable-length lists that cannot be mechanically converted without it. Confirmed sites include `src/modules/lists/lists.repo.js:284`, `src/modules/notes/notes.repo.js:954`, `src/services/files.service.js:2935` and `:2950`, `src/repositories/audit-logs.repo.js:270` and `:278` (one built list reused across two clauses), `src/core/modules/modules.service.js:584`, `src/db/index.js:219`, and `src/db/migrations.js:586`.
-- [ ] Decide and document how a single logical list reused in multiple clauses (as in `audit-logs.repo.js`) binds under positional drivers (duplicate the values, or support named reuse), so later waves have one pattern.
-- [ ] Handle the empty-array case explicitly (an empty `IN ()` is a SQL error) with a documented, safe convention.
-- [ ] Also cover dynamic bulk `VALUES (...)` construction where values are joined today (e.g. the search adapter insert path), or explicitly record it as staying on the compatibility path.
-- [ ] Add focused regressions for single-element, multi-element, reused-list, and empty-array expansion on SQLite before any module wave depends on it.
+- Each sub-slice below has one primary blast radius and should be completable in a single focused session. The original array-expansion slice mixed `IN (...)` list binding with the search adapter bulk `VALUES (...)` decision, so those are split before implementation starts.
+
+### Version 0.33.5.26.1 - Array-expansion binding for variable-length IN-lists
+
+- [x] Add array/list expansion support to the binding layer (`src/db/parameter-bindings.js`) so a named param bound to an array expands to the correct number of driver placeholders — e.g. `db.query("... WHERE id IN (:ids)", { ids: [...] })` emits `IN (?, ?, ?)` on SQLite and `$n` sequences for a future provider.
+- [x] This is a prerequisite for the high-traffic waves, not an optional nicety: the current layer handles only fixed named/positional params, while the unconverted modules interpolate variable-length lists that cannot be mechanically converted without it. Confirmed sites include `src/modules/lists/lists.repo.js:284`, `src/modules/notes/notes.repo.js:954`, `src/services/files.service.js:2935` and `:2950`, `src/repositories/audit-logs.repo.js:270` and `:278` (one built list reused across two clauses), `src/core/modules/modules.service.js:584`, `src/db/index.js:219`, and `src/db/migrations.js:586`.
+- [x] Decide and document how a single logical list reused in multiple clauses (as in `audit-logs.repo.js`) binds under positional drivers (duplicate the values, or support named reuse), so later waves have one pattern.
+- [x] Handle the empty-array case explicitly (an empty `IN ()` is a SQL error) with a documented, safe convention.
+- [x] Keep this slice to the binding helper, documentation, and focused coverage; do not convert the high-traffic module repositories here.
+- [x] Add focused regressions for single-element, multi-element, reused-list, and empty-array expansion on SQLite before any module wave depends on it.
 
 Acceptance criteria:
 
 - The binding layer expands array-valued named params into correct placeholder sequences, empty and reused-list cases are defined, and the Tasks/Notes/Lists/Files waves can convert their `IN (...)` sites without reinventing expansion per module.
 
-### Version 0.33.5.26.2 - Make the audit inventory a single source of truth
+### Version 0.33.5.26.2 - Bulk VALUES binding decision for dynamic row groups
+
+- [ ] Decide whether the binding layer should support dynamic bulk `VALUES (...)` row-group construction now, or whether those paths stay on the documented compatibility path until the 0.33.5.27 search/dialect seam work.
+- [ ] Use the SQLite search adapter upsert path (`src/core/search/adapters/sqlite-search-adapter.js`) as the concrete proof case, because it currently builds per-document `VALUES (...)` statements from joined literal values.
+- [ ] If bulk row binding is supported now, add a small provider-neutral helper/shape that builds row placeholder groups plus params without teaching each repository its own pattern.
+- [ ] If bulk row binding is deferred, record the compatibility-path rationale in `docs/database.md` and `docs/database-parameter-binding-audit.md`, and pin a regression so later conversion waves do not mistake array expansion for bulk row support.
+- [ ] Add focused coverage for the chosen path: either a successful bound bulk-row proof, or a regression that the search adapter remains intentionally listed as deferred compatibility work.
+
+Acceptance criteria:
+
+- Dynamic bulk `VALUES (...)` construction has an explicit, documented contract before repository conversion waves begin, and later waves know whether to use a shared helper or leave those paths to the search/dialect seam work.
+
+### Version 0.33.5.26.3 - Make the audit inventory a single source of truth
 
 - [ ] Update `docs/database-parameter-binding-audit.md` so the main per-owner inventory table reflects current reality instead of the frozen 0.33.5.23.1 snapshot: the six converted repositories still appear in the master table with their pre-conversion counts while a separate sub-table lists them as `0`, which reads as contradictory to anyone scanning "what is left."
 - [ ] Choose one canonical presentation — update the master table in place each wave, or annotate converted rows as done with a completion marker — and stop appending a new per-wave sub-table that diverges from the master.
@@ -39,7 +55,7 @@ Acceptance criteria:
 
 - A reader can look at one inventory table and see exactly which repositories remain interpolated and which are converted, with no contradictory counts.
 
-### Version 0.33.5.26.3 - Per-wave ratchet update checklist
+### Version 0.33.5.26.4 - Per-wave ratchet update checklist
 
 - [ ] Document, next to the audit doc or in `docs/database.md`, the exact set of artifacts each future conversion wave must update in lockstep so the exact-equality ratchet stays correct rather than being weakened when it goes red: the hardcoded totals and `expectedTopGroups` in `scripts/parameter-binding-audit-regression.mjs`, the audit inventory table, and the recorded burndown in `CHANGELOG.md`.
 - [ ] Note the standing rule (already in `DECISIONS.md`) that new or touched single-statement queries must use named params, so a wave cannot both convert a repo and leave the ratchet asserting the old count.
@@ -62,9 +78,9 @@ Key decision (record in `DECISIONS.md`):
 
 Entry contract and grounding:
 
-- 0.33.5.23 built the named-to-positional binding layer (`src/db/parameter-bindings.js`) and converted the auth/workspace/permission core. 0.33.5.26 adds the `IN (...)` array-expansion helper and the burndown tracking those later waves depend on. This version consumes the recorded burndown (233 interpolated operation sites across ~20 files) and the audit's prioritized wave order in `docs/database-parameter-binding-audit.md`.
+- 0.33.5.23 built the named-to-positional binding layer (`src/db/parameter-bindings.js`) and converted the auth/workspace/permission core. 0.33.5.26 adds the `IN (...)` array-expansion helper, records the dynamic bulk `VALUES (...)` contract, and refreshes the burndown tracking those later waves depend on. This version consumes the recorded burndown (233 interpolated operation sites across ~20 files) and the audit's prioritized wave order in `docs/database-parameter-binding-audit.md`.
 - Dialect-sensitive operations to abstract behind seams (from the audit's 0.40.0 handoff, all currently SQLite-only): `INSERT OR IGNORE` upserts, `COLLATE NOCASE` comparisons, `PRAGMA` usage, FTS5 full-text search, JSON functions/operators, boolean-as-0/1 storage, `julianday(...)`/time math, `rowid`, and the four durable-job `RETURNING` statements.
-- Prerequisite ordering: 0.33.5.26.1 (array expansion) should land before the high-traffic conversion waves here, since those repos rely on variable-length `IN (...)` lists.
+- Prerequisite ordering: 0.33.5.26.1 (array expansion) should land before the high-traffic conversion waves here, since those repos rely on variable-length `IN (...)` lists. 0.33.5.26.2 (bulk `VALUES`) should land before the search adapter conversion wave, or explicitly mark that path as deferred compatibility work.
 
 Sizing rule for this branch:
 
