@@ -29,6 +29,37 @@ function prepareDatabaseBindings(sql, params = undefined, options = {}) {
   };
 }
 
+function createBulkValuesBindings(rows, columns, options = {}) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error("Bulk VALUES binding requires at least one row.");
+  }
+
+  if (!Array.isArray(columns) || columns.length === 0) {
+    throw new Error("Bulk VALUES binding requires at least one column.");
+  }
+
+  const normalizedColumns = columns.map(normalizeBulkValuesColumnName);
+  const paramPrefix = normalizeDatabaseParameterName(options.paramPrefix || "bulkValue");
+  const valueForColumn = typeof options.valueForColumn === "function"
+    ? options.valueForColumn
+    : defaultBulkValuesColumnValue;
+  const params = {};
+  const sql = rows.map((row, rowIndex) => {
+    const placeholders = normalizedColumns.map((columnName, columnIndex) => {
+      const paramName = `${paramPrefix}_${rowIndex}_${columnIndex}`;
+      params[paramName] = normalizeDatabaseParameterValue(valueForColumn(row, columnName, rowIndex, columnIndex));
+      return `:${paramName}`;
+    });
+
+    return `(${placeholders.join(", ")})`;
+  }).join(",\n");
+
+  return {
+    params,
+    sql,
+  };
+}
+
 function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle) {
   const expectedNames = uniqueTokenNames(tokens);
   const expectedNameSet = new Set(expectedNames);
@@ -243,6 +274,20 @@ function normalizeDatabaseParameterName(name) {
   return bareName;
 }
 
+function normalizeBulkValuesColumnName(name) {
+  const text = String(name || "").trim();
+
+  if (!text) {
+    throw new Error("Bulk VALUES binding column names must be non-empty strings.");
+  }
+
+  return text;
+}
+
+function defaultBulkValuesColumnValue(row, columnName) {
+  return row?.[columnName];
+}
+
 function normalizeDatabaseParameterValue(value) {
   if (value === undefined || value === null) {
     return null;
@@ -447,6 +492,7 @@ function readQuestionParameter(sql, start, fallbackPosition) {
 }
 
 export {
+  createBulkValuesBindings,
   DOLLAR_PLACEHOLDERS,
   QUESTION_PLACEHOLDERS,
   prepareDatabaseBindings,

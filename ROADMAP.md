@@ -34,11 +34,11 @@ Acceptance criteria:
 
 ### Version 0.33.5.26.2 - Bulk VALUES binding decision for dynamic row groups
 
-- [ ] Decide whether the binding layer should support dynamic bulk `VALUES (...)` row-group construction now, or whether those paths stay on the documented compatibility path until the 0.33.5.27 search/dialect seam work.
-- [ ] Use the SQLite search adapter upsert path (`src/core/search/adapters/sqlite-search-adapter.js`) as the concrete proof case, because it currently builds per-document `VALUES (...)` statements from joined literal values.
-- [ ] If bulk row binding is supported now, add a small provider-neutral helper/shape that builds row placeholder groups plus params without teaching each repository its own pattern.
-- [ ] If bulk row binding is deferred, record the compatibility-path rationale in `docs/database.md` and `docs/database-parameter-binding-audit.md`, and pin a regression so later conversion waves do not mistake array expansion for bulk row support.
-- [ ] Add focused coverage for the chosen path: either a successful bound bulk-row proof, or a regression that the search adapter remains intentionally listed as deferred compatibility work.
+- [x] Decide whether the binding layer should support dynamic bulk `VALUES (...)` row-group construction now, or whether those paths stay on the documented compatibility path until the 0.33.5.27 search/dialect seam work.
+- [x] Use the SQLite search adapter upsert path (`src/core/search/adapters/sqlite-search-adapter.js`) as the concrete proof case, because it currently builds per-document `VALUES (...)` statements from joined literal values.
+- [x] If bulk row binding is supported now, add a small provider-neutral helper/shape that builds row placeholder groups plus params without teaching each repository its own pattern.
+- [x] Because bulk row binding is supported now, record the helper contract in `docs/database.md` and `docs/database-parameter-binding-audit.md`, and pin a regression so later conversion waves do not mistake array expansion for bulk row support.
+- [x] Add focused coverage for the chosen path: either a successful bound bulk-row proof, or a regression that the search adapter remains intentionally listed as deferred compatibility work.
 
 Acceptance criteria:
 

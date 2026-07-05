@@ -192,3 +192,28 @@ Binding contract:
 - Top-level positional parameter arrays keep their existing meaning and do not opt into nested list expansion.
 
 This slice intentionally does not convert the high-traffic repositories listed in the inventory above. The live audit totals therefore remain 1,499 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 92 existing bound operation sites, and 408 runtime database operation calls. Dynamic bulk `VALUES (...)` row groups, including the SQLite search adapter upsert path, remain the separate 0.33.5.26.2 decision/proof slice.
+
+## 0.33.5.26.2 Bulk VALUES Binding
+
+0.33.5.26.2 supports dynamic bulk `VALUES (...)` row-group construction through `createBulkValuesBindings()` in `src/db/parameter-bindings.js`, re-exported for app-facing use from `src/core/database.js`. The helper builds named placeholder row groups plus scalar params for dynamic value sets; it does not parameterize identifiers, SQL fragments, conflict targets, sort clauses, operators, or backend-specific search syntax.
+
+Contract:
+
+- Callers pass rows, a static/allowlisted column-key list, and optionally a value mapping callback.
+- The helper returns `{ sql, params }`, where `sql` can be embedded after `VALUES` in one parameterized statement.
+- At least one row and one column are required. Empty input should be handled by the caller before issuing the write.
+- Cell values are scalar database parameters. Nested arrays are rejected and remain reserved for named `IN (...)` list expansion only.
+- Parameter names are generated from a validated prefix plus row/column indexes so repositories do not invent per-module row builders.
+
+Proof conversion:
+
+- `src/core/search/adapters/sqlite-search-adapter.js` now uses the helper for the canonical `search_index` upsert, replacing the dynamic joined literal row construction for that `VALUES (...)` statement.
+- SQLite FTS maintenance in the same adapter remains on the existing compatibility path until the 0.33.5.27 search/dialect seam work moves backend search details behind a fuller provider seam.
+
+Current SQLite search adapter row after the proof:
+
+| Owner | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
+| --- | ---: | ---: | ---: | ---: |
+| core/search/adapters/sqlite-search-adapter | 40 | 2 | 1 | 12 |
+
+Current live audit totals after the bulk `VALUES` proof are 1,498 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 total runtime database operation calls.

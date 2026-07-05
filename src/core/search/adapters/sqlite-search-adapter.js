@@ -1,4 +1,4 @@
-import { querySql, runSql, sqlText } from "../../database.js";
+import { createBulkValuesBindings, querySql, runSql, sqlText } from "../../database.js";
 
 const SQLITE_SEARCH_ADAPTER_ID = "sqlite";
 const SQLITE_SEARCH_FTS_TABLE = "search_index_fts";
@@ -24,6 +24,15 @@ const SEARCH_INDEX_COLUMNS = [
   "record_updated_at",
   "indexed_at",
 ];
+const NULLABLE_SEARCH_INDEX_COLUMNS = new Set([
+  "client_id",
+  "project_id",
+  "library_bucket",
+  "note_collection_id",
+  "collection_path",
+  "record_created_at",
+  "record_updated_at",
+]);
 
 let cachedCapabilities = null;
 
@@ -111,22 +120,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS ${SQLITE_SEARCH_FTS_TABLE} USING fts5(
       }
 
       const storage = await this.ensureStorage(runtimeOptions);
-      const statements = validDocuments.flatMap((document) => {
-        const values = SEARCH_INDEX_COLUMNS.map((columnName) =>
-          sqlSearchValue(document[columnName], {
-            nullable: [
-              "client_id",
-              "project_id",
-              "library_bucket",
-              "note_collection_id",
-              "collection_path",
-              "record_created_at",
-              "record_updated_at",
-            ].includes(columnName),
-          }));
-        const canonicalStatement = `
+      const canonicalValues = createBulkValuesBindings(validDocuments, SEARCH_INDEX_COLUMNS, {
+        paramPrefix: "searchIndexValue",
+        valueForColumn: searchIndexColumnValue,
+      });
+
+      await runSql(`
 INSERT INTO search_index (${SEARCH_INDEX_COLUMNS.join(", ")})
-VALUES (${values.join(", ")})
+VALUES ${canonicalValues.sql}
 ON CONFLICT(workspace_id, module_id, record_type, record_id) DO UPDATE SET
   search_index_id = excluded.search_index_id,
   title = excluded.title,
@@ -144,15 +145,10 @@ ON CONFLICT(workspace_id, module_id, record_type, record_id) DO UPDATE SET
   record_created_at = excluded.record_created_at,
   record_updated_at = excluded.record_updated_at,
   indexed_at = excluded.indexed_at;
-`;
+`, canonicalValues.params);
 
-        if (!storage.ftsTableReady) {
-          return [canonicalStatement];
-        }
-
-        return [
-          canonicalStatement,
-          `
+      if (storage.ftsTableReady) {
+        const statements = validDocuments.map((document) => `
 DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
 WHERE search_index_id = ${sqlText(document.search_index_id)};
 
@@ -180,11 +176,10 @@ VALUES (
   ${sqlText(document.tags_text || "")},
   ${sqlText(document.source || "")}
 );
-`,
-        ];
-      });
+`);
 
-      await runSql(statements.join("\n"));
+        await runSql(statements.join("\n"));
+      }
 
       return {
         indexedCount: validDocuments.length,
@@ -681,12 +676,14 @@ function sqlOffset(value) {
   return Number.isInteger(offset) && offset >= 0 ? String(offset) : "0";
 }
 
-function sqlSearchValue(value, options = {}) {
-  if (options.nullable && (value === null || value === undefined || String(value).trim() === "")) {
-    return "NULL";
+function searchIndexColumnValue(document, columnName) {
+  const value = document[columnName];
+
+  if (NULLABLE_SEARCH_INDEX_COLUMNS.has(columnName) && (value === null || value === undefined || String(value).trim() === "")) {
+    return null;
   }
 
-  return sqlText(value || "");
+  return value || "";
 }
 
 function normalizeSearchText(value) {

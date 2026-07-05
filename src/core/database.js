@@ -8,3 +8,7 @@ export {
   sqlNullableText,
   sqlText,
 } from "../db/provider.js";
+
+export {
+  createBulkValuesBindings,
+} from "../db/parameter-bindings.js";

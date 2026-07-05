@@ -1,3 +1,11 @@
+## Version 0.33.5.26.2 - 2026-07-05 11:52 -04:00
+
+- Added `createBulkValuesBindings()` as the shared dynamic bulk `VALUES (...)` helper, returning provider-neutral named row placeholder groups plus scalar params for adapter binding.
+- Converted the SQLite search adapter canonical `search_index` upsert to use the helper as the proof case while leaving SQLite FTS maintenance on the documented compatibility path until the 0.33.5.27 search/dialect seam work.
+- Extended `scripts/parameter-binding-layer-regression.mjs` with helper translation/runtime coverage and a real SQLite search-adapter bulk upsert proof.
+- Updated database docs, the parameter-binding audit, current decisions, and marked the 0.33.5.26.2 roadmap checklist complete. The live parameter-binding burndown is now 1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls.
+- Verification 2026-07-05 11:57 -04:00: `scripts/parameter-binding-layer-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` passed; `npm run lint` passed; `npm run check` passed 262/262 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.26.2 after restarting the local 8001 server.
+
 ## Version 0.33.5.26.1 - 2026-07-05 11:35 -04:00
 
 - Added array-valued named parameter expansion to `src/db/parameter-bindings.js` so future repository conversion waves can bind variable-length `IN (...)` lists without manual value interpolation.

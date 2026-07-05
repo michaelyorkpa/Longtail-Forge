@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.26.1";
+const appVersion = "0.33.5.26.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";
@@ -14,6 +14,7 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const parameterBindingSource = readText("src/db/parameter-bindings.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
+const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-search-adapter.js");
 const tagTextSource = readText("src/core/search/tag-text.js");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
@@ -22,6 +23,7 @@ const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
 const {
+  createBulkValuesBindings,
   DOLLAR_PLACEHOLDERS,
   QUESTION_PLACEHOLDERS,
   prepareDatabaseBindings,
@@ -32,6 +34,10 @@ const {
   querySql,
 } = await import("../src/db/index.js");
 const { readSearchTagsText } = await import("../src/core/search/tag-text.js");
+const {
+  clearSqliteSearchAdapterCapabilityCacheForTests,
+  createSqliteSearchAdapter,
+} = await import("../src/core/search/adapters/sqlite-search-adapter.js");
 
 try {
   assert.equal(packageJson.version, appVersion, "package.json should report the parameter-binding layer version");
@@ -40,6 +46,7 @@ try {
 
   assert.match(parameterBindingSource, /function prepareDatabaseBindings/, "parameter binding layer should expose the shared translator");
   assert.match(parameterBindingSource, /createNamedBindingEntries/, "binding layer should centralize named list expansion");
+  assert.match(parameterBindingSource, /function createBulkValuesBindings/, "binding layer should expose the shared bulk VALUES helper");
   assert.match(parameterBindingSource, /DOLLAR_PLACEHOLDERS/, "binding layer should support future dollar placeholders");
   assert.match(parameterBindingSource, /QUESTION_PLACEHOLDERS/, "binding layer should support SQLite positional placeholders");
   assert.match(sqliteAdapterSource, /prepareDatabaseBindings/, "SQLite adapter should use the shared binding layer");
@@ -49,18 +56,25 @@ try {
 
   assertBindingTranslation();
   assertArrayBindingTranslation();
+  assertBulkValuesBindingTranslation();
   await assertSqliteRuntimeBinding();
   await assertSqliteRuntimeArrayBinding();
+  await assertSqliteRuntimeBulkValuesBinding();
+  await assertSqliteSearchAdapterBulkValuesProof();
   await assertSearchTagProofConversion();
 
+  assert.match(sqliteSearchAdapterSource, /createBulkValuesBindings/, "SQLite search adapter should use the bulk VALUES helper for canonical upserts");
+  assert.doesNotMatch(sqliteSearchAdapterSource, /VALUES \(\$\{values\.join\(", "\)\}\)/, "SQLite search adapter should not build canonical VALUES rows by joining literal values");
   assert.doesNotMatch(tagTextSource, /\bsqlText\b|\bquerySql\b/, "search tag-text proof conversion should not use interpolation helpers");
   assert.match(tagTextSource, /db\.query\(`[\s\S]*:workspaceId[\s\S]*:targetType[\s\S]*:targetId/, "search tag-text proof conversion should use named params");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.2[\s\S]*named-to-positional binding layer/, "database docs should describe the binding layer");
   assert.match(databaseDocs, /As of version 0\.33\.5\.26\.1[\s\S]*array-valued named parameters/, "database docs should describe array-valued named params");
+  assert.match(databaseDocs, /As of version 0\.33\.5\.26\.2[\s\S]*`createBulkValuesBindings\(\)`/, "database docs should describe the bulk VALUES helper");
   assert.match(databaseDocs, /`src\/db\/parameter-bindings\.js`/, "database docs should name the shared binding layer module");
   assert.match(databaseDocs, /sqlText[\s\S]*deprecated compatibility escape hatches/, "database docs should record the SQL literal helper migration path");
   assert.match(auditDocs, /0\.33\.5\.23\.2 Proof Conversion/, "audit docs should record the proof conversion");
   assert.match(auditDocs, /0\.33\.5\.26\.1 Array-Expansion Binding/, "audit docs should record the array-expansion helper");
+  assert.match(auditDocs, /0\.33\.5\.26\.2 Bulk VALUES Binding/, "audit docs should record the bulk VALUES helper");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
   assert.match(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should continue past the closed parameter-binding, Node 24, and storage cleanup branches");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
@@ -177,6 +191,87 @@ WHERE record_id IN (:ids)
     () => prepareDatabaseBindings("SELECT ? AS nested_value;", [["nested"]]),
     /Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined/,
     "top-level positional params should not treat nested arrays as expansion lists",
+  );
+}
+
+function assertBulkValuesBindingTranslation() {
+  const rows = [
+    {
+      id: "bulk-1",
+      label: "Alpha ' value; DROP TABLE binding_layer_bulk_records; --",
+      optionalNote: "",
+    },
+    {
+      id: "bulk-2",
+      label: "Beta",
+      optionalNote: "kept",
+    },
+  ];
+  const bulkValues = createBulkValuesBindings(rows, ["id", "label", "optionalNote"], {
+    paramPrefix: "bulkProbe",
+    valueForColumn(row, columnName) {
+      if (columnName === "optionalNote" && !row.optionalNote) {
+        return null;
+      }
+
+      return row[columnName];
+    },
+  });
+  const sql = `
+INSERT INTO binding_layer_bulk_records (id, label, optional_note)
+VALUES ${bulkValues.sql};
+`;
+  const dollar = prepareDatabaseBindings(sql, bulkValues.params, {
+    placeholderStyle: DOLLAR_PLACEHOLDERS,
+  });
+  const question = prepareDatabaseBindings(sql, bulkValues.params, {
+    placeholderStyle: QUESTION_PLACEHOLDERS,
+  });
+
+  assert.equal(
+    bulkValues.sql,
+    "(:bulkProbe_0_0, :bulkProbe_0_1, :bulkProbe_0_2),\n(:bulkProbe_1_0, :bulkProbe_1_1, :bulkProbe_1_2)",
+    "bulk VALUES helper should build stable row placeholder groups",
+  );
+  assert.deepEqual(bulkValues.params, {
+    bulkProbe_0_0: "bulk-1",
+    bulkProbe_0_1: "Alpha ' value; DROP TABLE binding_layer_bulk_records; --",
+    bulkProbe_0_2: null,
+    bulkProbe_1_0: "bulk-2",
+    bulkProbe_1_1: "Beta",
+    bulkProbe_1_2: "kept",
+  }, "bulk VALUES helper should return scalar params for every row/column intersection");
+  assert.match(dollar.sql, /VALUES \(\$1, \$2, \$3\),\n\(\$4, \$5, \$6\);/, "bulk VALUES helper should translate to dollar placeholders");
+  assert.deepEqual(dollar.params, [
+    "bulk-1",
+    "Alpha ' value; DROP TABLE binding_layer_bulk_records; --",
+    null,
+    "bulk-2",
+    "Beta",
+    "kept",
+  ]);
+  assert.match(question.sql, /VALUES \(\?, \?, \?\),\n\(\?, \?, \?\);/, "bulk VALUES helper should translate to SQLite placeholders");
+  assert.deepEqual(question.params, dollar.params);
+
+  assert.throws(
+    () => createBulkValuesBindings([], ["id"]),
+    /Bulk VALUES binding requires at least one row/,
+    "bulk VALUES helper should require explicit rows",
+  );
+  assert.throws(
+    () => createBulkValuesBindings([{ id: "bulk-1" }], []),
+    /Bulk VALUES binding requires at least one column/,
+    "bulk VALUES helper should require explicit columns",
+  );
+  assert.throws(
+    () => createBulkValuesBindings([{ id: ["nested"] }], ["id"]),
+    /Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined/,
+    "bulk VALUES helper should reject nested cell arrays instead of treating them as list expansion",
+  );
+  assert.throws(
+    () => createBulkValuesBindings([{ id: "bulk-1" }], ["id"], { paramPrefix: "bulk-value" }),
+    /Invalid database query parameter name: bulk-value/,
+    "bulk VALUES helper should keep generated parameter names valid",
   );
 }
 
@@ -329,6 +424,253 @@ WHERE record_id IN (:ids);
     ids: [],
   });
   assert.deepEqual(emptyRows, [], "empty named arrays should execute as an empty result set for IN lists");
+}
+
+async function assertSqliteRuntimeBulkValuesBinding() {
+  await db.run(`
+CREATE TABLE binding_layer_bulk_records (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  optional_note TEXT,
+  created_at TEXT NOT NULL
+);
+`);
+  const createdAt = new Date("2026-07-05T15:00:00.000Z");
+  const bulkValues = createBulkValuesBindings([
+    {
+      createdAt,
+      id: "bulk-runtime-1",
+      label: "Runtime ' bulk; DROP TABLE binding_layer_bulk_records; --",
+      optionalNote: "",
+      workspaceId: "workspace-bulk",
+    },
+    {
+      createdAt,
+      id: "bulk-runtime-2",
+      label: "Runtime bulk two",
+      optionalNote: "kept",
+      workspaceId: "workspace-bulk",
+    },
+  ], ["id", "workspaceId", "label", "optionalNote", "createdAt"], {
+    paramPrefix: "bulkRuntime",
+    valueForColumn(row, columnName) {
+      if (columnName === "optionalNote" && !row.optionalNote) {
+        return null;
+      }
+
+      return row[columnName];
+    },
+  });
+
+  await db.run(`
+INSERT INTO binding_layer_bulk_records (id, workspace_id, label, optional_note, created_at)
+VALUES ${bulkValues.sql};
+`, bulkValues.params);
+
+  const rows = await db.query(`
+SELECT id, label, optional_note, created_at
+FROM binding_layer_bulk_records
+WHERE workspace_id = :workspaceId
+ORDER BY id;
+`, {
+    workspaceId: "workspace-bulk",
+  });
+
+  assert.deepEqual(rows, [
+    {
+      created_at: createdAt.toISOString(),
+      id: "bulk-runtime-1",
+      label: "Runtime ' bulk; DROP TABLE binding_layer_bulk_records; --",
+      optional_note: null,
+    },
+    {
+      created_at: createdAt.toISOString(),
+      id: "bulk-runtime-2",
+      label: "Runtime bulk two",
+      optional_note: "kept",
+    },
+  ], "SQLite runtime should execute bound bulk VALUES row groups without interpreting SQL-like text");
+}
+
+async function assertSqliteSearchAdapterBulkValuesProof() {
+  clearSqliteSearchAdapterCapabilityCacheForTests();
+  await db.run(`
+CREATE TABLE search_index (
+  search_index_id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  module_id TEXT NOT NULL,
+  record_type TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  summary TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  tags_text TEXT NOT NULL DEFAULT '',
+  client_id TEXT,
+  project_id TEXT,
+  library_bucket TEXT,
+  note_collection_id TEXT,
+  collection_path TEXT,
+  visibility TEXT NOT NULL DEFAULT 'normal',
+  record_status TEXT NOT NULL DEFAULT 'active',
+  source TEXT NOT NULL DEFAULT '',
+  record_created_at TEXT,
+  record_updated_at TEXT,
+  indexed_at TEXT NOT NULL,
+  UNIQUE (workspace_id, module_id, record_type, record_id)
+);
+`);
+  const adapter = createSqliteSearchAdapter({ refresh: true });
+  const documents = [
+    {
+      body: "Body with SQL-like text; DELETE FROM search_index; --",
+      client_id: "",
+      collection_path: "",
+      indexed_at: "2026-07-05T15:10:00.000Z",
+      library_bucket: "",
+      module_id: "developer-example",
+      note_collection_id: undefined,
+      project_id: null,
+      record_created_at: "",
+      record_id: "bulk-record-1",
+      record_status: "active",
+      record_type: "example_record",
+      record_updated_at: "2026-07-05T15:09:00.000Z",
+      search_index_id: "workspace-search-bulk:developer-example:example_record:bulk-record-1",
+      source: "regression",
+      summary: "Summary one",
+      tags_text: "alpha",
+      title: "Bulk ' canonical one",
+      visibility: "normal",
+      workspace_id: "workspace-search-bulk",
+    },
+    {
+      body: "Second body",
+      client_id: "client-1",
+      collection_path: "Collection / Path",
+      indexed_at: "2026-07-05T15:11:00.000Z",
+      library_bucket: "reference",
+      module_id: "developer-example",
+      note_collection_id: "collection-1",
+      project_id: "project-1",
+      record_created_at: "2026-07-05T15:08:00.000Z",
+      record_id: "bulk-record-2",
+      record_status: "archived",
+      record_type: "example_record",
+      record_updated_at: "2026-07-05T15:10:00.000Z",
+      search_index_id: "workspace-search-bulk:developer-example:example_record:bulk-record-2",
+      source: "regression",
+      summary: "Summary two",
+      tags_text: "beta",
+      title: "Bulk canonical two",
+      visibility: "normal",
+      workspace_id: "workspace-search-bulk",
+    },
+  ];
+  const result = await adapter.upsertDocuments(documents, { refresh: true });
+
+  assert.equal(result.indexedCount, 2, "SQLite search adapter should bulk-upsert canonical rows");
+  assert.equal(result.ftsSyncedCount, result.storage.ftsTableReady ? 2 : 0);
+
+  const rows = await db.query(`
+SELECT
+  search_index_id,
+  record_id,
+  title,
+  body,
+  client_id,
+  project_id,
+  library_bucket,
+  note_collection_id,
+  collection_path,
+  record_created_at,
+  record_updated_at
+FROM search_index
+WHERE workspace_id = :workspaceId
+ORDER BY record_id;
+`, {
+    workspaceId: "workspace-search-bulk",
+  });
+
+  assert.deepEqual(rows, [
+    {
+      body: "Body with SQL-like text; DELETE FROM search_index; --",
+      client_id: null,
+      collection_path: null,
+      library_bucket: null,
+      note_collection_id: null,
+      project_id: null,
+      record_created_at: null,
+      record_id: "bulk-record-1",
+      record_updated_at: "2026-07-05T15:09:00.000Z",
+      search_index_id: "workspace-search-bulk:developer-example:example_record:bulk-record-1",
+      title: "Bulk ' canonical one",
+    },
+    {
+      body: "Second body",
+      client_id: "client-1",
+      collection_path: "Collection / Path",
+      library_bucket: "reference",
+      note_collection_id: "collection-1",
+      project_id: "project-1",
+      record_created_at: "2026-07-05T15:08:00.000Z",
+      record_id: "bulk-record-2",
+      record_updated_at: "2026-07-05T15:10:00.000Z",
+      search_index_id: "workspace-search-bulk:developer-example:example_record:bulk-record-2",
+      title: "Bulk canonical two",
+    },
+  ], "SQLite search adapter should preserve bulk-bound canonical search metadata");
+
+  const updated = await adapter.upsertDocuments([{
+    ...documents[0],
+    body: "Updated body",
+    indexed_at: "2026-07-05T15:12:00.000Z",
+    title: "Updated bulk canonical one",
+  }], { refresh: true });
+  const updatedRows = await db.query(`
+SELECT title, body, COUNT(*) OVER () AS row_count
+FROM search_index
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND record_type = :recordType
+  AND record_id = :recordId;
+`, {
+    moduleId: "developer-example",
+    recordId: "bulk-record-1",
+    recordType: "example_record",
+    workspaceId: "workspace-search-bulk",
+  });
+
+  assert.equal(updated.indexedCount, 1, "SQLite search adapter should upsert an existing canonical row");
+  assert.deepEqual(updatedRows, [{
+    body: "Updated body",
+    row_count: 1,
+    title: "Updated bulk canonical one",
+  }], "canonical search bulk upsert should update the existing conflict target without duplicating rows");
+
+  if (result.storage.ftsTableReady) {
+    const ftsRows = await db.query(`
+SELECT search_index_id, title
+FROM search_index_fts
+WHERE workspace_id = :workspaceId
+ORDER BY record_id;
+`, {
+      workspaceId: "workspace-search-bulk",
+    });
+
+    assert.deepEqual(ftsRows, [
+      {
+        search_index_id: "workspace-search-bulk:developer-example:example_record:bulk-record-1",
+        title: "Updated bulk canonical one",
+      },
+      {
+        search_index_id: "workspace-search-bulk:developer-example:example_record:bulk-record-2",
+        title: "Bulk canonical two",
+      },
+    ], "SQLite FTS sync should remain compatible after the canonical bulk upsert");
+  }
+
+  clearSqliteSearchAdapterCapabilityCacheForTests();
 }
 
 async function assertSearchTagProofConversion() {

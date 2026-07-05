@@ -32,6 +32,8 @@ As of version 0.33.5.25.2, Files quota enforcement added one new named-bound dat
 
 As of version 0.33.5.26.1, `src/db/parameter-bindings.js` supports array-valued named parameters for variable-length `IN (...)` lists. Non-empty arrays expand to the correct driver placeholder sequence. Dollar-style placeholders reuse a repeated named array as the same `$n` sequence, while SQLite/question-style placeholders duplicate the array values at each occurrence because positional `?` placeholders cannot be reused by name. Empty arrays expand to `NULL`, so `column IN (:ids)` remains valid SQL and returns no rows instead of broadening a read. This slice does not convert high-traffic repositories and does not define the dynamic bulk `VALUES (...)` row-group contract; that remains the 0.33.5.26.2 follow-up.
 
+As of version 0.33.5.26.2, dynamic bulk `VALUES (...)` row groups are supported through `createBulkValuesBindings()` from `src/core/database.js` / `src/db/parameter-bindings.js`. The helper returns `{ sql, params }`, where `sql` is a comma-separated set of named placeholder row groups and `params` is a scalar value map for the adapter binding layer. It is value-only: table names, column names, conflict targets, sort clauses, operators, and SQL fragments must remain static or come from validated allowlists. The helper requires at least one row and at least one column, rejects invalid parameter prefixes, and does not treat nested cell arrays as list expansion. The SQLite search adapter canonical `search_index` upsert is the proof case. SQLite FTS maintenance remains on the existing compatibility path until the 0.33.5.27 search/dialect seam work. The live parameter-binding audit after this proof is 1,498 remaining helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 runtime DB operation calls.
+
 As of version 0.33.5.21.0.4, the SQLite adapter has retired the former global operation queue now that normal calls use the in-process synchronous driver path. `db.transaction(callback)` still owns explicit `BEGIN TRANSACTION`, `COMMIT`, and `ROLLBACK` behavior, still passes a transaction client with `query`, `get`, `run`, `capabilities`, and nested-transaction rejection, and still rejects direct `db.query` / `db.get` / `db.run` use inside the callback. Open transactions are protected by a transaction-only tail so outside adapter calls wait until the callback commits or rolls back. Migration, baseline, and schema-repair scripts that already embed `BEGIN ... COMMIT` remain no-parameter multi-statement `runSql()` calls that route through the `exec()` compatibility path; do not wrap those migration scripts in `db.transaction(callback)`.
 
 As of version 0.33.5.21.0.5, SQLite adapter capabilities report `adapter: "better-sqlite3"` while preserving the rest of the provider-neutral capability shape. Native driver result rows remain plain objects keyed by selected column names and aliases. Current value semantics stay compatible for app callers: boolean values are stored as `0` / `1`, SQL `NULL` reads as `null`, BLOB values round-trip as Node `Buffer` instances when bound through parameters, and normal counters/counts remain JavaScript numbers. The helper does not enable `safeIntegers` because the current TEXT-key schema uses TEXT keys for identifiers and current numeric values are expected to stay within JavaScript's safe-integer range; any future 64-bit INTEGER identifier or exact large-integer workflow must revisit that decision before shipping.
@@ -108,6 +110,23 @@ WHERE workspace_id = :workspaceId
 ```
 
 Do not manually join values into `IN (...)` lists in new or converted repository code. A repeated named array may be reused in more than one clause; future `$n` providers reuse the same placeholder sequence, while SQLite duplicates values for each positional occurrence. Empty arrays expand to `NULL` so `IN (:ids)` returns no rows. If a workflow needs a different empty-list meaning, handle that explicitly in service/repository code before issuing the query.
+
+For dynamic bulk `VALUES (...)` row groups, use the shared helper rather than joining literal values:
+
+```js
+const values = createBulkValuesBindings(rows, ["recordId", "label"], {
+  paramPrefix: "recordValue",
+});
+
+await db.run(`
+INSERT INTO records (record_id, label)
+VALUES ${values.sql}
+ON CONFLICT(record_id) DO UPDATE SET
+  label = excluded.label;
+`, values.params);
+```
+
+This helper only builds value placeholder groups. Keep the column list and conflict target static or allowlisted, and skip the write explicitly when there are no rows.
 
 ## Transaction Style
 

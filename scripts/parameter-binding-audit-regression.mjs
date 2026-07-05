@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.26.1";
+const appVersion = "0.33.5.26.2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -22,9 +22,9 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 92,
-  dbOperationSites: 408,
-  helperCalls: 1499,
+  boundOperationSites: 93,
+  dbOperationSites: 409,
+  helperCalls: 1498,
   interpolatedOperationSites: 233,
 }, "parameter-binding audit totals should match the current post-wave runtime inventory");
 
@@ -62,6 +62,17 @@ const tagTextRow = audit.groups.find((candidate) => candidate.group === "core/se
 assert.equal(tagTextRow.helperCalls, 0, "search tag-text proof conversion should remove literal helpers from the current audit");
 assert.equal(tagTextRow.interpolatedOperationSites, 0, "search tag-text proof conversion should remove interpolated operation sites");
 assert.equal(tagTextRow.boundOperationSites, 1, "search tag-text proof conversion should add one bound operation site");
+
+const sqliteSearchAdapterRow = audit.groups.find((candidate) => candidate.group === "core/search/adapters/sqlite-search-adapter");
+assert.equal(sqliteSearchAdapterRow.helperCalls, 40, "SQLite search adapter should reduce one literal helper through the bulk VALUES helper");
+assert.equal(sqliteSearchAdapterRow.interpolatedOperationSites, 2, "SQLite search adapter should keep the remaining search/filter direct interpolation sites unchanged");
+assert.equal(sqliteSearchAdapterRow.boundOperationSites, 1, "SQLite search adapter canonical upsert should add one bound bulk VALUES operation site");
+assert.equal(sqliteSearchAdapterRow.dbOperationSites, 12, "SQLite search adapter operation count should include the separated bound canonical upsert");
+assert.match(
+  auditDocs,
+  /\| core\/search\/adapters\/sqlite-search-adapter \| 40 \| 2 \| 1 \| 12 \|/,
+  "audit docs should record the current SQLite search adapter bulk VALUES proof row",
+);
 
 const convertedWaveRows = [
   ["app-settings.repo", 2],
@@ -115,9 +126,12 @@ assert.match(auditDocs, /0\.33\.5\.23\.2[\s\S]*named-to-positional binding layer
 assert.match(auditDocs, /0\.33\.5\.23\.3 Conversion Wave[\s\S]*auth\/workspace\/permission core/, "audit docs should record the first conversion wave");
 assert.match(auditDocs, /0\.33\.5\.23\.4 Closeout[\s\S]*final 0\.33\.5\.23 branch burndown remains 1,499/, "audit docs should record the closeout burndown");
 assert.match(auditDocs, /0\.33\.5\.25\.2 Quota-Bound Query Update[\s\S]*1,499 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 92 existing bound operation sites, and 408 total runtime database operation calls/, "audit docs should record the current quota-query audit ratchet");
+assert.match(auditDocs, /0\.33\.5\.26\.2 Bulk VALUES Binding[\s\S]*1,498 runtime literal-helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 total runtime database operation calls/, "audit docs should record the current bulk VALUES audit ratchet");
 assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
 assert.match(databaseDocs, /As of version 0\.33\.5\.25\.2[\s\S]*92 existing bound operation sites, and 408 runtime DB operation calls/, "database docs should record the current quota-query audit ratchet");
+assert.match(databaseDocs, /As of version 0\.33\.5\.26\.2[\s\S]*`createBulkValuesBindings\(\)`/, "database docs should record the current bulk VALUES helper contract");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
+assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
 
 assert.match(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should continue past the closed parameter-binding, Node 24, and storage cleanup branches");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration/m, "live roadmap should not keep the completed parameter-binding branch open");

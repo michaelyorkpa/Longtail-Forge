@@ -23,6 +23,10 @@ import {
   sqlText,
 } from "./provider.js";
 
+export {
+  createBulkValuesBindings,
+} from "./parameter-bindings.js";
+
 const DEFAULT_WORKSPACE_NAME = config.bootstrap.initialWorkspaceName;
 const REDACTED_SEED_USERNAME = "[REDACTED]";
 const DEFAULT_SUPER_ADMIN_USERNAME = config.bootstrap.superAdminUsername;
