@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.20";
+const appVersion = "0.33.5.27.22";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-record-item-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-record-item-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -51,7 +51,7 @@ function assertStaticContract() {
   assert.equal(packageJson.version, appVersion, "package.json should report the Lists records/items conversion version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the Lists records/items conversion version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Lists records/items conversion version");
-  assert.match(listsModuleSource, /version:\s*"0\.33\.5\.27\.20"/, "Lists module should report the current app version");
+  assert.match(listsModuleSource, /version:\s*"0\.33\.5\.27\.22"/, "Lists module should report the current app version");
 
   assert.match(listsRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Lists repository should import only the provider-neutral db facade after the .17 wave");
   const convertedSource = listsRepoSource.slice(
@@ -74,7 +74,7 @@ function assertStaticContract() {
 
   assert.match(auditDocs, /0\.33\.5\.27\.16 Lists Records and Items Repository Conversion[\s\S]*record and item read\/write paths[\s\S]*`lists\/lists\.repo`[\s\S]*remaining catalog and linked-record paths[\s\S]*798 runtime literal-helper invocations[\s\S]*159 direct interpolated SQL operation sites[\s\S]*191 existing bound operation sites/, "audit docs should record the Lists records/items conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.16[\s\S]*`lists\/lists\.repo`[\s\S]*record and item paths[\s\S]*72 helper invocations remain[\s\S]*798 remaining helper invocations/, "database docs should record the Lists records/items conversion");
-  assert.match(listsDocs, /current Lists implementation as of 0\.33\.5\.27\.20/, "Lists docs should report the current implementation version");
+  assert.match(listsDocs, /current Lists implementation as of 0\.33\.5\.27\.22/, "Lists docs should report the current implementation version");
   assert.match(listsDocs, /As of 0\.33\.5\.27\.16[\s\S]*list record and list item persistence paths use named params[\s\S]*[Cc]atalog and linked-record paths remain assigned to 0\.33\.5\.27\.17/, "Lists docs should document the converted records/items boundary");
   assert.match(roadmap, /### Version 0\.33\.5\.27\.16 - Conversion wave: Lists records and items[\s\S]*- \[x\] Convert list record and list item read\/write paths[\s\S]*- \[x\] Preserve list execution[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Lists records/items conversion slice complete");
   assert.match(changelog, /## Version 0\.33\.5\.27\.16 - [\s\S]*Lists records and items repository conversion[\s\S]*798 helper invocations[\s\S]*159 direct interpolated operation sites[\s\S]*191 bound operation sites/, "changelog should record the Lists records/items conversion burndown");

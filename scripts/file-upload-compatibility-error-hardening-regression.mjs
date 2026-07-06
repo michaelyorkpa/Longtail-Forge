@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.20";
+const appVersion = "0.33.5.27.22";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-upload-hardening-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;

@@ -8,7 +8,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.27.20";
+const appVersion = "0.33.5.27.22";
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-high-volume-admin-lists-"));
 const disposableDb = path.join(tempDir, "longtail-forge-high-volume-admin-lists-scale-demo.db");
@@ -81,7 +81,7 @@ function assertStaticContract() {
 
   assert.match(notificationsServiceSource, /NOTIFICATION_MAX_PAGE_SIZE = 100/, "Notifications endpoint should expose an explicit maximum page size");
   assert.match(notificationsRepoSource, /async function countForRecipient/, "Notifications repository should count filtered recipient rows");
-  assert.match(notificationsRepoSource, /module_id = \$\{sqlText\(moduleId\)\}/, "Notifications repository should own module filtering");
+  assert.match(notificationsRepoSource, /module_id = :moduleId/, "Notifications repository should own module filtering");
   assert.match(notificationsScript, /params\.set\("moduleId", moduleFilter\.value\)/, "Notifications page should submit module filters to the endpoint");
 
   assert.match(searchRoutesSource, /maxPageSize:\s*MAX_LIMIT/, "Search route should return max page size metadata");

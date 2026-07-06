@@ -13,7 +13,7 @@ const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
 function createSqliteDialectSeams() {
   return Object.freeze({
     provider: "sqlite",
-    contractVersion: "0.33.5.27.20",
+    contractVersion: "0.33.5.27.22",
     capabilities: SQLITE_DIALECT_SEAM_CAPABILITIES,
     boolean: Object.freeze({
       bind: bindSqliteBoolean,
@@ -32,11 +32,13 @@ function createSqliteDialectSeams() {
       orderByNoCase,
     }),
     conflict: Object.freeze({
+      buildInsertOnAnyConflictDoUpdate,
       buildInsertOnConflictDoNothing,
       buildInsertOnConflictDoUpdate,
       buildInsertOrIgnore,
       excludedColumn,
       insertOrIgnoreInto,
+      onAnyConflictDoUpdateSet,
       onConflictDoNothing,
       onConflictDoUpdateSet,
     }),
@@ -106,6 +108,16 @@ function buildInsertOnConflictDoUpdate(options = {}) {
   ]);
 }
 
+function buildInsertOnAnyConflictDoUpdate(options = {}) {
+  const statement = normalizeInsertStatement(options);
+  return composeSqlLines([
+    `INSERT INTO ${statement.tableName} (${statement.columnsSql})`,
+    `VALUES (${statement.valuesSql})`,
+    onAnyConflictDoUpdateSet(options.updateColumns),
+    statement.returningSql,
+  ]);
+}
+
 function onConflictDoNothing(conflictColumns) {
   return `ON CONFLICT(${normalizeIdentifierList(conflictColumns, "conflict column")}) DO NOTHING`;
 }
@@ -116,6 +128,14 @@ function onConflictDoUpdateSet(conflictColumns, updateColumns) {
     .join(", ");
 
   return `ON CONFLICT(${normalizeIdentifierList(conflictColumns, "conflict column")}) DO UPDATE SET ${assignments}`;
+}
+
+function onAnyConflictDoUpdateSet(updateColumns) {
+  const assignments = normalizeIdentifierArray(updateColumns, "update column")
+    .map((column) => `${column} = excluded.${column}`)
+    .join(", ");
+
+  return `ON CONFLICT DO UPDATE SET ${assignments}`;
 }
 
 function excludedColumn(columnName) {

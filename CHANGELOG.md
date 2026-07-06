@@ -1,3 +1,22 @@
+## Version 0.33.5.27.22 - 2026-07-06 10:54 -04:00
+
+- Completed the Notification preferences and subscriptions conversion by moving user preferences, display preferences, workspace defaults, follow subscription reads, follow/unfollow writes, and subscription fan-out reads in `notifications.repo` to named params through the database facade.
+- Added a SQLite dialect any-conflict upsert seam for the existing Notification subscription expression-index conflict shape, while standard preference/default/display upserts use the existing conflict-target seam and boolean preference/default storage uses the boolean seam.
+- Preserved per-user notification preferences, grouping preferences, workspace defaults, follow/unfollow behavior, general and event-specific follows, fan-out subscription inputs, actor/follower delivery behavior, and disabled-default/user-muted delivery behavior.
+- Added `scripts/notifications-preferences-subscriptions-conversion-regression.mjs` and wired it into the isolated database regression suite beside the existing Notifications coverage.
+- Updated the parameter-binding ratchet to 487 helper invocations, 103 direct interpolated operation sites, 256 bound operation sites, and 419 runtime DB operation calls; `notifications.repo` is now fully converted at 0 helper and 0 direct interpolation sites.
+- Verification 2026-07-06 11:02 -04:00: `scripts/notifications-preferences-subscriptions-conversion-regression.mjs`, `scripts/notifications-inbox-lifecycle-conversion-regression.mjs`, `scripts/notification-regression.mjs`, `scripts/notification-jobs-regression.mjs`, `scripts/task-reminder-notification-delivery-regression.mjs`, `scripts/high-volume-admin-lists-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` passed; `npm run check` passed 283/283 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.22 from the refreshed local 8001 server.
+
+## Version 0.33.5.27.21 - 2026-07-06 10:36 -04:00
+
+- Completed the Notifications inbox and lifecycle conversion by moving notification create, list/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths in `notifications.repo` to named params through the database facade.
+- Routed notification filter option ordering through `db.dialect.comparison.orderByNoCase(...)` and replaced active/read-dismissed status interpolation with array-valued named params.
+- Preserved in-app notification display, unread counts, low-priority badge behavior, priority alert state, filtering, read/dismiss/archive lifecycle, recipient scoping, admin recipient resolution, target decoration inputs, and existing preference/subscription behavior.
+- Left notification user preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths explicitly assigned to 0.33.5.27.22.
+- Added `scripts/notifications-inbox-lifecycle-conversion-regression.mjs` to prove the converted static SQL blocks and SQLite runtime behavior for create/list/count/bell/read/mark/dismiss/archive/admin/filter paths.
+- Updated the parameter-binding ratchet to 536 helper invocations, 111 direct interpolated operation sites, 246 bound operation sites, and 419 runtime DB operation calls.
+- Verification 2026-07-06 10:42 -04:00: `scripts/notifications-inbox-lifecycle-conversion-regression.mjs`, `scripts/notification-regression.mjs`, `scripts/notification-jobs-regression.mjs`, `scripts/task-reminder-notification-delivery-regression.mjs`, `scripts/high-volume-admin-lists-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` passed; `npm run check` passed 282/282 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.21 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.20 - 2026-07-06 10:05 -04:00
 
 - Completed the Files lifecycle, settings, quota, and accounting conversion by moving the remaining `services/files.service` database access to named params through the database facade.

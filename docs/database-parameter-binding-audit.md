@@ -12,11 +12,11 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.20:
+Current totals as of 0.33.5.27.22:
 
-- Remaining runtime literal-helper invocations: 586.
-- Remaining direct interpolated SQL operation sites: 123.
-- Existing direct bound-params operation sites: 231.
+- Remaining runtime literal-helper invocations: 487.
+- Remaining direct interpolated SQL operation sites: 103.
+- Existing direct bound-params operation sites: 256.
 - Total runtime database operation calls seen by the audit scanner: 419.
 
 Original 0.33.5.23.1 baseline totals:
@@ -40,7 +40,6 @@ Status legend:
 
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
-| notifications.repo | Remaining | 99 | 20 | 0 | 25 |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
 | tags.repo | Remaining | 84 | 17 | 0 | 17 |
 | client-projects/clients.repo | Remaining | 60 | 5 | 0 | 7 |
@@ -71,6 +70,7 @@ Status legend:
 | user-workspaces.repo | Converted | 0 | 0 | 6 | 7 |
 | settings.repo | Converted | 0 | 0 | 4 | 4 |
 | notes/notes.repo | Converted | 0 | 0 | 21 | 21 |
+| notifications.repo | Converted | 0 | 0 | 25 | 25 |
 | lists/lists.repo | Converted | 0 | 0 | 21 | 21 |
 | app-settings.repo | Converted | 0 | 0 | 2 | 3 |
 | sessions.repo | Already bound | 0 | 0 | 8 | 8 |
@@ -426,3 +426,19 @@ The live ratchet after this conversion is 687 runtime literal-helper invocations
 `services/files.service` is fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, scan state transitions, storage adapters, preview/download gates, route-backed File Context and Preview workflows, and attachment visibility behavior.
 
 The live ratchet after this conversion is 586 runtime literal-helper invocations, 123 direct interpolated SQL operation sites, 231 existing bound operation sites, and 419 total runtime database operation calls.
+
+## 0.33.5.27.21 Notifications Inbox and Lifecycle Conversion
+
+0.33.5.27.21 converts the Notifications inbox and lifecycle persistence paths in `notifications.repo`, covering create, list/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths through named params with `db.run(...)`, `db.get(...)`, and `db.query(...)`. Notification filter option ordering now uses `db.dialect.comparison.orderByNoCase(...)`, and active/read-dismissed status groups use array-valued named params instead of inline `IN (...)` lists.
+
+`notifications.repo` inbox and lifecycle paths are partially converted in the canonical inventory at 49 remaining runtime literal-helper invocations and 8 remaining direct interpolated SQL operation sites. The remaining preference/default/subscription paths stay assigned to 0.33.5.27.22. This slice preserves in-app notification display, unread counts, low-priority badge behavior, priority alert state, filtering, read/dismiss/archive lifecycle, recipient scoping, admin recipient resolution, and target decoration inputs.
+
+The live ratchet after this conversion is 536 runtime literal-helper invocations, 111 direct interpolated SQL operation sites, 246 existing bound operation sites, and 419 total runtime database operation calls.
+
+## 0.33.5.27.22 Notifications Preferences and Subscriptions Conversion
+
+0.33.5.27.22 converts the remaining Notification preference and subscription persistence paths in `notifications.repo`, covering user preferences, display preferences, workspace defaults, follow subscription reads, target fan-out subscription reads, follow/unfollow writes, and preference/default/display upserts through named params with `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(...)`. Boolean preference/default storage uses `db.dialect.boolean.bind(...)`, regular preference/default/display upserts use `db.dialect.conflict.buildInsertOnConflictDoUpdate(...)`, and the subscription reactivation upsert uses the SQLite dialect's any-conflict upsert seam for the existing expression-index conflict shape.
+
+`notifications.repo` is fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves per-user notification preferences, display grouping preferences, workspace defaults, follow/unfollow behavior, general and event-specific follow subscriptions, fan-out subscription inputs, actor/follower behavior, and disabled-default/user-muted notification delivery behavior.
+
+The live ratchet after this conversion is 487 runtime literal-helper invocations, 103 direct interpolated SQL operation sites, 256 existing bound operation sites, and 419 total runtime database operation calls.

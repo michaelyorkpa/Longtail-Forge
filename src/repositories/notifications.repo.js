@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
+import { db } from "../core/database.js";
 
 const NOTIFICATION_COLUMNS = `
   notification_id,
@@ -21,6 +21,84 @@ const NOTIFICATION_COLUMNS = `
   metadata_json
 `;
 
+const NOTIFICATION_SUBSCRIPTION_COLUMNS = [
+  "notification_subscription_id",
+  "workspace_id",
+  "user_id",
+  "module_id",
+  "target_type",
+  "target_id",
+  "event_type",
+  "status",
+  "created_at",
+  "updated_at",
+];
+
+const NOTIFICATION_SUBSCRIPTION_VALUE_EXPRESSIONS = {
+  created_at: ":createdAt",
+  event_type: ":eventType",
+  module_id: ":moduleId",
+  notification_subscription_id: ":subscriptionId",
+  status: ":subscriptionStatus",
+  target_id: ":targetId",
+  target_type: ":targetType",
+  updated_at: ":updatedAt",
+  user_id: ":userId",
+  workspace_id: ":workspaceId",
+};
+
+const NOTIFICATION_USER_PREFERENCE_COLUMNS = [
+  "workspace_id",
+  "user_id",
+  "event_type",
+  "enabled",
+  "created_at",
+  "updated_at",
+];
+
+const NOTIFICATION_USER_PREFERENCE_VALUE_EXPRESSIONS = {
+  created_at: ":createdAt",
+  enabled: ":enabled",
+  event_type: ":eventType",
+  updated_at: ":updatedAt",
+  user_id: ":userId",
+  workspace_id: ":workspaceId",
+};
+
+const NOTIFICATION_WORKSPACE_DEFAULT_COLUMNS = [
+  "workspace_id",
+  "event_type",
+  "enabled",
+  "priority",
+  "created_at",
+  "updated_at",
+];
+
+const NOTIFICATION_WORKSPACE_DEFAULT_VALUE_EXPRESSIONS = {
+  created_at: ":createdAt",
+  enabled: ":enabled",
+  event_type: ":eventType",
+  priority: ":priority",
+  updated_at: ":updatedAt",
+  workspace_id: ":workspaceId",
+};
+
+const NOTIFICATION_DISPLAY_PREFERENCE_COLUMNS = [
+  "workspace_id",
+  "user_id",
+  "grouping_mode",
+  "created_at",
+  "updated_at",
+];
+
+const NOTIFICATION_DISPLAY_PREFERENCE_VALUE_EXPRESSIONS = {
+  created_at: ":createdAt",
+  grouping_mode: ":groupingMode",
+  updated_at: ":updatedAt",
+  user_id: ":userId",
+  workspace_id: ":workspaceId",
+};
+
 async function create(notification) {
   const notificationId = notification.notification_id || randomUUID();
   const now = notification.created_at || new Date().toISOString();
@@ -33,7 +111,7 @@ async function create(notification) {
   }
 
   try {
-    await runSql(`
+    await db.run(`
 INSERT INTO notifications (
   notification_id,
   workspace_id,
@@ -54,25 +132,25 @@ INSERT INTO notifications (
   metadata_json
 )
 VALUES (
-  ${sqlText(notificationId)},
-  ${sqlText(notification.workspace_id)},
-  ${sqlNullableText(notification.module_id)},
-  ${sqlText(notification.event_type)},
-  ${sqlText(notification.recipient_user_id)},
-  ${sqlNullableText(notification.actor_user_id)},
-  ${sqlNullableText(notification.record_type)},
-  ${sqlNullableText(notification.record_id)},
-  ${sqlText(notification.title)},
-  ${sqlText(notification.body || "")},
-  ${sqlNullableText(notification.url)},
-  ${sqlText(notification.status || "unread")},
-  ${sqlText(notification.priority || "normal")},
-  ${sqlText(now)},
-  ${sqlNullableText(notification.read_at)},
-  ${sqlNullableText(notification.dismissed_at)},
-  ${sqlText(notification.metadata_json || "{}")}
+  :notificationId,
+  :workspaceId,
+  :moduleId,
+  :eventType,
+  :recipientUserId,
+  :actorUserId,
+  :recordType,
+  :recordId,
+  :title,
+  :body,
+  :url,
+  :notificationStatus,
+  :priority,
+  :createdAt,
+  :readAt,
+  :dismissedAt,
+  :metadataJson
 );
-`);
+`, notificationCreateParams(notification, notificationId, now));
   } catch (error) {
     if (notification.notification_id && isDuplicateNotificationIdError(error)) {
       const existing = await readById(notification.workspace_id, notificationId);
@@ -89,52 +167,56 @@ VALUES (
 async function listForRecipient(workspaceId, recipientUserId, options = {}) {
   const limit = clampLimit(options.limit);
   const offset = clampOffset(options.offset);
-  const clauses = notificationListWhereClauses(workspaceId, recipientUserId, options);
-  const rows = await querySql(`
+  const { clauses, params } = notificationListWhereClauses(workspaceId, recipientUserId, options);
+  const rows = await db.query(`
 SELECT
 ${NOTIFICATION_COLUMNS}
 FROM notifications
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY created_at DESC, notification_id DESC
-LIMIT ${sqlInteger(limit)}
-OFFSET ${sqlInteger(offset)};
-`);
+LIMIT :limit
+OFFSET :offset;
+`, {
+    ...params,
+    limit: integerParam(limit),
+    offset: integerParam(offset),
+  });
 
   return rows.map(notificationRowToAppValue);
 }
 
 async function countForRecipient(workspaceId, recipientUserId, options = {}) {
-  const clauses = notificationListWhereClauses(workspaceId, recipientUserId, options);
-  const rows = await querySql(`
+  const { clauses, params } = notificationListWhereClauses(workspaceId, recipientUserId, options);
+  const row = await db.get(`
 SELECT COUNT(*) AS total
 FROM notifications
 WHERE ${clauses.join("\n  AND ")};
-`);
+`, params);
 
-  return Number(rows[0]?.total || 0);
+  return Number(row?.total || 0);
 }
 
 async function readFilterOptionsForRecipient(workspaceId, recipientUserId, options = {}) {
-  const clauses = notificationListWhereClauses(workspaceId, recipientUserId, {
+  const { clauses, params } = notificationListWhereClauses(workspaceId, recipientUserId, {
     status: options.status,
   });
   const [modules, events] = await Promise.all([
-    querySql(`
+    db.query(`
 SELECT DISTINCT module_id
 FROM notifications
 WHERE ${clauses.join("\n  AND ")}
   AND module_id IS NOT NULL
   AND module_id != ''
-ORDER BY module_id COLLATE NOCASE;
-`),
-    querySql(`
+ORDER BY ${db.dialect.comparison.orderByNoCase("module_id", "ASC")};
+`, { ...params }),
+    db.query(`
 SELECT DISTINCT event_type
 FROM notifications
 WHERE ${clauses.join("\n  AND ")}
   AND event_type IS NOT NULL
   AND event_type != ''
-ORDER BY event_type COLLATE NOCASE;
-`),
+ORDER BY ${db.dialect.comparison.orderByNoCase("event_type", "ASC")};
+`, { ...params }),
   ]);
 
   return {
@@ -144,30 +226,42 @@ ORDER BY event_type COLLATE NOCASE;
 }
 
 async function countUnreadForRecipient(workspaceId, recipientUserId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT COUNT(*) AS count
 FROM notifications
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)}
-  AND status = 'unread';
-`);
+WHERE workspace_id = :workspaceId
+  AND recipient_user_id = :recipientUserId
+  AND status = :unreadStatus;
+`, {
+    recipientUserId: textParam(recipientUserId),
+    unreadStatus: "unread",
+    workspaceId: textParam(workspaceId),
+  });
 
-  return Number(rows[0]?.count || 0);
+  return Number(row?.count || 0);
 }
 
 async function readBellSummaryForRecipient(workspaceId, recipientUserId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT
-  SUM(CASE WHEN status = 'unread' THEN 1 ELSE 0 END) AS unread_count,
-  SUM(CASE WHEN status = 'unread' AND priority != 'low' THEN 1 ELSE 0 END) AS badge_count,
-  SUM(CASE WHEN status = 'unread' AND priority = 'low' THEN 1 ELSE 0 END) AS low_unread_count,
-  SUM(CASE WHEN status IN ('unread', 'read') AND priority = 'urgent' THEN 1 ELSE 0 END) AS urgent_priority_count,
-  SUM(CASE WHEN status IN ('unread', 'read') AND priority = 'high' THEN 1 ELSE 0 END) AS high_priority_count
+  SUM(CASE WHEN status = :unreadStatus THEN 1 ELSE 0 END) AS unread_count,
+  SUM(CASE WHEN status = :unreadStatus AND priority != :lowPriority THEN 1 ELSE 0 END) AS badge_count,
+  SUM(CASE WHEN status = :unreadStatus AND priority = :lowPriority THEN 1 ELSE 0 END) AS low_unread_count,
+  SUM(CASE WHEN status IN (:activeStatuses) AND priority = :urgentPriority THEN 1 ELSE 0 END) AS urgent_priority_count,
+  SUM(CASE WHEN status IN (:activeStatuses) AND priority = :highPriority THEN 1 ELSE 0 END) AS high_priority_count
 FROM notifications
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)};
-`);
-  const summary = rows[0] || {};
+WHERE workspace_id = :workspaceId
+  AND recipient_user_id = :recipientUserId;
+`, {
+    activeStatuses: ["unread", "read"],
+    highPriority: "high",
+    lowPriority: "low",
+    recipientUserId: textParam(recipientUserId),
+    unreadStatus: "unread",
+    urgentPriority: "urgent",
+    workspaceId: textParam(workspaceId),
+  });
+  const summary = row || {};
   const urgentPriorityCount = Number(summary.urgent_priority_count || 0);
   const highPriorityCount = Number(summary.high_priority_count || 0);
 
@@ -185,43 +279,57 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 }
 
 async function readByIdForRecipient(workspaceId, recipientUserId, notificationId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT
 ${NOTIFICATION_COLUMNS}
 FROM notifications
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)}
-  AND notification_id = ${sqlText(notificationId)}
+WHERE workspace_id = :workspaceId
+  AND recipient_user_id = :recipientUserId
+  AND notification_id = :notificationId
 LIMIT 1;
-`);
+`, {
+    notificationId: textParam(notificationId),
+    recipientUserId: textParam(recipientUserId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? notificationRowToAppValue(rows[0]) : null;
+  return row ? notificationRowToAppValue(row) : null;
 }
 
 async function readById(workspaceId, notificationId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT
 ${NOTIFICATION_COLUMNS}
 FROM notifications
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND notification_id = ${sqlText(notificationId)}
+WHERE workspace_id = :workspaceId
+  AND notification_id = :notificationId
 LIMIT 1;
-`);
+`, {
+    notificationId: textParam(notificationId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? notificationRowToAppValue(rows[0]) : null;
+  return row ? notificationRowToAppValue(row) : null;
 }
 
 async function markRead(workspaceId, recipientUserId, notificationId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE notifications
-SET status = CASE WHEN status = 'dismissed' THEN status ELSE 'read' END,
-    read_at = COALESCE(read_at, ${sqlText(now)})
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)}
-  AND notification_id = ${sqlText(notificationId)};
-`);
+SET status = CASE WHEN status = :dismissedStatus THEN status ELSE :readStatus END,
+    read_at = COALESCE(read_at, :readAt)
+WHERE workspace_id = :workspaceId
+  AND recipient_user_id = :recipientUserId
+  AND notification_id = :notificationId;
+`, {
+    dismissedStatus: "dismissed",
+    notificationId: textParam(notificationId),
+    readAt: now,
+    readStatus: "read",
+    recipientUserId: textParam(recipientUserId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return readByIdForRecipient(workspaceId, recipientUserId, notificationId);
 }
@@ -229,27 +337,39 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function markAllRead(workspaceId, recipientUserId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE notifications
-SET status = 'read',
-    read_at = COALESCE(read_at, ${sqlText(now)})
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)}
-  AND status = 'unread';
-`);
+SET status = :readStatus,
+    read_at = COALESCE(read_at, :readAt)
+WHERE workspace_id = :workspaceId
+  AND recipient_user_id = :recipientUserId
+  AND status = :unreadStatus;
+`, {
+    readAt: now,
+    readStatus: "read",
+    recipientUserId: textParam(recipientUserId),
+    unreadStatus: "unread",
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 async function dismiss(workspaceId, recipientUserId, notificationId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE notifications
-SET status = 'dismissed',
-    dismissed_at = COALESCE(dismissed_at, ${sqlText(now)})
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)}
-  AND notification_id = ${sqlText(notificationId)};
-`);
+SET status = :dismissedStatus,
+    dismissed_at = COALESCE(dismissed_at, :dismissedAt)
+WHERE workspace_id = :workspaceId
+  AND recipient_user_id = :recipientUserId
+  AND notification_id = :notificationId;
+`, {
+    dismissedAt: now,
+    dismissedStatus: "dismissed",
+    notificationId: textParam(notificationId),
+    recipientUserId: textParam(recipientUserId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return readByIdForRecipient(workspaceId, recipientUserId, notificationId);
 }
@@ -257,95 +377,123 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function dismissAll(workspaceId, recipientUserId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE notifications
-SET status = 'dismissed',
-    dismissed_at = COALESCE(dismissed_at, ${sqlText(now)})
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)}
-  AND status IN ('unread', 'read');
-`);
+SET status = :dismissedStatus,
+    dismissed_at = COALESCE(dismissed_at, :dismissedAt)
+WHERE workspace_id = :workspaceId
+  AND recipient_user_id = :recipientUserId
+  AND status IN (:activeStatuses);
+`, {
+    activeStatuses: ["unread", "read"],
+    dismissedAt: now,
+    dismissedStatus: "dismissed",
+    recipientUserId: textParam(recipientUserId),
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 async function archiveOlderThan(cutoffIso) {
-  await runSql(`
+  await db.run(`
 UPDATE notifications
-SET status = 'archived'
-WHERE created_at < ${sqlText(cutoffIso)}
-  AND status IN ('read', 'dismissed');
-`);
+SET status = :archivedStatus
+WHERE created_at < :cutoffIso
+  AND status IN (:archivableStatuses);
+`, {
+    archivableStatuses: ["read", "dismissed"],
+    archivedStatus: "archived",
+    cutoffIso: textParam(cutoffIso),
+  });
 }
 
 async function readWorkspaceAdminUserIds(workspaceId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT DISTINCT user_id
 FROM user_role_assignments
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND role_id = 'workspace_admin';
-`);
+WHERE workspace_id = :workspaceId
+  AND role_id = :roleId;
+`, {
+    roleId: "workspace_admin",
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map((row) => row.user_id).filter(Boolean);
 }
 
 async function readUserPreferences(workspaceId, userId) {
-  return querySql(`
+  return db.query(`
 SELECT workspace_id, user_id, event_type, enabled, created_at, updated_at
 FROM notification_user_preferences
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
 ORDER BY event_type;
-`);
+`, {
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 async function readUserDisplayPreferences(workspaceId, userId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT workspace_id, user_id, grouping_mode, created_at, updated_at
 FROM notification_user_display_preferences
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
 LIMIT 1;
-`);
+`, {
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? displayPreferenceRowToAppValue(rows[0]) : null;
+  return row ? displayPreferenceRowToAppValue(row) : null;
 }
 
 async function readWorkspaceDefaults(workspaceId) {
-  return querySql(`
+  return db.query(`
 SELECT workspace_id, event_type, enabled, priority, created_at, updated_at
 FROM notification_workspace_defaults
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 ORDER BY event_type;
-`);
+`, {
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 async function readSubscription(workspaceId, userId, target) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT notification_subscription_id, workspace_id, user_id, module_id, target_type, target_id, event_type, status, created_at, updated_at
 FROM notification_subscriptions
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND module_id = ${sqlText(target.module_id)}
-  AND target_type = ${sqlText(target.target_type)}
-  AND target_id = ${sqlText(target.target_id)}
-  AND COALESCE(event_type, '') = ${sqlText(target.event_type || "")}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND module_id = :moduleId
+  AND target_type = :targetType
+  AND target_id = :targetId
+  AND COALESCE(event_type, '') = :eventType
 LIMIT 1;
-`);
+`, subscriptionTargetParams(workspaceId, userId, target));
 
-  return rows[0] ? subscriptionRowToAppValue(rows[0]) : null;
+  return row ? subscriptionRowToAppValue(row) : null;
 }
 
 async function readSubscriptionsForTarget(workspaceId, target) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT notification_subscription_id, workspace_id, user_id, module_id, target_type, target_id, event_type, status, created_at, updated_at
 FROM notification_subscriptions
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND module_id = ${sqlText(target.module_id)}
-  AND target_type = ${sqlText(target.target_type)}
-  AND target_id = ${sqlText(target.target_id)}
-  AND status = 'active'
-  AND (event_type IS NULL OR event_type = '' OR event_type = ${sqlText(target.event_type || "")})
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND target_type = :targetType
+  AND target_id = :targetId
+  AND status = :activeStatus
+  AND (event_type IS NULL OR event_type = '' OR event_type = :eventType)
 ORDER BY created_at;
-`);
+`, {
+    activeStatus: "active",
+    eventType: textParam(target.event_type || ""),
+    moduleId: textParam(target.module_id),
+    targetId: textParam(target.target_id),
+    targetType: textParam(target.target_type),
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map(subscriptionRowToAppValue);
 }
@@ -354,35 +502,19 @@ async function saveSubscription(workspaceId, userId, target) {
   const subscriptionId = target.notification_subscription_id || randomUUID();
   const now = new Date().toISOString();
 
-  await runSql(`
-INSERT INTO notification_subscriptions (
-  notification_subscription_id,
-  workspace_id,
-  user_id,
-  module_id,
-  target_type,
-  target_id,
-  event_type,
-  status,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(subscriptionId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(userId)},
-  ${sqlText(target.module_id)},
-  ${sqlText(target.target_type)},
-  ${sqlText(target.target_id)},
-  ${sqlNullableText(target.event_type)},
-  'active',
-  ${sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT DO UPDATE SET
-  status = 'active',
-  updated_at = excluded.updated_at;
-`);
+  await db.run(`${db.dialect.conflict.buildInsertOnAnyConflictDoUpdate({
+    columns: NOTIFICATION_SUBSCRIPTION_COLUMNS,
+    tableName: "notification_subscriptions",
+    updateColumns: [
+      "status",
+      "updated_at",
+    ],
+    valueExpressions: NOTIFICATION_SUBSCRIPTION_VALUE_EXPRESSIONS,
+  })};`, subscriptionWriteParams(workspaceId, userId, target, {
+    now,
+    status: "active",
+    subscriptionId,
+  }));
 
   return readSubscription(workspaceId, userId, target);
 }
@@ -390,88 +522,83 @@ ON CONFLICT DO UPDATE SET
 async function removeSubscription(workspaceId, userId, target) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE notification_subscriptions
-SET status = 'inactive',
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND module_id = ${sqlText(target.module_id)}
-  AND target_type = ${sqlText(target.target_type)}
-  AND target_id = ${sqlText(target.target_id)}
-  AND COALESCE(event_type, '') = ${sqlText(target.event_type || "")};
-`);
+SET status = :inactiveStatus,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND module_id = :moduleId
+  AND target_type = :targetType
+  AND target_id = :targetId
+  AND COALESCE(event_type, '') = :eventType;
+`, {
+    ...subscriptionTargetParams(workspaceId, userId, target),
+    inactiveStatus: "inactive",
+    updatedAt: textParam(now),
+  });
 
   return readSubscription(workspaceId, userId, target);
 }
 
 async function saveUserPreferences(workspaceId, userId, preferences) {
   const now = new Date().toISOString();
-  const statements = (preferences || []).map((preference) => `
-INSERT INTO notification_user_preferences (workspace_id, user_id, event_type, enabled, created_at, updated_at)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(userId)},
-  ${sqlText(preference.event_type)},
-  ${sqlInteger(preference.enabled ? 1 : 0)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(workspace_id, user_id, event_type) DO UPDATE SET
-  enabled = excluded.enabled,
-  updated_at = excluded.updated_at;
-`).join("\n");
+  const rows = Array.isArray(preferences) ? preferences : [];
 
-  if (statements) {
-    await runSql(statements);
+  if (rows.length > 0) {
+    await db.transaction(async (transaction) => {
+      for (const preference of rows) {
+        await transaction.run(`${transaction.dialect.conflict.buildInsertOnConflictDoUpdate({
+          columns: NOTIFICATION_USER_PREFERENCE_COLUMNS,
+          conflictColumns: ["workspace_id", "user_id", "event_type"],
+          tableName: "notification_user_preferences",
+          updateColumns: [
+            "enabled",
+            "updated_at",
+          ],
+          valueExpressions: NOTIFICATION_USER_PREFERENCE_VALUE_EXPRESSIONS,
+        })};`, notificationUserPreferenceParams(workspaceId, userId, preference, now));
+      }
+    });
   }
 }
 
 async function saveWorkspaceDefaults(workspaceId, defaults) {
   const now = new Date().toISOString();
-  const statements = (defaults || []).map((preference) => `
-INSERT INTO notification_workspace_defaults (workspace_id, event_type, enabled, priority, created_at, updated_at)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(preference.event_type)},
-  ${sqlInteger(preference.enabled ? 1 : 0)},
-  ${sqlText(preference.priority || "normal")},
-  ${sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(workspace_id, event_type) DO UPDATE SET
-  enabled = excluded.enabled,
-  priority = excluded.priority,
-  updated_at = excluded.updated_at;
-`).join("\n");
+  const rows = Array.isArray(defaults) ? defaults : [];
 
-  if (statements) {
-    await runSql(statements);
+  if (rows.length > 0) {
+    await db.transaction(async (transaction) => {
+      for (const preference of rows) {
+        await transaction.run(`${transaction.dialect.conflict.buildInsertOnConflictDoUpdate({
+          columns: NOTIFICATION_WORKSPACE_DEFAULT_COLUMNS,
+          conflictColumns: ["workspace_id", "event_type"],
+          tableName: "notification_workspace_defaults",
+          updateColumns: [
+            "enabled",
+            "priority",
+            "updated_at",
+          ],
+          valueExpressions: NOTIFICATION_WORKSPACE_DEFAULT_VALUE_EXPRESSIONS,
+        })};`, notificationWorkspaceDefaultParams(workspaceId, preference, now));
+      }
+    });
   }
 }
 
 async function saveUserDisplayPreferences(workspaceId, userId, preferences) {
   const now = new Date().toISOString();
 
-  await runSql(`
-INSERT INTO notification_user_display_preferences (
-  workspace_id,
-  user_id,
-  grouping_mode,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(userId)},
-  ${sqlText(preferences.grouping_mode || "client_project")},
-  ${sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(workspace_id, user_id) DO UPDATE SET
-  grouping_mode = excluded.grouping_mode,
-  updated_at = excluded.updated_at;
-`);
+  await db.run(`${db.dialect.conflict.buildInsertOnConflictDoUpdate({
+    columns: NOTIFICATION_DISPLAY_PREFERENCE_COLUMNS,
+    conflictColumns: ["workspace_id", "user_id"],
+    tableName: "notification_user_display_preferences",
+    updateColumns: [
+      "grouping_mode",
+      "updated_at",
+    ],
+    valueExpressions: NOTIFICATION_DISPLAY_PREFERENCE_VALUE_EXPRESSIONS,
+  })};`, notificationDisplayPreferenceParams(workspaceId, userId, preferences, now));
 
   return readUserDisplayPreferences(workspaceId, userId);
 }
@@ -532,6 +659,86 @@ function parseMetadata(metadataJson) {
   }
 }
 
+function notificationCreateParams(notification, notificationId, now) {
+  return {
+    actorUserId: nullableTextParam(notification.actor_user_id),
+    body: textParam(notification.body || ""),
+    createdAt: textParam(now),
+    dismissedAt: nullableTextParam(notification.dismissed_at),
+    eventType: textParam(notification.event_type),
+    metadataJson: textParam(notification.metadata_json || "{}"),
+    moduleId: nullableTextParam(notification.module_id),
+    notificationId: textParam(notificationId),
+    notificationStatus: textParam(notification.status || "unread"),
+    priority: textParam(notification.priority || "normal"),
+    readAt: nullableTextParam(notification.read_at),
+    recipientUserId: textParam(notification.recipient_user_id),
+    recordId: nullableTextParam(notification.record_id),
+    recordType: nullableTextParam(notification.record_type),
+    title: textParam(notification.title),
+    url: nullableTextParam(notification.url),
+    workspaceId: textParam(notification.workspace_id),
+  };
+}
+
+function subscriptionTargetParams(workspaceId, userId, target = {}) {
+  return {
+    eventType: textParam(target.event_type || ""),
+    moduleId: textParam(target.module_id),
+    targetId: textParam(target.target_id),
+    targetType: textParam(target.target_type),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  };
+}
+
+function subscriptionWriteParams(workspaceId, userId, target, options = {}) {
+  return {
+    createdAt: textParam(options.now),
+    eventType: nullableTextParam(target.event_type),
+    moduleId: textParam(target.module_id),
+    subscriptionId: textParam(options.subscriptionId),
+    subscriptionStatus: textParam(options.status || "active"),
+    targetId: textParam(target.target_id),
+    targetType: textParam(target.target_type),
+    updatedAt: textParam(options.now),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  };
+}
+
+function notificationUserPreferenceParams(workspaceId, userId, preference = {}, now) {
+  return {
+    createdAt: textParam(now),
+    enabled: db.dialect.boolean.bind(preference.enabled === true),
+    eventType: textParam(preference.event_type),
+    updatedAt: textParam(now),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  };
+}
+
+function notificationWorkspaceDefaultParams(workspaceId, preference = {}, now) {
+  return {
+    createdAt: textParam(now),
+    enabled: db.dialect.boolean.bind(preference.enabled === true),
+    eventType: textParam(preference.event_type),
+    priority: textParam(preference.priority || "normal"),
+    updatedAt: textParam(now),
+    workspaceId: textParam(workspaceId),
+  };
+}
+
+function notificationDisplayPreferenceParams(workspaceId, userId, preferences = {}, now) {
+  return {
+    createdAt: textParam(now),
+    groupingMode: textParam(preferences.grouping_mode || "client_project"),
+    updatedAt: textParam(now),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  };
+}
+
 function isDuplicateNotificationIdError(error) {
   const message = String(error?.message || error || "");
   return message.includes("UNIQUE constraint failed: notifications.notification_id") ||
@@ -549,26 +756,50 @@ function notificationListWhereClauses(workspaceId, recipientUserId, options = {}
   const eventType = normalizeTextFilter(options.eventType || options.event_type);
   const priority = normalizePriorityFilter(options.priority);
   const clauses = [
-    `workspace_id = ${sqlText(workspaceId)}`,
-    `recipient_user_id = ${sqlText(recipientUserId)}`,
+    "workspace_id = :workspaceId",
+    "recipient_user_id = :recipientUserId",
   ];
+  const params = {
+    recipientUserId: textParam(recipientUserId),
+    workspaceId: textParam(workspaceId),
+  };
 
   if (status === "active") {
-    clauses.push("status IN ('unread', 'read')");
+    clauses.push("status IN (:activeStatuses)");
+    params.activeStatuses = ["unread", "read"];
   } else if (status) {
-    clauses.push(`status = ${sqlText(status)}`);
+    clauses.push("status = :status");
+    params.status = status;
   }
   if (moduleId) {
-    clauses.push(`module_id = ${sqlText(moduleId)}`);
+    clauses.push("module_id = :moduleId");
+    params.moduleId = moduleId;
   }
   if (eventType) {
-    clauses.push(`event_type = ${sqlText(eventType)}`);
+    clauses.push("event_type = :eventType");
+    params.eventType = eventType;
   }
   if (priority) {
-    clauses.push(`priority = ${sqlText(priority)}`);
+    clauses.push("priority = :priority");
+    params.priority = priority;
   }
 
-  return clauses;
+  return { clauses, params };
+}
+
+function textParam(value) {
+  return String(value ?? "");
+}
+
+function nullableTextParam(value) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? null
+    : String(value);
+}
+
+function integerParam(value) {
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
 function normalizeTextFilter(value) {

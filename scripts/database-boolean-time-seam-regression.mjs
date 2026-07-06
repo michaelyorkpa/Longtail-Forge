@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.20";
+const appVersion = "0.33.5.27.22";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-boolean-time-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -52,7 +52,7 @@ function assertStaticContract() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the boolean/time seam version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the boolean/time seam version");
 
-  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.20"/, "SQLite dialect contract should report the current seam contract version");
+  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.22"/, "SQLite dialect contract should report the current seam contract version");
   assert.match(sqliteDialectSource, /bindFields: bindSqliteBooleanFields/, "SQLite dialect seams should expose boolean bind-field mapping");
   assert.match(sqliteDialectSource, /readFields: readSqliteBooleanFields/, "SQLite dialect seams should expose boolean read-field mapping");
   assert.match(sqliteDialectSource, /elapsedSecondsSince/, "SQLite dialect seams should expose an elapsed-seconds helper");

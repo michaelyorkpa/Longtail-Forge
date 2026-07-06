@@ -229,9 +229,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.21 - Conversion wave: Notifications inbox and lifecycle
 
-- [ ] Convert notification create, list/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths in `notifications.repo` to named bound params and the dialect seams.
-- [ ] Preserve in-app notification display, unread counts, filtering, lifecycle, and archive behavior exactly.
-- [ ] Update the burndown ratchet and extend notification inbox/lifecycle regressions before moving on.
+- [x] Convert notification create, list/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths in `notifications.repo` to named bound params and the dialect seams.
+- [x] Preserve in-app notification display, unread counts, filtering, lifecycle, and archive behavior exactly.
+- [x] Update the burndown ratchet and extend notification inbox/lifecycle regressions before moving on.
 
 Acceptance criteria:
 
@@ -239,9 +239,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.22 - Conversion wave: Notification preferences and subscriptions
 
-- [ ] Convert notification user preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications.repo` to named bound params and the dialect seams.
-- [ ] Preserve per-user preferences, workspace defaults, follow/unfollow behavior, and notification fan-out inputs exactly.
-- [ ] Update the burndown ratchet and extend preference/subscription regressions before moving on.
+- [x] Convert notification user preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications.repo` to named bound params and the dialect seams.
+- [x] Preserve per-user preferences, workspace defaults, follow/unfollow behavior, and notification fan-out inputs exactly.
+- [x] Update the burndown ratchet and extend preference/subscription regressions before moving on.
 
 Acceptance criteria:
 
@@ -397,6 +397,81 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Conversion waves have an explicit guardrail against inverting `NOT IN` semantics when mechanically converting variable-length lists to bound arrays.
+
+## Version 0.33.5.29 - Regression and check-suite performance and consolidation pass
+
+Purpose:
+
+After the 0.33.5.27 database-conversion branch and the 0.33.5.28 gap closeout land, the standard gate has grown to ~287 regression scripts plus `eslint` and the separate permission suite, and it is taking long enough to slow the per-slice ceremony. This version makes the regression and check suites materially faster and less flaky **without reducing coverage** — the same bar the 0.33.5.18.6.5.4 lightening pass held. It is deliberately sequenced after 0.33.5.27/0.33.5.28 so the suite is optimized against its post-conversion shape (new parameter-binding, dialect-guardrail, and gap-closeout regressions included) rather than optimized twice.
+
+Key decision (record in `DECISIONS.md`):
+
+- This is a **test-infrastructure and consolidation** pass, not a coverage-reduction pass. No assertion may be silently dropped: consolidation must fold overlapping/superseded per-slice regressions into a retained script that still carries their assertions, and a coverage ratchet must make an accidental coverage drop fail the suite. If any script is genuinely retired as dead (its target code no longer exists), that retirement is recorded explicitly with rationale, not absorbed into a speedup.
+
+Entry contract and grounding (re-verify at implementation time — code will have drifted):
+
+- The runner is `scripts/run-regressions.mjs` driving buckets from `scripts/regression-suite.mjs` (`REGRESSION_BUCKETS`/`REGRESSION_SCRIPTS`). It spawns **one Node child process per script** (`spawn(process.execPath, [script])`), so process-startup + per-script baseline-DB clone is a large, fixed share of wall-clock independent of assertion work.
+- Buckets today: a parallel "isolated database regressions" bucket (default parallelism 4, tunable via `LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`), a "static/source regressions" bucket that runs against `process.env` with no baseline, plus the baseline fixture from `scripts/test-support/database-fixture.mjs` (`prepareRegressionBaselineDatabase`, per-script `createScriptEnv`).
+- A timing report already exists: set `LTF_REGRESSION_TIMING_JSON` to capture per-script seconds; the runner also prints the slowest 8. Use this as the measurement backbone rather than adding new instrumentation.
+- The runner is itself covered (`scripts/regression-runner-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`), and `assertUniqueScripts()` already guards duplicates — extend these rather than replacing them.
+- `npm run check` = `run-regressions.mjs` then `eslint .`; `npm run test:permissions` is a separate `permission-regression.mjs` entry. The known transient flake is the isolated-DB bucket under parallelism (per the regression-suite operational notes), currently worked around by running standalone/serial.
+
+Sizing rule for this branch:
+
+- Each sub-slice has one primary blast radius and should be completable in a single focused session. Measure before changing execution model; do not combine the execution-model change with the consolidation change.
+
+### Version 0.33.5.29.1 - Measure, categorize, and set targets (measure only)
+
+- [ ] Run the full suite with `LTF_REGRESSION_TIMING_JSON` set and capture a per-script timing baseline; record total wall-clock, the slow tail, and an estimate of the fixed per-script process-spawn + baseline-clone overhead (e.g. by comparing a trivial static script's floor time against assertion-heavy scripts).
+- [ ] Categorize the ~287 scripts by bucket, by whether they need an isolated database at all, and by overlap (per-slice closeout regressions that assert against the same surface as a broader retained regression).
+- [ ] Quantify the isolated-DB flake: how often the parallel bucket fails transiently, and the narrowest root-cause hypothesis (shared temp paths, clone races, port/lock contention, ordering assumptions).
+- [ ] Produce a short target list in `docs/` (or the audit-style doc pattern): expected wall-clock reduction, candidate consolidations with the assertions each must preserve, and the flake root-cause to fix. Change no runtime/test behavior in this slice.
+
+Acceptance criteria:
+
+- A measured baseline, a script categorization, a flake root-cause hypothesis, and an explicit speedup/consolidation target list exist before any execution-model or script change is made.
+
+### Version 0.33.5.29.2 - Runner execution-model optimization
+
+- [ ] Reduce the fixed per-script overhead identified in 0.33.5.29.1 while preserving isolation guarantees: options to evaluate include batching same-bucket static/source scripts into a shared process, reusing/sharing baseline clones where a script only reads, and auto-tuning isolated parallelism to available cores instead of the fixed default of 4 (keeping the env overrides).
+- [ ] Preserve every isolation guarantee the current model provides: `fresh-database-regression.mjs` and any other baseline-bypass scripts keep their clean-clone behavior, and no script that mutates its database may share state with another.
+- [ ] Extend `scripts/regression-runner-regression.mjs` / `scripts/regression-clean-clone-contract.mjs` to prove the new execution model still isolates mutating scripts and still fails correctly on a single script failure.
+- [ ] Keep the timing report and slowest-N summary working; record the new baseline wall-clock.
+
+Acceptance criteria:
+
+- The suite runs materially faster through reduced per-script overhead and/or better parallelism, with all isolation and fail-fast guarantees proven intact and no coverage change.
+
+### Version 0.33.5.29.3 - Consolidate overlapping and superseded regressions (coverage-preserving)
+
+- [ ] Using the 0.33.5.29.1 overlap map, fold overlapping/superseded per-slice closeout regressions into a retained script that still carries their assertions; delete a script only when either its assertions are demonstrably a subset of a retained script or its target code no longer exists.
+- [ ] Add a coverage ratchet: a manifest/count (and, where practical, an assertion-inventory) check that fails if the retained regression set drops below the recorded floor without an explicit, documented retirement entry — the same spirit as the parameter-binding audit ratchet.
+- [ ] Record every consolidation and every genuine retirement (with rationale) in `docs/` and `CHANGELOG.md`.
+- [ ] Re-run the full suite and confirm the previously-covered behaviors still fail when deliberately broken (spot-check the folded assertions).
+
+Acceptance criteria:
+
+- Script count is reduced by consolidation, every folded assertion still runs, a coverage ratchet prevents silent future drops, and any true retirement is documented.
+
+### Version 0.33.5.29.4 - Stabilize the isolated-database bucket
+
+- [ ] Fix the isolated-DB flake root cause identified in 0.33.5.29.1 so the parallel bucket is deterministic under its default (and higher) parallelism, removing the need for the standalone/serial workaround recorded in the regression-suite operational notes.
+- [ ] Ensure per-script database/temp resources are uniquely named and cleaned up, with no cross-script path/lock/port contention under concurrency.
+- [ ] Add a focused regression (or a bounded repeat-run mode) that exercises the isolated bucket under parallelism to prove stability, and update the operational notes to retire the workaround.
+
+Acceptance criteria:
+
+- The isolated-database bucket runs deterministically under parallelism without the standalone/serial workaround, proven by a concurrency stress check.
+
+### Version 0.33.5.29.5 - Check/lint speed, docs, and closeout
+
+- [ ] Review the `npm run check` path (regressions + `eslint .`) and `npm run test:permissions` for cheap wins (e.g. eslint caching, avoiding redundant work), keeping the same gate semantics.
+- [ ] Document the tuning knobs (`LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, `LTF_REGRESSION_TIMING_JSON`), the new execution model, the coverage ratchet, and the retired flake workaround in the appropriate `docs/` file and `DECISIONS.md`.
+- [ ] Complete the standing per-slice version/`CHANGELOG.md`/package metadata ceremony; run `npm run check` and `npm run test:permissions` and record the before/after wall-clock; verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- The full standard gate is meaningfully faster and no longer flaky, coverage is provably preserved and ratcheted, the tuning knobs and model are documented, and the branch is closed out per the normal ceremony.
 
 ## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
 
