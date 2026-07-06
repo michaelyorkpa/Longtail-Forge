@@ -1,7 +1,7 @@
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
-import { querySql, sqlText } from "../db/index.js";
+import { db } from "../core/database.js";
 import { tagsRepository } from "../repositories/tags.repo.js";
 import { AppError } from "../utils/app-error.js";
 import { readTagPropagationResolver } from "./tag-propagation-registry.js";
@@ -839,18 +839,22 @@ function assignmentOriginLabel(assignment = {}) {
 }
 
 async function readTagPropagationCounts(workspaceId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT
   SUM(CASE WHEN source = 'manual' THEN 1 ELSE 0 END) AS direct_assignments,
   SUM(CASE WHEN source = 'propagated' THEN 1 ELSE 0 END) AS propagated_assignments
 FROM tag_assignments
-WHERE workspace_id = ${sqlText(workspaceId)};
-`);
-  const suppressionRows = await querySql(`
+WHERE workspace_id = :workspaceId;
+`, {
+    workspaceId: text(workspaceId),
+  });
+  const suppressionRows = await db.query(`
 SELECT COUNT(*) AS count
 FROM tag_assignment_suppressions
-WHERE workspace_id = ${sqlText(workspaceId)};
-`);
+WHERE workspace_id = :workspaceId;
+`, {
+    workspaceId: text(workspaceId),
+  });
 
   return {
     directAssignments: Number(rows[0]?.direct_assignments || 0),
@@ -1150,15 +1154,18 @@ async function readTargetRecord(workspaceId, descriptor, targetId) {
     projectField ? `${projectField} AS project_id` : "NULL AS project_id",
   ];
 
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT ${columns.join(", ")}
 FROM ${tableName}
-WHERE ${workspaceField} = ${sqlText(workspaceId)}
-  AND ${idField} = ${sqlText(targetId)}
+WHERE ${workspaceField} = :workspaceId
+  AND ${idField} = :targetId
 LIMIT 1;
-`);
+`, {
+    targetId: text(targetId),
+    workspaceId: text(workspaceId),
+  });
 
-  return rows[0] || null;
+  return row || null;
 }
 
 async function normalizeTagPayload(workspaceId, payload, existingTag = null) {
@@ -1358,6 +1365,10 @@ function assertIdentifier(value, label) {
 
 function optionalIdentifier(value, label) {
   return value ? assertIdentifier(value, label) : "";
+}
+
+function text(value) {
+  return String(value ?? "");
 }
 
 async function recordTagAudit(session, action, changeType, tag, previousValue, newValue) {

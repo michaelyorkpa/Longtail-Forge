@@ -1,4 +1,4 @@
-import { querySql, sqlText } from "../core/database.js";
+import { db } from "../core/database.js";
 
 const resolvers = new Map();
 
@@ -48,122 +48,154 @@ function registerBuiltInResolvers() {
 
 async function resolveClientChildren(context = {}) {
   if (context.sourceTargetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT parent_client_id AS source_target_id, id AS target_id
 FROM clients
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND parent_client_id = ${sqlText(context.sourceTargetId)};
-`), "client", "client");
+WHERE workspace_id = :workspaceId
+  AND parent_client_id = :sourceTargetId;
+`, {
+      sourceTargetId: text(context.sourceTargetId),
+      workspaceId: text(context.workspaceId),
+    }), "client", "client");
   }
 
   if (context.targetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT parent_client_id AS source_target_id, id AS target_id
 FROM clients
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND id = ${sqlText(context.targetId)}
+WHERE workspace_id = :workspaceId
+  AND id = :targetId
   AND parent_client_id IS NOT NULL
   AND parent_client_id != '';
-`), "client", "client");
+`, {
+      targetId: text(context.targetId),
+      workspaceId: text(context.workspaceId),
+    }), "client", "client");
   }
 
-  return mapRows(await querySql(`
+  return mapRows(await db.query(`
 SELECT parent_client_id AS source_target_id, id AS target_id
 FROM clients
-WHERE workspace_id = ${sqlText(context.workspaceId)}
+WHERE workspace_id = :workspaceId
   AND parent_client_id IS NOT NULL
   AND parent_client_id != '';
-`), "client", "client");
+`, {
+    workspaceId: text(context.workspaceId),
+  }), "client", "client");
 }
 
 async function resolveClientProjects(context = {}) {
   if (context.sourceTargetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT client_id AS source_target_id, id AS target_id
 FROM projects
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND client_id = ${sqlText(context.sourceTargetId)};
-`), "client", "project");
+WHERE workspace_id = :workspaceId
+  AND client_id = :sourceTargetId;
+`, {
+      sourceTargetId: text(context.sourceTargetId),
+      workspaceId: text(context.workspaceId),
+    }), "client", "project");
   }
 
   if (context.targetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT client_id AS source_target_id, id AS target_id
 FROM projects
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND id = ${sqlText(context.targetId)}
+WHERE workspace_id = :workspaceId
+  AND id = :targetId
   AND client_id IS NOT NULL
   AND client_id != '';
-`), "client", "project");
+`, {
+      targetId: text(context.targetId),
+      workspaceId: text(context.workspaceId),
+    }), "client", "project");
   }
 
-  return mapRows(await querySql(`
+  return mapRows(await db.query(`
 SELECT client_id AS source_target_id, id AS target_id
 FROM projects
-WHERE workspace_id = ${sqlText(context.workspaceId)}
+WHERE workspace_id = :workspaceId
   AND client_id IS NOT NULL
   AND client_id != '';
-`), "client", "project");
+`, {
+    workspaceId: text(context.workspaceId),
+  }), "client", "project");
 }
 
 async function resolveProjectChildren(context = {}) {
   if (context.sourceTargetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT parent_project_id AS source_target_id, id AS target_id
 FROM projects
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND parent_project_id = ${sqlText(context.sourceTargetId)};
-`), "project", "project");
+WHERE workspace_id = :workspaceId
+  AND parent_project_id = :sourceTargetId;
+`, {
+      sourceTargetId: text(context.sourceTargetId),
+      workspaceId: text(context.workspaceId),
+    }), "project", "project");
   }
 
   if (context.targetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT parent_project_id AS source_target_id, id AS target_id
 FROM projects
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND id = ${sqlText(context.targetId)}
+WHERE workspace_id = :workspaceId
+  AND id = :targetId
   AND parent_project_id IS NOT NULL
   AND parent_project_id != '';
-`), "project", "project");
+`, {
+      targetId: text(context.targetId),
+      workspaceId: text(context.workspaceId),
+    }), "project", "project");
   }
 
-  return mapRows(await querySql(`
+  return mapRows(await db.query(`
 SELECT parent_project_id AS source_target_id, id AS target_id
 FROM projects
-WHERE workspace_id = ${sqlText(context.workspaceId)}
+WHERE workspace_id = :workspaceId
   AND parent_project_id IS NOT NULL
   AND parent_project_id != '';
-`), "project", "project");
+`, {
+    workspaceId: text(context.workspaceId),
+  }), "project", "project");
 }
 
 async function resolveProjectTasks(context = {}) {
   if (context.sourceTargetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT project_id AS source_target_id, task_id AS target_id
 FROM tasks
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND project_id = ${sqlText(context.sourceTargetId)};
-`), "project", "task");
+WHERE workspace_id = :workspaceId
+  AND project_id = :sourceTargetId;
+`, {
+      sourceTargetId: text(context.sourceTargetId),
+      workspaceId: text(context.workspaceId),
+    }), "project", "task");
   }
 
   if (context.targetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT project_id AS source_target_id, task_id AS target_id
 FROM tasks
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND task_id = ${sqlText(context.targetId)}
+WHERE workspace_id = :workspaceId
+  AND task_id = :targetId
   AND project_id IS NOT NULL
   AND project_id != '';
-`), "project", "task");
+`, {
+      targetId: text(context.targetId),
+      workspaceId: text(context.workspaceId),
+    }), "project", "task");
   }
 
-  return mapRows(await querySql(`
+  return mapRows(await db.query(`
 SELECT project_id AS source_target_id, task_id AS target_id
 FROM tasks
-WHERE workspace_id = ${sqlText(context.workspaceId)}
+WHERE workspace_id = :workspaceId
   AND project_id IS NOT NULL
   AND project_id != '';
-`), "project", "task");
+`, {
+    workspaceId: text(context.workspaceId),
+  }), "project", "task");
 }
 
 async function resolveClientNotes(context = {}) {
@@ -175,66 +207,77 @@ async function resolveProjectNotes(context = {}) {
 }
 
 async function resolveNoteContext(context = {}, sourceTargetType, noteColumn) {
-  const targetTypeSql = sqlText(sourceTargetType);
-  const moduleIdSql = sqlText("client-projects");
-
   if (context.sourceTargetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT ${noteColumn} AS source_target_id, note_id AS target_id
 FROM notes
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND ${noteColumn} = ${sqlText(context.sourceTargetId)}
+WHERE workspace_id = :workspaceId
+  AND ${noteColumn} = :sourceTargetId
   AND status != 'deleted'
 UNION
 SELECT target_id AS source_target_id, note_id AS target_id
 FROM note_links
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND module_id = ${moduleIdSql}
-  AND target_type = ${targetTypeSql}
-  AND target_id = ${sqlText(context.sourceTargetId)}
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND target_type = :sourceTargetType
+  AND target_id = :sourceTargetId
   AND removed_at IS NULL;
-`), sourceTargetType, "note");
+`, {
+      moduleId: "client-projects",
+      sourceTargetId: text(context.sourceTargetId),
+      sourceTargetType,
+      workspaceId: text(context.workspaceId),
+    }), sourceTargetType, "note");
   }
 
   if (context.targetId) {
-    return mapRows(await querySql(`
+    return mapRows(await db.query(`
 SELECT ${noteColumn} AS source_target_id, note_id AS target_id
 FROM notes
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND note_id = ${sqlText(context.targetId)}
+WHERE workspace_id = :workspaceId
+  AND note_id = :targetId
   AND ${noteColumn} IS NOT NULL
   AND ${noteColumn} != ''
   AND status != 'deleted'
 UNION
 SELECT target_id AS source_target_id, note_id AS target_id
 FROM note_links
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND note_id = ${sqlText(context.targetId)}
-  AND module_id = ${moduleIdSql}
-  AND target_type = ${targetTypeSql}
+WHERE workspace_id = :workspaceId
+  AND note_id = :targetId
+  AND module_id = :moduleId
+  AND target_type = :sourceTargetType
   AND target_id IS NOT NULL
   AND target_id != ''
   AND removed_at IS NULL;
-`), sourceTargetType, "note");
+`, {
+      moduleId: "client-projects",
+      sourceTargetType,
+      targetId: text(context.targetId),
+      workspaceId: text(context.workspaceId),
+    }), sourceTargetType, "note");
   }
 
-  return mapRows(await querySql(`
+  return mapRows(await db.query(`
 SELECT ${noteColumn} AS source_target_id, note_id AS target_id
 FROM notes
-WHERE workspace_id = ${sqlText(context.workspaceId)}
+WHERE workspace_id = :workspaceId
   AND ${noteColumn} IS NOT NULL
   AND ${noteColumn} != ''
   AND status != 'deleted'
 UNION
 SELECT target_id AS source_target_id, note_id AS target_id
 FROM note_links
-WHERE workspace_id = ${sqlText(context.workspaceId)}
-  AND module_id = ${moduleIdSql}
-  AND target_type = ${targetTypeSql}
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND target_type = :sourceTargetType
   AND target_id IS NOT NULL
   AND target_id != ''
   AND removed_at IS NULL;
-`), sourceTargetType, "note");
+`, {
+    moduleId: "client-projects",
+    sourceTargetType,
+    workspaceId: text(context.workspaceId),
+  }), sourceTargetType, "note");
 }
 
 function mapRows(rows, sourceTargetType, targetType) {
@@ -246,6 +289,10 @@ function mapRows(rows, sourceTargetType, targetType) {
       targetType,
     }))
     .filter((row) => row.sourceTargetId && row.targetId);
+}
+
+function text(value) {
+  return String(value ?? "");
 }
 
 registerBuiltInResolvers();

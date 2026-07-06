@@ -222,6 +222,8 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/help-search-regression.mjs",
   "scripts/help-content-regression.mjs",
   "scripts/help-workflow-regression.mjs",
+  "scripts/tags-repository-conversion-regression.mjs",
+  "scripts/tag-propagation-service-conversion-regression.mjs",
   "scripts/tag-service-regression.mjs",
   "scripts/tag-core-records-regression.mjs",
   "scripts/tag-propagation-foundation-regression.mjs",

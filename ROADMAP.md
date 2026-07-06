@@ -249,9 +249,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.23 - Conversion wave: Tags repository
 
-- [ ] Convert `tags.repo` to named bound params and the dialect seams.
-- [ ] Preserve tag create/update/archive, tag list/read, assignments, suppressions, propagation-context reads, and tag filter behavior exactly.
-- [ ] Update the burndown ratchet and extend tag regressions before moving on.
+- [x] Convert `tags.repo` to named bound params and the dialect seams.
+- [x] Preserve tag create/update/archive, tag list/read, assignments, suppressions, propagation-context reads, and tag filter behavior exactly.
+- [x] Update the burndown ratchet and extend tag regressions before moving on.
 
 Acceptance criteria:
 
@@ -259,9 +259,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.24 - Conversion wave: Tag propagation and tags service
 
-- [ ] Convert `services/tag-propagation-registry` and `services/tags.service` to named bound params and the dialect seams.
-- [ ] Preserve Client/Project/Task/Note propagation targets, resolver behavior, and service-owned tag read shaping exactly.
-- [ ] Update the burndown ratchet and extend propagation-focused tag regressions before moving on.
+- [x] Convert `services/tag-propagation-registry` and `services/tags.service` to named bound params and the dialect seams.
+- [x] Preserve Client/Project/Task/Note propagation targets, resolver behavior, and service-owned tag read shaping exactly.
+- [x] Update the burndown ratchet and extend propagation-focused tag regressions before moving on.
 
 Acceptance criteria:
 

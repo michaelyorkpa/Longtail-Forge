@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.22";
+const appVersion = "0.33.5.27.24";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -22,7 +22,9 @@ const filesBrowseReadsSliceVersion = "0.33.5.27.18";
 const filesContextTargetsSliceVersion = "0.33.5.27.19";
 const filesLifecycleSettingsQuotaSliceVersion = "0.33.5.27.20";
 const notificationsInboxLifecycleSliceVersion = "0.33.5.27.21";
-const notificationsPreferencesSubscriptionsSliceVersion = appVersion;
+const notificationsPreferencesSubscriptionsSliceVersion = "0.33.5.27.22";
+const tagsRepositorySliceVersion = "0.33.5.27.23";
+const tagPropagationServiceSliceVersion = appVersion;
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -41,23 +43,24 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 256,
+  boundOperationSites: 291,
   dbOperationSites: 419,
-  helperCalls: 487,
-  interpolatedOperationSites: 103,
+  helperCalls: 367,
+  interpolatedOperationSites: 68,
 }, "parameter-binding audit totals should match the current post-wave runtime inventory");
 
 const expectedTopGroups = [
   ["db/index", 99, 19],
-  ["tags.repo", 84, 17],
   ["client-projects/clients.repo", 60, 5],
   ["services/work-resume-state.service", 53, 7],
   ["client-projects/projects.repo", 49, 7],
-  ["services/tag-propagation-registry", 32, 15],
   ["core/modules/modules.service", 29, 6],
   ["audit-logs.repo", 28, 3],
   ["api-keys.repo", 20, 8],
   ["db/migrations", 18, 8],
+  ["services/search-index-rebuild.service", 5, 2],
+  ["services/work-resume-state-initial-producers", 5, 2],
+  ["services/help.service", 1, 1],
 ];
 
 for (const [group, helperCalls, interpolatedOperationSites] of expectedTopGroups) {
@@ -90,11 +93,14 @@ assertInventoryRow("core/search/adapters/sqlite-search-adapter", "Converted", sq
 const convertedWaveRows = [
   ["app-settings.repo", 2],
   ["services/files.service", 32],
+  ["services/tag-propagation-registry", 15],
+  ["services/tags.service", 3],
   ["lists/lists.repo", 21],
   ["permissions.repo", 8],
   ["settings.repo", 4],
   ["notes/notes.repo", 21],
   ["notifications.repo", 25],
+  ["tags.repo", 17],
   ["tasks/task-checklists.repo", 8],
   ["tasks/task-recurrence.repo", 6],
   ["tasks/task-relationships.repo", 12],
@@ -127,7 +133,7 @@ assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSO
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.22:[\s\S]*Remaining runtime literal-helper invocations: 487[\s\S]*Remaining direct interpolated SQL operation sites: 103[\s\S]*Existing direct bound-params operation sites: 256[\s\S]*Total runtime database operation calls seen by the audit scanner: 419/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.24:[\s\S]*Remaining runtime literal-helper invocations: 367[\s\S]*Remaining direct interpolated SQL operation sites: 68[\s\S]*Existing direct bound-params operation sites: 291[\s\S]*Total runtime database operation calls seen by the audit scanner: 419/, "audit docs should record the current canonical totals");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
@@ -162,6 +168,8 @@ assert.match(auditDocs, /0\.33\.5\.27\.19 Files Context and Attachable Targets C
 assert.match(auditDocs, /0\.33\.5\.27\.20 Files Lifecycle, Settings, Quota, and Accounting Conversion[\s\S]*`services\/files\.service` is fully converted[\s\S]*586 runtime literal-helper invocations[\s\S]*123 direct interpolated SQL operation sites[\s\S]*231 existing bound operation sites/, "audit docs should record the Files lifecycle/settings/quota conversion slice");
 assert.match(auditDocs, /0\.33\.5\.27\.21 Notifications Inbox and Lifecycle Conversion[\s\S]*`notifications\.repo` inbox and lifecycle paths are partially converted[\s\S]*536 runtime literal-helper invocations[\s\S]*111 direct interpolated SQL operation sites[\s\S]*246 existing bound operation sites/, "audit docs should record the Notifications inbox/lifecycle conversion slice");
 assert.match(auditDocs, /0\.33\.5\.27\.22 Notifications Preferences and Subscriptions Conversion[\s\S]*`notifications\.repo` is fully converted[\s\S]*487 runtime literal-helper invocations[\s\S]*103 direct interpolated SQL operation sites[\s\S]*256 existing bound operation sites/, "audit docs should record the Notifications preferences/subscriptions conversion slice");
+assert.match(auditDocs, /0\.33\.5\.27\.23 Tags Repository Conversion[\s\S]*`tags\.repo` is fully converted[\s\S]*403 runtime literal-helper invocations[\s\S]*86 direct interpolated SQL operation sites[\s\S]*273 existing bound operation sites/, "audit docs should record the Tags repository conversion slice");
+assert.match(auditDocs, /0\.33\.5\.27\.24 Tag Propagation and Tags Service Conversion[\s\S]*`services\/tag-propagation-registry` and `services\/tags\.service` are fully converted[\s\S]*367 runtime literal-helper invocations[\s\S]*68 direct interpolated SQL operation sites[\s\S]*291 existing bound operation sites/, "audit docs should record the Tag propagation service conversion slice");
 assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
 assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
 assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
@@ -208,6 +216,8 @@ assert.match(databaseDocs, /As of version 0\.33\.5\.27\.19[\s\S]*Files context a
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.20[\s\S]*`services\/files\.service` is fully converted[\s\S]*586 remaining helper invocations/, "database docs should record the concrete Files lifecycle/settings/quota conversion");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.21[\s\S]*Notifications inbox and lifecycle paths in `notifications\.repo` are partially converted[\s\S]*536 remaining helper invocations/, "database docs should record the concrete Notifications inbox/lifecycle conversion");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.22[\s\S]*Notification preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications\.repo` are converted[\s\S]*487 remaining helper invocations/, "database docs should record the concrete Notifications preferences/subscriptions conversion");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.23[\s\S]*`tags\.repo` is converted[\s\S]*403 remaining helper invocations/, "database docs should record the concrete Tags repository conversion");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.24[\s\S]*`services\/tag-propagation-registry` and `services\/tags\.service` are converted[\s\S]*367 remaining helper invocations/, "database docs should record the concrete Tag propagation service conversion");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
 assert.match(changelog, /## Version 0\.33\.5\.27\.3 - [\s\S]*upsert\/conflict and identity seams[\s\S]*durable job[\s\S]*1,498 helper invocations/, "changelog should record the conflict and identity seam slice");
@@ -230,6 +240,8 @@ assert.match(changelog, new RegExp(`## Version ${escapeRegExp(filesContextTarget
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(filesLifecycleSettingsQuotaSliceVersion)} - [\\s\\S]*Files lifecycle, settings, quota, and accounting conversion[\\s\\S]*586 helper invocations[\\s\\S]*123 direct interpolated operation sites[\\s\\S]*231 bound operation sites`), "changelog should record the Files lifecycle/settings/quota conversion slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(notificationsInboxLifecycleSliceVersion)} - [\\s\\S]*Notifications inbox and lifecycle conversion[\\s\\S]*536 helper invocations[\\s\\S]*111 direct interpolated operation sites[\\s\\S]*246 bound operation sites`), "changelog should record the Notifications inbox/lifecycle conversion slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(notificationsPreferencesSubscriptionsSliceVersion)} - [\\s\\S]*Notification preferences and subscriptions conversion[\\s\\S]*487 helper invocations[\\s\\S]*103 direct interpolated operation sites[\\s\\S]*256 bound operation sites`), "changelog should record the Notifications preferences/subscriptions conversion slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(tagsRepositorySliceVersion)} - [\\s\\S]*Tags repository conversion[\\s\\S]*403 helper invocations[\\s\\S]*86 direct interpolated operation sites[\\s\\S]*273 bound operation sites`), "changelog should record the Tags repository conversion slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(tagPropagationServiceSliceVersion)} - [\\s\\S]*Tag propagation and tags service conversion[\\s\\S]*367 helper invocations[\\s\\S]*68 direct interpolated operation sites[\\s\\S]*291 bound operation sites`), "changelog should record the Tag propagation service conversion slice");
 
 assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should now start at the database extraction contract branch");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");

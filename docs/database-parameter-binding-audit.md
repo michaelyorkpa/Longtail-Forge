@@ -12,11 +12,11 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.22:
+Current totals as of 0.33.5.27.24:
 
-- Remaining runtime literal-helper invocations: 487.
-- Remaining direct interpolated SQL operation sites: 103.
-- Existing direct bound-params operation sites: 256.
+- Remaining runtime literal-helper invocations: 367.
+- Remaining direct interpolated SQL operation sites: 68.
+- Existing direct bound-params operation sites: 291.
 - Total runtime database operation calls seen by the audit scanner: 419.
 
 Original 0.33.5.23.1 baseline totals:
@@ -41,20 +41,20 @@ Status legend:
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
-| tags.repo | Remaining | 84 | 17 | 0 | 17 |
 | client-projects/clients.repo | Remaining | 60 | 5 | 0 | 7 |
 | services/work-resume-state.service | Remaining | 53 | 7 | 0 | 7 |
 | client-projects/projects.repo | Remaining | 49 | 7 | 0 | 8 |
-| services/tag-propagation-registry | Remaining | 32 | 15 | 0 | 15 |
 | core/modules/modules.service | Remaining | 29 | 6 | 0 | 9 |
 | audit-logs.repo | Remaining | 28 | 3 | 0 | 10 |
 | api-keys.repo | Remaining | 20 | 8 | 0 | 8 |
 | db/migrations | Remaining | 18 | 8 | 0 | 24 |
 | services/search-index-rebuild.service | Remaining | 5 | 2 | 0 | 2 |
 | services/work-resume-state-initial-producers | Remaining | 5 | 2 | 0 | 2 |
-| services/tags.service | Remaining | 4 | 3 | 0 | 3 |
 | services/help.service | Remaining | 1 | 1 | 0 | 1 |
 | services/files.service | Converted | 0 | 0 | 32 | 33 |
+| services/tag-propagation-registry | Converted | 0 | 0 | 15 | 15 |
+| services/tags.service | Converted | 0 | 0 | 3 | 3 |
+| tags.repo | Converted | 0 | 0 | 17 | 17 |
 | core/search/adapters/sqlite-search-adapter | Converted | 0 | 0 | 13 | 17 |
 | core/search/tag-text | Converted | 0 | 0 | 1 | 1 |
 | tasks/task-checklists.repo | Converted | 0 | 0 | 8 | 8 |
@@ -442,3 +442,23 @@ The live ratchet after this conversion is 536 runtime literal-helper invocations
 `notifications.repo` is fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves per-user notification preferences, display grouping preferences, workspace defaults, follow/unfollow behavior, general and event-specific follow subscriptions, fan-out subscription inputs, actor/follower behavior, and disabled-default/user-muted notification delivery behavior.
 
 The live ratchet after this conversion is 487 runtime literal-helper invocations, 103 direct interpolated SQL operation sites, 256 existing bound operation sites, and 419 total runtime database operation calls.
+
+## 0.33.5.27.23 Tags Repository Conversion
+
+0.33.5.27.23 converts `tags.repo` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`. The conversion covers tag create/update/status writes, tag list/read/search paths, batched tag reads, assignment reads and writes, assignment removals, propagation-context reads, suppression reads/writes, and target suppression lists.
+
+Tag search and tag/assignment ordering now use `db.dialect.comparison.likeNoCase(...)` and `orderByNoCase(...)`, batched tag and target reads use array-valued named params, and duplicate-tolerant assignment/suppression writes use `db.dialect.conflict.buildInsertOrIgnore(...)`. This slice preserves tag create/update/archive, tag list/read, assignment de-duplication, source-filtered assignment reads/removals, suppression uniqueness, propagation-context reads, and tag filter inputs.
+
+`tags.repo` is fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites.
+
+The live ratchet after this conversion is 403 runtime literal-helper invocations, 86 direct interpolated SQL operation sites, 273 existing bound operation sites, and 419 total runtime database operation calls.
+
+## 0.33.5.27.24 Tag Propagation and Tags Service Conversion
+
+0.33.5.27.24 converts `services/tag-propagation-registry` and `services/tags.service` from literal-helper interpolation to named params through `db.query(...)` and `db.get(...)`. The conversion covers the built-in Client/Project/Task/Note propagation resolver reads, service-owned tag propagation count reads, and descriptor-backed target existence reads.
+
+The tag propagation registry keeps the existing built-in resolver IDs and Client/Project/Task/Note SQL ownership in place for this branch; moving module-specific propagation SQL out of the framework registry remains assigned to 0.39.15.2. The converted `tags.service` target-read path still validates descriptor table/field identifiers through the existing allowlist before binding workspace and target values.
+
+`services/tag-propagation-registry` and `services/tags.service` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves Client/Project/Task/Note propagation targets, resolver behavior, service-owned tag read shaping, propagated assignment materialization, repair count readouts, and tag target lookup behavior.
+
+The live ratchet after this conversion is 367 runtime literal-helper invocations, 68 direct interpolated SQL operation sites, 291 existing bound operation sites, and 419 total runtime database operation calls.
