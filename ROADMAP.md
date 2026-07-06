@@ -289,9 +289,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.27 - Conversion wave: Clients and Projects repositories
 
-- [ ] Convert `client-projects/clients.repo` and `client-projects/projects.repo` to named bound params and the dialect seams.
-- [ ] Preserve hierarchy-aware reads, create/update/archive, Business-only Client behavior, billing/task-default rows, project ordering, and readable label shaping exactly.
-- [ ] Update the burndown ratchet and extend Clients/Projects regressions before moving on.
+- [x] Convert `client-projects/clients.repo` and `client-projects/projects.repo` to named bound params and the dialect seams.
+- [x] Preserve hierarchy-aware reads, create/update/archive, Business-only Client behavior, billing/task-default rows, project ordering, and readable label shaping exactly.
+- [x] Update the burndown ratchet and extend Clients/Projects regressions before moving on.
 
 Acceptance criteria:
 

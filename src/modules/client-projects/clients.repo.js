@@ -1,10 +1,4 @@
-import {
-  querySql,
-  runSql,
-  sqlNullableInteger,
-  sqlNullableText,
-  sqlText,
-} from "../../core/database.js";
+import { db } from "../../core/database.js";
 import { projectsRepository } from "./projects.repo.js";
 import {
   normalizeBillableFlag,
@@ -14,254 +8,257 @@ import {
   normalizeBillingRounding,
 } from "../../utils/normalizers.js";
 
+const CLIENT_COLUMNS = [
+  "id",
+  "workspace_id",
+  "parent_client_id",
+  "name",
+  "status",
+  "billable",
+  "billing_rate",
+  "billing_period_type",
+  "billing_period_start_day",
+  "billing_rounding_enabled",
+  "billing_rounding_increment",
+  "billing_contact_name",
+  "billing_contact_email",
+  "billing_contact_alternate_name",
+  "billing_contact_alternate_email",
+  "billing_contact_phone_number",
+  "billing_contact_alternate_phone_number",
+  "billing_contact_street_address_1",
+  "billing_contact_street_address_2",
+  "billing_contact_city",
+  "billing_contact_state",
+  "billing_contact_zip_code",
+  "created_at",
+  "updated_at",
+];
+
+const CLIENT_INSERT_SQL = `
+INSERT INTO clients (
+  ${CLIENT_COLUMNS.join(",\n  ")}
+)
+VALUES (
+  :clientId,
+  :workspaceId,
+  :parentClientId,
+  :name,
+  :status,
+  :billable,
+  :billingRate,
+  :billingPeriodType,
+  :billingPeriodStartDay,
+  :billingRoundingEnabled,
+  :billingRoundingIncrement,
+  :billingContactName,
+  :billingContactEmail,
+  :billingContactAlternateName,
+  :billingContactAlternateEmail,
+  :billingContactPhoneNumber,
+  :billingContactAlternatePhoneNumber,
+  :billingContactStreetAddress1,
+  :billingContactStreetAddress2,
+  :billingContactCity,
+  :billingContactState,
+  :billingContactZipCode,
+  :createdAt,
+  :updatedAt
+);
+`;
+
 async function readAll(workspaceId) {
-  const rows = await querySql(`
-SELECT
-  id,
-  workspace_id,
-  parent_client_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  billing_contact_name,
-  billing_contact_email,
-  billing_contact_alternate_name,
-  billing_contact_alternate_email,
-  billing_contact_phone_number,
-  billing_contact_alternate_phone_number,
-  billing_contact_street_address_1,
-  billing_contact_street_address_2,
-  billing_contact_city,
-  billing_contact_state,
-  billing_contact_zip_code,
-  created_at,
-  updated_at
+  const rows = await db.query(`
+SELECT ${CLIENT_COLUMNS.join(", ")}
 FROM clients
-WHERE workspace_id = ${sqlText(workspaceId)}
-ORDER BY name;
-`);
+WHERE workspace_id = :workspaceId
+ORDER BY ${db.dialect.comparison.orderByNoCase("name", "ASC")};
+`, { workspaceId: text(workspaceId) });
 
   return rows.map(clientRowToAppClient);
 }
 
 async function readById(workspaceId, clientId) {
-  const rows = await querySql(`
-SELECT
-  id,
-  workspace_id,
-  parent_client_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  billing_contact_name,
-  billing_contact_email,
-  billing_contact_alternate_name,
-  billing_contact_alternate_email,
-  billing_contact_phone_number,
-  billing_contact_alternate_phone_number,
-  billing_contact_street_address_1,
-  billing_contact_street_address_2,
-  billing_contact_city,
-  billing_contact_state,
-  billing_contact_zip_code,
-  created_at,
-  updated_at
+  const row = await db.get(`
+SELECT ${CLIENT_COLUMNS.join(", ")}
 FROM clients
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id = ${sqlText(clientId)}
+WHERE workspace_id = :workspaceId
+  AND id = :clientId
 LIMIT 1;
-`);
+`, {
+    clientId: text(clientId),
+    workspaceId: text(workspaceId),
+  });
 
-  return rows[0] ? clientRowToAppClient(rows[0]) : null;
+  return row ? clientRowToAppClient(row) : null;
 }
 
 async function readByIds(workspaceId, clientIds = []) {
-  const ids = [...new Set((Array.isArray(clientIds) ? clientIds : [])
-    .map((clientId) => String(clientId || "").trim())
-    .filter(Boolean))];
+  const ids = normalizeIdList(clientIds);
 
   if (ids.length === 0) {
     return [];
   }
 
-  const rows = await querySql(`
-SELECT
-  id,
-  workspace_id,
-  parent_client_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  billing_contact_name,
-  billing_contact_email,
-  billing_contact_alternate_name,
-  billing_contact_alternate_email,
-  billing_contact_phone_number,
-  billing_contact_alternate_phone_number,
-  billing_contact_street_address_1,
-  billing_contact_street_address_2,
-  billing_contact_city,
-  billing_contact_state,
-  billing_contact_zip_code,
-  created_at,
-  updated_at
+  const rows = await db.query(`
+SELECT ${CLIENT_COLUMNS.join(", ")}
 FROM clients
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id IN (${ids.map(sqlText).join(", ")})
-ORDER BY name;
-`);
+WHERE workspace_id = :workspaceId
+  AND id IN (:clientIds)
+ORDER BY ${db.dialect.comparison.orderByNoCase("name", "ASC")};
+`, {
+    clientIds: ids,
+    workspaceId: text(workspaceId),
+  });
 
   return rows.map(clientRowToAppClient);
 }
 
 async function create(workspaceId, client) {
   const now = new Date().toISOString();
-  await runSql(createClientInsertSql(workspaceId, client, now));
+
+  await db.run(CLIENT_INSERT_SQL, clientWriteParams({
+    client,
+    createdAt: now,
+    updatedAt: now,
+    workspaceId,
+  }));
 }
 
 async function update(workspaceId, client) {
   const now = new Date().toISOString();
-  const contact = normalizeBillingContact(client.billing_contact);
 
-  await runSql(`
+  await db.run(`
 UPDATE clients
 SET
-  workspace_id = ${sqlText(workspaceId)},
-  parent_client_id = ${sqlNullableText(client.parent_client_id)},
-  name = ${sqlText(client.name)},
-  status = ${sqlText(client.status)},
-  billable = ${sqlText(client.billable)},
-  billing_rate = ${sqlNullableText(client.billing_rate)},
-  billing_period_type = ${sqlNullableText(client.billing_period?.type)},
-  billing_period_start_day = ${sqlNullableInteger(client.billing_period?.startDay)},
-  billing_rounding_enabled = ${sqlNullableInteger(client.billing_rounding ? (client.billing_rounding.enabled ? 1 : 0) : null)},
-  billing_rounding_increment = ${sqlNullableText(client.billing_rounding?.increment)},
-  billing_contact_name = ${sqlText(contact.name)},
-  billing_contact_email = ${sqlText(contact.email)},
-  billing_contact_alternate_name = ${sqlText(contact.alternate_name)},
-  billing_contact_alternate_email = ${sqlText(contact.alternate_email)},
-  billing_contact_phone_number = ${sqlText(contact.phone_number)},
-  billing_contact_alternate_phone_number = ${sqlText(contact.alternate_phone_number)},
-  billing_contact_street_address_1 = ${sqlText(contact.street_address_1)},
-  billing_contact_street_address_2 = ${sqlText(contact.street_address_2)},
-  billing_contact_city = ${sqlText(contact.city)},
-  billing_contact_state = ${sqlText(contact.state)},
-  billing_contact_zip_code = ${sqlText(contact.zip_code)},
-  updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id = ${sqlText(client.id)};
-`);
+  workspace_id = :workspaceId,
+  parent_client_id = :parentClientId,
+  name = :name,
+  status = :status,
+  billable = :billable,
+  billing_rate = :billingRate,
+  billing_period_type = :billingPeriodType,
+  billing_period_start_day = :billingPeriodStartDay,
+  billing_rounding_enabled = :billingRoundingEnabled,
+  billing_rounding_increment = :billingRoundingIncrement,
+  billing_contact_name = :billingContactName,
+  billing_contact_email = :billingContactEmail,
+  billing_contact_alternate_name = :billingContactAlternateName,
+  billing_contact_alternate_email = :billingContactAlternateEmail,
+  billing_contact_phone_number = :billingContactPhoneNumber,
+  billing_contact_alternate_phone_number = :billingContactAlternatePhoneNumber,
+  billing_contact_street_address_1 = :billingContactStreetAddress1,
+  billing_contact_street_address_2 = :billingContactStreetAddress2,
+  billing_contact_city = :billingContactCity,
+  billing_contact_state = :billingContactState,
+  billing_contact_zip_code = :billingContactZipCode,
+  updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND id = :clientId;
+`, clientWriteParams({
+    client,
+    updatedAt: now,
+    workspaceId,
+  }));
 }
 
 async function archive(workspaceId, clientId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
 UPDATE clients
 SET status = 'Inactive',
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id = ${sqlText(clientId)};
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND id = :clientId;
+`, {
+      clientId: text(clientId),
+      updatedAt: now,
+      workspaceId: text(workspaceId),
+    });
 
+    await transaction.run(`
 UPDATE projects
 SET status = 'Inactive',
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND client_id = ${sqlText(clientId)}
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND client_id = :clientId
   AND status != 'Completed';
-`);
+`, {
+      clientId: text(clientId),
+      updatedAt: now,
+      workspaceId: text(workspaceId),
+    });
+  });
 }
 
 async function replaceAll(workspaceId, clients) {
   const now = new Date().toISOString();
-  const statements = [
-    "BEGIN TRANSACTION;",
-    `DELETE FROM projects WHERE workspace_id = ${sqlText(workspaceId)};`,
-    `DELETE FROM clients WHERE workspace_id = ${sqlText(workspaceId)};`,
-  ];
 
-  clients.forEach((client) => {
-    statements.push(createClientInsertSql(workspaceId, client, now));
-    client.projects.forEach((project) => {
-      statements.push(projectsRepository.createInsertSql(workspaceId, client.id, project, now));
-    });
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+DELETE FROM projects
+WHERE workspace_id = :workspaceId;
+`, { workspaceId: text(workspaceId) });
+
+    await transaction.run(`
+DELETE FROM clients
+WHERE workspace_id = :workspaceId;
+`, { workspaceId: text(workspaceId) });
+
+    for (const client of clients) {
+      await insertClient(transaction, workspaceId, client, now);
+
+      for (const project of client.projects) {
+        await projectsRepository.insertProject(transaction, workspaceId, client.id, project, now);
+      }
+    }
   });
-
-  statements.push("COMMIT;");
-  await runSql(statements.join("\n"));
 }
 
-function createClientInsertSql(workspaceId, client, now) {
-  const contact = normalizeBillingContact(client.billing_contact);
+async function insertClient(databaseClient, workspaceId, client, now) {
+  await databaseClient.run(CLIENT_INSERT_SQL, clientWriteParams({
+    client,
+    createdAt: now,
+    updatedAt: now,
+    workspaceId,
+  }));
+}
 
-  return `
-INSERT INTO clients (
-  id,
-  workspace_id,
-  parent_client_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  billing_contact_name,
-  billing_contact_email,
-  billing_contact_alternate_name,
-  billing_contact_alternate_email,
-  billing_contact_phone_number,
-  billing_contact_alternate_phone_number,
-  billing_contact_street_address_1,
-  billing_contact_street_address_2,
-  billing_contact_city,
-  billing_contact_state,
-  billing_contact_zip_code,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(client.id)},
-  ${sqlText(workspaceId)},
-  ${sqlNullableText(client.parent_client_id)},
-  ${sqlText(client.name)},
-  ${sqlText(client.status)},
-  ${sqlText(client.billable)},
-  ${sqlNullableText(client.billing_rate)},
-  ${sqlNullableText(client.billing_period?.type)},
-  ${sqlNullableInteger(client.billing_period?.startDay)},
-  ${sqlNullableInteger(client.billing_rounding ? (client.billing_rounding.enabled ? 1 : 0) : null)},
-  ${sqlNullableText(client.billing_rounding?.increment)},
-  ${sqlText(contact.name)},
-  ${sqlText(contact.email)},
-  ${sqlText(contact.alternate_name)},
-  ${sqlText(contact.alternate_email)},
-  ${sqlText(contact.phone_number)},
-  ${sqlText(contact.alternate_phone_number)},
-  ${sqlText(contact.street_address_1)},
-  ${sqlText(contact.street_address_2)},
-  ${sqlText(contact.city)},
-  ${sqlText(contact.state)},
-  ${sqlText(contact.zip_code)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-);`;
+function clientWriteParams({ client, createdAt = undefined, updatedAt, workspaceId }) {
+  const contact = normalizeBillingContact(client.billing_contact);
+  const params = {
+    billable: text(client.billable),
+    billingContactAlternateEmail: text(contact.alternate_email),
+    billingContactAlternateName: text(contact.alternate_name),
+    billingContactAlternatePhoneNumber: text(contact.alternate_phone_number),
+    billingContactCity: text(contact.city),
+    billingContactEmail: text(contact.email),
+    billingContactName: text(contact.name),
+    billingContactPhoneNumber: text(contact.phone_number),
+    billingContactState: text(contact.state),
+    billingContactStreetAddress1: text(contact.street_address_1),
+    billingContactStreetAddress2: text(contact.street_address_2),
+    billingContactZipCode: text(contact.zip_code),
+    billingPeriodStartDay: nullableInteger(client.billing_period?.startDay),
+    billingPeriodType: nullableText(client.billing_period?.type),
+    billingRate: nullableText(client.billing_rate),
+    billingRoundingEnabled: bindNullableBoolean(client.billing_rounding?.enabled, client.billing_rounding),
+    billingRoundingIncrement: nullableText(client.billing_rounding?.increment),
+    clientId: text(client.id),
+    name: text(client.name),
+    parentClientId: nullableText(client.parent_client_id),
+    status: text(client.status),
+    updatedAt: text(updatedAt),
+    workspaceId: text(workspaceId),
+  };
+
+  if (createdAt !== undefined) {
+    params.createdAt = text(createdAt);
+  }
+
+  return params;
 }
 
 function clientRowToAppClient(row) {
@@ -310,9 +307,38 @@ function billingRoundingRowToAppValue(row) {
   }
 
   return normalizeBillingRounding({
-    enabled: Number(row.billing_rounding_enabled) === 1,
+    enabled: db.dialect.boolean.read(row.billing_rounding_enabled) === true,
     increment: row.billing_rounding_increment,
   });
+}
+
+function bindNullableBoolean(value, owner) {
+  return owner ? db.dialect.boolean.bind(value === true) : null;
+}
+
+function normalizeIdList(ids) {
+  return [...new Set((Array.isArray(ids) ? ids : [])
+    .map((id) => text(id).trim())
+    .filter(Boolean))];
+}
+
+function nullableInteger(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function nullableText(value) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? null
+    : String(value);
+}
+
+function text(value) {
+  return String(value ?? "");
 }
 
 export const clientsRepository = {

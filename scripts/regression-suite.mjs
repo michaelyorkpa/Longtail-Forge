@@ -261,6 +261,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/personal-family-workspace-scope-regression.mjs",
   "scripts/client-projects-bugfix-regression.mjs",
   "scripts/client-projects-canonical-payload-regression.mjs",
+  "scripts/client-projects-repositories-conversion-regression.mjs",
   "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
   "scripts/api-key-scope-audit-regression.mjs",
   "scripts/public-api-client-project-write-regression.mjs",

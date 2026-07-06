@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.26:
+Current totals as of 0.33.5.27.27:
 
-- Remaining runtime literal-helper invocations: 304.
-- Remaining direct interpolated SQL operation sites: 57.
-- Existing direct bound-params operation sites: 302.
-- Total runtime database operation calls seen by the audit scanner: 419.
+- Remaining runtime literal-helper invocations: 195.
+- Remaining direct interpolated SQL operation sites: 45.
+- Existing direct bound-params operation sites: 319.
+- Total runtime database operation calls seen by the audit scanner: 421.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -41,8 +41,6 @@ Status legend:
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
-| client-projects/clients.repo | Remaining | 60 | 5 | 0 | 7 |
-| client-projects/projects.repo | Remaining | 49 | 7 | 0 | 8 |
 | core/modules/modules.service | Remaining | 29 | 6 | 0 | 9 |
 | audit-logs.repo | Remaining | 28 | 3 | 0 | 10 |
 | api-keys.repo | Remaining | 20 | 8 | 0 | 8 |
@@ -53,6 +51,8 @@ Status legend:
 | services/tags.service | Converted | 0 | 0 | 3 | 3 |
 | services/work-resume-state.service | Converted | 0 | 0 | 7 | 7 |
 | services/work-resume-state-initial-producers | Converted | 0 | 0 | 2 | 2 |
+| client-projects/clients.repo | Converted | 0 | 0 | 9 | 9 |
+| client-projects/projects.repo | Converted | 0 | 0 | 8 | 8 |
 | tags.repo | Converted | 0 | 0 | 17 | 17 |
 | core/search/adapters/sqlite-search-adapter | Converted | 0 | 0 | 13 | 17 |
 | core/search/tag-text | Converted | 0 | 0 | 1 | 1 |
@@ -482,3 +482,15 @@ The converted Resume State service routes the `(workspace_id, user_id, module_id
 `services/work-resume-state.service` and `services/work-resume-state-initial-producers` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves resume state upsert semantics, dismissal refresh, list ranking, read checks, source removal, initial producer behavior, and Workbench-facing read models.
 
 The live ratchet after this conversion is 304 runtime literal-helper invocations, 57 direct interpolated SQL operation sites, 302 existing bound operation sites, and 419 total runtime database operation calls.
+
+## 0.33.5.27.27 Clients and Projects Repository Conversion
+
+0.33.5.27.27 converts `client-projects/clients.repo` and `client-projects/projects.repo` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and transaction-scoped writes.
+
+The converted Clients repository binds full-list reads, single/batched reads, creates, updates, archive cascade writes, and whole-tree replacement cleanup/inserts. Client and Project batched reads now use array-valued named params, Client archive and replace-all work are split into callback transactions because parameterized SQLite statements must remain single statements, and billing rounding storage/readback uses `db.dialect.boolean`.
+
+The converted Projects repository binds full-list reads, single/batched reads, client-scoped reads, case-insensitive duplicate-name reads, create/update/archive writes, and transaction-scoped replacement inserts. Project name duplicate checks keep the existing trimmed comparison while routing case-insensitive equality through `db.dialect.comparison.equalsNoCase(...)`; Project and Client name ordering uses `db.dialect.comparison.orderByNoCase(...)`; project billing rounding uses `db.dialect.boolean`; task-default priority/status/sort-order/default-assignee rows remain stored unchanged.
+
+`client-projects/clients.repo` and `client-projects/projects.repo` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves hierarchy-aware reads, create/update/archive behavior, Business-only Client gating, billing and task-default rows, project ordering, and readable label shaping on SQLite.
+
+The live ratchet after this conversion is 195 runtime literal-helper invocations, 45 direct interpolated SQL operation sites, 319 existing bound operation sites, and 421 total runtime database operation calls.
