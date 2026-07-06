@@ -209,9 +209,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.19 - Conversion wave: Files context and attachable targets
 
-- [ ] Convert File Context update reads/writes, attachable-target option reads, readable target label/context reads, duplicate-context checks, and safe target lookup SQL in `services/files.service` to named bound params and the dialect seams.
-- [ ] Preserve attachment-scoped File Context behavior, Client/Project/Target selector ordering, readable labels, safe unavailable states, and no-raw-ID label rules exactly.
-- [ ] Update the burndown ratchet and extend File Context/target-option regressions before moving on.
+- [x] Convert File Context update reads/writes, attachable-target option reads, readable target label/context reads, duplicate-context checks, and safe target lookup SQL in `services/files.service` to named bound params and the dialect seams.
+- [x] Preserve attachment-scoped File Context behavior, Client/Project/Target selector ordering, readable labels, safe unavailable states, and no-raw-ID label rules exactly.
+- [x] Update the burndown ratchet and extend File Context/target-option regressions before moving on.
 
 Acceptance criteria:
 
@@ -342,13 +342,15 @@ Acceptance criteria:
 ### Version 0.33.5.27.32 - Dialect enforcement guardrail
 
 - [ ] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, `RETURNING`, etc.) outside the provider adapter/startup/migration allowlist.
+- [ ] Critically, run the dialect guardrail as a **whole-tree sweep, not a diff-only check**, and re-audit every repository the parameter-binding ratchet already marks `Converted`/`Already bound` for raw dialect-isms that have a seam. The binding ratchet and dialect-seam adoption are *separate axes*: a repo can be "Converted" for parameter binding while still emitting raw SQLite dialect (confirmed example at time of writing: `src/repositories/permissions.repo.js` still uses raw `INSERT OR IGNORE` despite being marked `Converted`). Convert every such remaining site to the established seam so no repo can read "done" while still emitting a dialect-ism a future adapter cannot satisfy.
+- [ ] Add a distinct dialect-adoption axis to the audit/burndown (separate from the parameter-binding counts) so the ratchet tracks and enforces raw-dialect-at-application-call-sites to zero, and a converted repo that reintroduces a raw seam-backed dialect-ism fails the suite.
 - [ ] Reconcile the guardrail with the 0.33.5.27.3 durable-job `RETURNING` decision: those `core/jobs`/`services/jobs.service` statements were converted to the provider returning seam, so confirm no raw `RETURNING` remains outside provider/test allowlists instead of adding durable-job exceptions.
 - [ ] Add regressions proving the guardrail rejects raw dialect use outside sanctioned provider-owned paths.
 - [ ] Document the dialect guardrail in `docs/module-contract.md` and `docs/database.md` so future modules start from the agnostic contract.
 
 Acceptance criteria:
 
-- New database code cannot merge with raw dialect-isms outside provider-owned or sanctioned compatibility paths.
+- New database code cannot merge with raw dialect-isms outside provider-owned or sanctioned compatibility paths, and the whole-tree sweep has driven raw seam-backed dialect at application call sites to an enforced zero across all repositories — including those already marked converted for parameter binding — so `0.40.0` inherits no hidden raw-dialect call sites.
 
 ### Version 0.33.5.27.33 - Docs, decisions, 0.40.0 reconciliation, and closeout
 
@@ -434,7 +436,7 @@ Key decisions for this branch:
 - [ ] Define Dashboard as the workspace overview/orientation surface and Workbench as the active work/resumption/focus surface, and keep them separate.
 - [ ] Confirm and document the already-existing contribution contracts (`dashboard`, `workbench`, `timerSources`, `workItemSources`) and the resume-state producer registry, so later slices extend rather than reinvent them.
 - [ ] Name the net-new contracts this branch adds: a focus-mode contract/registry (0.33.6.4) and a normalized work-candidate source (0.33.6.2-0.33.6.3).
-- [ ] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls; the inline panels in `views/protected/dashboard.html`) and assign each to its owning slice.
+- [ ] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls and its hardcoded `modules: { tasks, timeTracking }` bootstrap return shape; the inline panels in `views/protected/dashboard.html`; and the first-party module IDs baked into the framework registry service itself — `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants, the `readModuleSettingValue` `taskTimersEnabled` special-case, and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` in `src/core/modules/modules.service.js`) and assign each to its owning slice. These compat flags cannot be retired until the Dashboard/Workbench/settings browser code that reads them is de-hardcoded in this branch, which is why they land here rather than in the earlier 0.33.5.27 database-conversion waves.
 - [ ] Preserve, as a standing requirement for every slice, permission checks, module enabled/disabled checks, workspace boundaries, and private/secure/deleted-record handling.
 - [ ] Update the implementation plan only; do not change runtime behavior in this slice.
 
@@ -480,14 +482,15 @@ Acceptance criteria:
 
 ### Version 0.33.6.5 - De-hardcode the Workbench service
 
-- [ ] Remove the direct `tasksService`/`activeTimersService` imports and hardcoded `tasks`/`time-tracking` branches from `src/services/workbench.service.js`; drive timers and work items purely through the contribution registry and the candidate service.
+- [ ] Remove the direct `tasksService`/`activeTimersService` imports and hardcoded `tasks`/`time-tracking` branches from `src/services/workbench.service.js`; drive timers and work items purely through the contribution registry and the candidate service. The `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants and the hardcoded `modules: { tasks, timeTracking }` bootstrap return shape must both be gone; if the browser still needs a module-state map, build it generically from enabled-module state keyed by module ID.
+- [ ] Also de-hardcode the framework registry service itself: remove the `taskTimersEnabled` special-case in `readModuleSettingValue` and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` (`src/core/modules/modules.service.js`), retiring those deprecated top-level flags now that the settings/Workbench browser code consuming them is being converted in this branch. `src/core/modules/` must not name specific first-party module IDs to make generic contribution/settings decisions.
 - [ ] Keep the existing Workbench bootstrap response shape working for the browser during the transition (adapt internals without breaking the page contract).
 - [ ] Preserve enabled/disabled-module handling, permission checks, and workspace boundaries already enforced in `bootstrap`.
-- [ ] Add regressions proving Workbench renders the same live data with Tasks/Time enabled and degrades cleanly when either is disabled, without importing them directly.
+- [ ] Add regressions proving Workbench renders the same live data with Tasks/Time enabled and degrades cleanly when either is disabled, without importing them directly, and that no first-party module ID remains hardcoded in `workbench.service.js` or the `modules.service.js` settings/decoration paths.
 
 Acceptance criteria:
 
-- Workbench data comes entirely from contributions and the candidate service, with no hardcoded module imports and no behavior regression.
+- Workbench data comes entirely from contributions and the candidate service, with no hardcoded module imports and no behavior regression, and the framework registry service (`modules.service.js`) no longer names specific first-party modules to make generic settings/contribution decisions.
 
 ### Version 0.33.6.6 - Guided Workbench UI
 
@@ -579,6 +582,7 @@ Acceptance criteria:
 
 - [ ] Record the branch decisions in `DECISIONS.md`: QAC as a floating drawer (not a permanent rail), the single shared work-candidate shape, and the Workbench Inspector as a distinct surface.
 - [ ] Add guardrails so Dashboard/Workbench hosts do not hand-build framework-owned page/header/filter/status anatomy when a view primitive covers it, and do not reintroduce hardcoded module assumptions.
+- [ ] Add a framework-coupling guardrail (lint/regression grep) that fails if `src/core/**` or the framework aggregation services under `src/services/**` (Workbench, Dashboard host) import a specific first-party module service/repo or hardcode a first-party module ID string to make a generic decision, outside an explicitly documented allowlist. Record the allowlist and the still-coupled framework services deferred to their own slices (Reporting → 0.33.8; public API and tag propagation → 0.39.15) so the coupling debt is tracked rather than silently accepted.
 - [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, and `docs/view-building-contract.md` with the Dashboard/Workbench host status and the focus-mode/candidate/QAC contribution boundaries.
 - [ ] Define the deferred future-modal follow-ups the QAC actions temporarily fall back to, as explicit cross-referenced items (not hidden inside QAC bullets):
   - [ ] 2-timer Timer modal (redirect the QAC Timer action to it once built).
@@ -737,6 +741,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 ### Version 0.33.8.5 - Time Tracking Project Time & Billing Contribution
 
 - [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
+- [ ] Make removal of framework→module coupling a hard bar for this move, not just a logic relocation: after the migration, `src/services/reporting.service.js` must not directly import `tasksService`, `timeEntriesService`, `clientsService`, or any other specific module service/repo. The framework Reporting service keeps only catalog/dispatch/host responsibilities; all client/project/task/time-entry data access moves behind the module-owned runner registered by ID. Any client/project hierarchy the runner needs must come through a module-owned contract (the Clients/Projects module), not a framework-level import.
 - [ ] Time Tracking should contribute the initial report:
   - [ ] ID: `project-time-billing`
   - [ ] Label: `Project Time & Billing`
@@ -821,6 +826,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
   - [ ] Reporting must not ship a non-minimal protected HTML view.
   - [ ] Reporting must not call `document.createElement` for framework-owned page header, filter host, status, table shell, or action anatomy when the chosen framework view path covers it.
   - [ ] Reporting must not introduce new one-off layout/footer classes for framework-owned anatomy.
+  - [ ] `src/services/reporting.service.js` (and any framework Reporting host/service code) must not import a specific module service/repo or hardcode a first-party module ID to reach data; all report data access stays behind module-owned runners. Add a grep/regression guardrail asserting this so the coupling that exists today (`reporting.service.js` importing `clientsService`/`tasksService`/`timeEntriesService`) cannot survive or be reintroduced.
 - [ ] Update `docs/declarative-view-surfaces.md` inventory to move Reporting out of "reported" and into the chosen framework-owned Reporting host status.
 - [ ] Update `docs/view-building-contract.md` and `docs/module-contract.md` with the Reporting host/contribution boundary.
 - [ ] Update Help, `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive.
@@ -1779,6 +1785,57 @@ Non-goals:
 - [ ] Audit all Public API calls and make a list for review and modification. Sort by module.
 
 - [ ] Audit all event hooks by module and make a list for review and modification.
+
+## Version 0.39.15 - Public API and integration-surface decoupling (backend-agnostic, pre-Postgres)
+
+Purpose:
+
+Decouple the public/integration-facing surfaces from both specific module internals and from any assumption about the storage backend, **before** the 0.40.0 PostgreSQL adapter and dual-backend work begins. This is deliberately ordered ahead of 0.40.0: the public API is the contract external integrations, the MCP connector (0.38.8), the ticket public API (0.35.5), and the future 0.70.0 integrations all depend on, and it must not care whether SQLite or PostgreSQL is running underneath, nor reach around module boundaries to assemble its responses. Doing this decoupling while the backend is still single-provider means the public API contract is proven stable *before* a second backend can perturb it.
+
+Entry contract and grounding (re-verify at implementation time — code will have drifted):
+
+- `src/services/public-api.service.js` currently imports `clientsService`, `clientsRepository`, and `projectsRepository` directly, reaching around the module boundary to assemble responses instead of consuming module-owned contracts.
+- `src/services/tag-propagation-registry.js` is nominally a framework registry but `registerBuiltInResolvers()` embeds module-specific SQL against `clients`, `projects`, `tasks`, `notes`, and `note_links` (with a literal `sqlText("client-projects")` module id). That is module data logic living in a framework file, and it is also raw-dialect/interpolation surface that the 0.33.5.27 seam work does not own because it is keyed on module semantics.
+- This version consumes the framework-coupling allowlist recorded in 0.33.6.12, which explicitly deferred `public-api.service.js` and `tag-propagation-registry.js` to this slice.
+- Aligns with the 0.70.0 integration guideline: "Avoid integration-specific logic leaking into core services where a module or adapter would be cleaner."
+
+Sizing rule for this branch:
+
+- Each sub-slice has one primary blast radius and should be completable in a single focused session. Do not fold the public API decoupling and the tag-propagation decoupling into one slice just because both touch `src/services/`.
+
+### Version 0.39.15.1 - Public API service module-boundary decoupling
+
+- [ ] Remove the direct `clientsService`/`clientsRepository`/`projectsRepository` imports from `src/services/public-api.service.js`; have it consume module-owned read contracts (the Clients/Projects module's service surface) or a registry-mediated data provider rather than importing another module's repo.
+- [ ] Confirm the public API depends only on framework-owned foundations (auth, API-key scopes, permissions, workspace boundaries, module enable/disable guards) plus module-declared `publicApiEndpoints`/`apiScopes`, never on a concrete module's storage internals.
+- [ ] Preserve every existing public API response shape, scope check, workspace boundary, and disabled-module write guard exactly; this is a decoupling, not a contract change.
+- [ ] Add regressions proving public API responses are unchanged and that the service no longer imports specific module repos/services.
+
+Acceptance criteria:
+
+- The public API assembles its responses through framework foundations and module-owned contracts only, with no direct import of a specific module's service/repo and no response-shape change.
+
+### Version 0.39.15.2 - Tag propagation registry module-ownership decoupling
+
+- [ ] Move the module-specific propagation SQL out of `src/services/tag-propagation-registry.js` and into module-owned resolvers registered through the existing `registerTagPropagationResolver()` seam, so the framework registry holds only the registration/materialization/suppression machinery and each module owns the SQL that reads its own tables.
+- [ ] Keep the framework responsible for materializing propagated assignments, honoring suppressions, emitting safe events, and repair tooling; keep each Client/Project/Task/Note relationship query owned by the module that owns those tables.
+- [ ] Route any dialect-sensitive SQL the resolvers still need through the 0.33.5.27 seams so the tag-propagation path is also backend-agnostic (this SQL was outside the 0.33.5.27 conversion waves because it lived in a framework service keyed on module semantics).
+- [ ] Preserve current Client/Project/Task/Note propagation behavior, resolver outputs, and suppression semantics exactly.
+- [ ] Add regressions proving propagation behavior is unchanged and that `tag-propagation-registry.js` no longer contains module-specific table SQL.
+
+Acceptance criteria:
+
+- Tag propagation SQL is module-owned behind the resolver registry, the framework file holds only generic machinery, and dialect-sensitive resolver SQL uses the provider-neutral seams.
+
+### Version 0.39.15.3 - Integration-surface backend-agnostic assertion and closeout
+
+- [ ] Confirm the public API, MCP read connector groundwork (0.38.8), and ticket public API (0.35.5) surfaces contain no direct dependency on a storage backend, raw dialect, or a specific module's storage internals; anything remaining routes through framework foundations, module contracts, or the provider-neutral seams.
+- [ ] Extend the 0.33.6.12 framework-coupling guardrail (or add a companion) so the public/integration surfaces cannot reintroduce a direct module-repo import or a hardcoded module ID for data access, and remove `public-api.service.js`/`tag-propagation-registry.js` from the deferred-coupling allowlist.
+- [ ] Update `docs/public-api.md`, `docs/module-contract.md`, and `DECISIONS.md` to record that integration-facing surfaces are module-contract- and backend-agnostic, and cross-reference this as a prerequisite the 0.40.0 dual-backend work relies on.
+- [ ] Run `npm run check` and `npm run test:permissions`, and verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- The public API and integration surfaces are provably independent of the storage backend and of specific module internals before 0.40.0 begins, with a guardrail preventing regression and the coupling allowlist reduced accordingly.
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
 

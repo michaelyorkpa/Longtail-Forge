@@ -1,3 +1,13 @@
+## Version 0.33.5.27.19 - 2026-07-06 09:28 -04:00
+
+- Completed the Files context and attachable targets conversion by moving File Context attachment updates, safe attachable-target lookup, readable target/context label reads, workspace-type reads, attachable-target option context-label enrichment, and duplicate active attachment-context checks in `services/files.service` to named params through the database facade.
+- Kept dynamic attachable target identifiers behind validated attachable metadata, preserved `db.dialect.comparison` usage for option search/order, and moved Client/Project label enrichment to array-valued named params.
+- Preserved attachment-scoped File Context behavior, Client/Project/Target selector ordering, cross-module target choices, readable labels, safe unavailable states, no-raw-ID label protections, route-backed save behavior, audit/event metadata, and storage/download/preview boundaries.
+- Left attachment create/remove, file lifecycle writes, report/quarantine/review paths, workspace file settings, storage accounting, quota reads, and file record create/update paths explicitly assigned to 0.33.5.27.20.
+- Added `scripts/files-context-targets-conversion-regression.mjs` to prove the converted static SQL blocks and SQLite runtime behavior for target options, Task-to-Note context updates, readable context labels, raw-ID label fallbacks, duplicate active attachment-context rejection, and no storage metadata leaks.
+- Updated the parameter-binding ratchet to 687 helper invocations, 137 direct interpolated operation sites, 214 bound operation sites, and 417 runtime DB operation calls.
+- Verification 2026-07-06 09:39 -04:00: `scripts/files-context-targets-conversion-regression.mjs`, `scripts/files-attachment-context-route-regression.mjs`, `scripts/files-attachable-target-options-regression.mjs`, `scripts/files-browse-attachment-reads-conversion-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` passed; `npm run check` passed 280/280 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.19 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.18 - 2026-07-06 09:00 -04:00
 
 - Completed the Files browse and attachment reads conversion by moving attachment list filters, visible candidate paging, file-row reads, attachment-by-id reads, active-attachments-for-file reads, preview access, download/read metadata, and attachment count metadata paths in `services/files.service` to named params through the database facade.

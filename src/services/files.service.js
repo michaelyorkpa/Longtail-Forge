@@ -999,16 +999,24 @@ async function updateAttachmentContext(session, attachmentId, payload = {}) {
     return { attachment: await shapeAttachmentForRead(session, attachment) };
   }
 
-  await runSql(`
+  await db.run(`
 UPDATE file_attachments
-SET module_id = ${sqlText(nextContext.moduleId)},
-    target_type = ${sqlText(nextContext.targetType)},
-    target_id = ${sqlText(nextContext.targetId)},
-    client_id = ${sqlNullableText(nextContext.clientId)},
-    project_id = ${sqlNullableText(nextContext.projectId)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_attachment_id = ${sqlText(attachment.file_attachment_id)};
-`);
+SET module_id = :attachmentModuleId,
+    target_type = :attachmentTargetType,
+    target_id = :attachmentTargetId,
+    client_id = :attachmentClientId,
+    project_id = :attachmentProjectId
+WHERE workspace_id = :attachmentWorkspaceId
+  AND file_attachment_id = :attachmentId;
+`, {
+    attachmentClientId: nextContext.clientId || null,
+    attachmentId: attachment.file_attachment_id,
+    attachmentModuleId: nextContext.moduleId,
+    attachmentProjectId: nextContext.projectId || null,
+    attachmentTargetId: nextContext.targetId,
+    attachmentTargetType: nextContext.targetType,
+    attachmentWorkspaceId: session.workspace_id,
+  });
 
   const updatedAttachment = await readAttachmentById(session.workspace_id, attachment.file_attachment_id);
   await emitAttachmentContextUpdateEvents(session, updatedAttachment, previousContext, nextContext);
@@ -2006,24 +2014,33 @@ VALUES (
 
 async function readAttachableTarget(workspaceId, attachableType, targetId) {
   const normalizedTargetId = normalizeRequiredText(targetId, "Target ID is required.");
-  const rows = await querySql(`
+  const tableName = safeSqlIdentifier(attachableType.tableName);
+  const idField = safeSqlIdentifier(attachableType.idField);
+  const labelField = safeSqlIdentifier(attachableType.labelField);
+  const workspaceField = safeSqlIdentifier(attachableType.workspaceField);
+  const clientField = attachableType.clientField ? safeSqlIdentifier(attachableType.clientField) : "";
+  const projectField = attachableType.projectField ? safeSqlIdentifier(attachableType.projectField) : "";
+  const row = await db.get(`
 SELECT
-  ${attachableType.idField} AS target_id,
-  ${attachableType.labelField} AS target_label,
-  ${attachableType.workspaceField} AS workspace_id
-  ${attachableType.clientField ? `, ${attachableType.clientField} AS client_id` : ", NULL AS client_id"}
-  ${attachableType.projectField ? `, ${attachableType.projectField} AS project_id` : ", NULL AS project_id"}
-FROM ${attachableType.tableName}
-WHERE ${attachableType.workspaceField} = ${sqlText(workspaceId)}
-  AND ${attachableType.idField} = ${sqlText(normalizedTargetId)}
+  ${idField} AS target_id,
+  ${labelField} AS target_label,
+  ${workspaceField} AS workspace_id
+  ${clientField ? `, ${clientField} AS client_id` : ", NULL AS client_id"}
+  ${projectField ? `, ${projectField} AS project_id` : ", NULL AS project_id"}
+FROM ${tableName}
+WHERE ${workspaceField} = :attachableTargetWorkspaceId
+  AND ${idField} = :attachableTargetId
 LIMIT 1;
-`);
+`, {
+    attachableTargetId: normalizedTargetId,
+    attachableTargetWorkspaceId: workspaceId,
+  });
 
-  if (!rows[0]) {
+  if (!row) {
     throw new AppError("Attachment target not found in this workspace.", 404);
   }
 
-  return rows[0];
+  return row;
 }
 
 function prepareUpload(payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
@@ -3016,42 +3033,48 @@ async function readAttachmentTargetLabel(workspaceId, attachment) {
 async function readAttachmentContextLabels(workspaceId, attachment) {
   const clientId = attachment.client_id || "";
   const projectId = attachment.project_id || "";
-  const [clientRows, projectRows] = await Promise.all([
+  const [clientRow, projectRow] = await Promise.all([
     clientId
-      ? querySql(`
+      ? db.get(`
 SELECT name
 FROM clients
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id = ${sqlText(clientId)}
+WHERE workspace_id = :contextWorkspaceId
+  AND id = :contextClientId
 LIMIT 1;
-`)
-      : Promise.resolve([]),
+`, {
+        contextClientId: clientId,
+        contextWorkspaceId: workspaceId,
+      })
+      : Promise.resolve(null),
     projectId
-      ? querySql(`
+      ? db.get(`
 SELECT name
 FROM projects
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id = ${sqlText(projectId)}
+WHERE workspace_id = :contextWorkspaceId
+  AND id = :contextProjectId
 LIMIT 1;
-`)
-      : Promise.resolve([]),
+`, {
+        contextProjectId: projectId,
+        contextWorkspaceId: workspaceId,
+      })
+      : Promise.resolve(null),
   ]);
 
   return {
-    clientLabel: clientRows[0]?.name || "",
-    projectLabel: projectRows[0]?.name || "",
+    clientLabel: clientRow?.name || "",
+    projectLabel: projectRow?.name || "",
   };
 }
 
 async function readWorkspaceType(workspaceId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT workspace_type
 FROM workspaces
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 LIMIT 1;
-`);
+`, { workspaceId });
 
-  return normalizeWorkspaceType(rows[0]?.workspace_type);
+  return normalizeWorkspaceType(row?.workspace_type);
 }
 
 function normalizeAttachableTargetOptionFilters(filters = {}) {
@@ -3246,12 +3269,15 @@ async function readClientLabelMap(workspaceId, clientIds) {
     return new Map();
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT id, name
 FROM clients
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id IN (${clientIds.map(sqlText).join(", ")});
-`);
+WHERE workspace_id = :workspaceId
+  AND id IN (:clientIds);
+`, {
+    clientIds,
+    workspaceId,
+  });
 
   return new Map(rows.map((row) => [row.id, row.name || ""]));
 }
@@ -3261,12 +3287,15 @@ async function readProjectLabelMap(workspaceId, projectIds) {
     return new Map();
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT id, name
 FROM projects
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id IN (${projectIds.map(sqlText).join(", ")});
-`);
+WHERE workspace_id = :workspaceId
+  AND id IN (:projectIds);
+`, {
+    projectIds,
+    workspaceId,
+  });
 
   return new Map(rows.map((row) => [row.id, row.name || ""]));
 }
@@ -3431,20 +3460,27 @@ function assertAttachmentContextPayloadMatchesTarget(attachableType, target, pay
 }
 
 async function assertNoDuplicateActiveAttachmentContext(workspaceId, attachment, attachableType, target) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT file_attachment_id
 FROM file_attachments
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND file_id = ${sqlText(attachment.file_id)}
-  AND module_id = ${sqlText(attachableType.moduleId)}
-  AND target_type = ${sqlText(attachableType.targetType)}
-  AND target_id = ${sqlText(target.target_id)}
-  AND file_attachment_id <> ${sqlText(attachment.file_attachment_id)}
+WHERE workspace_id = :attachmentWorkspaceId
+  AND file_id = :attachmentFileId
+  AND module_id = :attachmentModuleId
+  AND target_type = :attachmentTargetType
+  AND target_id = :attachmentTargetId
+  AND file_attachment_id <> :attachmentId
   AND removed_at IS NULL
 LIMIT 1;
-`);
+`, {
+    attachmentFileId: attachment.file_id,
+    attachmentId: attachment.file_attachment_id,
+    attachmentModuleId: attachableType.moduleId,
+    attachmentTargetId: target.target_id,
+    attachmentTargetType: attachableType.targetType,
+    attachmentWorkspaceId: workspaceId,
+  });
 
-  if (rows[0]) {
+  if (row) {
     throw new AppError("That file is already attached to the selected target.", 409);
   }
 }
