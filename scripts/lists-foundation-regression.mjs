@@ -39,7 +39,7 @@ async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
 
   assert.equal(listsModule.id, "lists");
-  assert.equal(listsModule.version, "0.33.5.27.29");
+  assert.equal(listsModule.version, "0.33.5.27.30");
   assert.equal(listsModule.enabledByDefault, true);
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);

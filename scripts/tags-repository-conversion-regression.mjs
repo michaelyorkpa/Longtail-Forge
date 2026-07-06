@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.29";
+const appVersion = "0.33.5.27.30";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tags-repository-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tags-repository-conversion.db");
@@ -95,7 +95,7 @@ function assertStaticContract() {
     /suppressionInsertParams/,
   ]);
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.29:[\s\S]*Remaining runtime literal-helper invocations: 18[\s\S]*Remaining direct interpolated SQL operation sites: 8[\s\S]*Existing direct bound-params operation sites: 375[\s\S]*Total runtime database operation calls seen by the audit scanner: 425/, "audit docs should record the current conversion ratchet after the Tags repository conversion");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.30:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current conversion ratchet after the Tags repository conversion");
   assert.match(auditDocs, /\| tags\.repo \| Converted \| 0 \| 0 \| 17 \| 17 \|/, "audit inventory should mark tags repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.23 Tags Repository Conversion[\s\S]*`tags\.repo` is fully converted[\s\S]*403 runtime literal-helper invocations[\s\S]*86 direct interpolated SQL operation sites[\s\S]*273 existing bound operation sites/, "audit docs should record the Tags repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.23[\s\S]*`tags\.repo` is converted[\s\S]*403 remaining helper invocations/, "database docs should record the concrete Tags repository conversion");

@@ -320,10 +320,10 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.30 - Migration compatibility path
 
-- [ ] Review `src/db/migrations.js` and active migration SQL handling against the seam decisions and the no-parameter multi-statement compatibility allowlist.
-- [ ] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining migration statements as sanctioned migration compatibility with recorded rationale.
-- [ ] Account for dialect-sensitive migration statements such as PRAGMAs, `rowid`, schema introspection, checksum validation, and baseline repair.
-- [ ] Update the burndown ratchet to reflect the final migration allowlist.
+- [x] Review `src/db/migrations.js` and active migration SQL handling against the seam decisions and the no-parameter multi-statement compatibility allowlist.
+- [x] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining migration statements as sanctioned migration compatibility with recorded rationale.
+- [x] Account for dialect-sensitive migration statements such as PRAGMAs, `rowid`, schema introspection, checksum validation, and baseline repair.
+- [x] Update the burndown ratchet to reflect the final migration allowlist.
 
 Acceptance criteria:
 

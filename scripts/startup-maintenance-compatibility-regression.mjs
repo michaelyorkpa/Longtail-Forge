@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.29";
+const appVersion = "0.33.5.27.30";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-startup-maintenance-compatibility-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-startup-maintenance-compatibility.db");
@@ -60,8 +60,8 @@ function assertStaticContract() {
   assert.match(dbIndexSource, /databaseDialect\.introspection\.tableInfo\(tableName\)/, "startup column checks should use the introspection seam");
   assert.match(dbIndexSource, /await db\.transaction\(async \(transaction\) => \{[\s\S]*transaction\.run/, "multi-step startup repairs should use transaction clients");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.29:[\s\S]*Remaining runtime literal-helper invocations: 18[\s\S]*Remaining direct interpolated SQL operation sites: 8[\s\S]*Existing direct bound-params operation sites: 375[\s\S]*Total runtime database operation calls seen by the audit scanner: 425/, "audit docs should record the startup maintenance compatibility ratchet");
-  assert.match(auditDocs, /\| db\/migrations \| Remaining \| 18 \| 8 \| 0 \| 24 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should leave only migrations with remaining helper interpolation and mark startup compatibility converted for values");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.30:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current parameter-binding ratchet after migration compatibility conversion");
+  assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migrations and startup as compatibility-tracked after value conversion");
   assert.match(auditDocs, /0\.33\.5\.27\.29 Startup Maintenance Compatibility Path[\s\S]*`src\/db\/index\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*18 runtime literal-helper invocations[\s\S]*8 direct interpolated SQL operation sites[\s\S]*375 existing bound operation sites/, "audit docs should record the startup maintenance compatibility slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.29[\s\S]*`src\/db\/index\.js` startup maintenance has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*18 remaining helper invocations/, "database docs should record the startup maintenance compatibility outcome");
   assert.match(roadmap, /### Version 0\.33\.5\.27\.29 - Startup maintenance compatibility path[\s\S]*- \[x\] Review `src\/db\/index\.js`[\s\S]*- \[x\] Convert paths that can safely move[\s\S]*- \[x\] Account for dialect-sensitive startup statements[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the startup maintenance compatibility slice complete");

@@ -7,7 +7,7 @@ import path from "node:path";
 import { clearTimeout, setTimeout } from "node:timers";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.29";
+const appVersion = "0.33.5.27.30";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-migration-locking-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-migration-locking.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Migration-Locking-Test-123!";
@@ -79,10 +79,11 @@ function assertMigrationScriptsUseExecCompatibilityPath() {
   assert.match(sqliteHelperSource, /function executeRunSql[\s\S]*if \(bindings\.hasBindings\)[\s\S]*Parameterized SQLite statements must be single statements[\s\S]*getSqliteDatabase\(\)\.exec\(text\)/, "unbound multi-statement runSql calls should route through better-sqlite3 exec()");
   assert.match(sqliteHelperSource, /function executeQuerySql[\s\S]*if \(statementCount > 1\)[\s\S]*getSqliteDatabase\(\)\.exec\(text\)/, "unbound multi-statement querySql calls should route through better-sqlite3 exec()");
 
-  assert.match(migrationsSource, /async function adoptExistingDatabaseAsBaseline\(\)[\s\S]*await runSql\(`[\s\S]*BEGIN TRANSACTION;[\s\S]*COMMIT;/, "existing database adoption should keep its embedded transaction script");
-  assert.match(migrationsSource, /async function applyFreshBaseline\(\)[\s\S]*await runSql\(`[\s\S]*BEGIN TRANSACTION;[\s\S]*COMMIT;/, "fresh baseline should keep its embedded transaction script");
-  assert.match(migrationsSource, /async function applyMigration\(migration\)[\s\S]*await runSql\(`[\s\S]*BEGIN TRANSACTION;[\s\S]*COMMIT;/, "future migration application should keep its embedded transaction script");
-  assert.match(migrationsSource, /async function repairLegacyWorkspaceScopedForeignKeys\(\)[\s\S]*await runSql\(`[\s\S]*BEGIN TRANSACTION;[\s\S]*COMMIT;/, "legacy workspace-scoped repair should keep its embedded transaction script");
+  assert.match(migrationsSource, /async function runMigrationScriptTransaction\(callback\)[\s\S]*await runSql\("BEGIN TRANSACTION;"\)[\s\S]*await runSql\("COMMIT;"\)[\s\S]*await runSql\("ROLLBACK;"\)/, "baseline and migration scripts should keep explicit transaction ownership while allowing bound metadata writes");
+  assert.match(migrationsSource, /async function adoptExistingDatabaseAsBaseline\(\)[\s\S]*await runMigrationScriptTransaction\(async \(\) => \{[\s\S]*await recordMigrationApplied\(baseline\)/, "existing database adoption should keep transactional migration ownership");
+  assert.match(migrationsSource, /async function applyFreshBaseline\(\)[\s\S]*await runMigrationScriptTransaction\(async \(\) => \{[\s\S]*await runSql\(baseline\.sql\)[\s\S]*await recordMigrationApplied\(baseline\)/, "fresh baseline should keep schema script execution transactional");
+  assert.match(migrationsSource, /async function applyMigration\(migration\)[\s\S]*await runMigrationScriptTransaction\(async \(\) => \{[\s\S]*await runSql\(migration\.sql\)[\s\S]*await recordMigrationApplied\(migration\)/, "future migration application should keep migration SQL execution transactional");
+  assert.match(migrationsSource, /async function rebuildTableFromCurrentSchema\(schemaSql, repair\)[\s\S]*await runSql\(`[\s\S]*BEGIN TRANSACTION;[\s\S]*COMMIT;/, "legacy workspace-scoped repair should keep its embedded transaction script");
   assert.match(migrationsSource, /await validateAppliedMigrationChecksums\(migrations\);[\s\S]*for \(const migration of migrations\)[\s\S]*await applyMigration\(migration\)/, "checksum validation should still happen before pending migrations apply");
 }
 

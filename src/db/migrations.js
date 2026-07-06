@@ -5,13 +5,24 @@ import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
 import { listModuleMigrationSources } from "../core/modules/registry.js";
 import { withMigrationLock } from "./migration-lock.js";
-import { querySql, runSql, sqlText } from "./provider.js";
+import { databaseDialect, querySql, runSql } from "./provider.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
 const BASELINE_VERSION = "0.33.5.18.6.5.4";
 const BASELINE_MODULE_ID = "core";
 const BASELINE_NAME = "current_fresh_start_database";
 const CURRENT_SCHEMA_FILE = path.join(config.root, "src", "db", "schema", "current.sql");
+const RECORD_MIGRATION_SQL = databaseDialect.conflict.buildInsertOrIgnore({
+  tableName: MIGRATIONS_TABLE,
+  columns: ["version", "module_id", "name", "checksum", "applied_at"],
+  valueExpressions: {
+    version: ":version",
+    module_id: ":moduleId",
+    name: ":name",
+    checksum: ":checksum",
+    applied_at: ":appliedAt",
+  },
+});
 const LEGACY_SQLITE_HARDENING_BASELINE_CHECKSUMS = new Set([
   "b7d790032a9d8cd5505ba02fb34478798ae0c28e79ad720f8961de49ef10ae73",
 ]);
@@ -263,9 +274,9 @@ async function tableNeedsForeignKeyRepair(repair) {
 SELECT sql
 FROM sqlite_master
 WHERE type = 'table'
-  AND name = ${sqlText(repair.tableName)}
+  AND name = :tableName
 LIMIT 1;
-`);
+`, { tableName: repair.tableName });
   const createSql = rows[0]?.sql || "";
   return repair.legacyPatterns.some((pattern) => pattern.test(createSql));
 }
@@ -275,7 +286,7 @@ async function rebuildTableFromCurrentSchema(schemaSql, repair) {
   const createTableSql = extractCreateTableStatement(schemaSql, repair.tableName);
   const indexSql = extractTableIndexStatements(schemaSql, repair.tableName).join("\n");
   const currentColumns = extractCreateTableColumnNames(createTableSql);
-  const oldColumns = await querySql(`PRAGMA table_info(${quoteIdentifier(repair.tableName)});`);
+  const oldColumns = await querySql(databaseDialect.introspection.tableInfo(repair.tableName));
   const oldColumnNames = new Set(oldColumns.map((column) => column.name));
   const copyColumns = currentColumns.filter((columnName) => oldColumnNames.has(columnName));
 
@@ -322,9 +333,9 @@ async function refreshBaselineChecksumAfterSqliteHardeningRepairs() {
   const rows = await querySql(`
 SELECT checksum
 FROM ${MIGRATIONS_TABLE}
-WHERE version = ${sqlText(BASELINE_VERSION)}
+WHERE version = :version
 LIMIT 1;
-`);
+`, { version: BASELINE_VERSION });
 
   const appliedChecksum = rows[0]?.checksum;
   if (!appliedChecksum || appliedChecksum === baseline.checksum) {
@@ -341,11 +352,16 @@ LIMIT 1;
 
   await runSql(`
 UPDATE ${MIGRATIONS_TABLE}
-SET checksum = ${sqlText(baseline.checksum)},
-    module_id = ${sqlText(BASELINE_MODULE_ID)},
-    name = ${sqlText(BASELINE_NAME)}
-WHERE version = ${sqlText(BASELINE_VERSION)};
-`);
+SET checksum = :checksum,
+    module_id = :moduleId,
+    name = :name
+WHERE version = :version;
+`, {
+    checksum: baseline.checksum,
+    moduleId: BASELINE_MODULE_ID,
+    name: BASELINE_NAME,
+    version: BASELINE_VERSION,
+  });
 }
 
 async function sqliteHardeningForeignKeySchemaIsCurrent() {
@@ -490,10 +506,14 @@ async function backfillMissingChecksums(migrations) {
 
     await runSql(`
 UPDATE ${MIGRATIONS_TABLE}
-SET checksum = ${sqlText(migration.checksum)},
-    module_id = ${sqlText(migration.moduleId)}
-WHERE version = ${sqlText(migration.version)};
-`);
+SET checksum = :checksum,
+    module_id = :moduleId
+WHERE version = :version;
+`, {
+      checksum: migration.checksum,
+      moduleId: migration.moduleId,
+      version: migration.version,
+    });
   }
 }
 
@@ -551,9 +571,9 @@ async function canAdoptExistingDatabaseAsBaseline() {
   const historicalRows = await querySql(`
 SELECT version
 FROM ${MIGRATIONS_TABLE}
-WHERE version != ${sqlText(BASELINE_VERSION)}
+WHERE version != :baselineVersion
 LIMIT 1;
-`);
+`, { baselineVersion: BASELINE_VERSION });
 
   if (historicalRows.length === 0) {
     return false;
@@ -583,8 +603,8 @@ LIMIT 1;
 SELECT name
 FROM sqlite_master
 WHERE type = 'table'
-  AND name IN (${requiredTables.map(sqlText).join(", ")});
-`);
+  AND name IN (:requiredTables);
+`, { requiredTables });
   const existingTables = new Set(tableRows.map((row) => row.name));
 
   if (!requiredTables.every((tableName) => existingTables.has(tableName))) {
@@ -615,23 +635,19 @@ WHERE type = 'table'
 async function adoptExistingDatabaseAsBaseline() {
   const baseline = await readBaselineSchema();
 
-  await runSql(`
-BEGIN TRANSACTION;
-DELETE FROM ${MIGRATIONS_TABLE};
-${createRecordMigrationSql(baseline)}
-COMMIT;
-`);
+  await runMigrationScriptTransaction(async () => {
+    await runSql(`DELETE FROM ${MIGRATIONS_TABLE};`);
+    await recordMigrationApplied(baseline);
+  });
 }
 
 async function applyFreshBaseline() {
   const baseline = await readBaselineSchema();
 
-  await runSql(`
-BEGIN TRANSACTION;
-${baseline.sql}
-${createRecordMigrationSql(baseline)}
-COMMIT;
-`);
+  await runMigrationScriptTransaction(async () => {
+    await runSql(baseline.sql);
+    await recordMigrationApplied(baseline);
+  });
 }
 
 async function readBaselineSchema() {
@@ -651,9 +667,9 @@ async function hasBaselineMarker() {
   const rows = await querySql(`
 SELECT version
 FROM ${MIGRATIONS_TABLE}
-WHERE version = ${sqlText(BASELINE_VERSION)}
+WHERE version = :version
 LIMIT 1;
-`);
+`, { version: BASELINE_VERSION });
 
   return rows.length > 0;
 }
@@ -663,9 +679,9 @@ async function validateBaselineChecksum() {
   const rows = await querySql(`
 SELECT checksum
 FROM ${MIGRATIONS_TABLE}
-WHERE version = ${sqlText(BASELINE_VERSION)}
+WHERE version = :version
 LIMIT 1;
-`);
+`, { version: BASELINE_VERSION });
 
   if (rows.length > 0 && rows[0].checksum !== baseline.checksum) {
     throw new Error(`Applied ${BASELINE_VERSION} fresh-start database baseline checksum does not match the current schema file.`);
@@ -673,19 +689,37 @@ LIMIT 1;
 }
 
 async function applyMigration(migration) {
-  await runSql(`
-BEGIN TRANSACTION;
-${migration.sql}
-${createRecordMigrationSql(migration)}
-COMMIT;
-`);
+  await runMigrationScriptTransaction(async () => {
+    await runSql(migration.sql);
+    await recordMigrationApplied(migration);
+  });
 }
 
-function createRecordMigrationSql(migration) {
-  return `
-INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (version, module_id, name, checksum, applied_at)
-VALUES (${sqlText(migration.version)}, ${sqlText(migration.moduleId)}, ${sqlText(migration.name)}, ${sqlText(migration.checksum)}, ${sqlText(new Date().toISOString())});
-`;
+async function recordMigrationApplied(migration) {
+  await runSql(RECORD_MIGRATION_SQL, {
+    appliedAt: new Date().toISOString(),
+    checksum: migration.checksum,
+    moduleId: migration.moduleId,
+    name: migration.name,
+    version: migration.version,
+  });
+}
+
+async function runMigrationScriptTransaction(callback) {
+  await runSql("BEGIN TRANSACTION;");
+
+  try {
+    await callback();
+    await runSql("COMMIT;");
+  } catch (error) {
+    try {
+      await runSql("ROLLBACK;");
+    } catch (rollbackError) {
+      error.rollbackError = rollbackError;
+    }
+
+    throw error;
+  }
 }
 
 function createMigrationChecksum(sql) {
@@ -697,15 +731,15 @@ async function tableExists(tableName) {
 SELECT name
 FROM sqlite_master
 WHERE type = 'table'
-  AND name = ${sqlText(tableName)}
+  AND name = :tableName
 LIMIT 1;
-`);
+`, { tableName });
 
   return rows.length > 0;
 }
 
 async function columnsExist(tableName, columnNames) {
-  const columns = await querySql(`PRAGMA table_info(${tableName});`);
+  const columns = await querySql(databaseDialect.introspection.tableInfo(tableName));
   const existingColumnNames = new Set(columns.map((column) => column.name));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));

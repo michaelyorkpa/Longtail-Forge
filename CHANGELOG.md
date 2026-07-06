@@ -1,3 +1,13 @@
+## Version 0.33.5.27.30 - 2026-07-06 16:34 -04:00
+
+- Completed the Migration compatibility path by moving value-bearing `src/db/migrations.js` metadata reads and writes to named params through the provider-neutral database facade.
+- Converted schema migration checksum reads/updates, baseline marker reads, baseline adoption history/table probes, table-existence reads, foreign-key repair metadata reads, and `schema_migrations` record inserts to bound `querySql(...)` and `runSql(...)` calls.
+- Routed `schema_migrations` insert-if-missing writes through `db.dialect.conflict`, migration table metadata through `db.dialect.introspection.tableInfo(...)`, and baseline adoption table probes through array-valued named params.
+- Preserved migration-owned compatibility for raw PRAGMAs, legacy repair scripts, current baseline SQL, and future migration SQL-file execution because those paths are schema scripts rather than runtime value filters.
+- Added `scripts/migration-compatibility-regression.mjs` and wired it into the isolated database regression suite.
+- Updated the parameter-binding ratchet to 0 helper invocations, 0 direct interpolated operation sites, 385 bound operation sites, and 429 runtime DB operation calls.
+- Verification 2026-07-06 16:41 -04:00: `scripts/migration-compatibility-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/database-migration-locking-regression.mjs`, `scripts/startup-maintenance-compatibility-regression.mjs`, `scripts/fresh-database-regression.mjs`, `scripts/baseline-adoption-regression.mjs`, `scripts/sqlite-connection-hardening-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, `scripts/framework-admin-low-count-repositories-conversion-regression.mjs`, `scripts/database-introspection-boundary-regression.mjs`, `scripts/database-conflict-identity-seam-regression.mjs`, `scripts/database-adapter-contract-regression.mjs`, and `scripts/database-transaction-helper-regression.mjs` passed; `npm run check` passed 291/291 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.30 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.29 - 2026-07-06 15:59 -04:00
 
 - Completed the Startup maintenance compatibility path by moving value-bearing `src/db/index.js` startup reads and repairs to named params through the provider-neutral database facade.

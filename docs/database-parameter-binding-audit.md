@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.29:
+Current totals as of 0.33.5.27.30:
 
-- Remaining runtime literal-helper invocations: 18.
-- Remaining direct interpolated SQL operation sites: 8.
-- Existing direct bound-params operation sites: 375.
-- Total runtime database operation calls seen by the audit scanner: 425.
+- Remaining runtime literal-helper invocations: 0.
+- Remaining direct interpolated SQL operation sites: 0.
+- Existing direct bound-params operation sites: 385.
+- Total runtime database operation calls seen by the audit scanner: 429.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -36,12 +36,13 @@ Status legend:
 
 - `Remaining`: still has literal-helper invocations and direct interpolated operation sites to convert, even if some bound sites already exist.
 - `Startup compatibility`: startup-only maintenance code has zero literal-helper/direct-interpolation sites, but still contains sanctioned no-value startup maintenance SQL until the enforcement slices record the final dialect allowlist.
+- `Migration compatibility`: migration-only schema, repair, and SQL-file execution code has zero literal-helper/direct-interpolation sites, but still contains sanctioned no-value schema scripts until the enforcement slices record the final dialect allowlist.
 - `Converted`: this branch converted or proof-converted the owner to zero literal-helper/direct-interpolation sites.
 - `Already bound`: the owner already had zero literal-helper/direct-interpolation sites in the initial audit and is tracked here for completeness.
 
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
-| db/migrations | Remaining | 18 | 8 | 0 | 24 |
+| db/migrations | Migration compatibility | 0 | 0 | 10 | 28 |
 | db/index | Startup compatibility | 0 | 0 | 31 | 40 |
 | core/modules/modules.service | Converted | 0 | 0 | 6 | 7 |
 | audit-logs.repo | Converted | 0 | 0 | 10 | 10 |
@@ -127,7 +128,7 @@ Standing query rule from `DECISIONS.md`: new or touched single-statement reposit
 | 0.33.5.27.29 - Startup maintenance compatibility path | `db/index` |
 | 0.33.5.27.30 - Migration compatibility path | `db/migrations` |
 
-The only sanctioned interpolation compatibility allowlist is no-parameter multi-statement startup/migration code in `src/db/index.js` and `src/db/migrations.js`. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance; `src/db/migrations.js` is the only remaining owner with counted literal-helper/direct-interpolation sites. All other assigned owners must convert to named bound params and the dialect seams before their wave is complete.
+No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution until the enforcement slices record the final dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths.
 
 ## Scope Rechecks
 
@@ -515,3 +516,13 @@ Dialect-sensitive startup behavior is accounted for without changing SQLite beha
 `src/db/index.js` no longer has literal-helper calls or direct interpolated operation sites in the canonical inventory. It remains visible as `Startup compatibility` with 31 bound operation sites and 40 runtime database operation calls so future enforcement work can distinguish converted startup values from sanctioned startup-only maintenance.
 
 The live ratchet after this conversion is 18 runtime literal-helper invocations, 8 direct interpolated SQL operation sites, 375 existing bound operation sites, and 425 total runtime database operation calls. All counted remaining helper/direct-interpolation sites are now isolated to `src/db/migrations.js` for the 0.33.5.27.30 migration compatibility path.
+
+## 0.33.5.27.30 Migration Compatibility Path
+
+0.33.5.27.30 converts value-bearing `src/db/migrations.js` migration metadata SQL from literal-helper interpolation to named params through the provider-neutral database facade. Migration startup now binds schema migration checksum reads and updates, baseline marker reads, baseline adoption history reads, required-table probes, table-existence reads, foreign-key repair metadata reads, and `schema_migrations` record inserts.
+
+Dialect-sensitive migration behavior is accounted for without changing SQLite behavior: `schema_migrations` insert-if-missing writes use the conflict insert-or-ignore seam, table metadata reads use `db.dialect.introspection.tableInfo(...)`, required-table probes use array-valued named params, and baseline/migration metadata writes bind checksum, module, name, version, and applied timestamp values. Raw PRAGMA statements, legacy table-rebuild SQL, current baseline SQL, and future migration SQL files remain migration-owned compatibility because SQLite parameterized statements must stay single-statement and those scripts are schema operations rather than runtime value filters.
+
+`src/db/migrations.js` no longer has literal-helper calls or direct interpolated operation sites in the canonical inventory. It remains visible as `Migration compatibility` with 10 bound operation sites and 28 runtime database operation calls so enforcement work can distinguish converted migration values from sanctioned migration-only schema scripts.
+
+The live ratchet after this conversion is 0 runtime literal-helper invocations, 0 direct interpolated SQL operation sites, 385 existing bound operation sites, and 429 total runtime database operation calls. The remaining compatibility surface is now dialect/schema-script ownership, not value interpolation.
