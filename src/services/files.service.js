@@ -21,7 +21,7 @@ import {
   createNoopFileScannerAdapter,
 } from "../core/files/scanner-adapter.js";
 import { config } from "../config.js";
-import { db, querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
+import { db, querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../core/database.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
@@ -501,8 +501,11 @@ async function listAttachments(session, filters = {}) {
   await assertTargetScopedAttachmentRead(session, filters);
   const statusFilter = normalizeFileStatusFilter(filters.status || filters.fileStatus || filters.file_status);
   const targetScopedRead = Boolean(filters.targetId || filters.target_id);
+  const params = {
+    attachmentWorkspaceId: session.workspace_id,
+  };
   const conditions = [
-    `file_attachments.workspace_id = ${sqlText(session.workspace_id)}`,
+    "file_attachments.workspace_id = :attachmentWorkspaceId",
     "file_attachments.removed_at IS NULL",
   ];
 
@@ -527,35 +530,42 @@ async function listAttachments(session, filters = {}) {
     conditions.push("files.scan_status IN ('not_required', 'passed')");
   }
   if (filters.fileId || filters.file_id) {
-    conditions.push(`file_attachments.file_id = ${sqlText(filters.fileId || filters.file_id)}`);
+    conditions.push("file_attachments.file_id = :attachmentFileId");
+    params.attachmentFileId = filters.fileId || filters.file_id;
   }
   if (filters.moduleId || filters.module_id) {
-    conditions.push(`file_attachments.module_id = ${sqlText(filters.moduleId || filters.module_id)}`);
+    conditions.push("file_attachments.module_id = :attachmentModuleId");
+    params.attachmentModuleId = filters.moduleId || filters.module_id;
   }
   if (filters.targetType || filters.target_type) {
-    conditions.push(`file_attachments.target_type = ${sqlText(filters.targetType || filters.target_type)}`);
+    conditions.push("file_attachments.target_type = :attachmentTargetType");
+    params.attachmentTargetType = filters.targetType || filters.target_type;
   }
   if (filters.targetId || filters.target_id) {
-    conditions.push(`file_attachments.target_id = ${sqlText(filters.targetId || filters.target_id)}`);
+    conditions.push("file_attachments.target_id = :attachmentTargetId");
+    params.attachmentTargetId = filters.targetId || filters.target_id;
   }
   if (filters.clientId || filters.client_id) {
-    conditions.push(`file_attachments.client_id = ${sqlText(filters.clientId || filters.client_id)}`);
+    conditions.push("file_attachments.client_id = :attachmentClientId");
+    params.attachmentClientId = filters.clientId || filters.client_id;
   }
   if (filters.projectId || filters.project_id) {
-    conditions.push(`file_attachments.project_id = ${sqlText(filters.projectId || filters.project_id)}`);
+    conditions.push("file_attachments.project_id = :attachmentProjectId");
+    params.attachmentProjectId = filters.projectId || filters.project_id;
   }
   if (filters.filename || filters.fileName || filters.q) {
-    const filename = String(filters.filename || filters.fileName || filters.q || "").trim().toLowerCase();
+    const filename = String(filters.filename || filters.fileName || filters.q || "").trim();
     if (filename) {
+      params.attachmentFilenamePattern = db.dialect.comparison.likePattern(filename, { mode: "contains" });
       conditions.push(`(
-        LOWER(files.original_filename) LIKE ${sqlText(`%${filename}%`)}
-        OR LOWER(files.display_name) LIKE ${sqlText(`%${filename}%`)}
+        ${db.dialect.comparison.containsNoCase("files.original_filename", ":attachmentFilenamePattern")}
+        OR ${db.dialect.comparison.containsNoCase("files.display_name", ":attachmentFilenamePattern")}
       )`);
     }
   }
 
   if (listOptions.paginate) {
-    const visiblePage = await readVisibleAttachmentPage(session, conditions, listOptions);
+    const visiblePage = await readVisibleAttachmentPage(session, conditions, listOptions, params);
     const knownTotal = visiblePage.hasMore ? null : listOptions.offset + visiblePage.attachments.length;
 
     return {
@@ -570,7 +580,7 @@ async function listAttachments(session, filters = {}) {
     };
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
@@ -578,7 +588,7 @@ INNER JOIN files
   AND files.file_id = file_attachments.file_id
 WHERE ${conditions.join("\n  AND ")}
 ORDER BY ${attachmentOrderByClause(listOptions.sort)};
-`);
+`, params);
   const visible = [];
 
   for (const row of rows) {
@@ -604,7 +614,7 @@ ORDER BY ${attachmentOrderByClause(listOptions.sort)};
   };
 }
 
-async function readVisibleAttachmentPage(session, conditions, listOptions) {
+async function readVisibleAttachmentPage(session, conditions, listOptions, params) {
   const targetVisibleCount = listOptions.offset + listOptions.limit + 1;
   const batchLimit = Math.min(
     Math.max(listOptions.limit + 1, listOptions.limit * ATTACHMENT_SCAN_BATCH_MULTIPLIER),
@@ -624,7 +634,7 @@ async function readVisibleAttachmentPage(session, conditions, listOptions) {
     const rows = await readAttachmentCandidateRows(conditions, listOptions, {
       limit: batchLimit,
       offset: rawOffset,
-    });
+    }, params);
 
     if (rows.length === 0) {
       exhaustedCandidates = true;
@@ -666,8 +676,8 @@ async function readVisibleAttachmentPage(session, conditions, listOptions) {
   };
 }
 
-async function readAttachmentCandidateRows(conditions, listOptions, page) {
-  return querySql(`
+async function readAttachmentCandidateRows(conditions, listOptions, page, params) {
+  return db.query(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
@@ -675,9 +685,13 @@ INNER JOIN files
   AND files.file_id = file_attachments.file_id
 WHERE ${conditions.join("\n  AND ")}
 ORDER BY ${attachmentOrderByClause(listOptions.sort)}
-LIMIT ${sqlInteger(page.limit)}
-OFFSET ${sqlInteger(page.offset)};
-`);
+LIMIT :attachmentPageLimit
+OFFSET :attachmentPageOffset;
+`, {
+    ...params,
+    attachmentPageLimit: page.limit,
+    attachmentPageOffset: page.offset,
+  });
 }
 
 async function countAttachmentsForTargets(session, filters = {}) {
@@ -2554,15 +2568,16 @@ function previewKindForAttachment(attachment) {
 }
 
 async function readFileRow(workspaceId, fileId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT *
 FROM files
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND file_id = ${sqlText(fileId)}
+WHERE workspace_id = :workspaceId
+  AND file_id = :fileId
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, {
+    fileId,
+    workspaceId,
+  });
 }
 
 async function readWorkspaceFileSettingsForWorkspace(workspaceId) {
@@ -2608,31 +2623,35 @@ VALUES (
 }
 
 async function readAttachmentById(workspaceId, attachmentId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
   ON files.workspace_id = file_attachments.workspace_id
   AND files.file_id = file_attachments.file_id
-WHERE file_attachments.workspace_id = ${sqlText(workspaceId)}
-  AND file_attachments.file_attachment_id = ${sqlText(attachmentId)}
+WHERE file_attachments.workspace_id = :workspaceId
+  AND file_attachments.file_attachment_id = :attachmentId
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, {
+    attachmentId,
+    workspaceId,
+  });
 }
 
 async function readActiveAttachmentsForFile(workspaceId, fileId) {
-  return querySql(`
+  return db.query(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
   ON files.workspace_id = file_attachments.workspace_id
   AND files.file_id = file_attachments.file_id
-WHERE file_attachments.workspace_id = ${sqlText(workspaceId)}
-  AND file_attachments.file_id = ${sqlText(fileId)}
+WHERE file_attachments.workspace_id = :workspaceId
+  AND file_attachments.file_id = :fileId
   AND file_attachments.removed_at IS NULL;
-`);
+`, {
+    fileId,
+    workspaceId,
+  });
 }
 
 async function canReadAnyAttachment(session, attachments) {
@@ -3540,13 +3559,13 @@ function attachmentOrderByClause(sortMode = "newest") {
     return "file_attachments.created_at ASC, file_attachments.file_attachment_id ASC";
   }
   if (sortMode === "filename") {
-    return "LOWER(COALESCE(files.display_name, files.original_filename, '')) ASC, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
+    return `${db.dialect.comparison.orderByNoCase("COALESCE(files.display_name, files.original_filename, '')", "ASC")}, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC`;
   }
   if (sortMode === "size") {
     return "files.file_size_bytes DESC, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
   }
   if (sortMode === "status") {
-    return "files.status COLLATE NOCASE ASC, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
+    return `${db.dialect.comparison.orderByNoCase("files.status", "ASC")}, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC`;
   }
 
   return "file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";

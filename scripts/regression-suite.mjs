@@ -167,6 +167,7 @@ const FILE_STORAGE_REGRESSIONS = Object.freeze([
   "scripts/file-scan-job-handoff-regression.mjs",
   "scripts/files-attachment-context-route-regression.mjs",
   "scripts/files-attachable-target-options-regression.mjs",
+  "scripts/files-browse-attachment-reads-conversion-regression.mjs",
   "scripts/files-preview-availability-route-regression.mjs",
   "scripts/files-preview-content-route-regression.mjs",
   "scripts/file-storage-accounting-regression.mjs",

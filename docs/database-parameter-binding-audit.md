@@ -12,11 +12,11 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.17:
+Current totals as of 0.33.5.27.18:
 
-- Remaining runtime literal-helper invocations: 726.
-- Remaining direct interpolated SQL operation sites: 149.
-- Existing direct bound-params operation sites: 201.
+- Remaining runtime literal-helper invocations: 709.
+- Remaining direct interpolated SQL operation sites: 145.
+- Existing direct bound-params operation sites: 206.
 - Total runtime database operation calls seen by the audit scanner: 417.
 
 Original 0.33.5.23.1 baseline totals:
@@ -40,7 +40,7 @@ Status legend:
 
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
-| services/files.service | Remaining | 140 | 26 | 2 | 31 |
+| services/files.service | Remaining | 123 | 22 | 7 | 31 |
 | notifications.repo | Remaining | 99 | 20 | 0 | 25 |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
 | tags.repo | Remaining | 84 | 17 | 0 | 17 |
@@ -402,3 +402,11 @@ This wave reduces `lists/lists.repo` to 72 runtime literal-helper invocations an
 The converted catalog paths preserve catalog create/update/read behavior, suggestion ranking, project/client/list-type context matching, archived-suggestion filtering, use-count increment behavior, nullable text trimming, integer fallback coercion, and finite-number-or-null catalog field handling. Catalog suggestion text matching and item-name ordering now route through `db.dialect.comparison`, and batched link reads use array-valued named params for `IN (:listIds)`. Link create/list/read/remove behavior, default `related` link roles, metadata parsing, permission-safe target enrichment inputs, source-list context inputs, and modal/editor payload behavior are unchanged.
 
 This wave marks `lists/lists.repo` as converted with 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites, with 21 existing bound operation sites and 21 runtime database operation calls. The current live audit totals are 726 runtime literal-helper invocations, 149 direct interpolated SQL operation sites, 201 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.18 Files Browse and Attachment Reads Conversion
+
+0.33.5.27.18 converts the Files browse/read metadata paths in `services/files.service`, covering Files browse, attachment list, visible attachment page, attachment count, preview access, download/read, attachment-by-id, file-row, and active-attachments-for-file metadata reads through named params with `db.query(...)` and `db.get(...)`. Filename search and filename/status ordering use `db.dialect.comparison`, while paged candidate reads bind limit and offset values.
+
+This slice intentionally leaves File Context update/read paths, attachable-target option reads, readable target label/context reads, duplicate-context checks, and safe target lookup SQL assigned to 0.33.5.27.19. It does not change storage adapters, scanner adapters, streamed upload behavior, lifecycle semantics, preview rendering, download routing, or attachment visibility rules.
+
+The live ratchet after this conversion is 709 runtime literal-helper invocations, 145 direct interpolated SQL operation sites, 206 existing bound operation sites, and 417 total runtime database operation calls.

@@ -198,10 +198,10 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.18 - Conversion wave: Files browse and attachment reads
 
-- [ ] Convert Files browse, attachment list, visible attachment page, attachment count, preview access, download/read, and attachment-by-id reads in `services/files.service` to named bound params and the dialect seams.
-- [ ] Preserve compact browse/recovery listing, scan/download/preview gates, permission-shaped visibility, and unsupported download-only behavior exactly.
-- [ ] Coordinate with storage follow-ups so this slice does not change storage adapters, scanner adapters, streamed upload behavior, or lifecycle semantics.
-- [ ] Update the burndown ratchet and extend Files browse/preview/download regressions before moving on.
+- [x] Convert Files browse, attachment list, visible attachment page, attachment count, preview access, download/read, and attachment-by-id reads in `services/files.service` to named bound params and the dialect seams.
+- [x] Preserve compact browse/recovery listing, scan/download/preview gates, permission-shaped visibility, and unsupported download-only behavior exactly.
+- [x] Coordinate with storage follow-ups so this slice does not change storage adapters, scanner adapters, streamed upload behavior, or lifecycle semantics.
+- [x] Update the burndown ratchet and extend Files browse/preview/download regressions before moving on.
 
 Acceptance criteria:
 
