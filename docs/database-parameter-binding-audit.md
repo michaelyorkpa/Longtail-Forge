@@ -12,11 +12,11 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.3:
+Current totals as of 0.33.5.27.5:
 
-- Remaining runtime literal-helper invocations: 1,498.
-- Remaining direct interpolated SQL operation sites: 233.
-- Existing direct bound-params operation sites: 94.
+- Remaining runtime literal-helper invocations: 1,481.
+- Remaining direct interpolated SQL operation sites: 230.
+- Existing direct bound-params operation sites: 97.
 - Total runtime database operation calls seen by the audit scanner: 410.
 
 Original 0.33.5.23.1 baseline totals:
@@ -42,13 +42,13 @@ Status legend:
 | --- | --- | ---: | ---: | ---: | ---: |
 | notes/notes.repo | Remaining | 212 | 14 | 3 | 21 |
 | lists/lists.repo | Remaining | 178 | 17 | 0 | 21 |
-| services/files.service | Remaining | 148 | 27 | 1 | 31 |
+| services/files.service | Remaining | 140 | 26 | 2 | 31 |
 | notifications.repo | Remaining | 99 | 20 | 0 | 25 |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
 | tags.repo | Remaining | 84 | 17 | 0 | 17 |
 | tasks/tasks.repo | Remaining | 71 | 7 | 8 | 15 |
-| time-tracking/active-timers.repo | Remaining | 62 | 12 | 0 | 12 |
 | client-projects/clients.repo | Remaining | 60 | 5 | 0 | 7 |
+| time-tracking/active-timers.repo | Remaining | 53 | 10 | 2 | 12 |
 | services/work-resume-state.service | Remaining | 53 | 7 | 0 | 7 |
 | client-projects/projects.repo | Remaining | 49 | 7 | 0 | 8 |
 | time-tracking/time-entries.repo | Remaining | 49 | 7 | 0 | 8 |
@@ -294,3 +294,19 @@ No application repository conversion happened in this slice, and the helper/dire
 The durable-job `RETURNING` statements are converted to the provider returning seam through `transaction.dialect.returning.columns(...)` in `src/core/jobs/job-queue.js`, `src/core/jobs/job-runner.js`, and `src/services/jobs.service.js`. This is the explicit 0.33.5.27.3 durable-job outcome: conversion, not a sanctioned raw-dialect exception.
 
 The helper/direct-interpolation burndown is unchanged at 1,498 runtime literal-helper invocations and 233 direct interpolated SQL operation sites. The startup proof path adds one existing bound operation site and one runtime database operation call, so the current live audit totals are 94 existing bound operation sites and 410 total runtime database operation calls.
+
+## 0.33.5.27.4 Case-Insensitive Comparison and Ordering Seams
+
+0.33.5.27.4 extends `db.dialect.comparison` with case-insensitive equality, ordering, escaped LIKE pattern construction, and case-insensitive LIKE matching helpers.
+
+The `services/files.service` attachable-target option read is the proof path. It now keeps table and column identifiers behind the existing attachable-type metadata validation, binds workspace/filter/search/limit values through `db.query(...)`, uses `db.dialect.comparison.likePattern(...)` for user search text, and uses `db.dialect.comparison.containsNoCase(...)` / `orderByNoCase(...)` instead of local `LOWER(...) LIKE`, manual LIKE escaping, or raw `COLLATE NOCASE` at the call site.
+
+This proof reduces `services/files.service` to 140 runtime literal-helper invocations, 26 direct interpolated SQL operation sites, 2 existing bound operation sites, and 31 runtime database operation calls. The current live audit totals are 1,490 runtime literal-helper invocations, 232 direct interpolated SQL operation sites, 95 existing bound operation sites, and 410 total runtime database operation calls.
+
+## 0.33.5.27.5 Boolean and Timestamp/Interval Seams
+
+0.33.5.27.5 extends `db.dialect.boolean` with logical bind/read field helpers and adds `db.dialect.time.elapsedSecondsSince(...)` as the converted-repository timestamp helper for elapsed interval math.
+
+The `settings.repo` proof path uses `db.dialect.boolean.bindFields(...)` and `db.dialect.boolean.readFields(...)` for Workspace Settings boolean save/read mapping instead of owning SQLite `0` / `1` conversion at the repository call site. The `time-tracking/active-timers.repo` proof path converts the active timer pause elapsed-time updates to `db.run(...)` with named params and `db.dialect.time.elapsedSecondsSince(...)` instead of raw `julianday(...)` interval arithmetic in the repository.
+
+This proof reduces `time-tracking/active-timers.repo` to 53 runtime literal-helper invocations, 10 direct interpolated SQL operation sites, 2 existing bound operation sites, and 12 runtime database operation calls. The current live audit totals are 1,481 runtime literal-helper invocations, 230 direct interpolated SQL operation sites, 97 existing bound operation sites, and 410 total runtime database operation calls.

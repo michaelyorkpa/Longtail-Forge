@@ -184,6 +184,8 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/database-result-fidelity-regression.mjs",
   "scripts/database-dialect-seam-scaffold-regression.mjs",
   "scripts/database-conflict-identity-seam-regression.mjs",
+  "scripts/database-case-insensitive-seam-regression.mjs",
+  "scripts/database-boolean-time-seam-regression.mjs",
   "scripts/better-sqlite3-driver-closeout-regression.mjs",
   "scripts/job-outbox-schema-regression.mjs",
   "scripts/worker-runner-regression.mjs",

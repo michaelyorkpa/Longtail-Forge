@@ -3,7 +3,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.3";
+const appVersion = "0.33.5.27.5";
+const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -22,22 +23,22 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 94,
+  boundOperationSites: 97,
   dbOperationSites: 410,
-  helperCalls: 1498,
-  interpolatedOperationSites: 233,
+  helperCalls: 1481,
+  interpolatedOperationSites: 230,
 }, "parameter-binding audit totals should match the current post-wave runtime inventory");
 
 const expectedTopGroups = [
   ["notes/notes.repo", 212, 14],
   ["lists/lists.repo", 178, 17],
-  ["services/files.service", 148, 27],
+  ["services/files.service", 140, 26],
   ["notifications.repo", 99, 20],
   ["db/index", 99, 19],
   ["tags.repo", 84, 17],
   ["tasks/tasks.repo", 71, 7],
-  ["time-tracking/active-timers.repo", 62, 12],
   ["client-projects/clients.repo", 60, 5],
+  ["time-tracking/active-timers.repo", 53, 10],
   ["services/work-resume-state.service", 53, 7],
 ];
 
@@ -89,7 +90,7 @@ for (const [group, boundOperationSites] of convertedWaveRows) {
 assert.deepEqual(
   returningMatches.map((match) => `${match.file}:${match.line}`),
   [
-    "src/db/adapters/sqlite-dialect-seams.js:167",
+    "src/db/adapters/sqlite-dialect-seams.js:252",
   ],
   "RETURNING inventory should stay provider-owned after durable jobs move to the returning seam",
 );
@@ -97,7 +98,7 @@ assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSO
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.3:[\s\S]*Remaining runtime literal-helper invocations: 1,498[\s\S]*Remaining direct interpolated SQL operation sites: 233[\s\S]*Existing direct bound-params operation sites: 94[\s\S]*Total runtime database operation calls seen by the audit scanner: 410/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.5:[\s\S]*Remaining runtime literal-helper invocations: 1,481[\s\S]*Remaining direct interpolated SQL operation sites: 230[\s\S]*Existing direct bound-params operation sites: 97[\s\S]*Total runtime database operation calls seen by the audit scanner: 410/, "audit docs should record the current canonical totals");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
@@ -113,6 +114,8 @@ assert.match(auditDocs, /0\.33\.5\.26\.4 Ratchet Checklist[\s\S]*Future Conversi
 assert.match(auditDocs, /0\.33\.5\.27\.1 Portability Contract and Dialect Seams[\s\S]*single agnostic data-access contract[\s\S]*No runtime SQL behavior changed/, "audit docs should record the plan-only portability contract slice");
 assert.match(auditDocs, /0\.33\.5\.27\.2 Dialect Seam Scaffold[\s\S]*SQLite-backed `db\.dialect` seam scaffold[\s\S]*No application repository conversion happened/, "audit docs should record the dialect seam scaffold slice");
 assert.match(auditDocs, /0\.33\.5\.27\.3 Upsert\/Conflict and Identity Seams[\s\S]*durable-job `RETURNING` statements are converted to the provider returning seam[\s\S]*94 existing bound operation sites[\s\S]*410 total runtime database operation calls/, "audit docs should record the conflict and identity seam slice");
+assert.match(auditDocs, /0\.33\.5\.27\.4 Case-Insensitive Comparison and Ordering Seams[\s\S]*`services\/files\.service` attachable-target option read[\s\S]*1,490 runtime literal-helper invocations[\s\S]*232 direct interpolated SQL operation sites[\s\S]*95 existing bound operation sites/, "audit docs should record the case-insensitive seam proof slice");
+assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*`settings\.repo`[\s\S]*`time-tracking\/active-timers\.repo`[\s\S]*1,481 runtime literal-helper invocations[\s\S]*230 direct interpolated SQL operation sites[\s\S]*97 existing bound operation sites/, "audit docs should record the boolean/time seam proof slice");
 assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
 assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
 assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
@@ -140,9 +143,13 @@ assert.match(databaseDocs, /only sanctioned interpolation compatibility allowlis
 assert.match(databaseDocs, /Dialect-sensitive operation seams:[\s\S]*Upsert\/conflict writes[\s\S]*Case-insensitive compare\/order[\s\S]*Boolean storage[\s\S]*Timestamp and interval math[\s\S]*Full-text search[\s\S]*JSON access[\s\S]*`RETURNING` and identity reads[\s\S]*`rowid` \/ physical identity[\s\S]*PRAGMA\/introspection/, "database docs should record every planned dialect seam");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.2[\s\S]*`db\.dialect`[\s\S]*conflict writes[\s\S]*case-insensitive comparison[\s\S]*SQLite `julianday\(\.\.\.\)`[\s\S]*FTS5 `MATCH`\/`bm25\(\)`[\s\S]*PRAGMA\/introspection/, "database docs should record the concrete dialect seam scaffold");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.3[\s\S]*upsert\/conflict statement builders[\s\S]*[Dd]urable job[\s\S]*returning seam/, "database docs should record the concrete conflict and identity seam");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.4[\s\S]*`db\.dialect\.comparison`[\s\S]*`db\.dialect\.comparison\.containsNoCase\(\.\.\.\)`[\s\S]*LIKE pattern[\s\S]*1,490 remaining helper invocations/, "database docs should record the concrete case-insensitive comparison seam");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.5[\s\S]*`db\.dialect\.boolean\.bindFields\(\.\.\.\)`[\s\S]*`db\.dialect\.time\.elapsedSecondsSince\(\.\.\.\)`[\s\S]*1,481 remaining helper invocations/, "database docs should record the concrete boolean and timestamp seam");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*upsert\\/conflict and identity seams[\\s\\S]*durable job[\\s\\S]*1,498 helper invocations`), "changelog should record the conflict and identity seam slice");
+assert.match(changelog, /## Version 0\.33\.5\.27\.3 - [\s\S]*upsert\/conflict and identity seams[\s\S]*durable job[\s\S]*1,498 helper invocations/, "changelog should record the conflict and identity seam slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(caseInsensitiveSliceVersion)} - [\\s\\S]*case-insensitive comparison and ordering seams[\\s\\S]*Files attachable-target option[\\s\\S]*1,490 helper invocations`), "changelog should record the case-insensitive seam proof slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*Boolean and timestamp\\/interval seams[\\s\\S]*1,481 helper invocations[\\s\\S]*230 direct interpolated operation sites[\\s\\S]*97 bound operation sites`), "changelog should record the boolean/time seam proof slice");
 
 assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should now start at the database extraction contract branch");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");

@@ -57,9 +57,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.4 - Case-insensitive comparison and ordering seams
 
-- [ ] Implement provider-neutral helpers for case-insensitive equality, search pattern matching, and ordering where current call sites rely on `COLLATE NOCASE`, `LOWER(...) LIKE`, or local LIKE escaping.
-- [ ] Convert one proof read/filter path and keep identifiers, operators, and sort clauses static or allowlisted.
-- [ ] Add focused regressions for case-insensitive match/order behavior on SQLite.
+- [x] Implement provider-neutral helpers for case-insensitive equality, search pattern matching, and ordering where current call sites rely on `COLLATE NOCASE`, `LOWER(...) LIKE`, or local LIKE escaping.
+- [x] Convert one proof read/filter path and keep identifiers, operators, and sort clauses static or allowlisted.
+- [x] Add focused regressions for case-insensitive match/order behavior on SQLite.
 
 Acceptance criteria:
 
@@ -67,9 +67,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.5 - Boolean and timestamp/interval seams
 
-- [ ] Implement adapter-owned logical boolean normalization and row-mapping helpers so converted repositories bind/read booleans without owning SQLite `0`/`1` storage rules.
-- [ ] Implement the provider date/time helper or adapter method needed to replace raw `julianday(...)`/interval arithmetic in converted application repositories.
-- [ ] Convert one small proof path and add focused regressions for boolean round-trip and timestamp/interval behavior.
+- [x] Implement adapter-owned logical boolean normalization and row-mapping helpers so converted repositories bind/read booleans without owning SQLite `0`/`1` storage rules.
+- [x] Implement the provider date/time helper or adapter method needed to replace raw `julianday(...)`/interval arithmetic in converted application repositories.
+- [x] Convert one small proof path and add focused regressions for boolean round-trip and timestamp/interval behavior.
 
 Acceptance criteria:
 

@@ -48,6 +48,15 @@ LIMIT 1;
 
   const now = new Date().toISOString();
   const savedSettings = normalizeWorkspaceTypeSettings(settings);
+  const booleanParams = db.dialect.boolean.bindFields({
+    auditLoggingEnabled: savedSettings.audit.loggingEnabled,
+    roundingEnabled: savedSettings.billingRounding.enabled,
+    taskTimersEnabled: savedSettings.taskTimersEnabled !== false,
+  }, [
+    "auditLoggingEnabled",
+    "roundingEnabled",
+    "taskTimersEnabled",
+  ]);
 
   await db.transaction(async (transaction) => {
     await transaction.run(`
@@ -80,16 +89,16 @@ SET
   updated_at = :updatedAt
 WHERE workspace_id = :workspaceId;
 `, {
-      auditLoggingEnabled: savedSettings.audit.loggingEnabled ? 1 : 0,
+      auditLoggingEnabled: booleanParams.auditLoggingEnabled,
       auditRetentionDays: savedSettings.audit.retentionDays,
       billingPeriodStartDay: savedSettings.billingPeriod.startDay,
       billingPeriodType: savedSettings.billingPeriod.type,
       defaultBillingRate: savedSettings.defaultBillingRate,
       fiscalYearStartDay: savedSettings.fiscalYear.startDay,
       fiscalYearStartMonth: savedSettings.fiscalYear.startMonth,
-      roundingEnabled: savedSettings.billingRounding.enabled ? 1 : 0,
+      roundingEnabled: booleanParams.roundingEnabled,
       roundingIncrement: savedSettings.billingRounding.increment,
-      taskTimersEnabled: savedSettings.taskTimersEnabled === false ? 0 : 1,
+      taskTimersEnabled: booleanParams.taskTimersEnabled,
       updatedAt: now,
       workspaceId,
     });
@@ -109,31 +118,38 @@ function normalizeWorkspaceTypeSettings(settings) {
 }
 
 function settingsRowToWorkspaceSettings(row) {
-  return normalizeSettings({
-    workspaceName: row.workspace_name,
-    workspaceType: row.workspace_type,
-    fiscalYear: {
-      startMonth: row.fiscal_year_start_month,
-      startDay: row.fiscal_year_start_day,
+  const booleanRow = db.dialect.boolean.readFields(row, [
+    "audit_logging_enabled",
+    "rounding_enabled",
+    "task_timers_enabled",
+  ], {
+    fallbacks: {
+      audit_logging_enabled: true,
+      task_timers_enabled: true,
     },
-    defaultBillingRate: row.default_billing_rate,
+  });
+
+  return normalizeSettings({
+    workspaceName: booleanRow.workspace_name,
+    workspaceType: booleanRow.workspace_type,
+    fiscalYear: {
+      startMonth: booleanRow.fiscal_year_start_month,
+      startDay: booleanRow.fiscal_year_start_day,
+    },
+    defaultBillingRate: booleanRow.default_billing_rate,
     billingPeriod: {
-      type: row.billing_period_type,
-      startDay: row.billing_period_start_day,
+      type: booleanRow.billing_period_type,
+      startDay: booleanRow.billing_period_start_day,
     },
     billingRounding: {
-      enabled: Number(row.rounding_enabled) === 1,
-      increment: row.rounding_increment,
+      enabled: booleanRow.rounding_enabled === true,
+      increment: booleanRow.rounding_increment,
     },
     audit: {
-      loggingEnabled: row.audit_logging_enabled === undefined
-        ? true
-        : Number(row.audit_logging_enabled) === 1,
-      retentionDays: row.audit_retention_days,
+      loggingEnabled: booleanRow.audit_logging_enabled === true,
+      retentionDays: booleanRow.audit_retention_days,
     },
-    taskTimersEnabled: row.task_timers_enabled === undefined
-      ? true
-      : Number(row.task_timers_enabled) === 1,
+    taskTimersEnabled: booleanRow.task_timers_enabled === true,
   });
 }
 

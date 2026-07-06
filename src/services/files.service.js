@@ -3054,17 +3054,23 @@ async function readAttachableTargetOptionRows(workspaceId, attachableType, filte
   const clientField = attachableType.clientField ? safeSqlIdentifier(attachableType.clientField) : "";
   const projectField = attachableType.projectField ? safeSqlIdentifier(attachableType.projectField) : "";
   const columns = await readTableColumnSet(tableName);
+  const labelExpression = `COALESCE(${labelField}, '')`;
+  const params = {
+    attachableTargetLimit: limit,
+    attachableTargetWorkspaceId: workspaceId,
+  };
   const conditions = [
-    `${workspaceField} = ${sqlText(workspaceId)}`,
+    `${workspaceField} = :attachableTargetWorkspaceId`,
     ...attachableTargetActiveConditions(columns),
-    ...attachableTargetFilterConditions(attachableType, filters, workspaceType, { clientField, idField, projectField }),
+    ...attachableTargetFilterConditions(attachableType, filters, workspaceType, { clientField, idField, projectField }, params),
   ];
 
   if (filters.search) {
-    conditions.push(`LOWER(COALESCE(${labelField}, '')) LIKE ${sqlText(sqlLikePattern(filters.search))} ESCAPE ${sqlText("\\")}`);
+    params.attachableTargetSearchPattern = db.dialect.comparison.likePattern(filters.search, { mode: "contains" });
+    conditions.push(db.dialect.comparison.containsNoCase(labelExpression, ":attachableTargetSearchPattern"));
   }
 
-  return querySql(`
+  return db.query(`
 SELECT
   ${idField} AS target_id,
   ${labelField} AS target_label,
@@ -3073,9 +3079,9 @@ SELECT
   ${projectField ? `, ${projectField} AS project_id` : ", NULL AS project_id"}
 FROM ${tableName}
 WHERE ${conditions.join("\n  AND ")}
-ORDER BY LOWER(COALESCE(${labelField}, '')) ASC, ${idField} ASC
-LIMIT ${sqlInteger(limit)};
-`);
+ORDER BY ${db.dialect.comparison.orderByNoCase(labelExpression, "ASC")}, ${idField} ASC
+LIMIT :attachableTargetLimit;
+`, params);
 }
 
 async function shapePermittedAttachableTargetOption(session, attachableType, row, workspaceType) {
@@ -3270,15 +3276,17 @@ function attachableTargetActiveConditions(columns) {
   return conditions;
 }
 
-function attachableTargetFilterConditions(attachableType, filters, workspaceType, fields) {
+function attachableTargetFilterConditions(attachableType, filters, workspaceType, fields, params) {
   const conditions = [];
   const businessClientId = workspaceType === "business" ? filters.clientId : "";
 
   if (businessClientId) {
     if (attachableType.targetType === "client") {
-      conditions.push(`${fields.idField} = ${sqlText(businessClientId)}`);
+      params.attachableTargetClientId = businessClientId;
+      conditions.push(`${fields.idField} = :attachableTargetClientId`);
     } else if (fields.clientField) {
-      conditions.push(`${fields.clientField} = ${sqlText(businessClientId)}`);
+      params.attachableTargetClientId = businessClientId;
+      conditions.push(`${fields.clientField} = :attachableTargetClientId`);
     } else {
       conditions.push("1 = 0");
     }
@@ -3286,9 +3294,11 @@ function attachableTargetFilterConditions(attachableType, filters, workspaceType
 
   if (filters.projectId) {
     if (attachableType.targetType === "project") {
-      conditions.push(`${fields.idField} = ${sqlText(filters.projectId)}`);
+      params.attachableTargetProjectId = filters.projectId;
+      conditions.push(`${fields.idField} = :attachableTargetProjectId`);
     } else if (fields.projectField) {
-      conditions.push(`${fields.projectField} = ${sqlText(filters.projectId)}`);
+      params.attachableTargetProjectId = filters.projectId;
+      conditions.push(`${fields.projectField} = :attachableTargetProjectId`);
     } else {
       conditions.push("1 = 0");
     }
@@ -3305,10 +3315,6 @@ function moduleLabelForAttachableType(attachableType) {
 function normalizeWorkspaceType(value) {
   const workspaceType = String(value || "").trim().toLowerCase();
   return ["business", "personal", "family"].includes(workspaceType) ? workspaceType : "business";
-}
-
-function sqlLikePattern(value) {
-  return `%${String(value || "").trim().toLowerCase().replace(/[\\%_]/g, (match) => `\\${match}`)}%`;
 }
 
 function safeDisplayLabel(value, fallback = "", hiddenIds = []) {

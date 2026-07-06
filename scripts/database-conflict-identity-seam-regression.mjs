@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.3";
+const appVersion = "0.33.5.27.5";
+const conflictIdentitySliceVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-conflict-identity-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-conflict-identity-seams.db");
@@ -57,7 +58,7 @@ function assertStaticContract() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the conflict and identity seam version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the conflict and identity seam version");
 
-  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.3"/, "SQLite dialect contract should advance for the conflict and identity seam slice");
+  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.5"/, "SQLite dialect contract should report the current seam contract version");
   assert.match(sqliteDialectSource, /buildInsertOrIgnore/, "SQLite dialect seams should expose a full insert-or-ignore builder");
   assert.match(sqliteDialectSource, /buildInsertOnConflictDoNothing/, "SQLite dialect seams should expose a do-nothing conflict builder");
   assert.match(sqliteDialectSource, /buildInsertOnConflictDoUpdate/, "SQLite dialect seams should expose an upsert conflict builder");
@@ -77,7 +78,7 @@ function assertStaticContract() {
   assert.match(roadmap, /### Version 0\.33\.5\.27\.3 - Upsert\/conflict and identity\/RETURNING seams[\s\S]*- \[x\] Implement the provider-neutral upsert\/conflict helper[\s\S]*- \[x\] Implement the returned-row\/last-insert identity seam[\s\S]*- \[x\] Decide the durable-job `RETURNING` outcome[\s\S]*- \[x\] Convert one low-risk proof path/, "roadmap should mark the conflict and identity seam slice complete");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.3[\s\S]*`databaseDialect\.conflict\.buildInsertOrIgnore\(\.\.\.\)`[\s\S]*[Dd]urable job[\s\S]*returning seam/, "database docs should describe the conflict and identity seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.3 Upsert\/Conflict and Identity Seams[\s\S]*durable-job `RETURNING` statements are converted to the provider returning seam/, "audit docs should record the durable-job RETURNING resolution");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*upsert\\/conflict and identity seams[\\s\\S]*durable job`), "changelog should record the conflict and identity seam slice");
+  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(conflictIdentitySliceVersion)} - [\\s\\S]*upsert\\/conflict and identity seams[\\s\\S]*durable job`), "changelog should record the conflict and identity seam slice");
   assert.match(regressionSuite, /scripts\/database-conflict-identity-seam-regression\.mjs/, "regression suite should include conflict and identity seam coverage");
 }
 

@@ -1,3 +1,20 @@
+## Version 0.33.5.27.5 - 2026-07-05 20:14 -04:00
+
+- Completed the Boolean and timestamp/interval seams by adding boolean row-mapping helpers on `db.dialect.boolean`, including field-level bind/read helpers so converted repositories can use logical booleans without owning SQLite `0` / `1` storage rules.
+- Added `db.dialect.time.elapsedSecondsSince(...)` as the app-oriented timestamp/interval helper over the SQLite-backed time seam.
+- Converted Workspace Settings boolean save/read mapping to the boolean seam and active timer pause elapsed-time updates to named params with the timestamp seam, removing raw `julianday(...)` arithmetic from `time-tracking/active-timers.repo`.
+- Added `scripts/database-boolean-time-seam-regression.mjs` for boolean round-trip, row mapping, timestamp interval behavior, Workspace Settings proof coverage, and active timer pause source-guard coverage.
+- Updated the parameter-binding ratchet to 1,481 helper invocations, 230 direct interpolated operation sites, 97 bound operation sites, and 410 runtime DB operation calls.
+- Verification 2026-07-05 20:24 -04:00: `scripts/database-boolean-time-seam-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/database-dialect-seam-scaffold-regression.mjs`, `scripts/database-case-insensitive-seam-regression.mjs`, `scripts/database-conflict-identity-seam-regression.mjs`, `scripts/timer-timestamp-integrity-regression.mjs`, `scripts/timer-resume-metadata-regression.mjs`, `scripts/database-adapter-contract-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, and `scripts/database-transaction-helper-regression.mjs` passed; `npm run check` passed 266/266 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.27.5 from the refreshed local 8001 server.
+
+## Version 0.33.5.27.4 - 2026-07-05 19:46 -04:00
+
+- Added the case-insensitive comparison and ordering seams on `db.dialect.comparison`, including escaped LIKE pattern construction and case-insensitive contains matching.
+- Converted the Files attachable-target option read to named params with the comparison seam for search and target-label ordering, keeping table and field identifiers on the existing validated attachable-type metadata path.
+- Added `scripts/database-case-insensitive-seam-regression.mjs` for SQLite equality, escaped wildcard LIKE matching, ordering behavior, and the converted Files attachable-target proof path.
+- Updated the parameter-binding ratchet to 1,490 helper invocations, 232 direct interpolated operation sites, 95 bound operation sites, and 410 runtime DB operation calls.
+- Verification 2026-07-05 19:52 -04:00: `scripts/database-case-insensitive-seam-regression.mjs`, `scripts/files-attachable-target-options-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/database-dialect-seam-scaffold-regression.mjs`, `scripts/database-conflict-identity-seam-regression.mjs`, `scripts/database-adapter-contract-regression.mjs`, and `scripts/parameter-binding-layer-regression.mjs` passed; `npm run check` passed 265/265 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.27.4 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.3 - 2026-07-05 19:24 -04:00
 
 - Added the upsert/conflict and identity seams, including provider-neutral statement builders on `db.dialect.conflict` for insert-or-ignore, conflict-do-nothing, and conflict-do-update SQL shapes.

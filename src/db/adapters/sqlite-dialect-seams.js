@@ -13,15 +13,21 @@ const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
 function createSqliteDialectSeams() {
   return Object.freeze({
     provider: "sqlite",
-    contractVersion: "0.33.5.27.3",
+    contractVersion: "0.33.5.27.5",
     capabilities: SQLITE_DIALECT_SEAM_CAPABILITIES,
     boolean: Object.freeze({
       bind: bindSqliteBoolean,
+      bindFields: bindSqliteBooleanFields,
       read: readSqliteBoolean,
+      readField: readSqliteBooleanField,
+      readFields: readSqliteBooleanFields,
     }),
     comparison: Object.freeze({
       collateNoCase,
+      containsNoCase,
       equalsNoCase,
+      escapeLikePattern,
+      likePattern,
       likeNoCase,
       orderByNoCase,
     }),
@@ -57,6 +63,7 @@ function createSqliteDialectSeams() {
       rank,
     }),
     time: Object.freeze({
+      elapsedSecondsSince,
       nonNegativeSecondsBetween,
       secondsBetween,
     }),
@@ -121,8 +128,52 @@ function equalsNoCase(leftSql, rightSql) {
   return `${normalizeSqlFragment(leftSql, "case-insensitive left expression")} = ${collateNoCase(rightSql)}`;
 }
 
-function likeNoCase(leftSql, rightSql) {
-  return `${normalizeSqlFragment(leftSql, "case-insensitive left expression")} LIKE ${collateNoCase(rightSql)}`;
+function likeNoCase(leftSql, rightSql, options = {}) {
+  const comparisonSql = `${normalizeSqlFragment(leftSql, "case-insensitive left expression")} LIKE ${collateNoCase(rightSql)}`;
+
+  if (options.escape === true || options.escapeCharacter) {
+    return `${comparisonSql} ESCAPE ${quoteSqlStringLiteral(normalizeLikeEscapeCharacter(options.escapeCharacter))}`;
+  }
+
+  return comparisonSql;
+}
+
+function containsNoCase(leftSql, rightSql, options = {}) {
+  return likeNoCase(leftSql, rightSql, {
+    ...options,
+    escape: true,
+  });
+}
+
+function likePattern(value, options = {}) {
+  const escaped = escapeLikePattern(value, options);
+  const mode = normalizeLikePatternMode(options.mode || options.match || "contains");
+
+  if (mode === "exact") {
+    return escaped;
+  }
+  if (mode === "startsWith") {
+    return `${escaped}%`;
+  }
+  if (mode === "endsWith") {
+    return `%${escaped}`;
+  }
+
+  return `%${escaped}%`;
+}
+
+function escapeLikePattern(value, options = {}) {
+  const escapeCharacter = normalizeLikeEscapeCharacter(options.escapeCharacter);
+  let escaped = "";
+
+  for (const character of String(value ?? "")) {
+    if (character === escapeCharacter || character === "%" || character === "_") {
+      escaped += escapeCharacter;
+    }
+    escaped += character;
+  }
+
+  return escaped;
 }
 
 function orderByNoCase(expressionSql, direction = "ASC") {
@@ -130,19 +181,49 @@ function orderByNoCase(expressionSql, direction = "ASC") {
 }
 
 function bindSqliteBoolean(value) {
-  if (value === null || value === undefined) {
-    return null;
+  const normalized = normalizeLogicalBoolean(value);
+  return normalized === null ? null : normalized ? 1 : 0;
+}
+
+function bindSqliteBooleanFields(values = {}, fieldNames = []) {
+  const nextValues = { ...values };
+
+  for (const fieldName of normalizeFieldNameArray(fieldNames, "boolean bind field")) {
+    if (Object.hasOwn(nextValues, fieldName)) {
+      nextValues[fieldName] = bindSqliteBoolean(nextValues[fieldName]);
+    }
   }
 
-  return value ? 1 : 0;
+  return nextValues;
 }
 
 function readSqliteBoolean(value) {
-  if (value === null || value === undefined) {
-    return null;
+  return normalizeLogicalBoolean(value);
+}
+
+function readSqliteBooleanField(row, fieldName, options = {}) {
+  const key = normalizeObjectFieldName(fieldName, "boolean read field");
+  const source = row && typeof row === "object" ? row : {};
+
+  if (!Object.hasOwn(source, key)) {
+    return Object.hasOwn(options, "fallback") ? options.fallback : null;
   }
 
-  return Number(value) !== 0;
+  return readSqliteBoolean(source[key]);
+}
+
+function readSqliteBooleanFields(row = {}, fieldNames = [], options = {}) {
+  const nextRow = { ...(row || {}) };
+  const fallbacks = options.fallbacks && typeof options.fallbacks === "object" ? options.fallbacks : {};
+
+  for (const fieldName of normalizeFieldNameArray(fieldNames, "boolean read field")) {
+    const fieldOptions = Object.hasOwn(fallbacks, fieldName)
+      ? { fallback: fallbacks[fieldName] }
+      : {};
+    nextRow[fieldName] = readSqliteBooleanField(row, fieldName, fieldOptions);
+  }
+
+  return nextRow;
 }
 
 function secondsBetween(laterExpressionSql, earlierExpressionSql) {
@@ -153,6 +234,10 @@ function secondsBetween(laterExpressionSql, earlierExpressionSql) {
 
 function nonNegativeSecondsBetween(laterExpressionSql, earlierExpressionSql) {
   return `MAX(0, ${secondsBetween(laterExpressionSql, earlierExpressionSql)})`;
+}
+
+function elapsedSecondsSince(timestampExpressionSql, referenceExpressionSql = ":now") {
+  return nonNegativeSecondsBetween(referenceExpressionSql, timestampExpressionSql);
 }
 
 function match(tableName, queryExpressionSql) {
@@ -270,6 +355,24 @@ function normalizeIdentifierArray(identifiers, label) {
   return identifiers.map((identifier) => normalizeSqlIdentifier(identifier, label));
 }
 
+function normalizeFieldNameArray(fieldNames, label) {
+  if (!Array.isArray(fieldNames) || fieldNames.length === 0) {
+    throw new Error(`${label} list must contain at least one field name.`);
+  }
+
+  return fieldNames.map((fieldName) => normalizeObjectFieldName(fieldName, label));
+}
+
+function normalizeObjectFieldName(fieldName, label = "field name") {
+  const text = String(fieldName || "").trim();
+
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text)) {
+    throw new Error(`Invalid ${label}: ${text || "(empty)"}.`);
+  }
+
+  return text;
+}
+
 function normalizeSqlIdentifier(identifier, label = "SQL identifier") {
   const text = String(identifier || "").trim();
 
@@ -302,6 +405,70 @@ function normalizeSortDirection(direction) {
   }
 
   throw new Error(`Invalid sort direction: ${direction}.`);
+}
+
+function normalizeLikeEscapeCharacter(value = "\\") {
+  const text = String(value || "\\");
+
+  if (text.length !== 1 || text === "\0") {
+    throw new Error("LIKE escape character must be exactly one non-null character.");
+  }
+
+  return text;
+}
+
+function normalizeLikePatternMode(value) {
+  const text = String(value || "contains").trim().toLowerCase();
+
+  if (text === "contains") {
+    return "contains";
+  }
+  if (text === "exact") {
+    return "exact";
+  }
+  if (text === "startswith" || text === "starts_with" || text === "starts-with") {
+    return "startsWith";
+  }
+  if (text === "endswith" || text === "ends_with" || text === "ends-with") {
+    return "endsWith";
+  }
+
+  throw new Error(`Invalid LIKE pattern mode: ${value}.`);
+}
+
+function normalizeLogicalBoolean(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("Boolean value must be finite.");
+    }
+
+    return value !== 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (["1", "true", "yes", "y", "on"].includes(normalized)) {
+      return true;
+    }
+    if (["0", "false", "no", "n", "off"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  throw new Error("Boolean value must be null, boolean, numeric, or a recognized boolean string.");
+}
+
+function quoteSqlStringLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
 }
 
 export {

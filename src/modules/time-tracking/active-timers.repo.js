@@ -1,4 +1,5 @@
 import {
+  db,
   querySql,
   runSql,
   sqlInteger,
@@ -135,40 +136,49 @@ ON CONFLICT(workspace_id, user_id, timer_slot) DO UPDATE SET
 }
 
 async function pauseOtherRunningTimers(workspaceId, userId, activeTimerSlot, now) {
-  await runSql(`
+  await db.run(`
 UPDATE active_work_timers
 SET accumulated_elapsed_seconds = accumulated_elapsed_seconds +
       CASE
         WHEN last_active_start_time IS NULL THEN 0
-        ELSE MAX(0, CAST((julianday(${sqlText(now)}) - julianday(last_active_start_time)) * 86400 AS INTEGER))
+        ELSE ${db.dialect.time.elapsedSecondsSince("last_active_start_time", ":updatedAt")}
       END,
     last_active_start_time = NULL,
     timer_status = 'paused',
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND timer_slot != ${sqlText(activeTimerSlot)}
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND timer_slot != :activeTimerSlot
   AND timer_status = 'running';
-`);
+`, {
+    activeTimerSlot,
+    updatedAt: now,
+    userId,
+    workspaceId,
+  });
 }
 
 async function pauseRunningForUser(workspaceId, userId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE active_work_timers
 SET accumulated_elapsed_seconds = accumulated_elapsed_seconds +
       CASE
         WHEN last_active_start_time IS NULL THEN 0
-        ELSE MAX(0, CAST((julianday(${sqlText(now)}) - julianday(last_active_start_time)) * 86400 AS INTEGER))
+        ELSE ${db.dialect.time.elapsedSecondsSince("last_active_start_time", ":updatedAt")}
       END,
     last_active_start_time = NULL,
     timer_status = 'paused',
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
   AND timer_status = 'running';
-`);
+`, {
+    updatedAt: now,
+    userId,
+    workspaceId,
+  });
 }
 
 async function remove(workspaceId, userId, timerSlot) {
