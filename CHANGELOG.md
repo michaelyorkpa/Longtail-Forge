@@ -1,3 +1,12 @@
+## Version 0.33.5.27.31 - 2026-07-06 17:03 -04:00
+
+- Completed the Interpolation enforcement guardrail by adding `scripts/interpolation-enforcement-guardrail-regression.mjs` to the static/source regression suite.
+- Enforced the completed parameter-binding burndown at 0 runtime literal-helper invocations and 0 direct helper-interpolated SQL operation sites across runtime source.
+- Added synthetic rejection proofs for reintroduced repository `db.query(...)` helper interpolation, `runSql(...)` helper interpolation, and standalone module helper calls.
+- Preserved compatibility helper definitions/exports for historical API stability while making new runtime calls to `sqlText()`, `sqlInteger()`, `sqlNullableText()`, and `sqlNullableInteger()` a suite failure.
+- Updated the parameter-binding ratchet to 0 helper invocations, 0 direct interpolated operation sites, 385 bound operation sites, and 429 runtime DB operation calls.
+- Verification 2026-07-06 17:11 -04:00: `scripts/interpolation-enforcement-guardrail-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`, `scripts/migration-compatibility-regression.mjs`, `scripts/startup-maintenance-compatibility-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, `scripts/database-migration-locking-regression.mjs`, `scripts/database-adapter-contract-regression.mjs`, and `scripts/database-transaction-helper-regression.mjs` passed; `npm run check` passed 292/292 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.31 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.30 - 2026-07-06 16:34 -04:00
 
 - Completed the Migration compatibility path by moving value-bearing `src/db/migrations.js` metadata reads and writes to named params through the provider-neutral database facade.

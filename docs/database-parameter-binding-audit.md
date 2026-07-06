@@ -12,7 +12,7 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.30:
+Current totals as of 0.33.5.27.31:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.
@@ -127,8 +127,9 @@ Standing query rule from `DECISIONS.md`: new or touched single-statement reposit
 | 0.33.5.27.28 - Framework and admin low-count repositories | `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, `services/help.service`, and any other remaining low-count application repository from the audit inventory |
 | 0.33.5.27.29 - Startup maintenance compatibility path | `db/index` |
 | 0.33.5.27.30 - Migration compatibility path | `db/migrations` |
+| 0.33.5.27.31 - Interpolation enforcement guardrail | Whole runtime source guardrail |
 
-No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution until the enforcement slices record the final dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths.
+No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution until the dialect enforcement slice records the final dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths. As of 0.33.5.27.31, new runtime source cannot add literal-helper calls or helper-interpolated database operations.
 
 ## Scope Rechecks
 
@@ -526,3 +527,11 @@ Dialect-sensitive migration behavior is accounted for without changing SQLite be
 `src/db/migrations.js` no longer has literal-helper calls or direct interpolated operation sites in the canonical inventory. It remains visible as `Migration compatibility` with 10 bound operation sites and 28 runtime database operation calls so enforcement work can distinguish converted migration values from sanctioned migration-only schema scripts.
 
 The live ratchet after this conversion is 0 runtime literal-helper invocations, 0 direct interpolated SQL operation sites, 385 existing bound operation sites, and 429 total runtime database operation calls. The remaining compatibility surface is now dialect/schema-script ownership, not value interpolation.
+
+## 0.33.5.27.31 Interpolation Enforcement Guardrail
+
+0.33.5.27.31 adds a merge-blocking guardrail for the completed parameter-binding burndown. `scripts/interpolation-enforcement-guardrail-regression.mjs` scans runtime source and fails when a file outside `src/db/sql-literals.js` calls `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()`, or when a runtime database operation directly contains one of those helpers.
+
+The guardrail distinguishes compatibility API definitions/exports from runtime interpolation use: `src/db/sql-literals.js` may still define the helpers and provider facades may still re-export them for historical API compatibility, but no repository, module, service, startup repair, migration metadata path, or new migration-adjacent helper may call them. Startup and migration compatibility now means no-value schema/startup scripts only; it does not permit new value interpolation.
+
+The enforcement regression also includes synthetic rejection proofs for a reintroduced repository helper-interpolated `db.query(...)`, a `runSql(...)` helper interpolation, and a standalone module helper call. The live ratchet remains 0 runtime literal-helper invocations, 0 direct interpolated operation sites, 385 existing bound operation sites, and 429 total runtime database operation calls.

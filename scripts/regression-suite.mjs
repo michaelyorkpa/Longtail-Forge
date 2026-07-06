@@ -11,6 +11,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/parameter-binding-audit-regression.mjs",
   "scripts/parameter-binding-layer-regression.mjs",
   "scripts/parameter-binding-conversion-wave-regression.mjs",
+  "scripts/interpolation-enforcement-guardrail-regression.mjs",
   "scripts/better-sqlite3-install-smoke.mjs",
   "scripts/better-sqlite3-helper-core-regression.mjs",
   "scripts/audit-extensibility-regression.mjs",

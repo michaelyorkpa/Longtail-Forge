@@ -331,9 +331,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.31 - Interpolation enforcement guardrail
 
-- [ ] Add a lint/regression guardrail that fails the suite if runtime SQL uses `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` outside the sanctioned startup/migration allowlist.
-- [ ] Drive the audit ratchet target to zero interpolated operation sites for application repositories, allowlist excepted.
-- [ ] Add regressions proving the guardrail rejects a reintroduced interpolation call outside the allowlist.
+- [x] Add a lint/regression guardrail that fails the suite if runtime SQL uses `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` outside the sanctioned startup/migration allowlist.
+- [x] Drive the audit ratchet target to zero interpolated operation sites for application repositories, allowlist excepted.
+- [x] Add regressions proving the guardrail rejects a reintroduced interpolation call outside the allowlist.
 
 Acceptance criteria:
 

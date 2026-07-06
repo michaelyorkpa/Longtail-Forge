@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.30";
+const appVersion = "0.33.5.27.31";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-write-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-write-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -65,7 +65,7 @@ function assertStaticContract() {
   assert.match(notesRepoSource, /function nullableText\(value\)[\s\S]*String\(value\)\.trim\(\) === ""[\s\S]*\? null/, "converted nullable params should preserve the old nullable text trimming behavior");
   assert.match(notesRepoSource, /function integer\(value\)[\s\S]*Number\.parseInt[\s\S]*: 0/, "converted integer params should preserve the old integer fallback behavior");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.30:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.31:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
   assert.match(auditDocs, /\| notes\/notes\.repo \| Converted \| 0 \| 0 \| 21 \| 21 \|/, "audit inventory should mark notes/notes.repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.15 Notes Writes, Revisions, Links, and Collections Repository Conversion[\s\S]*`notes\/notes\.repo`[\s\S]*fully converted[\s\S]*904 runtime literal-helper invocations[\s\S]*166 direct interpolated SQL operation sites[\s\S]*180 existing bound operation sites/, "audit docs should record the Notes write conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.15[\s\S]*`notes\/notes\.repo`[\s\S]*fully converted[\s\S]*904 remaining helper invocations/, "database docs should record the full Notes repository conversion");
