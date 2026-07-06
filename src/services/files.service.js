@@ -3253,7 +3253,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 }
 
 async function readTableColumnSet(tableName) {
-  const rows = await querySql(`PRAGMA table_info(${safeSqlIdentifier(tableName)});`);
+  const rows = await db.query(db.dialect.introspection.tableInfo(tableName));
   return new Set(rows.map((row) => row.name));
 }
 

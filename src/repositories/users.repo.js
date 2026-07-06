@@ -37,6 +37,8 @@ user_id = :userId
         AND user_workspaces.workspace_id = :workspaceId
     )
   )`;
+const USERS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "users" });
+const USER_ROWS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "user_rows" });
 
 async function readByUsername(username) {
   return db.get(`
@@ -86,7 +88,7 @@ SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
 WHERE ${USER_BELONGS_TO_WORKSPACE_SQL}
-ORDER BY rowid
+ORDER BY ${USERS_PHYSICAL_ROW_ID}
 LIMIT 1;
 `, { userId, workspaceId });
 }
@@ -97,7 +99,7 @@ SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
 WHERE user_id = :userId
-ORDER BY rowid
+ORDER BY ${USERS_PHYSICAL_ROW_ID}
 LIMIT 1;
 `, { userId });
 }
@@ -107,8 +109,8 @@ async function readAll(workspaceId) {
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
-WHERE rowid IN (
-  SELECT MIN(user_rows.rowid)
+WHERE ${USERS_PHYSICAL_ROW_ID} IN (
+  SELECT MIN(${USER_ROWS_PHYSICAL_ROW_ID})
   FROM user_workspaces
   INNER JOIN users AS user_rows
     ON user_rows.user_id = user_workspaces.user_id

@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.5.27.5. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.27.17. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -46,6 +46,10 @@ List item storage lives in `list_items`:
 - Progress fields: checked timestamp/user, completed timestamp/user, deleted timestamp, and purchase/order status.
 
 Checking, completing, and receiving an item are separate states. A purchase status of `received` does not automatically check or complete the item.
+
+As of 0.33.5.27.16, list record and list item persistence paths use named params through the database facade. List reads and writes route reusable-list boolean storage through the database boolean seam, title ordering through the comparison seam, and batched list/item reads through array-valued named params. Item reorder writes use the database transaction callback. Catalog and linked-record paths remain assigned to 0.33.5.27.17, so this conversion preserves existing list execution, item progress, item ordering, item create/update/delete behavior, and service-owned read shaping without claiming the full repository is converted yet.
+
+As of 0.33.5.27.17, the Lists repository is fully converted to named params and the database dialect seams. Catalog, catalog-usage, linked-record, and batched linked-record paths use `db.query(...)`, `db.get(...)`, and `db.run(...)` instead of SQL literal helpers. Catalog suggestion matching and item-name ordering use `db.dialect.comparison`, while batched link reads use array-valued named params. The converted paths preserve catalog suggestion ranking, context matching, archived-suggestion filtering, catalog snapshot behavior, use-count increments, link lifecycle, default related link roles, metadata parsing, source-list context inputs, permission-safe linked-target enrichment inputs, nullable text trimming, integer fallback coercion, and finite-number-or-null catalog field handling.
 
 ## List Statuses
 

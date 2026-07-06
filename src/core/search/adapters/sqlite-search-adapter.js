@@ -1,7 +1,9 @@
-import { createBulkValuesBindings, querySql, runSql, sqlText } from "../../database.js";
+import { createBulkValuesBindings, db } from "../../database.js";
 
 const SQLITE_SEARCH_ADAPTER_ID = "sqlite";
 const SQLITE_SEARCH_FTS_TABLE = "search_index_fts";
+const SQLITE_SEARCH_FTS_PROBE_TABLE = "temp.__ltf_search_fts5_probe";
+const SEARCH_INDEX_TABLE = "search_index";
 const SEARCH_INDEX_COLUMNS = [
   "search_index_id",
   "workspace_id",
@@ -24,6 +26,25 @@ const SEARCH_INDEX_COLUMNS = [
   "record_updated_at",
   "indexed_at",
 ];
+const SQLITE_SEARCH_FTS_COLUMNS = [
+  { name: "search_index_id", unindexed: true },
+  { name: "workspace_id", unindexed: true },
+  { name: "module_id", unindexed: true },
+  { name: "record_type", unindexed: true },
+  { name: "record_id", unindexed: true },
+  "title",
+  "summary",
+  "body",
+  "tags_text",
+  "source",
+];
+const SEARCH_TEXT_COLUMNS = [
+  "title",
+  "summary",
+  "body",
+  "tags_text",
+  "source",
+];
 const NULLABLE_SEARCH_INDEX_COLUMNS = new Set([
   "client_id",
   "project_id",
@@ -32,6 +53,11 @@ const NULLABLE_SEARCH_INDEX_COLUMNS = new Set([
   "collection_path",
   "record_created_at",
   "record_updated_at",
+]);
+const SEARCH_SQL_ALIASES = new Set([
+  "si",
+  SEARCH_INDEX_TABLE,
+  SQLITE_SEARCH_FTS_TABLE,
 ]);
 
 let cachedCapabilities = null;
@@ -83,20 +109,7 @@ function createSqliteSearchAdapter(options = {}) {
         };
       }
 
-      await runSql(`
-CREATE VIRTUAL TABLE IF NOT EXISTS ${SQLITE_SEARCH_FTS_TABLE} USING fts5(
-  search_index_id UNINDEXED,
-  workspace_id UNINDEXED,
-  module_id UNINDEXED,
-  record_type UNINDEXED,
-  record_id UNINDEXED,
-  title,
-  summary,
-  body,
-  tags_text,
-  source
-);
-`);
+      await db.run(db.dialect.search.createVirtualTable(SQLITE_SEARCH_FTS_TABLE, SQLITE_SEARCH_FTS_COLUMNS));
 
       return {
         adapterId: SQLITE_SEARCH_ADAPTER_ID,
@@ -125,8 +138,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS ${SQLITE_SEARCH_FTS_TABLE} USING fts5(
         valueForColumn: searchIndexColumnValue,
       });
 
-      await runSql(`
-INSERT INTO search_index (${SEARCH_INDEX_COLUMNS.join(", ")})
+      await db.run(`
+INSERT INTO ${SEARCH_INDEX_TABLE} (${SEARCH_INDEX_COLUMNS.join(", ")})
 VALUES ${canonicalValues.sql}
 ON CONFLICT(workspace_id, module_id, record_type, record_id) DO UPDATE SET
   search_index_id = excluded.search_index_id,
@@ -148,37 +161,11 @@ ON CONFLICT(workspace_id, module_id, record_type, record_id) DO UPDATE SET
 `, canonicalValues.params);
 
       if (storage.ftsTableReady) {
-        const statements = validDocuments.map((document) => `
-DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
-WHERE search_index_id = ${sqlText(document.search_index_id)};
-
-INSERT INTO ${SQLITE_SEARCH_FTS_TABLE} (
-  search_index_id,
-  workspace_id,
-  module_id,
-  record_type,
-  record_id,
-  title,
-  summary,
-  body,
-  tags_text,
-  source
-)
-VALUES (
-  ${sqlText(document.search_index_id)},
-  ${sqlText(document.workspace_id)},
-  ${sqlText(document.module_id)},
-  ${sqlText(document.record_type)},
-  ${sqlText(document.record_id)},
-  ${sqlText(document.title || "")},
-  ${sqlText(document.summary || "")},
-  ${sqlText(document.body || "")},
-  ${sqlText(document.tags_text || "")},
-  ${sqlText(document.source || "")}
-);
-`);
-
-        await runSql(statements.join("\n"));
+        await db.transaction(async (transaction) => {
+          for (const document of validDocuments) {
+            await syncFtsDocument(transaction, document);
+          }
+        });
       }
 
       return {
@@ -194,44 +181,38 @@ VALUES (
       const moduleId = normalizeSearchText(recordReference.moduleId || recordReference.module_id);
       const recordType = normalizeSearchText(recordReference.recordType || recordReference.record_type);
       const recordId = normalizeSearchText(recordReference.recordId || recordReference.record_id);
-      const existingRows = await querySql(`
+      const params = {
+        moduleId,
+        recordId,
+        recordType,
+        workspaceId,
+      };
+      const existingRow = await db.get(`
 SELECT search_index_id
-FROM search_index
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND module_id = ${sqlText(moduleId)}
-  AND record_type = ${sqlText(recordType)}
-  AND record_id = ${sqlText(recordId)}
+FROM ${SEARCH_INDEX_TABLE}
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND record_type = :recordType
+  AND record_id = :recordId
 LIMIT 1;
-`);
-      const resolvedSearchIndexId = searchIndexId || existingRows[0]?.search_index_id ||
+`, params);
+      const resolvedSearchIndexId = searchIndexId || existingRow?.search_index_id ||
         `${workspaceId}:${moduleId}:${recordType}:${recordId}`;
-      const statements = [
-        `
-DELETE FROM search_index
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND module_id = ${sqlText(moduleId)}
-  AND record_type = ${sqlText(recordType)}
-  AND record_id = ${sqlText(recordId)};
-`,
-      ];
 
       if (storage.ftsTableReady) {
-        statements.push(`
-DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
-WHERE search_index_id = ${sqlText(resolvedSearchIndexId)}
-   OR (
-    workspace_id = ${sqlText(workspaceId)}
-    AND module_id = ${sqlText(moduleId)}
-    AND record_type = ${sqlText(recordType)}
-    AND record_id = ${sqlText(recordId)}
-  );
-`);
+        await db.transaction(async (transaction) => {
+          await transaction.run(deleteCanonicalSearchDocumentSql(), params);
+          await transaction.run(deleteFtsDocumentSql(), {
+            ...params,
+            searchIndexId: resolvedSearchIndexId,
+          });
+        });
+      } else {
+        await db.run(deleteCanonicalSearchDocumentSql(), params);
       }
 
-      await runSql(statements.join("\n"));
-
       return {
-        removedCount: existingRows.length > 0 ? 1 : 0,
+        removedCount: existingRow ? 1 : 0,
         ftsRemovedCount: storage.ftsTableReady ? 1 : 0,
         storage,
       };
@@ -276,10 +257,12 @@ WHERE search_index_id = ${sqlText(resolvedSearchIndexId)}
         };
       }
 
-      await runSql([
-        deleteFtsRowsSql(normalizedScope),
-        insertFtsRowsFromCanonicalSql(normalizedScope),
-      ].join("\n"));
+      const deleteStatement = buildDeleteFtsRowsStatement(normalizedScope);
+      const insertStatement = buildInsertFtsRowsFromCanonicalStatement(normalizedScope);
+      await db.transaction(async (transaction) => {
+        await transaction.run(deleteStatement.sql, deleteStatement.params);
+        await transaction.run(insertStatement.sql, insertStatement.params);
+      });
 
       return {
         adapterId: SQLITE_SEARCH_ADAPTER_ID,
@@ -311,8 +294,104 @@ WHERE search_index_id = ${sqlText(resolvedSearchIndexId)}
   };
 }
 
+async function syncFtsDocument(transaction, document) {
+  await transaction.run(deleteFtsDocumentBySearchIndexIdSql(), {
+    searchIndexId: normalizeSearchText(document.search_index_id),
+  });
+  await transaction.run(insertFtsDocumentSql(), ftsDocumentParams(document));
+}
+
+function deleteCanonicalSearchDocumentSql() {
+  return `
+DELETE FROM ${SEARCH_INDEX_TABLE}
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND record_type = :recordType
+  AND record_id = :recordId;
+`;
+}
+
+function deleteFtsDocumentBySearchIndexIdSql() {
+  return `
+DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
+WHERE search_index_id = :searchIndexId;
+`;
+}
+
+function deleteFtsDocumentSql() {
+  return `
+DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
+WHERE search_index_id = :searchIndexId
+   OR (
+    workspace_id = :workspaceId
+    AND module_id = :moduleId
+    AND record_type = :recordType
+    AND record_id = :recordId
+  );
+`;
+}
+
+function insertFtsDocumentSql() {
+  return `
+INSERT INTO ${SQLITE_SEARCH_FTS_TABLE} (
+  search_index_id,
+  workspace_id,
+  module_id,
+  record_type,
+  record_id,
+  title,
+  summary,
+  body,
+  tags_text,
+  source
+)
+VALUES (
+  :searchIndexId,
+  :workspaceId,
+  :moduleId,
+  :recordType,
+  :recordId,
+  :title,
+  :summary,
+  :body,
+  :tagsText,
+  :source
+);
+`;
+}
+
+function ftsDocumentParams(document = {}) {
+  return {
+    body: normalizeSearchText(document.body),
+    moduleId: normalizeSearchText(document.module_id),
+    recordId: normalizeSearchText(document.record_id),
+    recordType: normalizeSearchText(document.record_type),
+    searchIndexId: normalizeSearchText(document.search_index_id),
+    source: normalizeSearchText(document.source),
+    summary: normalizeSearchText(document.summary),
+    tagsText: normalizeSearchText(document.tags_text),
+    title: normalizeSearchText(document.title),
+    workspaceId: normalizeSearchText(document.workspace_id),
+  };
+}
+
 async function readCanonicalRowsForRepair(scope) {
-  return querySql(`
+  const statement = buildCanonicalRowsForRepairStatement(scope);
+  return db.query(statement.sql, statement.params);
+}
+
+async function readFtsRowsForRepair(scope) {
+  const statement = buildFtsRowsForRepairStatement(scope);
+  return db.query(statement.sql, statement.params);
+}
+
+function buildCanonicalRowsForRepairStatement(scope) {
+  const params = {};
+  const where = buildRepairWhereClause(scope, SEARCH_INDEX_TABLE, params);
+
+  return {
+    params,
+    sql: `
 SELECT
   search_index_id,
   workspace_id,
@@ -324,14 +403,20 @@ SELECT
   body,
   tags_text,
   source
-FROM search_index
-${repairWhereClause(scope, "search_index")}
+FROM ${SEARCH_INDEX_TABLE}
+${where ? `WHERE ${where}` : ""}
 ORDER BY search_index_id;
-`);
+`,
+  };
 }
 
-async function readFtsRowsForRepair(scope) {
-  return querySql(`
+function buildFtsRowsForRepairStatement(scope) {
+  const params = {};
+  const where = buildRepairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE, params);
+
+  return {
+    params,
+    sql: `
 SELECT
   search_index_id,
   workspace_id,
@@ -339,20 +424,32 @@ SELECT
   record_type,
   record_id
 FROM ${SQLITE_SEARCH_FTS_TABLE}
-${repairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE)}
+${where ? `WHERE ${where}` : ""}
 ORDER BY search_index_id;
-`);
+`,
+  };
 }
 
-function deleteFtsRowsSql(scope) {
-  return `
+function buildDeleteFtsRowsStatement(scope) {
+  const params = {};
+  const where = buildRepairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE, params);
+
+  return {
+    params,
+    sql: `
 DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
-${repairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE)};
-`;
+${where ? `WHERE ${where}` : ""};
+`,
+  };
 }
 
-function insertFtsRowsFromCanonicalSql(scope) {
-  return `
+function buildInsertFtsRowsFromCanonicalStatement(scope) {
+  const params = {};
+  const where = buildRepairWhereClause(scope, SEARCH_INDEX_TABLE, params);
+
+  return {
+    params,
+    sql: `
 INSERT INTO ${SQLITE_SEARCH_FTS_TABLE} (
   search_index_id,
   workspace_id,
@@ -376,33 +473,34 @@ SELECT
   body,
   tags_text,
   source
-FROM search_index
-${repairWhereClause(scope, "search_index")};
-`;
+FROM ${SEARCH_INDEX_TABLE}
+${where ? `WHERE ${where}` : ""};
+`,
+  };
 }
 
-function repairWhereClause(scope, alias) {
-  const whereSql = scope.whereSql(alias);
+function buildRepairWhereClause(scope, alias, params) {
+  const qualifiedAlias = normalizeSearchSqlAlias(alias);
+  const whereParts = [];
 
-  return whereSql ? `WHERE ${whereSql}` : "";
+  if (scope.workspaceId) {
+    whereParts.push(`${qualifiedAlias}.workspace_id = ${bindSearchParam(params, "repairWorkspaceId", scope.workspaceId)}`);
+  }
+  if (scope.moduleId) {
+    whereParts.push(`${qualifiedAlias}.module_id = ${bindSearchParam(params, "repairModuleId", scope.moduleId)}`);
+  }
+  if (scope.recordType) {
+    whereParts.push(`${qualifiedAlias}.record_type = ${bindSearchParam(params, "repairRecordType", scope.recordType)}`);
+  }
+
+  return whereParts.join("\n  AND ");
 }
 
 function normalizeRepairScope(scope = {}) {
-  const workspaceId = normalizeSearchText(scope.workspaceId || scope.workspace_id);
-  const moduleId = normalizeSearchText(scope.moduleId || scope.module_id);
-  const recordType = normalizeSearchText(scope.recordType || scope.record_type);
-
   return {
-    moduleId,
-    recordType,
-    workspaceId,
-    whereSql(alias) {
-      return [
-        workspaceId ? `${alias}.workspace_id = ${sqlText(workspaceId)}` : "",
-        moduleId ? `${alias}.module_id = ${sqlText(moduleId)}` : "",
-        recordType ? `${alias}.record_type = ${sqlText(recordType)}` : "",
-      ].filter(Boolean).join("\n  AND ");
-    },
+    moduleId: normalizeSearchText(scope.moduleId || scope.module_id),
+    recordType: normalizeSearchText(scope.recordType || scope.record_type),
+    workspaceId: normalizeSearchText(scope.workspaceId || scope.workspace_id),
   };
 }
 
@@ -432,7 +530,7 @@ async function detectFts5Support() {
 
 async function detectFts5ViaCompileOptions() {
   try {
-    const rows = await querySql("PRAGMA compile_options;");
+    const rows = await db.query(db.dialect.introspection.compileOptions());
     const options = rows.map((row) => String(row.compile_options || row.compile_option || "")).filter(Boolean);
 
     return {
@@ -455,10 +553,8 @@ async function detectFts5ViaCompileOptions() {
 
 async function detectFts5ViaVirtualTableProbe() {
   try {
-    await runSql(`
-CREATE VIRTUAL TABLE temp.__ltf_search_fts5_probe USING fts5(content);
-DROP TABLE temp.__ltf_search_fts5_probe;
-`);
+    await db.run(db.dialect.search.createVirtualTable(SQLITE_SEARCH_FTS_PROBE_TABLE, ["content"]));
+    await db.run(db.dialect.search.dropVirtualTable(SQLITE_SEARCH_FTS_PROBE_TABLE));
 
     return {
       checked: true,
@@ -483,14 +579,40 @@ function clearSqliteSearchAdapterCapabilityCacheForTests() {
 }
 
 async function queryFtsResults(request) {
-  const where = buildSearchWhereClause(request, "si");
-  const ftsQuery = buildFtsQuery(request.text);
+  const statement = buildFtsSearchStatement(request);
 
-  if (!ftsQuery) {
+  if (!statement) {
     return queryLikeResults(request);
   }
 
-  return querySql(`
+  return db.query(statement.sql, statement.params);
+}
+
+async function queryLikeResults(request) {
+  const statement = buildLikeSearchStatement(request);
+  return db.query(statement.sql, statement.params);
+}
+
+function buildFtsSearchStatement(request) {
+  const ftsQuery = buildFtsQuery(request?.text);
+
+  if (!ftsQuery) {
+    return null;
+  }
+
+  const params = {
+    ftsQuery,
+    limit: normalizeSearchLimit(request?.limit),
+    offset: normalizeSearchOffset(request?.offset),
+  };
+  const where = buildSearchWhereClause(request, "si", params);
+  const rankSql = db.dialect.search.rank(SQLITE_SEARCH_FTS_TABLE);
+
+  return {
+    backend: "sqlite-fts5",
+    ftsQuery,
+    params,
+    sql: `
 SELECT
   si.search_index_id,
   si.workspace_id,
@@ -512,39 +634,45 @@ SELECT
   si.record_created_at,
   si.record_updated_at,
   si.indexed_at,
-  bm25(${SQLITE_SEARCH_FTS_TABLE}) AS search_score,
+  ${rankSql} AS search_score,
   'sqlite-fts5' AS search_backend
 FROM ${SQLITE_SEARCH_FTS_TABLE} fts
-JOIN search_index si ON si.search_index_id = fts.search_index_id
-WHERE ${SQLITE_SEARCH_FTS_TABLE} MATCH ${sqlText(ftsQuery)}
+JOIN ${SEARCH_INDEX_TABLE} si ON si.search_index_id = fts.search_index_id
+WHERE ${db.dialect.search.match(SQLITE_SEARCH_FTS_TABLE, ":ftsQuery")}
 ${where ? `  AND ${where}` : ""}
-ORDER BY bm25(${SQLITE_SEARCH_FTS_TABLE}), si.indexed_at DESC, si.search_index_id ASC
-LIMIT ${sqlLimit(request?.limit)}
-OFFSET ${sqlOffset(request?.offset)};
-`);
+ORDER BY ${rankSql}, si.indexed_at DESC, si.search_index_id ASC
+LIMIT :limit
+OFFSET :offset;
+`,
+  };
 }
 
-async function queryLikeResults(request) {
+function buildLikeSearchStatement(request) {
+  const params = {
+    limit: normalizeSearchLimit(request?.limit),
+    offset: normalizeSearchOffset(request?.offset),
+  };
   const whereParts = [];
   const searchText = normalizeSearchText(request?.text);
 
   if (searchText) {
-    const likeValue = sqlLikePattern(searchText);
+    params.searchTextPattern = db.dialect.comparison.likePattern(searchText);
     whereParts.push(`(
-    si.title LIKE ${likeValue} ESCAPE '\\'
-    OR si.summary LIKE ${likeValue} ESCAPE '\\'
-    OR si.body LIKE ${likeValue} ESCAPE '\\'
-    OR si.tags_text LIKE ${likeValue} ESCAPE '\\'
-    OR si.source LIKE ${likeValue} ESCAPE '\\'
+    ${SEARCH_TEXT_COLUMNS.map((column) => (
+      db.dialect.comparison.containsNoCase(`si.${column}`, ":searchTextPattern")
+    )).join("\n    OR ")}
   )`);
   }
 
-  const commonWhere = buildSearchWhereClause(request, "si");
+  const commonWhere = buildSearchWhereClause(request, "si", params);
   if (commonWhere) {
     whereParts.push(commonWhere);
   }
 
-  return querySql(`
+  return {
+    backend: "sqlite-like",
+    params,
+    sql: `
 SELECT
   si.search_index_id,
   si.workspace_id,
@@ -568,27 +696,42 @@ SELECT
   si.indexed_at,
   NULL AS search_score,
   'sqlite-like' AS search_backend
-FROM search_index si
+FROM ${SEARCH_INDEX_TABLE} si
 ${whereParts.length > 0 ? `WHERE ${whereParts.join("\n  AND ")}` : ""}
 ORDER BY si.indexed_at DESC, si.title ASC, si.search_index_id ASC
-LIMIT ${sqlLimit(request?.limit)}
-OFFSET ${sqlOffset(request?.offset)};
-`);
+LIMIT :limit
+OFFSET :offset;
+`,
+  };
 }
 
-function buildSearchWhereClause(request, alias) {
+function buildSearchWhereClause(request, alias, params) {
+  const qualifiedAlias = normalizeSearchSqlAlias(alias);
   const whereParts = [];
   const workspaceId = normalizeSearchText(request?.workspaceId);
   const targets = Array.isArray(request?.targets) ? request.targets : [];
 
   if (workspaceId) {
-    whereParts.push(`${alias}.workspace_id = ${sqlText(workspaceId)}`);
+    whereParts.push(`${qualifiedAlias}.workspace_id = ${bindSearchParam(params, "workspaceId", workspaceId)}`);
   }
 
-  if (targets.length === 0) {
+  const targetConditions = targets
+    .map((target, index) => {
+      const moduleId = normalizeSearchText(target?.moduleId || target?.module_id);
+      const recordType = normalizeSearchText(target?.recordType || target?.record_type);
+
+      if (!moduleId || !recordType) {
+        return "";
+      }
+
+      return `(${qualifiedAlias}.module_id = ${bindSearchParam(params, `targetModuleId${index}`, moduleId)} AND ${qualifiedAlias}.record_type = ${bindSearchParam(params, `targetRecordType${index}`, recordType)})`;
+    })
+    .filter(Boolean);
+
+  if (targetConditions.length === 0) {
     whereParts.push("1 = 0");
   } else {
-    whereParts.push(`(${targets.map((target) => `(${alias}.module_id = ${sqlText(target.moduleId)} AND ${alias}.record_type = ${sqlText(target.recordType)})`).join(" OR ")})`);
+    whereParts.push(`(${targetConditions.join(" OR ")})`);
   }
 
   const clientId = normalizeSearchText(request?.scopes?.clientId);
@@ -604,44 +747,44 @@ function buildSearchWhereClause(request, alias) {
   const noTagsMode = normalizeSearchText(request?.noTagsMode);
 
   if (clientId) {
-    whereParts.push(`${alias}.client_id = ${sqlText(clientId)}`);
+    whereParts.push(`${qualifiedAlias}.client_id = ${bindSearchParam(params, "clientId", clientId)}`);
   }
   if (projectId) {
-    whereParts.push(`${alias}.project_id = ${sqlText(projectId)}`);
+    whereParts.push(`${qualifiedAlias}.project_id = ${bindSearchParam(params, "projectId", projectId)}`);
   }
   if (libraryBucket) {
-    whereParts.push(`${alias}.library_bucket = ${sqlText(libraryBucket)}`);
+    whereParts.push(`${qualifiedAlias}.library_bucket = ${bindSearchParam(params, "libraryBucket", libraryBucket)}`);
   }
   if (noteCollectionId) {
-    whereParts.push(`${alias}.note_collection_id = ${sqlText(noteCollectionId)}`);
+    whereParts.push(`${qualifiedAlias}.note_collection_id = ${bindSearchParam(params, "noteCollectionId", noteCollectionId)}`);
   }
   if (recordStatus) {
-    whereParts.push(`${alias}.record_status = ${sqlText(recordStatus)}`);
+    whereParts.push(`${qualifiedAlias}.record_status = ${bindSearchParam(params, "recordStatus", recordStatus)}`);
   }
   if (visibility) {
-    whereParts.push(`${alias}.visibility = ${sqlText(visibility)}`);
+    whereParts.push(`${qualifiedAlias}.visibility = ${bindSearchParam(params, "visibility", visibility)}`);
   }
   if (source) {
-    whereParts.push(`${alias}.source = ${sqlText(source)}`);
+    whereParts.push(`${qualifiedAlias}.source = ${bindSearchParam(params, "source", source)}`);
   }
 
-  for (const tagId of exactTagIds) {
+  for (const [index, tagId] of exactTagIds.entries()) {
     whereParts.push(`EXISTS (
     SELECT 1
     FROM tag_assignments tag_filter
-    WHERE tag_filter.workspace_id = ${alias}.workspace_id
-      AND tag_filter.target_type = ${alias}.record_type
-      AND tag_filter.target_id = ${alias}.record_id
-      AND tag_filter.tag_id = ${sqlText(tagId)}
+    WHERE tag_filter.workspace_id = ${qualifiedAlias}.workspace_id
+      AND tag_filter.target_type = ${qualifiedAlias}.record_type
+      AND tag_filter.target_id = ${qualifiedAlias}.record_id
+      AND tag_filter.tag_id = ${bindSearchParam(params, `tagId${index}`, tagId)}
   )`);
   }
   if (noTagsMode === "effective") {
     whereParts.push(`NOT EXISTS (
     SELECT 1
     FROM tag_assignments tag_filter
-    WHERE tag_filter.workspace_id = ${alias}.workspace_id
-      AND tag_filter.target_type = ${alias}.record_type
-      AND tag_filter.target_id = ${alias}.record_id
+    WHERE tag_filter.workspace_id = ${qualifiedAlias}.workspace_id
+      AND tag_filter.target_type = ${qualifiedAlias}.record_type
+      AND tag_filter.target_id = ${qualifiedAlias}.record_id
   )`);
   }
 
@@ -657,23 +800,40 @@ function buildFtsQuery(value) {
   return tokens.map((token) => `"${token.replaceAll('"', '""')}"`).join(" AND ");
 }
 
-function sqlLikePattern(value) {
-  const escaped = normalizeSearchText(value)
-    .replaceAll("\\", "\\\\")
-    .replaceAll("%", "\\%")
-    .replaceAll("_", "\\_");
+function bindSearchParam(params, name, value) {
+  if (Object.hasOwn(params, name)) {
+    throw new Error(`Duplicate SQLite search parameter: ${name}.`);
+  }
 
-  return sqlText(`%${escaped}%`);
+  params[name] = value;
+  return `:${name}`;
 }
 
-function sqlLimit(value) {
+function normalizeSearchLimit(value) {
   const limit = Number.parseInt(value, 10);
-  return Number.isInteger(limit) && limit > 0 && limit <= 100 ? String(limit) : "25";
+  return Number.isInteger(limit) && limit > 0 && limit <= 100 ? limit : 25;
 }
 
-function sqlOffset(value) {
+function normalizeSearchOffset(value) {
   const offset = Number.parseInt(value, 10);
-  return Number.isInteger(offset) && offset >= 0 ? String(offset) : "0";
+  return Number.isInteger(offset) && offset >= 0 ? offset : 0;
+}
+
+function normalizeSearchSqlAlias(alias) {
+  const text = String(alias || "").trim();
+
+  if (!SEARCH_SQL_ALIASES.has(text)) {
+    throw new Error(`Invalid SQLite search SQL alias: ${text || "(empty)"}.`);
+  }
+
+  return text;
+}
+
+function buildSqliteSearchReadStatementsForTests(request = {}) {
+  return {
+    fallback: buildLikeSearchStatement(request),
+    fts: buildFtsSearchStatement(request),
+  };
 }
 
 function searchIndexColumnValue(document, columnName) {
@@ -691,6 +851,7 @@ function normalizeSearchText(value) {
 }
 
 export {
+  buildSqliteSearchReadStatementsForTests,
   clearSqliteSearchAdapterCapabilityCacheForTests,
   createSqliteSearchAdapter,
   SQLITE_SEARCH_ADAPTER_ID,

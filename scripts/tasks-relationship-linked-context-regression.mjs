@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.27.5";
+const appVersion = "0.33.5.27.17";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -78,7 +78,7 @@ assert.match(assertCanRelate, /parentTask\.workspace_id !== childTask\.workspace
 assert.match(blockParent, /autoBlockedReason\(\[childTask\.title \|\| childTask\.task_id\]\)[\s\S]*tasksRepository\.update\([\s\S]*status:\s*"blocked"[\s\S]*task\.updated/, "Blocking child relationships should keep Tasks-owned parent block events");
 assert.match(recoverParent, /readBlockingChildren[\s\S]*blocked_reason\.startsWith\("Blocked by incomplete child task"\)[\s\S]*tasksRepository\.update\([\s\S]*status:\s*"open"[\s\S]*task\.updated/, "Cleared blocking child relationships should keep Tasks-owned recovery events");
 assert.match(tasksService, /readableRelationshipsForTask[\s\S]*direction:\s*isParentSide \? "child" : "parent"[\s\S]*related_task_readable[\s\S]*related_task:\s*canReadRelated && relatedTask/, "Relationship read payloads should still expose related readable task data only when permitted");
-assert.match(taskRelationshipsRepo, /readForTask[\s\S]*task_relationships\.workspace_id = \$\{sqlText\(workspaceId\)\}[\s\S]*relationshipSummary[\s\S]*incomplete_blocking_child_count/, "Relationship repository should keep relationship reads and summaries Tasks-owned");
+assert.match(taskRelationshipsRepo, /readForTask[\s\S]*task_relationships\.workspace_id = :workspaceId[\s\S]*relationshipSummary[\s\S]*incomplete_blocking_child_count/, "Relationship repository should keep relationship reads and summaries Tasks-owned");
 
 assert.match(relationshipRegression, /same client/i, "Existing relationship regression should preserve same-client boundary coverage");
 assert.match(relationshipRegression, /circular/i, "Existing relationship regression should preserve circular relationship coverage");

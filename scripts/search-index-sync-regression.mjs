@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { clearSearchIndexersForTests, registerSearchIndexer } from "../src/core/search/indexer-registry.js";
@@ -85,7 +86,7 @@ await checkAsync("search sync helper queues jobs and the worker re-indexes remov
   resetJobWorkerStatusForTests();
   registerSearchIndexJobHandlers({ replace: true });
   clearSearchIndexersForTests();
-  const workspaceId = "search-index-sync-workspace";
+  const workspaceId = `search-index-sync-workspace-${randomUUID()}`;
   const now = "2026-06-08T15:00:00.000Z";
   const searchableType = {
     recordType: "example_record",

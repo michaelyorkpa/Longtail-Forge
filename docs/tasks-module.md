@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.27.5. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.27.17. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -19,6 +19,14 @@ The selected saved task view is sent to the Tasks service as `task_view`; the fr
 As of 0.33.5.20.2, the protected Tasks list route returns bounded server-side pages. The browser sends `task_view`, advanced filters, sort, a page `limit`, and an opaque `cursor` for additional pages; it renders the first page and exposes `Load More` only when the server returns a next cursor. The repository-owned list query applies workspace scope, task-view filters, status filters, due filters, context filters, assignee filters, stable sorting, `LIMIT`, and `OFFSET` in SQL where practical. The Tasks service still performs the authoritative `tasks.view` permission check before shaping the response, then applies the canonical safety filter after tag/timer composition. Normal list rows use list projection hydration for reminder metadata, checklist progress, relationship summaries, completion metrics, and resume context; full checklist rows, recurrence details, relationship reads, and editor-only fields stay on task detail/editor reads.
 
 As of 0.33.5.20.4, Tasks list projection enrichment uses the shared visible-record batch helper around the existing batched assignee, checklist progress, and relationship-summary reads. Tasks remains responsible for what those fields mean and when they appear.
+
+As of 0.33.5.27.8, `tasks/tasks.repo` is on the provider-neutral named-params contract. Task primary create/update, list/detail reads, saved-view filters, assignee filters, batched task/assignee reads, due-window reads, reminder candidate reads, recurrence instance lookup, and `last_worked_at` updates go through `db.query(...)` / `db.run(...)` with named params. The repository uses the dialect comparison seam for its case-insensitive title ordering path and the boolean seam for reminder override storage mapping.
+
+As of version 0.33.5.27.9, the task checklist repository uses named bound params for checklist task reads, batched progress reads, create/update writes, soft delete, and next-sort-order reads. Checklist reorder writes use `db.transaction(callback)`, progress reads use array-valued task-id params, and checked-state storage routes through the boolean seam so the repository does not own SQLite `0` / `1` details.
+
+As of version 0.33.5.27.10, the task relationships repository uses named bound params for relationship create/update/remove writes, active pair reads, parent/child reads, blocking-child reads, recursive path checks, and relationship summaries. Batched relationship summaries use array-valued task-id params for both parent and child sides, and blocking-state storage routes through the boolean seam so the repository does not own SQLite `0` / `1` details.
+
+As of version 0.33.5.27.11, the task recurrence and reminder repositories use named bound params for recurrence template reads/writes, template assignee reads, reminder offset reads, batched reminder target reads, and replacement writes. Template assignee replacement and reminder offset replacement use `db.transaction(callback)`, while reminder target batch reads use generated named params for each target pair. Durable recurrence generation handoff and reminder delivery semantics remain owned by the existing Tasks services and worker jobs.
 
 Sorting and Filters controls narrow the selected saved task view instead of replacing it. Changing the saved task view preserves compatible advanced filters, clears incompatible assignee filters for `My Tasks` and `Unassigned`, and resets incompatible status filters to the selected view's default. The `Reset Filters` action resets sort, status, assignee, client, project, and tag controls without changing the selected saved task view.
 
@@ -161,6 +169,7 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/tasks-canonical-editor-opener-regression.mjs`
 - `scripts/tasks-view-selector-query-contract-regression.mjs`
 - `scripts/tasks-server-side-list-paging-regression.mjs`
+- `scripts/tasks-primary-repository-conversion-regression.mjs`
 - `scripts/task-qol-closeout-regression.mjs`
 - `scripts/task-bulk-due-tags-regression.mjs`
 - `scripts/task-modal-compact-layout-regression.mjs`

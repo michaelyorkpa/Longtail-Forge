@@ -1,12 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  db,
-  querySql,
-  runSql,
-  sqlInteger,
-  sqlNullableText,
-  sqlText,
-} from "../../core/database.js";
+import { db } from "../../core/database.js";
 
 async function queryList(workspaceId, options = {}) {
   const normalizedLimit = normalizePositiveInteger(options.limit, 0);
@@ -43,14 +36,14 @@ ${orderSql}${limitSql};
 
 async function readAll(workspaceId) {
   const [tasks, assignees] = await Promise.all([
-    querySql(taskSelectSql(`
-WHERE tasks.workspace_id = ${sqlText(workspaceId)}
+    db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
 ORDER BY
   CASE WHEN tasks.archived_at IS NULL THEN 0 ELSE 1 END,
   COALESCE(tasks.due_date, '9999-12-31'),
   COALESCE(tasks.due_time, '23:59'),
   tasks.updated_at DESC;
-`)),
+`), { workspaceId }),
     readAssigneesForWorkspace(workspaceId),
   ]);
 
@@ -81,17 +74,14 @@ async function readByIds(workspaceId, taskIds = []) {
     return [];
   }
 
-  const params = { workspaceId };
-  const placeholders = ids.map((taskId, index) => {
-    const key = `taskId${index}`;
-    params[key] = taskId;
-    return `:${key}`;
-  });
   const rows = await db.query(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
-  AND tasks.task_id IN (${placeholders.join(", ")})
-ORDER BY tasks.updated_at DESC, tasks.title COLLATE NOCASE ASC;
-`), params);
+  AND tasks.task_id IN (:taskIds)
+ORDER BY tasks.updated_at DESC, ${db.dialect.comparison.orderByNoCase("tasks.title", "ASC")};
+`), {
+    taskIds: ids,
+    workspaceId,
+  });
   const assignees = await readAssigneesForTasks(workspaceId, rows.map((row) => row.task_id));
 
   return attachAssignees(rows.map(taskRowToAppValue), assignees);
@@ -101,7 +91,7 @@ async function create(workspaceId, task) {
   const now = new Date().toISOString();
   const taskId = task.task_id || randomUUID();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO tasks (
   task_id,
   workspace_id,
@@ -135,38 +125,38 @@ INSERT INTO tasks (
   updated_at
 )
 VALUES (
-  ${sqlText(taskId)},
-  ${sqlText(workspaceId)},
-  ${sqlNullableText(task.client_id)},
-  ${sqlNullableText(task.project_id)},
-  ${sqlText(task.title)},
-  ${sqlText(task.description)},
-  ${sqlText(task.next_action)},
-  ${sqlText(task.blocked_reason)},
-  ${sqlText(task.resume_note)},
-  ${sqlText(task.status)},
-  ${sqlText(task.priority)},
-  ${sqlText(task.billable === "no" ? "no" : "yes")},
-  ${sqlNullableText(task.due_date)},
-  ${sqlNullableText(task.due_time)},
-  ${sqlNullableText(task.due_timezone)},
-  ${sqlNullableText(task.due_at_utc)},
-  ${sqlText(task.source_type || "manual")},
-  ${sqlNullableText(task.source_id)},
-  ${sqlNullableText(task.archived_at)},
-  ${sqlInteger(task.reminder_override_enabled ? 1 : 0)},
-  ${sqlNullableText(task.recurrence_template_id)},
-  ${sqlNullableText(task.recurrence_instance_date)},
-  ${sqlNullableText(task.completed_at)},
-  ${sqlNullableText(task.created_by_user_id)},
-  ${sqlNullableText(task.updated_by_user_id)},
-  ${sqlNullableText(task.completed_by_user_id)},
-  ${sqlNullableText(task.archived_by_user_id)},
-  ${sqlNullableText(task.last_worked_at)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :taskId,
+  :workspaceId,
+  :clientId,
+  :projectId,
+  :title,
+  :description,
+  :nextAction,
+  :blockedReason,
+  :resumeNote,
+  :status,
+  :priority,
+  :billable,
+  :dueDate,
+  :dueTime,
+  :dueTimezone,
+  :dueAtUtc,
+  :sourceType,
+  :sourceId,
+  :archivedAt,
+  :reminderOverrideEnabled,
+  :recurrenceTemplateId,
+  :recurrenceInstanceDate,
+  :completedAt,
+  :createdByUserId,
+  :updatedByUserId,
+  :completedByUserId,
+  :archivedByUserId,
+  :lastWorkedAt,
+  :createdAt,
+  :updatedAt
 );
-`);
+`, taskWriteParams({ includeCreatedAt: true, now, task, taskId, workspaceId }));
 
   await replaceAssignees(workspaceId, taskId, task.assignee_ids || [], task.updated_by_user_id || task.created_by_user_id);
   return readById(workspaceId, taskId);
@@ -175,38 +165,38 @@ VALUES (
 async function update(workspaceId, task) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE tasks
 SET
-  client_id = ${sqlNullableText(task.client_id)},
-  project_id = ${sqlNullableText(task.project_id)},
-  title = ${sqlText(task.title)},
-  description = ${sqlText(task.description)},
-  next_action = ${sqlText(task.next_action)},
-  blocked_reason = ${sqlText(task.blocked_reason)},
-  resume_note = ${sqlText(task.resume_note)},
-  status = ${sqlText(task.status)},
-  priority = ${sqlText(task.priority)},
-  billable = ${sqlText(task.billable === "no" ? "no" : "yes")},
-  due_date = ${sqlNullableText(task.due_date)},
-  due_time = ${sqlNullableText(task.due_time)},
-  due_timezone = ${sqlNullableText(task.due_timezone)},
-  due_at_utc = ${sqlNullableText(task.due_at_utc)},
-  source_type = ${sqlText(task.source_type || "manual")},
-  source_id = ${sqlNullableText(task.source_id)},
-  archived_at = ${sqlNullableText(task.archived_at)},
-  reminder_override_enabled = ${sqlInteger(task.reminder_override_enabled ? 1 : 0)},
-  recurrence_template_id = ${sqlNullableText(task.recurrence_template_id)},
-  recurrence_instance_date = ${sqlNullableText(task.recurrence_instance_date)},
-  completed_at = ${sqlNullableText(task.completed_at)},
-  updated_by_user_id = ${sqlNullableText(task.updated_by_user_id)},
-  completed_by_user_id = ${sqlNullableText(task.completed_by_user_id)},
-  archived_by_user_id = ${sqlNullableText(task.archived_by_user_id)},
-  last_worked_at = ${sqlNullableText(task.last_worked_at)},
-  updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND task_id = ${sqlText(task.task_id)};
-`);
+  client_id = :clientId,
+  project_id = :projectId,
+  title = :title,
+  description = :description,
+  next_action = :nextAction,
+  blocked_reason = :blockedReason,
+  resume_note = :resumeNote,
+  status = :status,
+  priority = :priority,
+  billable = :billable,
+  due_date = :dueDate,
+  due_time = :dueTime,
+  due_timezone = :dueTimezone,
+  due_at_utc = :dueAtUtc,
+  source_type = :sourceType,
+  source_id = :sourceId,
+  archived_at = :archivedAt,
+  reminder_override_enabled = :reminderOverrideEnabled,
+  recurrence_template_id = :recurrenceTemplateId,
+  recurrence_instance_date = :recurrenceInstanceDate,
+  completed_at = :completedAt,
+  updated_by_user_id = :updatedByUserId,
+  completed_by_user_id = :completedByUserId,
+  archived_by_user_id = :archivedByUserId,
+  last_worked_at = :lastWorkedAt,
+  updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND task_id = :taskId;
+`, taskWriteParams({ now, task, taskId: task.task_id, workspaceId }));
 
   if (Array.isArray(task.assignee_ids)) {
     await replaceAssignees(workspaceId, task.task_id, task.assignee_ids, task.updated_by_user_id);
@@ -265,11 +255,11 @@ VALUES (
 }
 
 async function readAssigneesForWorkspace(workspaceId) {
-  return querySql(assigneeSelectSql(`
-WHERE task_assignees.workspace_id = ${sqlText(workspaceId)}
+  return db.query(assigneeSelectSql(`
+WHERE task_assignees.workspace_id = :workspaceId
   AND task_assignees.removed_at IS NULL
 ORDER BY users.username;
-`));
+`), { workspaceId });
 }
 
 async function readAssigneesForTasks(workspaceId, taskIds) {
@@ -279,28 +269,28 @@ async function readAssigneesForTasks(workspaceId, taskIds) {
     return [];
   }
 
-  const params = { workspaceId };
-  const placeholders = uniqueTaskIds.map((taskId, index) => {
-    const key = `taskId${index}`;
-    params[key] = taskId;
-    return `:${key}`;
-  });
-
   return db.query(assigneeSelectSql(`
 WHERE task_assignees.workspace_id = :workspaceId
-  AND task_assignees.task_id IN (${placeholders.join(", ")})
+  AND task_assignees.task_id IN (:taskIds)
   AND task_assignees.removed_at IS NULL
 ORDER BY users.username;
-`), params);
+`), {
+    taskIds: uniqueTaskIds,
+    workspaceId,
+  });
 }
 
 async function readByRecurrenceInstance(workspaceId, templateId, instanceDate) {
-  const rows = await querySql(taskSelectSql(`
-WHERE tasks.workspace_id = ${sqlText(workspaceId)}
-  AND tasks.recurrence_template_id = ${sqlText(templateId)}
-  AND tasks.recurrence_instance_date = ${sqlText(instanceDate)}
+  const rows = await db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.recurrence_template_id = :templateId
+  AND tasks.recurrence_instance_date = :instanceDate
 LIMIT 1;
-`));
+`), {
+    instanceDate,
+    templateId,
+    workspaceId,
+  });
 
   if (!rows[0]) {
     return null;
@@ -312,18 +302,22 @@ LIMIT 1;
 
 async function readDueBetween(workspaceId, startDate, endDate) {
   const [tasks, assignees] = await Promise.all([
-    querySql(taskSelectSql(`
-WHERE tasks.workspace_id = ${sqlText(workspaceId)}
+    db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
   AND tasks.due_date IS NOT NULL
-  AND tasks.due_date >= ${sqlText(startDate)}
-  AND tasks.due_date <= ${sqlText(endDate)}
+  AND tasks.due_date >= :startDate
+  AND tasks.due_date <= :endDate
   AND tasks.status != 'archived'
 ORDER BY
   tasks.due_date,
   COALESCE(tasks.due_time, '23:59'),
   tasks.priority DESC,
   tasks.updated_at DESC;
-`)),
+`), {
+      endDate,
+      startDate,
+      workspaceId,
+    }),
     readAssigneesForWorkspace(workspaceId),
   ]);
 
@@ -365,14 +359,19 @@ ORDER BY users.username;
 async function markWorkedAt(workspaceId, taskId, workedAt, userId = "") {
   const timestamp = workedAt || new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE tasks
-SET last_worked_at = ${sqlText(timestamp)},
-    updated_by_user_id = COALESCE(${sqlNullableText(userId)}, updated_by_user_id),
-    updated_at = ${sqlText(timestamp)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND task_id = ${sqlText(taskId)};
-`);
+SET last_worked_at = :timestamp,
+    updated_by_user_id = COALESCE(:userId, updated_by_user_id),
+    updated_at = :timestamp
+WHERE workspace_id = :workspaceId
+  AND task_id = :taskId;
+`, {
+    taskId,
+    timestamp,
+    userId: nullableTextParam(userId),
+    workspaceId,
+  });
 
   return readById(workspaceId, taskId);
 }
@@ -701,6 +700,56 @@ function normalizedFilter(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function taskWriteParams({ includeCreatedAt = false, now, task, taskId, workspaceId }) {
+  const params = {
+    archivedAt: nullableTextParam(task.archived_at),
+    archivedByUserId: nullableTextParam(task.archived_by_user_id),
+    billable: task.billable === "no" ? "no" : "yes",
+    blockedReason: textParam(task.blocked_reason),
+    clientId: nullableTextParam(task.client_id),
+    completedAt: nullableTextParam(task.completed_at),
+    completedByUserId: nullableTextParam(task.completed_by_user_id),
+    description: textParam(task.description),
+    dueAtUtc: nullableTextParam(task.due_at_utc),
+    dueDate: nullableTextParam(task.due_date),
+    dueTime: nullableTextParam(task.due_time),
+    dueTimezone: nullableTextParam(task.due_timezone),
+    lastWorkedAt: nullableTextParam(task.last_worked_at),
+    nextAction: textParam(task.next_action),
+    priority: textParam(task.priority),
+    projectId: nullableTextParam(task.project_id),
+    recurrenceInstanceDate: nullableTextParam(task.recurrence_instance_date),
+    recurrenceTemplateId: nullableTextParam(task.recurrence_template_id),
+    reminderOverrideEnabled: db.dialect.boolean.bind(Boolean(task.reminder_override_enabled)),
+    resumeNote: textParam(task.resume_note),
+    sourceId: nullableTextParam(task.source_id),
+    sourceType: textParam(task.source_type || "manual"),
+    status: textParam(task.status),
+    taskId: textParam(taskId),
+    title: textParam(task.title),
+    updatedAt: now,
+    updatedByUserId: nullableTextParam(task.updated_by_user_id),
+    workspaceId: textParam(workspaceId),
+  };
+
+  if (includeCreatedAt) {
+    params.createdAt = now;
+    params.createdByUserId = nullableTextParam(task.created_by_user_id);
+  }
+
+  return params;
+}
+
+function textParam(value) {
+  return String(value ?? "");
+}
+
+function nullableTextParam(value) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? null
+    : String(value);
+}
+
 function assigneeSelectSql(whereSql) {
   return `
 SELECT
@@ -756,7 +805,7 @@ function taskRowToAppValue(row) {
     source_type: row.source_type || "manual",
     source_id: row.source_id || "",
     archived_at: row.archived_at || "",
-    reminder_override_enabled: Number(row.reminder_override_enabled) === 1,
+    reminder_override_enabled: db.dialect.boolean.read(row.reminder_override_enabled) === true,
     recurrence_template_id: row.recurrence_template_id || "",
     recurrence_instance_date: row.recurrence_instance_date || "",
     completed_at: row.completed_at || "",

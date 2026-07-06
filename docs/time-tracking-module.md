@@ -32,11 +32,15 @@ Active timer storage:
 
 Version 0.31.21 makes `active_work_timers` the only active timer table. Manual timers and sourced timers such as Tasks share that table, and obsolete `active_timers` and `active_task_timers` tables are migrated forward and dropped by the cleanup migration.
 
+As of version 0.33.5.27.12, the active timer repository uses named bound params for manual and sourced active timer reads, slot/source reads, upsert, remove, source removal, source existence checks, and manual slot compaction. Active timer upsert routes through the database conflict seam for the existing workspace/user/slot identity, pause flows keep elapsed running-segment math behind the time seam, and slot compaction preserves the two-phase temporary-slot behavior that avoids unique-slot collisions.
+
 Timer timestamp and duration semantics:
 
 When an active timer is finalized into a time entry, the server treats the persisted timer row as authoritative. The completed time entry stores `start_time` from the timer row's first persisted start, `end_time` from the server finalization moment, and `duration_seconds` from accumulated active seconds plus any currently running segment. Paused wall-clock time can be visible between start and end, but it does not inflate saved duration, billing, or reporting totals.
 
 Manual time-entry create and edit flows remain separate from timer finalization. Those forms save the explicit user-entered start, end, and duration values.
+
+As of version 0.33.5.27.13, the time entry repository uses named bound params for workspace entry reads, single-entry reads, project entry reads, create/update/remove writes, project-scope updates, and project entry counts. It preserves the existing nullable client/task storage behavior, duration integer coercion, normalized app read shape, and end-time ordering that reporting-facing reads depend on.
 
 Resume-safe timer metadata:
 

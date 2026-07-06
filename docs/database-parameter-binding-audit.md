@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.5:
+Current totals as of 0.33.5.27.17:
 
-- Remaining runtime literal-helper invocations: 1,481.
-- Remaining direct interpolated SQL operation sites: 230.
-- Existing direct bound-params operation sites: 97.
-- Total runtime database operation calls seen by the audit scanner: 410.
+- Remaining runtime literal-helper invocations: 726.
+- Remaining direct interpolated SQL operation sites: 149.
+- Existing direct bound-params operation sites: 201.
+- Total runtime database operation calls seen by the audit scanner: 417.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -40,38 +40,38 @@ Status legend:
 
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
-| notes/notes.repo | Remaining | 212 | 14 | 3 | 21 |
-| lists/lists.repo | Remaining | 178 | 17 | 0 | 21 |
 | services/files.service | Remaining | 140 | 26 | 2 | 31 |
 | notifications.repo | Remaining | 99 | 20 | 0 | 25 |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
 | tags.repo | Remaining | 84 | 17 | 0 | 17 |
-| tasks/tasks.repo | Remaining | 71 | 7 | 8 | 15 |
 | client-projects/clients.repo | Remaining | 60 | 5 | 0 | 7 |
-| time-tracking/active-timers.repo | Remaining | 53 | 10 | 2 | 12 |
 | services/work-resume-state.service | Remaining | 53 | 7 | 0 | 7 |
 | client-projects/projects.repo | Remaining | 49 | 7 | 0 | 8 |
-| time-tracking/time-entries.repo | Remaining | 49 | 7 | 0 | 8 |
-| tasks/task-recurrence.repo | Remaining | 49 | 5 | 0 | 5 |
-| tasks/task-relationships.repo | Remaining | 46 | 11 | 1 | 12 |
-| core/search/adapters/sqlite-search-adapter | Remaining | 40 | 2 | 1 | 12 |
-| tasks/task-checklists.repo | Remaining | 39 | 6 | 1 | 8 |
 | services/tag-propagation-registry | Remaining | 32 | 15 | 0 | 15 |
 | core/modules/modules.service | Remaining | 29 | 6 | 0 | 9 |
 | audit-logs.repo | Remaining | 28 | 3 | 0 | 10 |
 | api-keys.repo | Remaining | 20 | 8 | 0 | 8 |
 | db/migrations | Remaining | 18 | 8 | 0 | 24 |
-| tasks/task-reminders.repo | Remaining | 18 | 2 | 0 | 3 |
 | services/search-index-rebuild.service | Remaining | 5 | 2 | 0 | 2 |
 | services/work-resume-state-initial-producers | Remaining | 5 | 2 | 0 | 2 |
 | services/tags.service | Remaining | 4 | 3 | 0 | 3 |
 | services/help.service | Remaining | 1 | 1 | 0 | 1 |
+| core/search/adapters/sqlite-search-adapter | Converted | 0 | 0 | 13 | 17 |
 | core/search/tag-text | Converted | 0 | 0 | 1 | 1 |
+| tasks/task-checklists.repo | Converted | 0 | 0 | 8 | 8 |
+| tasks/task-recurrence.repo | Converted | 0 | 0 | 6 | 6 |
+| tasks/task-relationships.repo | Converted | 0 | 0 | 12 | 12 |
+| tasks/task-reminders.repo | Converted | 0 | 0 | 4 | 4 |
+| tasks/tasks.repo | Converted | 0 | 0 | 15 | 15 |
+| time-tracking/active-timers.repo | Converted | 0 | 0 | 12 | 12 |
+| time-tracking/time-entries.repo | Converted | 0 | 0 | 8 | 8 |
 | users.repo | Converted | 0 | 0 | 17 | 17 |
 | workspaces.repo | Converted | 0 | 0 | 10 | 10 |
 | permissions.repo | Converted | 0 | 0 | 8 | 10 |
 | user-workspaces.repo | Converted | 0 | 0 | 6 | 7 |
 | settings.repo | Converted | 0 | 0 | 4 | 4 |
+| notes/notes.repo | Converted | 0 | 0 | 21 | 21 |
+| lists/lists.repo | Converted | 0 | 0 | 21 | 21 |
 | app-settings.repo | Converted | 0 | 0 | 2 | 3 |
 | sessions.repo | Already bound | 0 | 0 | 8 | 8 |
 | db/provider | Already bound | 0 | 0 | 6 | 6 |
@@ -98,7 +98,7 @@ Standing query rule from `DECISIONS.md`: new or touched single-statement reposit
 
 ## 0.33.5.27 Conversion Wave Assignments
 
-0.33.5.27.1 records the portability contract and assigns every remaining owner in the Inventory table to a one-session implementation wave. The wave assignment does not change runtime SQL behavior or the burndown totals. Roadmap slices `0.33.5.27.2` through `0.33.5.27.7` are seam implementation/proof slices; they should update this audit only for deliberate proof call-site conversions.
+0.33.5.27.1 records the portability contract and assigns every remaining owner in the Inventory table to a one-session implementation wave. The wave assignment does not change runtime SQL behavior or the burndown totals. Roadmap slices `0.33.5.27.2` through `0.33.5.27.7` are seam implementation/proof slices; repository conversion waves begin at `0.33.5.27.8` and update this audit when they move owners to named params.
 
 | Wave | Assigned owners |
 | --- | --- |
@@ -310,3 +310,95 @@ This proof reduces `services/files.service` to 140 runtime literal-helper invoca
 The `settings.repo` proof path uses `db.dialect.boolean.bindFields(...)` and `db.dialect.boolean.readFields(...)` for Workspace Settings boolean save/read mapping instead of owning SQLite `0` / `1` conversion at the repository call site. The `time-tracking/active-timers.repo` proof path converts the active timer pause elapsed-time updates to `db.run(...)` with named params and `db.dialect.time.elapsedSecondsSince(...)` instead of raw `julianday(...)` interval arithmetic in the repository.
 
 This proof reduces `time-tracking/active-timers.repo` to 53 runtime literal-helper invocations, 10 direct interpolated SQL operation sites, 2 existing bound operation sites, and 12 runtime database operation calls. The current live audit totals are 1,481 runtime literal-helper invocations, 230 direct interpolated SQL operation sites, 97 existing bound operation sites, and 410 total runtime database operation calls.
+
+## 0.33.5.27.6 Search/FTS Seam Extraction
+
+0.33.5.27.6 moves backend search syntax ownership into the framework search adapter/service seam. The SQLite search adapter now consumes `db.dialect.search.createVirtualTable(...)`, `dropVirtualTable(...)`, `match(...)`, and `rank(...)` for FTS5 storage/read lowering and `db.dialect.comparison.likePattern(...)` / `containsNoCase(...)` for the indexed LIKE fallback path.
+
+The `core/search/adapters/sqlite-search-adapter` proof path now binds canonical upserts, FTS sync/removal, FTS and fallback reads, and FTS repair statements through `db.run(...)`, `db.query(...)`, and transaction clients. Canonical `search_index` rows remain the source of truth; FTS rows remain lookup/ranking state rebuilt from canonical rows by adapter-owned repair.
+
+This proof converts `core/search/adapters/sqlite-search-adapter` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 13 existing bound operation sites and 17 runtime database operation calls. The current live audit totals are 1,441 runtime literal-helper invocations, 228 direct interpolated SQL operation sites, 109 existing bound operation sites, and 415 total runtime database operation calls.
+
+## 0.33.5.27.7 PRAGMA, Rowid, and Introspection Boundary
+
+0.33.5.27.7 moves the remaining non-startup runtime PRAGMA/introspection and physical identity spellings behind provider-owned seams before application repository conversion waves continue. The SQLite search adapter now reads compile options through `db.dialect.introspection.compileOptions(...)`; Files attachable-target table metadata reads use `db.dialect.introspection.tableInfo(...)`; and `users.repo` / `workspaces.repo` consume qualified `db.dialect.identity.rowId(...)` helpers for their existing duplicate-row and owner-transfer tie-breakers.
+
+No repository conversion wave happened in this slice, and no helper/direct-interpolation burndown changed. The current live audit totals remain 1,441 runtime literal-helper invocations, 228 direct interpolated SQL operation sites, 109 existing bound operation sites, and 415 total runtime database operation calls.
+
+## 0.33.5.27.8 Tasks Primary Repository Conversion
+
+0.33.5.27.8 converts `tasks/tasks.repo` from literal-helper interpolation to named params through `db.query(...)` and `db.run(...)`, including task create/update writes, full workspace reads, batched `readByIds(...)` reads, assignee batch reads, recurrence instance lookup, due-window reads, reminder candidate reads, and `last_worked_at` updates. The converted task-id batch reads now use array-valued named params, and the repository consumes `db.dialect.comparison.orderByNoCase(...)` and `db.dialect.boolean.bind(...)` / `read(...)` for the dialect-sensitive title ordering and reminder override mapping it owns.
+
+This wave converts `tasks/tasks.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 15 existing bound operation sites and 15 runtime database operation calls. The current live audit totals are 1,370 runtime literal-helper invocations, 221 direct interpolated SQL operation sites, 116 existing bound operation sites, and 415 total runtime database operation calls.
+
+## 0.33.5.27.9 Task Checklist Repository Conversion
+
+0.33.5.27.9 converts `tasks/task-checklists.repo` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`. The conversion covers checklist task reads, batched progress reads, create/update writes, reorder writes, soft delete, and implicit next-sort-order reads.
+
+The converted progress read uses array-valued named params for task-id batches, while checklist checked-state storage now binds and reads through `db.dialect.boolean`. Reorder writes now run through the provider-neutral transaction helper instead of a hand-composed `BEGIN TRANSACTION` script.
+
+This wave converts `tasks/task-checklists.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 8 existing bound operation sites and 8 runtime database operation calls. The current live audit totals are 1,331 runtime literal-helper invocations, 215 direct interpolated SQL operation sites, 123 existing bound operation sites, and 415 total runtime database operation calls.
+
+## 0.33.5.27.10 Task Relationships Repository Conversion
+
+0.33.5.27.10 converts `tasks/task-relationships.repo` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`. The conversion covers relationship create/update/remove writes, active pair reads, parent/child reads, blocking-child reads, recursive path checks, single-task summaries, and batched relationship summaries.
+
+The converted batched summary read uses array-valued task-id params for both parent and child sides, while blocking state now binds and reads through `db.dialect.boolean`. Recursive path checks keep the same `WITH RECURSIVE` shape and now use the provider-neutral single-row read helper.
+
+This wave converts `tasks/task-relationships.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 12 existing bound operation sites and 12 runtime database operation calls. The current live audit totals are 1,285 runtime literal-helper invocations, 204 direct interpolated SQL operation sites, 134 existing bound operation sites, and 415 total runtime database operation calls.
+
+## 0.33.5.27.11 Task Recurrence and Reminders Repository Conversion
+
+0.33.5.27.11 converts `tasks/task-recurrence.repo` and `tasks/task-reminders.repo` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`. The conversion covers recurrence template create/update/read paths, template assignee replacement/reads, reminder offset reads, batched reminder target reads, and reminder offset replacement.
+
+Template assignee replacement and reminder offset replacement now use provider-neutral transaction callbacks instead of hand-composed transaction scripts. Reminder target batch reads keep the existing target-pair OR shape but generate named params for every target pair, preserving task/project reminder offset grouping without interpolating values.
+
+This wave converts `tasks/task-recurrence.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 6 existing bound operation sites and 6 runtime database operation calls. It also converts `tasks/task-reminders.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 4 existing bound operation sites and 4 runtime database operation calls. The current live audit totals are 1,218 runtime literal-helper invocations, 197 direct interpolated SQL operation sites, 144 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.12 Active Timers Repository Conversion
+
+0.33.5.27.12 converts `time-tracking/active-timers.repo` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`. The conversion covers manual and sourced active timer reads, slot reads, source reads, active timer upsert, timer removal, sourced timer removal, source existence checks, and manual slot compaction.
+
+The active timer upsert now uses `db.dialect.conflict.buildInsertOnConflictDoUpdate(...)` for the existing `(workspace_id, user_id, timer_slot)` conflict behavior. Running timer pause flows keep the provider time seam through `db.dialect.time.elapsedSecondsSince(...)`, and manual timer reads preserve the source-module `NULL` filter instead of broadening sourced timer visibility.
+
+This wave converts `time-tracking/active-timers.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 12 existing bound operation sites and 12 runtime database operation calls. The current live audit totals are 1,165 runtime literal-helper invocations, 187 direct interpolated SQL operation sites, 154 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.13 Time Entries Repository Conversion
+
+0.33.5.27.13 converts `time-tracking/time-entries.repo` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`. The conversion covers workspace entry reads, single-entry reads, project entry reads, create/update/remove writes, project-scope label updates, and project entry counts.
+
+No additional dialect seam was required for this repository because the existing SQL uses static table/column names, text values, nullable text values, and integer duration binding without conflict, comparison, full-text, JSON, identity, rowid, PRAGMA, or interval expressions. The converted helpers preserve the previous required-text, nullable-text, and integer coercion behavior while moving values to named params.
+
+This wave converts `time-tracking/time-entries.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 8 existing bound operation sites and 8 runtime database operation calls. The current live audit totals are 1,116 runtime literal-helper invocations, 180 direct interpolated SQL operation sites, 162 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.14 Notes Records and Filters Repository Conversion
+
+0.33.5.27.14 converts the note record list/read/filter paths in `notes/notes.repo` to named params through `db.query(...)` and `db.get(...)` plus the dialect comparison seams, while leaving the remaining write, revision, linked-record, collection, and count paths for 0.33.5.27.15. The converted paths cover full note record list filters, detail reads, batched note-id reads, lightweight list read-model filters, collection-id array filters, owner search, context search, text search, ordering, and paging.
+
+The converted list filters now use array-valued named params for `IN (:noteIds)` and `IN (:noteCollectionIds)`, plus `db.dialect.comparison.containsNoCase(...)`, `likePattern(...)`, and `orderByNoCase(...)` instead of raw `LOWER(...) LIKE` or `COLLATE NOCASE` in the touched record/filter paths. Secure/private list read-model behavior remains service-owned and unchanged: list projections stay body-light, secure placeholders stay closed, and permission pruning remains outside the repository SQL.
+
+This wave reduces `notes/notes.repo` to 208 runtime literal-helper invocations and 14 direct interpolated SQL operation sites, with 4 existing bound operation sites and 21 runtime database operation calls. The current live audit totals are 1,112 runtime literal-helper invocations, 180 direct interpolated SQL operation sites, 163 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.15 Notes Writes, Revisions, Links, and Collections Repository Conversion
+
+0.33.5.27.15 converts the remaining write, revision, linked-record, collection, and count paths to named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, so `notes/notes.repo` is fully converted. This completes the Notes repository conversion after the 0.33.5.27.14 read/filter slice.
+
+The converted paths preserve note create/update persistence, create-with-staged-links transaction behavior, revision numbering and newest-first revision reads, link create/list/batch/read/remove lifecycle, target reads through the existing allowlisted direct-context columns, collection create/update/list/count behavior, nullable text trimming, integer fallback coercion, and plaintext secure-placeholder safety checks. Collection and target read ordering now use `db.dialect.comparison.orderByNoCase(...)` instead of raw `COLLATE NOCASE`, and batched link reads use array-valued named params.
+
+This wave converts `notes/notes.repo` to zero runtime literal-helper invocations and zero direct interpolated SQL operation sites, with 21 existing bound operation sites and 21 runtime database operation calls. The current live audit totals are 904 runtime literal-helper invocations, 166 direct interpolated SQL operation sites, 180 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.16 Lists Records and Items Repository Conversion
+
+0.33.5.27.16 converts the list record and item read/write paths in `lists/lists.repo` to named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, while leaving the remaining catalog and linked-record paths assigned to 0.33.5.27.17. The converted paths cover list filters, single and batched list reads, list create/update writes, item filters, single and batched item reads, item create/update writes, and item reordering.
+
+The converted list reads use array-valued named params for `IN (:listIds)`, `db.dialect.comparison.orderByNoCase(...)` for title ordering, and `db.dialect.boolean.bind(...)` for reusable-list filters and writes. Item list batches also use array-valued named params, while item reorder writes now run through `db.transaction(callback)` with bound update statements. Nullable text trimming, integer fallback coercion, finite-number-or-null item field handling, list execution/progress behavior, and service-owned read shaping are unchanged.
+
+This wave reduces `lists/lists.repo` to 72 runtime literal-helper invocations and 10 direct interpolated SQL operation sites, with 11 existing bound operation sites and 21 runtime database operation calls. The current live audit totals are 798 runtime literal-helper invocations, 159 direct interpolated SQL operation sites, 191 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.17 Lists Catalog and Linked Records Repository Conversion
+
+0.33.5.27.17 converts the remaining catalog, catalog usage, linked-record, and batched linked-record paths in `lists/lists.repo` to named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`, so `lists/lists.repo` is fully converted. This completes the Lists repository conversion after the 0.33.5.27.16 record/item slice.
+
+The converted catalog paths preserve catalog create/update/read behavior, suggestion ranking, project/client/list-type context matching, archived-suggestion filtering, use-count increment behavior, nullable text trimming, integer fallback coercion, and finite-number-or-null catalog field handling. Catalog suggestion text matching and item-name ordering now route through `db.dialect.comparison`, and batched link reads use array-valued named params for `IN (:listIds)`. Link create/list/read/remove behavior, default `related` link roles, metadata parsing, permission-safe target enrichment inputs, source-list context inputs, and modal/editor payload behavior are unchanged.
+
+This wave marks `lists/lists.repo` as converted with 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites, with 21 existing bound operation sites and 21 runtime database operation calls. The current live audit totals are 726 runtime literal-helper invocations, 149 direct interpolated SQL operation sites, 201 existing bound operation sites, and 417 total runtime database operation calls.

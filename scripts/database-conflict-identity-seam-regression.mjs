@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.5";
+const appVersion = "0.33.5.27.17";
 const conflictIdentitySliceVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-conflict-identity-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -58,7 +58,7 @@ function assertStaticContract() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the conflict and identity seam version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the conflict and identity seam version");
 
-  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.5"/, "SQLite dialect contract should report the current seam contract version");
+  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.17"/, "SQLite dialect contract should report the current seam contract version");
   assert.match(sqliteDialectSource, /buildInsertOrIgnore/, "SQLite dialect seams should expose a full insert-or-ignore builder");
   assert.match(sqliteDialectSource, /buildInsertOnConflictDoNothing/, "SQLite dialect seams should expose a do-nothing conflict builder");
   assert.match(sqliteDialectSource, /buildInsertOnConflictDoUpdate/, "SQLite dialect seams should expose an upsert conflict builder");

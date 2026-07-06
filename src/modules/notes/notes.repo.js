@@ -1,12 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  db,
-  querySql,
-  runSql,
-  sqlInteger,
-  sqlNullableText,
-  sqlText,
-} from "../../core/database.js";
+import { db } from "../../core/database.js";
 
 const NOTE_COLUMNS = [
   "note_id",
@@ -110,23 +103,22 @@ const COLLECTION_COLUMNS = [
   "metadata_json",
 ];
 
-const defaultDatabaseClient = Object.freeze({
-  run: runSql,
-});
-
 async function list(workspaceId, filters = {}) {
-  const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
+  const clauses = ["workspace_id = :workspaceId"];
+  const params = { workspaceId };
 
   if (!filters.includeDeleted) {
     clauses.push("status != 'deleted'");
   }
 
   if (filters.status) {
-    clauses.push(`status = ${sqlText(filters.status)}`);
+    clauses.push("status = :status");
+    params.status = filters.status;
   }
 
   if (filters.libraryBucket) {
-    clauses.push(`library_bucket = ${sqlText(filters.libraryBucket)}`);
+    clauses.push("library_bucket = :libraryBucket");
+    params.libraryBucket = filters.libraryBucket;
   }
 
   for (const [filterKey, columnName] of Object.entries({
@@ -139,16 +131,17 @@ async function list(workspaceId, filters = {}) {
     noteCollectionId: "note_collection_id",
   })) {
     if (filters[filterKey]) {
-      clauses.push(`${columnName} = ${sqlText(filters[filterKey])}`);
+      clauses.push(`${columnName} = :${filterKey}`);
+      params[filterKey] = filters[filterKey];
     }
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${NOTE_COLUMNS.join(", ")}
 FROM notes
 WHERE ${clauses.join("\n  AND ")}
-ORDER BY updated_at DESC, title COLLATE NOCASE ASC;
-`);
+ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
+`, params);
 
   return rows.map(noteRowToAppValue);
 }
@@ -208,19 +201,13 @@ async function readByIds(workspaceId, noteIds = []) {
     return [];
   }
 
-  const params = { workspaceId };
-  const placeholders = ids.map((noteId, index) => {
-    const key = `noteId${index}`;
-    params[key] = noteId;
-    return `:${key}`;
-  });
   const rows = await db.query(`
 SELECT ${NOTE_COLUMNS.join(", ")}
 FROM notes
 WHERE workspace_id = :workspaceId
-  AND note_id IN (${placeholders.join(", ")})
-ORDER BY updated_at DESC, title COLLATE NOCASE ASC, note_id ASC;
-`, params);
+  AND note_id IN (:noteIds)
+ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")}, note_id ASC;
+`, { noteIds: ids, workspaceId });
 
   return rows.map(noteRowToAppValue);
 }
@@ -229,7 +216,7 @@ async function create(workspaceId, note) {
   const noteId = note.note_id || randomUUID();
   const now = note.created_at || new Date().toISOString();
 
-  await insertNote(defaultDatabaseClient, workspaceId, note, noteId, now);
+  await insertNote(db, workspaceId, note, noteId, now);
   return readById(workspaceId, noteId);
 }
 
@@ -303,107 +290,117 @@ INSERT INTO notes (
   original_page_id
 )
 VALUES (
-  ${sqlText(noteId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(note.title)},
-  ${sqlNullableText(note.slug)},
-  ${sqlText(note.body_markdown || "")},
-  ${sqlNullableText(note.body_excerpt)},
-  ${sqlNullableText(note.body_plaintext_index)},
-  ${sqlText(note.note_type || "general")},
-  ${sqlText(note.library_bucket || "reference")},
-  ${sqlText(note.library_bucket_source || "derived")},
-  ${sqlText(note.status || "active")},
-  ${sqlText(note.visibility || "internal")},
-  ${sqlText(note.security_mode || "normal")},
-  ${sqlNullableText(note.secure_payload)},
-  ${sqlNullableText(note.secure_payload_version)},
-  ${sqlNullableText(note.encrypted_data_key)},
-  ${sqlNullableText(note.encryption_key_version)},
-  ${sqlNullableText(note.encryption_algorithm)},
-  ${sqlNullableText(note.key_wrapping_algorithm)},
-  ${sqlNullableText(note.encryption_nonce)},
-  ${sqlNullableText(note.encryption_auth_tag)},
-  ${sqlNullableText(note.key_wrapping_nonce)},
-  ${sqlNullableText(note.key_wrapping_auth_tag)},
-  ${sqlNullableText(note.encrypted_at)},
-  ${sqlNullableText(note.client_id)},
-  ${sqlNullableText(note.project_id)},
-  ${sqlNullableText(note.task_id)},
-  ${sqlNullableText(note.ticket_id)},
-  ${sqlNullableText(note.linked_user_id)},
-  ${sqlNullableText(note.note_collection_id)},
-  ${sqlNullableText(note.owner_user_id)},
-  ${sqlNullableText(note.created_by_user_id)},
-  ${sqlNullableText(note.updated_by_user_id)},
-  ${sqlText(now)},
-  ${sqlText(note.updated_at || now)},
-  ${sqlNullableText(note.archived_at)},
-  ${sqlNullableText(note.deleted_at)},
-  ${sqlNullableText(note.metadata_json)},
-  ${sqlNullableText(note.import_source)},
-  ${sqlNullableText(note.import_source_id)},
-  ${sqlNullableText(note.import_source_path)},
-  ${sqlNullableText(note.imported_at)},
-  ${sqlNullableText(note.import_batch_id)},
-  ${sqlNullableText(note.original_notebook)},
-  ${sqlNullableText(note.original_section_group)},
-  ${sqlNullableText(note.original_section)},
-  ${sqlNullableText(note.original_page_id)}
+  :noteId,
+  :workspaceId,
+  :title,
+  :slug,
+  :bodyMarkdown,
+  :bodyExcerpt,
+  :bodyPlaintextIndex,
+  :noteType,
+  :libraryBucket,
+  :libraryBucketSource,
+  :status,
+  :visibility,
+  :securityMode,
+  :securePayload,
+  :securePayloadVersion,
+  :encryptedDataKey,
+  :encryptionKeyVersion,
+  :encryptionAlgorithm,
+  :keyWrappingAlgorithm,
+  :encryptionNonce,
+  :encryptionAuthTag,
+  :keyWrappingNonce,
+  :keyWrappingAuthTag,
+  :encryptedAt,
+  :clientId,
+  :projectId,
+  :taskId,
+  :ticketId,
+  :linkedUserId,
+  :noteCollectionId,
+  :ownerUserId,
+  :createdByUserId,
+  :updatedByUserId,
+  :createdAt,
+  :updatedAt,
+  :archivedAt,
+  :deletedAt,
+  :metadataJson,
+  :importSource,
+  :importSourceId,
+  :importSourcePath,
+  :importedAt,
+  :importBatchId,
+  :originalNotebook,
+  :originalSectionGroup,
+  :originalSection,
+  :originalPageId
 );
-`);
+`, noteInsertPersistenceParams(workspaceId, note, {
+    createdAt: now,
+    noteId,
+    updatedAt: note.updated_at || now,
+  }));
 }
 
 async function update(workspaceId, note) {
-  await runSql(`
+  const updatedAt = note.updated_at || new Date().toISOString();
+
+  await db.run(`
 UPDATE notes
 SET
-  title = ${sqlText(note.title)},
-  slug = ${sqlNullableText(note.slug)},
-  body_markdown = ${sqlText(note.body_markdown || "")},
-  body_excerpt = ${sqlNullableText(note.body_excerpt)},
-  body_plaintext_index = ${sqlNullableText(note.body_plaintext_index)},
-  note_type = ${sqlText(note.note_type || "general")},
-  library_bucket = ${sqlText(note.library_bucket || "reference")},
-  library_bucket_source = ${sqlText(note.library_bucket_source || "derived")},
-  status = ${sqlText(note.status || "active")},
-  visibility = ${sqlText(note.visibility || "internal")},
-  security_mode = ${sqlText(note.security_mode || "normal")},
-  secure_payload = ${sqlNullableText(note.secure_payload)},
-  secure_payload_version = ${sqlNullableText(note.secure_payload_version)},
-  encrypted_data_key = ${sqlNullableText(note.encrypted_data_key)},
-  encryption_key_version = ${sqlNullableText(note.encryption_key_version)},
-  encryption_algorithm = ${sqlNullableText(note.encryption_algorithm)},
-  key_wrapping_algorithm = ${sqlNullableText(note.key_wrapping_algorithm)},
-  encryption_nonce = ${sqlNullableText(note.encryption_nonce)},
-  encryption_auth_tag = ${sqlNullableText(note.encryption_auth_tag)},
-  key_wrapping_nonce = ${sqlNullableText(note.key_wrapping_nonce)},
-  key_wrapping_auth_tag = ${sqlNullableText(note.key_wrapping_auth_tag)},
-  encrypted_at = ${sqlNullableText(note.encrypted_at)},
-  client_id = ${sqlNullableText(note.client_id)},
-  project_id = ${sqlNullableText(note.project_id)},
-  task_id = ${sqlNullableText(note.task_id)},
-  ticket_id = ${sqlNullableText(note.ticket_id)},
-  linked_user_id = ${sqlNullableText(note.linked_user_id)},
-  note_collection_id = ${sqlNullableText(note.note_collection_id)},
-  owner_user_id = ${sqlNullableText(note.owner_user_id)},
-  updated_by_user_id = ${sqlNullableText(note.updated_by_user_id)},
-  updated_at = ${sqlText(note.updated_at || new Date().toISOString())},
-  archived_at = ${sqlNullableText(note.archived_at)},
-  deleted_at = ${sqlNullableText(note.deleted_at)},
-  metadata_json = ${sqlNullableText(note.metadata_json)},
-  import_source = ${sqlNullableText(note.import_source)},
-  import_source_id = ${sqlNullableText(note.import_source_id)},
-  import_source_path = ${sqlNullableText(note.import_source_path)},
-  imported_at = ${sqlNullableText(note.imported_at)},
-  import_batch_id = ${sqlNullableText(note.import_batch_id)},
-  original_notebook = ${sqlNullableText(note.original_notebook)},
-  original_section_group = ${sqlNullableText(note.original_section_group)},
-  original_section = ${sqlNullableText(note.original_section)},
-  original_page_id = ${sqlNullableText(note.original_page_id)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(note.note_id)};
-`);
+  title = :title,
+  slug = :slug,
+  body_markdown = :bodyMarkdown,
+  body_excerpt = :bodyExcerpt,
+  body_plaintext_index = :bodyPlaintextIndex,
+  note_type = :noteType,
+  library_bucket = :libraryBucket,
+  library_bucket_source = :libraryBucketSource,
+  status = :status,
+  visibility = :visibility,
+  security_mode = :securityMode,
+  secure_payload = :securePayload,
+  secure_payload_version = :securePayloadVersion,
+  encrypted_data_key = :encryptedDataKey,
+  encryption_key_version = :encryptionKeyVersion,
+  encryption_algorithm = :encryptionAlgorithm,
+  key_wrapping_algorithm = :keyWrappingAlgorithm,
+  encryption_nonce = :encryptionNonce,
+  encryption_auth_tag = :encryptionAuthTag,
+  key_wrapping_nonce = :keyWrappingNonce,
+  key_wrapping_auth_tag = :keyWrappingAuthTag,
+  encrypted_at = :encryptedAt,
+  client_id = :clientId,
+  project_id = :projectId,
+  task_id = :taskId,
+  ticket_id = :ticketId,
+  linked_user_id = :linkedUserId,
+  note_collection_id = :noteCollectionId,
+  owner_user_id = :ownerUserId,
+  updated_by_user_id = :updatedByUserId,
+  updated_at = :updatedAt,
+  archived_at = :archivedAt,
+  deleted_at = :deletedAt,
+  metadata_json = :metadataJson,
+  import_source = :importSource,
+  import_source_id = :importSourceId,
+  import_source_path = :importSourcePath,
+  imported_at = :importedAt,
+  import_batch_id = :importBatchId,
+  original_notebook = :originalNotebook,
+  original_section_group = :originalSectionGroup,
+  original_section = :originalSection,
+  original_page_id = :originalPageId
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId;
+`, notePersistenceParams(workspaceId, note, {
+    createdAt: note.created_at || updatedAt,
+    noteId: note.note_id,
+    updatedAt,
+  }));
 
   return readById(workspaceId, note.note_id);
 }
@@ -411,7 +408,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function createRevision(workspaceId, revision) {
   const revisionId = revision.note_revision_id || randomUUID();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO note_revisions (
   note_revision_id,
   workspace_id,
@@ -452,90 +449,128 @@ INSERT INTO note_revisions (
   original_page_id
 )
 VALUES (
-  ${sqlText(revisionId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(revision.note_id)},
-  ${sqlInteger(revision.revision_number)},
-  ${sqlText(revision.title)},
-  ${sqlText(revision.body_markdown || "")},
-  ${sqlNullableText(revision.body_excerpt)},
-  ${sqlText(revision.note_type || "general")},
-  ${sqlText(revision.library_bucket || "reference")},
-  ${sqlText(revision.status || "active")},
-  ${sqlText(revision.visibility || "internal")},
-  ${sqlText(revision.security_mode || "normal")},
-  ${sqlNullableText(revision.secure_payload)},
-  ${sqlNullableText(revision.secure_payload_version)},
-  ${sqlNullableText(revision.encrypted_data_key)},
-  ${sqlNullableText(revision.encryption_key_version)},
-  ${sqlNullableText(revision.encryption_algorithm)},
-  ${sqlNullableText(revision.key_wrapping_algorithm)},
-  ${sqlNullableText(revision.encryption_nonce)},
-  ${sqlNullableText(revision.encryption_auth_tag)},
-  ${sqlNullableText(revision.key_wrapping_nonce)},
-  ${sqlNullableText(revision.key_wrapping_auth_tag)},
-  ${sqlNullableText(revision.encrypted_at)},
-  ${sqlNullableText(revision.changed_by_user_id)},
-  ${sqlNullableText(revision.change_summary)},
-  ${sqlNullableText(revision.change_reason)},
-  ${sqlText(revision.created_at || new Date().toISOString())},
-  ${sqlNullableText(revision.metadata_json)},
-  ${sqlNullableText(revision.import_source)},
-  ${sqlNullableText(revision.import_source_id)},
-  ${sqlNullableText(revision.import_source_path)},
-  ${sqlNullableText(revision.imported_at)},
-  ${sqlNullableText(revision.import_batch_id)},
-  ${sqlNullableText(revision.original_notebook)},
-  ${sqlNullableText(revision.original_section_group)},
-  ${sqlNullableText(revision.original_section)},
-  ${sqlNullableText(revision.original_page_id)}
+  :revisionId,
+  :workspaceId,
+  :noteId,
+  :revisionNumber,
+  :title,
+  :bodyMarkdown,
+  :bodyExcerpt,
+  :noteType,
+  :libraryBucket,
+  :status,
+  :visibility,
+  :securityMode,
+  :securePayload,
+  :securePayloadVersion,
+  :encryptedDataKey,
+  :encryptionKeyVersion,
+  :encryptionAlgorithm,
+  :keyWrappingAlgorithm,
+  :encryptionNonce,
+  :encryptionAuthTag,
+  :keyWrappingNonce,
+  :keyWrappingAuthTag,
+  :encryptedAt,
+  :changedByUserId,
+  :changeSummary,
+  :changeReason,
+  :createdAt,
+  :metadataJson,
+  :importSource,
+  :importSourceId,
+  :importSourcePath,
+  :importedAt,
+  :importBatchId,
+  :originalNotebook,
+  :originalSectionGroup,
+  :originalSection,
+  :originalPageId
 );
-`);
+`, {
+    bodyExcerpt: nullableText(revision.body_excerpt),
+    bodyMarkdown: text(revision.body_markdown),
+    changeReason: nullableText(revision.change_reason),
+    changeSummary: nullableText(revision.change_summary),
+    changedByUserId: nullableText(revision.changed_by_user_id),
+    createdAt: text(revision.created_at || new Date().toISOString()),
+    encryptedAt: nullableText(revision.encrypted_at),
+    encryptedDataKey: nullableText(revision.encrypted_data_key),
+    encryptionAlgorithm: nullableText(revision.encryption_algorithm),
+    encryptionAuthTag: nullableText(revision.encryption_auth_tag),
+    encryptionKeyVersion: nullableText(revision.encryption_key_version),
+    encryptionNonce: nullableText(revision.encryption_nonce),
+    importBatchId: nullableText(revision.import_batch_id),
+    importedAt: nullableText(revision.imported_at),
+    importSource: nullableText(revision.import_source),
+    importSourceId: nullableText(revision.import_source_id),
+    importSourcePath: nullableText(revision.import_source_path),
+    keyWrappingAlgorithm: nullableText(revision.key_wrapping_algorithm),
+    keyWrappingAuthTag: nullableText(revision.key_wrapping_auth_tag),
+    keyWrappingNonce: nullableText(revision.key_wrapping_nonce),
+    libraryBucket: text(revision.library_bucket || "reference"),
+    metadataJson: nullableText(revision.metadata_json),
+    noteId: text(revision.note_id),
+    noteType: text(revision.note_type || "general"),
+    originalNotebook: nullableText(revision.original_notebook),
+    originalPageId: nullableText(revision.original_page_id),
+    originalSection: nullableText(revision.original_section),
+    originalSectionGroup: nullableText(revision.original_section_group),
+    revisionId: text(revisionId),
+    revisionNumber: integer(revision.revision_number),
+    securePayload: nullableText(revision.secure_payload),
+    securePayloadVersion: nullableText(revision.secure_payload_version),
+    securityMode: text(revision.security_mode || "normal"),
+    status: text(revision.status || "active"),
+    title: text(revision.title),
+    visibility: text(revision.visibility || "internal"),
+    workspaceId: text(workspaceId),
+  });
 
   return readRevisionById(workspaceId, revision.note_id, revisionId);
 }
 
 async function nextRevisionNumber(workspaceId, noteId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT COALESCE(MAX(revision_number), 0) + 1 AS revision_number
 FROM note_revisions
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)};
-`);
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId;
+`, { noteId, workspaceId });
 
-  return Number(rows[0]?.revision_number || 1);
+  return Number(row?.revision_number || 1);
 }
 
 async function listRevisions(workspaceId, noteId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT *
 FROM note_revisions
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)}
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
 ORDER BY revision_number DESC;
-`);
+`, { noteId, workspaceId });
 
   return rows.map(revisionRowToAppValue);
 }
 
 async function readRevisionById(workspaceId, noteId, revisionId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT *
 FROM note_revisions
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)}
-  AND note_revision_id = ${sqlText(revisionId)}
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
+  AND note_revision_id = :revisionId
 LIMIT 1;
-`);
+`, { noteId, revisionId, workspaceId });
 
-  return rows[0] ? revisionRowToAppValue(rows[0]) : null;
+  return row ? revisionRowToAppValue(row) : null;
 }
 
 async function createLink(workspaceId, link) {
   const linkId = link.note_link_id || randomUUID();
   const now = link.created_at || new Date().toISOString();
 
-  await insertNoteLink(defaultDatabaseClient, workspaceId, link, linkId, now);
+  await insertNoteLink(db, workspaceId, link, linkId, now);
   return readLinkById(workspaceId, link.note_id, linkId);
 }
 
@@ -556,31 +591,43 @@ INSERT INTO note_links (
   metadata_json
 )
 VALUES (
-  ${sqlText(linkId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(link.note_id)},
-  ${sqlText(link.module_id)},
-  ${sqlText(link.target_type)},
-  ${sqlText(link.target_id)},
-  ${sqlText(link.link_role || "related")},
-  ${sqlText(link.scope_role || "related")},
-  ${sqlNullableText(link.created_by_user_id)},
-  ${sqlText(now)},
+  :linkId,
+  :workspaceId,
+  :noteId,
+  :moduleId,
+  :targetType,
+  :targetId,
+  :linkRole,
+  :scopeRole,
+  :createdByUserId,
+  :createdAt,
   NULL,
-  ${sqlNullableText(link.metadata_json)}
+  :metadataJson
 );
-`);
+`, {
+    createdAt: text(now),
+    createdByUserId: nullableText(link.created_by_user_id),
+    linkId: text(linkId),
+    linkRole: text(link.link_role || "related"),
+    metadataJson: nullableText(link.metadata_json),
+    moduleId: text(link.module_id),
+    noteId: text(link.note_id),
+    scopeRole: text(link.scope_role || "related"),
+    targetId: text(link.target_id),
+    targetType: text(link.target_type),
+    workspaceId: text(workspaceId),
+  });
 }
 
 async function listLinks(workspaceId, noteId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT *
 FROM note_links
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)}
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
   AND removed_at IS NULL
 ORDER BY created_at ASC;
-`);
+`, { noteId, workspaceId });
 
   return rows.map(linkRowToAppValue);
 }
@@ -592,48 +639,54 @@ async function listLinksForNotes(workspaceId, noteIds) {
     return [];
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT *
 FROM note_links
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id IN (${ids.map((id) => sqlText(id)).join(", ")})
+WHERE workspace_id = :workspaceId
+  AND note_id IN (:noteIds)
   AND removed_at IS NULL
 ORDER BY created_at ASC;
-`);
+`, { noteIds: ids, workspaceId });
 
   return rows.map(linkRowToAppValue);
 }
 
 async function readLinkById(workspaceId, noteId, linkId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT *
 FROM note_links
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)}
-  AND note_link_id = ${sqlText(linkId)}
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
+  AND note_link_id = :linkId
 LIMIT 1;
-`);
+`, { linkId, noteId, workspaceId });
 
-  return rows[0] ? linkRowToAppValue(rows[0]) : null;
+  return row ? linkRowToAppValue(row) : null;
 }
 
 async function removeLink(workspaceId, noteId, linkId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE note_links
-SET removed_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)}
-  AND note_link_id = ${sqlText(linkId)}
+SET removed_at = :removedAt
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
+  AND note_link_id = :linkId
   AND removed_at IS NULL;
-`);
+`, {
+    linkId,
+    noteId,
+    removedAt: now,
+    workspaceId,
+  });
 
   return readLinkById(workspaceId, noteId, linkId);
 }
 
 async function listCollections(workspaceId, filters = {}) {
-  const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
+  const clauses = ["workspace_id = :workspaceId"];
+  const params = { workspaceId };
 
   if (!filters.includeDeleted) {
     clauses.push("status != 'deleted'");
@@ -644,36 +697,37 @@ async function listCollections(workspaceId, filters = {}) {
   }
 
   if (filters.libraryBucket) {
-    clauses.push(`library_bucket = ${sqlText(filters.libraryBucket)}`);
+    clauses.push("library_bucket = :libraryBucket");
+    params.libraryBucket = filters.libraryBucket;
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${COLLECTION_COLUMNS.join(", ")}
 FROM note_library_collections
 WHERE ${clauses.join("\n  AND ")}
-ORDER BY library_bucket ASC, path_cache COLLATE NOCASE ASC, sort_order ASC, title COLLATE NOCASE ASC;
-`);
+ORDER BY library_bucket ASC, ${db.dialect.comparison.orderByNoCase("path_cache", "ASC")}, sort_order ASC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
+`, params);
 
   return rows.map(collectionRowToAppValue);
 }
 
 async function readCollectionById(workspaceId, collectionId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT ${COLLECTION_COLUMNS.join(", ")}
 FROM note_library_collections
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_library_collection_id = ${sqlText(collectionId)}
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId
 LIMIT 1;
-`);
+`, { collectionId, workspaceId });
 
-  return rows[0] ? collectionRowToAppValue(rows[0]) : null;
+  return row ? collectionRowToAppValue(row) : null;
 }
 
 async function createCollection(workspaceId, collection) {
   const collectionId = collection.note_library_collection_id || randomUUID();
   const now = collection.created_at || new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO note_library_collections (
   note_library_collection_id,
   workspace_id,
@@ -696,80 +750,90 @@ INSERT INTO note_library_collections (
   metadata_json
 )
 VALUES (
-  ${sqlText(collectionId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(collection.title)},
-  ${sqlText(collection.slug)},
-  ${sqlNullableText(collection.description)},
-  ${sqlText(collection.library_bucket)},
-  ${sqlNullableText(collection.parent_collection_id)},
-  ${sqlNullableText(collection.path_cache)},
-  ${sqlInteger(collection.depth || 0)},
-  ${sqlInteger(collection.sort_order || 0)},
-  ${sqlText(collection.collection_source || "manual")},
-  ${sqlText(collection.status || "active")},
-  ${sqlNullableText(collection.created_by_user_id)},
-  ${sqlNullableText(collection.updated_by_user_id)},
-  ${sqlText(now)},
-  ${sqlText(collection.updated_at || now)},
-  ${sqlNullableText(collection.archived_at)},
-  ${sqlNullableText(collection.deleted_at)},
-  ${sqlNullableText(collection.metadata_json)}
+  :collectionId,
+  :workspaceId,
+  :title,
+  :slug,
+  :description,
+  :libraryBucket,
+  :parentCollectionId,
+  :pathCache,
+  :depth,
+  :sortOrder,
+  :collectionSource,
+  :status,
+  :createdByUserId,
+  :updatedByUserId,
+  :createdAt,
+  :updatedAt,
+  :archivedAt,
+  :deletedAt,
+  :metadataJson
 );
-`);
+`, collectionInsertPersistenceParams(workspaceId, collection, {
+    collectionId,
+    createdAt: now,
+    updatedAt: collection.updated_at || now,
+  }));
 
   return readCollectionById(workspaceId, collectionId);
 }
 
 async function updateCollection(workspaceId, collection) {
-  await runSql(`
+  const updatedAt = collection.updated_at || new Date().toISOString();
+
+  await db.run(`
 UPDATE note_library_collections
 SET
-  title = ${sqlText(collection.title)},
-  slug = ${sqlText(collection.slug)},
-  description = ${sqlNullableText(collection.description)},
-  library_bucket = ${sqlText(collection.library_bucket)},
-  parent_collection_id = ${sqlNullableText(collection.parent_collection_id)},
-  path_cache = ${sqlNullableText(collection.path_cache)},
-  depth = ${sqlInteger(collection.depth || 0)},
-  sort_order = ${sqlInteger(collection.sort_order || 0)},
-  collection_source = ${sqlText(collection.collection_source || "manual")},
-  status = ${sqlText(collection.status || "active")},
-  updated_by_user_id = ${sqlNullableText(collection.updated_by_user_id)},
-  updated_at = ${sqlText(collection.updated_at || new Date().toISOString())},
-  archived_at = ${sqlNullableText(collection.archived_at)},
-  deleted_at = ${sqlNullableText(collection.deleted_at)},
-  metadata_json = ${sqlNullableText(collection.metadata_json)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_library_collection_id = ${sqlText(collection.note_library_collection_id)};
-`);
+  title = :title,
+  slug = :slug,
+  description = :description,
+  library_bucket = :libraryBucket,
+  parent_collection_id = :parentCollectionId,
+  path_cache = :pathCache,
+  depth = :depth,
+  sort_order = :sortOrder,
+  collection_source = :collectionSource,
+  status = :status,
+  updated_by_user_id = :updatedByUserId,
+  updated_at = :updatedAt,
+  archived_at = :archivedAt,
+  deleted_at = :deletedAt,
+  metadata_json = :metadataJson
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId;
+`, collectionPersistenceParams(workspaceId, collection, {
+    collectionId: collection.note_library_collection_id,
+    createdAt: collection.created_at || updatedAt,
+    updatedAt,
+  }));
 
   return readCollectionById(workspaceId, collection.note_library_collection_id);
 }
 
 async function countNotesInCollection(workspaceId, collectionId, filters = {}) {
   const clauses = [
-    `workspace_id = ${sqlText(workspaceId)}`,
-    `note_collection_id = ${sqlText(collectionId)}`,
+    "workspace_id = :workspaceId",
+    "note_collection_id = :collectionId",
   ];
 
   if (!filters.includeDeleted) {
     clauses.push("status != 'deleted'");
   }
 
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT COUNT(*) AS count
 FROM notes
 WHERE ${clauses.join("\n  AND ")};
-`);
+`, { collectionId, workspaceId });
 
-  return Number(rows[0]?.count || 0);
+  return Number(row?.count || 0);
 }
 
 async function countChildCollections(workspaceId, collectionId, filters = {}) {
   const clauses = [
-    `workspace_id = ${sqlText(workspaceId)}`,
-    `parent_collection_id = ${sqlText(collectionId)}`,
+    "workspace_id = :workspaceId",
+    "parent_collection_id = :collectionId",
   ];
 
   if (!filters.includeDeleted) {
@@ -780,13 +844,13 @@ async function countChildCollections(workspaceId, collectionId, filters = {}) {
     clauses.push("status != 'archived'");
   }
 
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT COUNT(*) AS count
 FROM note_library_collections
 WHERE ${clauses.join("\n  AND ")};
-`);
+`, { collectionId, workspaceId });
 
-  return Number(rows[0]?.count || 0);
+  return Number(row?.count || 0);
 }
 
 async function listForTarget(workspaceId, target) {
@@ -798,36 +862,41 @@ async function listForTarget(workspaceId, target) {
     user: "linked_user_id",
   }[target.target_type];
   const directClause = directColumn
-    ? `OR notes.${directColumn} = ${sqlText(target.target_id)}`
+    ? `OR notes.${directColumn} = :targetId`
     : "";
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT DISTINCT ${NOTE_COLUMNS.map((column) => `notes.${column}`).join(", ")}
 FROM notes
 LEFT JOIN note_links
   ON note_links.workspace_id = notes.workspace_id
   AND note_links.note_id = notes.note_id
   AND note_links.removed_at IS NULL
-WHERE notes.workspace_id = ${sqlText(workspaceId)}
+WHERE notes.workspace_id = :workspaceId
   AND (
     (
-      note_links.module_id = ${sqlText(target.module_id)}
-      AND note_links.target_type = ${sqlText(target.target_type)}
-      AND note_links.target_id = ${sqlText(target.target_id)}
+      note_links.module_id = :moduleId
+      AND note_links.target_type = :targetType
+      AND note_links.target_id = :targetId
     )
     ${directClause}
   )
   AND notes.status != 'deleted'
-ORDER BY notes.updated_at DESC, notes.title COLLATE NOCASE ASC;
-`);
+ORDER BY notes.updated_at DESC, ${db.dialect.comparison.orderByNoCase("notes.title", "ASC")};
+`, {
+    moduleId: target.module_id,
+    targetId: target.target_id,
+    targetType: target.target_type,
+    workspaceId,
+  });
 
   return rows.map(noteRowToAppValue);
 }
 
 async function countPlaintextSecurePlaceholders(workspaceId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT COUNT(*) AS count
 FROM notes
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
   AND security_mode = 'secure'
   AND secure_payload IS NULL
   AND (
@@ -835,9 +904,112 @@ WHERE workspace_id = ${sqlText(workspaceId)}
     OR COALESCE(body_excerpt, '') != ''
     OR COALESCE(body_plaintext_index, '') != ''
   );
-`);
+`, { workspaceId });
 
-  return Number(rows[0]?.count || 0);
+  return Number(row?.count || 0);
+}
+
+function noteInsertPersistenceParams(workspaceId, note, options) {
+  return {
+    ...notePersistenceParams(workspaceId, note, options),
+    createdAt: text(options.createdAt),
+    createdByUserId: nullableText(note.created_by_user_id),
+  };
+}
+
+function notePersistenceParams(workspaceId, note, { noteId, updatedAt }) {
+  return {
+    archivedAt: nullableText(note.archived_at),
+    bodyExcerpt: nullableText(note.body_excerpt),
+    bodyMarkdown: text(note.body_markdown),
+    bodyPlaintextIndex: nullableText(note.body_plaintext_index),
+    clientId: nullableText(note.client_id),
+    deletedAt: nullableText(note.deleted_at),
+    encryptedAt: nullableText(note.encrypted_at),
+    encryptedDataKey: nullableText(note.encrypted_data_key),
+    encryptionAlgorithm: nullableText(note.encryption_algorithm),
+    encryptionAuthTag: nullableText(note.encryption_auth_tag),
+    encryptionKeyVersion: nullableText(note.encryption_key_version),
+    encryptionNonce: nullableText(note.encryption_nonce),
+    importBatchId: nullableText(note.import_batch_id),
+    importedAt: nullableText(note.imported_at),
+    importSource: nullableText(note.import_source),
+    importSourceId: nullableText(note.import_source_id),
+    importSourcePath: nullableText(note.import_source_path),
+    keyWrappingAlgorithm: nullableText(note.key_wrapping_algorithm),
+    keyWrappingAuthTag: nullableText(note.key_wrapping_auth_tag),
+    keyWrappingNonce: nullableText(note.key_wrapping_nonce),
+    libraryBucket: text(note.library_bucket || "reference"),
+    libraryBucketSource: text(note.library_bucket_source || "derived"),
+    linkedUserId: nullableText(note.linked_user_id),
+    metadataJson: nullableText(note.metadata_json),
+    noteCollectionId: nullableText(note.note_collection_id),
+    noteId: text(noteId),
+    noteType: text(note.note_type || "general"),
+    originalNotebook: nullableText(note.original_notebook),
+    originalPageId: nullableText(note.original_page_id),
+    originalSection: nullableText(note.original_section),
+    originalSectionGroup: nullableText(note.original_section_group),
+    ownerUserId: nullableText(note.owner_user_id),
+    projectId: nullableText(note.project_id),
+    securePayload: nullableText(note.secure_payload),
+    securePayloadVersion: nullableText(note.secure_payload_version),
+    securityMode: text(note.security_mode || "normal"),
+    slug: nullableText(note.slug),
+    status: text(note.status || "active"),
+    taskId: nullableText(note.task_id),
+    ticketId: nullableText(note.ticket_id),
+    title: text(note.title),
+    updatedAt: text(updatedAt),
+    updatedByUserId: nullableText(note.updated_by_user_id),
+    visibility: text(note.visibility || "internal"),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function collectionInsertPersistenceParams(workspaceId, collection, options) {
+  return {
+    ...collectionPersistenceParams(workspaceId, collection, options),
+    createdAt: text(options.createdAt),
+    createdByUserId: nullableText(collection.created_by_user_id),
+  };
+}
+
+function collectionPersistenceParams(workspaceId, collection, { collectionId, updatedAt }) {
+  return {
+    archivedAt: nullableText(collection.archived_at),
+    collectionId: text(collectionId),
+    collectionSource: text(collection.collection_source || "manual"),
+    deletedAt: nullableText(collection.deleted_at),
+    depth: integer(collection.depth),
+    description: nullableText(collection.description),
+    libraryBucket: text(collection.library_bucket),
+    metadataJson: nullableText(collection.metadata_json),
+    parentCollectionId: nullableText(collection.parent_collection_id),
+    pathCache: nullableText(collection.path_cache),
+    slug: text(collection.slug),
+    sortOrder: integer(collection.sort_order),
+    status: text(collection.status || "active"),
+    title: text(collection.title),
+    updatedAt: text(updatedAt),
+    updatedByUserId: nullableText(collection.updated_by_user_id),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function text(value) {
+  return String(value ?? "");
+}
+
+function nullableText(value) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? null
+    : String(value);
+}
+
+function integer(value) {
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
 function noteRowToAppValue(row) {
@@ -946,12 +1118,8 @@ function applyNoteCollectionFilter(conditions, options, params) {
     : [];
 
   if (collectionIds.length > 0) {
-    const placeholders = collectionIds.map((collectionId, index) => {
-      const paramName = `noteCollectionId${index}`;
-      params[paramName] = collectionId;
-      return `:${paramName}`;
-    });
-    conditions.push(`notes.note_collection_id IN (${placeholders.join(", ")})`);
+    conditions.push("notes.note_collection_id IN (:noteCollectionIds)");
+    params.noteCollectionIds = collectionIds;
     return;
   }
 
@@ -968,8 +1136,8 @@ function applyNoteOwnerFilter(conditions, options, params) {
 
   const ownerSearch = normalizedText(options.ownerSearch).toLowerCase();
   if (ownerSearch) {
-    conditions.push("LOWER(COALESCE(notes.owner_user_id, '')) LIKE :ownerSearch");
-    params.ownerSearch = `%${ownerSearch}%`;
+    conditions.push(db.dialect.comparison.containsNoCase("COALESCE(notes.owner_user_id, '')", ":ownerSearch"));
+    params.ownerSearch = db.dialect.comparison.likePattern(ownerSearch, { mode: "contains" });
   }
 }
 
@@ -991,14 +1159,14 @@ function applyNoteContextSearchFilter(conditions, options, params) {
     return;
   }
 
-  conditions.push(`LOWER(
+  conditions.push(db.dialect.comparison.containsNoCase(`(
     COALESCE(notes.client_id, '') || ' ' ||
     COALESCE(notes.project_id, '') || ' ' ||
     COALESCE(notes.task_id, '') || ' ' ||
     COALESCE(notes.ticket_id, '') || ' ' ||
     COALESCE(notes.linked_user_id, '')
-  ) LIKE :contextSearch`);
-  params.contextSearch = `%${contextSearch}%`;
+  )`, ":contextSearch"));
+  params.contextSearch = db.dialect.comparison.likePattern(contextSearch, { mode: "contains" });
 }
 
 function applyNoteSearchFilter(conditions, options, params) {
@@ -1008,15 +1176,15 @@ function applyNoteSearchFilter(conditions, options, params) {
     return;
   }
 
-  conditions.push(`LOWER(
+  conditions.push(db.dialect.comparison.containsNoCase(`(
     COALESCE(notes.title, '') || ' ' ||
     COALESCE(notes.body_excerpt, '')
-  ) LIKE :searchQuery`);
-  params.searchQuery = `%${searchQuery}%`;
+  )`, ":searchQuery"));
+  params.searchQuery = db.dialect.comparison.likePattern(searchQuery, { mode: "contains" });
 }
 
 function noteListOrderSql(sort) {
-  const stableTitle = "notes.title COLLATE NOCASE ASC, notes.created_at ASC, notes.note_id ASC";
+  const stableTitle = `${db.dialect.comparison.orderByNoCase("notes.title", "ASC")}, notes.created_at ASC, notes.note_id ASC`;
   const updatedDesc = `COALESCE(notes.updated_at, '') DESC, ${stableTitle}`;
   const bucketRank = "CASE notes.library_bucket WHEN 'active_work' THEN 1 WHEN 'ongoing_area' THEN 2 WHEN 'reference' THEN 3 ELSE 99 END";
 
@@ -1025,7 +1193,7 @@ function noteListOrderSql(sort) {
   }
 
   if (sort === "title_desc") {
-    return "ORDER BY notes.title COLLATE NOCASE DESC, notes.created_at ASC, notes.note_id ASC";
+    return `ORDER BY ${db.dialect.comparison.orderByNoCase("notes.title", "DESC")}, notes.created_at ASC, notes.note_id ASC`;
   }
 
   if (sort === "created_desc") {
@@ -1041,15 +1209,15 @@ function noteListOrderSql(sort) {
   }
 
   if (sort === "library_collection_updated_desc") {
-    return `ORDER BY ${bucketRank} ASC, COALESCE(note_library_collections.path_cache, '') COLLATE NOCASE ASC, ${updatedDesc}`;
+    return `ORDER BY ${bucketRank} ASC, ${db.dialect.comparison.orderByNoCase("COALESCE(note_library_collections.path_cache, '')", "ASC")}, ${updatedDesc}`;
   }
 
   if (sort === "note_kind_updated_desc") {
-    return `ORDER BY notes.note_type COLLATE NOCASE ASC, ${updatedDesc}`;
+    return `ORDER BY ${db.dialect.comparison.orderByNoCase("notes.note_type", "ASC")}, ${updatedDesc}`;
   }
 
   if (sort === "primary_context_updated_desc") {
-    return `ORDER BY COALESCE(notes.client_id, '') COLLATE NOCASE ASC, COALESCE(notes.project_id, '') COLLATE NOCASE ASC, ${updatedDesc}`;
+    return `ORDER BY ${db.dialect.comparison.orderByNoCase("COALESCE(notes.client_id, '')", "ASC")}, ${db.dialect.comparison.orderByNoCase("COALESCE(notes.project_id, '')", "ASC")}, ${updatedDesc}`;
   }
 
   return `ORDER BY ${updatedDesc}`;

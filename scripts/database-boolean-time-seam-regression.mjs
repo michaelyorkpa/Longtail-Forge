@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.5";
+const appVersion = "0.33.5.27.17";
+const booleanTimeSliceVersion = "0.33.5.27.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-boolean-time-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-boolean-time-seams.db");
@@ -51,7 +52,7 @@ function assertStaticContract() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the boolean/time seam version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the boolean/time seam version");
 
-  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.5"/, "SQLite dialect contract should advance for the boolean/time seam slice");
+  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.17"/, "SQLite dialect contract should report the current seam contract version");
   assert.match(sqliteDialectSource, /bindFields: bindSqliteBooleanFields/, "SQLite dialect seams should expose boolean bind-field mapping");
   assert.match(sqliteDialectSource, /readFields: readSqliteBooleanFields/, "SQLite dialect seams should expose boolean read-field mapping");
   assert.match(sqliteDialectSource, /elapsedSecondsSince/, "SQLite dialect seams should expose an elapsed-seconds helper");
@@ -70,13 +71,12 @@ function assertStaticContract() {
     assert.doesNotMatch(proofPath, /runSql\(`/, "active timer pause proof paths should not remain on the interpolated compatibility helper");
   }
 
-  assert.match(parameterAuditRegression, /helperCalls: 1481/, "parameter-binding audit should lock the boolean/time proof burndown");
-  assert.match(parameterAuditRegression, /interpolatedOperationSites: 230/, "parameter-binding audit should lock the converted active timer operation sites");
-  assert.match(parameterAuditRegression, /\["time-tracking\/active-timers\.repo", 53, 10\]/, "parameter-binding audit should track the active timer proof path row");
+  assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*1,481 runtime literal-helper invocations[\s\S]*230 direct interpolated SQL operation sites/, "parameter-binding audit should retain the boolean/time proof burndown");
+  assert.match(parameterAuditRegression, /\["time-tracking\/active-timers\.repo", 12\]/, "parameter-binding audit should track the converted active timer row");
   assert.match(roadmap, /### Version 0\.33\.5\.27\.5 - Boolean and timestamp\/interval seams[\s\S]*- \[x\] Implement adapter-owned logical boolean normalization[\s\S]*- \[x\] Implement the provider date\/time helper[\s\S]*- \[x\] Convert one small proof path/, "roadmap should mark the boolean/time seam slice complete");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.5[\s\S]*`db\.dialect\.boolean\.bindFields\(\.\.\.\)`[\s\S]*`db\.dialect\.time\.elapsedSecondsSince\(\.\.\.\)`/, "database docs should describe the boolean and timestamp seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*`settings\.repo`[\s\S]*`time-tracking\/active-timers\.repo`/, "audit docs should record the boolean/time proof paths");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - [\\s\\S]*Boolean and timestamp\\/interval seams[\\s\\S]*active timer pause`), "changelog should record the boolean/time seam slice");
+  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(booleanTimeSliceVersion)} - [\\s\\S]*Boolean and timestamp\\/interval seams[\\s\\S]*active timer pause`), "changelog should record the boolean/time seam slice");
   assert.match(regressionSuite, /scripts\/database-boolean-time-seam-regression\.mjs/, "regression suite should include boolean/time seam coverage");
 }
 

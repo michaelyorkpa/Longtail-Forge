@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.5";
+const appVersion = "0.33.5.27.17";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-dialect-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-dialect-seams.db");
@@ -247,6 +247,14 @@ VALUES
 
   assert.equal(dialect.search.match("dialect_seam_fts", ":query"), "dialect_seam_fts MATCH :query");
   assert.equal(dialect.search.rank("dialect_seam_fts"), "bm25(dialect_seam_fts)");
+  assert.equal(
+    dialect.search.createVirtualTable("dialect_seam_fts_created", [
+      { name: "search_index_id", unindexed: true },
+      "title",
+    ]),
+    "CREATE VIRTUAL TABLE IF NOT EXISTS dialect_seam_fts_created USING fts5(\n  search_index_id UNINDEXED,\n  title\n)",
+  );
+  assert.equal(dialect.search.dropVirtualTable("temp.__ltf_search_fts_probe"), "DROP TABLE IF EXISTS temp.__ltf_search_fts_probe");
   assert.equal(dialect.introspection.tableInfo("dialect_seam_records"), "PRAGMA table_info(dialect_seam_records);");
   assert.equal(dialect.introspection.foreignKeys(), "PRAGMA foreign_keys;");
 

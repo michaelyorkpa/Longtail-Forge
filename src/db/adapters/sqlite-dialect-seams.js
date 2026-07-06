@@ -13,7 +13,7 @@ const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
 function createSqliteDialectSeams() {
   return Object.freeze({
     provider: "sqlite",
-    contractVersion: "0.33.5.27.5",
+    contractVersion: "0.33.5.27.17",
     capabilities: SQLITE_DIALECT_SEAM_CAPABILITIES,
     boolean: Object.freeze({
       bind: bindSqliteBoolean,
@@ -46,6 +46,7 @@ function createSqliteDialectSeams() {
     }),
     introspection: Object.freeze({
       busyTimeout,
+      compileOptions,
       databaseList,
       foreignKeys,
       journalMode,
@@ -59,6 +60,8 @@ function createSqliteDialectSeams() {
       columns,
     }),
     search: Object.freeze({
+      createVirtualTable,
+      dropVirtualTable,
       match,
       rank,
     }),
@@ -248,19 +251,36 @@ function rank(tableName) {
   return `bm25(${normalizeSqlIdentifier(tableName, "FTS table name")})`;
 }
 
+function createVirtualTable(tableName, columns) {
+  const columnDefinitions = normalizeFtsColumnDefinitions(columns).join(",\n  ");
+  return `CREATE VIRTUAL TABLE IF NOT EXISTS ${normalizeSqlIdentifier(tableName, "FTS table name")} USING fts5(\n  ${columnDefinitions}\n)`;
+}
+
+function dropVirtualTable(tableName) {
+  return `DROP TABLE IF EXISTS ${normalizeSqlIdentifier(tableName, "FTS table name")}`;
+}
+
 function columns(returningColumns) {
   return `RETURNING ${normalizeIdentifierList(returningColumns, "returning column")}`;
 }
 
-function rowId(alias = "") {
+function rowId(options = "") {
   const rowIdColumn = "rowid";
+  const normalizedOptions = options && typeof options === "object" ? options : {};
+  const tableAlias = typeof options === "object"
+    ? String(normalizedOptions.tableAlias || normalizedOptions.table || "").trim()
+    : "";
+  const alias = typeof options === "object" ? normalizedOptions.alias : options;
   const normalizedAlias = String(alias || "").trim();
+  const rowIdExpression = tableAlias
+    ? `${normalizeSqlIdentifier(tableAlias, "rowid table alias")}.${rowIdColumn}`
+    : rowIdColumn;
 
   if (!normalizedAlias) {
-    return rowIdColumn;
+    return rowIdExpression;
   }
 
-  return `${rowIdColumn} AS ${normalizeSqlIdentifier(normalizedAlias, "rowid alias")}`;
+  return `${rowIdExpression} AS ${normalizeSqlIdentifier(normalizedAlias, "rowid alias")}`;
 }
 
 function lastInsertRowId() {
@@ -281,6 +301,10 @@ function journalMode() {
 
 function busyTimeout() {
   return "PRAGMA busy_timeout;";
+}
+
+function compileOptions() {
+  return "PRAGMA compile_options;";
 }
 
 function tableInfo(tableName) {
@@ -353,6 +377,27 @@ function normalizeIdentifierArray(identifiers, label) {
   }
 
   return identifiers.map((identifier) => normalizeSqlIdentifier(identifier, label));
+}
+
+function normalizeFtsColumnDefinitions(columns) {
+  if (!Array.isArray(columns) || columns.length === 0) {
+    throw new Error("FTS column list must contain at least one column.");
+  }
+
+  return columns.map((column) => {
+    if (typeof column === "string") {
+      return normalizeSqlIdentifier(column, "FTS column");
+    }
+
+    if (column && typeof column === "object") {
+      const name = normalizeSqlIdentifier(column.name, "FTS column");
+      return column.indexed === false || column.unindexed === true
+        ? `${name} UNINDEXED`
+        : name;
+    }
+
+    throw new Error("FTS columns must be strings or column definition objects.");
+  });
 }
 
 function normalizeFieldNameArray(fieldNames, label) {

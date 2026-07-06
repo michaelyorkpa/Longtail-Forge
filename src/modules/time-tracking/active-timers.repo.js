@@ -1,62 +1,148 @@
-import {
-  db,
-  querySql,
-  runSql,
-  sqlInteger,
-  sqlNullableText,
-  sqlText,
-} from "../../core/database.js";
+import { db } from "../../core/database.js";
+
+const ACTIVE_TIMER_COLUMNS = [
+  "active_timer_id",
+  "workspace_id",
+  "user_id",
+  "timer_slot",
+  "source_module_id",
+  "source_type",
+  "source_id",
+  "source_label",
+  "source_url",
+  "source_metadata_json",
+  "client_id",
+  "client_name",
+  "project_id",
+  "project_name",
+  "description",
+  "billable",
+  "accumulated_elapsed_seconds",
+  "last_active_start_time",
+  "timer_status",
+  "created_at",
+  "updated_at",
+];
+
+const ACTIVE_TIMER_UPSERT_UPDATE_COLUMNS = [
+  "source_module_id",
+  "source_type",
+  "source_id",
+  "source_label",
+  "source_url",
+  "source_metadata_json",
+  "client_id",
+  "client_name",
+  "project_id",
+  "project_name",
+  "description",
+  "billable",
+  "accumulated_elapsed_seconds",
+  "last_active_start_time",
+  "timer_status",
+  "updated_at",
+];
+
+const ACTIVE_TIMER_VALUE_EXPRESSIONS = {
+  accumulated_elapsed_seconds: ":accumulatedElapsedSeconds",
+  active_timer_id: ":activeTimerId",
+  billable: ":billable",
+  client_id: ":clientId",
+  client_name: ":clientName",
+  created_at: ":now",
+  description: ":description",
+  last_active_start_time: ":lastActiveStartTime",
+  project_id: ":projectId",
+  project_name: ":projectName",
+  source_id: ":sourceId",
+  source_label: ":sourceLabel",
+  source_metadata_json: ":sourceMetadataJson",
+  source_module_id: ":sourceModuleId",
+  source_type: ":sourceType",
+  source_url: ":sourceUrl",
+  timer_slot: ":timerSlot",
+  timer_status: ":timerStatus",
+  updated_at: ":now",
+  user_id: ":userId",
+  workspace_id: ":workspaceId",
+};
 
 async function readAll(workspaceId, userId) {
   return readAllBySource(workspaceId, userId, { sourceType: "manual" });
 }
 
 async function readAllWorkTimers(workspaceId, userId) {
-  const rows = await querySql(selectSql(`
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
+  const rows = await db.query(selectSql(`
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
 ORDER BY updated_at DESC, CAST(timer_slot AS INTEGER), timer_slot;
-`));
+`), {
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map(activeTimerRowToAppValue);
 }
 
 async function readAllBySource(workspaceId, userId, source) {
-  const rows = await querySql(`
+  const params = {
+    sourceType: textParam(source.sourceType || "manual"),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  };
+  const sourceModuleSql = source.sourceModuleId
+    ? "source_module_id = :sourceModuleId"
+    : "source_module_id IS NULL";
+
+  if (source.sourceModuleId) {
+    params.sourceModuleId = textParam(source.sourceModuleId);
+  }
+
+  const rows = await db.query(`
 ${selectSql(`
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND source_type = ${sqlText(source.sourceType || "manual")}
-  AND ${source.sourceModuleId ? `source_module_id = ${sqlText(source.sourceModuleId)}` : "source_module_id IS NULL"}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND source_type = :sourceType
+  AND ${sourceModuleSql}
 ORDER BY CAST(timer_slot AS INTEGER), timer_slot;
 `)}
-`);
+`, params);
 
   return rows.map(activeTimerRowToAppValue);
 }
 
 async function readBySlot(workspaceId, userId, timerSlot) {
-  const rows = await querySql(selectSql(`
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND timer_slot = ${sqlText(timerSlot)}
+  const row = await db.get(selectSql(`
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND timer_slot = :timerSlot
 LIMIT 1;
-`));
+`), {
+    timerSlot: textParam(timerSlot),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? activeTimerRowToAppValue(rows[0]) : null;
+  return row ? activeTimerRowToAppValue(row) : null;
 }
 
 async function readBySource(workspaceId, userId, source) {
-  const rows = await querySql(selectSql(`
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND source_module_id = ${sqlText(source.sourceModuleId)}
-  AND source_type = ${sqlText(source.sourceType)}
-  AND source_id = ${sqlText(source.sourceId)}
+  const row = await db.get(selectSql(`
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND source_module_id = :sourceModuleId
+  AND source_type = :sourceType
+  AND source_id = :sourceId
 LIMIT 1;
-`));
+`), {
+    sourceId: textParam(source.sourceId),
+    sourceModuleId: textParam(source.sourceModuleId),
+    sourceType: textParam(source.sourceType),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? activeTimerRowToAppValue(rows[0]) : null;
+  return row ? activeTimerRowToAppValue(row) : null;
 }
 
 async function upsert(timer) {
@@ -66,71 +152,13 @@ async function upsert(timer) {
     await pauseOtherRunningTimers(timer.workspace_id, timer.user_id, timer.timer_slot, now);
   }
 
-  await runSql(`
-INSERT INTO active_work_timers (
-  active_timer_id,
-  workspace_id,
-  user_id,
-  timer_slot,
-  source_module_id,
-  source_type,
-  source_id,
-  source_label,
-  source_url,
-  source_metadata_json,
-  client_id,
-  client_name,
-  project_id,
-  project_name,
-  description,
-  billable,
-  accumulated_elapsed_seconds,
-  last_active_start_time,
-  timer_status,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(timer.active_timer_id)},
-  ${sqlText(timer.workspace_id)},
-  ${sqlText(timer.user_id)},
-  ${sqlText(timer.timer_slot)},
-  ${sqlNullableText(timer.source_module_id)},
-  ${sqlText(timer.source_type || "manual")},
-  ${sqlNullableText(timer.source_id)},
-  ${sqlText(timer.source_label || "")},
-  ${sqlText(timer.source_url || "")},
-  ${sqlText(normalizeSourceMetadataJson(timer.source_metadata_json || timer.sourceMetadata))},
-  ${sqlNullableText(timer.client_id)},
-  ${sqlText(timer.client_name)},
-  ${sqlText(timer.project_id)},
-  ${sqlText(timer.project_name)},
-  ${sqlText(timer.description)},
-  ${sqlText(timer.billable)},
-  ${sqlInteger(timer.accumulated_elapsed_seconds)},
-  ${sqlNullableText(timer.last_active_start_time)},
-  ${sqlText(timer.timer_status)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(workspace_id, user_id, timer_slot) DO UPDATE SET
-  source_module_id = excluded.source_module_id,
-  source_type = excluded.source_type,
-  source_id = excluded.source_id,
-  source_label = excluded.source_label,
-  source_url = excluded.source_url,
-  source_metadata_json = excluded.source_metadata_json,
-  client_id = excluded.client_id,
-  client_name = excluded.client_name,
-  project_id = excluded.project_id,
-  project_name = excluded.project_name,
-  description = excluded.description,
-  billable = excluded.billable,
-  accumulated_elapsed_seconds = excluded.accumulated_elapsed_seconds,
-  last_active_start_time = excluded.last_active_start_time,
-  timer_status = excluded.timer_status,
-  updated_at = excluded.updated_at;
-`);
+  await db.run(`${db.dialect.conflict.buildInsertOnConflictDoUpdate({
+    columns: ACTIVE_TIMER_COLUMNS,
+    conflictColumns: ["workspace_id", "user_id", "timer_slot"],
+    tableName: "active_work_timers",
+    updateColumns: ACTIVE_TIMER_UPSERT_UPDATE_COLUMNS,
+    valueExpressions: ACTIVE_TIMER_VALUE_EXPRESSIONS,
+  })};`, activeTimerWriteParams(timer, now));
 
   return readBySlot(timer.workspace_id, timer.user_id, timer.timer_slot);
 }
@@ -182,12 +210,16 @@ WHERE workspace_id = :workspaceId
 }
 
 async function remove(workspaceId, userId, timerSlot) {
-  await runSql(`
+  await db.run(`
 DELETE FROM active_work_timers
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND timer_slot = ${sqlText(timerSlot)};
-`);
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND timer_slot = :timerSlot;
+`, {
+    timerSlot: textParam(timerSlot),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 async function compactManualTimerSlots(workspaceId, userId) {
@@ -205,49 +237,68 @@ async function compactManualTimerSlots(workspaceId, userId) {
   const now = new Date().toISOString();
 
   for (const timer of timers) {
-    await runSql(`
+    await db.run(`
 UPDATE active_work_timers
-SET timer_slot = ${sqlText(`__compact:${timer.active_timer_id}`)},
-    updated_at = ${sqlText(now)}
-WHERE active_timer_id = ${sqlText(timer.active_timer_id)};
-`);
+SET timer_slot = :compactSlot,
+    updated_at = :updatedAt
+WHERE active_timer_id = :activeTimerId;
+`, {
+      activeTimerId: textParam(timer.active_timer_id),
+      compactSlot: textParam(`__compact:${timer.active_timer_id}`),
+      updatedAt: now,
+    });
   }
 
   for (const [index, timer] of timers.entries()) {
-    await runSql(`
+    await db.run(`
 UPDATE active_work_timers
-SET timer_slot = ${sqlText(String(index + 1))},
-    updated_at = ${sqlText(now)}
-WHERE active_timer_id = ${sqlText(timer.active_timer_id)};
-`);
+SET timer_slot = :timerSlot,
+    updated_at = :updatedAt
+WHERE active_timer_id = :activeTimerId;
+`, {
+      activeTimerId: textParam(timer.active_timer_id),
+      timerSlot: textParam(String(index + 1)),
+      updatedAt: now,
+    });
   }
 
   return readAll(workspaceId, userId);
 }
 
 async function removeBySource(workspaceId, userId, source) {
-  await runSql(`
+  await db.run(`
 DELETE FROM active_work_timers
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND source_module_id = ${sqlText(source.sourceModuleId)}
-  AND source_type = ${sqlText(source.sourceType)}
-  AND source_id = ${sqlText(source.sourceId)};
-`);
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND source_module_id = :sourceModuleId
+  AND source_type = :sourceType
+  AND source_id = :sourceId;
+`, {
+    sourceId: textParam(source.sourceId),
+    sourceModuleId: textParam(source.sourceModuleId),
+    sourceType: textParam(source.sourceType),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 async function hasSource(workspaceId, source) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT active_timer_id
 FROM active_work_timers
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND source_module_id = ${sqlText(source.sourceModuleId)}
-  AND source_type = ${sqlText(source.sourceType)}
-  AND source_id = ${sqlText(source.sourceId)}
+WHERE workspace_id = :workspaceId
+  AND source_module_id = :sourceModuleId
+  AND source_type = :sourceType
+  AND source_id = :sourceId
 LIMIT 1;
-`);
+`, {
+    sourceId: textParam(source.sourceId),
+    sourceModuleId: textParam(source.sourceModuleId),
+    sourceType: textParam(source.sourceType),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows.length > 0;
+  return Boolean(row);
 }
 
 function selectSql(whereSql) {
@@ -305,6 +356,31 @@ function activeTimerRowToAppValue(row) {
   };
 }
 
+function activeTimerWriteParams(timer, now) {
+  return {
+    accumulatedElapsedSeconds: integerParam(timer.accumulated_elapsed_seconds),
+    activeTimerId: textParam(timer.active_timer_id),
+    billable: textParam(timer.billable),
+    clientId: nullableTextParam(timer.client_id),
+    clientName: textParam(timer.client_name),
+    description: textParam(timer.description),
+    lastActiveStartTime: nullableTextParam(timer.last_active_start_time),
+    now,
+    projectId: textParam(timer.project_id),
+    projectName: textParam(timer.project_name),
+    sourceId: nullableTextParam(timer.source_id),
+    sourceLabel: textParam(timer.source_label || ""),
+    sourceMetadataJson: textParam(normalizeSourceMetadataJson(timer.source_metadata_json || timer.sourceMetadata)),
+    sourceModuleId: nullableTextParam(timer.source_module_id),
+    sourceType: textParam(timer.source_type || "manual"),
+    sourceUrl: textParam(timer.source_url || ""),
+    timerSlot: textParam(timer.timer_slot),
+    timerStatus: textParam(timer.timer_status),
+    userId: textParam(timer.user_id),
+    workspaceId: textParam(timer.workspace_id),
+  };
+}
+
 function normalizeSourceMetadataJson(value) {
   if (!value) {
     return "{}";
@@ -335,6 +411,20 @@ function parseSourceMetadata(value) {
   } catch {
     return {};
   }
+}
+
+function textParam(value) {
+  return String(value ?? "");
+}
+
+function nullableTextParam(value) {
+  const text = String(value ?? "").trim();
+  return text ? text : null;
+}
+
+function integerParam(value) {
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
 function isNumericTimerSlot(timerSlot) {

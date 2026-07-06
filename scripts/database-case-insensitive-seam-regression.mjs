@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.5";
+const appVersion = "0.33.5.27.17";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-case-insensitive-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -50,7 +50,7 @@ function assertStaticContract() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the case-insensitive seam version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the case-insensitive seam version");
 
-  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.5"/, "SQLite dialect contract should report the current seam contract version");
+  assert.match(sqliteDialectSource, /contractVersion: "0\.33\.5\.27\.17"/, "SQLite dialect contract should report the current seam contract version");
   assert.match(sqliteDialectSource, /containsNoCase/, "SQLite dialect seams should expose a case-insensitive contains helper");
   assert.match(sqliteDialectSource, /escapeLikePattern/, "SQLite dialect seams should expose LIKE pattern escaping");
   assert.match(sqliteDialectSource, /likePattern/, "SQLite dialect seams should expose pattern construction");

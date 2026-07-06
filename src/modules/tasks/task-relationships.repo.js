@@ -1,18 +1,11 @@
 import { randomUUID } from "node:crypto";
-import {
-  db,
-  querySql,
-  runSql,
-  sqlInteger,
-  sqlNullableText,
-  sqlText,
-} from "../../core/database.js";
+import { db } from "../../core/database.js";
 
 async function create(workspaceId, relationship) {
   const now = new Date().toISOString();
   const relationshipId = relationship.task_relationship_id || randomUUID();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO task_relationships (
   task_relationship_id,
   workspace_id,
@@ -27,19 +20,28 @@ INSERT INTO task_relationships (
   updated_at
 )
 VALUES (
-  ${sqlText(relationshipId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(relationship.parent_task_id)},
-  ${sqlText(relationship.child_task_id)},
-  ${sqlInteger(relationship.is_blocking ? 1 : 0)},
-  ${sqlNullableText(relationship.created_by_user_id)},
-  ${sqlNullableText(relationship.updated_by_user_id || relationship.created_by_user_id)},
+  :relationshipId,
+  :workspaceId,
+  :parentTaskId,
+  :childTaskId,
+  :isBlocking,
+  :createdByUserId,
+  :updatedByUserId,
   NULL,
   NULL,
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :now,
+  :now
 );
-`);
+`, {
+    childTaskId: textParam(relationship.child_task_id),
+    createdByUserId: nullableTextParam(relationship.created_by_user_id),
+    isBlocking: booleanParam(relationship.is_blocking),
+    now,
+    parentTaskId: textParam(relationship.parent_task_id),
+    relationshipId,
+    updatedByUserId: nullableTextParam(relationship.updated_by_user_id || relationship.created_by_user_id),
+    workspaceId: textParam(workspaceId),
+  });
 
   return readById(workspaceId, relationshipId);
 }
@@ -47,15 +49,21 @@ VALUES (
 async function update(workspaceId, relationship) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE task_relationships
-SET is_blocking = ${sqlInteger(relationship.is_blocking ? 1 : 0)},
-    updated_by_user_id = ${sqlNullableText(relationship.updated_by_user_id)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND task_relationship_id = ${sqlText(relationship.task_relationship_id)}
+SET is_blocking = :isBlocking,
+    updated_by_user_id = :updatedByUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND task_relationship_id = :relationshipId
   AND removed_at IS NULL;
-`);
+`, {
+    isBlocking: booleanParam(relationship.is_blocking),
+    now,
+    relationshipId: textParam(relationship.task_relationship_id),
+    updatedByUserId: nullableTextParam(relationship.updated_by_user_id),
+    workspaceId: textParam(workspaceId),
+  });
 
   return readById(workspaceId, relationship.task_relationship_id);
 }
@@ -63,135 +71,167 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function remove(workspaceId, relationshipId, removedByUserId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE task_relationships
-SET removed_at = ${sqlText(now)},
-    removed_by_user_id = ${sqlNullableText(removedByUserId)},
-    updated_by_user_id = ${sqlNullableText(removedByUserId)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND task_relationship_id = ${sqlText(relationshipId)}
+SET removed_at = :now,
+    removed_by_user_id = :removedByUserId,
+    updated_by_user_id = :removedByUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND task_relationship_id = :relationshipId
   AND removed_at IS NULL;
-`);
+`, {
+    now,
+    relationshipId: textParam(relationshipId),
+    removedByUserId: nullableTextParam(removedByUserId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return readById(workspaceId, relationshipId);
 }
 
 async function readById(workspaceId, relationshipId) {
-  const rows = await querySql(relationshipSelectSql(`
-WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
-  AND task_relationships.task_relationship_id = ${sqlText(relationshipId)}
+  const row = await db.get(relationshipSelectSql(`
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.task_relationship_id = :relationshipId
 LIMIT 1;
-`));
+`), {
+    relationshipId: textParam(relationshipId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? relationshipRowToAppValue(rows[0]) : null;
+  return row ? relationshipRowToAppValue(row) : null;
 }
 
 async function readActivePair(workspaceId, parentTaskId, childTaskId) {
-  const rows = await querySql(relationshipSelectSql(`
-WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
-  AND task_relationships.parent_task_id = ${sqlText(parentTaskId)}
-  AND task_relationships.child_task_id = ${sqlText(childTaskId)}
+  const row = await db.get(relationshipSelectSql(`
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.parent_task_id = :parentTaskId
+  AND task_relationships.child_task_id = :childTaskId
   AND task_relationships.removed_at IS NULL
 LIMIT 1;
-`));
+`), {
+    childTaskId: textParam(childTaskId),
+    parentTaskId: textParam(parentTaskId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? relationshipRowToAppValue(rows[0]) : null;
+  return row ? relationshipRowToAppValue(row) : null;
 }
 
 async function readForTask(workspaceId, taskId) {
-  const rows = await querySql(relationshipSelectSql(`
-WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
+  const rows = await db.query(relationshipSelectSql(`
+WHERE task_relationships.workspace_id = :workspaceId
   AND task_relationships.removed_at IS NULL
   AND (
-    task_relationships.parent_task_id = ${sqlText(taskId)}
-    OR task_relationships.child_task_id = ${sqlText(taskId)}
+    task_relationships.parent_task_id = :taskId
+    OR task_relationships.child_task_id = :taskId
   )
 ORDER BY task_relationships.created_at;
-`));
+`), {
+    taskId: textParam(taskId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map(relationshipRowToAppValue);
 }
 
 async function readChildren(workspaceId, parentTaskId) {
-  const rows = await querySql(relationshipSelectSql(`
-WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
-  AND task_relationships.parent_task_id = ${sqlText(parentTaskId)}
+  const rows = await db.query(relationshipSelectSql(`
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.parent_task_id = :parentTaskId
   AND task_relationships.removed_at IS NULL
 ORDER BY child_tasks.status, child_tasks.due_date, child_tasks.title;
-`));
+`), {
+    parentTaskId: textParam(parentTaskId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map(relationshipRowToAppValue);
 }
 
 async function readParents(workspaceId, childTaskId) {
-  const rows = await querySql(relationshipSelectSql(`
-WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
-  AND task_relationships.child_task_id = ${sqlText(childTaskId)}
+  const rows = await db.query(relationshipSelectSql(`
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.child_task_id = :childTaskId
   AND task_relationships.removed_at IS NULL
 ORDER BY parent_tasks.status, parent_tasks.due_date, parent_tasks.title;
-`));
+`), {
+    childTaskId: textParam(childTaskId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map(relationshipRowToAppValue);
 }
 
 async function readBlockingChildren(workspaceId, parentTaskId) {
-  const rows = await querySql(relationshipSelectSql(`
-WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
-  AND task_relationships.parent_task_id = ${sqlText(parentTaskId)}
-  AND task_relationships.is_blocking = 1
+  const rows = await db.query(relationshipSelectSql(`
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.parent_task_id = :parentTaskId
+  AND task_relationships.is_blocking = :blockingValue
   AND task_relationships.removed_at IS NULL
 ORDER BY child_tasks.status, child_tasks.due_date, child_tasks.title;
-`));
+`), {
+    blockingValue: db.dialect.boolean.bind(true),
+    parentTaskId: textParam(parentTaskId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map(relationshipRowToAppValue);
 }
 
 async function hasPath(workspaceId, startParentTaskId, targetChildTaskId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 WITH RECURSIVE task_tree(task_id) AS (
   SELECT child_task_id
   FROM task_relationships
-  WHERE workspace_id = ${sqlText(workspaceId)}
-    AND parent_task_id = ${sqlText(startParentTaskId)}
+  WHERE workspace_id = :workspaceId
+    AND parent_task_id = :startParentTaskId
     AND removed_at IS NULL
   UNION
   SELECT task_relationships.child_task_id
   FROM task_relationships
   INNER JOIN task_tree
     ON task_tree.task_id = task_relationships.parent_task_id
-  WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
+  WHERE task_relationships.workspace_id = :workspaceId
     AND task_relationships.removed_at IS NULL
 )
 SELECT task_id
 FROM task_tree
-WHERE task_id = ${sqlText(targetChildTaskId)}
+WHERE task_id = :targetChildTaskId
 LIMIT 1;
-`);
+`, {
+    startParentTaskId: textParam(startParentTaskId),
+    targetChildTaskId: textParam(targetChildTaskId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows.length > 0;
+  return Boolean(row);
 }
 
 async function relationshipSummary(workspaceId, taskId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT
-  SUM(CASE WHEN parent_task_id = ${sqlText(taskId)} THEN 1 ELSE 0 END) AS child_count,
-  SUM(CASE WHEN parent_task_id = ${sqlText(taskId)} AND is_blocking = 1 THEN 1 ELSE 0 END) AS blocking_child_count,
-  SUM(CASE WHEN parent_task_id = ${sqlText(taskId)} AND is_blocking = 1 AND child_tasks.status NOT IN ('complete', 'archived') THEN 1 ELSE 0 END) AS incomplete_blocking_child_count,
-  SUM(CASE WHEN child_task_id = ${sqlText(taskId)} THEN 1 ELSE 0 END) AS parent_count,
-  SUM(CASE WHEN child_task_id = ${sqlText(taskId)} AND is_blocking = 1 THEN 1 ELSE 0 END) AS blocking_parent_count
+  SUM(CASE WHEN parent_task_id = :taskId THEN 1 ELSE 0 END) AS child_count,
+  SUM(CASE WHEN parent_task_id = :taskId AND is_blocking = :blockingValue THEN 1 ELSE 0 END) AS blocking_child_count,
+  SUM(CASE WHEN parent_task_id = :taskId AND is_blocking = :blockingValue AND child_tasks.status NOT IN ('complete', 'archived') THEN 1 ELSE 0 END) AS incomplete_blocking_child_count,
+  SUM(CASE WHEN child_task_id = :taskId THEN 1 ELSE 0 END) AS parent_count,
+  SUM(CASE WHEN child_task_id = :taskId AND is_blocking = :blockingValue THEN 1 ELSE 0 END) AS blocking_parent_count
 FROM task_relationships
 LEFT JOIN tasks AS child_tasks
   ON child_tasks.workspace_id = task_relationships.workspace_id
   AND child_tasks.task_id = task_relationships.child_task_id
-WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
+WHERE task_relationships.workspace_id = :workspaceId
   AND task_relationships.removed_at IS NULL
   AND (
-    task_relationships.parent_task_id = ${sqlText(taskId)}
-    OR task_relationships.child_task_id = ${sqlText(taskId)}
+    task_relationships.parent_task_id = :taskId
+    OR task_relationships.child_task_id = :taskId
   );
-`);
-  const row = rows[0] || {};
+`, {
+    blockingValue: db.dialect.boolean.bind(true),
+    taskId: textParam(taskId),
+    workspaceId: textParam(workspaceId),
+  }) || {};
 
   return {
     child_count: Number(row.child_count) || 0,
@@ -209,18 +249,12 @@ async function relationshipSummariesForTasks(workspaceId, taskIds) {
     return new Map();
   }
 
-  const params = { workspaceId };
-  const placeholders = uniqueTaskIds.map((taskId, index) => {
-    const key = `taskId${index}`;
-    params[key] = taskId;
-    return `:${key}`;
-  });
   const rows = await db.query(`
 SELECT
   task_relationships.parent_task_id AS task_id,
   COUNT(*) AS child_count,
-  SUM(CASE WHEN task_relationships.is_blocking = 1 THEN 1 ELSE 0 END) AS blocking_child_count,
-  SUM(CASE WHEN task_relationships.is_blocking = 1 AND child_tasks.status NOT IN ('complete', 'archived') THEN 1 ELSE 0 END) AS incomplete_blocking_child_count,
+  SUM(CASE WHEN task_relationships.is_blocking = :blockingValue THEN 1 ELSE 0 END) AS blocking_child_count,
+  SUM(CASE WHEN task_relationships.is_blocking = :blockingValue AND child_tasks.status NOT IN ('complete', 'archived') THEN 1 ELSE 0 END) AS incomplete_blocking_child_count,
   0 AS parent_count,
   0 AS blocking_parent_count
 FROM task_relationships
@@ -229,7 +263,7 @@ LEFT JOIN tasks AS child_tasks
   AND child_tasks.task_id = task_relationships.child_task_id
 WHERE task_relationships.workspace_id = :workspaceId
   AND task_relationships.removed_at IS NULL
-  AND task_relationships.parent_task_id IN (${placeholders.join(", ")})
+  AND task_relationships.parent_task_id IN (:taskIds)
 GROUP BY task_relationships.parent_task_id
 UNION ALL
 SELECT
@@ -238,13 +272,17 @@ SELECT
   0 AS blocking_child_count,
   0 AS incomplete_blocking_child_count,
   COUNT(*) AS parent_count,
-  SUM(CASE WHEN task_relationships.is_blocking = 1 THEN 1 ELSE 0 END) AS blocking_parent_count
+  SUM(CASE WHEN task_relationships.is_blocking = :blockingValue THEN 1 ELSE 0 END) AS blocking_parent_count
 FROM task_relationships
 WHERE task_relationships.workspace_id = :workspaceId
   AND task_relationships.removed_at IS NULL
-  AND task_relationships.child_task_id IN (${placeholders.join(", ")})
+  AND task_relationships.child_task_id IN (:taskIds)
 GROUP BY task_relationships.child_task_id;
-`, params);
+`, {
+    blockingValue: db.dialect.boolean.bind(true),
+    taskIds: uniqueTaskIds,
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.reduce((map, row) => {
     const summary = map.get(row.task_id) || emptyRelationshipSummary();
@@ -304,7 +342,7 @@ function relationshipRowToAppValue(row) {
     child_status: row.child_status || "",
     child_client_id: row.child_client_id || "",
     child_project_id: row.child_project_id || "",
-    is_blocking: Number(row.is_blocking) === 1,
+    is_blocking: db.dialect.boolean.read(row.is_blocking) === true,
     created_by_user_id: row.created_by_user_id || "",
     updated_by_user_id: row.updated_by_user_id || "",
     removed_at: row.removed_at || "",
@@ -322,6 +360,19 @@ function emptyRelationshipSummary() {
     parent_count: 0,
     blocking_parent_count: 0,
   };
+}
+
+function textParam(value) {
+  return String(value ?? "");
+}
+
+function nullableTextParam(value) {
+  const text = String(value ?? "").trim();
+  return text ? text : null;
+}
+
+function booleanParam(value) {
+  return db.dialect.boolean.bind(Boolean(value));
 }
 
 export const taskRelationshipsRepository = {

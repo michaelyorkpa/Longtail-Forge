@@ -77,9 +77,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.6 - Search/FTS seam extraction
 
-- [ ] Move backend search syntax ownership into the framework search adapter/service seam so application code does not emit raw FTS5 SQL.
-- [ ] Keep canonical `search_index` rows as the source of truth and preserve indexed LIKE fallback behavior when FTS5 is unavailable.
-- [ ] Add focused search regressions for FTS query lowering, fallback query lowering, and repair/read behavior.
+- [x] Move backend search syntax ownership into the framework search adapter/service seam so application code does not emit raw FTS5 SQL.
+- [x] Keep canonical `search_index` rows as the source of truth and preserve indexed LIKE fallback behavior when FTS5 is unavailable.
+- [x] Add focused search regressions for FTS query lowering, fallback query lowering, and repair/read behavior.
 
 Acceptance criteria:
 
@@ -87,9 +87,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.7 - PRAGMA, rowid, and introspection seam boundaries
 
-- [ ] Move or document provider-owned entry points for PRAGMA/introspection and physical identity (`rowid`) usage before startup and migration paths are reviewed.
-- [ ] Confirm no module or application repository owns raw PRAGMA/rowid calls; any remaining legitimate use must be startup, migration, health, repair, or adapter-owned.
-- [ ] Add a focused regression or audit assertion covering the provider-only boundary.
+- [x] Move or document provider-owned entry points for PRAGMA/introspection and physical identity (`rowid`) usage before startup and migration paths are reviewed.
+- [x] Confirm no module or application repository owns raw PRAGMA/rowid calls; any remaining legitimate use must be startup, migration, health, repair, or adapter-owned.
+- [x] Add a focused regression or audit assertion covering the provider-only boundary.
 
 Acceptance criteria:
 
@@ -97,9 +97,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.8 - Conversion wave: Tasks primary repository
 
-- [ ] Convert `tasks/tasks.repo` to named bound params and the dialect seams.
-- [ ] Preserve task list/detail reads, saved-view filters, assignee filters, due/reminder candidate reads, and `last_worked_at` updates exactly.
-- [ ] Update the burndown ratchet and extend focused Tasks regressions before moving on.
+- [x] Convert `tasks/tasks.repo` to named bound params and the dialect seams.
+- [x] Preserve task list/detail reads, saved-view filters, assignee filters, due/reminder candidate reads, and `last_worked_at` updates exactly.
+- [x] Update the burndown ratchet and extend focused Tasks regressions before moving on.
 
 Acceptance criteria:
 
@@ -107,9 +107,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.9 - Conversion wave: Task checklist repository
 
-- [ ] Convert `tasks/task-checklists.repo` to named bound params and the dialect seams.
-- [ ] Preserve checklist read/progress, create/update/reorder, soft-delete, and next-sort-order behavior exactly.
-- [ ] Update the burndown ratchet and extend checklist-focused Tasks regressions before moving on.
+- [x] Convert `tasks/task-checklists.repo` to named bound params and the dialect seams.
+- [x] Preserve checklist read/progress, create/update/reorder, soft-delete, and next-sort-order behavior exactly.
+- [x] Update the burndown ratchet and extend checklist-focused Tasks regressions before moving on.
 
 Acceptance criteria:
 
@@ -117,9 +117,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.10 - Conversion wave: Task relationships repository
 
-- [ ] Convert `tasks/task-relationships.repo` to named bound params and the dialect seams.
-- [ ] Preserve parent/child reads, blocking summaries, cycle/path checks, and relationship lifecycle behavior exactly.
-- [ ] Update the burndown ratchet and extend relationship-focused Tasks regressions before moving on.
+- [x] Convert `tasks/task-relationships.repo` to named bound params and the dialect seams.
+- [x] Preserve parent/child reads, blocking summaries, cycle/path checks, and relationship lifecycle behavior exactly.
+- [x] Update the burndown ratchet and extend relationship-focused Tasks regressions before moving on.
 
 Acceptance criteria:
 
@@ -127,9 +127,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.11 - Conversion wave: Task recurrence and reminders
 
-- [ ] Convert `tasks/task-recurrence.repo` and `tasks/task-reminders.repo` to named bound params and the dialect seams.
-- [ ] Preserve recurrence template reads/writes, template assignees, reminder offsets, and durable reminder/recurrence job semantics exactly.
-- [ ] Update the burndown ratchet and extend recurrence/reminder regressions before moving on.
+- [x] Convert `tasks/task-recurrence.repo` and `tasks/task-reminders.repo` to named bound params and the dialect seams.
+- [x] Preserve recurrence template reads/writes, template assignees, reminder offsets, and durable reminder/recurrence job semantics exactly.
+- [x] Update the burndown ratchet and extend recurrence/reminder regressions before moving on.
 
 Acceptance criteria:
 
@@ -137,9 +137,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.12 - Conversion wave: Active timers
 
-- [ ] Convert `time-tracking/active-timers.repo` to named bound params and the dialect seams.
-- [ ] Preserve active timer reads, slot/source behavior, pause/remove flows, and manual slot compaction exactly.
-- [ ] Update the burndown ratchet and extend timer-focused regressions before moving on.
+- [x] Convert `time-tracking/active-timers.repo` to named bound params and the dialect seams.
+- [x] Preserve active timer reads, slot/source behavior, pause/remove flows, and manual slot compaction exactly.
+- [x] Update the burndown ratchet and extend timer-focused regressions before moving on.
 
 Acceptance criteria:
 
@@ -147,9 +147,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.13 - Conversion wave: Time entries
 
-- [ ] Convert `time-tracking/time-entries.repo` to named bound params and the dialect seams.
-- [ ] Preserve entry reads, create/update/remove, project-scope updates, and reporting-facing read behavior exactly.
-- [ ] Update the burndown ratchet and extend Time Tracking regressions before moving on.
+- [x] Convert `time-tracking/time-entries.repo` to named bound params and the dialect seams.
+- [x] Preserve entry reads, create/update/remove, project-scope updates, and reporting-facing read behavior exactly.
+- [x] Update the burndown ratchet and extend Time Tracking regressions before moving on.
 
 Acceptance criteria:
 
@@ -157,9 +157,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.14 - Conversion wave: Notes records and filters
 
-- [ ] Convert the note record list/read/filter paths in `notes/notes.repo` to named bound params and the dialect seams.
-- [ ] Preserve secure/private placeholders, note kind/status filters, context filters, collection filters, owner filters, search filters, ordering, and paging exactly.
-- [ ] Update the burndown ratchet and extend Notes read/filter regressions before moving on.
+- [x] Convert the note record list/read/filter paths in `notes/notes.repo` to named bound params and the dialect seams.
+- [x] Preserve secure/private placeholders, note kind/status filters, context filters, collection filters, owner filters, search filters, ordering, and paging exactly.
+- [x] Update the burndown ratchet and extend Notes read/filter regressions before moving on.
 
 Acceptance criteria:
 
@@ -167,9 +167,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.15 - Conversion wave: Notes writes, revisions, links, and collections
 
-- [ ] Convert the remaining `notes/notes.repo` write, revision, linked-record, collection, and count paths to named bound params and the dialect seams.
-- [ ] Preserve revision numbering, link lifecycle, collection nesting/counts, and plaintext secure-placeholder checks exactly.
-- [ ] Update the burndown ratchet and extend Notes mutation/collection regressions before moving on.
+- [x] Convert the remaining `notes/notes.repo` write, revision, linked-record, collection, and count paths to named bound params and the dialect seams.
+- [x] Preserve revision numbering, link lifecycle, collection nesting/counts, and plaintext secure-placeholder checks exactly.
+- [x] Update the burndown ratchet and extend Notes mutation/collection regressions before moving on.
 
 Acceptance criteria:
 
@@ -177,9 +177,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.16 - Conversion wave: Lists records and items
 
-- [ ] Convert list record and list item read/write paths in `lists/lists.repo` to named bound params and the dialect seams.
-- [ ] Preserve list execution, item progress, item ordering, item create/update/delete behavior, and service-owned read shaping exactly.
-- [ ] Update the burndown ratchet and extend Lists record/item regressions before moving on.
+- [x] Convert list record and list item read/write paths in `lists/lists.repo` to named bound params and the dialect seams.
+- [x] Preserve list execution, item progress, item ordering, item create/update/delete behavior, and service-owned read shaping exactly.
+- [x] Update the burndown ratchet and extend Lists record/item regressions before moving on.
 
 Acceptance criteria:
 
@@ -187,10 +187,10 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.17 - Conversion wave: Lists catalog and linked records
 
-- [ ] Convert the remaining `lists/lists.repo` catalog, catalog-usage, linked-record/source-list, and batch read paths to named bound params and the dialect seams.
-- [ ] Preserve catalog suggestions, linked-record/source-list context, tag decoration inputs, and modal/editor behavior exactly.
-- [ ] Because the 0.33.5.27.16/0.33.5.27.17 split is by functional area rather than a pure "everything else" catch-all, close this slice against the ratchet, not just the named path list: confirm `lists/lists.repo` reaches zero remaining literal-helper/direct-interpolation sites so no path falls between the two Lists waves.
-- [ ] Update the burndown ratchet and extend Lists catalog/link regressions before moving on.
+- [x] Convert the remaining `lists/lists.repo` catalog, catalog-usage, linked-record/source-list, and batch read paths to named bound params and the dialect seams.
+- [x] Preserve catalog suggestions, linked-record/source-list context, tag decoration inputs, and modal/editor behavior exactly.
+- [x] Because the 0.33.5.27.16/0.33.5.27.17 split is by functional area rather than a pure "everything else" catch-all, close this slice against the ratchet, not just the named path list: confirm `lists/lists.repo` reaches zero remaining literal-helper/direct-interpolation sites so no path falls between the two Lists waves.
+- [x] Update the burndown ratchet and extend Lists catalog/link regressions before moving on.
 
 Acceptance criteria:
 

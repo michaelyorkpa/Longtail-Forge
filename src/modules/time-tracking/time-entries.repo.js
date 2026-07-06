@@ -1,8 +1,8 @@
-import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../../core/database.js";
+import { db } from "../../core/database.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 
 async function readAll(workspaceId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT
   entry_id,
   workspace_id,
@@ -22,15 +22,15 @@ SELECT
   created_at,
   updated_at
 FROM time_entries
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 ORDER BY end_time;
-`);
+`, { workspaceId: textParam(workspaceId) });
 
   return rows.map(timeEntryRowToAppValue);
 }
 
 async function readById(workspaceId, entryId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT
   entry_id,
   workspace_id,
@@ -50,16 +50,19 @@ SELECT
   created_at,
   updated_at
 FROM time_entries
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND entry_id = ${sqlText(entryId)}
+WHERE workspace_id = :workspaceId
+  AND entry_id = :entryId
 LIMIT 1;
-`);
+`, {
+    entryId: textParam(entryId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  return rows[0] ? timeEntryRowToAppValue(rows[0]) : null;
+  return row ? timeEntryRowToAppValue(row) : null;
 }
 
 async function readByProjectId(workspaceId, projectId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT
   entry_id,
   workspace_id,
@@ -79,80 +82,20 @@ SELECT
   created_at,
   updated_at
 FROM time_entries
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND project_id = ${sqlText(projectId)}
+WHERE workspace_id = :workspaceId
+  AND project_id = :projectId
 ORDER BY end_time;
-`);
+`, {
+    projectId: textParam(projectId),
+    workspaceId: textParam(workspaceId),
+  });
 
   return rows.map(timeEntryRowToAppValue);
 }
 
 async function create(entry) {
   const now = new Date().toISOString();
-  await runSql(createTimeEntryInsertSql(entry, now));
-}
-
-async function update(entry) {
-  const now = new Date().toISOString();
-  await runSql(`
-UPDATE time_entries
-SET
-  workspace_id = ${sqlText(entry.workspace_id)},
-  user_id = ${sqlText(entry.user_id)},
-  client_id = ${sqlNullableText(entry.client_id)},
-  client_name = ${sqlText(entry.client_name)},
-  project_id = ${sqlText(entry.project_id)},
-  project_name = ${sqlText(entry.project_name)},
-  task_id = ${sqlNullableText(entry.task_id)},
-  description = ${sqlText(entry.description)},
-  start_time = ${sqlText(entry.start_time)},
-  end_time = ${sqlText(entry.end_time)},
-  duration_seconds = ${sqlInteger(entry.duration_seconds)},
-  duration_hours = ${sqlText(entry.duration_hours)},
-  billable = ${sqlText(entry.billable)},
-  invoice_status = ${sqlText(entry.invoice_status)},
-  updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(entry.workspace_id)}
-  AND entry_id = ${sqlText(entry.entry_id)};
-`);
-}
-
-async function countByProjectId(workspaceId, projectId) {
-  const rows = await querySql(`
-SELECT COUNT(*) AS total
-FROM time_entries
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND project_id = ${sqlText(projectId)};
-`);
-
-  return Number.parseInt(rows[0]?.total, 10) || 0;
-}
-
-async function updateProjectScope(workspaceId, projectId, scope) {
-  const now = new Date().toISOString();
-
-  await runSql(`
-UPDATE time_entries
-SET
-  client_id = ${sqlNullableText(scope.client_id)},
-  client_name = ${sqlText(scope.client_name)},
-  project_name = ${sqlText(scope.project_name)},
-  updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND project_id = ${sqlText(projectId)};
-`);
-}
-
-async function remove(workspaceId, entryId) {
-  await runSql(`
-DELETE FROM time_entries
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND entry_id = ${sqlText(entryId)};
-`);
-}
-
-function createTimeEntryInsertSql(entry, now) {
-  return `
+  await db.run(`
 INSERT INTO time_entries (
   entry_id,
   workspace_id,
@@ -173,24 +116,97 @@ INSERT INTO time_entries (
   updated_at
 )
 VALUES (
-  ${sqlText(entry.entry_id)},
-  ${sqlText(entry.workspace_id)},
-  ${sqlText(entry.user_id)},
-  ${sqlNullableText(entry.client_id)},
-  ${sqlText(entry.client_name)},
-  ${sqlText(entry.project_id)},
-  ${sqlText(entry.project_name)},
-  ${sqlNullableText(entry.task_id)},
-  ${sqlText(entry.description)},
-  ${sqlText(entry.start_time)},
-  ${sqlText(entry.end_time)},
-  ${sqlInteger(entry.duration_seconds)},
-  ${sqlText(entry.duration_hours)},
-  ${sqlText(entry.billable)},
-  ${sqlText(entry.invoice_status)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-);`;
+  :entryId,
+  :workspaceId,
+  :userId,
+  :clientId,
+  :clientName,
+  :projectId,
+  :projectName,
+  :taskId,
+  :description,
+  :startTime,
+  :endTime,
+  :durationSeconds,
+  :durationHours,
+  :billable,
+  :invoiceStatus,
+  :createdAt,
+  :updatedAt
+);
+`, timeEntryWriteParams(entry, now, { includeCreatedAt: true }));
+}
+
+async function update(entry) {
+  const now = new Date().toISOString();
+  await db.run(`
+UPDATE time_entries
+SET
+  workspace_id = :workspaceId,
+  user_id = :userId,
+  client_id = :clientId,
+  client_name = :clientName,
+  project_id = :projectId,
+  project_name = :projectName,
+  task_id = :taskId,
+  description = :description,
+  start_time = :startTime,
+  end_time = :endTime,
+  duration_seconds = :durationSeconds,
+  duration_hours = :durationHours,
+  billable = :billable,
+  invoice_status = :invoiceStatus,
+  updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND entry_id = :entryId;
+`, timeEntryWriteParams(entry, now));
+}
+
+async function countByProjectId(workspaceId, projectId) {
+  const row = await db.get(`
+SELECT COUNT(*) AS total
+FROM time_entries
+WHERE workspace_id = :workspaceId
+  AND project_id = :projectId;
+`, {
+    projectId: textParam(projectId),
+    workspaceId: textParam(workspaceId),
+  });
+
+  return Number.parseInt(row?.total, 10) || 0;
+}
+
+async function updateProjectScope(workspaceId, projectId, scope) {
+  const now = new Date().toISOString();
+
+  await db.run(`
+UPDATE time_entries
+SET
+  client_id = :clientId,
+  client_name = :clientName,
+  project_name = :projectName,
+  updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND project_id = :projectId;
+`, {
+    clientId: nullableTextParam(scope.client_id),
+    clientName: textParam(scope.client_name),
+    projectId: textParam(projectId),
+    projectName: textParam(scope.project_name),
+    updatedAt: textParam(now),
+    workspaceId: textParam(workspaceId),
+  });
+}
+
+async function remove(workspaceId, entryId) {
+  await db.run(`
+DELETE FROM time_entries
+WHERE workspace_id = :workspaceId
+  AND entry_id = :entryId;
+`, {
+    entryId: textParam(entryId),
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 function timeEntryRowToAppValue(row) {
@@ -213,6 +229,48 @@ function timeEntryRowToAppValue(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
   });
+}
+
+function timeEntryWriteParams(entry, now, options = {}) {
+  const params = {
+    billable: textParam(entry.billable),
+    clientId: nullableTextParam(entry.client_id),
+    clientName: textParam(entry.client_name),
+    description: textParam(entry.description),
+    durationHours: textParam(entry.duration_hours),
+    durationSeconds: integerParam(entry.duration_seconds),
+    endTime: textParam(entry.end_time),
+    entryId: textParam(entry.entry_id),
+    invoiceStatus: textParam(entry.invoice_status),
+    projectId: textParam(entry.project_id),
+    projectName: textParam(entry.project_name),
+    startTime: textParam(entry.start_time),
+    taskId: nullableTextParam(entry.task_id),
+    updatedAt: textParam(now),
+    userId: textParam(entry.user_id),
+    workspaceId: textParam(entry.workspace_id),
+  };
+
+  if (options.includeCreatedAt) {
+    params.createdAt = textParam(now);
+  }
+
+  return params;
+}
+
+function textParam(value) {
+  return String(value ?? "");
+}
+
+function nullableTextParam(value) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? null
+    : String(value);
+}
+
+function integerParam(value) {
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
 export const timeEntriesRepository = {

@@ -4,6 +4,9 @@ import { db } from "../core/database.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { normalizeWorkspaceType } from "../utils/workspaces.js";
 
+const USERS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "users" });
+const USER_ROWS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "user_rows" });
+
 async function readForUser(userId) {
   return db.query(`
 SELECT
@@ -65,8 +68,8 @@ SELECT
 FROM user_workspaces
 INNER JOIN users
   ON users.user_id = user_workspaces.user_id
-  AND users.rowid = (
-    SELECT MIN(user_rows.rowid)
+  AND ${USERS_PHYSICAL_ROW_ID} = (
+    SELECT MIN(${USER_ROWS_PHYSICAL_ROW_ID})
     FROM users AS user_rows
     WHERE user_rows.user_id = user_workspaces.user_id
   )
@@ -80,7 +83,7 @@ WHERE user_workspaces.workspace_id = :workspaceId
   AND user_workspaces.user_id <> :previousOwnerUserId
 ORDER BY
   COALESCE(user_workspaces.created_at, '9999-12-31T23:59:59.999Z'),
-  users.rowid,
+  ${USERS_PHYSICAL_ROW_ID},
   lower(users.username)
 LIMIT 1;
 `, { previousOwnerUserId, workspaceId });

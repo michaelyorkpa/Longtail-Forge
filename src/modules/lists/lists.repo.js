@@ -1,11 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  querySql,
-  runSql,
-  sqlInteger,
-  sqlNullableText,
-  sqlText,
-} from "../../core/database.js";
+import { db } from "../../core/database.js";
 
 const LIST_COLUMNS = [
   "list_id",
@@ -100,7 +94,10 @@ const LINK_COLUMNS = [
 ];
 
 async function list(workspaceId, filters = {}) {
-  const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
+  const clauses = ["workspace_id = :workspaceId"];
+  const params = {
+    workspaceId: text(workspaceId),
+  };
 
   if (!filters.includeDeleted) {
     clauses.push("status != 'deleted'");
@@ -114,34 +111,39 @@ async function list(workspaceId, filters = {}) {
     createdByUserId: "created_by_user_id",
   })) {
     if (filters[filterKey]) {
-      clauses.push(`${columnName} = ${sqlText(filters[filterKey])}`);
+      clauses.push(`${columnName} = :${filterKey}`);
+      params[filterKey] = text(filters[filterKey]);
     }
   }
 
   if (filters.isReusable !== undefined) {
-    clauses.push(`is_reusable = ${sqlInteger(filters.isReusable ? 1 : 0)}`);
+    clauses.push("is_reusable = :isReusable");
+    params.isReusable = db.dialect.boolean.bind(Boolean(filters.isReusable));
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${LIST_COLUMNS.join(", ")}
 FROM lists
 WHERE ${clauses.join("\n  AND ")}
-ORDER BY updated_at DESC, title COLLATE NOCASE ASC;
-`);
+ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
+`, params);
 
   return rows.map(listRowToAppValue);
 }
 
 async function readById(workspaceId, listId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT ${LIST_COLUMNS.join(", ")}
 FROM lists
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(listId)}
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId
 LIMIT 1;
-`);
+`, {
+    listId: text(listId),
+    workspaceId: text(workspaceId),
+  });
 
-  return rows[0] ? listRowToAppValue(rows[0]) : null;
+  return row ? listRowToAppValue(row) : null;
 }
 
 async function readByIds(workspaceId, listIds = []) {
@@ -151,13 +153,16 @@ async function readByIds(workspaceId, listIds = []) {
     return [];
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${LIST_COLUMNS.join(", ")}
 FROM lists
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id IN (${ids.map(sqlText).join(", ")})
-ORDER BY updated_at DESC, title COLLATE NOCASE ASC;
-`);
+WHERE workspace_id = :workspaceId
+  AND list_id IN (:listIds)
+ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
+`, {
+    listIds: ids,
+    workspaceId: text(workspaceId),
+  });
 
   return rows.map(listRowToAppValue);
 }
@@ -166,7 +171,7 @@ async function create(workspaceId, listPayload) {
   const listId = listPayload.list_id || randomUUID();
   const now = listPayload.created_at || new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO lists (
   list_id,
   workspace_id,
@@ -191,29 +196,29 @@ INSERT INTO lists (
   metadata_json
 )
 VALUES (
-  ${sqlText(listId)},
-  ${sqlText(workspaceId)},
-  ${sqlNullableText(listPayload.client_id)},
-  ${sqlNullableText(listPayload.project_id)},
-  ${sqlText(listPayload.title)},
-  ${sqlNullableText(listPayload.description)},
-  ${sqlText(listPayload.list_type)},
-  ${sqlText(listPayload.status)},
-  ${sqlInteger(listPayload.is_reusable ? 1 : 0)},
-  ${sqlNullableText(listPayload.source_list_id)},
-  ${sqlNullableText(listPayload.duplicated_from_list_id)},
-  ${sqlNullableText(listPayload.created_by_user_id)},
-  ${sqlNullableText(listPayload.updated_by_user_id)},
-  ${sqlNullableText(listPayload.finalized_by_user_id)},
-  ${sqlText(now)},
-  ${sqlText(now)},
-  ${sqlNullableText(listPayload.completed_at)},
-  ${sqlNullableText(listPayload.finalized_at)},
-  ${sqlNullableText(listPayload.archived_at)},
-  ${sqlNullableText(listPayload.deleted_at)},
-  ${sqlNullableText(serializeMetadata(listPayload.metadata_json))}
+  :listId,
+  :workspaceId,
+  :clientId,
+  :projectId,
+  :title,
+  :description,
+  :listType,
+  :status,
+  :isReusable,
+  :sourceListId,
+  :duplicatedFromListId,
+  :createdByUserId,
+  :updatedByUserId,
+  :finalizedByUserId,
+  :createdAt,
+  :updatedAt,
+  :completedAt,
+  :finalizedAt,
+  :archivedAt,
+  :deletedAt,
+  :metadataJson
 );
-`);
+`, listInsertParams(workspaceId, listPayload, listId, now));
 
   return readById(workspaceId, listId);
 }
@@ -221,53 +226,58 @@ VALUES (
 async function update(workspaceId, listPayload) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE lists
 SET
-  client_id = ${sqlNullableText(listPayload.client_id)},
-  project_id = ${sqlNullableText(listPayload.project_id)},
-  title = ${sqlText(listPayload.title)},
-  description = ${sqlNullableText(listPayload.description)},
-  list_type = ${sqlText(listPayload.list_type)},
-  status = ${sqlText(listPayload.status)},
-  is_reusable = ${sqlInteger(listPayload.is_reusable ? 1 : 0)},
-  source_list_id = ${sqlNullableText(listPayload.source_list_id)},
-  duplicated_from_list_id = ${sqlNullableText(listPayload.duplicated_from_list_id)},
-  updated_by_user_id = ${sqlNullableText(listPayload.updated_by_user_id)},
-  finalized_by_user_id = ${sqlNullableText(listPayload.finalized_by_user_id)},
-  updated_at = ${sqlText(now)},
-  completed_at = ${sqlNullableText(listPayload.completed_at)},
-  finalized_at = ${sqlNullableText(listPayload.finalized_at)},
-  archived_at = ${sqlNullableText(listPayload.archived_at)},
-  deleted_at = ${sqlNullableText(listPayload.deleted_at)},
-  metadata_json = ${sqlNullableText(serializeMetadata(listPayload.metadata_json))}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(listPayload.list_id)};
-`);
+  client_id = :clientId,
+  project_id = :projectId,
+  title = :title,
+  description = :description,
+  list_type = :listType,
+  status = :status,
+  is_reusable = :isReusable,
+  source_list_id = :sourceListId,
+  duplicated_from_list_id = :duplicatedFromListId,
+  updated_by_user_id = :updatedByUserId,
+  finalized_by_user_id = :finalizedByUserId,
+  updated_at = :updatedAt,
+  completed_at = :completedAt,
+  finalized_at = :finalizedAt,
+  archived_at = :archivedAt,
+  deleted_at = :deletedAt,
+  metadata_json = :metadataJson
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId;
+`, listUpdateParams(workspaceId, listPayload, now));
 
   return readById(workspaceId, listPayload.list_id);
 }
 
 async function listItems(workspaceId, listId, filters = {}) {
   const clauses = [
-    `workspace_id = ${sqlText(workspaceId)}`,
-    `list_id = ${sqlText(listId)}`,
+    "workspace_id = :workspaceId",
+    "list_id = :listId",
   ];
+  const params = {
+    listId: text(listId),
+    workspaceId: text(workspaceId),
+  };
 
   if (!filters.includeDeleted) {
     clauses.push("deleted_at IS NULL");
   }
 
   if (filters.purchaseStatus) {
-    clauses.push(`purchase_status = ${sqlText(filters.purchaseStatus)}`);
+    clauses.push("purchase_status = :purchaseStatus");
+    params.purchaseStatus = text(filters.purchaseStatus);
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${ITEM_COLUMNS.join(", ")}
 FROM list_items
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY sort_order ASC, created_at ASC;
-`);
+`, params);
 
   return rows.map(itemRowToAppValue);
 }
@@ -280,46 +290,55 @@ async function listItemsForLists(workspaceId, listIds = [], filters = {}) {
   }
 
   const clauses = [
-    `workspace_id = ${sqlText(workspaceId)}`,
-    `list_id IN (${ids.map(sqlText).join(", ")})`,
+    "workspace_id = :workspaceId",
+    "list_id IN (:listIds)",
   ];
+  const params = {
+    listIds: ids,
+    workspaceId: text(workspaceId),
+  };
 
   if (!filters.includeDeleted) {
     clauses.push("deleted_at IS NULL");
   }
 
   if (filters.purchaseStatus) {
-    clauses.push(`purchase_status = ${sqlText(filters.purchaseStatus)}`);
+    clauses.push("purchase_status = :purchaseStatus");
+    params.purchaseStatus = text(filters.purchaseStatus);
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${ITEM_COLUMNS.join(", ")}
 FROM list_items
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY list_id ASC, sort_order ASC, created_at ASC;
-`);
+`, params);
 
   return rows.map(itemRowToAppValue);
 }
 
 async function readItemById(workspaceId, listId, itemId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT ${ITEM_COLUMNS.join(", ")}
 FROM list_items
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(listId)}
-  AND list_item_id = ${sqlText(itemId)}
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId
+  AND list_item_id = :itemId
 LIMIT 1;
-`);
+`, {
+    itemId: text(itemId),
+    listId: text(listId),
+    workspaceId: text(workspaceId),
+  });
 
-  return rows[0] ? itemRowToAppValue(rows[0]) : null;
+  return row ? itemRowToAppValue(row) : null;
 }
 
 async function createItem(workspaceId, item) {
   const itemId = item.list_item_id || randomUUID();
   const now = item.created_at || new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO list_items (
   list_item_id,
   workspace_id,
@@ -350,35 +369,35 @@ INSERT INTO list_items (
   metadata_json
 )
 VALUES (
-  ${sqlText(itemId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(item.list_id)},
-  ${sqlNullableText(item.catalog_item_id)},
-  ${sqlText(item.item_name)},
-  ${numberOrNullSql(item.quantity ?? 1)},
-  ${sqlNullableText(item.unit)},
-  ${sqlNullableText(item.needed_by_date)},
-  ${sqlNullableText(item.vendor_name)},
-  ${sqlNullableText(item.url)},
-  ${numberOrNullSql(item.estimated_cost)},
-  ${numberOrNullSql(item.actual_cost)},
-  ${sqlText(item.purchase_status)},
-  ${sqlNullableText(item.tracking_id)},
-  ${sqlNullableText(item.notes)},
-  ${sqlNullableText(item.assigned_user_id)},
-  ${sqlNullableText(item.created_by_user_id)},
-  ${sqlNullableText(item.updated_by_user_id)},
-  ${sqlNullableText(item.checked_at)},
-  ${sqlNullableText(item.checked_by_user_id)},
-  ${sqlNullableText(item.completed_at)},
-  ${sqlNullableText(item.completed_by_user_id)},
-  ${sqlInteger(item.sort_order || 0)},
-  ${sqlText(now)},
-  ${sqlText(now)},
-  ${sqlNullableText(item.deleted_at)},
-  ${sqlNullableText(serializeMetadata(item.metadata_json))}
+  :itemId,
+  :workspaceId,
+  :listId,
+  :catalogItemId,
+  :itemName,
+  :quantity,
+  :unit,
+  :neededByDate,
+  :vendorName,
+  :url,
+  :estimatedCost,
+  :actualCost,
+  :purchaseStatus,
+  :trackingId,
+  :notes,
+  :assignedUserId,
+  :createdByUserId,
+  :updatedByUserId,
+  :checkedAt,
+  :checkedByUserId,
+  :completedAt,
+  :completedByUserId,
+  :sortOrder,
+  :createdAt,
+  :updatedAt,
+  :deletedAt,
+  :metadataJson
 );
-`);
+`, itemInsertParams(workspaceId, item, itemId, now));
 
   return readItemById(workspaceId, item.list_id, itemId);
 }
@@ -386,57 +405,69 @@ VALUES (
 async function updateItem(workspaceId, item) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE list_items
 SET
-  catalog_item_id = ${sqlNullableText(item.catalog_item_id)},
-  item_name = ${sqlText(item.item_name)},
-  quantity = ${numberOrNullSql(item.quantity ?? 1)},
-  unit = ${sqlNullableText(item.unit)},
-  needed_by_date = ${sqlNullableText(item.needed_by_date)},
-  vendor_name = ${sqlNullableText(item.vendor_name)},
-  url = ${sqlNullableText(item.url)},
-  estimated_cost = ${numberOrNullSql(item.estimated_cost)},
-  actual_cost = ${numberOrNullSql(item.actual_cost)},
-  purchase_status = ${sqlText(item.purchase_status)},
-  tracking_id = ${sqlNullableText(item.tracking_id)},
-  notes = ${sqlNullableText(item.notes)},
-  assigned_user_id = ${sqlNullableText(item.assigned_user_id)},
-  updated_by_user_id = ${sqlNullableText(item.updated_by_user_id)},
-  checked_at = ${sqlNullableText(item.checked_at)},
-  checked_by_user_id = ${sqlNullableText(item.checked_by_user_id)},
-  completed_at = ${sqlNullableText(item.completed_at)},
-  completed_by_user_id = ${sqlNullableText(item.completed_by_user_id)},
-  sort_order = ${sqlInteger(item.sort_order || 0)},
-  updated_at = ${sqlText(now)},
-  deleted_at = ${sqlNullableText(item.deleted_at)},
-  metadata_json = ${sqlNullableText(serializeMetadata(item.metadata_json))}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(item.list_id)}
-  AND list_item_id = ${sqlText(item.list_item_id)};
-`);
+  catalog_item_id = :catalogItemId,
+  item_name = :itemName,
+  quantity = :quantity,
+  unit = :unit,
+  needed_by_date = :neededByDate,
+  vendor_name = :vendorName,
+  url = :url,
+  estimated_cost = :estimatedCost,
+  actual_cost = :actualCost,
+  purchase_status = :purchaseStatus,
+  tracking_id = :trackingId,
+  notes = :notes,
+  assigned_user_id = :assignedUserId,
+  updated_by_user_id = :updatedByUserId,
+  checked_at = :checkedAt,
+  checked_by_user_id = :checkedByUserId,
+  completed_at = :completedAt,
+  completed_by_user_id = :completedByUserId,
+  sort_order = :sortOrder,
+  updated_at = :updatedAt,
+  deleted_at = :deletedAt,
+  metadata_json = :metadataJson
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId
+  AND list_item_id = :itemId;
+`, itemUpdateParams(workspaceId, item, now));
 
   return readItemById(workspaceId, item.list_id, item.list_item_id);
 }
 
 async function reorderItems(workspaceId, listId, itemOrders = [], updatedByUserId = "") {
   const now = new Date().toISOString();
-  const updates = itemOrders.map((entry) => `
-UPDATE list_items
-SET sort_order = ${sqlInteger(entry.sort_order)},
-    updated_by_user_id = ${sqlNullableText(updatedByUserId)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(listId)}
-  AND list_item_id = ${sqlText(entry.list_item_id)}
-  AND deleted_at IS NULL;
-`).join("\n");
 
-  if (!updates) {
+  if (itemOrders.length === 0) {
     return listItems(workspaceId, listId);
   }
 
-  await runSql(updates);
+  await db.transaction(async (transaction) => {
+    for (const entry of itemOrders) {
+      await transaction.run(`
+UPDATE list_items
+SET sort_order = :sortOrder,
+    updated_by_user_id = :updatedByUserId,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId
+  AND list_item_id = :itemId
+  AND deleted_at IS NULL;
+`, {
+        itemId: text(entry.list_item_id),
+        listId: text(listId),
+        sortOrder: integer(entry.sort_order),
+        updatedAt: text(now),
+        updatedByUserId: nullableText(updatedByUserId),
+        workspaceId: text(workspaceId),
+      });
+    }
+  }
+  );
+
   return listItems(workspaceId, listId);
 }
 
@@ -444,7 +475,7 @@ async function createCatalogItem(workspaceId, item) {
   const catalogItemId = item.catalog_item_id || randomUUID();
   const now = item.created_at || new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO list_item_catalog (
   catalog_item_id,
   workspace_id,
@@ -469,29 +500,29 @@ INSERT INTO list_item_catalog (
   metadata_json
 )
 VALUES (
-  ${sqlText(catalogItemId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(item.item_name)},
-  ${sqlText(item.normalized_name)},
-  ${sqlNullableText(item.list_type)},
-  ${sqlNullableText(item.client_id)},
-  ${sqlNullableText(item.project_id)},
-  ${numberOrNullSql(item.quantity ?? 1)},
-  ${sqlNullableText(item.unit)},
-  ${sqlNullableText(item.vendor_name)},
-  ${sqlNullableText(item.url)},
-  ${numberOrNullSql(item.estimated_cost)},
-  ${sqlNullableText(item.notes)},
-  ${sqlInteger(item.use_count || 0)},
-  ${sqlNullableText(item.last_used_at)},
-  ${sqlNullableText(item.created_by_user_id)},
-  ${sqlNullableText(item.updated_by_user_id)},
-  ${sqlText(now)},
-  ${sqlText(now)},
-  ${sqlNullableText(item.archived_at)},
-  ${sqlNullableText(serializeMetadata(item.metadata_json))}
+  :catalogItemId,
+  :workspaceId,
+  :itemName,
+  :normalizedName,
+  :listType,
+  :clientId,
+  :projectId,
+  :quantity,
+  :unit,
+  :vendorName,
+  :url,
+  :estimatedCost,
+  :notes,
+  :useCount,
+  :lastUsedAt,
+  :createdByUserId,
+  :updatedByUserId,
+  :createdAt,
+  :updatedAt,
+  :archivedAt,
+  :metadataJson
 );
-`);
+`, catalogInsertParams(workspaceId, item, catalogItemId, now));
 
   return readCatalogItemById(workspaceId, catalogItemId);
 }
@@ -499,77 +530,90 @@ VALUES (
 async function updateCatalogItem(workspaceId, item) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE list_item_catalog
 SET
-  item_name = ${sqlText(item.item_name)},
-  normalized_name = ${sqlText(item.normalized_name)},
-  list_type = ${sqlNullableText(item.list_type)},
-  client_id = ${sqlNullableText(item.client_id)},
-  project_id = ${sqlNullableText(item.project_id)},
-  quantity = ${numberOrNullSql(item.quantity ?? 1)},
-  unit = ${sqlNullableText(item.unit)},
-  vendor_name = ${sqlNullableText(item.vendor_name)},
-  url = ${sqlNullableText(item.url)},
-  estimated_cost = ${numberOrNullSql(item.estimated_cost)},
-  notes = ${sqlNullableText(item.notes)},
-  use_count = ${sqlInteger(item.use_count || 0)},
-  last_used_at = ${sqlNullableText(item.last_used_at)},
-  updated_by_user_id = ${sqlNullableText(item.updated_by_user_id)},
-  updated_at = ${sqlText(now)},
-  archived_at = ${sqlNullableText(item.archived_at)},
-  metadata_json = ${sqlNullableText(serializeMetadata(item.metadata_json))}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND catalog_item_id = ${sqlText(item.catalog_item_id)};
-`);
+  item_name = :itemName,
+  normalized_name = :normalizedName,
+  list_type = :listType,
+  client_id = :clientId,
+  project_id = :projectId,
+  quantity = :quantity,
+  unit = :unit,
+  vendor_name = :vendorName,
+  url = :url,
+  estimated_cost = :estimatedCost,
+  notes = :notes,
+  use_count = :useCount,
+  last_used_at = :lastUsedAt,
+  updated_by_user_id = :updatedByUserId,
+  updated_at = :updatedAt,
+  archived_at = :archivedAt,
+  metadata_json = :metadataJson
+WHERE workspace_id = :workspaceId
+  AND catalog_item_id = :catalogItemId;
+`, catalogUpdateParams(workspaceId, item, now));
 
   return readCatalogItemById(workspaceId, item.catalog_item_id);
 }
 
 async function readCatalogItemById(workspaceId, catalogItemId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT ${CATALOG_COLUMNS.join(", ")}
 FROM list_item_catalog
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND catalog_item_id = ${sqlText(catalogItemId)}
+WHERE workspace_id = :workspaceId
+  AND catalog_item_id = :catalogItemId
 LIMIT 1;
-`);
+`, {
+    catalogItemId: text(catalogItemId),
+    workspaceId: text(workspaceId),
+  });
 
-  return rows[0] ? catalogRowToAppValue(rows[0]) : null;
+  return row ? catalogRowToAppValue(row) : null;
 }
 
 async function listCatalogSuggestions(workspaceId, filters = {}) {
   const clauses = [
-    `workspace_id = ${sqlText(workspaceId)}`,
+    "workspace_id = :workspaceId",
     "archived_at IS NULL",
   ];
+  const params = {
+    clientIdMatch: nullableText(filters.clientId),
+    limit: integer(Math.max(1, Math.min(Number(filters.limit) || 8, 20))),
+    listTypeMatch: nullableText(filters.listType),
+    projectIdMatch: nullableText(filters.projectId),
+    workspaceId: text(workspaceId),
+  };
 
   if (filters.query) {
-    clauses.push(`normalized_name LIKE ${sqlText(`%${filters.query}%`)}`);
+    clauses.push(db.dialect.comparison.likeNoCase("normalized_name", ":queryPattern"));
+    params.queryPattern = `%${filters.query}%`;
   }
 
   if (filters.listType) {
-    clauses.push(`(list_type IS NULL OR list_type = '' OR list_type = ${sqlText(filters.listType)})`);
+    clauses.push("(list_type IS NULL OR list_type = '' OR list_type = :listType)");
+    params.listType = text(filters.listType);
   }
 
   if (filters.clientId) {
-    clauses.push(`(client_id IS NULL OR client_id = '' OR client_id = ${sqlText(filters.clientId)})`);
+    clauses.push("(client_id IS NULL OR client_id = '' OR client_id = :clientId)");
+    params.clientId = text(filters.clientId);
   } else {
     clauses.push("(client_id IS NULL OR client_id = '')");
   }
 
   if (filters.projectId) {
-    clauses.push(`(project_id IS NULL OR project_id = '' OR project_id = ${sqlText(filters.projectId)})`);
+    clauses.push("(project_id IS NULL OR project_id = '' OR project_id = :projectId)");
+    params.projectId = text(filters.projectId);
   } else {
     clauses.push("(project_id IS NULL OR project_id = '')");
   }
 
-  const limit = Math.max(1, Math.min(Number(filters.limit) || 8, 20));
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${CATALOG_COLUMNS.join(", ")},
-  CASE WHEN list_type = ${sqlNullableText(filters.listType)} THEN 1 ELSE 0 END AS list_type_match,
-  CASE WHEN client_id = ${sqlNullableText(filters.clientId)} THEN 1 ELSE 0 END AS client_match,
-  CASE WHEN project_id = ${sqlNullableText(filters.projectId)} THEN 1 ELSE 0 END AS project_match
+  CASE WHEN list_type = :listTypeMatch THEN 1 ELSE 0 END AS list_type_match,
+  CASE WHEN client_id = :clientIdMatch THEN 1 ELSE 0 END AS client_match,
+  CASE WHEN project_id = :projectIdMatch THEN 1 ELSE 0 END AS project_match
 FROM list_item_catalog
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY
@@ -578,10 +622,10 @@ ORDER BY
   list_type_match DESC,
   use_count DESC,
   last_used_at DESC,
-  item_name COLLATE NOCASE ASC,
+  ${db.dialect.comparison.orderByNoCase("item_name", "ASC")},
   catalog_item_id ASC
-LIMIT ${sqlInteger(limit)};
-`);
+LIMIT :limit;
+`, params);
 
   return rows.map(catalogRowToAppValue);
 }
@@ -589,16 +633,22 @@ LIMIT ${sqlInteger(limit)};
 async function incrementCatalogUsage(workspaceId, catalogItemId, updatedByUserId = "") {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE list_item_catalog
 SET use_count = use_count + 1,
-    last_used_at = ${sqlText(now)},
-    updated_by_user_id = ${sqlNullableText(updatedByUserId)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND catalog_item_id = ${sqlText(catalogItemId)}
+    last_used_at = :lastUsedAt,
+    updated_by_user_id = :updatedByUserId,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND catalog_item_id = :catalogItemId
   AND archived_at IS NULL;
-`);
+`, {
+    catalogItemId: text(catalogItemId),
+    lastUsedAt: text(now),
+    updatedAt: text(now),
+    updatedByUserId: nullableText(updatedByUserId),
+    workspaceId: text(workspaceId),
+  });
 
   return readCatalogItemById(workspaceId, catalogItemId);
 }
@@ -607,7 +657,7 @@ async function createLink(workspaceId, link) {
   const linkId = link.list_link_id || randomUUID();
   const now = link.created_at || new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO list_links (
   list_link_id,
   workspace_id,
@@ -622,32 +672,35 @@ INSERT INTO list_links (
   metadata_json
 )
 VALUES (
-  ${sqlText(linkId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(link.list_id)},
-  ${sqlText(link.module_id)},
-  ${sqlText(link.target_type)},
-  ${sqlText(link.target_id)},
-  ${sqlText(link.link_role || "related")},
-  ${sqlNullableText(link.created_by_user_id)},
-  ${sqlText(now)},
+  :linkId,
+  :workspaceId,
+  :listId,
+  :moduleId,
+  :targetType,
+  :targetId,
+  :linkRole,
+  :createdByUserId,
+  :createdAt,
   NULL,
-  ${sqlNullableText(serializeMetadata(link.metadata_json))}
+  :metadataJson
 );
-`);
+`, linkInsertParams(workspaceId, link, linkId, now));
 
   return readLinkById(workspaceId, link.list_id, linkId);
 }
 
 async function listLinks(workspaceId, listId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${LINK_COLUMNS.join(", ")}
 FROM list_links
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(listId)}
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId
   AND removed_at IS NULL
 ORDER BY created_at ASC;
-`);
+`, {
+    listId: text(listId),
+    workspaceId: text(workspaceId),
+  });
 
   return rows.map(linkRowToAppValue);
 }
@@ -659,44 +712,257 @@ async function listLinksForLists(workspaceId, listIds = []) {
     return [];
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT ${LINK_COLUMNS.join(", ")}
 FROM list_links
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id IN (${ids.map(sqlText).join(", ")})
+WHERE workspace_id = :workspaceId
+  AND list_id IN (:listIds)
   AND removed_at IS NULL
 ORDER BY list_id ASC, created_at ASC;
-`);
+`, {
+    listIds: ids,
+    workspaceId: text(workspaceId),
+  });
 
   return rows.map(linkRowToAppValue);
 }
 
 async function readLinkById(workspaceId, listId, linkId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT ${LINK_COLUMNS.join(", ")}
 FROM list_links
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(listId)}
-  AND list_link_id = ${sqlText(linkId)}
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId
+  AND list_link_id = :linkId
 LIMIT 1;
-`);
+`, {
+    linkId: text(linkId),
+    listId: text(listId),
+    workspaceId: text(workspaceId),
+  });
 
-  return rows[0] ? linkRowToAppValue(rows[0]) : null;
+  return row ? linkRowToAppValue(row) : null;
 }
 
 async function removeLink(workspaceId, listId, linkId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE list_links
-SET removed_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND list_id = ${sqlText(listId)}
-  AND list_link_id = ${sqlText(linkId)}
+SET removed_at = :removedAt
+WHERE workspace_id = :workspaceId
+  AND list_id = :listId
+  AND list_link_id = :linkId
   AND removed_at IS NULL;
-`);
+`, {
+    linkId: text(linkId),
+    listId: text(listId),
+    removedAt: text(now),
+    workspaceId: text(workspaceId),
+  });
 
   return readLinkById(workspaceId, listId, linkId);
+}
+
+function listInsertParams(workspaceId, listPayload, listId, now) {
+  return {
+    archivedAt: nullableText(listPayload.archived_at),
+    clientId: nullableText(listPayload.client_id),
+    completedAt: nullableText(listPayload.completed_at),
+    createdAt: text(now),
+    createdByUserId: nullableText(listPayload.created_by_user_id),
+    deletedAt: nullableText(listPayload.deleted_at),
+    description: nullableText(listPayload.description),
+    duplicatedFromListId: nullableText(listPayload.duplicated_from_list_id),
+    finalizedAt: nullableText(listPayload.finalized_at),
+    finalizedByUserId: nullableText(listPayload.finalized_by_user_id),
+    isReusable: db.dialect.boolean.bind(Boolean(listPayload.is_reusable)),
+    listId: text(listId),
+    listType: text(listPayload.list_type),
+    metadataJson: nullableText(serializeMetadata(listPayload.metadata_json)),
+    projectId: nullableText(listPayload.project_id),
+    sourceListId: nullableText(listPayload.source_list_id),
+    status: text(listPayload.status),
+    title: text(listPayload.title),
+    updatedAt: text(now),
+    updatedByUserId: nullableText(listPayload.updated_by_user_id),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function listUpdateParams(workspaceId, listPayload, now) {
+  return {
+    archivedAt: nullableText(listPayload.archived_at),
+    clientId: nullableText(listPayload.client_id),
+    completedAt: nullableText(listPayload.completed_at),
+    deletedAt: nullableText(listPayload.deleted_at),
+    description: nullableText(listPayload.description),
+    duplicatedFromListId: nullableText(listPayload.duplicated_from_list_id),
+    finalizedAt: nullableText(listPayload.finalized_at),
+    finalizedByUserId: nullableText(listPayload.finalized_by_user_id),
+    isReusable: db.dialect.boolean.bind(Boolean(listPayload.is_reusable)),
+    listId: text(listPayload.list_id),
+    listType: text(listPayload.list_type),
+    metadataJson: nullableText(serializeMetadata(listPayload.metadata_json)),
+    projectId: nullableText(listPayload.project_id),
+    sourceListId: nullableText(listPayload.source_list_id),
+    status: text(listPayload.status),
+    title: text(listPayload.title),
+    updatedAt: text(now),
+    updatedByUserId: nullableText(listPayload.updated_by_user_id),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function itemInsertParams(workspaceId, item, itemId, now) {
+  return {
+    actualCost: numberOrNull(item.actual_cost),
+    assignedUserId: nullableText(item.assigned_user_id),
+    catalogItemId: nullableText(item.catalog_item_id),
+    checkedAt: nullableText(item.checked_at),
+    checkedByUserId: nullableText(item.checked_by_user_id),
+    completedAt: nullableText(item.completed_at),
+    completedByUserId: nullableText(item.completed_by_user_id),
+    createdAt: text(now),
+    createdByUserId: nullableText(item.created_by_user_id),
+    deletedAt: nullableText(item.deleted_at),
+    estimatedCost: numberOrNull(item.estimated_cost),
+    itemId: text(itemId),
+    itemName: text(item.item_name),
+    listId: text(item.list_id),
+    metadataJson: nullableText(serializeMetadata(item.metadata_json)),
+    neededByDate: nullableText(item.needed_by_date),
+    notes: nullableText(item.notes),
+    purchaseStatus: text(item.purchase_status),
+    quantity: numberOrNull(item.quantity ?? 1),
+    sortOrder: integer(item.sort_order || 0),
+    trackingId: nullableText(item.tracking_id),
+    unit: nullableText(item.unit),
+    updatedAt: text(now),
+    updatedByUserId: nullableText(item.updated_by_user_id),
+    url: nullableText(item.url),
+    vendorName: nullableText(item.vendor_name),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function itemUpdateParams(workspaceId, item, now) {
+  return {
+    actualCost: numberOrNull(item.actual_cost),
+    assignedUserId: nullableText(item.assigned_user_id),
+    catalogItemId: nullableText(item.catalog_item_id),
+    checkedAt: nullableText(item.checked_at),
+    checkedByUserId: nullableText(item.checked_by_user_id),
+    completedAt: nullableText(item.completed_at),
+    completedByUserId: nullableText(item.completed_by_user_id),
+    deletedAt: nullableText(item.deleted_at),
+    estimatedCost: numberOrNull(item.estimated_cost),
+    itemId: text(item.list_item_id),
+    itemName: text(item.item_name),
+    listId: text(item.list_id),
+    metadataJson: nullableText(serializeMetadata(item.metadata_json)),
+    neededByDate: nullableText(item.needed_by_date),
+    notes: nullableText(item.notes),
+    purchaseStatus: text(item.purchase_status),
+    quantity: numberOrNull(item.quantity ?? 1),
+    sortOrder: integer(item.sort_order || 0),
+    trackingId: nullableText(item.tracking_id),
+    unit: nullableText(item.unit),
+    updatedAt: text(now),
+    updatedByUserId: nullableText(item.updated_by_user_id),
+    url: nullableText(item.url),
+    vendorName: nullableText(item.vendor_name),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function catalogInsertParams(workspaceId, item, catalogItemId, now) {
+  return {
+    archivedAt: nullableText(item.archived_at),
+    catalogItemId: text(catalogItemId),
+    clientId: nullableText(item.client_id),
+    createdAt: text(now),
+    createdByUserId: nullableText(item.created_by_user_id),
+    estimatedCost: numberOrNull(item.estimated_cost),
+    itemName: text(item.item_name),
+    lastUsedAt: nullableText(item.last_used_at),
+    listType: nullableText(item.list_type),
+    metadataJson: nullableText(serializeMetadata(item.metadata_json)),
+    normalizedName: text(item.normalized_name),
+    notes: nullableText(item.notes),
+    projectId: nullableText(item.project_id),
+    quantity: numberOrNull(item.quantity ?? 1),
+    unit: nullableText(item.unit),
+    updatedAt: text(now),
+    updatedByUserId: nullableText(item.updated_by_user_id),
+    url: nullableText(item.url),
+    useCount: integer(item.use_count || 0),
+    vendorName: nullableText(item.vendor_name),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function catalogUpdateParams(workspaceId, item, now) {
+  return {
+    archivedAt: nullableText(item.archived_at),
+    catalogItemId: text(item.catalog_item_id),
+    clientId: nullableText(item.client_id),
+    estimatedCost: numberOrNull(item.estimated_cost),
+    itemName: text(item.item_name),
+    lastUsedAt: nullableText(item.last_used_at),
+    listType: nullableText(item.list_type),
+    metadataJson: nullableText(serializeMetadata(item.metadata_json)),
+    normalizedName: text(item.normalized_name),
+    notes: nullableText(item.notes),
+    projectId: nullableText(item.project_id),
+    quantity: numberOrNull(item.quantity ?? 1),
+    unit: nullableText(item.unit),
+    updatedAt: text(now),
+    updatedByUserId: nullableText(item.updated_by_user_id),
+    url: nullableText(item.url),
+    useCount: integer(item.use_count || 0),
+    vendorName: nullableText(item.vendor_name),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function linkInsertParams(workspaceId, link, linkId, now) {
+  return {
+    createdAt: text(now),
+    createdByUserId: nullableText(link.created_by_user_id),
+    linkId: text(linkId),
+    linkRole: text(link.link_role || "related"),
+    listId: text(link.list_id),
+    metadataJson: nullableText(serializeMetadata(link.metadata_json)),
+    moduleId: text(link.module_id),
+    targetId: text(link.target_id),
+    targetType: text(link.target_type),
+    workspaceId: text(workspaceId),
+  };
+}
+
+function text(value) {
+  return String(value ?? "");
+}
+
+function nullableText(value) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? null
+    : String(value);
+}
+
+function integer(value) {
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function serializeMetadata(value) {
@@ -709,15 +975,6 @@ function serializeMetadata(value) {
   }
 
   return JSON.stringify(value);
-}
-
-function numberOrNullSql(value) {
-  if (value === null || value === undefined || value === "") {
-    return "NULL";
-  }
-
-  const number = Number(value);
-  return Number.isFinite(number) ? String(number) : "NULL";
 }
 
 function normalizeIdList(ids = []) {

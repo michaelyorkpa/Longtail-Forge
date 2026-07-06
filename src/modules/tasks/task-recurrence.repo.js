@@ -1,16 +1,11 @@
 import { randomUUID } from "node:crypto";
-import {
-  querySql,
-  runSql,
-  sqlNullableText,
-  sqlText,
-} from "../../core/database.js";
+import { db } from "../../core/database.js";
 
 async function createTemplate(workspaceId, template) {
   const now = new Date().toISOString();
   const templateId = template.recurrence_template_id || randomUUID();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO task_recurrence_templates (
   recurrence_template_id,
   workspace_id,
@@ -33,27 +28,33 @@ INSERT INTO task_recurrence_templates (
   updated_at
 )
 VALUES (
-  ${sqlText(templateId)},
-  ${sqlText(workspaceId)},
-  ${sqlNullableText(template.client_id)},
-  ${sqlNullableText(template.project_id)},
-  ${sqlText(template.title)},
-  ${sqlText(template.description)},
-  ${sqlText(template.status || "open")},
-  ${sqlText(template.priority || "normal")},
-  ${sqlText(template.recurrence_anchor_date)},
-  ${sqlNullableText(template.due_time)},
-  ${sqlNullableText(template.due_timezone)},
-  ${sqlNullableText(template.due_at_utc)},
-  ${sqlText(template.rrule)},
-  ${sqlNullableText(template.recurrence_end_date)},
-  ${sqlText(template.template_status || "active")},
-  ${sqlNullableText(template.created_by_user_id)},
-  ${sqlNullableText(template.updated_by_user_id)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :templateId,
+  :workspaceId,
+  :clientId,
+  :projectId,
+  :title,
+  :description,
+  :status,
+  :priority,
+  :recurrenceAnchorDate,
+  :dueTime,
+  :dueTimezone,
+  :dueAtUtc,
+  :rrule,
+  :recurrenceEndDate,
+  :templateStatus,
+  :createdByUserId,
+  :updatedByUserId,
+  :now,
+  :now
 );
-`);
+`, templateWriteParams({
+    includeCreatedByUserId: true,
+    now,
+    template,
+    templateId,
+    workspaceId,
+  }));
 
   await replaceTemplateAssignees(workspaceId, templateId, template.assignee_ids || [], template.updated_by_user_id || template.created_by_user_id);
   return readTemplateById(workspaceId, templateId);
@@ -62,27 +63,32 @@ VALUES (
 async function updateTemplate(workspaceId, template) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE task_recurrence_templates
 SET
-  client_id = ${sqlNullableText(template.client_id)},
-  project_id = ${sqlNullableText(template.project_id)},
-  title = ${sqlText(template.title)},
-  description = ${sqlText(template.description)},
-  status = ${sqlText(template.status || "open")},
-  priority = ${sqlText(template.priority || "normal")},
-  recurrence_anchor_date = ${sqlText(template.recurrence_anchor_date)},
-  due_time = ${sqlNullableText(template.due_time)},
-  due_timezone = ${sqlNullableText(template.due_timezone)},
-  due_at_utc = ${sqlNullableText(template.due_at_utc)},
-  rrule = ${sqlText(template.rrule)},
-  recurrence_end_date = ${sqlNullableText(template.recurrence_end_date)},
-  template_status = ${sqlText(template.template_status || "active")},
-  updated_by_user_id = ${sqlNullableText(template.updated_by_user_id)},
-  updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recurrence_template_id = ${sqlText(template.recurrence_template_id)};
-`);
+  client_id = :clientId,
+  project_id = :projectId,
+  title = :title,
+  description = :description,
+  status = :status,
+  priority = :priority,
+  recurrence_anchor_date = :recurrenceAnchorDate,
+  due_time = :dueTime,
+  due_timezone = :dueTimezone,
+  due_at_utc = :dueAtUtc,
+  rrule = :rrule,
+  recurrence_end_date = :recurrenceEndDate,
+  template_status = :templateStatus,
+  updated_by_user_id = :updatedByUserId,
+  updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId;
+`, templateWriteParams({
+    now,
+    template,
+    templateId: template.recurrence_template_id,
+    workspaceId,
+  }));
 
   if (Array.isArray(template.assignee_ids)) {
     await replaceTemplateAssignees(workspaceId, template.recurrence_template_id, template.assignee_ids, template.updated_by_user_id);
@@ -92,24 +98,42 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 }
 
 async function readTemplateById(workspaceId, templateId) {
-  const rows = await querySql(templateSelectSql(`
-WHERE task_recurrence_templates.workspace_id = ${sqlText(workspaceId)}
-  AND task_recurrence_templates.recurrence_template_id = ${sqlText(templateId)}
+  const row = await db.get(templateSelectSql(`
+WHERE task_recurrence_templates.workspace_id = :workspaceId
+  AND task_recurrence_templates.recurrence_template_id = :templateId
 LIMIT 1;
-`));
+`), {
+    templateId: textParam(templateId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  if (!rows[0]) {
+  if (!row) {
     return null;
   }
 
   const assignees = await readTemplateAssignees(workspaceId, templateId);
-  return attachTemplateAssignees([templateRowToAppValue(rows[0])], assignees)[0];
+  return attachTemplateAssignees([templateRowToAppValue(row)], assignees)[0];
 }
 
 async function replaceTemplateAssignees(workspaceId, templateId, assigneeIds, assignedByUserId) {
   const now = new Date().toISOString();
   const uniqueAssigneeIds = [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
-  const inserts = uniqueAssigneeIds.map((userId) => `
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+UPDATE task_recurrence_assignees
+SET removed_at = :removedAt
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+  AND removed_at IS NULL;
+`, {
+      removedAt: now,
+      templateId: textParam(templateId),
+      workspaceId: textParam(workspaceId),
+    });
+
+    for (const userId of uniqueAssigneeIds) {
+      await transaction.run(`
 INSERT INTO task_recurrence_assignees (
   recurrence_assignee_id,
   workspace_id,
@@ -122,39 +146,40 @@ INSERT INTO task_recurrence_assignees (
   removed_at
 )
 VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(workspaceId)},
-  ${sqlText(templateId)},
+  :recurrenceAssigneeId,
+  :workspaceId,
+  :templateId,
   'user',
-  ${sqlText(userId)},
+  :userId,
   NULL,
-  ${sqlNullableText(assignedByUserId)},
-  ${sqlText(now)},
+  :assignedByUserId,
+  :assignedAt,
   NULL
 );
-`).join("\n");
-
-  await runSql(`
-BEGIN TRANSACTION;
-UPDATE task_recurrence_assignees
-SET removed_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recurrence_template_id = ${sqlText(templateId)}
-  AND removed_at IS NULL;
-${inserts}
-COMMIT;
-`);
+`, {
+        assignedAt: now,
+        assignedByUserId: nullableTextParam(assignedByUserId),
+        recurrenceAssigneeId: randomUUID(),
+        templateId: textParam(templateId),
+        userId: textParam(userId),
+        workspaceId: textParam(workspaceId),
+      });
+    }
+  });
 }
 
 async function readTemplateAssignees(workspaceId, templateId) {
-  return querySql(`
+  return db.query(`
 SELECT recurrence_template_id, user_id
 FROM task_recurrence_assignees
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recurrence_template_id = ${sqlText(templateId)}
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
   AND removed_at IS NULL
 ORDER BY assigned_at;
-`);
+`, {
+    templateId: textParam(templateId),
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 function templateSelectSql(whereSql) {
@@ -221,6 +246,43 @@ function templateRowToAppValue(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+function templateWriteParams({ includeCreatedByUserId = false, now, template, templateId, workspaceId }) {
+  const params = {
+    clientId: nullableTextParam(template.client_id),
+    description: textParam(template.description),
+    dueAtUtc: nullableTextParam(template.due_at_utc),
+    dueTime: nullableTextParam(template.due_time),
+    dueTimezone: nullableTextParam(template.due_timezone),
+    priority: textParam(template.priority || "normal"),
+    projectId: nullableTextParam(template.project_id),
+    recurrenceAnchorDate: textParam(template.recurrence_anchor_date),
+    recurrenceEndDate: nullableTextParam(template.recurrence_end_date),
+    rrule: textParam(template.rrule),
+    status: textParam(template.status || "open"),
+    templateId: textParam(templateId),
+    templateStatus: textParam(template.template_status || "active"),
+    title: textParam(template.title),
+    updatedByUserId: nullableTextParam(template.updated_by_user_id),
+    workspaceId: textParam(workspaceId),
+    now,
+  };
+
+  if (includeCreatedByUserId) {
+    params.createdByUserId = nullableTextParam(template.created_by_user_id);
+  }
+
+  return params;
+}
+
+function textParam(value) {
+  return String(value ?? "");
+}
+
+function nullableTextParam(value) {
+  const text = String(value ?? "").trim();
+  return text ? text : null;
 }
 
 export const taskRecurrenceRepository = {
