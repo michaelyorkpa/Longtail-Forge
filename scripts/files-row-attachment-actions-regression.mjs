@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.27.19";
+const appVersion = "0.33.5.27.20";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -93,8 +93,8 @@ assert.doesNotMatch(attachmentHelper, /openFileEditor|preview\/content|Inspector
 assert.match(functionBlock(appShellService, "readPermissionHints"), /files\.manage_quarantine[\s\S]*filesManageQuarantine: canManageFileQuarantine/, "App shell should expose a narrow quarantine permission hint");
 assert.match(filesRoutes, /post\("\/files\/:fileId\/report"/, "Files report route should remain the browser mutation route");
 assert.match(filesRoutes, /post\("\/files\/:fileId\/quarantine"/, "Files quarantine route should remain the browser mutation route");
-assert.match(functionBlock(filesService, "reportFile"), /canReadAnyAttachment[\s\S]*normalizeReportReason[\s\S]*status = 'quarantined'/, "Report service should keep read checks, allowed reasons, and quarantine lifecycle behavior");
-assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session, "files\.manage_quarantine"[\s\S]*status = 'quarantined'/, "Quarantine service should keep server-side permission authority");
+assert.match(functionBlock(filesService, "reportFile"), /canReadAnyAttachment[\s\S]*normalizeReportReason[\s\S]*SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Report service should keep read checks, allowed reasons, and quarantine lifecycle behavior through bound params");
+assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session, "files\.manage_quarantine"[\s\S]*SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Quarantine service should keep server-side permission authority through bound params");
 
 assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared row-action icons");
 assert.match(filesHtml, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should load shared preview and cache-bust the Files action wiring");

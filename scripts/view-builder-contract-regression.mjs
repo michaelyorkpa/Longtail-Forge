@@ -9,9 +9,9 @@ const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.27.19", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.27.19", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.27.19", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.27.20", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.27.20", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.27.20", "package-lock package entry should report the current app version");
 
 for (const primitive of [
   "Page header",

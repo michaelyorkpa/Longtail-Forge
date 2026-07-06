@@ -219,9 +219,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.20 - Conversion wave: Files lifecycle, settings, quota, and accounting
 
-- [ ] Convert the remaining `services/files.service` lifecycle writes, report/quarantine/review paths, workspace file settings, storage accounting, quota reads, and file record create/update paths to named bound params and the dialect seams.
-- [ ] Preserve upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, and scan state transitions exactly.
-- [ ] Update the burndown ratchet and extend Files lifecycle/quota regressions before moving on.
+- [x] Convert the remaining `services/files.service` lifecycle writes, report/quarantine/review paths, workspace file settings, storage accounting, quota reads, and file record create/update paths to named bound params and the dialect seams.
+- [x] Preserve upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, and scan state transitions exactly.
+- [x] Update the burndown ratchet and extend Files lifecycle/quota regressions before moving on.
 
 Acceptance criteria:
 

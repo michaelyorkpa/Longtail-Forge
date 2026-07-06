@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.19:
+Current totals as of 0.33.5.27.20:
 
-- Remaining runtime literal-helper invocations: 687.
-- Remaining direct interpolated SQL operation sites: 137.
-- Existing direct bound-params operation sites: 214.
-- Total runtime database operation calls seen by the audit scanner: 417.
+- Remaining runtime literal-helper invocations: 586.
+- Remaining direct interpolated SQL operation sites: 123.
+- Existing direct bound-params operation sites: 231.
+- Total runtime database operation calls seen by the audit scanner: 419.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -40,7 +40,6 @@ Status legend:
 
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
-| services/files.service | Remaining | 101 | 14 | 15 | 31 |
 | notifications.repo | Remaining | 99 | 20 | 0 | 25 |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
 | tags.repo | Remaining | 84 | 17 | 0 | 17 |
@@ -56,6 +55,7 @@ Status legend:
 | services/work-resume-state-initial-producers | Remaining | 5 | 2 | 0 | 2 |
 | services/tags.service | Remaining | 4 | 3 | 0 | 3 |
 | services/help.service | Remaining | 1 | 1 | 0 | 1 |
+| services/files.service | Converted | 0 | 0 | 32 | 33 |
 | core/search/adapters/sqlite-search-adapter | Converted | 0 | 0 | 13 | 17 |
 | core/search/tag-text | Converted | 0 | 0 | 1 | 1 |
 | tasks/task-checklists.repo | Converted | 0 | 0 | 8 | 8 |
@@ -418,3 +418,11 @@ The live ratchet after this conversion is 709 runtime literal-helper invocations
 This slice intentionally leaves attachment create/remove, file lifecycle writes, report/quarantine/review paths, workspace file settings, storage accounting, quota reads, and file record create/update paths assigned to 0.33.5.27.20. It does not change storage adapters, scanner adapters, streamed upload behavior, lifecycle semantics, preview rendering, download routing, route-backed File Context workflow, selector ordering, readable label fallbacks, or raw-ID label protections.
 
 The live ratchet after this conversion is 687 runtime literal-helper invocations, 137 direct interpolated SQL operation sites, 214 existing bound operation sites, and 417 total runtime database operation calls.
+
+## 0.33.5.27.20 Files Lifecycle, Settings, Quota, and Accounting Conversion
+
+0.33.5.27.20 converts the remaining Files service database access in `services/files.service`, covering attachment removal, file record creation, file scan updates, attachment creation, delete/restore/review/quarantine lifecycle writes, report writes, workspace file settings reads/writes, internal and external storage accounting, and quota usage reads through named params with `db.run(...)`, `db.get(...)`, `db.query(...)`, and `db.transaction(...)`. Workspace file settings and external storage accounting upserts use `db.dialect.conflict`, and storage-accounting refresh plus report/quarantine writes keep their paired statements transaction-scoped.
+
+`services/files.service` is fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, scan state transitions, storage adapters, preview/download gates, route-backed File Context and Preview workflows, and attachment visibility behavior.
+
+The live ratchet after this conversion is 586 runtime literal-helper invocations, 123 direct interpolated SQL operation sites, 231 existing bound operation sites, and 419 total runtime database operation calls.

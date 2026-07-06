@@ -21,7 +21,7 @@ import {
   createNoopFileScannerAdapter,
 } from "../core/files/scanner-adapter.js";
 import { config } from "../config.js";
-import { db, querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../core/database.js";
+import { db } from "../core/database.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
@@ -928,12 +928,16 @@ async function removeAttachment(session, attachmentId) {
   await assertCanUseAttachableTarget(session, attachableType, "remove", target);
 
   const now = new Date().toISOString();
-  await runSql(`
+  await db.run(`
 UPDATE file_attachments
-SET removed_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_attachment_id = ${sqlText(attachment.file_attachment_id)};
-`);
+SET removed_at = :removedAt
+WHERE workspace_id = :workspaceId
+  AND file_attachment_id = :attachmentId;
+`, {
+    attachmentId: attachment.file_attachment_id,
+    removedAt: now,
+    workspaceId: session.workspace_id,
+  });
 
   await emitFileLifecycleEvent("file.attachment.removed", {
     session,
@@ -1112,15 +1116,22 @@ async function deleteFile(session, fileId) {
     },
   });
 
-  await runSql(`
+  await db.run(`
 UPDATE files
-SET status = 'deleted',
-    deleted_at = ${sqlText(now)},
-    updated_at = ${sqlText(now)},
-    metadata_json = ${sqlText(JSON.stringify(metadata))}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_id = ${sqlText(file.file_id)};
-`);
+SET status = :fileStatus,
+    deleted_at = :deletedAt,
+    updated_at = :updatedAt,
+    metadata_json = :metadataJson
+WHERE workspace_id = :workspaceId
+  AND file_id = :fileId;
+`, {
+    deletedAt: now,
+    fileId: file.file_id,
+    fileStatus: "deleted",
+    metadataJson: JSON.stringify(metadata),
+    updatedAt: now,
+    workspaceId: session.workspace_id,
+  });
 
   for (const attachment of attachments) {
     await emitFileLifecycleEvent("file.attachment.removed", {
@@ -1189,15 +1200,21 @@ async function restoreFile(session, fileId) {
     },
   };
 
-  await runSql(`
+  await db.run(`
 UPDATE files
-SET status = ${sqlText(previousStatus)},
+SET status = :fileStatus,
     deleted_at = NULL,
-    updated_at = ${sqlText(now)},
-    metadata_json = ${sqlText(JSON.stringify(nextMetadata))}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_id = ${sqlText(file.file_id)};
-`);
+    updated_at = :updatedAt,
+    metadata_json = :metadataJson
+WHERE workspace_id = :workspaceId
+  AND file_id = :fileId;
+`, {
+    fileId: file.file_id,
+    fileStatus: previousStatus,
+    metadataJson: JSON.stringify(nextMetadata),
+    updatedAt: now,
+    workspaceId: session.workspace_id,
+  });
 
   await emitFileLifecycleEvent("file.restored", {
     session,
@@ -1230,14 +1247,19 @@ async function markQuarantinedFileReviewed(session, file) {
 
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE files
-SET status = 'available',
+SET status = :fileStatus,
     quarantine_reason = NULL,
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_id = ${sqlText(file.file_id)};
-`);
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND file_id = :fileId;
+`, {
+    fileId: file.file_id,
+    fileStatus: "available",
+    updatedAt: now,
+    workspaceId: session.workspace_id,
+  });
 
   await emitFileLifecycleEvent("file.restored", {
     session,
@@ -1266,13 +1288,15 @@ async function readStorageAccounting(session, filters = {}) {
   await refreshStorageAccounting(session.workspace_id);
 
   const storageKind = normalizeStorageKind(filters.storageKind || filters.storage_kind);
-  const conditions = [`workspace_id = ${sqlText(session.workspace_id)}`];
+  const conditions = ["workspace_id = :workspaceId"];
+  const params = { workspaceId: session.workspace_id };
 
   if (storageKind) {
-    conditions.push(`storage_kind = ${sqlText(storageKind)}`);
+    conditions.push("storage_kind = :storageKind");
+    params.storageKind = storageKind;
   }
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT
   storage_accounting_id,
   workspace_id,
@@ -1288,7 +1312,7 @@ SELECT
 FROM file_storage_accounting
 WHERE ${conditions.join("\n  AND ")}
 ORDER BY storage_kind, user_id, storage_provider, external_source_provider, availability_status;
-`);
+`, params);
   const entries = rows.map(shapeStorageAccountingRow);
 
   return {
@@ -1323,50 +1347,65 @@ async function recordExternalStorageAccounting(session, payload = {}) {
     workspaceId: session.workspace_id,
   });
 
-  await runSql(`
-INSERT INTO file_storage_accounting (
-  storage_accounting_id,
-  workspace_id,
-  user_id,
-  storage_kind,
-  storage_provider,
-  external_source_provider,
-  availability_status,
-  file_count,
-  internal_bytes,
-  external_reported_bytes,
-  calculated_at,
-  metadata_json
-)
-VALUES (
-  ${sqlText(accountingId)},
-  ${sqlText(session.workspace_id)},
-  ${sqlText(userId)},
-  'external',
-  'external',
-  ${sqlText(sourceProvider)},
-  ${sqlText(availabilityStatus)},
-  ${sqlInteger(fileCount)},
-  0,
-  ${sqlInteger(externalReportedBytes)},
-  ${sqlText(now)},
-  ${sqlText(JSON.stringify({ source: "external_accounting_contract" }))}
-)
-ON CONFLICT (
-  workspace_id,
-  user_id,
-  storage_kind,
-  storage_provider,
-  external_source_provider,
-  availability_status
-)
-DO UPDATE SET
-  file_count = excluded.file_count,
-  internal_bytes = 0,
-  external_reported_bytes = excluded.external_reported_bytes,
-  calculated_at = excluded.calculated_at,
-  metadata_json = excluded.metadata_json;
-`);
+  await db.run(`${db.dialect.conflict.buildInsertOnConflictDoUpdate({
+    columns: [
+      "storage_accounting_id",
+      "workspace_id",
+      "user_id",
+      "storage_kind",
+      "storage_provider",
+      "external_source_provider",
+      "availability_status",
+      "file_count",
+      "internal_bytes",
+      "external_reported_bytes",
+      "calculated_at",
+      "metadata_json",
+    ],
+    conflictColumns: [
+      "workspace_id",
+      "user_id",
+      "storage_kind",
+      "storage_provider",
+      "external_source_provider",
+      "availability_status",
+    ],
+    tableName: "file_storage_accounting",
+    updateColumns: [
+      "file_count",
+      "internal_bytes",
+      "external_reported_bytes",
+      "calculated_at",
+      "metadata_json",
+    ],
+    valueExpressions: {
+      storage_accounting_id: ":accountingId",
+      workspace_id: ":workspaceId",
+      user_id: ":userId",
+      storage_kind: ":storageKind",
+      storage_provider: ":storageProvider",
+      external_source_provider: ":sourceProvider",
+      availability_status: ":availabilityStatus",
+      file_count: ":fileCount",
+      internal_bytes: ":internalBytes",
+      external_reported_bytes: ":externalReportedBytes",
+      calculated_at: ":calculatedAt",
+      metadata_json: ":metadataJson",
+    },
+  })};`, {
+    accountingId,
+    availabilityStatus,
+    calculatedAt: now,
+    externalReportedBytes,
+    fileCount,
+    internalBytes: 0,
+    metadataJson: JSON.stringify({ source: "external_accounting_contract" }),
+    sourceProvider,
+    storageKind: "external",
+    storageProvider: "external",
+    userId,
+    workspaceId: session.workspace_id,
+  });
 
   return readStorageAccounting(session, { storageKind: "external" });
 }
@@ -1396,39 +1435,51 @@ async function saveWorkspaceFileSettings(session, payload = {}) {
   const next = normalizeWorkspaceFileSettingsPayload(payload, previous);
   const now = new Date().toISOString();
 
-  await runSql(`
-INSERT INTO file_workspace_settings (
-  workspace_id,
-  file_type_policy_mode,
-  allowed_extensions_json,
-  blocked_extensions_json,
-  internal_storage_limit_bytes,
-  per_user_storage_limit_bytes,
-  created_at,
-  updated_at,
-  metadata_json
-)
-VALUES (
-  ${sqlText(session.workspace_id)},
-  ${sqlText(next.fileTypePolicyMode)},
-  ${sqlText(JSON.stringify(next.allowedExtensions))},
-  ${sqlText(JSON.stringify(next.blockedExtensions))},
-  ${sqlNullableInteger(next.internalStorageLimitBytes)},
-  ${sqlNullableInteger(next.perUserStorageLimitBytes)},
-  ${sqlText(now)},
-  ${sqlText(now)},
-  ${sqlText(JSON.stringify({ source: "files_settings" }))}
-)
-ON CONFLICT (workspace_id)
-DO UPDATE SET
-  file_type_policy_mode = excluded.file_type_policy_mode,
-  allowed_extensions_json = excluded.allowed_extensions_json,
-  blocked_extensions_json = excluded.blocked_extensions_json,
-  internal_storage_limit_bytes = excluded.internal_storage_limit_bytes,
-  per_user_storage_limit_bytes = excluded.per_user_storage_limit_bytes,
-  updated_at = excluded.updated_at,
-  metadata_json = excluded.metadata_json;
-`);
+  await db.run(`${db.dialect.conflict.buildInsertOnConflictDoUpdate({
+    columns: [
+      "workspace_id",
+      "file_type_policy_mode",
+      "allowed_extensions_json",
+      "blocked_extensions_json",
+      "internal_storage_limit_bytes",
+      "per_user_storage_limit_bytes",
+      "created_at",
+      "updated_at",
+      "metadata_json",
+    ],
+    conflictColumns: ["workspace_id"],
+    tableName: "file_workspace_settings",
+    updateColumns: [
+      "file_type_policy_mode",
+      "allowed_extensions_json",
+      "blocked_extensions_json",
+      "internal_storage_limit_bytes",
+      "per_user_storage_limit_bytes",
+      "updated_at",
+      "metadata_json",
+    ],
+    valueExpressions: {
+      workspace_id: ":workspaceId",
+      file_type_policy_mode: ":fileTypePolicyMode",
+      allowed_extensions_json: ":allowedExtensionsJson",
+      blocked_extensions_json: ":blockedExtensionsJson",
+      internal_storage_limit_bytes: ":internalStorageLimitBytes",
+      per_user_storage_limit_bytes: ":perUserStorageLimitBytes",
+      created_at: ":createdAt",
+      updated_at: ":updatedAt",
+      metadata_json: ":metadataJson",
+    },
+  })};`, {
+    allowedExtensionsJson: JSON.stringify(next.allowedExtensions),
+    blockedExtensionsJson: JSON.stringify(next.blockedExtensions),
+    createdAt: now,
+    fileTypePolicyMode: next.fileTypePolicyMode,
+    internalStorageLimitBytes: nullableInteger(next.internalStorageLimitBytes),
+    metadataJson: JSON.stringify({ source: "files_settings" }),
+    perUserStorageLimitBytes: nullableInteger(next.perUserStorageLimitBytes),
+    updatedAt: now,
+    workspaceId: session.workspace_id,
+  });
 
   const saved = await readWorkspaceFileSettingsForWorkspace(session.workspace_id);
   await recordFileAudit(session, {
@@ -1463,7 +1514,8 @@ async function reportFile(session, fileId, payload = {}) {
   const reportId = randomUUID();
   const attachmentId = normalizeOptionalText(payload.attachmentId || payload.fileAttachmentId);
 
-  await runSql(`
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
 INSERT INTO file_reports (
   file_report_id,
   workspace_id,
@@ -1476,25 +1528,45 @@ INSERT INTO file_reports (
   metadata_json
 )
 VALUES (
-  ${sqlText(reportId)},
-  ${sqlText(session.workspace_id)},
-  ${sqlText(file.file_id)},
-  ${sqlNullableText(attachmentId)},
-  ${sqlText(reason)},
-  ${sqlNullableText(notes)},
-  ${sqlText(session.user_id)},
-  ${sqlText(now)},
-  ${sqlText(JSON.stringify({ source: "browser_api" }))}
+  :reportId,
+  :workspaceId,
+  :fileId,
+  :attachmentId,
+  :reason,
+  :notes,
+  :reportedByUserId,
+  :createdAt,
+  :metadataJson
 );
+`, {
+      attachmentId: attachmentId || null,
+      createdAt: now,
+      fileId: file.file_id,
+      metadataJson: JSON.stringify({ source: "browser_api" }),
+      notes: notes || null,
+      reason,
+      reportedByUserId: session.user_id,
+      reportId,
+      workspaceId: session.workspace_id,
+    });
 
+    await transaction.run(`
 UPDATE files
-SET status = 'quarantined',
-    quarantine_reason = ${sqlText(`reported:${reason}`)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_id = ${sqlText(file.file_id)}
-  AND status != 'deleted';
-`);
+SET status = :fileStatus,
+    quarantine_reason = :quarantineReason,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND file_id = :fileId
+  AND status != :deletedStatus;
+`, {
+      deletedStatus: "deleted",
+      fileId: file.file_id,
+      fileStatus: "quarantined",
+      quarantineReason: `reported:${reason}`,
+      updatedAt: now,
+      workspaceId: session.workspace_id,
+    });
+  });
 
   await emitFileLifecycleEvent("file.reported", {
     session,
@@ -1551,14 +1623,20 @@ async function quarantineFile(session, fileId, payload = {}) {
   const reason = normalizeOptionalText(payload.reason, { maxLength: 250 }) || "manual_quarantine";
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE files
-SET status = 'quarantined',
-    quarantine_reason = ${sqlText(reason)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_id = ${sqlText(file.file_id)};
-`);
+SET status = :fileStatus,
+    quarantine_reason = :quarantineReason,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND file_id = :fileId;
+`, {
+    fileId: file.file_id,
+    fileStatus: "quarantined",
+    quarantineReason: reason,
+    updatedAt: now,
+    workspaceId: session.workspace_id,
+  });
   await emitFileLifecycleEvent("file.quarantined", {
     session,
     fileId: file.file_id,
@@ -1638,7 +1716,7 @@ async function createFileRecord(session, prepared) {
   const now = new Date().toISOString();
   const fileId = randomUUID();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO files (
   file_id,
   workspace_id,
@@ -1662,28 +1740,49 @@ INSERT INTO files (
   metadata_json
 )
 VALUES (
-  ${sqlText(fileId)},
-  ${sqlText(session.workspace_id)},
-  ${sqlText(prepared.storageProvider)},
-  ${sqlText(prepared.storageKey)},
-  ${sqlText(prepared.originalFilename)},
-  ${sqlText(prepared.storedFilename)},
-  ${sqlText(prepared.displayName)},
-  ${sqlText(prepared.extension)},
-  ${sqlText(prepared.mimeTypeClaimed)},
-  ${sqlText(prepared.mimeTypeDetected)},
-  ${sqlInteger(prepared.fileSizeBytes)},
-  ${sqlText(prepared.sha256Hash)},
-  'pending',
-  'pending',
-  NULL,
-  ${sqlText(session.user_id)},
-  ${sqlText(now)},
-  ${sqlText(now)},
-  NULL,
-  ${sqlText(JSON.stringify(prepared.metadata || {}))}
+  :fileId,
+  :workspaceId,
+  :storageProvider,
+  :storageKey,
+  :originalFilename,
+  :storedFilename,
+  :displayName,
+  :extension,
+  :mimeTypeClaimed,
+  :mimeTypeDetected,
+  :fileSizeBytes,
+  :sha256Hash,
+  :fileStatus,
+  :scanStatus,
+  :quarantineReason,
+  :uploadedByUserId,
+  :createdAt,
+  :updatedAt,
+  :deletedAt,
+  :metadataJson
 );
-`);
+`, {
+    createdAt: now,
+    deletedAt: null,
+    displayName: prepared.displayName,
+    extension: prepared.extension,
+    fileId,
+    fileSizeBytes: prepared.fileSizeBytes,
+    fileStatus: "pending",
+    metadataJson: JSON.stringify(prepared.metadata || {}),
+    mimeTypeClaimed: prepared.mimeTypeClaimed,
+    mimeTypeDetected: prepared.mimeTypeDetected,
+    originalFilename: prepared.originalFilename,
+    quarantineReason: null,
+    scanStatus: "pending",
+    sha256Hash: prepared.sha256Hash,
+    storageKey: prepared.storageKey,
+    storageProvider: prepared.storageProvider,
+    storedFilename: prepared.storedFilename,
+    updatedAt: now,
+    uploadedByUserId: session.user_id,
+    workspaceId: session.workspace_id,
+  });
 
   await recordFileAudit(session, {
     action: "file.uploaded",
@@ -1704,11 +1803,17 @@ VALUES (
 async function refreshStorageAccounting(workspaceId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
 DELETE FROM file_storage_accounting
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND storage_kind = 'internal';
+WHERE workspace_id = :workspaceId
+  AND storage_kind = :storageKind;
+`, {
+      storageKind: "internal",
+      workspaceId,
+    });
 
+    await transaction.run(`
 INSERT INTO file_storage_accounting (
   storage_accounting_id,
   workspace_id,
@@ -1734,14 +1839,20 @@ SELECT
   COUNT(*),
   COALESCE(SUM(file_size_bytes), 0),
   0,
-  ${sqlText(now)},
+  :calculatedAt,
   '{}'
 FROM files
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND COALESCE(storage_kind, 'internal') = 'internal'
-  AND status IN ('pending', 'available', 'quarantined', 'deleted')
+WHERE workspace_id = :workspaceId
+  AND COALESCE(storage_kind, :storageKind) = :storageKind
+  AND status IN (:storageStatuses)
 GROUP BY workspace_id, COALESCE(uploaded_by_user_id, ''), COALESCE(storage_provider, 'local'), COALESCE(status, '');
-`);
+`, {
+      calculatedAt: now,
+      storageKind: "internal",
+      storageStatuses: ["pending", "available", "quarantined", "deleted"],
+      workspaceId,
+    });
+  });
 }
 
 function registerFileScanJobHandlers(options = {}) {
@@ -1849,15 +1960,22 @@ async function scanFile(session, file) {
   const reason = normalizeOptionalText(scanResult.reason, { maxLength: 250 });
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE files
-SET status = ${sqlText(status)},
-    scan_status = ${sqlText(scanStatus)},
-    quarantine_reason = ${sqlNullableText(status === "quarantined" ? reason || "scan_failed" : null)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_id = ${sqlText(file.file_id)};
-`);
+SET status = :fileStatus,
+    scan_status = :scanStatus,
+    quarantine_reason = :quarantineReason,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND file_id = :fileId;
+`, {
+    fileId: file.file_id,
+    fileStatus: status,
+    quarantineReason: status === "quarantined" ? reason || "scan_failed" : null,
+    scanStatus,
+    updatedAt: now,
+    workspaceId: session.workspace_id,
+  });
 
   if (successfulScan) {
     await emitFileLifecycleEvent("file.scan.passed", {
@@ -1947,7 +2065,7 @@ async function attachFile(session, payload = {}, context = {}) {
   const now = new Date().toISOString();
   const attachmentId = randomUUID();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO file_attachments (
   file_attachment_id,
   workspace_id,
@@ -1967,24 +2085,41 @@ INSERT INTO file_attachments (
   metadata_json
 )
 VALUES (
-  ${sqlText(attachmentId)},
-  ${sqlText(session.workspace_id)},
-  ${sqlText(payload.fileId)},
-  ${sqlText(attachableType.moduleId)},
-  ${sqlText(attachableType.targetType)},
-  ${sqlText(target.target_id)},
-  ${sqlNullableText(target.client_id)},
-  ${sqlNullableText(target.project_id)},
-  ${sqlText(visibility)},
-  ${sqlNullableText(normalizeOptionalText(payload.attachmentRole, { maxLength: 80 }))},
-  ${sqlNullableText(normalizeOptionalText(payload.caption, { maxLength: 500 }))},
-  ${sqlInteger(payload.sortOrder)},
-  ${sqlText(session.user_id)},
-  ${sqlText(now)},
-  NULL,
-  ${sqlText(JSON.stringify(payload.metadata || {}))}
+  :attachmentId,
+  :workspaceId,
+  :fileId,
+  :moduleId,
+  :targetType,
+  :targetId,
+  :clientId,
+  :projectId,
+  :visibility,
+  :attachmentRole,
+  :caption,
+  :sortOrder,
+  :attachedByUserId,
+  :createdAt,
+  :removedAt,
+  :metadataJson
 );
-`);
+`, {
+    attachedByUserId: session.user_id,
+    attachmentId,
+    attachmentRole: normalizeOptionalText(payload.attachmentRole, { maxLength: 80 }) || null,
+    caption: normalizeOptionalText(payload.caption, { maxLength: 500 }) || null,
+    clientId: target.client_id || null,
+    createdAt: now,
+    fileId: payload.fileId,
+    metadataJson: JSON.stringify(payload.metadata || {}),
+    moduleId: attachableType.moduleId,
+    projectId: target.project_id || null,
+    removedAt: null,
+    sortOrder: clampInteger(payload.sortOrder, 0, 0, Number.MAX_SAFE_INTEGER),
+    targetId: target.target_id,
+    targetType: attachableType.targetType,
+    visibility,
+    workspaceId: session.workspace_id,
+  });
 
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
   await emitFileLifecycleEvent("file.attachment.created", {
@@ -2225,9 +2360,14 @@ SELECT
   COALESCE(SUM(CASE WHEN uploaded_by_user_id = :userId THEN file_size_bytes ELSE 0 END), 0) AS user_bytes
 FROM files
 WHERE workspace_id = :workspaceId
-  AND COALESCE(storage_kind, 'internal') = 'internal'
-  AND status IN ('pending', 'available', 'quarantined', 'deleted');
-`, { userId, workspaceId });
+  AND COALESCE(storage_kind, :storageKind) = :storageKind
+  AND status IN (:storageStatuses);
+`, {
+    storageKind: "internal",
+    storageStatuses: ["pending", "available", "quarantined", "deleted"],
+    userId,
+    workspaceId,
+  });
 
   return {
     userBytes: Number(row?.user_bytes || 0),
@@ -2598,43 +2738,54 @@ LIMIT 1;
 }
 
 async function readWorkspaceFileSettingsForWorkspace(workspaceId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT *
 FROM file_workspace_settings
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 LIMIT 1;
-`);
+`, { workspaceId });
 
-  if (rows[0]) {
-    return normalizeWorkspaceFileSettingsRow(rows[0]);
+  if (row) {
+    return normalizeWorkspaceFileSettingsRow(row);
   }
 
   const defaults = defaultWorkspaceFileSettings(workspaceId);
   const now = new Date().toISOString();
-  await runSql(`
-INSERT OR IGNORE INTO file_workspace_settings (
-  workspace_id,
-  file_type_policy_mode,
-  allowed_extensions_json,
-  blocked_extensions_json,
-  internal_storage_limit_bytes,
-  per_user_storage_limit_bytes,
-  created_at,
-  updated_at,
-  metadata_json
-)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(defaults.fileTypePolicyMode)},
-  ${sqlText(JSON.stringify(defaults.allowedExtensions))},
-  ${sqlText(JSON.stringify(defaults.blockedExtensions))},
-  NULL,
-  NULL,
-  ${sqlText(now)},
-  ${sqlText(now)},
-  '{}'
-);
-`);
+  await db.run(`${db.dialect.conflict.buildInsertOrIgnore({
+    columns: [
+      "workspace_id",
+      "file_type_policy_mode",
+      "allowed_extensions_json",
+      "blocked_extensions_json",
+      "internal_storage_limit_bytes",
+      "per_user_storage_limit_bytes",
+      "created_at",
+      "updated_at",
+      "metadata_json",
+    ],
+    tableName: "file_workspace_settings",
+    valueExpressions: {
+      workspace_id: ":workspaceId",
+      file_type_policy_mode: ":fileTypePolicyMode",
+      allowed_extensions_json: ":allowedExtensionsJson",
+      blocked_extensions_json: ":blockedExtensionsJson",
+      internal_storage_limit_bytes: ":internalStorageLimitBytes",
+      per_user_storage_limit_bytes: ":perUserStorageLimitBytes",
+      created_at: ":createdAt",
+      updated_at: ":updatedAt",
+      metadata_json: ":metadataJson",
+    },
+  })};`, {
+    allowedExtensionsJson: JSON.stringify(defaults.allowedExtensions),
+    blockedExtensionsJson: JSON.stringify(defaults.blockedExtensions),
+    createdAt: now,
+    fileTypePolicyMode: defaults.fileTypePolicyMode,
+    internalStorageLimitBytes: null,
+    metadataJson: "{}",
+    perUserStorageLimitBytes: null,
+    updatedAt: now,
+    workspaceId,
+  });
 
   return defaults;
 }
@@ -3842,11 +3993,6 @@ function nullableInteger(value) {
 
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function sqlNullableInteger(value) {
-  const parsed = nullableInteger(value);
-  return parsed === null ? "NULL" : sqlInteger(parsed);
 }
 
 function shapeWorkspaceFileSettings(settings) {

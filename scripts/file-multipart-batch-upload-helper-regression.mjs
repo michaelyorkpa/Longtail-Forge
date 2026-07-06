@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.19";
+const appVersion = "0.33.5.27.20";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-batch-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -75,7 +75,7 @@ function assertStaticContracts() {
   assert.match(filesRoutes, /multipartBatchFailureResult\(\{[\s\S]*info[\s\S]*\}\)/, "Multipart batch malformed file parts should preserve their filename when available");
   assert.match(filesService, /assertStoredFileObjectExists\(file,[\s\S]*adapter\.metadata\(file\.storage_key\)/, "metadata() should remain an active storage adapter contract for download and preview pre-checks");
   assert.doesNotMatch(localStorageAdapter, /async quarantine\(/, "Local storage adapter should not expose unused quarantine() surface");
-  assert.match(functionBlock(filesService, "quarantineFile"), /SET status = 'quarantined'/, "Quarantine remains DB lifecycle state until storage relocation is explicitly designed");
+  assert.match(functionBlock(filesService, "quarantineFile"), /SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Quarantine remains DB lifecycle state until storage relocation is explicitly designed");
 
   assert.match(helper, /FormData/, "Attachment helper should build multipart form uploads");
   assert.match(helper, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/, "Attachment helper should prefer the streamed multipart batch route");

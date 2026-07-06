@@ -151,6 +151,7 @@ const FILE_STORAGE_REGRESSIONS = Object.freeze([
   "scripts/file-storage-diagnostics-regression.mjs",
   "scripts/file-storage-streaming-contract-regression.mjs",
   "scripts/file-storage-quota-enforcement-regression.mjs",
+  "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
   "scripts/file-streamed-validation-download-metadata-regression.mjs",
   "scripts/file-s3-provider-registration-regression.mjs",
   "scripts/file-s3-object-operation-proof-regression.mjs",

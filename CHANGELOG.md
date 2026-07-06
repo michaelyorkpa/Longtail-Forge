@@ -1,3 +1,13 @@
+## Version 0.33.5.27.20 - 2026-07-06 10:05 -04:00
+
+- Completed the Files lifecycle, settings, quota, and accounting conversion by moving the remaining `services/files.service` database access to named params through the database facade.
+- Converted attachment creation/removal, file record creation, file scan updates, delete/restore/review/quarantine lifecycle writes, report writes, workspace file settings, internal and external storage accounting, and quota usage reads.
+- Routed workspace file settings and external storage accounting upserts through `db.dialect.conflict`, kept report and storage-accounting paired writes inside `db.transaction(...)`, and removed the last literal-helper/import compatibility path from `services/files.service`.
+- Preserved upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, scan state transitions, storage adapters, preview/download gates, route-backed File Context and Preview workflows, and attachment visibility behavior.
+- Added `scripts/files-lifecycle-settings-quota-conversion-regression.mjs` to prove the converted static SQL blocks and SQLite runtime behavior for settings/quota, upload/scan, report, quarantine/review, delete/restore, attachment removal, storage accounting, and no storage metadata leaks.
+- Updated the parameter-binding ratchet to 586 helper invocations, 123 direct interpolated operation sites, 231 bound operation sites, and 419 runtime DB operation calls.
+- Verification 2026-07-06 10:15 -04:00: `scripts/files-lifecycle-settings-quota-conversion-regression.mjs`, `scripts/file-api-lifecycle-regression.mjs`, `scripts/file-storage-accounting-regression.mjs`, `scripts/file-storage-quota-enforcement-regression.mjs`, `scripts/files-row-attachment-actions-regression.mjs`, `scripts/file-multipart-batch-upload-helper-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` passed; `npm run check` passed 281/281 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.20 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.19 - 2026-07-06 09:28 -04:00
 
 - Completed the Files context and attachable targets conversion by moving File Context attachment updates, safe attachable-target lookup, readable target/context label reads, workspace-type reads, attachable-target option context-label enrichment, and duplicate active attachment-context checks in `services/files.service` to named params through the database facade.
