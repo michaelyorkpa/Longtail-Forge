@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-context-targets-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-context-targets-conversion.db");
@@ -115,11 +115,11 @@ function assertStaticContract() {
   assert.doesNotMatch(convertedBlocks, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b|\bquerySql\b|\brunSql\b/, "converted Files context/target blocks should not use literal helpers or compatibility query wrappers");
   assert.doesNotMatch(convertedBlocks, /COLLATE NOCASE|LOWER\(\${labelExpression}\)/, "converted Files target-option blocks should route case-insensitive SQL through dialect seams");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files conversion ratchet");
   assert.match(auditDocs, /\| services\/files\.service \| Converted \| 0 \| 0 \| 32 \| 33 \|/, "audit inventory should record the fully converted Files service state");
   assert.match(auditDocs, /0\.33\.5\.27\.19 Files Context and Attachable Targets Conversion[\s\S]*File Context attachment update path[\s\S]*687 runtime literal-helper invocations[\s\S]*137 direct interpolated SQL operation sites[\s\S]*214 existing bound operation sites/, "audit docs should record the Files context/targets conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.19[\s\S]*Files context and attachable-target metadata paths[\s\S]*687 remaining helper invocations/, "database docs should record the concrete Files context/targets conversion");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.19 - Conversion wave: Files context and attachable targets[\s\S]*- \[x\] Convert File Context update reads\/writes[\s\S]*- \[x\] Preserve attachment-scoped File Context behavior[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Files context/targets conversion slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.19 - Conversion wave: Files context and attachable targets[\s\S]*- \[x\] Convert File Context update reads\/writes[\s\S]*- \[x\] Preserve attachment-scoped File Context behavior[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.19 - [\s\S]*Files context and attachable targets conversion[\s\S]*687 helper invocations[\s\S]*137 direct interpolated operation sites[\s\S]*214 bound operation sites/, "changelog should record the Files context/targets conversion burndown");
   assert.match(regressionSuite, /scripts\/files-context-targets-conversion-regression\.mjs/, "regression suite should include the Files context/targets conversion proof");
 }

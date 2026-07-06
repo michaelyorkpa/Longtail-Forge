@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-time-entries-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-time-entries-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -51,12 +51,12 @@ function assertStaticContract() {
   assert.doesNotMatch(timeEntriesRepoSource, /\$\{/, "Time entries repository should not interpolate runtime values into SQL templates");
   assert.doesNotMatch(timeEntriesRepoSource, /\b(?:julianday|ON CONFLICT|COLLATE|LOWER\s*\(|BEGIN TRANSACTION|COMMIT|ROLLBACK)\b/, "Time entries repository should not add dialect-sensitive raw SQL while converting");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
   assert.match(auditDocs, /\| time-tracking\/time-entries\.repo \| Converted \| 0 \| 0 \| 8 \| 8 \|/, "audit inventory should mark time-tracking/time-entries.repo converted");
   assert.match(auditDocs, /0\.33\.5\.27\.13 Time Entries Repository Conversion[\s\S]*`time-tracking\/time-entries\.repo`[\s\S]*1,116 runtime literal-helper invocations[\s\S]*180 direct interpolated SQL operation sites[\s\S]*162 existing bound operation sites/, "audit docs should record the Time entries repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.13[\s\S]*`time-tracking\/time-entries\.repo`[\s\S]*named params[\s\S]*1,116 remaining helper invocations/, "database docs should record the Time entries repository conversion");
   assert.match(timeTrackingDocs, /As of version 0\.33\.5\.27\.13[\s\S]*time entry repository uses named bound params[\s\S]*project-scope updates[\s\S]*reporting-facing reads/, "Time Tracking docs should describe the converted time entry persistence boundary");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.13 - Conversion wave: Time entries[\s\S]*- \[x\] Convert `time-tracking\/time-entries\.repo`[\s\S]*- \[x\] Preserve entry reads[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Time entries repository slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.13 - Conversion wave: Time entries[\s\S]*- \[x\] Convert `time-tracking\/time-entries\.repo`[\s\S]*- \[x\] Preserve entry reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.13 - [\s\S]*Time entries repository conversion[\s\S]*1,116 helper invocations[\s\S]*180 direct interpolated operation sites[\s\S]*162 bound operation sites/, "changelog should record the Time entries conversion burndown");
   assert.match(regressionSuite, /scripts\/time-entries-repository-conversion-regression\.mjs/, "regression suite should include the Time entries repository conversion proof");
 }

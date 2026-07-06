@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tasks-primary-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tasks-primary-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -63,7 +63,7 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.8 Tasks Primary Repository Conversion[\s\S]*`tasks\/tasks\.repo`[\s\S]*1,370 runtime literal-helper invocations[\s\S]*221 direct interpolated SQL operation sites[\s\S]*116 existing bound operation sites/, "audit docs should record the Tasks conversion ratchet");
   assert.match(auditDocs, /\| tasks\/tasks\.repo \| Converted \| 0 \| 0 \| 15 \| 15 \|/, "audit inventory should mark tasks/tasks.repo converted");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.8[\s\S]*`tasks\/tasks\.repo`[\s\S]*1,370 remaining helper invocations/, "database docs should record the Tasks repository conversion");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.8 - Conversion wave: Tasks primary repository[\s\S]*- \[x\] Convert `tasks\/tasks\.repo`[\s\S]*- \[x\] Preserve task list\/detail reads[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Tasks primary repository slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.8 - Conversion wave: Tasks primary repository[\s\S]*- \[x\] Convert `tasks\/tasks\.repo`[\s\S]*- \[x\] Preserve task list\/detail reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.8 - [\s\S]*Tasks primary repository conversion[\s\S]*1,370 helper invocations[\s\S]*221 direct interpolated operation sites[\s\S]*116 bound operation sites/, "changelog should record the Tasks conversion burndown");
   assert.match(regressionSuite, /scripts\/tasks-primary-repository-conversion-regression\.mjs/, "regression suite should include the Tasks repository conversion proof");
 }

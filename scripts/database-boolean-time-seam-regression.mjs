@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-boolean-time-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -73,7 +73,7 @@ function assertStaticContract() {
 
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*1,481 runtime literal-helper invocations[\s\S]*230 direct interpolated SQL operation sites/, "parameter-binding audit should retain the boolean/time proof burndown");
   assert.match(parameterAuditRegression, /\["time-tracking\/active-timers\.repo", 12\]/, "parameter-binding audit should track the converted active timer row");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.5 - Boolean and timestamp\/interval seams[\s\S]*- \[x\] Implement adapter-owned logical boolean normalization[\s\S]*- \[x\] Implement the provider date\/time helper[\s\S]*- \[x\] Convert one small proof path/, "roadmap should mark the boolean/time seam slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.5 - Boolean and timestamp\/interval seams[\s\S]*- \[x\] Implement adapter-owned logical boolean normalization[\s\S]*- \[x\] Implement the provider date\/time helper[\s\S]*- \[x\] Convert one small proof path/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.5[\s\S]*`db\.dialect\.boolean\.bindFields\(\.\.\.\)`[\s\S]*`db\.dialect\.time\.elapsedSecondsSince\(\.\.\.\)`/, "database docs should describe the boolean and timestamp seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*`settings\.repo`[\s\S]*`time-tracking\/active-timers\.repo`/, "audit docs should record the boolean/time proof paths");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(booleanTimeSliceVersion)} - [\\s\\S]*Boolean and timestamp\\/interval seams[\\s\\S]*active timer pause`), "changelog should record the boolean/time seam slice");

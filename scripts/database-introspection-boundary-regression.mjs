@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-introspection-boundary-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-introspection-boundary.db");
@@ -83,7 +83,7 @@ function assertStaticBoundary() {
     "raw runtime rowid SQL should stay provider-owned after startup moves physical identity checks to the seam",
   );
 
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.7 - PRAGMA, rowid, and introspection seam boundaries[\s\S]*- \[x\] Move or document provider-owned entry points[\s\S]*- \[x\] Confirm no module or application repository owns raw PRAGMA\/rowid calls[\s\S]*- \[x\] Add a focused regression/, "roadmap should mark the introspection boundary slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.7 - PRAGMA, rowid, and introspection seam boundaries[\s\S]*- \[x\] Move or document provider-owned entry points[\s\S]*- \[x\] Confirm no module or application repository owns raw PRAGMA\/rowid calls[\s\S]*- \[x\] Add a focused regression/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.7[\s\S]*`db\.dialect\.introspection\.compileOptions\(\.\.\.\)`[\s\S]*qualified `rowId\(\.\.\.\)`[\s\S]*provider\/startup\/migration\/repair\/adapter-owned/, "database docs should describe the introspection and physical identity boundary");
   assert.match(auditDocs, /0\.33\.5\.27\.7 PRAGMA, Rowid, and Introspection Boundary[\s\S]*1,441 runtime literal-helper invocations[\s\S]*228 direct interpolated SQL operation sites[\s\S]*109 existing bound operation sites/, "parameter-binding audit should record the unchanged boundary proof totals");
   assert.match(changelog, /## Version 0\.33\.5\.27\.7 - [\s\S]*PRAGMA, rowid, and introspection seam boundaries[\s\S]*provider-owned `compileOptions\(\.\.\.\)`[\s\S]*qualified `rowId\(\.\.\.\)`/, "changelog should record the introspection boundary slice");

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";
@@ -76,7 +76,7 @@ try {
   assert.match(auditDocs, /0\.33\.5\.26\.1 Array-Expansion Binding/, "audit docs should record the array-expansion helper");
   assert.match(auditDocs, /0\.33\.5\.26\.2 Bulk VALUES Binding/, "audit docs should record the bulk VALUES helper");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
-  assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should continue to the database extraction contract branch");
+  assert.match(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should advance after the completed database extraction contract branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
   assert.match(changelog, /## Version 0\.33\.5\.23\.2 - [\s\S]*named-to-positional parameter binding layer/, "changelog should retain the binding-layer slice");
   assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/, "regression suite should include binding-layer coverage");

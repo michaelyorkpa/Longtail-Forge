@@ -1,3 +1,11 @@
+## Version 0.33.5.27.33 - 2026-07-06 17:46 -04:00
+
+- Closed the 0.33.5.27 database extraction contract branch with the app on the enforced agnostic database contract: 0 runtime literal-helper invocations, 0 direct helper-interpolated SQL operation sites, and 0 raw seam-backed dialect sites at application call sites.
+- Updated the decision log, database docs, parameter-binding audit, module contract, module development guide, and view/declarative-surface docs so future modules start on `src/core/database.js`, named bound params, static or allowlisted SQL fragments, and the `db.dialect` seams.
+- Reconciled the 0.40.0 database-extraction roadmap section as PostgreSQL adapter, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof work behind the completed seams, not an app-wide SQL rewrite.
+- Added `scripts/database-agnostic-contract-closeout-regression.mjs`, retargeted live-roadmap handoff checks for the completed branch, archived the completed 0.33.5.27 branch body, and advanced the live roadmap cursor to 0.33.5.28.
+- Verification 2026-07-06 17:54 -04:00: `scripts/database-agnostic-contract-closeout-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/dialect-enforcement-guardrail-regression.mjs`, `scripts/interpolation-enforcement-guardrail-regression.mjs`, and `scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs` passed; `npm run check` passed 294/294 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.33 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.32 - 2026-07-06 17:24 -04:00
 
 - Completed the Dialect enforcement guardrail by adding `scripts/dialect-enforcement-guardrail-regression.mjs` to the static/source regression suite.

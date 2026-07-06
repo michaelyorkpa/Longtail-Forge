@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-lifecycle-settings-quota-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-lifecycle-settings-quota-conversion.db");
@@ -134,11 +134,11 @@ function assertStaticContract() {
     /db\.dialect\.conflict\.buildInsertOrIgnore/,
   ]);
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Files lifecycle/settings/quota conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Files lifecycle/settings/quota conversion ratchet");
   assert.match(auditDocs, /\| services\/files\.service \| Converted \| 0 \| 0 \| 32 \| 33 \|/, "audit inventory should mark Files service fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.20 Files Lifecycle, Settings, Quota, and Accounting Conversion[\s\S]*`services\/files\.service` is fully converted[\s\S]*586 runtime literal-helper invocations[\s\S]*123 direct interpolated SQL operation sites[\s\S]*231 existing bound operation sites/, "audit docs should record the Files lifecycle/settings/quota conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.20[\s\S]*`services\/files\.service` is fully converted[\s\S]*586 remaining helper invocations/, "database docs should record the concrete Files lifecycle/settings/quota conversion");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.20 - Conversion wave: Files lifecycle, settings, quota, and accounting[\s\S]*- \[x\] Convert the remaining `services\/files\.service` lifecycle writes[\s\S]*- \[x\] Preserve upload lifecycle[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Files lifecycle/settings/quota conversion slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.20 - Conversion wave: Files lifecycle, settings, quota, and accounting[\s\S]*- \[x\] Convert the remaining `services\/files\.service` lifecycle writes[\s\S]*- \[x\] Preserve upload lifecycle[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.20 - [\s\S]*Files lifecycle, settings, quota, and accounting conversion[\s\S]*586 helper invocations[\s\S]*123 direct interpolated operation sites[\s\S]*231 bound operation sites/, "changelog should record the Files lifecycle/settings/quota conversion burndown");
   assert.match(regressionSuite, /scripts\/files-lifecycle-settings-quota-conversion-regression\.mjs/, "regression suite should include the Files lifecycle/settings/quota conversion proof");
 }

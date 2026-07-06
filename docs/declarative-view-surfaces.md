@@ -6,6 +6,8 @@ Declarative view surfaces are framework-rendered protected surfaces described by
 
 Modules still own business behavior. A module descriptor may name fields, routes, permissions, labels, and behavior IDs, but the module browser script or service still owns data meaning, validation, save payloads, API calls, permission enforcement, and workflow decisions.
 
+As of 0.33.5.27.33, declarative view surfaces are also downstream of the completed agnostic database contract. Descriptors, browser adapters, and behavior handlers may request normalized routes and preserve UI state, but they must not express SQL, raw provider dialect, canonical paging/filtering rules, permission pruning, or cross-module table joins. Those remain server-side route/service/repository concerns built on `src/core/database.js`, named params, and the `db.dialect` seams.
+
 ## Authoring Steps
 
 1. Declare a protected view in `protectedViews`.

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-fts-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-fts-seams.db");
@@ -75,7 +75,7 @@ function assertStaticContract() {
   assert.match(searchServiceSource, /backendNeutralQueryModel: true/, "search service should keep callers on a backend-neutral query model");
   assert.match(searchServiceSource, /adapterSyntax: null/, "permission-safe search request shaping should not emit backend syntax");
   assert.match(regressionSuite, /scripts\/search-fts-seam-regression\.mjs/, "regression suite should include search FTS seam coverage");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.6 - Search\/FTS seam extraction[\s\S]*- \[x\] Move backend search syntax ownership[\s\S]*- \[x\] Keep canonical `search_index` rows[\s\S]*- \[x\] Add focused search regressions/, "roadmap should mark the search FTS seam slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.6 - Search\/FTS seam extraction[\s\S]*- \[x\] Move backend search syntax ownership[\s\S]*- \[x\] Keep canonical `search_index` rows[\s\S]*- \[x\] Add focused search regressions/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.6[\s\S]*SQLite search adapter[\s\S]*`db\.dialect\.search\.match\(\.\.\.\)`[\s\S]*indexed `LIKE` fallback/, "database docs should describe the search FTS seam extraction");
   assert.match(auditDocs, /0\.33\.5\.27\.6 Search\/FTS Seam Extraction[\s\S]*`core\/search\/adapters\/sqlite-search-adapter`[\s\S]*1,441 runtime literal-helper invocations[\s\S]*228 direct interpolated SQL operation sites/, "audit docs should record the search adapter conversion");
   assert.match(changelog, /## Version 0\.33\.5\.27\.6 - [\s\S]*Search\/FTS seam extraction[\s\S]*canonical `search_index`[\s\S]*indexed LIKE fallback/, "changelog should record the search FTS seam slice");

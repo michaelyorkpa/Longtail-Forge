@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -66,8 +66,8 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /^## Version 0\.33\.5\.27 - Database extraction contract/m,
-  "0.33.5.27 should be the active branch after parameter-binding gap review closeout",
+  /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m,
+  "live roadmap should advance after database extraction contract closeout",
 );
 assert.match(
   roadmap,

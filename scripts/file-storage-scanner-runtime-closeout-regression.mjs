@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -61,8 +61,8 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /## Version 0\.33\.5\.27 - Database extraction contract/,
-  "roadmap should hand off to the active database extraction contract branch",
+  /## Version 0\.33\.5\.28 - Parameter-binding gap closeout/,
+  "roadmap should hand off after the completed database extraction contract branch",
 );
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage/scanner closeout");

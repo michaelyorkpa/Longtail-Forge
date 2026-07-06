@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-record-item-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-record-item-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -76,7 +76,7 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.16[\s\S]*`lists\/lists\.repo`[\s\S]*record and item paths[\s\S]*72 helper invocations remain[\s\S]*798 remaining helper invocations/, "database docs should record the Lists records/items conversion");
   assert.match(listsDocs, new RegExp(`current Lists implementation as of ${escapeRegExp(appVersion)}`), "Lists docs should report the current implementation version");
   assert.match(listsDocs, /As of 0\.33\.5\.27\.16[\s\S]*list record and list item persistence paths use named params[\s\S]*[Cc]atalog and linked-record paths remain assigned to 0\.33\.5\.27\.17/, "Lists docs should document the converted records/items boundary");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.16 - Conversion wave: Lists records and items[\s\S]*- \[x\] Convert list record and list item read\/write paths[\s\S]*- \[x\] Preserve list execution[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Lists records/items conversion slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.16 - Conversion wave: Lists records and items[\s\S]*- \[x\] Convert list record and list item read\/write paths[\s\S]*- \[x\] Preserve list execution[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.16 - [\s\S]*Lists records and items repository conversion[\s\S]*798 helper invocations[\s\S]*159 direct interpolated operation sites[\s\S]*191 bound operation sites/, "changelog should record the Lists records/items conversion burndown");
   assert.match(regressionSuite, /scripts\/lists-records-items-repository-conversion-regression\.mjs/, "regression suite should include the Lists records/items conversion proof");
 }

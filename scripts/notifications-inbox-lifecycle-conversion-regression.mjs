@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notifications-inbox-lifecycle-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notifications-inbox-lifecycle-conversion.db");
@@ -100,7 +100,7 @@ function assertStaticContract() {
 
   assert.match(auditDocs, /0\.33\.5\.27\.21 Notifications Inbox and Lifecycle Conversion[\s\S]*create, list\/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths[\s\S]*536 runtime literal-helper invocations[\s\S]*111 direct interpolated SQL operation sites[\s\S]*246 existing bound operation sites/, "audit docs should record the Notifications inbox/lifecycle conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.21[\s\S]*Notifications inbox and lifecycle paths in `notifications\.repo` are partially converted[\s\S]*536 remaining helper invocations/, "database docs should record the concrete Notifications inbox/lifecycle conversion");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.21 - Conversion wave: Notifications inbox and lifecycle[\s\S]*- \[x\] Convert notification create[\s\S]*- \[x\] Preserve in-app notification display[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Notifications inbox/lifecycle conversion slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.21 - Conversion wave: Notifications inbox and lifecycle[\s\S]*- \[x\] Convert notification create[\s\S]*- \[x\] Preserve in-app notification display[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.21 - [\s\S]*Notifications inbox and lifecycle conversion[\s\S]*536 helper invocations[\s\S]*111 direct interpolated operation sites[\s\S]*246 bound operation sites/, "changelog should record the Notifications inbox/lifecycle conversion burndown");
   assert.match(regressionSuite, /scripts\/notifications-inbox-lifecycle-conversion-regression\.mjs/, "regression suite should include the Notifications inbox/lifecycle conversion proof");
 }

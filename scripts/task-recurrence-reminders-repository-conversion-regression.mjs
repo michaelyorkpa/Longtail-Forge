@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-reminders-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-reminders-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -62,7 +62,7 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.11 Task Recurrence and Reminders Repository Conversion[\s\S]*`tasks\/task-recurrence\.repo`[\s\S]*`tasks\/task-reminders\.repo`[\s\S]*1,218 runtime literal-helper invocations[\s\S]*197 direct interpolated SQL operation sites[\s\S]*144 existing bound operation sites/, "audit docs should record the Task recurrence/reminders repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.11[\s\S]*`tasks\/task-recurrence\.repo`[\s\S]*`tasks\/task-reminders\.repo`[\s\S]*1,218 remaining helper invocations/, "database docs should record the Task recurrence/reminders repository conversion");
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.11[\s\S]*task recurrence and reminder repositories use named bound params[\s\S]*[Tt]emplate assignee replacement[\s\S]*reminder offset replacement/, "Tasks docs should describe the converted recurrence/reminder persistence boundary");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.11 - Conversion wave: Task recurrence and reminders[\s\S]*- \[x\] Convert `tasks\/task-recurrence\.repo` and `tasks\/task-reminders\.repo`[\s\S]*- \[x\] Preserve recurrence template reads\/writes[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Task recurrence/reminders repository slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.11 - Conversion wave: Task recurrence and reminders[\s\S]*- \[x\] Convert `tasks\/task-recurrence\.repo` and `tasks\/task-reminders\.repo`[\s\S]*- \[x\] Preserve recurrence template reads\/writes[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.11 - [\s\S]*Task recurrence and reminders repository conversion[\s\S]*1,218 helper invocations[\s\S]*197 direct interpolated operation sites[\s\S]*144 bound operation sites/, "changelog should record the Task recurrence/reminders conversion burndown");
   assert.match(regressionSuite, /scripts\/task-recurrence-reminders-repository-conversion-regression\.mjs/, "regression suite should include the Task recurrence/reminders repository conversion proof");
 }

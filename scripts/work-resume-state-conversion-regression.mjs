@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-conversion.db");
@@ -71,12 +71,12 @@ function assertStaticContract() {
   assert.doesNotMatch(initialProducersSource, /\b(?:querySql|getSql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "initial producers should be fully off literal helpers");
   assert.equal(countMatches(initialProducersSource, /\bdb\.get\(/g), 2, "initial producers should keep active timer and safe note lifecycle reads as bound db.get calls");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Work resume state conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Work resume state conversion ratchet");
   assert.match(auditDocs, /\| services\/work-resume-state\.service \| Converted \| 0 \| 0 \| 7 \| 7 \|/, "audit inventory should mark the work resume state service converted");
   assert.match(auditDocs, /\| services\/work-resume-state-initial-producers \| Converted \| 0 \| 0 \| 2 \| 2 \|/, "audit inventory should mark the initial producers converted");
   assert.match(auditDocs, /0\.33\.5\.27\.26 Work Resume State Conversion[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are fully converted[\s\S]*304 runtime literal-helper invocations[\s\S]*57 direct interpolated SQL operation sites[\s\S]*302 existing bound operation sites/, "audit docs should record the Work resume state conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.26[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are converted[\s\S]*304 remaining helper invocations/, "database docs should record the concrete Work resume state conversion");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.26 - Conversion wave: Work resume state[\s\S]*- \[x\] Convert `services\/work-resume-state\.service`[\s\S]*- \[x\] Preserve resume state upsert[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Work resume state conversion slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.26 - Conversion wave: Work resume state[\s\S]*- \[x\] Convert `services\/work-resume-state\.service`[\s\S]*- \[x\] Preserve resume state upsert[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.26 - [\s\S]*Work resume state conversion[\s\S]*304 helper invocations[\s\S]*57 direct interpolated operation sites[\s\S]*302 bound operation sites/, "changelog should record the Work resume state conversion burndown");
   assert.match(regressionSuite, /scripts\/work-resume-state-conversion-regression\.mjs/, "regression suite should include the Work resume state conversion proof");
 }

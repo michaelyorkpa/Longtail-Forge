@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-record-filter-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-record-filter-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -81,7 +81,7 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.14[\s\S]*`notes\/notes\.repo`[\s\S]*record list\/read\/filter paths[\s\S]*named params/, "database docs should record the Notes records/filter conversion");
   assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegex(appVersion)}`), "Notes docs should report the current implementation version");
   assert.match(notesDocs, /As of 0\.33\.5\.27\.14[\s\S]*record list\/read\/filter SQL[\s\S]*named params[\s\S]*dialect comparison seams/, "Notes docs should document the converted Notes read/filter repository boundary");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.14 - Conversion wave: Notes records and filters[\s\S]*- \[x\] Convert the note record list\/read\/filter paths[\s\S]*- \[x\] Preserve secure\/private placeholders[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Notes records/filter slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.14 - Conversion wave: Notes records and filters[\s\S]*- \[x\] Convert the note record list\/read\/filter paths[\s\S]*- \[x\] Preserve secure\/private placeholders[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.14 - [\s\S]*Notes records and filters repository conversion[\s\S]*helper invocations[\s\S]*direct interpolated operation sites[\s\S]*bound operation sites/, "changelog should record the Notes records/filter conversion burndown");
   assert.match(regressionSuite, /scripts\/notes-records-filters-repository-conversion-regression\.mjs/, "regression suite should include the Notes records/filter conversion proof");
 }

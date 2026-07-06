@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-relationships-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-relationships-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -58,7 +58,7 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.10 Task Relationships Repository Conversion[\s\S]*`tasks\/task-relationships\.repo`[\s\S]*1,285 runtime literal-helper invocations[\s\S]*204 direct interpolated SQL operation sites[\s\S]*134 existing bound operation sites/, "audit docs should record the Task relationships repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.10[\s\S]*`tasks\/task-relationships\.repo`[\s\S]*named params[\s\S]*1,285 remaining helper invocations/, "database docs should record the Task relationships repository conversion");
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.10[\s\S]*task relationships repository uses named bound params[\s\S]*array-valued task-id params[\s\S]*boolean seam/, "Tasks docs should describe the converted relationship persistence boundary");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.10 - Conversion wave: Task relationships repository[\s\S]*- \[x\] Convert `tasks\/task-relationships\.repo`[\s\S]*- \[x\] Preserve parent\/child reads[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Task relationships repository slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.10 - Conversion wave: Task relationships repository[\s\S]*- \[x\] Convert `tasks\/task-relationships\.repo`[\s\S]*- \[x\] Preserve parent\/child reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.10 - [\s\S]*Task relationships repository conversion[\s\S]*1,285 helper invocations[\s\S]*204 direct interpolated operation sites[\s\S]*134 bound operation sites/, "changelog should record the Task relationships conversion burndown");
   assert.match(regressionSuite, /scripts\/task-relationships-repository-conversion-regression\.mjs/, "regression suite should include the Task relationships repository conversion proof");
 }

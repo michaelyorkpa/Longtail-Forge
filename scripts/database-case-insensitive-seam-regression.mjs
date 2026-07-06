@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-case-insensitive-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -65,7 +65,7 @@ function assertStaticContract() {
   assert.doesNotMatch(proofPath, /LIMIT \$\{sqlInteger\(limit\)\}/, "converted proof path should bind the limit value");
   assert.doesNotMatch(filesServiceSource, /function sqlLikePattern/, "Files service should not keep a second local LIKE escaping helper for the proof path");
 
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.4 - Case-insensitive comparison and ordering seams[\s\S]*- \[x\] Implement provider-neutral helpers[\s\S]*- \[x\] Convert one proof read\/filter path[\s\S]*- \[x\] Add focused regressions/, "roadmap should mark the case-insensitive seam slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.4 - Case-insensitive comparison and ordering seams[\s\S]*- \[x\] Implement provider-neutral helpers[\s\S]*- \[x\] Convert one proof read\/filter path[\s\S]*- \[x\] Add focused regressions/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.4[\s\S]*case-insensitive[\s\S]*`db\.dialect\.comparison\.containsNoCase\(\.\.\.\)`[\s\S]*LIKE pattern/, "database docs should describe the case-insensitive comparison seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.4 Case-Insensitive Comparison and Ordering Seams[\s\S]*`services\/files\.service` attachable-target option read/, "audit docs should record the converted proof path");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(caseInsensitiveSliceVersion)} - [\\s\\S]*case-insensitive comparison and ordering seams[\\s\\S]*Files attachable-target option`), "changelog should record the case-insensitive seam slice");

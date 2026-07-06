@@ -44,6 +44,8 @@ The framework owns view anatomy, surface classes, responsive behavior, dark-mode
 
 Modules own data loading, state decisions, validation, API calls, save payloads, route permissions, record labels, module-specific fields, and workflow behavior. Modules may pass labels, actions, form fields, table columns, rows, badges, and callbacks into framework helpers, but helpers must not learn module storage rules or mutate module-owned records directly.
 
+As of 0.33.5.27.33, view helpers and descriptors also must not learn database provider behavior. They can call protected routes and render route payloads, but canonical filtering, sorting, paging, permission pruning, database reads/writes, and dialect-sensitive SQL stay in server-side services and repositories that consume `src/core/database.js`, named params, and `db.dialect` seams.
+
 Converted surfaces should keep legacy classes as compatibility aliases during the pilot when that avoids unrelated style or test breakage. New converted structures should use framework helper output and framework surface classes as the primary layout source. Do not add new one-off classes for framework-owned anatomy.
 
 ## Converted Modal Action Standard

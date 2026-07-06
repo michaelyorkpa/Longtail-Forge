@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-quota-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -66,7 +66,7 @@ async function assertStaticContracts() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the quota enforcement version");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the quota enforcement slice");
   assert.match(changelog, /Version 0\.33\.5\.25\.2[\s\S]*Activated workspace and per-user Files storage quota enforcement/, "changelog should preserve the shipped quota enforcement history");
-  assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should hand off after the completed storage cleanup and parameter-binding gap review branches");
+  assert.match(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, and database extraction contract branches");
   assert.match(moduleContract, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module contract should describe service-owned quota enforcement");
   assert.match(moduleDevelopment, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module development docs should describe service-owned quota enforcement");
   assert.match(runtimeDocs, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "runtime docs should describe active quota enforcement");

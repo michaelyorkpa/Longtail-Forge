@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-checklists-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-checklists-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -58,7 +58,7 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| tasks\/task-checklists\.repo \| Converted \| 0 \| 0 \| 8 \| 8 \|/, "audit inventory should mark tasks/task-checklists.repo converted");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.9[\s\S]*`tasks\/task-checklists\.repo`[\s\S]*1,331 remaining helper invocations/, "database docs should record the Task checklist repository conversion");
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.9[\s\S]*task checklist repository uses named bound params[\s\S]*`db\.transaction\(callback\)`[\s\S]*boolean seam/, "Tasks docs should describe the converted checklist persistence boundary");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.9 - Conversion wave: Task checklist repository[\s\S]*- \[x\] Convert `tasks\/task-checklists\.repo`[\s\S]*- \[x\] Preserve checklist read\/progress[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Task checklist repository slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.9 - Conversion wave: Task checklist repository[\s\S]*- \[x\] Convert `tasks\/task-checklists\.repo`[\s\S]*- \[x\] Preserve checklist read\/progress[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.9 - [\s\S]*Task checklist repository conversion[\s\S]*1,331 helper invocations[\s\S]*215 direct interpolated operation sites[\s\S]*123 bound operation sites/, "changelog should record the Task checklist conversion burndown");
   assert.match(regressionSuite, /scripts\/task-checklists-repository-conversion-regression\.mjs/, "regression suite should include the Task checklist repository conversion proof");
 }

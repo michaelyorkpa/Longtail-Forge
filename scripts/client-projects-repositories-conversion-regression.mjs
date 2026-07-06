@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-client-projects-repositories-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-client-projects-repositories-conversion.db");
@@ -73,12 +73,12 @@ function assertStaticContract() {
   assert.match(projectsRepoSource, /db\.dialect\.comparison\.equalsNoCase\("trim\(projects\.name\)", "trim\(:projectName\)"\)/, "Project duplicate-name reads should preserve trim plus case-insensitive comparison behind the dialect seam");
   assert.match(projectsRepoSource, /task_default_sort_order_json = :taskDefaultSortOrderJson/, "Project writes should preserve task-default sort-order storage as a named param");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Clients/Projects repositories conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Clients/Projects repositories conversion ratchet");
   assert.match(auditDocs, /\| client-projects\/clients\.repo \| Converted \| 0 \| 0 \| 9 \| 9 \|/, "audit inventory should mark clients repo converted");
   assert.match(auditDocs, /\| client-projects\/projects\.repo \| Converted \| 0 \| 0 \| 8 \| 8 \|/, "audit inventory should mark projects repo converted");
   assert.match(auditDocs, /0\.33\.5\.27\.27 Clients and Projects Repository Conversion[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are fully converted[\s\S]*195 runtime literal-helper invocations[\s\S]*45 direct interpolated SQL operation sites[\s\S]*319 existing bound operation sites/, "audit docs should record the Clients/Projects repositories conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.27[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are converted[\s\S]*195 remaining helper invocations/, "database docs should record the concrete Clients/Projects repositories conversion");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.27 - Conversion wave: Clients and Projects repositories[\s\S]*- \[x\] Convert `client-projects\/clients\.repo`[\s\S]*- \[x\] Preserve hierarchy-aware reads[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Clients/Projects repositories conversion slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.27 - Conversion wave: Clients and Projects repositories[\s\S]*- \[x\] Convert `client-projects\/clients\.repo`[\s\S]*- \[x\] Preserve hierarchy-aware reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.27 - [\s\S]*Clients and Projects repositories conversion[\s\S]*195 helper invocations[\s\S]*45 direct interpolated operation sites[\s\S]*319 bound operation sites/, "changelog should record the Clients/Projects repositories conversion burndown");
   assert.match(regressionSuite, /scripts\/client-projects-repositories-conversion-regression\.mjs/, "regression suite should include the Clients/Projects repositories conversion proof");
 }

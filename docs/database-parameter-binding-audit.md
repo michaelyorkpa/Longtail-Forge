@@ -12,7 +12,7 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.32:
+Current totals as of 0.33.5.27.33:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.
@@ -30,7 +30,7 @@ The operation-site number is intentionally smaller than the helper-invocation co
 
 ## Dialect Adoption Guardrail
 
-Current totals as of 0.33.5.27.32:
+Current totals as of 0.33.5.27.33:
 
 - Remaining raw seam-backed dialect sites at application call sites: 0.
 - Whole runtime source sweep: `src/**/*.js` and `src/**/*.mjs`.
@@ -47,8 +47,8 @@ The inventory below is the canonical per-owner view and should be updated in pla
 Status legend:
 
 - `Remaining`: still has literal-helper invocations and direct interpolated operation sites to convert, even if some bound sites already exist.
-- `Startup compatibility`: startup-only maintenance code has zero literal-helper/direct-interpolation sites, but still contains sanctioned no-value startup maintenance SQL until the enforcement slices record the final dialect allowlist.
-- `Migration compatibility`: migration-only schema, repair, and SQL-file execution code has zero literal-helper/direct-interpolation sites, but still contains sanctioned no-value schema scripts until the enforcement slices record the final dialect allowlist.
+- `Startup compatibility`: startup-only maintenance code has zero literal-helper/direct-interpolation sites, but still contains sanctioned no-value startup maintenance SQL under the final 0.33.5.27 dialect allowlist.
+- `Migration compatibility`: migration-only schema, repair, and SQL-file execution code has zero literal-helper/direct-interpolation sites, but still contains sanctioned no-value schema scripts under the final 0.33.5.27 dialect allowlist.
 - `Converted`: this branch converted or proof-converted the owner to zero literal-helper/direct-interpolation sites.
 - `Already bound`: the owner already had zero literal-helper/direct-interpolation sites in the initial audit and is tracked here for completeness.
 
@@ -141,8 +141,9 @@ Standing query rule from `DECISIONS.md`: new or touched single-statement reposit
 | 0.33.5.27.30 - Migration compatibility path | `db/migrations` |
 | 0.33.5.27.31 - Interpolation enforcement guardrail | Whole runtime source guardrail |
 | 0.33.5.27.32 - Dialect enforcement guardrail | Whole runtime dialect sweep and converted-owner re-audit |
+| 0.33.5.27.33 - Docs, decisions, 0.40.0 reconciliation, and closeout | Branch closeout, docs, and roadmap archive handoff |
 
-No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution under the dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths. As of 0.33.5.27.31, new runtime source cannot add literal-helper calls or helper-interpolated database operations. As of 0.33.5.27.32, new runtime source cannot add raw seam-backed SQLite dialect at application call sites.
+No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution under the final 0.33.5.27 dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths. As of 0.33.5.27.31, new runtime source cannot add literal-helper calls or helper-interpolated database operations. As of 0.33.5.27.32, new runtime source cannot add raw seam-backed SQLite dialect at application call sites. As of 0.33.5.27.33, the branch is closed and 0.40.0 inherits implementation/proof work behind the established seams instead of another app-wide SQL rewrite.
 
 ## Scope Rechecks
 
@@ -158,7 +159,7 @@ Corrected audit finding:
 Out of scope for the original 0.33.5.23 parameter-binding slice:
 
 - Runtime call-site rewrites outside the completed auth/workspace/permission conversion wave.
-- Dialect portability implementation. 0.33.5.27.1 now records the seam decisions, 0.33.5.27.2 through 0.33.5.27.7 implement the SQLite-backed seams, and 0.40.0 remains the live PostgreSQL adapter/proof branch.
+- Dialect portability implementation. 0.33.5.27.1 records the seam decisions, 0.33.5.27.2 through 0.33.5.27.7 implement the SQLite-backed seams, 0.33.5.27.31 through 0.33.5.27.32 enforce the interpolation and dialect ratchets, and 0.40.0 remains the live PostgreSQL adapter/proof branch behind those seams.
 - Regression fixture SQL under `scripts/`.
 
 ## Conversion Plan
@@ -525,7 +526,7 @@ The live ratchet after this conversion is 117 runtime literal-helper invocations
 
 0.33.5.27.29 converts value-bearing `src/db/index.js` startup maintenance SQL from literal-helper interpolation to named params through the provider-neutral database facade. Startup maintenance now binds worker schema readiness checks, framework module upserts, duplicate-user repair values, redacted seed-user repair values and audit rows, default workspace/workspace-settings bootstrap writes, super-admin bootstrap writes, workspace membership repair inserts, workspace owner/type repairs, personal-workspace membership repairs, protected-role repairs, and active-workspace repair writes.
 
-Dialect-sensitive startup behavior is accounted for without changing SQLite behavior: framework module upserts use the conflict update seam, startup membership and protected-role insert-if-missing paths use the conflict insert-or-ignore seam, workspace setting booleans use `db.dialect.boolean`, physical identity comparisons use `db.dialect.identity.rowId(...)`, and column metadata checks use `db.dialect.introspection.tableInfo(...)`. Static no-value startup maintenance SQL, including index creation and other repair statements that do not bind runtime values, remains sanctioned startup-only compatibility until the enforcement slices record the final dialect allowlist.
+Dialect-sensitive startup behavior is accounted for without changing SQLite behavior: framework module upserts use the conflict update seam, startup membership and protected-role insert-if-missing paths use the conflict insert-or-ignore seam, workspace setting booleans use `db.dialect.boolean`, physical identity comparisons use `db.dialect.identity.rowId(...)`, and column metadata checks use `db.dialect.introspection.tableInfo(...)`. Static no-value startup maintenance SQL, including index creation and other repair statements that do not bind runtime values, remains sanctioned startup-only compatibility under the final 0.33.5.27 dialect allowlist.
 
 `src/db/index.js` no longer has literal-helper calls or direct interpolated operation sites in the canonical inventory. It remains visible as `Startup compatibility` with 31 bound operation sites and 40 runtime database operation calls so future enforcement work can distinguish converted startup values from sanctioned startup-only maintenance.
 
@@ -556,3 +557,11 @@ The enforcement regression also includes synthetic rejection proofs for a reintr
 The whole-tree re-audit found converted parameter-binding owners that still emitted raw conflict syntax. `permissions.repo` now routes duplicate-tolerant permission and role-permission inserts through `db.dialect.conflict`, `app-settings.repo` routes default-setting insert-if-missing through the conflict do-nothing seam, and `workspaces.repo` / `user-workspaces.repo` route workspace membership upserts through the conflict update seam. The durable-job returned-row paths remain converted through `transaction.dialect.returning.columns(...)`, so no raw `RETURNING` remains outside provider-owned code.
 
 Remaining raw seam-backed dialect sites at application call sites: 0. The parameter-binding ratchet remains 0 runtime literal-helper invocations, 0 direct interpolated operation sites, 385 existing bound operation sites, and 429 total runtime database operation calls.
+
+## 0.33.5.27.33 Docs, Decisions, 0.40.0 Reconciliation, and Closeout
+
+0.33.5.27.33 closes the database extraction contract branch. The finished contract is now captured in the decision log, database docs, module contract docs, and view contract docs: runtime database access starts from `src/core/database.js`, values use named bound params, identifiers and SQL fragments stay static or allowlisted, and provider-sensitive behavior goes through `db.dialect` or provider-owned framework services.
+
+The enforced closeout targets are unchanged from the guardrail slices and remain the branch's steady state: 0 runtime literal-helper invocations, 0 direct helper-interpolated SQL operation sites, 0 raw seam-backed dialect sites at application call sites, 385 existing bound operation sites, and 429 total runtime database operation calls. Startup and migration compatibility are final no-value schema/startup-script boundaries, not permission to add value interpolation.
+
+The 0.40.0 database-extraction section now starts from this completed branch. It owns the actual PostgreSQL adapter behind the established seams, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof. It should begin with a drift recheck and produce provider implementation gaps only, not reopen an app-wide SQL rewrite.

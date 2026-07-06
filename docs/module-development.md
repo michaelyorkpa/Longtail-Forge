@@ -127,6 +127,14 @@ Do not use this contract for settings or setting modals. Those stay in their set
 
 The current registry is browser-side. Future manifest metadata may describe action labels, record types, permissions, modules, and workspace capabilities declaratively, but opener functions should remain module-owned browser code rather than framework imports of module form internals.
 
+## Database Access
+
+As of 0.33.5.27.33, module database code starts from the completed agnostic contract. Import database access from `src/core/database.js`, bind values with named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, and keep table names, column names, conflict targets, operators, sort clauses, and SQL fragments static or explicitly allowlisted.
+
+Do not call `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` from new module runtime code. Do not hardcode raw SQLite dialect at application call sites when a `db.dialect` seam owns the operation. Conflict writes, case-insensitive comparison/order, booleans, timestamp math, search/FTS, JSON access, returned rows/identity, physical identity, and PRAGMA/introspection should go through `db.dialect` or provider-owned framework services.
+
+Browser scripts, view descriptors, and module adapters must not become database access layers. Keep canonical filtering, paging, permission pruning, readable-label shaping, and persistence in server-side routes, services, and repositories.
+
 ## Migrations
 
 Set `migrationsDir` only when the module owns database migrations. Keep example modules migration-free unless the example specifically needs schema behavior. Core migrations still run before module migrations.

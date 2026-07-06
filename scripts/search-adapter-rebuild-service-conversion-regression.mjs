@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-adapter-rebuild-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-adapter-rebuild-conversion.db");
@@ -74,13 +74,13 @@ function assertStaticContract() {
   assert.match(searchServiceSource, /backendNeutralQueryModel: true/, "search service should keep callers on backend-neutral request models");
   assert.match(searchServiceSource, /adapterSyntax: null/, "permission-safe search request shaping should not emit backend syntax");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Search adapter/rebuild service conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the Search adapter/rebuild service conversion ratchet");
   assert.match(auditDocs, /\| services\/search-index-rebuild\.service \| Converted \| 0 \| 0 \| 2 \| 2 \|/, "audit inventory should mark the search rebuild service converted");
   assert.match(auditDocs, /\| core\/search\/adapters\/sqlite-search-adapter \| Converted \| 0 \| 0 \| 13 \| 17 \|/, "audit inventory should keep the SQLite search adapter converted");
   assert.match(auditDocs, /\| core\/search\/tag-text \| Converted \| 0 \| 0 \| 1 \| 1 \|/, "audit inventory should keep search tag-text converted");
   assert.match(auditDocs, /0\.33\.5\.27\.25 Search Adapter and Rebuild Service Conversion[\s\S]*`services\/search-index-rebuild\.service` is converted[\s\S]*362 runtime literal-helper invocations[\s\S]*66 direct interpolated SQL operation sites[\s\S]*293 existing bound operation sites/, "audit docs should record the Search adapter/rebuild service conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.25[\s\S]*`services\/search-index-rebuild\.service` is converted[\s\S]*362 remaining helper invocations/, "database docs should record the concrete Search adapter/rebuild service conversion");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.25 - Conversion wave: Search adapter and rebuild service[\s\S]*- \[x\] Convert `core\/search\/adapters\/sqlite-search-adapter`[\s\S]*- \[x\] Keep FTS5 maintenance[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Search adapter/rebuild service conversion slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.25 - Conversion wave: Search adapter and rebuild service[\s\S]*- \[x\] Convert `core\/search\/adapters\/sqlite-search-adapter`[\s\S]*- \[x\] Keep FTS5 maintenance[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.25 - [\s\S]*Search adapter and rebuild service conversion[\s\S]*362 helper invocations[\s\S]*66 direct interpolated operation sites[\s\S]*293 bound operation sites/, "changelog should record the Search adapter/rebuild service conversion burndown");
   assert.match(regressionSuite, /scripts\/search-adapter-rebuild-service-conversion-regression\.mjs/, "regression suite should include the Search adapter/rebuild service conversion proof");
 }

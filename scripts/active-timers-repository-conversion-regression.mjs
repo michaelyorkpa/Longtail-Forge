@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.32";
+const appVersion = "0.33.5.27.33";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-active-timers-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-active-timers-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -50,12 +50,12 @@ function assertStaticContract() {
   assert.match(activeTimersRepoSource, /db\.dialect\.time\.elapsedSecondsSince\("last_active_start_time", ":updatedAt"\)/, "Active timer pause updates should keep elapsed-time math behind the time seam");
   assert.match(activeTimersRepoSource, /sourceModuleSql = source\.sourceModuleId[\s\S]*source_module_id IS NULL/, "Manual timer reads should preserve source-module NULL filtering");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
   assert.match(auditDocs, /\| time-tracking\/active-timers\.repo \| Converted \| 0 \| 0 \| 12 \| 12 \|/, "audit inventory should mark time-tracking/active-timers.repo converted");
   assert.match(auditDocs, /0\.33\.5\.27\.12 Active Timers Repository Conversion[\s\S]*`time-tracking\/active-timers\.repo`[\s\S]*1,165 runtime literal-helper invocations[\s\S]*187 direct interpolated SQL operation sites[\s\S]*154 existing bound operation sites/, "audit docs should record the Active timers repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.12[\s\S]*`time-tracking\/active-timers\.repo`[\s\S]*named params[\s\S]*conflict seam[\s\S]*1,165 remaining helper invocations/, "database docs should record the Active timers repository conversion");
   assert.match(timeTrackingDocs, /As of version 0\.33\.5\.27\.12[\s\S]*active timer repository uses named bound params[\s\S]*conflict seam[\s\S]*slot compaction/, "Time Tracking docs should describe the converted active timer persistence boundary");
-  assert.match(roadmap, /### Version 0\.33\.5\.27\.12 - Conversion wave: Active timers[\s\S]*- \[x\] Convert `time-tracking\/active-timers\.repo`[\s\S]*- \[x\] Preserve active timer reads[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the Active timers repository slice complete");
+  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.12 - Conversion wave: Active timers[\s\S]*- \[x\] Convert `time-tracking\/active-timers\.repo`[\s\S]*- \[x\] Preserve active timer reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.12 - [\s\S]*Active timers repository conversion[\s\S]*1,165 helper invocations[\s\S]*187 direct interpolated operation sites[\s\S]*154 bound operation sites/, "changelog should record the Active timers conversion burndown");
   assert.match(regressionSuite, /scripts\/active-timers-repository-conversion-regression\.mjs/, "regression suite should include the Active timers repository conversion proof");
 }
