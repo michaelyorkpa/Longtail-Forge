@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.5.27.31. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.27.32. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 

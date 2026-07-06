@@ -6,6 +6,20 @@ import { normalizeWorkspaceType } from "../utils/workspaces.js";
 
 const USERS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "users" });
 const USER_ROWS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "user_rows" });
+const USER_WORKSPACE_REACTIVATE_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
+  columns: ["user_workspace_id", "user_id", "workspace_id", "status", "created_at", "updated_at"],
+  conflictColumns: ["user_id", "workspace_id"],
+  tableName: "user_workspaces",
+  updateColumns: ["status", "updated_at"],
+  valueExpressions: {
+    created_at: ":createdAt",
+    status: "'active'",
+    updated_at: ":updatedAt",
+    user_id: ":userId",
+    user_workspace_id: ":membershipId",
+    workspace_id: ":workspaceId",
+  },
+});
 
 async function readForUser(userId) {
   return db.query(`
@@ -187,27 +201,7 @@ VALUES (
       workspaceId,
     });
 
-    await transaction.run(`
-INSERT INTO user_workspaces (
-  user_workspace_id,
-  user_id,
-  workspace_id,
-  status,
-  created_at,
-  updated_at
-)
-VALUES (
-  :membershipId,
-  :userId,
-  :workspaceId,
-  'active',
-  :createdAt,
-  :updatedAt
-)
-ON CONFLICT(user_id, workspace_id) DO UPDATE SET
-  status = 'active',
-  updated_at = excluded.updated_at;
-`, {
+    await transaction.run(`${USER_WORKSPACE_REACTIVATE_SQL};`, {
       createdAt: now,
       membershipId,
       updatedAt: now,

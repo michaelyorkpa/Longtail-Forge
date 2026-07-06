@@ -1,3 +1,12 @@
+## Version 0.33.5.27.32 - 2026-07-06 17:24 -04:00
+
+- Completed the Dialect enforcement guardrail by adding `scripts/dialect-enforcement-guardrail-regression.mjs` to the static/source regression suite.
+- Added a whole-tree runtime source sweep that rejects raw seam-backed SQLite dialect outside provider-owned or sanctioned compatibility paths, including conflict syntax, case-insensitive collation, timestamp math, raw FTS5, SQLite JSON, PRAGMAs, raw `rowid`, and raw `RETURNING`.
+- Converted the remaining application raw conflict call sites: `permissions.repo` now uses the conflict insert-or-ignore seam, `app-settings.repo` uses the do-nothing seam, and `workspaces.repo` / `user-workspaces.repo` use the conflict update seam.
+- Confirmed durable job returned-row reads stay on `transaction.dialect.returning.columns(...)` with no raw `RETURNING` job exception.
+- Updated the audit with a distinct dialect-adoption axis. Remaining raw seam-backed dialect sites at application call sites: 0. The parameter-binding ratchet remains 0 helper invocations, 0 direct interpolated operation sites, 385 bound operation sites, and 429 runtime DB operation calls.
+- Verification 2026-07-06 17:29 -04:00: `scripts/dialect-enforcement-guardrail-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/interpolation-enforcement-guardrail-regression.mjs`, `scripts/database-conflict-identity-seam-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, `scripts/startup-maintenance-compatibility-regression.mjs`, and `scripts/migration-compatibility-regression.mjs` passed; `npm run check` passed 293/293 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.32 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.31 - 2026-07-06 17:03 -04:00
 
 - Completed the Interpolation enforcement guardrail by adding `scripts/interpolation-enforcement-guardrail-regression.mjs` to the static/source regression suite.

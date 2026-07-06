@@ -5,6 +5,17 @@ const DEFAULT_APP_SETTINGS = {
   workspace_install_mode: "self_hosted",
   workspace_type_limit: "",
 };
+const DEFAULT_APP_SETTING_INSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoNothing({
+  columns: ["setting_key", "setting_value", "created_at", "updated_at"],
+  conflictColumns: ["setting_key"],
+  tableName: "app_settings",
+  valueExpressions: {
+    created_at: ":createdAt",
+    setting_key: ":key",
+    setting_value: ":value",
+    updated_at: ":updatedAt",
+  },
+});
 
 async function readAll() {
   const rows = await db.query(`
@@ -26,11 +37,7 @@ async function ensureDefaults() {
 
   await db.transaction(async (transaction) => {
     for (const [key, value] of Object.entries(DEFAULT_APP_SETTINGS)) {
-      await transaction.run(`
-INSERT INTO app_settings (setting_key, setting_value, created_at, updated_at)
-VALUES (:key, :value, :createdAt, :updatedAt)
-ON CONFLICT(setting_key) DO NOTHING;
-`, {
+      await transaction.run(`${DEFAULT_APP_SETTING_INSERT_SQL};`, {
         createdAt: now,
         key,
         updatedAt: now,

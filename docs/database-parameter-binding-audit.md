@@ -12,7 +12,7 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.31:
+Current totals as of 0.33.5.27.32:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.
@@ -27,6 +27,18 @@ Original 0.33.5.23.1 baseline totals:
 - Total runtime database operation calls seen by the audit scanner: 399.
 
 The operation-site number is intentionally smaller than the helper-invocation count because one SQL statement can interpolate many values.
+
+## Dialect Adoption Guardrail
+
+Current totals as of 0.33.5.27.32:
+
+- Remaining raw seam-backed dialect sites at application call sites: 0.
+- Whole runtime source sweep: `src/**/*.js` and `src/**/*.mjs`.
+- Provider/startup/migration/search-adapter allowlist: SQLite dialect seam definitions, SQLite provider health, startup/migration compatibility paths, and the SQLite search adapter.
+
+This is a distinct axis from the parameter-binding counts above. A repository can be `Converted` or `Already bound` for value binding while still hardcoding raw SQLite dialect. The dialect guardrail therefore scans the whole tree for seam-backed dialect tokens such as `INSERT OR IGNORE`, raw `ON CONFLICT`/`excluded`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5 `MATCH`/`bm25(...)`/`USING fts5`, SQLite JSON operators/functions, `PRAGMA`, raw lowercase `rowid`, and raw `RETURNING` outside the sanctioned allowlist.
+
+0.33.5.27.32 re-audited every converted or already-bound runtime owner and moved the remaining application call sites found during the sweep onto `db.dialect` seams: `permissions.repo` now uses the conflict insert-or-ignore seam, `app-settings.repo` uses the conflict do-nothing seam, and `workspaces.repo` / `user-workspaces.repo` use the conflict update seam. Durable job returned-row reads remain converted through `transaction.dialect.returning.columns(...)`; the guardrail adds no durable-job `RETURNING` exception.
 
 The inventory below is the canonical per-owner view and should be updated in place after each conversion wave. Do not add separate per-wave owner tables with different counts; historical wave notes should point back to this table.
 
@@ -128,8 +140,9 @@ Standing query rule from `DECISIONS.md`: new or touched single-statement reposit
 | 0.33.5.27.29 - Startup maintenance compatibility path | `db/index` |
 | 0.33.5.27.30 - Migration compatibility path | `db/migrations` |
 | 0.33.5.27.31 - Interpolation enforcement guardrail | Whole runtime source guardrail |
+| 0.33.5.27.32 - Dialect enforcement guardrail | Whole runtime dialect sweep and converted-owner re-audit |
 
-No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution until the dialect enforcement slice records the final dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths. As of 0.33.5.27.31, new runtime source cannot add literal-helper calls or helper-interpolated database operations.
+No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution under the dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths. As of 0.33.5.27.31, new runtime source cannot add literal-helper calls or helper-interpolated database operations. As of 0.33.5.27.32, new runtime source cannot add raw seam-backed SQLite dialect at application call sites.
 
 ## Scope Rechecks
 
@@ -535,3 +548,11 @@ The live ratchet after this conversion is 0 runtime literal-helper invocations, 
 The guardrail distinguishes compatibility API definitions/exports from runtime interpolation use: `src/db/sql-literals.js` may still define the helpers and provider facades may still re-export them for historical API compatibility, but no repository, module, service, startup repair, migration metadata path, or new migration-adjacent helper may call them. Startup and migration compatibility now means no-value schema/startup scripts only; it does not permit new value interpolation.
 
 The enforcement regression also includes synthetic rejection proofs for a reintroduced repository helper-interpolated `db.query(...)`, a `runSql(...)` helper interpolation, and a standalone module helper call. The live ratchet remains 0 runtime literal-helper invocations, 0 direct interpolated operation sites, 385 existing bound operation sites, and 429 total runtime database operation calls.
+
+## 0.33.5.27.32 Dialect Enforcement Guardrail
+
+0.33.5.27.32 adds `scripts/dialect-enforcement-guardrail-regression.mjs` as a merge-blocking whole-tree dialect sweep. It fails when runtime source outside the provider/startup/migration/search-adapter allowlist hardcodes a raw seam-backed SQLite dialect token, including conflict syntax, case-insensitive collation, timestamp math, FTS5 search syntax, SQLite JSON functions/operators, PRAGMAs, raw `rowid`, or raw `RETURNING`.
+
+The whole-tree re-audit found converted parameter-binding owners that still emitted raw conflict syntax. `permissions.repo` now routes duplicate-tolerant permission and role-permission inserts through `db.dialect.conflict`, `app-settings.repo` routes default-setting insert-if-missing through the conflict do-nothing seam, and `workspaces.repo` / `user-workspaces.repo` route workspace membership upserts through the conflict update seam. The durable-job returned-row paths remain converted through `transaction.dialect.returning.columns(...)`, so no raw `RETURNING` remains outside provider-owned code.
+
+Remaining raw seam-backed dialect sites at application call sites: 0. The parameter-binding ratchet remains 0 runtime literal-helper invocations, 0 direct interpolated operation sites, 385 existing bound operation sites, and 429 total runtime database operation calls.

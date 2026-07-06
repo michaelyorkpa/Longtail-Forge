@@ -1,6 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
 
+const USER_WORKSPACE_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
+  columns: ["user_workspace_id", "user_id", "workspace_id", "status", "created_at", "updated_at"],
+  conflictColumns: ["user_id", "workspace_id"],
+  tableName: "user_workspaces",
+  updateColumns: ["status", "updated_at"],
+  valueExpressions: {
+    created_at: ":createdAt",
+    status: ":status",
+    updated_at: ":updatedAt",
+    user_id: ":userId",
+    user_workspace_id: ":userWorkspaceId",
+    workspace_id: ":workspaceId",
+  },
+});
+
 async function readByUserAndWorkspace(userId, workspaceId) {
   return db.get(`
 SELECT
@@ -68,27 +83,7 @@ WHERE workspace_id = :workspaceId
 async function upsert({ userId, workspaceId, status = "active" }) {
   const now = new Date().toISOString();
 
-  await db.run(`
-INSERT INTO user_workspaces (
-  user_workspace_id,
-  user_id,
-  workspace_id,
-  status,
-  created_at,
-  updated_at
-)
-VALUES (
-  :userWorkspaceId,
-  :userId,
-  :workspaceId,
-  :status,
-  :createdAt,
-  :updatedAt
-)
-ON CONFLICT(user_id, workspace_id) DO UPDATE SET
-  status = excluded.status,
-  updated_at = excluded.updated_at;
-`, {
+  await db.run(`${USER_WORKSPACE_UPSERT_SQL};`, {
     createdAt: now,
     status: normalizeStatus(status),
     updatedAt: now,

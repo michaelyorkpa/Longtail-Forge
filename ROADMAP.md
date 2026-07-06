@@ -341,12 +341,12 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.32 - Dialect enforcement guardrail
 
-- [ ] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, `RETURNING`, etc.) outside the provider adapter/startup/migration allowlist.
-- [ ] Critically, run the dialect guardrail as a **whole-tree sweep, not a diff-only check**, and re-audit every repository the parameter-binding ratchet already marks `Converted`/`Already bound` for raw dialect-isms that have a seam. The binding ratchet and dialect-seam adoption are *separate axes*: a repo can be "Converted" for parameter binding while still emitting raw SQLite dialect (confirmed example at time of writing: `src/repositories/permissions.repo.js` still uses raw `INSERT OR IGNORE` despite being marked `Converted`). Convert every such remaining site to the established seam so no repo can read "done" while still emitting a dialect-ism a future adapter cannot satisfy.
-- [ ] Add a distinct dialect-adoption axis to the audit/burndown (separate from the parameter-binding counts) so the ratchet tracks and enforces raw-dialect-at-application-call-sites to zero, and a converted repo that reintroduces a raw seam-backed dialect-ism fails the suite.
-- [ ] Reconcile the guardrail with the 0.33.5.27.3 durable-job `RETURNING` decision: those `core/jobs`/`services/jobs.service` statements were converted to the provider returning seam, so confirm no raw `RETURNING` remains outside provider/test allowlists instead of adding durable-job exceptions.
-- [ ] Add regressions proving the guardrail rejects raw dialect use outside sanctioned provider-owned paths.
-- [ ] Document the dialect guardrail in `docs/module-contract.md` and `docs/database.md` so future modules start from the agnostic contract.
+- [x] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, `RETURNING`, etc.) outside the provider adapter/startup/migration allowlist.
+- [x] Critically, run the dialect guardrail as a **whole-tree sweep, not a diff-only check**, and re-audit every repository the parameter-binding ratchet already marks `Converted`/`Already bound` for raw dialect-isms that have a seam. The binding ratchet and dialect-seam adoption are *separate axes*: a repo can be "Converted" for parameter binding while still emitting raw SQLite dialect (confirmed example at time of writing: `src/repositories/permissions.repo.js` still uses raw `INSERT OR IGNORE` despite being marked `Converted`). Convert every such remaining site to the established seam so no repo can read "done" while still emitting a dialect-ism a future adapter cannot satisfy.
+- [x] Add a distinct dialect-adoption axis to the audit/burndown (separate from the parameter-binding counts) so the ratchet tracks and enforces raw-dialect-at-application-call-sites to zero, and a converted repo that reintroduces a raw seam-backed dialect-ism fails the suite.
+- [x] Reconcile the guardrail with the 0.33.5.27.3 durable-job `RETURNING` decision: those `core/jobs`/`services/jobs.service` statements were converted to the provider returning seam, so confirm no raw `RETURNING` remains outside provider/test allowlists instead of adding durable-job exceptions.
+- [x] Add regressions proving the guardrail rejects raw dialect use outside sanctioned provider-owned paths.
+- [x] Document the dialect guardrail in `docs/module-contract.md` and `docs/database.md` so future modules start from the agnostic contract.
 
 Acceptance criteria:
 

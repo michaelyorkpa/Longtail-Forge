@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.31";
+const appVersion = "0.33.5.27.32";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -31,7 +31,8 @@ const clientProjectsRepositoriesSliceVersion = "0.33.5.27.27";
 const frameworkAdminLowCountSliceVersion = "0.33.5.27.28";
 const startupMaintenanceSliceVersion = "0.33.5.27.29";
 const migrationCompatibilitySliceVersion = "0.33.5.27.30";
-const interpolationEnforcementGuardrailSliceVersion = appVersion;
+const interpolationEnforcementGuardrailSliceVersion = "0.33.5.27.31";
+const dialectEnforcementGuardrailSliceVersion = appVersion;
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -217,7 +218,8 @@ assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSO
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.31:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.27\.32:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0[\s\S]*Whole runtime source sweep/, "audit docs should record the distinct dialect-adoption axis");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
@@ -228,6 +230,7 @@ assert.match(auditDocs, /Future Conversion Wave Ratchet Checklist[\s\S]*docs\/da
 assert.match(auditDocs, /Do not weaken the exact-equality ratchet when it fails/, "audit docs should keep the exact ratchet strict");
 assert.match(auditDocs, /Standing query rule from `DECISIONS\.md`:[\s\S]*new or touched single-statement repository queries must use named params[\s\S]*db\.query\(sql, params\)[\s\S]*deprecated compatibility escape hatches/, "audit docs should carry the standing named-params rule for future waves");
 assert.match(auditDocs, /0\.33\.5\.27 Conversion Wave Assignments[\s\S]*0\.33\.5\.27\.8 - Tasks primary repository[\s\S]*`tasks\/tasks\.repo`[\s\S]*0\.33\.5\.27\.9 - Task checklist repository[\s\S]*`tasks\/task-checklists\.repo`[\s\S]*0\.33\.5\.27\.10 - Task relationships repository[\s\S]*`tasks\/task-relationships\.repo`[\s\S]*0\.33\.5\.27\.11 - Task recurrence and reminders[\s\S]*`tasks\/task-recurrence\.repo`, `tasks\/task-reminders\.repo`[\s\S]*0\.33\.5\.27\.12 - Active timers[\s\S]*`time-tracking\/active-timers\.repo`[\s\S]*0\.33\.5\.27\.13 - Time entries[\s\S]*`time-tracking\/time-entries\.repo`[\s\S]*0\.33\.5\.27\.16 - Lists records and items[\s\S]*`lists\/lists\.repo` partial[\s\S]*0\.33\.5\.27\.17 - Lists catalog and linked records[\s\S]*`lists\/lists\.repo` remaining catalog\/link paths[\s\S]*0\.33\.5\.27\.29 - Startup maintenance compatibility path[\s\S]*`db\/index`[\s\S]*0\.33\.5\.27\.30 - Migration compatibility path[\s\S]*`db\/migrations`[\s\S]*0\.33\.5\.27\.31 - Interpolation enforcement guardrail/, "audit docs should assign every remaining owner and guardrail to the 0.33.5.27 conversion wave");
+assert.match(auditDocs, /0\.33\.5\.27\.32 - Dialect enforcement guardrail \| Whole runtime dialect sweep and converted-owner re-audit/, "audit docs should assign the dialect enforcement guardrail wave");
 assert.match(auditDocs, /No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites[\s\S]*Startup and migration still have sanctioned compatibility ownership[\s\S]*`src\/db\/index\.js`[\s\S]*`src\/db\/migrations\.js`/, "audit docs should record the zero-interpolation startup/migration compatibility boundary");
 assert.match(auditDocs, /0\.33\.5\.26\.4 Ratchet Checklist[\s\S]*Future Conversion Wave Ratchet Checklist/, "audit docs should record the checklist slice");
 assert.match(auditDocs, /0\.33\.5\.27\.1 Portability Contract and Dialect Seams[\s\S]*single agnostic data-access contract[\s\S]*No runtime SQL behavior changed/, "audit docs should record the plan-only portability contract slice");
@@ -261,6 +264,7 @@ assert.match(auditDocs, /0\.33\.5\.27\.28 Framework and Admin Low-Count Reposito
 assert.match(auditDocs, /0\.33\.5\.27\.29 Startup Maintenance Compatibility Path[\s\S]*`src\/db\/index\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*18 runtime literal-helper invocations[\s\S]*8 direct interpolated SQL operation sites[\s\S]*375 existing bound operation sites/, "audit docs should record the startup maintenance compatibility slice");
 assert.match(auditDocs, /0\.33\.5\.27\.30 Migration Compatibility Path[\s\S]*`src\/db\/migrations\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct interpolated SQL operation sites[\s\S]*385 existing bound operation sites/, "audit docs should record the migration compatibility slice");
 assert.match(auditDocs, /0\.33\.5\.27\.31 Interpolation Enforcement Guardrail[\s\S]*merge-blocking guardrail[\s\S]*`sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct interpolated operation sites/, "audit docs should record the interpolation enforcement guardrail slice");
+assert.match(auditDocs, /0\.33\.5\.27\.32 Dialect Enforcement Guardrail[\s\S]*whole-tree dialect sweep[\s\S]*raw seam-backed SQLite dialect[\s\S]*permissions\.repo[\s\S]*app-settings\.repo[\s\S]*Remaining raw seam-backed dialect sites at application call sites/, "audit docs should record the dialect enforcement guardrail slice");
 assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
 assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
 assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
@@ -316,6 +320,7 @@ assert.match(databaseDocs, /As of version 0\.33\.5\.27\.28[\s\S]*`core\/modules\
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.29[\s\S]*`src\/db\/index\.js` startup maintenance has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*18 remaining helper invocations/, "database docs should record the concrete startup maintenance compatibility path");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.30[\s\S]*`src\/db\/migrations\.js` has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*0 remaining helper invocations[\s\S]*385 existing bound operation sites/, "database docs should record the concrete migration compatibility path");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.31[\s\S]*interpolation enforcement guardrail[\s\S]*New runtime source must not call `sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 remaining helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "database docs should record the interpolation enforcement guardrail");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.32[\s\S]*whole-tree dialect enforcement guardrail[\s\S]*raw seam-backed SQLite dialect[\s\S]*[Pp]rovider-owned or sanctioned compatibility paths/, "database docs should record the dialect enforcement guardrail");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
 assert.match(changelog, /## Version 0\.33\.5\.27\.3 - [\s\S]*upsert\/conflict and identity seams[\s\S]*durable job[\s\S]*1,498 helper invocations/, "changelog should record the conflict and identity seam slice");
@@ -347,6 +352,7 @@ assert.match(changelog, new RegExp(`## Version ${escapeRegExp(frameworkAdminLowC
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(startupMaintenanceSliceVersion)} - [\\s\\S]*Startup maintenance compatibility path[\\s\\S]*18 helper invocations[\\s\\S]*8 direct interpolated operation sites[\\s\\S]*375 bound operation sites`), "changelog should record the startup maintenance compatibility slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(migrationCompatibilitySliceVersion)} - [\\s\\S]*Migration compatibility path[\\s\\S]*0 helper invocations[\\s\\S]*0 direct interpolated operation sites[\\s\\S]*385 bound operation sites`), "changelog should record the migration compatibility slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(interpolationEnforcementGuardrailSliceVersion)} - [\\s\\S]*Interpolation enforcement guardrail[\\s\\S]*0 helper invocations[\\s\\S]*0 direct interpolated operation sites[\\s\\S]*385 bound operation sites`), "changelog should record the interpolation enforcement guardrail slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(dialectEnforcementGuardrailSliceVersion)} - [\\s\\S]*Dialect enforcement guardrail[\\s\\S]*Remaining raw seam-backed dialect sites at application call sites: 0`), "changelog should record the dialect enforcement guardrail slice");
 
 assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should now start at the database extraction contract branch");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");
@@ -364,6 +370,7 @@ assert.match(regressionSuite, /scripts\/framework-admin-low-count-repositories-c
 assert.match(regressionSuite, /scripts\/startup-maintenance-compatibility-regression\.mjs/, "regression suite should include the startup maintenance compatibility regression");
 assert.match(regressionSuite, /scripts\/migration-compatibility-regression\.mjs/, "regression suite should include the migration compatibility regression");
 assert.match(regressionSuite, /scripts\/interpolation-enforcement-guardrail-regression\.mjs/, "regression suite should include the interpolation enforcement guardrail regression");
+assert.match(regressionSuite, /scripts\/dialect-enforcement-guardrail-regression\.mjs/, "regression suite should include the dialect enforcement guardrail regression");
 
 console.log("Parameter-binding audit regression passed.");
 

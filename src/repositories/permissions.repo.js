@@ -1,6 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
 
+const PERMISSION_INSERT_SQL = db.dialect.conflict.buildInsertOrIgnore({
+  columns: ["permission_id", "permission_name", "description"],
+  tableName: "permissions",
+  valueExpressions: {
+    description: ":description",
+    permission_id: ":permissionId",
+    permission_name: ":permissionName",
+  },
+});
+const ROLE_PERMISSION_INSERT_PREFIX = db.dialect.conflict.insertOrIgnoreInto("role_permissions");
+
 async function readRoles() {
   return db.query(`
 SELECT role_id, role_name, description, assignable_scope_type
@@ -26,10 +37,7 @@ async function ensurePermissionContracts(permissions, roleDefaults) {
         permissionName: permission.label || permission.id,
       };
 
-      await transaction.run(`
-INSERT OR IGNORE INTO permissions (permission_id, permission_name, description)
-VALUES (:permissionId, :permissionName, :description);
-`, params);
+      await transaction.run(`${PERMISSION_INSERT_SQL};`, params);
       await transaction.run(`
 UPDATE permissions
 SET permission_name = :permissionName,
@@ -41,7 +49,7 @@ WHERE permission_id = :permissionId;
     for (const mapping of roleDefaults) {
       for (const permissionId of mapping.permissions || []) {
         await transaction.run(`
-INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+${ROLE_PERMISSION_INSERT_PREFIX} (role_id, permission_id)
 SELECT :roleId, :permissionId
 WHERE EXISTS (SELECT 1 FROM roles WHERE role_id = :roleId)
   AND EXISTS (SELECT 1 FROM permissions WHERE permission_id = :permissionId);
