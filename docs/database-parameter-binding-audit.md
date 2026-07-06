@@ -12,11 +12,11 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.24:
+Current totals as of 0.33.5.27.25:
 
-- Remaining runtime literal-helper invocations: 367.
-- Remaining direct interpolated SQL operation sites: 68.
-- Existing direct bound-params operation sites: 291.
+- Remaining runtime literal-helper invocations: 362.
+- Remaining direct interpolated SQL operation sites: 66.
+- Existing direct bound-params operation sites: 293.
 - Total runtime database operation calls seen by the audit scanner: 419.
 
 Original 0.33.5.23.1 baseline totals:
@@ -48,7 +48,6 @@ Status legend:
 | audit-logs.repo | Remaining | 28 | 3 | 0 | 10 |
 | api-keys.repo | Remaining | 20 | 8 | 0 | 8 |
 | db/migrations | Remaining | 18 | 8 | 0 | 24 |
-| services/search-index-rebuild.service | Remaining | 5 | 2 | 0 | 2 |
 | services/work-resume-state-initial-producers | Remaining | 5 | 2 | 0 | 2 |
 | services/help.service | Remaining | 1 | 1 | 0 | 1 |
 | services/files.service | Converted | 0 | 0 | 32 | 33 |
@@ -57,6 +56,7 @@ Status legend:
 | tags.repo | Converted | 0 | 0 | 17 | 17 |
 | core/search/adapters/sqlite-search-adapter | Converted | 0 | 0 | 13 | 17 |
 | core/search/tag-text | Converted | 0 | 0 | 1 | 1 |
+| services/search-index-rebuild.service | Converted | 0 | 0 | 2 | 2 |
 | tasks/task-checklists.repo | Converted | 0 | 0 | 8 | 8 |
 | tasks/task-recurrence.repo | Converted | 0 | 0 | 6 | 6 |
 | tasks/task-relationships.repo | Converted | 0 | 0 | 12 | 12 |
@@ -462,3 +462,13 @@ The tag propagation registry keeps the existing built-in resolver IDs and Client
 `services/tag-propagation-registry` and `services/tags.service` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves Client/Project/Task/Note propagation targets, resolver behavior, service-owned tag read shaping, propagated assignment materialization, repair count readouts, and tag target lookup behavior.
 
 The live ratchet after this conversion is 367 runtime literal-helper invocations, 68 direct interpolated SQL operation sites, 291 existing bound operation sites, and 419 total runtime database operation calls.
+
+## 0.33.5.27.25 Search Adapter and Rebuild Service Conversion
+
+0.33.5.27.25 keeps the earlier `core/search/adapters/sqlite-search-adapter` and `core/search/tag-text` proof conversions in place and converts the remaining `services/search-index-rebuild.service` reads from literal-helper interpolation to named params through `db.query(...)`.
+
+The converted rebuild service binds workspace, module, and record-type filters for inactive-row cleanup and stale canonical row reads while leaving rebuild flow ownership unchanged. The SQLite search adapter remains the provider-owned seam for FTS5 storage, FTS repair, ranking, and indexed LIKE fallback; search callers still send backend-neutral request models and canonical `search_index` rows remain the source of truth.
+
+`services/search-index-rebuild.service` is converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. `core/search/adapters/sqlite-search-adapter` and `core/search/tag-text` remain converted with 0 helper and 0 direct interpolation sites. This slice preserves FTS5 maintenance, indexed LIKE fallback, adapter repair/rebuild behavior, stale-row cleanup, inactive-type cleanup, canonical `search_index` writes, and permission-safe search request shaping.
+
+The live ratchet after this conversion is 362 runtime literal-helper invocations, 66 direct interpolated SQL operation sites, 293 existing bound operation sites, and 419 total runtime database operation calls.

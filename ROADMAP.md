@@ -269,9 +269,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.25 - Conversion wave: Search adapter and rebuild service
 
-- [ ] Convert `core/search/adapters/sqlite-search-adapter`, `core/search/tag-text`, and `services/search-index-rebuild.service` to named bound params and the search/dialect seams.
-- [ ] Keep FTS5 maintenance, indexed LIKE fallback, repair/rebuild behavior, canonical `search_index` writes, and permission-safe search request shaping unchanged.
-- [ ] Update the burndown ratchet and extend search indexing/rebuild regressions before moving on.
+- [x] Convert `core/search/adapters/sqlite-search-adapter`, `core/search/tag-text`, and `services/search-index-rebuild.service` to named bound params and the search/dialect seams.
+- [x] Keep FTS5 maintenance, indexed LIKE fallback, repair/rebuild behavior, canonical `search_index` writes, and permission-safe search request shaping unchanged.
+- [x] Update the burndown ratchet and extend search indexing/rebuild regressions before moving on.
 
 Acceptance criteria:
 

@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.27.24";
+const appVersion = "0.33.5.27.25";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-provider-config-"));
 
 delete process.env.LONGTAIL_STORAGE_PROVIDER;

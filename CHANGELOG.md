@@ -1,3 +1,12 @@
+## Version 0.33.5.27.25 - 2026-07-06 14:03 -04:00
+
+- Completed the Search adapter and rebuild service conversion by moving the remaining inactive-row cleanup and stale canonical row reads in `services/search-index-rebuild.service` to named params through the database facade.
+- Revalidated the existing converted `core/search/adapters/sqlite-search-adapter` and `core/search/tag-text` proof paths, keeping raw FTS5 storage, ranking, repair, and indexed LIKE fallback ownership inside the provider search adapter/dialect seam.
+- Preserved rebuild, dry-run, stale-row removal, inactive-type cleanup, canonical `search_index` writes, FTS repair behavior, and permission-safe backend-neutral search request shaping.
+- Added `scripts/search-adapter-rebuild-service-conversion-regression.mjs` and wired it into the isolated database regression suite beside the existing Search/FTS seam coverage.
+- Updated the parameter-binding ratchet to 362 helper invocations, 66 direct interpolated operation sites, 293 bound operation sites, and 419 runtime DB operation calls; `services/search-index-rebuild.service` is now fully converted at 0 helper and 0 direct interpolation sites.
+- Verification 2026-07-06 14:10 -04:00: `scripts/search-adapter-rebuild-service-conversion-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/search-rebuild-regression.mjs`, `scripts/search-fts-seam-regression.mjs`, `scripts/search-index-jobs-regression.mjs`, `scripts/search-api-regression.mjs`, `scripts/search-workflow-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, `scripts/tag-propagation-service-conversion-regression.mjs`, and `scripts/tags-repository-conversion-regression.mjs` passed; `npm run check` passed 286/286 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.25 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.24 - 2026-07-06 11:54 -04:00
 
 - Completed the Tag propagation and tags service conversion by moving built-in Client/Project/Task/Note propagation resolver reads, tag propagation count reads, and descriptor-backed target existence reads in `services/tag-propagation-registry` and `services/tags.service` to named params through the database facade.

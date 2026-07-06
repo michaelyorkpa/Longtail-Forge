@@ -1,5 +1,5 @@
 
-> longtail-forge@0.33.5.27.24 start
+> longtail-forge@0.33.5.27.25 start
 > node server.js
 
 [sqlite-health] provider=sqlite databaseFile=D:\OneDrive - Raymond Tec\1. Projects\Raymond Tec\Time Tracker\data\longtail-forge.db writable=yes foreign_keys=on journal_mode=wal busy_timeout_ms=5000

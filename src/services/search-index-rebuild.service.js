@@ -1,6 +1,6 @@
 import { getSearchIndexer } from "../core/search/indexer-registry.js";
 import { modulesService } from "../core/modules/modules.service.js";
-import { querySql, sqlText } from "../db/index.js";
+import { db } from "../core/database.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { AppError } from "../utils/app-error.js";
 import { auditService } from "./audit.service.js";
@@ -64,13 +64,17 @@ async function removeInactiveSearchRows({ activeSearchableTypes, dryRun, moduleI
     errors: [],
   };
   const activeKeys = new Set(activeSearchableTypes.map((type) => `${type.moduleId}:${type.recordType}`));
-  const rows = await querySql(`
+  const params = { workspaceId };
+  const moduleFilter = moduleId ? "  AND module_id = :moduleId\n" : "";
+  if (moduleId) {
+    params.moduleId = moduleId;
+  }
+  const rows = await db.query(`
 SELECT workspace_id, module_id, record_type, record_id
 FROM search_index
-WHERE workspace_id = ${sqlText(workspaceId)}
-${moduleId ? `  AND module_id = ${sqlText(moduleId)}` : ""}
-ORDER BY module_id, record_type, record_id;
-`);
+WHERE workspace_id = :workspaceId
+${moduleFilter}ORDER BY module_id, record_type, record_id;
+`, params);
   const inactiveRows = rows.filter((row) => !activeKeys.has(`${row.module_id}:${row.record_type}`));
 
   targetSummary.scanned = inactiveRows.length;
@@ -280,14 +284,18 @@ async function resolveWorkspaceSearchableTypes(workspaceId, moduleId) {
 }
 
 async function readStaleSearchRecordIds({ indexedRecordIds, moduleId, recordType, workspaceId }) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT record_id
 FROM search_index
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND module_id = ${sqlText(moduleId)}
-  AND record_type = ${sqlText(recordType)}
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND record_type = :recordType
 ORDER BY record_id;
-`);
+`, {
+    moduleId,
+    recordType,
+    workspaceId,
+  });
 
   return rows
     .map((row) => row.record_id)
