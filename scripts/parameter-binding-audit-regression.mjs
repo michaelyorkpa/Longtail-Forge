@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.28";
+const appVersion = "0.33.5.27.29";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -28,7 +28,8 @@ const tagPropagationServiceSliceVersion = "0.33.5.27.24";
 const searchAdapterRebuildServiceSliceVersion = "0.33.5.27.25";
 const workResumeStateSliceVersion = "0.33.5.27.26";
 const clientProjectsRepositoriesSliceVersion = "0.33.5.27.27";
-const frameworkAdminLowCountSliceVersion = appVersion;
+const frameworkAdminLowCountSliceVersion = "0.33.5.27.28";
+const startupMaintenanceSliceVersion = appVersion;
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -47,14 +48,13 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 345,
-  dbOperationSites: 420,
-  helperCalls: 117,
-  interpolatedOperationSites: 27,
+  boundOperationSites: 375,
+  dbOperationSites: 425,
+  helperCalls: 18,
+  interpolatedOperationSites: 8,
 }, "parameter-binding audit totals should match the current post-wave runtime inventory");
 
 const expectedTopGroups = [
-  ["db/index", 99, 19],
   ["db/migrations", 18, 8],
 ];
 
@@ -65,6 +65,13 @@ for (const [group, helperCalls, interpolatedOperationSites] of expectedTopGroups
   assert.equal(row.interpolatedOperationSites, interpolatedOperationSites, `${group} interpolated operation-site count should match the audit`);
   assertInventoryRow(group, "Remaining", row);
 }
+
+const dbIndexRow = audit.groups.find((candidate) => candidate.group === "db/index");
+assert.equal(dbIndexRow.helperCalls, 0, "startup maintenance should remove literal helpers after the compatibility-path conversion");
+assert.equal(dbIndexRow.interpolatedOperationSites, 0, "startup maintenance should remove direct interpolated operation sites after conversion");
+assert.equal(dbIndexRow.boundOperationSites, 31, "startup maintenance should keep converted value-bearing startup operations visible");
+assert.equal(dbIndexRow.dbOperationSites, 40, "startup maintenance operation count should include bound startup repairs plus no-value compatibility statements");
+assertInventoryRow("db/index", "Startup compatibility", dbIndexRow);
 
 const sessionsRow = audit.groups.find((candidate) => candidate.group === "sessions.repo");
 assert.equal(sessionsRow.helperCalls, 0, "sessions repository should remain a converted bound-params pilot");
@@ -200,7 +207,7 @@ assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSO
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.28:[\s\S]*Remaining runtime literal-helper invocations: 117[\s\S]*Remaining direct interpolated SQL operation sites: 27[\s\S]*Existing direct bound-params operation sites: 345[\s\S]*Total runtime database operation calls seen by the audit scanner: 420/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.29:[\s\S]*Remaining runtime literal-helper invocations: 18[\s\S]*Remaining direct interpolated SQL operation sites: 8[\s\S]*Existing direct bound-params operation sites: 375[\s\S]*Total runtime database operation calls seen by the audit scanner: 425/, "audit docs should record the current canonical totals");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
@@ -241,6 +248,7 @@ assert.match(auditDocs, /0\.33\.5\.27\.25 Search Adapter and Rebuild Service Con
 assert.match(auditDocs, /0\.33\.5\.27\.26 Work Resume State Conversion[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are fully converted[\s\S]*304 runtime literal-helper invocations[\s\S]*57 direct interpolated SQL operation sites[\s\S]*302 existing bound operation sites/, "audit docs should record the Work resume state conversion slice");
 assert.match(auditDocs, /0\.33\.5\.27\.27 Clients and Projects Repository Conversion[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are fully converted[\s\S]*195 runtime literal-helper invocations[\s\S]*45 direct interpolated SQL operation sites[\s\S]*319 existing bound operation sites/, "audit docs should record the Clients/Projects repositories conversion slice");
 assert.match(auditDocs, /0\.33\.5\.27\.28 Framework and Admin Low-Count Repository Conversion[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are fully converted[\s\S]*117 runtime literal-helper invocations[\s\S]*27 direct interpolated SQL operation sites[\s\S]*345 existing bound operation sites/, "audit docs should record the framework/admin low-count repository conversion slice");
+assert.match(auditDocs, /0\.33\.5\.27\.29 Startup Maintenance Compatibility Path[\s\S]*`src\/db\/index\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*18 runtime literal-helper invocations[\s\S]*8 direct interpolated SQL operation sites[\s\S]*375 existing bound operation sites/, "audit docs should record the startup maintenance compatibility slice");
 assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
 assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
 assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
@@ -293,6 +301,7 @@ assert.match(databaseDocs, /As of version 0\.33\.5\.27\.25[\s\S]*`services\/sear
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.26[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are converted[\s\S]*304 remaining helper invocations/, "database docs should record the concrete Work resume state conversion");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.27[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are converted[\s\S]*195 remaining helper invocations/, "database docs should record the concrete Clients/Projects repositories conversion");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.28[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are converted[\s\S]*117 remaining helper invocations/, "database docs should record the concrete framework/admin low-count repository conversion");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.29[\s\S]*`src\/db\/index\.js` startup maintenance has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*18 remaining helper invocations/, "database docs should record the concrete startup maintenance compatibility path");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
 assert.match(changelog, /## Version 0\.33\.5\.27\.3 - [\s\S]*upsert\/conflict and identity seams[\s\S]*durable job[\s\S]*1,498 helper invocations/, "changelog should record the conflict and identity seam slice");
@@ -321,6 +330,7 @@ assert.match(changelog, new RegExp(`## Version ${escapeRegExp(searchAdapterRebui
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(workResumeStateSliceVersion)} - [\\s\\S]*Work resume state conversion[\\s\\S]*304 helper invocations[\\s\\S]*57 direct interpolated operation sites[\\s\\S]*302 bound operation sites`), "changelog should record the Work resume state conversion slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(clientProjectsRepositoriesSliceVersion)} - [\\s\\S]*Clients and Projects repositories conversion[\\s\\S]*195 helper invocations[\\s\\S]*45 direct interpolated operation sites[\\s\\S]*319 bound operation sites`), "changelog should record the Clients/Projects repositories conversion slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(frameworkAdminLowCountSliceVersion)} - [\\s\\S]*Framework and admin low-count repositories conversion[\\s\\S]*117 helper invocations[\\s\\S]*27 direct interpolated operation sites[\\s\\S]*345 bound operation sites`), "changelog should record the framework/admin low-count repository conversion slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(startupMaintenanceSliceVersion)} - [\\s\\S]*Startup maintenance compatibility path[\\s\\S]*18 helper invocations[\\s\\S]*8 direct interpolated operation sites[\\s\\S]*375 bound operation sites`), "changelog should record the startup maintenance compatibility slice");
 
 assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should now start at the database extraction contract branch");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");
@@ -335,6 +345,7 @@ assert.match(regressionSuite, /scripts\/parameter-binding-conversion-wave-regres
 assert.match(regressionSuite, /scripts\/work-resume-state-conversion-regression\.mjs/, "regression suite should include the Work resume state conversion regression");
 assert.match(regressionSuite, /scripts\/client-projects-repositories-conversion-regression\.mjs/, "regression suite should include the Clients/Projects repositories conversion regression");
 assert.match(regressionSuite, /scripts\/framework-admin-low-count-repositories-conversion-regression\.mjs/, "regression suite should include the framework/admin low-count repositories conversion regression");
+assert.match(regressionSuite, /scripts\/startup-maintenance-compatibility-regression\.mjs/, "regression suite should include the startup maintenance compatibility regression");
 
 console.log("Parameter-binding audit regression passed.");
 

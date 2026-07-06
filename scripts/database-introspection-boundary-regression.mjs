@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.28";
+const appVersion = "0.33.5.27.29";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-introspection-boundary-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-introspection-boundary.db");
@@ -70,19 +70,17 @@ function assertStaticBoundary() {
     uniqueFiles(listRuntimeSourceMatches(/\bPRAGMA\b/g)),
     [
       "src/db/adapters/sqlite-dialect-seams.js",
-      "src/db/index.js",
       "src/db/migrations.js",
       "src/db/sqlite.js",
     ],
-    "raw runtime PRAGMA SQL should stay provider, startup, or migration owned",
+    "raw runtime PRAGMA SQL should stay provider, migration, or SQLite-health owned after startup moves table checks to the seam",
   );
   assert.deepEqual(
     uniqueFiles(listRuntimeSourceMatches(/\browid\b/g)),
     [
       "src/db/adapters/sqlite-dialect-seams.js",
-      "src/db/index.js",
     ],
-    "raw runtime rowid SQL should stay provider or startup-repair owned",
+    "raw runtime rowid SQL should stay provider-owned after startup moves physical identity checks to the seam",
   );
 
   assert.match(roadmap, /### Version 0\.33\.5\.27\.7 - PRAGMA, rowid, and introspection seam boundaries[\s\S]*- \[x\] Move or document provider-owned entry points[\s\S]*- \[x\] Confirm no module or application repository owns raw PRAGMA\/rowid calls[\s\S]*- \[x\] Add a focused regression/, "roadmap should mark the introspection boundary slice complete");

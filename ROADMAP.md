@@ -309,10 +309,10 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.29 - Startup maintenance compatibility path
 
-- [ ] Review `src/db/index.js` startup maintenance SQL against the seam decisions and the no-parameter multi-statement compatibility allowlist.
-- [ ] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining `src/db/index.js` statements as sanctioned startup compatibility with recorded rationale.
-- [ ] Account for dialect-sensitive startup statements such as `INSERT OR IGNORE`, `julianday(...)`, PRAGMAs, and repair/list rebuild work.
-- [ ] Update the burndown ratchet to reflect the final startup allowlist.
+- [x] Review `src/db/index.js` startup maintenance SQL against the seam decisions and the no-parameter multi-statement compatibility allowlist.
+- [x] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining `src/db/index.js` statements as sanctioned startup compatibility with recorded rationale.
+- [x] Account for dialect-sensitive startup statements such as `INSERT OR IGNORE`, `julianday(...)`, PRAGMAs, and repair/list rebuild work.
+- [x] Update the burndown ratchet to reflect the final startup allowlist.
 
 Acceptance criteria:
 

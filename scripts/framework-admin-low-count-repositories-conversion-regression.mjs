@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.28";
+const appVersion = "0.33.5.27.29";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-framework-admin-low-count-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-framework-admin-low-count-conversion.db");
@@ -80,12 +80,12 @@ function assertStaticContract() {
   assertNoLiteralHelpers("Help service", helpServiceSource);
   assert.match(helpServiceSource, /WHERE workspace_id = :workspaceId/, "Help workspace existence reads should use named params");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.28:[\s\S]*Remaining runtime literal-helper invocations: 117[\s\S]*Remaining direct interpolated SQL operation sites: 27[\s\S]*Existing direct bound-params operation sites: 345[\s\S]*Total runtime database operation calls seen by the audit scanner: 420/, "audit docs should record the framework/admin low-count repository conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.29:[\s\S]*Remaining runtime literal-helper invocations: 18[\s\S]*Remaining direct interpolated SQL operation sites: 8[\s\S]*Existing direct bound-params operation sites: 375[\s\S]*Total runtime database operation calls seen by the audit scanner: 425/, "audit docs should record the framework/admin low-count repository conversion ratchet");
   assert.match(auditDocs, /\| core\/modules\/modules\.service \| Converted \| 0 \| 0 \| 6 \| 7 \|/, "audit inventory should mark modules service converted");
   assert.match(auditDocs, /\| audit-logs\.repo \| Converted \| 0 \| 0 \| 10 \| 10 \|/, "audit inventory should mark audit logs repo converted");
   assert.match(auditDocs, /\| api-keys\.repo \| Converted \| 0 \| 0 \| 9 \| 9 \|/, "audit inventory should mark API keys repo converted");
   assert.match(auditDocs, /\| services\/help\.service \| Converted \| 0 \| 0 \| 1 \| 1 \|/, "audit inventory should mark Help service converted");
-  assert.match(auditDocs, /\| db\/index \| Remaining \| 99 \| 19 \| 1 \| 35 \|[\s\S]*\| db\/migrations \| Remaining \| 18 \| 8 \| 0 \| 24 \|/, "audit inventory should leave only startup and migration compatibility paths remaining");
+  assert.match(auditDocs, /\| db\/migrations \| Remaining \| 18 \| 8 \| 0 \| 24 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should leave only migration interpolation remaining while startup stays compatibility-tracked");
   assert.match(auditDocs, /0\.33\.5\.27\.28 Framework and Admin Low-Count Repository Conversion[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are fully converted[\s\S]*117 runtime literal-helper invocations[\s\S]*27 direct interpolated SQL operation sites[\s\S]*345 existing bound operation sites/, "audit docs should record the framework/admin low-count repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.28[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are converted[\s\S]*117 remaining helper invocations/, "database docs should record the concrete framework/admin low-count repository conversion");
   assert.match(roadmap, /### Version 0\.33\.5\.27\.28 - Conversion wave: Framework and admin low-count repositories[\s\S]*- \[x\] Convert `core\/modules\/modules\.service`[\s\S]*- \[x\] Preserve module registry sync\/status[\s\S]*- \[x\] Update the burndown ratchet/, "roadmap should mark the framework/admin low-count repository conversion slice complete");

@@ -34,6 +34,32 @@ const REDACTED_SEED_USERNAME = "[REDACTED]";
 const DEFAULT_SUPER_ADMIN_USERNAME = config.bootstrap.superAdminUsername;
 const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = config.bootstrap.superAdminDisplayName;
 const SUPER_ADMIN_PASSWORD_ENV = "SUPER_ADMIN_PASSWORD";
+const FRAMEWORK_MODULE_UPSERT_SQL = databaseDialect.conflict.buildInsertOnConflictDoUpdate({
+  columns: ["module_id", "name", "description", "category", "status", "version", "created_at", "updated_at"],
+  conflictColumns: ["module_id"],
+  tableName: "modules",
+  updateColumns: ["name", "description", "category", "status", "version", "updated_at"],
+});
+const USER_WORKSPACE_INSERT_SQL = databaseDialect.conflict.buildInsertOrIgnore({
+  columns: ["user_workspace_id", "user_id", "workspace_id", "status", "created_at", "updated_at"],
+  tableName: "user_workspaces",
+});
+const USER_ROLE_ASSIGNMENT_INSERT_SQL = databaseDialect.conflict.buildInsertOrIgnore({
+  columns: [
+    "assignment_id",
+    "workspace_id",
+    "user_id",
+    "role_id",
+    "scope_type",
+    "scope_id",
+    "client_id",
+    "project_id",
+    "permission_overrides_json",
+    "created_at",
+    "updated_at",
+  ],
+  tableName: "user_role_assignments",
+});
 
 async function initializeDatabase() {
   return ensureDatabase();
@@ -81,14 +107,14 @@ async function verifyWorkerSchemaReady() {
     throw new Error("Worker schema is not ready: schema_migrations is missing. Start the app or run migration maintenance before starting node worker.js.");
   }
 
-  const migrationRows = await querySql(`
+  const migrationRow = await db.get(`
 SELECT version
 FROM schema_migrations
-WHERE version = '065'
+WHERE version = :version
 LIMIT 1;
-`);
+`, { version: "065" });
 
-  if (migrationRows.length === 0) {
+  if (!migrationRow) {
     throw new Error("Worker schema is not ready: migration 065_job_outbox_schema has not been applied. Start the app or run migration maintenance before starting node worker.js.");
   }
 
@@ -129,26 +155,18 @@ async function ensureFrameworkModuleRecord() {
   }
 
   const now = new Date().toISOString();
-  await runSql(`
-INSERT INTO modules (module_id, name, description, category, status, version, created_at, updated_at)
-VALUES (
-  'framework',
-  'Framework',
-  'Core framework services, Help, Search, Files, settings, and shared runtime behavior.',
-  'framework-service',
-  'active',
-  ${sqlText(config.version)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(module_id) DO UPDATE SET
-  name = excluded.name,
-  description = excluded.description,
-  category = excluded.category,
-  status = excluded.status,
-  version = excluded.version,
-  updated_at = excluded.updated_at;
-`);
+  await db.run(`
+${FRAMEWORK_MODULE_UPSERT_SQL};
+`, {
+    category: "framework-service",
+    created_at: now,
+    description: "Core framework services, Help, Search, Files, settings, and shared runtime behavior.",
+    module_id: "framework",
+    name: "Framework",
+    status: "active",
+    updated_at: now,
+    version: config.appVersion,
+  });
 }
 
 async function repairDuplicateWorkspaceUserRows() {
@@ -159,9 +177,10 @@ async function repairDuplicateWorkspaceUserRows() {
     return;
   }
 
+  const duplicateUserRowId = databaseDialect.identity.rowId({ alias: "__rowid" });
   const duplicateRows = await querySql(`
 SELECT
-  rowid,
+  ${duplicateUserRowId},
   user_id,
   home_workspace_id,
   username,
@@ -180,7 +199,7 @@ WHERE user_id IN (
   GROUP BY user_id
   HAVING COUNT(1) > 1
 )
-ORDER BY user_id, rowid;
+ORDER BY user_id, ${databaseDialect.identity.rowId()};
 `);
 
   const rowsByUserId = duplicateRows.reduce((groups, row) => {
@@ -194,13 +213,13 @@ ORDER BY user_id, rowid;
 
   for (const rows of rowsByUserId.values()) {
     const canonical = rows[0];
-    const activeMemberships = await querySql(`
+    const activeMemberships = await db.query(`
 SELECT workspace_id
 FROM user_workspaces
-WHERE user_id = ${sqlText(canonical.user_id)}
+WHERE user_id = :userId
   AND status = 'active'
 ORDER BY created_at, workspace_id;
-`);
+`, { userId: canonical.user_id });
     const activeWorkspaceIds = new Set(activeMemberships.map((membership) => membership.workspace_id));
     const activeWorkspaceId = activeWorkspaceIds.has(canonical.active_workspace_id)
       ? canonical.active_workspace_id
@@ -210,20 +229,30 @@ ORDER BY created_at, workspace_id;
       : normalizeThemeMode(canonical.theme_mode);
     const protectedUser = rows.some((row) => row.protected_user === "yes") ? "yes" : canonical.protected_user || "no";
     const activeStatus = rows.some((row) => row.user_status === "active") ? "active" : canonical.user_status || "inactive";
-    const duplicateRowIds = rows.slice(1).map((row) => row.rowid);
+    const duplicateRowIds = rows.slice(1).map((row) => row.__rowid);
 
-    await runSql(`
+    await db.transaction(async (transaction) => {
+      await transaction.run(`
 UPDATE users
 SET
-  theme_mode = ${sqlText(preferredTheme)},
-  user_status = ${sqlText(activeStatus)},
-  protected_user = ${sqlText(protectedUser)},
-  active_workspace_id = ${sqlText(activeWorkspaceId)}
-WHERE rowid = ${sqlInteger(canonical.rowid)};
+  theme_mode = :preferredTheme,
+  user_status = :activeStatus,
+  protected_user = :protectedUser,
+  active_workspace_id = :activeWorkspaceId
+WHERE ${databaseDialect.identity.rowId()} = :canonicalRowId;
+`, {
+        activeStatus,
+        activeWorkspaceId,
+        canonicalRowId: canonical.__rowid,
+        preferredTheme,
+        protectedUser,
+      });
 
+      await transaction.run(`
 DELETE FROM users
-WHERE rowid IN (${duplicateRowIds.map((rowid) => sqlInteger(rowid)).join(", ")});
-`);
+WHERE ${databaseDialect.identity.rowId()} IN (:duplicateRowIds);
+`, { duplicateRowIds });
+    });
   }
 
   await runSql(`
@@ -265,59 +294,91 @@ async function repairRedactedSeedUsers(workspaceId) {
     return;
   }
 
-  const redactedUsers = await querySql(`
+  const redactedUsers = await db.query(`
 SELECT user_id
 FROM users
-WHERE home_workspace_id = ${sqlText(workspaceId)}
-  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
-`);
+WHERE home_workspace_id = :workspaceId
+  AND username = :redactedUsername;
+`, {
+    redactedUsername: REDACTED_SEED_USERNAME,
+    workspaceId,
+  });
 
   if (redactedUsers.length === 0) {
     return;
   }
 
-  const defaultUsers = await querySql(`
+  const defaultUser = await db.get(`
 SELECT user_id
 FROM users
-WHERE home_workspace_id = ${sqlText(workspaceId)}
-  AND username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
+WHERE home_workspace_id = :workspaceId
+  AND username = :defaultUsername
 LIMIT 1;
-`);
+`, {
+    defaultUsername: DEFAULT_SUPER_ADMIN_USERNAME,
+    workspaceId,
+  });
   const now = new Date().toISOString();
 
-  if (defaultUsers.length === 0) {
-    await runSql(`
+  if (!defaultUser) {
+    await db.transaction(async (transaction) => {
+      await transaction.run(`
 UPDATE users
-SET username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)},
-    display_name = ${sqlText(DEFAULT_SUPER_ADMIN_DISPLAY_NAME)}
-WHERE home_workspace_id = ${sqlText(workspaceId)}
-  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
+SET username = :defaultUsername,
+    display_name = :defaultDisplayName
+WHERE home_workspace_id = :workspaceId
+  AND username = :redactedUsername;
+`, {
+        defaultDisplayName: DEFAULT_SUPER_ADMIN_DISPLAY_NAME,
+        defaultUsername: DEFAULT_SUPER_ADMIN_USERNAME,
+        redactedUsername: REDACTED_SEED_USERNAME,
+        workspaceId,
+      });
 
+      await transaction.run(`
 UPDATE sessions
-SET username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
-WHERE home_workspace_id = ${sqlText(workspaceId)}
-  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
-`);
+SET username = :defaultUsername
+WHERE home_workspace_id = :workspaceId
+  AND username = :redactedUsername;
+`, {
+        defaultUsername: DEFAULT_SUPER_ADMIN_USERNAME,
+        redactedUsername: REDACTED_SEED_USERNAME,
+        workspaceId,
+      });
+    });
     return;
   }
 
-  const statements = redactedUsers.map((user, index) => {
-    const retiredUsername = `retired-placeholder-${index + 1}-${user.user_id}@longtailforge.local`;
+  await db.transaction(async (transaction) => {
+    for (const [index, user] of redactedUsers.entries()) {
+      const retiredUsername = `retired-placeholder-${index + 1}-${user.user_id}@longtailforge.local`;
 
-    return `
+      await transaction.run(`
 UPDATE users
-SET username = ${sqlText(retiredUsername)},
+SET username = :retiredUsername,
     display_name = 'Retired Placeholder User',
     user_status = 'inactive',
     protected_user = 'no'
-WHERE home_workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(user.user_id)}
-  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
+WHERE home_workspace_id = :workspaceId
+  AND user_id = :userId
+  AND username = :redactedUsername;
+`, {
+        redactedUsername: REDACTED_SEED_USERNAME,
+        retiredUsername,
+        userId: user.user_id,
+        workspaceId,
+      });
 
+      await transaction.run(`
 DELETE FROM sessions
-WHERE home_workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(user.user_id)};
+WHERE home_workspace_id = :workspaceId
+  AND user_id = :userId;
+`, {
+        userId: user.user_id,
+        workspaceId,
+      });
 
+      await transaction.run(`
 INSERT INTO audit_logs (
   audit_id,
   workspace_id,
@@ -335,25 +396,39 @@ INSERT INTO audit_logs (
   metadata_json
 )
 VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(workspaceId)},
-  ${sqlText(now)},
-  'system',
-  'system',
-  'redacted_seed_user_repaired',
-  'repair',
-  'user',
-  ${sqlText(user.user_id)},
-  ${sqlText(retiredUsername)},
-  'user-admin.html',
-  ${sqlText(JSON.stringify({ username: REDACTED_SEED_USERNAME }))},
-  ${sqlText(JSON.stringify({ username: retiredUsername, user_status: "inactive" }))},
-  ${sqlText(JSON.stringify({ reason: "literal redaction placeholder was present in seed user data" }))}
+  :auditId,
+  :workspaceId,
+  :createdAt,
+  :actorUserId,
+  :actorUserName,
+  :action,
+  :changeType,
+  :recordType,
+  :recordId,
+  :recordLabel,
+  :recordUrl,
+  :previousValueJson,
+  :newValueJson,
+  :metadataJson
 );
-`;
+`, {
+        action: "redacted_seed_user_repaired",
+        actorUserId: "system",
+        actorUserName: "system",
+        auditId: randomUUID(),
+        changeType: "repair",
+        createdAt: now,
+        metadataJson: JSON.stringify({ reason: "literal redaction placeholder was present in seed user data" }),
+        newValueJson: JSON.stringify({ username: retiredUsername, user_status: "inactive" }),
+        previousValueJson: JSON.stringify({ username: REDACTED_SEED_USERNAME }),
+        recordId: user.user_id,
+        recordLabel: retiredUsername,
+        recordType: "user",
+        recordUrl: "user-admin.html",
+        workspaceId,
+      });
+    }
   });
-
-  await runSql(statements.join("\n"));
 }
 
 async function standardizeStoredTimesToUtc() {
@@ -379,39 +454,56 @@ async function standardizeTableColumns(tableName, idColumn, columns) {
     return;
   }
 
+  const rowIdColumn = databaseDialect.identity.rowId({ alias: "__rowid" });
   const rows = await querySql(`
-SELECT rowid AS __rowid, ${[idColumn, ...columns].join(", ")}
+SELECT ${rowIdColumn}, ${[idColumn, ...columns].join(", ")}
 FROM ${tableName};
 `);
-  const updates = rows
-    .map((row) => createUtcRepairSql(tableName, idColumn, columns, row))
+  const repairs = rows
+    .map((row) => createUtcRepairPlan(tableName, idColumn, columns, row))
     .filter(Boolean);
 
-  if (updates.length > 0) {
-    await runSql(updates.join("\n"));
+  if (repairs.length > 0) {
+    await db.transaction(async (transaction) => {
+      for (const repair of repairs) {
+        await transaction.run(repair.sql, repair.params);
+      }
+    });
   }
 }
 
-function createUtcRepairSql(tableName, idColumn, columns, row) {
+function createUtcRepairPlan(tableName, idColumn, columns, row) {
+  const params = {
+    recordId: row[idColumn],
+    rowId: row.__rowid,
+  };
   const assignments = columns
     .map((column) => {
       const currentValue = row[column];
       const nextValue = normalizeStoredTime(currentValue);
 
-      return nextValue !== currentValue ? `${column} = ${sqlText(nextValue)}` : "";
+      if (nextValue === currentValue) {
+        return "";
+      }
+
+      params[column] = nextValue;
+      return `${column} = :${column}`;
     })
     .filter(Boolean);
 
   if (assignments.length === 0) {
-    return "";
+    return null;
   }
 
-  return `
+  return {
+    params,
+    sql: `
 UPDATE ${tableName}
 SET ${assignments.join(", ")}
-WHERE ${idColumn} = ${sqlText(row[idColumn])}
-  AND rowid = ${sqlText(row.__rowid)};
-`;
+WHERE ${idColumn} = :recordId
+  AND ${databaseDialect.identity.rowId()} = :rowId;
+`,
+  };
 }
 
 function normalizeStoredTime(value) {
@@ -425,15 +517,15 @@ function normalizeStoredTime(value) {
 }
 
 async function tableExists(tableName) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT name
 FROM sqlite_master
 WHERE type = 'table'
-  AND name = ${sqlText(tableName)}
+  AND name = :tableName
 LIMIT 1;
-`);
+`, { tableName });
 
-  return rows.length > 0;
+  return Boolean(row);
 }
 
 async function ensureDefaultWorkspace() {
@@ -447,9 +539,19 @@ async function ensureDefaultWorkspace() {
   const workspaceId = randomUUID();
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, created_at, updated_at)
-VALUES (${sqlText(workspaceId)}, ${sqlText(seedSettings.workspaceName)}, 'Active', ${sqlText(DEFAULT_WORKSPACE_TYPE)}, ${sqlText(now)}, ${sqlText(now)});
+VALUES (:workspaceId, :workspaceName, 'Active', :workspaceType, :createdAt, :updatedAt);
+`, {
+      createdAt: now,
+      updatedAt: now,
+      workspaceId,
+      workspaceName: seedSettings.workspaceName,
+      workspaceType: DEFAULT_WORKSPACE_TYPE,
+    });
+
+    await transaction.run(`
 INSERT INTO workspace_settings (
   workspace_id,
   fiscal_year_start_month,
@@ -463,35 +565,50 @@ INSERT INTO workspace_settings (
   updated_at
 )
 VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlInteger(seedSettings.fiscalYear.startMonth)},
-  ${sqlInteger(seedSettings.fiscalYear.startDay)},
-  ${sqlText(seedSettings.defaultBillingRate)},
-  ${sqlText(seedSettings.billingPeriod.type)},
-  ${sqlInteger(seedSettings.billingPeriod.startDay)},
-  ${sqlInteger(seedSettings.billingRounding.enabled ? 1 : 0)},
-  ${sqlText(seedSettings.billingRounding.increment)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :workspaceId,
+  :fiscalYearStartMonth,
+  :fiscalYearStartDay,
+  :defaultBillingRate,
+  :billingPeriodType,
+  :billingPeriodStartDay,
+  :roundingEnabled,
+  :roundingIncrement,
+  :createdAt,
+  :updatedAt
 );
-`);
+`, {
+      billingPeriodStartDay: seedSettings.billingPeriod.startDay,
+      billingPeriodType: seedSettings.billingPeriod.type,
+      createdAt: now,
+      defaultBillingRate: seedSettings.defaultBillingRate,
+      fiscalYearStartDay: seedSettings.fiscalYear.startDay,
+      fiscalYearStartMonth: seedSettings.fiscalYear.startMonth,
+      roundingEnabled: databaseDialect.boolean.bind(seedSettings.billingRounding.enabled),
+      roundingIncrement: seedSettings.billingRounding.increment,
+      updatedAt: now,
+      workspaceId,
+    });
+  });
 
   return workspaceId;
 }
 
 async function ensureWorkspaceSettings(workspaceId) {
-  const settings = await querySql(
-    `SELECT workspace_id FROM workspace_settings WHERE workspace_id = ${sqlText(workspaceId)} LIMIT 1;`,
-  );
+  const settings = await db.get(`
+SELECT workspace_id
+FROM workspace_settings
+WHERE workspace_id = :workspaceId
+LIMIT 1;
+`, { workspaceId });
 
-  if (settings.length > 0) {
+  if (settings) {
     return;
   }
 
   const seedSettings = getDefaultSettings();
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO workspace_settings (
   workspace_id,
   fiscal_year_start_month,
@@ -505,18 +622,29 @@ INSERT INTO workspace_settings (
   updated_at
 )
 VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlInteger(seedSettings.fiscalYear.startMonth)},
-  ${sqlInteger(seedSettings.fiscalYear.startDay)},
-  ${sqlText(seedSettings.defaultBillingRate)},
-  ${sqlText(seedSettings.billingPeriod.type)},
-  ${sqlInteger(seedSettings.billingPeriod.startDay)},
-  ${sqlInteger(seedSettings.billingRounding.enabled ? 1 : 0)},
-  ${sqlText(seedSettings.billingRounding.increment)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :workspaceId,
+  :fiscalYearStartMonth,
+  :fiscalYearStartDay,
+  :defaultBillingRate,
+  :billingPeriodType,
+  :billingPeriodStartDay,
+  :roundingEnabled,
+  :roundingIncrement,
+  :createdAt,
+  :updatedAt
 );
-`);
+`, {
+    billingPeriodStartDay: seedSettings.billingPeriod.startDay,
+    billingPeriodType: seedSettings.billingPeriod.type,
+    createdAt: now,
+    defaultBillingRate: seedSettings.defaultBillingRate,
+    fiscalYearStartDay: seedSettings.fiscalYear.startDay,
+    fiscalYearStartMonth: seedSettings.fiscalYear.startMonth,
+    roundingEnabled: databaseDialect.boolean.bind(seedSettings.billingRounding.enabled),
+    roundingIncrement: seedSettings.billingRounding.increment,
+    updatedAt: now,
+    workspaceId,
+  });
 }
 
 function getDefaultSettings() {
@@ -524,13 +652,16 @@ function getDefaultSettings() {
 }
 
 async function seedSuperAdminUser(workspaceId) {
-  const existingUsers = await querySql(`
+  const existingUsers = await db.query(`
 SELECT user_id
 FROM users
-WHERE home_workspace_id = ${sqlText(workspaceId)}
-  AND username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
+WHERE home_workspace_id = :workspaceId
+  AND username = :username
 LIMIT 1;
-`);
+`, {
+    username: DEFAULT_SUPER_ADMIN_USERNAME,
+    workspaceId,
+  });
 
   let userId = existingUsers[0]?.user_id || "";
 
@@ -538,7 +669,7 @@ LIMIT 1;
     const passwordSetup = getSuperAdminPassword();
     userId = randomUUID();
 
-    await runSql(`
+    await db.run(`
 INSERT INTO users (
   user_id,
   home_workspace_id,
@@ -553,19 +684,27 @@ INSERT INTO users (
   active_workspace_id
 )
 VALUES (
-  ${sqlText(userId)},
-  ${sqlText(workspaceId)},
-  ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)},
-  ${sqlText(DEFAULT_SUPER_ADMIN_DISPLAY_NAME)},
+  :userId,
+  :workspaceId,
+  :username,
+  :displayName,
   NULL,
-  ${sqlText(DEFAULT_TIMEZONE)},
-  ${sqlText(hashPassword(passwordSetup.password))},
+  :timezone,
+  :password,
   'light',
   'active',
   'yes',
-  ${sqlText(workspaceId)}
+  :activeWorkspaceId
 );
-`);
+`, {
+      activeWorkspaceId: workspaceId,
+      displayName: DEFAULT_SUPER_ADMIN_DISPLAY_NAME,
+      password: hashPassword(passwordSetup.password),
+      timezone: DEFAULT_TIMEZONE,
+      userId,
+      username: DEFAULT_SUPER_ADMIN_USERNAME,
+      workspaceId,
+    });
 
     if (passwordSetup.generated) {
       console.log(
@@ -575,12 +714,15 @@ VALUES (
     }
   }
 
-  await runSql(`
+  await db.run(`
 UPDATE time_entries
-SET user_id = ${sqlText(userId)}
-WHERE workspace_id = ${sqlText(workspaceId)}
+SET user_id = :userId
+WHERE workspace_id = :workspaceId
   AND (user_id = 'local_user' OR user_id = '');
-`);
+`, {
+    userId,
+    workspaceId,
+  });
 }
 
 async function ensureWorkspaceMemberships(workspaceId) {
@@ -591,48 +733,43 @@ async function ensureWorkspaceMemberships(workspaceId) {
     return;
   }
 
-  const users = await querySql(`
+  const users = await db.query(`
 SELECT user_id, user_status
 FROM users
-WHERE home_workspace_id = ${sqlText(workspaceId)};
-`);
+WHERE home_workspace_id = :workspaceId;
+`, { workspaceId });
 
   const now = new Date().toISOString();
-  const membershipInserts = users.map((user) => `
-INSERT OR IGNORE INTO user_workspaces (
-  user_workspace_id,
-  user_id,
-  workspace_id,
-  status,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(user.user_id)},
-  ${sqlText(workspaceId)},
-  ${sqlText(user.user_status === "inactive" ? "inactive" : "active")},
-  ${sqlText(now)},
-  ${sqlText(now)}
-);
-`).join("\n");
 
-  if (membershipInserts) {
-    await runSql(membershipInserts);
+  if (users.length > 0) {
+    await db.transaction(async (transaction) => {
+      for (const user of users) {
+        await transaction.run(`
+${USER_WORKSPACE_INSERT_SQL};
+`, {
+          created_at: now,
+          status: user.user_status === "inactive" ? "inactive" : "active",
+          updated_at: now,
+          user_id: user.user_id,
+          user_workspace_id: randomUUID(),
+          workspace_id: workspaceId,
+        });
+      }
+    });
   }
 
   if (!hasOwnerColumn) {
     return;
   }
 
-  await runSql(`
+  await db.run(`
 UPDATE workspaces
 SET owner_user_id = COALESCE(
   owner_user_id,
   (
     SELECT user_id
     FROM users
-    WHERE home_workspace_id = ${sqlText(workspaceId)}
+    WHERE home_workspace_id = :workspaceId
       AND protected_user = 'yes'
     ORDER BY username
     LIMIT 1
@@ -640,13 +777,13 @@ SET owner_user_id = COALESCE(
   (
     SELECT user_id
     FROM users
-    WHERE home_workspace_id = ${sqlText(workspaceId)}
+    WHERE home_workspace_id = :workspaceId
     ORDER BY username
     LIMIT 1
   )
 )
-WHERE workspace_id = ${sqlText(workspaceId)};
-`);
+WHERE workspace_id = :workspaceId;
+`, { workspaceId });
 }
 
 async function repairUserActiveWorkspaces() {
@@ -684,14 +821,19 @@ INNER JOIN user_workspaces
   AND user_workspaces.status = 'active';
 `);
 
-  const updates = rows.map((row) => `
+  if (rows.length > 0) {
+    await db.transaction(async (transaction) => {
+      for (const row of rows) {
+        await transaction.run(`
 UPDATE users
-SET active_workspace_id = ${sqlText(row.active_workspace_id)}
-WHERE user_id = ${sqlText(row.user_id)};
-`).join("\n");
-
-  if (updates) {
-    await runSql(updates);
+SET active_workspace_id = :activeWorkspaceId
+WHERE user_id = :userId;
+`, {
+          activeWorkspaceId: row.active_workspace_id,
+          userId: row.user_id,
+        });
+      }
+    });
   }
 }
 
@@ -700,12 +842,15 @@ async function ensureWorkspaceType(workspaceId) {
     return;
   }
 
-  await runSql(`
+  await db.run(`
 UPDATE workspaces
-SET workspace_type = ${sqlText(DEFAULT_WORKSPACE_TYPE)}
-WHERE workspace_id = ${sqlText(workspaceId)}
+SET workspace_type = :workspaceType
+WHERE workspace_id = :workspaceId
   AND workspace_type NOT IN ('business', 'personal', 'family');
-`);
+`, {
+    workspaceId,
+    workspaceType: DEFAULT_WORKSPACE_TYPE,
+  });
 }
 
 async function repairPersonalWorkspaceMemberships() {
@@ -716,10 +861,10 @@ async function repairPersonalWorkspaceMemberships() {
     return;
   }
 
-  await runSql(`
+  await db.run(`
 UPDATE user_workspaces
 SET status = 'inactive',
-    updated_at = ${sqlText(new Date().toISOString())}
+    updated_at = :updatedAt
 WHERE status = 'active'
   AND workspace_id IN (
     SELECT workspace_id
@@ -732,59 +877,52 @@ WHERE status = 'active'
     FROM workspaces
     WHERE workspaces.workspace_id = user_workspaces.workspace_id
   );
-`);
+`, { updatedAt: new Date().toISOString() });
 }
 
 async function ensureProtectedUserRoles(workspaceId) {
-  await runSql(`
+  await db.run(`
 UPDATE user_role_assignments
 SET scope_type = 'all',
     scope_id = 'all',
-    updated_at = ${sqlText(new Date().toISOString())}
-WHERE workspace_id = ${sqlText(workspaceId)}
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
   AND role_id = 'super_admin'
   AND scope_type = 'workspace';
-`);
+`, {
+    updatedAt: new Date().toISOString(),
+    workspaceId,
+  });
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT user_id
 FROM users
-WHERE home_workspace_id = ${sqlText(workspaceId)}
+WHERE home_workspace_id = :workspaceId
   AND protected_user = 'yes';
-`);
+`, { workspaceId });
 
   const now = new Date().toISOString();
-  const inserts = rows.map((row) => `
-INSERT OR IGNORE INTO user_role_assignments (
-  assignment_id,
-  workspace_id,
-  user_id,
-  role_id,
-  scope_type,
-  scope_id,
-  client_id,
-  project_id,
-  permission_overrides_json,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(workspaceId)},
-  ${sqlText(row.user_id)},
-  'super_admin',
-  'all',
-  'all',
-  NULL,
-  NULL,
-  NULL,
-  ${sqlText(now)},
-  ${sqlText(now)}
-);
-`).join("\n");
 
-  if (inserts) {
-    await runSql(inserts);
+  if (rows.length > 0) {
+    await db.transaction(async (transaction) => {
+      for (const row of rows) {
+        await transaction.run(`
+${USER_ROLE_ASSIGNMENT_INSERT_SQL};
+`, {
+          assignment_id: randomUUID(),
+          client_id: null,
+          created_at: now,
+          permission_overrides_json: null,
+          project_id: null,
+          role_id: "super_admin",
+          scope_id: "all",
+          scope_type: "all",
+          updated_at: now,
+          user_id: row.user_id,
+          workspace_id: workspaceId,
+        });
+      }
+    });
   }
 }
 
@@ -809,17 +947,17 @@ async function protectFirstUser() {
   await runSql(`
 UPDATE users
 SET protected_user = 'yes'
-WHERE rowid = (
-  SELECT rowid
+WHERE ${databaseDialect.identity.rowId()} = (
+  SELECT ${databaseDialect.identity.rowId()}
   FROM users
-  ORDER BY rowid
+  ORDER BY ${databaseDialect.identity.rowId()}
   LIMIT 1
 );
 `);
 }
 
 async function columnsExist(tableName, columnNames) {
-  const columns = await querySql(`PRAGMA table_info(${tableName});`);
+  const columns = await querySql(databaseDialect.introspection.tableInfo(tableName));
   const existingColumnNames = new Set(columns.map((column) => column.name));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));

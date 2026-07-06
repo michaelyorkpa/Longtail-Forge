@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.28:
+Current totals as of 0.33.5.27.29:
 
-- Remaining runtime literal-helper invocations: 117.
-- Remaining direct interpolated SQL operation sites: 27.
-- Existing direct bound-params operation sites: 345.
-- Total runtime database operation calls seen by the audit scanner: 420.
+- Remaining runtime literal-helper invocations: 18.
+- Remaining direct interpolated SQL operation sites: 8.
+- Existing direct bound-params operation sites: 375.
+- Total runtime database operation calls seen by the audit scanner: 425.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -35,13 +35,14 @@ The inventory below is the canonical per-owner view and should be updated in pla
 Status legend:
 
 - `Remaining`: still has literal-helper invocations and direct interpolated operation sites to convert, even if some bound sites already exist.
+- `Startup compatibility`: startup-only maintenance code has zero literal-helper/direct-interpolation sites, but still contains sanctioned no-value startup maintenance SQL until the enforcement slices record the final dialect allowlist.
 - `Converted`: this branch converted or proof-converted the owner to zero literal-helper/direct-interpolation sites.
 - `Already bound`: the owner already had zero literal-helper/direct-interpolation sites in the initial audit and is tracked here for completeness.
 
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
-| db/index | Remaining | 99 | 19 | 1 | 35 |
 | db/migrations | Remaining | 18 | 8 | 0 | 24 |
+| db/index | Startup compatibility | 0 | 0 | 31 | 40 |
 | core/modules/modules.service | Converted | 0 | 0 | 6 | 7 |
 | audit-logs.repo | Converted | 0 | 0 | 10 | 10 |
 | api-keys.repo | Converted | 0 | 0 | 9 | 9 |
@@ -126,7 +127,7 @@ Standing query rule from `DECISIONS.md`: new or touched single-statement reposit
 | 0.33.5.27.29 - Startup maintenance compatibility path | `db/index` |
 | 0.33.5.27.30 - Migration compatibility path | `db/migrations` |
 
-The only sanctioned interpolation compatibility allowlist is no-parameter multi-statement startup/migration code in `src/db/index.js` and `src/db/migrations.js`. All other assigned owners must convert to named bound params and the dialect seams before their wave is complete.
+The only sanctioned interpolation compatibility allowlist is no-parameter multi-statement startup/migration code in `src/db/index.js` and `src/db/migrations.js`. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance; `src/db/migrations.js` is the only remaining owner with counted literal-helper/direct-interpolation sites. All other assigned owners must convert to named bound params and the dialect seams before their wave is complete.
 
 ## Scope Rechecks
 
@@ -504,3 +505,13 @@ The converted module service routes module registry upserts and workspace-module
 `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, and `services/help.service` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves module registry sync/status, audit search and retention behavior, API key reads/writes/scopes, Help workspace visibility, and admin/security behavior on SQLite.
 
 The live ratchet after this conversion is 117 runtime literal-helper invocations, 27 direct interpolated SQL operation sites, 345 existing bound operation sites, and 420 total runtime database operation calls.
+
+## 0.33.5.27.29 Startup Maintenance Compatibility Path
+
+0.33.5.27.29 converts value-bearing `src/db/index.js` startup maintenance SQL from literal-helper interpolation to named params through the provider-neutral database facade. Startup maintenance now binds worker schema readiness checks, framework module upserts, duplicate-user repair values, redacted seed-user repair values and audit rows, default workspace/workspace-settings bootstrap writes, super-admin bootstrap writes, workspace membership repair inserts, workspace owner/type repairs, personal-workspace membership repairs, protected-role repairs, and active-workspace repair writes.
+
+Dialect-sensitive startup behavior is accounted for without changing SQLite behavior: framework module upserts use the conflict update seam, startup membership and protected-role insert-if-missing paths use the conflict insert-or-ignore seam, workspace setting booleans use `db.dialect.boolean`, physical identity comparisons use `db.dialect.identity.rowId(...)`, and column metadata checks use `db.dialect.introspection.tableInfo(...)`. Static no-value startup maintenance SQL, including index creation and other repair statements that do not bind runtime values, remains sanctioned startup-only compatibility until the enforcement slices record the final dialect allowlist.
+
+`src/db/index.js` no longer has literal-helper calls or direct interpolated operation sites in the canonical inventory. It remains visible as `Startup compatibility` with 31 bound operation sites and 40 runtime database operation calls so future enforcement work can distinguish converted startup values from sanctioned startup-only maintenance.
+
+The live ratchet after this conversion is 18 runtime literal-helper invocations, 8 direct interpolated SQL operation sites, 375 existing bound operation sites, and 425 total runtime database operation calls. All counted remaining helper/direct-interpolation sites are now isolated to `src/db/migrations.js` for the 0.33.5.27.30 migration compatibility path.

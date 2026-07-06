@@ -1,3 +1,12 @@
+## Version 0.33.5.27.29 - 2026-07-06 15:59 -04:00
+
+- Completed the Startup maintenance compatibility path by moving value-bearing `src/db/index.js` startup reads and repairs to named params through the provider-neutral database facade.
+- Converted framework module upserts, default workspace/settings bootstrap, super-admin bootstrap, duplicate-user repair, redacted seed-user repair, workspace membership repair, owner/type repair, protected-role repair, active-workspace repair, and worker schema readiness checks to `db.query(...)`, `db.get(...)`, `db.run(...)`, and transaction clients.
+- Routed startup conflict inserts/upserts through `db.dialect.conflict`, workspace-setting booleans through `db.dialect.boolean`, physical identity comparisons through `db.dialect.identity.rowId(...)`, and table metadata reads through `db.dialect.introspection.tableInfo(...)`.
+- Added `scripts/startup-maintenance-compatibility-regression.mjs` and wired it into the isolated database regression suite, including a disposable startup rerun proof for redacted seed-user repair.
+- Updated the parameter-binding ratchet to 18 helper invocations, 8 direct interpolated operation sites, 375 bound operation sites, and 425 runtime DB operation calls; all counted remaining helper/direct-interpolation sites are now isolated to `src/db/migrations.js` for 0.33.5.27.30.
+- Verification 2026-07-06 16:06 -04:00: `scripts/startup-maintenance-compatibility-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/fresh-database-regression.mjs`, `scripts/sqlite-connection-hardening-regression.mjs`, `scripts/framework-admin-low-count-repositories-conversion-regression.mjs`, `scripts/parameter-binding-conversion-wave-regression.mjs`, `scripts/parameter-binding-layer-regression.mjs`, `scripts/database-conflict-identity-seam-regression.mjs`, and `scripts/database-introspection-boundary-regression.mjs` passed; `npm run check` passed 290/290 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.29 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.28 - 2026-07-06 15:36 -04:00
 
 - Completed the Framework and admin low-count repositories conversion by moving `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, and `services/help.service` to named params through the provider-neutral database facade.
