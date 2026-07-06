@@ -1,3 +1,14 @@
+## Version 0.33.5.27.28 - 2026-07-06 15:36 -04:00
+
+- Completed the Framework and admin low-count repositories conversion by moving `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, and `services/help.service` to named params through the provider-neutral database facade.
+- Routed module registry upserts and workspace-module insert-if-missing writes through `db.dialect.conflict`, kept registry/status repair writes transaction-scoped, and moved required-module repair to array-valued named params.
+- Converted Audit Log create/search/count/filter-option/retention paths to bound params, preserving multi-workspace visibility, metadata Client/Project filters, retention cleanup, and case-insensitive filter option ordering through `db.dialect.comparison`.
+- Converted API key create/read/list/last-used/revoke/scope reads to bound params, keeping key-plus-scope creation transaction-scoped and workspace-scoped API key behavior unchanged.
+- Converted Help workspace existence checks to a bound `db.get(...)` read while preserving active module Help visibility and Help search indexing behavior.
+- Added `scripts/framework-admin-low-count-repositories-conversion-regression.mjs` and wired it into the isolated database regression suite beside Clients/Projects, API key, Help, and module coverage.
+- Updated the parameter-binding ratchet to 117 helper invocations, 27 direct interpolated operation sites, 345 bound operation sites, and 420 runtime DB operation calls; only `src/db/index.js` startup maintenance and `src/db/migrations.js` migration compatibility remain interpolated.
+- Verification 2026-07-06 15:43 -04:00: `scripts/framework-admin-low-count-repositories-conversion-regression.mjs`, `scripts/parameter-binding-audit-regression.mjs`, `scripts/module-sanity-check.mjs`, `scripts/api-key-scope-audit-regression.mjs`, `scripts/help-contract-regression.mjs`, `scripts/help-center-surface-regression.mjs`, `scripts/audit-extensibility-regression.mjs`, and `scripts/parameter-binding-conversion-wave-regression.mjs` passed; `npm run check` passed 289/289 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.27.28 from the refreshed local 8001 server.
+
 ## Version 0.33.5.27.27 - 2026-07-06 14:46 -04:00
 
 - Completed the Clients and Projects repositories conversion by moving `client-projects/clients.repo` and `client-projects/projects.repo` to named params through the provider-neutral database facade.

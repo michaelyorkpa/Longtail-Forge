@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { modulesService } from "../core/modules/modules.service.js";
 import { markdownToPlainText, renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
-import { querySql, sqlText } from "../db/index.js";
+import { db } from "../core/database.js";
 import { validateHelpContribution } from "../core/modules/manifest-contract.js";
 import { AppError } from "../utils/app-error.js";
 
@@ -663,14 +663,14 @@ async function workspaceExists(workspaceId) {
     return false;
   }
 
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT workspace_id
 FROM workspaces
-WHERE workspace_id = ${sqlText(normalizedWorkspaceId)}
+WHERE workspace_id = :workspaceId
 LIMIT 1;
-`);
+`, { workspaceId: normalizedWorkspaceId });
 
-  return rows.length > 0;
+  return Boolean(row);
 }
 
 function normalizeFrameworkItem(item) {

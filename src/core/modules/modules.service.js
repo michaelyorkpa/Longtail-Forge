@@ -37,13 +37,62 @@ import {
   listFrameworkProtectedViews,
   listFrameworkViewSurfaces,
 } from "../view-surfaces/framework-view-surfaces.js";
-import { querySql, runSql, sqlText } from "../database.js";
+import { db } from "../database.js";
 import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 const TASKS_MODULE_ID = "tasks";
+const MODULE_INSERT_COLUMNS = [
+  "module_id",
+  "name",
+  "description",
+  "category",
+  "status",
+  "version",
+  "created_at",
+  "updated_at",
+];
+const MODULE_INSERT_VALUE_EXPRESSIONS = {
+  module_id: ":moduleId",
+  name: ":name",
+  description: ":description",
+  category: ":category",
+  status: ":status",
+  version: ":version",
+  created_at: ":createdAt",
+  updated_at: ":updatedAt",
+};
+const MODULE_UPSERT_SQL = `${db.dialect.conflict.buildInsertOnConflictDoUpdate({
+  columns: MODULE_INSERT_COLUMNS,
+  conflictColumns: ["module_id"],
+  tableName: "modules",
+  updateColumns: ["name", "description", "category", "status", "version", "updated_at"],
+  valueExpressions: MODULE_INSERT_VALUE_EXPRESSIONS,
+})};`;
+const WORKSPACE_MODULE_INSERT_COLUMNS = [
+  "workspace_id",
+  "module_id",
+  "status",
+  "enabled_at",
+  "disabled_at",
+  "updated_at",
+];
+const WORKSPACE_MODULE_INSERT_VALUE_EXPRESSIONS = {
+  workspace_id: ":workspaceId",
+  module_id: ":moduleId",
+  status: ":status",
+  enabled_at: ":enabledAt",
+  disabled_at: ":disabledAt",
+  updated_at: ":updatedAt",
+};
+const WORKSPACE_MODULE_INSERT_SQL = `${db.dialect.conflict.buildInsertOnConflictDoNothing({
+  columns: WORKSPACE_MODULE_INSERT_COLUMNS,
+  conflictColumns: ["workspace_id", "module_id"],
+  tableName: "workspace_modules",
+  valueExpressions: WORKSPACE_MODULE_INSERT_VALUE_EXPRESSIONS,
+})};`;
 const FRAMEWORK_VIEW_SURFACE_MODULE = Object.freeze({
   id: FRAMEWORK_VIEW_SURFACE_MODULE_ID,
   workspaceCapabilityRequirements: [],
@@ -283,40 +332,18 @@ function listModuleBrowserAssets() {
 async function syncModuleRegistry(workspaceId) {
   registerModuleEventHooks();
   const modules = listModules();
-  const existingModuleRows = await querySql("SELECT module_id, version FROM modules;");
+  const existingModuleRows = await db.query("SELECT module_id, version FROM modules;");
   const existingModulesById = new Map(existingModuleRows.map((row) => [row.module_id, row]));
   const now = new Date().toISOString();
-  const statements = [
-    ...modules.map((moduleDefinition) => (
-      `
-INSERT INTO modules (module_id, name, description, category, status, version, created_at, updated_at)
-VALUES (
-  ${sqlText(moduleDefinition.id)},
-  ${sqlText(moduleDefinition.name)},
-  ${sqlText(moduleDefinition.description)},
-  ${sqlText(moduleDefinition.category)},
-  'active',
-  ${sqlText(moduleDefinition.version)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(module_id) DO UPDATE SET
-  name = excluded.name,
-  description = excluded.description,
-  category = excluded.category,
-  status = excluded.status,
-  version = excluded.version,
-  updated_at = excluded.updated_at;
-`
-    )),
-    buildWorkspaceModuleSyncSql(workspaceId, modules, now),
-  ];
 
-  if (statements.length > 0) {
-    await runSql(statements.join("\n"));
-  }
+  await db.transaction(async (transaction) => {
+    for (const moduleDefinition of modules) {
+      await transaction.run(MODULE_UPSERT_SQL, moduleSyncParams(moduleDefinition, now));
+    }
 
-  await repairRequiredWorkspaceModules(workspaceId, modules, now);
+    await syncWorkspaceModuleRows(transaction, workspaceId, modules, now);
+    await repairRequiredWorkspaceModules(workspaceId, modules, now, transaction);
+  });
 
   for (const moduleDefinition of modules) {
     const existingModule = existingModulesById.get(moduleDefinition.id);
@@ -383,12 +410,12 @@ async function readWorkspaceModuleContext(workspaceId) {
   const installedModules = listModules();
   await ensureWorkspaceModuleRows(workspaceId, installedModules);
   const [rows, workspaceCapabilities] = await Promise.all([
-    querySql(`
+    db.query(`
 SELECT module_id, status
 FROM workspace_modules
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 ORDER BY module_id;
-`),
+`, { workspaceId: text(workspaceId) }),
     readWorkspaceCapabilities(workspaceId),
   ]);
   const workspaceType = workspaceCapabilities.workspaceType || "business";
@@ -486,13 +513,13 @@ function contributionSupportsWorkspaceType(contribution, workspaceType) {
 }
 
 async function readEnabledModuleIds(workspaceId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT module_id
 FROM workspace_modules
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
   AND status = 'enabled'
 ORDER BY module_id;
-`);
+`, { workspaceId: text(workspaceId) });
 
   return rows.map((row) => row.module_id);
 }
@@ -522,13 +549,16 @@ async function readModuleStatus(workspaceId, moduleId) {
 
   await ensureWorkspaceModuleRows(workspaceId, [moduleDefinition]);
 
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT status
 FROM workspace_modules
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND module_id = ${sqlText(moduleId)}
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
 LIMIT 1;
-`);
+`, {
+    moduleId: text(moduleId),
+    workspaceId: text(workspaceId),
+  });
 
   return rows[0]?.status === "enabled" ? "enabled" : "disabled";
 }
@@ -542,30 +572,28 @@ async function ensureWorkspaceModuleRows(workspaceId, modules) {
 
   const now = new Date().toISOString();
 
-  await runSql(buildWorkspaceModuleSyncSql(workspaceId, moduleDefinitions, now));
-  await repairRequiredWorkspaceModules(workspaceId, moduleDefinitions, now);
+  await db.transaction(async (transaction) => {
+    await syncWorkspaceModuleRows(transaction, workspaceId, moduleDefinitions, now);
+    await repairRequiredWorkspaceModules(workspaceId, moduleDefinitions, now, transaction);
+  });
 }
 
-function buildWorkspaceModuleSyncSql(workspaceId, modules, now) {
-  return modules.map((moduleDefinition) => {
+async function syncWorkspaceModuleRows(database, workspaceId, modules, now) {
+  for (const moduleDefinition of modules) {
     const workspaceStatus = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
 
-    return `
-INSERT INTO workspace_modules (workspace_id, module_id, status, enabled_at, disabled_at, updated_at)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(moduleDefinition.id)},
-  ${sqlText(workspaceStatus)},
-  ${moduleDefinition.enabledByDefault ? sqlText(now) : "NULL"},
-  ${moduleDefinition.enabledByDefault ? "NULL" : sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(workspace_id, module_id) DO NOTHING;
-`;
-  }).join("\n");
+    await database.run(WORKSPACE_MODULE_INSERT_SQL, {
+      disabledAt: moduleDefinition.enabledByDefault ? null : text(now),
+      enabledAt: moduleDefinition.enabledByDefault ? text(now) : null,
+      moduleId: text(moduleDefinition.id),
+      status: workspaceStatus,
+      updatedAt: text(now),
+      workspaceId: text(workspaceId),
+    });
+  }
 }
 
-async function repairRequiredWorkspaceModules(workspaceId, modules, now) {
+async function repairRequiredWorkspaceModules(workspaceId, modules, now, database = db) {
   const requiredModuleIds = modules
     .filter((moduleDefinition) => moduleDefinition.canDisable === false)
     .map((moduleDefinition) => moduleDefinition.id);
@@ -574,16 +602,20 @@ async function repairRequiredWorkspaceModules(workspaceId, modules, now) {
     return;
   }
 
-  await runSql(`
+  await database.run(`
 UPDATE workspace_modules
 SET status = 'enabled',
-    enabled_at = COALESCE(enabled_at, ${sqlText(now)}),
+    enabled_at = COALESCE(enabled_at, :now),
     disabled_at = NULL,
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND module_id IN (${requiredModuleIds.map(sqlText).join(", ")})
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND module_id IN (:requiredModuleIds)
   AND status <> 'enabled';
-`);
+`, {
+    now: text(now),
+    requiredModuleIds: normalizeIdList(requiredModuleIds),
+    workspaceId: text(workspaceId),
+  });
 }
 
 async function setModuleStatus(workspaceId, moduleId, enabled, options = {}) {
@@ -608,16 +640,21 @@ async function setModuleStatus(workspaceId, moduleId, enabled, options = {}) {
 
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE workspace_modules
-SET status = ${sqlText(nextStatus)},
-    enabled_at = CASE WHEN ${sqlText(nextStatus)} = 'enabled' THEN COALESCE(enabled_at, ${sqlText(now)}) ELSE enabled_at END,
-    disabled_at = CASE WHEN ${sqlText(nextStatus)} = 'disabled' THEN ${sqlText(now)} ELSE NULL END,
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND module_id = ${sqlText(moduleId)}
+SET status = :nextStatus,
+    enabled_at = CASE WHEN :nextStatus = 'enabled' THEN COALESCE(enabled_at, :now) ELSE enabled_at END,
+    disabled_at = CASE WHEN :nextStatus = 'disabled' THEN :now ELSE NULL END,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
 ;
-`);
+`, {
+    moduleId: text(moduleId),
+    nextStatus,
+    now: text(now),
+    workspaceId: text(workspaceId),
+  });
 
   await runModuleLifecycleHook(moduleDefinition, enabled ? "onModuleEnabled" : "onModuleDisabled", {
     moduleId,
@@ -1321,14 +1358,37 @@ async function requiredPermissionsAllowed(contribution, session) {
 }
 
 async function readWorkspaceCapabilities(workspaceId) {
-  const rows = await querySql(`
+  const rows = await db.query(`
 SELECT workspace_type
 FROM workspaces
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 LIMIT 1;
-`);
+`, { workspaceId: text(workspaceId) });
 
   return getWorkspaceCapabilities(rows[0]?.workspace_type);
+}
+
+function moduleSyncParams(moduleDefinition, now) {
+  return {
+    category: text(moduleDefinition.category),
+    createdAt: text(now),
+    description: text(moduleDefinition.description),
+    moduleId: text(moduleDefinition.id),
+    name: text(moduleDefinition.name),
+    status: "active",
+    updatedAt: text(now),
+    version: text(moduleDefinition.version),
+  };
+}
+
+function normalizeIdList(ids) {
+  return [...new Set((Array.isArray(ids) ? ids : [])
+    .map((id) => text(id).trim())
+    .filter(Boolean))];
+}
+
+function text(value) {
+  return String(value ?? "");
 }
 
 export const modulesService = {

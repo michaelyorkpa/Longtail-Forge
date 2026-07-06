@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.27:
+Current totals as of 0.33.5.27.28:
 
-- Remaining runtime literal-helper invocations: 195.
-- Remaining direct interpolated SQL operation sites: 45.
-- Existing direct bound-params operation sites: 319.
-- Total runtime database operation calls seen by the audit scanner: 421.
+- Remaining runtime literal-helper invocations: 117.
+- Remaining direct interpolated SQL operation sites: 27.
+- Existing direct bound-params operation sites: 345.
+- Total runtime database operation calls seen by the audit scanner: 420.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -41,11 +41,11 @@ Status legend:
 | Owner | Status | Literal-helper invocations | Direct interpolated operation sites | Existing bound operation sites | Runtime database operation calls |
 | --- | --- | ---: | ---: | ---: | ---: |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
-| core/modules/modules.service | Remaining | 29 | 6 | 0 | 9 |
-| audit-logs.repo | Remaining | 28 | 3 | 0 | 10 |
-| api-keys.repo | Remaining | 20 | 8 | 0 | 8 |
 | db/migrations | Remaining | 18 | 8 | 0 | 24 |
-| services/help.service | Remaining | 1 | 1 | 0 | 1 |
+| core/modules/modules.service | Converted | 0 | 0 | 6 | 7 |
+| audit-logs.repo | Converted | 0 | 0 | 10 | 10 |
+| api-keys.repo | Converted | 0 | 0 | 9 | 9 |
+| services/help.service | Converted | 0 | 0 | 1 | 1 |
 | services/files.service | Converted | 0 | 0 | 32 | 33 |
 | services/tag-propagation-registry | Converted | 0 | 0 | 15 | 15 |
 | services/tags.service | Converted | 0 | 0 | 3 | 3 |
@@ -494,3 +494,13 @@ The converted Projects repository binds full-list reads, single/batched reads, c
 `client-projects/clients.repo` and `client-projects/projects.repo` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves hierarchy-aware reads, create/update/archive behavior, Business-only Client gating, billing and task-default rows, project ordering, and readable label shaping on SQLite.
 
 The live ratchet after this conversion is 195 runtime literal-helper invocations, 45 direct interpolated SQL operation sites, 319 existing bound operation sites, and 421 total runtime database operation calls.
+
+## 0.33.5.27.28 Framework and Admin Low-Count Repository Conversion
+
+0.33.5.27.28 converts `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, and `services/help.service` from literal-helper interpolation to named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and callback transactions.
+
+The converted module service routes module registry upserts and workspace-module insert-if-missing writes through `db.dialect.conflict`, binds module status reads/writes, uses array-valued params for required-module repair, and keeps registry sync and workspace-module repair grouped in transaction callbacks. The converted audit log repository binds create, recent reads, scoped searches/counts, filter-option reads, and retention cleanup; multi-workspace visibility uses array-valued params, metadata matching uses the comparison LIKE seam, and filter-option ordering uses `db.dialect.comparison.orderByNoCase(...)`. The converted API key repository binds key reads, list reads, last-used updates, revocation, and scope reads while keeping key-plus-scopes creation transaction-scoped. The converted Help service binds its workspace existence read without changing active Help contribution visibility.
+
+`core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, and `services/help.service` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves module registry sync/status, audit search and retention behavior, API key reads/writes/scopes, Help workspace visibility, and admin/security behavior on SQLite.
+
+The live ratchet after this conversion is 117 runtime literal-helper invocations, 27 direct interpolated SQL operation sites, 345 existing bound operation sites, and 420 total runtime database operation calls.

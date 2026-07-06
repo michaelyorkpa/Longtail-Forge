@@ -299,9 +299,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.28 - Conversion wave: Framework and admin low-count repositories
 
-- [ ] Convert `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, `services/help.service`, and any other remaining low-count application repository from the audit inventory to named bound params and the dialect seams.
-- [ ] Preserve module registry sync/status, audit search/retention, API key reads/writes/scopes, Help workspace visibility, and admin/security behavior exactly.
-- [ ] Update the burndown ratchet and focused regressions before moving on.
+- [x] Convert `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, `services/help.service`, and any other remaining low-count application repository from the audit inventory to named bound params and the dialect seams.
+- [x] Preserve module registry sync/status, audit search/retention, API key reads/writes/scopes, Help workspace visibility, and admin/security behavior exactly.
+- [x] Update the burndown ratchet and focused regressions before moving on.
 
 Acceptance criteria:
 

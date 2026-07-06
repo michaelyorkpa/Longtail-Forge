@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.27";
+const appVersion = "0.33.5.27.28";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -27,7 +27,8 @@ const tagsRepositorySliceVersion = "0.33.5.27.23";
 const tagPropagationServiceSliceVersion = "0.33.5.27.24";
 const searchAdapterRebuildServiceSliceVersion = "0.33.5.27.25";
 const workResumeStateSliceVersion = "0.33.5.27.26";
-const clientProjectsRepositoriesSliceVersion = appVersion;
+const clientProjectsRepositoriesSliceVersion = "0.33.5.27.27";
+const frameworkAdminLowCountSliceVersion = appVersion;
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -46,19 +47,15 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 319,
-  dbOperationSites: 421,
-  helperCalls: 195,
-  interpolatedOperationSites: 45,
+  boundOperationSites: 345,
+  dbOperationSites: 420,
+  helperCalls: 117,
+  interpolatedOperationSites: 27,
 }, "parameter-binding audit totals should match the current post-wave runtime inventory");
 
 const expectedTopGroups = [
   ["db/index", 99, 19],
-  ["core/modules/modules.service", 29, 6],
-  ["audit-logs.repo", 28, 3],
-  ["api-keys.repo", 20, 8],
   ["db/migrations", 18, 8],
-  ["services/help.service", 1, 1],
 ];
 
 for (const [group, helperCalls, interpolatedOperationSites] of expectedTopGroups) {
@@ -123,11 +120,43 @@ assert.equal(projectsRepoRow.boundOperationSites, 8, "Projects repository should
 assert.equal(projectsRepoRow.dbOperationSites, 8, "Projects repository operation count should stay unchanged");
 assertInventoryRow("client-projects/projects.repo", "Converted", projectsRepoRow);
 
+const modulesServiceRow = audit.groups.find((candidate) => candidate.group === "core/modules/modules.service");
+assert.equal(modulesServiceRow.helperCalls, 0, "modules service should remove literal helpers after framework/admin conversion");
+assert.equal(modulesServiceRow.interpolatedOperationSites, 0, "modules service should remove direct interpolated operation sites after conversion");
+assert.equal(modulesServiceRow.boundOperationSites, 6, "modules service should keep six bound operation sites plus one no-param registry read");
+assert.equal(modulesServiceRow.dbOperationSites, 7, "modules service operation count should reflect transaction-split registry writes");
+assertInventoryRow("core/modules/modules.service", "Converted", modulesServiceRow);
+
+const auditLogsRepoRow = audit.groups.find((candidate) => candidate.group === "audit-logs.repo");
+assert.equal(auditLogsRepoRow.helperCalls, 0, "audit logs repository should remove literal helpers after framework/admin conversion");
+assert.equal(auditLogsRepoRow.interpolatedOperationSites, 0, "audit logs repository should remove direct interpolated operation sites after conversion");
+assert.equal(auditLogsRepoRow.boundOperationSites, 10, "audit logs repository should keep ten bound operation sites");
+assert.equal(auditLogsRepoRow.dbOperationSites, 10, "audit logs repository operation count should stay unchanged");
+assertInventoryRow("audit-logs.repo", "Converted", auditLogsRepoRow);
+
+const apiKeysRepoRow = audit.groups.find((candidate) => candidate.group === "api-keys.repo");
+assert.equal(apiKeysRepoRow.helperCalls, 0, "API keys repository should remove literal helpers after framework/admin conversion");
+assert.equal(apiKeysRepoRow.interpolatedOperationSites, 0, "API keys repository should remove direct interpolated operation sites after conversion");
+assert.equal(apiKeysRepoRow.boundOperationSites, 9, "API keys repository should keep nine bound operation sites after transaction splitting");
+assert.equal(apiKeysRepoRow.dbOperationSites, 9, "API keys repository operation count should reflect key and scope creation statements");
+assertInventoryRow("api-keys.repo", "Converted", apiKeysRepoRow);
+
+const helpServiceRow = audit.groups.find((candidate) => candidate.group === "services/help.service");
+assert.equal(helpServiceRow.helperCalls, 0, "Help service should remove literal helpers after framework/admin conversion");
+assert.equal(helpServiceRow.interpolatedOperationSites, 0, "Help service should remove direct interpolated operation sites after conversion");
+assert.equal(helpServiceRow.boundOperationSites, 1, "Help service should keep one bound workspace existence read");
+assert.equal(helpServiceRow.dbOperationSites, 1, "Help service operation count should stay unchanged");
+assertInventoryRow("services/help.service", "Converted", helpServiceRow);
+
 const convertedWaveRows = [
   ["app-settings.repo", 2],
+  ["api-keys.repo", 9],
+  ["audit-logs.repo", 10],
   ["client-projects/clients.repo", 9],
   ["client-projects/projects.repo", 8],
+  ["core/modules/modules.service", 6],
   ["services/files.service", 32],
+  ["services/help.service", 1],
   ["services/search-index-rebuild.service", 2],
   ["services/tag-propagation-registry", 15],
   ["services/tags.service", 3],
@@ -171,7 +200,7 @@ assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSO
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.27:[\s\S]*Remaining runtime literal-helper invocations: 195[\s\S]*Remaining direct interpolated SQL operation sites: 45[\s\S]*Existing direct bound-params operation sites: 319[\s\S]*Total runtime database operation calls seen by the audit scanner: 421/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.28:[\s\S]*Remaining runtime literal-helper invocations: 117[\s\S]*Remaining direct interpolated SQL operation sites: 27[\s\S]*Existing direct bound-params operation sites: 345[\s\S]*Total runtime database operation calls seen by the audit scanner: 420/, "audit docs should record the current canonical totals");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
@@ -211,6 +240,7 @@ assert.match(auditDocs, /0\.33\.5\.27\.24 Tag Propagation and Tags Service Conve
 assert.match(auditDocs, /0\.33\.5\.27\.25 Search Adapter and Rebuild Service Conversion[\s\S]*`services\/search-index-rebuild\.service` is converted[\s\S]*362 runtime literal-helper invocations[\s\S]*66 direct interpolated SQL operation sites[\s\S]*293 existing bound operation sites/, "audit docs should record the Search adapter/rebuild service conversion slice");
 assert.match(auditDocs, /0\.33\.5\.27\.26 Work Resume State Conversion[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are fully converted[\s\S]*304 runtime literal-helper invocations[\s\S]*57 direct interpolated SQL operation sites[\s\S]*302 existing bound operation sites/, "audit docs should record the Work resume state conversion slice");
 assert.match(auditDocs, /0\.33\.5\.27\.27 Clients and Projects Repository Conversion[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are fully converted[\s\S]*195 runtime literal-helper invocations[\s\S]*45 direct interpolated SQL operation sites[\s\S]*319 existing bound operation sites/, "audit docs should record the Clients/Projects repositories conversion slice");
+assert.match(auditDocs, /0\.33\.5\.27\.28 Framework and Admin Low-Count Repository Conversion[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are fully converted[\s\S]*117 runtime literal-helper invocations[\s\S]*27 direct interpolated SQL operation sites[\s\S]*345 existing bound operation sites/, "audit docs should record the framework/admin low-count repository conversion slice");
 assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
 assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
 assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
@@ -262,6 +292,7 @@ assert.match(databaseDocs, /As of version 0\.33\.5\.27\.24[\s\S]*`services\/tag-
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.25[\s\S]*`services\/search-index-rebuild\.service` is converted[\s\S]*362 remaining helper invocations/, "database docs should record the concrete Search adapter/rebuild service conversion");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.26[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are converted[\s\S]*304 remaining helper invocations/, "database docs should record the concrete Work resume state conversion");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.27[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are converted[\s\S]*195 remaining helper invocations/, "database docs should record the concrete Clients/Projects repositories conversion");
+assert.match(databaseDocs, /As of version 0\.33\.5\.27\.28[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are converted[\s\S]*117 remaining helper invocations/, "database docs should record the concrete framework/admin low-count repository conversion");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
 assert.match(changelog, /## Version 0\.33\.5\.27\.3 - [\s\S]*upsert\/conflict and identity seams[\s\S]*durable job[\s\S]*1,498 helper invocations/, "changelog should record the conflict and identity seam slice");
@@ -289,6 +320,7 @@ assert.match(changelog, new RegExp(`## Version ${escapeRegExp(tagPropagationServ
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(searchAdapterRebuildServiceSliceVersion)} - [\\s\\S]*Search adapter and rebuild service conversion[\\s\\S]*362 helper invocations[\\s\\S]*66 direct interpolated operation sites[\\s\\S]*293 bound operation sites`), "changelog should record the Search adapter/rebuild service conversion slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(workResumeStateSliceVersion)} - [\\s\\S]*Work resume state conversion[\\s\\S]*304 helper invocations[\\s\\S]*57 direct interpolated operation sites[\\s\\S]*302 bound operation sites`), "changelog should record the Work resume state conversion slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(clientProjectsRepositoriesSliceVersion)} - [\\s\\S]*Clients and Projects repositories conversion[\\s\\S]*195 helper invocations[\\s\\S]*45 direct interpolated operation sites[\\s\\S]*319 bound operation sites`), "changelog should record the Clients/Projects repositories conversion slice");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(frameworkAdminLowCountSliceVersion)} - [\\s\\S]*Framework and admin low-count repositories conversion[\\s\\S]*117 helper invocations[\\s\\S]*27 direct interpolated operation sites[\\s\\S]*345 bound operation sites`), "changelog should record the framework/admin low-count repository conversion slice");
 
 assert.match(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should now start at the database extraction contract branch");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");
@@ -302,6 +334,7 @@ assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/
 assert.match(regressionSuite, /scripts\/parameter-binding-conversion-wave-regression\.mjs/, "regression suite should include the parameter-binding conversion-wave regression");
 assert.match(regressionSuite, /scripts\/work-resume-state-conversion-regression\.mjs/, "regression suite should include the Work resume state conversion regression");
 assert.match(regressionSuite, /scripts\/client-projects-repositories-conversion-regression\.mjs/, "regression suite should include the Clients/Projects repositories conversion regression");
+assert.match(regressionSuite, /scripts\/framework-admin-low-count-repositories-conversion-regression\.mjs/, "regression suite should include the framework/admin low-count repositories conversion regression");
 
 console.log("Parameter-binding audit regression passed.");
 
