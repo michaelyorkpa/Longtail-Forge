@@ -1,4 +1,4 @@
-import { querySql, sqlText } from "../core/database.js";
+import { db } from "../core/database.js";
 import { listsService } from "../modules/lists/lists.service.js";
 import { LIST_STATUSES } from "../modules/lists/storage-contract.js";
 import {
@@ -193,22 +193,26 @@ async function noteReadResolver({ recordId, session, workspaceId }) {
 }
 
 async function activeTimerReadResolver({ recordId, userId, workspaceId }) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT active_timer_id, timer_status
 FROM active_work_timers
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND active_timer_id = ${sqlText(recordId)}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND active_timer_id = :activeTimerId
 LIMIT 1;
-`);
+`, {
+    activeTimerId: textParam(recordId),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 
-  if (!rows[0]) {
+  if (!row) {
     return { deleted: true, readable: false, status: "deleted" };
   }
 
   return {
     readable: true,
-    status: rows[0].timer_status === "running" ? "active" : "paused",
+    status: row.timer_status === "running" ? "active" : "paused",
   };
 }
 
@@ -401,15 +405,20 @@ function safeNoteLinkedContext(metadata = {}) {
 }
 
 async function readSafeNoteLifecycle(workspaceId, noteId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT note_id, library_bucket, status, visibility, security_mode
 FROM notes
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)}
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
 LIMIT 1;
-`);
+`, {
+    noteId: textParam(noteId),
+    workspaceId: textParam(workspaceId),
+  });
+}
 
-  return rows[0] || null;
+function textParam(value) {
+  return String(value ?? "");
 }
 
 export {

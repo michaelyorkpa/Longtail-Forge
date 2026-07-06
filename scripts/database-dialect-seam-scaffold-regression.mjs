@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.25";
+const appVersion = "0.33.5.27.26";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-dialect-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-dialect-seams.db");

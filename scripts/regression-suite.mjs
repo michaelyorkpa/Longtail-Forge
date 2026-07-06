@@ -279,6 +279,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/timer-resume-metadata-regression.mjs",
   "scripts/active-timers-repository-conversion-regression.mjs",
   "scripts/time-entries-repository-conversion-regression.mjs",
+  "scripts/work-resume-state-conversion-regression.mjs",
   "scripts/work-resume-state-service-regression.mjs",
   "scripts/work-resume-state-producer-regression.mjs",
   "scripts/work-resume-state-initial-producers-regression.mjs",

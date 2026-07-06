@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
-import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../core/database.js";
+import { db } from "../core/database.js";
 import { AppError } from "../utils/app-error.js";
 import { readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
 
@@ -24,6 +24,83 @@ const TEXT_LIMITS = Object.freeze({
 const PRIMARY_HIDDEN_STATUSES = new Set(["archived", "completed", "deleted", "finalized"]);
 const EXPLICIT_HISTORY_MODES = new Set(["recent", "history"]);
 const SUPPORTED_MODES = new Set(["left_off", "active", "recent", "history"]);
+const RESUME_STATE_COLUMNS = [
+  "resume_state_id",
+  "workspace_id",
+  "user_id",
+  "module_id",
+  "record_type",
+  "record_id",
+  "client_id",
+  "project_id",
+  "source_url",
+  "title_snapshot",
+  "context_label_snapshot",
+  "last_action_type",
+  "last_action_label",
+  "last_worked_at",
+  "handoff_note",
+  "next_action",
+  "blocked_reason",
+  "status_snapshot",
+  "priority_snapshot",
+  "due_at_snapshot",
+  "resume_rank_hint",
+  "metadata_json",
+  "dismissed_at",
+  "dismissed_source_updated_at",
+  "created_at",
+  "updated_at",
+];
+const RESUME_STATE_UPSERT_UPDATE_COLUMNS = [
+  "client_id",
+  "project_id",
+  "source_url",
+  "title_snapshot",
+  "context_label_snapshot",
+  "last_action_type",
+  "last_action_label",
+  "last_worked_at",
+  "handoff_note",
+  "next_action",
+  "blocked_reason",
+  "status_snapshot",
+  "priority_snapshot",
+  "due_at_snapshot",
+  "resume_rank_hint",
+  "metadata_json",
+  "dismissed_at",
+  "dismissed_source_updated_at",
+  "updated_at",
+];
+const RESUME_STATE_UPSERT_SQL = `${db.dialect.conflict.buildInsertOnConflictDoUpdate({
+  columns: RESUME_STATE_COLUMNS,
+  conflictColumns: ["workspace_id", "user_id", "module_id", "record_type", "record_id"],
+  tableName: "work_resume_state",
+  updateColumns: RESUME_STATE_UPSERT_UPDATE_COLUMNS,
+})};`;
+const CONTEXT_LOOKUPS = Object.freeze({
+  clients: Object.freeze({
+    idColumn: "id",
+    query: `
+SELECT id AS id
+FROM clients
+WHERE workspace_id = :workspaceId
+  AND id = :contextId
+LIMIT 1;
+`,
+  }),
+  projects: Object.freeze({
+    idColumn: "id",
+    query: `
+SELECT id AS id
+FROM projects
+WHERE workspace_id = :workspaceId
+  AND id = :contextId
+LIMIT 1;
+`,
+  }),
+});
 
 async function upsertResumeState(session, payload = {}) {
   assertSession(session);
@@ -40,84 +117,14 @@ async function upsertResumeState(session, payload = {}) {
   const shouldClearDismissal = previous?.dismissed_at &&
     compareIso(sourceUpdatedAt, previous.dismissed_source_updated_at || previous.last_worked_at || previous.updated_at) > 0;
 
-  await runSql(`
-INSERT INTO work_resume_state (
-  resume_state_id,
-  workspace_id,
-  user_id,
-  module_id,
-  record_type,
-  record_id,
-  client_id,
-  project_id,
-  source_url,
-  title_snapshot,
-  context_label_snapshot,
-  last_action_type,
-  last_action_label,
-  last_worked_at,
-  handoff_note,
-  next_action,
-  blocked_reason,
-  status_snapshot,
-  priority_snapshot,
-  due_at_snapshot,
-  resume_rank_hint,
-  metadata_json,
-  dismissed_at,
-  dismissed_source_updated_at,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(previous?.resume_state_id || normalized.resume_state_id || randomUUID())},
-  ${sqlText(normalized.workspace_id)},
-  ${sqlText(normalized.user_id)},
-  ${sqlText(normalized.module_id)},
-  ${sqlText(normalized.record_type)},
-  ${sqlText(normalized.record_id)},
-  ${sqlNullableText(normalized.client_id)},
-  ${sqlNullableText(normalized.project_id)},
-  ${sqlNullableText(normalized.source_url)},
-  ${sqlText(normalized.title_snapshot)},
-  ${sqlText(normalized.context_label_snapshot)},
-  ${sqlText(normalized.last_action_type)},
-  ${sqlText(normalized.last_action_label)},
-  ${sqlNullableText(normalized.last_worked_at)},
-  ${sqlNullableText(normalized.handoff_note)},
-  ${sqlNullableText(normalized.next_action)},
-  ${sqlNullableText(normalized.blocked_reason)},
-  ${sqlNullableText(normalized.status_snapshot)},
-  ${sqlNullableText(normalized.priority_snapshot)},
-  ${sqlNullableText(normalized.due_at_snapshot)},
-  ${sqlInteger(normalized.resume_rank_hint)},
-  ${sqlText(normalized.metadata_json)},
-  ${shouldClearDismissal ? "NULL" : sqlNullableText(previous?.dismissed_at)},
-  ${shouldClearDismissal ? "NULL" : sqlNullableText(previous?.dismissed_source_updated_at)},
-  ${sqlText(previous?.created_at || now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(workspace_id, user_id, module_id, record_type, record_id) DO UPDATE SET
-  client_id = excluded.client_id,
-  project_id = excluded.project_id,
-  source_url = excluded.source_url,
-  title_snapshot = excluded.title_snapshot,
-  context_label_snapshot = excluded.context_label_snapshot,
-  last_action_type = excluded.last_action_type,
-  last_action_label = excluded.last_action_label,
-  last_worked_at = excluded.last_worked_at,
-  handoff_note = excluded.handoff_note,
-  next_action = excluded.next_action,
-  blocked_reason = excluded.blocked_reason,
-  status_snapshot = excluded.status_snapshot,
-  priority_snapshot = excluded.priority_snapshot,
-  due_at_snapshot = excluded.due_at_snapshot,
-  resume_rank_hint = excluded.resume_rank_hint,
-  metadata_json = excluded.metadata_json,
-  dismissed_at = excluded.dismissed_at,
-  dismissed_source_updated_at = excluded.dismissed_source_updated_at,
-  updated_at = excluded.updated_at;
-`);
+  await db.run(RESUME_STATE_UPSERT_SQL, resumeStateWriteParams({
+    dismissedSourceUpdatedAt: shouldClearDismissal ? null : previous?.dismissed_source_updated_at,
+    dismissedAt: shouldClearDismissal ? null : previous?.dismissed_at,
+    normalized,
+    now,
+    resumeStateId: previous?.resume_state_id || normalized.resume_state_id || randomUUID(),
+    rowCreatedAt: previous?.created_at || now,
+  }));
 
   return readBySource(
     normalized.workspace_id,
@@ -145,15 +152,22 @@ async function dismissResumeState(session, resumeStateId) {
   const now = new Date().toISOString();
   const sourceUpdatedAt = row.last_worked_at || row.updated_at || now;
 
-  await runSql(`
+  await db.run(`
 UPDATE work_resume_state
-SET dismissed_at = ${sqlText(now)},
-    dismissed_source_updated_at = ${sqlText(sourceUpdatedAt)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND user_id = ${sqlText(session.user_id)}
-  AND resume_state_id = ${sqlText(normalizedResumeStateId)};
-`);
+SET dismissed_at = :dismissedAt,
+    dismissed_source_updated_at = :dismissedSourceUpdatedAt,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND resume_state_id = :resumeStateId;
+`, {
+    dismissedAt: now,
+    dismissedSourceUpdatedAt: sourceUpdatedAt,
+    resumeStateId: textParam(normalizedResumeStateId),
+    updatedAt: now,
+    userId: textParam(session.user_id),
+    workspaceId: textParam(session.workspace_id),
+  });
 
   return readById(session.workspace_id, session.user_id, normalizedResumeStateId);
 }
@@ -161,23 +175,46 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 async function listResumeState(session, query = {}) {
   assertSession(session);
   const normalizedQuery = normalizeListQuery(query);
-  const rows = await querySql(`
+  const params = {
+    limit: integerParam(normalizedQuery.limit * 3),
+    userId: textParam(session.user_id),
+    workspaceId: textParam(session.workspace_id),
+  };
+  const whereClauses = [
+    "workspace_id = :workspaceId",
+    "user_id = :userId",
+  ];
+
+  if (normalizedQuery.module_id) {
+    params.moduleId = textParam(normalizedQuery.module_id);
+    whereClauses.push("module_id = :moduleId");
+  }
+  if (normalizedQuery.record_type) {
+    params.recordType = textParam(normalizedQuery.record_type);
+    whereClauses.push("record_type = :recordType");
+  }
+  if (normalizedQuery.client_id) {
+    params.clientId = textParam(normalizedQuery.client_id);
+    whereClauses.push("client_id = :clientId");
+  }
+  if (normalizedQuery.project_id) {
+    params.projectId = textParam(normalizedQuery.project_id);
+    whereClauses.push("project_id = :projectId");
+  }
+
+  const listSql = `
 SELECT *
 FROM work_resume_state
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND user_id = ${sqlText(session.user_id)}
-  ${normalizedQuery.module_id ? `AND module_id = ${sqlText(normalizedQuery.module_id)}` : ""}
-  ${normalizedQuery.record_type ? `AND record_type = ${sqlText(normalizedQuery.record_type)}` : ""}
-  ${normalizedQuery.client_id ? `AND client_id = ${sqlText(normalizedQuery.client_id)}` : ""}
-  ${normalizedQuery.project_id ? `AND project_id = ${sqlText(normalizedQuery.project_id)}` : ""}
+WHERE ${whereClauses.join("\n  AND ")}
 ORDER BY
   CASE WHEN last_action_type IN ('timer.started', 'timer.running', 'timer.resumed') THEN 0 ELSE 1 END,
   due_at_snapshot IS NULL,
   due_at_snapshot ASC,
   resume_rank_hint DESC,
   COALESCE(last_worked_at, updated_at) DESC
-LIMIT ${sqlInteger(normalizedQuery.limit * 3)};
-`);
+LIMIT :limit;
+`;
+  const rows = await db.query(listSql, params);
   const results = [];
 
   for (const row of rows) {
@@ -208,13 +245,18 @@ async function removeResumeStateForRecord(workspaceId, moduleId, recordType, rec
     throw new AppError("Workspace, module, record type, and record ID are required.", 400);
   }
 
-  await runSql(`
+  await db.run(`
 DELETE FROM work_resume_state
-WHERE workspace_id = ${sqlText(normalizedWorkspaceId)}
-  AND module_id = ${sqlText(normalizedModuleId)}
-  AND record_type = ${sqlText(normalizedRecordType)}
-  AND record_id = ${sqlText(normalizedRecordId)};
-`);
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND record_type = :recordType
+  AND record_id = :recordId;
+`, {
+    moduleId: textParam(normalizedModuleId),
+    recordId: textParam(normalizedRecordId),
+    recordType: textParam(normalizedRecordType),
+    workspaceId: textParam(normalizedWorkspaceId),
+  });
 
   return {
     moduleId: normalizedModuleId,
@@ -366,45 +408,97 @@ async function assertOptionalContextInWorkspace(workspaceId, tableName, idColumn
     return;
   }
 
-  const rows = await querySql(`
-SELECT ${idColumn} AS id
-FROM ${tableName}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND ${idColumn} = ${sqlText(normalizedValue)}
-LIMIT 1;
-`);
+  const lookup = resolveContextLookup(tableName, idColumn);
+  const row = await db.get(lookup.query, {
+    contextId: textParam(normalizedValue),
+    workspaceId: textParam(workspaceId),
+  });
 
-  if (!rows[0]) {
+  if (!row) {
     throw new AppError(`Resume state ${label} context was not found in the current workspace.`, 400);
   }
 }
 
 async function readBySource(workspaceId, userId, moduleId, recordType, recordId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT *
 FROM work_resume_state
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND module_id = ${sqlText(moduleId)}
-  AND record_type = ${sqlText(recordType)}
-  AND record_id = ${sqlText(recordId)}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND module_id = :moduleId
+  AND record_type = :recordType
+  AND record_id = :recordId
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, {
+    moduleId: textParam(moduleId),
+    recordId: textParam(recordId),
+    recordType: textParam(recordType),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
 }
 
 async function readById(workspaceId, userId, resumeStateId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT *
 FROM work_resume_state
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND user_id = ${sqlText(userId)}
-  AND resume_state_id = ${sqlText(resumeStateId)}
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND resume_state_id = :resumeStateId
 LIMIT 1;
-`);
+`, {
+    resumeStateId: textParam(resumeStateId),
+    userId: textParam(userId),
+    workspaceId: textParam(workspaceId),
+  });
+}
 
-  return rows[0] || null;
+function resolveContextLookup(tableName, idColumn) {
+  const lookup = CONTEXT_LOOKUPS[tableName];
+
+  if (!lookup || lookup.idColumn !== idColumn) {
+    throw new AppError("Resume state context lookup is not supported.", 500);
+  }
+
+  return lookup;
+}
+
+function resumeStateWriteParams({
+  dismissedAt,
+  dismissedSourceUpdatedAt,
+  normalized,
+  now,
+  resumeStateId,
+  rowCreatedAt,
+}) {
+  return {
+    blocked_reason: nullableTextParam(normalized.blocked_reason),
+    client_id: nullableTextParam(normalized.client_id),
+    context_label_snapshot: textParam(normalized.context_label_snapshot),
+    created_at: textParam(rowCreatedAt),
+    dismissed_at: nullableTextParam(dismissedAt),
+    dismissed_source_updated_at: nullableTextParam(dismissedSourceUpdatedAt),
+    due_at_snapshot: nullableTextParam(normalized.due_at_snapshot),
+    handoff_note: nullableTextParam(normalized.handoff_note),
+    last_action_label: textParam(normalized.last_action_label),
+    last_action_type: textParam(normalized.last_action_type),
+    last_worked_at: nullableTextParam(normalized.last_worked_at),
+    metadata_json: textParam(normalized.metadata_json),
+    module_id: textParam(normalized.module_id),
+    next_action: nullableTextParam(normalized.next_action),
+    priority_snapshot: nullableTextParam(normalized.priority_snapshot),
+    project_id: nullableTextParam(normalized.project_id),
+    record_id: textParam(normalized.record_id),
+    record_type: textParam(normalized.record_type),
+    resume_rank_hint: integerParam(normalized.resume_rank_hint),
+    resume_state_id: textParam(resumeStateId),
+    source_url: nullableTextParam(normalized.source_url),
+    status_snapshot: nullableTextParam(normalized.status_snapshot),
+    title_snapshot: textParam(normalized.title_snapshot),
+    updated_at: textParam(now),
+    user_id: textParam(normalized.user_id),
+    workspace_id: textParam(normalized.workspace_id),
+  };
 }
 
 function normalizeListQuery(query = {}) {
@@ -453,6 +547,20 @@ function normalizeNullableDateText(value) {
 
 function normalizeRankHint(value) {
   return Math.max(Math.min(Number.parseInt(value, 10) || 0, 1000), -1000);
+}
+
+function textParam(value) {
+  return String(value ?? "");
+}
+
+function nullableTextParam(value) {
+  const text = String(value ?? "").trim();
+  return text ? text : null;
+}
+
+function integerParam(value) {
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
 function normalizeMetadataJson(value) {

@@ -12,11 +12,11 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.25:
+Current totals as of 0.33.5.27.26:
 
-- Remaining runtime literal-helper invocations: 362.
-- Remaining direct interpolated SQL operation sites: 66.
-- Existing direct bound-params operation sites: 293.
+- Remaining runtime literal-helper invocations: 304.
+- Remaining direct interpolated SQL operation sites: 57.
+- Existing direct bound-params operation sites: 302.
 - Total runtime database operation calls seen by the audit scanner: 419.
 
 Original 0.33.5.23.1 baseline totals:
@@ -42,17 +42,17 @@ Status legend:
 | --- | --- | ---: | ---: | ---: | ---: |
 | db/index | Remaining | 99 | 19 | 1 | 35 |
 | client-projects/clients.repo | Remaining | 60 | 5 | 0 | 7 |
-| services/work-resume-state.service | Remaining | 53 | 7 | 0 | 7 |
 | client-projects/projects.repo | Remaining | 49 | 7 | 0 | 8 |
 | core/modules/modules.service | Remaining | 29 | 6 | 0 | 9 |
 | audit-logs.repo | Remaining | 28 | 3 | 0 | 10 |
 | api-keys.repo | Remaining | 20 | 8 | 0 | 8 |
 | db/migrations | Remaining | 18 | 8 | 0 | 24 |
-| services/work-resume-state-initial-producers | Remaining | 5 | 2 | 0 | 2 |
 | services/help.service | Remaining | 1 | 1 | 0 | 1 |
 | services/files.service | Converted | 0 | 0 | 32 | 33 |
 | services/tag-propagation-registry | Converted | 0 | 0 | 15 | 15 |
 | services/tags.service | Converted | 0 | 0 | 3 | 3 |
+| services/work-resume-state.service | Converted | 0 | 0 | 7 | 7 |
+| services/work-resume-state-initial-producers | Converted | 0 | 0 | 2 | 2 |
 | tags.repo | Converted | 0 | 0 | 17 | 17 |
 | core/search/adapters/sqlite-search-adapter | Converted | 0 | 0 | 13 | 17 |
 | core/search/tag-text | Converted | 0 | 0 | 1 | 1 |
@@ -472,3 +472,13 @@ The converted rebuild service binds workspace, module, and record-type filters f
 `services/search-index-rebuild.service` is converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. `core/search/adapters/sqlite-search-adapter` and `core/search/tag-text` remain converted with 0 helper and 0 direct interpolation sites. This slice preserves FTS5 maintenance, indexed LIKE fallback, adapter repair/rebuild behavior, stale-row cleanup, inactive-type cleanup, canonical `search_index` writes, and permission-safe search request shaping.
 
 The live ratchet after this conversion is 362 runtime literal-helper invocations, 66 direct interpolated SQL operation sites, 293 existing bound operation sites, and 419 total runtime database operation calls.
+
+## 0.33.5.27.26 Work Resume State Conversion
+
+0.33.5.27.26 converts `services/work-resume-state.service` and `services/work-resume-state-initial-producers` from literal-helper interpolation to named params through `db.run(...)`, `db.query(...)`, and `db.get(...)`.
+
+The converted Resume State service routes the `(workspace_id, user_id, module_id, record_type, record_id)` upsert through `db.dialect.conflict.buildInsertOnConflictDoUpdate(...)`, binds dismissal, listing, source-removal, source read, ID read, and context-validation values, and keeps Client/Project context existence checks behind static allowlisted lookup statements. The converted initial producers bind active-timer lifecycle reads and safe note lifecycle reads without changing producer payloads or resolver behavior.
+
+`services/work-resume-state.service` and `services/work-resume-state-initial-producers` are fully converted in the canonical inventory at 0 runtime literal-helper invocations and 0 direct interpolated SQL operation sites. This slice preserves resume state upsert semantics, dismissal refresh, list ranking, read checks, source removal, initial producer behavior, and Workbench-facing read models.
+
+The live ratchet after this conversion is 304 runtime literal-helper invocations, 57 direct interpolated SQL operation sites, 302 existing bound operation sites, and 419 total runtime database operation calls.

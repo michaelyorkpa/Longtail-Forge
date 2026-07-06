@@ -279,9 +279,9 @@ Acceptance criteria:
 
 ### Version 0.33.5.27.26 - Conversion wave: Work resume state
 
-- [ ] Convert `services/work-resume-state.service` and `services/work-resume-state-initial-producers` to named bound params and the dialect seams.
-- [ ] Preserve resume state upsert, dismiss, list ranking, read checks, source removal, initial producer behavior, and Workbench-facing read models exactly.
-- [ ] Update the burndown ratchet and extend work-resume regressions before moving on.
+- [x] Convert `services/work-resume-state.service` and `services/work-resume-state-initial-producers` to named bound params and the dialect seams.
+- [x] Preserve resume state upsert, dismiss, list ranking, read checks, source removal, initial producer behavior, and Workbench-facing read models exactly.
+- [x] Update the burndown ratchet and extend work-resume regressions before moving on.
 
 Acceptance criteria:
 
