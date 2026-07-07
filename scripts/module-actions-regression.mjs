@@ -84,7 +84,7 @@ check("host and target pages load the shared action contract", () => {
 });
 
 check("Workbench Add Task dispatches a module action instead of navigating away", () => {
-  assert.match(workbenchView, /data-workbench-add-task/);
+  assert.match(workbenchScript, /workbenchAddTask/, "Workbench guided host should create the Add Task trigger");
   assert.doesNotMatch(workbenchView, /href="tasks\.html\?new=1"/);
   assert.match(workbenchScript, /moduleActions\.open\("tasks\.add", \{[\s\S]*context: \{ source: "workbench" \}[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/);
 });

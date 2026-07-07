@@ -527,7 +527,20 @@ async function update(taskId, payload, session) {
     });
   }
 
-  return { task: taskWithDetails };
+  // A task can also reach "complete" through this generic update path (edit-dialog status
+  // dropdown, bulk status action), not just the dedicated complete() endpoint. Queue the next
+  // recurrence instance here too so the chain never silently stalls. Safe for non-recurring
+  // tasks (skipped) and deduped against complete() by template + instance date.
+  let recurrenceJob = null;
+  if (previousTask.status !== "complete" && taskWithDetails.status === "complete") {
+    recurrenceJob = await queueTaskRecurrenceGeneration({
+      session,
+      completedTask: taskWithDetails,
+      source: "task.updated",
+    });
+  }
+
+  return { task: taskWithDetails, recurrenceJob };
 }
 
 async function complete(taskId, session) {
@@ -1939,7 +1952,12 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
   const hasProjectFilter = hasQueryFilter(query, ["projectId", "project_id"]);
   const hasClientFilter = hasQueryFilter(query, ["clientId", "client_id"]);
 
-  if (taskView && !matchesTaskView(task, taskView, session.user_id, today, currentWeekEnd)) {
+  // An explicit terminal Status filter overrides a saved view's implicit active-only scope, so
+  // combinations like "Today + Complete" resolve instead of contradicting. "all" is excluded on
+  // purpose so active-scoped saved views stay active-only under Status = All.
+  const statusOverridesActiveScope = ["complete", "archived", "history"].includes(statusFilter);
+
+  if (taskView && !matchesTaskView(task, taskView, session.user_id, today, currentWeekEnd, statusOverridesActiveScope)) {
     return false;
   }
 
@@ -1980,29 +1998,31 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
   return true;
 }
 
-function matchesTaskView(task, taskView, currentUserId, today, currentWeekEnd) {
+function matchesTaskView(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope = false) {
+  const inActiveScope = statusOverridesActiveScope || isActiveTask(task);
+
   if (taskView === "my") {
-    return isActiveTask(task) && (task.assignee_ids || []).includes(currentUserId);
+    return inActiveScope && (task.assignee_ids || []).includes(currentUserId);
   }
 
   if (taskView === "all") {
-    return isActiveTask(task);
+    return inActiveScope;
   }
 
   if (taskView === "unassigned") {
-    return isActiveTask(task) && (task.assignee_ids || []).length === 0;
+    return inActiveScope && (task.assignee_ids || []).length === 0;
   }
 
   if (taskView === "overdue") {
-    return isActiveTask(task) && Boolean(task.due_date) && task.due_date < today;
+    return inActiveScope && Boolean(task.due_date) && task.due_date < today;
   }
 
   if (taskView === "today") {
-    return isActiveTask(task) && task.due_date === today;
+    return inActiveScope && task.due_date === today;
   }
 
   if (taskView === "week") {
-    return isActiveTask(task) && Boolean(task.due_date) && task.due_date >= today && task.due_date <= currentWeekEnd;
+    return inActiveScope && Boolean(task.due_date) && task.due_date >= today && task.due_date <= currentWeekEnd;
   }
 
   if (taskView === "completed") {

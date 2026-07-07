@@ -115,6 +115,26 @@ LIMIT 1;
   return attachTemplateAssignees([templateRowToAppValue(row)], assignees)[0];
 }
 
+async function readActiveTemplates(workspaceId) {
+  const rows = await db.query(templateSelectSql(`
+WHERE task_recurrence_templates.workspace_id = :workspaceId
+  AND task_recurrence_templates.template_status = 'active'
+ORDER BY task_recurrence_templates.created_at, task_recurrence_templates.recurrence_template_id;
+`), {
+    workspaceId: textParam(workspaceId),
+  });
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const templates = rows.map(templateRowToAppValue);
+  const assignees = await Promise.all(
+    templates.map((template) => readTemplateAssignees(workspaceId, template.recurrence_template_id)),
+  );
+  return templates.map((template, index) => attachTemplateAssignees([template], assignees[index])[0]);
+}
+
 async function replaceTemplateAssignees(workspaceId, templateId, assigneeIds, assignedByUserId) {
   const now = new Date().toISOString();
   const uniqueAssigneeIds = [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
@@ -287,6 +307,7 @@ function nullableTextParam(value) {
 
 export const taskRecurrenceRepository = {
   createTemplate,
+  readActiveTemplates,
   readTemplateById,
   updateTemplate,
 };

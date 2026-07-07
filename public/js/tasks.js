@@ -115,11 +115,19 @@ bulkLifecycleInput?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
 selectAllInput?.addEventListener("change", toggleVisibleSelection);
 loadMoreTasksButton?.addEventListener("click", loadMoreTasks);
-[sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter].forEach((input) => {
+[sortInput, statusFilter, assigneeFilter, projectFilter, tagFilter].forEach((input) => {
   input?.addEventListener("change", async () => {
     saveFilterState();
     await reloadTaskList();
   });
+});
+clientFilter?.addEventListener("change", async () => {
+  // Narrow the Project dropdown to the newly selected client and drop any now-incompatible
+  // project selection BEFORE the reload builds the query, otherwise the request would pair a
+  // new client with a stale cross-client project and return nothing.
+  reconcileProjectFilterForClient();
+  saveFilterState();
+  await reloadTaskList();
 });
 
 loadTasks();
@@ -675,8 +683,8 @@ function buildTaskQuery(cursor = "") {
   const taskView = selectedTaskView();
   const statusValue = statusFilter?.value || "active";
   const assigneeValue = assigneeFilter?.value || "all";
-  const clientValue = usesClientScope() ? clientFilter?.value || "all" : "all";
-  const projectValue = projectFilter?.value || "all";
+  const clientValue = usesClientScope() ? clientFilter?.value ?? "all" : "all";
+  const projectValue = projectFilter?.value ?? "all";
   const tagValue = tagFilter?.value || "all";
 
   params.set("task_view", canonicalTaskViewValue(taskView));
@@ -767,11 +775,44 @@ function populateFilters() {
   replaceOptions(projectFilter, [
     option("all", "All Projects"),
     option("", "No project"),
-    ...state.options.projects.map((project) => option(project.id, optionLabel(project))),
+    ...projectOptionsForClient(selectedClientFilterValue()).map((project) => option(project.id, optionLabel(project))),
   ]);
   populateTagFilter();
   populateBulkTagOptions();
   renderBulkAssigneeOptions();
+}
+
+function selectedClientFilterValue() {
+  return usesClientScope() ? clientFilter?.value ?? "all" : "all";
+}
+
+function projectMatchesClient(project, clientValue) {
+  if (clientValue === "all") {
+    return true;
+  }
+  return String(project?.client_id ?? "") === String(clientValue ?? "");
+}
+
+function projectOptionsForClient(clientValue) {
+  return state.options.projects.filter((project) => projectMatchesClient(project, clientValue));
+}
+
+function reconcileProjectFilterForClient() {
+  const clientValue = selectedClientFilterValue();
+  const currentProject = projectFilter?.value ?? "all";
+  // "all" (All Projects) and "" (No project) stay valid under any client; only a specific
+  // project can become incompatible with the newly chosen client.
+  if (currentProject !== "all" && currentProject !== "") {
+    const stillAllowed = projectOptionsForClient(clientValue).some((project) => project.id === currentProject);
+    if (!stillAllowed) {
+      setSelectValue(projectFilter, "all");
+    }
+  }
+  replaceOptions(projectFilter, [
+    option("all", "All Projects"),
+    option("", "No project"),
+    ...projectOptionsForClient(clientValue).map((project) => option(project.id, optionLabel(project))),
+  ]);
 }
 
 function populateTagFilter() {

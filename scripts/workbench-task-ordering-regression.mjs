@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const workbenchView = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
 const tasksScript = readText("public/js/tasks.js");
@@ -22,8 +21,8 @@ assert.match(
   "Workbench browser state should retain task options from module-owned source payloads.",
 );
 assert.match(
-  workbenchView,
-  /<option value="priority_desc">Priority<\/option>/,
+  workbenchScript,
+  /option\("priority_desc", "Priority"\)/,
   "Workbench task sort control should expose a priority sort option.",
 );
 assert.match(

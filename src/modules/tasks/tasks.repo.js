@@ -300,6 +300,29 @@ LIMIT 1;
   return attachAssignees([taskRowToAppValue(rows[0])], assignees)[0];
 }
 
+async function readRecurrenceInstanceStats(workspaceId, templateId) {
+  const row = await db.get(`
+SELECT
+  COUNT(*) AS total,
+  SUM(CASE WHEN tasks.status NOT IN ('complete', 'archived') THEN 1 ELSE 0 END) AS open_count,
+  MAX(tasks.recurrence_instance_date) AS latest_instance_date
+FROM tasks
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.recurrence_template_id = :templateId
+  AND tasks.recurrence_instance_date IS NOT NULL
+  AND tasks.recurrence_instance_date != '';
+`, {
+    templateId,
+    workspaceId,
+  });
+
+  return {
+    total: Number(row?.total) || 0,
+    openCount: Number(row?.open_count) || 0,
+    latestInstanceDate: row?.latest_instance_date || "",
+  };
+}
+
 async function readDueBetween(workspaceId, startDate, endDate) {
   const [tasks, assignees] = await Promise.all([
     db.query(taskSelectSql(`
@@ -436,27 +459,37 @@ function taskListWhereSql(options, params) {
 
 function applyTaskViewFilter(conditions, options, params) {
   const taskView = normalizedFilter(options.taskView);
+  // When the Status filter explicitly targets terminal tasks (complete / archived /
+  // history) or asks for everything (all), it must win over a saved view's implicit
+  // active-only scope. Otherwise the two clauses contradict and the list is always empty
+  // (e.g. "All" view + Status "Complete" => NOT complete AND complete).
+  const scopeToActive = !statusFilterOverridesActiveScope(options);
+  const pushActiveScope = () => {
+    if (scopeToActive) {
+      conditions.push(activeTaskSql());
+    }
+  };
 
   if (taskView === "my") {
-    conditions.push(activeTaskSql());
+    pushActiveScope();
     conditions.push(assigneeExistsSql("currentUserId"));
     params.currentUserId = options.currentUserId || "";
     return;
   }
 
   if (taskView === "all") {
-    conditions.push(activeTaskSql());
+    pushActiveScope();
     return;
   }
 
   if (taskView === "unassigned") {
-    conditions.push(activeTaskSql());
+    pushActiveScope();
     conditions.push(`NOT ${anyAssigneeExistsSql()}`);
     return;
   }
 
   if (taskView === "overdue") {
-    conditions.push(activeTaskSql());
+    pushActiveScope();
     conditions.push("tasks.due_date IS NOT NULL");
     conditions.push("tasks.due_date < :today");
     params.today = options.today || "";
@@ -464,14 +497,14 @@ function applyTaskViewFilter(conditions, options, params) {
   }
 
   if (taskView === "today") {
-    conditions.push(activeTaskSql());
+    pushActiveScope();
     conditions.push("tasks.due_date = :today");
     params.today = options.today || "";
     return;
   }
 
   if (taskView === "week") {
-    conditions.push(activeTaskSql());
+    pushActiveScope();
     conditions.push("tasks.due_date IS NOT NULL");
     conditions.push("tasks.due_date >= :today");
     conditions.push("tasks.due_date <= :currentWeekEnd");
@@ -670,6 +703,14 @@ function activeTaskSql() {
   return "tasks.status NOT IN ('complete', 'archived')";
 }
 
+function statusFilterOverridesActiveScope(options) {
+  // Only an explicit *terminal* status widens past a saved view's active-only scope. "all" is
+  // deliberately excluded: the active-scoped saved views ("All", "My", etc.) stay active-only
+  // under Status = All so they don't fill up with completed/archived tasks.
+  const status = normalizedFilter(options.statusFilter);
+  return status === "complete" || status === "archived" || status === "history";
+}
+
 function assigneeExistsSql(userParam) {
   return `EXISTS (
     SELECT 1
@@ -836,6 +877,7 @@ export const tasksRepository = {
   readByIds,
   readByRecurrenceInstance,
   readDueBetween,
+  readRecurrenceInstanceStats,
   readReminderSchedulingCandidates,
   markWorkedAt,
   update,

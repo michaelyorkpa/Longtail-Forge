@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.6.5";
+const appVersion = "0.33.6.6";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksScript = readText("public/js/tasks.js");
@@ -23,12 +23,12 @@ assert.match(tasksScript, /assigneeValue === "me"[\s\S]*params\.set\("assignee",
 assert.match(tasksScript, /data-task-reset-filters/, "Sorting and Filters should expose a reset control");
 assert.match(tasksScript, /function resetAdvancedTaskFilters\(\)[\s\S]*resetAdvancedFilterControlsForTaskView\(selectedTaskView\(\)\)/, "Resetting advanced filters should preserve the selected task view");
 assert.match(tasksScript, /function preserveCompatibleAdvancedFiltersForTaskView\(taskView\)[\s\S]*\["my", "unassigned"\]\.includes\(taskView\)[\s\S]*setSelectValue\(assigneeFilter, "all"\)/, "Changing task views should clear incompatible assignee filters");
-assert.match(tasksScript, /const clientValue = usesClientScope\(\) \? clientFilter\?\.value \|\| "all" : "all"/, "Personal and Family task queries should not include client-only UI assumptions");
-assert.match(tasksServiceSource, /function matchesTaskView\(task, taskView, currentUserId, today, currentWeekEnd\)/, "Tasks service should own task_view semantics");
+assert.match(tasksScript, /const clientValue = usesClientScope\(\) \? clientFilter\?\.value \?\? "all" : "all"/, "Personal and Family task queries should not include client-only UI assumptions");
+assert.match(tasksServiceSource, /function matchesTaskView\(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope = false\)/, "Tasks service should own task_view semantics");
 assert.match(tasksServiceSource, /taskView === "completed"[\s\S]*task\.status === "complete"/, "Completed view should be scoped intentionally");
 assert.match(tasksServiceSource, /taskView === "archived"[\s\S]*task\.status === "archived"/, "Archived view should be scoped intentionally");
 assert.match(tasksServiceSource, /function currentWeekEndKey\(dateKey\)/, "Due This Week should use a Tasks-owned user-local current-week boundary");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=74[\s\S]*js\/tasks\.js\?v=21/, "Tasks host should load the task_view query contract cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=74[\s\S]*js\/tasks\.js\?v=22/, "Tasks host should load the task_view query contract cache keys");
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-view-selector-query-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-view-selector-query.db");

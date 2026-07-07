@@ -34,7 +34,7 @@ import {
   queueSearchIndexRebuildIfEmpty,
   registerSearchIndexJobHandlers,
 } from "../services/search-index-jobs.service.js";
-import { queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../modules/tasks/task-jobs.service.js";
+import { queueTaskRecurrenceSweepJobs, queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../modules/tasks/task-jobs.service.js";
 import { registerInitialResumeStateProducerEventHandlers } from "../services/work-resume-state-initial-producers.js";
 
 function createApp() {
@@ -109,6 +109,7 @@ async function startServer() {
     queueStartupJobRetentionPrune();
     queueStartupSearchIndexRebuildIfEmpty();
     queueStartupTaskReminderSweep();
+    queueStartupTaskRecurrenceSweep();
     const app = createApp();
 
     const server = app.listen(config.port, config.host, () => {
@@ -197,6 +198,21 @@ function queueStartupTaskReminderSweep() {
       console.log(`[task-reminder-startup] sweep_queue=${result.queued ? "queued" : "skipped"} workspaces=${result.workspaceCount}`);
     } catch (error) {
       console.warn("[task-reminder-startup] Reminder sweep queue failed.");
+      console.warn(error.message || error);
+    }
+  }, 0);
+}
+
+function queueStartupTaskRecurrenceSweep() {
+  setTimeout(async () => {
+    try {
+      const result = await queueTaskRecurrenceSweepJobs({
+        source: "startup-recurrence-sweep",
+      });
+
+      console.log(`[task-recurrence-startup] sweep_queue=${result.queued ? "queued" : "skipped"} workspaces=${result.workspaceCount}`);
+    } catch (error) {
+      console.warn("[task-recurrence-startup] Recurrence sweep queue failed.");
       console.warn(error.message || error);
     }
   }, 0);

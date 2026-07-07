@@ -1,0 +1,127 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const appVersion = "0.33.6.6";
+const packageJson = JSON.parse(readText("package.json"));
+const packageLock = JSON.parse(readText("package-lock.json"));
+const css = readText("public/css/longtail-forge.css");
+const roadmap = readText("ROADMAP.md");
+const routes = readText("src/routes/workbench.routes.js");
+const workbenchHtml = readText("views/protected/workbench.html");
+const workbenchScript = readText("public/js/workbench.js");
+
+assert.equal(packageJson.version, appVersion, "package.json should report the guided Workbench UI version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the guided Workbench UI version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the guided Workbench UI version");
+
+assert.match(
+  workbenchHtml,
+  /<main class="workbench-page" data-workbench-host><\/main>/,
+  "Workbench protected HTML should be a minimal framework host",
+);
+assert.match(
+  workbenchHtml,
+  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=17/,
+  "Workbench host should load view helpers before the guided Workbench adapter",
+);
+assert.match(
+  workbenchScript,
+  /const workbenchViewHelpers = window\.LongtailForge\.view;/,
+  "Workbench should keep its view helper binding scoped to a Workbench-specific name",
+);
+assert.doesNotMatch(
+  workbenchScript,
+  /const view = window\.LongtailForge\.view;/,
+  "Workbench must not redeclare the generic classic-script view binding used by other protected scripts",
+);
+assert.doesNotMatch(
+  workbenchHtml,
+  /data-workbench-renderer|data-workbench-card|workbench-manual-timer-form|workbench-task-toolbar|<details|page-heading/,
+  "Workbench host must not carry the old static card/page anatomy",
+);
+
+assert.match(
+  routes,
+  /workFocusModesService[\s\S]*workbenchRoutes\.get\("\/workbench\/focus-modes"[\s\S]*listFocusModes\(request\.session, request\.query\)/,
+  "Workbench routes should expose protected focus mode descriptors",
+);
+assert.match(
+  routes,
+  /workbenchRoutes\.get\("\/workbench\/focus-candidates"[\s\S]*listFocusCandidates\(request\.session, request\.query\)/,
+  "Workbench routes should expose protected focus candidate results",
+);
+
+assert.match(
+  workbenchScript,
+  /const GUIDED_FOCUS_MODE_IDS = \[[\s\S]*"pick-up-where-left-off"[\s\S]*"whats-due-next"[\s\S]*"work-this-week"[\s\S]*"review-blocked-work"[\s\S]*PROJECT_FOCUS_MODE_ID[\s\S]*\];/,
+  "Workbench should curate the initial guided focus-mode subset",
+);
+assert.match(
+  workbenchScript,
+  /"whats-due-next": \{[\s\S]*label: "Start with what's due"/,
+  "Workbench should render friendly question-led focus copy instead of raw mode labels only",
+);
+assert.match(
+  workbenchScript,
+  /workbenchHost\.replaceChildren\([\s\S]*createGuidedFocusPanel\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)/,
+  "Workbench adapter should build the page shell from framework-created sections",
+);
+assert.match(workbenchScript, /workbenchViewHelpers\.createPageHeader/, "Workbench should use the shared page header primitive");
+assert.match(workbenchScript, /workbenchViewHelpers\.createStatusMessage/, "Workbench should use the shared status primitive");
+assert.match(workbenchScript, /workbenchViewHelpers\.createEmptyState/, "Workbench should use the shared empty-state primitive");
+assert.match(
+  workbenchScript,
+  /api\.getJson\("\/api\/workbench\/focus-modes"[\s\S]*api\.getJson\(`\/api\/workbench\/focus-candidates\?\$\{params\.toString\(\)\}`/,
+  "Workbench browser code should load focus data from protected Workbench routes",
+);
+assert.match(
+  workbenchScript,
+  /params\.set\("projectId", state\.selectedProjectId\)/,
+  "Project focus should pass the selected project into the deterministic focus resolver",
+);
+assert.match(
+  workbenchScript,
+  /const candidate = state\.focusCandidates\[0\] \|\| null;/,
+  "Workbench should render one top-ranked recommended candidate first",
+);
+assert.match(
+  workbenchScript,
+  /const secondaryCandidates = state\.focusCandidates\.slice\(1, 7\);/,
+  "Workbench should keep longer candidate lists subordinate to the recommendation",
+);
+assert.match(
+  workbenchScript,
+  /workbenchRecommendedAction/,
+  "Workbench should expose a stable recommended-action rendering hook",
+);
+assert.match(
+  workbenchScript,
+  /workbenchSecondaryCandidates/,
+  "Workbench should expose a stable secondary-candidate rendering hook",
+);
+assert.match(
+  workbenchScript,
+  /Capture the next commitment or review the secondary lists below[\s\S]*Nothing needs this focus right now/,
+  "Workbench empty states should suggest a useful next step",
+);
+assert.match(
+  workbenchScript,
+  /window\.location\.href = href;/,
+  "Recommended candidate openers should route through safe source URLs instead of module-specific inline logic",
+);
+
+assert.match(css, /\.workbench-focus-question-list/, "Workbench CSS should style the focus question list");
+assert.match(css, /\.workbench-recommended-card/, "Workbench CSS should emphasize the recommended candidate");
+assert.match(css, /\.workbench-secondary-candidate/, "Workbench CSS should keep secondary candidates visually subordinate");
+
+assert.match(
+  roadmap,
+  /### Version 0\.33\.6\.6 - Guided Workbench UI[\s\S]*- \[x\] Replace the hardcoded `views\/protected\/workbench\.html` host[\s\S]*Acceptance criteria:/,
+  "Roadmap should mark guided Workbench UI host conversion complete",
+);
+
+console.log("Workbench guided UI regression passed.");
+
+function readText(path) {
+  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+}

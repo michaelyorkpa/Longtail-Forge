@@ -16,7 +16,7 @@ import { registerFutureImportJobHandlers } from "../../services/import-jobs.serv
 import { jobsService } from "../../services/jobs.service.js";
 import { notificationsService } from "../../services/notifications.service.js";
 import { registerSearchIndexJobHandlers } from "../../services/search-index-jobs.service.js";
-import { queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../../modules/tasks/task-jobs.service.js";
+import { queueTaskRecurrenceSweepJobs, queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../../modules/tasks/task-jobs.service.js";
 
 let workerLock = null;
 let shuttingDown = false;
@@ -51,6 +51,10 @@ async function startWorkerProcess(options = {}) {
     source: "worker-startup-reminder-sweep",
   });
   logger.log(`[task-reminder-startup] sweep_queue=${reminderSweep.queued ? "queued" : "skipped"} workspaces=${reminderSweep.workspaceCount}`);
+  const recurrenceSweep = await queueTaskRecurrenceSweepJobs({
+    source: "worker-startup-recurrence-sweep",
+  });
+  logger.log(`[task-recurrence-startup] sweep_queue=${recurrenceSweep.queued ? "queued" : "skipped"} workspaces=${recurrenceSweep.workspaceCount}`);
 
   await startJobWorker({
     logger,

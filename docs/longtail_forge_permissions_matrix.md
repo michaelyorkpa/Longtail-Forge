@@ -108,6 +108,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | GET | /api/active-timers | own timers | self | Self-only |
 | Browser | PUT/POST/DELETE | /api/active-timers/:timerSlot* | time_entries.create for save/finalize, own timer for delete | project/client/self | Enforced |
 | Browser | GET | /api/workbench/bootstrap | authenticated user plus underlying readable scopes | self/task/project/client | Returns normalized active timers and enabled-module workbench items |
+| Browser | GET | /api/workbench/focus-modes | authenticated user plus workspace-type gating | workspace/client/project | Returns the available Workbench focus question descriptors; Client focus is hidden outside Business workspaces |
+| Browser | GET | /api/workbench/focus-candidates | authenticated user plus underlying candidate source visibility | self/task/project/client | Resolves the selected focus through the shared candidate service and returns permission-safe ranked candidates |
 | Browser | GET | /api/active-timers/all | authenticated user plus timer/source visibility | self/task/project/client | Lists unified manual and sourced active timers for Workbench |
 | Browser | PUT | /api/workbench/timers/:timerSlot/status | time_entries.create on linked project | project/client/self | Preserves timer source metadata while switching timer state |
 | Browser | GET | /api/notifications | notifications.view_own in any assigned scope | current user/workspace | Returns only the active user's notifications; target URLs are hidden when target access fails |

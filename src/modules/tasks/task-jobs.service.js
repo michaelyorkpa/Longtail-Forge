@@ -6,6 +6,7 @@ import { auditService } from "../../core/audit.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { tasksRepository } from "./tasks.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
+import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 
 const TASKS_MODULE_ID = "tasks";
@@ -19,6 +20,8 @@ const TASK_REMINDER_MAX_ATTEMPTS = 25;
 const TASK_REMINDER_SCHEDULING_HORIZON_DAYS = 30;
 const TASK_REMINDER_SWEEP_INTERVAL_HOURS = 12;
 const TASK_REMINDER_SWEEP_BATCH_SIZE = 500;
+const TASK_RECURRENCE_SWEEP_PRIORITY = 15;
+const TASK_RECURRENCE_SWEEP_INTERVAL_HOURS = 12;
 let taskJobHandlersRegistered = false;
 
 function registerTaskJobHandlers(options = {}) {
@@ -399,6 +402,16 @@ async function handleTaskReminderFireJob({ payload = {} }) {
 }
 
 async function handleTaskRecurrenceJob({ payload = {} }) {
+  const operation = normalizeText(payload.operation || "generate_next_instance");
+
+  if (operation === "sweep_recurrences") {
+    return handleTaskRecurrenceSweepJob({ payload });
+  }
+
+  return handleTaskRecurrenceGenerateJob({ payload });
+}
+
+async function handleTaskRecurrenceGenerateJob({ payload = {} }) {
   assertOperation(payload, "generate_next_instance", TASK_RECURRENCE_JOB_TYPE);
   const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "Task recurrence job requires a workspace.");
   const completedTaskId = normalizeRequiredText(payload.completedTaskId || payload.completed_task_id, "Task recurrence job requires a completed task.");
@@ -421,20 +434,7 @@ async function handleTaskRecurrenceJob({ payload = {} }) {
   const recurrenceResult = await taskRecurrenceService.createNextInstance({
     session,
     completedTask,
-    createTask: {
-      findExisting: async (templateId, instanceDate) =>
-        tasksRepository.readByRecurrenceInstance(workspaceId, templateId, instanceDate),
-      create: async (nextTask) =>
-        tasksRepository.create(workspaceId, {
-          ...nextTask,
-          created_by_user_id: completedTask.created_by_user_id || session.user_id,
-          updated_by_user_id: session.user_id,
-          completed_at: "",
-          completed_by_user_id: "",
-          archived_at: "",
-          archived_by_user_id: "",
-        }),
-    },
+    createTask: recurrenceCreateTaskAdapter(workspaceId, session, completedTask.created_by_user_id),
   });
   const createdTask = recurrenceResult?.task || null;
 
@@ -457,6 +457,166 @@ async function handleTaskRecurrenceJob({ payload = {} }) {
     existing: Boolean(createdTask && !recurrenceResult?.wasCreated),
     taskId: completedTaskId,
     workspaceId,
+  };
+}
+
+// Recurrence generation is completion-driven, so a completion that fails to enqueue a follow-up
+// (or a chain that predates that trigger) leaves a template with no open instance and it stays
+// dead forever. This self-rescheduling sweep is the safety net: it periodically re-anchors any
+// active template that has no open instance to the next occurrence on or after today.
+async function queueTaskRecurrenceSweepJobs(options = {}) {
+  const workspaceIds = normalizeWorkspaceIds(options.workspaceIds || options.workspace_ids);
+  const targetWorkspaceIds = workspaceIds.length > 0 ? workspaceIds : await readActiveWorkspaceIds();
+  const jobs = [];
+
+  for (const workspaceId of targetWorkspaceIds) {
+    jobs.push(await queueTaskRecurrenceSweepJob({
+      ...options,
+      workspaceId,
+    }));
+  }
+
+  return {
+    ok: true,
+    operation: "queue_task_recurrence_sweeps",
+    queued: jobs.some((job) => job.queued),
+    queuedCount: jobs.filter((job) => job.queued).length,
+    skipped: targetWorkspaceIds.length === 0,
+    workspaceCount: targetWorkspaceIds.length,
+    jobs,
+  };
+}
+
+async function queueTaskRecurrenceSweepJob(options = {}) {
+  const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Task recurrence sweep requires a workspace.");
+  const availableAt = normalizeDate(options.availableAt || options.available_at) || new Date();
+  const enqueued = await enqueueJob({
+    availableAt: availableAt.toISOString(),
+    dedupeKey: taskRecurrenceSweepDedupeKey(workspaceId, availableAt),
+    jobType: TASK_RECURRENCE_JOB_TYPE,
+    maxAttempts: options.maxAttempts || options.max_attempts || 3,
+    priority: options.priority ?? TASK_RECURRENCE_SWEEP_PRIORITY,
+    workspaceId,
+    payload: {
+      operation: "sweep_recurrences",
+      reason: normalizeText(options.reason) || "task.recurrence.sweep",
+      reschedule: options.reschedule === false ? false : true,
+      source: normalizeText(options.source) || "task-recurrence-sweep",
+      workspaceId,
+    },
+  });
+
+  return {
+    ok: true,
+    operation: "queue_task_recurrence_sweep",
+    queued: enqueued?.action === "inserted" || enqueued?.action === "updated",
+    deduped: enqueued?.action === "deduped_running",
+    queueAction: enqueued?.action || "",
+    job: enqueued?.job || null,
+    jobId: enqueued?.job?.jobId || "",
+    workspaceId,
+  };
+}
+
+async function handleTaskRecurrenceSweepJob({ payload = {} }) {
+  assertOperation(payload, "sweep_recurrences", TASK_RECURRENCE_JOB_TYPE);
+  const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "Task recurrence sweep requires a workspace.");
+  const result = await backfillStalledRecurrencesForWorkspace({
+    reason: payload.reason || "task.recurrence.sweep",
+    source: payload.source || "task_recurrence_sweep",
+    workspaceId,
+  });
+  let nextSweep = null;
+
+  if (payload.reschedule !== false) {
+    nextSweep = await queueTaskRecurrenceSweepJob({
+      availableAt: addHours(new Date(), TASK_RECURRENCE_SWEEP_INTERVAL_HOURS),
+      reason: "task.recurrence.sweep.next",
+      source: "task_recurrence_sweep",
+      workspaceId,
+    });
+  }
+
+  return {
+    ...result,
+    nextSweepAt: nextSweep?.job?.availableAt || "",
+    nextSweepJobId: nextSweep?.jobId || "",
+  };
+}
+
+async function backfillStalledRecurrencesForWorkspace(options = {}) {
+  const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Task recurrence sweep requires a workspace.");
+  const today = new Date().toISOString().slice(0, 10);
+  const templates = await taskRecurrenceRepository.readActiveTemplates(workspaceId);
+  let healthyCount = 0;
+  let createdCount = 0;
+  let endedCount = 0;
+
+  for (const template of templates) {
+    const stats = await tasksRepository.readRecurrenceInstanceStats(workspaceId, template.recurrence_template_id);
+
+    if (stats.openCount > 0) {
+      // Chain still has an open instance ahead — healthy, nothing to backfill.
+      healthyCount += 1;
+      continue;
+    }
+
+    const session = jobSession({
+      userId: normalizeText(template.updated_by_user_id || template.created_by_user_id),
+      workspaceId,
+    });
+    const result = await taskRecurrenceService.ensureUpcomingInstance({
+      session,
+      template,
+      latestInstanceDate: stats.latestInstanceDate,
+      hasInstances: stats.total > 0,
+      today,
+      createTask: recurrenceCreateTaskAdapter(workspaceId, session, template.created_by_user_id),
+    });
+
+    if (result?.wasCreated && result.task) {
+      createdCount += 1;
+      await recordRecurrenceInstanceCreated({
+        completedTask: { task_id: "" },
+        createdTask: result.task,
+        session,
+      });
+      await queueTaskReminderJobsForTask(result.task, {
+        reason: "task.recurrence_backfill",
+        session,
+        source: "task_recurrence_sweep",
+      });
+    } else if (!result) {
+      // Recurrence ended (past its UNTIL date) — nothing left to generate.
+      endedCount += 1;
+    }
+  }
+
+  return {
+    operation: "sweep_task_recurrences",
+    workspaceId,
+    templateCount: templates.length,
+    healthyCount,
+    createdCount,
+    endedCount,
+    queued: createdCount > 0,
+  };
+}
+
+function recurrenceCreateTaskAdapter(workspaceId, session, createdByUserId) {
+  return {
+    findExisting: async (templateId, instanceDate) =>
+      tasksRepository.readByRecurrenceInstance(workspaceId, templateId, instanceDate),
+    create: async (nextTask) =>
+      tasksRepository.create(workspaceId, {
+        ...nextTask,
+        created_by_user_id: normalizeText(createdByUserId) || session.user_id,
+        updated_by_user_id: session.user_id,
+        completed_at: "",
+        completed_by_user_id: "",
+        archived_at: "",
+        archived_by_user_id: "",
+      }),
   };
 }
 
@@ -546,6 +706,14 @@ function taskRecurrenceDedupeKey(task) {
     task.task_id,
     task.recurrence_instance_date,
   ].map(normalizeText).join(":");
+}
+
+function taskRecurrenceSweepDedupeKey(workspaceId, availableAt = new Date()) {
+  const timestamp = normalizeDate(availableAt)?.getTime() || Date.now();
+  const intervalMs = TASK_RECURRENCE_SWEEP_INTERVAL_HOURS * 60 * 60 * 1000;
+  const slot = Math.floor(timestamp / intervalMs);
+
+  return ["task", "recurrence", "sweep", workspaceId, slot].map(normalizeText).join(":");
 }
 
 async function readActiveWorkspaceIds() {
@@ -664,6 +832,8 @@ export {
   handleTaskRecurrenceJob,
   handleTaskReminderJob,
   queueTaskRecurrenceGeneration,
+  queueTaskRecurrenceSweepJob,
+  queueTaskRecurrenceSweepJobs,
   queueTaskReminderJobsForTask,
   queueTaskReminderSweepJob,
   queueTaskReminderSweepJobs,

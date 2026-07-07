@@ -1,3 +1,13 @@
+## Version 0.33.6.6 - 2026-07-07 11:29 -04:00
+
+- Converted `views/protected/workbench.html` into a minimal framework host and moved Workbench page anatomy into the browser adapter through `LongtailForge.view` primitives.
+- Added protected Workbench focus endpoints for focus-mode descriptors and focus-candidate results, then wired the browser to a curated question-led entry: Pick up where I left off, Start with what's due, Work this week, Review blocked work, and Focus on a project.
+- Added a recommended next-action panel that renders the top-ranked focus candidate before subordinate candidate, timer, and task lists, with useful empty states for no-match and project-required cases.
+- Added `scripts/workbench-guided-ui-regression.mjs` plus updated Dashboard/Workbench static coverage to prove the minimal host, focus selection wiring, recommended-action rendering, and subordinate secondary lists.
+- Scoped the Workbench view-helper binding to avoid classic-script `const view` redeclarations with the Client/Project action adapter on the protected Workbench page.
+- Updated `docs/module-contract.md`, `docs/declarative-view-surfaces.md`, `docs/view-building-contract.md`, `ROADMAP.md`, and package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.6.6.
+- Verification 2026-07-07 11:47 -04:00: `node --check public\js\workbench.js`, `node scripts\workbench-guided-ui-regression.mjs`, `node scripts\dashboard-workbench-regression.mjs`, `node scripts\module-actions-regression.mjs`, `node scripts\tasks-canonical-editor-opener-regression.mjs`, `node scripts\task-modal-complete-action-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale current-version scan, `git diff --check`, served Workbench bundle collision probe, and `/api/app-info` all passed; `npm run check` completed 286/286 regression scripts plus cached ESLint with a 111.28s runner timing, `npm run test:permissions` passed 240 checks, SQLite integrity returned `ok`, the stale-version scan was clean, the served `workbench.js?v=17` bundle used `workbenchViewHelpers` without a generic `const view`, and `/api/app-info` reported 0.33.6.6 from the refreshed local 8001 server.
+
 ## Version 0.33.6.5 - 2026-07-07 11:10 -04:00
 
 - De-hardcoded `workbenchService.bootstrap()` so it now returns generic module state keyed by module ID, contribution registry data, and framework-normalized work candidates without importing Tasks or Time Tracking services.

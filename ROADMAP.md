@@ -113,13 +113,13 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Framework-owned Workbench host conversion plus guided next-action UX on top of the candidate model.
 
-- [ ] Replace the hardcoded `views/protected/workbench.html` host with a minimal framework-owned `LongtailForge.view` Workbench host; in this branch, the guided host is the new Workbench host rather than a layer added on top of the old static page.
-- [ ] Add a question-led Workbench entry that presents a curated initial subset of the 0.33.6.4 canonical focus modes as friendly questions ("Pick up where I left off", "Start with what's due", "Work this week", "Review blocked work", "Focus on a project") over the deterministic filters.
-- [ ] Show one recommended next action (top-ranked candidate) before showing longer lists.
-- [ ] Keep secondary lists available but visually subordinate; do not turn Workbench into another full module index.
-- [ ] Add empty states that suggest a useful next step instead of dead ends.
-- [ ] Build on `LongtailForge.view` primitives and framework view states; do not hand-build framework-owned anatomy.
-- [ ] Add focused browser/static regressions for focus selection, recommended-action rendering, and empty states.
+- [x] Replace the hardcoded `views/protected/workbench.html` host with a minimal framework-owned `LongtailForge.view` Workbench host; in this branch, the guided host is the new Workbench host rather than a layer added on top of the old static page.
+- [x] Add a question-led Workbench entry that presents a curated initial subset of the 0.33.6.4 canonical focus modes as friendly questions ("Pick up where I left off", "Start with what's due", "Work this week", "Review blocked work", "Focus on a project") over the deterministic filters.
+- [x] Show one recommended next action (top-ranked candidate) before showing longer lists.
+- [x] Keep secondary lists available but visually subordinate; do not turn Workbench into another full module index.
+- [x] Add empty states that suggest a useful next step instead of dead ends.
+- [x] Build on `LongtailForge.view` primitives and framework view states; do not hand-build framework-owned anatomy.
+- [x] Add focused browser/static regressions for focus selection, recommended-action rendering, and empty states.
 
 Acceptance criteria:
 

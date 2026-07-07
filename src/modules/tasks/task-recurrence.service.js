@@ -78,7 +78,42 @@ async function createNextInstance({ session, completedTask, createTask }) {
     return null;
   }
 
-  const existing = await createTask.findExisting(template.recurrence_template_id, nextDate);
+  return materializeInstance({ session, template, instanceDate: nextDate, createTask });
+}
+
+// Re-anchor a stalled chain: create the first occurrence on or after `today` for a template
+// that has no open instance. Recurrence is generated on completion only, so if a completion
+// ever fails to enqueue generation the chain has no open instance left and stays dead — this
+// backfill is the safety net that regenerates it (used by the recurrence sweep).
+async function ensureUpcomingInstance({ session, template, latestInstanceDate, hasInstances, today, createTask }) {
+  if (!template || template.template_status !== "active") {
+    return null;
+  }
+
+  const normalizedToday = normalizeDate(today);
+  const anchor = normalizeDate(latestInstanceDate) || normalizeDate(template.recurrence_anchor_date);
+  if (!anchor) {
+    return null;
+  }
+
+  let instanceDate;
+  if (!hasInstances && (!normalizedToday || anchor >= normalizedToday)) {
+    // Template that never produced an instance yet: its anchor date is itself a valid first
+    // occurrence, so don't advance past it.
+    instanceDate = anchor;
+  } else {
+    instanceDate = upcomingOccurrenceDate(anchor, template.rrule, template.recurrence_end_date, normalizedToday);
+  }
+
+  if (!instanceDate) {
+    return null;
+  }
+
+  return materializeInstance({ session, template, instanceDate, createTask });
+}
+
+async function materializeInstance({ session, template, instanceDate, createTask }) {
+  const existing = await createTask.findExisting(template.recurrence_template_id, instanceDate);
   if (existing) {
     return {
       task: existing,
@@ -87,7 +122,7 @@ async function createNextInstance({ session, completedTask, createTask }) {
   }
 
   const dueAtUtc = template.due_time
-    ? normalizeUtcIso(`${nextDate}T${template.due_time}:00`, template.due_timezone || session.timezone)
+    ? normalizeUtcIso(`${instanceDate}T${template.due_time}:00`, template.due_timezone || session.timezone)
     : "";
 
   return {
@@ -98,14 +133,14 @@ async function createNextInstance({ session, completedTask, createTask }) {
       description: template.description,
       status: "open",
       priority: template.priority,
-      due_date: nextDate,
+      due_date: instanceDate,
       due_time: template.due_time,
       due_timezone: template.due_timezone || session.timezone,
       due_at_utc: dueAtUtc,
       source_type: "recurrence",
       source_id: template.recurrence_template_id,
       recurrence_template_id: template.recurrence_template_id,
-      recurrence_instance_date: nextDate,
+      recurrence_instance_date: instanceDate,
       reminder_override_enabled: false,
       assignee_ids: template.assignee_ids || [],
     }),
@@ -221,6 +256,31 @@ function nextOccurrenceDate(currentDate, rrule, endDate) {
   return finalEndDate && nextDate > finalEndDate ? "" : nextDate;
 }
 
+// Walk the recurrence forward from `fromDate` and return the first occurrence on or after
+// `today` (skipping every occurrence that was missed while the chain was stalled). Returns ""
+// if the recurrence ends before reaching `today`.
+function upcomingOccurrenceDate(fromDate, rrule, endDate, today) {
+  const normalizedToday = normalizeDate(today);
+  let cursor = normalizeDate(fromDate);
+  if (!cursor) {
+    return "";
+  }
+
+  // Bounded to ~10 years of daily steps so a malformed rule can never loop forever.
+  for (let guard = 0; guard < 3660; guard += 1) {
+    const next = nextOccurrenceDate(cursor, rrule, endDate);
+    if (!next) {
+      return "";
+    }
+    if (!normalizedToday || next >= normalizedToday) {
+      return next;
+    }
+    cursor = next;
+  }
+
+  return "";
+}
+
 function recurrenceFrequencyFromParts(frequency, byDay) {
   const normalizedFrequency = String(frequency || "").trim().toUpperCase();
   const sortedByDay = [...new Set(byDay)].sort().join(",");
@@ -265,6 +325,7 @@ function normalizeUntilDate(value) {
 export const taskRecurrenceService = {
   createNextInstance,
   createTemplateFromTask,
+  ensureUpcomingInstance,
   parseRRule,
   readTaskRecurrenceDetails,
   updateTemplateFromTask,

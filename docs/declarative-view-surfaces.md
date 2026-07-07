@@ -109,5 +109,7 @@ The inventory below is current for 0.33.5.18.15. `strict` means the static guard
 | Time Tracking Settings | time-tracking-settings | time-tracking-settings.html | - | reported |
 | User Admin | user-admin | user-admin.html | - | reported |
 | User Settings | user-settings | user-settings.html | - | reported |
-| Workbench | workbench | workbench.html | - | reported |
+| Workbench | workbench | workbench.html | framework-built guided host | reported |
 | Workspace Settings | workspace-settings | workspace-settings.html | - | reported |
+
+As of 0.33.6.6, Workbench no longer carries static protected-page anatomy in `views/protected/workbench.html`; the host is a minimal `data-workbench-host` shell. The browser adapter builds the page header, status, guided focus questions, recommended-action card, useful empty states, and subordinate candidate/card lists through `LongtailForge.view` primitives while keeping source routes, candidate data, timer/task actions, focus persistence, and module-owned record semantics outside the framework helpers. Workbench is still reported rather than strict because the 0.33.6 branch closeout owns the final guardrail promotion.

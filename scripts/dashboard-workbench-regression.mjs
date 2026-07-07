@@ -160,13 +160,23 @@ assert.match(
 );
 assert.match(
   files.workbenchView,
-  /data-workbench-renderer="active-work-timers"/,
-  "workbench timer card must declare its registered renderer",
+  /<main class="workbench-page" data-workbench-host><\/main>/,
+  "workbench protected HTML must be a minimal framework host",
+);
+assert.doesNotMatch(
+  files.workbenchView,
+  /data-workbench-renderer|data-workbench-card|workbench-manual-timer-form/,
+  "workbench protected HTML must not carry static registered card anatomy",
 );
 assert.match(
-  files.workbenchView,
-  /data-workbench-renderer="task-workbench-items"/,
-  "workbench task card must declare its registered renderer",
+  files.workbench,
+  /createWorkbenchCardSection\(\{[\s\S]*rendererId: "active-work-timers"/,
+  "workbench timer card should be built by the guided browser host with its registered renderer",
+);
+assert.match(
+  files.workbench,
+  /createWorkbenchCardSection\(\{[\s\S]*rendererId: "task-workbench-items"/,
+  "workbench task card should be built by the guided browser host with its registered renderer",
 );
 assert.match(
   files.workbench,
