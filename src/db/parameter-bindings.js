@@ -1,5 +1,6 @@
 const DOLLAR_PLACEHOLDERS = "dollar";
 const QUESTION_PLACEHOLDERS = "question";
+const BULK_VALUES_SAFE_PLACEHOLDER_BUDGET = 32766;
 
 function prepareDatabaseBindings(sql, params = undefined, options = {}) {
   const text = String(sql || "").trim();
@@ -39,6 +40,7 @@ function createBulkValuesBindings(rows, columns, options = {}) {
   }
 
   const normalizedColumns = columns.map(normalizeBulkValuesColumnName);
+  assertBulkValuesPlaceholderBudget(rows.length, normalizedColumns.length);
   const paramPrefix = normalizeDatabaseParameterName(options.paramPrefix || "bulkValue");
   const valueForColumn = typeof options.valueForColumn === "function"
     ? options.valueForColumn
@@ -58,6 +60,19 @@ function createBulkValuesBindings(rows, columns, options = {}) {
     params,
     sql,
   };
+}
+
+function assertBulkValuesPlaceholderBudget(rowCount, columnCount) {
+  const placeholderCount = rowCount * columnCount;
+
+  if (placeholderCount <= BULK_VALUES_SAFE_PLACEHOLDER_BUDGET) {
+    return;
+  }
+
+  throw new Error(
+    `Bulk VALUES binding would create ${placeholderCount} parameters for ${rowCount} rows and ${columnCount} columns, ` +
+      `exceeding the safe placeholder budget of ${BULK_VALUES_SAFE_PLACEHOLDER_BUDGET}. Split the write into smaller batches.`,
+  );
 }
 
 function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle) {

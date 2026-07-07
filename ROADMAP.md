@@ -2,46 +2,11 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.28 - Parameter-binding gap closeout (post-0.33.5.26 review)
-
-Purpose:
-
-Close the latent gaps a post-branch review surfaced in the completed 0.33.5.26 parameter-binding work (array-expansion binding and the bulk `VALUES (...)` helper). These are pre-emptive hardening items for the future 0.33.5.27 conversion waves; they are recorded here rather than folded silently into those waves so the burndown ratchet stays honest.
-
-Resolved during the review (no action left):
-
-- The audit ratchet had briefly gone red because `scripts/parameter-binding-audit-regression.mjs` still asserted the superseded coarse 0.33.5.27 wave numbering (`.3` Tasks, `.5` Lists, `.9` startup/migration) after 0.33.5.27.1 renumbered the audit doc to the expanded per-repository scheme. This was reconciled during the 0.33.5.27.2 work — the assertion now matches the expanded table (`.8` Tasks, `.16` Lists, `.29`/`.30` startup/migration) and all three parameter-binding regressions pass. No further action is needed for this item; it stands as a reminder to keep the audit doc, the audit-regression ratchet, and `CHANGELOG.md` in lockstep per the 0.33.5.26.4 checklist.
-
-Entry contract and grounding:
-
-- 0.33.5.26 was archived to `ROADMAP-ARCHIVE.md` as complete (0.33.5.26.1 through 0.33.5.26.4). The array-expansion and bulk `VALUES` helpers live in `src/db/parameter-bindings.js`, the bulk helper is wired into `src/core/search/adapters/sqlite-search-adapter.js` `upsertDocuments`, and the ratchet is enforced by `scripts/parameter-binding-audit-regression.mjs` / `scripts/parameter-binding-layer-regression.mjs` (both in `scripts/regression-suite.mjs`).
-
-### Version 0.33.5.28.1 - Guard the bulk `VALUES` helper against the SQLite bound-parameter ceiling
-
-- [ ] Note the latent regression the review found: converting the canonical `search_index` upsert from joined literal `VALUES` to `createBulkValuesBindings()` bound params (0.33.5.26.2) introduced a per-statement bound-parameter ceiling (`SQLITE_MAX_VARIABLE_NUMBER`) that the literal path never had. With ~20 columns per row, a single upsert statement caps near ~1,600 rows before the driver rejects it.
-- [ ] Confirm current safety and document it: today the only caller path is `searchService.indexSearchDocument` -> `upsertSearchDocuments([document])`, i.e. one row per statement, so the ceiling cannot be hit yet. The helper is nevertheless advertised for "dynamic bulk row groups," so a future batched caller (notably the 0.33.5.27.25 search adapter / rebuild wave) could pass a large array and fail at runtime.
-- [ ] Add a guard before a bulk caller relies on it: either chunk large row sets inside the helper/adapter, or make `createBulkValuesBindings()` reject a row/column count that would exceed a documented safe placeholder budget with a clear error, and document the ceiling in `docs/database.md` next to the 0.33.5.26.2 helper contract.
-- [ ] Add a focused regression for the large-batch boundary (chunking or explicit rejection), so the search conversion wave cannot reintroduce an unbounded single-statement bulk upsert.
-
-Acceptance criteria:
-
-- The bulk `VALUES` helper has a documented, tested bound-parameter ceiling (chunked or explicitly rejected), so batched callers cannot silently exceed the SQLite variable limit that the pre-conversion literal path avoided.
-
-### Version 0.33.5.28.2 - Empty-list `NOT IN` converter guardrail (minor)
-
-- [ ] The array-expansion empty-list convention (`IN (:ids)` with `[]` expands to `IN (NULL)` -> no rows) is safe and correct for `IN`, but is silently inverted for `NOT IN`: `x NOT IN (NULL)` matches zero rows where an empty exclusion set should match all rows. `docs/database.md` already delegates non-`IN` empty-list meaning to caller code, and no current runtime site uses `NOT IN (:boundArray)` (existing `NOT IN` sites use literal value lists), so this is pre-emptive.
-- [ ] Add a short converter checklist item (audit doc / `docs/database.md`) reminding the high-traffic conversion waves that a variable-length `NOT IN (:ids)` needs an explicit empty-array branch, so a mechanical conversion cannot invert exclusion semantics.
-- [ ] Optionally add a focused regression asserting the documented `NOT IN` empty-list handling for any site that converts one.
-
-Acceptance criteria:
-
-- Conversion waves have an explicit guardrail against inverting `NOT IN` semantics when mechanically converting variable-length lists to bound arrays.
-
 ## Version 0.33.5.29 - Regression and check-suite performance and consolidation pass
 
 Purpose:
 
-After the 0.33.5.27 database-conversion branch and the 0.33.5.28 gap closeout land, the standard gate has grown to ~287 regression scripts plus `eslint` and the separate permission suite, and it is taking long enough to slow the per-slice ceremony. This version makes the regression and check suites materially faster and less flaky **without reducing coverage** — the same bar the 0.33.5.18.6.5.4 lightening pass held. It is deliberately sequenced after 0.33.5.27/0.33.5.28 so the suite is optimized against its post-conversion shape (new parameter-binding, dialect-guardrail, and gap-closeout regressions included) rather than optimized twice.
+With the 0.33.5.27 database-conversion and 0.33.5.28 parameter-binding gap-closeout branches complete (294 regression scripts as of 0.33.5.28.2) plus `eslint` and the separate permission suite, the standard gate is taking long enough to slow the per-slice ceremony. This version makes the regression and check suites materially faster and less flaky **without reducing coverage** — the same bar the 0.33.5.18.6.5.4 lightening pass held. It is deliberately sequenced after 0.33.5.27/0.33.5.28 so the suite is optimized against its post-conversion shape (the new parameter-binding, dialect-guardrail, and gap-closeout regressions included) rather than optimized twice.
 
 Key decision (record in `DECISIONS.md`):
 
@@ -54,6 +19,7 @@ Entry contract and grounding (re-verify at implementation time — code will hav
 - A timing report already exists: set `LTF_REGRESSION_TIMING_JSON` to capture per-script seconds; the runner also prints the slowest 8. Use this as the measurement backbone rather than adding new instrumentation.
 - The runner is itself covered (`scripts/regression-runner-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`), and `assertUniqueScripts()` already guards duplicates — extend these rather than replacing them.
 - `npm run check` = `run-regressions.mjs` then `eslint .`; `npm run test:permissions` is a separate `permission-regression.mjs` entry. The known transient flake is the isolated-DB bucket under parallelism (per the regression-suite operational notes), currently worked around by running standalone/serial.
+- **New consolidation target surfaced by 0.33.5.27**: the static/source bucket now carries a cluster of whole-`src/**`-tree-scanning database-contract guardrails that each spawn a process and re-walk/re-parse the entire source tree independently — `scripts/parameter-binding-audit-regression.mjs`, `parameter-binding-layer-regression.mjs`, `parameter-binding-conversion-wave-regression.mjs`, `interpolation-enforcement-guardrail-regression.mjs`, `dialect-enforcement-guardrail-regression.mjs`, and `database-agnostic-contract-closeout-regression.mjs`. They are the clearest post-0.33.5.27 speedup: one shared source-scan pass feeding all of their assertions removes ~5 redundant full-tree reads and ~5 process spawns at once. Separately, the many `*-closeout-regression.mjs` scripts (view-builder, view-conversion-branch, surface-standardization, files-conversion, files-browse-edit-preview, notes-import, module-file, database-agnostic-contract) are per-branch artifacts that frequently re-assert what their own branch's focused regressions already cover — the prime consolidation candidates.
 
 Sizing rule for this branch:
 
@@ -62,7 +28,7 @@ Sizing rule for this branch:
 ### Version 0.33.5.29.1 - Measure, categorize, and set targets (measure only)
 
 - [ ] Run the full suite with `LTF_REGRESSION_TIMING_JSON` set and capture a per-script timing baseline; record total wall-clock, the slow tail, and an estimate of the fixed per-script process-spawn + baseline-clone overhead (e.g. by comparing a trivial static script's floor time against assertion-heavy scripts).
-- [ ] Categorize the ~287 scripts by bucket, by whether they need an isolated database at all, and by overlap (per-slice closeout regressions that assert against the same surface as a broader retained regression).
+- [ ] Categorize the 294 scripts by bucket, by whether they need an isolated database at all, and by overlap (per-slice closeout regressions that assert against the same surface as a broader retained regression, and the whole-source-tree database-contract scanners that duplicate each other's scan work).
 - [ ] Quantify the isolated-DB flake: how often the parallel bucket fails transiently, and the narrowest root-cause hypothesis (shared temp paths, clone races, port/lock contention, ordering assumptions).
 - [ ] Produce a short target list in `docs/` (or the audit-style doc pattern): expected wall-clock reduction, candidate consolidations with the assertions each must preserve, and the flake root-cause to fix. Change no runtime/test behavior in this slice.
 
@@ -73,6 +39,7 @@ Acceptance criteria:
 ### Version 0.33.5.29.2 - Runner execution-model optimization
 
 - [ ] Reduce the fixed per-script overhead identified in 0.33.5.29.1 while preserving isolation guarantees: options to evaluate include batching same-bucket static/source scripts into a shared process, reusing/sharing baseline clones where a script only reads, and auto-tuning isolated parallelism to available cores instead of the fixed default of 4 (keeping the env overrides).
+- [ ] Give the whole-`src/**`-tree source-scan guardrails a single shared scan/parse pass rather than each re-walking and re-parsing the tree in its own process. At minimum, factor the source-tree read/tokenize into a shared module the database-contract guardrails call; ideally, run that cluster as one process that applies all of its assertions against a single scan. This is a pure speed + process-count win with no coverage change (assertions are preserved verbatim), and it removes the largest redundant-work source the 0.33.5.27 branch added.
 - [ ] Preserve every isolation guarantee the current model provides: `fresh-database-regression.mjs` and any other baseline-bypass scripts keep their clean-clone behavior, and no script that mutates its database may share state with another.
 - [ ] Extend `scripts/regression-runner-regression.mjs` / `scripts/regression-clean-clone-contract.mjs` to prove the new execution model still isolates mutating scripts and still fails correctly on a single script failure.
 - [ ] Keep the timing report and slowest-N summary working; record the new baseline wall-clock.
@@ -84,6 +51,7 @@ Acceptance criteria:
 ### Version 0.33.5.29.3 - Consolidate overlapping and superseded regressions (coverage-preserving)
 
 - [ ] Using the 0.33.5.29.1 overlap map, fold overlapping/superseded per-slice closeout regressions into a retained script that still carries their assertions; delete a script only when either its assertions are demonstrably a subset of a retained script or its target code no longer exists.
+- [ ] Prioritize two concrete post-0.33.5.27 clusters: (a) the six database-contract source-scan guardrails named in the grounding — consolidate them into a single multi-assertion source-scan script (or a shared-scan module) so the audit ratchet, interpolation guardrail, dialect guardrail, layer, conversion-wave, and agnostic-closeout checks run over one pass instead of six; and (b) the `*-closeout-regression.mjs` per-branch artifacts, folding any assertion that merely re-states a focused regression from the same branch into that focused regression. Preserve every distinct assertion in both cases; the coverage ratchet below guards the fold.
 - [ ] Add a coverage ratchet: a manifest/count (and, where practical, an assertion-inventory) check that fails if the retained regression set drops below the recorded floor without an explicit, documented retirement entry — the same spirit as the parameter-binding audit ratchet.
 - [ ] Record every consolidation and every genuine retirement (with rationale) in `docs/` and `CHANGELOG.md`.
 - [ ] Re-run the full suite and confirm the previously-covered behaviors still fail when deliberately broken (spot-check the folded assertions).

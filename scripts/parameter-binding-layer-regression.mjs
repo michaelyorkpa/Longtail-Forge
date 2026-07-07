@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.33";
+const appVersion = "0.33.5.28.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";
@@ -47,6 +47,8 @@ try {
   assert.match(parameterBindingSource, /function prepareDatabaseBindings/, "parameter binding layer should expose the shared translator");
   assert.match(parameterBindingSource, /createNamedBindingEntries/, "binding layer should centralize named list expansion");
   assert.match(parameterBindingSource, /function createBulkValuesBindings/, "binding layer should expose the shared bulk VALUES helper");
+  assert.match(parameterBindingSource, /BULK_VALUES_SAFE_PLACEHOLDER_BUDGET = 32766/, "bulk VALUES helper should define the SQLite-safe placeholder budget");
+  assert.match(parameterBindingSource, /assertBulkValuesPlaceholderBudget\(rows\.length, normalizedColumns\.length\)/, "bulk VALUES helper should check the placeholder budget before generating params");
   assert.match(parameterBindingSource, /DOLLAR_PLACEHOLDERS/, "binding layer should support future dollar placeholders");
   assert.match(parameterBindingSource, /QUESTION_PLACEHOLDERS/, "binding layer should support SQLite positional placeholders");
   assert.match(sqliteAdapterSource, /prepareDatabaseBindings/, "SQLite adapter should use the shared binding layer");
@@ -70,14 +72,21 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.2[\s\S]*named-to-positional binding layer/, "database docs should describe the binding layer");
   assert.match(databaseDocs, /As of version 0\.33\.5\.26\.1[\s\S]*array-valued named parameters/, "database docs should describe array-valued named params");
   assert.match(databaseDocs, /As of version 0\.33\.5\.26\.2[\s\S]*`createBulkValuesBindings\(\)`/, "database docs should describe the bulk VALUES helper");
+  assert.match(databaseDocs, /As of version 0\.33\.5\.28\.1[\s\S]*safe placeholder budget of 32,766[\s\S]*`search_index` upsert remains safe because current rebuild indexing calls one document per statement/, "database docs should describe the bulk VALUES placeholder ceiling guard");
+  assert.match(databaseDocs, /As of version 0\.33\.5\.28\.2[\s\S]*variable-length `NOT IN \(:ids\)` filters[\s\S]*empty-list guardrail[\s\S]*No current runtime query uses `NOT IN \(:boundArray\)`/, "database docs should describe the empty-list NOT IN guardrail");
+  assert.match(databaseDocs, /Do not mechanically convert variable-length exclusion filters to `NOT IN \(:ids\)` without an explicit empty-array branch/, "database query style should warn future authors about NOT IN empty-list semantics");
   assert.match(databaseDocs, /`src\/db\/parameter-bindings\.js`/, "database docs should name the shared binding layer module");
   assert.match(databaseDocs, /sqlText[\s\S]*deprecated compatibility escape hatches/, "database docs should record the SQL literal helper migration path");
   assert.match(auditDocs, /0\.33\.5\.23\.2 Proof Conversion/, "audit docs should record the proof conversion");
   assert.match(auditDocs, /0\.33\.5\.26\.1 Array-Expansion Binding/, "audit docs should record the array-expansion helper");
   assert.match(auditDocs, /0\.33\.5\.26\.2 Bulk VALUES Binding/, "audit docs should record the bulk VALUES helper");
+  assert.match(auditDocs, /0\.33\.5\.28\.1 Bulk VALUES Placeholder Ceiling Guard[\s\S]*32,766 placeholders[\s\S]*callers must split larger writes before calling `createBulkValuesBindings\(\)`/, "audit docs should record the bulk VALUES placeholder ceiling guard");
+  assert.match(auditDocs, /0\.33\.5\.28\.2 Empty-List NOT IN Guardrail[\s\S]*documentation-only guardrail[\s\S]*empty exclusion set should normally preserve all rows/, "audit docs should record the empty-list NOT IN guardrail");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
-  assert.match(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should advance after the completed database extraction contract branch");
+  assert.match(roadmap, /^## Version 0\.33\.5\.29 - Regression and check-suite performance and consolidation pass/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
+  assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should not keep the completed parameter-binding gap closeout branch open");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
+  assert.match(changelog, /Archived the completed 0\.33\.5\.28 parameter-binding gap closeout branch[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.29/, "changelog should record the parameter-binding gap closeout archive handoff");
   assert.match(changelog, /## Version 0\.33\.5\.23\.2 - [\s\S]*named-to-positional parameter binding layer/, "changelog should retain the binding-layer slice");
   assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/, "regression suite should include binding-layer coverage");
 
@@ -272,6 +281,15 @@ VALUES ${bulkValues.sql};
     () => createBulkValuesBindings([{ id: "bulk-1" }], ["id"], { paramPrefix: "bulk-value" }),
     /Invalid database query parameter name: bulk-value/,
     "bulk VALUES helper should keep generated parameter names valid",
+  );
+  assert.throws(
+    () => createBulkValuesBindings(
+      Array.from({ length: 32767 }, (_, index) => ({ id: `bulk-too-large-${index}` })),
+      ["id"],
+      { paramPrefix: "bulkTooLarge" },
+    ),
+    /Bulk VALUES binding would create 32767 parameters[\s\S]*safe placeholder budget of 32766[\s\S]*Split the write into smaller batches/,
+    "bulk VALUES helper should reject row groups that exceed the SQLite-safe placeholder budget",
   );
 }
 

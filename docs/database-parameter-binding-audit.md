@@ -12,7 +12,7 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.27.33:
+Current totals as of 0.33.5.28.2:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.
@@ -30,7 +30,7 @@ The operation-site number is intentionally smaller than the helper-invocation co
 
 ## Dialect Adoption Guardrail
 
-Current totals as of 0.33.5.27.33:
+Current totals as of 0.33.5.28.2:
 
 - Remaining raw seam-backed dialect sites at application call sites: 0.
 - Whole runtime source sweep: `src/**/*.js` and `src/**/*.mjs`.
@@ -143,7 +143,7 @@ Standing query rule from `DECISIONS.md`: new or touched single-statement reposit
 | 0.33.5.27.32 - Dialect enforcement guardrail | Whole runtime dialect sweep and converted-owner re-audit |
 | 0.33.5.27.33 - Docs, decisions, 0.40.0 reconciliation, and closeout | Branch closeout, docs, and roadmap archive handoff |
 
-No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution under the final 0.33.5.27 dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths. As of 0.33.5.27.31, new runtime source cannot add literal-helper calls or helper-interpolated database operations. As of 0.33.5.27.32, new runtime source cannot add raw seam-backed SQLite dialect at application call sites. As of 0.33.5.27.33, the branch is closed and 0.40.0 inherits implementation/proof work behind the established seams instead of another app-wide SQL rewrite.
+No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration still have sanctioned compatibility ownership for no-value startup maintenance, schema repair scripts, and migration SQL-file execution under the final 0.33.5.27 dialect allowlist. As of 0.33.5.27.29, `src/db/index.js` no longer uses literal helpers or direct interpolation for value-bearing startup maintenance. As of 0.33.5.27.30, `src/db/migrations.js` no longer uses literal helpers or direct interpolation for value-bearing migration metadata, checksum, baseline, or table-probe paths. As of 0.33.5.27.31, new runtime source cannot add literal-helper calls or helper-interpolated database operations. As of 0.33.5.27.32, new runtime source cannot add raw seam-backed SQLite dialect at application call sites. As of 0.33.5.27.33, the branch is closed and 0.40.0 inherits implementation/proof work behind the established seams instead of another app-wide SQL rewrite. As of 0.33.5.28.1, the bulk `VALUES` helper rejects generated row groups above 32,766 placeholders; this helper-contract guard does not change the runtime SQL inventory. As of 0.33.5.28.2, variable-length `NOT IN (:ids)` conversions require an explicit empty-array branch; this documentation guardrail also does not change the runtime SQL inventory.
 
 ## Scope Rechecks
 
@@ -565,3 +565,19 @@ Remaining raw seam-backed dialect sites at application call sites: 0. The parame
 The enforced closeout targets are unchanged from the guardrail slices and remain the branch's steady state: 0 runtime literal-helper invocations, 0 direct helper-interpolated SQL operation sites, 0 raw seam-backed dialect sites at application call sites, 385 existing bound operation sites, and 429 total runtime database operation calls. Startup and migration compatibility are final no-value schema/startup-script boundaries, not permission to add value interpolation.
 
 The 0.40.0 database-extraction section now starts from this completed branch. It owns the actual PostgreSQL adapter behind the established seams, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof. It should begin with a drift recheck and produce provider implementation gaps only, not reopen an app-wide SQL rewrite.
+
+## 0.33.5.28.1 Bulk VALUES Placeholder Ceiling Guard
+
+0.33.5.28.1 closes the latent bulk `VALUES (...)` helper gap left after 0.33.5.26.2 and rechecked after the 0.33.5.27 conversion waves. `createBulkValuesBindings()` now rejects generated row groups above 32,766 placeholders before it builds SQL text or params, so a future batched caller cannot silently exceed SQLite's bound-parameter ceiling.
+
+The current `core/search/adapters/sqlite-search-adapter` proof path remains safe: `upsertDocuments()` accepts arrays and emits one multi-row canonical `search_index` statement, but the rebuild service still calls `searchService.indexSearchDocument(document)` one document at a time. Future bulk rebuild/import callers must split larger writes before calling `createBulkValuesBindings()`; the helper intentionally does not chunk internally because retry, partial-failure, and secondary FTS-sync behavior belong to the concrete bulk caller.
+
+This slice does not change the runtime SQL inventory. Current live totals remain 0 runtime literal-helper invocations, 0 direct interpolated SQL operation sites, 385 existing bound operation sites, and 429 runtime DB operation calls.
+
+## 0.33.5.28.2 Empty-List NOT IN Guardrail
+
+0.33.5.28.2 closes the remaining parameter-binding gap as a documentation-only guardrail. The conversion waves this item originally protected are complete and introduced no runtime `NOT IN (:boundArray)` sites. Existing runtime `NOT IN` predicates still use static/literal value lists, so there is no code path to convert in this slice.
+
+Future repository authors must not mechanically use array-valued binding for `NOT IN (:ids)` without defining the empty-list branch first. The binding layer expands empty arrays to `NULL`, which is correct for `IN (:ids)` because it returns no rows. In an exclusion predicate, `NOT IN (NULL)` also returns no rows, but an empty exclusion set should normally preserve all rows. For empty exclusion arrays, callers should omit the exclusion predicate or use an always-true static predicate; for non-empty arrays, callers may bind `NOT IN (:ids)` normally.
+
+This slice does not change runtime SQL or the audit inventory. Current live totals remain 0 runtime literal-helper invocations, 0 direct interpolated SQL operation sites, 385 existing bound operation sites, and 429 runtime DB operation calls.

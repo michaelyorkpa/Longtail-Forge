@@ -34,6 +34,10 @@ As of version 0.33.5.26.1, `src/db/parameter-bindings.js` supports array-valued 
 
 As of version 0.33.5.26.2, dynamic bulk `VALUES (...)` row groups are supported through `createBulkValuesBindings()` from `src/core/database.js` / `src/db/parameter-bindings.js`. The helper returns `{ sql, params }`, where `sql` is a comma-separated set of named placeholder row groups and `params` is a scalar value map for the adapter binding layer. It is value-only: table names, column names, conflict targets, sort clauses, operators, and SQL fragments must remain static or come from validated allowlists. The helper requires at least one row and at least one column, rejects invalid parameter prefixes, and does not treat nested cell arrays as list expansion. The SQLite search adapter canonical `search_index` upsert is the proof case. SQLite FTS maintenance remains on the existing compatibility path until the 0.33.5.27 search/dialect seam work. The live parameter-binding audit after this proof is 1,498 remaining helper invocations, 233 direct interpolated SQL operation sites, 93 existing bound operation sites, and 409 runtime DB operation calls.
 
+As of version 0.33.5.28.1, `createBulkValuesBindings()` also enforces a safe placeholder budget of 32,766 generated value parameters per statement. This keeps callers below the SQLite bound-parameter ceiling before a large dynamic `VALUES (...)` group reaches the driver. With the 20-column canonical `search_index` write, that budget allows 1,638 rows in one statement. The `search_index` upsert remains safe because current rebuild indexing calls one document per statement; future batched callers must split larger writes before calling the helper rather than relying on implicit adapter chunking.
+
+As of version 0.33.5.28.2, variable-length `NOT IN (:ids)` filters have an explicit empty-list guardrail. The array-expansion helper's empty-list convention is designed for `IN (:ids)`: `IN (NULL)` is valid and returns no rows. That same expansion silently inverts exclusion intent for `NOT IN`, because `NOT IN (NULL)` also returns no rows where an empty exclusion set should usually match all rows. No current runtime query uses `NOT IN (:boundArray)`. Future repository code that needs a variable-length `NOT IN` clause must branch on an empty array before issuing SQL, usually by omitting the exclusion predicate or replacing it with an always-true static predicate, and only use `NOT IN (:ids)` for non-empty arrays.
+
 As of version 0.33.5.26.4, future parameter-binding conversion waves should use the Future Conversion Wave Ratchet Checklist in [database-parameter-binding-audit.md](database-parameter-binding-audit.md). The checklist keeps the canonical inventory table, `scripts/parameter-binding-audit-regression.mjs` exact totals/`expectedTopGroups`, and `CHANGELOG.md` burndown in lockstep instead of weakening the ratchet when counts change.
 
 As of version 0.33.5.27.1, the 0.33.5.27 database-extraction line makes Longtail Forge agnostic by contract and enforcement, not agnostic-proven. SQLite remains the only live provider in this branch. The live PostgreSQL adapter, provider gating, PostgreSQL migration runner, dual-backend contract tests, and SaaS seed/load proof remain in the 0.40.0 database-extraction branch, which should implement and prove a second backend behind the seams established here rather than rewrite application call sites.
@@ -203,6 +207,8 @@ WHERE workspace_id = :workspaceId
 
 Do not manually join values into `IN (...)` lists in new or converted repository code. A repeated named array may be reused in more than one clause; future `$n` providers reuse the same placeholder sequence, while SQLite duplicates values for each positional occurrence. Empty arrays expand to `NULL` so `IN (:ids)` returns no rows. If a workflow needs a different empty-list meaning, handle that explicitly in service/repository code before issuing the query.
 
+Do not mechanically convert variable-length exclusion filters to `NOT IN (:ids)` without an explicit empty-array branch. For an empty exclusion set, omit the exclusion predicate or use an always-true static predicate; for a non-empty exclusion set, bind the array normally through `NOT IN (:ids)`. The binding layer cannot infer the intended empty-list semantics from the SQL operator.
+
 For dynamic bulk `VALUES (...)` row groups, use the shared helper rather than joining literal values:
 
 ```js
@@ -219,6 +225,8 @@ ON CONFLICT(record_id) DO UPDATE SET
 ```
 
 This helper only builds value placeholder groups. Keep the column list and conflict target static or allowlisted, and skip the write explicitly when there are no rows.
+
+The helper rejects generated placeholder groups above the safe 32,766-parameter budget. Split larger writes into explicit batches before calling `createBulkValuesBindings()`. The helper does not chunk internally because retry, partial-failure, and secondary-side-effect behavior belong to the concrete bulk caller.
 
 ## Transaction Style
 

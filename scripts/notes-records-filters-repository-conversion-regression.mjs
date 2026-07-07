@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.33";
+const appVersion = "0.33.5.28.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-record-filter-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-record-filter-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";

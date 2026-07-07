@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.27.33";
+const appVersion = "0.33.5.28.2";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -33,7 +33,7 @@ const startupMaintenanceSliceVersion = "0.33.5.27.29";
 const migrationCompatibilitySliceVersion = "0.33.5.27.30";
 const interpolationEnforcementGuardrailSliceVersion = "0.33.5.27.31";
 const dialectEnforcementGuardrailSliceVersion = "0.33.5.27.32";
-const databaseAgnosticContractCloseoutSliceVersion = appVersion;
+const databaseAgnosticContractCloseoutSliceVersion = "0.33.5.27.33";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -46,6 +46,7 @@ const audit = buildParameterBindingAudit();
 const returningMatches = listSourceMatches(/\bRETURNING\b/g);
 const sqliteJsonMatches = listSourceMatches(/\bjson_(?:extract|set|each|object|array|remove|insert|replace|valid|type|quote|group)\b|->>|->/g);
 const updateDeleteLimitMatches = listSourceMatches(/\b(?:UPDATE|DELETE)\b(?:(?!;|\bSELECT\b)[\s\S]){0,240}\b(?:LIMIT|OFFSET)\b/gi);
+const notInArrayBindingMatches = listSourceMatches(/\bNOT\s+IN\s*\(\s*[:@$][A-Za-z_][A-Za-z0-9_]*\s*\)/gi);
 
 assert.equal(packageJson.version, appVersion, "package.json should report the parameter-binding audit version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the parameter-binding audit version");
@@ -217,10 +218,11 @@ assert.deepEqual(
 );
 assert.equal(sqliteJsonMatches.length, 0, "runtime SQL should not use SQLite JSON SQL functions in this audit");
 assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top-level UPDATE/DELETE LIMIT/OFFSET in this audit");
+assert.deepEqual(notInArrayBindingMatches, [], "runtime source should not introduce variable-bound NOT IN clauses without revisiting empty-list semantics");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current canonical totals");
-assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.27\.33:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0[\s\S]*Whole runtime source sweep/, "audit docs should record the distinct dialect-adoption axis");
+assert.match(auditDocs, /Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0[\s\S]*Whole runtime source sweep/, "audit docs should record the distinct dialect-adoption axis");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");
 assert.match(auditDocs, /Existing direct bound-params operation sites: 49/, "audit docs should record existing bound sites");
@@ -268,6 +270,8 @@ assert.match(auditDocs, /0\.33\.5\.27\.30 Migration Compatibility Path[\s\S]*`sr
 assert.match(auditDocs, /0\.33\.5\.27\.31 Interpolation Enforcement Guardrail[\s\S]*merge-blocking guardrail[\s\S]*`sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct interpolated operation sites/, "audit docs should record the interpolation enforcement guardrail slice");
 assert.match(auditDocs, /0\.33\.5\.27\.32 Dialect Enforcement Guardrail[\s\S]*whole-tree dialect sweep[\s\S]*raw seam-backed SQLite dialect[\s\S]*permissions\.repo[\s\S]*app-settings\.repo[\s\S]*Remaining raw seam-backed dialect sites at application call sites/, "audit docs should record the dialect enforcement guardrail slice");
 assert.match(auditDocs, /0\.33\.5\.27\.33 Docs, Decisions, 0\.40\.0 Reconciliation, and Closeout[\s\S]*finished contract[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct helper-interpolated SQL operation sites[\s\S]*0 raw seam-backed dialect sites[\s\S]*0\.40\.0 database-extraction section now starts from this completed branch/, "audit docs should record the database extraction contract closeout");
+assert.match(auditDocs, /0\.33\.5\.28\.1 Bulk VALUES Placeholder Ceiling Guard[\s\S]*`createBulkValuesBindings\(\)` now rejects generated row groups above 32,766 placeholders[\s\S]*Future bulk rebuild\/import callers must split larger writes/, "audit docs should record the bulk VALUES placeholder ceiling guard");
+assert.match(auditDocs, /0\.33\.5\.28\.2 Empty-List NOT IN Guardrail[\s\S]*documentation-only guardrail[\s\S]*introduced no runtime `NOT IN \(:boundArray\)` sites[\s\S]*must not mechanically use array-valued binding for `NOT IN \(:ids\)` without defining the empty-list branch/, "audit docs should record the empty-list NOT IN guardrail");
 assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
 assert.doesNotMatch(auditDocs, /\| users\.repo \| 78 \| 13 \| 0 \| 16 \|/, "audit docs should not keep the stale pre-conversion users row in the canonical inventory");
 assert.doesNotMatch(auditDocs, /\| workspaces\.repo \| 30 \| 1 \| 6 \| 7 \|/, "audit docs should not keep the stale pre-conversion workspaces row in the canonical inventory");
@@ -325,6 +329,9 @@ assert.match(databaseDocs, /As of version 0\.33\.5\.27\.30[\s\S]*`src\/db\/migra
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.31[\s\S]*interpolation enforcement guardrail[\s\S]*New runtime source must not call `sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 remaining helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "database docs should record the interpolation enforcement guardrail");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.32[\s\S]*whole-tree dialect enforcement guardrail[\s\S]*raw seam-backed SQLite dialect[\s\S]*[Pp]rovider-owned or sanctioned compatibility paths/, "database docs should record the dialect enforcement guardrail");
 assert.match(databaseDocs, /As of version 0\.33\.5\.27\.33[\s\S]*database extraction contract branch is complete[\s\S]*zero literal-helper invocations[\s\S]*zero raw seam-backed dialect sites[\s\S]*0\.40\.0 implements and proves PostgreSQL behind these seams/, "database docs should record the closeout boundary");
+assert.match(databaseDocs, /As of version 0\.33\.5\.28\.1[\s\S]*`createBulkValuesBindings\(\)`[\s\S]*safe placeholder budget of 32,766[\s\S]*20-column canonical `search_index` write[\s\S]*1,638 rows/, "database docs should record the bulk VALUES placeholder ceiling guard");
+assert.match(databaseDocs, /As of version 0\.33\.5\.28\.2[\s\S]*variable-length `NOT IN \(:ids\)` filters[\s\S]*empty-list guardrail[\s\S]*No current runtime query uses `NOT IN \(:boundArray\)`/, "database docs should record the empty-list NOT IN guardrail");
+assert.match(databaseDocs, /Do not mechanically convert variable-length exclusion filters to `NOT IN \(:ids\)` without an explicit empty-array branch[\s\S]*omit the exclusion predicate[\s\S]*non-empty exclusion set/, "database query style should warn future authors about NOT IN empty-list semantics");
 assert.match(changelog, /## Version 0\.33\.5\.23\.4 - [\s\S]*final branch burndown: 1,499 helper invocations, 233 direct interpolated operation sites, 91 bound operation sites, and 407 runtime DB operation calls/, "changelog should record the parameter-binding closeout");
 assert.match(changelog, /## Version 0\.33\.5\.26\.2 - [\s\S]*1,498 helper invocations, 233 direct interpolated operation sites, 93 bound operation sites, and 409 runtime DB operation calls/, "changelog should record the bulk VALUES burndown");
 assert.match(changelog, /## Version 0\.33\.5\.27\.3 - [\s\S]*upsert\/conflict and identity seams[\s\S]*durable job[\s\S]*1,498 helper invocations/, "changelog should record the conflict and identity seam slice");
@@ -358,10 +365,15 @@ assert.match(changelog, new RegExp(`## Version ${escapeRegExp(migrationCompatibi
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(interpolationEnforcementGuardrailSliceVersion)} - [\\s\\S]*Interpolation enforcement guardrail[\\s\\S]*0 helper invocations[\\s\\S]*0 direct interpolated operation sites[\\s\\S]*385 bound operation sites`), "changelog should record the interpolation enforcement guardrail slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(dialectEnforcementGuardrailSliceVersion)} - [\\s\\S]*Dialect enforcement guardrail[\\s\\S]*Remaining raw seam-backed dialect sites at application call sites: 0`), "changelog should record the dialect enforcement guardrail slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(databaseAgnosticContractCloseoutSliceVersion)} - [^\\n]+[\\s\\S]*database extraction contract branch[\\s\\S]*0 runtime literal-helper invocations[\\s\\S]*0 direct helper-interpolated SQL operation sites[\\s\\S]*0 raw seam-backed dialect sites`), "changelog should record the database extraction contract closeout slice");
+assert.match(changelog, /## Version 0\.33\.5\.28\.1 - [^\n]+[\s\S]*Bulk VALUES placeholder ceiling guard[\s\S]*32,766-placeholder budget[\s\S]*0 literal-helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "changelog should record the bulk VALUES placeholder ceiling guard slice");
+assert.match(changelog, /## Version 0\.33\.5\.28\.2 - [^\n]+[\s\S]*Empty-list `NOT IN` converter guardrail[\s\S]*no runtime `NOT IN \(:boundArray\)` sites[\s\S]*0 literal-helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "changelog should record the empty-list NOT IN guardrail slice");
+assert.match(changelog, /## Version 0\.33\.5\.28\.2 - [^\n]+[\s\S]*Archived the completed 0\.33\.5\.28 parameter-binding gap closeout branch[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.29/, "changelog should record the parameter-binding gap closeout archive handoff");
 
-assert.match(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should advance after the completed database extraction contract branch");
+assert.match(roadmap, /^## Version 0\.33\.5\.29 - Regression and check-suite performance and consolidation pass/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
+assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should not keep the completed parameter-binding gap closeout branch open");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should not keep the completed database extraction contract branch open");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");
+assert.doesNotMatch(roadmap, /0\.33\.5\.28\.2 - Empty-list `NOT IN` converter guardrail/, "live roadmap should archive completed parameter-binding gap closeout slice bodies");
 assert.doesNotMatch(roadmap, /0\.33\.5\.27\.33 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should archive completed database extraction contract slice bodies");
 assert.match(roadmap, /Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*completed 0\.33\.5\.27 agnostic-by-contract conversion\/seam branch[\s\S]*interpolation and raw-dialect ratchets enforced at zero[\s\S]*not an app-wide SQL rewrite[\s\S]*Dialect seam implementation recheck[\s\S]*consume the closed 0\.33\.5\.27 decisions/, "0.40.0 should be reconciled as PostgreSQL implementation/proof behind the 0.33.5.27 seams");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.23 - SQL Parameter-Binding Migration/m, "live roadmap should not keep the completed parameter-binding branch open");

@@ -1,3 +1,20 @@
+## Version 0.33.5.28.2 - 2026-07-07 00:04 -04:00
+
+- Completed the Empty-list `NOT IN` converter guardrail as a documentation-only closeout: no runtime `NOT IN (:boundArray)` sites exist, so no query code changed.
+- Documented the future-author rule in `docs/database.md` and `docs/database-parameter-binding-audit.md`: empty arrays are safe for `IN (:ids)`, but variable-length `NOT IN (:ids)` filters must branch explicitly before SQL so an empty exclusion set does not become `NOT IN (NULL)`.
+- Added focused audit regression coverage proving the docs keep the guardrail and runtime source still has no variable-bound `NOT IN (:ids)` site.
+- Archived the completed 0.33.5.28 parameter-binding gap closeout branch and advanced the live roadmap cursor to 0.33.5.29.
+- Kept the parameter-binding inventory unchanged at 0 literal-helper invocations, 0 direct interpolated SQL operation sites, 385 bound operation sites, and 429 runtime DB operation calls.
+- Verification 2026-07-07 00:11 -04:00: `node scripts\parameter-binding-audit-regression.mjs`, `node scripts\parameter-binding-layer-regression.mjs`, `node scripts\database-agnostic-contract-closeout-regression.mjs`, `node scripts\parameter-binding-conversion-wave-regression.mjs`, `node scripts\interpolation-enforcement-guardrail-regression.mjs`, `node scripts\dialect-enforcement-guardrail-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `git diff --check`, and `/api/app-info` all passed; `/api/app-info` reported 0.33.5.28.2.
+
+## Version 0.33.5.28.1 - 2026-07-06 18:50 -04:00
+
+- Completed the Bulk VALUES placeholder ceiling guard by making `createBulkValuesBindings()` reject generated row groups above the 32,766-placeholder budget before SQL text or params are built.
+- Documented the helper contract in `docs/database.md` and `docs/database-parameter-binding-audit.md`, including the current `search_index` safety boundary: rebuild indexing still calls one document per statement, and future bulk callers must split larger writes explicitly.
+- Kept the parameter-binding inventory unchanged at 0 literal-helper invocations, 0 direct interpolated SQL operation sites, 385 bound operation sites, and 429 runtime DB operation calls.
+- Added focused regression coverage for the large-batch rejection boundary in `scripts/parameter-binding-layer-regression.mjs`, and advanced package/module current-version pins to 0.33.5.28.1.
+- Verification 2026-07-06 18:58 -04:00: `node scripts\parameter-binding-layer-regression.mjs`, `node scripts\parameter-binding-audit-regression.mjs`, `node scripts\database-agnostic-contract-closeout-regression.mjs`, `node scripts\search-adapter-rebuild-service-conversion-regression.mjs`, `node scripts\interpolation-enforcement-guardrail-regression.mjs`, `node scripts\dialect-enforcement-guardrail-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `git diff --check`, and `/api/app-info` all passed; `/api/app-info` reported 0.33.5.28.1.
+
 ## Version 0.33.5.27.33 - 2026-07-06 17:46 -04:00
 
 - Closed the 0.33.5.27 database extraction contract branch with the app on the enforced agnostic database contract: 0 runtime literal-helper invocations, 0 direct helper-interpolated SQL operation sites, and 0 raw seam-backed dialect sites at application call sites.

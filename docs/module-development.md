@@ -129,7 +129,7 @@ The current registry is browser-side. Future manifest metadata may describe acti
 
 ## Database Access
 
-As of 0.33.5.27.33, module database code starts from the completed agnostic contract. Import database access from `src/core/database.js`, bind values with named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, and keep table names, column names, conflict targets, operators, sort clauses, and SQL fragments static or explicitly allowlisted.
+As of 0.33.5.28.2, module database code starts from the completed agnostic contract. Import database access from `src/core/database.js`, bind values with named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, and keep table names, column names, conflict targets, operators, sort clauses, and SQL fragments static or explicitly allowlisted.
 
 Do not call `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` from new module runtime code. Do not hardcode raw SQLite dialect at application call sites when a `db.dialect` seam owns the operation. Conflict writes, case-insensitive comparison/order, booleans, timestamp math, search/FTS, JSON access, returned rows/identity, physical identity, and PRAGMA/introspection should go through `db.dialect` or provider-owned framework services.
 
