@@ -34,17 +34,19 @@ Sizing rule for this branch:
 Key decisions for this branch:
 
 - QAC is a floating bottom-right drawer available on all protected pages, NOT a permanent right-side rail (reconciling `TODO.md` against the earlier rail wording). Record this in `DECISIONS.md`.
-- The Workbench Inspector is a persistent right panel on wide Workbench layouts showing related record titles and read-only previews. It is a distinct surface from QAC and must not steal the same screen space.
+- The Workbench Inspector is a persistent right panel on wide Workbench layouts showing permission-safe related record titles/context and opening existing preview/record modals in-place via stacked-modal behavior, not an embedded viewer pane. It is a distinct surface from QAC and must not steal the same screen space.
 - Next-action candidates and resume state share ONE normalized work-candidate shape derived from the existing resume-producer payload; there is no second parallel candidate contract. The candidate model inherits the producer allowlist/forbidden-field safety so candidates can never leak body/secure/storage-key content.
 
 ### Version 0.33.6.1 - Surface contracts and scope (plan only)
 
-- [ ] Define Dashboard as the workspace overview/orientation surface and Workbench as the active work/resumption/focus surface, and keep them separate.
-- [ ] Confirm and document the already-existing contribution contracts (`dashboard`, `workbench`, `timerSources`, `workItemSources`) and the resume-state producer registry, so later slices extend rather than reinvent them.
-- [ ] Name the net-new contracts this branch adds: a focus-mode contract/registry (0.33.6.4) and a normalized work-candidate source (0.33.6.2-0.33.6.3).
-- [ ] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls and its hardcoded `modules: { tasks, timeTracking }` bootstrap return shape; the inline panels in `views/protected/dashboard.html`; and the first-party module IDs baked into the framework registry service itself — `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants, the `readModuleSettingValue` `taskTimersEnabled` special-case, and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` in `src/core/modules/modules.service.js`) and assign each to its owning slice. These compat flags cannot be retired until the Dashboard/Workbench/settings browser code that reads them is de-hardcoded in this branch, which is why they land here rather than in the earlier 0.33.5.27 database-conversion waves.
-- [ ] Preserve, as a standing requirement for every slice, permission checks, module enabled/disabled checks, workspace boundaries, and private/secure/deleted-record handling.
-- [ ] Update the implementation plan only; do not change runtime behavior in this slice.
+**Model: GPT-5.4** - Planning/docs-only contract baseline with no runtime behavior changes.
+
+- [x] Define Dashboard as the workspace overview/orientation surface and Workbench as the active work/resumption/focus surface, and keep them separate.
+- [x] Confirm and document the already-existing contribution contracts (`dashboard`, `workbench`, `timerSources`, `workItemSources`) and the resume-state producer registry, so later slices extend rather than reinvent them.
+- [x] Name the net-new contracts this branch adds: a focus-mode contract/registry (0.33.6.4) and a normalized work-candidate source (0.33.6.2-0.33.6.3).
+- [x] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls and its hardcoded `modules: { tasks, timeTracking }` bootstrap return shape; the inline panels in `views/protected/dashboard.html`; and the first-party module IDs baked into the framework registry service itself — `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants, the `readModuleSettingValue` `taskTimersEnabled` special-case, and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` in `src/core/modules/modules.service.js`) and assign each to its owning slice. These compat flags cannot be retired until the Dashboard/Workbench/settings browser code that reads them is de-hardcoded in this branch, which is why they land here rather than in the earlier 0.33.5.27 database-conversion waves.
+- [x] Preserve, as a standing requirement for every slice, permission checks, module enabled/disabled checks, workspace boundaries, and private/secure/deleted-record handling.
+- [x] Update the implementation plan only; do not change runtime behavior in this slice.
 
 Acceptance criteria:
 
@@ -52,8 +54,10 @@ Acceptance criteria:
 
 ### Version 0.33.6.2 - Normalized work-candidate contract and service
 
+**Model: GPT-5.5 Extra High** - Shared cross-module candidate contract work on top of existing framework and resume-state seams.
+
 - [ ] Promote the resume-producer payload shape (`src/services/work-resume-state-producers.js`) into a single normalized work-candidate shape reused by both next-action ranking and resume state: `moduleId`, `recordType`, `recordId`, `title`, `contextLabel`, `reason`, primary-action descriptor, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, and a rank hint.
-- [ ] Add a framework-owned candidate service that assembles candidates from resume-state rows plus live signals (e.g. running/paused timers) behind one shape.
+- [ ] Reuse the existing seams rather than adding a new manifest axis: the framework-owned candidate service assembles candidates from resume-state rows plus live signals (e.g. running/paused timers) behind one shape, building on the existing resume-state producer payload plus the already-shipped `timerSources`/`workItemSources` contracts.
 - [ ] Inherit the producer safety rules verbatim: the same field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `storage.key`, `scanner`, ...) so a candidate can never carry body text, secure content, storage keys, or raw IDs in labels.
 - [ ] Every candidate must expose a reason string, a primary action, a safe context label, and a source URL; labels follow the `docs/workflow-context-contract.md` no-raw-ID rule.
 - [ ] Add regressions proving the shape is stable and that forbidden fields are stripped even if a source tries to supply them.
@@ -64,9 +68,11 @@ Acceptance criteria:
 
 ### Version 0.33.6.3 - Deterministic ranking and module candidate sources
 
+**Model: GPT-5.5 Extra High** - Cross-module ranking and source integration with deterministic behavior and safety filtering.
+
 - [ ] Add deterministic candidate ranking: running timers, paused timers, overdue assigned work, due today, blocked/stale work, recently touched work, due this week.
-- [ ] Tasks contributes task candidates and Time Tracking contributes running/paused timer candidates through the shared contract; Lists, Notes (Active Work), and future Tickets contribute when their integrations are ready.
-- [ ] Reuse the existing resume-state producer registry where a candidate is event-driven; add a pull-style candidate source only where live state (e.g. active timers) is not captured by producers.
+- [ ] Tasks contributes task candidates and Time Tracking contributes running/paused timer candidates through the shared contract and the existing contribution seams; Lists, Notes (Active Work), and future Tickets contribute when their integrations are ready. Do not add a new candidate-source manifest field.
+- [ ] Reuse the existing resume-state producer registry where a candidate is event-driven; add only a thin pull-style candidate source where live state (e.g. active/paused timers) is not captured by producers.
 - [ ] Keep ranking a pure function of candidate fields (no hidden per-module ordering) so the "one recommended next action" is deterministic and testable.
 - [ ] Add regressions for ranking order across mixed candidate types and for disabled-module/permission filtering of sources.
 
@@ -76,9 +82,11 @@ Acceptance criteria:
 
 ### Version 0.33.6.4 - Focus-mode contract and resolver
 
-- [ ] Add a focus-mode contract/registry (following the `listWorkspaceContributions` pattern) with the canonical modes: Start my day, Pick up where I left off, What's due next, Work this week, Review blocked work, In progress, Project focus, and Client focus (Business workspaces only).
+**Model: GPT-5.5 Extra High** - Framework-owned focus registry with workspace-aware context resolution and later UI curation.
+
+- [ ] Add a focus-mode contract/registry (following the `listWorkspaceContributions` pattern) with the full canonical mode set: Start my day, Pick up where I left off, What's due next, Work this week, Review blocked work, In progress, Project focus, and Client focus (Business workspaces only).
 - [ ] Each focus mode resolves to a normalized focus context (scope, client/project, status/date filters) passed to the candidate sources from 0.33.6.3.
-- [ ] Focus modes are user-friendly labels over deterministic filters, not separate hardcoded pages.
+- [ ] Focus modes are user-friendly labels over deterministic filters, not separate hardcoded pages. This slice owns the full canonical registry even if later Workbench UI surfaces only a curated subset at first.
 - [ ] Client focus must be hidden outside Business workspaces; Personal/Family must not surface client scope or labels.
 - [ ] Add regressions for mode-to-context resolution and workspace-type gating.
 
@@ -88,10 +96,13 @@ Acceptance criteria:
 
 ### Version 0.33.6.5 - De-hardcode the Workbench service
 
+**Model: GPT-5.5 Extra High** - Framework/service decoupling that removes first-party module names from generic decisions.
+
 - [ ] Remove the direct `tasksService`/`activeTimersService` imports and hardcoded `tasks`/`time-tracking` branches from `src/services/workbench.service.js`; drive timers and work items purely through the contribution registry and the candidate service. The `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants and the hardcoded `modules: { tasks, timeTracking }` bootstrap return shape must both be gone; if the browser still needs a module-state map, build it generically from enabled-module state keyed by module ID.
-- [ ] Also de-hardcode the framework registry service itself: remove the `taskTimersEnabled` special-case in `readModuleSettingValue` and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` (`src/core/modules/modules.service.js`), retiring those deprecated top-level flags now that the settings/Workbench browser code consuming them is being converted in this branch. `src/core/modules/` must not name specific first-party module IDs to make generic contribution/settings decisions.
+- [ ] Also de-hardcode the framework registry service itself: remove the `taskTimersEnabled` special-case in `readModuleSettingValue` and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` (`src/core/modules/modules.service.js`), retiring those deprecated top-level flags now that the settings/Workbench/browser-shell code consuming them is being converted in this branch. `src/core/modules/` must not name specific first-party module IDs to make generic contribution/settings decisions.
 - [ ] Keep the existing Workbench bootstrap response shape working for the browser during the transition (adapt internals without breaking the page contract).
 - [ ] Preserve enabled/disabled-module handling, permission checks, and workspace boundaries already enforced in `bootstrap`.
+- [ ] Update the framework/browser consumers and regressions that still expect the deprecated top-level flags (for example `navigation.js` and the current permission regression assertions), so the retirement is complete rather than Workbench-only.
 - [ ] Add regressions proving Workbench renders the same live data with Tasks/Time enabled and degrades cleanly when either is disabled, without importing them directly, and that no first-party module ID remains hardcoded in `workbench.service.js` or the `modules.service.js` settings/decoration paths.
 
 Acceptance criteria:
@@ -100,7 +111,10 @@ Acceptance criteria:
 
 ### Version 0.33.6.6 - Guided Workbench UI
 
-- [ ] Add a question-led Workbench entry that presents the focus modes as friendly questions ("Pick up where I left off", "Start with what's due", "Work this week", "Review blocked work", "Focus on a project") over the 0.33.6.4 deterministic filters.
+**Model: GPT-5.5 Extra High** - Framework-owned Workbench host conversion plus guided next-action UX on top of the candidate model.
+
+- [ ] Replace the hardcoded `views/protected/workbench.html` host with a minimal framework-owned `LongtailForge.view` Workbench host; in this branch, the guided host is the new Workbench host rather than a layer added on top of the old static page.
+- [ ] Add a question-led Workbench entry that presents a curated initial subset of the 0.33.6.4 canonical focus modes as friendly questions ("Pick up where I left off", "Start with what's due", "Work this week", "Review blocked work", "Focus on a project") over the deterministic filters.
 - [ ] Show one recommended next action (top-ranked candidate) before showing longer lists.
 - [ ] Keep secondary lists available but visually subordinate; do not turn Workbench into another full module index.
 - [ ] Add empty states that suggest a useful next step instead of dead ends.
@@ -109,15 +123,18 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Workbench opens as a guided, focus-led surface that highlights one recommended action first and keeps secondary work subordinate.
+- Workbench opens through a minimal framework-owned host as a guided, focus-led surface that highlights one recommended action first and keeps secondary work subordinate.
 
 ### Version 0.33.6.7 - Resume "Pick up where I left off" UI
 
-- [ ] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to recent activity only when no active resume rows exist.
+**Model: GPT-5.5 Extra High** - Resume-state integration with deterministic fallback behavior and safe dismissal handling.
+
+- [ ] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to the lower-ranked recently-touched-work candidate bucket from 0.33.6.3 only when no active resume rows exist.
+- [ ] Do not build a new framework activity feed in this slice; the fallback is weaker ranking over existing candidate sources, not a second recovery surface.
 - [ ] Show one recommended resume candidate first; keep secondary candidates subordinate.
 - [ ] Allow users to dismiss stale resume candidates via `POST /api/work-resume/:id/dismiss`.
 - [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries (already enforced by the producer allowlist).
-- [ ] Add regressions for resume-first ordering, activity fallback, dismiss behavior, and safe handling of stale/unavailable targets.
+- [ ] Add regressions for resume-first ordering, recent-work fallback, dismiss behavior, and safe handling of stale/unavailable targets.
 
 Acceptance criteria:
 
@@ -136,16 +153,22 @@ Acceptance criteria:
 
 ### Version 0.33.6.9 - Move Time-Tracking dashboard panels into contributions
 
-- [ ] Move the currently-inline billing/client Dashboard panels (client summary, current-month billables, hours-and-billables chart) out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
-- [ ] Keep Time Tracking responsible for the billing/time data and calculations; keep the framework responsible only for panel hosting, placement, and status/empty/error states.
+**Model: GPT-5.5 Extra High** - Time-Tracking-owned dashboard contribution extraction with shared billing-calculation reuse.
+
+- [ ] Narrow this slice to the Time-Tracking-owned billing panels only: move the current-month billables table and the hours-and-billables chart out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
+- [ ] Task summary remains the Tasks-owned contribution already covered by the host contract; it is not part of this extraction slice.
+- [ ] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.8.
+- [ ] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.8's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
 - [ ] Ensure the panels disappear cleanly when Time Tracking is disabled or the user lacks the required permissions, via the existing contribution filtering.
 - [ ] Add regressions proving the panels appear only when Time Tracking is enabled and permitted, and that no hardcoded Task/Time assumptions remain in the Dashboard host.
 
 Acceptance criteria:
 
-- The Dashboard billing/client panels are module contributions gated by enabled-module and permission checks, with no remaining hardcoded Time-Tracking markup in the host.
+- The Dashboard billing panels are Time-Tracking contributions gated by enabled-module and permission checks, with no remaining hardcoded Time-Tracking billing markup in the host and no accidental reassignment of the reporting hub.
 
-### Version 0.33.6.10 - Quick Action Capture floating drawer
+### Version 0.33.6.10a - Quick Action Capture drawer shell
+
+**Model: GPT-5.5 Extra High** - Framework-owned shared app-shell drawer behavior across every protected page.
 
 Decision:
 
@@ -154,15 +177,15 @@ QAC is app-shell utility behavior, not a Workbench focus mode. It provides low-d
 - [ ] Add a floating, drawer-style QAC control anchored bottom-right, available on ALL protected screens via the shared app-shell include (`navigation.js`/`footer.js`), quiet until the user opens it.
   - [ ] Use an icon that communicates action/capture rather than words that consume screen real estate (evaluate a "runner"/lightning-style glyph against the existing icon registry at build time).
   - [ ] On wide screens the drawer may show icon + small text; on narrow screens it collapses to icon-only.
-- [ ] Drawer actions are contributed by enabled modules or mapped from registered module actions; since the user may not yet have a target record, capture actions should offer an initial find-or-create modal.
-- [ ] First actions and their target behavior:
-  - [ ] Timer - opens the future 2-timer modal when it exists; temporary fallback to `time-tracker.html` (see deferred follow-ups in 0.33.6.12).
-  - [ ] Task - opens a task picker with an Add Task button, then the appropriate task modal.
-  - [ ] Note - opens a note picker with an Add Note button, then the appropriate note modal.
-  - [ ] List - opens a picker to add an item to a list or add a list, then the appropriate modal.
-  - [ ] File - opens the Add File modal.
-  - [ ] Reporting - opens the future report-creation modal when it exists; temporary fallback to `reporting.html`.
-  - [ ] Search - opens the future advanced-search modal when it exists; temporary fallback to `search.html`.
+- [ ] Drawer actions are contributed by enabled modules or mapped from registered module actions, and the shell owns contributed-action gating, quiet-until-opened behavior, focus return, and explicit temporary page fallbacks.
+- [ ] Ship the framework-owned first action set with explicit temporary behavior where a modal does not exist yet:
+  - [ ] Timer - temporary fallback to `time-tracker.html` until the future 2-timer modal exists (see deferred follow-ups in 0.33.6.12).
+  - [ ] Task - dispatches through the existing registered Task action path.
+  - [ ] Note - dispatches through the shared action registry once 0.33.6.10b lands.
+  - [ ] List - dispatches through the shared action registry once 0.33.6.10b lands.
+  - [ ] File - dispatches through the shared action registry once 0.33.6.10b lands.
+  - [ ] Reporting - temporary fallback to `reporting.html` until the future report-creation modal exists.
+  - [ ] Search - temporary fallback to `search.html` until the future advanced-search modal exists.
 - [ ] Actions open modals without changing the current page, receive safe current-page context when available, and return focus to the triggering control when closed.
 - [ ] If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback; temporary navigation fallbacks must be removed once the modal action exists.
 - [ ] Do not use badges, alerts, or recommendation behavior in the drawer; notifications and Workbench own those concerns.
@@ -172,17 +195,33 @@ Acceptance criteria:
 
 - A quiet floating QAC drawer is available on all protected pages, opens contributed capture actions as modals (with explicit temporary page fallbacks), preserves focus, and adds no badge/alert noise.
 
-### Version 0.33.6.11 - Workbench Inspector panel
+### Version 0.33.6.10b - First-party opener rollout for QAC
 
-- [ ] Add a persistent Inspector panel on wide Workbench layouts (subordinate to the main surface) that stays out of the QAC drawer's space.
-- [ ] Show related record titles when idle; clicking a related title opens a read-only preview inside the Inspector (reuse existing preview/linked-context infrastructure rather than a new viewer).
-- [ ] Keep the Inspector permission-safe and workspace-aware, and apply the no-raw-ID/`docs/workflow-context-contract.md` label rules; non-Workbench screens remain centered unless they explicitly opt into Inspector behavior.
-- [ ] Degrade gracefully on narrow screens (collapse/hide) and when there is no related context.
-- [ ] Add regressions for related-title rendering, read-only preview, permission scoping, and narrow-screen behavior.
+**Model: GPT-5.4** - Mechanical registry rollout that wraps existing module-owned openers without inventing new forms.
+
+- [ ] Register the missing first-party Notes, Lists, and Files modal openers through the shared `LongtailForge.moduleActions` registry so QAC dispatches them the same way it dispatches Tasks, Time Entries, Projects, and Clients.
+- [ ] Wrap each module's existing canonical opener; do not build new forms or alternate editor flows.
+- [ ] Preserve module-owned permissions, payloads, refresh hooks, and focus-return behavior while routing opens through the shared framework action path.
+- [ ] Add regressions proving the new action registrations exist, dispatch through the canonical module-owned opener, and do not duplicate existing page-specific open logic.
 
 Acceptance criteria:
 
-- The Workbench Inspector shows permission-safe related titles and read-only previews on wide layouts without competing with the QAC drawer or leaking unsafe content.
+- Notes, Lists, and Files expose canonical shared action registrations that QAC and future framework surfaces can dispatch without inventing new module forms.
+
+### Version 0.33.6.11 - Workbench Inspector panel
+
+**Model: GPT-5.5 Extra High** - Permission-safe cross-module context rail work without introducing a new embedded viewer host.
+
+- [ ] Add a persistent Inspector panel on wide Workbench layouts (subordinate to the main surface) that stays out of the QAC drawer's space.
+- [ ] Show permission-safe related record titles/context when idle; clicking a related title opens the existing preview or record modal in place via stacked-modal behavior (reuse existing preview/linked-context infrastructure rather than a new viewer host).
+- [ ] Do not build an embedded preview pane inside the Inspector in this slice; a true embedded viewer would be a separate future slice.
+- [ ] Keep the Inspector permission-safe and workspace-aware, and apply the no-raw-ID/`docs/workflow-context-contract.md` label rules; non-Workbench screens remain centered unless they explicitly opt into Inspector behavior.
+- [ ] Degrade gracefully on narrow screens (collapse/hide) and when there is no related context.
+- [ ] Add regressions for related-title rendering, stacked-modal open behavior, permission scoping, and narrow-screen behavior.
+
+Acceptance criteria:
+
+- The Workbench Inspector shows permission-safe related titles/context on wide layouts, opens existing preview/record modals without competing with the QAC drawer, and does not introduce an embedded viewer pane or leak unsafe content.
 
 ### Version 0.33.6.12 - Guardrails, docs, decisions, and closeout
 
