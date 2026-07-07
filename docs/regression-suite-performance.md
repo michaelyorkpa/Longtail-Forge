@@ -203,6 +203,26 @@ Measured 0.33.5.29.5 check timing:
 
 The local wall time did not improve on this run because the remaining slow tail is outside the retired static closeout group, especially `separate-worker-end-to-end-regression.mjs`, `check-js.mjs`, file-scanner adapter checks, and isolated database scripts. The consolidation still removes 13 registered process starts and lowers future closeout maintenance noise while preserving the moved assertions through one retained owner.
 
+## 0.33.5.29.6 Isolated Bucket Stability Result
+
+0.33.5.29.6 diagnosed the isolated-bucket transient as a runner-level baseline preparation race, not a script-owned port, temp path, worker lock, or per-script database collision. Running the isolated bucket by itself reproduced the failure before the fix: the first parallel scripts all reached `getRegressionBaseline()` while `regressionBaseline` was still unset, so multiple callers attempted `prepareRegressionBaselineDatabase()` in the parent runner process and contended on the same cached baseline database configuration. The visible failure was a SQLite migration lock at the runner baseline path, for example `baseline-data/.longtail-forge-migrations.lock`.
+
+The fix keeps one shared in-flight `regressionBaselinePromise` so parallel scripts wait for the same baseline preparation instead of starting competing baseline migrations. The runner also gained a bounded stress mode: set `LTF_REGRESSION_BUCKET` to a bucket name or alias such as `isolated`, and set `LTF_REGRESSION_REPEAT` to repeat the selected bucket up to five times. Database fixture paths now include a sanitized bucket/pass namespace under `script-data`, so repeated bucket runs do not reuse per-script database or lock paths inside the same runner process.
+
+Measured isolated-bucket stability checks:
+
+| Run | Isolated concurrency | Repeat count | Runner wall seconds | Result |
+| --- | ---: | ---: | ---: | --- |
+| Pre-fix isolated-only repro | 6 | 1 | 2.00 | failed on baseline migration lock |
+| Post-fix isolated-only default | 6 | 1 | 35.76 | 121/121 isolated scripts |
+| Post-fix isolated-only stress | 8 | 2 | 70.94 | 242/242 isolated script runs |
+
+Operationally, the old standalone/serial workaround is retired only after the bounded stress command passes:
+
+```sh
+LTF_REGRESSION_BUCKET=isolated LTF_REGRESSION_REPEAT=2 LTF_ISOLATED_REGRESSION_PARALLELISM=8 node scripts/run-regressions.mjs
+```
+
 ## Database-Fixture Review Candidates
 
 These scripts run in a database bucket but their source did not show an obvious database/runtime service signal during the 0.33.5.29.1 static review. Later slices should verify them before moving them; their combined measured time is small, so this is not the primary speed target.
@@ -225,7 +245,7 @@ These scripts run in a database bucket but their source did not show an obvious 
 
 4. Closeout consolidation target for 0.33.5.29.5: completed by registering `scripts/static-contract-closeout-regression.mjs`, retiring 14 static closeout suite entries through manifest `assertions-moved` records, and leaving the seven database-backed closeout scripts independently registered. The live suite now has 282 registered scripts and 8 registered closeout owners, while the manifest preserves the 296/22 pre-retirement floors and the retained owner for every moved assertion.
 
-5. Isolated-DB flake target for 0.33.5.29.6: this slice did not quantify the isolated-DB flake. Keep flake work separate from speed work. The proof should stress the isolated bucket under default and higher parallelism, then inspect per-script temp/database/path/lock/port ownership.
+5. Isolated-DB flake target for 0.33.5.29.6: completed by reproducing the isolated-only baseline migration-lock race, fixing `getRegressionBaseline()` with a shared in-flight promise, namespacing per-script data paths by bucket/pass, and proving the bucket with default isolated parallelism plus a repeat-2 concurrency-8 stress run.
 
 6. Check/lint target for 0.33.5.29.7: `scripts/check-js.mjs` is the slowest regression script at 11.45 seconds, and `npm run check` runs ESLint after the regression runner. Review duplicate JS scanning and ESLint caching only in the final check/lint slice, keeping the same gate semantics.
 

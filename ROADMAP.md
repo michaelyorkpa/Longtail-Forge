@@ -92,9 +92,9 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** — concurrency/race diagnosis and fix; genuinely hard reasoning under nondeterminism.
 
-- [ ] Diagnose the known isolated-DB transient flake first (incorporating whatever the 0.33.5.29.1 target list already flagged): run a bounded repeat of the isolated bucket under default and higher parallelism, inspect temp database/path/lock/port naming and cleanup for the scripts that contend, and pin the narrowest root cause plus the exact stress check that will prove the fix.
-- [ ] Fix that root cause so the parallel bucket is deterministic under its default and a higher parallelism setting; ensure per-script database/temp resources are uniquely named and cleaned up with no cross-script path/lock/port contention.
-- [ ] Add a focused regression or bounded repeat-run mode that exercises the isolated bucket under parallelism to prove stability, and update the operational notes to retire the standalone/serial workaround only after the stress check passes.
+- [x] Diagnose the known isolated-DB transient flake first (incorporating whatever the 0.33.5.29.1 target list already flagged): run a bounded repeat of the isolated bucket under default and higher parallelism, inspect temp database/path/lock/port naming and cleanup for the scripts that contend, and pin the narrowest root cause plus the exact stress check that will prove the fix.
+- [x] Fix that root cause so the parallel bucket is deterministic under its default and a higher parallelism setting; ensure per-script database/temp resources are uniquely named and cleaned up with no cross-script path/lock/port contention.
+- [x] Add a focused regression or bounded repeat-run mode that exercises the isolated bucket under parallelism to prove stability, and update the operational notes to retire the standalone/serial workaround only after the stress check passes.
 
 Acceptance criteria:
 
@@ -1550,6 +1550,41 @@ Acceptance criteria:
 Acceptance criteria:
 
 - The public API and integration surfaces are provably independent of the storage backend and of specific module internals before 0.40.0 begins, with a guardrail preventing regression and the coupling allowlist reduced accordingly.
+
+## Version 0.39.16 - SQLite adapter performance cleanup
+
+**Model: GPT-5.5 Extra High** — database adapter internals with prepared-statement lifecycle, transaction, and durability/data-integrity implications; a subtle cache-invalidation or PRAGMA-durability error is high-cost.
+
+Purpose:
+
+Now that the SQLite adapter is fully isolated behind the provider-neutral database seam and every application call site goes through `db.query/get/run` + `db.dialect.*` (0.33.5.27), the adapter's own internals can be optimized without touching a single call site or the agnostic contract. This is a self-contained, behavior-preserving cleanup of `src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`, deliberately placed at the end of 0.39 so the SQLite adapter is tuned *before* the 0.40.0 PostgreSQL adapter lands — that way both backends can be benchmarked fairly and the PostgreSQL adapter can mirror the same startup-tuning and statement-lifecycle patterns instead of diverging.
+
+Scope decision (record in `DECISIONS.md`):
+
+- Adapter-internal only. This slice changes no query result, no error contract, no transaction semantics, and no call-site code. It must not touch the dialect seams, the parameter-binding contract's observable behavior, migrations, or the agnostic-by-contract guarantees. Any durability-affecting change (e.g. `synchronous`) must be runtime-config-gated with a documented default and surfaced in health/diagnostics, not silently changed.
+
+Entry contract and grounding (re-verify at implementation time — code will have drifted):
+
+- Prepared statements are recompiled on every call: `executePreparedRun`/`executePreparedQuery` in `src/db/sqlite.js` call `getSqliteDatabase().prepare(sql)` per query with no statement cache. better-sqlite3 is fastest when prepared statements are reused.
+- The SQL string is scanned up to three times per query: `prepareDatabaseBindings()` (adapter) tokenizes it, then `countSqlStatements()` scans it again, then `resolveStatementBindings()` -> `collectSqlParameters()` scans it a third time in `src/db/sqlite.js`, re-deriving parameter shape the binding layer already computed. The tokenizing logic is duplicated across `src/db/parameter-bindings.js` and `src/db/sqlite.js`.
+- `db.get(...)` materializes the full result set then discards all but the first row: `executeGet` -> `executeQuery` -> `allStatement` -> `statement.all()` in `src/db/adapters/sqlite-adapter.js` / `src/db/sqlite.js`, instead of better-sqlite3's `statement.get()` which stops at the first row.
+- Startup PRAGMAs are minimal: `applyConnectionPragmas`/`applyStartupPragmas` set only `busy_timeout`, `foreign_keys`, and `journal_mode` (WAL). The standard WAL-safe performance PRAGMAs (`synchronous = NORMAL`, a larger `cache_size`, `temp_store = MEMORY`, and optionally `mmap_size`) are not applied.
+- `config.sqlite` already carries `journalMode`/`busyTimeoutMs`/`foreignKeys`; new tuning keys should follow the same runtime-configuration pattern and be documented in `docs/runtime-configuration.md`.
+
+Sizing rule for this branch:
+
+- One primary blast radius: the SQLite adapter (`src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`). Measure first, then land the changes behind behavior-preserving regressions. Split only if the 0.39.16.1 measurement shows the prepared-statement cache is materially more complex than the rest — do not pre-split the tuning bullets, since they share the same blast radius.
+
+- [ ] Establish a repeatable micro-benchmark for the adapter (hot single-row read, hot list read, hot write, and a transaction) and record a baseline before any change, so each optimization can be shown to help and proven not to change results.
+- [ ] Add a bounded, connection-scoped prepared-statement cache keyed on the final rewritten SQL, reused across `query`/`get`/`run`. It must be invalidated/reset when the connection is closed and reopened (`initializeSqliteRuntime` closes and recreates the database), must not grow unbounded under variable-length `IN (:ids)` expansion (cap/evict), and must not change results, errors, or transaction behavior.
+- [ ] Collapse the redundant per-query SQL scans: parse/tokenize the statement once and reuse the parameter/statement-shape result rather than re-scanning in `countSqlStatements` and `collectSqlParameters`. Prefer sharing the single tokenizer in `src/db/parameter-bindings.js` over maintaining a second copy in `src/db/sqlite.js`. Preserve the exact multi-statement, comment/quote-handling, and error behavior.
+- [ ] Make `db.get(...)` use better-sqlite3's single-row `statement.get()` path instead of `statement.all()[0]`, preserving the current `null`-when-empty contract and identical row shape.
+- [ ] Add runtime-config-gated startup performance PRAGMAs (`synchronous`, `cache_size`, `temp_store`, and optionally `mmap_size`) with safe WAL-appropriate defaults, apply them in `applyStartupPragmas`, surface the effective values in SQLite health/`/api/runtime-diagnostics`, and document the durability tradeoff of `synchronous = NORMAL` (safe under WAL: no corruption on app crash, only a possible last-transaction loss on OS/power loss). Do not change `journal_mode`, `busy_timeout`, or `foreign_keys` behavior.
+- [ ] Add behavior-preserving regressions: identical results/errors/`get`-null semantics before and after; statement-cache correctness across connection reset and variable-length `IN (:ids)`; PRAGMA values reported in health; and record the before/after benchmark numbers. Run `npm run check`, `npm run test:permissions`, `PRAGMA integrity_check`, and verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- The SQLite adapter is measurably faster on hot reads/writes through prepared-statement reuse, single-scan parsing, single-row `get()`, and config-gated WAL-safe PRAGMAs, with no change to query results, error contracts, transaction semantics, or the agnostic contract, and with the durability tradeoff documented and diagnostics-visible. The optimizations are established before 0.40.0 so the PostgreSQL adapter can mirror the same patterns.
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
 

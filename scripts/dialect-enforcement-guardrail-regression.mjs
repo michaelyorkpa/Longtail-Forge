@@ -7,7 +7,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.5";
+const appVersion = "0.33.5.29.6";
 const dialectGuardrailSliceVersion = "0.33.5.27.32";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.5";
+const appVersion = "0.33.5.29.6";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-case-insensitive-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;

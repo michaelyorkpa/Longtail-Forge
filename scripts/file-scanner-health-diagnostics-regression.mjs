@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.5.29.5";
+const appVersion = "0.33.5.29.6";
 const modeArgIndex = process.argv.indexOf("--mode");
 const scannerSecretHost = "scanner-secret-host.internal";
 const scannerSecretExecutable = "scanner-secret-clamscan.exe";

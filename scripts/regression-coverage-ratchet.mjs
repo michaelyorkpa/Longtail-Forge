@@ -37,7 +37,7 @@ const documentedRetirementManifest = {
       assertionDisposition: "Synthetic fixture assertions moved to the ratchet coverage proof.",
       rationale: "Synthetic fixture proves documented retirements lower the count floor explicitly.",
       retainedCoverageOwners: ["scripts/regression-coverage-ratchet.mjs"],
-      retiredInVersion: "0.33.5.29.5-test-fixture",
+      retiredInVersion: "0.33.5.29.6-test-fixture",
       retirementType: "assertions-moved",
       script: syntheticMissingScript,
       verificationPerformed: ["node scripts/regression-coverage-ratchet.mjs"],
@@ -55,7 +55,7 @@ const malformedRetirementManifest = {
   retiredScripts: [
     {
       rationale: "Missing the retained coverage owner, assertion disposition, and verification evidence.",
-      retiredInVersion: "0.33.5.29.5-test-fixture",
+      retiredInVersion: "0.33.5.29.6-test-fixture",
       retirementType: "assertions-moved",
       script: syntheticMissingScript,
     },

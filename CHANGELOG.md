@@ -1,3 +1,12 @@
+## Version 0.33.5.29.6 - 2026-07-07 02:57 -04:00
+
+- Completed the isolated-database bucket stabilization slice by reproducing the standalone isolated-bucket flake as a baseline migration-lock race during first-wave parallel startup.
+- Fixed `scripts/run-regressions.mjs` so parallel scripts share one in-flight regression baseline preparation promise instead of calling `prepareRegressionBaselineDatabase()` independently before `regressionBaseline` is assigned.
+- Added bounded runner stress controls: `LTF_REGRESSION_BUCKET` filters to a selected bucket such as `isolated`, and `LTF_REGRESSION_REPEAT` repeats that bucket up to five times for deterministic flake checks.
+- Namespaced per-script database fixture directories by bucket/pass so repeat runs do not reuse script database, temp, or migration-lock paths inside the same runner process.
+- Updated `scripts/regression-runner-regression.mjs`, `docs/regression-suite-performance.md`, `DECISIONS.md`, and `ROADMAP.md`, then advanced package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.5.29.6.
+- Verification 2026-07-07 03:04 -04:00: pre-fix `LTF_REGRESSION_BUCKET=isolated node scripts\run-regressions.mjs` reproduced the baseline migration-lock failure; post-fix `LTF_REGRESSION_BUCKET=isolated node scripts\run-regressions.mjs` passed 121/121 isolated scripts at concurrency 6 in 35.76s; post-fix `LTF_REGRESSION_BUCKET=isolated LTF_REGRESSION_REPEAT=2 LTF_ISOLATED_REGRESSION_PARALLELISM=8 node scripts\run-regressions.mjs` passed 242/242 isolated script runs in 70.94s; `node scripts\regression-runner-regression.mjs`, `node scripts\regression-clean-clone-contract.mjs`, `node scripts\regression-coverage-ratchet.mjs`, `node scripts\static-contract-closeout-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale current-version scan, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 282/282 regression scripts plus ESLint with a 98.40s runner timing, and `/api/app-info` reported 0.33.5.29.6 from the refreshed local 8001 server.
+
 ## Version 0.33.5.29.5 - 2026-07-07 02:45 -04:00
 
 - Completed the closeout-regression consolidation slice by inspecting the full 21-script closeout family and folding only the static historical closeout/doc assertion group.

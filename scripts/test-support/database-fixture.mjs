@@ -34,7 +34,8 @@ async function prepareRegressionBaselineDatabase() {
     baselineDb,
     async createScriptEnv(script, index, options = {}) {
       const useBaseline = options.useBaseline !== false;
-      const scriptDataDir = path.join(root, "script-data", `${String(index).padStart(3, "0")}-${sanitizeScriptName(script)}`);
+      const namespace = sanitizePathSegment(options.namespace || "default");
+      const scriptDataDir = path.join(root, "script-data", namespace, `${String(index).padStart(3, "0")}-${sanitizePathSegment(script)}`);
       await fs.mkdir(scriptDataDir, { recursive: true });
 
       const env = {
@@ -72,8 +73,8 @@ function restoreEnv(values) {
   }
 }
 
-function sanitizeScriptName(script) {
-  return script.replace(/[^a-z0-9.-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "regression";
+function sanitizePathSegment(value) {
+  return String(value || "").replace(/[^a-z0-9.-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "regression";
 }
 
 export { prepareRegressionBaselineDatabase };
