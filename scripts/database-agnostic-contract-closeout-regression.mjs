@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -38,7 +38,7 @@ assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.27 - Database extraction con
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.33 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should not keep the completed closeout slice body");
 assert.match(roadmap, /Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*completed 0\.33\.5\.27 agnostic-by-contract conversion\/seam branch[\s\S]*interpolation and raw-dialect ratchets enforced at zero[\s\S]*not an app-wide SQL rewrite[\s\S]*consume the closed 0\.33\.5\.27 decisions/, "0.40.0 should be reduced to PostgreSQL implementation and proof behind the established seams");
 
-assert.match(regressionSuite, /scripts\/database-agnostic-contract-closeout-regression\.mjs/, "regression suite should include the database agnostic contract closeout regression");
+assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "regression suite should include the consolidated static closeout regression");
 
 console.log("Database agnostic contract closeout regression passed.");
 

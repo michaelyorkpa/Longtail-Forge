@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 const filesCloseoutVersion = "0.33.5.18.12.7";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
@@ -49,8 +49,7 @@ assert.match(filesInventory, /Current as of 0\.33\.5\.18\.12\.7/, "Files invento
 assert.match(filesInventory, /## Closeout Coverage In 0\.33\.5\.18\.12\.7/, "Files inventory should include closeout coverage");
 assert.match(filesInventory, /compact listing-first browse[\s\S]*slide-out filters[\s\S]*shared upload and attachment panel shells[\s\S]*route-backed File Context editing[\s\S]*route-backed Preview[\s\S]*strict `files\.browse` guardrails/, "Files inventory should summarize the shipped closeout boundary");
 
-assert.match(regressionSuite, /scripts\/files-conversion-closeout-regression\.mjs/, "Regression suite should include the Files conversion closeout regression");
-assert.match(regressionSuite, /scripts\/files-browse-edit-preview-closeout-regression\.mjs/, "Regression suite should keep the browse/edit/preview closeout regression");
+assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 assert.match(regressionSuite, /scripts\/files-strict-guardrail-inventory-regression\.mjs/, "Regression suite should keep the Files strict guardrail regression");
 
 console.log("Files conversion closeout regression passed.");

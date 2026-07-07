@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -101,7 +101,7 @@ assert.match(sqliteDocs, /one Longtail Forge app process\/server/i, "SQLite smal
 assert.match(sqliteDocs, /roughly 50 total users[\s\S]*5-15 concurrent users/i, "SQLite small-office docs should keep the support target");
 assert.match(sqliteDocs, /Runtime Diagnostics panel[\s\S]*does not edit runtime configuration/i, "SQLite docs should keep diagnostics read-only");
 
-assert.match(regressionSuite, /scripts\/runtime-database-foundation-closeout-regression\.mjs/, "regression suite should include the runtime/database closeout regression");
+assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "regression suite should include the consolidated static closeout regression");
 
 console.log("Runtime/database foundation closeout regression passed.");
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -62,7 +62,7 @@ assert.match(strictInventory, /task list remains the primary main-panel view/, "
 assert.match(strictInventory, /future Quick Action Center/i, "Tasks strict inventory should document future QAC caller guidance");
 
 for (const script of [
-  "scripts/tasks-conversion-closeout-regression.mjs",
+  "scripts/static-contract-closeout-regression.mjs",
   "scripts/view-descriptor-declarative-guardrails.mjs",
   "scripts/tasks-strict-guardrail-inventory-regression.mjs",
   "scripts/tasks-declarative-readonly-surface-regression.mjs",

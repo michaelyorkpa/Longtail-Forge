@@ -1,3 +1,33 @@
+## Version 0.33.5.29.5 - 2026-07-07 02:45 -04:00
+
+- Completed the closeout-regression consolidation slice by inspecting the full 21-script closeout family and folding only the static historical closeout/doc assertion group.
+- Added `scripts/static-contract-closeout-regression.mjs` as the retained owner for 14 imported static closeout modules, reducing registered suite membership from 295 scripts to 282 scripts while still running the moved assertions in-process.
+- Updated `scripts/regression-coverage-manifest.json` with 14 `assertions-moved` retirement entries, a 296 registered-script pre-retirement floor, a 22 closeout pre-retirement floor, and `scripts/static-contract-closeout-regression.mjs` as the retained coverage owner.
+- Left the seven database-backed closeout regressions independently registered because they still exercise live service, permission, search, fixture, or SQLite integrity behavior.
+- Spot-checked moved coverage by temporarily breaking the Notes import planning heading and the view-conversion closeout heading; both failures were caught by the consolidated owner before the targets were restored.
+- Updated `docs/regression-suite-performance.md`, `DECISIONS.md`, and `ROADMAP.md`, then advanced package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.5.29.5.
+- Verification 2026-07-07 02:56 -04:00: `node scripts\static-contract-closeout-regression.mjs`, `node scripts\regression-coverage-ratchet.mjs`, `node scripts\regression-clean-clone-contract.mjs`, `node scripts\regression-runner-regression.mjs`, `node scripts\parameter-binding-audit-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale current-version scan, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 282/282 regression scripts plus ESLint with a 115.27s runner timing and isolated concurrency `6 (auto:12-available)`, and `/api/app-info` reported 0.33.5.29.5 from the refreshed local 8001 server.
+
+## Version 0.33.5.29.4 - 2026-07-07 02:05 -04:00
+
+- Completed the coverage ratchet and retirement manifest slice without consolidating or retiring any real regression scripts.
+- Added `scripts/regression-coverage-manifest.json` with the retained regression script snapshot, a 295-script registered floor, a 21-script closeout floor, and an empty `retiredScripts` list for future documented removals.
+- Added `scripts/test-support/regression-coverage-ratchet.mjs` plus `scripts/regression-coverage-ratchet.mjs`, and registered the ratchet in the static/source bucket so the suite fails on undocumented required-script drops.
+- Defined and documented the retirement entry format: retired script, version, retirement type, rationale, assertion disposition, retained coverage owner, and verification performed.
+- Added focused ratchet fixture coverage proving an undocumented synthetic drop fails, a complete documented retirement passes, and incomplete retirement metadata is rejected.
+- Updated `scripts/regression-clean-clone-contract.mjs`, `docs/regression-suite-performance.md`, and `DECISIONS.md` to guard and document the new coverage-preservation contract, then advanced package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.5.29.4.
+- Verification 2026-07-07 02:10 -04:00: `node scripts\regression-coverage-ratchet.mjs`, `node scripts\regression-clean-clone-contract.mjs`, `node scripts\regression-runner-regression.mjs`, `node scripts\runtime-database-foundation-closeout-regression.mjs`, `node scripts\parameter-binding-audit-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 295/295 regression scripts plus ESLint with a 111.94s runner timing and isolated concurrency `6 (auto:12-available)`, and `/api/app-info` reported 0.33.5.29.4 from the refreshed local 8001 server.
+
+## Version 0.33.5.29.3 - 2026-07-07 01:36 -04:00
+
+- Completed the runner scheduling and timing optimization slice without source-scan consolidation, static batching, or script pruning.
+- Added `scripts/test-support/regression-runner-scheduler.mjs` as the shared runner scheduling support for isolated-bucket auto-tuning and limited parallel scheduling.
+- Changed only the isolated database bucket's default scheduling path: absent explicit overrides, the runner now derives isolated concurrency from Node's available parallelism with a conservative six-worker cap. `LTF_ISOLATED_REGRESSION_PARALLELISM` still has highest precedence and `LTF_REGRESSION_PARALLELISM` remains the shared fallback override.
+- Preserved bucket order, serial shared-database/file-storage buckets, fail-fast behavior, per-script timing output, `LTF_REGRESSION_TIMING_JSON`, the `fresh-database-regression.mjs` baseline bypass, and per-script isolated database fixture indexes.
+- Extended `scripts/regression-runner-regression.mjs` and `scripts/regression-clean-clone-contract.mjs` to guard auto sizing, override precedence, stable script indexes, single-failure scheduling behavior, and clean-clone availability of the scheduler support file.
+- Updated `docs/regression-suite-performance.md` and `DECISIONS.md` with the retained runner contract and advanced package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.5.29.3.
+- Verification 2026-07-07 01:42 -04:00: `node scripts\regression-runner-regression.mjs`, `node scripts\regression-clean-clone-contract.mjs`, `node scripts\runtime-database-foundation-closeout-regression.mjs`, `node scripts\parameter-binding-audit-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 294/294 regression scripts plus ESLint with a 110.46s runner timing and isolated concurrency `6 (auto:12-available)`, and `/api/app-info` reported 0.33.5.29.3 from the refreshed local 8001 server.
+
 ## Version 0.33.5.29.2 - 2026-07-07 01:19 -04:00
 
 - Completed the database source-scan consolidation slice without changing runtime behavior or reducing regression coverage.

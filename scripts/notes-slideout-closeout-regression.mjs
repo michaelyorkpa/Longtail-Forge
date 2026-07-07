@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -56,8 +56,7 @@ for (const script of [
   "scripts/notes-modal-stack-guardrails-regression.mjs",
   "scripts/notes-preview-editor-regression.mjs",
   "scripts/linked-context-picker-shell-regression.mjs",
-  "scripts/markdown-closeout-regression.mjs",
-  "scripts/notes-slideout-closeout-regression.mjs",
+  "scripts/static-contract-closeout-regression.mjs",
 ]) {
   assert.match(regressionSuite, new RegExp(escapeRegExp(script)), `Regression suite should include ${script}`);
 }

@@ -2,6 +2,10 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { prepareRegressionBaselineDatabase } from "./test-support/database-fixture.mjs";
+import {
+  resolveIsolatedRegressionParallelism,
+  runLimitedItems,
+} from "./test-support/regression-runner-scheduler.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
 const ISOLATED_BUCKET_NAME = "isolated database regressions";
@@ -9,14 +13,6 @@ const STATIC_BUCKET_NAME = "static/source regressions";
 const BASELINE_BYPASS_SCRIPTS = new Set([
   "scripts/fresh-database-regression.mjs",
 ]);
-const DEFAULT_ISOLATED_PARALLELISM = 4;
-const envIsolatedParallelism = Number.parseInt(
-  process.env.LTF_ISOLATED_REGRESSION_PARALLELISM || process.env.LTF_REGRESSION_PARALLELISM || "",
-  10,
-);
-const isolatedParallelism = Number.isInteger(envIsolatedParallelism) && envIsolatedParallelism > 0
-  ? envIsolatedParallelism
-  : DEFAULT_ISOLATED_PARALLELISM;
 
 const totalStart = performance.now();
 const completedResults = [];
@@ -55,12 +51,16 @@ try {
 }
 
 async function runBucket(bucket) {
-  const concurrency = bucket.name === ISOLATED_BUCKET_NAME
-    ? isolatedParallelism
-    : bucket.concurrency;
+  const parallelismResolution = bucket.name === ISOLATED_BUCKET_NAME
+    ? resolveIsolatedRegressionParallelism({ fallbackParallelism: bucket.concurrency })
+    : { parallelism: bucket.concurrency, source: "suite" };
+  const concurrency = parallelismResolution.parallelism;
   const effectiveConcurrency = bucket.mode === "serial" ? 1 : Math.max(1, concurrency || 1);
+  const concurrencySource = bucket.name === ISOLATED_BUCKET_NAME
+    ? ` (${parallelismResolution.source})`
+    : "";
 
-  console.log(`\n[${bucket.name}] ${bucket.scripts.length} script(s), concurrency ${effectiveConcurrency}`);
+  console.log(`\n[${bucket.name}] ${bucket.scripts.length} script(s), concurrency ${effectiveConcurrency}${concurrencySource}`);
   const results = await runLimited(bucket, effectiveConcurrency);
   printBucketSummary(bucket.name, results);
 
@@ -76,45 +76,11 @@ async function runBucket(bucket) {
 }
 
 async function runLimited(bucket, concurrency) {
-  const scripts = bucket.scripts;
-  const results = [];
-  const running = new Set();
-  let nextIndex = 0;
-  let failed = false;
-
-  async function scheduleNext() {
-    if (failed || nextIndex >= scripts.length) {
-      return;
-    }
-
-    const script = scripts[nextIndex];
-    const scriptIndex = nextIndex;
-    nextIndex += 1;
-    const promise = runScript(script, bucket, scriptIndex)
-      .then((result) => {
-        results.push(result);
-        if (result.exitCode !== 0) {
-          failed = true;
-        }
-      })
-      .finally(() => {
-        running.delete(promise);
-      });
-    running.add(promise);
-  }
-
-  while (running.size < concurrency && nextIndex < scripts.length) {
-    await scheduleNext();
-  }
-
-  while (running.size > 0) {
-    await Promise.race(running);
-    while (!failed && running.size < concurrency && nextIndex < scripts.length) {
-      await scheduleNext();
-    }
-  }
-
-  return results.sort((left, right) => scripts.indexOf(left.script) - scripts.indexOf(right.script));
+  return runLimitedItems(
+    bucket.scripts,
+    concurrency,
+    (script, scriptIndex) => runScript(script, bucket, scriptIndex),
+  );
 }
 
 async function runScript(script, bucket, scriptIndex) {

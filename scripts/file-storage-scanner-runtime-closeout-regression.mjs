@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -101,8 +101,8 @@ for (const regression of branchRegressions) {
 }
 assert.match(
   regressionSuite,
-  /scripts\/file-storage-scanner-runtime-closeout-regression\.mjs/,
-  "regression suite should include the storage/scanner closeout regression",
+  /scripts\/static-contract-closeout-regression\.mjs/,
+  "regression suite should include the consolidated static closeout regression",
 );
 
 console.log("File storage/scanner runtime closeout regression passed.");

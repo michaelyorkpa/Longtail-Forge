@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -34,7 +34,7 @@ assert.match(architecture, /framework-owned view-building helper layer/, "Archit
 assert.match(helpModules, /Shared framework view patterns/, "Help should describe shared module view behavior without developer-only class details");
 
 assert.match(changelog, /## Version 0\.33\.5\.15\.6 - /, "Changelog should include the closeout version");
-assert.match(regressionSuite, /scripts\/view-builder-closeout-regression\.mjs/, "Regression suite should include the view-builder closeout regression");
+assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 
 console.log("View builder closeout regression passed.");
 

@@ -53,10 +53,10 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** — changes runner execution semantics; isolation and fail-fast correctness are load-bearing.
 
-- [ ] Implement exactly one non-consolidation runner optimization from the 0.33.5.29.1 target list, such as auto-tuning isolated parallelism to available cores while preserving `LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, or one narrowly-scoped static bucket batching mechanism for proven read-only scripts. If more than one runner change is needed, split before implementing the second.
-- [ ] Preserve bucket order, fail-fast semantics, per-script timing output, `LTF_REGRESSION_TIMING_JSON`, baseline bypass behavior for `fresh-database-regression.mjs`, and isolation for mutating database scripts.
-- [ ] Extend `scripts/regression-runner-regression.mjs` / `scripts/regression-clean-clone-contract.mjs` to prove the new runner behavior still isolates mutating scripts and still fails correctly on a single script failure.
-- [ ] Record the new timing baseline.
+- [x] Implement exactly one non-consolidation runner optimization from the 0.33.5.29.1 target list, such as auto-tuning isolated parallelism to available cores while preserving `LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, or one narrowly-scoped static bucket batching mechanism for proven read-only scripts. If more than one runner change is needed, split before implementing the second.
+- [x] Preserve bucket order, fail-fast semantics, per-script timing output, `LTF_REGRESSION_TIMING_JSON`, baseline bypass behavior for `fresh-database-regression.mjs`, and isolation for mutating database scripts.
+- [x] Extend `scripts/regression-runner-regression.mjs` / `scripts/regression-clean-clone-contract.mjs` to prove the new runner behavior still isolates mutating scripts and still fails correctly on a single script failure.
+- [x] Record the new timing baseline.
 
 Acceptance criteria:
 
@@ -66,10 +66,10 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** — new enforcement mechanism; a false negative silently defeats coverage preservation.
 
-- [ ] Add a coverage-preservation ratchet: a manifest/count check and, where practical, assertion-inventory metadata that fails if the retained regression set drops below the recorded floor without an explicit retirement entry.
-- [ ] Define the documented retirement entry format: script retired, assertions moved or rationale for dead target code, retained script/coverage owner, and verification performed.
-- [ ] Add focused coverage for the ratchet itself, including a failing fixture/path for an undocumented script drop.
-- [ ] Update the performance target doc with the ratchet rules. Do not consolidate or retire scripts in this slice except for test fixtures that prove the ratchet.
+- [x] Add a coverage-preservation ratchet: a manifest/count check and, where practical, assertion-inventory metadata that fails if the retained regression set drops below the recorded floor without an explicit retirement entry.
+- [x] Define the documented retirement entry format: script retired, assertions moved or rationale for dead target code, retained script/coverage owner, and verification performed.
+- [x] Add focused coverage for the ratchet itself, including a failing fixture/path for an undocumented script drop.
+- [x] Update the performance target doc with the ratchet rules. Do not consolidate or retire scripts in this slice except for test fixtures that prove the ratchet.
 
 Acceptance criteria:
 
@@ -79,10 +79,10 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** — high-volume fold across ~12 closeout scripts with coverage-preservation risk.
 
-- [ ] Using the 0.33.5.29.1 overlap map and the 0.33.5.29.4 ratchet, inspect the full `*-closeout-regression.mjs` cluster in one pass: the view/surface/Files group (`view-builder-closeout-regression.mjs`, `view-conversion-branch-closeout-regression.mjs`, `surface-standardization-closeout-regression.mjs`, `files-conversion-closeout-regression.mjs`, `files-browse-edit-preview-closeout-regression.mjs`, `module-file-closeout-regression.mjs`) and the remaining artifacts (`notes-import-closeout-regression.mjs`, `lists-closeout-regression.mjs`, `markdown-closeout-regression.mjs`, `work-resume-state-closeout-regression.mjs`, `runtime-database-foundation-closeout-regression.mjs`, `file-storage-scanner-runtime-closeout-regression.mjs`, and any other `*-closeout-regression.mjs` still listed in `scripts/regression-suite.mjs`).
-- [ ] Fold only assertions demonstrably covered by a retained focused regression or a retained closeout script; keep distinct branch-boundary assertions that still protect active behavior. Record every consolidation and any genuine retirement with rationale in `docs/` and `CHANGELOG.md`, moving coverage through the ratchet manifest.
-- [ ] Spot-check at least two moved assertions by temporarily breaking their target behavior, then re-run the full suite and confirm the retained coverage map is current.
-- [ ] Split this slice by file-group only if the 0.33.5.29.1 inventory shows the closeout cluster is too large for one safe session; do not pre-split it into two ceremonies by default.
+- [x] Using the 0.33.5.29.1 overlap map and the 0.33.5.29.4 ratchet, inspect the full `*-closeout-regression.mjs` cluster in one pass: the view/surface/Files group (`view-builder-closeout-regression.mjs`, `view-conversion-branch-closeout-regression.mjs`, `surface-standardization-closeout-regression.mjs`, `files-conversion-closeout-regression.mjs`, `files-browse-edit-preview-closeout-regression.mjs`, `module-file-closeout-regression.mjs`) and the remaining artifacts (`notes-import-closeout-regression.mjs`, `lists-closeout-regression.mjs`, `markdown-closeout-regression.mjs`, `work-resume-state-closeout-regression.mjs`, `runtime-database-foundation-closeout-regression.mjs`, `file-storage-scanner-runtime-closeout-regression.mjs`, and any other `*-closeout-regression.mjs` still listed in `scripts/regression-suite.mjs`).
+- [x] Fold only assertions demonstrably covered by a retained focused regression or a retained closeout script; keep distinct branch-boundary assertions that still protect active behavior. Record every consolidation and any genuine retirement with rationale in `docs/` and `CHANGELOG.md`, moving coverage through the ratchet manifest.
+- [x] Spot-check at least two moved assertions by temporarily breaking their target behavior, then re-run the full suite and confirm the retained coverage map is current.
+- [x] Split this slice by file-group only if the 0.33.5.29.1 inventory shows the closeout cluster is too large for one safe session; do not pre-split it into two ceremonies by default.
 
 Acceptance criteria:
 

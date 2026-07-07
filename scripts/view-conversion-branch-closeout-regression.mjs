@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 import { listFrameworkViewSurfaces } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const listsModule = readText("src/modules/lists/module.js");
@@ -114,7 +114,7 @@ assert.match(clientsProjectsInventory, /Current as of 0\.33\.5\.18\.15/, "Client
 assert.match(clientsProjectsInventory, /0\.33\.5\.18\.15 Cross-Surface Closeout[\s\S]*Notes-style searchable tag filters with service-side tag text resolution/, "Clients/Projects inventory should preserve the accepted tag-search outcome");
 assert.match(clientsProjectsInventory, /Admin\/Settings, Reporting, Dashboard, Workbench, pagination\/server-side paging, Inspector behavior, drag\/drop hierarchy editing, new payloads, and new workflow semantics remain out of this closeout/, "Clients/Projects inventory should keep deferred work explicit");
 
-assert.match(regressionSuite, /scripts\/view-conversion-branch-closeout-regression\.mjs/, "Regression suite should include the branch closeout regression");
+assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 
 console.log("View conversion branch closeout regression passed.");
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -50,7 +50,7 @@ assert.match(declarativeSurfaces, /0\.33\.5\.18\.11\.13/, "Declarative surface g
 assert.match(changelog, /## Version 0\.33\.5\.18\.11\.13 - /, "Changelog should include the closeout version");
 assert.match(changelog, /Files browse\/edit\/preview closeout/, "Changelog should describe the closeout");
 assert.match(changelog, /0\.33\.5\.18\.12 handoff/, "Changelog should describe the next-branch handoff");
-assert.match(regressionSuite, /scripts\/files-browse-edit-preview-closeout-regression\.mjs/, "Regression suite should include the closeout regression");
+assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 
 console.log("Files browse/edit/preview closeout regression passed.");
 

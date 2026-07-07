@@ -94,6 +94,53 @@ After-conversion standalone timing sample:
 
 The three-script whole-source walker sample dropped from 1.70 seconds to 0.66 seconds on the local run. Two deliberate break checks were also run against a temporary source probe: interpolation rejected a reintroduced `sqlText()` helper/interpolated operation, and dialect rejected raw `rowid` plus `COLLATE NOCASE`. The probe file was removed before final verification.
 
+## 0.33.5.29.3 Runner Scheduling Result
+
+0.33.5.29.3 implements exactly one runner execution-model optimization: the isolated database bucket now auto-tunes its default parallelism from Node's available worker count while preserving the existing override knobs. `LTF_ISOLATED_REGRESSION_PARALLELISM` still wins first, `LTF_REGRESSION_PARALLELISM` remains the shared fallback override, and explicit positive integer overrides are used as requested.
+
+The auto path uses `scripts/test-support/regression-runner-scheduler.mjs` and keeps a conservative cap of six isolated workers. On the local verification runtime, Node reports 12 available workers, so the default isolated bucket increases from the historical fixed four workers to six workers. Static, default-database, and file-storage buckets keep their existing suite-defined scheduling; the file-storage bucket stays serial because storage/database isolation has not been proven safe.
+
+The same helper owns the limited scheduler used by the runner. The runner guardrail now exercises auto sizing, override precedence, stable script indexes for per-script database fixture envs, and the fail-fast contract where a single script failure stops later scheduling while allowing already-running scripts to finish. Bucket order, per-script timing output, `LTF_REGRESSION_TIMING_JSON`, the `fresh-database-regression.mjs` baseline bypass, and mutating-script database isolation remain unchanged.
+
+Measured 0.33.5.29.3 check timing:
+
+| Run | Isolated concurrency | Runner wall seconds | Result |
+| --- | ---: | ---: | --- |
+| 0.33.5.29.1 baseline | 4 | 109.57 | 294/294 plus ESLint |
+| 0.33.5.29.3 verification | 6 | 110.46 | 294/294 plus ESLint |
+
+This local verification run proved the auto-tuned six-worker isolated bucket without surfacing the known isolated-DB flake. Total runner timing stayed comparable to the original baseline rather than showing a clean wall-clock reduction; the retained value of this slice is the guarded execution-model knob, not a coverage or script-count change.
+
+## 0.33.5.29.4 Coverage Ratchet Result
+
+0.33.5.29.4 adds the coverage-preservation ratchet before any script consolidation or retirement work. `scripts/regression-coverage-manifest.json` is the tracked manifest, and `scripts/regression-coverage-ratchet.mjs` is the static regression suite entry that validates the live suite against it.
+
+The manifest records:
+
+- `minimumRegisteredScripts`: 295, including the ratchet regression itself.
+- `minimumCloseoutScripts`: 21.
+- `requiredScripts`: the full retained regression script set at the time the ratchet landed.
+- `coverageFamilies`: currently the `closeout-regressions` family with its 21 required closeout scripts.
+- `retiredScripts`: explicit future retirement entries; this starts empty because this slice retires no real scripts.
+
+The ratchet fails when a required script is missing without a retirement entry, when registered script count drops below the manifest floor adjusted by documented retirements, when the closeout family drops below its adjusted floor, when a retired script is still registered, or when a retirement entry is incomplete. The focused fixture coverage inside `scripts/regression-coverage-ratchet.mjs` proves both sides: an undocumented synthetic drop fails, while the same synthetic drop passes only after a complete retirement entry is supplied.
+
+Retirement entries must use this shape:
+
+```json
+{
+  "script": "scripts/example-closeout-regression.mjs",
+  "retiredInVersion": "0.33.5.29.5",
+  "retirementType": "assertions-moved",
+  "rationale": "Why this script no longer needs to remain registered.",
+  "assertionDisposition": "Where each assertion moved, or why the target code is dead.",
+  "retainedCoverageOwners": ["scripts/retained-focused-regression.mjs"],
+  "verificationPerformed": ["node scripts/retained-focused-regression.mjs", "npm run check"]
+}
+```
+
+Use `retirementType: "assertions-moved"` when coverage is folded into retained owners, and `retirementType: "dead-target"` only when the protected target code no longer exists. `retainedCoverageOwners` should name registered regression scripts whenever assertions move. Future consolidation slices should update the manifest in the same change that removes a script from `scripts/regression-suite.mjs`; removing the script first or adding an incomplete retirement entry makes the ratchet fail.
+
 ## Closeout Overlap Map
 
 The closeout scripts below are the 0.33.5.29.5 overlap-inspection pool. This list is not a deletion list. Each retained or retired assertion needs the 0.33.5.29.4 ratchet/manifest before scripts are folded.
@@ -122,6 +169,40 @@ The closeout scripts below are the 0.33.5.29.5 overlap-inspection pool. This lis
 | scripts/tasks-conversion-closeout-regression.mjs | static/source regressions | 0.10 | none |
 | scripts/file-storage-scanner-runtime-closeout-regression.mjs | file storage regressions | 0.07 | review no-db signal |
 
+## 0.33.5.29.5 Closeout Consolidation Result
+
+0.33.5.29.5 inspected the full 21-script closeout family from the overlap map. The safe consolidation boundary was static historical closeout/doc assertions: they do not need separate Node processes, but their assertions still protect branch-boundary documentation, roadmap hygiene, current-version pins, and framework/module contract handoffs. Database-backed closeouts remain separately registered because they create fixtures, exercise services, verify permissions, inspect search rows, or assert SQLite integrity.
+
+`scripts/static-contract-closeout-regression.mjs` is the retained closeout owner for the static group. It imports these 14 retired suite entries in-process, so the old assertion modules still run:
+
+- `scripts/runtime-database-foundation-closeout-regression.mjs`
+- `scripts/database-agnostic-contract-closeout-regression.mjs`
+- `scripts/module-file-closeout-regression.mjs`
+- `scripts/notes-import-closeout-regression.mjs`
+- `scripts/surface-standardization-closeout-regression.mjs`
+- `scripts/view-builder-closeout-regression.mjs`
+- `scripts/view-conversion-branch-closeout-regression.mjs`
+- `scripts/files-browse-edit-preview-closeout-regression.mjs`
+- `scripts/files-conversion-closeout-regression.mjs`
+- `scripts/notes-slideout-closeout-regression.mjs`
+- `scripts/markdown-closeout-regression.mjs`
+- `scripts/tasks-conversion-closeout-regression.mjs`
+- `scripts/clients-projects-strict-closeout-regression.mjs`
+- `scripts/file-storage-scanner-runtime-closeout-regression.mjs`
+
+The coverage manifest now records `minimumRegisteredScripts: 296` and `minimumCloseoutScripts: 22`, then subtracts the 14 documented retirements. The live registered suite is 282 scripts, with 8 registered `*-closeout-regression.mjs` owners. The retained closeout family is the new static owner plus the seven database-backed closeouts: `better-sqlite3-driver-closeout-regression.mjs`, `async-recurrence-response-closeout-regression.mjs`, `notes-integration-closeout-regression.mjs`, `lists-closeout-regression.mjs`, `task-qol-closeout-regression.mjs`, `work-resume-state-closeout-regression.mjs`, and `files-time-tracking-qol-closeout-regression.mjs`.
+
+Two moved assertions were spot-checked by temporary target breaks before restoration: removing the `## OneNote Mapping Plan` heading failed through the imported Notes import closeout module, and changing the `## Implementation Notes For 0.33.5.18.15` heading failed through the imported view-conversion closeout module. Both target files were restored before final verification.
+
+Measured 0.33.5.29.5 check timing:
+
+| Run | Registered scripts | Registered closeout owners | Runner wall seconds | Result |
+| --- | ---: | ---: | ---: | --- |
+| 0.33.5.29.4 verification | 295 | 21 | 111.94 | 295/295 plus ESLint |
+| 0.33.5.29.5 verification | 282 | 8 | 115.27 | 282/282 plus ESLint |
+
+The local wall time did not improve on this run because the remaining slow tail is outside the retired static closeout group, especially `separate-worker-end-to-end-regression.mjs`, `check-js.mjs`, file-scanner adapter checks, and isolated database scripts. The consolidation still removes 13 registered process starts and lowers future closeout maintenance noise while preserving the moved assertions through one retained owner.
+
 ## Database-Fixture Review Candidates
 
 These scripts run in a database bucket but their source did not show an obvious database/runtime service signal during the 0.33.5.29.1 static review. Later slices should verify them before moving them; their combined measured time is small, so this is not the primary speed target.
@@ -138,11 +219,11 @@ These scripts run in a database bucket but their source did not show an obvious 
 
 1. Source-scan consolidation target for 0.33.5.29.2: completed by introducing shared scan support around the actual whole-`src` walkers first (parameter-binding audit, interpolation guardrail, dialect guardrail). The three adjacent database-contract scripts remain separate because they read narrower source/docs or exercise database-backed binding behavior. The single-process fold is deferred until the coverage ratchet can record assertion movement without lowering the suite floor silently.
 
-2. Runner scheduling target for 0.33.5.29.3: evaluate exactly one runner change after measurement. The isolated bucket has 153.17 script seconds and 38.83 simulated wall seconds at concurrency 4; safe auto-tuning may matter more than source-scan work if it does not worsen the known flake. The file-storage bucket contributes 38.53 serial wall seconds, but it should stay serial until storage/database isolation is proven safe.
+2. Runner scheduling target for 0.33.5.29.3: completed by auto-tuning only the isolated database bucket's default concurrency from available worker count while preserving the explicit override knobs. The local Node runtime reports 12 available workers, so the isolated bucket now defaults to six workers under the conservative cap. Static batching and file-storage parallelism remain out of scope; file-storage stays serial until storage/database isolation is proven safe.
 
-3. Coverage ratchet target for 0.33.5.29.4: add a manifest/count guard before deleting or folding any script. The current floor is 294 registered scripts and 21 closeout scripts; a later lower script count is allowed only with documented assertion movement or a dead-target retirement entry.
+3. Coverage ratchet target for 0.33.5.29.4: completed by adding `scripts/regression-coverage-manifest.json` and `scripts/regression-coverage-ratchet.mjs`. The current floor is 295 registered scripts, including the ratchet itself, and 21 closeout scripts. A later lower script count is allowed only with a complete `retiredScripts` entry documenting assertion movement or dead-target rationale, retained coverage owner, and verification performed.
 
-4. Closeout consolidation target for 0.33.5.29.5: inspect the 21 closeout scripts that consume 14.79 script seconds. The likely wins are fewer process starts and fewer repeated branch-boundary assertions, not a large single-script slow-tail reduction. Expected reduction: about 2-5 script seconds plus lower future maintenance noise if the ratchet preserves each distinct assertion.
+4. Closeout consolidation target for 0.33.5.29.5: completed by registering `scripts/static-contract-closeout-regression.mjs`, retiring 14 static closeout suite entries through manifest `assertions-moved` records, and leaving the seven database-backed closeout scripts independently registered. The live suite now has 282 registered scripts and 8 registered closeout owners, while the manifest preserves the 296/22 pre-retirement floors and the retained owner for every moved assertion.
 
 5. Isolated-DB flake target for 0.33.5.29.6: this slice did not quantify the isolated-DB flake. Keep flake work separate from speed work. The proof should stress the isolated bucket under default and higher parallelism, then inspect per-script temp/database/path/lock/port ownership.
 

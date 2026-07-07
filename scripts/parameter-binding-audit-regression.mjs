@@ -9,7 +9,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.2";
+const appVersion = "0.33.5.29.5";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -394,7 +394,7 @@ assert.match(regressionSuite, /scripts\/startup-maintenance-compatibility-regres
 assert.match(regressionSuite, /scripts\/migration-compatibility-regression\.mjs/, "regression suite should include the migration compatibility regression");
 assert.match(regressionSuite, /scripts\/interpolation-enforcement-guardrail-regression\.mjs/, "regression suite should include the interpolation enforcement guardrail regression");
 assert.match(regressionSuite, /scripts\/dialect-enforcement-guardrail-regression\.mjs/, "regression suite should include the dialect enforcement guardrail regression");
-assert.match(regressionSuite, /scripts\/database-agnostic-contract-closeout-regression\.mjs/, "regression suite should include the database agnostic contract closeout regression");
+assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "regression suite should include the consolidated static closeout regression");
 
 console.log("Parameter-binding audit regression passed.");
 

@@ -4,6 +4,23 @@ import { REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
 const suitePath = "scripts/regression-clean-clone-contract.mjs";
 const requiredSupportFiles = [
+  "scripts/runtime-database-foundation-closeout-regression.mjs",
+  "scripts/database-agnostic-contract-closeout-regression.mjs",
+  "scripts/module-file-closeout-regression.mjs",
+  "scripts/notes-import-closeout-regression.mjs",
+  "scripts/surface-standardization-closeout-regression.mjs",
+  "scripts/view-builder-closeout-regression.mjs",
+  "scripts/view-conversion-branch-closeout-regression.mjs",
+  "scripts/files-browse-edit-preview-closeout-regression.mjs",
+  "scripts/files-conversion-closeout-regression.mjs",
+  "scripts/notes-slideout-closeout-regression.mjs",
+  "scripts/markdown-closeout-regression.mjs",
+  "scripts/tasks-conversion-closeout-regression.mjs",
+  "scripts/clients-projects-strict-closeout-regression.mjs",
+  "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
+  "scripts/regression-coverage-manifest.json",
+  "scripts/test-support/regression-coverage-ratchet.mjs",
+  "scripts/test-support/regression-runner-scheduler.mjs",
   "scripts/test-support/source-scan.mjs",
 ];
 const forbiddenLocalDocs = [
