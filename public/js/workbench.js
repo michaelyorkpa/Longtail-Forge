@@ -88,6 +88,10 @@ let state = {
 };
 let tickIntervalId = null;
 let pendingActivatedTimerKey = "";
+let transientStatus = {
+  isError: false,
+  message: "",
+};
 
 const workbenchCardRenderers = {
   "active-work-timers": () => {
@@ -118,22 +122,22 @@ function buildWorkbenchHost() {
   });
 
   const header = workbenchViewHelpers.createPageHeader({
-    subtitle: "Choose a focus, then start one useful next action.",
     title: "Workbench",
   });
+  const headerBody = header.querySelector(".view-page-header-body");
   header.appendChild(workbenchViewHelpers.createDetailActionStrip({
     actions: [timeTrackingModuleLink],
     className: "view-page-header-actions",
   }));
 
   statusText = workbenchViewHelpers.createStatusMessage({
-    className: "workbench-status",
-    hidden: false,
+    className: "workbench-header-status",
+    hidden: true,
   });
+  headerBody?.appendChild(statusText);
 
   workbenchHost.replaceChildren(
     header,
-    statusText,
     createGuidedFocusPanel(),
     createRecommendedActionPanel(),
     createSecondaryWorkbenchPanel(),
@@ -600,11 +604,34 @@ async function loadClientProjectData() {
 }
 
 function renderWorkbench() {
+  renderWorkbenchStatus();
   renderFocusModes();
   renderRecommendedAction();
   renderSecondaryFocusCandidates();
   renderRegisteredWorkbenchCards();
   updateModuleLinks();
+}
+
+function renderWorkbenchStatus() {
+  if (!statusText) {
+    return;
+  }
+
+  const message = transientStatus.message
+    || projectFocusStatusMessage();
+
+  statusText.textContent = message;
+  statusText.hidden = !message;
+  statusText.classList.toggle("is-error", transientStatus.isError && Boolean(message));
+  statusText.dataset.viewTone = transientStatus.isError ? "danger" : "info";
+}
+
+function projectFocusStatusMessage() {
+  if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
+    return "Select a project to narrow the recommendation.";
+  }
+
+  return "";
 }
 
 function renderFocusModes() {
@@ -880,6 +907,7 @@ async function selectFocusMode(modeId) {
 
   if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
     state.recommendedCandidateIndex = 0;
+    renderWorkbenchStatus();
     renderFocusModes();
     renderRecommendedAction();
     renderSecondaryFocusCandidates();
@@ -1863,8 +1891,11 @@ function setStatus(message, options = {}) {
   if (!statusText) {
     return;
   }
-  statusText.textContent = message;
-  statusText.classList.toggle("is-error", Boolean(options.isError));
+  transientStatus = {
+    isError: Boolean(options.isError),
+    message: String(message || ""),
+  };
+  renderWorkbenchStatus();
 }
 
 window.LongtailForge.pageController.register("workbench", {

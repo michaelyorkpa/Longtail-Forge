@@ -4782,14 +4782,16 @@ dialog .form-actions {
     text-align: left;
 }
 
-.workbench-status {
-    min-height: 20px;
-    margin: 0 0 16px;
+.workbench-header-status.view-status-message.surface-main-panel {
+    padding: 0;
+    border: 0;
+    background: none;
     color: var(--color-muted);
     font-size: 14px;
 }
 
-.workbench-status.is-error {
+.workbench-header-status.view-status-message.surface-main-panel.is-error,
+.workbench-header-status.view-status-message.surface-main-panel[data-view-tone="danger"] {
     color: var(--color-danger);
 }
 

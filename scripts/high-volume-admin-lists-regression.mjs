@@ -8,7 +8,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.6.6a";
+const appVersion = "0.33.6.6b";
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-high-volume-admin-lists-"));
 const disposableDb = path.join(tempDir, "longtail-forge-high-volume-admin-lists-scale-demo.db");
@@ -311,4 +311,3 @@ function cleanEnv(overrides = {}) {
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
 }
-

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6a";
+const appVersion = "0.33.6.6b";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-relationships-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-relationships-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";

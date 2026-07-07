@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.6.6a";
+const appVersion = "0.33.6.6b";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");

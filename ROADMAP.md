@@ -15,7 +15,7 @@ This is a formalization and de-hardcoding pass, not greenfield. Dashboard, Workb
 Dependencies and framework baseline:
 
 - 0.33.5.9 shipped the framework-owned resume-state service and `/api/work-resume`.
-- 0.33.5.15/0.33.5.16/0.33.5.18 provide the `LongtailForge.view` primitives, validated `viewSurfaces`/`renderSurface(...)`, minimal protected hosts, and the finalized view baseline. Dashboard/Workbench hosts must consume this baseline rather than hand-building framework-owned anatomy (mirrors the Reporting host rule in 0.33.8).
+- 0.33.5.15/0.33.5.16/0.33.5.18 provide the `LongtailForge.view` primitives, validated `viewSurfaces`/`renderSurface(...)`, minimal protected hosts, and the finalized view baseline. Dashboard/Workbench hosts must consume this baseline rather than hand-building framework-owned anatomy (mirrors the Reporting host rule in 0.33.9).
 
 Current wiring (grounding for this branch):
 
@@ -147,10 +147,10 @@ Acceptance criteria:
 
 Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
 
-- [ ] Remove the frequently-empty status box at the top of the Workbench page and the static "Choose a focus, then start one useful next action." line beneath the Workbench heading.
-- [ ] Relocate the transient status messages that previously rendered in that box (loading/updating/error/empty-context) into the space formerly occupied by the intro line, using framework view status states rather than an ad-hoc box.
-- [ ] Do not hand-build framework-owned header/status anatomy; use `LongtailForge.view` status primitives.
-- [ ] Add a focused static/browser regression proving the deprecated box and intro line are gone and that status messages render in the relocated slot.
+- [x] Remove the frequently-empty status box at the top of the Workbench page and the static "Choose a focus, then start one useful next action." line beneath the Workbench heading.
+- [x] Relocate the transient status messages that previously rendered in that box (loading/updating/error/empty-context) into the space formerly occupied by the intro line, using framework view status states rather than an ad-hoc box.
+- [x] Do not hand-build framework-owned header/status anatomy; use `LongtailForge.view` status primitives.
+- [x] Add a focused static/browser regression proving the deprecated box and intro line are gone and that status messages render in the relocated slot.
 
 Acceptance criteria:
 
@@ -240,8 +240,8 @@ Acceptance criteria:
 
 - [ ] Narrow this slice to the Time-Tracking-owned billing panels only: move the current-month billables table and the hours-and-billables chart out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
 - [ ] Task summary remains the Tasks-owned contribution already covered by the host contract; it is not part of this extraction slice.
-- [ ] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.8.
-- [ ] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.8's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
+- [ ] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.9.
+- [ ] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.9's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
 - [ ] Ensure the panels disappear cleanly when Time Tracking is disabled or the user lacks the required permissions, via the existing contribution filtering.
 - [ ] Add regressions proving the panels appear only when Time Tracking is enabled and permitted, and that no hardcoded Task/Time assumptions remain in the Dashboard host.
 
@@ -310,11 +310,11 @@ Acceptance criteria:
 
 - [ ] Record the branch decisions in `DECISIONS.md`: QAC as a floating drawer (not a permanent rail), the single shared work-candidate shape, and the Workbench Inspector as a distinct surface.
 - [ ] Add guardrails so Dashboard/Workbench hosts do not hand-build framework-owned page/header/filter/status anatomy when a view primitive covers it, and do not reintroduce hardcoded module assumptions.
-- [ ] Add a framework-coupling guardrail (lint/regression grep) that fails if `src/core/**` or the framework aggregation services under `src/services/**` (Workbench, Dashboard host) import a specific first-party module service/repo or hardcode a first-party module ID string to make a generic decision, outside an explicitly documented allowlist. Record the allowlist and the still-coupled framework services deferred to their own slices (Reporting → 0.33.8; public API and tag propagation → 0.39.15) so the coupling debt is tracked rather than silently accepted.
+- [ ] Add a framework-coupling guardrail (lint/regression grep) that fails if `src/core/**` or the framework aggregation services under `src/services/**` (Workbench, Dashboard host) import a specific first-party module service/repo or hardcode a first-party module ID string to make a generic decision, outside an explicitly documented allowlist. Record the allowlist and the still-coupled framework services deferred to their own slices (Reporting → 0.33.9; public API and tag propagation → 0.39.15) so the coupling debt is tracked rather than silently accepted.
 - [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, and `docs/view-building-contract.md` with the Dashboard/Workbench host status and the focus-mode/candidate/QAC contribution boundaries.
 - [ ] Define the deferred future-modal follow-ups the QAC actions temporarily fall back to, as explicit cross-referenced items (not hidden inside QAC bullets):
   - [ ] 2-timer Timer modal (redirect the QAC Timer action to it once built).
-  - [ ] Advanced-search modal + search-result display modal, including routing all search results (even main-ribbon searches) through it; evaluate at build time whether this needs its own roadmap version (e.g. 0.33.9) given the potential search overhaul.
+  - [ ] Advanced-search modal + search-result display modal, including routing all search results (even main-ribbon searches) through it; evaluate at build time whether this needs its own roadmap version (e.g. 0.33.10, since TypeScript now takes 0.33.8 and Reporting moves to 0.33.9) given the potential search overhaul.
   - [ ] Report-creation modal, cross-referenced to 0.37.5.
 - [ ] Run the Dashboard/Workbench regressions, `npm run check`, and `npm run test:permissions` (re-running any transiently-flaky isolated-DB regressions standalone to confirm).
 - [ ] Verify `/api/app-info` reports the expected version after restart and that Dashboard/Workbench render correctly with modules enabled and disabled.
@@ -389,13 +389,123 @@ Acceptance criteria:
 - Calendar entries link back to their task; the surface reuses framework view anatomy and adds no event/iCal/external-sync behavior (those remain at 0.36.0 / 0.70.x).
 - The calendar is reachable from Workbench/Dashboard and reinforces the "what's due / this week" focus without duplicating calendar logic.
 
-## Version 0.33.8 - Reporting Framework and Time Report Contribution
+## Version 0.33.8 - TypeScript Contract Checking Foundation
+
+Purpose:
+
+Introduce TypeScript as a dev-time framework contract-checking tool without a rewrite or any runtime behavior change. Longtail Forge stays a Node/ESM app running unmodified JavaScript; shared framework contracts move toward typed definitions so future modules, reports, calendars, tickets, notes, public API routes, search results, and plugin extension points have safer, self-documenting shapes. The goal is to catch wrong-shape / contract-drift errors at `typecheck` time (fast, local, precise) before they surface as regression-suite failures, and to make shared contracts readable without cross-file spelunking. This narrows a specific, token-expensive class of iteration (shape mismatches, producer/consumer drift, renamed-field fallout); it does not catch logic/behavioral bugs or source-pinned test churn, which still need runtime validation and regressions.
+
+Dependencies and sequencing:
+
+- Lands after 0.33.7 (Task Calendar) so the tangible Dashboard/Workbench/Calendar features ship first, and before 0.33.9 (Reporting Framework) and the later contract-heavy 0.3x modules so those are built with type protection in place.
+- Types the framework contracts stabilized through 0.33.6: the focus-mode contract/resolver (0.33.6.4), the normalized work-candidate shape (0.33.6.2-0.33.6.3), the resume-state producer payload, and the Dashboard/Workbench contribution contracts.
+- Dev-time only: no runtime behavior change and no build/emit in the app boot path (`noEmit` for this whole version).
+
+Key decisions (settled):
+
+- Incremental, not a rewrite: dev-time type checker first, existing JavaScript keeps running, convert files only where the contract benefit is clear.
+- `npm run start` must NOT run TypeScript compilation or type checking. Type checking belongs in `npm run typecheck`, `npm run check`, CI, and Codex/Claude verification, not normal app boot.
+- First pass uses `allowJs` + narrowly-scoped `checkJs`, shared `.d.ts`/`.ts` contract files, and selective conversion of framework contract modules only (JSDoc-typed `.js` where a rename is not worth it).
+- Type backend and shared framework contracts before browser UI; browser scripts remain JavaScript until backend contracts stabilize.
+
+Scope guidance for the contract types (0.33.8.2):
+
+- **Highest-leverage single file:** `src/core/modules/manifest-contract.js` is the source of truth for ~30 cross-module manifest axes plus the entire declarative view/descriptor system - type it first.
+- **Dual-cased shapes:** many contracts (work-resume payloads, files `shapeAttachment`, jobs `enqueueJob`, search record refs) accept/emit both camelCase and snake_case keys; the types must model this (normalized-key or union) rather than pretending one casing.
+- **Dedup opportunities to unify under one type while typing:** the public-API `paged`/`withWorkspaceAlias` helpers copied into every `src/modules/*/public-api.service.js`; the `TEXT_LIMITS`/`STRING_LIMITS` near-duplicated across the three work-resume files; the repeated `DEFAULT_TIMEZONE` literal.
+- The database dialect seam already carries `contractVersion` in `src/db/adapters/sqlite-dialect-seams.js` - a natural anchor for a versioned typed interface.
+
+### Version 0.33.8.1 - TypeScript tooling setup
+
+- [ ] Add the TypeScript dev dependency.
+- [ ] Add `tsconfig.json`.
+  - [ ] Node/ESM-compatible compiler settings.
+  - [ ] Enable `allowJs`; scope `checkJs`/`include` narrowly at first rather than checking the whole tree.
+  - [ ] Start with strictness that reveals useful contract issues without blocking the project (e.g. `strict` on typed contract files, `noImplicitAny` there first).
+  - [ ] `noEmit` for the first pass so TypeScript checks without producing runtime files.
+- [ ] Add package scripts: `npm run typecheck`; do NOT change `npm run start`.
+  - [ ] Wiring `npm run typecheck` into `npm run check` is a REQUIRED outcome of this version, not an open decision. Sequencing within the version is allowed - land the wiring after the first typed contracts (0.33.8.3) are clean so `check` never fails on pre-existing untyped code - but 0.33.8 must NOT close with `typecheck` unwired from `check` (enforced in 0.33.8.5). Leaving it optional/agent-remembered is precisely what makes TypeScript inert for the automated loop.
+- [ ] Add TypeScript ignores/exclusions for runtime data, generated files, `archive/`, vendor/build output, and `node_modules`.
+
+Acceptance criteria:
+
+- `npm run typecheck` runs TypeScript in `noEmit` mode over the in-scope files without altering runtime behavior or app startup, and wiring it into `npm run check` is committed as a closeout requirement (0.33.8.5).
+
+### Version 0.33.8.2 - Framework contract types
+
+Add shared typed definitions (`.d.ts` or `.ts`) for the cross-module contracts that exist today. Group by domain; each references its source-of-truth file(s).
+
+- [ ] **Module system** (`src/core/modules/manifest-contract.js`, `modules.service.js`, `registry.js`, `terminology.js`, `module-access.js`): module identity/lifecycle fields and the allowed-field whitelist; terminology overrides; navigation, protectedViews/publicViews, browserAssets; dashboard/workbench contributions; settings fields; permissions/defaultRolePermissions/resourceDefinitions; apiScopes/publicApiEndpoints; eventTypes/auditRecordTypes/eventSummaries/hooks; timerSources/workItemSources; linkedContextProviders; taggableTypes/tagPropagation; searchableTypes; attachableTypes; help; notification catalogs; framework/module dependency + workspace-capability requirements; seed/repair/migration hooks; and the normalized workspace-module-context/module-state shapes.
+- [ ] **View/descriptor system** (`manifest-contract.js` for the shapes, `public/js/shared/view-renderer.js` + `view-builder.js` for the runtime): `viewSurfaces` root descriptor and layout/filterPlacement enums; dataSource, pageHeader, sidebarPanels, filters, indexPanel, table (+ columns/secondaryRows), detail (+ linkedRecords/itemForm/itemRows), modals, regions; the shared field/action/label descriptors; the `renderSurface` engine contract, the `registerBehavior` handler arg contract, and the `view-builder` DOM-primitive API.
+- [ ] **Work / Workbench / Resume** (`src/services/work-candidate.service.js`, `work-focus-modes.service.js`, `work-resume-state*.js`, `workbench.service.js`): the normalized work-candidate shape + allowed-fields gate, the primary-action descriptor, the candidate list-query + rank-bucket enum, candidate source-context gating; the focus-mode definition/descriptor/context (filters/scope/resumeStrategy); the resume-state producer definition, the shared allowlist/forbidden-field denylist, the read-resolver registry + read-check result, the `work_resume_state` row + upsert/guarded-row shapes, `listResumeState` query/result; and the Workbench bootstrap result + module-state-map entry.
+- [ ] **Search** (`src/services/search.service.js`, `search-index-rebuild.service.js`, `search-index-jobs.service.js`, `search-index-sync.service.js`): capabilities descriptor; searchable-type declaration; permission-safe single-target filters and the multi-target request contract; normalized search document; record reference; indexing-operation result; indexer fn contract; index-job payload + queue envelope; rebuild/repair summary and adapter repair result.
+- [ ] **Notifications** (`src/services/notifications.service.js`, plus manifest declarations): internal event object; event-job payload + queue-skip result; normalized create payload; delivery payload; decorated read model; list/preferences/save-preferences/workspace-defaults payloads; subscription target + follow/unfollow response.
+- [ ] **Tags** (`src/services/tags.service.js`, `tag-propagation-registry.js`, manifest): tag descriptor; taggable-type descriptor; resolved tag target; assignment row + shaped read model; listAssignments/assign/remove/replace/bulk responses; decorated-record-with-tags; tag-filter intent; propagation rule declaration + resolver contract + propagation pair/refresh/repair/snapshot shapes.
+- [ ] **Files** (`src/services/files.service.js`, `src/core/files/*`): storage-provider interface; scanner-adapter interface; file-lifecycle event contract (statuses + sanitize); attachable-type manifest contract; upload/multipart payload + batch result; file record shape; attachment record shape; preview descriptor; storage accounting/diagnostics; startup storage-health contract.
+- [ ] **Permissions** (`src/services/permissions.service.js`, `module-access.js`): permission-check request/result and dotted action strings; role-assignment/permission descriptor + role/scope enums; permission-override contract; readable-record filtering contracts + readable-scope set; module write-gate contract; role-assignment API shapes.
+- [ ] **Public API** (`src/routes/public-api.routes.js`, `src/services/public-api.service.js`, `src/modules/*/public-api.service.js`, `src/middleware/require-api-key.js`, `src/core/bounded-pagination.js`): success/list envelope; error envelope; public "paged" pagination metadata (unify the duplicated helper); internal bounded/cursor pagination envelope; API scope descriptor; API-key record + `apiSession` context; the per-module public-api service fn contract.
+- [ ] **Jobs** (`src/core/jobs/*`, `src/services/jobs.service.js`, `import-jobs.service.js`): job-handler registry + handler signature; job-handler object shape; `enqueueJob` input/dedupe/return; shaped Job DTO; runner/worker lifecycle contract + return-column sets; jobs-admin readout/prune shapes; import-job producer contract.
+- [ ] **Database seam / dialect** (`src/db/adapters/*`, `provider.js`, `index.js`, `parameter-bindings.js`): database adapter interface; transaction-client contract; adapter capabilities descriptor; the dialect seam interface (versioned via `contractVersion`); provider bootstrap/selection wrappers; database facade API; parameter-binding seam.
+- [ ] **Per-module record & repository return shapes** (`src/modules/*/*.repo.js`, `*.service.js`, `src/utils/normalizers.js`, `src/repositories/*`): normalized app-value shapes for tasks (task, assignees, recurrence template, checklist + progress, relationship + summary, reminder offsets/policy, task-timer view, enriched list projection); notes (note, revision, link, collection); lists (list, item, catalog, link); clients/projects (client with nested billing, project with task defaults); time-tracking (active timer, time entry); and users/workspaces (user, assignable workspace, membership-decorated user).
+- [ ] **Shared API response helpers/types** where useful: standard success, standard error, pagination metadata, permission-denied response - defined once and reused instead of the current per-module copies.
+
+Acceptance criteria:
+
+- The shared framework/view/work/search/notification/tag/file/permission/public-API/jobs/database/record contracts have typed definitions that consumers can import and that `typecheck` enforces, with no runtime change and dual-casing modeled where it exists.
+
+### Version 0.33.8.3 - Selective type checking of high-value files
+
+- [ ] Add `// @ts-check` + JSDoc typing (or selective `.ts`) to the highest-leverage framework files first, against the 0.33.8.2 types:
+  - [ ] `src/core/modules/manifest-contract.js` and the module registry/validation path (source of truth for ~30 axes + the descriptor system).
+  - [ ] Search service and search-adapter boundary.
+  - [ ] Notification service contracts.
+  - [ ] Tag service + tag-propagation registry.
+  - [ ] Settings / app-shell bootstrap payloads.
+  - [ ] Work-candidate / resume-state / focus-mode services, so the producer-to-consumer contract is enforced end to end.
+- [ ] Avoid broad UI conversion this version unless a file is already being touched for contract cleanup; avoid converting every route file in one pass.
+
+Acceptance criteria:
+
+- The selected high-value framework files pass `@ts-check` against the shared contracts, surfacing and fixing existing shape mismatches without broad UI churn.
+
+### Version 0.33.8.4 - Codex/Claude and regression workflow
+
+- [ ] Make `typecheck` part of the automatic verification path, not memory-dependent prose:
+  - [ ] `npm run check` runs `npm run typecheck` (the 0.33.8.1 wiring) so every standard verification catches type errors before the full regression suite runs.
+  - [ ] The repo's built-in verify/check flow (and any project `verify` skill) invokes `typecheck` so agents get fast, precise contract feedback automatically rather than relying on remembering to run it.
+- [ ] Update `AGENTS.md` / development docs:
+  - [ ] Agents run `npm run typecheck` as part of standard pre-finish verification when changing framework contracts, module manifests, search, tags, notifications, files, permissions, public API routes, view descriptors, or shared API payloads.
+  - [ ] Agents do not silence type errors with blanket `any` unless the roadmap explicitly allows it.
+  - [ ] New framework contracts include type definitions or JSDoc-backed shapes.
+- [ ] Add a "proof it bites" guardrail regression (so the typecheck can never become vacuous/inert or silently rot):
+  - [ ] Assert the `typecheck` script exists and that `npm run check` invokes it.
+  - [ ] Assert a seeded/fixture type error in a `@ts-check`'d contract file actually fails `npm run typecheck` (restore the fixture after), proving the loop is live and non-vacuous rather than passing because nothing is in scope.
+  - [ ] Assert the checked contract files are not blanket-`any`'d away (e.g. grep-guard that the 0.33.8.3 files keep `@ts-check` and do not disable it).
+- [ ] Add focused regression coverage where type-contract changes expose existing weak spots.
+- [ ] Document the difference between runtime validation and TypeScript checking: TypeScript catches wrong shapes before runtime; API input, database rows, uploaded files, module manifests, and user data still require runtime validation.
+
+Acceptance criteria:
+
+- `npm run check` (and the built-in verify flow) runs `typecheck` automatically, a guardrail regression proves a real type error fails the check and that the checked files stay `@ts-check`'d without blanket `any`, and the runtime-validation-vs-type-checking boundary is documented.
+
+### Version 0.33.8.5 - Release closeout
+
+- [ ] Confirm the version does not close inert: `npm run check` invokes `npm run typecheck` (0.33.8.1 wiring landed), and the "proof it bites" guardrail (0.33.8.4) passes. This is a hard gate - 0.33.8 is not done if `typecheck` is unwired from `check` or the guardrail is absent.
+- [ ] Update documentation: add TypeScript migration notes to architecture/module-development docs; note that TypeScript is dev-time checking only in this version.
+- [ ] Update `CHANGELOG.md` and package metadata for the version bump.
+- [ ] Run verification: `npm run typecheck`, `npm run check` (which now includes `typecheck`), `npm run test:permissions`.
+
+Acceptance criteria:
+
+- TypeScript dev-time checking is documented, the changelog/version are updated, `npm run check` runs `typecheck` automatically, the proof-it-bites guardrail passes, and the full verification suite passes.
+
+## Version 0.33.9 - Reporting Framework and Time Report Contribution
 
 Decision:
 
 Reporting is framework-owned report infrastructure, not a normal disable-able first-party workflow module. The framework owns the Reporting page, report catalog, contribution filtering, report execution dispatch, shared filter host, loading/error/empty states, and future saved/export/export scheduling behavior. Individual modules own the actual report definitions, report runners, data queries, domain calculations, result shapes, and record-level permission checks.
 
-The first 0.33.8 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
+The first 0.33.9 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
 
 ### Dependencies and Framework Baseline
 
@@ -413,12 +523,12 @@ reintroduce a hard-coded Reporting page:
   instead of creating Reporting-only anatomy for filters, tables, status messages, or host layout.
 
 Reporting is a framework-owned surface, so it should not create a fake disable-able
-`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.8 must decide
+`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.9 must decide
 and document the framework-owned equivalent: either a framework-owned descriptor/config source that
 the same renderer can consume, or a narrow framework host adapter built directly on
 `LongtailForge.view` primitives where the descriptor contract cannot yet model report execution.
 
-### Version 0.33.8.1 - Reporting Architecture and Framework View Baseline
+### Version 0.33.9.1 - Reporting Architecture and Framework View Baseline
 
 - [ ] Review the completed 0.33.5.18 renderer/primitive capabilities before implementing Reporting.
 - [ ] Decide whether the Reporting host should use:
@@ -442,7 +552,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
   - [ ] Record-level permission checks.
 - [ ] Update the implementation plan only; do not change runtime behavior in this slice.
 
-### Version 0.33.8.2 - Reporting Contribution Contract
+### Version 0.33.9.2 - Reporting Contribution Contract
 
 - [ ] Keep this roadmap section named "Reporting Framework and Time Report Contribution."
 - [ ] Keep `reporting.html` framework-owned.
@@ -464,7 +574,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep report contribution filtering separate from report execution so the catalog can be permission-safe without running report code.
 - [ ] Update `docs/module-contract.md` with the finalized reporting contribution shape.
 
-### Version 0.33.8.3 - Reporting Framework Catalog Route
+### Version 0.33.9.3 - Reporting Framework Catalog Route
 
 - [ ] Add framework-owned report catalog route:
   - [ ] `GET /api/reporting/catalog`
@@ -474,7 +584,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure reports from historically readable disabled modules are only visible when explicitly allowed by contribution and module policy.
 - [ ] Add focused catalog regressions for disabled modules, missing permissions, workspace capability filtering, and required-module filtering.
 
-### Version 0.33.8.4 - Reporting Runner Registry and Execution Route
+### Version 0.33.9.4 - Reporting Runner Registry and Execution Route
 
 - [ ] Add framework-owned report execution route:
   - [ ] `GET /api/reporting/reports/:moduleId/:reportId/run`
@@ -485,7 +595,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Normalize execution errors into framework-owned report status/error payloads without exposing implementation details.
 - [ ] Add focused execution regressions for unknown report IDs, missing runners, denied permissions, disabled modules, and invalid filter shape.
 
-### Version 0.33.8.5 - Time Tracking Project Time & Billing Contribution
+### Version 0.33.9.5 - Time Tracking Project Time & Billing Contribution
 
 - [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
 - [ ] Make removal of framework→module coupling a hard bar for this move, not just a logic relocation: after the migration, `src/services/reporting.service.js` must not directly import `tasksService`, `timeEntriesService`, `clientsService`, or any other specific module service/repo. The framework Reporting service keeps only catalog/dispatch/host responsibilities; all client/project/task/time-entry data access moves behind the module-owned runner registered by ID. Any client/project hierarchy the runner needs must come through a module-owned contract (the Clients/Projects module), not a framework-level import.
@@ -510,7 +620,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve existing task-linked time entry reporting behavior where already supported.
 - [ ] Add focused Time Tracking report runner regressions before the page-host rewrite depends on it.
 
-### Version 0.33.8.6 - Correct Project and Client Rollup Billing Math
+### Version 0.33.9.6 - Correct Project and Client Rollup Billing Math
 
 - [ ] Fix descendant rollup calculation so each project/subproject computes its own direct time first.
 - [ ] Apply that project's effective billing rate, billing period, and rounding rules to that project's direct time.
@@ -525,7 +635,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve display-only expandable child project rows without double-counting totals.
 - [ ] Add fixture coverage for parent projects, child projects, deeper descendants, parent clients, child clients, mixed rates, and mixed billing periods.
 
-### Version 0.33.8.7 - Framework Reporting Host Shell
+### Version 0.33.9.7 - Framework Reporting Host Shell
 
 - [ ] Keep one framework-owned `reporting.html` page.
 - [ ] Reduce `views/protected/reporting.html` to a minimal framework host that loads shared view assets,
@@ -536,7 +646,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the first host simple: one selected report, one filter area, one status area, and one results area.
 - [ ] Add a focused static regression proving the Reporting page is a minimal framework host.
 
-### Version 0.33.8.8 - Reporting Filter Host and Report Selection
+### Version 0.33.9.8 - Reporting Filter Host and Report Selection
 
 - [ ] Load report definitions from `GET /api/reporting/catalog`.
 - [ ] Select the first available report by default when no valid report is requested.
@@ -552,7 +662,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure filter changes call the framework execution route and refresh the current result without rebuilding the host layout by hand.
 - [ ] Add focused browser/static regressions for report selection, custom date visibility, empty catalog state, and filter refresh behavior.
 
-### Version 0.33.8.9 - Project Time & Billing Result Renderer
+### Version 0.33.9.9 - Project Time & Billing Result Renderer
 
 - [ ] Add a registered report result renderer for `time-project-billing-table`.
 - [ ] The first renderer may remain specific to Project Time & Billing, but it should use framework table/action primitives where they fit.
@@ -564,7 +674,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the framework responsible for result-host placement, overflow wrappers, loading/error/empty states, and renderer dispatch.
 - [ ] Add focused regressions for expandable child rows, totals, no-results state, and renderer-not-found recovery.
 
-### Version 0.33.8.10 - Permissions, Navigation, Guardrails, and Closeout
+### Version 0.33.9.10 - Permissions, Navigation, Guardrails, and Closeout
 
 - [ ] Decide whether `reporting.view` should become a framework-owned permission instead of being contributed by Time Tracking.
 - [ ] Keep report-specific visibility dependent on both `reporting.view` and the owning module's required permissions.
