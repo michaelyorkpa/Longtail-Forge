@@ -70,11 +70,11 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Cross-module ranking and source integration with deterministic behavior and safety filtering.
 
-- [ ] Add deterministic candidate ranking: running timers, paused timers, overdue assigned work, due today, blocked/stale work, recently touched work, due this week.
-- [ ] Tasks contributes task candidates and Time Tracking contributes running/paused timer candidates through the shared contract and the existing contribution seams; Lists, Notes (Active Work), and future Tickets contribute when their integrations are ready. Do not add a new candidate-source manifest field.
-- [ ] Reuse the existing resume-state producer registry where a candidate is event-driven; add only a thin pull-style candidate source where live state (e.g. active/paused timers) is not captured by producers.
-- [ ] Keep ranking a pure function of candidate fields (no hidden per-module ordering) so the "one recommended next action" is deterministic and testable.
-- [ ] Add regressions for ranking order across mixed candidate types and for disabled-module/permission filtering of sources.
+- [x] Add deterministic candidate ranking: running timers, paused timers, overdue assigned work, due today, blocked/stale work, recently touched work, due this week.
+- [x] Tasks contributes task candidates and Time Tracking contributes running/paused timer candidates through the shared contract and the existing contribution seams; Lists, Notes (Active Work), and future Tickets contribute when their integrations are ready. Do not add a new candidate-source manifest field.
+- [x] Reuse the existing resume-state producer registry where a candidate is event-driven; add only a thin pull-style candidate source where live state (e.g. active/paused timers) is not captured by producers.
+- [x] Keep ranking a pure function of candidate fields (no hidden per-module ordering) so the "one recommended next action" is deterministic and testable.
+- [x] Add regressions for ranking order across mixed candidate types and for disabled-module/permission filtering of sources.
 
 Acceptance criteria:
 

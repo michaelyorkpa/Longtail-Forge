@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-const appVersion = "0.33.6.2";
+const appVersion = "0.33.6.3";
 const root = process.cwd();
 const expectedRouteIds = Object.freeze([
   "app-shell-bootstrap",

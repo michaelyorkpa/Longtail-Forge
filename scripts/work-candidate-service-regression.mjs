@@ -14,7 +14,11 @@ const {
   registerResumeStateReadResolver,
   resetResumeStateReadResolvers,
 } = await import("../src/services/work-resume-state-read-checks.js");
-const { workCandidateService, normalizeWorkCandidate } = await import("../src/services/work-candidate.service.js");
+const {
+  workCandidateService,
+  normalizeWorkCandidate,
+  rankWorkCandidates,
+} = await import("../src/services/work-candidate.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 
 try {
@@ -25,9 +29,12 @@ try {
   registerResumeStateReadResolver("tasks", "task", async () => ({ readable: true, status: "active" }));
 
   await assertDirectNormalizationScrubsUnsafeFields();
+  await assertMixedCandidateRankingIsDeterministic();
   await assertResumeRowsUseStableCandidateShape(session);
+  await assertTaskCandidatesUseWorkItemSourceGate(session);
   await assertLiveTimersContributeCandidates(session);
   await assertLiveTimersRespectTimerSourceGate(session);
+  await assertSourcePermissionsFilterCandidates(session);
 
   console.log("Work candidate service regression passed.");
 } finally {
@@ -83,6 +90,93 @@ async function assertDirectNormalizationScrubsUnsafeFields() {
   assert.equal(candidate.contextLabel, "Client Alpha / Project Roadrunner");
 }
 
+async function assertMixedCandidateRankingIsDeterministic() {
+  const candidates = [
+    normalizeWorkCandidate({
+      dueAt: "2026-07-10",
+      moduleId: "tasks",
+      recordId: "due-week",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=due-week",
+      title: "Due This Week",
+    }),
+    normalizeWorkCandidate({
+      moduleId: "tasks",
+      recordId: "later",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=later",
+      title: "Later Work",
+    }),
+    normalizeWorkCandidate({
+      dueAt: "2026-07-06",
+      metadata: { assigned_to_current_user: true },
+      moduleId: "tasks",
+      recordId: "overdue",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=overdue",
+      title: "Overdue Work",
+    }),
+    normalizeWorkCandidate({
+      moduleId: "time-tracking",
+      metadata: { timer_status: "paused" },
+      recordId: "paused-timer",
+      recordType: "active_work_timer",
+      sourceUrl: "time-tracker.html",
+      status: "paused",
+      title: "Paused Timer",
+    }),
+    normalizeWorkCandidate({
+      dueAt: "2026-07-07",
+      moduleId: "tasks",
+      recordId: "today",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=today",
+      title: "Due Today",
+    }),
+    normalizeWorkCandidate({
+      moduleId: "tasks",
+      recordId: "blocked",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=blocked",
+      status: "blocked",
+      title: "Blocked Work",
+    }),
+    normalizeWorkCandidate({
+      lastWorkedAt: "2026-07-06T18:00:00.000Z",
+      moduleId: "tasks",
+      recordId: "recent",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=recent",
+      title: "Recent Work",
+    }),
+    normalizeWorkCandidate({
+      moduleId: "time-tracking",
+      metadata: { timer_status: "running" },
+      recordId: "running-timer",
+      recordType: "active_work_timer",
+      sourceUrl: "time-tracker.html",
+      status: "running",
+      title: "Running Timer",
+    }),
+  ];
+
+  const ranked = rankWorkCandidates(candidates, {
+    now: "2026-07-07T15:00:00.000Z",
+    timezone: "America/New_York",
+  });
+
+  assert.deepEqual(ranked.map((candidate) => candidate.recordId), [
+    "running-timer",
+    "paused-timer",
+    "overdue",
+    "today",
+    "blocked",
+    "recent",
+    "due-week",
+    "later",
+  ]);
+}
+
 async function assertResumeRowsUseStableCandidateShape(session) {
   const taskId = `candidate-task-${randomUUID()}`;
   const sourceUrl = `tasks.html?task=${encodeURIComponent(taskId)}`;
@@ -128,6 +222,59 @@ async function assertResumeRowsUseStableCandidateShape(session) {
   assert.equal(candidate.metadata.body_markdown, undefined);
   assert.equal(candidate.metadata.nested.secure_payload, undefined);
   assert.equal(candidate.metadata.nested.checkpoint, "kept");
+}
+
+async function assertTaskCandidatesUseWorkItemSourceGate(session) {
+  const taskId = `candidate-source-task-${randomUUID()}`;
+
+  await workResumeStateService.upsertResumeState(session, {
+    dueAtSnapshot: "2026-07-07",
+    moduleId: "tasks",
+    nextAction: "Use the existing task work item source.",
+    recordId: taskId,
+    recordType: "task",
+    sourceUrl: `tasks.html?task=${encodeURIComponent(taskId)}`,
+    title: "Task Source Candidate",
+  });
+
+  const enabledResult = await workCandidateService.listWorkCandidates(session, {
+    limit: 100,
+    moduleId: "tasks",
+    recordType: "task",
+  });
+
+  assert.ok(
+    enabledResult.items.some((candidate) => candidate.recordId === taskId),
+    "task resume rows should contribute work candidates while the task work item source is active",
+  );
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'disabled',
+    disabled_at = '2026-07-07T15:10:00.000Z'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tasks';
+`);
+
+  const disabledResult = await workCandidateService.listWorkCandidates(session, {
+    limit: 100,
+    moduleId: "tasks",
+    recordType: "task",
+  });
+
+  assert.equal(
+    disabledResult.items.some((candidate) => candidate.recordId === taskId),
+    false,
+    "disabled task work item source should suppress task work candidates",
+  );
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'enabled',
+    disabled_at = NULL
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tasks';
+`);
 }
 
 async function assertLiveTimersContributeCandidates(session) {
@@ -197,6 +344,44 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+async function assertSourcePermissionsFilterCandidates(session) {
+  const limitedSession = await createLimitedSession(session.workspace_id);
+  const limitedTaskId = `candidate-permission-task-${randomUUID()}`;
+  const limitedTimerId = `candidate-permission-timer-${randomUUID()}`;
+
+  await workResumeStateService.upsertResumeState(limitedSession, {
+    moduleId: "tasks",
+    recordId: limitedTaskId,
+    recordType: "task",
+    sourceUrl: `tasks.html?task=${encodeURIComponent(limitedTaskId)}`,
+    title: "Permission Filtered Task",
+  });
+  await activeTimersRepository.upsert({
+    accumulated_elapsed_seconds: 60,
+    active_timer_id: limitedTimerId,
+    client_id: "",
+    client_name: "",
+    description: "Permission filtered timer",
+    last_active_start_time: "2026-07-07T15:20:00.000Z",
+    project_id: "",
+    project_name: "",
+    source_label: "Permission filtered timer",
+    source_url: "time-tracker.html",
+    timer_slot: "74",
+    timer_status: "running",
+    user_id: limitedSession.user_id,
+    workspace_id: limitedSession.workspace_id,
+  });
+
+  const result = await workCandidateService.listWorkCandidates(limitedSession, { limit: 100 });
+
+  assert.equal(
+    result.items.some((candidate) => candidate.recordId === limitedTaskId || candidate.recordId === limitedTimerId),
+    false,
+    "candidate sources should honor contribution permissions for non-privileged sessions",
+  );
+}
+
 function stableCandidateKeys() {
   return [
     "blockedReason",
@@ -227,6 +412,28 @@ function stableCandidateKeys() {
     "title",
     "updatedAt",
   ].sort();
+}
+
+async function createLimitedSession(workspaceId) {
+  const userId = randomUUID();
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO users (user_id, home_workspace_id, username, display_name, password, protected_user, active_workspace_id)
+VALUES (${sqlText(userId)}, ${sqlText(workspaceId)}, ${sqlText(`${userId}@example.test`)}, 'Limited Candidate User', 'x', 'no', ${sqlText(workspaceId)});
+
+INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
+VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, 'active', ${sqlText(now)}, ${sqlText(now)});
+`);
+
+  return {
+    home_workspace_id: workspaceId,
+    ip: "127.0.0.1",
+    timezone: "America/New_York",
+    user_id: userId,
+    username: `${userId}@example.test`,
+    workspace_id: workspaceId,
+  };
 }
 
 async function readSeedSession() {

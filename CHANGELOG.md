@@ -1,3 +1,11 @@
+## Version 0.33.6.3 - 2026-07-07 09:57 -04:00
+
+- Completed the deterministic ranking and module candidate-source slice by adding pure candidate ranking over normalized fields for running timers, paused timers, overdue work, due-today work, blocked/stale work, recently touched work, due-this-week work, and later work.
+- Filtered ranked work candidates through active `workItemSources` and `timerSources`, so Tasks contribute event-driven task candidates through their existing work item source and resume-state rows while Time Tracking contributes running/paused live manual timers through the existing timer source.
+- Extended `scripts/work-candidate-service-regression.mjs` to cover mixed candidate ranking, task source enablement, timer source enablement, and non-privileged source permission filtering.
+- Updated `docs/module-contract.md`, `ROADMAP.md`, and package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.6.3.
+- Verification 2026-07-07 10:02 -04:00: `node scripts\work-candidate-service-regression.mjs`, `node scripts\work-resume-state-api-regression.mjs`, `node scripts\work-resume-state-service-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale current-version scan, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 283/283 regression scripts plus cached ESLint with a 111.68s runner timing, `npm run test:permissions` passed 236 checks, and `/api/app-info` reported 0.33.6.3 from the refreshed local 8001 server.
+
 ## Version 0.33.6.2 - 2026-07-07 09:30 -04:00
 
 - Completed the normalized work-candidate contract slice by adding the framework-owned `workCandidateService` as the single normalization point for resume rows and live timer signals.
