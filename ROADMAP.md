@@ -178,12 +178,12 @@ Acceptance criteria:
 
 Promoted from `TODO.md`. Corrects candidate/focus behavior surfaced by the 0.33.6.6 focus modes; belongs before 0.33.6.7. Blast radius is the 0.33.6.3 ranking and 0.33.6.4 focus resolver, not new UI.
 
-- [ ] "What's due next" / "Start with what's due" must order by due datetime - oldest overdue first, then the next upcoming due task - not by alphabetized client/project order. Fix in the deterministic ranking/focus context (0.33.6.3/0.33.6.4), keeping ranking a pure function of candidate fields.
-- [ ] "Work this week" must recommend the next-due task (not an arbitrary single task) and load the full in-scope list into "More in this focus", not a single entry.
-- [ ] "Review blocked work" must resolve to genuinely blocked candidates only; when nothing is blocked it shows the focus empty state (0.33.6.6 empty-state contract) instead of falling back to unrelated tasks.
-- [ ] Keep all three as deterministic filters over the shared candidate contract; do not add per-mode hardcoded ordering or a second candidate source.
-- [ ] Preserve permission/workspace/enabled-module and archived/complete handling in every focus context.
-- [ ] Add regressions for due-datetime ordering (overdue-before-upcoming), work-this-week next-due plus full-list population, and blocked-focus emptiness when no blocked work exists.
+- [x] "What's due next" / "Start with what's due" must order by due datetime - oldest overdue first, then the next upcoming due task - not by alphabetized client/project order. Fix in the deterministic ranking/focus context (0.33.6.3/0.33.6.4), keeping ranking a pure function of candidate fields.
+- [x] "Work this week" must recommend the next-due task (not an arbitrary single task) and load the full in-scope list into "More in this focus", not a single entry.
+- [x] "Review blocked work" must resolve to genuinely blocked candidates only; when nothing is blocked it shows the focus empty state (0.33.6.6 empty-state contract) instead of falling back to unrelated tasks.
+- [x] Keep all three as deterministic filters over the shared candidate contract; do not add per-mode hardcoded ordering or a second candidate source.
+- [x] Preserve permission/workspace/enabled-module and archived/complete handling in every focus context.
+- [x] Add regressions for due-datetime ordering (overdue-before-upcoming), work-this-week next-due plus full-list population, and blocked-focus emptiness when no blocked work exists.
 
 Acceptance criteria:
 

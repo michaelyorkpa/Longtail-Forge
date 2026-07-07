@@ -18,6 +18,7 @@ const {
   workCandidateService,
   normalizeWorkCandidate,
   rankWorkCandidates,
+  WORK_CANDIDATE_SORTS,
 } = await import("../src/services/work-candidate.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 
@@ -30,6 +31,7 @@ try {
 
   await assertDirectNormalizationScrubsUnsafeFields();
   await assertMixedCandidateRankingIsDeterministic();
+  await assertDueDatetimeRankingIsDeterministic();
   await assertResumeRowsUseStableCandidateShape(session);
   await assertTaskCandidatesUseWorkItemSourceGate(session);
   await assertLiveTimersContributeCandidates(session);
@@ -174,6 +176,60 @@ async function assertMixedCandidateRankingIsDeterministic() {
     "recent",
     "due-week",
     "later",
+  ]);
+}
+
+async function assertDueDatetimeRankingIsDeterministic() {
+  const candidates = [
+    normalizeWorkCandidate({
+      dueAt: "2026-07-09T09:00:00.000Z",
+      moduleId: "tasks",
+      rankHint: 1000,
+      recordId: "high-rank-later",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=high-rank-later",
+      title: "A High Rank Later",
+    }),
+    normalizeWorkCandidate({
+      dueAt: "2026-07-07T15:00:00.000Z",
+      moduleId: "tasks",
+      rankHint: 1,
+      recordId: "next-due",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=next-due",
+      title: "Z Next Due",
+    }),
+    normalizeWorkCandidate({
+      dueAt: "2026-07-06T20:00:00.000Z",
+      moduleId: "tasks",
+      rankHint: 1,
+      recordId: "newer-overdue",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=newer-overdue",
+      title: "B Newer Overdue",
+    }),
+    normalizeWorkCandidate({
+      dueAt: "2026-07-01T20:00:00.000Z",
+      moduleId: "tasks",
+      rankHint: 1,
+      recordId: "oldest-overdue",
+      recordType: "task",
+      sourceUrl: "tasks.html?task=oldest-overdue",
+      title: "C Oldest Overdue",
+    }),
+  ];
+
+  const ranked = rankWorkCandidates(candidates, {
+    sort: WORK_CANDIDATE_SORTS.dueDatetime,
+    today: "2026-07-07",
+    timezone: "America/New_York",
+  });
+
+  assert.deepEqual(ranked.map((candidate) => candidate.recordId), [
+    "oldest-overdue",
+    "newer-overdue",
+    "next-due",
+    "high-rank-later",
   ]);
 }
 

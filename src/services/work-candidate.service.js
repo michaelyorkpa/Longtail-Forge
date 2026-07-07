@@ -93,6 +93,10 @@ const WORK_CANDIDATE_RANK_BUCKETS = Object.freeze({
   dueThisWeek: "due_this_week",
   later: "later",
 });
+const WORK_CANDIDATE_SORTS = Object.freeze({
+  dueDatetime: "due_datetime",
+  ranked: "ranked",
+});
 const RANK_BUCKET_ID_BY_VALUE = Object.freeze({
   [RANK_BUCKETS.runningTimer]: WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
   [RANK_BUCKETS.pausedTimer]: WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
@@ -144,6 +148,7 @@ async function listWorkCandidates(session, query = {}) {
 
   return {
     items: rankWorkCandidates([...bySource.values()], {
+      sort: normalizedQuery.sort,
       today: normalizedQuery.today,
       timezone: session?.timezone,
     }).slice(0, normalizedQuery.limit),
@@ -511,6 +516,7 @@ function normalizeListQuery(query = {}, options = {}) {
       flattenedQuery.bucket_ids,
     )),
     recordType: textValue(firstValue(flattenedQuery.recordType, flattenedQuery.record_type), TEXT_LIMITS.recordType),
+    sort: normalizeSortMode(firstValue(flattenedQuery.sort, flattenedQuery.orderBy, flattenedQuery.order_by)),
     statusFilters: normalizeTextList(firstValue(
       flattenedQuery.statusFilters,
       flattenedQuery.status_filters,
@@ -623,6 +629,7 @@ function candidateSourceKey(candidate) {
 
 function candidateRankFacts(candidate, context) {
   const dueDateKey = dateKeyFrom(candidate.dueAt, context.timezone);
+  const dueTime = optionalDateTimeValue(candidate.dueAt);
   const lastActivityDateKey = dateKeyFrom(
     candidate.lastWorkedAt || candidate.updatedAt || candidate.createdAt,
     context.timezone,
@@ -638,10 +645,12 @@ function candidateRankFacts(candidate, context) {
     bucket,
     bucketId: RANK_BUCKET_ID_BY_VALUE[bucket] || WORK_CANDIDATE_RANK_BUCKETS.later,
     dueDateKey,
+    dueTime,
     lastActivityDateKey,
     lastActivityTime,
     priorityRank: PRIORITY_RANKS[String(candidate.priority || "").toLowerCase()] || 0,
     rankHint: Number.parseInt(candidate.rankHint, 10) || 0,
+    sort: context.sort,
   };
 }
 
@@ -672,9 +681,25 @@ function rankBucket(candidate, context) {
 }
 
 function compareRankedCandidates(left, right) {
+  if (left.facts.sort === WORK_CANDIDATE_SORTS.dueDatetime) {
+    return compareDueDatetimeCandidates(left, right);
+  }
+
   return left.facts.bucket - right.facts.bucket ||
     right.facts.rankHint - left.facts.rankHint ||
     compareOptionalText(left.facts.dueDateKey, right.facts.dueDateKey) ||
+    right.facts.priorityRank - left.facts.priorityRank ||
+    right.facts.lastActivityTime - left.facts.lastActivityTime ||
+    left.candidate.title.localeCompare(right.candidate.title) ||
+    left.candidate.candidateId.localeCompare(right.candidate.candidateId) ||
+    left.index - right.index;
+}
+
+function compareDueDatetimeCandidates(left, right) {
+  return compareOptionalNumber(left.facts.dueTime, right.facts.dueTime) ||
+    compareOptionalText(left.facts.dueDateKey, right.facts.dueDateKey) ||
+    left.facts.bucket - right.facts.bucket ||
+    right.facts.rankHint - left.facts.rankHint ||
     right.facts.priorityRank - left.facts.priorityRank ||
     right.facts.lastActivityTime - left.facts.lastActivityTime ||
     left.candidate.title.localeCompare(right.candidate.title) ||
@@ -752,6 +777,7 @@ function rankContext(options = {}) {
   return {
     dueThisWeekEndDateKey: addCalendarDaysKey(today, DUE_THIS_WEEK_DAYS),
     recentSinceDateKey: addCalendarDaysKey(today, -RECENTLY_TOUCHED_DAYS),
+    sort: normalizeSortMode(options.sort) || WORK_CANDIDATE_SORTS.ranked,
     staleBeforeDateKey: addCalendarDaysKey(today, -STALE_DAYS),
     timezone,
     today,
@@ -807,6 +833,11 @@ function normalizeTextList(value) {
     .filter(Boolean))];
 }
 
+function normalizeSortMode(value) {
+  const sort = normalizeFilterToken(value);
+  return Object.values(WORK_CANDIDATE_SORTS).includes(sort) ? sort : "";
+}
+
 function normalizeFilterToken(value) {
   return textValue(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
 }
@@ -834,6 +865,11 @@ function dateKeyFrom(value, timezone = DEFAULT_TIMEZONE) {
 function dateTimeValue(value) {
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
+}
+
+function optionalDateTimeValue(value) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed.getTime() : null;
 }
 
 function localDateKey(date, timezone = DEFAULT_TIMEZONE) {
@@ -865,6 +901,20 @@ function compareOptionalText(left, right) {
   }
 
   return left.localeCompare(right);
+}
+
+function compareOptionalNumber(left, right) {
+  if (left === null && right === null) {
+    return 0;
+  }
+  if (left === null) {
+    return 1;
+  }
+  if (right === null) {
+    return -1;
+  }
+
+  return left - right;
 }
 
 function safeUrl(value) {
@@ -911,5 +961,6 @@ export {
   rankWorkCandidates,
   resolveWorkCandidateRankBucket,
   WORK_CANDIDATE_RANK_BUCKETS,
+  WORK_CANDIDATE_SORTS,
   workCandidateService,
 };

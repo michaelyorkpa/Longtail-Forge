@@ -3,6 +3,7 @@ import { AppError } from "../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../utils/workspaces.js";
 import {
   WORK_CANDIDATE_RANK_BUCKETS,
+  WORK_CANDIDATE_SORTS,
   workCandidateService,
 } from "./work-candidate.service.js";
 
@@ -71,6 +72,7 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
     resolve: ({ dates }) => ({
       filters: {
         date: { dueTo: dates.weekEnd },
+        sort: WORK_CANDIDATE_SORTS.dueDatetime,
       },
       summary: `Overdue work and work due through ${dates.weekEnd}.`,
     }),
@@ -87,21 +89,22 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
           dueFrom: dates.today,
           dueTo: dates.weekEnd,
         },
+        sort: WORK_CANDIDATE_SORTS.dueDatetime,
       },
       summary: `Work due from ${dates.today} through ${dates.weekEnd}.`,
     }),
   }),
   Object.freeze({
-    description: "Review blocked or stale work that may need recovery.",
+    description: "Review blocked work that may need recovery.",
     id: FOCUS_MODE_IDS.reviewBlockedWork,
     label: "Review blocked work",
     scope: FOCUS_SCOPES.workspace,
     sortOrder: 50,
     resolve: () => ({
       filters: {
-        status: ["blocked", "stale"],
+        status: ["blocked"],
       },
-      summary: "Blocked or stale work only.",
+      summary: "Blocked work only.",
     }),
   }),
   Object.freeze({
@@ -247,6 +250,7 @@ function normalizeFilters(filters = {}) {
     },
     projectId: textValue(filters.projectId, 160),
     rankBuckets: normalizeTextList(filters.rankBuckets),
+    sort: normalizeSortMode(filters.sort),
     status: normalizeTextList(filters.status),
   };
 }
@@ -290,6 +294,9 @@ function buildCandidateQuery(definition, filters, dates, input, workspaceContext
   }
   if (filters.rankBuckets.length) {
     query.rankBuckets = [...filters.rankBuckets];
+  }
+  if (filters.sort) {
+    query.sort = filters.sort;
   }
   if (filters.status.length) {
     query.statusFilters = [...filters.status];
@@ -383,6 +390,11 @@ function normalizeTextList(value) {
   return [...new Set(rawValues
     .map((item) => textValue(item, 80).toLowerCase().replace(/[\s-]+/g, "_"))
     .filter(Boolean))];
+}
+
+function normalizeSortMode(value) {
+  const sort = textValue(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
+  return Object.values(WORK_CANDIDATE_SORTS).includes(sort) ? sort : "";
 }
 
 function objectValue(value) {

@@ -18,7 +18,10 @@ const {
   workFocusModesService,
 } = await import("../src/services/work-focus-modes.service.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
-const { workCandidateService } = await import("../src/services/work-candidate.service.js");
+const {
+  WORK_CANDIDATE_SORTS,
+  workCandidateService,
+} = await import("../src/services/work-candidate.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 
 try {
@@ -116,11 +119,15 @@ async function assertModeResolutionContracts(session) {
   assert.equal(dueNext.filters.date.dueTo, "2026-07-14");
   assert.equal(dueNext.candidateQuery.dueTo, "2026-07-14");
   assert.equal(dueNext.candidateQuery.rankBuckets, undefined);
+  assert.equal(dueNext.filters.sort, WORK_CANDIDATE_SORTS.dueDatetime);
+  assert.equal(dueNext.candidateQuery.sort, WORK_CANDIDATE_SORTS.dueDatetime);
   assert.equal(week.filters.date.dueFrom, today);
   assert.equal(week.filters.date.dueTo, "2026-07-14");
   assert.equal(week.candidateQuery.dueFrom, today);
   assert.equal(week.candidateQuery.dueTo, "2026-07-14");
-  assert.deepEqual(blocked.filters.status, ["blocked", "stale"]);
+  assert.equal(week.filters.sort, WORK_CANDIDATE_SORTS.dueDatetime);
+  assert.equal(week.candidateQuery.sort, WORK_CANDIDATE_SORTS.dueDatetime);
+  assert.deepEqual(blocked.filters.status, ["blocked"]);
   assert.deepEqual(inProgress.filters.status, ["running", "paused", "active", "in_progress"]);
   assert.deepEqual(project.scope, {
     clientId: "",
@@ -144,15 +151,32 @@ async function assertResolvedContextsDriveCandidates(session) {
   await createProject(session.workspace_id, projectAlpha, "Focus Alpha");
   await createProject(session.workspace_id, projectBeta, "Focus Beta");
 
-  const dueTodayId = await upsertTaskCandidate(session, {
-    dueAtSnapshot: today,
+  const oldestOverdueId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-01T17:00:00.000Z",
     projectId: projectAlpha,
+    title: "Z Oldest Overdue",
+  });
+  const newerOverdueId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-06T17:00:00.000Z",
+    projectId: projectAlpha,
+    title: "A Newer Overdue",
+  });
+  const dueTodayId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-07T14:00:00.000Z",
+    projectId: projectAlpha,
+    resumeRankHint: 1,
     title: "Focus Due Today",
   });
   const dueWeekId = await upsertTaskCandidate(session, {
-    dueAtSnapshot: "2026-07-10",
+    dueAtSnapshot: "2026-07-10T14:00:00.000Z",
     projectId: projectBeta,
+    resumeRankHint: 1000,
     title: "Focus Due This Week",
+  });
+  const dueWeekLaterId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-12T14:00:00.000Z",
+    projectId: projectBeta,
+    title: "Focus Due Later This Week",
   });
   const laterId = await upsertTaskCandidate(session, {
     dueAtSnapshot: "2026-08-01",
@@ -164,6 +188,12 @@ async function assertResolvedContextsDriveCandidates(session) {
     projectId: projectAlpha,
     statusSnapshot: "blocked",
     title: "Focus Blocked",
+  });
+  const staleId = await upsertTaskCandidate(session, {
+    lastWorkedAt: "2026-06-20T12:00:00.000Z",
+    projectId: projectAlpha,
+    statusSnapshot: "active",
+    title: "Focus Stale",
   });
   const activeId = await upsertTaskCandidate(session, {
     projectId: projectAlpha,
@@ -180,10 +210,40 @@ async function assertResolvedContextsDriveCandidates(session) {
     limit: 100,
   });
 
-  assert.ok(dueNext.items.some((candidate) => candidate.recordId === dueTodayId));
-  assert.ok(dueNext.items.some((candidate) => candidate.recordId === dueWeekId));
+  assert.deepEqual(intersectCandidateIds(dueNext.items, [
+    oldestOverdueId,
+    newerOverdueId,
+    dueTodayId,
+    dueWeekId,
+    dueWeekLaterId,
+  ]), [
+    oldestOverdueId,
+    newerOverdueId,
+    dueTodayId,
+    dueWeekId,
+    dueWeekLaterId,
+  ]);
   assert.equal(dueNext.items.some((candidate) => candidate.recordId === laterId), false);
   assert.equal(dueNext.items.some((candidate) => candidate.recordId === blockedId), false);
+
+  const weekFocus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.workThisWeek,
+    today,
+  });
+
+  assert.deepEqual(intersectCandidateIds(weekFocus.items, [
+    dueTodayId,
+    dueWeekId,
+    dueWeekLaterId,
+  ]), [
+    dueTodayId,
+    dueWeekId,
+    dueWeekLaterId,
+  ]);
+  assert.equal(weekFocus.items.some((candidate) => candidate.recordId === oldestOverdueId), false);
+  assert.equal(weekFocus.items.some((candidate) => candidate.recordId === newerOverdueId), false);
+  assert.equal(weekFocus.items.some((candidate) => candidate.recordId === laterId), false);
 
   const projectFocus = await workFocusModesService.listFocusCandidates(session, {
     limit: 100,
@@ -196,6 +256,7 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === dueTodayId));
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === laterId));
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === blockedId));
+  assert.ok(projectFocus.items.some((candidate) => candidate.recordId === staleId));
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === activeId));
   assert.equal(projectFocus.items.some((candidate) => candidate.recordId === dueWeekId), false);
 
@@ -210,6 +271,26 @@ async function assertResolvedContextsDriveCandidates(session) {
 
   assert.ok(blocked.items.some((candidate) => candidate.recordId === blockedId));
   assert.equal(blocked.items.some((candidate) => candidate.recordId === activeId), false);
+  assert.equal(blocked.items.some((candidate) => candidate.recordId === staleId), false);
+
+  await workResumeStateService.removeResumeStateForRecord(
+    session.workspace_id,
+    "tasks",
+    "task",
+    blockedId,
+  );
+
+  const emptyBlocked = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.reviewBlockedWork,
+    today,
+  });
+
+  assert.deepEqual(
+    intersectCandidateIds(emptyBlocked.items, [staleId, activeId]),
+    [],
+    "blocked focus should stay empty when only stale or active candidates remain",
+  );
 }
 
 async function assertClientFocusWorkspaceGating(session) {
@@ -255,6 +336,13 @@ async function upsertTaskCandidate(session, overrides = {}) {
   });
 
   return taskId;
+}
+
+function intersectCandidateIds(items, expectedIds) {
+  const expected = new Set(expectedIds);
+  return items
+    .map((candidate) => candidate.recordId)
+    .filter((recordId) => expected.has(recordId));
 }
 
 async function setWorkspaceType(workspaceId, workspaceType) {
