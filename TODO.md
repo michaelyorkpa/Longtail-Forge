@@ -13,28 +13,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-## Recommended Next Action Interface & Algorithm
-
-"Start here" should have a "Nah, something else" type button. Even if it's just a left and right arrow to cycle through 3-5 top candidates. These arrows should be right aligned with the "Start here" heading. They should be icons only. Anything beyond these top 3-5 candidates should be in the "More in this focus" box below "Recommended Next Action."
-
-When I have "Pick up where I left off," I've noticed the "Start here" suggests a task that's last activity was "Task Created." This is okay, but should exclude recurring tasks unless those tasks are within approximately 24 hours of being due. Those have definitive due dates, and unless we're within 24 hours of that due date, it doesn't really make sense to recommend it just because it was the most recently created (I assume that's where you pulled it from).
-
-With "Pick up where I left off," tasks with resume notes should take priority followed by "In Progress" tasks. Of course, priority rating of the tasks should also be considered when ordering the 3-5 top candidates and further "More in this focus"
-
-"Start with what's due" seems to pick the first task based on client/project alphabetized order rather than a datetime ordered list of what's overdue/due next. This should show the oldest overdue followed by the next due task.
-
-"Work this week" shows a single task, and NOT the next due task. This should be the next due task and load the entire list 
-
-"Review blocked work" shows tasks even if there is nothing marked as blocked right now. It shouldn't just show tasks to show tasks.
-
-The Project filter in the "What should we focus on?" box should be split into two separate client/project filters and should be active for ALL "What should we focus on?" types. The current drop down is overwhelming because it combines clients and projects.
-
-Additional note regarding this: Parent clients should include all sub-client items. Parent projects should include all sub-project items. This should become an app-wide standard. Sometimes I need to drill down to a single project within a client. Other times I need a big overview of what's outstanding for a parent client.
-
-There is a box at the top of the Workbench page that is often empty/blank, but sometimes displays "Loading..." or other messages. This box can be deprecated. The "Choose a focus, then start one useful next action." text below the Workbench heading can be deprecated. All status messages that formerly displayed in the sometimes-empty box can be displayed in places of "Choose a focus, then start one useful next action." 
-
-The "Open Work" button takes me away from the Workbench and to the task list. It should be opening the "Edit Task" modal in place.
-
 ## Notes - Suggested Library
 
 - Revisit this once the app is built more (not quite medium term, but not today 2026/06/18)
@@ -72,10 +50,6 @@ This section is to define a series of human testing goals for different sections
 - Make sure follow notifications work for all users (the creator, and other users)
 - Make sure reminders are actually going into notifications
 
-### Next Action/Resume Work
-
-- Test the Resume/Next Action algorithm
-
 ## Knowledge Base Make Good Smart
 
 - Use context of current Workbench focus to display knowledge base article suggestions
@@ -88,12 +62,6 @@ This section is to define a series of human testing goals for different sections
   - Maybe just displays headings/titles?
 
 ## Notes / Lists / Modals refinement — promoted to ROADMAP
-
-Promoted into `ROADMAP.md` as sub-slices **0.33.5.18.5.4 – 0.33.5.18.5.9**: framework modal scroll/footer
-fix, Notes add/edit modal refinement, Notes navigation standardization, Notes detail metadata/panels,
-Lists main page refinement, and Lists items-inset refinement.
-
-Deferred (kept here, not yet sliced):
 
 - Eventually, I'd like to be able to check off items on notes checklists from the display pages (might be very complicated.)
 
@@ -115,11 +83,6 @@ Deferred (kept here, not yet sliced):
 
 - Many modules aren't exposing admin/settings properly
   - Perform an audit and figure out what settings are missing and how to get them where they need to be
-
-## Theme — promoted to ROADMAP
-
-Promoted into `ROADMAP.md` as **0.33.5.21.9.4** (three-position light / auto / dark switch with an
-OS-match / sunrise-sunset auto source).
 
 ## Client/Projects Fixes/Tweaks
 

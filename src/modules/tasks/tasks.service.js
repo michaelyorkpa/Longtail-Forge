@@ -1952,10 +1952,11 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
   const hasProjectFilter = hasQueryFilter(query, ["projectId", "project_id"]);
   const hasClientFilter = hasQueryFilter(query, ["clientId", "client_id"]);
 
-  // An explicit terminal Status filter overrides a saved view's implicit active-only scope, so
-  // combinations like "Today + Complete" resolve instead of contradicting. "all" is excluded on
-  // purpose so active-scoped saved views stay active-only under Status = All.
-  const statusOverridesActiveScope = ["complete", "archived", "history"].includes(statusFilter);
+  // An explicit terminal Status filter (or "all") overrides a saved view's implicit active-only
+  // scope, so combinations like "Today + Complete" or "All + All" resolve instead of contradicting.
+  // Safe because the active-scoped views default their Status control to "active"; only an explicit
+  // Status choice surfaces completed/archived work.
+  const statusOverridesActiveScope = ["complete", "archived", "history", "all"].includes(statusFilter);
 
   if (taskView && !matchesTaskView(task, taskView, session.user_id, today, currentWeekEnd, statusOverridesActiveScope)) {
     return false;

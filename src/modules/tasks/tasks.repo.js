@@ -704,11 +704,12 @@ function activeTaskSql() {
 }
 
 function statusFilterOverridesActiveScope(options) {
-  // Only an explicit *terminal* status widens past a saved view's active-only scope. "all" is
-  // deliberately excluded: the active-scoped saved views ("All", "My", etc.) stay active-only
-  // under Status = All so they don't fill up with completed/archived tasks.
+  // An explicit terminal status (complete/archived/history) OR "all" widens past a saved view's
+  // active-only scope. This is always a deliberate user choice: the active-scoped saved views
+  // default their Status control to "active", so the uncluttered landing stays active-only and
+  // only an explicit Status selection surfaces completed/archived work.
   const status = normalizedFilter(options.statusFilter);
-  return status === "complete" || status === "archived" || status === "history";
+  return status === "complete" || status === "archived" || status === "history" || status === "all";
 }
 
 function assigneeExistsSql(userParam) {

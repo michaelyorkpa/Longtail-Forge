@@ -147,11 +147,18 @@ async function assertSavedTaskViews(session, fixtures) {
   assertExcludes(my, fixtures.completed.task_id, "My Tasks should exclude completed tasks");
   assertExcludes(my, fixtures.archived.task_id, "My Tasks should exclude archived tasks");
 
+  // Explicit Status = All widens past the saved view's active-only scope (all statuses).
   const all = await taskIds(session, { task_view: "all", status: "all" });
-  assertIncludes(all, fixtures.assigned.task_id, "All should include active assigned tasks");
-  assertIncludes(all, fixtures.unassigned.task_id, "All should include active unassigned tasks");
-  assertExcludes(all, fixtures.completed.task_id, "All should not leak completed tasks");
-  assertExcludes(all, fixtures.archived.task_id, "All should not leak archived tasks");
+  assertIncludes(all, fixtures.assigned.task_id, "All + Status All should include active assigned tasks");
+  assertIncludes(all, fixtures.unassigned.task_id, "All + Status All should include active unassigned tasks");
+  assertIncludes(all, fixtures.completed.task_id, "All + Status All should include completed tasks");
+  assertIncludes(all, fixtures.archived.task_id, "All + Status All should include archived tasks");
+
+  // The default landing (All view defaults its Status control to active) stays uncluttered.
+  const allActive = await taskIds(session, { task_view: "all", status: "active" });
+  assertIncludes(allActive, fixtures.assigned.task_id, "All + Status Active should include active work");
+  assertExcludes(allActive, fixtures.completed.task_id, "All + Status Active should exclude completed tasks");
+  assertExcludes(allActive, fixtures.archived.task_id, "All + Status Active should exclude archived tasks");
 
   assert.deepEqual(await taskIds(session, { task_view: "unassigned", status: "active" }), [fixtures.unassigned.task_id]);
   assert.deepEqual(await taskIds(session, { task_view: "overdue", status: "active" }), [fixtures.overdue.task_id]);

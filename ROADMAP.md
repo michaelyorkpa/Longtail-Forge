@@ -125,20 +125,103 @@ Acceptance criteria:
 
 - Workbench opens through a minimal framework-owned host as a guided, focus-led surface that highlights one recommended action first and keeps secondary work subordinate.
 
+### Version 0.33.6.6a - Recommended-action candidate cycling and overflow
+
+**Model: GPT-5.5 Extra High** - Guided-UX refinement of the shipped recommended-action panel over the existing candidate ranking.
+
+Promoted from `TODO.md` (Recommended Next Action Interface & Algorithm). Follow-up to the shipped 0.33.6.6 guided host; belongs before 0.33.6.7.
+
+- [ ] Add a "not this one" affordance to the "Start here" recommended-action panel: right-aligned, icon-only left/right arrows aligned with the "Start here" heading that cycle through the top 3-5 ranked candidates for the active focus (from the 0.33.6.3 deterministic ranking) without leaving the Workbench.
+- [ ] Keep everything beyond the top 3-5 in the existing "More in this focus" list; the arrows only re-fill the single recommended slot and must not reorder or duplicate the secondary list.
+- [ ] Preserve the one-recommended-action emphasis (a single card visible at a time) and framework view states; extend the existing `workbench-recommended-panel` DOM in `public/js/workbench.js` rather than hand-building framework-owned anatomy.
+- [ ] Preserve the permission/workspace/enabled-module scoping already applied to candidates; cycling never surfaces a candidate the ranking would not.
+- [ ] Add focused browser/static regressions for arrow presence and right-alignment, cycling bounds across the 3-5 window, and overflow remaining in "More in this focus".
+
+Acceptance criteria:
+
+- The recommended-action panel lets the user cycle the top 3-5 candidates via right-aligned icon-only arrows, with all further candidates staying in the subordinate "More in this focus" list.
+
+### Version 0.33.6.6b - Workbench host status and intro-copy cleanup
+
+**Model: GPT-5.4** - Mechanical host-shell cleanup routing status through existing framework view states.
+
+Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [ ] Remove the frequently-empty status box at the top of the Workbench page and the static "Choose a focus, then start one useful next action." line beneath the Workbench heading.
+- [ ] Relocate the transient status messages that previously rendered in that box (loading/updating/error/empty-context) into the space formerly occupied by the intro line, using framework view status states rather than an ad-hoc box.
+- [ ] Do not hand-build framework-owned header/status anatomy; use `LongtailForge.view` status primitives.
+- [ ] Add a focused static/browser regression proving the deprecated box and intro line are gone and that status messages render in the relocated slot.
+
+Acceptance criteria:
+
+- The empty status box and static intro line are removed, and Workbench status messaging renders through framework view states in the former intro location.
+
+### Version 0.33.6.6c - In-place record editing from Workbench
+
+**Model: GPT-5.5 Extra High** - Stacked-modal wiring of the shipped Workbench actions to the canonical record openers.
+
+Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [ ] Change the Workbench "Open Work" action so it opens the existing Edit Task modal in place via stacked-modal behavior instead of navigating to the task list page.
+- [ ] Reuse the canonical task opener (the shared `LongtailForge.moduleActions` / task dialog path) rather than a Workbench-specific editor; return focus to the triggering control on close and refresh the affected candidate/list in place.
+- [ ] Where a candidate's record type has no in-place modal yet, keep an explicitly temporary navigation fallback (consistent with the QAC temporary-fallback rule) rather than a silent dead end.
+- [ ] Preserve permission checks, workspace boundaries, and disabled-module handling on open.
+- [ ] Add regressions proving "Open Work" dispatches the in-place editor for tasks and returns focus without leaving the Workbench.
+
+Acceptance criteria:
+
+- "Open Work" opens the record's editor in place via stacked-modal behavior and refreshes Workbench state, instead of navigating away.
+
+### Version 0.33.6.6d - Focus-mode candidate scope and ordering corrections
+
+**Model: GPT-5.5 Extra High** - Deterministic ranking/focus-context corrections behind the shipped focus modes.
+
+Promoted from `TODO.md`. Corrects candidate/focus behavior surfaced by the 0.33.6.6 focus modes; belongs before 0.33.6.7. Blast radius is the 0.33.6.3 ranking and 0.33.6.4 focus resolver, not new UI.
+
+- [ ] "What's due next" / "Start with what's due" must order by due datetime - oldest overdue first, then the next upcoming due task - not by alphabetized client/project order. Fix in the deterministic ranking/focus context (0.33.6.3/0.33.6.4), keeping ranking a pure function of candidate fields.
+- [ ] "Work this week" must recommend the next-due task (not an arbitrary single task) and load the full in-scope list into "More in this focus", not a single entry.
+- [ ] "Review blocked work" must resolve to genuinely blocked candidates only; when nothing is blocked it shows the focus empty state (0.33.6.6 empty-state contract) instead of falling back to unrelated tasks.
+- [ ] Keep all three as deterministic filters over the shared candidate contract; do not add per-mode hardcoded ordering or a second candidate source.
+- [ ] Preserve permission/workspace/enabled-module and archived/complete handling in every focus context.
+- [ ] Add regressions for due-datetime ordering (overdue-before-upcoming), work-this-week next-due plus full-list population, and blocked-focus emptiness when no blocked work exists.
+
+Acceptance criteria:
+
+- The due, this-week, and blocked focus modes resolve to correctly scoped and ordered candidates (datetime-ordered due work, next-due plus full list for the week, genuinely-blocked-only for blocked), with correct empty states.
+
+### Version 0.33.6.6e - Split Workbench client and project focus filters
+
+**Model: GPT-5.5 Extra High** - Focus-filter UI split feeding the existing focus-context resolver.
+
+Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7. First consumer of the app-wide scoping standard in 0.33.6.13.
+
+- [ ] Replace the single combined client/project dropdown in the "What should we focus on?" box with two separate filters - a client filter (Business workspaces only) and a project filter - and make them active for ALL focus modes, not only Project focus.
+- [ ] Mirror the two-filter behavior used elsewhere in Tasks so scoping is consistent; keep client scope hidden on Personal/Family workspaces.
+- [ ] Consume the hierarchical (parent-includes-descendants) scoping standard from 0.33.6.13 so selecting a parent client/project includes its sub-clients/sub-projects; if 0.33.6.13 has not landed, scope to the exact client/project and cross-reference 0.33.6.13 as the follow-up that generalizes it.
+- [ ] Preserve permission/workspace boundaries and the focus-context contract; the split filters feed the same focus-context resolver (0.33.6.4).
+- [ ] Add regressions for the two-filter split, all-focus-mode applicability, workspace-type gating of the client filter, and (once 0.33.6.13 lands) parent-includes-descendants scoping.
+
+Acceptance criteria:
+
+- The Workbench focus box exposes separate client and project filters that apply to every focus mode, are workspace-type aware, and honor hierarchical parent/child scoping.
+
 ### Version 0.33.6.7 - Resume "Pick up where I left off" UI
 
 **Model: GPT-5.5 Extra High** - Resume-state integration with deterministic fallback behavior and safe dismissal handling.
 
-- [ ] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to the lower-ranked recently-touched-work candidate bucket from 0.33.6.3 only when no active resume rows exist.
+- [ ] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to the lower-ranked recently-touched-work candidate bucket from 0.33.6.3 only when no active resume rows exist. Close the current wiring gap: the mode's declared `resumeStrategy: { primary: "work-resume", ... }` in `src/services/work-focus-modes.service.js` is inert (no server or client code reads it), so today the mode only runs the recently-touched branch via `/api/workbench/focus-candidates` and never consults `/api/work-resume`. This slice must actually execute that strategy.
 - [ ] Do not build a new framework activity feed in this slice; the fallback is weaker ranking over existing candidate sources, not a second recovery surface.
 - [ ] Show one recommended resume candidate first; keep secondary candidates subordinate.
+- [ ] (Promoted from `TODO.md`) Account for active timers as the strongest resume signal. Running/paused timer state already produces resume-state rows (the `initial.time-tracking-timers` producer), so consulting `/api/work-resume` first restores them; but the recently-touched fallback currently classifies timers into the `running_timer`/`paused_timer` buckets and drops them (`matchesRankBucketFilters`/`rankBucket` in `src/services/work-candidate.service.js`), so the fallback must include the timer buckets (or otherwise not discard running/paused timer candidates for this mode).
+- [ ] (Promoted from `TODO.md`) Rank resume candidates with an explicit precedence - running timer, then paused timer, then task with a resume note, then In Progress task, with task priority as the tiebreaker - applied consistently across both the recommended slot and the "More in this focus" list.
+- [ ] (Promoted from `TODO.md`) Exclude recurring-task instances whose only recent signal is "Task Created" from the resume recommendation unless they are within ~24 hours of their due date; recurring instances have definitive due dates and should not surface just for being recently created. Fold this rule into the 0.33.6.3 recently-touched-work bucket so the resume fallback inherits it rather than special-casing it in the UI.
 - [ ] Allow users to dismiss stale resume candidates via `POST /api/work-resume/:id/dismiss`.
 - [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries (already enforced by the producer allowlist).
-- [ ] Add regressions for resume-first ordering, recent-work fallback, dismiss behavior, and safe handling of stale/unavailable targets.
+- [ ] Add regressions for resume-first ordering, timer-precedence ordering (running > paused > resume-note > In Progress > priority), running/paused timers surviving the recently-touched fallback, recurring-instance exclusion outside the ~24h due window, recent-work fallback, dismiss behavior, and safe handling of stale/unavailable targets.
 
 Acceptance criteria:
 
-- The resume focus consumes the existing resume-state service, recommends one candidate first, supports dismissal, and never exposes unsafe content.
+- The resume focus consumes the existing resume-state service (executing its `resumeStrategy`, not just the recently-touched fallback), surfaces running/paused timers ahead of resume-note and In Progress work, recommends one candidate first, supports dismissal, and never exposes unsafe content.
 
 ### Version 0.33.6.8 - Dashboard host conversion
 
@@ -239,6 +322,25 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Dashboard/Workbench are framework-owned hosts driven by contributions and the shared candidate model, decisions and docs are recorded, deferred modal follow-ups are cross-referenced, and the regression suite covers the new surfaces.
+
+### Version 0.33.6.13 - App-wide hierarchical client/project scoping standard
+
+**Model: GPT-5.5 Extra High** - Cross-cutting scope-resolution standard shared by every client/project filter.
+
+Scope decision:
+
+Promoted from `TODO.md` (Recommended Next Action Interface & Algorithm, hierarchy note). This is a cross-cutting scoping standard, not a Dashboard/Workbench surface, so it is intentionally sequenced after the 0.33.6 host work and its closeout; it may be promoted to its own dedicated version if it grows. The Workbench two-filter split (0.33.6.6e) is its first consumer, and this slice generalizes the behavior to every surface that filters by client/project.
+
+- [ ] Establish an app-wide standard that a client/project filter selecting a PARENT includes all descendant sub-clients/sub-projects, while still allowing drill-down to a single client/project - using the existing `parent_client_id`/`parent_project_id` hierarchy in `client-projects`.
+- [ ] Apply the standard consistently across the client/project filters in Tasks, Notes, Files, the Workbench focus filters (0.33.6.6e), and any other list surface that filters by client/project; do not fork per-surface scoping logic.
+- [ ] Provide a shared, permission-aware scope-resolution helper (parent -> descendant id set) that each surface's query uses, rather than duplicating descendant expansion per module; respect readable-client/readable-project filtering so descendants the user cannot read are excluded.
+- [ ] Preserve workspace boundaries and workspace-type gating (client scope hidden on Personal/Family); the standard must not leak cross-workspace or unreadable descendants.
+- [ ] Update the relevant `docs/` scoping/contract docs to record parent-includes-descendants as the app-wide default.
+- [ ] Add regressions proving parent selection includes descendants, single drill-down still works, unreadable descendants are excluded, and the behavior is consistent across at least Tasks, Notes, and Workbench.
+
+Acceptance criteria:
+
+- Selecting a parent client or project includes its descendants across all client/project filters via a shared permission-aware scope resolver, single drill-down is preserved, and no unreadable or cross-workspace records leak.
 
 ## Version 0.33.7 - Task Calendar Views (lean, read-only)
 
