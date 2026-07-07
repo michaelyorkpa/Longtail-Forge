@@ -6,8 +6,6 @@ import { taskRemindersService } from "../modules/tasks/task-reminders.service.js
 import { AppError } from "../utils/app-error.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
-const TIME_TRACKING_MODULE_ID = "time-tracking";
-const TASKS_MODULE_ID = "tasks";
 const MODULE_SETTING_HANDLERS = new Map([
   ["tasks.taskTimersEnabled", {
     apply(data, value) {
@@ -21,6 +19,10 @@ const MODULE_SETTING_HANDLERS = new Map([
 ]);
 
 async function read(session) {
+  return publicSettingsPayload(await readInternal(session));
+}
+
+async function readInternal(session) {
   const settings = await modulesService.decorateWorkspaceSettings(
     await settingsRepository.readWorkspaceSettings(session.workspace_id),
     session.workspace_id,
@@ -38,9 +40,6 @@ async function readWorkspaceBootstrap(session) {
 
   return {
     enabledModules: settings.enabledModules,
-    tasksEnabled: settings.tasksEnabled,
-    taskTimersEnabled: settings.taskTimersEnabled,
-    timeTrackingEnabled: settings.timeTrackingEnabled,
     workspaceCapabilities: settings.workspaceCapabilities,
     workspaceId: settings.workspaceId,
     workspaceName: settings.workspaceName,
@@ -55,14 +54,12 @@ async function save(payload, session) {
   });
   rejectLegacyModuleSettingAliases(payload);
 
-  const previousSettings = await read(session);
+  const previousSettings = await readInternal(session);
   const data = normalizeSettings({
     ...previousSettings,
     ...payload,
   });
   const moduleSettingChanges = resolveModuleSettingChanges(payload, previousSettings, data);
-  const timeTrackingEnabled = readModuleStatusSetting(moduleSettingChanges, TIME_TRACKING_MODULE_ID, previousSettings.timeTrackingEnabled);
-  const tasksEnabled = readModuleStatusSetting(moduleSettingChanges, TASKS_MODULE_ID, previousSettings.tasksEnabled);
   const auditSettingChanged = previousSettings.audit.loggingEnabled !== data.audit.loggingEnabled ||
     previousSettings.audit.retentionDays !== data.audit.retentionDays;
   const moduleSettingChanged = moduleSettingChanges.length > 0;
@@ -98,8 +95,7 @@ async function save(payload, session) {
   if (Object.hasOwn(payload || {}, "taskReminderDefaults") || Object.hasOwn(payload || {}, "task_reminder_defaults")) {
     await taskRemindersService.saveWorkspaceDefaults(session.workspace_id, payload.taskReminderDefaults || payload.task_reminder_defaults);
   }
-  await modulesService.setModuleStatus(session.workspace_id, TIME_TRACKING_MODULE_ID, timeTrackingEnabled, { session });
-  await modulesService.setModuleStatus(session.workspace_id, TASKS_MODULE_ID, tasksEnabled, { session });
+  await applyModuleStatusChanges(session, moduleSettingChanges);
   await recordModuleSettingChanges(session, moduleSettingChanges);
 
   if (auditEnabled) {
@@ -118,11 +114,22 @@ async function save(payload, session) {
   const reminderDefaults = await taskRemindersService.readWorkspaceDefaults(session.workspace_id);
 
   return {
-    data: {
+    data: publicSettingsPayload({
       ...savedSettings,
       taskReminderDefaults: reminderDefaults.offsets,
-    },
+    }),
   };
+}
+
+function publicSettingsPayload(settings) {
+  const {
+    taskTimersEnabled: _taskTimersEnabled,
+    tasksEnabled: _tasksEnabled,
+    timeTrackingEnabled: _timeTrackingEnabled,
+    ...publicSettings
+  } = settings;
+
+  return publicSettings;
 }
 
 function rejectLegacyModuleSettingAliases(payload) {
@@ -311,10 +318,10 @@ function readPreviousModuleSettingValue(definition, previousSettings) {
   return definition.setting.value;
 }
 
-function readModuleStatusSetting(changes, moduleId, fallback) {
-  const change = changes.find((item) => item.moduleId === moduleId && item.setting.moduleStatus === true);
-
-  return change ? change.value : fallback !== false;
+async function applyModuleStatusChanges(session, changes) {
+  for (const change of changes.filter((item) => item.setting.moduleStatus === true)) {
+    await modulesService.setModuleStatus(session.workspace_id, change.moduleId, change.value, { session });
+  }
 }
 
 async function recordModuleSettingChanges(session, changes) {

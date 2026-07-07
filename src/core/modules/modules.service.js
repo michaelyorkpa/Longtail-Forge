@@ -42,8 +42,6 @@ import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 
-const TIME_TRACKING_MODULE_ID = "time-tracking";
-const TASKS_MODULE_ID = "tasks";
 const MODULE_INSERT_COLUMNS = [
   "module_id",
   "name",
@@ -376,8 +374,6 @@ async function decorateWorkspaceSettings(settings, workspaceId) {
     ...settings,
     workspaceId,
     workspace_id: workspaceId,
-    tasksEnabled: moduleContext.moduleStatusById[TASKS_MODULE_ID] === "enabled",
-    timeTrackingEnabled: moduleContext.moduleStatusById[TIME_TRACKING_MODULE_ID] === "enabled",
     enabledModules: moduleContext.enabledModules,
     moduleSettings,
     modules: moduleContext.modules,
@@ -1217,10 +1213,6 @@ function moduleSettingsMatchWorkspace(moduleDefinition, availableTools) {
 function readModuleSettingValue(moduleDefinition, setting, settings) {
   if (setting.moduleStatus === true) {
     return moduleDefinition.status === "enabled";
-  }
-
-  if (setting.id === "taskTimersEnabled") {
-    return settings.taskTimersEnabled !== false;
   }
 
   if (Object.hasOwn(settings, setting.id)) {

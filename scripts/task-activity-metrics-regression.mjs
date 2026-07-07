@@ -12,7 +12,6 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
-const { workbenchService } = await import("../src/services/workbench.service.js");
 
 try {
   await initializeDatabase();
@@ -50,7 +49,7 @@ async function assertTaskEditsExposeLastWorkedAt(session) {
     "task edit should refresh last_worked_at",
   );
 
-  const workbench = await workbenchService.listTaskWorkItems(session);
+  const workbench = await tasksService.listWorkbenchItems(session);
   const item = workbench.items.find((candidate) => candidate.task_id === updated.task_id);
   assert.equal(item.last_worked_at, updated.last_worked_at);
 }

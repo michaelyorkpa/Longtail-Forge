@@ -10,8 +10,10 @@ const files = {
   reporting: readText("public/js/reporting.js"),
   reportingService: readText("src/services/reporting.service.js"),
   tasksService: readText("src/modules/tasks/tasks.service.js"),
+  tasksRoutes: readText("src/modules/tasks/tasks.routes.js"),
   workbench: readText("public/js/workbench.js"),
   workbenchView: readText("views/protected/workbench.html"),
+  modulesService: readText("src/core/modules/modules.service.js"),
   workbenchService: readText("src/services/workbench.service.js"),
 };
 
@@ -114,6 +116,21 @@ assert.match(
   /modulesService\.listWorkbenchCards/,
   "workbench API must read permission-filtered workbench card contributions",
 );
+assert.match(
+  files.workbenchService,
+  /workCandidateService\.listWorkCandidates/,
+  "workbench API must include framework-normalized work candidates",
+);
+assert.doesNotMatch(
+  files.workbenchService,
+  /tasksService|activeTimersService|TASKS_MODULE_ID|TIME_TRACKING_MODULE_ID|listTaskWorkItems|["']tasks["']|["']time-tracking["']/,
+  "workbench API must not import or name first-party module services or IDs directly",
+);
+assert.doesNotMatch(
+  files.modulesService,
+  /TASKS_MODULE_ID|TIME_TRACKING_MODULE_ID|tasksEnabled:|timeTrackingEnabled:|setting\.id === "taskTimersEnabled"/,
+  "module registry settings paths must not special-case Tasks or Time Tracking",
+);
 
 assert.match(
   files.dashboard,
@@ -135,6 +152,11 @@ assert.match(
   files.workbench,
   /workbenchCardRenderers/,
   "workbench browser script must dispatch through renderer registry",
+);
+assert.match(
+  files.workbench,
+  /workbenchCardDataLoaders[\s\S]*loadWorkbenchSourceData[\s\S]*card\.listRoute/,
+  "workbench browser script must load card data from contributed list routes",
 );
 assert.match(
   files.workbenchView,
@@ -177,9 +199,9 @@ assert.match(
   "Workbench task tag chips must sit between the title and metadata badges",
 );
 assert.match(
-  files.workbenchService,
-  /tasksService\.listWorkItems/,
-  "Workbench task items must come from the Tasks-owned work item contract",
+  files.tasksRoutes,
+  /tasksService\.listWorkbenchItems/,
+  "Tasks workbench item route must be owned by the Tasks module",
 );
 assert.match(
   files.tasksService,

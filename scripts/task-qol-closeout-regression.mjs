@@ -13,7 +13,6 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
-const { workbenchService } = await import("../src/services/workbench.service.js");
 
 const capturedEvents = [];
 const unsubscribe = [
@@ -83,7 +82,7 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
   assert.equal(summarized.resumeContext.active_candidate, true);
   assert.equal(summarized.relationshipSummary.incomplete_blocking_child_count, 1);
 
-  const workbench = await workbenchService.listTaskWorkItems(session);
+  const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === parent.task_id);
   assert.ok(workItem, "active task should appear in Workbench task items");
   assert.equal(workItem.next_action, "Review the closeout evidence.");
@@ -126,7 +125,7 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
   );
   const restrictedSummary = await tasksService.summary(noRoleSession);
   assert.equal(restrictedSummary.counts.active, 0);
-  const restrictedWorkbench = await workbenchService.listTaskWorkItems(noRoleSession);
+  const restrictedWorkbench = await tasksService.listWorkbenchItems(noRoleSession);
   assert.equal(restrictedWorkbench.items.length, 0);
 
   const completed = (await tasksService.complete(child.task_id, session)).task;
@@ -137,7 +136,7 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
 
 async function assertTasksHelpAndDocsAreCurrent() {
   const tasksModule = modulesService.getModule("tasks");
-  assert.equal(tasksModule.version, "0.33.6.3");
+  assert.equal(tasksModule.version, "0.33.6.5");
   assert.ok(tasksModule.help?.articles?.some((article) => article.id === "tasks.resume-context"));
 
   const docs = await fs.readFile(new URL("../docs/tasks-module.md", import.meta.url), "utf8");

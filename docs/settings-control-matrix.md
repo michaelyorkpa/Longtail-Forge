@@ -27,7 +27,7 @@ All three surfaces use shared helpers under `public/js/shared/`.
 - Workspace Settings accepts `moduleSettings` keyed by module ID and setting ID.
 - Create Workspace accepts `moduleSettings` for initial `moduleStatus` controls only.
 - `timeTrackingEnabled` is still accepted by Create Workspace as a deprecated compatibility fallback when `moduleSettings` is not submitted.
-- Deprecated top-level module flags remain response-only compatibility fields for browser consumers that still read them.
+- `/api/settings` and app-shell workspace context do not emit deprecated top-level module flags; consumers read module state from `enabledModules`, `modules`, and `moduleSettings`.
 - Read-only module status controls are not writable.
 - Unknown module setting IDs are rejected.
 - Module sub-settings without a server-side handler are rejected.

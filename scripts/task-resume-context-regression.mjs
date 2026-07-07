@@ -10,7 +10,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Resume-Context-Test-Password-123!";
 const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/index.js");
 const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
-const { workbenchService } = await import("../src/services/workbench.service.js");
 
 try {
   await initializeDatabase();
@@ -79,7 +78,7 @@ async function assertTaskContextFeedsSafeSummaries(session) {
   assert.equal(assigned.blocked_reason, "Agreement is not signed.");
   assert.equal(assigned.resume_note, "Draft response is saved in the description.");
 
-  const workbench = await workbenchService.listTaskWorkItems(session);
+  const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === task.task_id);
   assert.equal(workItem.next_action, "Ask finance for the signed agreement.");
   assert.equal(workItem.blocked_reason, "Agreement is not signed.");

@@ -3,23 +3,23 @@ import { readFileSync } from "node:fs";
 
 const workbenchView = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
-const workbenchService = readText("src/services/workbench.service.js");
+const tasksService = readText("src/modules/tasks/tasks.service.js");
 const tasksScript = readText("public/js/tasks.js");
 
 assert.match(
-  workbenchService,
-  /tasksService\.listWorkItems\(session\)/,
-  "Workbench should consume Tasks-owned canonical work item payloads.",
-);
-assert.match(
-  workbenchService,
-  /taskOptions: taskResult\?\.options \|\| null/,
-  "Workbench bootstrap should expose Tasks module options without owning task metadata.",
+  tasksService,
+  /async function listWorkbenchItems\(session, query = \{\}\)[\s\S]*listWorkItems\(session, query\)/,
+  "Tasks should own the canonical Workbench work item payload.",
 );
 assert.match(
   workbenchScript,
-  /taskOptions: bootstrap\.taskOptions \|\| \{ projects: \[\] \}/,
-  "Workbench browser state should retain task options from the module-owned task payload.",
+  /loadTaskCardData[\s\S]*card\.listRoute[\s\S]*taskOptions: data\?\.options \|\| \{ projects: \[\] \}/,
+  "Workbench should load Tasks options from the contributed workbench list route.",
+);
+assert.match(
+  workbenchScript,
+  /taskOptions: sourceData\.taskOptions \|\| bootstrap\.taskOptions \|\| \{ projects: \[\] \}/,
+  "Workbench browser state should retain task options from module-owned source payloads.",
 );
 assert.match(
   workbenchView,

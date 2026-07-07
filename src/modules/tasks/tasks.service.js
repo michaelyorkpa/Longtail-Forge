@@ -293,6 +293,18 @@ async function listWorkItems(session, query = {}) {
   };
 }
 
+async function listWorkbenchItems(session, query = {}) {
+  const [moduleStatus, result] = await Promise.all([
+    modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
+    listWorkItems(session, query),
+  ]);
+
+  return {
+    ...result,
+    source_enabled: moduleStatus === "enabled",
+  };
+}
+
 async function calendarWindow(session, query = {}) {
   const today = localDateKey(new Date(), session.timezone);
   const startDate = normalizeDueDate(query.start || query.startDate || query.start_date) || today;
@@ -2715,6 +2727,7 @@ export const tasksService = {
   list,
   listAll,
   listChecklistItems,
+  listWorkbenchItems,
   listWorkItems,
   listRelationships,
   read,

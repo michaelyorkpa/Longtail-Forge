@@ -13,7 +13,6 @@ const { clientsService } = await import("../src/modules/client-projects/clients.
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
-const { workbenchService } = await import("../src/services/workbench.service.js");
 
 try {
   await initializeDatabase();
@@ -154,7 +153,7 @@ async function assertWorkItemSummaryPayload(session, fixtures) {
   );
   assert.equal(complete.active_candidate, false);
 
-  const workbench = await workbenchService.listTaskWorkItems(session);
+  const workbench = await tasksService.listWorkbenchItems(session);
   const workbenchItem = workbench.items.find((candidate) => candidate.task_id === fixtures.overdue.task_id);
   assert.equal(workbenchItem.description_excerpt, item.description_excerpt);
   assert.equal(workbenchItem.resume_context.active_candidate, true);
@@ -164,7 +163,7 @@ async function assertPermissionFiltering(session) {
   const noRoleSession = await createNoRoleSession(session.workspace_id);
   const result = await tasksService.list(noRoleSession, { status: "active" });
   const workItems = await tasksService.listWorkItems(noRoleSession);
-  const workbench = await workbenchService.listTaskWorkItems(noRoleSession);
+  const workbench = await tasksService.listWorkbenchItems(noRoleSession);
 
   assert.equal(result.tasks.length, 0, "canonical list should filter unreadable tasks before shaping");
   assert.equal(workItems.items.length, 0, "canonical work items should not expose unreadable task context");

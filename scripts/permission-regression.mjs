@@ -757,12 +757,34 @@ async function runTaskMutationTests(api, fixtures) {
     api.get("/api/workbench/bootstrap", { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
-    check("Workbench bootstrap returns normalized timers and task items", () => {
+    check("Workbench bootstrap returns generic module state and source registry", () => {
       assert.equal(response.body.modules.tasks.enabled, true);
-      assert.equal(response.body.modules.timeTracking.enabled, true);
+      assert.equal(response.body.modules["time-tracking"].enabled, true);
+      assert.equal(Object.hasOwn(response.body.modules, "timeTracking"), false);
+      assert.ok(response.body.registry.workbenchCards.some((card) => card.renderer === "active-work-timers"));
+      assert.ok(response.body.registry.workbenchCards.some((card) => card.renderer === "task-workbench-items"));
+      assert.deepEqual(response.body.timers, []);
+      assert.deepEqual(response.body.taskItems, []);
+      assert.ok(response.body.workCandidates.some((candidate) => candidate.recordType === "active_work_timer"));
+    });
+  });
+  await expectStatus(
+    "Workbench timer contribution route returns normalized timers",
+    api.get("/api/active-timers/all", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("Workbench timer source route preserves manual and task timer data", () => {
       assert.ok(response.body.timers.some((timer) => timer.source_type === "manual" && timer.timer_slot === "task-mutual"));
       assert.ok(response.body.timers.some((timer) => timer.source_module_id === "tasks" && timer.source_id === timerTask.body.task.task_id));
-      assert.ok(response.body.taskItems.some((task) => task.source_type === "task" && task.source_id === timerTask.body.task.task_id));
+    });
+  });
+  await expectStatus(
+    "Workbench task contribution route returns task items",
+    api.get("/api/tasks/workbench-items", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("Workbench task source route preserves task item data", () => {
+      assert.ok(response.body.items.some((task) => task.source_type === "task" && task.source_id === timerTask.body.task.task_id));
     });
   });
   await expectStatus(
@@ -1444,7 +1466,10 @@ async function runDisabledModuleTests(api, fixtures) {
     assert.ok(tasksModule.publicApiEndpoints.some((item) => item.path === "/api/v1/tasks"));
     assert.ok(tasksModule.settings.some((item) => item.id === "tasksEnabled"));
     assert.ok(tasksModule.settings.some((item) => item.id === "taskTimersEnabled"));
-    assert.ok(settings.body.tasksEnabled);
+    assert.equal(settings.body.enabledModules.includes("tasks"), true);
+    assert.equal(Object.hasOwn(settings.body, "tasksEnabled"), false);
+    assert.equal(Object.hasOwn(settings.body, "timeTrackingEnabled"), false);
+    assert.equal(Object.hasOwn(settings.body, "taskTimersEnabled"), false);
   });
   const apiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["time_entries:read", "time_entries:write"]);
   const tasksApiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:read", "tasks:write"]);
@@ -1456,7 +1481,7 @@ async function runDisabledModuleTests(api, fixtures) {
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can disable Time Tracking", disabledSettings, 200);
   check("disabled Time Tracking is removed from enabled module list", () => {
-    assert.equal(disabledSettings.body.data.timeTrackingEnabled, false);
+    assert.equal(Object.hasOwn(disabledSettings.body.data, "timeTrackingEnabled"), false);
     assert.equal(disabledSettings.body.data.enabledModules.includes("time-tracking"), false);
   });
 
@@ -1529,7 +1554,7 @@ async function runDisabledModuleTests(api, fixtures) {
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can disable Tasks", disabledTasksSettings, 200);
   check("disabled Tasks are removed from enabled module list", () => {
-    assert.equal(disabledTasksSettings.body.data.tasksEnabled, false);
+    assert.equal(Object.hasOwn(disabledTasksSettings.body.data, "tasksEnabled"), false);
     assert.equal(disabledTasksSettings.body.data.enabledModules.includes("tasks"), false);
   });
   await expectStatus(

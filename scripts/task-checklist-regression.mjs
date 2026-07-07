@@ -11,7 +11,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Checklist-Test-Password-123!";
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
-const { workbenchService } = await import("../src/services/workbench.service.js");
 
 try {
   await initializeDatabase();
@@ -86,7 +85,7 @@ async function assertChecklistLifecycleAndProgress(session) {
   assert.equal(assigned.checklistProgress.total_count, 2);
   assert.equal(assigned.resumeContext.checklist_progress.next_incomplete_item_label, "Review final state");
 
-  const workbench = await workbenchService.listTaskWorkItems(session);
+  const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === task.task_id);
   assert.equal(workItem.checklistProgress.total_count, 2);
   assert.equal(workItem.resumeContext.checklist_progress.total_count, 2);

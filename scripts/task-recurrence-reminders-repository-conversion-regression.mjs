@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.3";
+const appVersion = "0.33.6.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-reminders-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-reminders-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";

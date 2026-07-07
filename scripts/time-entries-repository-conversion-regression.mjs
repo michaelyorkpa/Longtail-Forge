@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.3";
+const appVersion = "0.33.6.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-time-entries-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-time-entries-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -51,7 +51,7 @@ function assertStaticContract() {
   assert.doesNotMatch(timeEntriesRepoSource, /\$\{/, "Time entries repository should not interpolate runtime values into SQL templates");
   assert.doesNotMatch(timeEntriesRepoSource, /\b(?:julianday|ON CONFLICT|COLLATE|LOWER\s*\(|BEGIN TRANSACTION|COMMIT|ROLLBACK)\b/, "Time entries repository should not add dialect-sensitive raw SQL while converting");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.5:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 386[\s\S]*Total runtime database operation calls seen by the audit scanner: 430/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
   assert.match(auditDocs, /\| time-tracking\/time-entries\.repo \| Converted \| 0 \| 0 \| 8 \| 8 \|/, "audit inventory should mark time-tracking/time-entries.repo converted");
   assert.match(auditDocs, /0\.33\.5\.27\.13 Time Entries Repository Conversion[\s\S]*`time-tracking\/time-entries\.repo`[\s\S]*1,116 runtime literal-helper invocations[\s\S]*180 direct interpolated SQL operation sites[\s\S]*162 existing bound operation sites/, "audit docs should record the Time entries repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.13[\s\S]*`time-tracking\/time-entries\.repo`[\s\S]*named params[\s\S]*1,116 remaining helper invocations/, "database docs should record the Time entries repository conversion");

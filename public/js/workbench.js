@@ -23,10 +23,7 @@ const modal = window.LongtailForge.modal;
 let state = {
   clients: [],
   currentUserId: "",
-  modules: {
-    tasks: { enabled: false },
-    timeTracking: { enabled: false },
-  },
+  modules: {},
   registry: {
     workbenchCards: [],
     timerSources: [],
@@ -46,6 +43,10 @@ const workbenchCardRenderers = {
     updateManualTimerState();
   },
   "task-workbench-items": renderTasks,
+};
+const workbenchCardDataLoaders = {
+  "active-work-timers": loadTimerCardData,
+  "task-workbench-items": loadTaskCardData,
 };
 
 document.querySelectorAll("[data-workbench-card]").forEach((card) => {
@@ -72,16 +73,19 @@ async function loadWorkbench() {
       api.getJson("/api/workbench/bootstrap", { cache: "no-store" }),
       loadClientProjectData(),
     ]);
+    const registry = bootstrap.registry || state.registry;
+    const sourceData = await loadWorkbenchSourceData(registry);
 
     state = {
       ...state,
       clients: normalizeClientProjectOptions(clientProjectData),
       currentUserId: bootstrap.currentUserId || "",
-      modules: bootstrap.modules || state.modules,
-      registry: bootstrap.registry || state.registry,
-      taskItems: bootstrap.taskItems || [],
-      taskOptions: bootstrap.taskOptions || { projects: [] },
-      timers: bootstrap.timers || [],
+      modules: normalizeModuleStateMap(bootstrap.modules || state.modules),
+      registry,
+      taskItems: sourceData.taskItems,
+      taskOptions: sourceData.taskOptions || bootstrap.taskOptions || { projects: [] },
+      timers: sourceData.timers,
+      workCandidates: bootstrap.workCandidates || [],
     };
     populateManualTimerForm();
     renderWorkbench();
@@ -89,6 +93,56 @@ async function loadWorkbench() {
     setStatus("");
   } catch (error) {
     setStatus(error.message || "Workbench could not be loaded.", { isError: true });
+  }
+}
+
+async function loadWorkbenchSourceData(registry) {
+  const sourceData = {
+    taskItems: [],
+    taskOptions: null,
+    timers: [],
+  };
+  const cards = Array.isArray(registry?.workbenchCards) ? registry.workbenchCards : [];
+
+  await Promise.all(cards.map(async (card) => {
+    const loader = workbenchCardDataLoaders[card.renderer];
+
+    if (!loader || !card.listRoute) {
+      return;
+    }
+
+    mergeWorkbenchSourceData(sourceData, await loader(card));
+  }));
+
+  return sourceData;
+}
+
+async function loadTimerCardData(card) {
+  const data = await api.getJson(card.listRoute, { cache: "no-store" });
+
+  return {
+    timers: Array.isArray(data?.timers) ? data.timers : [],
+  };
+}
+
+async function loadTaskCardData(card) {
+  const data = await api.getJson(card.listRoute, { cache: "no-store" });
+
+  return {
+    taskItems: data?.source_enabled === false ? [] : Array.isArray(data?.items) ? data.items : [],
+    taskOptions: data?.options || { projects: [] },
+  };
+}
+
+function mergeWorkbenchSourceData(target, data = {}) {
+  if (Array.isArray(data.timers)) {
+    target.timers.push(...data.timers);
+  }
+  if (Array.isArray(data.taskItems)) {
+    target.taskItems.push(...data.taskItems);
+  }
+  if (data.taskOptions) {
+    target.taskOptions = data.taskOptions;
   }
 }
 
@@ -173,10 +227,10 @@ function createTimerCard(timer) {
   const saveButton = actionButton("Save & End", () => finalizeTimer(timer));
   const discardButton = actionButton("Discard", () => discardTimer(timer), { danger: true });
 
-  startButton.disabled = running || !state.modules.timeTracking.enabled || !canUseSourceActions;
-  pauseButton.disabled = !running || !state.modules.timeTracking.enabled;
-  saveButton.disabled = !state.modules.timeTracking.enabled;
-  discardButton.disabled = !state.modules.timeTracking.enabled;
+  startButton.disabled = running || !moduleEnabled("time-tracking") || !canUseSourceActions;
+  pauseButton.disabled = !running || !moduleEnabled("time-tracking");
+  saveButton.disabled = !moduleEnabled("time-tracking");
+  discardButton.disabled = !moduleEnabled("time-tracking");
   actions.append(startButton, pauseButton, saveButton, discardButton);
   body.append(duration, context, description, actions);
   details.append(summary, body);
@@ -184,16 +238,16 @@ function createTimerCard(timer) {
 }
 
 function renderTasks() {
-  const tasksEnabled = cardContributionActive("task-workbench-items");
+  const taskCardActive = cardContributionActive("task-workbench-items");
   const taskCard = document.querySelector('[data-workbench-renderer="task-workbench-items"]');
-  const tasks = tasksEnabled ? sortedTasks(filteredTasks()) : [];
+  const tasks = taskCardActive ? sortedTasks(filteredTasks()) : [];
 
-  taskCard.hidden = !tasksEnabled;
+  taskCard.hidden = !taskCardActive;
   taskCountText.textContent = String(tasks.length);
   taskList.replaceChildren();
   updateTaskFilterState();
 
-  if (!tasksEnabled) {
+  if (!taskCardActive) {
     return;
   }
 
@@ -548,7 +602,7 @@ function populateManualProjects(options = {}) {
 }
 
 function updateManualTimerState() {
-  const enabled = state.modules.timeTracking?.enabled === true && state.clients.length > 0;
+  const enabled = moduleEnabled("time-tracking") && state.clients.length > 0;
   manualTimerForm.hidden = !enabled;
 }
 
@@ -862,11 +916,25 @@ function clientOptionLabel(client) {
 }
 
 function taskCanUseTimer(task) {
-  return state.modules.tasks?.enabled === true &&
-    state.modules.timeTracking?.enabled === true &&
+  return moduleEnabled("tasks") &&
+    moduleEnabled("time-tracking") &&
     task.project_id &&
     task.status !== "complete" &&
     task.status !== "archived";
+}
+
+function moduleEnabled(moduleId) {
+  return state.modules?.[moduleId]?.enabled === true;
+}
+
+function normalizeModuleStateMap(modules) {
+  return modules && typeof modules === "object" && !Array.isArray(modules) ? modules : {};
+}
+
+function enabledModuleIds() {
+  return Object.entries(state.modules || {})
+    .filter(([, moduleState]) => moduleState?.enabled === true)
+    .map(([moduleId]) => moduleId);
 }
 
 function isActiveTask(task) {
@@ -990,8 +1058,7 @@ window.LongtailForge.pageController.register("workbench", {
     taskCount: state.taskItems.length,
     taskFilter: state.taskFilter,
     timerCount: state.timers.length,
-    tasksEnabled: state.modules.tasks?.enabled === true,
-    timeTrackingEnabled: state.modules.timeTracking?.enabled === true,
+    enabledModules: enabledModuleIds(),
     moduleActionCount: window.LongtailForge.moduleActions?.list?.().length || 0,
   }),
 });

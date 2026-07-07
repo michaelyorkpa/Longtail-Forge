@@ -1043,8 +1043,6 @@ function storeWorkspaceContext(settings) {
     permissionHints: settings.permissionHints || previousContext.permissionHints || {},
     searchTargets: Array.isArray(settings.searchTargets) ? settings.searchTargets : previousContext.searchTargets || [],
     viewSurfaces: Array.isArray(settings.viewSurfaces) ? settings.viewSurfaces : previousContext.viewSurfaces || [],
-    tasksEnabled: settings.tasksEnabled === false ? false : true,
-    timeTrackingEnabled: settings.timeTrackingEnabled !== false,
     userId: settings.userId || settings.user_id || previousContext.userId || "",
     username: settings.username || previousContext.username || "",
     workspaceCapabilities: settings.workspaceCapabilities || {},

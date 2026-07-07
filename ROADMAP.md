@@ -20,7 +20,7 @@ Dependencies and framework baseline:
 Current wiring (grounding for this branch):
 
 - Contribution contracts already half-exist. The module manifest already validates `dashboard` and `workbench` contributions (plus `timerSources`/`workItemSources`) in `src/core/modules/manifest-contract.js:1019-1047`, and `modulesService` already exposes `listDashboardPanels`, `listWorkbenchCards`, `listTimerSources`, `listWorkItemSources` (`src/core/modules/modules.service.js:997-1023`), all filtered through the shared `listWorkspaceContributions(workspaceId, session, fieldName)` path (enabled-module + `requiredPermissions` + `requiredWorkspaceCapabilities` + `requiresEnabledModules`). The **net-new** contracts are focus modes and a candidate source; a resume-snippet producer contract already exists (below).
-- Workbench still hardcodes Tasks + Time-Tracking despite having the registry: `src/services/workbench.service.js:1-21` imports `tasksService`/`activeTimersService` and calls them directly alongside `listWorkbenchCards`/`listTimerSources`/`listWorkItemSources`. This is the primary de-hardcoding target.
+- Workbench service de-hardcoding is complete as of 0.33.6.5: `src/services/workbench.service.js` now reads module state, Workbench cards, timer/work-item sources, and normalized work candidates without importing first-party module services. Remaining Workbench work in this branch is the guided host/UI conversion, resume/focus presentation, QAC, and Inspector.
 - Dashboard is hand-built static HTML, not a framework host: `views/protected/dashboard.html` hardcodes the client/billing panels inline and exposes only a hidden `data-dashboard-extension-panels` stub for contributions. Converting it to a minimal host is in scope for this version.
 - Resume state is fully built and safe by construction. `GET /api/work-resume` + `POST /api/work-resume/:id/dismiss` (`src/routes/work-resume.routes.js`) return a rich normalized item (`title`, `contextLabel`, `nextAction`, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, `resumeRankHint`, `lastActionLabel`, `metadata`, `mode`). It is fed by an event-driven producer registry (`src/services/work-resume-state-producers.js`) with a strict field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `encrypt`, `storage.key`, `scanner`, ...). This producer payload is the basis for the shared work-candidate shape below.
 - Global chrome is injected per protected page via the shared `navigation.js` + `footer.js` includes (see `views/protected/dashboard.html`); the QAC floating drawer hooks into that app-shell include so it appears on all protected screens.
@@ -84,11 +84,11 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Framework-owned focus registry with workspace-aware context resolution and later UI curation.
 
-- [ ] Add a focus-mode contract/registry (following the `listWorkspaceContributions` pattern) with the full canonical mode set: Start my day, Pick up where I left off, What's due next, Work this week, Review blocked work, In progress, Project focus, and Client focus (Business workspaces only).
-- [ ] Each focus mode resolves to a normalized focus context (scope, client/project, status/date filters) passed to the candidate sources from 0.33.6.3.
-- [ ] Focus modes are user-friendly labels over deterministic filters, not separate hardcoded pages. This slice owns the full canonical registry even if later Workbench UI surfaces only a curated subset at first.
-- [ ] Client focus must be hidden outside Business workspaces; Personal/Family must not surface client scope or labels.
-- [ ] Add regressions for mode-to-context resolution and workspace-type gating.
+- [x] Add a focus-mode contract/registry (following the `listWorkspaceContributions` pattern) with the full canonical mode set: Start my day, Pick up where I left off, What's due next, Work this week, Review blocked work, In progress, Project focus, and Client focus (Business workspaces only).
+- [x] Each focus mode resolves to a normalized focus context (scope, client/project, status/date filters) passed to the candidate sources from 0.33.6.3.
+- [x] Focus modes are user-friendly labels over deterministic filters, not separate hardcoded pages. This slice owns the full canonical registry even if later Workbench UI surfaces only a curated subset at first.
+- [x] Client focus must be hidden outside Business workspaces; Personal/Family must not surface client scope or labels.
+- [x] Add regressions for mode-to-context resolution and workspace-type gating.
 
 Acceptance criteria:
 
@@ -98,12 +98,12 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Framework/service decoupling that removes first-party module names from generic decisions.
 
-- [ ] Remove the direct `tasksService`/`activeTimersService` imports and hardcoded `tasks`/`time-tracking` branches from `src/services/workbench.service.js`; drive timers and work items purely through the contribution registry and the candidate service. The `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants and the hardcoded `modules: { tasks, timeTracking }` bootstrap return shape must both be gone; if the browser still needs a module-state map, build it generically from enabled-module state keyed by module ID.
-- [ ] Also de-hardcode the framework registry service itself: remove the `taskTimersEnabled` special-case in `readModuleSettingValue` and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` (`src/core/modules/modules.service.js`), retiring those deprecated top-level flags now that the settings/Workbench/browser-shell code consuming them is being converted in this branch. `src/core/modules/` must not name specific first-party module IDs to make generic contribution/settings decisions.
-- [ ] Keep the existing Workbench bootstrap response shape working for the browser during the transition (adapt internals without breaking the page contract).
-- [ ] Preserve enabled/disabled-module handling, permission checks, and workspace boundaries already enforced in `bootstrap`.
-- [ ] Update the framework/browser consumers and regressions that still expect the deprecated top-level flags (for example `navigation.js` and the current permission regression assertions), so the retirement is complete rather than Workbench-only.
-- [ ] Add regressions proving Workbench renders the same live data with Tasks/Time enabled and degrades cleanly when either is disabled, without importing them directly, and that no first-party module ID remains hardcoded in `workbench.service.js` or the `modules.service.js` settings/decoration paths.
+- [x] Remove the direct `tasksService`/`activeTimersService` imports and hardcoded `tasks`/`time-tracking` branches from `src/services/workbench.service.js`; drive timers and work items purely through the contribution registry and the candidate service. The `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants and the hardcoded `modules: { tasks, timeTracking }` bootstrap return shape must both be gone; if the browser still needs a module-state map, build it generically from enabled-module state keyed by module ID.
+- [x] Also de-hardcode the framework registry service itself: remove the `taskTimersEnabled` special-case in `readModuleSettingValue` and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` (`src/core/modules/modules.service.js`), retiring those deprecated top-level flags now that the settings/Workbench/browser-shell code consuming them is being converted in this branch. `src/core/modules/` must not name specific first-party module IDs to make generic contribution/settings decisions.
+- [x] Keep the existing Workbench bootstrap response shape working for the browser during the transition (adapt internals without breaking the page contract).
+- [x] Preserve enabled/disabled-module handling, permission checks, and workspace boundaries already enforced in `bootstrap`.
+- [x] Update the framework/browser consumers and regressions that still expect the deprecated top-level flags (for example `navigation.js` and the current permission regression assertions), so the retirement is complete rather than Workbench-only.
+- [x] Add regressions proving Workbench renders the same live data with Tasks/Time enabled and degrades cleanly when either is disabled, without importing them directly, and that no first-party module ID remains hardcoded in `workbench.service.js` or the `modules.service.js` settings/decoration paths.
 
 Acceptance criteria:
 

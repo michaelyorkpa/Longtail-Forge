@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.5.28.2:
+Current totals as of 0.33.6.5:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.
-- Existing direct bound-params operation sites: 385.
-- Total runtime database operation calls seen by the audit scanner: 429.
+- Existing direct bound-params operation sites: 386.
+- Total runtime database operation calls seen by the audit scanner: 430.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -61,6 +61,7 @@ Status legend:
 | api-keys.repo | Converted | 0 | 0 | 9 | 9 |
 | services/help.service | Converted | 0 | 0 | 1 | 1 |
 | services/files.service | Converted | 0 | 0 | 32 | 33 |
+| services/work-focus-modes.service | Converted | 0 | 0 | 1 | 1 |
 | services/tag-propagation-registry | Converted | 0 | 0 | 15 | 15 |
 | services/tags.service | Converted | 0 | 0 | 3 | 3 |
 | services/work-resume-state.service | Converted | 0 | 0 | 7 | 7 |

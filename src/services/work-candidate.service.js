@@ -83,12 +83,33 @@ const RANK_BUCKETS = Object.freeze({
   dueThisWeek: 70,
   later: 80,
 });
+const WORK_CANDIDATE_RANK_BUCKETS = Object.freeze({
+  runningTimer: "running_timer",
+  pausedTimer: "paused_timer",
+  overdueAssignedWork: "overdue_assigned_work",
+  dueToday: "due_today",
+  blockedOrStale: "blocked_or_stale",
+  recentlyTouched: "recently_touched",
+  dueThisWeek: "due_this_week",
+  later: "later",
+});
+const RANK_BUCKET_ID_BY_VALUE = Object.freeze({
+  [RANK_BUCKETS.runningTimer]: WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
+  [RANK_BUCKETS.pausedTimer]: WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+  [RANK_BUCKETS.overdueAssignedWork]: WORK_CANDIDATE_RANK_BUCKETS.overdueAssignedWork,
+  [RANK_BUCKETS.dueToday]: WORK_CANDIDATE_RANK_BUCKETS.dueToday,
+  [RANK_BUCKETS.blockedOrStale]: WORK_CANDIDATE_RANK_BUCKETS.blockedOrStale,
+  [RANK_BUCKETS.recentlyTouched]: WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
+  [RANK_BUCKETS.dueThisWeek]: WORK_CANDIDATE_RANK_BUCKETS.dueThisWeek,
+  [RANK_BUCKETS.later]: WORK_CANDIDATE_RANK_BUCKETS.later,
+});
 const RECENTLY_TOUCHED_DAYS = 2;
 const RESUME_SOURCE_KIND = "resume_state";
 const STALE_DAYS = 7;
+const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
 
 async function listResumeCandidates(session, query = {}) {
-  const normalizedQuery = normalizeListQuery(query);
+  const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const result = await workResumeStateService.listResumeState(session, query);
   const candidates = (result.items || [])
     .map((row) => candidateFromResumeRow(row))
@@ -101,7 +122,7 @@ async function listResumeCandidates(session, query = {}) {
 }
 
 async function listWorkCandidates(session, query = {}) {
-  const normalizedQuery = normalizeListQuery(query);
+  const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const sourceContext = await readCandidateSourceContext(session);
   const [resumeResult, liveTimers] = await Promise.all([
     listResumeCandidates(session, { ...query, limit: Math.min(MAX_LIMIT, normalizedQuery.limit * 4) }),
@@ -123,14 +144,15 @@ async function listWorkCandidates(session, query = {}) {
 
   return {
     items: rankWorkCandidates([...bySource.values()], {
+      today: normalizedQuery.today,
       timezone: session?.timezone,
     }).slice(0, normalizedQuery.limit),
-    mode: resumeResult.mode || normalizedQuery.mode,
+    mode: normalizedQuery.mode || resumeResult.mode,
   };
 }
 
 async function listLiveTimerCandidates(session, query = {}, sourceContext = null) {
-  const normalizedQuery = normalizeListQuery(query);
+  const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
 
   if (!resolvedSourceContext.manualTimerSourceAvailable) {
@@ -457,22 +479,138 @@ function matchesCandidateQuery(candidate, query = {}) {
   return matchesTextFilter(candidate.moduleId, normalizedQuery.moduleId) &&
     matchesTextFilter(candidate.recordType, normalizedQuery.recordType) &&
     matchesTextFilter(candidate.clientId, normalizedQuery.clientId) &&
-    matchesTextFilter(candidate.projectId, normalizedQuery.projectId);
+    matchesTextFilter(candidate.projectId, normalizedQuery.projectId) &&
+    matchesStatusFilters(candidate, normalizedQuery) &&
+    matchesDueDateFilters(candidate, normalizedQuery) &&
+    matchesRankBucketFilters(candidate, normalizedQuery);
 }
 
-function normalizeListQuery(query = {}) {
+function normalizeListQuery(query = {}, options = {}) {
+  if (query?.[NORMALIZED_QUERY_MARKER]) {
+    return query;
+  }
+
+  const flattenedQuery = flattenFocusQuery(query);
+  const timezone = textValue(firstValue(flattenedQuery.timezone, options.timezone), 80) || DEFAULT_TIMEZONE;
+
   return {
-    clientId: textValue(firstValue(query.clientId, query.client_id), 160),
-    limit: boundedInteger(query.limit, 1, MAX_LIMIT, DEFAULT_LIMIT),
-    mode: textValue(query.mode, 24) || "left_off",
-    moduleId: textValue(firstValue(query.moduleId, query.module_id), TEXT_LIMITS.moduleId),
-    projectId: textValue(firstValue(query.projectId, query.project_id), 160),
-    recordType: textValue(firstValue(query.recordType, query.record_type), TEXT_LIMITS.recordType),
+    [NORMALIZED_QUERY_MARKER]: true,
+    clientId: textValue(firstValue(flattenedQuery.clientId, flattenedQuery.client_id), 160),
+    dueBefore: dateKeyFrom(firstValue(flattenedQuery.dueBefore, flattenedQuery.due_before), timezone),
+    dueFrom: dateKeyFrom(firstValue(flattenedQuery.dueFrom, flattenedQuery.due_from), timezone),
+    dueOn: dateKeyFrom(firstValue(flattenedQuery.dueOn, flattenedQuery.due_on), timezone),
+    dueTo: dateKeyFrom(firstValue(flattenedQuery.dueTo, flattenedQuery.due_to), timezone),
+    limit: boundedInteger(flattenedQuery.limit, 1, MAX_LIMIT, DEFAULT_LIMIT),
+    mode: textValue(flattenedQuery.mode, 40) || "left_off",
+    moduleId: textValue(firstValue(flattenedQuery.moduleId, flattenedQuery.module_id), TEXT_LIMITS.moduleId),
+    projectId: textValue(firstValue(flattenedQuery.projectId, flattenedQuery.project_id), 160),
+    rankBuckets: normalizeTextList(firstValue(
+      flattenedQuery.rankBuckets,
+      flattenedQuery.rank_buckets,
+      flattenedQuery.bucketIds,
+      flattenedQuery.bucket_ids,
+    )),
+    recordType: textValue(firstValue(flattenedQuery.recordType, flattenedQuery.record_type), TEXT_LIMITS.recordType),
+    statusFilters: normalizeTextList(firstValue(
+      flattenedQuery.statusFilters,
+      flattenedQuery.status_filters,
+      flattenedQuery.statuses,
+      flattenedQuery.status,
+    )),
+    timezone,
+    today: dateKeyFrom(firstValue(flattenedQuery.today, flattenedQuery.todayDate, flattenedQuery.today_date), timezone),
   };
 }
 
 function matchesTextFilter(value, filter) {
   return !filter || String(value || "") === filter;
+}
+
+function matchesStatusFilters(candidate, query) {
+  if (!query.statusFilters.length) {
+    return true;
+  }
+
+  const statusValues = candidateStatusValues(candidate, query);
+  return query.statusFilters.some((status) => statusValues.has(status));
+}
+
+function matchesDueDateFilters(candidate, query) {
+  if (!query.dueBefore && !query.dueFrom && !query.dueOn && !query.dueTo) {
+    return true;
+  }
+
+  const dueDateKey = dateKeyFrom(candidate.dueAt, query.timezone);
+
+  if (!dueDateKey) {
+    return false;
+  }
+  if (query.dueOn && dueDateKey !== query.dueOn) {
+    return false;
+  }
+  if (query.dueFrom && dueDateKey < query.dueFrom) {
+    return false;
+  }
+  if (query.dueTo && dueDateKey > query.dueTo) {
+    return false;
+  }
+  if (query.dueBefore && dueDateKey >= query.dueBefore) {
+    return false;
+  }
+
+  return true;
+}
+
+function matchesRankBucketFilters(candidate, query) {
+  if (!query.rankBuckets.length) {
+    return true;
+  }
+
+  return query.rankBuckets.includes(resolveWorkCandidateRankBucket(candidate, query));
+}
+
+function resolveWorkCandidateRankBucket(candidate, options = {}) {
+  return candidateRankFacts(normalizeWorkCandidate(candidate), rankContext(options)).bucketId;
+}
+
+function candidateStatusValues(candidate, query) {
+  const statusValues = new Set([
+    candidate.status,
+    candidate.metadata?.timer_status,
+    candidate.metadata?.timerStatus,
+  ].map(normalizeFilterToken).filter(Boolean));
+  const context = {
+    ...rankContext(query),
+    lastActivityDateKey: dateKeyFrom(
+      candidate.lastWorkedAt || candidate.updatedAt || candidate.createdAt,
+      query.timezone,
+    ),
+  };
+
+  if (candidate.blockedReason) {
+    statusValues.add("blocked");
+  }
+  if (isStaleWork(context.lastActivityDateKey, context.staleBeforeDateKey)) {
+    statusValues.add("stale");
+  }
+
+  return statusValues;
+}
+
+function flattenFocusQuery(query = {}) {
+  const focusContext = objectValue(firstValue(query.focusContext, query.focus_context));
+  const candidateQuery = objectValue(firstValue(focusContext.candidateQuery, focusContext.candidate_query));
+  const filters = objectValue(firstValue(
+    focusContext.filters,
+    focusContext.candidateFilters,
+    focusContext.candidate_filters,
+  ));
+
+  return {
+    ...candidateQuery,
+    ...filters,
+    ...query,
+  };
 }
 
 function candidateSourceKey(candidate) {
@@ -498,6 +636,7 @@ function candidateRankFacts(candidate, context) {
 
   return {
     bucket,
+    bucketId: RANK_BUCKET_ID_BY_VALUE[bucket] || WORK_CANDIDATE_RANK_BUCKETS.later,
     dueDateKey,
     lastActivityDateKey,
     lastActivityTime,
@@ -583,7 +722,11 @@ function isBlockedOrStaleWork(candidate, context) {
   return Boolean(candidate.blockedReason) ||
     status === "blocked" ||
     status === "stale" ||
-    Boolean(context.lastActivityDateKey && context.lastActivityDateKey < context.staleBeforeDateKey);
+    isStaleWork(context.lastActivityDateKey, context.staleBeforeDateKey);
+}
+
+function isStaleWork(lastActivityDateKey, staleBeforeDateKey) {
+  return Boolean(lastActivityDateKey && lastActivityDateKey < staleBeforeDateKey);
 }
 
 function isOverdueWork(dueDateKey, today) {
@@ -648,6 +791,24 @@ function parseMetadataJson(value) {
   } catch {
     return {};
   }
+}
+
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function normalizeTextList(value) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : String(value ?? "").split(",");
+
+  return [...new Set(rawValues
+    .map((item) => normalizeFilterToken(item))
+    .filter(Boolean))];
+}
+
+function normalizeFilterToken(value) {
+  return textValue(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
 }
 
 function dateKeyFrom(value, timezone = DEFAULT_TIMEZONE) {
@@ -740,6 +901,7 @@ const workCandidateService = {
   listWorkCandidates,
   normalizeWorkCandidate,
   rankWorkCandidates,
+  resolveWorkCandidateRankBucket,
 };
 
 export {
@@ -747,5 +909,7 @@ export {
   candidateFromTimer,
   normalizeWorkCandidate,
   rankWorkCandidates,
+  resolveWorkCandidateRankBucket,
+  WORK_CANDIDATE_RANK_BUCKETS,
   workCandidateService,
 };

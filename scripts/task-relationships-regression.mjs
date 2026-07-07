@@ -10,7 +10,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Relationships-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
-const { workbenchService } = await import("../src/services/workbench.service.js");
 
 try {
   await initializeDatabase();
@@ -81,7 +80,7 @@ async function assertParentChildBlockingLifecycle(session) {
   const inProgress = (await tasksService.update(nonBlockingParent.task_id, { status: "in_progress" }, session)).task;
   assert.equal(inProgress.status, "in_progress");
 
-  const workbench = await workbenchService.listTaskWorkItems(session);
+  const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === parent.task_id);
   assert.equal(workItem.relationshipSummary.child_count, 1);
 }

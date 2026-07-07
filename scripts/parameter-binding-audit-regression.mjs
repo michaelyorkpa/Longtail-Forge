@@ -9,7 +9,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.6.3";
+const appVersion = "0.33.6.5";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -60,8 +60,8 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding audit version");
 
 assert.deepEqual(audit.totals, {
-  boundOperationSites: 385,
-  dbOperationSites: 429,
+  boundOperationSites: 386,
+  dbOperationSites: 430,
   helperCalls: 0,
   interpolatedOperationSites: 0,
 }, "parameter-binding audit totals should match the current post-wave runtime inventory");
@@ -183,6 +183,7 @@ const convertedWaveRows = [
   ["client-projects/projects.repo", 8],
   ["core/modules/modules.service", 6],
   ["services/files.service", 32],
+  ["services/work-focus-modes.service", 1],
   ["services/help.service", 1],
   ["services/search-index-rebuild.service", 2],
   ["services/tag-propagation-registry", 15],
@@ -228,7 +229,7 @@ assert.equal(updateDeleteLimitMatches.length, 0, "runtime SQL should not use top
 assert.deepEqual(notInArrayBindingMatches, [], "runtime source should not introduce variable-bound NOT IN clauses without revisiting empty-list semantics");
 
 assert.match(auditDocs, /Runtime source scan/, "audit docs should describe the scan scope");
-assert.match(auditDocs, /Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 385[\s\S]*Total runtime database operation calls seen by the audit scanner: 429/, "audit docs should record the current canonical totals");
+assert.match(auditDocs, /Current totals as of 0\.33\.6\.5:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 386[\s\S]*Total runtime database operation calls seen by the audit scanner: 430/, "audit docs should record the current canonical totals");
 assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0[\s\S]*Whole runtime source sweep/, "audit docs should record the distinct dialect-adoption axis");
 assert.match(auditDocs, /Total runtime literal-helper invocations: 1,680/, "audit docs should record helper-call totals");
 assert.match(auditDocs, /Total direct interpolated SQL operation sites: 262/, "audit docs should record operation-site totals");

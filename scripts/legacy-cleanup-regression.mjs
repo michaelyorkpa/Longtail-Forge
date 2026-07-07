@@ -83,17 +83,31 @@ async function assertSettingsRejectLegacyAliases() {
     billingRounding: settings.billingRounding,
     audit: settings.audit,
     taskReminderDefaults: settings.taskReminderDefaults,
-    moduleSettings: {
-      "time-tracking": {
-        timeTrackingEnabled: settings.timeTrackingEnabled,
-      },
-      tasks: {
-        tasksEnabled: settings.tasksEnabled,
-        taskTimersEnabled: settings.taskTimersEnabled,
-      },
-    },
+    moduleSettings: moduleSettingsPayload(settings),
   }, session);
   checks += 1;
+}
+
+function moduleSettingsPayload(settings) {
+  const payload = {};
+
+  for (const moduleDefinition of settings.moduleSettings || []) {
+    const moduleId = moduleDefinition.moduleId;
+
+    if (!moduleId) {
+      continue;
+    }
+
+    payload[moduleId] = {};
+    for (const setting of moduleDefinition.settings || []) {
+      if (setting.readOnly === true) {
+        continue;
+      }
+      payload[moduleId][setting.id] = setting.value;
+    }
+  }
+
+  return payload;
 }
 
 async function assertActiveSourceHasNoLegacyOrganizationSurface() {
