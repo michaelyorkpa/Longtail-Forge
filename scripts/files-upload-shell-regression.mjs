@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6";
+const appVersion = "0.33.6.6a";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/file-attachments.js");
@@ -89,7 +89,7 @@ assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bu
 assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper");
 assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74/, "Tasks should cache-bust the shared stylesheet for upload shell changes");
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper");
-assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=23/, "Workbench should cache-bust the shared stylesheet for upload shell changes");
+assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=24/, "Workbench should cache-bust the shared stylesheet for upload shell changes");
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper");
 
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View-building contract should document the Files upload-shell slice");

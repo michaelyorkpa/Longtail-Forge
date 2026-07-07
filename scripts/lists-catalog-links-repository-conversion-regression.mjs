@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6";
+const appVersion = "0.33.6.6a";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-catalog-links-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-catalog-links-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -73,7 +73,7 @@ function assertStaticContract() {
   assert.match(listsRepoSource, /function catalogInsertParams[\s\S]*quantity: numberOrNull\(item\.quantity \?\? 1\)[\s\S]*useCount: integer\(item\.use_count \|\| 0\)/, "catalog param builders should preserve quantity and use-count coercion");
   assert.match(listsRepoSource, /function linkInsertParams[\s\S]*linkRole: text\(link\.link_role \|\| "related"\)/, "link param builders should preserve default related role");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 386[\s\S]*Total runtime database operation calls seen by the audit scanner: 430/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6a:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
   assert.match(auditDocs, /\| lists\/lists\.repo \| Converted \| 0 \| 0 \| 21 \| 21 \|/, "audit inventory should mark lists/lists.repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.17 Lists Catalog and Linked Records Repository Conversion[\s\S]*`lists\/lists\.repo` is fully converted[\s\S]*726 runtime literal-helper invocations[\s\S]*149 direct interpolated SQL operation sites[\s\S]*201 existing bound operation sites/, "audit docs should record the Lists catalog/link conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.17[\s\S]*`lists\/lists\.repo` is fully converted[\s\S]*726 remaining helper invocations/, "database docs should record the full Lists repository conversion");

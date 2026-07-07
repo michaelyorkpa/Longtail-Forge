@@ -4808,6 +4808,31 @@ dialog .form-actions {
     font-size: 14px;
 }
 
+.workbench-recommended-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.workbench-recommended-heading-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.workbench-recommended-cycle-controls {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    gap: 6px;
+}
+
+.workbench-recommended-cycle-button.icon-button {
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+}
+
 .workbench-eyebrow {
     color: var(--color-muted);
     font-size: 12px;

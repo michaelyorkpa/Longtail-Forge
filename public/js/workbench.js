@@ -4,6 +4,7 @@ const WORKBENCH_PROJECT_FOCUS_KEY = "lf_workbench_project_focus_v1";
 const WORKBENCH_TASK_FILTER_KEY = "lf_workbench_task_filter_v1";
 const PROJECT_FOCUS_MODE_ID = "project-focus";
 const DEFAULT_FOCUS_MODE_ID = "pick-up-where-left-off";
+const RECOMMENDED_CANDIDATE_LIMIT = 5;
 const GUIDED_FOCUS_MODE_IDS = [
   "pick-up-where-left-off",
   "whats-due-next",
@@ -50,6 +51,9 @@ let manualTimerForm = null;
 let projectFocusControl = null;
 let projectFocusInput = null;
 let recommendedActionBody = null;
+let recommendedCycleControls = null;
+let recommendedCycleNextButton = null;
+let recommendedCyclePreviousButton = null;
 let secondaryCandidateCountText = null;
 let secondaryCandidateList = null;
 let statusText = null;
@@ -74,6 +78,7 @@ let state = {
     timerSources: [],
     workItemSources: [],
   },
+  recommendedCandidateIndex: 0,
   selectedProjectId: "",
   taskFilter: "assigned",
   taskItems: [],
@@ -198,22 +203,51 @@ function createRecommendedActionPanel() {
     className: "workbench-recommended-body",
     dataset: { workbenchRecommendedAction: "" },
   });
+  recommendedCyclePreviousButton = workbenchViewHelpers.createActionButton({
+    className: "workbench-recommended-cycle-button",
+    icon: "previous",
+    iconOnly: true,
+    label: "Show previous recommendation",
+    onClick: () => cycleRecommendedCandidate(-1),
+    role: "secondary",
+  });
+  recommendedCycleNextButton = workbenchViewHelpers.createActionButton({
+    className: "workbench-recommended-cycle-button",
+    icon: "next",
+    iconOnly: true,
+    label: "Not this one, show another recommendation",
+    onClick: () => cycleRecommendedCandidate(1),
+    role: "secondary",
+  });
+  recommendedCycleControls = workbenchViewHelpers.createElement("div", {
+    className: "workbench-recommended-cycle-controls",
+    attrs: { "aria-label": "Change recommended action" },
+    dataset: { workbenchRecommendedCycleControls: "" },
+    hidden: true,
+    children: [recommendedCyclePreviousButton, recommendedCycleNextButton],
+  });
 
   return workbenchViewHelpers.createElement("section", {
     className: ["workbench-recommended-panel", "surface-main-panel"],
     attrs: { "aria-labelledby": "workbench-recommended-heading" },
     children: [
       workbenchViewHelpers.createElement("div", {
-        className: "workbench-panel-heading",
+        className: ["workbench-panel-heading", "workbench-recommended-heading"],
         children: [
-          workbenchViewHelpers.createElement("span", {
-            className: "workbench-eyebrow",
-            text: "Recommended next action",
+          workbenchViewHelpers.createElement("div", {
+            className: "workbench-recommended-heading-copy",
+            children: [
+              workbenchViewHelpers.createElement("span", {
+                className: "workbench-eyebrow",
+                text: "Recommended next action",
+              }),
+              workbenchViewHelpers.createElement("h2", {
+                id: "workbench-recommended-heading",
+                text: "Start here",
+              }),
+            ],
           }),
-          workbenchViewHelpers.createElement("h2", {
-            id: "workbench-recommended-heading",
-            text: "Start here",
-          }),
+          recommendedCycleControls,
         ],
       }),
       recommendedActionBody,
@@ -459,6 +493,7 @@ async function loadWorkbench() {
       focusModeId,
       focusModes,
       modules: normalizeModuleStateMap(bootstrap.modules || state.modules),
+      recommendedCandidateIndex: 0,
       registry,
       selectedProjectId,
       taskItems: sourceData.taskItems,
@@ -629,17 +664,21 @@ function populateProjectFocusOptions() {
 function renderRecommendedAction() {
   recommendedActionBody.replaceChildren();
 
-  const candidate = state.focusCandidates[0] || null;
+  const candidates = recommendedCandidateWindow();
+  state.recommendedCandidateIndex = clampRecommendedCandidateIndex(state.recommendedCandidateIndex, candidates.length);
+  updateRecommendedCycleControls(candidates.length);
+
+  const candidate = candidates[state.recommendedCandidateIndex] || null;
   if (!candidate) {
     recommendedActionBody.appendChild(recommendedEmptyState());
     return;
   }
 
-  recommendedActionBody.appendChild(createRecommendedCandidateCard(candidate));
+  recommendedActionBody.appendChild(createRecommendedCandidateCard(candidate, state.recommendedCandidateIndex));
 }
 
 function renderSecondaryFocusCandidates() {
-  const secondaryCandidates = state.focusCandidates.slice(1, 7);
+  const secondaryCandidates = recommendedOverflowCandidates();
 
   secondaryCandidateCountText.textContent = String(secondaryCandidates.length);
   secondaryCandidateList.replaceChildren();
@@ -654,7 +693,55 @@ function renderSecondaryFocusCandidates() {
   });
 }
 
-function createRecommendedCandidateCard(candidate) {
+function recommendedCandidateWindow() {
+  return state.focusCandidates.slice(0, RECOMMENDED_CANDIDATE_LIMIT);
+}
+
+function recommendedOverflowCandidates() {
+  return state.focusCandidates.slice(recommendedCandidateWindow().length);
+}
+
+function clampRecommendedCandidateIndex(index, candidateCount) {
+  if (candidateCount <= 0) {
+    return 0;
+  }
+
+  const parsedIndex = Number.parseInt(index, 10);
+  if (!Number.isFinite(parsedIndex) || parsedIndex < 0) {
+    return 0;
+  }
+
+  return Math.min(parsedIndex, candidateCount - 1);
+}
+
+function updateRecommendedCycleControls(candidateCount) {
+  const canCycle = candidateCount > 1;
+
+  if (recommendedCycleControls) {
+    recommendedCycleControls.hidden = !canCycle;
+    recommendedCycleControls.dataset.workbenchRecommendedCycleCount = String(candidateCount);
+    recommendedCycleControls.dataset.workbenchRecommendedCycleIndex = String(state.recommendedCandidateIndex);
+  }
+  if (recommendedCyclePreviousButton) {
+    recommendedCyclePreviousButton.disabled = !canCycle;
+  }
+  if (recommendedCycleNextButton) {
+    recommendedCycleNextButton.disabled = !canCycle;
+  }
+}
+
+function cycleRecommendedCandidate(direction) {
+  const candidates = recommendedCandidateWindow();
+
+  if (candidates.length <= 1) {
+    return;
+  }
+
+  state.recommendedCandidateIndex = (state.recommendedCandidateIndex + direction + candidates.length) % candidates.length;
+  renderRecommendedAction();
+}
+
+function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
   const actionButtonElement = workbenchViewHelpers.createActionButton({
     label: candidateActionLabel(candidate),
     onClick: () => openCandidate(candidate),
@@ -662,7 +749,11 @@ function createRecommendedCandidateCard(candidate) {
   });
   const card = workbenchViewHelpers.createElement("article", {
     className: "workbench-recommended-card",
-    dataset: { workbenchRecommendedCard: "" },
+    dataset: {
+      workbenchRecommendedCard: "",
+      workbenchRecommendedIndex: candidateIndex,
+      workbenchRecommendedWindowSize: recommendedCandidateWindow().length,
+    },
     children: [
       workbenchViewHelpers.createDetailHeader({
         badges: candidateBadges(candidate),
@@ -788,6 +879,7 @@ async function selectFocusMode(modeId) {
   window.localStorage.setItem(WORKBENCH_FOCUS_MODE_KEY, state.focusModeId);
 
   if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
+    state.recommendedCandidateIndex = 0;
     renderFocusModes();
     renderRecommendedAction();
     renderSecondaryFocusCandidates();
@@ -804,6 +896,7 @@ async function refreshFocusCandidates() {
     const focusData = await loadFocusCandidatesForState();
     state.focusCandidates = Array.isArray(focusData?.items) ? focusData.items : [];
     state.focusContext = focusData?.focusContext || null;
+    state.recommendedCandidateIndex = 0;
     renderFocusModes();
     renderRecommendedAction();
     renderSecondaryFocusCandidates();
@@ -1778,6 +1871,8 @@ window.LongtailForge.pageController.register("workbench", {
   snapshot: () => ({
     focusCandidateCount: state.focusCandidates.length,
     focusModeId: state.focusModeId,
+    recommendedCandidateIndex: state.recommendedCandidateIndex,
+    recommendedCandidateWindowSize: recommendedCandidateWindow().length,
     taskCount: state.taskItems.length,
     taskFilter: state.taskFilter,
     timerCount: state.timers.length,

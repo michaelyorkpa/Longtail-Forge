@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6";
+const appVersion = "0.33.6.6a";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
   workbenchHtml,
-  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=17/,
+  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=18/,
   "Workbench host should load view helpers before the guided Workbench adapter",
 );
 assert.match(
@@ -81,13 +81,13 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /const candidate = state\.focusCandidates\[0\] \|\| null;/,
-  "Workbench should render one top-ranked recommended candidate first",
+  /const candidate = candidates\[state\.recommendedCandidateIndex\] \|\| null;/,
+  "Workbench should render one recommended candidate from the ranked cycle window",
 );
 assert.match(
   workbenchScript,
-  /const secondaryCandidates = state\.focusCandidates\.slice\(1, 7\);/,
-  "Workbench should keep longer candidate lists subordinate to the recommendation",
+  /const secondaryCandidates = recommendedOverflowCandidates\(\);/,
+  "Workbench should keep overflow candidate lists subordinate to the recommendation",
 );
 assert.match(
   workbenchScript,

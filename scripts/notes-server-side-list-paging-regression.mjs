@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6";
+const appVersion = "0.33.6.6a";
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-server-side-paging-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-server-side-paging.db");

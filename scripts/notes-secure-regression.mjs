@@ -62,7 +62,7 @@ async function assertManifestAndSchema() {
   const notesModule = modulesService.getModule("notes");
   const permissionIds = new Set(notesModule.permissions.map((permission) => permission.id));
 
-  assert.equal(notesModule.version, "0.33.6.6");
+  assert.equal(notesModule.version, "0.33.6.6a");
   for (const permission of [
     NOTE_PERMISSIONS.SECURE_CREATE,
     NOTE_PERMISSIONS.SECURE_VIEW,

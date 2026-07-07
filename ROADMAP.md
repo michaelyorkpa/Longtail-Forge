@@ -131,11 +131,11 @@ Acceptance criteria:
 
 Promoted from `TODO.md` (Recommended Next Action Interface & Algorithm). Follow-up to the shipped 0.33.6.6 guided host; belongs before 0.33.6.7.
 
-- [ ] Add a "not this one" affordance to the "Start here" recommended-action panel: right-aligned, icon-only left/right arrows aligned with the "Start here" heading that cycle through the top 3-5 ranked candidates for the active focus (from the 0.33.6.3 deterministic ranking) without leaving the Workbench.
-- [ ] Keep everything beyond the top 3-5 in the existing "More in this focus" list; the arrows only re-fill the single recommended slot and must not reorder or duplicate the secondary list.
-- [ ] Preserve the one-recommended-action emphasis (a single card visible at a time) and framework view states; extend the existing `workbench-recommended-panel` DOM in `public/js/workbench.js` rather than hand-building framework-owned anatomy.
-- [ ] Preserve the permission/workspace/enabled-module scoping already applied to candidates; cycling never surfaces a candidate the ranking would not.
-- [ ] Add focused browser/static regressions for arrow presence and right-alignment, cycling bounds across the 3-5 window, and overflow remaining in "More in this focus".
+- [x] Add a "not this one" affordance to the "Start here" recommended-action panel: right-aligned, icon-only left/right arrows aligned with the "Start here" heading that cycle through the top 3-5 ranked candidates for the active focus (from the 0.33.6.3 deterministic ranking) without leaving the Workbench.
+- [x] Keep everything beyond the top 3-5 in the existing "More in this focus" list; the arrows only re-fill the single recommended slot and must not reorder or duplicate the secondary list.
+- [x] Preserve the one-recommended-action emphasis (a single card visible at a time) and framework view states; extend the existing `workbench-recommended-panel` DOM in `public/js/workbench.js` rather than hand-building framework-owned anatomy.
+- [x] Preserve the permission/workspace/enabled-module scoping already applied to candidates; cycling never surfaces a candidate the ranking would not.
+- [x] Add focused browser/static regressions for arrow presence and right-alignment, cycling bounds across the 3-5 window, and overflow remaining in "More in this focus".
 
 Acceptance criteria:
 

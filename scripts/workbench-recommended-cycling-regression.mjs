@@ -1,0 +1,133 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const appVersion = "0.33.6.6a";
+const packageJson = JSON.parse(readText("package.json"));
+const packageLock = JSON.parse(readText("package-lock.json"));
+const css = readText("public/css/longtail-forge.css");
+const roadmap = readText("ROADMAP.md");
+const workbenchHtml = readText("views/protected/workbench.html");
+const workbenchScript = readText("public/js/workbench.js");
+
+assert.equal(packageJson.version, appVersion, "package.json should report the recommended-action cycling version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the recommended-action cycling version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the recommended-action cycling version");
+
+assert.match(
+  workbenchHtml,
+  /workbench\.js\?v=18/,
+  "Workbench should bump its script cache key for recommended-action cycling",
+);
+assert.match(
+  workbenchScript,
+  /const RECOMMENDED_CANDIDATE_LIMIT = 5;/,
+  "Recommended action cycling should be capped to the top five ranked candidates",
+);
+assert.match(
+  workbenchScript,
+  /recommendedCandidateIndex: 0,/,
+  "Workbench state should track the active recommended candidate index",
+);
+assert.match(
+  workbenchScript,
+  /dataset: \{ workbenchRecommendedCycleControls: "" \}/,
+  "Recommended-action panel should expose a stable cycling-controls hook",
+);
+assert.match(
+  workbenchScript,
+  /icon: "previous"[\s\S]*iconOnly: true[\s\S]*label: "Show previous recommendation"/,
+  "Recommended-action panel should render an icon-only previous arrow with an accessible label",
+);
+assert.match(
+  workbenchScript,
+  /icon: "next"[\s\S]*iconOnly: true[\s\S]*label: "Not this one, show another recommendation"/,
+  "Recommended-action panel should render an icon-only not-this-one arrow with an accessible label",
+);
+assert.match(
+  workbenchScript,
+  /function recommendedCandidateWindow\(\) \{[\s\S]*return state\.focusCandidates\.slice\(0, RECOMMENDED_CANDIDATE_LIMIT\);[\s\S]*\}/,
+  "Recommended candidate cycling should only draw from the ranked top-five window",
+);
+assert.match(
+  workbenchScript,
+  /function recommendedOverflowCandidates\(\) \{[\s\S]*return state\.focusCandidates\.slice\(recommendedCandidateWindow\(\)\.length\);[\s\S]*\}/,
+  "Secondary candidates should begin after the recommended cycling window",
+);
+assert.match(
+  workbenchScript,
+  /const secondaryCandidates = recommendedOverflowCandidates\(\);/,
+  "More-in-this-focus should render the overflow list instead of duplicating the cycling window",
+);
+assert.doesNotMatch(
+  workbenchScript,
+  /state\.focusCandidates\.slice\(1, 7\)/,
+  "More-in-this-focus must not keep the old top-candidate-adjacent slice that duplicates cycling candidates",
+);
+
+const cycleBody = extractFunctionBody(workbenchScript, "cycleRecommendedCandidate");
+assert.match(
+  cycleBody,
+  /state\.recommendedCandidateIndex = \(state\.recommendedCandidateIndex \+ direction \+ candidates\.length\) % candidates\.length;/,
+  "Recommended-action arrows should wrap within the ranked candidate window",
+);
+assert.match(
+  cycleBody,
+  /renderRecommendedAction\(\);/,
+  "Recommended-action cycling should only refill the single recommended slot",
+);
+assert.doesNotMatch(
+  cycleBody,
+  /renderSecondaryFocusCandidates\(\)/,
+  "Recommended-action cycling must not reorder or re-render the overflow list",
+);
+
+assert.match(
+  css,
+  /\.workbench-recommended-heading \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*\}/,
+  "Recommended-action heading should reserve a right-aligned controls column",
+);
+assert.match(
+  css,
+  /\.workbench-recommended-cycle-controls \{[\s\S]*justify-self: end;[\s\S]*\}/,
+  "Recommended-action arrows should be right-aligned with the Start here heading",
+);
+assert.match(
+  css,
+  /\.workbench-recommended-cycle-button\.icon-button \{[\s\S]*width: 36px;[\s\S]*height: 36px;[\s\S]*\}/,
+  "Recommended-action arrows should remain compact icon-only controls",
+);
+assert.match(
+  roadmap,
+  /### Version 0\.33\.6\.6a - Recommended-action candidate cycling and overflow[\s\S]*- \[x\] Add a "not this one" affordance[\s\S]*- \[x\] Keep everything beyond the top 3-5[\s\S]*- \[x\] Preserve the one-recommended-action emphasis[\s\S]*- \[x\] Preserve the permission\/workspace\/enabled-module scoping[\s\S]*- \[x\] Add focused browser\/static regressions/,
+  "Roadmap should mark recommended-action cycling and overflow complete",
+);
+
+console.log("Workbench recommended-action cycling regression passed.");
+
+function readText(path) {
+  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+}
+
+function extractFunctionBody(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `Missing function ${name}`);
+
+  const openBrace = source.indexOf("{", start);
+  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
+
+  let depth = 0;
+  for (let index = openBrace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") {
+      depth += 1;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(openBrace + 1, index);
+      }
+    }
+  }
+
+  assert.fail(`Could not extract function body for ${name}`);
+}
