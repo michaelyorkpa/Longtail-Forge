@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.28.2";
+const appVersion = "0.33.5.29.1";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";

@@ -19,62 +19,82 @@ Entry contract and grounding (re-verify at implementation time — code will hav
 - A timing report already exists: set `LTF_REGRESSION_TIMING_JSON` to capture per-script seconds; the runner also prints the slowest 8. Use this as the measurement backbone rather than adding new instrumentation.
 - The runner is itself covered (`scripts/regression-runner-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`), and `assertUniqueScripts()` already guards duplicates — extend these rather than replacing them.
 - `npm run check` = `run-regressions.mjs` then `eslint .`; `npm run test:permissions` is a separate `permission-regression.mjs` entry. The known transient flake is the isolated-DB bucket under parallelism (per the regression-suite operational notes), currently worked around by running standalone/serial.
-- **New consolidation target surfaced by 0.33.5.27**: the static/source bucket now carries a cluster of whole-`src/**`-tree-scanning database-contract guardrails that each spawn a process and re-walk/re-parse the entire source tree independently — `scripts/parameter-binding-audit-regression.mjs`, `parameter-binding-layer-regression.mjs`, `parameter-binding-conversion-wave-regression.mjs`, `interpolation-enforcement-guardrail-regression.mjs`, `dialect-enforcement-guardrail-regression.mjs`, and `database-agnostic-contract-closeout-regression.mjs`. They are the clearest post-0.33.5.27 speedup: one shared source-scan pass feeding all of their assertions removes ~5 redundant full-tree reads and ~5 process spawns at once. Separately, the many `*-closeout-regression.mjs` scripts (view-builder, view-conversion-branch, surface-standardization, files-conversion, files-browse-edit-preview, notes-import, module-file, database-agnostic-contract) are per-branch artifacts that frequently re-assert what their own branch's focused regressions already cover — the prime consolidation candidates.
+- **New consolidation target surfaced by 0.33.5.27**: the static/source bucket now carries a database-contract guardrail cluster that each spawns its own process. The 0.33.5.29.1 measurement shows three current whole-`src/**` walkers (`scripts/parameter-binding-audit-regression.mjs`, `interpolation-enforcement-guardrail-regression.mjs`, and `dialect-enforcement-guardrail-regression.mjs`) plus three adjacent database-contract scripts that read narrower sources/docs (`parameter-binding-layer-regression.mjs`, `parameter-binding-conversion-wave-regression.mjs`, and `database-agnostic-contract-closeout-regression.mjs`). Start source-scan consolidation with the actual whole-tree walkers, then decide whether the adjacent database-contract checks should share the same support module or remain separate. Separately, the many `*-closeout-regression.mjs` scripts (view-builder, view-conversion-branch, surface-standardization, files-conversion, files-browse-edit-preview, notes-import, module-file, database-agnostic-contract) are per-branch artifacts that frequently re-assert what their own branch's focused regressions already cover — the prime consolidation candidates.
 
 Sizing rule for this branch:
 
-- Each sub-slice has one primary blast radius and should be completable in a single focused session. Measure before changing execution model; do not combine the execution-model change with the consolidation change.
+- Each sub-slice has one primary blast radius and should be completable in a single focused session. Measure before changing execution model; do not combine runner execution-model work with source-scan consolidation, coverage-ratchet work, closeout-regression pruning, or isolated-DB flake fixes. If a measurement result shows a slice below is still too broad, split that slice before implementing it.
 
-### Version 0.33.5.29.1 - Measure, categorize, and set targets (measure only)
+### Version 0.33.5.29.1 - Timing baseline and suite inventory (measure only)
 
-- [ ] Run the full suite with `LTF_REGRESSION_TIMING_JSON` set and capture a per-script timing baseline; record total wall-clock, the slow tail, and an estimate of the fixed per-script process-spawn + baseline-clone overhead (e.g. by comparing a trivial static script's floor time against assertion-heavy scripts).
-- [ ] Categorize the 294 scripts by bucket, by whether they need an isolated database at all, and by overlap (per-slice closeout regressions that assert against the same surface as a broader retained regression, and the whole-source-tree database-contract scanners that duplicate each other's scan work).
-- [ ] Quantify the isolated-DB flake: how often the parallel bucket fails transiently, and the narrowest root-cause hypothesis (shared temp paths, clone races, port/lock contention, ordering assumptions).
-- [ ] Produce a short target list in `docs/` (or the audit-style doc pattern): expected wall-clock reduction, candidate consolidations with the assertions each must preserve, and the flake root-cause to fix. Change no runtime/test behavior in this slice.
-
-Acceptance criteria:
-
-- A measured baseline, a script categorization, a flake root-cause hypothesis, and an explicit speedup/consolidation target list exist before any execution-model or script change is made.
-
-### Version 0.33.5.29.2 - Runner execution-model optimization
-
-- [ ] Reduce the fixed per-script overhead identified in 0.33.5.29.1 while preserving isolation guarantees: options to evaluate include batching same-bucket static/source scripts into a shared process, reusing/sharing baseline clones where a script only reads, and auto-tuning isolated parallelism to available cores instead of the fixed default of 4 (keeping the env overrides).
-- [ ] Give the whole-`src/**`-tree source-scan guardrails a single shared scan/parse pass rather than each re-walking and re-parsing the tree in its own process. At minimum, factor the source-tree read/tokenize into a shared module the database-contract guardrails call; ideally, run that cluster as one process that applies all of its assertions against a single scan. This is a pure speed + process-count win with no coverage change (assertions are preserved verbatim), and it removes the largest redundant-work source the 0.33.5.27 branch added.
-- [ ] Preserve every isolation guarantee the current model provides: `fresh-database-regression.mjs` and any other baseline-bypass scripts keep their clean-clone behavior, and no script that mutates its database may share state with another.
-- [ ] Extend `scripts/regression-runner-regression.mjs` / `scripts/regression-clean-clone-contract.mjs` to prove the new execution model still isolates mutating scripts and still fails correctly on a single script failure.
-- [ ] Keep the timing report and slowest-N summary working; record the new baseline wall-clock.
+- [x] Run the full suite with `LTF_REGRESSION_TIMING_JSON` set and capture a per-script timing baseline; record total wall-clock, the slow tail, and an estimate of the fixed per-script process-spawn + baseline-clone overhead (e.g. by comparing a trivial static script's floor time against assertion-heavy scripts).
+- [x] Categorize the regression scripts by bucket, by whether they need a database at all, by closeout-vs-focused ownership, and by whole-source-tree scan behavior.
+- [x] Produce a short target list in `docs/` (or the audit-style doc pattern): expected wall-clock reduction, the source-scan cluster to consolidate, closeout-regression candidates to inspect, runner scheduling candidates, and the separate isolated-DB flake diagnosis still required. Change no runtime/test behavior in this slice.
 
 Acceptance criteria:
 
-- The suite runs materially faster through reduced per-script overhead and/or better parallelism, with all isolation and fail-fast guarantees proven intact and no coverage change.
+- A measured baseline, script inventory, overlap map, and explicit speedup/consolidation target list exist before any execution-model or script change is made.
 
-### Version 0.33.5.29.3 - Consolidate overlapping and superseded regressions (coverage-preserving)
+### Version 0.33.5.29.2 - Database source-scan consolidation
 
-- [ ] Using the 0.33.5.29.1 overlap map, fold overlapping/superseded per-slice closeout regressions into a retained script that still carries their assertions; delete a script only when either its assertions are demonstrably a subset of a retained script or its target code no longer exists.
-- [ ] Prioritize two concrete post-0.33.5.27 clusters: (a) the six database-contract source-scan guardrails named in the grounding — consolidate them into a single multi-assertion source-scan script (or a shared-scan module) so the audit ratchet, interpolation guardrail, dialect guardrail, layer, conversion-wave, and agnostic-closeout checks run over one pass instead of six; and (b) the `*-closeout-regression.mjs` per-branch artifacts, folding any assertion that merely re-states a focused regression from the same branch into that focused regression. Preserve every distinct assertion in both cases; the coverage ratchet below guards the fold.
-- [ ] Add a coverage ratchet: a manifest/count (and, where practical, an assertion-inventory) check that fails if the retained regression set drops below the recorded floor without an explicit, documented retirement entry — the same spirit as the parameter-binding audit ratchet.
-- [ ] Record every consolidation and every genuine retirement (with rationale) in `docs/` and `CHANGELOG.md`.
-- [ ] Re-run the full suite and confirm the previously-covered behaviors still fail when deliberately broken (spot-check the folded assertions).
-
-Acceptance criteria:
-
-- Script count is reduced by consolidation, every folded assertion still runs, a coverage ratchet prevents silent future drops, and any true retirement is documented.
-
-### Version 0.33.5.29.4 - Stabilize the isolated-database bucket
-
-- [ ] Fix the isolated-DB flake root cause identified in 0.33.5.29.1 so the parallel bucket is deterministic under its default (and higher) parallelism, removing the need for the standalone/serial workaround recorded in the regression-suite operational notes.
-- [ ] Ensure per-script database/temp resources are uniquely named and cleaned up, with no cross-script path/lock/port contention under concurrency.
-- [ ] Add a focused regression (or a bounded repeat-run mode) that exercises the isolated bucket under parallelism to prove stability, and update the operational notes to retire the workaround.
+- [ ] Factor the repeated whole-`src/**` source-tree read/tokenize behavior used by the actual full-tree database-contract guardrails (`parameter-binding-audit`, `interpolation-enforcement-guardrail`, and `dialect-enforcement-guardrail`) into shared test-support code, then review the full six-script database-contract group (`parameter-binding-audit`, `parameter-binding-layer`, `parameter-binding-conversion-wave`, `interpolation-enforcement-guardrail`, `dialect-enforcement-guardrail`, `database-agnostic-contract-closeout`) against that helper in one slice. Keep adjacent narrower checks separate unless the 0.33.5.29.1 target list and implementation proof show shared support preserves their assertions cleanly.
+- [ ] Preserve every original assertion's wording and failure behavior. If the 0.33.5.29.1 target list supports it, replace the actual full-tree walker entries with a single multi-assertion source-scan script; otherwise keep the separate entry points but eliminate the duplicate scan/parse work inside each full-tree walker.
+- [ ] Update `scripts/regression-suite.mjs`, the runner/clean-clone guardrails, and the performance target doc to reflect the retained source-scan contract.
+- [ ] Spot-check at least two folded assertions by temporarily breaking their target pattern during local verification, and record before/after timing for the cluster.
+- [ ] Only split this slice if the 0.33.5.29.1 measurement shows the shared scanner itself is non-trivial; do not pre-split the mechanical rollout by default.
 
 Acceptance criteria:
 
-- The isolated-database bucket runs deterministically under parallelism without the standalone/serial workaround, proven by a concurrency stress check.
+- The actual full-tree database-contract guardrails run over one shared scan path (ideally one process), adjacent database-contract scripts have an explicit keep-separate-or-share decision, every original assertion still runs, suite registration stays clean, and before/after timing is recorded.
 
-### Version 0.33.5.29.5 - Check/lint speed, docs, and closeout
+### Version 0.33.5.29.3 - Runner scheduling and timing optimization
 
-- [ ] Review the `npm run check` path (regressions + `eslint .`) and `npm run test:permissions` for cheap wins (e.g. eslint caching, avoiding redundant work), keeping the same gate semantics.
-- [ ] Document the tuning knobs (`LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, `LTF_REGRESSION_TIMING_JSON`), the new execution model, the coverage ratchet, and the retired flake workaround in the appropriate `docs/` file and `DECISIONS.md`.
-- [ ] Complete the standing per-slice version/`CHANGELOG.md`/package metadata ceremony; run `npm run check` and `npm run test:permissions` and record the before/after wall-clock; verify `/api/app-info` after restart.
+- [ ] Implement exactly one non-consolidation runner optimization from the 0.33.5.29.1 target list, such as auto-tuning isolated parallelism to available cores while preserving `LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, or one narrowly-scoped static bucket batching mechanism for proven read-only scripts. If more than one runner change is needed, split before implementing the second.
+- [ ] Preserve bucket order, fail-fast semantics, per-script timing output, `LTF_REGRESSION_TIMING_JSON`, baseline bypass behavior for `fresh-database-regression.mjs`, and isolation for mutating database scripts.
+- [ ] Extend `scripts/regression-runner-regression.mjs` / `scripts/regression-clean-clone-contract.mjs` to prove the new runner behavior still isolates mutating scripts and still fails correctly on a single script failure.
+- [ ] Record the new timing baseline.
+
+Acceptance criteria:
+
+- One runner execution-model improvement lands with its isolation/failure/timing guarantees proven and without bundling source-scan consolidation or script pruning. Landing it early (with 0.33.5.29.2) shortens the mandatory suite run every remaining slice pays at closeout.
+
+### Version 0.33.5.29.4 - Coverage ratchet and retirement manifest
+
+- [ ] Add a coverage-preservation ratchet: a manifest/count check and, where practical, assertion-inventory metadata that fails if the retained regression set drops below the recorded floor without an explicit retirement entry.
+- [ ] Define the documented retirement entry format: script retired, assertions moved or rationale for dead target code, retained script/coverage owner, and verification performed.
+- [ ] Add focused coverage for the ratchet itself, including a failing fixture/path for an undocumented script drop.
+- [ ] Update the performance target doc with the ratchet rules. Do not consolidate or retire scripts in this slice except for test fixtures that prove the ratchet.
+
+Acceptance criteria:
+
+- A coverage ratchet prevents silent future regression drops, and the repo has a documented way to retire dead scripts without hiding coverage loss.
+
+### Version 0.33.5.29.5 - Closeout-regression consolidation
+
+- [ ] Using the 0.33.5.29.1 overlap map and the 0.33.5.29.4 ratchet, inspect the full `*-closeout-regression.mjs` cluster in one pass: the view/surface/Files group (`view-builder-closeout-regression.mjs`, `view-conversion-branch-closeout-regression.mjs`, `surface-standardization-closeout-regression.mjs`, `files-conversion-closeout-regression.mjs`, `files-browse-edit-preview-closeout-regression.mjs`, `module-file-closeout-regression.mjs`) and the remaining artifacts (`notes-import-closeout-regression.mjs`, `lists-closeout-regression.mjs`, `markdown-closeout-regression.mjs`, `work-resume-state-closeout-regression.mjs`, `runtime-database-foundation-closeout-regression.mjs`, `file-storage-scanner-runtime-closeout-regression.mjs`, and any other `*-closeout-regression.mjs` still listed in `scripts/regression-suite.mjs`).
+- [ ] Fold only assertions demonstrably covered by a retained focused regression or a retained closeout script; keep distinct branch-boundary assertions that still protect active behavior. Record every consolidation and any genuine retirement with rationale in `docs/` and `CHANGELOG.md`, moving coverage through the ratchet manifest.
+- [ ] Spot-check at least two moved assertions by temporarily breaking their target behavior, then re-run the full suite and confirm the retained coverage map is current.
+- [ ] Split this slice by file-group only if the 0.33.5.29.1 inventory shows the closeout cluster is too large for one safe session; do not pre-split it into two ceremonies by default.
+
+Acceptance criteria:
+
+- Redundant closeout assertions are folded into retained owners where safe, every distinct assertion still runs, the coverage movement is recorded through the ratchet manifest, and suite count/timing changes are documented.
+
+### Version 0.33.5.29.6 - Diagnose and stabilize the isolated-database bucket
+
+- [ ] Diagnose the known isolated-DB transient flake first (incorporating whatever the 0.33.5.29.1 target list already flagged): run a bounded repeat of the isolated bucket under default and higher parallelism, inspect temp database/path/lock/port naming and cleanup for the scripts that contend, and pin the narrowest root cause plus the exact stress check that will prove the fix.
+- [ ] Fix that root cause so the parallel bucket is deterministic under its default and a higher parallelism setting; ensure per-script database/temp resources are uniquely named and cleaned up with no cross-script path/lock/port contention.
+- [ ] Add a focused regression or bounded repeat-run mode that exercises the isolated bucket under parallelism to prove stability, and update the operational notes to retire the standalone/serial workaround only after the stress check passes.
+
+Acceptance criteria:
+
+- The isolated-database bucket runs deterministically under parallelism without the standalone/serial workaround, proven by a concurrency stress check. Diagnosis and fix are one slice because they share the isolated-bucket blast radius; separating them would only add a measure-only ceremony.
+
+### Version 0.33.5.29.7 - Check/lint speed, docs, and branch closeout
+
+- [ ] Review the `npm run check` path (regressions + `eslint .`) and `npm run test:permissions` for cheap final wins (e.g. eslint caching or avoiding redundant work) while keeping the same gate semantics.
+- [ ] Document the tuning knobs (`LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, `LTF_REGRESSION_TIMING_JSON`), the runner execution model, the source-scan consolidation, the coverage ratchet, and the retired flake workaround in the appropriate `docs/` file and `DECISIONS.md`.
+- [ ] Complete the standing branch closeout ceremony: version/package metadata, `CHANGELOG.md`, roadmap/archive bookkeeping, `npm run check`, `npm run test:permissions`, before/after wall-clock readout, SQLite integrity check if database fixtures changed, and `/api/app-info` after restart.
 
 Acceptance criteria:
 

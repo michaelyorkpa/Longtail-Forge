@@ -1,3 +1,12 @@
+## Version 0.33.5.29.1 - 2026-07-07 00:52 -04:00
+
+- Completed the regression/check-suite timing baseline slice with no runner behavior or coverage changes.
+- Added `docs/regression-suite-performance.md` with the measured `npm run check` timing baseline, bucket inventory, slow-tail table, full per-script timing appendix, database-fixture review candidates, source-scan cluster findings, closeout overlap map, and ordered target list for the remaining 0.33.5.29 work.
+- Captured the measured baseline at 294/294 regression scripts plus ESLint, with the regression runner reporting 109.57 wall seconds before ESLint and the slowest entries led by `scripts/check-js.mjs` and `scripts/separate-worker-end-to-end-regression.mjs`.
+- Corrected the source-scan target from an assumed six whole-tree walkers to the measured live shape: three actual whole-`src` walkers plus three adjacent database-contract scripts that should be considered during the same consolidation slice without assuming duplicate scan behavior.
+- Recorded the coverage-preservation decision in `DECISIONS.md` and advanced package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.5.29.1.
+- Verification 2026-07-07 00:58 -04:00: `node scripts\runtime-database-foundation-closeout-regression.mjs`, `node scripts\parameter-binding-audit-regression.mjs`, `node scripts\regression-runner-regression.mjs`, `node scripts\database-agnostic-contract-closeout-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 294/294 regression scripts plus ESLint with a 103.73s runner timing, and `/api/app-info` reported 0.33.5.29.1 from the refreshed local 8001 server.
+
 ## Version 0.33.5.28.2 - 2026-07-07 00:04 -04:00
 
 - Completed the Empty-list `NOT IN` converter guardrail as a documentation-only closeout: no runtime `NOT IN (:boundArray)` sites exist, so no query code changed.

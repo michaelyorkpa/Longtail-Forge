@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.28.2";
+const appVersion = "0.33.5.29.1";
 const asyncRecurrenceVersion = "0.33.5.21.7.7";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-async-recurrence-response-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
