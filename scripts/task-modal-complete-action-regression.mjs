@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const appVersion = "0.33.6.6d";
+const appVersion = "0.33.6.6e";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-modal-complete-action-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-modal-complete-action.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -74,7 +74,7 @@ function assertStaticContract() {
     "Complete route should preserve the active-timer guard");
 
   assert.match(tasksView, /js\/task-dialog\.js\?v=23/, "Tasks view should load the updated Task dialog cache key");
-  assert.match(workbenchView, /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=20/, "Workbench should load the updated Task dialog and Workbench cache keys");
+  assert.match(workbenchView, /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=21/, "Workbench should load the updated Task dialog and Workbench cache keys");
   assert.match(regressionSuite, /scripts\/task-modal-complete-action-regression\.mjs/, "Regression suite should include modal complete action coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
     "live roadmap should not carry completed-history breadcrumbs");

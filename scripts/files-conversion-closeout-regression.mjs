@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6d";
+const appVersion = "0.33.6.6e";
 const filesCloseoutVersion = "0.33.5.18.12.7";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 

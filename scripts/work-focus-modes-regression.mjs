@@ -17,6 +17,7 @@ const {
   FOCUS_MODE_IDS,
   workFocusModesService,
 } = await import("../src/services/work-focus-modes.service.js");
+const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const {
   WORK_CANDIDATE_SORTS,
@@ -104,6 +105,12 @@ async function assertModeResolutionContracts(session) {
     modeId: FOCUS_MODE_IDS.clientFocus,
     today,
   });
+  const scopedStart = await workFocusModesService.resolveFocusMode(session, {
+    clientId: "client-alpha",
+    modeId: FOCUS_MODE_IDS.startMyDay,
+    projectId: "project-alpha",
+    today,
+  });
 
   assert.equal(startMyDay.scope.type, "workspace");
   assert.ok(startMyDay.filters.rankBuckets.includes("running_timer"));
@@ -141,61 +148,83 @@ async function assertModeResolutionContracts(session) {
     type: "client",
   });
   assert.equal(client.candidateQuery.clientId, "client-alpha");
+  assert.deepEqual(scopedStart.scope, {
+    clientId: "client-alpha",
+    projectId: "project-alpha",
+    type: "workspace",
+  });
+  assert.equal(scopedStart.filters.clientId, "client-alpha");
+  assert.equal(scopedStart.filters.projectId, "project-alpha");
+  assert.equal(scopedStart.candidateQuery.clientId, "client-alpha");
+  assert.equal(scopedStart.candidateQuery.projectId, "project-alpha");
 }
 
 async function assertResolvedContextsDriveCandidates(session) {
   const today = "2026-07-07";
+  const clientAlpha = `client-alpha-${randomUUID()}`;
+  const clientBeta = `client-beta-${randomUUID()}`;
   const projectAlpha = `project-alpha-${randomUUID()}`;
   const projectBeta = `project-beta-${randomUUID()}`;
 
+  await createClient(session.workspace_id, clientAlpha, "Focus Client Alpha");
+  await createClient(session.workspace_id, clientBeta, "Focus Client Beta");
   await createProject(session.workspace_id, projectAlpha, "Focus Alpha");
   await createProject(session.workspace_id, projectBeta, "Focus Beta");
 
   const oldestOverdueId = await upsertTaskCandidate(session, {
+    clientId: clientAlpha,
     dueAtSnapshot: "2026-07-01T17:00:00.000Z",
     projectId: projectAlpha,
     title: "Z Oldest Overdue",
   });
   const newerOverdueId = await upsertTaskCandidate(session, {
+    clientId: clientAlpha,
     dueAtSnapshot: "2026-07-06T17:00:00.000Z",
     projectId: projectAlpha,
     title: "A Newer Overdue",
   });
   const dueTodayId = await upsertTaskCandidate(session, {
+    clientId: clientAlpha,
     dueAtSnapshot: "2026-07-07T14:00:00.000Z",
     projectId: projectAlpha,
     resumeRankHint: 1,
     title: "Focus Due Today",
   });
   const dueWeekId = await upsertTaskCandidate(session, {
+    clientId: clientBeta,
     dueAtSnapshot: "2026-07-10T14:00:00.000Z",
     projectId: projectBeta,
     resumeRankHint: 1000,
     title: "Focus Due This Week",
   });
   const dueWeekLaterId = await upsertTaskCandidate(session, {
+    clientId: clientBeta,
     dueAtSnapshot: "2026-07-12T14:00:00.000Z",
     projectId: projectBeta,
     title: "Focus Due Later This Week",
   });
   const laterId = await upsertTaskCandidate(session, {
+    clientId: clientAlpha,
     dueAtSnapshot: "2026-08-01",
     projectId: projectAlpha,
     title: "Focus Later",
   });
   const blockedId = await upsertTaskCandidate(session, {
     blockedReason: "Waiting on a recovery decision.",
+    clientId: clientAlpha,
     projectId: projectAlpha,
     statusSnapshot: "blocked",
     title: "Focus Blocked",
   });
   const staleId = await upsertTaskCandidate(session, {
+    clientId: clientAlpha,
     lastWorkedAt: "2026-06-20T12:00:00.000Z",
     projectId: projectAlpha,
     statusSnapshot: "active",
     title: "Focus Stale",
   });
   const activeId = await upsertTaskCandidate(session, {
+    clientId: clientAlpha,
     projectId: projectAlpha,
     statusSnapshot: "active",
     title: "Focus Active",
@@ -226,6 +255,28 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.equal(dueNext.items.some((candidate) => candidate.recordId === laterId), false);
   assert.equal(dueNext.items.some((candidate) => candidate.recordId === blockedId), false);
 
+  const clientScopedDueNext = await workFocusModesService.listFocusCandidates(session, {
+    clientId: clientAlpha,
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.whatsDueNext,
+    today,
+  });
+
+  assert.equal(clientScopedDueNext.focusContext.scope.clientId, clientAlpha);
+  assert.equal(clientScopedDueNext.focusContext.scope.type, "workspace");
+  assert.deepEqual(intersectCandidateIds(clientScopedDueNext.items, [
+    oldestOverdueId,
+    newerOverdueId,
+    dueTodayId,
+    dueWeekId,
+    dueWeekLaterId,
+  ]), [
+    oldestOverdueId,
+    newerOverdueId,
+    dueTodayId,
+  ]);
+  assert.equal(clientScopedDueNext.items.some((candidate) => candidate.recordId === dueWeekId), false);
+
   const weekFocus = await workFocusModesService.listFocusCandidates(session, {
     limit: 100,
     modeId: FOCUS_MODE_IDS.workThisWeek,
@@ -244,6 +295,40 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.equal(weekFocus.items.some((candidate) => candidate.recordId === oldestOverdueId), false);
   assert.equal(weekFocus.items.some((candidate) => candidate.recordId === newerOverdueId), false);
   assert.equal(weekFocus.items.some((candidate) => candidate.recordId === laterId), false);
+
+  const projectScopedWeek = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.workThisWeek,
+    projectId: projectBeta,
+    today,
+  });
+
+  assert.equal(projectScopedWeek.focusContext.scope.projectId, projectBeta);
+  assert.equal(projectScopedWeek.focusContext.scope.type, "workspace");
+  assert.deepEqual(intersectCandidateIds(projectScopedWeek.items, [
+    dueTodayId,
+    dueWeekId,
+    dueWeekLaterId,
+  ]), [
+    dueWeekId,
+    dueWeekLaterId,
+  ]);
+  assert.equal(projectScopedWeek.items.some((candidate) => candidate.recordId === dueTodayId), false);
+
+  const scopedStart = await workFocusModesService.listFocusCandidates(session, {
+    clientId: clientAlpha,
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.startMyDay,
+    projectId: projectAlpha,
+    today,
+  });
+
+  assert.equal(scopedStart.focusContext.scope.clientId, clientAlpha);
+  assert.equal(scopedStart.focusContext.scope.projectId, projectAlpha);
+  assert.ok(scopedStart.items.some((candidate) => candidate.recordId === dueTodayId));
+  assert.ok(scopedStart.items.some((candidate) => candidate.recordId === blockedId));
+  assert.ok(scopedStart.items.some((candidate) => candidate.recordId === activeId));
+  assert.equal(scopedStart.items.some((candidate) => candidate.recordId === dueWeekId), false);
 
   const projectFocus = await workFocusModesService.listFocusCandidates(session, {
     limit: 100,
@@ -302,6 +387,17 @@ async function assertClientFocusWorkspaceGating(session) {
   assert.equal(personalModes.some((mode) => mode.scope === "client"), false);
   assert.equal(personalModes.some((mode) => /client/i.test(mode.label)), false);
 
+  const personalScopedStart = await workFocusModesService.resolveFocusMode(session, {
+    clientId: "client-alpha",
+    modeId: FOCUS_MODE_IDS.startMyDay,
+    projectId: "project-alpha",
+  });
+
+  assert.equal(personalScopedStart.filters.clientId, "");
+  assert.equal(personalScopedStart.candidateQuery.clientId, undefined);
+  assert.equal(personalScopedStart.filters.projectId, "project-alpha");
+  assert.equal(personalScopedStart.candidateQuery.projectId, "project-alpha");
+
   await assert.rejects(
     () => workFocusModesService.resolveFocusMode(session, {
       clientId: "client-alpha",
@@ -357,6 +453,15 @@ async function createProject(workspaceId, projectId, name) {
   await projectsRepository.create(workspaceId, "", {
     billable: "no",
     id: projectId,
+    name,
+    status: "Active",
+  });
+}
+
+async function createClient(workspaceId, clientId, name) {
+  await clientsRepository.create(workspaceId, {
+    billable: "yes",
+    id: clientId,
     name,
     status: "Active",
   });

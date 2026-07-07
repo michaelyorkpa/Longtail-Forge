@@ -1,4 +1,5 @@
 const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
+const WORKBENCH_CLIENT_FOCUS_KEY = "lf_workbench_client_focus_v1";
 const WORKBENCH_FOCUS_MODE_KEY = "lf_workbench_focus_mode_v1";
 const WORKBENCH_PROJECT_FOCUS_KEY = "lf_workbench_project_focus_v1";
 const WORKBENCH_TASK_FILTER_KEY = "lf_workbench_task_filter_v1";
@@ -48,6 +49,8 @@ let manualClientInput = null;
 let manualDescriptionInput = null;
 let manualProjectInput = null;
 let manualTimerForm = null;
+let clientFocusControl = null;
+let clientFocusInput = null;
 let projectFocusControl = null;
 let projectFocusInput = null;
 let recommendedActionBody = null;
@@ -79,12 +82,14 @@ let state = {
     workItemSources: [],
   },
   recommendedCandidateIndex: 0,
+  selectedClientId: "",
   selectedProjectId: "",
   taskFilter: "assigned",
   taskItems: [],
   taskOptions: { projects: [] },
   timers: [],
   workCandidates: [],
+  workspaceType: "business",
 };
 let tickIntervalId = null;
 let pendingActivatedTimerKey = "";
@@ -149,6 +154,7 @@ function bindWorkbenchEvents() {
     card.addEventListener("toggle", persistCardState);
   });
   focusModeList?.addEventListener("click", handleFocusModeClick);
+  clientFocusInput?.addEventListener("change", handleClientFocusChange);
   projectFocusInput?.addEventListener("change", handleProjectFocusChange);
   taskFilters?.addEventListener("click", handleTaskFilterClick);
   taskSortInput?.addEventListener("change", () => renderTasks());
@@ -167,8 +173,21 @@ function createGuidedFocusPanel() {
     },
     dataset: { workbenchFocusModes: "" },
   });
+  clientFocusInput = workbenchViewHelpers.createElement("select", {
+    attrs: { "aria-label": "Client focus filter" },
+    dataset: { workbenchClientFocusSelect: "" },
+  });
+  clientFocusControl = workbenchViewHelpers.createElement("label", {
+    attrs: { "data-client-workspace-control": "" },
+    className: "workbench-client-focus-control",
+    children: [
+      workbenchViewHelpers.createElement("span", { text: "Client" }),
+      clientFocusInput,
+    ],
+    dataset: { workbenchClientFocusControl: "" },
+  });
   projectFocusInput = workbenchViewHelpers.createElement("select", {
-    attrs: { "aria-label": "Project focus" },
+    attrs: { "aria-label": "Project focus filter" },
     dataset: { workbenchProjectFocusSelect: "" },
   });
   projectFocusControl = workbenchViewHelpers.createElement("label", {
@@ -197,7 +216,14 @@ function createGuidedFocusPanel() {
         ],
       }),
       focusModeList,
-      projectFocusControl,
+      workbenchViewHelpers.createElement("div", {
+        className: "workbench-focus-scope-controls",
+        dataset: { workbenchFocusScopeControls: "" },
+        children: [
+          clientFocusControl,
+          projectFocusControl,
+        ],
+      }),
     ],
   });
 }
@@ -486,9 +512,11 @@ async function loadWorkbench() {
     const registry = bootstrap.registry || state.registry;
     const sourceData = await loadWorkbenchSourceData(registry);
     const clients = normalizeClientProjectOptions(clientProjectData);
+    const workspaceType = currentWorkspaceType();
     const focusModes = curateFocusModes(focusModeData?.modes || []);
     const focusModeId = resolveFocusModeSelection(state.focusModeId, focusModes);
-    const selectedProjectId = resolveProjectSelection(state.selectedProjectId, clients);
+    const selectedClientId = resolveClientSelection(state.selectedClientId, clients, workspaceType);
+    const selectedProjectId = resolveProjectSelection(state.selectedProjectId, clients, selectedClientId);
 
     state = {
       ...state,
@@ -499,11 +527,13 @@ async function loadWorkbench() {
       modules: normalizeModuleStateMap(bootstrap.modules || state.modules),
       recommendedCandidateIndex: 0,
       registry,
+      selectedClientId,
       selectedProjectId,
       taskItems: sourceData.taskItems,
       taskOptions: sourceData.taskOptions || bootstrap.taskOptions || { projects: [] },
       timers: sourceData.timers,
       workCandidates: bootstrap.workCandidates || [],
+      workspaceType,
     };
     const focusData = await loadFocusCandidatesForState();
     state = {
@@ -576,7 +606,12 @@ async function loadFocusCandidatesForState() {
     limit: "25",
     modeId: state.focusModeId || DEFAULT_FOCUS_MODE_ID,
   });
-  if (state.focusModeId === PROJECT_FOCUS_MODE_ID) {
+  const selectedClientScopeId = selectedClientCandidateScopeId();
+
+  if (selectedClientScopeId) {
+    params.set("clientId", selectedClientScopeId);
+  }
+  if (state.selectedProjectId) {
     params.set("projectId", state.selectedProjectId);
   }
 
@@ -618,7 +653,7 @@ function renderWorkbenchStatus() {
   }
 
   const message = transientStatus.message
-    || projectFocusStatusMessage();
+    || focusScopeStatusMessage();
 
   statusText.textContent = message;
   statusText.hidden = !message;
@@ -626,7 +661,7 @@ function renderWorkbenchStatus() {
   statusText.dataset.viewTone = transientStatus.isError ? "danger" : "info";
 }
 
-function projectFocusStatusMessage() {
+function focusScopeStatusMessage() {
   if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
     return "Select a project to narrow the recommendation.";
   }
@@ -636,7 +671,7 @@ function projectFocusStatusMessage() {
 
 function renderFocusModes() {
   focusModeList.replaceChildren();
-  populateProjectFocusOptions();
+  populateFocusScopeOptions();
 
   if (state.focusModes.length === 0) {
     focusModeList.appendChild(workbenchViewHelpers.createEmptyState({
@@ -673,13 +708,31 @@ function renderFocusModes() {
     focusModeList.appendChild(button);
   });
 
-  projectFocusControl.hidden = state.focusModeId !== PROJECT_FOCUS_MODE_ID;
 }
 
-function populateProjectFocusOptions() {
-  const projects = projectFocusOptions();
+function populateFocusScopeOptions() {
+  const hasClientScope = usesClientScope();
+  const clients = clientFocusOptions();
+  const projects = projectFocusOptions(state.clients, state.selectedClientId);
+
+  if (clientFocusControl) {
+    clientFocusControl.hidden = !hasClientScope;
+  }
+  replaceOptions(clientFocusInput, hasClientScope
+    ? [
+        option("", "All clients"),
+        ...clients.map((client) => option(client.id, clientOptionLabel(client))),
+      ]
+    : [option("", "All clients")]);
+  if (clientFocusInput) {
+    clientFocusInput.disabled = !hasClientScope || clients.length === 0;
+    clientFocusInput.value = hasClientScope && clients.some((client) => client.id === state.selectedClientId)
+      ? state.selectedClientId
+      : "";
+  }
+
   replaceOptions(projectFocusInput, [
-    option("", projects.length ? "Select a project" : "No projects available"),
+    option("", projects.length ? "All projects" : "No projects available"),
     ...projects.map((project) => option(project.id, project.label)),
   ]);
   projectFocusInput.disabled = projects.length === 0;
@@ -945,13 +998,19 @@ async function handleFocusModeClick(event) {
   await selectFocusMode(button.dataset.workbenchFocusMode || DEFAULT_FOCUS_MODE_ID);
 }
 
-async function handleProjectFocusChange() {
-  state.selectedProjectId = projectFocusInput.value || "";
+async function handleClientFocusChange() {
+  state.selectedClientId = resolveClientSelection(clientFocusInput.value || "", state.clients, state.workspaceType);
+  state.selectedProjectId = resolveProjectSelection(state.selectedProjectId, state.clients, state.selectedClientId);
+  window.localStorage.setItem(WORKBENCH_CLIENT_FOCUS_KEY, state.selectedClientId);
   window.localStorage.setItem(WORKBENCH_PROJECT_FOCUS_KEY, state.selectedProjectId);
+  populateFocusScopeOptions();
+  await refreshFocusCandidates();
+}
 
-  if (state.focusModeId === PROJECT_FOCUS_MODE_ID) {
-    await refreshFocusCandidates();
-  }
+async function handleProjectFocusChange() {
+  state.selectedProjectId = resolveProjectSelection(projectFocusInput.value || "", state.clients, state.selectedClientId);
+  window.localStorage.setItem(WORKBENCH_PROJECT_FOCUS_KEY, state.selectedProjectId);
+  await refreshFocusCandidates();
 }
 
 async function selectFocusMode(modeId) {
@@ -959,6 +1018,8 @@ async function selectFocusMode(modeId) {
   window.localStorage.setItem(WORKBENCH_FOCUS_MODE_KEY, state.focusModeId);
 
   if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
+    state.focusCandidates = [];
+    state.focusContext = null;
     state.recommendedCandidateIndex = 0;
     renderWorkbenchStatus();
     renderFocusModes();
@@ -1758,24 +1819,44 @@ function resolveFocusModeSelection(modeId, modes = []) {
 
 function restoreFocusState() {
   state.focusModeId = window.localStorage.getItem(WORKBENCH_FOCUS_MODE_KEY) || DEFAULT_FOCUS_MODE_ID;
+  state.selectedClientId = window.localStorage.getItem(WORKBENCH_CLIENT_FOCUS_KEY) || "";
   state.selectedProjectId = window.localStorage.getItem(WORKBENCH_PROJECT_FOCUS_KEY) || "";
 }
 
-function resolveProjectSelection(projectId, clients = []) {
-  const projects = projectFocusOptions(clients);
+function resolveClientSelection(clientId, clients = [], workspaceType = state.workspaceType) {
+  const value = String(clientId || "").trim();
 
-  if (projects.some((project) => project.id === projectId)) {
-    return projectId;
+  if (!usesClientScope(workspaceType) || !value) {
+    return "";
   }
 
-  return projects[0]?.id || "";
+  return clients.some((client) => client.id === value) ? value : "";
 }
 
-function projectFocusOptions(clients = state.clients) {
+function resolveProjectSelection(projectId, clients = [], clientId = state.selectedClientId) {
+  const value = String(projectId || "").trim();
+  const projects = projectFocusOptions(clients, clientId);
+
+  if (value && projects.some((project) => project.id === value)) {
+    return value;
+  }
+
+  return "";
+}
+
+function clientFocusOptions(clients = state.clients) {
+  return (clients || []).filter((client) => client?.id);
+}
+
+function projectFocusOptions(clients = state.clients, clientId = state.selectedClientId) {
   const projects = [];
   const seen = new Set();
+  const selectedClientId = String(clientId || "").trim();
+  const scopedClients = selectedClientId
+    ? (clients || []).filter((client) => client.id === selectedClientId)
+    : (clients || []);
 
-  (clients || []).forEach((client) => {
+  scopedClients.forEach((client) => {
     (client.projects || []).forEach((project) => {
       if (!project.id || seen.has(project.id)) {
         return;
@@ -1783,7 +1864,10 @@ function projectFocusOptions(clients = state.clients) {
       seen.add(project.id);
       projects.push({
         id: project.id,
-        label: [client.isWorkspaceScope ? "" : clientOptionLabel(client), project.optionLabel || project.displayName || project.name]
+        label: [
+          selectedClientId || client.isWorkspaceScope ? "" : clientOptionLabel(client),
+          project.optionLabel || project.displayName || project.name,
+        ]
           .filter(Boolean)
           .join(" / "),
       });
@@ -1799,6 +1883,33 @@ function normalizeClientProjectOptions(data) {
 
 function clientOptionLabel(client) {
   return window.LongtailForge.clientProjectOptions.optionLabel(client);
+}
+
+function selectedClientCandidateScopeId() {
+  const client = state.clients.find((item) => item.id === state.selectedClientId);
+
+  if (!usesClientScope() || !client || client.isWorkspaceScope) {
+    return "";
+  }
+
+  return client.id;
+}
+
+function usesClientScope(workspaceType = state.workspaceType) {
+  return normalizeWorkspaceType(workspaceType) === "business";
+}
+
+function currentWorkspaceType() {
+  return normalizeWorkspaceType(
+    window.LongtailForge?.workspaceContext?.workspaceType ||
+      document.body?.dataset?.workspaceType ||
+      state.workspaceType,
+  );
+}
+
+function normalizeWorkspaceType(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return ["business", "personal", "family"].includes(text) ? text : "business";
 }
 
 function taskCanUseTimer(task) {
@@ -1957,10 +2068,13 @@ window.LongtailForge.pageController.register("workbench", {
     focusModeId: state.focusModeId,
     recommendedCandidateIndex: state.recommendedCandidateIndex,
     recommendedCandidateWindowSize: recommendedCandidateWindow().length,
+    selectedClientId: state.selectedClientId,
+    selectedProjectId: state.selectedProjectId,
     taskCount: state.taskItems.length,
     taskFilter: state.taskFilter,
     timerCount: state.timers.length,
     enabledModules: enabledModuleIds(),
     moduleActionCount: window.LongtailForge.moduleActions?.list?.().length || 0,
+    workspaceType: state.workspaceType,
   }),
 });

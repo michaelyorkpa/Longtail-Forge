@@ -13,6 +13,17 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Notes - Bulk Editing
+
+We need a way to bulk edit certain Note details. For instance:
+
+- Library
+- Collection
+- Note Kind
+- Visibility
+
+This will necessitate a new modal within the Notes action.
+
 ## Notes - Suggested Library
 
 - Revisit this once the app is built more (not quite medium term, but not today 2026/06/18)

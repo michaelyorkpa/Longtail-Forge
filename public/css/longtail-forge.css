@@ -4877,8 +4877,16 @@ dialog .form-actions {
     line-height: 1.35;
 }
 
+.workbench-focus-scope-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    gap: 12px;
+    width: min(100%, 720px);
+}
+
+.workbench-client-focus-control,
 .workbench-project-focus-control {
-    width: min(100%, 420px);
+    min-width: 0;
 }
 
 .workbench-recommended-body,
@@ -7652,6 +7660,7 @@ button:disabled {
     .lists-form-grid,
     .lists-item-form,
     .workbench-focus-question-list,
+    .workbench-focus-scope-controls,
     .workbench-manual-timer-form,
     .workbench-secondary-candidate,
     .workbench-timer-body,

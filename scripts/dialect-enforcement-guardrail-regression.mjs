@@ -7,7 +7,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6d";
+const appVersion = "0.33.6.6e";
 const dialectGuardrailSliceVersion = "0.33.5.27.32";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -214,7 +214,7 @@ function assertDurableJobReturningStaysProviderOwned() {
 
 function assertDocumentationContract() {
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.32 - Dialect enforcement guardrail[\s\S]*- \[x\] Extend the enforcement guardrail[\s\S]*- \[x\] Critically, run the dialect guardrail[\s\S]*whole-tree sweep[\s\S]*- \[x\] Add a distinct dialect-adoption axis[\s\S]*- \[x\] Reconcile the guardrail[\s\S]*durable-job[\s\S]*- \[x\] Add regressions proving the guardrail rejects raw dialect use[\s\S]*- \[x\] Document the dialect guardrail/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6d:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should keep the current parameter-binding totals");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6e:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should keep the current parameter-binding totals");
   assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0[\s\S]*Whole runtime source sweep/, "audit docs should record the distinct dialect-adoption axis");
   assert.match(auditDocs, /0\.33\.5\.27\.32 - Dialect enforcement guardrail \| Whole runtime dialect sweep and converted-owner re-audit/, "audit docs should assign the dialect enforcement guardrail wave");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.32[\s\S]*whole-tree dialect enforcement guardrail[\s\S]*raw seam-backed SQLite dialect[\s\S]*[Pp]rovider-owned or sanctioned compatibility paths/, "database docs should describe the dialect guardrail");

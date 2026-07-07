@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6d";
+const appVersion = "0.33.6.6e";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -16,7 +16,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=20/,
+  /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=21/,
   "Workbench should load the canonical Task dialog before the cache-busted Workbench adapter",
 );
 

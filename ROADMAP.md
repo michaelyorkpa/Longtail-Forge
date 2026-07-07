@@ -195,15 +195,60 @@ Acceptance criteria:
 
 Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7. First consumer of the app-wide scoping standard in 0.33.6.13.
 
-- [ ] Replace the single combined client/project dropdown in the "What should we focus on?" box with two separate filters - a client filter (Business workspaces only) and a project filter - and make them active for ALL focus modes, not only Project focus.
-- [ ] Mirror the two-filter behavior used elsewhere in Tasks so scoping is consistent; keep client scope hidden on Personal/Family workspaces.
-- [ ] Consume the hierarchical (parent-includes-descendants) scoping standard from 0.33.6.13 so selecting a parent client/project includes its sub-clients/sub-projects; if 0.33.6.13 has not landed, scope to the exact client/project and cross-reference 0.33.6.13 as the follow-up that generalizes it.
-- [ ] Preserve permission/workspace boundaries and the focus-context contract; the split filters feed the same focus-context resolver (0.33.6.4).
-- [ ] Add regressions for the two-filter split, all-focus-mode applicability, workspace-type gating of the client filter, and (once 0.33.6.13 lands) parent-includes-descendants scoping.
+- [x] Replace the single combined client/project dropdown in the "What should we focus on?" box with two separate filters - a client filter (Business workspaces only) and a project filter - and make them active for ALL focus modes, not only Project focus.
+- [x] Mirror the two-filter behavior used elsewhere in Tasks so scoping is consistent; keep client scope hidden on Personal/Family workspaces.
+- [x] Consume the hierarchical (parent-includes-descendants) scoping standard from 0.33.6.13 so selecting a parent client/project includes its sub-clients/sub-projects; if 0.33.6.13 has not landed, scope to the exact client/project and cross-reference 0.33.6.13 as the follow-up that generalizes it.
+- [x] Preserve permission/workspace boundaries and the focus-context contract; the split filters feed the same focus-context resolver (0.33.6.4).
+- [x] Add regressions for the two-filter split, all-focus-mode applicability, workspace-type gating of the client filter, and (once 0.33.6.13 lands) parent-includes-descendants scoping.
 
 Acceptance criteria:
 
-- The Workbench focus box exposes separate client and project filters that apply to every focus mode, are workspace-type aware, and honor hierarchical parent/child scoping.
+- The Workbench focus box exposes separate client and project filters that apply to every focus mode, are workspace-type aware, and use exact client/project scoping until 0.33.6.13 generalizes parent/child descendant inclusion.
+
+### Version 0.33.6.6f - Collapsible Workbench sections: default state and caret affordance
+
+**Model: GPT-5.5 Extra High** - Default-state logic and accessible collapse affordance over the shipped Workbench sections.
+
+Promoted from user request. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [ ] Start the "More in this focus" secondary-candidate section collapsed by default: `createSecondaryCandidateSection()` in `public/js/workbench.js` currently forces its `<details>` open (`section.open = true`) - flip the default to collapsed while keeping the section available.
+- [ ] Make the Timers section (`createTimerSection()`) default-collapsed ONLY when there are no active/paused timers, and default-open when there is at least one; key the initial open state off the loaded timer state (`state.timers.length`) and re-evaluate when timer data loads/changes so it auto-opens if a timer becomes active during the session (respect an explicit user toggle within the session rather than fighting it).
+- [ ] Add a clear, consistent caret/chevron affordance on collapsible section headers so users can see a section is collapsible and whether it is collapsed or expanded (surface the native `<details>`/`<summary>` disclosure marker or a styled chevron that rotates on toggle). Keep it accessible: real `<summary>` semantics / `aria-expanded`, keyboard-toggleable, visible focus.
+- [ ] Preserve each section's existing content, counts, and behavior; only the default open state and the affordance change. Build on `LongtailForge.view` primitives and existing section markup rather than hand-rolling new anatomy.
+- [ ] Add focused browser/static regressions for: "More in this focus" defaulting collapsed, Timers open-state keyed to active-timer presence (open with timers, collapsed without), and the caret affordance present and reflecting collapsed/expanded state.
+
+Acceptance criteria:
+
+- "More in this focus" starts collapsed, Timers starts open only when active/paused timers exist, and every collapsible Workbench section shows an accessible caret affordance indicating its collapsed/expanded state.
+
+### Version 0.33.6.6g - Remove the all-tasks list from the Workbench
+
+**Model: GPT-5.4** - Focused removal of the non-curated task list and its dead data plumbing.
+
+Promoted from user request. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [ ] Remove the full Tasks list from the Workbench: delete `createTaskSection()` and its `workbench-task-list` region in `public/js/workbench.js` so the Workbench no longer renders an all-tasks index. The Workbench stays a focused surface (recommended action + "More in this focus" curated candidates), reinforcing the 0.33.6.6 rule that it is not another full module index.
+- [ ] Remove the now-dead task-list data plumbing that fed only that list (the `taskItems` fetch/merge/render path), while keeping `taskOptions` and the work-candidate paths that the recommended action and secondary candidates still need.
+- [ ] Preserve permission/enabled-module handling for the surfaces that remain; removing the list must not affect candidate ranking or focus behavior.
+- [ ] Add regressions proving the Workbench renders no all-tasks list and that the recommended action + secondary candidate surfaces still render.
+
+Acceptance criteria:
+
+- The Workbench no longer renders an all-tasks list; only the focused recommended-action and curated "More in this focus" surfaces remain, with no dead task-list plumbing left behind.
+
+### Version 0.33.6.6h - Shorten recommendation cycle-button labels
+
+**Model: GPT-5.4** - Copy-only correction to the shipped recommended-action cycle buttons.
+
+Promoted from user request. Follow-up correction to the already-shipped 0.33.6.6a arrows; belongs before 0.33.6.7.
+
+- [ ] Shorten the two cycle-button labels on the recommended-action arrows: the shipped verbose text "Show previous recommendation" and "Not this one, show another recommendation" (`public/js/workbench.js`) become concise "Previous" and "Next" respectively.
+- [ ] On the icon-only arrows these serve as the accessible name / tooltip (`aria-label`/`title`); if any visible text remains it is just "Previous"/"Next", not a sentence.
+- [ ] Update any regression that pins the old button labels.
+
+Acceptance criteria:
+
+- The recommended-action cycle buttons read "Previous"/"Next" (as visible text and/or accessible name), with no verbose sentence labels remaining.
 
 ### Version 0.33.6.7 - Resume "Pick up where I left off" UI
 
@@ -305,6 +350,21 @@ Acceptance criteria:
 Acceptance criteria:
 
 - The Workbench Inspector shows permission-safe related titles/context on wide layouts, opens existing preview/record modals without competing with the QAC drawer, and does not introduce an embedded viewer pane or leak unsafe content.
+
+### Version 0.33.6.11b - Remove the Quick Notes section from the Workbench
+
+**Model: GPT-5.4** - Focused removal of the Quick Notes section now that its replacements exist.
+
+Promoted from user request. Placed here (after QAC 0.33.6.10a and the Inspector 0.33.6.11) because it depends on those replacements; originally drafted as a 0.33.6.6 follow-up but moved to run after its dependencies.
+
+- [ ] Remove the Quick Notes section from the Workbench: delete `createQuickNotesSection()` and its data/behavior in `public/js/workbench.js`. The Workbench stays a focused surface; quick capture is now owned by the Quick Action Capture drawer (0.33.6.10a) and related record context by the Workbench Inspector (0.33.6.11), so this section is redundant.
+- [ ] Confirm no capture/context gap remains: the QAC Note action and the Inspector cover what Quick Notes provided before removing it.
+- [ ] Preserve permission/enabled-module handling for the surfaces that remain.
+- [ ] Add a regression proving the Workbench renders no Quick Notes section.
+
+Acceptance criteria:
+
+- The Workbench no longer renders a Quick Notes section, with quick capture handled by QAC (0.33.6.10a) and related context by the Inspector (0.33.6.11), and no capture/context gap introduced.
 
 ### Version 0.33.6.12 - Guardrails, docs, decisions, and closeout
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6d";
+const appVersion = "0.33.6.6e";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -15,7 +15,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=25[\s\S]*workbench\.js\?v=20/,
+  /longtail-forge\.css\?v=26[\s\S]*workbench\.js\?v=21/,
   "Workbench host should bump stylesheet and script cache keys for the status-slot cleanup",
 );
 assert.doesNotMatch(
@@ -40,7 +40,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /function projectFocusStatusMessage\(\) \{[\s\S]*Select a project to narrow the recommendation\./,
+  /function focusScopeStatusMessage\(\) \{[\s\S]*Select a project to narrow the recommendation\./,
   "Workbench should treat the project-focus no-selection state as contextual header status",
 );
 assert.match(

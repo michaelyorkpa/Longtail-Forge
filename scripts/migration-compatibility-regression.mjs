@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6d";
+const appVersion = "0.33.6.6e";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-migration-compatibility-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-migration-compatibility.db");
@@ -64,7 +64,7 @@ function assertStaticContract() {
   assert.match(migrationsSource, /await runSql\(baseline\.sql\)/, "fresh-start schema scripts should remain migration-owned compatibility SQL");
   assert.match(migrationsSource, /await runSql\(migration\.sql\)/, "future migration SQL files should remain migration-owned compatibility SQL");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6d:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the current ratchet after interpolation enforcement");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6e:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the current ratchet after interpolation enforcement");
   assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migrations as compatibility-tracked with values converted");
   assert.match(auditDocs, /0\.33\.5\.27\.30 Migration Compatibility Path[\s\S]*`src\/db\/migrations\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*0 runtime literal-helper invocations[\s\S]*385 existing bound operation sites/, "audit docs should record the migration compatibility slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.30[\s\S]*`src\/db\/migrations\.js` has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*current baseline SQL[\s\S]*future migration SQL files remain migration-owned compatibility SQL[\s\S]*385 existing bound operation sites/, "database docs should record the migration compatibility outcome");

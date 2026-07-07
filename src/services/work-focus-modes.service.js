@@ -189,7 +189,7 @@ async function resolveFocusMode(session, input = {}) {
 
   const dates = focusDates(input, workspaceContext);
   const resolved = definition.resolve({ dates, input, workspaceContext }) || {};
-  const filters = normalizeFilters(resolved.filters);
+  const filters = normalizeFilters(mergeScopeFilters(resolved.filters, input, workspaceContext));
   const scope = normalizeScope({
     ...(resolved.scope || {}),
     type: definition.scope,
@@ -255,10 +255,33 @@ function normalizeFilters(filters = {}) {
   };
 }
 
+function mergeScopeFilters(filters = {}, input = {}, workspaceContext = {}) {
+  const merged = {
+    ...objectValue(filters),
+  };
+  const clientId = workspaceContext.workspaceType === "business"
+    ? textValue(firstValue(merged.clientId, input.clientId, input.client_id), 160)
+    : "";
+  const projectId = textValue(firstValue(merged.projectId, input.projectId, input.project_id), 160);
+
+  if (clientId) {
+    merged.clientId = clientId;
+  } else {
+    delete merged.clientId;
+  }
+  if (projectId) {
+    merged.projectId = projectId;
+  } else {
+    delete merged.projectId;
+  }
+
+  return merged;
+}
+
 function normalizeScope(scope, filters) {
   return {
-    clientId: scope.type === FOCUS_SCOPES.client ? textValue(firstValue(scope.clientId, filters.clientId), 160) : "",
-    projectId: scope.type === FOCUS_SCOPES.project ? textValue(firstValue(scope.projectId, filters.projectId), 160) : "",
+    clientId: textValue(firstValue(scope.clientId, filters.clientId), 160),
+    projectId: textValue(firstValue(scope.projectId, filters.projectId), 160),
     type: scope.type || FOCUS_SCOPES.workspace,
   };
 }
