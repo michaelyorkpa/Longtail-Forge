@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6b";
+const appVersion = "0.33.6.6c";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
   workbenchHtml,
-  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=19/,
+  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=20/,
   "Workbench host should load view helpers before the guided Workbench adapter",
 );
 assert.match(
@@ -106,8 +106,8 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /window\.location\.href = href;/,
-  "Recommended candidate openers should route through safe source URLs instead of module-specific inline logic",
+  /async function openCandidate\(candidate, trigger = null\)[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\)[\s\S]*openCandidateNavigationFallback\(candidate\)/,
+  "Recommended candidate openers should route task candidates through the in-place editor before the explicit page fallback",
 );
 
 assert.match(css, /\.workbench-focus-question-list/, "Workbench CSS should style the focus question list");

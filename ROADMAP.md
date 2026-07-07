@@ -162,11 +162,11 @@ Acceptance criteria:
 
 Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
 
-- [ ] Change the Workbench "Open Work" action so it opens the existing Edit Task modal in place via stacked-modal behavior instead of navigating to the task list page.
-- [ ] Reuse the canonical task opener (the shared `LongtailForge.moduleActions` / task dialog path) rather than a Workbench-specific editor; return focus to the triggering control on close and refresh the affected candidate/list in place.
-- [ ] Where a candidate's record type has no in-place modal yet, keep an explicitly temporary navigation fallback (consistent with the QAC temporary-fallback rule) rather than a silent dead end.
-- [ ] Preserve permission checks, workspace boundaries, and disabled-module handling on open.
-- [ ] Add regressions proving "Open Work" dispatches the in-place editor for tasks and returns focus without leaving the Workbench.
+- [x] Change the Workbench "Open Work" action so it opens the existing Edit Task modal in place via stacked-modal behavior instead of navigating to the task list page.
+- [x] Reuse the canonical task opener (the shared `LongtailForge.moduleActions` / task dialog path) rather than a Workbench-specific editor; return focus to the triggering control on close and refresh the affected candidate/list in place.
+- [x] Where a candidate's record type has no in-place modal yet, keep an explicitly temporary navigation fallback (consistent with the QAC temporary-fallback rule) rather than a silent dead end.
+- [x] Preserve permission checks, workspace boundaries, and disabled-module handling on open.
+- [x] Add regressions proving "Open Work" dispatches the in-place editor for tasks and returns focus without leaving the Workbench.
 
 Acceptance criteria:
 

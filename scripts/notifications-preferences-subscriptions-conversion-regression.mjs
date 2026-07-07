@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6b";
+const appVersion = "0.33.6.6c";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notifications-preferences-subscriptions-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notifications-preferences-subscriptions-conversion.db");
@@ -105,7 +105,7 @@ function assertStaticContract() {
   assert.match(sqliteDialectSource, /buildInsertOnAnyConflictDoUpdate/, "SQLite dialect should expose an any-conflict upsert seam for expression-index conflicts");
   assert.match(sqliteDialectSource, /function onAnyConflictDoUpdateSet\(updateColumns\)[\s\S]*ON CONFLICT DO UPDATE SET/, "SQLite dialect should own bare ON CONFLICT DO UPDATE SQL");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6b:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the Notifications preferences/subscriptions conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6c:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the Notifications preferences/subscriptions conversion ratchet");
   assert.match(auditDocs, /\| notifications\.repo \| Converted \| 0 \| 0 \| 25 \| 25 \|/, "audit inventory should mark notifications repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.22 Notifications Preferences and Subscriptions Conversion[\s\S]*`notifications\.repo` is fully converted[\s\S]*487 runtime literal-helper invocations[\s\S]*103 direct interpolated SQL operation sites[\s\S]*256 existing bound operation sites/, "audit docs should record the Notifications preferences/subscriptions conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.22[\s\S]*Notification preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications\.repo` are converted[\s\S]*487 remaining helper invocations/, "database docs should record the concrete Notifications preferences/subscriptions conversion");

@@ -771,7 +771,7 @@ function cycleRecommendedCandidate(direction) {
 function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
   const actionButtonElement = workbenchViewHelpers.createActionButton({
     label: candidateActionLabel(candidate),
-    onClick: () => openCandidate(candidate),
+    onClick: (event) => openCandidate(candidate, event?.currentTarget || null),
     role: "primary",
   });
   const card = workbenchViewHelpers.createElement("article", {
@@ -816,7 +816,7 @@ function createSecondaryCandidateItem(candidate) {
       workbenchViewHelpers.createDetailActionStrip({
         actions: [{
           label: candidateActionLabel(candidate),
-          onClick: () => openCandidate(candidate),
+          onClick: (event) => openCandidate(candidate, event?.currentTarget || null),
         }],
         className: "workbench-secondary-candidate-actions",
       }),
@@ -864,22 +864,75 @@ function candidateBadges(candidate) {
 }
 
 function candidateActionLabel(candidate) {
-  if (candidate.sourceUrl || candidate.primaryAction?.href) {
+  if (candidateTaskId(candidate) || candidate.sourceUrl || candidate.primaryAction?.href) {
     return "Open work";
   }
 
   return candidate.primaryAction?.label || "Review";
 }
 
-function openCandidate(candidate) {
+async function openCandidate(candidate, trigger = null) {
+  const taskId = candidateTaskId(candidate);
+
+  if (taskId) {
+    await openTaskCandidate(candidate, taskId, trigger);
+    return;
+  }
+
+  openCandidateNavigationFallback(candidate);
+}
+
+async function openTaskCandidate(candidate, taskId, trigger = null) {
+  if (!moduleEnabled("tasks")) {
+    setStatus("Tasks are not available in this workspace.", { isError: true });
+    return;
+  }
+
+  setStatus("Opening task...");
+  try {
+    const result = await window.LongtailForge.moduleActions.open("tasks.edit", {
+      context: {
+        source: "workbench",
+        sourceType: "work-candidate",
+      },
+      candidateId: candidate.candidateId || "",
+      recordId: taskId,
+      returnFocusTo: trigger || document.activeElement,
+      taskId,
+    }, { refresh: loadWorkbench, setStatus });
+    if (result.completed) {
+      const detail = result.detail || {};
+      if (detail.taskLifecycleAction === "complete") {
+        setTaskCompletionStatus(detail);
+        return;
+      }
+      setStatus("Task updated.");
+      return;
+    }
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Task could not be opened.", { isError: true });
+  }
+}
+
+function openCandidateNavigationFallback(candidate) {
   const href = candidate.primaryAction?.href || candidate.sourceUrl || "";
 
   if (href) {
+    setStatus("Opening this work in its module page.");
     window.location.href = href;
     return;
   }
 
-  setStatus("This recommendation does not have an opener yet.", { isError: true });
+  setStatus("This recommendation does not have an in-place editor or page fallback yet.", { isError: true });
+}
+
+function candidateTaskId(candidate = {}) {
+  if (candidate.moduleId === "tasks" && candidate.recordType === "task" && candidate.recordId) {
+    return candidate.recordId;
+  }
+
+  return "";
 }
 
 async function handleFocusModeClick(event) {

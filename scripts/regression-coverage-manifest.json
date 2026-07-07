@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recordedAtVersion": "0.33.5.29.5",
-  "minimumRegisteredScripts": 299,
+  "minimumRegisteredScripts": 300,
   "minimumCloseoutScripts": 22,
   "requiredScripts": [
     "scripts/check-js.mjs",
@@ -93,6 +93,7 @@
     "scripts/workbench-guided-ui-regression.mjs",
     "scripts/workbench-recommended-cycling-regression.mjs",
     "scripts/workbench-host-status-copy-regression.mjs",
+    "scripts/workbench-in-place-open-work-regression.mjs",
     "scripts/task-list-density-regression.mjs",
     "scripts/task-list-canonical-ui-regression.mjs",
     "scripts/tasks-declarative-readonly-surface-regression.mjs",
