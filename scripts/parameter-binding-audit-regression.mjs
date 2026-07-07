@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import {
+  extractCallExpression,
+  lineNumber,
+  readRuntimeSourceEntries,
+  splitTopLevelArguments,
+} from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.1";
+const appVersion = "0.33.5.29.2";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -41,6 +47,7 @@ const changelog = readText("CHANGELOG.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
+const runtimeSourceEntries = readRuntimeSourceEntries({ root });
 
 const audit = buildParameterBindingAudit();
 const returningMatches = listSourceMatches(/\bRETURNING\b/g);
@@ -400,15 +407,14 @@ function buildParameterBindingAudit() {
     interpolatedOperationSites: 0,
   };
 
-  for (const filePath of listRuntimeSourceFiles()) {
-    const relativePath = normalizePath(filePath);
+  for (const entry of runtimeSourceEntries) {
+    const relativePath = entry.file;
 
     if (relativePath === "src/db/sql-literals.js") {
       continue;
     }
 
-    const source = readText(relativePath);
-    const row = scanSourceFile(relativePath, source);
+    const row = scanSourceFile(relativePath, entry.source);
 
     totals.boundOperationSites += row.boundOperationSites;
     totals.dbOperationSites += row.dbOperationSites;
@@ -489,161 +495,20 @@ function scanSourceFile(filePath, source) {
   };
 }
 
-function extractCallExpression(source, startIndex) {
-  const openIndex = source.indexOf("(", startIndex);
-  let depth = 0;
-  let escapeNext = false;
-  let quote = "";
-  let templateDepth = 0;
-
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (quote) {
-      if (escapeNext) {
-        escapeNext = false;
-        continue;
-      }
-
-      if (char === "\\") {
-        escapeNext = true;
-        continue;
-      }
-
-      if (quote === "`" && char === "$" && source[index + 1] === "{") {
-        templateDepth += 1;
-        index += 1;
-        continue;
-      }
-
-      if (quote === "`" && char === "}" && templateDepth > 0) {
-        templateDepth -= 1;
-        continue;
-      }
-
-      if (char === quote && (quote !== "`" || templateDepth === 0)) {
-        quote = "";
-      }
-      continue;
-    }
-
-    if (char === "\"" || char === "'" || char === "`") {
-      quote = char;
-      continue;
-    }
-
-    if (char === "(") {
-      depth += 1;
-    } else if (char === ")") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(startIndex, index + 1);
-      }
-    }
-  }
-
-  return source.slice(startIndex);
-}
-
-function splitTopLevelArguments(source) {
-  const args = [];
-  let depth = 0;
-  let escapeNext = false;
-  let quote = "";
-  let start = 0;
-  let templateDepth = 0;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (quote) {
-      if (escapeNext) {
-        escapeNext = false;
-        continue;
-      }
-
-      if (char === "\\") {
-        escapeNext = true;
-        continue;
-      }
-
-      if (quote === "`" && char === "$" && source[index + 1] === "{") {
-        templateDepth += 1;
-        index += 1;
-        continue;
-      }
-
-      if (quote === "`" && char === "}" && templateDepth > 0) {
-        templateDepth -= 1;
-        continue;
-      }
-
-      if (char === quote && (quote !== "`" || templateDepth === 0)) {
-        quote = "";
-      }
-      continue;
-    }
-
-    if (char === "\"" || char === "'" || char === "`") {
-      quote = char;
-      continue;
-    }
-
-    if (char === "(" || char === "{" || char === "[") {
-      depth += 1;
-    } else if (char === ")" || char === "}" || char === "]") {
-      depth -= 1;
-    } else if (char === "," && depth === 0) {
-      args.push(source.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-
-  const lastArg = source.slice(start).trim();
-  if (lastArg) {
-    args.push(lastArg);
-  }
-  return args;
-}
-
 function listSourceMatches(pattern) {
   const matches = [];
 
-  for (const filePath of listRuntimeSourceFiles()) {
-    const relativePath = normalizePath(filePath);
-    const source = readText(relativePath);
-
-    for (const match of source.matchAll(pattern)) {
+  for (const entry of runtimeSourceEntries) {
+    for (const match of entry.source.matchAll(pattern)) {
       matches.push({
-        file: relativePath,
-        line: lineNumber(source, match.index),
+        file: entry.file,
+        line: lineNumber(entry.source, match.index),
         match: match[0],
       });
     }
   }
 
   return matches;
-}
-
-function listRuntimeSourceFiles() {
-  const files = [];
-  walk(path.join(root, "src"), files);
-  return files;
-}
-
-function walk(currentPath, results) {
-  const stat = statSync(currentPath);
-
-  if (stat.isDirectory()) {
-    for (const entry of readdirSync(currentPath)) {
-      walk(path.join(currentPath, entry), results);
-    }
-    return;
-  }
-
-  if (/\.(?:js|mjs)$/.test(currentPath)) {
-    results.push(currentPath);
-  }
 }
 
 function sourceGroup(filePath) {
@@ -681,14 +546,6 @@ function assertInventoryRow(group, status, row) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function normalizePath(filePath) {
-  return path.relative(root, filePath).replaceAll(path.sep, "/");
-}
-
-function lineNumber(source, index) {
-  return source.slice(0, index).split(/\r?\n/).length;
 }
 
 function escapeRegExp(value) {

@@ -1,3 +1,14 @@
+## Version 0.33.5.29.2 - 2026-07-07 01:19 -04:00
+
+- Completed the database source-scan consolidation slice without changing runtime behavior or reducing regression coverage.
+- Added `scripts/test-support/source-scan.mjs` as the shared runtime source scanner for whole-`src` guardrails, centralizing source-tree walking, source-entry reads, line-number mapping, and call-expression parsing.
+- Converted `scripts/parameter-binding-audit-regression.mjs`, `scripts/interpolation-enforcement-guardrail-regression.mjs`, and `scripts/dialect-enforcement-guardrail-regression.mjs` onto the shared scanner. The parameter-binding audit now reads the runtime tree once and reuses it for its inventory plus source-match checks.
+- Kept the three guardrail scripts as separate suite entries so assertion owners, standalone output, and the 294-script suite floor stay stable until the coverage ratchet lands; the adjacent database-contract scripts remain separate because they read narrower source/docs or exercise database-backed binding behavior.
+- Updated `scripts/regression-suite.mjs`, `scripts/regression-runner-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`, and `docs/regression-suite-performance.md` to record and guard the retained source-scan contract.
+- Spot-checked the shared scan by temporarily introducing interpolation and dialect violations; the guardrails rejected the probe, and the probe was removed before final verification.
+- Advanced package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.5.29.2.
+- Verification 2026-07-07 01:25 -04:00: `node scripts\parameter-binding-audit-regression.mjs`, `node scripts\interpolation-enforcement-guardrail-regression.mjs`, `node scripts\dialect-enforcement-guardrail-regression.mjs`, `node scripts\regression-runner-regression.mjs`, `node scripts\regression-clean-clone-contract.mjs`, `node scripts\runtime-database-foundation-closeout-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 294/294 regression scripts plus ESLint with a 124.51s runner timing, and `/api/app-info` reported 0.33.5.29.2 from the refreshed local 8001 server.
+
 ## Version 0.33.5.29.1 - 2026-07-07 00:52 -04:00
 
 - Completed the regression/check-suite timing baseline slice with no runner behavior or coverage changes.

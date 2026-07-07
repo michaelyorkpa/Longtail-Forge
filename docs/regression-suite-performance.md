@@ -72,6 +72,28 @@ The roadmap named six database-contract guardrails as a likely whole-source scan
 
 Total script seconds for the six-script database-contract cluster in this run: 6.20.
 
+## 0.33.5.29.2 Source-Scan Consolidation Result
+
+0.33.5.29.2 extracted the repeated runtime source walking, source-entry reads, line-number calculation, and call-expression parsing into `scripts/test-support/source-scan.mjs`. The three actual whole-`src` guardrails now use that shared support:
+
+- `scripts/parameter-binding-audit-regression.mjs`
+- `scripts/interpolation-enforcement-guardrail-regression.mjs`
+- `scripts/dialect-enforcement-guardrail-regression.mjs`
+
+The parameter-binding audit now reads the runtime source tree once and reuses those entries for its inventory plus the `RETURNING`, SQLite JSON, `UPDATE`/`DELETE LIMIT`, and variable-bound `NOT IN` source-match checks. The interpolation and dialect guardrails also consume the shared source-entry and line-number helpers.
+
+The three suite entries were intentionally retained instead of being collapsed into a single registered script. That keeps each guardrail's standalone output, assertion owner, and historical script path stable until the coverage ratchet lands in 0.33.5.29.4. The three adjacent database-contract scripts remain separate because they still read narrower source/docs or exercise database-backed binding behavior rather than walking the full runtime source tree.
+
+After-conversion standalone timing sample:
+
+| Script | 0.33.5.29.1 baseline seconds | 0.33.5.29.2 sample seconds |
+| --- | ---: | ---: |
+| scripts/parameter-binding-audit-regression.mjs | 1.07 | 0.35 |
+| scripts/interpolation-enforcement-guardrail-regression.mjs | 0.32 | 0.15 |
+| scripts/dialect-enforcement-guardrail-regression.mjs | 0.31 | 0.16 |
+
+The three-script whole-source walker sample dropped from 1.70 seconds to 0.66 seconds on the local run. Two deliberate break checks were also run against a temporary source probe: interpolation rejected a reintroduced `sqlText()` helper/interpolated operation, and dialect rejected raw `rowid` plus `COLLATE NOCASE`. The probe file was removed before final verification.
+
 ## Closeout Overlap Map
 
 The closeout scripts below are the 0.33.5.29.5 overlap-inspection pool. This list is not a deletion list. Each retained or retired assertion needs the 0.33.5.29.4 ratchet/manifest before scripts are folded.
@@ -114,7 +136,7 @@ These scripts run in a database bucket but their source did not show an obvious 
 
 ## Target List
 
-1. Source-scan consolidation target for 0.33.5.29.2: introduce shared scan support around the actual whole-`src` walkers first (parameter-binding audit, interpolation guardrail, dialect guardrail), then decide whether the three adjacent database-contract scripts should share the same support module or remain separate entry points. Expected reduction: about 0.5-2.0 wall seconds and fewer redundant source reads/processes, with a larger maintainability win than the raw timing suggests.
+1. Source-scan consolidation target for 0.33.5.29.2: completed by introducing shared scan support around the actual whole-`src` walkers first (parameter-binding audit, interpolation guardrail, dialect guardrail). The three adjacent database-contract scripts remain separate because they read narrower source/docs or exercise database-backed binding behavior. The single-process fold is deferred until the coverage ratchet can record assertion movement without lowering the suite floor silently.
 
 2. Runner scheduling target for 0.33.5.29.3: evaluate exactly one runner change after measurement. The isolated bucket has 153.17 script seconds and 38.83 simulated wall seconds at concurrency 4; safe auto-tuning may matter more than source-scan work if it does not worsen the known flake. The file-storage bucket contributes 38.53 serial wall seconds, but it should stay serial until storage/database isolation is proven safe.
 

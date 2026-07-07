@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import {
+  lineNumber,
+  readRuntimeSourceEntries,
+} from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.1";
+const appVersion = "0.33.5.29.2";
 const dialectGuardrailSliceVersion = "0.33.5.27.32";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -81,7 +85,7 @@ const DIALECT_PATTERNS = Object.freeze([
   },
 ]);
 
-const runtimeViolations = findDialectViolations(listRuntimeSourceEntries());
+const runtimeViolations = findDialectViolations(readRuntimeSourceEntries({ root }));
 
 assert.equal(packageJson.version, appVersion, "package.json should report the dialect enforcement guardrail version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the dialect enforcement guardrail version");
@@ -248,47 +252,8 @@ function findDialectViolations(entries) {
   ));
 }
 
-function listRuntimeSourceEntries() {
-  return listRuntimeSourceFiles().map((filePath) => {
-    const relativePath = normalizePath(filePath);
-    return {
-      file: relativePath,
-      source: readText(relativePath),
-    };
-  });
-}
-
-function listRuntimeSourceFiles() {
-  const files = [];
-  walk(path.join(root, "src"), files);
-  return files;
-}
-
-function walk(currentPath, results) {
-  const stat = statSync(currentPath);
-
-  if (stat.isDirectory()) {
-    for (const entry of readdirSync(currentPath)) {
-      walk(path.join(currentPath, entry), results);
-    }
-    return;
-  }
-
-  if (/\.(?:js|mjs)$/.test(currentPath)) {
-    results.push(currentPath);
-  }
-}
-
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function normalizePath(filePath) {
-  return path.relative(root, filePath).replaceAll(path.sep, "/");
-}
-
-function lineNumber(source, index) {
-  return source.slice(0, index).split(/\r?\n/).length;
 }
 
 function escapeRegExp(value) {

@@ -39,11 +39,11 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** — high-volume mechanical rollout across the full-tree guardrails where a silent scan/assertion error breaks the coverage guarantee.
 
-- [ ] Factor the repeated whole-`src/**` source-tree read/tokenize behavior used by the actual full-tree database-contract guardrails (`parameter-binding-audit`, `interpolation-enforcement-guardrail`, and `dialect-enforcement-guardrail`) into shared test-support code, then review the full six-script database-contract group (`parameter-binding-audit`, `parameter-binding-layer`, `parameter-binding-conversion-wave`, `interpolation-enforcement-guardrail`, `dialect-enforcement-guardrail`, `database-agnostic-contract-closeout`) against that helper in one slice. Keep adjacent narrower checks separate unless the 0.33.5.29.1 target list and implementation proof show shared support preserves their assertions cleanly.
-- [ ] Preserve every original assertion's wording and failure behavior. If the 0.33.5.29.1 target list supports it, replace the actual full-tree walker entries with a single multi-assertion source-scan script; otherwise keep the separate entry points but eliminate the duplicate scan/parse work inside each full-tree walker.
-- [ ] Update `scripts/regression-suite.mjs`, the runner/clean-clone guardrails, and the performance target doc to reflect the retained source-scan contract.
-- [ ] Spot-check at least two folded assertions by temporarily breaking their target pattern during local verification, and record before/after timing for the cluster.
-- [ ] Only split this slice if the 0.33.5.29.1 measurement shows the shared scanner itself is non-trivial; do not pre-split the mechanical rollout by default.
+- [x] Factor the repeated whole-`src/**` source-tree read/tokenize behavior used by the actual full-tree database-contract guardrails (`parameter-binding-audit`, `interpolation-enforcement-guardrail`, and `dialect-enforcement-guardrail`) into shared test-support code, then review the full six-script database-contract group (`parameter-binding-audit`, `parameter-binding-layer`, `parameter-binding-conversion-wave`, `interpolation-enforcement-guardrail`, `dialect-enforcement-guardrail`, `database-agnostic-contract-closeout`) against that helper in one slice. Keep adjacent narrower checks separate unless the 0.33.5.29.1 target list and implementation proof show shared support preserves their assertions cleanly.
+- [x] Preserve every original assertion's wording and failure behavior. If the 0.33.5.29.1 target list supports it, replace the actual full-tree walker entries with a single multi-assertion source-scan script; otherwise keep the separate entry points but eliminate the duplicate scan/parse work inside each full-tree walker.
+- [x] Update `scripts/regression-suite.mjs`, the runner/clean-clone guardrails, and the performance target doc to reflect the retained source-scan contract.
+- [x] Spot-check at least two folded assertions by temporarily breaking their target pattern during local verification, and record before/after timing for the cluster.
+- [x] Only split this slice if the 0.33.5.29.1 measurement shows the shared scanner itself is non-trivial; do not pre-split the mechanical rollout by default.
 
 Acceptance criteria:
 

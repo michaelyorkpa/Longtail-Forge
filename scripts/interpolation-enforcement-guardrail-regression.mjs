@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import {
+  extractCallExpression,
+  lineNumber,
+  readRuntimeSourceEntries,
+} from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.1";
+const appVersion = "0.33.5.29.2";
 const helperDefinitionFile = "src/db/sql-literals.js";
 const helperCallPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/g;
 const helperCallTestPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/;
@@ -21,7 +26,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the in
 assert.equal(packageLock.version, appVersion, "package-lock root should report the interpolation enforcement version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the interpolation enforcement version");
 
-const currentViolations = findInterpolationViolations(readRuntimeSourceEntries());
+const currentViolations = findInterpolationViolations(readRuntimeSourceEntries({ root }));
 assert.equal(
   currentViolations.length,
   0,
@@ -124,90 +129,6 @@ function assertStaticDocumentation() {
   assert.match(regressionSuite, /scripts\/interpolation-enforcement-guardrail-regression\.mjs/, "regression suite should include the interpolation enforcement guardrail");
 }
 
-function readRuntimeSourceEntries() {
-  return listRuntimeSourceFiles().map((filePath) => ({
-    filePath,
-    source: readText(filePath),
-  }));
-}
-
-function listRuntimeSourceFiles() {
-  const files = [];
-  walk(path.join(root, "src"), files);
-  return files.map((filePath) => normalizePath(filePath));
-}
-
-function walk(currentPath, results) {
-  const stat = statSync(currentPath);
-
-  if (stat.isDirectory()) {
-    for (const entry of readdirSync(currentPath)) {
-      walk(path.join(currentPath, entry), results);
-    }
-    return;
-  }
-
-  if (/\.(?:js|mjs)$/.test(currentPath)) {
-    results.push(currentPath);
-  }
-}
-
-function extractCallExpression(source, startIndex) {
-  const openIndex = source.indexOf("(", startIndex);
-  let depth = 0;
-  let escapeNext = false;
-  let quote = "";
-  let templateDepth = 0;
-
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (quote) {
-      if (escapeNext) {
-        escapeNext = false;
-        continue;
-      }
-
-      if (char === "\\") {
-        escapeNext = true;
-        continue;
-      }
-
-      if (quote === "`" && char === "$" && source[index + 1] === "{") {
-        templateDepth += 1;
-        index += 1;
-        continue;
-      }
-
-      if (quote === "`" && char === "}" && templateDepth > 0) {
-        templateDepth -= 1;
-        continue;
-      }
-
-      if (char === quote && (quote !== "`" || templateDepth === 0)) {
-        quote = "";
-      }
-      continue;
-    }
-
-    if (char === "\"" || char === "'" || char === "`") {
-      quote = char;
-      continue;
-    }
-
-    if (char === "(") {
-      depth += 1;
-    } else if (char === ")") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(startIndex, index + 1);
-      }
-    }
-  }
-
-  return source.slice(startIndex);
-}
-
 function formatViolations(violations) {
   if (violations.length === 0) {
     return "none";
@@ -220,12 +141,4 @@ function formatViolations(violations) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function normalizePath(filePath) {
-  return path.relative(root, filePath).replaceAll(path.sep, "/");
-}
-
-function lineNumber(source, index) {
-  return source.slice(0, index).split(/\r?\n/).length;
 }

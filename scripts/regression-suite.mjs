@@ -8,6 +8,8 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/runtime-diagnostics-route-regression.mjs",
   "scripts/sqlite-small-office-readout-regression.mjs",
   "scripts/runtime-database-foundation-closeout-regression.mjs",
+  // These source-scan guardrails share scripts/test-support/source-scan.mjs but
+  // remain separate suite entries so their assertion owners and output stay clear.
   "scripts/parameter-binding-audit-regression.mjs",
   "scripts/parameter-binding-layer-regression.mjs",
   "scripts/parameter-binding-conversion-wave-regression.mjs",

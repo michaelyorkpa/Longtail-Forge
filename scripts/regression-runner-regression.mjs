@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import { REGRESSION_BUCKETS, REGRESSION_COMMANDS } from "./regression-suite.mjs";
 
 const runner = await readProjectFile("scripts/run-regressions.mjs");
+const sourceScanSupport = await readProjectFile("scripts/test-support/source-scan.mjs");
+const parameterBindingAudit = await readProjectFile("scripts/parameter-binding-audit-regression.mjs");
+const interpolationGuardrail = await readProjectFile("scripts/interpolation-enforcement-guardrail-regression.mjs");
+const dialectGuardrail = await readProjectFile("scripts/dialect-enforcement-guardrail-regression.mjs");
 const packageJson = JSON.parse(await readProjectFile("package.json"));
 
 const staticBucket = bucketByName("static/source regressions");
@@ -37,6 +41,11 @@ assert.ok(
   REGRESSION_COMMANDS.includes("node scripts/regression-runner-regression.mjs"),
   "Regression runner guardrail must remain in the full regression suite",
 );
+assert.match(sourceScanSupport, /function readRuntimeSourceEntries/, "source-scan support should own runtime source entry reads");
+assert.match(sourceScanSupport, /function extractCallExpression/, "source-scan support should own shared call-expression parsing");
+assert.match(parameterBindingAudit, /from "\.\/test-support\/source-scan\.mjs"/, "parameter-binding audit should consume shared source-scan support");
+assert.match(interpolationGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "interpolation guardrail should consume shared source-scan support");
+assert.match(dialectGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "dialect guardrail should consume shared source-scan support");
 
 console.log("Regression runner regression passed.");
 
