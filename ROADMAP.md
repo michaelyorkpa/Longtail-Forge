@@ -37,6 +37,8 @@ Acceptance criteria:
 
 ### Version 0.33.5.29.2 - Database source-scan consolidation
 
+**Model: GPT-5.5 Extra High** — high-volume mechanical rollout across the full-tree guardrails where a silent scan/assertion error breaks the coverage guarantee.
+
 - [ ] Factor the repeated whole-`src/**` source-tree read/tokenize behavior used by the actual full-tree database-contract guardrails (`parameter-binding-audit`, `interpolation-enforcement-guardrail`, and `dialect-enforcement-guardrail`) into shared test-support code, then review the full six-script database-contract group (`parameter-binding-audit`, `parameter-binding-layer`, `parameter-binding-conversion-wave`, `interpolation-enforcement-guardrail`, `dialect-enforcement-guardrail`, `database-agnostic-contract-closeout`) against that helper in one slice. Keep adjacent narrower checks separate unless the 0.33.5.29.1 target list and implementation proof show shared support preserves their assertions cleanly.
 - [ ] Preserve every original assertion's wording and failure behavior. If the 0.33.5.29.1 target list supports it, replace the actual full-tree walker entries with a single multi-assertion source-scan script; otherwise keep the separate entry points but eliminate the duplicate scan/parse work inside each full-tree walker.
 - [ ] Update `scripts/regression-suite.mjs`, the runner/clean-clone guardrails, and the performance target doc to reflect the retained source-scan contract.
@@ -49,6 +51,8 @@ Acceptance criteria:
 
 ### Version 0.33.5.29.3 - Runner scheduling and timing optimization
 
+**Model: GPT-5.5 Extra High** — changes runner execution semantics; isolation and fail-fast correctness are load-bearing.
+
 - [ ] Implement exactly one non-consolidation runner optimization from the 0.33.5.29.1 target list, such as auto-tuning isolated parallelism to available cores while preserving `LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, or one narrowly-scoped static bucket batching mechanism for proven read-only scripts. If more than one runner change is needed, split before implementing the second.
 - [ ] Preserve bucket order, fail-fast semantics, per-script timing output, `LTF_REGRESSION_TIMING_JSON`, baseline bypass behavior for `fresh-database-regression.mjs`, and isolation for mutating database scripts.
 - [ ] Extend `scripts/regression-runner-regression.mjs` / `scripts/regression-clean-clone-contract.mjs` to prove the new runner behavior still isolates mutating scripts and still fails correctly on a single script failure.
@@ -59,6 +63,8 @@ Acceptance criteria:
 - One runner execution-model improvement lands with its isolation/failure/timing guarantees proven and without bundling source-scan consolidation or script pruning. Landing it early (with 0.33.5.29.2) shortens the mandatory suite run every remaining slice pays at closeout.
 
 ### Version 0.33.5.29.4 - Coverage ratchet and retirement manifest
+
+**Model: GPT-5.5 Extra High** — new enforcement mechanism; a false negative silently defeats coverage preservation.
 
 - [ ] Add a coverage-preservation ratchet: a manifest/count check and, where practical, assertion-inventory metadata that fails if the retained regression set drops below the recorded floor without an explicit retirement entry.
 - [ ] Define the documented retirement entry format: script retired, assertions moved or rationale for dead target code, retained script/coverage owner, and verification performed.
@@ -71,6 +77,8 @@ Acceptance criteria:
 
 ### Version 0.33.5.29.5 - Closeout-regression consolidation
 
+**Model: GPT-5.5 Extra High** — high-volume fold across ~12 closeout scripts with coverage-preservation risk.
+
 - [ ] Using the 0.33.5.29.1 overlap map and the 0.33.5.29.4 ratchet, inspect the full `*-closeout-regression.mjs` cluster in one pass: the view/surface/Files group (`view-builder-closeout-regression.mjs`, `view-conversion-branch-closeout-regression.mjs`, `surface-standardization-closeout-regression.mjs`, `files-conversion-closeout-regression.mjs`, `files-browse-edit-preview-closeout-regression.mjs`, `module-file-closeout-regression.mjs`) and the remaining artifacts (`notes-import-closeout-regression.mjs`, `lists-closeout-regression.mjs`, `markdown-closeout-regression.mjs`, `work-resume-state-closeout-regression.mjs`, `runtime-database-foundation-closeout-regression.mjs`, `file-storage-scanner-runtime-closeout-regression.mjs`, and any other `*-closeout-regression.mjs` still listed in `scripts/regression-suite.mjs`).
 - [ ] Fold only assertions demonstrably covered by a retained focused regression or a retained closeout script; keep distinct branch-boundary assertions that still protect active behavior. Record every consolidation and any genuine retirement with rationale in `docs/` and `CHANGELOG.md`, moving coverage through the ratchet manifest.
 - [ ] Spot-check at least two moved assertions by temporarily breaking their target behavior, then re-run the full suite and confirm the retained coverage map is current.
@@ -82,6 +90,8 @@ Acceptance criteria:
 
 ### Version 0.33.5.29.6 - Diagnose and stabilize the isolated-database bucket
 
+**Model: GPT-5.5 Extra High** — concurrency/race diagnosis and fix; genuinely hard reasoning under nondeterminism.
+
 - [ ] Diagnose the known isolated-DB transient flake first (incorporating whatever the 0.33.5.29.1 target list already flagged): run a bounded repeat of the isolated bucket under default and higher parallelism, inspect temp database/path/lock/port naming and cleanup for the scripts that contend, and pin the narrowest root cause plus the exact stress check that will prove the fix.
 - [ ] Fix that root cause so the parallel bucket is deterministic under its default and a higher parallelism setting; ensure per-script database/temp resources are uniquely named and cleaned up with no cross-script path/lock/port contention.
 - [ ] Add a focused regression or bounded repeat-run mode that exercises the isolated bucket under parallelism to prove stability, and update the operational notes to retire the standalone/serial workaround only after the stress check passes.
@@ -91,6 +101,8 @@ Acceptance criteria:
 - The isolated-database bucket runs deterministically under parallelism without the standalone/serial workaround, proven by a concurrency stress check. Diagnosis and fix are one slice because they share the isolated-bucket blast radius; separating them would only add a measure-only ceremony.
 
 ### Version 0.33.5.29.7 - Check/lint speed, docs, and branch closeout
+
+**Model: GPT-5.4** — mostly documentation of shipped behavior and routine closeout ceremony; low correctness risk.
 
 - [ ] Review the `npm run check` path (regressions + `eslint .`) and `npm run test:permissions` for cheap final wins (e.g. eslint caching or avoiding redundant work) while keeping the same gate semantics.
 - [ ] Document the tuning knobs (`LTF_ISOLATED_REGRESSION_PARALLELISM`/`LTF_REGRESSION_PARALLELISM`, `LTF_REGRESSION_TIMING_JSON`), the runner execution model, the source-scan consolidation, the coverage ratchet, and the retired flake workaround in the appropriate `docs/` file and `DECISIONS.md`.
