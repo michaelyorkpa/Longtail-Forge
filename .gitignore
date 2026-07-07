@@ -3,6 +3,7 @@
 
 # Dependencies
 node_modules/
+.eslintcache
 
 # Local runtime data
 data/*

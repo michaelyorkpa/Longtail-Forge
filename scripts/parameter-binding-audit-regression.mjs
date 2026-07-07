@@ -9,7 +9,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.6";
+const appVersion = "0.33.5.29.7";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -376,7 +376,8 @@ assert.match(changelog, /## Version 0\.33\.5\.28\.1 - [^\n]+[\s\S]*Bulk VALUES p
 assert.match(changelog, /## Version 0\.33\.5\.28\.2 - [^\n]+[\s\S]*Empty-list `NOT IN` converter guardrail[\s\S]*no runtime `NOT IN \(:boundArray\)` sites[\s\S]*0 literal-helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "changelog should record the empty-list NOT IN guardrail slice");
 assert.match(changelog, /## Version 0\.33\.5\.28\.2 - [^\n]+[\s\S]*Archived the completed 0\.33\.5\.28 parameter-binding gap closeout branch[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.29/, "changelog should record the parameter-binding gap closeout archive handoff");
 
-assert.match(roadmap, /^## Version 0\.33\.5\.29 - Regression and check-suite performance and consolidation pass/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
+assert.match(roadmap, /^Active cursor: `0\.33\.6`\. Completed `0\.33\.5\.29` is archived in `ROADMAP-ARCHIVE\.md`\./m, "live roadmap should record the archived 0.33.5.29 handoff");
+assert.match(roadmap, /^## Version 0\.33\.6 - Dashboard and Workbench Formalization as Project hub and work center/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should not keep the completed parameter-binding gap closeout branch open");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should not keep the completed database extraction contract branch open");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.26 - Parameter-binding gap review/m, "live roadmap should not keep the completed parameter-binding gap review branch open");

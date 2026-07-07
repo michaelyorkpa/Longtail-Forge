@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.6";
+const appVersion = "0.33.5.29.7";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-wave-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-wave.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Wave-Test-123!";
@@ -57,7 +57,8 @@ try {
   assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the conversion wave: 233/, "audit docs should record the wave operation-site burndown");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.3[\s\S]*auth, workspace, permission, and settings repositories/, "database docs should record the converted wave");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
-  assert.match(roadmap, /^## Version 0\.33\.5\.29 - Regression and check-suite performance and consolidation pass/m, "live roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
+  assert.match(roadmap, /^Active cursor: `0\.33\.6`\. Completed `0\.33\.5\.29` is archived in `ROADMAP-ARCHIVE\.md`\./m, "live roadmap should record the archived 0.33.5.29 handoff");
+  assert.match(roadmap, /^## Version 0\.33\.6 - Dashboard and Workbench Formalization as Project hub and work center/m, "live roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
   assert.match(changelog, /## Version 0\.33\.5\.23\.3 - [\s\S]*Converted the first parameter-binding wave/, "changelog should include the conversion-wave slice");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the parameter-binding closeout");
   assert.match(regressionSuite, /scripts\/parameter-binding-conversion-wave-regression\.mjs/, "regression suite should include conversion-wave coverage");

@@ -223,6 +223,44 @@ Operationally, the old standalone/serial workaround is retired only after the bo
 LTF_REGRESSION_BUCKET=isolated LTF_REGRESSION_REPEAT=2 LTF_ISOLATED_REGRESSION_PARALLELISM=8 node scripts/run-regressions.mjs
 ```
 
+## 0.33.5.29.7 Check/Lint And Branch Closeout Result
+
+0.33.5.29.7 reviewed the remaining `npm run check` and `npm run test:permissions` paths after the runner, source-scan, coverage-ratchet, closeout, and isolated-bucket work landed. The only cheap semantic-preserving speed win left on the standard gate was ESLint caching, so `npm run check` and `npm run lint` now run `eslint . --cache --cache-strategy content --cache-location .eslintcache`. That keeps the same lint input surface and failure behavior while reducing repeated local closeout runs.
+
+The branch intentionally did not fold `scripts/check-js.mjs` into ESLint or drop it from the suite. It is still the explicit whole-repo syntax gate in the static/source bucket, and its runtime remains visible in the timing summary. `npm run test:permissions` was also left unchanged: it is already one focused harness with no duplicated whole-repo scan or repeated child-process setup to remove safely, so changing it here would have been ceremony without a proven payoff.
+
+Current execution model and tuning knobs:
+
+| Surface | Contract |
+| --- | --- |
+| `npm run check` | Runs `node scripts/run-regressions.mjs` first, then ESLint with content-based caching at `.eslintcache`. |
+| `npm run test:permissions` | Runs the standalone `scripts/permission-regression.mjs` harness unchanged. |
+| Static/source bucket | Parallel read-only regressions, including `scripts/check-js.mjs` and the shared-source database guardrails. |
+| Default database bucket | Serial shared-database regressions. |
+| File storage bucket | Serial regressions until storage/database isolation is explicitly re-proven for parallelism. |
+| Isolated database bucket | Parallel per-script fixture clones with one shared in-flight baseline preparation promise and namespaced bucket/pass fixture paths. |
+
+| Knob | Purpose | Notes |
+| --- | --- | --- |
+| `LTF_ISOLATED_REGRESSION_PARALLELISM` | Explicit isolated-bucket worker override. | Highest-precedence concurrency override for isolated database regressions. |
+| `LTF_REGRESSION_PARALLELISM` | Shared runner concurrency fallback. | Used when the isolated-specific override is absent. |
+| `LTF_REGRESSION_TIMING_JSON` | Write per-script timing JSON. | Parent directory must exist before the run starts. |
+| `LTF_REGRESSION_BUCKET` | Run one selected bucket or bucket alias. | Useful for bounded targeted reruns such as `isolated`. |
+| `LTF_REGRESSION_REPEAT` | Repeat the selected bucket up to five times. | Used for bounded flake stress checks with `LTF_REGRESSION_BUCKET`. |
+| `LTF_CHECK_JS_PARALLELISM` | Override `scripts/check-js.mjs` worker count. | Applies only to the repo syntax-scan regression. |
+
+Measured closeout timings:
+
+| Measurement | Runner wall seconds | Shell wall seconds | Result |
+| --- | ---: | ---: | --- |
+| 0.33.5.29.1 baseline `npm run check` | 109.57 | n/a | 294/294 plus ESLint |
+| 0.33.5.29.7 closeout `npm run check` | 88.53 | 90.37 | 282/282 plus cached ESLint |
+| 0.33.5.29.7 `npm run lint` cold | n/a | 5.83 | first cache-populating lint pass |
+| 0.33.5.29.7 `npm run lint` warm | n/a | 1.71 | repeated lint pass against `.eslintcache` |
+| 0.33.5.29.7 `npm run test:permissions` | n/a | 7.16 | 236 permission checks |
+
+Relative to the 0.33.5.29.1 baseline, the branch closed with a 21.04-second runner-time reduction on `npm run check`, preserved coverage through the manifest/ratchet, and removed the isolated-bucket flake that previously forced the standalone/serial workaround.
+
 ## Database-Fixture Review Candidates
 
 These scripts run in a database bucket but their source did not show an obvious database/runtime service signal during the 0.33.5.29.1 static review. Later slices should verify them before moving them; their combined measured time is small, so this is not the primary speed target.
@@ -247,7 +285,7 @@ These scripts run in a database bucket but their source did not show an obvious 
 
 5. Isolated-DB flake target for 0.33.5.29.6: completed by reproducing the isolated-only baseline migration-lock race, fixing `getRegressionBaseline()` with a shared in-flight promise, namespacing per-script data paths by bucket/pass, and proving the bucket with default isolated parallelism plus a repeat-2 concurrency-8 stress run.
 
-6. Check/lint target for 0.33.5.29.7: `scripts/check-js.mjs` is the slowest regression script at 11.45 seconds, and `npm run check` runs ESLint after the regression runner. Review duplicate JS scanning and ESLint caching only in the final check/lint slice, keeping the same gate semantics.
+6. Check/lint target for 0.33.5.29.7: completed by keeping `scripts/check-js.mjs` as the explicit syntax gate, adding content-based ESLint caching to `npm run check`/`npm run lint`, leaving `npm run test:permissions` unchanged as a focused standalone harness, and recording the final runner model plus tuning knobs. The closeout `npm run check` measured 88.53 runner wall seconds (90.37 shell wall) versus the 109.57-second baseline, and warm `npm run lint` fell from 5.83 seconds cold to 1.71 seconds.
 
 ## Full Per-Script Timing Appendix
 

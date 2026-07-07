@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.29.6";
+const appVersion = "0.33.5.29.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -61,7 +61,12 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /## Version 0\.33\.5\.29 - Regression and check-suite performance and consolidation pass/,
+  /Active cursor: `0\.33\.6`\. Completed `0\.33\.5\.29` is archived in `ROADMAP-ARCHIVE\.md`\./,
+  "roadmap should record the archived 0.33.5.29 handoff",
+);
+assert.match(
+  roadmap,
+  /## Version 0\.33\.6 - Dashboard and Workbench Formalization as Project hub and work center/,
   "roadmap should hand off after the completed database extraction contract branch",
 );
 

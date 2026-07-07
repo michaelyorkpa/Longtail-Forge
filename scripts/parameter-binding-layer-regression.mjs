@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.29.6";
+const appVersion = "0.33.5.29.7";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";
@@ -83,7 +83,8 @@ try {
   assert.match(auditDocs, /0\.33\.5\.28\.1 Bulk VALUES Placeholder Ceiling Guard[\s\S]*32,766 placeholders[\s\S]*callers must split larger writes before calling `createBulkValuesBindings\(\)`/, "audit docs should record the bulk VALUES placeholder ceiling guard");
   assert.match(auditDocs, /0\.33\.5\.28\.2 Empty-List NOT IN Guardrail[\s\S]*documentation-only guardrail[\s\S]*empty exclusion set should normally preserve all rows/, "audit docs should record the empty-list NOT IN guardrail");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
-  assert.match(roadmap, /^## Version 0\.33\.5\.29 - Regression and check-suite performance and consolidation pass/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
+  assert.match(roadmap, /^Active cursor: `0\.33\.6`\. Completed `0\.33\.5\.29` is archived in `ROADMAP-ARCHIVE\.md`\./m, "live roadmap should record the archived 0.33.5.29 handoff");
+  assert.match(roadmap, /^## Version 0\.33\.6 - Dashboard and Workbench Formalization as Project hub and work center/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
   assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should not keep the completed parameter-binding gap closeout branch open");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
   assert.match(changelog, /Archived the completed 0\.33\.5\.28 parameter-binding gap closeout branch[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.29/, "changelog should record the parameter-binding gap closeout archive handoff");

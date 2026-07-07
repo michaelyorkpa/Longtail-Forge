@@ -1,3 +1,10 @@
+## Version 0.33.5.29.7 - 2026-07-07 03:17 -04:00
+
+- Completed the final check/lint speed and branch closeout slice by keeping the existing gate semantics while adding content-based ESLint caching to `npm run check` and `npm run lint`.
+- Reviewed `npm run test:permissions` for a similar cheap win and kept it as its own focused harness because the existing single-run permission regression already avoids the duplicated-work patterns this branch targeted.
+- Documented the runner execution model, tuning knobs, source-scan consolidation, coverage-ratchet/retirement contract, and retired isolated-bucket standalone workaround, then archived the completed 0.33.5.29 branch, advanced the live roadmap cursor to 0.33.6, and refreshed package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.5.29.7.
+- Verification 2026-07-07 03:25 -04:00: `node scripts\regression-runner-regression.mjs`, `node scripts\static-contract-closeout-regression.mjs`, `node scripts\parameter-binding-audit-regression.mjs`, `node scripts\parameter-binding-conversion-wave-regression.mjs`, `npm run lint` (cold 5.83s, warm 1.71s), `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `git diff --check`, and `/api/app-info` all passed; the final `npm run check` completed 282/282 regression scripts plus cached ESLint with an 88.53s runner timing and 90.37s shell wall, the final `npm run test:permissions` passed 236 checks in 7.16s, and `/api/app-info` reported 0.33.5.29.7 from the refreshed local 8001 server.
+
 ## Version 0.33.5.29.6 - 2026-07-07 02:57 -04:00
 
 - Completed the isolated-database bucket stabilization slice by reproducing the standalone isolated-bucket flake as a baseline migration-lock race during first-wave parallel startup.

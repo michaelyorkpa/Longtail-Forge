@@ -20,7 +20,15 @@ const defaultDatabaseBucket = bucketByName("default database regressions");
 const fileStorageBucket = bucketByName("file storage regressions");
 const isolatedDatabaseBucket = bucketByName("isolated database regressions");
 
-assert.equal(packageJson.scripts.check, "node scripts/run-regressions.mjs && eslint .");
+assert.equal(
+  packageJson.scripts.check,
+  "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
+);
+assert.equal(
+  packageJson.scripts.lint,
+  "eslint . --cache --cache-strategy content --cache-location .eslintcache",
+  "lint should use the same cached ESLint contract as npm run check",
+);
 assert.ok(staticBucket.concurrency > 1, "static source regressions should stay parallel");
 assert.equal(defaultDatabaseBucket.mode, "serial", "default database regressions should remain serial");
 assert.equal(fileStorageBucket.mode, "serial", "file storage regressions should remain serial");
