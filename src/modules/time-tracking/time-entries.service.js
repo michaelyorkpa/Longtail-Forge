@@ -152,12 +152,10 @@ async function remove(entryId, session) {
   }
 
   const action = resolveTimeEntryEditPermission(session, previousEntry);
-  await permissionsService.assertCan(session, action, {
-    workspace_id: session.workspace_id,
+  await assertTimeEntryEditPermission(session, action, {
     client_id: previousEntry.client_id,
     project_id: previousEntry.project_id,
-    operation: "delete",
-  });
+  }, "delete");
 
   await timeEntriesRepository.remove(session.workspace_id, decodedEntryId);
   await auditService.record({
@@ -220,12 +218,7 @@ function resolveTimeEntryEditPermission(session, entry) {
 }
 
 async function assertCanCorrectTimeEntry(session, action, previousEntry, resource) {
-  await permissionsService.assertCan(session, action, {
-    workspace_id: session.workspace_id,
-    client_id: resource.client_id || "",
-    project_id: resource.project_id || "",
-    operation: "update",
-  });
+  await assertTimeEntryEditPermission(session, action, resource, "update");
 
   if (previousEntry.user_id !== session.user_id) {
     await permissionsService.assertCan(session, "time_entries.edit_all", {
@@ -235,6 +228,30 @@ async function assertCanCorrectTimeEntry(session, action, previousEntry, resourc
       operation: "update",
     });
   }
+}
+
+// Editing or deleting your own entry resolves to time_entries.edit_own, but edit_all is a strict
+// superset of edit_own: a role permitted to correct anyone's entries (e.g. workspace_admin) must
+// be able to correct its own. Accept either grant so those roles are not blocked from their own
+// time. Correcting someone else's entry still requires edit_all (asserted separately by callers).
+async function assertTimeEntryEditPermission(session, action, resource, operation) {
+  const editResource = {
+    workspace_id: session.workspace_id,
+    client_id: resource.client_id || "",
+    project_id: resource.project_id || "",
+    operation,
+  };
+
+  if (action === "time_entries.edit_own") {
+    const allowed = await permissionsService.can(session, "time_entries.edit_own", editResource)
+      || await permissionsService.can(session, "time_entries.edit_all", editResource);
+    if (!allowed) {
+      throw new AppError("You do not have permission to perform that action.", 403);
+    }
+    return;
+  }
+
+  await permissionsService.assertCan(session, action, editResource);
 }
 
 function sensitiveTimeEntryCorrectionFields(previousEntry, updatedEntry) {

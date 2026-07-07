@@ -65,6 +65,8 @@ let taskFilters = null;
 let taskList = null;
 let taskSortInput = null;
 let timeTrackingModuleLink = null;
+let timerSectionElement = null;
+let timerSectionUserToggled = false;
 let timerCountText = null;
 let timerList = null;
 
@@ -150,9 +152,15 @@ function buildWorkbenchHost() {
 }
 
 function bindWorkbenchEvents() {
-  document.querySelectorAll("[data-workbench-card]").forEach((card) => {
-    card.addEventListener("toggle", persistCardState);
+  document.querySelectorAll("[data-workbench-secondary-candidate-section]").forEach((section) => {
+    section.addEventListener("toggle", handleDisclosureToggle);
   });
+  document.querySelectorAll("[data-workbench-card]").forEach((card) => {
+    card.addEventListener("toggle", handleWorkbenchCardToggle);
+  });
+  const timerSummary = timerSectionElement?.querySelector("summary");
+  timerSummary?.addEventListener("click", markTimerSectionUserToggle);
+  timerSummary?.addEventListener("keydown", markTimerSectionUserToggle);
   focusModeList?.addEventListener("click", handleFocusModeClick);
   clientFocusInput?.addEventListener("change", handleClientFocusChange);
   projectFocusInput?.addEventListener("change", handleProjectFocusChange);
@@ -320,19 +328,20 @@ function createSecondaryCandidateSection() {
     attrs: { "aria-label": "More work in this focus" },
     dataset: { workbenchSecondaryCandidateSection: "" },
   });
-  section.open = true;
+  const bodyId = "workbench-secondary-candidates-body";
   section.append(
-    workbenchViewHelpers.createElement("summary", {
-      children: [
-        workbenchViewHelpers.createElement("span", { text: "More in this focus" }),
-        secondaryCandidateCountText,
-      ],
+    createWorkbenchSectionSummary({
+      bodyId,
+      count: secondaryCandidateCountText,
+      title: "More in this focus",
     }),
     workbenchViewHelpers.createElement("div", {
+      attrs: { id: bodyId },
       className: "workbench-section-body",
       children: [secondaryCandidateList],
     }),
   );
+  setWorkbenchDisclosureOpen(section, false);
   return section;
 }
 
@@ -384,13 +393,15 @@ function createTimerSection() {
     dataset: { workbenchTimerList: "" },
   });
 
-  return createWorkbenchCardSection({
+  timerSectionElement = createWorkbenchCardSection({
     body: [manualTimerForm, timerList],
     cardId: "active-work-timers",
     count: timerCountText,
+    defaultOpen: hasActiveOrPausedTimers(),
     rendererId: "active-work-timers",
     title: "Timers",
   });
+  return timerSectionElement;
 }
 
 function createTaskSection() {
@@ -464,7 +475,7 @@ function createQuickNotesSection() {
   });
 }
 
-function createWorkbenchCardSection({ body = [], cardId, count = null, rendererId, title }) {
+function createWorkbenchCardSection({ body = [], cardId, count = null, defaultOpen = true, rendererId, title }) {
   const section = workbenchViewHelpers.createElement("details", {
     className: ["workbench-section", "surface-main-panel"],
     dataset: {
@@ -472,20 +483,41 @@ function createWorkbenchCardSection({ body = [], cardId, count = null, rendererI
       workbenchRenderer: rendererId,
     },
   });
-  section.open = true;
+  const bodyId = `workbench-card-${cardId}-body`;
   section.append(
-    workbenchViewHelpers.createElement("summary", {
-      children: [
-        workbenchViewHelpers.createElement("span", { text: title }),
-        count,
-      ],
+    createWorkbenchSectionSummary({
+      bodyId,
+      count,
+      title,
     }),
     workbenchViewHelpers.createElement("div", {
+      attrs: { id: bodyId },
       className: "workbench-section-body",
       children: body,
     }),
   );
+  setWorkbenchDisclosureOpen(section, defaultOpen);
   return section;
+}
+
+function createWorkbenchSectionSummary({ bodyId = "", count = null, title }) {
+  const attrs = { "aria-expanded": "false" };
+
+  if (bodyId) {
+    attrs["aria-controls"] = bodyId;
+  }
+
+  return workbenchViewHelpers.createElement("summary", {
+    className: "workbench-section-summary",
+    attrs,
+    children: [
+      workbenchViewHelpers.createElement("span", {
+        className: "workbench-section-title",
+        text: title,
+      }),
+      count,
+    ],
+  });
 }
 
 function createTaskFilterButton(filter, label) {
@@ -1068,6 +1100,7 @@ function renderTimers() {
   const timers = sortedTimers(state.timers);
   timerCountText.textContent = String(timers.length);
   timerList.replaceChildren();
+  syncTimerSectionOpenState();
 
   if (timers.length === 0) {
     timerList.appendChild(emptyState("No active or paused timers."));
@@ -1093,7 +1126,6 @@ function createTimerCard(timer) {
 
   details.className = "workbench-timer-card";
   details.dataset.workbenchTimerKey = timerKey(timer);
-  details.open = true;
   body.className = "workbench-timer-body";
   meta.className = "workbench-card-meta";
   duration.className = "workbench-duration";
@@ -1107,6 +1139,7 @@ function createTimerCard(timer) {
     meta.append(badge("Recovery", "recovery"));
   }
   summary.append(title, meta);
+  summary.setAttribute("aria-expanded", "false");
 
   actions.className = "workbench-actions";
   const running = timer.timer_status === "running";
@@ -1123,6 +1156,8 @@ function createTimerCard(timer) {
   actions.append(startButton, pauseButton, saveButton, discardButton);
   body.append(duration, context, description, actions);
   details.append(summary, body);
+  details.addEventListener("toggle", handleDisclosureToggle);
+  setWorkbenchDisclosureOpen(details, true);
   return details;
 }
 
@@ -1733,6 +1768,70 @@ function updateTaskFilterState() {
   });
 }
 
+function handleDisclosureToggle(event) {
+  updateDisclosureExpandedState(event.currentTarget);
+}
+
+function handleWorkbenchCardToggle(event) {
+  const card = event.currentTarget;
+
+  updateDisclosureExpandedState(card);
+  if (isTimerWorkbenchCard(card)) {
+    if (event.isTrusted) {
+      timerSectionUserToggled = true;
+    }
+    return;
+  }
+
+  persistCardState();
+}
+
+function markTimerSectionUserToggle(event) {
+  if (event.type === "keydown" && !["Enter", " ", "Spacebar"].includes(event.key)) {
+    return;
+  }
+  timerSectionUserToggled = true;
+}
+
+function syncTimerSectionOpenState() {
+  if (!timerSectionElement) {
+    return;
+  }
+  if (!timerSectionUserToggled) {
+    setWorkbenchDisclosureOpen(timerSectionElement, hasActiveOrPausedTimers());
+  } else {
+    updateDisclosureExpandedState(timerSectionElement);
+  }
+}
+
+function setWorkbenchDisclosureOpen(details, open) {
+  if (!details) {
+    return;
+  }
+  details.open = Boolean(open);
+  updateDisclosureExpandedState(details);
+}
+
+function updateDisclosureExpandedState(details) {
+  const summary = details?.querySelector("summary");
+
+  if (!summary) {
+    return;
+  }
+
+  const expanded = details.open ? "true" : "false";
+  summary.setAttribute("aria-expanded", expanded);
+  details.dataset.workbenchExpanded = expanded;
+}
+
+function hasActiveOrPausedTimers() {
+  return state.timers.length > 0;
+}
+
+function isTimerWorkbenchCard(card) {
+  return card?.dataset?.workbenchCard === "active-work-timers";
+}
+
 function restoreTaskFilter() {
   const saved = window.localStorage.getItem(WORKBENCH_TASK_FILTER_KEY);
   state.taskFilter = TASK_FILTERS.has(saved) ? saved : "assigned";
@@ -1743,16 +1842,23 @@ function restoreCardState() {
 
   document.querySelectorAll("[data-workbench-card]").forEach((card) => {
     const cardId = card.dataset.workbenchCard;
+    if (isTimerWorkbenchCard(card)) {
+      return;
+    }
     if (Object.hasOwn(savedState, cardId)) {
-      card.open = Boolean(savedState[cardId]);
+      setWorkbenchDisclosureOpen(card, savedState[cardId]);
     }
   });
+  syncTimerSectionOpenState();
 }
 
 function persistCardState() {
   const stateByCard = {};
 
   document.querySelectorAll("[data-workbench-card]").forEach((card) => {
+    if (isTimerWorkbenchCard(card)) {
+      return;
+    }
     stateByCard[card.dataset.workbenchCard] = card.open;
   });
   window.localStorage.setItem(WORKBENCH_CARD_STATE_KEY, JSON.stringify(stateByCard));

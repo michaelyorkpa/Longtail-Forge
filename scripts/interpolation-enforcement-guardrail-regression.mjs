@@ -8,7 +8,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6e";
+const appVersion = "0.33.6.6f";
 const helperDefinitionFile = "src/db/sql-literals.js";
 const helperCallPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/g;
 const helperCallTestPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/;
@@ -121,7 +121,7 @@ function assertSyntheticRejectionProofs() {
 }
 
 function assertStaticDocumentation() {
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6e:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the current zero-interpolation ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6f:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the current zero-interpolation ratchet");
   assert.match(auditDocs, /0\.33\.5\.27\.31 Interpolation Enforcement Guardrail[\s\S]*merge-blocking guardrail[\s\S]*`sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct interpolated operation sites/, "audit docs should record the interpolation enforcement slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.31[\s\S]*interpolation enforcement guardrail[\s\S]*New runtime source must not call `sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 remaining helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "database docs should publish the interpolation enforcement guardrail");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.31 - Interpolation enforcement guardrail[\s\S]*- \[x\] Add a lint\/regression guardrail[\s\S]*- \[x\] Drive the audit ratchet target to zero[\s\S]*- \[x\] Add regressions proving the guardrail rejects/, "live roadmap should archive completed 0.33.5.27 slice bodies");

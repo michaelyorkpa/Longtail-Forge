@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.6.6e";
+const appVersion = "0.33.6.6f";
 const scenarioArgIndex = process.argv.indexOf("--scenario");
 const scannerSecretHost = "scanner-secret-clamd.internal";
 const scannerSecretPort = "3317";

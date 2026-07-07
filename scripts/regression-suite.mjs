@@ -89,6 +89,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/workbench-service-dehardcode-regression.mjs",
   "scripts/workbench-guided-ui-regression.mjs",
   "scripts/workbench-split-focus-filters-regression.mjs",
+  "scripts/workbench-collapsible-sections-regression.mjs",
   "scripts/workbench-recommended-cycling-regression.mjs",
   "scripts/workbench-host-status-copy-regression.mjs",
   "scripts/workbench-in-place-open-work-regression.mjs",

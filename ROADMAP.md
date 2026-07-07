@@ -211,11 +211,11 @@ Acceptance criteria:
 
 Promoted from user request. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
 
-- [ ] Start the "More in this focus" secondary-candidate section collapsed by default: `createSecondaryCandidateSection()` in `public/js/workbench.js` currently forces its `<details>` open (`section.open = true`) - flip the default to collapsed while keeping the section available.
-- [ ] Make the Timers section (`createTimerSection()`) default-collapsed ONLY when there are no active/paused timers, and default-open when there is at least one; key the initial open state off the loaded timer state (`state.timers.length`) and re-evaluate when timer data loads/changes so it auto-opens if a timer becomes active during the session (respect an explicit user toggle within the session rather than fighting it).
-- [ ] Add a clear, consistent caret/chevron affordance on collapsible section headers so users can see a section is collapsible and whether it is collapsed or expanded (surface the native `<details>`/`<summary>` disclosure marker or a styled chevron that rotates on toggle). Keep it accessible: real `<summary>` semantics / `aria-expanded`, keyboard-toggleable, visible focus.
-- [ ] Preserve each section's existing content, counts, and behavior; only the default open state and the affordance change. Build on `LongtailForge.view` primitives and existing section markup rather than hand-rolling new anatomy.
-- [ ] Add focused browser/static regressions for: "More in this focus" defaulting collapsed, Timers open-state keyed to active-timer presence (open with timers, collapsed without), and the caret affordance present and reflecting collapsed/expanded state.
+- [x] Start the "More in this focus" secondary-candidate section collapsed by default: `createSecondaryCandidateSection()` in `public/js/workbench.js` currently forces its `<details>` open (`section.open = true`) - flip the default to collapsed while keeping the section available.
+- [x] Make the Timers section (`createTimerSection()`) default-collapsed ONLY when there are no active/paused timers, and default-open when there is at least one; key the initial open state off the loaded timer state (`state.timers.length`) and re-evaluate when timer data loads/changes so it auto-opens if a timer becomes active during the session (respect an explicit user toggle within the session rather than fighting it).
+- [x] Add a clear, consistent caret/chevron affordance on collapsible section headers so users can see a section is collapsible and whether it is collapsed or expanded (surface the native `<details>`/`<summary>` disclosure marker or a styled chevron that rotates on toggle). Keep it accessible: real `<summary>` semantics / `aria-expanded`, keyboard-toggleable, visible focus.
+- [x] Preserve each section's existing content, counts, and behavior; only the default open state and the affordance change. Build on `LongtailForge.view` primitives and existing section markup rather than hand-rolling new anatomy.
+- [x] Add focused browser/static regressions for: "More in this focus" defaulting collapsed, Timers open-state keyed to active-timer presence (open with timers, collapsed without), and the caret affordance present and reflecting collapsed/expanded state.
 
 Acceptance criteria:
 

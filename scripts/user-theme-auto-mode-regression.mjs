@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6e";
+const appVersion = "0.33.6.6f";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-theme-auto-mode-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-theme-auto-mode.db");
 process.env.SUPER_ADMIN_PASSWORD = "Theme-Auto-Mode-Test-123!";

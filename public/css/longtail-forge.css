@@ -4929,14 +4929,51 @@ dialog .form-actions {
 .workbench-timer-card > summary {
     min-height: 44px;
     box-sizing: border-box;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     padding: 12px 14px;
     color: var(--color-text);
     font-weight: 700;
     cursor: pointer;
+}
+
+.workbench-section > summary::-webkit-details-marker,
+.workbench-timer-card > summary::-webkit-details-marker {
+    display: none;
+}
+
+.workbench-section > summary::marker,
+.workbench-timer-card > summary::marker {
+    content: "";
+}
+
+.workbench-section > summary::before,
+.workbench-timer-card > summary::before {
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    content: "";
+    transform: rotate(-45deg);
+    transition: transform 0.16s ease;
+}
+
+.workbench-section[open] > summary::before,
+.workbench-timer-card[open] > summary::before {
+    transform: rotate(45deg);
+}
+
+.workbench-section > summary:focus-visible,
+.workbench-timer-card > summary:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    box-shadow: var(--surface-focus-ring);
+}
+
+.workbench-section-title {
+    min-width: 0;
 }
 
 .workbench-section-body {

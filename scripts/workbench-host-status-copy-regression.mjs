@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6e";
+const appVersion = "0.33.6.6f";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -15,7 +15,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=26[\s\S]*workbench\.js\?v=21/,
+  /longtail-forge\.css\?v=27[\s\S]*workbench\.js\?v=22/,
   "Workbench host should bump stylesheet and script cache keys for the status-slot cleanup",
 );
 assert.doesNotMatch(

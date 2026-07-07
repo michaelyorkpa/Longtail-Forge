@@ -13,7 +13,7 @@ const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
 function createSqliteDialectSeams() {
   return Object.freeze({
     provider: "sqlite",
-    contractVersion: "0.33.6.6e",
+    contractVersion: "0.33.6.6f",
     capabilities: SQLITE_DIALECT_SEAM_CAPABILITIES,
     boolean: Object.freeze({
       bind: bindSqliteBoolean,
