@@ -1,3 +1,11 @@
+## Version 0.33.6.2 - 2026-07-07 09:30 -04:00
+
+- Completed the normalized work-candidate contract slice by adding the framework-owned `workCandidateService` as the single normalization point for resume rows and live timer signals.
+- Reused the existing resume-state producer allowlist/forbidden-field safety rules, including nested metadata and primary-action payload scrubbing, instead of adding a parallel candidate scrubber or a new manifest axis.
+- Switched the protected `/api/work-resume` read route to shape its browser response from normalized resume candidates while preserving existing resume response fields, and registered `scripts/work-candidate-service-regression.mjs` in the isolated regression suite.
+- Updated `docs/module-contract.md`, `ROADMAP.md`, and package/module/version guardrails plus the SQLite dialect `contractVersion` to 0.33.6.2.
+- Verification 2026-07-07 09:35 -04:00: `node scripts\work-candidate-service-regression.mjs`, `node scripts\work-resume-state-service-regression.mjs`, `node scripts\work-resume-state-producer-regression.mjs`, `node scripts\work-resume-state-api-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale current-version scan, `git diff --check`, and `/api/app-info` all passed; `npm run check` completed 283/283 regression scripts plus cached ESLint with a 99.52s runner timing, `npm run test:permissions` passed 236 checks, and `/api/app-info` reported 0.33.6.2 from the refreshed local 8001 server.
+
 ## Version 0.33.5.29.7 - 2026-07-07 03:17 -04:00
 
 - Completed the final check/lint speed and branch closeout slice by keeping the existing gate semantics while adding content-based ESLint caching to `npm run check` and `npm run lint`.

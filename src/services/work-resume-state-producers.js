@@ -301,7 +301,9 @@ const producerHelpers = Object.freeze({
 });
 
 export {
+  ALLOWED_PAYLOAD_FIELDS,
   buildSafeProducerPayload,
+  isForbiddenField,
   listResumeStateProducerDefinitions,
   listResumeStateProducerIds,
   registerResumeStateProducer,

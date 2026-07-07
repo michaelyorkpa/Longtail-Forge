@@ -56,11 +56,11 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Shared cross-module candidate contract work on top of existing framework and resume-state seams.
 
-- [ ] Promote the resume-producer payload shape (`src/services/work-resume-state-producers.js`) into a single normalized work-candidate shape reused by both next-action ranking and resume state: `moduleId`, `recordType`, `recordId`, `title`, `contextLabel`, `reason`, primary-action descriptor, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, and a rank hint.
-- [ ] Reuse the existing seams rather than adding a new manifest axis: the framework-owned candidate service assembles candidates from resume-state rows plus live signals (e.g. running/paused timers) behind one shape, building on the existing resume-state producer payload plus the already-shipped `timerSources`/`workItemSources` contracts.
-- [ ] Inherit the producer safety rules verbatim: the same field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `storage.key`, `scanner`, ...) so a candidate can never carry body text, secure content, storage keys, or raw IDs in labels.
-- [ ] Every candidate must expose a reason string, a primary action, a safe context label, and a source URL; labels follow the `docs/workflow-context-contract.md` no-raw-ID rule.
-- [ ] Add regressions proving the shape is stable and that forbidden fields are stripped even if a source tries to supply them.
+- [x] Promote the resume-producer payload shape (`src/services/work-resume-state-producers.js`) into a single normalized work-candidate shape reused by both next-action ranking and resume state: `moduleId`, `recordType`, `recordId`, `title`, `contextLabel`, `reason`, primary-action descriptor, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, and a rank hint.
+- [x] Reuse the existing seams rather than adding a new manifest axis: the framework-owned candidate service assembles candidates from resume-state rows plus live signals (e.g. running/paused timers) behind one shape, building on the existing resume-state producer payload plus the already-shipped `timerSources`/`workItemSources` contracts.
+- [x] Inherit the producer safety rules verbatim: the same field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `storage.key`, `scanner`, ...) so a candidate can never carry body text, secure content, storage keys, or raw IDs in labels.
+- [x] Every candidate must expose a reason string, a primary action, a safe context label, and a source URL; labels follow the `docs/workflow-context-contract.md` no-raw-ID rule.
+- [x] Add regressions proving the shape is stable and that forbidden fields are stripped even if a source tries to supply them.
 
 Acceptance criteria:
 
