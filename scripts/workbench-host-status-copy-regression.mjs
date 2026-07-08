@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -15,7 +15,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=27[\s\S]*workbench\.js\?v=22/,
+  /longtail-forge\.css\?v=29[\s\S]*workbench\.js\?v=26/,
   "Workbench host should bump stylesheet and script cache keys for the status-slot cleanup",
 );
 assert.doesNotMatch(
@@ -30,7 +30,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /workbenchHost\.replaceChildren\([\s\S]*header,[\s\S]*createGuidedFocusPanel\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)/,
+  /workbenchHost\.replaceChildren\([\s\S]*header,[\s\S]*createWorkbenchShell\(\)[\s\S]*function createWorkbenchShell\(\)[\s\S]*createGuidedFocusPanel\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)/,
   "Workbench host should no longer render a standalone top-level status box under the header",
 );
 assert.match(

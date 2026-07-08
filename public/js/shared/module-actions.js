@@ -52,6 +52,50 @@
       open: (params, hostContext) => namespace.timeEntryDialog.openEdit(params, hostContext),
     },
     {
+      id: "notes.add",
+      moduleId: "notes",
+      label: "Add Note",
+      title: "Add Note",
+      mode: "add",
+      recordType: "note",
+      requiredModules: ["notes"],
+      requiredPermissions: ["notes.create"],
+      open: (params, hostContext) => namespace.notesDialog.openNoteEditor({ ...params, mode: "add" }, hostContext),
+    },
+    {
+      id: "notes.edit",
+      moduleId: "notes",
+      label: "Edit Note",
+      title: "Edit Note",
+      mode: "edit",
+      recordType: "note",
+      requiredModules: ["notes"],
+      requiredPermissions: ["notes.view"],
+      open: (params, hostContext) => namespace.notesDialog.openNoteEditor({ ...params, mode: "edit" }, hostContext),
+    },
+    {
+      id: "lists.add",
+      moduleId: "lists",
+      label: "Add List",
+      title: "Add List",
+      mode: "add",
+      recordType: "list",
+      requiredModules: ["lists"],
+      requiredPermissions: ["lists.create"],
+      open: (params, hostContext) => namespace.listsDialog.openListEditor({ ...params, mode: "add" }, hostContext),
+    },
+    {
+      id: "lists.edit",
+      moduleId: "lists",
+      label: "Edit List",
+      title: "Edit List",
+      mode: "edit",
+      recordType: "list",
+      requiredModules: ["lists"],
+      requiredPermissions: ["lists.view"],
+      open: (params, hostContext) => namespace.listsDialog.openListEditor({ ...params, mode: "edit" }, hostContext),
+    },
+    {
       id: "projects.add",
       moduleId: "client-projects",
       label: "Add Project",
@@ -100,6 +144,26 @@
       requiredWorkspaceCapabilities: ["clients_projects"],
       open: (params, hostContext) => namespace.clientProjectDialog.openEditClient(params, hostContext),
       workspaceTypes: ["business"],
+    },
+    {
+      id: "files.edit",
+      moduleId: "framework",
+      label: "Edit File Context",
+      title: "Edit File Context",
+      mode: "edit",
+      recordType: "file_attachment",
+      requiredPermissions: ["files.view"],
+      open: (params, hostContext) => namespace.filesDialog.openFileEditorAction(params, hostContext),
+    },
+    {
+      id: "files.preview",
+      moduleId: "framework",
+      label: "Preview File",
+      title: "Preview File",
+      mode: "preview",
+      recordType: "file_attachment",
+      requiredPermissions: ["files.view"],
+      open: (params, hostContext) => namespace.filesDialog.openFilePreviewAction(params, hostContext),
     },
   ];
 
@@ -242,7 +306,7 @@
   }
 
   function isModuleAvailable(moduleId) {
-    if (!moduleId) {
+    if (!moduleId || moduleId === "framework") {
       return true;
     }
 

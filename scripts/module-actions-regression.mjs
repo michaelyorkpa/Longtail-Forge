@@ -7,12 +7,18 @@ const taskView = fs.readFileSync("views/protected/tasks.html", "utf8");
 const timeEntriesView = fs.readFileSync("views/protected/time-entries.html", "utf8");
 const projectsView = fs.readFileSync("views/protected/projects.html", "utf8");
 const clientsView = fs.readFileSync("views/protected/clients.html", "utf8");
+const notesView = fs.readFileSync("views/protected/notes.html", "utf8");
+const listsView = fs.readFileSync("views/protected/lists.html", "utf8");
+const filesView = fs.readFileSync("views/protected/files.html", "utf8");
 const workbenchScript = fs.readFileSync("public/js/workbench.js", "utf8");
 const tasksScript = fs.readFileSync("public/js/tasks.js", "utf8");
 const taskDialogScript = fs.readFileSync("public/js/task-dialog.js", "utf8");
 const timeEntryDialogScript = fs.readFileSync("public/js/time-entry-dialog.js", "utf8");
 const timeEntriesScript = fs.readFileSync("public/js/time-entries.js", "utf8");
 const clientsProjectsScript = fs.readFileSync("public/js/clients-projects.js", "utf8");
+const notesScript = fs.readFileSync("public/js/notes.js", "utf8");
+const listsScript = fs.readFileSync("public/js/lists.js", "utf8");
+const filesScript = fs.readFileSync("public/js/files.js", "utf8");
 let checks = 0;
 
 function check(name, assertion) {
@@ -26,10 +32,16 @@ check("first-party module modal actions are registered", () => {
     "tasks.edit",
     "time-entries.add",
     "time-entries.edit",
+    "notes.add",
+    "notes.edit",
+    "lists.add",
+    "lists.edit",
     "projects.add",
     "projects.edit",
     "clients.add",
     "clients.edit",
+    "files.edit",
+    "files.preview",
   ].forEach((actionId) => assert.match(moduleActionsSource, new RegExp(`id: "${actionId.replace(".", "\\.")}"`)));
 });
 
@@ -80,11 +92,14 @@ check("host and target pages load the shared action contract", () => {
     timeEntriesView,
     projectsView,
     clientsView,
+    notesView,
+    listsView,
+    filesView,
   ].forEach((view) => assert.match(view, /js\/shared\/module-actions\.js/));
 });
 
 check("Workbench Add Task dispatches a module action instead of navigating away", () => {
-  assert.match(workbenchScript, /workbenchAddTask/, "Workbench guided host should create the Add Task trigger");
+  assert.match(workbenchScript, /label: "Add Task"[\s\S]*onClick: openAddTaskAction/, "Workbench guided host should create the Add Task trigger");
   assert.doesNotMatch(workbenchView, /href="tasks\.html\?new=1"/);
   assert.match(workbenchScript, /moduleActions\.open\("tasks\.add", \{[\s\S]*context: \{ source: "workbench" \}[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/);
 });
@@ -125,10 +140,31 @@ check("Client and Project actions use module-owned reusable dialog helpers", () 
   assert.doesNotMatch(clientsProjectsScript, /window\.LongtailForge\.moduleActions\?\.register/, "Clients/Projects adapter should not duplicate first-party module action metadata");
 });
 
+check("Notes, Lists, and Files actions use module-owned canonical openers", () => {
+  assert.match(notesView, /js\/shared\/module-actions\.js\?v=2/);
+  assert.match(listsView, /js\/shared\/module-actions\.js\?v=2/);
+  assert.match(filesView, /js\/shared\/module-actions\.js\?v=2/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFilePreviewAction\(params, hostContext\)/);
+  assert.match(notesScript, /window\.LongtailForge\.notesDialog = Object\.freeze/);
+  assert.match(notesScript, /openNoteEditor/);
+  assert.match(listsScript, /window\.LongtailForge\.listsDialog = Object\.freeze/);
+  assert.match(listsScript, /openListEditor/);
+  assert.match(filesScript, /openFileEditorAction/);
+  assert.match(filesScript, /openFilePreviewAction/);
+});
+
 check("module-owned saves can signal host completion", () => {
   assert.match(taskDialogScript, /hostContext\?\.complete/);
   assert.match(timeEntryDialogScript, /hostContext\?\.complete/);
   assert.match(clientsProjectsScript, /hostContext\.complete\(detail\)/);
+  assert.match(notesScript, /completeNoteEditorHostContext/);
+  assert.match(listsScript, /completeListDialogHostContext/);
+  assert.match(filesScript, /hostContext\?\.complete\?\.\(\{/);
   assert.match(timeEntriesScript, /timeEntryDialog\.openEdit/);
   assert.match(timeEntriesScript, /complete: async \(\) =>/);
   assert.match(clientsProjectsScript, /signalClientProjectModuleAction/);

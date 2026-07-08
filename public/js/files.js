@@ -40,7 +40,32 @@ let fileEditorOptionRequestId = 0;
 window.LongtailForge.filesDialog = Object.freeze({
   ...(window.LongtailForge.filesDialog || {}),
   openFileEditor,
+  openFileEditorAction,
   openFilePreview: (...args) => filePreview.openFilePreview(...args),
+  openFilePreviewAction,
+});
+
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "files.edit",
+  id: "files.edit",
+  label: "Edit File Context",
+  mode: "edit",
+  moduleId: "framework",
+  open: openFileEditorAction,
+  recordType: "file_attachment",
+  requiredPermissions: ["files.view"],
+  title: "Edit File Context",
+});
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "files.preview",
+  id: "files.preview",
+  label: "Preview File",
+  mode: "preview",
+  moduleId: "framework",
+  open: openFilePreviewAction,
+  recordType: "file_attachment",
+  requiredPermissions: ["files.view"],
+  title: "Preview File",
 });
 
 buildFilesViewShell();
@@ -979,6 +1004,68 @@ function createRestoreAction(row) {
 function stopFileRowActionEvent(event) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
+}
+
+function openFileEditorAction(params = {}, hostContext = null) {
+  const attachmentOrRow = normalizeFileActionRecord(params);
+  if (!fileActionAttachmentId(attachmentOrRow)) {
+    throw new Error("File Context requires an attachment record.");
+  }
+
+  let settled = false;
+  const dialog = openFileEditor(attachmentOrRow, {
+    trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
+    onSaved: async (detail) => {
+      settled = true;
+      if (typeof hostContext?.refresh === "function") {
+        await hostContext.refresh(detail);
+      }
+      hostContext?.complete?.({
+        actionId: "files.edit",
+        recordId: detail.attachmentId || fileActionAttachmentId(attachmentOrRow),
+        title: attachmentOrRow.fileName || "",
+      });
+    },
+  });
+
+  dialog.addEventListener("close", () => {
+    if (!settled) {
+      hostContext?.cancel?.({
+        actionId: "files.edit",
+        recordId: fileActionAttachmentId(attachmentOrRow),
+      });
+    }
+  }, { once: true });
+
+  return hostContext?.result || dialog;
+}
+
+function openFilePreviewAction(params = {}, hostContext = null) {
+  const attachmentOrRow = normalizeFileActionRecord(params);
+  if (!fileActionAttachmentId(attachmentOrRow)) {
+    throw new Error("File Preview requires an attachment record.");
+  }
+
+  const dialog = filePreview.openFilePreview(attachmentOrRow, {
+    trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
+  });
+
+  dialog.addEventListener("close", () => {
+    hostContext?.cancel?.({
+      actionId: "files.preview",
+      recordId: fileActionAttachmentId(attachmentOrRow),
+    });
+  }, { once: true });
+
+  return hostContext?.result || dialog;
+}
+
+function normalizeFileActionRecord(params = {}) {
+  return params.row || params.attachment || params.fileAttachment || params.record || params.file || params;
+}
+
+function fileActionAttachmentId(attachmentOrRow = {}) {
+  return attachmentOrRow.attachmentId || attachmentOrRow.file_attachment_id || attachmentOrRow.attachment?.file_attachment_id || "";
 }
 
 function openFileEditor(attachmentOrRow = {}, options = {}) {

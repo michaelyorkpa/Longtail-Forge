@@ -12,38 +12,23 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /loadTaskCardData[\s\S]*card\.listRoute[\s\S]*taskOptions: data\?\.options \|\| \{ projects: \[\] \}/,
-  "Workbench should load Tasks options from the contributed workbench list route.",
+  /"task-workbench-items": loadTaskOptionsData/,
+  "Workbench should retain the Tasks source loader only for module-owned task options.",
+);
+assert.match(
+  workbenchScript,
+  /async function loadTaskOptionsData\(card\)[\s\S]*api\.getJson\(card\.listRoute[\s\S]*taskOptions: data\?\.options \|\| \{ projects: \[\] \}/,
+  "Workbench should load Tasks options from the contributed route without consuming an all-tasks list.",
 );
 assert.match(
   workbenchScript,
   /taskOptions: sourceData\.taskOptions \|\| bootstrap\.taskOptions \|\| \{ projects: \[\] \}/,
   "Workbench browser state should retain task options from module-owned source payloads.",
 );
-assert.match(
+assert.doesNotMatch(
   workbenchScript,
-  /option\("priority_desc", "Priority"\)/,
-  "Workbench task sort control should expose a priority sort option.",
-);
-assert.match(
-  workbenchScript,
-  /if \(taskSortInput\?\.value === "priority_desc"\)/,
-  "Workbench task sort should implement priority sorting.",
-);
-assert.match(
-  workbenchScript,
-  /function readTaskProjectSortOrders/,
-  "Workbench task sort should read project default sort orders from task options.",
-);
-assert.match(
-  workbenchScript,
-  /function compareByProjectSortOrder/,
-  "Workbench task sort should compare tasks by project default sort order.",
-);
-assert.match(
-  workbenchScript,
-  /projectsById\.get\(projectId\)\?\.taskDefaults\?\.sortOrder/,
-  "Workbench should use project taskDefaults.sortOrder rather than hard-coded project metadata.",
+  /taskItems|workbench-task-list|function renderTasks|taskSortInput|readTaskProjectSortOrders/,
+  "Workbench should not keep the removed all-tasks list, task item state, or list ordering path.",
 );
 assert.match(
   tasksScript,
@@ -51,7 +36,7 @@ assert.match(
   "Tasks active saved views should reset stale Completed or Archived status filters to Active.",
 );
 
-console.log("Workbench task ordering regression passed.");
+console.log("Workbench task options regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");

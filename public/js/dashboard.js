@@ -1,42 +1,76 @@
-// Dashboard renders a workspace/project hub plus module-provided widgets.
-const dashboardHubCountLabel = document.querySelector("[data-dashboard-hub-count-label]");
-const activeClientCount = document.querySelector("[data-active-client-count]");
-const clientReportOptions = document.querySelector("[data-client-report-options]");
-const openClientReportButton = document.querySelector("[data-open-client-report]");
-const dashboardExtensionPanels = document.querySelector("[data-dashboard-extension-panels]");
-const currentMonthBillables = document.querySelector("[data-current-month-billables]");
-const currentMonthHours = document.querySelector("[data-current-month-hours]");
-const currentMonthAmount = document.querySelector("[data-current-month-amount]");
-const billablesChart = document.querySelector("[data-billables-chart]");
-const dashboardStatus = document.querySelector("[data-dashboard-status]");
+// Dashboard renders the workspace overview through contribution-backed panels.
+const dashboardHost = document.querySelector("[data-dashboard-host]");
+const dashboardView = window.LongtailForge?.view;
 
 let dashboardData = null;
 let dashboardPanels = [];
+let dashboardPanelRegion = null;
+let dashboardStatus = null;
+let dashboardSummaryGrid = null;
 
-const dashboardPanelRenderers = {
-  "project-summary": renderProjectHub,
-  "billing-summary": () => {
-    renderCurrentMonthBillables();
-    renderBillablesChart();
-  },
-  "task-summary": renderTaskSummaryContribution,
-};
+const dashboardPanelRenderers = {};
 
+publishDashboardApi();
+registerDashboardPanelRenderer("project-summary", renderProjectHub);
+registerDashboardPanelRenderer("task-summary", renderTaskSummaryContribution);
+buildDashboardHost();
+bindDashboardEvents();
 loadDashboardData();
 
-clientReportOptions.addEventListener("change", () => {
-  openClientReportButton.disabled = !getSelectedReportScopeId();
-});
-
-openClientReportButton.addEventListener("click", () => {
-  const scopeId = getSelectedReportScopeId();
-
-  if (!scopeId) {
+function buildDashboardHost() {
+  if (!dashboardHost || !dashboardView) {
     return;
   }
 
-  window.location.href = `reporting.html?scope=${encodeURIComponent(scopeId)}`;
-});
+  const header = dashboardView.createPageHeader({
+    title: "Dashboard",
+  });
+
+  dashboardStatus = dashboardView.createStatusMessage({
+    className: "dashboard-status",
+    dataset: { dashboardStatus: "" },
+    hidden: true,
+  });
+  dashboardSummaryGrid = dashboardView.createElement("section", {
+    className: "dashboard-summary-grid",
+    attrs: { "aria-label": "Dashboard summary" },
+    hidden: true,
+  });
+  dashboardPanelRegion = dashboardView.createElement("section", {
+    className: "dashboard-panel-region",
+    attrs: { "aria-label": "Dashboard panels" },
+    dataset: { dashboardPanelRegion: "" },
+  });
+
+  dashboardHost.replaceChildren(
+    header,
+    dashboardStatus,
+    dashboardSummaryGrid,
+    dashboardPanelRegion,
+  );
+}
+
+function bindDashboardEvents() {
+  dashboardHost?.addEventListener("change", (event) => {
+    if (event.target?.matches?.("input[name='dashboard-report-client']")) {
+      updateOpenReportButton();
+    }
+  });
+
+  dashboardHost?.addEventListener("click", (event) => {
+    const button = event.target?.closest?.("[data-open-client-report]");
+
+    if (!button) {
+      return;
+    }
+
+    const scopeId = getSelectedReportScopeId();
+
+    if (scopeId) {
+      window.location.href = `reporting.html?scope=${encodeURIComponent(scopeId)}`;
+    }
+  });
+}
 
 async function loadDashboardData() {
   setDashboardStatus("Loading dashboard...");
@@ -53,138 +87,141 @@ async function loadDashboardData() {
     renderRegisteredDashboardPanels();
     setDashboardStatus("");
   } catch (error) {
-    setDashboardStatus("Dashboard data could not be loaded.");
+    setDashboardStatus("Dashboard data could not be loaded.", { isError: true });
     console.error(error);
   }
 }
 
-function renderRegisteredDashboardPanels() {
-  renderStaticDashboardPanels();
-  renderExtensionPanels();
+function publishDashboardApi() {
+  window.LongtailForge = {
+    ...(window.LongtailForge || {}),
+    dashboard: {
+      ...(window.LongtailForge?.dashboard || {}),
+      registerPanelRenderer: registerDashboardPanelRenderer,
+    },
+  };
 }
 
-function renderStaticDashboardPanels() {
-  document.querySelectorAll("[data-dashboard-renderer]").forEach((panel) => {
-    const renderer = panel.dataset.dashboardRenderer;
-    const contribution = findDashboardContribution(renderer, panel.dataset.dashboardPanelId);
-    panel.hidden = !contribution;
-  });
+function registerDashboardPanelRenderer(rendererId, renderer) {
+  const normalizedRendererId = String(rendererId || "").trim();
+
+  if (!normalizedRendererId || typeof renderer !== "function") {
+    return;
+  }
+
+  dashboardPanelRenderers[normalizedRendererId] = renderer;
+
+  if (dashboardData) {
+    renderRegisteredDashboardPanels();
+  }
+}
+
+function renderRegisteredDashboardPanels() {
+  if (!dashboardSummaryGrid || !dashboardPanelRegion) {
+    return;
+  }
+
+  dashboardSummaryGrid.replaceChildren();
+  dashboardPanelRegion.replaceChildren();
 
   for (const contribution of dashboardPanels) {
     const renderer = dashboardPanelRenderers[contribution.renderer];
 
-    if (renderer) {
-      renderer(contribution);
+    if (!renderer) {
+      continue;
     }
+
+    const renderedPanels = normalizeRenderedPanels(renderer(contribution, createDashboardRendererContext(contribution)));
+    const target = contribution.id === "project-summary" ? dashboardSummaryGrid : dashboardPanelRegion;
+    renderedPanels.forEach((panel) => target.appendChild(panel));
+  }
+
+  dashboardSummaryGrid.hidden = dashboardSummaryGrid.childElementCount === 0;
+  dashboardPanelRegion.hidden = dashboardPanelRegion.childElementCount === 0;
+
+  if (dashboardSummaryGrid.hidden && dashboardPanelRegion.hidden) {
+    dashboardPanelRegion.hidden = false;
+    dashboardPanelRegion.appendChild(dashboardView.createEmptyState({
+      title: "No dashboard panels are available",
+      message: "Enabled modules can contribute overview panels when you have access to them.",
+    }));
   }
 }
 
-function renderProjectHub() {
+function normalizeRenderedPanels(rendered) {
+  if (!rendered) {
+    return [];
+  }
+
+  return Array.isArray(rendered) ? rendered.filter(Boolean) : [rendered];
+}
+
+function createDashboardRendererContext(contribution) {
+  return {
+    dashboardData,
+    findContribution: findDashboardContribution,
+    setStatus: setDashboardStatus,
+    view: dashboardView,
+    workspaceProjectsLabel,
+    createPanel: (options = {}) => createDashboardPanel(contribution, options),
+    createDashboardPanel,
+  };
+}
+
+function renderProjectHub(contribution) {
   const hub = dashboardData?.hub || {};
   const reportScopes = Array.isArray(hub.reportScopes) ? hub.reportScopes : [];
-  dashboardHubCountLabel.textContent = hub.countLabel || "Active Projects";
-  activeClientCount.textContent = String(hub.activeCount || 0);
-  clientReportOptions.replaceChildren(createLegend(hub.reportLegend || "Project Reporting"));
+  const details = dashboardView.createElement("details", {
+    className: "dashboard-client-details",
+    children: [
+      dashboardView.createElement("summary", {
+        children: [
+          dashboardView.createElement("span", {
+            dataset: { dashboardHubCountLabel: "" },
+            text: hub.countLabel || "Active Projects",
+          }),
+          dashboardView.createElement("span", {
+            className: "metric-value",
+            dataset: { activeClientCount: "" },
+            text: String(hub.activeCount || 0),
+          }),
+        ],
+      }),
+      createReportScopeOptions(hub, reportScopes),
+      dashboardView.createElement("button", {
+        attrs: {
+          type: "button",
+          "data-open-client-report": "",
+          disabled: true,
+        },
+        text: "Open Reporting",
+      }),
+    ],
+  });
+  const panel = createDashboardPanel(contribution, {
+    className: "active-client-panel",
+    children: [details],
+  });
+
+  selectDefaultReportScope(hub.defaultReportScopeId || "");
+  updateOpenReportButton(panel);
+  return panel;
+}
+
+function createReportScopeOptions(hub, reportScopes) {
+  const fieldset = dashboardView.createElement("fieldset", {
+    className: "client-radio-list",
+    dataset: { clientReportOptions: "" },
+    children: [
+      createLegend(hub.reportLegend || "Project Reporting"),
+    ],
+  });
 
   reportScopes.forEach((scope) => {
-    clientReportOptions.appendChild(createScopeRadio(scope));
+    fieldset.appendChild(createScopeRadio(scope));
   });
 
-  const defaultScopeId = hub.defaultReportScopeId || "";
-
-  if (defaultScopeId) {
-    const defaultInput = [...clientReportOptions.querySelectorAll("input[name='dashboard-report-client']")]
-      .find((input) => input.value === defaultScopeId);
-
-    if (defaultInput) {
-      defaultInput.checked = true;
-    }
-  }
-
-  openClientReportButton.disabled = !getSelectedReportScopeId();
-}
-
-function renderCurrentMonthBillables() {
-  const rows = dashboardData?.timeTracking?.currentMonthBillables || [];
-  currentMonthBillables.innerHTML = "";
-
-  if (!findDashboardContribution("billing-summary", "billing-summary")) {
-    renderEmptyBillableRow("Time Tracking is not available for this workspace.");
-    return;
-  }
-
-  if (!rows.length) {
-    renderEmptyBillableRow("No billables for the current month.");
-    return;
-  }
-
-  rows.forEach((billableRow) => {
-    const row = document.createElement("tr");
-    row.append(
-      createScopeLinkCell(billableRow.scope),
-      createTableCell(formatHours(billableRow.billableSeconds)),
-      createTableCell(formatCurrency(billableRow.amount)),
-    );
-    row.firstElementChild.scope = "row";
-    currentMonthBillables.appendChild(row);
-  });
-
-  currentMonthHours.textContent = formatHours(dashboardData.timeTracking.currentMonthTotals?.seconds || 0);
-  currentMonthAmount.textContent = formatCurrency(dashboardData.timeTracking.currentMonthTotals?.amount || 0);
-}
-
-function renderEmptyBillableRow(message) {
-  const row = document.createElement("tr");
-  const cell = document.createElement("td");
-  cell.colSpan = 3;
-  cell.textContent = message;
-  row.appendChild(cell);
-  currentMonthBillables.appendChild(row);
-  currentMonthHours.textContent = formatHours(0);
-  currentMonthAmount.textContent = formatCurrency(0);
-}
-
-function renderBillablesChart() {
-  if (!findDashboardContribution("billing-summary", "billing-summary")) {
-    billablesChart.innerHTML = "";
-    return;
-  }
-
-  const points = (dashboardData?.timeTracking?.chartPoints || []).map((point) => ({
-    label: formatMonthLabel(new Date(point.labelDate)),
-    hours: Number(point.hours) || 0,
-    amount: Number(point.amount) || 0,
-  }));
-
-  billablesChart.innerHTML = createBillablesSvg(points);
-}
-
-function renderExtensionPanels() {
-  const panels = dashboardPanels.filter((panel) => !document.querySelector(`[data-dashboard-panel-id="${cssEscape(panel.id)}"]`));
-  dashboardExtensionPanels.replaceChildren();
-
-  if (!Array.isArray(panels) || panels.length === 0) {
-    dashboardExtensionPanels.hidden = true;
-    return;
-  }
-
-  panels.forEach((panel) => {
-    const renderer = dashboardPanelRenderers[panel.renderer];
-
-    if (renderer) {
-      const renderedPanel = renderer(panel);
-      if (renderedPanel) {
-        dashboardExtensionPanels.appendChild(renderedPanel);
-      }
-      return;
-    }
-
-    const marker = document.createElement("div");
-    marker.dataset.dashboardPanel = panel.id;
-    marker.dataset.moduleId = panel.moduleId;
-    dashboardExtensionPanels.appendChild(marker);
-  });
-  dashboardExtensionPanels.hidden = false;
+  return fieldset;
 }
 
 function renderTaskSummaryContribution() {
@@ -195,6 +232,88 @@ function renderTaskSummaryContribution() {
   return createTaskSummaryPanel(dashboardData.tasks.summary);
 }
 
+function createTaskSummaryPanel(summary = {}) {
+  const counts = dashboardView.createElement("div", {
+    className: "task-summary-counts",
+    children: [
+      createTaskCount("Overdue", summary.counts?.overdue || 0),
+      createTaskCount("Due Soon", summary.counts?.dueSoon || 0),
+      createTaskCount("Mine", summary.counts?.assignedToMe || 0),
+    ],
+  });
+  const sections = dashboardView.createElement("div", {
+    className: "task-summary-sections",
+    children: [
+      createTaskSummarySection("Overdue", summary.overdue || [], "No overdue tasks."),
+      createTaskSummarySection("Due Soon", summary.dueSoon || [], "No tasks due soon."),
+      createTaskSummarySection("Assigned to Me", summary.assignedToMe || [], "No assigned active tasks."),
+    ],
+  });
+
+  return createDashboardPanel(findDashboardContribution("task-summary", "task-summary"), {
+    className: "task-summary-panel",
+    title: "Tasks",
+    children: [counts, sections],
+  });
+}
+
+function createTaskSummarySection(title, rows, emptyMessage) {
+  const listItems = rows.length === 0
+    ? [dashboardView.createElement("li", { text: emptyMessage })]
+    : rows.slice(0, 5).map((task) => {
+        const link = dashboardView.createElement("a", {
+          attrs: { href: task.url || `tasks.html?task=${encodeURIComponent(task.task_id)}` },
+          text: task.title,
+        });
+        const meta = dashboardView.createElement("span", {
+          text: task.due_date ? `Due ${task.due_date}` : "No due date",
+        });
+
+        return dashboardView.createElement("li", { children: [link, meta] });
+      });
+
+  return dashboardView.createElement("section", {
+    className: "task-summary-section",
+    children: [
+      dashboardView.createElement("h3", { text: title }),
+      dashboardView.createElement("ul", {
+        className: "task-summary-list",
+        children: listItems,
+      }),
+    ],
+  });
+}
+
+function createTaskCount(label, value) {
+  return dashboardView.createElement("span", {
+    children: [
+      dashboardView.createElement("strong", { text: String(value) }),
+      dashboardView.createElement("span", { text: label }),
+    ],
+  });
+}
+
+function createDashboardPanel(contribution = {}, options = {}) {
+  const panel = dashboardView.createElement("article", {
+    className: ["dashboard-panel", "surface-main-panel", options.className],
+    attrs: {
+      ...(options.ariaLabel ? { "aria-label": options.ariaLabel } : {}),
+      ...(contribution?.id ? { "data-dashboard-panel-id": contribution.id } : {}),
+      ...(contribution?.renderer ? { "data-dashboard-renderer": contribution.renderer } : {}),
+    },
+    dataset: {
+      ...(contribution?.moduleId ? { moduleId: contribution.moduleId } : {}),
+    },
+  });
+
+  if (options.title) {
+    panel.appendChild(dashboardView.createElement("h2", { text: options.title }));
+  }
+
+  panel.append(...(Array.isArray(options.children) ? options.children : [options.children]).filter(Boolean));
+  return panel;
+}
+
 function findDashboardContribution(renderer, id = "") {
   return dashboardPanels.find((panel) => (
     panel.renderer === renderer &&
@@ -202,196 +321,65 @@ function findDashboardContribution(renderer, id = "") {
   ));
 }
 
-function createTaskSummaryPanel(summary = {}) {
-  const panel = document.createElement("article");
-  const heading = document.createElement("h2");
-  const counts = document.createElement("div");
-  const sections = document.createElement("div");
-
-  panel.className = "dashboard-panel task-summary-panel";
-  heading.textContent = "Tasks";
-  counts.className = "task-summary-counts";
-  counts.append(
-    createTaskCount("Overdue", summary.counts?.overdue || 0),
-    createTaskCount("Due Soon", summary.counts?.dueSoon || 0),
-    createTaskCount("Mine", summary.counts?.assignedToMe || 0),
-  );
-  sections.className = "task-summary-sections";
-  sections.append(
-    createTaskSummarySection("Overdue", summary.overdue || [], "No overdue tasks."),
-    createTaskSummarySection("Due Soon", summary.dueSoon || [], "No tasks due soon."),
-    createTaskSummarySection("Assigned to Me", summary.assignedToMe || [], "No assigned active tasks."),
-  );
-  panel.append(heading, counts, sections);
-  return panel;
-}
-
-function createTaskSummarySection(title, rows, emptyMessage) {
-  const section = document.createElement("section");
-  const heading = document.createElement("h3");
-  const list = document.createElement("ul");
-
-  section.className = "task-summary-section";
-  heading.textContent = title;
-  list.className = "task-summary-list";
-
-  if (rows.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = emptyMessage;
-    list.appendChild(item);
-  } else {
-    rows.slice(0, 5).forEach((task) => {
-      const item = document.createElement("li");
-      const link = document.createElement("a");
-      const meta = document.createElement("span");
-
-      link.href = task.url || `tasks.html?task=${encodeURIComponent(task.task_id)}`;
-      link.textContent = task.title;
-      meta.textContent = task.due_date ? `Due ${task.due_date}` : "No due date";
-      item.append(link, meta);
-      list.appendChild(item);
-    });
-  }
-
-  section.append(heading, list);
-  return section;
-}
-
-function createTaskCount(label, value) {
-  const item = document.createElement("span");
-  const number = document.createElement("strong");
-  const text = document.createElement("span");
-
-  number.textContent = String(value);
-  text.textContent = label;
-  item.append(number, text);
-  return item;
-}
-
-function createBillablesSvg(points) {
-  const width = 900;
-  const height = 340;
-  const padding = { top: 64, right: 122, bottom: 48, left: 96 };
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
-  const normalizedPoints = points.length > 0 ? points : [{ label: "", hours: 0, amount: 0 }];
-  const maxHours = Math.max(1, ...normalizedPoints.map((point) => point.hours));
-  const maxAmount = Math.max(1, ...normalizedPoints.map((point) => point.amount));
-  const groupWidth = chartWidth / normalizedPoints.length;
-  const hourBarWidth = Math.min(18, groupWidth * 0.28);
-  const amountBarWidth = Math.min(18, groupWidth * 0.28);
-  const monthLabels = normalizedPoints.map((point, index) => {
-    const x = padding.left + groupWidth * index + groupWidth / 2;
-    return `<text x="${x}" y="${height - 18}" text-anchor="middle">${point.label}</text>`;
-  }).join("");
-  const bars = normalizedPoints.map((point, index) => {
-    const centerX = padding.left + groupWidth * index + groupWidth / 2;
-    const hourHeight = (point.hours / maxHours) * chartHeight;
-    const amountHeight = (point.amount / maxAmount) * chartHeight;
-    const hourX = centerX - hourBarWidth - 2;
-    const amountX = centerX + 2;
-    const hourY = padding.top + chartHeight - hourHeight;
-    const amountY = padding.top + chartHeight - amountHeight;
-
-    return `
-      <rect class="chart-hours" x="${hourX}" y="${hourY}" width="${hourBarWidth}" height="${hourHeight}">
-        <title>${formatChartHours(point.hours)}</title>
-      </rect>
-      <rect class="chart-amount" x="${amountX}" y="${amountY}" width="${amountBarWidth}" height="${amountHeight}">
-        <title>${formatCurrency(point.amount)}</title>
-      </rect>
-    `;
-  }).join("");
-
-  return `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Hours and billables by month">
-      <line class="chart-axis" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + chartHeight}"></line>
-      <line class="chart-axis" x1="${width - padding.right}" y1="${padding.top}" x2="${width - padding.right}" y2="${padding.top + chartHeight}"></line>
-      <line class="chart-axis" x1="${padding.left}" y1="${padding.top + chartHeight}" x2="${width - padding.right}" y2="${padding.top + chartHeight}"></line>
-      <text class="chart-axis-label" x="${padding.left - 54}" y="${padding.top + 22}">Hours</text>
-      <text class="chart-axis-label" x="${width - padding.right + 54}" y="${padding.top + 22}" text-anchor="middle">Dollars</text>
-      <text x="${padding.left - 8}" y="${padding.top + 4}" text-anchor="end">${maxHours.toFixed(1)}</text>
-      <text x="${width - padding.right + 8}" y="${padding.top + 4}">${formatCurrency(maxAmount)}</text>
-      ${bars}
-      ${monthLabels}
-      <g class="chart-legend">
-        <rect class="chart-hours" x="${padding.left}" y="28" width="12" height="12"></rect>
-        <text x="${padding.left + 18}" y="38">Hours</text>
-        <rect class="chart-amount" x="${padding.left + 86}" y="28" width="12" height="12"></rect>
-        <text x="${padding.left + 104}" y="38">Billable</text>
-      </g>
-    </svg>
-  `;
-}
-
-function getSelectedReportScopeId() {
-  return clientReportOptions.querySelector("input[name='dashboard-report-client']:checked")?.value || "";
-}
-
-function formatHours(seconds) {
-  return window.LongtailForge.formatters.hours(seconds);
-}
-
-function formatCurrency(amount) {
-  return window.LongtailForge.formatters.currency(amount);
-}
-
-function formatMonthLabel(date) {
-  return window.LongtailForge.formatters.monthLabel(date);
-}
-
-function formatChartHours(hours) {
-  const value = Number(hours) || 0;
-  return `${value.toFixed(1)} hours`;
-}
-
 function createLegend(text) {
-  const legend = document.createElement("legend");
-  legend.textContent = text;
-  return legend;
+  return dashboardView.createElement("legend", { text });
 }
 
 function createScopeRadio(scope) {
-  const label = document.createElement("label");
-  label.className = "client-radio-option";
+  const input = dashboardView.createElement("input", {
+    attrs: {
+      type: "radio",
+      name: "dashboard-report-client",
+      value: scope.id,
+    },
+  });
 
-  const input = document.createElement("input");
-  input.type = "radio";
-  input.name = "dashboard-report-client";
-  input.value = scope.id;
-
-  label.append(input, document.createTextNode(scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name));
-  return label;
+  return dashboardView.createElement("label", {
+    className: "client-radio-option",
+    children: [
+      input,
+      document.createTextNode(scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name),
+    ],
+  });
 }
 
-function createTableCell(text, tagName = "td") {
-  const cell = document.createElement(tagName);
-  cell.textContent = text;
-  return cell;
+function selectDefaultReportScope(defaultScopeId) {
+  if (!defaultScopeId) {
+    return;
+  }
+
+  const defaultInput = [...dashboardHost?.querySelectorAll("input[name='dashboard-report-client']") || []]
+    .find((input) => input.value === defaultScopeId);
+
+  if (defaultInput) {
+    defaultInput.checked = true;
+  }
 }
 
-function createScopeLinkCell(scope) {
-  const cell = document.createElement("th");
-  const link = document.createElement("a");
-  link.href = `reporting.html?scope=${encodeURIComponent(scope.id)}`;
-  link.textContent = scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name;
-  cell.scope = "row";
-  cell.appendChild(link);
-  return cell;
+function updateOpenReportButton(root = dashboardHost) {
+  const button = root?.querySelector?.("[data-open-client-report]");
+
+  if (button) {
+    button.disabled = !getSelectedReportScopeId(root);
+  }
+}
+
+function getSelectedReportScopeId(root = dashboardHost) {
+  return root?.querySelector?.("input[name='dashboard-report-client']:checked")?.value || "";
 }
 
 function workspaceProjectsLabel() {
   return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
 
-function setDashboardStatus(message) {
-  dashboardStatus.textContent = message;
-}
-
-function cssEscape(value) {
-  if (window.CSS?.escape) {
-    return window.CSS.escape(value);
+function setDashboardStatus(message, options = {}) {
+  if (!dashboardStatus) {
+    return;
   }
 
-  return String(value).replaceAll('"', '\\"');
+  dashboardStatus.textContent = message || "";
+  dashboardStatus.hidden = !message;
+  dashboardStatus.dataset.viewTone = options.isError ? "danger" : "info";
+  dashboardStatus.setAttribute("role", options.isError ? "alert" : "status");
+  dashboardStatus.setAttribute("aria-live", options.isError ? "assertive" : "polite");
 }

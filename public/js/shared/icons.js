@@ -17,6 +17,9 @@
       { type: "path", attrs: { d: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" } },
       { type: "path", attrs: { d: "M13.7 21a2 2 0 0 1-3.4 0" } },
     ]),
+    bolt: Object.freeze([
+      { type: "path", attrs: { d: "M13 2 4 14h7l-1 8 9-12h-7z" } },
+    ]),
     complete: Object.freeze([{ type: "path", attrs: { d: "M20 6 9 17l-5-5" } }]),
     close: Object.freeze([{ type: "path", attrs: { d: "M18 6 6 18" } }, { type: "path", attrs: { d: "m6 6 12 12" } }]),
     copy: Object.freeze([

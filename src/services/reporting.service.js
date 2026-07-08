@@ -7,7 +7,6 @@ import { permissionsService } from "../core/permissions.js";
 import { settingsService } from "./settings.service.js";
 
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
-const TIME_TRACKING_MODULE_ID = "time-tracking";
 const TASKS_MODULE_ID = "tasks";
 
 async function readReportingBootstrap(session) {
@@ -84,30 +83,8 @@ async function readProjectSummary(session, query = {}) {
 async function readDashboard(session) {
   const { settings, scopes, moduleContext } = await readReportContext(session, { includeInactive: true });
   const dashboardPanels = await modulesService.listDashboardPanels(session.workspace_id, session);
-  const entries = normalizeTimeEntries((await timeEntriesService.list(session)).entries);
   const clientFiltersVisible = settings.workspaceType === "business";
   const activeScopes = scopes.filter((scope) => scope.status === "Active");
-  const currentMonthRange = getMonthRange(new Date());
-  const currentMonthRows = summarizeScopesForRange(settings, activeScopes, entries, currentMonthRange)
-    .filter((row) => row.billableSeconds > 0);
-  const currentMonthTotals = currentMonthRows.reduce((summary, row) => ({
-    amount: summary.amount + row.amount,
-    seconds: summary.seconds + row.billableSeconds,
-  }), { amount: 0, seconds: 0 });
-  const chartPoints = getTrailingMonthStarts(12).map((monthStart) => {
-    const range = getMonthRange(monthStart);
-    const totals = summarizeScopesForRange(settings, activeScopes, entries, range)
-      .reduce((summary, row) => ({
-        amount: summary.amount + row.amount,
-        seconds: summary.seconds + row.displaySeconds,
-      }), { amount: 0, seconds: 0 });
-
-    return {
-      labelDate: monthStart.toISOString(),
-      hours: totals.seconds / 3600,
-      amount: totals.amount,
-    };
-  });
   const taskSummary = panelIsAvailable(dashboardPanels, TASKS_MODULE_ID, "task-summary")
     ? await tasksService.summary(session)
     : null;
@@ -123,12 +100,6 @@ async function readDashboard(session) {
         : activeScopes.flatMap((scope) => scope.projects).filter((project) => project.status !== "Inactive").length,
       reportScopes: clientFiltersVisible ? activeScopes.filter((scope) => !scope.isWorkspaceScope) : activeScopes,
       defaultReportScopeId: clientFiltersVisible ? "" : activeScopes[0]?.id || "",
-    },
-    timeTracking: {
-      available: panelIsAvailable(dashboardPanels, TIME_TRACKING_MODULE_ID, "billing-summary"),
-      currentMonthBillables: currentMonthRows,
-      currentMonthTotals,
-      chartPoints,
     },
     tasks: {
       available: Boolean(taskSummary),
@@ -245,34 +216,6 @@ function normalizeTimeEntries(entries) {
         tags: Array.isArray(entry.tags) ? entry.tags : [],
       }))
     : [];
-}
-
-function summarizeScopesForRange(settings, scopes, entries, range) {
-  return sortScopeTree(scopes).map((scope) => summarizeScopeForRange(settings, scope, entries, range));
-}
-
-function summarizeScopeForRange(settings, scope, entries, range) {
-  const scopeEntries = entries.filter((entry) => matchesScope(entry, scope, { includeDescendants: true }));
-  const projectSummaries = filterRollupProjects(scope.projects, { includeDescendants: true })
-    .map((project) => summarizeProject(settings, scope, project, scopeEntries, range, { includeDescendants: true }))
-    .filter(Boolean);
-  const totals = projectSummaries.reduce((summary, projectSummary) => ({
-    amount: summary.amount + projectSummary.amount,
-    billableSeconds: summary.billableSeconds + projectSummary.billableSeconds,
-    displaySeconds: summary.displaySeconds + projectSummary.displaySeconds,
-    rawSeconds: summary.rawSeconds + projectSummary.rawSeconds,
-  }), {
-    amount: 0,
-    billableSeconds: 0,
-    displaySeconds: 0,
-    rawSeconds: 0,
-  });
-
-  return {
-    ...totals,
-    scope,
-    projectSummaries,
-  };
 }
 
 function summarizeProject(settings, scope, project, entries, range, options = {}) {
@@ -395,23 +338,6 @@ function getCurrentCustomPeriodStart(date, startDay) {
   return date >= currentMonthStart
     ? currentMonthStart
     : new Date(date.getFullYear(), date.getMonth() - 1, startDay);
-}
-
-function getMonthRange(date) {
-  return {
-    start: new Date(date.getFullYear(), date.getMonth(), 1),
-    end: new Date(date.getFullYear(), date.getMonth() + 1, 1),
-  };
-}
-
-function getTrailingMonthStarts(monthsBack, today = new Date()) {
-  const months = [];
-
-  for (let offset = monthsBack; offset >= 0; offset -= 1) {
-    months.push(new Date(today.getFullYear(), today.getMonth() - offset, 1));
-  }
-
-  return months;
 }
 
 function addMonths(date, monthCount) {

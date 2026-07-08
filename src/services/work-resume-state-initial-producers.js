@@ -234,6 +234,8 @@ function buildTaskPayload({ event }) {
     lastWorkedAt: task.last_worked_at || task.updated_at || event.emitted_at,
     metadata: {
       checklist_progress: task.checklist_progress || null,
+      recurrence_instance_date: task.recurrence_instance_date || "",
+      recurrence_template_id: task.recurrence_template_id || "",
       source: event.record_type === "task_checklist_item" ? "task_checklist" : "task",
     },
     nextAction: task.next_action || "",

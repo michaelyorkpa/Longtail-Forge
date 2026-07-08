@@ -134,7 +134,7 @@ try {
     const notesScript = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
 
     assert.match(filesPage, /data-files-host/);
-    assert.match(filesPage, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/);
+    assert.match(filesPage, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/);
     assert.match(filesScript, /dataset\.fileBusinessControl/);
     assert.match(filesScript, /await window\.LongtailForge\.workspaceContextReady/);
     assert.match(filesScript, /clientId: usesBusinessScope\(\) \? clientFilter\?\.value : ""/);
@@ -143,7 +143,7 @@ try {
     assert.match(filesScript, /projectLabel/);
 
     assert.match(listsPage, /js\/shared\/view-builder\.js\?v=5/);
-    assert.match(listsPage, /js\/lists\.js\?v=13/);
+    assert.match(listsPage, /js\/lists\.js\?v=14/);
     assert.doesNotMatch(listsScript, /usesBusinessScope\(\) \? loadClientProjects\(\) : Promise\.resolve/);
     assert.match(listsScript, /state\.clients = window\.LongtailForge\.clientProjectOptions\.normalizeClients\(clientProjects\)/);
     assert.match(listsScript, /return !usesBusinessScope\(\) \|\| \["procurement", "parts", "supplies", "bill_of_materials"]/);

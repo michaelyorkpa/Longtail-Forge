@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
 function functionBlock(source, name) {
-  const start = source.indexOf(`function ${name}`);
+  const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `${name} should exist`);
   let braceStart = -1;
   let parenDepth = 0;
@@ -55,7 +55,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(filesPage, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust modal styling");
-assert.match(filesPage, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should cache-bust the Files adapter");
+assert.match(filesPage, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/, "Files page should cache-bust the Files adapter");
 assert.match(regressionSuite, /scripts\/files-edit-modal-shell-regression\.mjs/, "Regression suite should include the Files edit modal shell regression");
 
 const openerBlock = functionBlock(filesScript, "openFileEditor");

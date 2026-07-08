@@ -10,20 +10,20 @@ const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.6.6f", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.6.6f", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.6.6f", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.6.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.6.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.6.11", "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should cache-bust the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=12/, "Notes should cache-bust the shared view renderer modal opener");
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust stacked modal warning styles");
-assert.match(notesHtml, /js\/notes\.js\?v=70/, "Notes should cache-bust the Notes modal wiring");
+assert.match(notesHtml, /js\/notes\.js\?v=71/, "Notes should cache-bust the Notes modal wiring");
 
 assert.match(notesJs, /label: "Tags"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Tags"[\s\S]*title: "Tags"/, "Tags utility should use the concise icon plus text label");
 assert.match(notesJs, /label: "Files"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Files"[\s\S]*title: "Files"/, "Files utility should use the concise icon plus text label");
 assert.doesNotMatch(notesJs, /Note tags|Note files/, "Notes utility buttons should not expose the old longer labels");
-assert.match(notesJs, /view\.showModal\(dialog\)/, "The Add/Edit Note dialog should open through the shared modal stack helper");
-assert.match(notesJs, /view\.closeModal\(dialog\)/, "Closing or saving the Add/Edit Note dialog should close child modals safely");
+assert.match(notesJs, /view\.showModal\(dialog, \{ trigger: options\.trigger \|\| options\.hostContext\?\.trigger \|\| null \}\)/, "The Add/Edit Note dialog should open through the shared modal stack helper with focus-return trigger context");
+assert.match(notesJs, /view\.closeModal\(dialog, options\.returnValue \|\| ""\)/, "Closing or saving the Add/Edit Note dialog should close child modals safely");
 assert.match(notesJs, /view\.showModal\(collectionDialog, \{ parent: null \}\)/, "Collection dialogs should use the shared modal stack helper without inheriting the action-modal parent");
 assert.match(notesJs, /view\.closeModal\(collectionDialog\)/, "Collection dialogs should close through the shared modal stack helper");
 

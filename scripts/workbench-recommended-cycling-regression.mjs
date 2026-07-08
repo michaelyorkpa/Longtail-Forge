@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -15,13 +15,13 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /workbench\.js\?v=22/,
-  "Workbench should bump its script cache key for recommended-action cycling",
+  /workbench\.js\?v=26/,
+  "Workbench should bump its script cache key for the resume recommendation update",
 );
 assert.match(
   workbenchScript,
-  /const RECOMMENDED_CANDIDATE_LIMIT = 5;/,
-  "Recommended action cycling should be capped to the top five ranked candidates",
+  /const RECOMMENDED_CANDIDATE_LIMIT = 1;/,
+  "Resume recommendations should show one ranked candidate before the subordinate More list",
 );
 assert.match(
   workbenchScript,
@@ -35,18 +35,23 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /icon: "previous"[\s\S]*iconOnly: true[\s\S]*label: "Show previous recommendation"/,
-  "Recommended-action panel should render an icon-only previous arrow with an accessible label",
+  /icon: "previous"[\s\S]*iconOnly: true[\s\S]*label: "Previous"/,
+  "Recommended-action panel should render an icon-only previous arrow with the concise accessible label",
 );
 assert.match(
   workbenchScript,
-  /icon: "next"[\s\S]*iconOnly: true[\s\S]*label: "Not this one, show another recommendation"/,
-  "Recommended-action panel should render an icon-only not-this-one arrow with an accessible label",
+  /icon: "next"[\s\S]*iconOnly: true[\s\S]*label: "Next"/,
+  "Recommended-action panel should render an icon-only next arrow with the concise accessible label",
+);
+assert.doesNotMatch(
+  workbenchScript,
+  /Show previous recommendation|Not this one, show another recommendation/,
+  "Recommended-action cycle buttons should not keep verbose sentence labels",
 );
 assert.match(
   workbenchScript,
   /function recommendedCandidateWindow\(\) \{[\s\S]*return state\.focusCandidates\.slice\(0, RECOMMENDED_CANDIDATE_LIMIT\);[\s\S]*\}/,
-  "Recommended candidate cycling should only draw from the ranked top-five window",
+  "Recommended candidate selection should draw only from the configured ranked window",
 );
 assert.match(
   workbenchScript,
@@ -100,6 +105,11 @@ assert.match(
   roadmap,
   /### Version 0\.33\.6\.6a - Recommended-action candidate cycling and overflow[\s\S]*- \[x\] Add a "not this one" affordance[\s\S]*- \[x\] Keep everything beyond the top 3-5[\s\S]*- \[x\] Preserve the one-recommended-action emphasis[\s\S]*- \[x\] Preserve the permission\/workspace\/enabled-module scoping[\s\S]*- \[x\] Add focused browser\/static regressions/,
   "Roadmap should mark recommended-action cycling and overflow complete",
+);
+assert.match(
+  roadmap,
+  /### Version 0\.33\.6\.6h - Shorten recommendation cycle-button labels[\s\S]*- \[x\] Shorten the two cycle-button labels[\s\S]*- \[x\] On the icon-only arrows[\s\S]*- \[x\] Update any regression that pins the old button labels[\s\S]*Acceptance criteria:/,
+  "Roadmap should mark the recommended-action cycle label correction complete",
 );
 
 console.log("Workbench recommended-action cycling regression passed.");

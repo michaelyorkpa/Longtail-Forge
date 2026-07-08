@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -68,9 +68,9 @@ for (const [icon, action] of [
     `${action} should render with the expected icon`);
 }
 
-assert.match(filesView, /js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/,
+assert.match(filesView, /js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/,
   "Files view should load the shared preview helper before Files browser code");
-assert.match(notesView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/notes\.js\?v=70/,
+assert.match(notesView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/notes\.js\?v=71/,
   "Notes view should load updated attachment actions and shared preview before Notes mounts panels");
 assert.match(tasksView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
   "Tasks view should load updated attachment actions and shared preview before Task Files dialogs");

@@ -40,8 +40,13 @@ const LIST_LINK_TYPE_LABELS = {
 
 const view = window.LongtailForge?.view;
 let activeListsViewDescriptor = null;
+const listsWorkspaceHost = document.querySelector("[data-lists-host]");
+const isListsWorkspaceSurface = Boolean(listsWorkspaceHost);
 
 buildListsViewShell();
+if (!isListsWorkspaceSurface) {
+  ensureListsDialogShell();
+}
 
 const pageTitle = document.querySelector("[data-lists-title]");
 const createButton = document.querySelector("[data-list-create]");
@@ -83,9 +88,12 @@ const itemDialogFormStatus = document.querySelector("[data-list-item-form-status
 let state = {
   clients: [],
   currentUserId: "",
+  dialogDataReady: null,
   editingListId: "",
   itemDialogList: null,
   itemSuggestions: new Map(),
+  listDialogHostContext: null,
+  listDialogHostContextSettled: false,
   lists: [],
   selectedListId: new URLSearchParams(window.location.search).get("list") || "",
   taskLinkTargets: [],
@@ -99,8 +107,9 @@ if (!createButton?.dataset.surfaceAction) {
 filtersForm?.addEventListener("change", () => refreshLists());
 sortSelect?.addEventListener("change", () => refreshLists());
 listForm?.addEventListener("submit", saveList);
-listDialogClose?.addEventListener("click", closeListDialog);
-listCancelButton?.addEventListener("click", closeListDialog);
+listDialogClose?.addEventListener("click", cancelListDialog);
+listCancelButton?.addEventListener("click", cancelListDialog);
+listDialog?.addEventListener("close", handleListDialogClose);
 itemDialogForm?.addEventListener("submit", saveItem);
 itemDialogClose?.addEventListener("click", closeItemDialog);
 itemDialogCancel?.addEventListener("click", closeItemDialog);
@@ -110,7 +119,45 @@ listTypeInput?.addEventListener("change", () => setContextControlsVisible(should
 detailPanel?.addEventListener("click", handleDetailClick);
 detailPanel?.addEventListener("submit", handleDetailSubmit);
 
-initialize();
+const listsDialogApi = Object.freeze({
+  openAdd: (params = {}, hostContext = null) => openListEditor({ ...params, mode: "add" }, hostContext),
+  openEdit: (params = {}, hostContext = null) => openListEditor({ ...params, mode: "edit" }, hostContext),
+  openListEditor,
+});
+
+window.LongtailForge.listsDialog = Object.freeze({
+  ...(window.LongtailForge.listsDialog || {}),
+  ...listsDialogApi,
+});
+
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "lists.add",
+  id: "lists.add",
+  label: "Add List",
+  mode: "add",
+  moduleId: "lists",
+  open: (params, hostContext) => openListEditor({ ...params, mode: "add" }, hostContext),
+  recordType: "list",
+  requiredModules: ["lists"],
+  requiredPermissions: ["lists.create"],
+  title: "Add List",
+});
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "lists.edit",
+  id: "lists.edit",
+  label: "Edit List",
+  mode: "edit",
+  moduleId: "lists",
+  open: (params, hostContext) => openListEditor({ ...params, mode: "edit" }, hostContext),
+  recordType: "list",
+  requiredModules: ["lists"],
+  requiredPermissions: ["lists.view"],
+  title: "Edit List",
+});
+
+if (isListsWorkspaceSurface) {
+  initialize();
+}
 
 function buildListsViewShell() {
   const host = document.querySelector("[data-lists-host]");
@@ -134,6 +181,12 @@ function buildListsViewShell() {
   decorateListsDeclarativeSurface(surface, renderDescriptor);
   document.body.appendChild(createListDialogShell());
   document.body.appendChild(createItemDialogShell());
+}
+
+function ensureListsDialogShell() {
+  if (!document.querySelector("[data-list-dialog]")) {
+    document.body.appendChild(createListDialogShell());
+  }
 }
 
 function registerListsViewBehaviors() {
@@ -181,6 +234,65 @@ async function runRegisteredListBehavior(action, record) {
   }
   const selectedId = await runAction(action, list);
   await refreshLists(selectedId || list.list_id || state.selectedListId);
+}
+
+async function openListEditor(params = {}, hostContext = null) {
+  await prepareListDialogData();
+
+  const mode = normalizeListEditorMode(params);
+  const listId = readListEditorId(params);
+  let list = params.list || params.record || params.listRecord || null;
+
+  if (mode === "edit") {
+    if (!list && listId) {
+      list = await loadListDetail(listId);
+    }
+    if (!list?.list_id) {
+      throw new Error("List ID is required.");
+    }
+  }
+
+  const result = openListDialog(mode === "add" ? null : list, {
+    defaults: normalizeListEditorDefaults(params),
+    hostContext,
+    trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
+  });
+  return hostContext?.result || result;
+}
+
+async function prepareListDialogData() {
+  if (!state.dialogDataReady) {
+    state.dialogDataReady = (async () => {
+      await window.LongtailForge.workspaceContextReady;
+      applyWorkspaceContext();
+      await loadOptions();
+    })().catch((error) => {
+      state.dialogDataReady = null;
+      throw error;
+    });
+  }
+
+  return state.dialogDataReady;
+}
+
+function normalizeListEditorMode(params = {}) {
+  const mode = String(params.mode || params.actionMode || "").toLowerCase();
+  return mode === "edit" ? "edit" : "add";
+}
+
+function readListEditorId(params = {}) {
+  return params.listId || params.list_id || params.recordId || params.id || "";
+}
+
+function normalizeListEditorDefaults(params = {}) {
+  const context = params.context || {};
+  return {
+    client_id: params.client_id || params.clientId || context.clientId || "",
+    description: params.description || "",
+    list_type: params.list_type || params.listType || "",
+    project_id: params.project_id || params.projectId || context.projectId || "",
+    title: params.title || "",
+  };
 }
 
 function resolveListRecord(record) {
@@ -1668,28 +1780,72 @@ function formatToken(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function openListDialog(list = null) {
+function openListDialog(list = null, options = {}) {
+  const defaults = options.defaults || {};
   state.editingListId = list?.list_id || "";
+  state.listDialogHostContext = options.hostContext || null;
+  state.listDialogHostContextSettled = false;
   listDialogTitle.textContent = list ? "Edit List" : "Create List";
-  listTitleInput.value = list?.title || "";
-  listDescriptionInput.value = list?.description || "";
-  listTypeInput.value = list?.list_type || defaultListType();
+  listTitleInput.value = list?.title || defaults.title || "";
+  listDescriptionInput.value = list?.description || defaults.description || "";
+  listTypeInput.value = list?.list_type || defaults.list_type || defaultListType();
   setContextControlsVisible(shouldShowContextControls(listTypeInput.value));
-  populateClientOptions(list?.client_id || "");
-  populateProjectOptions(listProjectInput, list?.client_id || "", list?.project_id || "");
+  populateClientOptions(list?.client_id || defaults.client_id || "");
+  populateProjectOptions(listProjectInput, list?.client_id || defaults.client_id || "", list?.project_id || defaults.project_id || "");
   listFormStatus.textContent = "";
   listSaveButton.textContent = list ? "Save List" : "Create List";
+  const closeResult = new Promise((resolve) => {
+    listDialog?.addEventListener("close", () => resolve(listDialog.returnValue || "closed"), { once: true });
+  });
   if (typeof listDialog.showModal === "function") {
     listDialog.showModal();
   } else {
     listDialog.setAttribute("open", "open");
   }
   listTitleInput.focus();
+  return closeResult;
 }
 
-function closeListDialog() {
-  listDialog.close?.();
+function closeListDialog(options = {}) {
+  if (options.cancelHost) {
+    cancelListDialogHostContext({
+      actionId: state.editingListId ? "lists.edit" : "lists.add",
+      recordId: state.editingListId || "",
+    });
+  }
+  listDialog.close?.(options.returnValue || "");
   listDialog.removeAttribute("open");
+}
+
+function cancelListDialog() {
+  closeListDialog({ cancelHost: true, returnValue: "cancel" });
+}
+
+function handleListDialogClose() {
+  cancelListDialogHostContext({
+    actionId: state.editingListId ? "lists.edit" : "lists.add",
+    recordId: state.editingListId || "",
+  });
+}
+
+function completeListDialogHostContext(detail = {}) {
+  if (!state.listDialogHostContext || state.listDialogHostContextSettled) {
+    return;
+  }
+
+  state.listDialogHostContextSettled = true;
+  state.listDialogHostContext.complete?.(detail);
+  state.listDialogHostContext = null;
+}
+
+function cancelListDialogHostContext(detail = {}) {
+  if (!state.listDialogHostContext || state.listDialogHostContextSettled) {
+    return;
+  }
+
+  state.listDialogHostContextSettled = true;
+  state.listDialogHostContext.cancel?.(detail);
+  state.listDialogHostContext = null;
 }
 
 async function saveList(event) {
@@ -1701,6 +1857,8 @@ async function saveList(event) {
     project_id: listProjectInput.value,
     title: listTitleInput.value,
   };
+  const wasEditing = Boolean(state.editingListId);
+  let savedListId = state.editingListId || "";
 
   try {
     listSaveButton.disabled = true;
@@ -1709,10 +1867,21 @@ async function saveList(event) {
       await api.putJson(`/api/lists/${encodeURIComponent(state.editingListId)}`, payload);
     } else {
       const result = await api.postJson("/api/lists", payload);
-      state.selectedListId = result.list?.list_id || state.selectedListId;
+      savedListId = result.list?.list_id || "";
+      state.selectedListId = savedListId || state.selectedListId;
     }
-    closeListDialog();
-    await refreshLists(state.selectedListId);
+    if (typeof state.listDialogHostContext?.refresh === "function") {
+      await state.listDialogHostContext.refresh({ list: { ...payload, list_id: savedListId } });
+    }
+    completeListDialogHostContext({
+      actionId: wasEditing ? "lists.edit" : "lists.add",
+      recordId: savedListId,
+      title: payload.title || "",
+    });
+    closeListDialog({ returnValue: "complete" });
+    if (isListsWorkspaceSurface) {
+      await refreshLists(state.selectedListId);
+    }
     setStatus("");
   } catch (error) {
     listFormStatus.textContent = error.message || "List could not be saved.";

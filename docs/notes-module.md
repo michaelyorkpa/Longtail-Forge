@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.6.6f. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.6.11. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -30,6 +30,8 @@ The protected Notes workspace uses the framework `notes.workspace` descriptor wi
 The framework owns the slide-out shell, footer-aware screen-left funnel trigger, backdrop, Escape/backdrop/trigger close behavior, focus return, panel shell, disclosure behavior, scroll-safe panel bodies, filter search suggestion popover placement, and footer slot placement. Notes owns the panel content and behavior: filter query state, tag suggestion option data, Library bucket/collection controls, Notes List data rendering, sorting/pagination controls, archive handling, selected-note detail rendering, Linked Context display, and Primary Context display. Filters start collapsed inside the drawer, Library starts open, and selecting a note closes the drawer so the central detail remains primary. Library and Collection controls stack on separate lines, Collection actions open from a modal beside the Collection dropdown, collection create/edit handoffs wait for that actions modal to close before opening the editor as a top-level modal, and compact Notes List rows show one visible tag chip plus overflow to avoid metadata overlap.
 
 As of 0.33.5.18.6.11, Notes is the template implementation for future action/workflow surfaces that need side navigation without sacrificing the main record view. Future module conversions should reuse the slide-out sidebar pattern when appropriate and should not bring back the retired center `split-list-detail` layout or the rejected persistent split-column `sidebar-detail` anatomy as the default direction.
+
+As of 0.33.6.10b, Notes exposes `LongtailForge.notesDialog.openNoteEditor()` plus the shared `notes.add` and `notes.edit` module actions. These actions wrap the existing Add/Edit Note editor; they do not create an alternate form. When lazy-loaded outside the Notes page, `public/js/notes.js` creates only the existing dialog shells, prepares workspace/tags/collection data, passes the shared host context into the editor, and signals completion or cancel after the normal Notes save/cancel path runs.
 
 ## Library Model
 

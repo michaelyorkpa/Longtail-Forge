@@ -43,7 +43,7 @@ async function assertWorkbenchSourcesEnabled(session, fixtures) {
   assert.equal(Object.hasOwn(bootstrap.modules, "timeTracking"), false, "Workbench module state should be keyed by module ID");
   assert.ok(workbenchRenderers(bootstrap).includes("task-workbench-items"));
   assert.ok(workbenchRenderers(bootstrap).includes("active-work-timers"));
-  assert.deepEqual(bootstrap.taskItems, [], "bootstrap should not inline Tasks-owned work item payloads");
+  assert.equal(Object.hasOwn(bootstrap, "taskItems"), false, "bootstrap should not expose a Tasks-owned work item payload field");
   assert.deepEqual(bootstrap.timers, [], "bootstrap should not inline Time Tracking timer payloads");
 
   assert.ok(

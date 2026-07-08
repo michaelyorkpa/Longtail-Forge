@@ -24,6 +24,10 @@ Framework dependencies:
 - Timezone normalization for persisted UTC timestamps.
 - Workspace settings/bootstrap responses for module status and metadata.
 
+Dashboard billing contributions:
+
+As of 0.33.6.10b, Time Tracking owns the Dashboard billing panels. The module declares `current-month-billables` and `hours-billables-chart` dashboard contributions with `reporting.view`, Time Tracking workspace capability, and enabled-module gates. `public/js/time-tracking-dashboard.js` registers the `time-tracking.current-month-billables` and `time-tracking.hours-billables-chart` renderers with the framework Dashboard host, and both renderers fetch `/api/time-tracking/dashboard/billing-summary`. `src/modules/time-tracking/time-tracking-billing.service.js` owns the permission-checked billing aggregation for the current-month billable table and trailing hours/billables chart so later project time/billing work can reuse the same calculation boundary. Dashboard remains responsible only for contribution filtering, panel placement, status, and empty states.
+
 Disabled-module rule:
 
 Time Tracking keeps historical read-only access so existing entries remain visible, but create, update, delete, active-timer save, finalize, and remove operations are blocked when the module is disabled.

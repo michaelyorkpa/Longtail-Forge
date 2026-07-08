@@ -1,3 +1,73 @@
+## Version 0.33.6.11 - 2026-07-07 22:58 -04:00
+
+- Added a wide-layout Workbench Inspector panel beside the guided Workbench surface, with a bounded list of permission-shaped focus candidates and graceful empty/narrow-screen behavior.
+- Routed Inspector Task, Note, and List titles through existing module-action modal openers where available, preserving focus return, Workbench refresh hooks, and explicit page fallback behavior for unsupported candidates.
+- Kept the Inspector out of QAC's bottom-right drawer space and locked it away from embedded viewer/file-preview behavior, body content, unsafe labels, and raw-ID display fallbacks.
+- Updated QAC lazy loading for Notes and Lists to use module imports so protected Workbench pages do not recreate classic-script lexical collisions when opening those dialogs.
+- Updated Workbench/QAC regressions, suite coverage, roadmap, and architecture/view/module/UI-surface docs for the Inspector boundary.
+- Verification 2026-07-07 23:06 -04:00: changed Workbench/QAC/regression files passed `node --check`; focused Workbench Inspector, Workbench opener/layout, QAC, module-action, Files cache-key ripple, static closeout, and regression coverage checks passed; `npm run check` passed 295/295 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; `/api/app-info` reported 0.33.6.11 from the refreshed local 8001 server; and served `workbench.js?v=26`, `longtail-forge.css?v=29`, and `footer.js` exposed the Inspector and module-loader markers.
+
+## Version 0.33.6.10b - 2026-07-07 22:25 -04:00
+
+- Added first-party `notes.add`, `notes.edit`, `lists.add`, `lists.edit`, `files.edit`, and `files.preview` registrations to the shared `LongtailForge.moduleActions` registry.
+- Routed QAC Note and List capture through the existing Notes and Lists modal editors with lazy dialog-only loading, host-context save/cancel signaling, refresh hooks, and focus return.
+- Registered Files' existing attachment-scoped File Context and File Preview openers for future framework dispatch while keeping generic File capture as an explicit page fallback until a target-aware upload opener exists.
+- Updated protected Notes, Lists, Files, Tasks, Time Entries, Clients, Projects, and Workbench pages to load the refreshed shared action registry before module adapters.
+- Added `scripts/quick-action-opener-rollout-regression.mjs` and expanded QAC/module-action regressions and docs for the 0.33.6.10b opener boundary.
+- Verification 2026-07-07 22:39 -04:00: changed browser/regression files passed `node --check`; focused QAC opener, module-action, File UI, Notes/List/File cache-key, Notes host-context, static closeout, and regression coverage ratchet checks passed; `npm run check` passed 294/294 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; served footer/module-action/Notes/Lists/Files bundles exposed the 10b markers; and `/api/app-info` reported 0.33.6.10b from the refreshed local 8001 server.
+
+## Version 0.33.6.10a - 2026-07-07 21:19 -04:00
+
+- Added server-gated `quickActions` descriptors to app-shell bootstrap so QAC actions are filtered by enabled module, workspace capability, permission, and search-target availability before the browser renders them.
+- Added a shared footer-owned Quick Action Capture drawer on protected pages, anchored bottom-right, quiet until opened, Escape/outside-click closable, footer-aware, and responsive from icon+text to icon-only.
+- Wired the Task quick action through the existing `LongtailForge.moduleActions` `tasks.add` path with lazy Task dialog dependencies and safe current-page context; Timer, Note, List, File, Reporting, and Search use explicit temporary page fallbacks.
+- Added the shared `bolt` icon, QAC shell styling, contract documentation, and `scripts/quick-action-capture-regression.mjs` coverage for protected-page presence, gating, focus return, quiet behavior, temporary fallback labeling, and no badge/recommendation noise.
+- Marked the `0.33.6.10a` roadmap slice complete and updated version guardrails to 0.33.6.10a.
+- Verification 2026-07-07 21:29 -04:00: `node scripts\quick-action-capture-regression.mjs`, adjacent app-shell/module-action/dashboard-workbench regressions, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `/api/app-info`, served `footer.js`, and served `longtail-forge.css` all passed; `npm run check` completed 293/293 regression scripts plus ESLint, permissions passed 240 checks, SQLite integrity returned `ok`, `/api/app-info` reported 0.33.6.10a from the refreshed local 8001 server, and the served QAC assets exposed the drawer/module-action/footer-aware markers without a QAC badge class.
+
+## Version 0.33.6.9 - 2026-07-07 20:58 -04:00
+
+- Moved the Dashboard Current Month Billables and Hours & Billables panels into Time Tracking-owned `dashboard` contributions with dedicated renderer IDs and module-owned `dataRoute` metadata.
+- Added the protected Time Tracking dashboard billing route `/api/time-tracking/dashboard/billing-summary` plus a reusable Time Tracking billing aggregation service for current-month billables and trailing hours/billables totals.
+- Exposed a Dashboard renderer registration seam so `public/js/time-tracking-dashboard.js` can register the billing table and chart renderers while the Dashboard host keeps only placement, status, empty-state, Project Summary, and Task Summary responsibilities.
+- Removed Time Tracking billing payloads and calculations from `/api/dashboard`, kept the reporting hub as the framework-hosted interim panel, and validated the `dashboard[].dataRoute` manifest field.
+- Updated Dashboard/Time Tracking docs, roadmap checkboxes, version guardrails, and `scripts/dashboard-workbench-regression.mjs` to prove gated Time Tracking billing contributions and no host-owned billing renderer/data assumptions.
+- Verification 2026-07-07 21:04 -04:00: `node --check` for changed Dashboard/Time Tracking/reporting/regression files, `node scripts\dashboard-workbench-regression.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, `/api/app-info`, served `dashboard.js?v=3`, and served `time-tracking-dashboard.js?v=1` all passed; `npm run check` completed 292/292 regression scripts plus ESLint, `npm run test:permissions` passed 240 checks, SQLite integrity returned `ok`, `/api/app-info` reported 0.33.6.9 from the refreshed local 8001 server, the served Dashboard bundle exposed `registerPanelRenderer` without `billing-summary` or `timeTracking`, and the served Time Tracking bundle exposed both billing renderer IDs plus `/api/time-tracking/dashboard/billing-summary`.
+
+## Version 0.33.6.8 - 2026-07-07 20:31 -04:00
+
+- Converted `views/protected/dashboard.html` to a minimal `data-dashboard-host` framework host and loaded `LongtailForge.view` before the Dashboard adapter.
+- Reworked `public/js/dashboard.js` so the Dashboard page builds its header, status, panel regions, empty state, and contribution-backed panels through the shared view helper instead of static protected-page markup.
+- Preserved the existing Project Summary, Task Summary, Current Month Billables, and Hours & Billables panels behind the existing dashboard contribution renderer registry, while leaving Time Tracking panel extraction to 0.33.6.9.
+- Retired the hidden `data-dashboard-extension-panels` stub and strengthened `scripts/dashboard-workbench-regression.mjs` to lock the minimal-host contract and contribution-rendered panel path.
+- Verification 2026-07-07 20:40 -04:00: `node --check public\js\dashboard.js`, `node --check src\services\work-candidate.service.js`, focused Dashboard/Workbench/work-candidate/focus-mode regressions, closeout/static guardrails, `node scripts\regression-coverage-ratchet.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale Dashboard marker/current-version scan, served `dashboard.js?v=3`, and `/api/app-info` all passed; `npm run check` completed 292/292 regression scripts plus ESLint, `npm run test:permissions` passed 240 checks, SQLite integrity returned `ok`, the served Dashboard bundle exposed the minimal-host/view-helper contract without retired static markers, and `/api/app-info` reported 0.33.6.8 from the refreshed local 8001 server.
+
+## Version 0.33.6.7 - 2026-07-07 19:54 -04:00
+
+- Wired the Workbench Pick up where I left off focus to execute its declared resume strategy: resume-state candidates are read and ranked first, with ranked fallback candidates used only when no resume rows are available.
+- Added resume-specific ordering for running timers, paused timers, task resume notes, and In Progress tasks with task priority tie-breaks, and kept live running/paused timers in the fallback bucket set.
+- Kept Workbench to one recommended candidate with subordinate "More in this focus" overflow, and added a Dismiss action for resume-backed candidates through `POST /api/work-resume/:id/dismiss`.
+- Excluded far-future recurring task instances whose only recent signal is `Task Created`, while allowing recurring instances near their due date; task resume-state producer metadata now includes recurrence template/instance fields.
+- Updated Workbench/resume docs, cache key `workbench.js?v=25`, version/module guardrails, and focused regressions for resume ordering, fallback timers, recurring exclusion, dismissal, and unreadable target filtering.
+- Verification 2026-07-07 20:00 -04:00: `node --check` for changed service/browser/regression files, focused work-candidate/focus-mode/work-resume/Workbench regressions, closeout/static guardrails, `node scripts\regression-coverage-ratchet.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale version/cache-key/label scan, `git diff --check`, served `workbench.js?v=25`, and `/api/app-info` all passed; `npm run check` completed 292/292 regression scripts plus ESLint, `npm run test:permissions` passed 240 checks, SQLite integrity returned `ok`, `/api/app-info` reported 0.33.6.7 from the refreshed local 8001 server, and the served Workbench bundle exposed resume dismissal plus `RECOMMENDED_CANDIDATE_LIMIT = 1` without the old top-five limit.
+
+## Version 0.33.6.6h - 2026-07-07 19:20 -04:00
+
+- Shortened the Workbench recommended-action cycle button labels from verbose sentence labels to `Previous` and `Next`, preserving the icon-only accessible name and tooltip behavior.
+- Bumped the Workbench script cache key to `workbench.js?v=24`, updated version/module guardrails to 0.33.6.6h, and marked the 0.33.6.6h roadmap slice complete.
+- Updated `scripts/workbench-recommended-cycling-regression.mjs` to require the concise labels and reject the old verbose recommendation-cycle copy.
+- Verification 2026-07-07 19:27 -04:00: `node --check public\js\workbench.js`, `node --check scripts\workbench-recommended-cycling-regression.mjs`, focused Workbench/action/cache regressions, closeout/static guardrails, `node scripts\regression-coverage-ratchet.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale current-version/cache-key/label scan, `git diff --check`, served `workbench.js?v=24`, and `/api/app-info` all passed; `npm run check` completed 292/292 regression scripts plus cached ESLint, `npm run test:permissions` passed 240 checks, SQLite integrity returned `ok`, `/api/app-info` reported 0.33.6.6h from the refreshed local 8001 server, and the served Workbench bundle exposed `Previous`/`Next` without the old verbose recommendation-cycle labels.
+
+## Version 0.33.6.6g - 2026-07-07 18:13 -04:00
+
+- Removed the Workbench all-tasks Tasks list, including the `createTaskSection()` layout, list renderer, task filters, task sort control, task-list action buttons, and list-only `taskItems` browser state.
+- Kept the Tasks contribution path only for `taskOptions` while leaving recommended-action and "More in this focus" candidates on the existing focus/candidate services.
+- Removed the empty Workbench bootstrap `taskItems` compatibility field and updated permission/de-hardcode regressions to assert that the dead list payload no longer exists.
+- Removed dead Workbench task-list CSS hooks, bumped Workbench cache keys to `workbench.js?v=23` and `longtail-forge.css?v=28`, and updated related cache-key regressions.
+- Added `scripts/workbench-remove-all-tasks-list-regression.mjs`, registered it with the regression suite/coverage manifest, and converted the older Workbench task-ordering regression into a task-options/source-boundary guard.
+- Updated `docs/module-contract.md`, `docs/declarative-view-surfaces.md`, `docs/view-building-contract.md`, `docs/regression-suite-performance.md`, `ROADMAP.md`, package/module/version guardrails, and the SQLite dialect `contractVersion` to 0.33.6.6g.
+- Verification 2026-07-07 18:27 -04:00: `node --check public\js\workbench.js`, `node --check scripts\workbench-remove-all-tasks-list-regression.mjs`, `node --check src\services\workbench.service.js`, focused Workbench/service/action/cache regressions, `node scripts\static-contract-closeout-regression.mjs`, `node scripts\parameter-binding-audit-regression.mjs`, `node scripts\database-agnostic-contract-closeout-regression.mjs`, `node scripts\interpolation-enforcement-guardrail-regression.mjs`, `node scripts\dialect-enforcement-guardrail-regression.mjs`, `node scripts\regression-coverage-ratchet.mjs`, `npm run check`, `npm run test:permissions`, SQLite `PRAGMA integrity_check`, stale current-version/cache-key/task-list scan, `git diff --check`, served `workbench.js?v=23`, served `longtail-forge.css?v=28`, and `/api/app-info` all passed; `npm run check` completed 292/292 regression scripts plus cached ESLint, `npm run test:permissions` passed 240 checks, SQLite integrity returned `ok`, `/api/app-info` reported 0.33.6.6g from the refreshed local 8001 server, and the served Workbench bundle/CSS had no all-tasks/taskItems/task-list hooks while retaining recommended-action and secondary-candidate hooks.
+
 ## Version 0.33.6.6f - 2026-07-07 17:49 -04:00
 
 - Started the Workbench "More in this focus" secondary-candidate section collapsed by default while keeping the overflow list available and counted.

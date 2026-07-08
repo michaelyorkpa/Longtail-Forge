@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-framework-admin-low-count-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-framework-admin-low-count-conversion.db");
@@ -80,7 +80,7 @@ function assertStaticContract() {
   assertNoLiteralHelpers("Help service", helpServiceSource);
   assert.match(helpServiceSource, /WHERE workspace_id = :workspaceId/, "Help workspace existence reads should use named params");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6f:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the current parameter-binding ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.10b:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the current parameter-binding ratchet");
   assert.match(auditDocs, /\| core\/modules\/modules\.service \| Converted \| 0 \| 0 \| 6 \| 7 \|/, "audit inventory should mark modules service converted");
   assert.match(auditDocs, /\| audit-logs\.repo \| Converted \| 0 \| 0 \| 10 \| 10 \|/, "audit inventory should mark audit logs repo converted");
   assert.match(auditDocs, /\| api-keys\.repo \| Converted \| 0 \| 0 \| 9 \| 9 \|/, "audit inventory should mark API keys repo converted");

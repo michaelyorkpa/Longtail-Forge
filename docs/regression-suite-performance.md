@@ -422,7 +422,8 @@ These scripts run in a database bucket but their source did not show an obvious 
 | scripts/clients-projects-hierarchy-reparent-regression.mjs | static/source regressions | 0.12 | focused | none |  |
 | scripts/clients-projects-strict-closeout-regression.mjs | static/source regressions | 1.03 | closeout | none |  |
 | scripts/time-entries-screen-regression.mjs | static/source regressions | 0.10 | focused | none |  |
-| scripts/workbench-task-ordering-regression.mjs | static/source regressions | 0.10 | focused | none |  |
+| scripts/workbench-task-ordering-regression.mjs | static/source regressions | 0.10 | focused | none | Task-options/source-boundary regression after 0.33.6.6g removed the all-tasks list. |
+| scripts/workbench-remove-all-tasks-list-regression.mjs | static/source regressions | 0.10 | focused | none | Guards the 0.33.6.6g Workbench no-all-tasks-index contract. |
 | scripts/module-actions-regression.mjs | static/source regressions | 0.13 | focused | none |  |
 | scripts/shared-icons-regression.mjs | static/source regressions | 0.11 | focused | none |  |
 | scripts/icon-control-conversion-regression.mjs | static/source regressions | 0.11 | focused | none |  |

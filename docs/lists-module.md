@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.6.6f. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.6.11. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -30,6 +30,8 @@ Workspace-facing labels adapt by workspace type:
 - Framework and module contracts still use the stable `lists` ID.
 
 Business workspaces can associate a list with a client and project. Selecting a project derives the client from the project. Personal and family workspaces hide client controls, keep lists workspace scoped, and allow workspace projects as optional list context.
+
+As of 0.33.6.10b, Lists exposes `LongtailForge.listsDialog.openListEditor()` plus the shared `lists.add` and `lists.edit` module actions. These actions wrap the existing Create/Edit List dialog; they do not create an alternate form. When lazy-loaded outside the Lists page, `public/js/lists.js` creates only the existing list dialog shell, prepares workspace/client/project/user option data, passes the shared host context into the dialog, and signals completion or cancel after the normal Lists save/cancel path runs.
 
 ## Core Records
 

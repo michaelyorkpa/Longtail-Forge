@@ -8,6 +8,95 @@ import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalize
 import { notificationsService } from "./notifications.service.js";
 import { searchService } from "./search.service.js";
 
+const QUICK_ACTION_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: "timer",
+    label: "Timer",
+    description: "Start or review active time.",
+    icon: "start",
+    actionType: "fallback-link",
+    href: "time-tracker.html",
+    moduleId: "time-tracking",
+    requiredModules: ["time-tracking"],
+    requiredPermissions: ["time_entries.create"],
+    requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+    temporaryFallback: true,
+    temporaryLabel: "Temporary fallback: opens Time Tracker until the two-timer drawer action ships.",
+  }),
+  Object.freeze({
+    id: "task",
+    label: "Task",
+    description: "Capture a new task without leaving this page.",
+    icon: "complete",
+    actionType: "module-action",
+    moduleActionId: "tasks.add",
+    moduleId: "tasks",
+    requiredModules: ["tasks"],
+    requiredPermissions: ["tasks.create"],
+    requiredWorkspaceCapabilities: ["projects", "clients_projects"],
+  }),
+  Object.freeze({
+    id: "note",
+    label: "Note",
+    description: "Capture working context.",
+    icon: "edit",
+    actionType: "module-action",
+    moduleActionId: "notes.add",
+    moduleId: "notes",
+    requiredModules: ["notes"],
+    requiredPermissions: ["notes.create"],
+  }),
+  Object.freeze({
+    id: "list",
+    label: "List",
+    description: "Capture an operational list or checklist.",
+    icon: "list-checks",
+    actionType: "module-action",
+    moduleActionId: "lists.add",
+    moduleId: "lists",
+    requiredModules: ["lists"],
+    requiredPermissions: ["lists.create"],
+  }),
+  Object.freeze({
+    id: "file",
+    label: "File",
+    description: "Add or recover a file attachment.",
+    icon: "file",
+    actionType: "fallback-link",
+    href: "files.html",
+    moduleId: "framework",
+    requiredPermissions: ["files.upload"],
+    temporaryFallback: true,
+    temporaryLabel: "Temporary fallback: opens Files until target-aware file upload capture ships.",
+  }),
+  Object.freeze({
+    id: "reporting",
+    label: "Reporting",
+    description: "Open reporting tools.",
+    icon: "list",
+    actionType: "fallback-link",
+    href: "reporting.html",
+    moduleId: "time-tracking",
+    requiredModules: ["time-tracking"],
+    requiredPermissions: ["reporting.view"],
+    requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+    temporaryFallback: true,
+    temporaryLabel: "Temporary fallback: opens Reporting until report creation has a modal.",
+  }),
+  Object.freeze({
+    id: "search",
+    label: "Search",
+    description: "Recover records through global search.",
+    icon: "filter",
+    actionType: "fallback-link",
+    href: "search.html",
+    moduleId: "framework",
+    requiredSearchTargets: true,
+    temporaryFallback: true,
+    temporaryLabel: "Temporary fallback: opens Search until advanced search has a modal.",
+  }),
+]);
+
 async function bootstrap(session) {
   const [
     workspaceContext,
@@ -30,7 +119,10 @@ async function bootstrap(session) {
     readNotificationSummary(session),
     readSearchTargets(session),
   ]);
-  const navigation = await buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints);
+  const [navigation, quickActions] = await Promise.all([
+    buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints),
+    readQuickActions(session, workspaceContext, { searchTargets }),
+  ]);
 
   return {
     app: {
@@ -44,6 +136,7 @@ async function bootstrap(session) {
     navigation,
     notificationSummary,
     permissionHints,
+    quickActions,
     searchTargets,
     viewSurfaces,
     themeMode: normalizeThemeMode(user?.theme_mode),
@@ -58,9 +151,91 @@ async function bootstrap(session) {
     },
     workspaceContext: {
       ...workspaceContext,
+      quickActions,
       viewSurfaces,
     },
     workspaces: normalizeWorkspaceMemberships(workspaces),
+  };
+}
+
+async function readQuickActions(session, workspaceContext, options = {}) {
+  const visibleActions = [];
+
+  for (const action of QUICK_ACTION_DEFINITIONS) {
+    if (action.requiredSearchTargets && normalizeSearchTargetsForQuickActions(options.searchTargets).length === 0) {
+      continue;
+    }
+    if (!quickActionModulesAvailable(action, workspaceContext)) {
+      continue;
+    }
+    if (!quickActionWorkspaceCapabilitiesAvailable(action, workspaceContext)) {
+      continue;
+    }
+    if (!(await quickActionPermissionsAllowed(action, session))) {
+      continue;
+    }
+
+    visibleActions.push(toQuickActionPayload(action));
+  }
+
+  return visibleActions;
+}
+
+function normalizeSearchTargetsForQuickActions(searchTargets = []) {
+  return Array.isArray(searchTargets) ? searchTargets.filter((target) => target?.recordType) : [];
+}
+
+function quickActionModulesAvailable(action, workspaceContext) {
+  const enabledModules = new Set(Array.isArray(workspaceContext.enabledModules) ? workspaceContext.enabledModules : []);
+  const requiredModules = [
+    action.moduleId && action.moduleId !== "framework" ? action.moduleId : "",
+    ...(action.requiredModules || []),
+  ].filter(Boolean);
+
+  return requiredModules.every((moduleId) => enabledModules.has(moduleId));
+}
+
+function quickActionWorkspaceCapabilitiesAvailable(action, workspaceContext) {
+  const requiredCapabilities = Array.isArray(action.requiredWorkspaceCapabilities)
+    ? action.requiredWorkspaceCapabilities
+    : [];
+
+  if (requiredCapabilities.length === 0) {
+    return true;
+  }
+
+  const availableTools = new Set(
+    Array.isArray(workspaceContext.workspaceCapabilities?.availableTools)
+      ? workspaceContext.workspaceCapabilities.availableTools
+      : [],
+  );
+  return requiredCapabilities.some((capability) => availableTools.has(capability));
+}
+
+async function quickActionPermissionsAllowed(action, session) {
+  for (const permissionId of action.requiredPermissions || []) {
+    if (!(await permissionsService.canInAnyScope(session, permissionId, {
+      workspace_id: session.workspace_id,
+    }))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function toQuickActionPayload(action) {
+  return {
+    actionType: action.actionType,
+    description: action.description,
+    href: action.href || "",
+    icon: action.icon,
+    id: action.id,
+    label: action.label,
+    moduleActionId: action.moduleActionId || "",
+    moduleId: action.moduleId,
+    temporaryFallback: action.temporaryFallback === true,
+    temporaryLabel: action.temporaryLabel || "",
   };
 }
 

@@ -1023,6 +1023,7 @@ function validateDashboard(dashboard, errors) {
     requireString(item, "renderer", errors, { prefix: `dashboard[${index}]` });
     requireString(item, "moduleId", errors, { prefix: `dashboard[${index}]` });
     optionalString(item, "description", errors, { prefix: `dashboard[${index}]` });
+    optionalString(item, "dataRoute", errors, { prefix: `dashboard[${index}]` });
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `dashboard[${index}]` });
     optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `dashboard[${index}]` });
     optionalStringArray(item, "requiresEnabledModules", errors, { prefix: `dashboard[${index}]` });

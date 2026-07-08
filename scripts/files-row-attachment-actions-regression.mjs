@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -97,7 +97,7 @@ assert.match(functionBlock(filesService, "reportFile"), /canReadAnyAttachment[\s
 assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session, "files\.manage_quarantine"[\s\S]*SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Quarantine service should keep server-side permission authority through bound params");
 
 assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared row-action icons");
-assert.match(filesHtml, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should load shared preview and cache-bust the Files action wiring");
+assert.match(filesHtml, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/, "Files page should load shared preview and cache-bust the Files action wiring");
 assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the shared attachment action helper and load preview");
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the shared attachment action helper and load preview");
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the shared attachment action helper and load preview");

@@ -19,7 +19,6 @@ async function bootstrap(session) {
       workItemSources,
     },
     timers: [],
-    taskItems: [],
     taskOptions: null,
     workCandidates: workCandidates.items || [],
     workCandidateMode: workCandidates.mode || "",

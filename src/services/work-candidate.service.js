@@ -96,6 +96,7 @@ const WORK_CANDIDATE_RANK_BUCKETS = Object.freeze({
 const WORK_CANDIDATE_SORTS = Object.freeze({
   dueDatetime: "due_datetime",
   ranked: "ranked",
+  resume: "resume",
 });
 const RANK_BUCKET_ID_BY_VALUE = Object.freeze({
   [RANK_BUCKETS.runningTimer]: WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
@@ -118,9 +119,16 @@ async function listResumeCandidates(session, query = {}) {
   const candidates = (result.items || [])
     .map((row) => candidateFromResumeRow(row))
     .filter((candidate) => matchesCandidateQuery(candidate, normalizedQuery));
+  const orderedCandidates = normalizedQuery.sort
+    ? rankWorkCandidates(candidates, {
+        sort: normalizedQuery.sort,
+        today: normalizedQuery.today,
+        timezone: session?.timezone,
+      })
+    : candidates;
 
   return {
-    items: candidates.slice(0, normalizedQuery.limit),
+    items: orderedCandidates.slice(0, normalizedQuery.limit),
     mode: result.mode || normalizedQuery.mode,
   };
 }
@@ -487,6 +495,7 @@ function matchesCandidateQuery(candidate, query = {}) {
     matchesTextFilter(candidate.projectId, normalizedQuery.projectId) &&
     matchesStatusFilters(candidate, normalizedQuery) &&
     matchesDueDateFilters(candidate, normalizedQuery) &&
+    matchesPassiveRecurringCreated(candidate, normalizedQuery) &&
     matchesRankBucketFilters(candidate, normalizedQuery);
 }
 
@@ -502,6 +511,10 @@ function normalizeListQuery(query = {}, options = {}) {
     [NORMALIZED_QUERY_MARKER]: true,
     clientId: textValue(firstValue(flattenedQuery.clientId, flattenedQuery.client_id), 160),
     dueBefore: dateKeyFrom(firstValue(flattenedQuery.dueBefore, flattenedQuery.due_before), timezone),
+    excludePassiveRecurringCreated: booleanFlag(firstValue(
+      flattenedQuery.excludePassiveRecurringCreated,
+      flattenedQuery.exclude_passive_recurring_created,
+    )),
     dueFrom: dateKeyFrom(firstValue(flattenedQuery.dueFrom, flattenedQuery.due_from), timezone),
     dueOn: dateKeyFrom(firstValue(flattenedQuery.dueOn, flattenedQuery.due_on), timezone),
     dueTo: dateKeyFrom(firstValue(flattenedQuery.dueTo, flattenedQuery.due_to), timezone),
@@ -572,7 +585,12 @@ function matchesRankBucketFilters(candidate, query) {
     return true;
   }
 
-  return query.rankBuckets.includes(resolveWorkCandidateRankBucket(candidate, query));
+  if (query.rankBuckets.includes(resolveWorkCandidateRankBucket(candidate, query))) {
+    return true;
+  }
+
+  return query.rankBuckets.includes(WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched) &&
+    isNearDueRecurringCreatedCandidate(candidate, rankContext(query));
 }
 
 function resolveWorkCandidateRankBucket(candidate, options = {}) {
@@ -671,6 +689,12 @@ function rankBucket(candidate, context) {
     return RANK_BUCKETS.blockedOrStale;
   }
   if (isRecentlyTouched(context.lastActivityDateKey, context.recentSinceDateKey, context.today)) {
+    if (isPassiveRecurringCreatedCandidate(candidate) && !isWithinRecurringCreatedDueWindow(candidate, context)) {
+      return isDueThisWeek(context.dueDateKey, context.today, context.dueThisWeekEndDateKey)
+        ? RANK_BUCKETS.dueThisWeek
+        : RANK_BUCKETS.later;
+    }
+
     return RANK_BUCKETS.recentlyTouched;
   }
   if (isDueThisWeek(context.dueDateKey, context.today, context.dueThisWeekEndDateKey)) {
@@ -684,12 +708,26 @@ function compareRankedCandidates(left, right) {
   if (left.facts.sort === WORK_CANDIDATE_SORTS.dueDatetime) {
     return compareDueDatetimeCandidates(left, right);
   }
+  if (left.facts.sort === WORK_CANDIDATE_SORTS.resume) {
+    return compareResumeCandidates(left, right);
+  }
 
   return left.facts.bucket - right.facts.bucket ||
     right.facts.rankHint - left.facts.rankHint ||
     compareOptionalText(left.facts.dueDateKey, right.facts.dueDateKey) ||
     right.facts.priorityRank - left.facts.priorityRank ||
     right.facts.lastActivityTime - left.facts.lastActivityTime ||
+    left.candidate.title.localeCompare(right.candidate.title) ||
+    left.candidate.candidateId.localeCompare(right.candidate.candidateId) ||
+    left.index - right.index;
+}
+
+function compareResumeCandidates(left, right) {
+  return resumePrecedence(left.candidate) - resumePrecedence(right.candidate) ||
+    right.facts.priorityRank - left.facts.priorityRank ||
+    right.facts.rankHint - left.facts.rankHint ||
+    right.facts.lastActivityTime - left.facts.lastActivityTime ||
+    compareOptionalText(left.facts.dueDateKey, right.facts.dueDateKey) ||
     left.candidate.title.localeCompare(right.candidate.title) ||
     left.candidate.candidateId.localeCompare(right.candidate.candidateId) ||
     left.index - right.index;
@@ -726,6 +764,91 @@ function isPausedTimer(candidate) {
 function isTimerCandidate(candidate) {
   return candidate.recordType === "active_work_timer" ||
     String(candidate.metadata?.timer_status || candidate.metadata?.timerStatus || "").trim() !== "";
+}
+
+function resumePrecedence(candidate) {
+  if (isRunningTimer(candidate)) {
+    return 10;
+  }
+  if (isPausedTimer(candidate)) {
+    return 20;
+  }
+  if (isTaskCandidate(candidate) && hasResumeNote(candidate)) {
+    return 30;
+  }
+  if (isTaskCandidate(candidate) && isInProgressTask(candidate)) {
+    return 40;
+  }
+
+  return 50;
+}
+
+function isTaskCandidate(candidate) {
+  return candidate.moduleId === "tasks" && candidate.recordType === "task";
+}
+
+function hasResumeNote(candidate) {
+  return Boolean(textValue(
+    candidate.handoffNote || candidate.metadata?.resume_note || candidate.metadata?.resumeNote,
+    TEXT_LIMITS.handoffNote,
+  ));
+}
+
+function isInProgressTask(candidate) {
+  return normalizeFilterToken(candidate.status) === "in_progress";
+}
+
+function matchesPassiveRecurringCreated(candidate, query) {
+  return !query.excludePassiveRecurringCreated ||
+    !isPassiveRecurringCreatedCandidate(candidate) ||
+    isWithinRecurringCreatedDueWindow(candidate, rankContext(query));
+}
+
+function isNearDueRecurringCreatedCandidate(candidate, context) {
+  return isPassiveRecurringCreatedCandidate(candidate) &&
+    isWithinRecurringCreatedDueWindow(candidate, context) &&
+    isRecentlyTouched(
+      dateKeyFrom(candidate.lastWorkedAt || candidate.updatedAt || candidate.createdAt, context.timezone),
+      context.recentSinceDateKey,
+      context.today,
+    );
+}
+
+function isPassiveRecurringCreatedCandidate(candidate) {
+  return isTaskCandidate(candidate) &&
+    isRecurringTaskCandidate(candidate) &&
+    isTaskCreatedSignal(candidate) &&
+    !hasResumeNote(candidate);
+}
+
+function isRecurringTaskCandidate(candidate) {
+  const metadata = candidate.metadata || {};
+
+  return Boolean(
+    metadata.recurrence_template_id ||
+      metadata.recurrenceTemplateId ||
+      metadata.recurrence_instance_date ||
+      metadata.recurrenceInstanceDate,
+  );
+}
+
+function isTaskCreatedSignal(candidate) {
+  const actionType = normalizeFilterToken(candidate.lastActionType);
+  const actionLabel = normalizeFilterToken(candidate.lastActionLabel);
+
+  return actionType === "task.created" ||
+    actionType === "task_created" ||
+    actionLabel === "task_created";
+}
+
+function isWithinRecurringCreatedDueWindow(candidate, context) {
+  const dueDateKey = dateKeyFrom(
+    candidate.dueAt || candidate.metadata?.recurrence_instance_date || candidate.metadata?.recurrenceInstanceDate,
+    context.timezone,
+  );
+  const dayDistance = daysBetweenDateKeys(context.today, dueDateKey);
+
+  return Number.isFinite(dayDistance) && Math.abs(dayDistance) <= 1;
 }
 
 function isAssignedOrAssignmentUnknown(candidate) {
@@ -849,9 +972,8 @@ function dateKeyFrom(value, timezone = DEFAULT_TIMEZONE) {
     return "";
   }
 
-  const dateOnlyMatch = text.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (dateOnlyMatch) {
-    return dateOnlyMatch[1];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
   }
 
   const parsed = new Date(text);
@@ -917,6 +1039,21 @@ function compareOptionalNumber(left, right) {
   return left - right;
 }
 
+function daysBetweenDateKeys(left, right) {
+  if (!left || !right) {
+    return Number.NaN;
+  }
+
+  const leftTime = Date.parse(`${left}T00:00:00.000Z`);
+  const rightTime = Date.parse(`${right}T00:00:00.000Z`);
+
+  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) {
+    return Number.NaN;
+  }
+
+  return Math.round((rightTime - leftTime) / 86400000);
+}
+
 function safeUrl(value) {
   const url = textValue(value, TEXT_LIMITS.sourceUrl);
 
@@ -943,6 +1080,14 @@ function boundedInteger(value, min, max, fallback = min) {
   }
 
   return Math.min(max, Math.max(min, parsed));
+}
+
+function booleanFlag(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  return ["1", "true", "yes"].includes(String(value ?? "").trim().toLowerCase());
 }
 
 const workCandidateService = {

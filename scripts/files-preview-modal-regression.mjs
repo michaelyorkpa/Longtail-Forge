@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -58,7 +58,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(filesPage, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust preview modal styling");
-assert.match(filesPage, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=14/, "Files page should load shared preview before Files browser wiring");
+assert.match(filesPage, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/, "Files page should load shared preview before Files browser wiring");
 assert.match(icons, /eye:\s*Object\.freeze/, "Shared icon registry should include the Preview eye icon");
 assert.match(regressionSuite, /scripts\/files-preview-modal-regression\.mjs/, "Regression suite should include the Files preview modal regression");
 

@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.6.6f");
+  assert.equal(listsModule.version, "0.33.6.11");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/client-project-options\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=5/);
   assert.match(html, /js\/shared\/view-renderer\.js\?v=6/);
-  assert.match(html, /js\/lists\.js\?v=13/);
+  assert.match(html, /js\/lists\.js\?v=14/);
   assert.match(html, /css\/longtail-forge\.css\?v=32/);
 
   assert.match(listsJs, /buildListsViewShell/);

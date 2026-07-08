@@ -53,11 +53,19 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
     sortOrder: 20,
     resolve: () => ({
       filters: {
-        rankBuckets: [WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched],
+        rankBuckets: [
+          WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
+          WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+          WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
+        ],
       },
       resumeStrategy: {
         fallback: "ranked-candidates",
-        fallbackRankBuckets: [WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched],
+        fallbackRankBuckets: [
+          WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
+          WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+          WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
+        ],
         primary: "work-resume",
       },
       summary: "Use resume state first, then recently touched ranked candidates.",
@@ -213,11 +221,58 @@ async function resolveFocusMode(session, input = {}) {
 
 async function listFocusCandidates(session, input = {}) {
   const focusContext = await resolveFocusMode(session, input);
-  const result = await workCandidateService.listWorkCandidates(session, focusContext.candidateQuery);
+  const result = await executeFocusCandidateStrategy(session, focusContext);
 
   return {
     ...result,
     focusContext,
+  };
+}
+
+async function executeFocusCandidateStrategy(session, focusContext) {
+  if (focusContext.resumeStrategy?.primary === "work-resume") {
+    return listResumeFocusCandidates(session, focusContext);
+  }
+
+  return workCandidateService.listWorkCandidates(session, focusContext.candidateQuery);
+}
+
+async function listResumeFocusCandidates(session, focusContext) {
+  const primaryResult = await workCandidateService.listResumeCandidates(session, resumePrimaryQuery(focusContext));
+
+  if (primaryResult.items.length > 0) {
+    return primaryResult;
+  }
+
+  if (focusContext.resumeStrategy?.fallback === "ranked-candidates") {
+    return workCandidateService.listWorkCandidates(session, resumeFallbackQuery(focusContext));
+  }
+
+  return primaryResult;
+}
+
+function resumePrimaryQuery(focusContext) {
+  const query = { ...(focusContext.candidateQuery || {}) };
+
+  delete query.rankBuckets;
+
+  return {
+    ...query,
+    excludePassiveRecurringCreated: true,
+    sort: WORK_CANDIDATE_SORTS.resume,
+  };
+}
+
+function resumeFallbackQuery(focusContext) {
+  const fallbackRankBuckets = focusContext.resumeStrategy?.fallbackRankBuckets?.length
+    ? focusContext.resumeStrategy.fallbackRankBuckets
+    : focusContext.candidateQuery?.rankBuckets || [];
+
+  return {
+    ...(focusContext.candidateQuery || {}),
+    excludePassiveRecurringCreated: true,
+    rankBuckets: [...fallbackRankBuckets],
+    sort: WORK_CANDIDATE_SORTS.resume,
   };
 }
 

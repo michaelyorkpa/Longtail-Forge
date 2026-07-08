@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
   workbenchHtml,
-  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=22/,
+  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=26/,
   "Workbench host should load view helpers before the guided Workbench adapter",
 );
 assert.match(
@@ -36,7 +36,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   workbenchHtml,
-  /data-workbench-renderer|data-workbench-card|workbench-manual-timer-form|workbench-task-toolbar|<details|page-heading/,
+  /data-workbench-renderer|data-workbench-card|workbench-manual-timer-form|workbench-task-toolbar|workbench-task-list|<details|page-heading/,
   "Workbench host must not carry the old static card/page anatomy",
 );
 
@@ -63,7 +63,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /workbenchHost\.replaceChildren\([\s\S]*createGuidedFocusPanel\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)/,
+  /workbenchHost\.replaceChildren\([\s\S]*header,[\s\S]*createWorkbenchShell\(\)[\s\S]*function createWorkbenchShell\(\)[\s\S]*createGuidedFocusPanel\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)[\s\S]*createWorkbenchInspectorPanel\(\)/,
   "Workbench adapter should build the page shell from framework-created sections",
 );
 assert.match(workbenchScript, /workbenchViewHelpers\.createPageHeader/, "Workbench should use the shared page header primitive");
@@ -78,6 +78,11 @@ assert.match(
   workbenchScript,
   /params\.set\("projectId", state\.selectedProjectId\)/,
   "Project focus should pass the selected project into the deterministic focus resolver",
+);
+assert.match(
+  workbenchScript,
+  /const RECOMMENDED_CANDIDATE_LIMIT = 1;/,
+  "Workbench should render exactly one recommended candidate before the subordinate overflow list",
 );
 assert.match(
   workbenchScript,
@@ -106,7 +111,12 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /async function openCandidate\(candidate, trigger = null\)[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\)[\s\S]*openCandidateNavigationFallback\(candidate\)/,
+  /api\.postJson\(`\/api\/work-resume\/\$\{encodeURIComponent\(resumeStateId\)\}\/dismiss`, \{\}\)/,
+  "Workbench should dismiss resume-backed recommendations through the protected resume API",
+);
+assert.match(
+  workbenchScript,
+  /async function openCandidate\(candidate, trigger = null\)[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\)[\s\S]*candidateModuleAction\(candidate\)[\s\S]*await openModuleActionCandidate\(candidate, action, trigger\)[\s\S]*openCandidateNavigationFallback\(candidate\)/,
   "Recommended candidate openers should route task candidates through the in-place editor before the explicit page fallback",
 );
 

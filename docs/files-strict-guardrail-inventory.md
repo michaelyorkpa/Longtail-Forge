@@ -37,6 +37,7 @@ The 0.33.5.18.15 closeout does not reopen Files scope. Inline browse detail pane
 | Deleted, unavailable, and in-review recovery states | `attachmentRecoveryMessage()`, browse status/review chips, restore/mark-reviewed availability | Recovery and review states are file lifecycle meaning and must stay close to Files behavior instead of becoming generic layout state. |
 | File Context modal opener | `LongtailForge.filesDialog.openFileEditor()` | File Context is an already-shipped attachment-scoped Files workflow. It may use shared modal anatomy, but Files owns target loading, context save, route errors, and row-open behavior. |
 | Preview modal opener | `LongtailForge.filePreview.openFilePreview()` and compatibility `LongtailForge.filesDialog.openFilePreview()` | Preview is an already-shipped attachment-scoped Files workflow. It may use shared modal anatomy and shared attachment-panel entry points, but Files owns descriptor/content route calls, preview kind handling, and download-only states. |
+| Shared action registrations | `files.edit`, `files.preview`, `LongtailForge.filesDialog.openFileEditorAction()`, `LongtailForge.filesDialog.openFilePreviewAction()` | As of 0.33.6.10b, Files registers the existing attachment-scoped File Context and Preview openers for framework dispatch. These registrations require an attachment record and must not be treated as generic targetless File upload/capture actions. |
 
 ## Forbidden In Strict Enforcement
 

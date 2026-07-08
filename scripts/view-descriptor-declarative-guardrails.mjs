@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -116,7 +116,7 @@ assert.ok(inventory.some((entry) => entry.moduleId === "client-projects" && entr
 assert.ok(inventory.some((entry) => entry.moduleId === "client-projects" && entry.surfaceIds.includes("client-projects.projects") && entry.strict), "Projects descriptor should be strict-converted");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Strict declarative Lists HTML should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=13/, "Strict declarative Lists HTML should load the renderer before the module adapter");
+assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=14/, "Strict declarative Lists HTML should load the renderer before the module adapter");
 assertNoProtectedAnatomy(listsHtml, "views/protected/lists.html");
 
 for (const forbidden of [

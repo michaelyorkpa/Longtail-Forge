@@ -18,6 +18,8 @@ const {
   workCandidateService,
   normalizeWorkCandidate,
   rankWorkCandidates,
+  resolveWorkCandidateRankBucket,
+  WORK_CANDIDATE_RANK_BUCKETS,
   WORK_CANDIDATE_SORTS,
 } = await import("../src/services/work-candidate.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
@@ -32,6 +34,8 @@ try {
   await assertDirectNormalizationScrubsUnsafeFields();
   await assertMixedCandidateRankingIsDeterministic();
   await assertDueDatetimeRankingIsDeterministic();
+  await assertResumeCandidateRankingIsDeterministic();
+  await assertRecentlyTouchedRecurringCreatedExclusion();
   await assertResumeRowsUseStableCandidateShape(session);
   await assertTaskCandidatesUseWorkItemSourceGate(session);
   await assertLiveTimersContributeCandidates(session);
@@ -177,6 +181,119 @@ async function assertMixedCandidateRankingIsDeterministic() {
     "due-week",
     "later",
   ]);
+}
+
+async function assertResumeCandidateRankingIsDeterministic() {
+  const candidates = [
+    normalizeWorkCandidate({
+      moduleId: "tasks",
+      priority: "urgent",
+      recordId: "plain-urgent",
+      recordType: "task",
+      status: "open",
+      title: "Plain Urgent",
+    }),
+    normalizeWorkCandidate({
+      moduleId: "tasks",
+      priority: "low",
+      recordId: "in-progress-low",
+      recordType: "task",
+      status: "in_progress",
+      title: "In Progress Low",
+    }),
+    normalizeWorkCandidate({
+      handoffNote: "Resume the handoff note.",
+      moduleId: "tasks",
+      priority: "low",
+      recordId: "resume-note",
+      recordType: "task",
+      status: "open",
+      title: "Resume Note",
+    }),
+    normalizeWorkCandidate({
+      metadata: { timer_status: "paused" },
+      moduleId: "tasks",
+      priority: "low",
+      recordId: "paused-task-timer",
+      recordType: "task",
+      status: "paused",
+      title: "Paused Task Timer",
+    }),
+    normalizeWorkCandidate({
+      moduleId: "tasks",
+      priority: "high",
+      recordId: "in-progress-high",
+      recordType: "task",
+      status: "in_progress",
+      title: "In Progress High",
+    }),
+    normalizeWorkCandidate({
+      metadata: { timer_status: "running" },
+      moduleId: "tasks",
+      priority: "low",
+      recordId: "running-task-timer",
+      recordType: "task",
+      status: "active",
+      title: "Running Task Timer",
+    }),
+  ];
+
+  const ranked = rankWorkCandidates(candidates, {
+    sort: WORK_CANDIDATE_SORTS.resume,
+    today: "2026-07-07",
+    timezone: "America/New_York",
+  });
+
+  assert.deepEqual(ranked.map((candidate) => candidate.recordId), [
+    "running-task-timer",
+    "paused-task-timer",
+    "resume-note",
+    "in-progress-high",
+    "in-progress-low",
+    "plain-urgent",
+  ]);
+}
+
+async function assertRecentlyTouchedRecurringCreatedExclusion() {
+  const farFutureCreated = normalizeWorkCandidate({
+    dueAt: "2026-07-20",
+    lastActionLabel: "Task Created",
+    lastActionType: "task.created",
+    lastWorkedAt: "2026-07-07T14:00:00.000Z",
+    metadata: {
+      recurrence_instance_date: "2026-07-20",
+      recurrence_template_id: "recurring-template-far",
+    },
+    moduleId: "tasks",
+    recordId: "recurring-far",
+    recordType: "task",
+    title: "Far Recurring Instance",
+  });
+  const nearDueCreated = normalizeWorkCandidate({
+    dueAt: "2026-07-08",
+    lastActionLabel: "Task Created",
+    lastActionType: "task.created",
+    lastWorkedAt: "2026-07-07T14:00:00.000Z",
+    metadata: {
+      recurrence_instance_date: "2026-07-08",
+      recurrence_template_id: "recurring-template-near",
+    },
+    moduleId: "tasks",
+    recordId: "recurring-near",
+    recordType: "task",
+    title: "Near Recurring Instance",
+  });
+
+  assert.notEqual(
+    resolveWorkCandidateRankBucket(farFutureCreated, { today: "2026-07-07", timezone: "America/New_York" }),
+    WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
+    "far-future recurring instances should not enter the recently touched bucket on Task Created alone",
+  );
+  assert.equal(
+    resolveWorkCandidateRankBucket(nearDueCreated, { today: "2026-07-07", timezone: "America/New_York" }),
+    WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
+    "recurring instances within about 24 hours of due date may remain recently touched",
+  );
 }
 
 async function assertDueDatetimeRankingIsDeterministic() {

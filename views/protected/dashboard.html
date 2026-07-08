@@ -8,60 +8,14 @@
     <link rel="stylesheet" href="css/longtail-forge.css?v=5">
   </head>
   <body data-page-title="Dashboard">
-    <main class="dashboard-page">
-      <h1>Dashboard</h1>
-
-      <section class="dashboard-summary-grid" aria-label="Dashboard summary">
-        <article class="dashboard-panel active-client-panel" data-dashboard-panel-id="project-summary" data-dashboard-renderer="project-summary">
-          <details class="dashboard-client-details">
-            <summary>
-              <span data-dashboard-hub-count-label>Active Clients</span>
-              <span class="metric-value" data-active-client-count>0</span>
-            </summary>
-            <fieldset class="client-radio-list" data-client-report-options>
-              <legend data-dashboard-report-legend>Client Reporting</legend>
-            </fieldset>
-            <button type="button" data-open-client-report disabled>Open Reporting</button>
-          </details>
-        </article>
-      </section>
-
-      <section hidden data-dashboard-extension-panels></section>
-
-      <section class="dashboard-panel" data-dashboard-panel-id="billing-summary" data-dashboard-renderer="billing-summary">
-        <h2>Current Month Billables</h2>
-        <p data-dashboard-status role="status" aria-live="polite"></p>
-        <div class="report-table-wrap">
-          <table class="report-table">
-            <thead>
-              <tr>
-                <th scope="col">Client</th>
-                <th scope="col">Hours</th>
-                <th scope="col">Billable Amount</th>
-              </tr>
-            </thead>
-            <tbody data-current-month-billables></tbody>
-            <tfoot>
-              <tr>
-                <th scope="row">Totals</th>
-                <td data-current-month-hours></td>
-                <td data-current-month-amount></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </section>
-
-      <section class="dashboard-panel" data-dashboard-panel-id="billing-summary" data-dashboard-renderer="billing-summary">
-        <h2>Hours &amp; Billables by Month</h2>
-        <div class="billables-chart" data-billables-chart aria-label="Previous 12 months and current month hours and billables"></div>
-      </section>
-    </main>
+    <main class="dashboard-page" data-dashboard-host></main>
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/icons.js?v=1"></script>
     <script src="js/shared/formatters.js"></script>
-    <script src="js/dashboard.js?v=2"></script>
+    <script src="js/shared/view-builder.js?v=16"></script>
+    <script src="js/dashboard.js?v=3"></script>
+    <script src="js/time-tracking-dashboard.js?v=1"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

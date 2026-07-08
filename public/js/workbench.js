@@ -2,10 +2,10 @@ const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
 const WORKBENCH_CLIENT_FOCUS_KEY = "lf_workbench_client_focus_v1";
 const WORKBENCH_FOCUS_MODE_KEY = "lf_workbench_focus_mode_v1";
 const WORKBENCH_PROJECT_FOCUS_KEY = "lf_workbench_project_focus_v1";
-const WORKBENCH_TASK_FILTER_KEY = "lf_workbench_task_filter_v1";
 const PROJECT_FOCUS_MODE_ID = "project-focus";
 const DEFAULT_FOCUS_MODE_ID = "pick-up-where-left-off";
-const RECOMMENDED_CANDIDATE_LIMIT = 5;
+const RECOMMENDED_CANDIDATE_LIMIT = 1;
+const WORKBENCH_INSPECTOR_LIMIT = 6;
 const GUIDED_FOCUS_MODE_IDS = [
   "pick-up-where-left-off",
   "whats-due-next",
@@ -35,14 +35,23 @@ const FOCUS_QUESTION_COPY = {
     label: "Focus on a project",
   },
 };
-const TASK_FILTERS = new Set(["assigned", "today", "soon", "overdue", "in_progress", "has_timer", "all"]);
-
+const workbenchActionScriptLoads = new Map();
+const WORKBENCH_MODULE_ACTION_DEPENDENCIES = {
+  "notes.edit": [
+    { src: "js/shared/notification-subscriptions.js?v=1", test: () => window.LongtailForge?.notificationSubscriptions },
+    { src: "js/shared/notes-editor.js?v=4", test: () => window.LongtailForge?.notesEditor },
+    { module: true, src: "js/notes.js?v=71", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
+  ],
+  "lists.edit": [
+    { src: "js/shared/client-project-options.js?v=2", test: () => window.LongtailForge?.clientProjectOptions },
+    { module: true, src: "js/lists.js?v=14", test: () => window.LongtailForge?.listsDialog?.openListEditor },
+  ],
+};
 const workbenchViewHelpers = window.LongtailForge.view;
 const api = window.LongtailForge.api;
 const modal = window.LongtailForge.modal;
 const workbenchHost = document.querySelector("[data-workbench-host]");
 
-let addTaskButton = null;
 let focusModeList = null;
 let manualBillableInput = null;
 let manualClientInput = null;
@@ -60,11 +69,9 @@ let recommendedCyclePreviousButton = null;
 let secondaryCandidateCountText = null;
 let secondaryCandidateList = null;
 let statusText = null;
-let taskCountText = null;
-let taskFilters = null;
-let taskList = null;
-let taskSortInput = null;
 let timeTrackingModuleLink = null;
+let workbenchInspectorCountText = null;
+let workbenchInspectorList = null;
 let timerSectionElement = null;
 let timerSectionUserToggled = false;
 let timerCountText = null;
@@ -86,8 +93,6 @@ let state = {
   recommendedCandidateIndex: 0,
   selectedClientId: "",
   selectedProjectId: "",
-  taskFilter: "assigned",
-  taskItems: [],
   taskOptions: { projects: [] },
   timers: [],
   workCandidates: [],
@@ -105,11 +110,10 @@ const workbenchCardRenderers = {
     renderTimers();
     updateManualTimerState();
   },
-  "task-workbench-items": renderTasks,
 };
 const workbenchCardDataLoaders = {
   "active-work-timers": loadTimerCardData,
-  "task-workbench-items": loadTaskCardData,
+  "task-workbench-items": loadTaskOptionsData,
 };
 
 buildWorkbenchHost();
@@ -145,10 +149,70 @@ function buildWorkbenchHost() {
 
   workbenchHost.replaceChildren(
     header,
-    createGuidedFocusPanel(),
-    createRecommendedActionPanel(),
-    createSecondaryWorkbenchPanel(),
+    createWorkbenchShell(),
   );
+}
+
+function createWorkbenchShell() {
+  return workbenchViewHelpers.createElement("div", {
+    className: "workbench-shell",
+    children: [
+      workbenchViewHelpers.createElement("div", {
+        className: "workbench-main-column",
+        children: [
+          createGuidedFocusPanel(),
+          createRecommendedActionPanel(),
+          createSecondaryWorkbenchPanel(),
+        ],
+      }),
+      createWorkbenchInspectorPanel(),
+    ],
+  });
+}
+
+function createWorkbenchInspectorPanel() {
+  workbenchInspectorCountText = workbenchViewHelpers.createElement("span", {
+    className: "workbench-count",
+    dataset: { workbenchInspectorCount: "" },
+    text: "0",
+  });
+  workbenchInspectorList = workbenchViewHelpers.createElement("div", {
+    className: "workbench-inspector-list",
+    dataset: { workbenchInspectorList: "" },
+  });
+
+  return workbenchViewHelpers.createElement("aside", {
+    className: ["workbench-inspector", "surface-main-panel"],
+    attrs: {
+      "aria-labelledby": "workbench-inspector-heading",
+    },
+    dataset: { workbenchInspector: "" },
+    children: [
+      workbenchViewHelpers.createElement("div", {
+        className: "workbench-panel-heading workbench-inspector-heading",
+        children: [
+          workbenchViewHelpers.createElement("div", {
+            className: "workbench-inspector-heading-copy",
+            children: [
+              workbenchViewHelpers.createElement("span", {
+                className: "workbench-eyebrow",
+                text: "Inspector",
+              }),
+              workbenchViewHelpers.createElement("h2", {
+                id: "workbench-inspector-heading",
+                text: "Work context",
+              }),
+            ],
+          }),
+          workbenchInspectorCountText,
+          workbenchViewHelpers.createElement("p", {
+            text: "Permission-safe records from this focus. Open a title to use its existing module modal when one is available.",
+          }),
+        ],
+      }),
+      workbenchInspectorList,
+    ],
+  });
 }
 
 function bindWorkbenchEvents() {
@@ -164,9 +228,6 @@ function bindWorkbenchEvents() {
   focusModeList?.addEventListener("click", handleFocusModeClick);
   clientFocusInput?.addEventListener("change", handleClientFocusChange);
   projectFocusInput?.addEventListener("change", handleProjectFocusChange);
-  taskFilters?.addEventListener("click", handleTaskFilterClick);
-  taskSortInput?.addEventListener("change", () => renderTasks());
-  addTaskButton?.addEventListener("click", openAddTaskAction);
   manualTimerForm?.addEventListener("submit", startManualTimer);
   manualClientInput?.addEventListener("change", () => populateManualProjects({ notifyBillableChange: true }));
   manualProjectInput?.addEventListener("change", () => updateManualBillableDefault({ notify: true }));
@@ -245,7 +306,7 @@ function createRecommendedActionPanel() {
     className: "workbench-recommended-cycle-button",
     icon: "previous",
     iconOnly: true,
-    label: "Show previous recommendation",
+    label: "Previous",
     onClick: () => cycleRecommendedCandidate(-1),
     role: "secondary",
   });
@@ -253,7 +314,7 @@ function createRecommendedActionPanel() {
     className: "workbench-recommended-cycle-button",
     icon: "next",
     iconOnly: true,
-    label: "Not this one, show another recommendation",
+    label: "Next",
     onClick: () => cycleRecommendedCandidate(1),
     role: "secondary",
   });
@@ -314,7 +375,6 @@ function createSecondaryWorkbenchPanel() {
         attrs: { "aria-label": "Workbench module lists" },
         children: [
           createTimerSection(),
-          createTaskSection(),
           createQuickNotesSection(),
         ],
       }),
@@ -404,62 +464,6 @@ function createTimerSection() {
   return timerSectionElement;
 }
 
-function createTaskSection() {
-  taskCountText = workbenchViewHelpers.createElement("span", {
-    className: "workbench-count",
-    dataset: { workbenchTaskCount: "" },
-    text: "0",
-  });
-  taskFilters = workbenchViewHelpers.createElement("div", {
-    className: "workbench-filter-bar",
-    dataset: { workbenchTaskFilters: "" },
-    children: [
-      createTaskFilterButton("assigned", "Assigned to me"),
-      createTaskFilterButton("today", "Due today"),
-      createTaskFilterButton("soon", "Due soon"),
-      createTaskFilterButton("overdue", "Overdue"),
-      createTaskFilterButton("in_progress", "In progress"),
-      createTaskFilterButton("has_timer", "Has timer"),
-      createTaskFilterButton("all", "All"),
-    ],
-  });
-  addTaskButton = workbenchViewHelpers.createElement("button", {
-    attrs: { type: "button" },
-    dataset: { workbenchAddTask: "" },
-    text: "Add Task",
-  });
-  taskSortInput = workbenchViewHelpers.createElement("select", {
-    dataset: { workbenchTaskSort: "" },
-    children: [
-      option("due_asc", "Due Date"),
-      option("priority_desc", "Priority"),
-      option("status_asc", "Status"),
-    ],
-  });
-  taskList = workbenchViewHelpers.createElement("div", {
-    className: "workbench-task-list",
-    dataset: { workbenchTaskList: "" },
-  });
-
-  return createWorkbenchCardSection({
-    body: [
-      workbenchViewHelpers.createElement("div", {
-        className: "workbench-task-toolbar",
-        children: [taskFilters, addTaskButton],
-      }),
-      workbenchViewHelpers.createElement("label", {
-        className: "workbench-sort-control",
-        children: ["Sort", taskSortInput],
-      }),
-      taskList,
-    ],
-    cardId: "task-workbench-items",
-    count: taskCountText,
-    rendererId: "task-workbench-items",
-    title: "Tasks",
-  });
-}
-
 function createQuickNotesSection() {
   return createWorkbenchCardSection({
     body: [
@@ -520,21 +524,12 @@ function createWorkbenchSectionSummary({ bodyId = "", count = null, title }) {
   });
 }
 
-function createTaskFilterButton(filter, label) {
-  return workbenchViewHelpers.createElement("button", {
-    attrs: { type: "button" },
-    dataset: { workbenchTaskFilter: filter },
-    text: label,
-  });
-}
-
 async function loadWorkbench() {
   setStatus("Loading Workbench...");
 
   try {
     await window.LongtailForge.workspaceContextReady;
     await window.LongtailForge.timezones?.loadSessionTimezone?.();
-    restoreTaskFilter();
     restoreFocusState();
     const [bootstrap, clientProjectData, focusModeData] = await Promise.all([
       api.getJson("/api/workbench/bootstrap", { cache: "no-store" }),
@@ -561,7 +556,6 @@ async function loadWorkbench() {
       registry,
       selectedClientId,
       selectedProjectId,
-      taskItems: sourceData.taskItems,
       taskOptions: sourceData.taskOptions || bootstrap.taskOptions || { projects: [] },
       timers: sourceData.timers,
       workCandidates: bootstrap.workCandidates || [],
@@ -585,7 +579,6 @@ async function loadWorkbench() {
 
 async function loadWorkbenchSourceData(registry) {
   const sourceData = {
-    taskItems: [],
     taskOptions: null,
     timers: [],
   };
@@ -612,11 +605,10 @@ async function loadTimerCardData(card) {
   };
 }
 
-async function loadTaskCardData(card) {
+async function loadTaskOptionsData(card) {
   const data = await api.getJson(card.listRoute, { cache: "no-store" });
 
   return {
-    taskItems: data?.source_enabled === false ? [] : Array.isArray(data?.items) ? data.items : [],
     taskOptions: data?.options || { projects: [] },
   };
 }
@@ -654,9 +646,6 @@ function mergeWorkbenchSourceData(target, data = {}) {
   if (Array.isArray(data.timers)) {
     target.timers.push(...data.timers);
   }
-  if (Array.isArray(data.taskItems)) {
-    target.taskItems.push(...data.taskItems);
-  }
   if (data.taskOptions) {
     target.taskOptions = data.taskOptions;
   }
@@ -675,6 +664,7 @@ function renderWorkbench() {
   renderFocusModes();
   renderRecommendedAction();
   renderSecondaryFocusCandidates();
+  renderWorkbenchInspector();
   renderRegisteredWorkbenchCards();
   updateModuleLinks();
 }
@@ -805,6 +795,93 @@ function renderSecondaryFocusCandidates() {
   });
 }
 
+function renderWorkbenchInspector() {
+  if (!workbenchInspectorList || !workbenchInspectorCountText) {
+    return;
+  }
+
+  const candidates = workbenchInspectorCandidates();
+  workbenchInspectorCountText.textContent = String(candidates.length);
+  workbenchInspectorList.replaceChildren();
+
+  if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
+    workbenchInspectorList.appendChild(emptyState("Choose a project to load related work context."));
+    return;
+  }
+
+  if (candidates.length === 0) {
+    workbenchInspectorList.appendChild(emptyState("No related work context for this focus yet."));
+    return;
+  }
+
+  candidates.forEach((candidate, index) => {
+    workbenchInspectorList.appendChild(createWorkbenchInspectorItem(candidate, index));
+  });
+}
+
+function workbenchInspectorCandidates() {
+  const seen = new Set();
+  const candidates = [];
+
+  for (const candidate of state.focusCandidates || []) {
+    const key = inspectorCandidateKey(candidate);
+
+    if (!key || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    candidates.push(candidate);
+
+    if (candidates.length >= WORKBENCH_INSPECTOR_LIMIT) {
+      break;
+    }
+  }
+
+  return candidates;
+}
+
+function createWorkbenchInspectorItem(candidate, index) {
+  const title = inspectorCandidateTitle(candidate);
+  const context = inspectorCandidateContext(candidate);
+  const titleButton = workbenchViewHelpers.createElement("button", {
+    className: "workbench-inspector-title",
+    attrs: {
+      "aria-label": `Open ${title}`,
+      type: "button",
+    },
+    dataset: {
+      workbenchInspectorOpen: candidate.recordType || candidate.moduleId || "work",
+    },
+    text: title,
+  });
+  const badges = candidateBadges(candidate);
+
+  titleButton.disabled = !candidateCanOpen(candidate);
+  titleButton.addEventListener("click", (event) => openCandidate(candidate, event.currentTarget));
+
+  return workbenchViewHelpers.createElement("article", {
+    className: "workbench-inspector-item",
+    dataset: {
+      workbenchInspectorItem: "",
+      workbenchInspectorCurrent: index === state.recommendedCandidateIndex ? "true" : "false",
+    },
+    children: [
+      titleButton,
+      workbenchViewHelpers.createElement("p", {
+        className: "workbench-inspector-context",
+        text: context,
+      }),
+      badges.length > 0
+        ? workbenchViewHelpers.createElement("div", {
+            className: "workbench-inspector-badges",
+            children: badges,
+          })
+        : null,
+    ].filter(Boolean),
+  });
+}
+
 function recommendedCandidateWindow() {
   return state.focusCandidates.slice(0, RECOMMENDED_CANDIDATE_LIMIT);
 }
@@ -851,6 +928,7 @@ function cycleRecommendedCandidate(direction) {
 
   state.recommendedCandidateIndex = (state.recommendedCandidateIndex + direction + candidates.length) % candidates.length;
   renderRecommendedAction();
+  renderWorkbenchInspector();
 }
 
 function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
@@ -859,6 +937,13 @@ function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
     onClick: (event) => openCandidate(candidate, event?.currentTarget || null),
     role: "primary",
   });
+  const actionElements = [actionButtonElement];
+  const dismissButtonElement = createResumeDismissButton(candidate);
+
+  if (dismissButtonElement) {
+    actionElements.push(dismissButtonElement);
+  }
+
   const card = workbenchViewHelpers.createElement("article", {
     className: "workbench-recommended-card",
     dataset: {
@@ -877,7 +962,7 @@ function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
         text: candidate.reason || candidate.nextAction || "This is the strongest match for the selected focus.",
       }),
       workbenchViewHelpers.createDetailActionStrip({
-        actions: [actionButtonElement],
+        actions: actionElements,
         className: "workbench-recommended-actions",
       }),
     ],
@@ -887,6 +972,20 @@ function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
 }
 
 function createSecondaryCandidateItem(candidate) {
+  const actions = [{
+    label: candidateActionLabel(candidate),
+    onClick: (event) => openCandidate(candidate, event?.currentTarget || null),
+  }];
+  const resumeStateId = candidateResumeStateId(candidate);
+
+  if (resumeStateId) {
+    actions.push({
+      label: "Dismiss",
+      onClick: (event) => dismissResumeCandidate(candidate, event?.currentTarget || null),
+      role: "secondary",
+    });
+  }
+
   const item = workbenchViewHelpers.createElement("article", {
     className: "workbench-secondary-candidate",
     dataset: { workbenchSecondaryCandidate: candidate.candidateId || "" },
@@ -899,16 +998,25 @@ function createSecondaryCandidateItem(candidate) {
         ],
       }),
       workbenchViewHelpers.createDetailActionStrip({
-        actions: [{
-          label: candidateActionLabel(candidate),
-          onClick: (event) => openCandidate(candidate, event?.currentTarget || null),
-        }],
+        actions,
         className: "workbench-secondary-candidate-actions",
       }),
     ],
   });
 
   return item;
+}
+
+function createResumeDismissButton(candidate) {
+  if (!candidateResumeStateId(candidate)) {
+    return null;
+  }
+
+  return workbenchViewHelpers.createActionButton({
+    label: "Dismiss",
+    onClick: (event) => dismissResumeCandidate(candidate, event?.currentTarget || null),
+    role: "secondary",
+  });
 }
 
 function recommendedEmptyState() {
@@ -949,11 +1057,37 @@ function candidateBadges(candidate) {
 }
 
 function candidateActionLabel(candidate) {
-  if (candidateTaskId(candidate) || candidate.sourceUrl || candidate.primaryAction?.href) {
+  if (candidateModuleAction(candidate) || candidate.sourceUrl || candidate.primaryAction?.href) {
     return "Open work";
   }
 
   return candidate.primaryAction?.label || "Review";
+}
+
+async function dismissResumeCandidate(candidate, trigger = null) {
+  const resumeStateId = candidateResumeStateId(candidate);
+
+  if (!resumeStateId) {
+    setStatus("This recommendation cannot be dismissed yet.", { isError: true });
+    return;
+  }
+
+  setStatus("Dismissing recommendation...");
+  try {
+    await api.postJson(`/api/work-resume/${encodeURIComponent(resumeStateId)}/dismiss`, {});
+    const focusData = await loadFocusCandidatesForState();
+    state.focusCandidates = Array.isArray(focusData?.items) ? focusData.items : [];
+    state.focusContext = focusData?.focusContext || null;
+    state.recommendedCandidateIndex = 0;
+    renderFocusModes();
+    renderRecommendedAction();
+    renderSecondaryFocusCandidates();
+    renderWorkbenchInspector();
+    setStatus("Recommendation dismissed.");
+    trigger?.focus?.();
+  } catch (error) {
+    setStatus(error.message || "Recommendation could not be dismissed.", { isError: true });
+  }
 }
 
 async function openCandidate(candidate, trigger = null) {
@@ -961,6 +1095,13 @@ async function openCandidate(candidate, trigger = null) {
 
   if (taskId) {
     await openTaskCandidate(candidate, taskId, trigger);
+    return;
+  }
+
+  const action = candidateModuleAction(candidate);
+
+  if (action) {
+    await openModuleActionCandidate(candidate, action, trigger);
     return;
   }
 
@@ -1000,6 +1141,35 @@ async function openTaskCandidate(candidate, taskId, trigger = null) {
   }
 }
 
+async function openModuleActionCandidate(candidate, action, trigger = null) {
+  if (action.moduleId && !moduleEnabled(action.moduleId)) {
+    setStatus(`${action.moduleLabel} is not available in this workspace.`, { isError: true });
+    return;
+  }
+
+  setStatus(`Opening ${action.moduleLabel.toLowerCase()}...`);
+  try {
+    await ensureWorkbenchModuleAction(action.actionId);
+    const result = await window.LongtailForge.moduleActions.open(action.actionId, {
+      context: {
+        source: "workbench",
+        sourceType: "work-candidate",
+      },
+      candidateId: candidate.candidateId || "",
+      recordId: action.recordId,
+      returnFocusTo: trigger || document.activeElement,
+      [action.recordParam]: action.recordId,
+    }, { refresh: loadWorkbench, setStatus });
+    if (result.completed) {
+      setStatus(`${action.moduleLabel} updated.`);
+      return;
+    }
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || `${action.moduleLabel} could not be opened.`, { isError: true });
+  }
+}
+
 function openCandidateNavigationFallback(candidate) {
   const href = candidate.primaryAction?.href || candidate.sourceUrl || "";
 
@@ -1018,6 +1188,122 @@ function candidateTaskId(candidate = {}) {
   }
 
   return "";
+}
+
+function candidateModuleAction(candidate = {}) {
+  if (candidate.moduleId === "notes" && candidate.recordType === "note" && candidate.recordId) {
+    return {
+      actionId: "notes.edit",
+      moduleId: "notes",
+      moduleLabel: "Note",
+      recordId: candidate.recordId,
+      recordParam: "noteId",
+    };
+  }
+
+  if (candidate.moduleId === "lists" && candidate.recordType === "list" && candidate.recordId) {
+    return {
+      actionId: "lists.edit",
+      moduleId: "lists",
+      moduleLabel: "List",
+      recordId: candidate.recordId,
+      recordParam: "listId",
+    };
+  }
+
+  return null;
+}
+
+function candidateCanOpen(candidate = {}) {
+  return Boolean(candidateTaskId(candidate) || candidateModuleAction(candidate) || candidate.sourceUrl || candidate.primaryAction?.href);
+}
+
+function inspectorCandidateKey(candidate = {}) {
+  return [
+    candidate.moduleId || "",
+    candidate.recordType || "",
+    candidate.recordId || "",
+    candidate.candidateId || "",
+  ].join(":");
+}
+
+function inspectorCandidateTitle(candidate = {}) {
+  const title = String(candidate.title || "").trim();
+
+  if (title && !looksLikeRawId(title)) {
+    return title;
+  }
+
+  const label = formatToken(candidate.recordType || candidate.moduleId || "work");
+  return label ? `${label} context` : "Work context";
+}
+
+function inspectorCandidateContext(candidate = {}) {
+  const context = String(candidate.contextLabel || "").trim();
+
+  if (context && !looksLikeRawId(context)) {
+    return context;
+  }
+
+  const reason = String(candidate.reason || candidate.nextAction || "").trim();
+  if (reason && !looksLikeRawId(reason)) {
+    return reason;
+  }
+
+  return "Ready to review.";
+}
+
+function looksLikeRawId(value) {
+  const text = String(value || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text) ||
+    /^[0-9a-f]{24,}$/i.test(text);
+}
+
+function candidateResumeStateId(candidate = {}) {
+  return String(candidate.resumeStateId || candidate.resume_state_id || "").trim();
+}
+
+async function ensureWorkbenchModuleAction(actionId) {
+  const dependencies = WORKBENCH_MODULE_ACTION_DEPENDENCIES[actionId] || [];
+
+  for (const dependency of dependencies) {
+    await loadWorkbenchActionDependency(dependency);
+  }
+
+  if (!window.LongtailForge?.moduleActions?.open) {
+    throw new Error("Module action registry is unavailable.");
+  }
+}
+
+function loadWorkbenchActionDependency(dependency) {
+  if (dependency.test?.()) {
+    return Promise.resolve();
+  }
+
+  const key = new window.URL(dependency.src, document.baseURI).href;
+  if (workbenchActionScriptLoads.has(key)) {
+    return workbenchActionScriptLoads.get(key);
+  }
+
+  const promise = dependency.module
+    ? import(key)
+    : new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = dependency.src;
+        script.async = false;
+        script.addEventListener("load", () => resolve());
+        script.addEventListener("error", () => reject(new Error(`Could not load ${dependency.src}.`)));
+        document.body.appendChild(script);
+      });
+
+  const checkedPromise = promise.then(() => {
+    if (!dependency.test?.()) {
+      throw new Error(`Loaded ${dependency.src}, but the expected helper is unavailable.`);
+    }
+  });
+
+  workbenchActionScriptLoads.set(key, checkedPromise);
+  return checkedPromise;
 }
 
 async function handleFocusModeClick(event) {
@@ -1057,6 +1343,7 @@ async function selectFocusMode(modeId) {
     renderFocusModes();
     renderRecommendedAction();
     renderSecondaryFocusCandidates();
+    renderWorkbenchInspector();
     projectFocusInput?.focus();
     return;
   }
@@ -1074,6 +1361,7 @@ async function refreshFocusCandidates() {
     renderFocusModes();
     renderRecommendedAction();
     renderSecondaryFocusCandidates();
+    renderWorkbenchInspector();
     setStatus("");
   } catch (error) {
     setStatus(error.message || "Focus could not be loaded.", { isError: true });
@@ -1161,28 +1449,6 @@ function createTimerCard(timer) {
   return details;
 }
 
-function renderTasks() {
-  const taskCardActive = cardContributionActive("task-workbench-items");
-  const taskCard = document.querySelector('[data-workbench-renderer="task-workbench-items"]');
-  const tasks = taskCardActive ? sortedTasks(filteredTasks()) : [];
-
-  taskCard.hidden = !taskCardActive;
-  taskCountText.textContent = String(tasks.length);
-  taskList.replaceChildren();
-  updateTaskFilterState();
-
-  if (!taskCardActive) {
-    return;
-  }
-
-  if (tasks.length === 0) {
-    taskList.appendChild(emptyState("No tasks match the current filters."));
-    return;
-  }
-
-  tasks.forEach((task) => taskList.appendChild(createTaskItem(task)));
-}
-
 function cardContributionActive(rendererId) {
   return (state.registry.workbenchCards || []).some((card) => card.renderer === rendererId);
 }
@@ -1191,86 +1457,6 @@ function updateModuleLinks() {
   if (timeTrackingModuleLink) {
     timeTrackingModuleLink.hidden = !cardContributionActive("active-work-timers");
   }
-}
-
-function createTaskItem(task) {
-  const item = document.createElement("article");
-  const header = document.createElement("div");
-  const titleBlock = document.createElement("div");
-  const title = document.createElement("h3");
-  const meta = document.createElement("div");
-  const detail = document.createElement("p");
-  const actions = document.createElement("div");
-  const timer = task.timer;
-  const running = timer?.timer_status === "running";
-
-  item.className = "workbench-task-item";
-  header.className = "workbench-task-header";
-  titleBlock.className = "workbench-task-title-block";
-  meta.className = "workbench-card-meta";
-  actions.className = "workbench-actions";
-  title.textContent = task.title;
-  meta.append(
-    badge(formatToken(task.status), task.status),
-    badge(formatToken(task.priority), task.priority),
-  );
-  if (timer) {
-    meta.append(badge(running ? "Timer running" : "Timer paused", running ? "running" : "paused"));
-  }
-  titleBlock.append(title);
-  appendTaskTagChips(titleBlock, task);
-  header.append(titleBlock, meta);
-  detail.textContent = taskDetailText(task);
-
-  const startButton = actionButton(running ? "Running" : "Start Timer", () => startTaskTimer(task));
-  const pauseButton = actionButton("Pause", () => pauseTaskTimer(task));
-  const saveButton = actionButton("Save & End", () => finalizeTaskTimer(task));
-  const completeButton = actionButton("Complete", () => completeTask(task));
-  const openButton = actionButton("Open Task", () => openTaskAction(task));
-
-  startButton.disabled = running || !taskCanUseTimer(task);
-  pauseButton.disabled = !running || !taskCanUseTimer(task);
-  saveButton.disabled = !timer || !taskCanUseTimer(task);
-  completeButton.disabled = task.status === "complete" || task.status === "archived" || Boolean(timer);
-  completeButton.title = timer ? "Save or discard the task timer before completing this task." : "";
-  actions.append(startButton, pauseButton, saveButton, completeButton, openButton);
-  item.append(header, detail, actions);
-  return item;
-}
-
-function appendTaskTagChips(container, task) {
-  const directTags = Array.isArray(task.directTags)
-    ? task.directTags
-    : Array.isArray(task.direct_tags) ? task.direct_tags : [];
-  const visibleTags = directTags.slice(0, 2);
-  const hiddenCount = Math.max(0, directTags.length - visibleTags.length);
-
-  if (visibleTags.length === 0 && hiddenCount === 0) {
-    return;
-  }
-
-  const list = document.createElement("div");
-  list.className = "workbench-task-tag-list";
-
-  visibleTags.forEach((tag) => {
-    const chip = document.createElement("span");
-    chip.className = "tag-chip workbench-task-tag-chip";
-    chip.textContent = tag.name || tag.slug || "Tag";
-    if (tag.color) {
-      chip.style.setProperty("--tag-color", tag.color);
-    }
-    list.appendChild(chip);
-  });
-
-  if (hiddenCount > 0) {
-    const overflow = document.createElement("span");
-    overflow.className = "tag-chip workbench-task-tag-chip workbench-task-tag-overflow";
-    overflow.textContent = `+${hiddenCount}`;
-    overflow.title = `${hiddenCount} more direct ${hiddenCount === 1 ? "tag" : "tags"}`;
-    list.appendChild(overflow);
-  }
-
-  container.appendChild(list);
 }
 
 async function startManualTimer(event) {
@@ -1353,56 +1539,6 @@ async function saveTaskTimer(taskId, timerStatus, elapsedSeconds, activeTimerId 
   }
 }
 
-async function startTaskTimer(task) {
-  pendingActivatedTimerKey = `task:${task.task_id}`;
-  await saveTaskTimer(task.task_id, "running", task.timer ? readElapsedSeconds(task.timer) : 0, task.timer?.active_timer_id || "");
-}
-
-async function pauseTaskTimer(task) {
-  if (task.timer) {
-    await saveTaskTimer(task.task_id, "paused", readElapsedSeconds(task.timer), task.timer.active_timer_id);
-  }
-}
-
-async function finalizeTaskTimer(task) {
-  if (!task.timer) {
-    return;
-  }
-
-  setStatus("Saving task time...");
-  try {
-    await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer/finalize`, {
-      duration_seconds: Math.max(1, readElapsedSeconds(task.timer)),
-      end_time: new Date().toISOString(),
-    });
-    await loadWorkbench();
-    setStatus("Task time saved.");
-  } catch (error) {
-    setStatus(error.message || "Task time could not be saved.", { isError: true });
-  }
-}
-
-async function completeTask(task) {
-  const confirmed = await modal.confirm({
-    title: "Complete task",
-    message: `Complete "${task.title}"?`,
-    confirmLabel: "Complete",
-  });
-
-  if (!confirmed) {
-    return;
-  }
-
-  setStatus("Completing task...");
-  try {
-    await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/complete`, {});
-    await loadWorkbench();
-    setStatus("Task completed.");
-  } catch (error) {
-    setStatus(error.message || "Task could not be completed.", { isError: true });
-  }
-}
-
 async function openAddTaskAction() {
   setStatus("Opening task form...");
   try {
@@ -1416,29 +1552,6 @@ async function openAddTaskAction() {
     setStatus("");
   } catch (error) {
     setStatus(error.message || "Task form could not be opened.", { isError: true });
-  }
-}
-
-async function openTaskAction(task) {
-  setStatus("Opening task...");
-  try {
-    const result = await window.LongtailForge.moduleActions.open("tasks.edit", {
-      context: { source: "workbench", sourceType: "task-workbench-item" },
-      recordId: task.task_id,
-      taskId: task.task_id,
-    }, { refresh: loadWorkbench, setStatus });
-    if (result.completed) {
-      const detail = result.detail || {};
-      if (detail.taskLifecycleAction === "complete") {
-        setTaskCompletionStatus(detail);
-        return;
-      }
-      setStatus("Task updated.");
-      return;
-    }
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Task could not be opened.", { isError: true });
   }
 }
 
@@ -1608,118 +1721,6 @@ function flashElement(element, className) {
   }, 0);
 }
 
-function filteredTasks() {
-  const today = todayKey();
-  const soon = addDaysKey(today, 7);
-
-  return state.taskItems.filter((task) => {
-    if (state.taskFilter === "assigned") {
-      return task.assigned_to_current_user && isActiveTask(task);
-    }
-    if (state.taskFilter === "today") {
-      return task.due_date === today && isActiveTask(task);
-    }
-    if (state.taskFilter === "soon") {
-      return Boolean(task.due_date && task.due_date >= today && task.due_date <= soon && isActiveTask(task));
-    }
-    if (state.taskFilter === "overdue") {
-      return Boolean(task.due_date && task.due_date < today && isActiveTask(task));
-    }
-    if (state.taskFilter === "in_progress") {
-      return task.status === "in_progress";
-    }
-    if (state.taskFilter === "has_timer") {
-      return Boolean(task.timer);
-    }
-
-    return isActiveTask(task);
-  });
-}
-
-function sortedTasks(tasks) {
-  const projectSortOrders = readTaskProjectSortOrders(tasks);
-
-  return [...tasks].sort((first, second) => {
-    if (taskSortInput?.value === "priority_desc") {
-      return priorityRank(second.priority) - priorityRank(first.priority) || dueSortValue(first).localeCompare(dueSortValue(second));
-    }
-    if (taskSortInput?.value === "status_asc") {
-      return String(first.status || "").localeCompare(String(second.status || "")) || dueSortValue(first).localeCompare(dueSortValue(second));
-    }
-    if (projectSortOrders.size > 0) {
-      const projectOrderResult = compareByProjectSortOrder(first, second, projectSortOrders);
-      if (projectOrderResult !== 0) {
-        return projectOrderResult;
-      }
-    }
-    return dueSortValue(first).localeCompare(dueSortValue(second)) || priorityRank(second.priority) - priorityRank(first.priority);
-  });
-}
-
-function readTaskProjectSortOrders(tasks) {
-  if ((taskSortInput?.value || "due_asc") !== "due_asc") {
-    return new Map();
-  }
-
-  const projectsById = new Map((state.taskOptions?.projects || []).map((project) => [project.id, project]));
-  const projectSortOrders = new Map();
-
-  tasks.forEach((task) => {
-    const projectId = task.project_id || "";
-    if (!projectId || projectSortOrders.has(projectId)) {
-      return;
-    }
-
-    const sortOrder = normalizeProjectTaskSortOrder(projectsById.get(projectId)?.taskDefaults?.sortOrder || []);
-    if (sortOrder.length > 0) {
-      projectSortOrders.set(projectId, sortOrder);
-    }
-  });
-
-  return projectSortOrders;
-}
-
-function compareByProjectSortOrder(firstTask, secondTask, projectSortOrders) {
-  if ((firstTask.project_id || "") !== (secondTask.project_id || "")) {
-    return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
-  }
-
-  const sortOrder = projectSortOrders.get(firstTask.project_id || "");
-  if (!sortOrder) {
-    return 0;
-  }
-
-  return sortOrder.reduce((result, sortItem) => {
-    if (result !== 0) {
-      return result;
-    }
-
-    if (sortItem === "priority") {
-      return priorityRank(secondTask.priority) - priorityRank(firstTask.priority);
-    }
-
-    if (sortItem === "status") {
-      return String(firstTask.status || "").localeCompare(String(secondTask.status || ""));
-    }
-
-    return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
-  }, 0);
-}
-
-function normalizeProjectTaskSortOrder(value) {
-  const rawItems = Array.isArray(value) ? value : [];
-  const allowed = ["due_date", "priority", "status"];
-  const ordered = rawItems.filter((item) => allowed.includes(item));
-
-  allowed.forEach((item) => {
-    if (!ordered.includes(item)) {
-      ordered.push(item);
-    }
-  });
-
-  return ordered.length === allowed.length ? ordered : [];
-}
-
 function sortedTimers(timers) {
   return [...timers].sort((first, second) => {
     if (first.timer_status !== second.timer_status) {
@@ -1747,25 +1748,6 @@ function cssEscape(value) {
   }
 
   return String(value).replaceAll('"', '\\"');
-}
-
-function handleTaskFilterClick(event) {
-  const button = event.target.closest("[data-workbench-task-filter]");
-
-  if (!button) {
-    return;
-  }
-
-  const filter = TASK_FILTERS.has(button.dataset.workbenchTaskFilter) ? button.dataset.workbenchTaskFilter : "assigned";
-  state.taskFilter = filter;
-  window.localStorage.setItem(WORKBENCH_TASK_FILTER_KEY, filter);
-  renderTasks();
-}
-
-function updateTaskFilterState() {
-  taskFilters?.querySelectorAll("[data-workbench-task-filter]").forEach((button) => {
-    button.dataset.active = button.dataset.workbenchTaskFilter === state.taskFilter ? "true" : "false";
-  });
 }
 
 function handleDisclosureToggle(event) {
@@ -1830,11 +1812,6 @@ function hasActiveOrPausedTimers() {
 
 function isTimerWorkbenchCard(card) {
   return card?.dataset?.workbenchCard === "active-work-timers";
-}
-
-function restoreTaskFilter() {
-  const saved = window.localStorage.getItem(WORKBENCH_TASK_FILTER_KEY);
-  state.taskFilter = TASK_FILTERS.has(saved) ? saved : "assigned";
 }
 
 function restoreCardState() {
@@ -2018,14 +1995,6 @@ function normalizeWorkspaceType(value) {
   return ["business", "personal", "family"].includes(text) ? text : "business";
 }
 
-function taskCanUseTimer(task) {
-  return moduleEnabled("tasks") &&
-    moduleEnabled("time-tracking") &&
-    task.project_id &&
-    task.status !== "complete" &&
-    task.status !== "archived";
-}
-
 function moduleEnabled(moduleId) {
   return state.modules?.[moduleId]?.enabled === true;
 }
@@ -2040,20 +2009,6 @@ function enabledModuleIds() {
     .map(([moduleId]) => moduleId);
 }
 
-function isActiveTask(task) {
-  return task.status !== "complete" && task.status !== "archived";
-}
-
-function taskDetailText(task) {
-  const parts = [
-    [task.client_name, task.project_name].filter(Boolean).join(" / "),
-    task.due_date ? `Due ${formatDue(task)}` : "",
-    task.assignees?.length ? task.assignees.map(displayUser).join(", ") : "Unassigned",
-  ].filter(Boolean);
-
-  return parts.join(" | ");
-}
-
 function sourceLabel(timer) {
   if (timer.source_type === "task") {
     return "Task";
@@ -2062,40 +2017,10 @@ function sourceLabel(timer) {
   return "Manual";
 }
 
-function displayUser(user) {
-  return String(user.displayName || user.display_name || user.username || user.user_id || "").trim();
-}
-
-function formatDue(task) {
-  if (!task.due_date) {
-    return "No due date";
-  }
-
-  return task.due_time ? `${task.due_date} ${task.due_time}` : task.due_date;
-}
-
 function formatCandidateDate(value) {
   const text = String(value || "").trim();
   const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] : text;
-}
-
-function dueSortValue(task) {
-  return `${task.due_date || "9999-12-31"}T${task.due_time || "23:59"}`;
-}
-
-function priorityRank(priority) {
-  return { urgent: 4, high: 3, normal: 2, low: 1 }[priority] || 0;
-}
-
-function todayKey() {
-  return new Date().toLocaleDateString("en-CA");
-}
-
-function addDaysKey(dateKey, days) {
-  const date = new Date(`${dateKey}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toLocaleDateString("en-CA");
 }
 
 function badge(label, type = "") {
@@ -2172,12 +2097,11 @@ window.LongtailForge.pageController.register("workbench", {
   snapshot: () => ({
     focusCandidateCount: state.focusCandidates.length,
     focusModeId: state.focusModeId,
+    inspectorCandidateCount: workbenchInspectorCandidates().length,
     recommendedCandidateIndex: state.recommendedCandidateIndex,
     recommendedCandidateWindowSize: recommendedCandidateWindow().length,
     selectedClientId: state.selectedClientId,
     selectedProjectId: state.selectedProjectId,
-    taskCount: state.taskItems.length,
-    taskFilter: state.taskFilter,
     timerCount: state.timers.length,
     enabledModules: enabledModuleIds(),
     moduleActionCount: window.LongtailForge.moduleActions?.list?.().length || 0,

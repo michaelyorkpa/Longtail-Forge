@@ -227,10 +227,10 @@ Acceptance criteria:
 
 Promoted from user request. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
 
-- [ ] Remove the full Tasks list from the Workbench: delete `createTaskSection()` and its `workbench-task-list` region in `public/js/workbench.js` so the Workbench no longer renders an all-tasks index. The Workbench stays a focused surface (recommended action + "More in this focus" curated candidates), reinforcing the 0.33.6.6 rule that it is not another full module index.
-- [ ] Remove the now-dead task-list data plumbing that fed only that list (the `taskItems` fetch/merge/render path), while keeping `taskOptions` and the work-candidate paths that the recommended action and secondary candidates still need.
-- [ ] Preserve permission/enabled-module handling for the surfaces that remain; removing the list must not affect candidate ranking or focus behavior.
-- [ ] Add regressions proving the Workbench renders no all-tasks list and that the recommended action + secondary candidate surfaces still render.
+- [x] Remove the full Tasks list from the Workbench: delete `createTaskSection()` and its `workbench-task-list` region in `public/js/workbench.js` so the Workbench no longer renders an all-tasks index. The Workbench stays a focused surface (recommended action + "More in this focus" curated candidates), reinforcing the 0.33.6.6 rule that it is not another full module index.
+- [x] Remove the now-dead task-list data plumbing that fed only that list (the `taskItems` fetch/merge/render path), while keeping `taskOptions` and the work-candidate paths that the recommended action and secondary candidates still need.
+- [x] Preserve permission/enabled-module handling for the surfaces that remain; removing the list must not affect candidate ranking or focus behavior.
+- [x] Add regressions proving the Workbench renders no all-tasks list and that the recommended action + secondary candidate surfaces still render.
 
 Acceptance criteria:
 
@@ -242,9 +242,9 @@ Acceptance criteria:
 
 Promoted from user request. Follow-up correction to the already-shipped 0.33.6.6a arrows; belongs before 0.33.6.7.
 
-- [ ] Shorten the two cycle-button labels on the recommended-action arrows: the shipped verbose text "Show previous recommendation" and "Not this one, show another recommendation" (`public/js/workbench.js`) become concise "Previous" and "Next" respectively.
-- [ ] On the icon-only arrows these serve as the accessible name / tooltip (`aria-label`/`title`); if any visible text remains it is just "Previous"/"Next", not a sentence.
-- [ ] Update any regression that pins the old button labels.
+- [x] Shorten the two cycle-button labels on the recommended-action arrows: the shipped verbose text "Show previous recommendation" and "Not this one, show another recommendation" (`public/js/workbench.js`) become concise "Previous" and "Next" respectively.
+- [x] On the icon-only arrows these serve as the accessible name / tooltip (`aria-label`/`title`); if any visible text remains it is just "Previous"/"Next", not a sentence.
+- [x] Update any regression that pins the old button labels.
 
 Acceptance criteria:
 
@@ -254,15 +254,15 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Resume-state integration with deterministic fallback behavior and safe dismissal handling.
 
-- [ ] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to the lower-ranked recently-touched-work candidate bucket from 0.33.6.3 only when no active resume rows exist. Close the current wiring gap: the mode's declared `resumeStrategy: { primary: "work-resume", ... }` in `src/services/work-focus-modes.service.js` is inert (no server or client code reads it), so today the mode only runs the recently-touched branch via `/api/workbench/focus-candidates` and never consults `/api/work-resume`. This slice must actually execute that strategy.
-- [ ] Do not build a new framework activity feed in this slice; the fallback is weaker ranking over existing candidate sources, not a second recovery surface.
-- [ ] Show one recommended resume candidate first; keep secondary candidates subordinate.
-- [ ] (Promoted from `TODO.md`) Account for active timers as the strongest resume signal. Running/paused timer state already produces resume-state rows (the `initial.time-tracking-timers` producer), so consulting `/api/work-resume` first restores them; but the recently-touched fallback currently classifies timers into the `running_timer`/`paused_timer` buckets and drops them (`matchesRankBucketFilters`/`rankBucket` in `src/services/work-candidate.service.js`), so the fallback must include the timer buckets (or otherwise not discard running/paused timer candidates for this mode).
-- [ ] (Promoted from `TODO.md`) Rank resume candidates with an explicit precedence - running timer, then paused timer, then task with a resume note, then In Progress task, with task priority as the tiebreaker - applied consistently across both the recommended slot and the "More in this focus" list.
-- [ ] (Promoted from `TODO.md`) Exclude recurring-task instances whose only recent signal is "Task Created" from the resume recommendation unless they are within ~24 hours of their due date; recurring instances have definitive due dates and should not surface just for being recently created. Fold this rule into the 0.33.6.3 recently-touched-work bucket so the resume fallback inherits it rather than special-casing it in the UI.
-- [ ] Allow users to dismiss stale resume candidates via `POST /api/work-resume/:id/dismiss`.
-- [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries (already enforced by the producer allowlist).
-- [ ] Add regressions for resume-first ordering, timer-precedence ordering (running > paused > resume-note > In Progress > priority), running/paused timers surviving the recently-touched fallback, recurring-instance exclusion outside the ~24h due window, recent-work fallback, dismiss behavior, and safe handling of stale/unavailable targets.
+- [x] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to the lower-ranked recently-touched-work candidate bucket from 0.33.6.3 only when no active resume rows exist. Close the current wiring gap: the mode's declared `resumeStrategy: { primary: "work-resume", ... }` in `src/services/work-focus-modes.service.js` is inert (no server or client code reads it), so today the mode only runs the recently-touched branch via `/api/workbench/focus-candidates` and never consults `/api/work-resume`. This slice must actually execute that strategy.
+- [x] Do not build a new framework activity feed in this slice; the fallback is weaker ranking over existing candidate sources, not a second recovery surface.
+- [x] Show one recommended resume candidate first; keep secondary candidates subordinate.
+- [x] (Promoted from `TODO.md`) Account for active timers as the strongest resume signal. Running/paused timer state already produces resume-state rows (the `initial.time-tracking-timers` producer), so consulting `/api/work-resume` first restores them; but the recently-touched fallback currently classifies timers into the `running_timer`/`paused_timer` buckets and drops them (`matchesRankBucketFilters`/`rankBucket` in `src/services/work-candidate.service.js`), so the fallback must include the timer buckets (or otherwise not discard running/paused timer candidates for this mode).
+- [x] (Promoted from `TODO.md`) Rank resume candidates with an explicit precedence - running timer, then paused timer, then task with a resume note, then In Progress task, with task priority as the tiebreaker - applied consistently across both the recommended slot and the "More in this focus" list.
+- [x] (Promoted from `TODO.md`) Exclude recurring-task instances whose only recent signal is "Task Created" from the resume recommendation unless they are within ~24 hours of their due date; recurring instances have definitive due dates and should not surface just for being recently created. Fold this rule into the 0.33.6.3 recently-touched-work bucket so the resume fallback inherits it rather than special-casing it in the UI.
+- [x] Allow users to dismiss stale resume candidates via `POST /api/work-resume/:id/dismiss`.
+- [x] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries (already enforced by the producer allowlist).
+- [x] Add regressions for resume-first ordering, timer-precedence ordering (running > paused > resume-note > In Progress > priority), running/paused timers surviving the recently-touched fallback, recurring-instance exclusion outside the ~24h due window, recent-work fallback, dismiss behavior, and safe handling of stale/unavailable targets.
 
 Acceptance criteria:
 
@@ -270,10 +270,12 @@ Acceptance criteria:
 
 ### Version 0.33.6.8 - Dashboard host conversion
 
-- [ ] Convert `views/protected/dashboard.html` into a minimal framework host that renders contributed dashboard panels via `modulesService.listDashboardPanels` and registered panel renderers, using `LongtailForge.view` primitives for shell/header/status/empty/error states.
-- [ ] Keep the existing panels working through the host during the conversion (no visual/data regression), retiring the hidden `data-dashboard-extension-panels` stub.
-- [ ] Do not hand-build framework-owned Dashboard anatomy in static HTML or ad-hoc DOM when a view primitive or descriptor field covers it.
-- [ ] Add a focused static regression proving the Dashboard page is a minimal framework host.
+**Model: GPT-5.5 Extra High** - Framework-owned Dashboard host conversion while preserving contribution gating and existing overview panels.
+
+- [x] Convert `views/protected/dashboard.html` into a minimal framework host that renders contributed dashboard panels via `modulesService.listDashboardPanels` and registered panel renderers, using `LongtailForge.view` primitives for shell/header/status/empty/error states.
+- [x] Keep the existing panels working through the host during the conversion (no visual/data regression), retiring the hidden `data-dashboard-extension-panels` stub.
+- [x] Do not hand-build framework-owned Dashboard anatomy in static HTML or ad-hoc DOM when a view primitive or descriptor field covers it.
+- [x] Add a focused static regression proving the Dashboard page is a minimal framework host.
 
 Acceptance criteria:
 
@@ -283,12 +285,12 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Time-Tracking-owned dashboard contribution extraction with shared billing-calculation reuse.
 
-- [ ] Narrow this slice to the Time-Tracking-owned billing panels only: move the current-month billables table and the hours-and-billables chart out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
-- [ ] Task summary remains the Tasks-owned contribution already covered by the host contract; it is not part of this extraction slice.
-- [ ] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.9.
-- [ ] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.9's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
-- [ ] Ensure the panels disappear cleanly when Time Tracking is disabled or the user lacks the required permissions, via the existing contribution filtering.
-- [ ] Add regressions proving the panels appear only when Time Tracking is enabled and permitted, and that no hardcoded Task/Time assumptions remain in the Dashboard host.
+- [x] Narrow this slice to the Time-Tracking-owned billing panels only: move the current-month billables table and the hours-and-billables chart out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
+- [x] Task summary remains the Tasks-owned contribution already covered by the host contract; it is not part of this extraction slice.
+- [x] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.9.
+- [x] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.9's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
+- [x] Ensure the panels disappear cleanly when Time Tracking is disabled or the user lacks the required permissions, via the existing contribution filtering.
+- [x] Add regressions proving the panels appear only when Time Tracking is enabled and permitted, and that no hardcoded Task/Time assumptions remain in the Dashboard host.
 
 Acceptance criteria:
 
@@ -302,22 +304,22 @@ Decision:
 
 QAC is app-shell utility behavior, not a Workbench focus mode. It provides low-distraction access to common capture and recovery tools without navigating away from the current work surface: reduce focus/workflow interruption, keep productivity focused, and allow quick idea/thought capture without derailing the work train. QAC is a floating bottom-right drawer (not a permanent rail).
 
-- [ ] Add a floating, drawer-style QAC control anchored bottom-right, available on ALL protected screens via the shared app-shell include (`navigation.js`/`footer.js`), quiet until the user opens it.
-  - [ ] Use an icon that communicates action/capture rather than words that consume screen real estate (evaluate a "runner"/lightning-style glyph against the existing icon registry at build time).
-  - [ ] On wide screens the drawer may show icon + small text; on narrow screens it collapses to icon-only.
-- [ ] Drawer actions are contributed by enabled modules or mapped from registered module actions, and the shell owns contributed-action gating, quiet-until-opened behavior, focus return, and explicit temporary page fallbacks.
-- [ ] Ship the framework-owned first action set with explicit temporary behavior where a modal does not exist yet:
-  - [ ] Timer - temporary fallback to `time-tracker.html` until the future 2-timer modal exists (see deferred follow-ups in 0.33.6.12).
-  - [ ] Task - dispatches through the existing registered Task action path.
-  - [ ] Note - dispatches through the shared action registry once 0.33.6.10b lands.
-  - [ ] List - dispatches through the shared action registry once 0.33.6.10b lands.
-  - [ ] File - dispatches through the shared action registry once 0.33.6.10b lands.
-  - [ ] Reporting - temporary fallback to `reporting.html` until the future report-creation modal exists.
-  - [ ] Search - temporary fallback to `search.html` until the future advanced-search modal exists.
-- [ ] Actions open modals without changing the current page, receive safe current-page context when available, and return focus to the triggering control when closed.
-- [ ] If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback; temporary navigation fallbacks must be removed once the modal action exists.
-- [ ] Do not use badges, alerts, or recommendation behavior in the drawer; notifications and Workbench own those concerns.
-- [ ] Add regressions for drawer presence on protected pages, contributed-action gating, focus return, quiet-until-opened behavior, and temporary-fallback labeling.
+- [x] Add a floating, drawer-style QAC control anchored bottom-right, available on ALL protected screens via the shared app-shell include (`navigation.js`/`footer.js`), quiet until the user opens it.
+  - [x] Use an icon that communicates action/capture rather than words that consume screen real estate (evaluate a "runner"/lightning-style glyph against the existing icon registry at build time).
+  - [x] On wide screens the drawer may show icon + small text; on narrow screens it collapses to icon-only.
+- [x] Drawer actions are contributed by enabled modules or mapped from registered module actions, and the shell owns contributed-action gating, quiet-until-opened behavior, focus return, and explicit temporary page fallbacks.
+- [x] Ship the framework-owned first action set with explicit temporary behavior where a modal does not exist yet:
+  - [x] Timer - temporary fallback to `time-tracker.html` until the future 2-timer modal exists (see deferred follow-ups in 0.33.6.12).
+  - [x] Task - dispatches through the existing registered Task action path.
+  - [x] Note - explicit temporary fallback to `notes.html` until the shared action registry opener lands in 0.33.6.10b.
+  - [x] List - explicit temporary fallback to `lists.html` until the shared action registry opener lands in 0.33.6.10b.
+  - [x] File - explicit temporary fallback to `files.html` until the shared action registry opener lands in 0.33.6.10b.
+  - [x] Reporting - temporary fallback to `reporting.html` until the future report-creation modal exists.
+  - [x] Search - temporary fallback to `search.html` until the future advanced-search modal exists.
+- [x] Actions open modals without changing the current page, receive safe current-page context when available, and return focus to the triggering control when closed.
+- [x] If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback; temporary navigation fallbacks must be removed once the modal action exists.
+- [x] Do not use badges, alerts, or recommendation behavior in the drawer; notifications and Workbench own those concerns.
+- [x] Add regressions for drawer presence on protected pages, contributed-action gating, focus return, quiet-until-opened behavior, and temporary-fallback labeling.
 
 Acceptance criteria:
 
@@ -327,10 +329,12 @@ Acceptance criteria:
 
 **Model: GPT-5.4** - Mechanical registry rollout that wraps existing module-owned openers without inventing new forms.
 
-- [ ] Register the missing first-party Notes, Lists, and Files modal openers through the shared `LongtailForge.moduleActions` registry so QAC dispatches them the same way it dispatches Tasks, Time Entries, Projects, and Clients.
-- [ ] Wrap each module's existing canonical opener; do not build new forms or alternate editor flows.
-- [ ] Preserve module-owned permissions, payloads, refresh hooks, and focus-return behavior while routing opens through the shared framework action path.
-- [ ] Add regressions proving the new action registrations exist, dispatch through the canonical module-owned opener, and do not duplicate existing page-specific open logic.
+- [x] Register the missing first-party Notes, Lists, and Files modal openers through the shared `LongtailForge.moduleActions` registry so QAC dispatches them the same way it dispatches Tasks, Time Entries, Projects, and Clients.
+- [x] Wrap each module's existing canonical opener; do not build new forms or alternate editor flows.
+- [x] Preserve module-owned permissions, payloads, refresh hooks, and focus-return behavior while routing opens through the shared framework action path.
+- [x] Add regressions proving the new action registrations exist, dispatch through the canonical module-owned opener, and do not duplicate existing page-specific open logic.
+
+Implementation note: Notes and Lists now dispatch QAC create actions through their canonical add/edit modal wrappers. Files registers the existing attachment-scoped File Context and File Preview openers (`files.edit`, `files.preview`) for framework dispatch; generic File capture remains an explicit page fallback until a target-aware upload opener exists, because this slice must not invent a new Files form.
 
 Acceptance criteria:
 
@@ -340,12 +344,12 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Permission-safe cross-module context rail work without introducing a new embedded viewer host.
 
-- [ ] Add a persistent Inspector panel on wide Workbench layouts (subordinate to the main surface) that stays out of the QAC drawer's space.
-- [ ] Show permission-safe related record titles/context when idle; clicking a related title opens the existing preview or record modal in place via stacked-modal behavior (reuse existing preview/linked-context infrastructure rather than a new viewer host).
-- [ ] Do not build an embedded preview pane inside the Inspector in this slice; a true embedded viewer would be a separate future slice.
-- [ ] Keep the Inspector permission-safe and workspace-aware, and apply the no-raw-ID/`docs/workflow-context-contract.md` label rules; non-Workbench screens remain centered unless they explicitly opt into Inspector behavior.
-- [ ] Degrade gracefully on narrow screens (collapse/hide) and when there is no related context.
-- [ ] Add regressions for related-title rendering, stacked-modal open behavior, permission scoping, and narrow-screen behavior.
+- [x] Add a persistent Inspector panel on wide Workbench layouts (subordinate to the main surface) that stays out of the QAC drawer's space.
+- [x] Show permission-safe related record titles/context when idle; clicking a related title opens the existing preview or record modal in place via stacked-modal behavior (reuse existing preview/linked-context infrastructure rather than a new viewer host).
+- [x] Do not build an embedded preview pane inside the Inspector in this slice; a true embedded viewer would be a separate future slice.
+- [x] Keep the Inspector permission-safe and workspace-aware, and apply the no-raw-ID/`docs/workflow-context-contract.md` label rules; non-Workbench screens remain centered unless they explicitly opt into Inspector behavior.
+- [x] Degrade gracefully on narrow screens (collapse/hide) and when there is no related context.
+- [x] Add regressions for related-title rendering, stacked-modal open behavior, permission scoping, and narrow-screen behavior.
 
 Acceptance criteria:
 
@@ -401,6 +405,24 @@ Promoted from `TODO.md` (Recommended Next Action Interface & Algorithm, hierarch
 Acceptance criteria:
 
 - Selecting a parent client or project includes its descendants across all client/project filters via a shared permission-aware scope resolver, single drill-down is preserved, and no unreadable or cross-workspace records leak.
+
+### Version 0.33.6.13a - Linked Context picker: client-scoped project selection
+
+**Model: GPT-5.5 Extra High** - Client-context selection for the shared Linked Context picker, applying the 0.33.6.13 scoping standard.
+
+Promoted from user request. Consumes the app-wide client/project scoping conventions from 0.33.6.13 and applies them to the shared Linked Context picker (`createLinkedContextPicker` in `public/js/shared/view-builder.js`, wired in `public/js/notes.js`, contract `docs/linked-context-picker-contract.md`). Today the picker has only a target-type + search + record control set with no client context, and project rows are labeled `"{{projectName}} - {{clientName}}"` unconditionally on business workspaces (`primaryProjectOptionLabel` in `notes.js`).
+
+- [ ] Add a client-context selector to the Linked Context picker on BUSINESS workspaces only, defaulting to "All Clients": with "All Clients" selected the picker shows all projects/records across clients (unchanged breadth).
+- [ ] Include a "{{workspaceName}}" entry in the client selector (e.g. "Raymond Tec") that scopes the results to client-less workspace projects (projects with no client) - the workspace-projects bucket, presented as if it were a client.
+- [ ] List the real clients after "All Clients" and "{{workspaceName}}", and scope the project/record list to the chosen client; apply the 0.33.6.13 parent-includes-descendants rule so a parent client includes its sub-clients' projects, with single drill-down preserved.
+- [ ] Label rule: under "All Clients", project rows keep the `"{{projectName}} - {{clientName}}"` suffix so same-named projects across clients stay distinguishable; once a specific client OR the "{{workspaceName}}" entry is selected, drop the suffix and show just the project name (the client context is now explicit).
+- [ ] PERSONAL/FAMILY workspaces must never show a client selector, a "{{workspaceName}}"-as-client entry, or any `- clientName` label anywhere in this picker - no client concept leaks into non-business scope.
+- [ ] Keep the shared shell data-agnostic: the picker shell must not fetch or own client/project data (its regression forbids `fetch`/storage in the shell); the caller (`notes.js`) supplies the client options and scoped records, and the shell only renders the client select and reflects the selection. Preserve permission/workspace boundaries and the no-raw-ID label rules from the picker contract.
+- [ ] Update `docs/linked-context-picker-contract.md` for the new client-context control and its business-only gating, and add regressions for: All-Clients default breadth + suffix, "{{workspaceName}}" scoping to client-less projects + suffix dropped, specific-client scoping + suffix dropped + descendant inclusion, and Personal/Family showing no client control or labels.
+
+Acceptance criteria:
+
+- On business workspaces the Linked Context picker offers a client selector (All Clients default, "{{workspaceName}}" for workspace projects, then clients with parent-includes-descendants scoping); the `- client` suffix shows only under All Clients and drops once a specific client/workspace is picked; Personal/Family never surface any client selector or label; and the shared shell stays data-agnostic.
 
 ## Version 0.33.7 - Task Calendar Views (lean, read-only)
 

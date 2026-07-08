@@ -50,7 +50,7 @@ Finalized sourced timers should create normal time entries with any source-speci
 
 ## Resume State
 
-Use resume state when a module has work the current user may need to pick back up later. The framework owns `work_resume_state`, `/api/work-resume`, dismissal, read filtering, and future Workbench consumption. Modules own only the decision that a lifecycle event is resumable and the safe snapshot fields for their source records.
+Use resume state when a module has work the current user may need to pick back up later. The framework owns `work_resume_state`, `/api/work-resume`, dismissal, read filtering, and Workbench's Pick up where I left off consumption. Modules own only the decision that a lifecycle event is resumable and the safe snapshot fields for their source records.
 
 To participate:
 
@@ -60,7 +60,7 @@ To participate:
 4. Register a read resolver with `registerResumeStateReadResolver()` so the framework can re-check source visibility before returning a row.
 5. Add regressions for workspace scope, disabled modules, permission-denied reads, deleted/completed/archived/finalized filtering, dismissal refresh, and unsafe metadata exclusion.
 
-Do not copy freeform bodies, comments, rendered HTML, secure/encrypted fields, attachment internals, protected storage paths, scanner details, private-note hints, or inaccessible linked-record labels into resume state. Private and secure Notes are excluded from global resume-state rows in the current foundation. Time Tracking should update sourced task timer resume state on the source task record; manual active timers remain Time Tracking-owned.
+Do not copy freeform bodies, comments, rendered HTML, secure/encrypted fields, attachment internals, protected storage paths, scanner details, private-note hints, or inaccessible linked-record labels into resume state. Private and secure Notes are excluded from global resume-state rows in the current foundation. Time Tracking should update sourced task timer resume state on the source task record; manual active timers remain Time Tracking-owned. For recurring task instances, include recurrence template/instance metadata when available so framework ranking can avoid surfacing far-future instances whose only resume signal is creation.
 
 ## Views And Assets
 

@@ -72,9 +72,12 @@ let state = {
   collectionDialogMode: "create",
   collectionEditingId: "",
   collections: [],
+  dialogDataReady: null,
   editingNoteId: "",
   editorAttachmentController: null,
   editorContextSummaries: {},
+  editorHostContext: null,
+  editorHostContextSettled: false,
   editorNote: null,
   editorSelectedTarget: null,
   editorStagedTargets: [],
@@ -100,7 +103,13 @@ let state = {
   openExternalLinksNewTab: readStoredOpenExternalLinksPreference(),
 };
 
+const notesWorkspaceHost = document.querySelector("[data-notes-host]");
+const isNotesWorkspaceSurface = Boolean(notesWorkspaceHost);
+
 buildNotesViewShell();
+if (!isNotesWorkspaceSurface) {
+  ensureNotesDialogShells();
+}
 
 const statusMessage = document.querySelector("[data-notes-status]");
 const filtersForm = document.querySelector("[data-notes-filters]");
@@ -209,7 +218,7 @@ nextButton?.addEventListener("click", (event) => {
 });
 form?.addEventListener("submit", saveNote);
 notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
-cancelButton?.addEventListener("click", closeEditor);
+cancelButton?.addEventListener("click", cancelEditor);
 collectionForm?.addEventListener("submit", saveCollection);
 collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
 collectionCancelButton?.addEventListener("click", closeCollectionDialog);
@@ -236,8 +245,47 @@ filesToggle?.addEventListener("click", openFilesDialog);
 filesDialogCloseButton?.addEventListener("click", closeFilesDialog);
 filesDialog?.addEventListener("close", handleFilesDialogClose);
 copyLinkButton?.addEventListener("click", copyCurrentNoteLink);
+dialog?.addEventListener("close", handleEditorDialogClose);
 
-initialize();
+const notesDialogApi = Object.freeze({
+  openAdd: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "add" }, hostContext),
+  openEdit: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
+  openNoteEditor,
+});
+
+window.LongtailForge.notesDialog = Object.freeze({
+  ...(window.LongtailForge.notesDialog || {}),
+  ...notesDialogApi,
+});
+
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "notes.add",
+  id: "notes.add",
+  label: "Add Note",
+  mode: "add",
+  moduleId: "notes",
+  open: (params, hostContext) => openNoteEditor({ ...params, mode: "add" }, hostContext),
+  recordType: "note",
+  requiredModules: ["notes"],
+  requiredPermissions: ["notes.create"],
+  title: "Add Note",
+});
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "notes.edit",
+  id: "notes.edit",
+  label: "Edit Note",
+  mode: "edit",
+  moduleId: "notes",
+  open: (params, hostContext) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
+  recordType: "note",
+  requiredModules: ["notes"],
+  requiredPermissions: ["notes.view"],
+  title: "Edit Note",
+});
+
+if (isNotesWorkspaceSurface) {
+  initialize();
+}
 
 function buildNotesViewShell() {
   const host = document.querySelector("[data-notes-host]");
@@ -260,6 +308,23 @@ function buildNotesViewShell() {
     createCollectionDialogShell(),
     createCollectionActionsDialogShell(),
   );
+}
+
+function ensureNotesDialogShells() {
+  const shells = [];
+  if (!document.querySelector("[data-note-dialog]")) {
+    shells.push(createNoteDialogShell());
+  }
+  if (!document.querySelector("[data-note-tags-dialog]")) {
+    shells.push(createNoteTagsDialogShell());
+  }
+  if (!document.querySelector("[data-note-files-dialog]")) {
+    shells.push(createNoteFilesDialogShell());
+  }
+
+  if (shells.length > 0) {
+    document.body.append(...shells);
+  }
 }
 
 function registerNotesViewBehaviors() {
@@ -362,6 +427,64 @@ function noteWorkflowActionButton(action, note) {
   });
   button.dataset.noteAction = action.id;
   return button;
+}
+
+async function openNoteEditor(params = {}, hostContext = null) {
+  await prepareNoteDialogData();
+
+  const mode = normalizeNoteEditorMode(params);
+  const noteId = readNoteEditorId(params);
+  const note = params.note || params.record || params.noteRecord || (noteId ? { note_id: noteId } : null);
+
+  if (mode === "edit" && !note?.note_id) {
+    throw new Error("Note ID is required.");
+  }
+
+  const result = await openEditor(mode === "add" ? null : note, {
+    defaults: normalizeNoteEditorDefaults(params),
+    hostContext,
+    trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
+  });
+  return hostContext?.result || result;
+}
+
+async function prepareNoteDialogData() {
+  if (!state.dialogDataReady) {
+    state.dialogDataReady = (async () => {
+      await window.LongtailForge.workspaceContextReady;
+      applyWorkspaceContext();
+      await Promise.all([loadMarkdownRenderingPreference(), loadTags(), loadCollections()]);
+    })().catch((error) => {
+      state.dialogDataReady = null;
+      throw error;
+    });
+  }
+
+  return state.dialogDataReady;
+}
+
+function normalizeNoteEditorMode(params = {}) {
+  const mode = String(params.mode || params.actionMode || "").toLowerCase();
+  return mode === "edit" ? "edit" : "add";
+}
+
+function readNoteEditorId(params = {}) {
+  return params.noteId || params.note_id || params.recordId || params.id || "";
+}
+
+function normalizeNoteEditorDefaults(params = {}) {
+  const context = params.context || {};
+  return {
+    body_markdown: params.body_markdown || params.bodyMarkdown || params.body || "",
+    client_id: params.client_id || params.clientId || context.clientId || "",
+    library_bucket: params.library_bucket || params.libraryBucket || "",
+    note_collection_id: params.note_collection_id || params.noteCollectionId || "",
+    note_type: params.note_type || params.noteType || "",
+    project_id: params.project_id || params.projectId || context.projectId || "",
+    security_mode: params.security_mode || params.securityMode || "",
+    title: params.title || "",
+    visibility: params.visibility || "",
+  };
 }
 
 function notesViewSurfaceDescriptor() {
@@ -1510,30 +1633,33 @@ function inlineFilterIcon() {
   return icon;
 }
 
-async function openEditor(note = null) {
+async function openEditor(note = null, options = {}) {
   note = await hydrateEditorNote(note);
+  const defaults = options.defaults || {};
   state.editingNoteId = note?.note_id || "";
+  state.editorHostContext = options.hostContext || null;
+  state.editorHostContextSettled = false;
   state.editorNote = note;
   state.editorSelectedTarget = null;
   state.editorStagedTargets = [];
   state.libraryManuallyChanged = false;
   dialogTitle.textContent = note ? "Edit Note" : "Create Note";
-  titleInput.value = note?.title || "";
-  libraryInput.value = note?.library_bucket || state.activeBucketForCreate || defaultLibraryForCreate();
+  titleInput.value = note?.title || defaults.title || "";
+  libraryInput.value = note?.library_bucket || defaults.library_bucket || state.activeBucketForCreate || defaultLibraryForCreate();
   populateNoteCollectionOptions(note?.library_bucket || libraryInput.value);
-  collectionInput.value = note?.note_collection_id || "";
+  collectionInput.value = note?.note_collection_id || defaults.note_collection_id || "";
   if (collectionInput.value && ![...collectionInput.options].some((option) => option.value === collectionInput.value)) {
     collectionInput.value = "";
   }
   resetLegacyNoteKindOptions();
   ensureNoteKindOption(note?.note_type);
-  typeInput.value = note?.note_type || "general";
-  populateWorkspaceVisibilityOptions(note?.visibility || "internal");
-  securityInput.value = note?.security_mode || "normal";
+  typeInput.value = note?.note_type || defaults.note_type || "general";
+  populateWorkspaceVisibilityOptions(note?.visibility || defaults.visibility || "internal");
+  securityInput.value = note?.security_mode || defaults.security_mode || "normal";
   securityInput.disabled = Boolean(note);
   updateSecureUiState();
-  const selectedClientId = note?.client_id || "";
-  const selectedProjectId = note?.project_id || "";
+  const selectedClientId = note?.client_id || defaults.client_id || "";
+  const selectedProjectId = note?.project_id || defaults.project_id || "";
   clientInput.value = selectedClientId;
   projectInput.value = selectedProjectId;
   taskInput.value = note?.task_id || "";
@@ -1543,8 +1669,8 @@ async function openEditor(note = null) {
     clientId: selectedClientId,
     projectId: selectedProjectId,
   });
-  editor?.setValue(note?.body_markdown || "");
-  bodyInput.value = note?.body_markdown || "";
+  editor?.setValue(note?.body_markdown || defaults.body_markdown || "");
+  bodyInput.value = note?.body_markdown || defaults.body_markdown || "";
   preview.hidden = true;
   previewToggle.setAttribute("aria-pressed", "false");
   updatePreviewLayoutState(false);
@@ -1564,8 +1690,12 @@ async function openEditor(note = null) {
   renderEditorContextSelection();
   await loadEditorLinkTargets();
   updateLibrarySuggestion();
-  view.showModal(dialog);
+  const closeResult = new Promise((resolve) => {
+    dialog?.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+  });
+  view.showModal(dialog, { trigger: options.trigger || options.hostContext?.trigger || null });
   titleInput.focus();
+  return closeResult;
 }
 
 async function hydrateEditorNote(note = null) {
@@ -1638,7 +1768,13 @@ function workspaceVisibilityOptions() {
     .filter(([value]) => value !== "client_visible" || usesBusinessScope());
 }
 
-function closeEditor() {
+function closeEditor(options = {}) {
+  if (options.cancelHost) {
+    cancelNoteEditorHostContext({
+      actionId: state.editingNoteId ? "notes.edit" : "notes.add",
+      recordId: state.editingNoteId || "",
+    });
+  }
   state.editorNote = null;
   state.editorSelectedTarget = null;
   state.editorStagedTargets = [];
@@ -1649,7 +1785,38 @@ function closeEditor() {
     copyLinkButton.disabled = true;
   }
   resetNoteNotificationFollowFields();
-  view.closeModal(dialog);
+  view.closeModal(dialog, options.returnValue || "");
+}
+
+function cancelEditor() {
+  closeEditor({ cancelHost: true, returnValue: "cancel" });
+}
+
+function handleEditorDialogClose() {
+  cancelNoteEditorHostContext({
+    actionId: state.editingNoteId ? "notes.edit" : "notes.add",
+    recordId: state.editingNoteId || "",
+  });
+}
+
+function completeNoteEditorHostContext(detail = {}) {
+  if (!state.editorHostContext || state.editorHostContextSettled) {
+    return;
+  }
+
+  state.editorHostContextSettled = true;
+  state.editorHostContext.complete?.(detail);
+  state.editorHostContext = null;
+}
+
+function cancelNoteEditorHostContext(detail = {}) {
+  if (!state.editorHostContext || state.editorHostContextSettled) {
+    return;
+  }
+
+  state.editorHostContextSettled = true;
+  state.editorHostContext.cancel?.(detail);
+  state.editorHostContext = null;
 }
 
 async function copyCurrentNoteLink() {
@@ -1768,15 +1935,30 @@ async function saveNote(event) {
   event.preventDefault();
   saveButton.disabled = true;
   setEditorFormStatus("Saving note...");
+  const wasEditing = Boolean(state.editingNoteId);
 
   try {
     const payload = readEditorPayload();
     const result = state.editingNoteId
       ? await api.putJson(`/api/notes/${encodeURIComponent(state.editingNoteId)}`, payload)
       : await api.postJson("/api/notes", payload);
-    await Promise.all([loadCollections(), loadNotes()]);
-    closeEditor();
-    await selectNote(result.note.note_id);
+    if (isNotesWorkspaceSurface) {
+      await Promise.all([loadCollections(), loadNotes()]);
+    } else {
+      await loadCollections();
+    }
+    if (typeof state.editorHostContext?.refresh === "function") {
+      await state.editorHostContext.refresh(result);
+    }
+    completeNoteEditorHostContext({
+      actionId: wasEditing ? "notes.edit" : "notes.add",
+      recordId: result.note?.note_id || "",
+      title: result.note?.title || payload.title || "",
+    });
+    closeEditor({ returnValue: "complete" });
+    if (isNotesWorkspaceSurface) {
+      await selectNote(result.note.note_id);
+    }
     setEditorFormStatus("");
   } catch (error) {
     setEditorFormStatus(safeNoteErrorMessage(error, "Note could not be saved."), true);

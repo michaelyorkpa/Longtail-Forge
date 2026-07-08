@@ -12,7 +12,7 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.6.6f:
+Current totals as of 0.33.6.10b:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.

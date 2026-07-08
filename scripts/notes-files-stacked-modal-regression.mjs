@@ -8,12 +8,12 @@ const notesJs = readText("public/js/notes.js");
 const notesCss = readText("public/css/longtail-forge.css");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.6.6f", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.6.6f", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.6.6f", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.6.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.6.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.6.11", "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the stacked Files modal warning styles");
-assert.match(notesHtml, /js\/notes\.js\?v=70/, "Notes should cache-bust the stacked Files modal browser wiring");
+assert.match(notesHtml, /js\/notes\.js\?v=71/, "Notes should cache-bust the stacked Files modal browser wiring");
 assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should keep using the modal-stack-enabled view builder");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=12/, "Notes should keep using the modal-stack-enabled renderer");
 

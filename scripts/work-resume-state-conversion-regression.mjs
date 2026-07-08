@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-conversion.db");
@@ -71,7 +71,7 @@ function assertStaticContract() {
   assert.doesNotMatch(initialProducersSource, /\b(?:querySql|getSql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "initial producers should be fully off literal helpers");
   assert.equal(countMatches(initialProducersSource, /\bdb\.get\(/g), 2, "initial producers should keep active timer and safe note lifecycle reads as bound db.get calls");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.6f:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the Work resume state conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.10b:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 388[\s\S]*Total runtime database operation calls seen by the audit scanner: 432/, "audit docs should record the Work resume state conversion ratchet");
   assert.match(auditDocs, /\| services\/work-resume-state\.service \| Converted \| 0 \| 0 \| 7 \| 7 \|/, "audit inventory should mark the work resume state service converted");
   assert.match(auditDocs, /\| services\/work-resume-state-initial-producers \| Converted \| 0 \| 0 \| 2 \| 2 \|/, "audit inventory should mark the initial producers converted");
   assert.match(auditDocs, /0\.33\.5\.27\.26 Work Resume State Conversion[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are fully converted[\s\S]*304 runtime literal-helper invocations[\s\S]*57 direct interpolated SQL operation sites[\s\S]*302 existing bound operation sites/, "audit docs should record the Work resume state conversion slice");

@@ -17,6 +17,7 @@ const {
   FOCUS_MODE_IDS,
   workFocusModesService,
 } = await import("../src/services/work-focus-modes.service.js");
+const { activeTimersRepository } = await import("../src/modules/time-tracking/active-timers.repo.js");
 const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const {
@@ -25,16 +26,19 @@ const {
 } = await import("../src/services/work-candidate.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 
+const unreadableTaskIds = new Set();
+
 try {
   await initializeDatabase();
   const session = await readSeedSession();
 
   resetResumeStateReadResolvers();
-  registerResumeStateReadResolver("tasks", "task", async () => ({ readable: true, status: "active" }));
+  registerFocusReadResolvers();
 
   await assertCanonicalBusinessFocusModes(session);
   await assertModeResolutionContracts(session);
   await assertResolvedContextsDriveCandidates(session);
+  await assertPickUpWhereLeftOffExecutesResumeStrategy(session);
   await assertClientFocusWorkspaceGating(session);
 
   console.log("Work focus modes regression passed.");
@@ -118,10 +122,10 @@ async function assertModeResolutionContracts(session) {
   assert.equal(startMyDay.candidateQuery.mode, FOCUS_MODE_IDS.startMyDay);
   assert.deepEqual(pickUp.resumeStrategy, {
     fallback: "ranked-candidates",
-    fallbackRankBuckets: ["recently_touched"],
+    fallbackRankBuckets: ["running_timer", "paused_timer", "recently_touched"],
     primary: "work-resume",
   });
-  assert.deepEqual(pickUp.candidateQuery.rankBuckets, ["recently_touched"]);
+  assert.deepEqual(pickUp.candidateQuery.rankBuckets, ["running_timer", "paused_timer", "recently_touched"]);
   assert.equal(dueNext.modeId, FOCUS_MODE_IDS.whatsDueNext);
   assert.equal(dueNext.filters.date.dueTo, "2026-07-14");
   assert.equal(dueNext.candidateQuery.dueTo, "2026-07-14");
@@ -225,6 +229,7 @@ async function assertResolvedContextsDriveCandidates(session) {
   });
   const activeId = await upsertTaskCandidate(session, {
     clientId: clientAlpha,
+    lastWorkedAt: "2026-07-08T00:30:00.000Z",
     projectId: projectAlpha,
     statusSnapshot: "active",
     title: "Focus Active",
@@ -378,6 +383,174 @@ async function assertResolvedContextsDriveCandidates(session) {
   );
 }
 
+async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
+  const today = "2026-07-07";
+  const projectId = `resume-focus-${randomUUID()}`;
+  const fallbackProjectId = `resume-fallback-${randomUUID()}`;
+
+  await createProject(session.workspace_id, projectId, "Resume Focus Project");
+  await createProject(session.workspace_id, fallbackProjectId, "Resume Fallback Project");
+
+  const runningId = await upsertTaskCandidate(session, {
+    lastActionLabel: "Timer Running",
+    lastActionType: "timer.running",
+    lastWorkedAt: "2026-07-07T16:00:00.000Z",
+    metadata: { timer_status: "running" },
+    nextAction: "",
+    prioritySnapshot: "low",
+    projectId,
+    statusSnapshot: "active",
+    title: "Resume Running Timer",
+  });
+  const pausedId = await upsertTaskCandidate(session, {
+    lastActionLabel: "Timer Paused",
+    lastActionType: "timer.paused",
+    lastWorkedAt: "2026-07-07T15:00:00.000Z",
+    metadata: { timer_status: "paused" },
+    nextAction: "",
+    prioritySnapshot: "urgent",
+    projectId,
+    statusSnapshot: "paused",
+    title: "Resume Paused Timer",
+  });
+  const oldResumeNoteId = await upsertTaskCandidate(session, {
+    handoffNote: "Resume this older handoff.",
+    lastActionLabel: "Task Updated",
+    lastActionType: "task.updated",
+    lastWorkedAt: "2026-06-15T12:00:00.000Z",
+    nextAction: "",
+    prioritySnapshot: "low",
+    projectId,
+    statusSnapshot: "open",
+    title: "Old Resume Note",
+  });
+  const highInProgressId = await upsertTaskCandidate(session, {
+    lastActionLabel: "Task Updated",
+    lastActionType: "task.updated",
+    lastWorkedAt: "2026-07-07T13:00:00.000Z",
+    nextAction: "",
+    prioritySnapshot: "high",
+    projectId,
+    statusSnapshot: "in_progress",
+    title: "High In Progress",
+  });
+  const lowInProgressId = await upsertTaskCandidate(session, {
+    lastActionLabel: "Task Updated",
+    lastActionType: "task.updated",
+    lastWorkedAt: "2026-07-07T14:00:00.000Z",
+    nextAction: "",
+    prioritySnapshot: "low",
+    projectId,
+    statusSnapshot: "in_progress",
+    title: "Low In Progress",
+  });
+  const farRecurringId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-20",
+    lastActionLabel: "Task Created",
+    lastActionType: "task.created",
+    lastWorkedAt: "2026-07-07T12:00:00.000Z",
+    metadata: {
+      recurrence_instance_date: "2026-07-20",
+      recurrence_template_id: `recurrence-template-${randomUUID()}`,
+    },
+    nextAction: "",
+    projectId,
+    statusSnapshot: "open",
+    title: "Far Future Recurring Created",
+  });
+  const nearRecurringId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-08",
+    lastActionLabel: "Task Created",
+    lastActionType: "task.created",
+    lastWorkedAt: "2026-07-07T12:30:00.000Z",
+    metadata: {
+      recurrence_instance_date: "2026-07-08",
+      recurrence_template_id: `recurrence-template-${randomUUID()}`,
+    },
+    nextAction: "",
+    projectId,
+    statusSnapshot: "open",
+    title: "Near Due Recurring Created",
+  });
+  const unreadableId = await upsertTaskCandidate(session, {
+    lastActionLabel: "Task Updated",
+    lastActionType: "task.updated",
+    lastWorkedAt: "2026-07-07T17:00:00.000Z",
+    projectId,
+    statusSnapshot: "in_progress",
+    title: "Unreadable Resume Candidate",
+  });
+  unreadableTaskIds.add(unreadableId);
+
+  const resumeFocus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId,
+    today,
+  });
+  const orderedResumeIds = intersectCandidateIds(resumeFocus.items, [
+    runningId,
+    pausedId,
+    oldResumeNoteId,
+    highInProgressId,
+    lowInProgressId,
+    nearRecurringId,
+  ]);
+
+  assert.deepEqual(orderedResumeIds, [
+    runningId,
+    pausedId,
+    oldResumeNoteId,
+    highInProgressId,
+    lowInProgressId,
+    nearRecurringId,
+  ], "Pick up focus should rank resume rows before falling back to recent work buckets");
+  assert.equal(resumeFocus.items[0]?.recordId, runningId, "the recommended candidate should be the strongest resume match");
+  assert.equal(resumeFocus.items.some((candidate) => candidate.recordId === farRecurringId), false);
+  assert.equal(resumeFocus.items.some((candidate) => candidate.recordId === unreadableId), false);
+
+  const dismissedCandidate = resumeFocus.items.find((candidate) => candidate.recordId === oldResumeNoteId);
+  assert.ok(dismissedCandidate?.resumeStateId, "resume candidates should carry a dismissable resume state ID");
+  await workResumeStateService.dismissResumeState(session, dismissedCandidate.resumeStateId);
+
+  const afterDismiss = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId,
+    today,
+  });
+
+  assert.equal(afterDismiss.items.some((candidate) => candidate.recordId === oldResumeNoteId), false);
+
+  const fallbackTimerId = `resume-fallback-timer-${randomUUID()}`;
+  await activeTimersRepository.upsert({
+    accumulated_elapsed_seconds: 120,
+    active_timer_id: fallbackTimerId,
+    client_id: "",
+    client_name: "",
+    description: "Fallback timer candidate",
+    last_active_start_time: "2026-07-07T18:00:00.000Z",
+    project_id: fallbackProjectId,
+    project_name: "Resume Fallback Project",
+    source_label: "Fallback running timer",
+    source_url: "time-tracker.html",
+    timer_slot: "88",
+    timer_status: "running",
+    user_id: session.user_id,
+    workspace_id: session.workspace_id,
+  });
+
+  const fallbackFocus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId: fallbackProjectId,
+    today,
+  });
+
+  assert.equal(fallbackFocus.items[0]?.recordId, fallbackTimerId);
+  assert.equal(fallbackFocus.items[0]?.sourceKind, "live_timer");
+}
+
 async function assertClientFocusWorkspaceGating(session) {
   await setWorkspaceType(session.workspace_id, "personal");
 
@@ -415,6 +588,16 @@ async function assertClientFocusWorkspaceGating(session) {
   assert.equal(familyModes.some((mode) => /client/i.test(mode.label)), false);
 
   await setWorkspaceType(session.workspace_id, "business");
+}
+
+function registerFocusReadResolvers() {
+  registerResumeStateReadResolver("tasks", "task", async ({ recordId, row }) => {
+    if (unreadableTaskIds.has(recordId)) {
+      return { deleted: true, readable: false, status: "deleted" };
+    }
+
+    return { readable: true, status: row.status_snapshot || "active" };
+  });
 }
 
 async function upsertTaskCandidate(session, overrides = {}) {

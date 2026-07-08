@@ -764,7 +764,7 @@ async function runTaskMutationTests(api, fixtures) {
       assert.ok(response.body.registry.workbenchCards.some((card) => card.renderer === "active-work-timers"));
       assert.ok(response.body.registry.workbenchCards.some((card) => card.renderer === "task-workbench-items"));
       assert.deepEqual(response.body.timers, []);
-      assert.deepEqual(response.body.taskItems, []);
+      assert.equal(Object.hasOwn(response.body, "taskItems"), false);
       assert.ok(response.body.workCandidates.some((candidate) => candidate.recordType === "active_work_timer"));
     });
   });
@@ -1455,7 +1455,14 @@ async function runDisabledModuleTests(api, fixtures) {
     const timeTrackingModule = settings.body.modules.find((moduleDefinition) => moduleDefinition.id === "time-tracking");
     assert.ok(timeTrackingModule);
     assert.ok(timeTrackingModule.navigation.some((item) => item.href === "time-tracker.html"));
-    assert.ok(timeTrackingModule.dashboard.some((item) => item.id === "billing-summary"));
+    assert.ok(timeTrackingModule.dashboard.some((item) =>
+      item.id === "current-month-billables" &&
+      item.renderer === "time-tracking.current-month-billables" &&
+      item.dataRoute === "/api/time-tracking/dashboard/billing-summary"));
+    assert.ok(timeTrackingModule.dashboard.some((item) =>
+      item.id === "hours-billables-chart" &&
+      item.renderer === "time-tracking.hours-billables-chart" &&
+      item.dataRoute === "/api/time-tracking/dashboard/billing-summary"));
     assert.ok(timeTrackingModule.publicApiEndpoints.some((item) => item.path === "/api/v1/time-entries"));
     assert.ok(timeTrackingModule.settings.some((item) => item.id === "timeTrackingEnabled"));
   });

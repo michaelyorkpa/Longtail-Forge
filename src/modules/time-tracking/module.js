@@ -1,4 +1,5 @@
 import { timeEntriesRoutes } from "./time-entries.routes.js";
+import { timeTrackingDashboardRoutes } from "./time-tracking-dashboard.routes.js";
 import { timeTrackingPublicApiRoutes } from "./public-api.routes.js";
 import { registerTimeTrackingSearchIndexers } from "./search-indexers.js";
 
@@ -20,11 +21,11 @@ const timeTrackingModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.10.2",
+  version: "0.33.6.11",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
-  browserApiRoutes: [timeEntriesRoutes],
+  browserApiRoutes: [timeEntriesRoutes, timeTrackingDashboardRoutes],
   publicApiRoutes: [timeTrackingPublicApiRoutes],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
   migrationsDir: null,
@@ -94,6 +95,15 @@ const timeTrackingModule = {
       views: ["time-tracking-settings"],
       requiredPermissions: ["workspace_settings.manage"],
     },
+    {
+      id: "time-tracking-dashboard-script",
+      moduleId: "time-tracking",
+      path: "/js/time-tracking-dashboard.js",
+      type: "script",
+      views: ["dashboard"],
+      requiredPermissions: ["reporting.view"],
+      requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+    },
   ],
   dashboard: [
     {
@@ -119,15 +129,28 @@ const timeTrackingModule = {
       sortOrder: 25,
     },
     {
-      id: "billing-summary",
-      label: "Billing Summary",
-      description: "Current-month billables and trailing billables chart.",
-      renderer: "billing-summary",
+      id: "current-month-billables",
+      label: "Current Month Billables",
+      description: "Current-month billable time and amount by billing scope.",
+      renderer: "time-tracking.current-month-billables",
+      dataRoute: "/api/time-tracking/dashboard/billing-summary",
       moduleId: "time-tracking",
       requiredPermissions: ["reporting.view"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
       requiresEnabledModules: ["time-tracking"],
       sortOrder: 40,
+    },
+    {
+      id: "hours-billables-chart",
+      label: "Hours & Billables",
+      description: "Trailing hours and billable amount by month.",
+      renderer: "time-tracking.hours-billables-chart",
+      dataRoute: "/api/time-tracking/dashboard/billing-summary",
+      moduleId: "time-tracking",
+      requiredPermissions: ["reporting.view"],
+      requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+      requiresEnabledModules: ["time-tracking"],
+      sortOrder: 45,
     },
   ],
   workbench: [

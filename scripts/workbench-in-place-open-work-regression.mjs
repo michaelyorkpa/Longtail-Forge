@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.6f";
+const appVersion = "0.33.6.11";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -16,7 +16,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=22/,
+  /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=26/,
   "Workbench should load the canonical Task dialog before the cache-busted Workbench adapter",
 );
 
@@ -27,15 +27,15 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "candidateActionLabel"),
-  /candidateTaskId\(candidate\)[\s\S]*return "Open work";/,
-  "Task candidates should keep the Open Work label even when the editor opens in place",
+  /candidateModuleAction\(candidate\) \|\| candidate\.sourceUrl \|\| candidate\.primaryAction\?\.href[\s\S]*return "Open work";/,
+  "Candidates with a module action or page fallback should keep the Open Work label",
 );
 
 const openCandidateBody = functionBody(workbenchScript, "openCandidate");
 assert.match(
   openCandidateBody,
-  /const taskId = candidateTaskId\(candidate\);[\s\S]*if \(taskId\) \{[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\);[\s\S]*return;[\s\S]*\}[\s\S]*openCandidateNavigationFallback\(candidate\);/,
-  "Open Work should dispatch task candidates to the in-place task opener before falling back to navigation",
+  /const taskId = candidateTaskId\(candidate\);[\s\S]*if \(taskId\) \{[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\);[\s\S]*return;[\s\S]*\}[\s\S]*const action = candidateModuleAction\(candidate\);[\s\S]*if \(action\) \{[\s\S]*await openModuleActionCandidate\(candidate, action, trigger\);[\s\S]*return;[\s\S]*\}[\s\S]*openCandidateNavigationFallback\(candidate\);/,
+  "Open Work should dispatch task candidates and registered module-action candidates before falling back to navigation",
 );
 assert.doesNotMatch(
   openCandidateBody,

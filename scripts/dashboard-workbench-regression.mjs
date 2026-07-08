@@ -5,10 +5,13 @@ import { modulesService } from "../src/core/modules/modules.service.js";
 
 const files = {
   dashboard: readText("public/js/dashboard.js"),
+  timeTrackingDashboard: readText("public/js/time-tracking-dashboard.js"),
   dashboardView: readText("views/protected/dashboard.html"),
   manifestContract: readText("src/core/modules/manifest-contract.js"),
   reporting: readText("public/js/reporting.js"),
   reportingService: readText("src/services/reporting.service.js"),
+  timeTrackingBillingService: readText("src/modules/time-tracking/time-tracking-billing.service.js"),
+  timeTrackingDashboardRoutes: readText("src/modules/time-tracking/time-tracking-dashboard.routes.js"),
   tasksService: readText("src/modules/tasks/tasks.service.js"),
   tasksRoutes: readText("src/modules/tasks/tasks.routes.js"),
   workbench: readText("public/js/workbench.js"),
@@ -21,6 +24,7 @@ const modules = modulesService.listModules();
 const tasksModule = modules.find((moduleDefinition) => moduleDefinition.id === "tasks");
 const timeTrackingModule = modules.find((moduleDefinition) => moduleDefinition.id === "time-tracking");
 const clientProjectsModule = modules.find((moduleDefinition) => moduleDefinition.id === "client-projects");
+const readDashboardBody = files.reportingService.match(/async function readDashboard[\s\S]*?async function readReportContext/)?.[0] || "";
 
 assert.ok(tasksModule, "Tasks module must be registered");
 assert.ok(timeTrackingModule, "Time Tracking module must be registered");
@@ -51,10 +55,35 @@ assert.ok(
 );
 assert.ok(
   timeTrackingModule.dashboard.some((panel) =>
-    panel.id === "billing-summary" &&
-    panel.renderer === "billing-summary" &&
+    panel.id === "current-month-billables" &&
+    panel.renderer === "time-tracking.current-month-billables" &&
+    panel.dataRoute === "/api/time-tracking/dashboard/billing-summary" &&
+    panel.requiredPermissions?.includes("reporting.view") &&
+    panel.requiredWorkspaceCapabilities?.includes("time_tracking") &&
     panel.requiresEnabledModules?.includes("time-tracking")),
-  "Time Tracking billing dashboard must be a registered renderer contribution",
+  "Time Tracking current-month billables dashboard panel must be a gated module-owned contribution",
+);
+assert.ok(
+  timeTrackingModule.dashboard.some((panel) =>
+    panel.id === "hours-billables-chart" &&
+    panel.renderer === "time-tracking.hours-billables-chart" &&
+    panel.dataRoute === "/api/time-tracking/dashboard/billing-summary" &&
+    panel.requiredPermissions?.includes("reporting.view") &&
+    panel.requiredWorkspaceCapabilities?.includes("time_tracking") &&
+    panel.requiresEnabledModules?.includes("time-tracking")),
+  "Time Tracking hours and billables dashboard panel must be a gated module-owned contribution",
+);
+assert.ok(
+  timeTrackingModule.browserAssets.some((asset) =>
+    asset.id === "time-tracking-dashboard-script" &&
+    asset.path === "/js/time-tracking-dashboard.js" &&
+    asset.views?.includes("dashboard") &&
+    asset.requiredPermissions?.includes("reporting.view")),
+  "Time Tracking dashboard renderer script must be declared as a module-owned browser asset",
+);
+assert.ok(
+  !timeTrackingModule.dashboard.some((panel) => panel.id === "billing-summary" || panel.renderer === "billing-summary"),
+  "Time Tracking billing dashboard must no longer be a single host-rendered billing-summary contribution",
 );
 assert.ok(
   tasksModule.workbench.some((card) =>
@@ -75,6 +104,21 @@ assert.match(
   files.reportingService,
   /modulesService\.listDashboardPanels/,
   "dashboard API must read permission-filtered dashboard panel contributions",
+);
+assert.doesNotMatch(
+  readDashboardBody,
+  /timeEntriesService|TIME_TRACKING_MODULE_ID|timeTracking:|currentMonthBillables|chartPoints|billing-summary/,
+  "dashboard API must not compute or carry Time Tracking billing panel data",
+);
+assert.match(
+  files.timeTrackingDashboardRoutes,
+  /\/time-tracking\/dashboard\/billing-summary[\s\S]*timeTrackingBillingService\.readDashboardBillingSummary/,
+  "Time Tracking dashboard billing route must be owned by the Time Tracking module",
+);
+assert.match(
+  files.timeTrackingBillingService,
+  /permissionsService\.assertCanInAnyScope[\s\S]*"reporting\.view"[\s\S]*timeEntriesService\.list[\s\S]*summarizeBillingScopesForRange/,
+  "Time Tracking billing service must own permission-checked dashboard billing aggregation",
 );
 assert.match(
   files.reportingService,
@@ -97,9 +141,9 @@ assert.match(
   "project summary parent rows must carry nested child display rows without adding them to footer totals",
 );
 assert.match(
-  files.reportingService,
+  files.timeTrackingBillingService,
   /filterRollupProjects\(scope\.projects,\s*\{\s*includeDescendants:\s*true\s*\}\)/,
-  "dashboard reporting totals must avoid double counting project parent and child rollups",
+  "Time Tracking dashboard billing totals must avoid double counting project parent and child rollups",
 );
 assert.match(
   files.reportingService,
@@ -134,8 +178,33 @@ assert.doesNotMatch(
 
 assert.match(
   files.dashboard,
-  /dashboardPanelRenderers/,
+  /dashboardPanelRenderers[\s\S]*registerPanelRenderer: registerDashboardPanelRenderer/,
   "dashboard browser script must dispatch through renderer registry",
+);
+assert.match(
+  files.dashboard,
+  /document\.querySelector\("\[data-dashboard-host\]"\)/,
+  "dashboard browser script must mount into the minimal dashboard host",
+);
+assert.match(
+  files.dashboard,
+  /createPageHeader\(\{[\s\S]*title: "Dashboard"/,
+  "dashboard browser script must build the page header through LongtailForge.view",
+);
+assert.match(
+  files.dashboard,
+  /createStatusMessage\(\{[\s\S]*dashboardStatus/,
+  "dashboard browser script must build dashboard status through LongtailForge.view",
+);
+assert.match(
+  files.dashboard,
+  /renderRegisteredDashboardPanels[\s\S]*dashboardPanels[\s\S]*dashboardPanelRenderers\[contribution\.renderer\]/,
+  "dashboard browser script must render panels from contribution metadata",
+);
+assert.doesNotMatch(
+  files.dashboard,
+  /timeTracking|currentMonthBillables|currentMonthTotals|chartPoints|billing-summary|createBillables|formatCurrency|formatMonthLabel|formatHours/,
+  "dashboard browser host must not hard-code Time Tracking billing data or renderers",
 );
 assert.doesNotMatch(
   files.dashboard,
@@ -143,9 +212,29 @@ assert.doesNotMatch(
   "dashboard browser script must not hard-code Tasks panel matching",
 );
 assert.match(
+  files.timeTrackingDashboard,
+  /registerPanelRenderer\("time-tracking\.current-month-billables"[\s\S]*registerPanelRenderer\("time-tracking\.hours-billables-chart"/,
+  "Time Tracking dashboard asset must register the billing table and chart renderers",
+);
+assert.match(
+  files.timeTrackingDashboard,
+  /\/api\/time-tracking\/dashboard\/billing-summary[\s\S]*fetch\(route,[\s\S]*createCurrentMonthBillablesTable[\s\S]*createBillablesChart/,
+  "Time Tracking dashboard asset must load billing data from its module route and render both panels",
+);
+assert.match(
   files.dashboardView,
-  /data-dashboard-renderer="billing-summary"/,
-  "dashboard billing sections must declare their registered renderer",
+  /<main class="dashboard-page" data-dashboard-host><\/main>/,
+  "dashboard protected HTML must be a minimal framework host",
+);
+assert.match(
+  files.dashboardView,
+  /js\/shared\/view-builder\.js\?v=16[\s\S]*js\/dashboard\.js\?v=3[\s\S]*js\/time-tracking-dashboard\.js\?v=1/,
+  "dashboard protected HTML must load the view builder, dashboard adapter, and Time Tracking dashboard renderer in order",
+);
+assert.doesNotMatch(
+  files.dashboardView,
+  /data-dashboard-renderer|data-dashboard-panel-id|data-dashboard-extension-panels|data-current-month-billables|data-billables-chart/,
+  "dashboard protected HTML must not carry static dashboard panel anatomy or the old extension stub",
 );
 
 assert.match(
@@ -173,40 +262,20 @@ assert.match(
   /createWorkbenchCardSection\(\{[\s\S]*rendererId: "active-work-timers"/,
   "workbench timer card should be built by the guided browser host with its registered renderer",
 );
-assert.match(
+assert.doesNotMatch(
   files.workbench,
   /createWorkbenchCardSection\(\{[\s\S]*rendererId: "task-workbench-items"/,
-  "workbench task card should be built by the guided browser host with its registered renderer",
+  "workbench browser host must not render a full Tasks index card",
+);
+assert.match(
+  files.workbench,
+  /"task-workbench-items": loadTaskOptionsData[\s\S]*async function loadTaskOptionsData\(card\)/,
+  "workbench browser script should retain the Tasks contribution loader only for task options",
 );
 assert.match(
   files.workbench,
   /moduleActions\.open\("tasks\.edit"/,
-  "Workbench Open Task must dispatch the Tasks edit modal action",
-);
-assert.match(
-  files.workbench,
-  /function appendTaskTagChips/,
-  "Workbench must render compact task tag chips from the task work item payload",
-);
-assert.match(
-  files.workbench,
-  /directTags[\s\S]*direct_tags/,
-  "Workbench task tag chips must consume direct/manual tags rather than effective propagated tags",
-);
-assert.match(
-  files.workbench,
-  /directTags\.slice\(0, 2\)/,
-  "Workbench task tag chips must show at most two direct tags inline",
-);
-assert.match(
-  files.workbench,
-  /overflow\.textContent = `\+\$\{hiddenCount\}`/,
-  "Workbench task tag chips must collapse extra direct tags into a count",
-);
-assert.match(
-  files.workbench,
-  /titleBlock\.append\(title\)[\s\S]*appendTaskTagChips\(titleBlock, task\)[\s\S]*header\.append\(titleBlock, meta\)/,
-  "Workbench task tag chips must sit between the title and metadata badges",
+  "Workbench recommended Task candidates must dispatch the Tasks edit modal action",
 );
 assert.match(
   files.tasksRoutes,
@@ -228,10 +297,10 @@ assert.doesNotMatch(
   /tasks\.html\?task=/,
   "Workbench Open Task must not redirect to the Tasks page edit URL",
 );
-assert.match(
+assert.doesNotMatch(
   files.workbench,
-  /workbench-task-tag-list/,
-  "Workbench task chip markup must have compact styling hooks",
+  /workbench-task-list|workbench-task-toolbar|function renderTasks|taskItems/,
+  "Workbench browser script must not keep all-tasks list markup, rendering, or state",
 );
 assert.match(
   files.reporting,
@@ -253,6 +322,11 @@ assert.match(
   files.manifestContract,
   /requireString\(item, "renderer", errors, \{ prefix: `dashboard/,
   "manifest contract must require dashboard renderers",
+);
+assert.match(
+  files.manifestContract,
+  /optionalString\(item, "dataRoute", errors, \{ prefix: `dashboard/,
+  "manifest contract must validate dashboard data routes when declared",
 );
 
 console.log("Dashboard and Workbench regression passed.");
