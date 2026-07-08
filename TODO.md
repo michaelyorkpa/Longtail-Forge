@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Timers - Context Linking
+
+Sometimes it might be necessary to suddenly switch to a different task, just by starting a timer. It would be beneficial to be able to link a timer to a task AFTER it's been started, thereby converting the timer from "Manual" to "Task Timer."
+
 ## Notes - Bulk Editing
 
 We need a way to bulk edit certain Note details. For instance:

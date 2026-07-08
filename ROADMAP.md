@@ -370,22 +370,412 @@ Acceptance criteria:
 
 - The Workbench no longer renders a Quick Notes section, with quick capture handled by QAC (0.33.6.10a) and related context by the Inspector (0.33.6.11), and no capture/context gap introduced.
 
-### Version 0.33.6.12 - Guardrails, docs, decisions, and closeout
+## Workbench View-State Direction
 
-- [ ] Record the branch decisions in `DECISIONS.md`: QAC as a floating drawer (not a permanent rail), the single shared work-candidate shape, and the Workbench Inspector as a distinct surface.
-- [ ] Add guardrails so Dashboard/Workbench hosts do not hand-build framework-owned page/header/filter/status anatomy when a view primitive covers it, and do not reintroduce hardcoded module assumptions.
-- [ ] Add a framework-coupling guardrail (lint/regression grep) that fails if `src/core/**` or the framework aggregation services under `src/services/**` (Workbench, Dashboard host) import a specific first-party module service/repo or hardcode a first-party module ID string to make a generic decision, outside an explicitly documented allowlist. Record the allowlist and the still-coupled framework services deferred to their own slices (Reporting → 0.33.9; public API and tag propagation → 0.39.15) so the coupling debt is tracked rather than silently accepted.
-- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, and `docs/view-building-contract.md` with the Dashboard/Workbench host status and the focus-mode/candidate/QAC contribution boundaries.
-- [ ] Define the deferred future-modal follow-ups the QAC actions temporarily fall back to, as explicit cross-referenced items (not hidden inside QAC bullets):
-  - [ ] 2-timer Timer modal (redirect the QAC Timer action to it once built).
-  - [ ] Advanced-search modal + search-result display modal, including routing all search results (even main-ribbon searches) through it; evaluate at build time whether this needs its own roadmap version (e.g. 0.33.10, since TypeScript now takes 0.33.8 and Reporting moves to 0.33.9) given the potential search overhaul.
-  - [ ] Report-creation modal, cross-referenced to 0.37.5.
-- [ ] Run the Dashboard/Workbench regressions, `npm run check`, and `npm run test:permissions` (re-running any transiently-flaky isolated-DB regressions standalone to confirm).
-- [ ] Verify `/api/app-info` reports the expected version after restart and that Dashboard/Workbench render correctly with modules enabled and disabled.
+As of 0.33.6.12a, Workbench has two explicit view states: Focus Selection and Task Focus.
+
+Focus Selection is for choosing work. It shows focus-mode questions, filters, one recommended next action, and a right-side candidate overflow panel for other work matching the selected focus.
+
+Task Focus is for working one selected task. It hides Focus Selection controls and shows a mostly read-only task work surface with explicit task actions, checklist execution, task-linked timer controls, and a right-side task-context Inspector.
+
+The Workbench Inspector is state-specific. In Focus Selection it replaces the old "More in this focus" main-column section. In Task Focus it shows context around the selected task: linked notes, task files, linked lists, same-project tasks, and direct shared-tag records, all permission-shaped and opened through existing module actions or explicit safe fallbacks.
+
+Task candidate primary actions enter Task Focus by default. Editing remains explicit through the Edit action and canonical Task editor opener. Workbench does not hide work through candidate dismissal; blocked/stale work is represented through task status and focus selection.
+
+### Version 0.33.6.12a - Workbench view-state split: Focus Selection and Task Focus
+
+**Model: GPT-5.5 Extra High** — Workbench UX/state architecture correction with framework-owned surface behavior, task action dispatch, and candidate/list behavior changes.
+
+Purpose:
+
+Split the Workbench into two explicit view states:
+
+- **Focus Selection**: the user chooses a focus mode, reviews the recommended next action, and can scan more candidates without committing to one.
+- **Task Focus**: the user has selected one task as the active work target, so the page stops showing competing tasks and instead shows the focused task, its checklist, timer controls, and related context.
+
+This is a Workbench-specific view-state correction, not a new module and not a new focus-mode registry entry. The existing focus-mode contract still chooses the candidate set; the new Workbench view state controls whether the user is choosing work or actively focusing on one task.
+
+- [ ] Add an explicit Workbench browser state value such as `focus-selection` / `task-focus`, with `focus-selection` as the default.
+- [ ] Preserve the current focus-mode controls, client filter, project filter, recommended candidate panel, and candidate ranking while in `focus-selection`.
+- [ ] Change all Workbench candidate primary actions currently labeled/opening as "Open work" so they enter `task-focus` for task candidates instead of opening the Task edit modal.
+- [ ] Keep non-task candidates on an explicit temporary fallback path until their owning module has a Task Focus-equivalent target view, and label that fallback clearly in code/tests rather than silently opening an editor.
+- [ ] Remove the `Dismiss` action from recommended and secondary/resume candidates. Workbench should not hide work from the user through dismissal; blocked work is represented by task status, and alternate work is chosen through focus selection.
+- [ ] Add a persistent header action labeled `Change Focus` in the upper-right action slot, replacing the current `Time Tracker` link. The button exists in both Workbench states, is disabled/quiet in `focus-selection`, and is enabled in `task-focus`.
+- [ ] When `Change Focus` is activated from `task-focus`, clear the active task focus selection and return to `focus-selection` without changing the current focus mode/client/project filters.
+- [ ] Preserve browser focus return and keyboard behavior when entering and leaving `task-focus`.
+- [ ] Do not navigate away from the Workbench when selecting a task for focus.
+- [ ] Add focused regressions proving:
+  - Workbench has explicit Focus Selection and Task Focus states.
+  - Candidate primary action enters Task Focus instead of opening `tasks.edit`.
+  - `Dismiss` no longer appears on recommended/resume candidate cards.
+  - `Change Focus` replaces the `Time Tracker` header action, is disabled in Focus Selection, and exits Task Focus when enabled.
+  - Existing focus mode/client/project filters remain intact after returning to Focus Selection.
 
 Acceptance criteria:
 
-- Dashboard/Workbench are framework-owned hosts driven by contributions and the shared candidate model, decisions and docs are recorded, deferred modal follow-ups are cross-referenced, and the regression suite covers the new surfaces.
+- Workbench has a clear two-state model: Focus Selection for choosing work, Task Focus for working one task. Selecting a task no longer opens the edit modal by default, and stale work is not hidden through dismissal.
+
+### Version 0.33.6.12b - Focus Selection cleanup: Inspector owns More in this focus
+
+**Model: GPT-5.4** — Focused Workbench presentation cleanup after the view-state split, with no service, permission, or architecture change.
+
+Purpose:
+
+Reduce visual competition in Focus Selection by moving the "More in this focus" candidate list into the right-side Inspector surface and removing the duplicate collapsible "More in this focus" section from the main Workbench column.
+
+In Focus Selection, the right panel is a candidate browsing surface. In Task Focus, the right panel becomes true task-context inspection.
+
+- [ ] In `focus-selection`, retitle/re-purpose the current right Inspector panel as the surface for "More in this focus" candidates.
+  - Suggested heading: `More in this focus`.
+  - Suggested helper copy: `Other work matching the selected focus. Choose one to focus it.`
+- [ ] Remove the main-column `More in this focus` collapsible section entirely.
+- [ ] Keep the right-side candidate panel bounded and scrollable so it can show a useful list without stretching the whole page.
+- [ ] Keep the recommended-action panel in the main column showing one candidate at a time.
+- [ ] Change `RECOMMENDED_CANDIDATE_LIMIT` from `1` to `5`, so the Previous/Next controls cycle through the top five ranked candidates.
+- [ ] Ensure candidates in the top-five recommendation cycle are not duplicated in the right-side "More in this focus" Inspector list unless the product decision is to show the full ranked set with a clear "currently recommended" marker. Prefer no duplication for calmness.
+- [ ] Preserve the existing right-panel count badge, but make it count the actual non-recommended overflow candidates shown in the panel.
+- [ ] Remove any stale regression expectation that recommendations are limited to one candidate window.
+- [ ] Add focused regressions proving:
+  - `RECOMMENDED_CANDIDATE_LIMIT = 5`.
+  - Previous/Next cycle through up to five candidates.
+  - Main-column `More in this focus` no longer renders.
+  - Focus Selection right panel renders overflow candidates.
+  - The right panel scrolls/bounds long candidate lists.
+  - The selected/recommended candidate is not duplicated in the overflow panel unless explicitly marked as current.
+
+Acceptance criteria:
+
+- Focus Selection shows one recommended task in the main column, lets the user cycle the top five recommendations, and moves all other in-focus candidates into the right-side panel instead of showing another task list in the main column.
+
+### Version 0.33.6.12c-1 - Task Focus main surface: read-only task work view and task actions
+
+**Model: GPT-5.5 Extra High** — Task Focus introduces task lifecycle actions from a new Workbench view state, requiring careful permission/status/regression handling.
+
+Purpose:
+
+When a task is selected, Workbench should become a focused execution surface for that task rather than an editor or another task list. The main column should hide Focus Selection controls and render a mostly read-only task view with only the execution actions needed while working.
+
+Task Focus main-surface order after this slice:
+
+1. Task action strip.
+2. Task summary / selected task heading.
+3. Task details, collapsed by default.
+4. Checklist, handled in 0.33.6.12c-2.
+5. Timers, handled in 0.33.6.12d-1.
+
+- [ ] In `task-focus`, hide the Focus Selection controls:
+  - "What should we focus on?"
+  - Recommended Next Action
+  - Focus Selection candidate overflow / right-panel candidate list behavior from 0.33.6.12b
+- [ ] Render a selected-task heading/summary so the user can immediately tell what task is being focused without opening the edit modal.
+- [ ] Add a top task action strip with icon-only actions, right-justified near the left edge of the Inspector column with a slight margin.
+  - Edit: opens the existing canonical Task edit modal.
+  - Complete: completes the task through the existing task lifecycle route/service, then returns to Focus Selection.
+  - Block: moves the task to blocked status through the existing task lifecycle route/service and leaves the user in Task Focus unless service behavior requires a refresh fallback.
+- [ ] Use existing Tasks-owned lifecycle routes/actions; do not invent a Workbench-only task status mutation path.
+- [ ] Render Task Details as a read-only collapsible section, collapsed by default.
+  - Include safe task metadata already exposed to Workbench/task detail reads: title, status, due date/time, priority, assignees, client/project context, blocked reason when present, and description/details if the user can read them.
+  - Do not expose raw IDs or hidden/private labels.
+- [ ] Leave checklist execution out of this slice except for any stable mount point needed by 0.33.6.12c-2.
+- [ ] Add focused regressions proving:
+  - Task Focus hides Focus Selection panels.
+  - Task action strip renders icon-only Edit, Complete, and Block actions with accessible labels/titles.
+  - Edit opens the canonical Task edit modal.
+  - Complete calls the existing lifecycle path and returns to Focus Selection.
+  - Block calls the existing lifecycle path and refreshes the focused task state.
+  - Task Details is read-only and collapsed by default.
+
+Acceptance criteria:
+
+- Task Focus gives the user a calm, mostly read-only task work surface with explicit Edit, Complete, and Block actions, without opening the Task editor by default or reintroducing Focus Selection panels.
+
+### Version 0.33.6.12c-2 - Task Focus checklist execution
+
+**Model: GPT-5.5 Extra High** — Checklist mutation from Workbench must preserve Tasks-owned permission checks, progress side effects, audit/event/search behavior, and the canonical editor boundary.
+
+Purpose:
+
+Add checklist execution to the Task Focus main surface from 0.33.6.12c-1 without turning Workbench into a second Task editor.
+
+- [ ] Render Checklist as a prominent Task Focus section in the main column.
+  - If the task has checklist items, the Checklist section is open by default.
+  - If the task has no checklist items, the Checklist section is collapsed by default and shows: `Edit task to add checklist items.`
+  - Checklist items can be checked/unchecked inside Task Focus.
+  - Task Focus must not add, remove, rename, or reorder checklist items; those remain in the Task edit modal.
+- [ ] Use existing Tasks-owned checklist routes/services for check/uncheck behavior; do not invent a Workbench-only checklist mutation path.
+- [ ] Preserve Tasks-owned checklist progress side effects, audit/event/search/notification behavior, and permission checks.
+- [ ] Keep the Task Focus shell/actions from 0.33.6.12c-1 intact while adding the checklist section.
+- [ ] Add focused regressions proving:
+  - Checklist is open by default when populated.
+  - Checklist is collapsed with the required empty message when empty.
+  - Task Focus only supports checklist check/uncheck, not add/remove/rename/reorder.
+  - Checklist changes dispatch through the existing Tasks-owned mutation path and refresh the focused task state.
+  - Checklist permission failures are safely surfaced without leaking hidden task data.
+
+Acceptance criteria:
+
+- Task Focus supports inline checklist execution for the focused task while all checklist structure editing remains in the canonical Task editor.
+
+### Version 0.33.6.12d-1 - Workbench timers by view state and task-linked timer surface
+
+**Model: GPT-5.5 Extra High** — Workbench timer behavior touches task-linked timer context, elapsed-time controls, and state-specific surface rules.
+
+Purpose:
+
+Cleanly separate timer behavior by Workbench view state and give Task Focus a task-linked timer surface. QAC and the Time Tracking Create Timer modal are handled separately in 0.33.6.12d-2.
+
+Focus Selection timer rule:
+
+- Focus Selection only shows active/paused timers.
+- Focus Selection does not show a timer creation form because QAC owns quick capture/create actions.
+
+Task Focus timer rule:
+
+- Task Focus shows a task-linked timer box at the bottom of the main column.
+- The timer box is open by default, collapsible, and uses the same caret affordance as other Workbench collapsible sections.
+- The top of the box should visually align with the existing Task Timer box in the Task edit modal.
+- Active/paused timers appear below the task timer controls and support Start/Pause/Save/Reset behavior consistent with the old Workbench timer model.
+
+- [ ] In Focus Selection, remove the manual timer creation row from the Workbench Timers section.
+- [ ] In Focus Selection, keep the Timers section focused on active/paused timers only.
+  - If no timers exist, keep the existing empty state: `No active or paused timers.`
+  - Keep the section collapsible with the existing caret behavior.
+- [ ] In Task Focus, render a task-linked timer section at the bottom of the main column.
+  - Open by default.
+  - Collapsible with visible caret.
+  - Use selected task context automatically; do not require the user to reselect Client/Project/Task.
+  - Show controls matching the Task edit modal timer model as closely as practical.
+- [ ] In Task Focus, list active/paused timers below the task-linked timer controls.
+  - Start/Pause/Save/Reset behavior should reuse existing Time Tracking/Tasks timer services and preserve permissions, audit/event/search behavior, and elapsed-time calculations.
+- [ ] Keep QAC Timer on its current explicit fallback until 0.33.6.12d-2 replaces it with the Time Tracking-owned modal.
+- [ ] Add focused regressions proving:
+  - Focus Selection no longer renders the manual timer creation row.
+  - Focus Selection Timers renders only active/paused timers and the no-timers empty state.
+  - Task Focus renders a default-open, collapsible timer section with caret.
+  - Task Focus timer controls are task-linked and do not require reselecting the task.
+  - Active/paused timer controls still support Start/Pause/Save/Reset behavior.
+  - QAC Timer fallback behavior is unchanged in this slice.
+
+Acceptance criteria:
+
+- Timer creation moves out of the Focus Selection Workbench section, while Task Focus gets a task-linked timer surface suited to actively working the selected task.
+
+### Version 0.33.6.12d-2 - Time Tracking Create Timer modal for QAC and shared dispatch
+
+**Model: GPT-5.5 Extra High** — Crosses Time Tracking, QAC, and shared module-action dispatch while preserving timer creation rules, billable inheritance, focus return, and host refresh behavior.
+
+Purpose:
+
+Add a Time Tracking-owned Create Timer modal so users can start timers through QAC and future framework surfaces without navigating away from the current page.
+
+Time Tracking modal rule:
+
+- Time Tracking owns a new Create Timer modal and registers it as a shared module action.
+- QAC Timer opens that modal instead of navigating to `time-tracker.html`.
+
+- [ ] Build a Time Tracking-owned Create Timer modal.
+  - Register a module action such as `time-tracking.timer.create`.
+  - Modal should support quickly creating/starting a timer with Client, Project, optional Task, Description, and Billable behavior consistent with existing timer rules.
+  - Billable inheritance should match the existing Time Tracking/Task timer behavior.
+  - The modal must be usable from QAC and future Workbench surfaces through `LongtailForge.moduleActions`.
+  - The modal must return focus to the trigger and notify the host to refresh timer state after save/start.
+- [ ] Update the QAC Timer action to open the new Time Tracking Create Timer modal.
+- [ ] Remove the previous QAC Timer temporary page fallback once the modal is registered and covered.
+- [ ] Add focused regressions proving:
+  - Time Tracking registers a Create Timer module action.
+  - QAC Timer dispatches the Create Timer modal instead of navigating to Time Tracker.
+  - The modal supports Client, Project, optional Task, Description, and Billable behavior consistent with existing timer rules.
+  - Focus return and host timer refresh occur after modal close/save/start.
+
+Acceptance criteria:
+
+- QAC Timer uses a Time Tracking-owned Create Timer modal through the shared module-action registry, with the temporary Time Tracker page fallback removed.
+
+### Version 0.33.6.12e-1 - Task Focus related-context service and ranking algorithm
+
+**Model: GPT-5.5 Extra High** — Cross-module, permission-shaped context aggregation around a focused task with Files/Notes/Lists/Tags integration risk.
+
+Purpose:
+
+Build the permission-shaped related-context read model that Task Focus Inspector will consume in 0.33.6.12e-2. This slice is about selected-task context aggregation and ranking, not Inspector presentation.
+
+Context ordering algorithm:
+
+1. Linked context Notes directly linked to the task.
+2. Files attached to the task.
+3. Lists linked to the task.
+4. Other active tasks in the same project.
+5. Tasks, Notes, Files, and Lists sharing the same direct tags as the task.
+
+Refinements:
+
+- Direct task links outrank shared project.
+- Shared project outranks shared tags.
+- Direct tags mean manually/directly assigned tags, not propagated/effective/system tags, unless a later roadmap slice explicitly changes that.
+- Deduplicate records that match through multiple reasons and keep the strongest reason.
+- Bound each group to a calm display count with "View more" or equivalent future-safe affordance only if an existing module route/modal can handle it safely.
+- Do not expose body text, secure note bodies, protected file data, storage keys, scanner internals, raw IDs, or unreadable labels.
+
+- [ ] Add a Workbench Task Focus related-context service path that returns a permission-shaped read model for one selected task.
+  - Prefer provider/service integration over Workbench directly querying other modules' tables.
+  - Use existing Notes linked-context providers/helpers where available.
+  - Use Files service/attachment read models for task attachments.
+  - Use Lists linked-record service/provider behavior for lists linked to the task.
+  - Use Tasks service/repository paths for same-project task context.
+  - Use Tags service/provider paths for direct shared-tag context.
+- [ ] Shape each related item with:
+  - module ID / source label
+  - record type
+  - safe readable title
+  - short safe context/reason label
+  - existing module action ID or explicit fallback URL
+  - badges/chips where safe
+- [ ] Keep this service independent from focus-mode candidate overflow; it must resolve context from the selected task.
+- [ ] Add focused regressions proving:
+  - The related-context service uses selected-task context, not focus-mode candidate overflow.
+  - Related items are ordered by linked notes, task files, linked lists, same-project tasks, then direct shared tags.
+  - Items are deduplicated with strongest reason preserved.
+  - Unreadable/private/secure/file-storage-sensitive content is excluded or safely labeled.
+  - Direct tags are used for shared-tag matching, not propagated/effective/system tags.
+  - Related item action descriptors are existing module actions or explicit safe fallbacks.
+
+Acceptance criteria:
+
+- Task Focus has a permission-shaped selected-task related-context read model for notes, files, lists, related project work, and direct shared-tag records without leaking unsafe content or depending on generic focus-mode candidates.
+
+### Version 0.33.6.12e-2 - Task Focus Inspector related-context UI and action dispatch
+
+**Model: GPT-5.5 Extra High** — Task Focus Inspector UI consumes cross-module context and dispatches existing module actions without becoming an embedded viewer or leaking unsafe labels.
+
+Purpose:
+
+Make the Inspector mean what it was originally intended to mean in Task Focus: context around the current working task, not a list of unrelated candidates from the selected work mode.
+
+In Task Focus, the Inspector becomes a collapsible, scrollable related-context panel for the selected task, backed by the read model from 0.33.6.12e-1.
+
+- [ ] In Task Focus, keep the Inspector visible on wide layouts but make it collapsible.
+  - Default open.
+  - Visible caret.
+  - Scrollable list body.
+  - Collapsed state should preserve layout without stealing focus.
+- [ ] In narrow layouts, preserve the current graceful hide/collapse behavior unless a later mobile-specific slice designs a drawer.
+- [ ] Render related items from the selected-task related-context read model, not from focus-mode candidate overflow.
+- [ ] Clicking a related item opens the existing module preview/edit modal when one exists.
+  - Notes: existing note editor/preview path as available.
+  - Files: existing File Preview or File Context modal, depending on whether the item represents previewable content or attachment context.
+  - Lists: existing list editor/detail opener if registered.
+  - Tasks: existing task editor only when explicitly choosing Edit/Open from context, not as the primary Task Focus selection behavior.
+- [ ] Do not build an embedded preview pane inside the Inspector.
+- [ ] Add focused regressions proving:
+  - Inspector is collapsible with a caret, default-open in Task Focus, scrollable, and hidden/collapsed safely on narrow screens.
+  - Inspector rows render the service-provided safe titles, source labels, reason labels, and badges/chips.
+  - Task Focus Inspector uses selected-task related context rather than Focus Selection overflow candidates.
+  - Related items dispatch existing module actions or explicit safe fallbacks.
+  - No embedded Inspector preview pane is introduced.
+
+Acceptance criteria:
+
+- In Task Focus, the Inspector renders selected-task context from the related-context service, stays collapsible and responsive, dispatches existing module actions or safe fallbacks, and does not become an embedded viewer.
+
+### Version 0.33.6.12f - Resume candidate correction: second-most-recent updated task boost
+
+**Model: GPT-5.5 Extra High** — Ranking behavior correction touching resume/candidate ordering and deterministic focus behavior.
+
+Purpose:
+
+Adjust "Pick up where I left off" so it better handles interruption recovery.
+
+When the user chooses "Pick up where I left off," the first visible candidate should be the **second-most-recently updated active task** the user can read, because the most recently updated task is often the interruption itself. After that boosted task, the existing resume/candidate list should continue in its normal order, deduplicated.
+
+- [ ] For the `pick-up-where-left-off` focus, compute a second-most-recently updated visible task candidate.
+  - Exclude completed and archived tasks.
+  - Respect workspace scope, readable task permissions, enabled-module state, private/secure boundaries, and current client/project filters.
+  - Use task `updated_at` / canonical task update timestamp, not browser-local ordering.
+  - If fewer than two eligible recently updated tasks exist, do not fabricate a boost; fall back to the existing resume/candidate ordering.
+- [ ] Prepend the second-most-recent updated task to the `pick-up-where-left-off` candidate list.
+- [ ] Deduplicate the boosted task if it already appears elsewhere in the list.
+- [ ] Preserve the existing resume-first strategy for active resume rows and active timers unless this boost is explicitly being applied to the task list after those higher-priority resume signals.
+  - Preferred ordering: running timer / paused timer resume rows remain strongest; then second-most-recent updated task; then the rest of the resume/candidate list.
+- [ ] Keep candidate ranking deterministic and testable.
+- [ ] Add focused regressions proving:
+  - The second-most-recent updated readable active task is boosted for Pick up where I left off.
+  - The most recently updated task is not the boost target when at least two eligible tasks exist.
+  - Completed/archived/unreadable/disabled-module tasks are excluded.
+  - Client/project filters are respected.
+  - The boosted task is deduplicated from the remaining list.
+  - Running/paused timer resume precedence remains intact.
+
+Acceptance criteria:
+
+- "Pick up where I left off" intentionally helps recover the prior work thread after an interruption by boosting the second-most-recent updated eligible task without breaking resume/timer precedence or permission safety.
+
+### Version 0.33.6.12g - Dashboard follow-up placeholder
+
+**Model: GPT-5.4** — Planning placeholder only until the Dashboard correction requirements are written.
+
+Dashboard is not ready for final Dashboard/Workbench closeout yet.
+
+- [ ] Leave this placeholder open until the Dashboard update requirements are provided.
+- [ ] Do not close the Dashboard/Workbench branch until Dashboard requirements are added, implemented, documented, and verified.
+- [ ] Once Dashboard requirements are known, replace this placeholder with one or more concrete Dashboard update slices.
+- [ ] Keep Dashboard as an overview/orientation surface; do not turn it into the detailed work execution surface now owned by Task Focus in Workbench.
+
+Acceptance criteria:
+
+- Dashboard updates are explicitly acknowledged as remaining work before closeout, without guessing the Dashboard redesign before requirements are provided.
+
+### Version 0.33.6.12z - Dashboard/Workbench guardrails, docs, decisions, and closeout
+
+**Model: GPT-5.4** — Routine closeout/docs/guardrails slice after Workbench Task Focus and Dashboard follow-ups land.
+
+Proviso:
+
+This closeout block is intentionally deferred and will need to be updated after Dashboard updates occur.
+
+- [ ] Record the branch decisions in `DECISIONS.md`:
+  - Workbench has two view states: Focus Selection and Task Focus.
+  - Focus Selection is for choosing work; Task Focus is for working one selected task.
+  - The right-side Workbench panel has state-specific meaning:
+    - Focus Selection: "More in this focus" candidate overflow.
+    - Task Focus: task-related work context.
+  - Workbench candidate primary actions enter Task Focus for task candidates instead of opening the edit modal.
+  - Task editing remains available through explicit Edit actions and canonical module-action openers.
+  - QAC owns quick capture and opens the Time Tracking Create Timer modal for Timer capture.
+  - Dashboard remains an overview/orientation surface and must be updated before this closeout is finalized.
+- [ ] Update `AGENTS.md` only if needed to reflect the current Workbench/Dashboard boundary in short active guidance.
+- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/view-building-contract.md`, and `docs/ui-surface-contract.md` with:
+  - Dashboard/Workbench host status.
+  - Workbench Focus Selection vs Task Focus anatomy.
+  - Candidate overflow vs Task Focus Inspector boundaries.
+  - Time Tracking Create Timer modal/QAC Timer boundary.
+  - Task Focus checklist/timer/action ownership.
+- [ ] Add/update guardrails so Dashboard/Workbench hosts do not hand-build framework-owned page/header/filter/status anatomy when a view primitive covers it.
+- [ ] Add/update guardrails so Workbench does not reintroduce:
+  - A main-column "More in this focus" task list.
+  - A Focus Selection manual timer creation row.
+  - A default "Open work opens edit modal" path for task candidates.
+  - A `Dismiss` action on recommended/resume candidates.
+  - A Task Focus Inspector sourced from generic focus-mode candidates instead of selected-task context.
+  - An embedded Inspector preview pane.
+- [ ] Add a framework-coupling guardrail or update the existing one so `src/core/**` and framework aggregation services under `src/services/**` do not import specific first-party module services/repos or hardcode first-party module IDs to make generic decisions outside the documented allowlist.
+- [ ] Record the allowlist and still-coupled framework services deferred to later slices.
+  - Reporting remains deferred to `0.33.9`.
+  - Public API and tag propagation remain deferred to `0.39.15`.
+- [ ] Define remaining deferred modal follow-ups after the Time Tracking Create Timer modal lands:
+  - Advanced-search modal + search-result display modal, including routing main-ribbon search results through it if that remains the direction.
+  - Report-creation modal, cross-referenced to `0.37.5`.
+  - Any remaining Files target-aware upload modal if still needed after QAC/File behavior is reviewed.
+- [ ] Run the Dashboard/Workbench regressions, QAC regressions, Time Tracking timer regressions, `npm run check`, and `npm run test:permissions`.
+- [ ] Verify `/api/app-info` reports the expected version after restart.
+- [ ] Verify Dashboard and Workbench render correctly with relevant modules enabled and disabled.
+- [ ] Verify Focus Selection and Task Focus both behave correctly after reload/return navigation if the selected task state is persisted.
+- [ ] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping according to normal release ceremony.
+
+Acceptance criteria:
+
+- Dashboard/Workbench closeout occurs only after the new Workbench Task Focus model and Dashboard follow-up work land. Decisions and docs reflect the final state, guardrails prevent the distracting Workbench patterns from returning, and the full verification gate covers Dashboard, Workbench, QAC, Time Tracking, permissions, and app-info version reporting.
+
+## Remaining 0.33.6 Direction
 
 ### Version 0.33.6.13 - App-wide hierarchical client/project scoping standard
 
