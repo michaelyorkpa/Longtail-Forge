@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11";
+const appVersion = "0.33.6.11b";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -14,7 +14,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the Wo
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Workbench no-all-tasks-list version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Workbench no-all-tasks-list version");
 assert.match(workbenchHtml, /longtail-forge\.css\?v=29/, "Workbench should bump the stylesheet cache key after removing task-list styles");
-assert.match(workbenchHtml, /workbench\.js\?v=26/, "Workbench should bump the script cache key after removing task-list rendering");
+assert.match(workbenchHtml, /workbench\.js\?v=27/, "Workbench should bump the script cache key after removing task-list rendering");
 
 assert.doesNotMatch(
   workbenchScript,

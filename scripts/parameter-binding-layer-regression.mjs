@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.11";
+const appVersion = "0.33.6.11b";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";

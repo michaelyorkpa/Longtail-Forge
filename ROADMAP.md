@@ -361,10 +361,10 @@ Acceptance criteria:
 
 Promoted from user request. Placed here (after QAC 0.33.6.10a and the Inspector 0.33.6.11) because it depends on those replacements; originally drafted as a 0.33.6.6 follow-up but moved to run after its dependencies.
 
-- [ ] Remove the Quick Notes section from the Workbench: delete `createQuickNotesSection()` and its data/behavior in `public/js/workbench.js`. The Workbench stays a focused surface; quick capture is now owned by the Quick Action Capture drawer (0.33.6.10a) and related record context by the Workbench Inspector (0.33.6.11), so this section is redundant.
-- [ ] Confirm no capture/context gap remains: the QAC Note action and the Inspector cover what Quick Notes provided before removing it.
-- [ ] Preserve permission/enabled-module handling for the surfaces that remain.
-- [ ] Add a regression proving the Workbench renders no Quick Notes section.
+- [x] Remove the Quick Notes section from the Workbench: delete `createQuickNotesSection()` and its data/behavior in `public/js/workbench.js`. The Workbench stays a focused surface; quick capture is now owned by the Quick Action Capture drawer (0.33.6.10a) and related record context by the Workbench Inspector (0.33.6.11), so this section is redundant.
+- [x] Confirm no capture/context gap remains: the QAC Note action and the Inspector cover what Quick Notes provided before removing it.
+- [x] Preserve permission/enabled-module handling for the surfaces that remain.
+- [x] Add a regression proving the Workbench renders no Quick Notes section.
 
 Acceptance criteria:
 

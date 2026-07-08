@@ -375,7 +375,6 @@ function createSecondaryWorkbenchPanel() {
         attrs: { "aria-label": "Workbench module lists" },
         children: [
           createTimerSection(),
-          createQuickNotesSection(),
         ],
       }),
     ],
@@ -462,21 +461,6 @@ function createTimerSection() {
     title: "Timers",
   });
   return timerSectionElement;
-}
-
-function createQuickNotesSection() {
-  return createWorkbenchCardSection({
-    body: [
-      workbenchViewHelpers.createEmptyState({
-        className: "workbench-empty-state",
-        message: "Notes and knowledge base references will appear here when that module is available.",
-        title: "Quick Notes",
-      }),
-    ],
-    cardId: "quick-notes",
-    rendererId: "quick-notes",
-    title: "Quick Notes",
-  });
 }
 
 function createWorkbenchCardSection({ body = [], cardId, count = null, defaultOpen = true, rendererId, title }) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11";
+const appVersion = "0.33.6.11b";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -13,7 +13,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the co
 assert.equal(packageLock.version, appVersion, "package-lock root should report the collapsible Workbench sections version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the collapsible Workbench sections version");
 assert.match(workbenchHtml, /longtail-forge\.css\?v=29/, "Workbench should bump the shared stylesheet cache key for Workbench section styling");
-assert.match(workbenchHtml, /workbench\.js\?v=26/, "Workbench should bump its script cache key for Workbench section changes");
+assert.match(workbenchHtml, /workbench\.js\?v=27/, "Workbench should bump its script cache key for Workbench section changes");
 
 const secondarySection = extractFunctionBody(workbenchScript, "createSecondaryCandidateSection");
 assert.doesNotMatch(

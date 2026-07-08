@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.11";
+const appVersion = "0.33.6.11b";
 const conflictIdentitySliceVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-conflict-identity-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;

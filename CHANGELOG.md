@@ -1,3 +1,12 @@
+## Version 0.33.6.11b - 2026-07-08 07:30 -04:00
+
+- Removed the Workbench Quick Notes section and its dead `createQuickNotesSection()` browser plumbing so the Workbench body remains focused on the recommendation, curated overflow, timers, and Inspector.
+- Kept note capture covered by the QAC Note action and related note context covered by the Workbench Inspector's existing `notes.edit` modal dispatch path.
+- Bumped the Workbench script cache key to `workbench.js?v=27`, updated version guardrails to 0.33.6.11b, and marked the 0.33.6.11b roadmap slice complete.
+- Added `scripts/workbench-remove-quick-notes-regression.mjs` and registered it with the regression suite/coverage manifest.
+- Updated Workbench module/view contracts to state that Quick Notes must not return without a future roadmap slice.
+- Verification 2026-07-08 07:36 -04:00: changed Workbench/regression files passed `node --check`; focused Workbench no-Quick-Notes, Inspector/layout/openers, QAC, module-action, static closeout, and regression coverage checks passed; `npm run check` passed 296/296 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.11b from the refreshed local 8001 server; served `workbench.js?v=27` exposed the Inspector marker and no Quick Notes markers; served `footer.js` exposed the QAC Note module-loader marker.
+
 ## Version 0.33.6.11 - 2026-07-07 22:58 -04:00
 
 - Added a wide-layout Workbench Inspector panel beside the guided Workbench surface, with a bounded list of permission-shaped focus candidates and graceful empty/narrow-screen behavior.
