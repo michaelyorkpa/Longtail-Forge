@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -15,13 +15,13 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /workbench\.js\?v=27/,
+  /workbench\.js\?v=31/,
   "Workbench should bump its script cache key for the resume recommendation update",
 );
 assert.match(
   workbenchScript,
-  /const RECOMMENDED_CANDIDATE_LIMIT = 1;/,
-  "Resume recommendations should show one ranked candidate before the subordinate More list",
+  /const RECOMMENDED_CANDIDATE_LIMIT = 5;/,
+  "Resume recommendations should cycle the top-five ranked candidates before Inspector overflow",
 );
 assert.match(
   workbenchScript,
@@ -56,12 +56,12 @@ assert.match(
 assert.match(
   workbenchScript,
   /function recommendedOverflowCandidates\(\) \{[\s\S]*return state\.focusCandidates\.slice\(recommendedCandidateWindow\(\)\.length\);[\s\S]*\}/,
-  "Secondary candidates should begin after the recommended cycling window",
+  "Overflow candidates should begin after the recommended cycling window",
 );
 assert.match(
   workbenchScript,
-  /const secondaryCandidates = recommendedOverflowCandidates\(\);/,
-  "More-in-this-focus should render the overflow list instead of duplicating the cycling window",
+  /for \(const candidate of recommendedOverflowCandidates\(\)\)/,
+  "Focus Selection Inspector should render the overflow list instead of duplicating the cycling window",
 );
 assert.doesNotMatch(
   workbenchScript,
@@ -83,7 +83,12 @@ assert.match(
 assert.doesNotMatch(
   cycleBody,
   /renderSecondaryFocusCandidates\(\)/,
-  "Recommended-action cycling must not reorder or re-render the overflow list",
+  "Recommended-action cycling must not re-render a retired main-column overflow list",
+);
+assert.match(
+  cycleBody,
+  /renderWorkbenchInspector\(\);/,
+  "Recommended-action cycling should keep the right-side overflow count/list synchronized",
 );
 
 assert.match(
@@ -105,6 +110,11 @@ assert.match(
   roadmap,
   /### Version 0\.33\.6\.6a - Recommended-action candidate cycling and overflow[\s\S]*- \[x\] Add a "not this one" affordance[\s\S]*- \[x\] Keep everything beyond the top 3-5[\s\S]*- \[x\] Preserve the one-recommended-action emphasis[\s\S]*- \[x\] Preserve the permission\/workspace\/enabled-module scoping[\s\S]*- \[x\] Add focused browser\/static regressions/,
   "Roadmap should mark recommended-action cycling and overflow complete",
+);
+assert.match(
+  roadmap,
+  /### Version 0\.33\.6\.12b - Focus Selection cleanup: Inspector owns More in this focus[\s\S]*- \[x\] Change `RECOMMENDED_CANDIDATE_LIMIT` from `1` to `5`[\s\S]*- \[x\] Ensure candidates in the top-five recommendation cycle are not duplicated/,
+  "Roadmap should mark the Focus Selection top-five/Inspector overflow slice complete",
 );
 assert.match(
   roadmap,

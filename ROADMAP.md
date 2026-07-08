@@ -395,16 +395,16 @@ Split the Workbench into two explicit view states:
 
 This is a Workbench-specific view-state correction, not a new module and not a new focus-mode registry entry. The existing focus-mode contract still chooses the candidate set; the new Workbench view state controls whether the user is choosing work or actively focusing on one task.
 
-- [ ] Add an explicit Workbench browser state value such as `focus-selection` / `task-focus`, with `focus-selection` as the default.
-- [ ] Preserve the current focus-mode controls, client filter, project filter, recommended candidate panel, and candidate ranking while in `focus-selection`.
-- [ ] Change all Workbench candidate primary actions currently labeled/opening as "Open work" so they enter `task-focus` for task candidates instead of opening the Task edit modal.
-- [ ] Keep non-task candidates on an explicit temporary fallback path until their owning module has a Task Focus-equivalent target view, and label that fallback clearly in code/tests rather than silently opening an editor.
-- [ ] Remove the `Dismiss` action from recommended and secondary/resume candidates. Workbench should not hide work from the user through dismissal; blocked work is represented by task status, and alternate work is chosen through focus selection.
-- [ ] Add a persistent header action labeled `Change Focus` in the upper-right action slot, replacing the current `Time Tracker` link. The button exists in both Workbench states, is disabled/quiet in `focus-selection`, and is enabled in `task-focus`.
-- [ ] When `Change Focus` is activated from `task-focus`, clear the active task focus selection and return to `focus-selection` without changing the current focus mode/client/project filters.
-- [ ] Preserve browser focus return and keyboard behavior when entering and leaving `task-focus`.
-- [ ] Do not navigate away from the Workbench when selecting a task for focus.
-- [ ] Add focused regressions proving:
+- [x] Add an explicit Workbench browser state value such as `focus-selection` / `task-focus`, with `focus-selection` as the default.
+- [x] Preserve the current focus-mode controls, client filter, project filter, recommended candidate panel, and candidate ranking while in `focus-selection`.
+- [x] Change all Workbench candidate primary actions currently labeled/opening as "Open work" so they enter `task-focus` for task candidates instead of opening the Task edit modal.
+- [x] Keep non-task candidates on an explicit temporary fallback path until their owning module has a Task Focus-equivalent target view, and label that fallback clearly in code/tests rather than silently opening an editor.
+- [x] Remove the `Dismiss` action from recommended and secondary/resume candidates. Workbench should not hide work from the user through dismissal; blocked work is represented by task status, and alternate work is chosen through focus selection.
+- [x] Add a persistent header action labeled `Change Focus` in the upper-right action slot, replacing the current `Time Tracker` link. The button exists in both Workbench states, is disabled/quiet in `focus-selection`, and is enabled in `task-focus`.
+- [x] When `Change Focus` is activated from `task-focus`, clear the active task focus selection and return to `focus-selection` without changing the current focus mode/client/project filters.
+- [x] Preserve browser focus return and keyboard behavior when entering and leaving `task-focus`.
+- [x] Do not navigate away from the Workbench when selecting a task for focus.
+- [x] Add focused regressions proving:
   - Workbench has explicit Focus Selection and Task Focus states.
   - Candidate primary action enters Task Focus instead of opening `tasks.edit`.
   - `Dismiss` no longer appears on recommended/resume candidate cards.
@@ -425,17 +425,17 @@ Reduce visual competition in Focus Selection by moving the "More in this focus" 
 
 In Focus Selection, the right panel is a candidate browsing surface. In Task Focus, the right panel becomes true task-context inspection.
 
-- [ ] In `focus-selection`, retitle/re-purpose the current right Inspector panel as the surface for "More in this focus" candidates.
-  - Suggested heading: `More in this focus`.
-  - Suggested helper copy: `Other work matching the selected focus. Choose one to focus it.`
-- [ ] Remove the main-column `More in this focus` collapsible section entirely.
-- [ ] Keep the right-side candidate panel bounded and scrollable so it can show a useful list without stretching the whole page.
-- [ ] Keep the recommended-action panel in the main column showing one candidate at a time.
-- [ ] Change `RECOMMENDED_CANDIDATE_LIMIT` from `1` to `5`, so the Previous/Next controls cycle through the top five ranked candidates.
-- [ ] Ensure candidates in the top-five recommendation cycle are not duplicated in the right-side "More in this focus" Inspector list unless the product decision is to show the full ranked set with a clear "currently recommended" marker. Prefer no duplication for calmness.
-- [ ] Preserve the existing right-panel count badge, but make it count the actual non-recommended overflow candidates shown in the panel.
-- [ ] Remove any stale regression expectation that recommendations are limited to one candidate window.
-- [ ] Add focused regressions proving:
+- [x] In `focus-selection`, retitle/re-purpose the current right Inspector panel as the surface for "More in this focus" candidates.
+  - Heading: `More in this focus`.
+  - Helper copy: `Other work matching the selected focus. Choose one to focus it.`
+- [x] Remove the main-column `More in this focus` collapsible section entirely.
+- [x] Keep the right-side candidate panel bounded and scrollable so it can show a useful list without stretching the whole page.
+- [x] Keep the recommended-action panel in the main column showing one candidate at a time.
+- [x] Change `RECOMMENDED_CANDIDATE_LIMIT` from `1` to `5`, so the Previous/Next controls cycle through the top five ranked candidates.
+- [x] Ensure candidates in the top-five recommendation cycle are not duplicated in the right-side "More in this focus" Inspector list unless the product decision is to show the full ranked set with a clear "currently recommended" marker. Prefer no duplication for calmness.
+- [x] Preserve the existing right-panel count badge, but make it count the actual non-recommended overflow candidates shown in the panel.
+- [x] Remove any stale regression expectation that recommendations are limited to one candidate window.
+- [x] Add focused regressions proving:
   - `RECOMMENDED_CANDIDATE_LIMIT = 5`.
   - Previous/Next cycle through up to five candidates.
   - Main-column `More in this focus` no longer renders.
@@ -463,21 +463,21 @@ Task Focus main-surface order after this slice:
 4. Checklist, handled in 0.33.6.12c-2.
 5. Timers, handled in 0.33.6.12d-1.
 
-- [ ] In `task-focus`, hide the Focus Selection controls:
+- [x] In `task-focus`, hide the Focus Selection controls:
   - "What should we focus on?"
   - Recommended Next Action
   - Focus Selection candidate overflow / right-panel candidate list behavior from 0.33.6.12b
-- [ ] Render a selected-task heading/summary so the user can immediately tell what task is being focused without opening the edit modal.
-- [ ] Add a top task action strip with icon-only actions, right-justified near the left edge of the Inspector column with a slight margin.
+- [x] Render a selected-task heading/summary so the user can immediately tell what task is being focused without opening the edit modal.
+- [x] Add a top task action strip with icon-only actions, right-justified near the left edge of the Inspector column with a slight margin.
   - Edit: opens the existing canonical Task edit modal.
   - Complete: completes the task through the existing task lifecycle route/service, then returns to Focus Selection.
   - Block: moves the task to blocked status through the existing task lifecycle route/service and leaves the user in Task Focus unless service behavior requires a refresh fallback.
-- [ ] Use existing Tasks-owned lifecycle routes/actions; do not invent a Workbench-only task status mutation path.
-- [ ] Render Task Details as a read-only collapsible section, collapsed by default.
+- [x] Use existing Tasks-owned lifecycle routes/actions; do not invent a Workbench-only task status mutation path.
+- [x] Render Task Details as a read-only collapsible section, collapsed by default.
   - Include safe task metadata already exposed to Workbench/task detail reads: title, status, due date/time, priority, assignees, client/project context, blocked reason when present, and description/details if the user can read them.
   - Do not expose raw IDs or hidden/private labels.
-- [ ] Leave checklist execution out of this slice except for any stable mount point needed by 0.33.6.12c-2.
-- [ ] Add focused regressions proving:
+- [x] Leave checklist execution out of this slice except for any stable mount point needed by 0.33.6.12c-2.
+- [x] Add focused regressions proving:
   - Task Focus hides Focus Selection panels.
   - Task action strip renders icon-only Edit, Complete, and Block actions with accessible labels/titles.
   - Edit opens the canonical Task edit modal.
@@ -497,15 +497,15 @@ Purpose:
 
 Add checklist execution to the Task Focus main surface from 0.33.6.12c-1 without turning Workbench into a second Task editor.
 
-- [ ] Render Checklist as a prominent Task Focus section in the main column.
+- [x] Render Checklist as a prominent Task Focus section in the main column.
   - If the task has checklist items, the Checklist section is open by default.
   - If the task has no checklist items, the Checklist section is collapsed by default and shows: `Edit task to add checklist items.`
   - Checklist items can be checked/unchecked inside Task Focus.
   - Task Focus must not add, remove, rename, or reorder checklist items; those remain in the Task edit modal.
-- [ ] Use existing Tasks-owned checklist routes/services for check/uncheck behavior; do not invent a Workbench-only checklist mutation path.
-- [ ] Preserve Tasks-owned checklist progress side effects, audit/event/search/notification behavior, and permission checks.
-- [ ] Keep the Task Focus shell/actions from 0.33.6.12c-1 intact while adding the checklist section.
-- [ ] Add focused regressions proving:
+- [x] Use existing Tasks-owned checklist routes/services for check/uncheck behavior; do not invent a Workbench-only checklist mutation path.
+- [x] Preserve Tasks-owned checklist progress side effects, audit/event/search/notification behavior, and permission checks.
+- [x] Keep the Task Focus shell/actions from 0.33.6.12c-1 intact while adding the checklist section.
+- [x] Add focused regressions proving:
   - Checklist is open by default when populated.
   - Checklist is collapsed with the required empty message when empty.
   - Task Focus only supports checklist check/uncheck, not add/remove/rename/reorder.

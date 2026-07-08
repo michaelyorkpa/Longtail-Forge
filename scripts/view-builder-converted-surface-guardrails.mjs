@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");

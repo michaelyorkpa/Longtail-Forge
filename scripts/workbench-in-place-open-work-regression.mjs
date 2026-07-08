@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -16,31 +16,36 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=27/,
+  /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=31/,
   "Workbench should load the canonical Task dialog before the cache-busted Workbench adapter",
 );
 
 assert.match(
   workbenchScript,
-  /onClick: \(event\) => openCandidate\(candidate, event\?\.currentTarget \|\| null\)/,
-  "Recommended and secondary Open Work controls should pass their triggering control into the candidate opener",
+  /onClick: \(event\) => openCandidate\(candidate, event\?\.currentTarget \|\| null, \{ mode: "candidate-primary" \}\)/,
+  "Recommended candidate controls should pass their trigger through the primary candidate opener",
+);
+assert.match(
+  functionBody(workbenchScript, "createWorkbenchInspectorItem"),
+  /workbenchInspectorOpenMode: openMode[\s\S]*openCandidate\(candidate, event\.currentTarget, \{ mode: openMode \}\)/,
+  "Inspector overflow controls should pass their trigger through the resolved candidate opener",
 );
 assert.match(
   functionBody(workbenchScript, "candidateActionLabel"),
-  /candidateModuleAction\(candidate\) \|\| candidate\.sourceUrl \|\| candidate\.primaryAction\?\.href[\s\S]*return "Open work";/,
-  "Candidates with a module action or page fallback should keep the Open Work label",
+  /candidateTaskId\(candidate\)[\s\S]*return "Focus task";[\s\S]*candidateModuleAction\(candidate\) \|\| candidate\.sourceUrl \|\| candidate\.primaryAction\?\.href[\s\S]*return "Open work";/,
+  "Task candidates should now focus the task while non-task candidates keep the Open work fallback label",
 );
 
 const openCandidateBody = functionBody(workbenchScript, "openCandidate");
 assert.match(
   openCandidateBody,
-  /const taskId = candidateTaskId\(candidate\);[\s\S]*if \(taskId\) \{[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\);[\s\S]*return;[\s\S]*\}[\s\S]*const action = candidateModuleAction\(candidate\);[\s\S]*if \(action\) \{[\s\S]*await openModuleActionCandidate\(candidate, action, trigger\);[\s\S]*return;[\s\S]*\}[\s\S]*openCandidateNavigationFallback\(candidate\);/,
-  "Open Work should dispatch task candidates and registered module-action candidates before falling back to navigation",
+  /if \(mode === "candidate-primary"\) \{[\s\S]*enterTaskFocus\(candidate, taskId\);[\s\S]*openNonTaskFocusFallback\(candidate\);[\s\S]*if \(taskId\) \{[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\);[\s\S]*const action = candidateModuleAction\(candidate\);[\s\S]*await openModuleActionCandidate\(candidate, action, trigger\);[\s\S]*openCandidateNavigationFallback\(candidate\);/,
+  "Primary candidate actions should enter Task Focus while context opens keep the registered module-action path",
 );
 assert.doesNotMatch(
   openCandidateBody,
   /window\.location\.href/,
-  "The main candidate opener should not navigate task candidates away from Workbench",
+  "The shared candidate opener should delegate navigation to explicit fallback helpers",
 );
 
 const openTaskCandidateBody = functionBody(workbenchScript, "openTaskCandidate");
@@ -65,16 +70,16 @@ assert.doesNotMatch(
   "Task candidate opening should not navigate away from Workbench",
 );
 
-const fallbackBody = functionBody(workbenchScript, "openCandidateNavigationFallback");
+const fallbackBody = functionBody(workbenchScript, "openNonTaskFocusFallback");
 assert.match(
   fallbackBody,
-  /const href = candidate\.primaryAction\?\.href \|\| candidate\.sourceUrl \|\| "";[\s\S]*Opening this work in its module page\.[\s\S]*window\.location\.href = href;/,
-  "Candidates without an in-place editor should keep an explicit temporary page fallback",
+  /const href = candidate\.primaryAction\?\.href \|\| candidate\.sourceUrl \|\| "";[\s\S]*Opening this work in its module page until Task Focus supports this type\.[\s\S]*window\.location\.href = href;/,
+  "Non-task primary candidates should keep an explicit temporary page fallback",
 );
 assert.match(
   fallbackBody,
-  /does not have an in-place editor or page fallback yet/,
-  "Candidates without a modal or page URL should explain the missing opener instead of silently doing nothing",
+  /Task Focus is currently available for task candidates only/,
+  "Non-task primary candidates without a page URL should explain the missing Task Focus support",
 );
 
 assert.match(
@@ -100,11 +105,11 @@ assert.match(
 
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.6c - In-place record editing from Workbench[\s\S]*- \[x\] Change the Workbench "Open Work" action[\s\S]*- \[x\] Reuse the canonical task opener[\s\S]*- \[x\] Where a candidate's record type has no in-place modal yet[\s\S]*- \[x\] Preserve permission checks[\s\S]*- \[x\] Add regressions proving "Open Work"/,
-  "Roadmap should mark the Workbench in-place Open Work slice complete",
+  /### Version 0\.33\.6\.12a - Workbench view-state split: Focus Selection and Task Focus[\s\S]*Change all Workbench candidate primary actions[\s\S]*enter `task-focus`/,
+  "Roadmap should record the Workbench Task Focus primary-action direction",
 );
 
-console.log("Workbench in-place Open Work regression passed.");
+console.log("Workbench explicit open/context regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");

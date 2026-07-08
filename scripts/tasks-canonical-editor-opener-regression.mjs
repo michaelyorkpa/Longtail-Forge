@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -38,7 +38,7 @@ assert.doesNotMatch(tasksScript, /tasksDialog\.open\(\{/, "Tasks page should not
 
 assert.match(workbenchScript, /label: "Add Task"[\s\S]*onClick: openAddTaskAction/, "Workbench should keep a guided-host task creation trigger");
 assert.match(workbenchScript, /moduleActions\.open\("tasks\.add", \{[\s\S]*context: \{ source: "workbench" \}[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/, "Workbench add task should pass source context and refresh hook into module actions");
-assert.match(workbenchScript, /moduleActions\.open\("tasks\.edit", \{[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*recordId: taskId[\s\S]*taskId,[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/, "Workbench edit task should use the same canonical module action path");
+assert.match(workbenchScript, /moduleActions\.open\("tasks\.edit", \{[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*recordId: taskId[\s\S]*taskId,[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/, "Workbench explicit task context opens should use the same canonical module action path");
 assert.doesNotMatch(workbenchView, /data-task-form|data-task-dialog|data-task-title/, "Workbench must not duplicate task editor markup");
 assert.doesNotMatch(workbenchScript, /tasksDialog\.open(Add|Edit)?\(/, "Workbench should not bypass module actions or the canonical opener");
 

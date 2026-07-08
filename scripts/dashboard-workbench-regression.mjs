@@ -274,8 +274,13 @@ assert.match(
 );
 assert.match(
   files.workbench,
-  /moduleActions\.open\("tasks\.edit"/,
-  "Workbench recommended Task candidates must dispatch the Tasks edit modal action",
+  /enterTaskFocus\(candidate, taskId\)/,
+  "Workbench recommended Task candidates must enter Task Focus instead of opening the Task edit modal",
+);
+assert.match(
+  files.workbench,
+  /function openTaskCandidate\(candidate, taskId, trigger = null\)[\s\S]*moduleActions\.open\("tasks\.edit"/,
+  "Workbench should retain the explicit context-open path to the canonical Task edit action",
 );
 assert.match(
   files.tasksRoutes,

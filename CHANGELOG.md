@@ -1,3 +1,37 @@
+## Version 0.33.6.12c-2 - 2026-07-08 12:55 -04:00
+
+- Added the Task Focus Checklist execution section after read-only Task Details, opening populated checklists by default and collapsing empty checklists with `Edit task to add checklist items.`.
+- Kept Task Focus checklist behavior check-only: rows render only a checkbox and read-only label, while add, remove, rename, and reorder remain in the canonical Task editor.
+- Routed Task Focus checklist changes through the existing Tasks-owned check/uncheck routes so permission checks, progress side effects, audit/events/search, and refreshed task payloads stay owned by Tasks.
+- Bumped Workbench cache keys to `longtail-forge.css?v=32` and `workbench.js?v=31`, added `scripts/workbench-task-focus-checklist-regression.mjs`, updated docs/version guardrails, and marked the 0.33.6.12c-2 roadmap slice complete.
+- Verification 2026-07-08 13:02 -04:00: changed Workbench/regression files passed `node --check`; focused Workbench Task Focus checklist/surface regressions and the full Workbench regression cluster passed; adjacent Dashboard/Workbench, quick-action opener, Task modal completion, and regression coverage ratchet checks passed; `npm run check` passed 299/299 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; `git diff --check` reported no whitespace errors aside from line-ending warnings; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12c-2 from the refreshed local 8001 server.
+
+## Version 0.33.6.12c-1 - 2026-07-08 12:41 -04:00
+
+- Added the Task Focus main surface so selecting a Task candidate hides Focus Selection panels and shows a focused task work view instead of opening the Task editor by default.
+- Rendered a top icon-only Task Focus action strip for Edit, Complete, and Block; Edit opens the canonical Tasks modal, Complete uses the existing Tasks complete route and returns to Focus Selection, and Block uses the existing Tasks update path while refreshing the focused task in place.
+- Added a read-only selected-task summary plus a collapsed read-only Task Details section with safe title, status, due, priority, assignee, Client/Project, blocked-reason, and description fields.
+- Switched the right Inspector out of Focus Selection overflow mode while in Task Focus, left only a hidden checklist mount for 0.33.6.12c-2, bumped Workbench cache keys to `longtail-forge.css?v=31` and `workbench.js?v=30`, added `scripts/workbench-task-focus-surface-regression.mjs`, updated docs/version guardrails, and marked the 0.33.6.12c-1 roadmap slice complete.
+- Verification 2026-07-08 12:45 -04:00: changed Workbench/regression files passed `node --check`; focused Workbench Task Focus surface/view-state/Inspector/no-Quick-Notes/open-work/cache-key regressions passed; adjacent Dashboard/Workbench, quick-action opener, Task modal completion, and regression coverage ratchet checks passed; `npm run check` passed 298/298 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; `git diff --check` reported no whitespace errors aside from line-ending warnings; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12c-1 from the refreshed local 8001 server.
+
+## Version 0.33.6.12b - 2026-07-08 11:25 -04:00
+
+- Moved Focus Selection's "More in this focus" overflow out of the main Workbench column and into the right-side Inspector panel.
+- Expanded the recommended-action cycle window to the top five ranked candidates while keeping one visible recommendation at a time.
+- Updated the right-side Inspector count/list to show only non-recommended overflow candidates, with a bounded scrollable list and no duplication of the top-five recommendation cycle.
+- Removed the retired main-column secondary-candidate DOM/CSS hooks, bumped Workbench cache keys to `longtail-forge.css?v=30` and `workbench.js?v=29`, advanced version guardrails to 0.33.6.12b, and marked the 0.33.6.12b roadmap slice complete.
+- Verification 2026-07-08 11:34 -04:00: changed Workbench/regression files passed `node --check`; focused Workbench recommendation/Inspector/view-state/open-work/no-secondary-section/cache-key regressions passed; `node scripts\regression-coverage-ratchet.mjs` passed; `npm run check` passed 297/297 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; `git diff --check` reported no whitespace errors aside from existing line-ending warnings; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12b from the refreshed local 8001 server.
+
+## Version 0.33.6.12a - 2026-07-08 10:35 -04:00
+
+- Added explicit Workbench `focus-selection` and `task-focus` browser states, including host data attributes, page-controller snapshot state, and the active task-focus selection.
+- Replaced the Workbench upper-right `Time Tracker` link with a persistent `Change Focus` action that is disabled in Focus Selection and exits Task Focus without changing focus mode, Client, or Project filters.
+- Changed primary Task candidate actions to `Focus task` so they enter Task Focus instead of opening `tasks.edit`; explicit Inspector/context opens still use the canonical Task editor module action.
+- Removed recommended/secondary candidate `Dismiss` controls and kept non-task primary candidates on an explicit temporary module-page fallback until a future focused target view exists for those work types.
+- Added `scripts/workbench-view-state-regression.mjs`, registered it with the regression suite/coverage manifest, and updated adjacent Workbench/Task opener guardrails for the 0.33.6.12a behavior.
+- Updated Workbench module/view/UI contracts, bumped the Workbench cache key to `workbench.js?v=28`, advanced version guardrails to 0.33.6.12a, and marked the 0.33.6.12a roadmap slice complete.
+- Verification 2026-07-08 10:41 -04:00: changed Workbench/regression files passed `node --check`; focused Workbench view-state/open-work/Inspector/no-Quick-Notes/opener/cache-key regressions passed; `node scripts\regression-coverage-ratchet.mjs` passed; `npm run check` passed 297/297 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12a from the refreshed local 8001 server; served `workbench.js?v=28` exposed the Focus Selection/Task Focus, Change Focus, non-task fallback, and `Focus task` markers.
+
 ## Version 0.33.6.11b - 2026-07-08 07:30 -04:00
 
 - Removed the Workbench Quick Notes section and its dead `createQuickNotesSection()` browser plumbing so the Workbench body remains focused on the recommendation, curated overflow, timers, and Inspector.

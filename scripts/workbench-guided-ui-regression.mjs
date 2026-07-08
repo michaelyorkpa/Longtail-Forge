@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
   workbenchHtml,
-  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=27/,
+  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=31/,
   "Workbench host should load view helpers before the guided Workbench adapter",
 );
 assert.match(
@@ -38,6 +38,11 @@ assert.doesNotMatch(
   workbenchHtml,
   /data-workbench-renderer|data-workbench-card|workbench-manual-timer-form|workbench-task-toolbar|workbench-task-list|<details|page-heading/,
   "Workbench host must not carry the old static card/page anatomy",
+);
+assert.match(
+  workbenchScript,
+  /const WORKBENCH_VIEW_STATE_FOCUS_SELECTION = "focus-selection";[\s\S]*const WORKBENCH_VIEW_STATE_TASK_FOCUS = "task-focus";/,
+  "Workbench should define explicit Focus Selection and Task Focus states",
 );
 
 assert.match(
@@ -81,8 +86,8 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /const RECOMMENDED_CANDIDATE_LIMIT = 1;/,
-  "Workbench should render exactly one recommended candidate before the subordinate overflow list",
+  /const RECOMMENDED_CANDIDATE_LIMIT = 5;/,
+  "Workbench should cycle the top-five ranked candidates before right-panel overflow",
 );
 assert.match(
   workbenchScript,
@@ -91,8 +96,8 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /const secondaryCandidates = recommendedOverflowCandidates\(\);/,
-  "Workbench should keep overflow candidate lists subordinate to the recommendation",
+  /for \(const candidate of recommendedOverflowCandidates\(\)\)/,
+  "Workbench should render overflow candidates in the right-side Inspector",
 );
 assert.match(
   workbenchScript,
@@ -101,28 +106,29 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /workbenchSecondaryCandidates/,
-  "Workbench should expose a stable secondary-candidate rendering hook",
+  /workbenchInspectorList/,
+  "Workbench should expose a stable right-panel overflow rendering hook",
 );
 assert.match(
   workbenchScript,
-  /Capture the next commitment or review the secondary lists below[\s\S]*Nothing needs this focus right now/,
+  /Capture the next commitment or adjust the focus\.[\s\S]*Nothing needs this focus right now/,
   "Workbench empty states should suggest a useful next step",
 );
 assert.match(
   workbenchScript,
-  /api\.postJson\(`\/api\/work-resume\/\$\{encodeURIComponent\(resumeStateId\)\}\/dismiss`, \{\}\)/,
-  "Workbench should dismiss resume-backed recommendations through the protected resume API",
+  /label: "Change Focus"[\s\S]*onClick: changeFocus/,
+  "Workbench should expose Change Focus as the header state action",
 );
+assert.doesNotMatch(workbenchScript, /label: "Dismiss"|dismissResumeCandidate/, "Workbench should not render candidate dismissal controls");
 assert.match(
   workbenchScript,
-  /async function openCandidate\(candidate, trigger = null\)[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\)[\s\S]*candidateModuleAction\(candidate\)[\s\S]*await openModuleActionCandidate\(candidate, action, trigger\)[\s\S]*openCandidateNavigationFallback\(candidate\)/,
-  "Recommended candidate openers should route task candidates through the in-place editor before the explicit page fallback",
+  /async function openCandidate\(candidate, trigger = null, options = \{\}\)[\s\S]*enterTaskFocus\(candidate, taskId\)[\s\S]*openNonTaskFocusFallback\(candidate\)[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\)/,
+  "Recommended candidate openers should enter Task Focus while context opens retain the explicit editor path",
 );
 
 assert.match(css, /\.workbench-focus-question-list/, "Workbench CSS should style the focus question list");
 assert.match(css, /\.workbench-recommended-card/, "Workbench CSS should emphasize the recommended candidate");
-assert.match(css, /\.workbench-secondary-candidate/, "Workbench CSS should keep secondary candidates visually subordinate");
+assert.match(css, /\.workbench-inspector-list[\s\S]*overflow-y: auto;/, "Workbench CSS should bound right-panel overflow candidates");
 
 assert.match(
   roadmap,

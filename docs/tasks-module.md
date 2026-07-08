@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.11b. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.6.12c-2. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -54,6 +54,10 @@ As of 0.33.5.18.10.7, the canonical Task editor entry point is the supported cro
 - Future module-triggered task creation should pass safe caller defaults, `sourceContext`, `hostContext`, `returnFocusTo`, and `onSaved` or `refresh` callbacks into the opener rather than importing Task field internals or duplicating save payload construction.
 
 The framework may own action discovery, availability filtering, dispatch status, focus return, and host lifecycle around module actions. Tasks owns the editor body, field hydration, payload construction, validation, route calls, permission implications, recurrence/checklist/timer/utility behavior, and refresh semantics. Supported focus targets include assignment, due date, due time, recurrence, timer, and notes; complex assignment, scheduling, recurrence, and workspace-context edits should stay in the canonical editor instead of being flattened into inline controls.
+
+As of 0.33.6.12c-1, Workbench Task Focus uses Tasks-owned browser API paths for selected-task execution: Edit dispatches through the canonical `tasks.edit` module action, Complete calls `POST /api/tasks/:taskId/complete`, and Block calls the existing `PUT /api/tasks/:taskId` update path with `status: "blocked"`. Workbench owns the focused shell and read-only task summary/details presentation; Tasks still owns permission checks, status transition validation, audit/events/search updates, recurrence completion behavior, checklist mutations, timer mutations, and the canonical editor body.
+
+As of 0.33.6.12c-2, Workbench Task Focus can check and uncheck existing checklist items through the same Tasks-owned checklist routes used by the Task editor. Workbench renders a check-only execution section and refreshes from the Tasks response shape, while structure editing remains in the canonical Task editor: add, remove, rename, and reorder controls are not exposed in Task Focus.
 
 As of 0.33.5.18.9.3, the Task editor uses one framework-owned `Task Details` section before the specialized task-owned fragments. Task Details contains status, priority, parent task, due date, due time, resume note, next action, nullable Client/Project controls, description, assignees, and the final blocked reason field. Blocked Reason is hidden and disabled unless Status is `Blocked`. The dialog uses the shared `wide` modal size without a narrower Task-only width override.
 

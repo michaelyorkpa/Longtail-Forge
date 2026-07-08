@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -13,8 +13,8 @@ const workbenchService = readText("src/services/workbench.service.js");
 assert.equal(packageJson.version, appVersion, "package.json should report the Workbench no-all-tasks-list version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Workbench no-all-tasks-list version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Workbench no-all-tasks-list version");
-assert.match(workbenchHtml, /longtail-forge\.css\?v=29/, "Workbench should bump the stylesheet cache key after removing task-list styles");
-assert.match(workbenchHtml, /workbench\.js\?v=27/, "Workbench should bump the script cache key after removing task-list rendering");
+assert.match(workbenchHtml, /longtail-forge\.css\?v=32/, "Workbench should bump the stylesheet cache key after removing task-list styles");
+assert.match(workbenchHtml, /workbench\.js\?v=31/, "Workbench should bump the script cache key after removing task-list rendering");
 
 assert.doesNotMatch(
   workbenchScript,
@@ -49,13 +49,13 @@ assert.doesNotMatch(loadTaskOptionsData, /items|taskItems/, "Task options loadin
 
 assert.match(
   workbenchScript,
-  /workbenchHost\.replaceChildren\([\s\S]*createWorkbenchShell\(\)[\s\S]*function createWorkbenchShell\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)/,
-  "Workbench should still build the recommended-action and secondary candidate surfaces",
+  /workbenchHost\.replaceChildren\([\s\S]*createWorkbenchShell\(\)[\s\S]*function createWorkbenchShell\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)[\s\S]*createWorkbenchInspectorPanel\(\)/,
+  "Workbench should still build the recommended-action, timer, and right-panel overflow surfaces",
 );
 assert.match(
   workbenchScript,
-  /function renderWorkbench\(\) \{[\s\S]*renderRecommendedAction\(\);[\s\S]*renderSecondaryFocusCandidates\(\);/,
-  "Workbench render should keep the recommendation and secondary candidate surfaces active",
+  /function renderWorkbench\(\) \{[\s\S]*renderRecommendedAction\(\);[\s\S]*renderWorkbenchInspector\(\);/,
+  "Workbench render should keep the recommendation and right-panel overflow surfaces active",
 );
 assert.match(
   workbenchScript,
@@ -64,8 +64,8 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /function renderSecondaryFocusCandidates\(\)[\s\S]*recommendedOverflowCandidates\(\)[\s\S]*createSecondaryCandidateItem/,
-  "The curated More in this focus list should still render overflow candidates",
+  /function workbenchInspectorCandidates\(\)[\s\S]*recommendedOverflowCandidates\(\)[\s\S]*WORKBENCH_INSPECTOR_LIMIT/,
+  "The right-side More in this focus Inspector should render overflow candidates",
 );
 assert.match(
   workbenchScript,
@@ -74,9 +74,8 @@ assert.match(
 );
 
 const secondaryWorkbenchPanel = extractFunctionBody(workbenchScript, "createSecondaryWorkbenchPanel");
-assert.match(secondaryWorkbenchPanel, /createSecondaryCandidateSection\(\)/, "Workbench should keep the curated secondary candidate section");
 assert.match(secondaryWorkbenchPanel, /createTimerSection\(\)/, "Workbench should keep the active timer section");
-assert.doesNotMatch(secondaryWorkbenchPanel, /createTaskSection|task-workbench-items/, "Workbench should not add the removed all-tasks section to its layout");
+assert.doesNotMatch(secondaryWorkbenchPanel, /createTaskSection|task-workbench-items|createSecondaryCandidateSection/, "Workbench should not add the removed all-tasks or main-column overflow sections to its layout");
 
 assert.match(
   roadmap,

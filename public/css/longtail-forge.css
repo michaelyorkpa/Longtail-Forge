@@ -5065,6 +5065,9 @@ dialog .form-actions {
 .workbench-inspector-list {
     display: grid;
     gap: 10px;
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+    padding-right: 2px;
 }
 
 .workbench-inspector-item {
@@ -5134,6 +5137,159 @@ dialog .form-actions {
 .workbench-recommended-reason {
     margin: 0;
     color: var(--color-text-secondary);
+}
+
+.workbench-task-focus-panel {
+    display: grid;
+    gap: 14px;
+}
+
+.workbench-task-focus-action-mount {
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 8px;
+}
+
+.workbench-task-focus-action-strip {
+    justify-content: flex-end;
+}
+
+.workbench-task-focus-action-strip.icon-button,
+.workbench-task-focus-action-strip .icon-button {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+}
+
+.workbench-task-focus-body {
+    display: grid;
+    gap: 16px;
+}
+
+.workbench-task-focus-summary {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-muted);
+}
+
+.workbench-task-focus-summary-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
+}
+
+.workbench-task-focus-heading-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.workbench-task-focus-heading-copy h2,
+.workbench-task-focus-heading-copy p,
+.workbench-task-focus-note {
+    margin: 0;
+}
+
+.workbench-task-focus-meta,
+.workbench-task-focus-note {
+    color: var(--color-text-secondary);
+}
+
+.workbench-task-focus-note.is-error {
+    color: var(--color-danger);
+}
+
+.workbench-task-focus-badges {
+    justify-content: flex-end;
+}
+
+.workbench-task-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.workbench-task-detail-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface-muted);
+}
+
+.workbench-task-detail-field.is-multiline {
+    grid-column: 1 / -1;
+}
+
+.workbench-task-detail-field h3,
+.workbench-task-detail-field p {
+    margin: 0;
+}
+
+.workbench-task-detail-field h3 {
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.workbench-task-detail-field p {
+    color: var(--color-text);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.workbench-task-checklist-body {
+    display: grid;
+    gap: 12px;
+}
+
+.workbench-task-checklist-progress {
+    margin: 0;
+    color: var(--color-text-secondary);
+}
+
+.workbench-task-checklist-list {
+    display: grid;
+    gap: 8px;
+}
+
+.workbench-task-checklist-item {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface-muted);
+}
+
+.workbench-task-checklist-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.workbench-task-checklist-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+    line-height: 1.4;
+}
+
+.workbench-task-checklist-item.is-checked .workbench-task-checklist-label {
+    color: var(--color-text-secondary);
+    text-decoration: line-through;
 }
 
 .workbench-layout {
@@ -5283,34 +5439,9 @@ dialog .form-actions {
     }
 }
 
-.workbench-timer-list,
-.workbench-secondary-candidate-list {
+.workbench-timer-list {
     display: grid;
     gap: 10px;
-}
-
-.workbench-secondary-candidate {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    align-items: center;
-    padding: 12px;
-    border: 1px solid var(--color-border-subtle);
-    border-radius: 8px;
-}
-
-.workbench-secondary-candidate h3,
-.workbench-secondary-candidate p {
-    margin: 0;
-}
-
-.workbench-secondary-candidate h3 {
-    font-size: 15px;
-}
-
-.workbench-secondary-candidate p {
-    color: var(--color-muted);
-    font-size: 13px;
 }
 
 .workbench-timer-card {
@@ -7850,7 +7981,6 @@ button:disabled {
     .workbench-focus-question-list,
     .workbench-focus-scope-controls,
     .workbench-manual-timer-form,
-    .workbench-secondary-candidate,
     .workbench-timer-body,
     .task-form,
     .task-summary-sections,

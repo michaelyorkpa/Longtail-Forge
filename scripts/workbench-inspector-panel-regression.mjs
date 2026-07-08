@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=29[\s\S]*workbench\.js\?v=27/,
+  /longtail-forge\.css\?v=32[\s\S]*workbench\.js\?v=31/,
   "Workbench should bump CSS and JS cache keys for the Inspector panel",
 );
 
@@ -34,18 +34,18 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /function createWorkbenchInspectorPanel\(\)[\s\S]*dataset: \{ workbenchInspector: "" \}[\s\S]*Work context/,
-  "Workbench should expose a stable Inspector panel hook and heading",
+  /function createWorkbenchInspectorPanel\(\)[\s\S]*dataset: \{ workbenchInspector: "" \}[\s\S]*More in this focus[\s\S]*Other work matching the selected focus\. Choose one to focus it\./,
+  "Workbench should expose a stable Inspector overflow panel hook, heading, and helper copy",
 );
 assert.match(
   functionBody(workbenchScript, "renderWorkbench"),
-  /renderRecommendedAction\(\);[\s\S]*renderSecondaryFocusCandidates\(\);[\s\S]*renderWorkbenchInspector\(\);/,
+  /renderRecommendedAction\(\);[\s\S]*renderWorkbenchInspector\(\);/,
   "Workbench render should keep the Inspector synchronized with the current focus candidates",
 );
 assert.match(
   functionBody(workbenchScript, "workbenchInspectorCandidates"),
-  /for \(const candidate of state\.focusCandidates \|\| \[\]\)[\s\S]*WORKBENCH_INSPECTOR_LIMIT/,
-  "Inspector rows should come from already permission-shaped focus candidates, not a new browser-side record query",
+  /for \(const candidate of recommendedOverflowCandidates\(\)\)[\s\S]*WORKBENCH_INSPECTOR_LIMIT/,
+  "Focus Selection Inspector rows should come from permission-shaped overflow candidates after the top-five recommendation window",
 );
 assert.doesNotMatch(
   functionBody(workbenchScript, "workbenchInspectorCandidates"),
@@ -55,8 +55,8 @@ assert.doesNotMatch(
 
 assert.match(
   functionBody(workbenchScript, "createWorkbenchInspectorItem"),
-  /className: "workbench-inspector-title"[\s\S]*addEventListener\("click", \(event\) => openCandidate\(candidate, event\.currentTarget\)\)/,
-  "Inspector related titles should open through the existing Workbench candidate opener",
+  /const openMode = resolvedWorkbenchViewState\(\) === WORKBENCH_VIEW_STATE_FOCUS_SELECTION[\s\S]*\? "candidate-primary"[\s\S]*: "context-open";[\s\S]*workbenchInspectorOpenMode: openMode[\s\S]*addEventListener\("click", \(event\) => openCandidate\(candidate, event\.currentTarget, \{ mode: openMode \}\)\)/,
+  "Focus Selection Inspector titles should choose candidates through the primary Workbench path while preserving a future context-open branch",
 );
 assert.match(
   functionBody(workbenchScript, "candidateModuleAction"),
@@ -102,6 +102,11 @@ assert.match(
 );
 assert.match(
   css,
+  /\.workbench-inspector-list \{[\s\S]*max-height: min\(60vh, 520px\);[\s\S]*overflow-y: auto;/,
+  "Focus Selection Inspector overflow should be bounded and scrollable",
+);
+assert.match(
+  css,
   /@media \(max-width: 1099px\) \{[\s\S]*\.workbench-inspector \{[\s\S]*display: none;/,
   "Workbench Inspector should hide gracefully on narrow screens",
 );
@@ -113,17 +118,17 @@ assert.doesNotMatch(
 
 assert.match(
   moduleContract,
-  /As of 0\.33\.6\.11[\s\S]*Workbench Inspector[\s\S]*permission-safe focus candidates[\s\S]*does not render an embedded preview pane/,
+  /As of 0\.33\.6\.12c-1[\s\S]*right-side "More in this focus" Inspector overflow list[\s\S]*do not duplicate records/,
   "Module contract should record the Workbench Inspector boundary",
 );
 assert.match(
   uiSurfaceContract,
-  /As of 0\.33\.6\.11[\s\S]*Workbench Inspector[\s\S]*wide Workbench layouts[\s\S]*not a fixed drawer/,
+  /As of 0\.33\.6\.12c-1[\s\S]*Workbench Inspector[\s\S]*bounded "More in this focus" overflow panel/,
   "UI surface contract should record the Inspector layout/QAC boundary",
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.11[\s\S]*right-side Inspector[\s\S]*without adding an embedded viewer pane/,
+  /Workbench \| As of 0\.33\.6\.12c-2[\s\S]*right-side "More in this focus" Inspector overflow list[\s\S]*main-column "More in this focus" section/,
   "View-building contract should include the current Workbench Inspector anatomy",
 );
 assert.match(

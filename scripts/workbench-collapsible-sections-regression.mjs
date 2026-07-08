@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -12,19 +12,13 @@ const workbenchScript = readText("public/js/workbench.js");
 assert.equal(packageJson.version, appVersion, "package.json should report the collapsible Workbench sections version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the collapsible Workbench sections version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the collapsible Workbench sections version");
-assert.match(workbenchHtml, /longtail-forge\.css\?v=29/, "Workbench should bump the shared stylesheet cache key for Workbench section styling");
-assert.match(workbenchHtml, /workbench\.js\?v=27/, "Workbench should bump its script cache key for Workbench section changes");
+assert.match(workbenchHtml, /longtail-forge\.css\?v=32/, "Workbench should bump the shared stylesheet cache key for Workbench section styling");
+assert.match(workbenchHtml, /workbench\.js\?v=31/, "Workbench should bump its script cache key for Workbench section changes");
 
-const secondarySection = extractFunctionBody(workbenchScript, "createSecondaryCandidateSection");
 assert.doesNotMatch(
-  secondarySection,
-  /section\.open\s*=\s*true/,
-  "More in this focus must not force itself open by default",
-);
-assert.match(
-  secondarySection,
-  /setWorkbenchDisclosureOpen\(section,\s*false\)/,
-  "More in this focus should start collapsed while keeping the section available",
+  workbenchScript,
+  /function createSecondaryCandidateSection|data-workbench-secondary-candidate-section|workbenchSecondaryCandidates/,
+  "The old main-column More in this focus collapsible section should be retired after Inspector owns overflow",
 );
 
 const timerSection = extractFunctionBody(workbenchScript, "createTimerSection");
@@ -110,6 +104,11 @@ assert.match(
   roadmap,
   /### Version 0\.33\.6\.6f - Collapsible Workbench sections: default state and caret affordance[\s\S]*- \[x\] Start the "More in this focus" secondary-candidate section collapsed by default[\s\S]*- \[x\] Make the Timers section[\s\S]*- \[x\] Add a clear, consistent caret\/chevron affordance[\s\S]*Acceptance criteria:/,
   "Roadmap should mark collapsible Workbench section defaults and caret affordance complete",
+);
+assert.match(
+  roadmap,
+  /### Version 0\.33\.6\.12b - Focus Selection cleanup: Inspector owns More in this focus[\s\S]*- \[x\] Remove the main-column `More in this focus` collapsible section entirely/,
+  "Roadmap should mark the retired main-column overflow section complete",
 );
 
 console.log("Workbench collapsible sections regression passed.");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.11b";
+const appVersion = "0.33.6.12c-2";
 const appShellService = readText("src/services/app-shell.service.js");
 const footerScript = readText("public/js/footer.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=29[\s\S]*workbench\.js\?v=27/,
+  /longtail-forge\.css\?v=32[\s\S]*workbench\.js\?v=31/,
   "Workbench should bump its script cache key after removing Quick Notes",
 );
 assert.doesNotMatch(
@@ -30,13 +30,13 @@ assert.doesNotMatch(
 const secondaryWorkbenchPanel = functionBody(workbenchScript, "createSecondaryWorkbenchPanel");
 assert.match(
   secondaryWorkbenchPanel,
-  /createSecondaryCandidateSection\(\)[\s\S]*createTimerSection\(\)/,
-  "Workbench should keep More in this focus and Timers after Quick Notes removal",
+  /createTimerSection\(\)/,
+  "Workbench should keep Timers after Quick Notes removal",
 );
 assert.doesNotMatch(
   secondaryWorkbenchPanel,
-  /createQuickNotesSection|quick-notes|Quick Notes/,
-  "Workbench secondary layout should not mount Quick Notes",
+  /createQuickNotesSection|quick-notes|Quick Notes|createSecondaryCandidateSection/,
+  "Workbench secondary layout should not mount Quick Notes or the retired main-column overflow",
 );
 
 assert.match(
@@ -56,8 +56,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "createWorkbenchInspectorPanel"),
-  /Work context[\s\S]*Permission-safe records from this focus/,
-  "Workbench Inspector should keep visible related-context affordance after Quick Notes removal",
+  /More in this focus[\s\S]*Other work matching the selected focus/,
+  "Workbench Inspector should keep visible overflow affordance after Quick Notes removal",
 );
 
 assert.match(
@@ -67,7 +67,7 @@ assert.match(
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.11b[\s\S]*must not render[\s\S]*Quick Notes/,
+  /Workbench \| As of 0\.33\.6\.12c-2[\s\S]*must not render[\s\S]*Quick Notes/,
   "View-building contract should include the current no-Quick-Notes Workbench anatomy",
 );
 assert.match(
