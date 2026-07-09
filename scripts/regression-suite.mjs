@@ -283,6 +283,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/task-resume-context-regression.mjs",
   "scripts/task-activity-metrics-regression.mjs",
   "scripts/task-recurrence-frequency-regression.mjs",
+  "scripts/task-recurrence-checklist-propagation-regression.mjs",
   "scripts/task-checklist-regression.mjs",
   "scripts/task-relationships-regression.mjs",
   "scripts/task-qol-closeout-regression.mjs",

@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.12i. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.6.12j. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -27,6 +27,8 @@ As of version 0.33.5.27.9, the task checklist repository uses named bound params
 As of version 0.33.5.27.10, the task relationships repository uses named bound params for relationship create/update/remove writes, active pair reads, parent/child reads, blocking-child reads, recursive path checks, and relationship summaries. Batched relationship summaries use array-valued task-id params for both parent and child sides, and blocking-state storage routes through the boolean seam so the repository does not own SQLite `0` / `1` details.
 
 As of version 0.33.5.27.11, the task recurrence and reminder repositories use named bound params for recurrence template reads/writes, template assignee reads, reminder offset reads, batched reminder target reads, and replacement writes. Template assignee replacement and reminder offset replacement use `db.transaction(callback)`, while reminder target batch reads use generated named params for each target pair. Durable recurrence generation handoff and reminder delivery semantics remain owned by the existing Tasks services and worker jobs.
+
+As of 0.33.6.12j, recurrence templates also own checklist structure rows through `task_recurrence_checklist_items`. The recurrence checklist structure stores active item label/order only; occurrence-specific checked state remains in `task_checklist_items`.
 
 Sorting and Filters controls narrow the selected saved task view instead of replacing it. Changing the saved task view preserves compatible advanced filters, clears incompatible assignee filters for `My Tasks` and `Unassigned`, and resets incompatible status filters to the selected view's default. The `Reset Filters` action resets sort, status, assignee, client, project, and tag controls without changing the selected saved task view.
 
@@ -63,7 +65,7 @@ As of 0.33.6.12d-1, Workbench Task Focus exposes the selected task's timer contr
 
 As of 0.33.6.12e-1, Workbench Task Focus related context reads the selected task through the Tasks service, uses Tasks list paths for same-project active task context and shared-direct-tag task matches, and emits only safe task titles, labels, badges, and existing `tasks.edit` action descriptors. Tasks still owns task visibility, lifecycle rules, and canonical edit behavior; Workbench does not query task tables directly or reuse focus-mode candidate overflow for selected-task related context.
 
-As of 0.33.6.12i, Workbench Task Focus summary reuses the existing Tasks read payload for summary metadata. It shows the selected task's Client/Project path once and surfaces status, priority, due date/time, and safe direct tags as summary chips while keeping Task Details read-only for expanded metadata rather than summary essentials. Tasks still owns readable task labels, due fields, direct-tag decoration, and permission-safe omission of inaccessible data.
+As of 0.33.6.12j, Workbench Task Focus summary reuses the existing Tasks read payload for summary metadata. It shows the selected task's Client/Project path once and surfaces status, priority, due date/time, and safe direct tags as summary chips while keeping Task Details read-only for expanded metadata rather than summary essentials. Tasks still owns readable task labels, due fields, direct-tag decoration, and permission-safe omission of inaccessible data.
 
 As of 0.33.5.18.9.3, the Task editor uses one framework-owned `Task Details` section before the specialized task-owned fragments. Task Details contains status, priority, parent task, due date, due time, resume note, next action, nullable Client/Project controls, description, assignees, and the final blocked reason field. Blocked Reason is hidden and disabled unless Status is `Blocked`. The dialog uses the shared `wide` modal size without a narrower Task-only width override.
 
@@ -134,6 +136,8 @@ Task checklists are lightweight progress aids inside a parent task. Checklist it
 
 Checklist mutations update `last_worked_at`, task search indexing, audit metadata, and internal events. Event metadata includes parent task identity and checklist progress so downstream consumers can update summaries without reading checklist rows directly.
 
+As of 0.33.6.12j, choosing `All Future` when saving a recurring task records the edited occurrence's active checklist structure to the recurrence template and applies that structure to eligible future open/in-progress/blocked occurrences in the same series. Past occurrences, completed occurrences, and archived occurrences are not rewritten. Future occurrences keep their own checklist completion state: exact label matches preserve checked/completed progress, newly propagated rows start unchecked, and future generated recurrence instances copy the template checklist rows unchecked.
+
 ## Parent And Child Tasks
 
 Tasks can link parent and child tasks for planning. Relationship behavior prevents circular references, enforces workspace boundaries, and keeps business-workspace client context compatible when both records have client context.
@@ -148,6 +152,8 @@ Task recurrence supports Daily, Weekdays, Weekends, Weekly, and Monthly frequenc
 
 As of 0.33.5.21.7.7, completing a recurring task queues `task.recurrence` work and does not create the next instance in the completion request. `tasks.service.complete()` and the protected completion route return the completed task, `createdTask` is `null`, and `recurrenceJob.queued` indicates whether recurrence work was queued; the worker creates the next recurring task asynchronously. The Tasks page shows a small "Next recurring task queued." status when that happens, while Workbench keeps the generic completion confirmation. Public API completion responses expose only the safe `recurrenceJob.queued` hint and do not expose job IDs, dedupe keys, payload JSON, or other job internals.
 
+As of 0.33.6.12j, the recurrence worker copies saved recurrence checklist structure into newly materialized task instances after the task row is created. Copied checklist rows start unchecked even if the source occurrence was completed with checked checklist items.
+
 ## Events And Search
 
 Task lifecycle events include `task.created`, `task.updated`, `task.assigned`, `task.completed`, `task.archived`, `task.restored`, checklist events, and relationship events. Task lifecycle event metadata includes safe resume fields such as `last_worked_at`, `completion_metrics`, `checklist_progress`, `relationship_summary`, `next_action`, `blocked_reason`, `resume_note`, and `resume_context`.
@@ -161,6 +167,7 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/task-resume-context-regression.mjs`
 - `scripts/task-activity-metrics-regression.mjs`
 - `scripts/task-recurrence-frequency-regression.mjs`
+- `scripts/task-recurrence-checklist-propagation-regression.mjs`
 - `scripts/task-checklist-regression.mjs`
 - `scripts/task-relationships-regression.mjs`
 - `scripts/task-list-density-regression.mjs`

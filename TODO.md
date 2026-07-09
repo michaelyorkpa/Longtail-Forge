@@ -138,6 +138,10 @@ This section is to define a series of human testing goals for different sections
 
 ## Near Term Ideas
 
+## User controls
+
+For SaaS and even self-hosted purposes, we're going to need to limit the number of workspaces an individual user can create. Storage needs to be shared across all workspaces per user. User data backup/restore is going to be necessary but needs to have granular permissions to make it effective (we don't want to give anyone the ability to exfiltrate data).
+
 ## Questions/Thoughts
 
 - We need a way to define "default settings" for first and third party modules. e.g. default sort order, default filtering, etc.

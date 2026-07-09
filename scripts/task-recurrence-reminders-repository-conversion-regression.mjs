@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12i";
+const appVersion = "0.33.6.12j";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-reminders-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-reminders-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -57,7 +57,7 @@ function assertStaticContract() {
   assert.doesNotMatch(`${recurrenceRepoSource}\n${remindersRepoSource}`, /BEGIN TRANSACTION|COMMIT;|ROLLBACK;/, "Converted repositories should not hand-compose transaction scripts");
 
   assert.match(auditDocs, /0\.33\.5\.27\.11 Task Recurrence and Reminders Repository Conversion[\s\S]*`tasks\/task-recurrence\.repo`[\s\S]*`tasks\/task-reminders\.repo`[\s\S]*1,218 runtime literal-helper invocations[\s\S]*197 direct interpolated SQL operation sites[\s\S]*144 existing bound operation sites/, "audit docs should retain the Task recurrence/reminders conversion ratchet");
-  assert.match(auditDocs, /\| tasks\/task-recurrence\.repo \| Converted \| 0 \| 0 \| 7 \| 7 \|/, "audit inventory should mark tasks/task-recurrence.repo converted");
+  assert.match(auditDocs, /\| tasks\/task-recurrence\.repo \| Converted \| 0 \| 0 \| 10 \| 10 \|/, "audit inventory should mark tasks/task-recurrence.repo converted");
   assert.match(auditDocs, /\| tasks\/task-reminders\.repo \| Converted \| 0 \| 0 \| 4 \| 4 \|/, "audit inventory should mark tasks/task-reminders.repo converted");
   assert.match(auditDocs, /0\.33\.5\.27\.11 Task Recurrence and Reminders Repository Conversion[\s\S]*`tasks\/task-recurrence\.repo`[\s\S]*`tasks\/task-reminders\.repo`[\s\S]*1,218 runtime literal-helper invocations[\s\S]*197 direct interpolated SQL operation sites[\s\S]*144 existing bound operation sites/, "audit docs should record the Task recurrence/reminders repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.11[\s\S]*`tasks\/task-recurrence\.repo`[\s\S]*`tasks\/task-reminders\.repo`[\s\S]*1,218 remaining helper invocations/, "database docs should record the Task recurrence/reminders repository conversion");

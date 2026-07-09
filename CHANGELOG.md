@@ -1,3 +1,11 @@
+## Version 0.33.6.12j - 2026-07-09 12:51 -04:00
+
+- Added recurrence checklist-structure storage through `task_recurrence_checklist_items` and wired `All Future` task saves to copy the edited occurrence's active checklist label/order structure into the recurrence series.
+- Propagated that saved checklist structure to eligible future active occurrences while leaving past, completed, and archived occurrences untouched; exact label matches keep per-occurrence checked progress and new rows start unchecked.
+- Updated recurrence generation so new future instances inherit the saved checklist structure as unchecked checklist rows, refreshed Tasks/database/module contracts, added `scripts/task-recurrence-checklist-propagation-regression.mjs`, advanced version guardrails to 0.33.6.12j, and marked the 0.33.6.12j roadmap slice complete.
+- Updated the live parameter-binding audit ratchet to 0 helper invocations, 0 direct interpolated SQL operation sites, 395 bound operation sites, and 439 runtime DB operation calls after the recurrence checklist repository additions.
+- Verification 2026-07-09 13:12 -04:00: changed Tasks modules and the recurrence checklist propagation regression passed `node --check`; focused recurrence/checklist/migration/audit/fresh-database/baseline-adoption/job-outbox/repository-conversion regressions passed; `npm run check` passed 304/304 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; SQLite startup applied migration `068` and `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.12j from the refreshed local 8001 server.
+
 ## Version 0.33.6.12i - 2026-07-09 12:23 -04:00
 
 - Removed the duplicate Task Focus Client/Project fallback line so the selected task summary now shows that context once.

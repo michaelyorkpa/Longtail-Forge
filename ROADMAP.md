@@ -821,19 +821,19 @@ Product rule:
 - Future generated occurrences inherit checklist item text/order from the recurrence series.
 - Checklist completion state does not carry forward as completed work; future occurrences should start with the copied checklist items unchecked unless an existing future occurrence already has its own preserved progress.
 
-- [ ] Audit the canonical Task editor save path for recurring tasks and confirm whether checklist changes are included in the `All Future Tasks` update payload.
-- [ ] Wire checklist item structure into the recurrence-series update path used by the `All Future Tasks` button.
+- [x] Audit the canonical Task editor save path for recurring tasks and confirm whether checklist changes are included in the `All Future Tasks` update payload.
+- [x] Wire checklist item structure into the recurrence-series update path used by the `All Future Tasks` button.
   - Include item text, order, and active/deleted state needed to reproduce the checklist.
   - Do not copy completed/check-state as completed future work.
-- [ ] Ensure newly generated future recurrence instances inherit the saved checklist structure.
-- [ ] Ensure already-generated eligible future instances in the same series receive the checklist structure when `All Future Tasks` is applied.
+- [x] Ensure newly generated future recurrence instances inherit the saved checklist structure.
+- [x] Ensure already-generated eligible future instances in the same series receive the checklist structure when `All Future Tasks` is applied.
   - Do not alter past instances.
   - Do not alter completed/archived instances unless the existing recurrence-update contract already explicitly includes them and tests prove the behavior is intended.
   - Preserve existing per-instance checklist progress where a future occurrence already has progress that can be safely matched.
-- [ ] Preserve Tasks-owned permissions, validation, audit/event/search/notification side effects, and recurrence update semantics.
-- [ ] Keep checklist structure editing in the canonical Task editor; Task Focus continues to execute checklist check/uncheck only.
-- [ ] Update Tasks documentation to record the `All Future Tasks` checklist-structure propagation rule and occurrence-specific checklist completion state.
-- [ ] Add focused regressions proving:
+- [x] Preserve Tasks-owned permissions, validation, audit/event/search/notification side effects, and recurrence update semantics.
+- [x] Keep checklist structure editing in the canonical Task editor; Task Focus continues to execute checklist check/uncheck only.
+- [x] Update Tasks documentation to record the `All Future Tasks` checklist-structure propagation rule and occurrence-specific checklist completion state.
+- [x] Add focused regressions proving:
   - Editing a recurring task checklist and choosing `All Future Tasks` updates the recurrence series checklist structure.
   - Future generated instances inherit checklist items.
   - Already-generated eligible future instances receive the checklist items.

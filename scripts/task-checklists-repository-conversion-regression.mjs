@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12i";
+const appVersion = "0.33.6.12j";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-checklists-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-checklists-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -55,7 +55,7 @@ function assertStaticContract() {
   assert.doesNotMatch(taskChecklistsRepoSource, /is_checked\s*(?:=|!=)\s*1|Number\(row\.is_checked\)\s*===\s*1/, "Checklist checked-state logic should not spell SQLite boolean storage directly");
 
   assert.match(auditDocs, /0\.33\.5\.27\.9 Task Checklist Repository Conversion[\s\S]*`tasks\/task-checklists\.repo`[\s\S]*1,331 runtime literal-helper invocations[\s\S]*215 direct interpolated SQL operation sites[\s\S]*123 existing bound operation sites/, "audit docs should retain the Task checklist conversion ratchet");
-  assert.match(auditDocs, /\| tasks\/task-checklists\.repo \| Converted \| 0 \| 0 \| 8 \| 8 \|/, "audit inventory should mark tasks/task-checklists.repo converted");
+  assert.match(auditDocs, /\| tasks\/task-checklists\.repo \| Converted \| 0 \| 0 \| 11 \| 11 \|/, "audit inventory should mark tasks/task-checklists.repo converted");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.9[\s\S]*`tasks\/task-checklists\.repo`[\s\S]*1,331 remaining helper invocations/, "database docs should record the Task checklist repository conversion");
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.9[\s\S]*task checklist repository uses named bound params[\s\S]*`db\.transaction\(callback\)`[\s\S]*boolean seam/, "Tasks docs should describe the converted checklist persistence boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.9 - Conversion wave: Task checklist repository[\s\S]*- \[x\] Convert `tasks\/task-checklists\.repo`[\s\S]*- \[x\] Preserve checklist read\/progress[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");

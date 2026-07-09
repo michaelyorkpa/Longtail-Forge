@@ -300,6 +300,29 @@ LIMIT 1;
   return attachAssignees([taskRowToAppValue(rows[0])], assignees)[0];
 }
 
+async function readFutureRecurrenceInstances(workspaceId, templateId, afterInstanceDate) {
+  const rows = await db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.recurrence_template_id = :templateId
+  AND tasks.recurrence_instance_date IS NOT NULL
+  AND tasks.recurrence_instance_date != ''
+  AND tasks.recurrence_instance_date > :afterInstanceDate
+  AND tasks.status NOT IN ('complete', 'archived')
+ORDER BY tasks.recurrence_instance_date ASC, tasks.due_time ASC, tasks.created_at ASC;
+`), {
+    afterInstanceDate,
+    templateId,
+    workspaceId,
+  });
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const assignees = await readAssigneesForTasks(workspaceId, rows.map((row) => row.task_id));
+  return attachAssignees(rows.map(taskRowToAppValue), assignees);
+}
+
 async function readRecurrenceInstanceStats(workspaceId, templateId) {
   const row = await db.get(`
 SELECT
@@ -877,6 +900,7 @@ export const tasksRepository = {
   readById,
   readByIds,
   readByRecurrenceInstance,
+  readFutureRecurrenceInstances,
   readDueBetween,
   readRecurrenceInstanceStats,
   readReminderSchedulingCandidates,

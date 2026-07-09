@@ -145,7 +145,7 @@ As of 0.33.6.12g, Workbench view-state panels are mutually exclusive in both lay
 
 As of 0.33.6.12h, the visible row order inside Task Focus Inspector's `Same project tasks` group is due-driven rather than newest-first. Users should see due-today and overdue tasks first, then upcoming due tasks from nearest to farthest, with no-due tasks at the end of that group.
 
-As of 0.33.6.12i, the Task Focus summary keeps one Client/Project context line and uses the summary chip row for status, priority, due date/time, and safe direct tags. The summary lead text should not repeat the same Client/Project path when a task has no next action, resume note, or description.
+As of 0.33.6.12j, the Task Focus summary keeps one Client/Project context line and uses the summary chip row for status, priority, due date/time, and safe direct tags. The summary lead text should not repeat the same Client/Project path when a task has no next action, resume note, or description.
 
 ## Main-Screen Internal Surfaces
 

@@ -1,4 +1,5 @@
 import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
+import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { AppError } from "../../core/errors.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
@@ -125,27 +126,61 @@ async function materializeInstance({ session, template, instanceDate, createTask
     ? normalizeUtcIso(`${instanceDate}T${template.due_time}:00`, template.due_timezone || session.timezone)
     : "";
 
+  const task = await createTask.create({
+    client_id: template.client_id,
+    project_id: template.project_id,
+    title: template.title,
+    description: template.description,
+    status: "open",
+    priority: template.priority,
+    due_date: instanceDate,
+    due_time: template.due_time,
+    due_timezone: template.due_timezone || session.timezone,
+    due_at_utc: dueAtUtc,
+    source_type: "recurrence",
+    source_id: template.recurrence_template_id,
+    recurrence_template_id: template.recurrence_template_id,
+    recurrence_instance_date: instanceDate,
+    reminder_override_enabled: false,
+    assignee_ids: template.assignee_ids || [],
+  });
+  await copyTemplateChecklistToTask({
+    session,
+    task,
+    template,
+  });
+
   return {
-    task: await createTask.create({
-      client_id: template.client_id,
-      project_id: template.project_id,
-      title: template.title,
-      description: template.description,
-      status: "open",
-      priority: template.priority,
-      due_date: instanceDate,
-      due_time: template.due_time,
-      due_timezone: template.due_timezone || session.timezone,
-      due_at_utc: dueAtUtc,
-      source_type: "recurrence",
-      source_id: template.recurrence_template_id,
-      recurrence_template_id: template.recurrence_template_id,
-      recurrence_instance_date: instanceDate,
-      reminder_override_enabled: false,
-      assignee_ids: template.assignee_ids || [],
-    }),
+    task,
     wasCreated: true,
   };
+}
+
+async function copyTemplateChecklistToTask({ session, task, template }) {
+  if (!task?.task_id || !template?.recurrence_template_id) {
+    return [];
+  }
+
+  const checklistItems = Array.isArray(template.checklistItems)
+    ? template.checklistItems
+    : await taskRecurrenceRepository.readTemplateChecklist(
+        session.workspace_id,
+        template.recurrence_template_id,
+      );
+
+  for (const [index, item] of checklistItems.entries()) {
+    await taskChecklistsRepository.create(session.workspace_id, task.task_id, {
+      label: item.label,
+      sort_order: item.sort_order || ((index + 1) * 1000),
+      is_checked: false,
+      completed_at: "",
+      completed_by_user_id: "",
+      created_by_user_id: session.user_id || template.updated_by_user_id || template.created_by_user_id,
+      updated_by_user_id: session.user_id || template.updated_by_user_id || template.created_by_user_id,
+    });
+  }
+
+  return checklistItems;
 }
 
 async function readTaskRecurrenceDetails(task) {

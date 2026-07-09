@@ -50,6 +50,11 @@ ORDER BY version;
       module_id: "core",
       name: "user_theme_auto_source",
     },
+    {
+      version: "068",
+      module_id: "core",
+      name: "task_recurrence_checklist_items",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -104,6 +109,7 @@ ORDER BY name;
     "task_assignees",
     "task_checklist_items",
     "task_recurrence_assignees",
+    "task_recurrence_checklist_items",
     "task_recurrence_templates",
     "task_relationships",
     "task_reminder_offsets",

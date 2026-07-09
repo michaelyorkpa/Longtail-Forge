@@ -163,6 +163,8 @@ A workspace should eventually be able to use Longtail Forge for notes, support t
 
 Current Tasks behavior includes human-written next actions, blocked reasons, resume notes, task-owned `last_worked_at`, completion duration metadata, lightweight checklist progress, parent/child blocking relationships, recurrence frequencies for Daily/Weekdays/Weekends/Weekly/Monthly work, and task timer source routes. Those fields are exposed through task reads, summaries, Workbench task items, search documents, audit metadata, internal task event metadata, and the framework resume-state producer as resume-safe source context.
 
+As of 0.33.6.12j, Tasks recurrence owns checklist structure propagation for `All Future` saves. The recurrence template stores checklist label/order structure separately from occurrence checklist completion state, applies that structure to eligible future active occurrences, and copies it unchecked into newly generated recurrence instances. Workbench Task Focus consumes the resulting task checklist read models; it does not own recurrence propagation or checklist structure editing.
+
 The global resume-state storage, protected browser API, dismissal state, producer contract, and read-guard boundary are framework-owned. Tasks supplies source context and hooks for those consumers without owning the global resume-state framework or future Workbench feed UI.
 
 ### Time Tracking
@@ -832,7 +834,7 @@ As of 0.33.6.12e-2, the Task Focus Inspector consumes that selected-task related
 
 As of 0.33.6.12h, the same-project Tasks subgroup inside Task Focus related context is ordered by due-date usefulness instead of generic latest-first sorting. Dated tasks due today or already overdue lead that subgroup, future-dated tasks follow from nearest to farthest, no-due tasks stay last, and equal-date ties stay deterministic through task metadata rather than browser insertion order.
 
-As of 0.33.6.12i, the Workbench Task Focus summary remains a browser-owned read-only presentation layer on top of the existing Tasks read route. It shows one safe Client/Project context line and uses the summary chip row for status, priority, due date/time, and direct tags instead of duplicating Client/Project context in body copy or forcing users to expand Task Details for basic task metadata.
+As of 0.33.6.12j, the Workbench Task Focus summary remains a browser-owned read-only presentation layer on top of the existing Tasks read route. It shows one safe Client/Project context line and uses the summary chip row for status, priority, due date/time, and direct tags instead of duplicating Client/Project context in body copy or forcing users to expand Task Details for basic task metadata.
 
 As of 0.33.6.12f, the Pick up where I left off focus corrects its recovery recommendation by boosting the second-most-recent updated readable active task from the Tasks Workbench item source, scoped by the current Client/Project filters and ordered by canonical task `updated_at`. Running and paused timer resume rows stay first, the boosted task is deduplicated against any existing resume row, and disabled, completed, archived, unreadable, private/secure, or out-of-filter tasks remain excluded by the existing source and permission boundaries.
 

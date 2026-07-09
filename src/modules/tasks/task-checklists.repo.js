@@ -228,6 +228,124 @@ WHERE workspace_id = :workspaceId
   return readById(workspaceId, itemId);
 }
 
+async function replaceStructureForTask(workspaceId, taskId, items, updatedByUserId) {
+  const now = new Date().toISOString();
+  const normalizedItems = normalizeChecklistStructureItems(items);
+  const existingItems = await readForTask(workspaceId, taskId);
+  const existingByLabel = existingItems.reduce((map, item) => {
+    const key = checklistMatchKey(item.label);
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+
+    map.get(key).push(item);
+    return map;
+  }, new Map());
+  const retainedItemIds = new Set();
+
+  await db.transaction(async (transaction) => {
+    for (const [index, item] of normalizedItems.entries()) {
+      const matched = existingByLabel.get(checklistMatchKey(item.label))?.shift() || null;
+      const sortOrder = integerParam(item.sort_order || ((index + 1) * 1000));
+
+      if (matched) {
+        retainedItemIds.add(matched.task_checklist_item_id);
+        await transaction.run(`
+UPDATE task_checklist_items
+SET label = :label,
+    sort_order = :sortOrder,
+    updated_by_user_id = :updatedByUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND task_id = :taskId
+  AND task_checklist_item_id = :itemId
+  AND deleted_at IS NULL;
+`, {
+          itemId: textParam(matched.task_checklist_item_id),
+          label: textParam(item.label),
+          now,
+          sortOrder,
+          taskId: textParam(taskId),
+          updatedByUserId: nullableTextParam(updatedByUserId),
+          workspaceId: textParam(workspaceId),
+        });
+        continue;
+      }
+
+      await transaction.run(`
+INSERT INTO task_checklist_items (
+  task_checklist_item_id,
+  workspace_id,
+  task_id,
+  label,
+  is_checked,
+  completed_at,
+  completed_by_user_id,
+  sort_order,
+  deleted_at,
+  deleted_by_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at
+)
+VALUES (
+  :itemId,
+  :workspaceId,
+  :taskId,
+  :label,
+  :isChecked,
+  NULL,
+  NULL,
+  :sortOrder,
+  NULL,
+  NULL,
+  :createdByUserId,
+  :updatedByUserId,
+  :now,
+  :now
+);
+`, {
+        createdByUserId: nullableTextParam(updatedByUserId),
+        isChecked: booleanParam(false),
+        itemId: randomUUID(),
+        label: textParam(item.label),
+        now,
+        sortOrder,
+        taskId: textParam(taskId),
+        updatedByUserId: nullableTextParam(updatedByUserId),
+        workspaceId: textParam(workspaceId),
+      });
+    }
+
+    for (const existing of existingItems) {
+      if (retainedItemIds.has(existing.task_checklist_item_id)) {
+        continue;
+      }
+
+      await transaction.run(`
+UPDATE task_checklist_items
+SET deleted_at = :now,
+    deleted_by_user_id = :updatedByUserId,
+    updated_by_user_id = :updatedByUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND task_id = :taskId
+  AND task_checklist_item_id = :itemId
+  AND deleted_at IS NULL;
+`, {
+        itemId: textParam(existing.task_checklist_item_id),
+        now,
+        taskId: textParam(taskId),
+        updatedByUserId: nullableTextParam(updatedByUserId),
+        workspaceId: textParam(workspaceId),
+      });
+    }
+  });
+
+  return readForTask(workspaceId, taskId);
+}
+
 async function nextSortOrder(workspaceId, taskId) {
   const row = await db.get(`
 SELECT COALESCE(MAX(sort_order), 0) + 1000 AS next_sort_order
@@ -270,6 +388,20 @@ function integerParam(value) {
   return Number.isFinite(integer) ? integer : 0;
 }
 
+function normalizeChecklistStructureItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item, index) => ({
+      ...item,
+      label: String(item?.label || "").trim(),
+      sort_order: integerParam(item?.sort_order || ((index + 1) * 1000)),
+    }))
+    .filter((item) => item.label);
+}
+
+function checklistMatchKey(label) {
+  return String(label || "").trim();
+}
+
 function nullableTextParam(value) {
   const text = String(value ?? "").trim();
   return text ? text : null;
@@ -285,6 +417,7 @@ export const taskChecklistsRepository = {
   readForTask,
   readProgressForTasks,
   reorder,
+  replaceStructureForTask,
   softDelete,
   update,
 };

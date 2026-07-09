@@ -111,8 +111,14 @@ LIMIT 1;
     return null;
   }
 
-  const assignees = await readTemplateAssignees(workspaceId, templateId);
-  return attachTemplateAssignees([templateRowToAppValue(row)], assignees)[0];
+  const [assignees, checklistItems] = await Promise.all([
+    readTemplateAssignees(workspaceId, templateId),
+    readTemplateChecklist(workspaceId, templateId),
+  ]);
+  return {
+    ...attachTemplateAssignees([templateRowToAppValue(row)], assignees)[0],
+    checklistItems,
+  };
 }
 
 async function readActiveTemplates(workspaceId) {
@@ -186,6 +192,98 @@ VALUES (
       });
     }
   });
+}
+
+async function readTemplateChecklist(workspaceId, templateId) {
+  const rows = await db.query(`
+SELECT
+  recurrence_checklist_item_id,
+  workspace_id,
+  recurrence_template_id,
+  label,
+  sort_order,
+  deleted_at,
+  deleted_by_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at
+FROM task_recurrence_checklist_items
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+  AND deleted_at IS NULL
+ORDER BY sort_order, created_at;
+`, {
+    templateId: textParam(templateId),
+    workspaceId: textParam(workspaceId),
+  });
+
+  return rows.map(templateChecklistRowToAppValue);
+}
+
+async function replaceTemplateChecklist(workspaceId, templateId, items, updatedByUserId) {
+  const now = new Date().toISOString();
+  const normalizedItems = normalizeTemplateChecklistItems(items);
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+UPDATE task_recurrence_checklist_items
+SET deleted_at = :now,
+    deleted_by_user_id = :updatedByUserId,
+    updated_by_user_id = :updatedByUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+  AND deleted_at IS NULL;
+`, {
+      now,
+      templateId: textParam(templateId),
+      updatedByUserId: nullableTextParam(updatedByUserId),
+      workspaceId: textParam(workspaceId),
+    });
+
+    for (const [index, item] of normalizedItems.entries()) {
+      await transaction.run(`
+INSERT INTO task_recurrence_checklist_items (
+  recurrence_checklist_item_id,
+  workspace_id,
+  recurrence_template_id,
+  label,
+  sort_order,
+  deleted_at,
+  deleted_by_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at
+)
+VALUES (
+  :itemId,
+  :workspaceId,
+  :templateId,
+  :label,
+  :sortOrder,
+  NULL,
+  NULL,
+  :createdByUserId,
+  :updatedByUserId,
+  :now,
+  :now
+);
+`, {
+        createdByUserId: nullableTextParam(item.created_by_user_id || updatedByUserId),
+        itemId: textParam(item.recurrence_checklist_item_id || randomUUID()),
+        label: textParam(item.label),
+        now,
+        sortOrder: integerParam(item.sort_order || ((index + 1) * 1000)),
+        templateId: textParam(templateId),
+        updatedByUserId: nullableTextParam(updatedByUserId),
+        workspaceId: textParam(workspaceId),
+      });
+    }
+  });
+
+  return readTemplateChecklist(workspaceId, templateId);
 }
 
 async function readTemplateAssignees(workspaceId, templateId) {
@@ -268,6 +366,32 @@ function templateRowToAppValue(row) {
   };
 }
 
+function templateChecklistRowToAppValue(row) {
+  return {
+    created_at: row.created_at || "",
+    created_by_user_id: row.created_by_user_id || "",
+    deleted_at: row.deleted_at || "",
+    deleted_by_user_id: row.deleted_by_user_id || "",
+    label: row.label || "",
+    recurrence_checklist_item_id: row.recurrence_checklist_item_id,
+    recurrence_template_id: row.recurrence_template_id,
+    sort_order: Number.parseInt(row.sort_order, 10) || 0,
+    updated_at: row.updated_at || "",
+    updated_by_user_id: row.updated_by_user_id || "",
+    workspace_id: row.workspace_id,
+  };
+}
+
+function normalizeTemplateChecklistItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item, index) => ({
+      ...item,
+      label: String(item?.label || "").trim(),
+      sort_order: integerParam(item?.sort_order || ((index + 1) * 1000)),
+    }))
+    .filter((item) => item.label);
+}
+
 function templateWriteParams({ includeCreatedByUserId = false, now, template, templateId, workspaceId }) {
   const params = {
     clientId: nullableTextParam(template.client_id),
@@ -305,9 +429,16 @@ function nullableTextParam(value) {
   return text ? text : null;
 }
 
+function integerParam(value) {
+  const integer = Number.parseInt(value, 10);
+  return Number.isFinite(integer) ? integer : 0;
+}
+
 export const taskRecurrenceRepository = {
   createTemplate,
   readActiveTemplates,
+  readTemplateChecklist,
   readTemplateById,
+  replaceTemplateChecklist,
   updateTemplate,
 };

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12i";
+const appVersion = "0.33.6.12j";
 const migrationVersion = "065";
 const migrationFile = "src/db/migrations/065_job_outbox_schema.sql";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-outbox-schema-"));
@@ -89,6 +89,11 @@ ORDER BY version;
       version: "067",
       module_id: "core",
       name: "user_theme_auto_source",
+    },
+    {
+      version: "068",
+      module_id: "core",
+      name: "task_recurrence_checklist_items",
     },
   ]);
 }

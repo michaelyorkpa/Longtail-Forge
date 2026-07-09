@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12i";
+const appVersion = "0.33.6.12j";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -160,22 +160,22 @@ assert.match(
 );
 assert.match(
   moduleContract,
-  /As of 0\.33\.6\.12i[\s\S]*Client\/Project path once[\s\S]*summary chips[\s\S]*safe direct tags/,
+  /As of 0\.33\.6\.12j[\s\S]*Client\/Project path once[\s\S]*summary chips[\s\S]*safe direct tags/,
   "Module contract should record the compact Task Focus summary metadata boundary",
 );
 assert.match(
   uiSurfaceContract,
-  /As of 0\.33\.6\.12i[\s\S]*Task Focus summary keeps one Client\/Project context line[\s\S]*status, priority, due date\/time, and safe direct tags/,
+  /As of 0\.33\.6\.12j[\s\S]*Task Focus summary keeps one Client\/Project context line[\s\S]*status, priority, due date\/time, and safe direct tags/,
   "UI surface contract should document the non-duplicated Task Focus summary and chip row",
 );
 assert.match(
   tasksModuleDoc,
-  /As of 0\.33\.6\.12i[\s\S]*Task Focus summary reuses the existing Tasks read payload[\s\S]*Client\/Project path once[\s\S]*safe direct tags as summary chips/,
+  /As of 0\.33\.6\.12j[\s\S]*Task Focus summary reuses the existing Tasks read payload[\s\S]*Client\/Project path once[\s\S]*safe direct tags as summary chips/,
   "Tasks docs should describe the Task Focus summary metadata contract",
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12i, the selected-task summary shows one Client\/Project path line and uses the summary chip row/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12j, the selected-task summary shows one Client\/Project path line and uses the summary chip row/,
   "View-building contract should include the Task Focus anatomy",
 );
 assert.match(

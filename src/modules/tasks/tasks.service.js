@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { tasksRepository } from "./tasks.repo.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
+import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 import { taskTimersService } from "./task-timers.service.js";
@@ -460,6 +461,10 @@ async function update(taskId, payload, session) {
         recurrence_template_id: previousTask.recurrence_template_id,
       },
       recurrence,
+    });
+    await syncRecurringChecklistStructure({
+      session,
+      sourceTask: previousTask,
     });
     await recordRecurrenceAudit({
       session,
@@ -1395,15 +1400,23 @@ async function canReadTask(session, task) {
 }
 
 async function assertCanEditTask(session, task) {
-  if (await permissionsService.can(session, "tasks.edit_all", taskResource(task))) {
-    return;
-  }
-
-  if (isOwnTask(session, task) && await permissionsService.can(session, "tasks.edit_own", taskResource(task))) {
+  if (await canEditTask(session, task)) {
     return;
   }
 
   throw new AppError("You do not have permission to perform that action.", 403);
+}
+
+async function canEditTask(session, task) {
+  if (await permissionsService.can(session, "tasks.edit_all", taskResource(task))) {
+    return true;
+  }
+
+  if (isOwnTask(session, task) && await permissionsService.can(session, "tasks.edit_own", taskResource(task))) {
+    return true;
+  }
+
+  return false;
 }
 
 async function assertCanCompleteTask(session, task) {
@@ -1654,6 +1667,74 @@ async function requestTagPropagationRefresh(session, targetType, targetId, reaso
   } catch (error) {
     console.error(`[tasks] Tag propagation refresh failed for ${targetType}:${targetId}:`, error);
   }
+}
+
+async function syncRecurringChecklistStructure({ session, sourceTask }) {
+  const templateId = sourceTask?.recurrence_template_id || "";
+  if (!templateId) {
+    return {
+      futureTaskCount: 0,
+      templateChecklistItems: [],
+    };
+  }
+
+  const sourceItems = recurringChecklistStructureItems(
+    await taskChecklistsRepository.readForTask(session.workspace_id, sourceTask.task_id),
+  );
+  const templateChecklistItems = await taskRecurrenceRepository.replaceTemplateChecklist(
+    session.workspace_id,
+    templateId,
+    sourceItems,
+    session.user_id,
+  );
+  const anchorDate = sourceTask.recurrence_instance_date || sourceTask.due_date || "";
+  if (!anchorDate) {
+    return {
+      futureTaskCount: 0,
+      templateChecklistItems,
+    };
+  }
+
+  const futureTasks = await tasksRepository.readFutureRecurrenceInstances(session.workspace_id, templateId, anchorDate);
+  let futureTaskCount = 0;
+
+  for (const futureTask of futureTasks) {
+    if (!(await canEditTask(session, futureTask))) {
+      continue;
+    }
+
+    const previousValue = await readTaggedTaskWithDetails(session, futureTask.task_id);
+    await taskChecklistsRepository.replaceStructureForTask(
+      session.workspace_id,
+      futureTask.task_id,
+      templateChecklistItems,
+      session.user_id,
+    );
+    const newValue = await readTaggedTaskWithDetails(session, futureTask.task_id);
+    await recordRecurringChecklistPropagation({
+      session,
+      previousValue,
+      newValue,
+      sourceTask,
+      templateId,
+    });
+    await syncTaskSearchIndex(session.workspace_id, futureTask.task_id, "task.recurrence_checklist_propagated");
+    futureTaskCount += 1;
+  }
+
+  return {
+    futureTaskCount,
+    templateChecklistItems,
+  };
+}
+
+function recurringChecklistStructureItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => !item.deleted_at)
+    .map((item, index) => ({
+      label: normalizeChecklistLabel(item.label),
+      sort_order: normalizeChecklistSortOrder(item.sort_order, index),
+    }));
 }
 
 async function readTaggedTaskWithDetails(session, taskId) {
@@ -1909,6 +1990,11 @@ function normalizeChecklistLabel(value) {
   }
 
   return label.slice(0, 240);
+}
+
+function normalizeChecklistSortOrder(value, index = 0) {
+  const sortOrder = Number.parseInt(value, 10);
+  return Number.isFinite(sortOrder) ? sortOrder : (index + 1) * 1000;
 }
 
 function normalizeChecklistItemIds(itemIds) {
@@ -2550,6 +2636,47 @@ async function recordRecurrenceAudit({ session, action, changeType, previousValu
         : `Created recurring task series for "${newValue?.title || "Task"}"`,
       recurrence_template_id: templateId,
       task_id: newValue?.task_id || previousValue?.task_id || "",
+    },
+  });
+}
+
+async function recordRecurringChecklistPropagation({ session, previousValue, newValue, sourceTask, templateId }) {
+  const checklistProgress = newValue?.checklistProgress || emptyChecklistProgress();
+
+  await auditService.record({
+    session,
+    action: "task_recurrence_checklist_propagated",
+    changeType: "update",
+    recordType: "task",
+    recordId: newValue?.task_id || previousValue?.task_id,
+    recordLabel: newValue?.title || previousValue?.title,
+    recordUrl: `tasks.html?task=${encodeURIComponent(newValue?.task_id || previousValue?.task_id || "")}`,
+    previousValue,
+    newValue,
+    metadata: {
+      summary: `Propagated recurring checklist structure for "${newValue?.title || previousValue?.title || "Task"}"`,
+      recurrence_template_id: templateId,
+      source_task_id: sourceTask?.task_id || "",
+      task_id: newValue?.task_id || previousValue?.task_id || "",
+      checklist_progress: checklistProgress,
+    },
+  });
+
+  await modulesService.emitInternalEvent("task.checklist_structure.propagated", {
+    session,
+    moduleId: TASKS_MODULE_ID,
+    recordType: "task",
+    recordId: newValue?.task_id || previousValue?.task_id,
+    previousValue,
+    newValue,
+    source: session?.api_key_id ? "public_api" : "manual",
+    metadata: {
+      recurrence_template_id: templateId,
+      source_task_id: sourceTask?.task_id || "",
+      task_id: newValue?.task_id || previousValue?.task_id || "",
+      checklist_progress: checklistProgress,
+      item_count: checklistProgress.total_count,
+      completed_count: checklistProgress.completed_count,
     },
   });
 }
