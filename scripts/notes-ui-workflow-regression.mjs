@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.6.12j");
+  assert.equal(notesModule.version, "0.33.6.12n");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=12/);
   assert.match(html, /js\/shared\/icons\.js\?v=4/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
-  assert.match(html, /js\/notes\.js\?v=71/);
+  assert.match(html, /js\/notes\.js\?v=72/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);

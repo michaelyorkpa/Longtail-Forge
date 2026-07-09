@@ -672,6 +672,69 @@ async function removeLink(noteId, noteLinkId, session) {
   return { link };
 }
 
+async function readTaskLinkedNotePropagationStructure(session, taskId) {
+  if (!(await canManageLinkedNotePropagation(session))) {
+    return {
+      links: [],
+      skipped: true,
+    };
+  }
+
+  const target = normalizeTarget({
+    module_id: "tasks",
+    target_type: "task",
+    target_id: taskId,
+  });
+  await assertTargetAccess(session, target);
+
+  const links = await notesRepository.listLinksForTarget(session.workspace_id, target);
+  const accessibleNoteIds = await accessibleNoteIdSetForLinks(session, links);
+
+  return {
+    links: links
+      .filter((link) => accessibleNoteIds.has(link.note_id))
+      .map((link, index) => ({
+        link_role: link.link_role || "related",
+        note_id: link.note_id,
+        scope_role: link.scope_role || "related",
+        sort_order: (index + 1) * 1000,
+      })),
+    skipped: false,
+  };
+}
+
+async function replacePropagatedTaskLinkedNotes(session, { taskId, templateId, links = [], sourceTaskId = "" } = {}) {
+  if (!(await canManageLinkedNotePropagation(session))) {
+    return {
+      createdCount: 0,
+      removedCount: 0,
+      skipped: true,
+    };
+  }
+
+  const target = normalizeTarget({
+    module_id: "tasks",
+    target_type: "task",
+    target_id: taskId,
+  });
+  await assertTargetAccess(session, target);
+
+  const accessibleNoteIds = await accessibleNoteIdSetForLinks(session, links);
+  const safeLinks = links.filter((link) => accessibleNoteIds.has(link.note_id || link.noteId));
+  const result = await notesRepository.replacePropagatedLinksForTarget(session.workspace_id, target, safeLinks, {
+    created_by_user_id: session.user_id,
+    recurrence_template_id: templateId,
+    source_task_id: sourceTaskId,
+  });
+  await finalizePropagatedNoteLinkChanges(session, result);
+
+  return {
+    createdCount: result.createdLinks.length,
+    removedCount: result.removedLinks.length,
+    skipped: false,
+  };
+}
+
 async function listForTarget(session, query = {}) {
   const target = normalizeTargetFromQuery(query, session);
   await assertTargetAccess(session, target);
@@ -2580,6 +2643,68 @@ async function linkedNotePanelActions(session, moduleState = {}) {
   };
 }
 
+async function canManageLinkedNotePropagation(session) {
+  const moduleState = await readNotesModuleState(session);
+  if (!moduleState.enabled) {
+    return false;
+  }
+
+  return permissionsService.can(session, NOTE_PERMISSIONS.MANAGE_LINKS, {
+    workspace_id: session.workspace_id,
+    operation: "manage_links",
+  });
+}
+
+async function accessibleNoteIdSetForLinks(session, links = []) {
+  const noteIds = [...new Set((Array.isArray(links) ? links : [])
+    .map((link) => normalizeOptionalText(link.note_id || link.noteId))
+    .filter(Boolean))];
+
+  if (noteIds.length === 0) {
+    return new Set();
+  }
+
+  const notes = await notesRepository.readByIds(session.workspace_id, noteIds);
+  const accessible = await filterAccessibleNotes(session, notes);
+  return new Set(accessible.map((note) => note.note_id));
+}
+
+async function finalizePropagatedNoteLinkChanges(session, result = {}) {
+  const changedLinks = [
+    ...(result.removedLinks || []),
+    ...(result.createdLinks || []),
+  ];
+  const noteIds = [...new Set(changedLinks.map((link) => link.note_id).filter(Boolean))];
+  const notesById = new Map((await notesRepository.readByIds(session.workspace_id, noteIds))
+    .map((note) => [note.note_id, note]));
+
+  for (const removedLink of result.removedLinks || []) {
+    const note = notesById.get(removedLink.note_id);
+    if (!note) {
+      continue;
+    }
+    const previousLink = {
+      ...removedLink,
+      removed_at: "",
+    };
+    await requestTagPropagationRefresh(session, "note", note.note_id, "note.link_removed");
+    await recordNoteAudit(session, "note_link_removed", "delete", previousLink, removedLink, "note_link");
+    await emitNoteEvent("note.unlinked", session, note, note, { link: removedLink });
+    await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.unlinked");
+  }
+
+  for (const createdLink of result.createdLinks || []) {
+    const note = notesById.get(createdLink.note_id);
+    if (!note) {
+      continue;
+    }
+    await requestTagPropagationRefresh(session, "note", note.note_id, "note.link_created");
+    await recordNoteAudit(session, "note_link_created", "create", null, createdLink, "note_link");
+    await emitNoteEvent("note.linked", session, null, note, { link: createdLink });
+    await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.linked");
+  }
+}
+
 function linkedNotePanelEmptyState(target = {}) {
   return {
     title: "No linked notes yet.",
@@ -3544,8 +3669,10 @@ export const notesService = {
   previewMarkdown,
   read,
   readForAttachmentAccess,
+  readTaskLinkedNotePropagationStructure,
   readRevision,
   removeLink,
+  replacePropagatedTaskLinkedNotes,
   restore,
   restoreCollection,
   restoreRevision,

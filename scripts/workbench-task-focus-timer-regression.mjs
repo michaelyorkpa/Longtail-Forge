@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const appShellService = readText("src/services/app-shell.service.js");
 const css = readText("public/css/longtail-forge.css");
 const moduleActions = readText("public/js/shared/module-actions.js");
@@ -25,7 +25,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task Focus timer version");
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
+  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
   "Workbench should cache-bust CSS and JS for the Task Focus timer surface",
 );
 
@@ -47,18 +47,38 @@ assert.doesNotMatch(
 
 assert.match(
   functionBody(workbenchScript, "createTimerSection"),
-  /body: \[timerList\][\s\S]*cardId: "active-work-timers"[\s\S]*title: "Timers"/,
+  /body: \[timerList\][\s\S]*cardId: "active-work-timers"[\s\S]*defaultOpen: shouldOpenTimerSectionByDefault\(\)[\s\S]*title: "Timers"/,
   "Focus Selection Timers should render only the active timer list in the card body",
 );
 assert.match(
   functionBody(workbenchScript, "renderTimers"),
-  /const timers = sortedTimers\(activeOrPausedTimers\(state\.timers\)\);[\s\S]*timerList\.appendChild\(emptyState\("No active or paused timers\."\)\)/,
-  "Focus Selection Timers should render only active or paused timers and keep the no-timers empty state",
+  /const timers = sortedTimers\(visibleTimerPanelTimers\(\)\);[\s\S]*const emptyMessage = timerPanelEmptyStateText\(\);[\s\S]*updateTimerSectionTitle\(\);[\s\S]*timerList\.appendChild\(emptyState\(emptyMessage\)\)/,
+  "Timer rendering should use the state-aware visible timer list, title, and empty state",
 );
 assert.match(
   functionBody(workbenchScript, "activeOrPausedTimers"),
   /\["running", "paused"\]\.includes\(timer\?\.timer_status\)/,
   "Timer rendering should explicitly filter to active and paused records",
+);
+assert.match(
+  functionBody(workbenchScript, "visibleTimerPanelTimers"),
+  /const timers = activeOrPausedTimers\(state\.timers\);[\s\S]*if \(!isTaskFocusView\(\)\) \{[\s\S]*return timers;[\s\S]*const focusedTaskId = currentTaskFocusId\(\);[\s\S]*return timers\.filter\(\(timer\) => !taskTimerMatches\(timer, focusedTaskId\)\);/,
+  "Task Focus should filter the focused task's active or paused timer out of the lower timer panel",
+);
+assert.match(
+  functionBody(workbenchScript, "timerPanelEmptyStateText"),
+  /isTaskFocusView\(\) \? "No other active or paused timers\." : "No active or paused timers\."/,
+  "Task Focus should use a distinct Other Active Timers empty state without changing Focus Selection",
+);
+assert.match(
+  functionBody(workbenchScript, "updateTimerSectionTitle"),
+  /title\.textContent = isTaskFocusView\(\) \? "Other Active Timers" : "Timers";/,
+  "Task Focus should rename the lower timer panel to Other Active Timers",
+);
+assert.match(
+  functionBody(workbenchScript, "renderWorkbenchViewState"),
+  /toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, false\);/,
+  "The lower timer panel should remain mounted so Task Focus can show Other Active Timers",
 );
 
 assert.match(
@@ -82,9 +102,19 @@ assert.doesNotMatch(
   "Task Focus timer controls should use the selected task context and not ask the user to reselect Client, Project, or Task",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusTimerList"),
-  /workbenchTaskFocusTimerList[\s\S]*emptyState\("No active or paused timers\."\)[\s\S]*createTaskFocusTimerCard\(active, timer\)/,
-  "Task Focus should list the focused task's active or paused timer below the controls",
+  functionBody(workbenchScript, "createTaskFocusTimerControls"),
+  /dataset: \{ workbenchTaskFocusTimerDisplay: "" \}[\s\S]*duration\.dataset\.workbenchDuration = timer\.active_timer_id;/,
+  "The Task Timer control counter should be the focused task timer's live duration display",
+);
+assert.match(
+  functionBody(workbenchScript, "startTicking"),
+  /document\.querySelector\(`\[data-workbench-duration="\$\{timer\.active_timer_id\}"\]`\)[\s\S]*element\.textContent = formatDuration\(readElapsedSeconds\(timer\)\);/,
+  "The focused Task Timer counter should update through the shared live duration tick while running",
+);
+assert.doesNotMatch(
+  workbenchScript,
+  /function createTaskFocusTimerList|function createTaskFocusTimerCard|workbenchTaskFocusActiveTimer|workbench-task-focus-timer-card/,
+  "Task Focus should not render a duplicate focused-task timer card below the controls",
 );
 assert.match(
   functionBody(workbenchScript, "currentTaskFocusTimer"),
@@ -141,8 +171,13 @@ assert.match(
 );
 assert.match(
   css,
-  /\.workbench-task-focus-timer-control-box \{[\s\S]*border: 1px solid var\(--color-border-subtle\);[\s\S]*\.workbench-task-focus-timer-controls \{[\s\S]*align-items: center;[\s\S]*\.workbench-task-focus-timer-card \{/,
+  /\.workbench-task-focus-timer-control-box \{[\s\S]*border: 1px solid var\(--color-border-subtle\);[\s\S]*\.workbench-task-focus-timer-controls \{[\s\S]*align-items: center;/,
   "Task Focus timer styles should align with the Task modal timer controls while staying compact",
+);
+assert.doesNotMatch(
+  css,
+  /workbench-task-focus-timer-list|workbench-task-focus-timer-card/,
+  "Retired duplicate Task Focus timer card styles should not remain",
 );
 
 const timerAction = actionDefinitionBlock(appShellService, "timer");
@@ -151,33 +186,33 @@ assert.match(moduleActions, /time-tracking\.timer\.create/);
 
 assert.match(
   moduleContract,
-  /As of 0\.33\.6\.12d-1[\s\S]*Focus Selection Timers[\s\S]*manual timer creation row[\s\S]*Task Focus renders a default-open task-linked Task Timer section/,
+  /As of 0\.33\.6\.12k[\s\S]*Task Focus keeps the secondary timer panel visible as `Other Active Timers`[\s\S]*excludes the focused task's running or paused task timer[\s\S]*No other active or paused timers\./,
   "Module contract should record the Workbench timer view-state split",
 );
 assert.match(
   uiSurfaceContract,
-  /As of 0\.33\.6\.12d-1[\s\S]*Task Focus Timer[\s\S]*default-open[\s\S]*Start, Pause, Save Time, and Reset/,
+  /As of 0\.33\.6\.12k[\s\S]*Task Focus timer display[\s\S]*one visible focused-task timer representation[\s\S]*Other Active Timers/,
   "UI surface contract should describe the Task Focus timer section",
 );
 assert.match(
   tasksDoc,
-  /As of 0\.33\.6\.12d-1[\s\S]*Task Focus exposes the selected task's timer controls[\s\S]*`PUT \/api\/tasks\/:taskId\/timer`[\s\S]*`POST \/api\/tasks\/:taskId\/timer\/finalize`[\s\S]*`DELETE \/api\/tasks\/:taskId\/timer`/,
+  /As of 0\.33\.6\.12k[\s\S]*Task Focus timer UI renders the focused task's timer only inside the Task Timer section[\s\S]*does not render the focused task's active\/paused timer in `Other Active Timers`/,
   "Tasks docs should record the Workbench task timer route ownership",
 );
 assert.match(
   timeTrackingDoc,
-  /As of 0\.33\.6\.12d-1[\s\S]*Workbench Focus Selection consumes active and paused timers as a read\/control list[\s\S]*does not render the manual creation row/,
+  /As of 0\.33\.6\.12k[\s\S]*Task Focus renames the lower timer panel to `Other Active Timers`[\s\S]*Manual timers and other task timers remain eligible/,
   "Time Tracking docs should record the Workbench active-timer contribution boundary",
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*active\/paused-only Timers card[\s\S]*default-open task-linked Task Timer section/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12k, Task Focus keeps exactly one visible focused-task timer representation[\s\S]*Other Active Timers/,
   "View-building contract should include the Task Focus timer anatomy",
 );
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12d-1 - Workbench timers by view state and task-linked timer surface[\s\S]*- \[x\] In Focus Selection, remove the manual timer creation row[\s\S]*- \[x\] In Task Focus, render a task-linked timer section[\s\S]*- \[x\] Keep QAC Timer on its current explicit fallback/,
-  "Roadmap should mark the Workbench timer slice complete",
+  /### Version 0\.33\.6\.12k - Task Focus timer de-duplication and Other Active Timers[\s\S]*- \[x\] In Task Focus, remove\/filter the focused task's running\/paused timer[\s\S]*- \[x\] Rename the Task Focus lower timer panel heading from `Timers` to `Other Active Timers`[\s\S]*- Focus Selection timer behavior is unchanged\./,
+  "Roadmap should mark the Workbench Task Focus timer de-duplication slice complete",
 );
 assert.match(regressionSuite, /scripts\/workbench-task-focus-timer-regression\.mjs/);
 assert.match(regressionManifest, /scripts\/workbench-task-focus-timer-regression\.mjs/);

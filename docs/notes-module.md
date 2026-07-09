@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.6.12j. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.6.12n. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -8,7 +8,7 @@ Notes is a first-party workflow module registered by `src/modules/notes/module.j
 
 The framework owns module registration, route mounting, protected view serving, app-shell navigation, permissions, tags, search persistence, file storage, audit logging, internal events, notifications, Help discovery, and module enablement. Notes consumes those framework services through declarations and service calls instead of adding parallel storage or UI systems.
 
-As of 0.33.6.12e-1, Workbench Task Focus related context consumes Notes through Notes-owned linked-target and list service paths. Linked notes outrank project and shared-tag matches, shared-tag matches use direct tags only, and the related-context read model emits safe labels/action descriptors without note body text, secure bodies, encrypted payload metadata, or storage-sensitive fields. Notes editor/preview behavior remains owned by the Notes module.
+As of 0.33.6.12e-1, Workbench Task Focus related context consumes Notes through Notes-owned linked-target and list service paths. Linked notes outrank project and shared-tag matches, shared-tag matches use direct tags only, and the related-context read model emits safe labels/action descriptors without note body text, secure bodies, encrypted payload metadata, or storage-sensitive fields. As of 0.33.6.12m, those linked-note action descriptors use the Notes-owned `notes.view` read modal first; the modal reads the canonical note detail route, renders existing server-generated Markdown HTML, and hands off to the existing editor only through an explicit `Edit` action. As of 0.33.6.12n, recurring Task `All Future` propagation consumes Notes-owned link reads/writes for task-linked notes: Notes filters readable notes, writes future occurrence `note_links` rows with recurrence metadata, removes only propagated future links for that recurrence template when a source link is removed, and never copies note body Markdown or rendered HTML into Tasks recurrence storage. Notes editor/preview behavior remains owned by the Notes module.
 
 Important files:
 
@@ -33,7 +33,7 @@ The framework owns the slide-out shell, footer-aware screen-left funnel trigger,
 
 As of 0.33.5.18.6.11, Notes is the template implementation for future action/workflow surfaces that need side navigation without sacrificing the main record view. Future module conversions should reuse the slide-out sidebar pattern when appropriate and should not bring back the retired center `split-list-detail` layout or the rejected persistent split-column `sidebar-detail` anatomy as the default direction.
 
-As of 0.33.6.10b, Notes exposes `LongtailForge.notesDialog.openNoteEditor()` plus the shared `notes.add` and `notes.edit` module actions. These actions wrap the existing Add/Edit Note editor; they do not create an alternate form. When lazy-loaded outside the Notes page, `public/js/notes.js` creates only the existing dialog shells, prepares workspace/tags/collection data, passes the shared host context into the editor, and signals completion or cancel after the normal Notes save/cancel path runs.
+As of 0.33.6.10b, Notes exposes `LongtailForge.notesDialog.openNoteEditor()` plus the shared `notes.add` and `notes.edit` module actions. As of 0.33.6.12m, Notes also exposes `LongtailForge.notesDialog.openNoteViewer()` and the shared `notes.view` module action for read-first linked-context consumption. The add/edit actions wrap the existing Add/Edit Note editor; `notes.view` opens a rendered read modal backed by `/api/notes/:noteId`, keeps raw Markdown out of the primary read surface, and closes into the same editor when `Edit` is chosen. When lazy-loaded outside the Notes page, `public/js/notes.js` creates only the existing dialog shells plus the on-demand read modal, prepares the data needed by the selected action, passes the shared host context into the editor, and signals completion or cancel after the normal Notes save/cancel path runs.
 
 ## Library Model
 
@@ -166,6 +166,8 @@ The helper accepts `targetType`, `targetId`, optional `moduleId`, optional `clie
 The Tasks module mounts this helper in the Task detail dialog. Task-created note links include task context plus available project/client context, default Note Kind to `log`, suggest the Active Work Library bucket, and keep the normal `internal` visibility default unless the user changes it. Task list note counts also use the Notes-owned target read model so private, secure, disabled, or inaccessible notes do not leak through badge counts.
 
 As of 0.33.5.18.10.4, the helper may render already-linked note rows through `LongtailForge.view.createLinkedContextList()` so the framework owns reusable row anatomy while Notes still owns the linked-note read model, permission-shaped actions, secure-note hints, readable labels, task-created note defaults, and link/unlink writes.
+
+As of 0.33.6.12n, recurring Task propagation uses this same Notes-owned target model instead of querying `note_links` from Tasks UI code. The recurrence template stores only note-link relationship metadata in `task_recurrence_note_links`; concrete future task occurrences still receive normal Notes `note_links` rows, marked with recurrence metadata so removal through `All Future` can clear only propagated links for eligible future occurrences without deleting notes or touching manually created links.
 
 ## Resume Context Hooks
 

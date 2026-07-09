@@ -28,7 +28,7 @@ check("QAC dispatches Notes and Lists through shared module actions", () => {
   assert.doesNotMatch(actionDefinitionBlock(appShellService, "note"), /temporaryFallback: true/);
   assert.doesNotMatch(actionDefinitionBlock(appShellService, "list"), /temporaryFallback: true/);
   assert.match(footer, /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js\?v=2/);
-  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js\?v=71"/);
+  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js\?v=72"/);
   assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js\?v=14"/);
   assert.match(footer, /function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/);
 });
@@ -37,12 +37,14 @@ check("shared registry exposes first-party Notes, Lists, and Files actions", () 
   [
     "notes.add",
     "notes.edit",
+    "notes.view",
     "lists.add",
     "lists.edit",
     "files.edit",
     "files.preview",
   ].forEach((actionId) => assert.match(moduleActions, new RegExp(`id: "${escapeRegExp(actionId)}"`)));
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filesDialog\.openFilePreviewAction\(params, hostContext\)/);
@@ -72,7 +74,7 @@ check("Files registry stays attachment-scoped and does not invent a targetless u
 });
 
 check("protected pages load the action registry before module adapters", () => {
-  assert.ok(notesView.indexOf("js/shared/module-actions.js?v=2") < notesView.indexOf("js/notes.js?v=71"));
+  assert.ok(notesView.indexOf("js/shared/module-actions.js?v=2") < notesView.indexOf("js/notes.js?v=72"));
   assert.ok(listsView.indexOf("js/shared/module-actions.js?v=2") < listsView.indexOf("js/lists.js?v=14"));
   assert.ok(filesView.indexOf("js/shared/module-actions.js?v=2") < filesView.indexOf("js/files.js?v=15"));
 });

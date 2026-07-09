@@ -60,7 +60,7 @@ const taskSummaryCount = modulesService.listModuleEventSummaries()
   .length;
 
 check("registry exposes Tasks event summaries", () => {
-  assert.equal(taskSummaryCount, 17);
+  assert.equal(taskSummaryCount, 18);
 });
 
 const taskEvent = {

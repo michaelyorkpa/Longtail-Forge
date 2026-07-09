@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-background-work-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-background-work-jobs.db");

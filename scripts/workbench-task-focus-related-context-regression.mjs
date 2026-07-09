@@ -107,7 +107,7 @@ async function assertRelatedContextReadModel(session, fixtures) {
     assert.equal(item.action?.type, "module-action", "related item should use a module-action descriptor");
     assert.match(
       item.action.moduleActionId,
-      /^(tasks\.edit|notes\.edit|lists\.edit|files\.preview)$/,
+      /^(tasks\.edit|notes\.view|lists\.edit|files\.preview)$/,
       "related item action should be an existing registered module action",
     );
     assert.ok(item.action.fallbackUrl, "related item action should include an explicit safe fallback URL");
@@ -126,9 +126,9 @@ async function assertStaticContracts() {
   const routesSource = readText("src/routes/workbench.routes.js");
   const roadmap = readText("ROADMAP.md");
 
-  assert.equal(packageJson.version, "0.33.6.12j");
-  assert.equal(packageLock.version, "0.33.6.12j");
-  assert.equal(packageLock.packages[""].version, "0.33.6.12j");
+  assert.equal(packageJson.version, "0.33.6.12n");
+  assert.equal(packageLock.version, "0.33.6.12n");
+  assert.equal(packageLock.packages[""].version, "0.33.6.12n");
   assert.match(routesSource, /\/workbench\/task-focus\/:taskId\/related-context/);
   assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");

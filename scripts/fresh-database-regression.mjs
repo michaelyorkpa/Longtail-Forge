@@ -55,6 +55,11 @@ ORDER BY version;
       module_id: "core",
       name: "task_recurrence_checklist_items",
     },
+    {
+      version: "069",
+      module_id: "core",
+      name: "task_recurrence_note_links",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -110,6 +115,7 @@ ORDER BY name;
     "task_checklist_items",
     "task_recurrence_assignees",
     "task_recurrence_checklist_items",
+    "task_recurrence_note_links",
     "task_recurrence_templates",
     "task_relationships",
     "task_reminder_offsets",
@@ -255,6 +261,8 @@ WHERE type = 'index'
     'idx_tags_workspace_status',
     'idx_task_checklist_items_task',
     'idx_task_checklist_items_workspace_updated',
+    'idx_task_recurrence_note_links_note',
+    'idx_task_recurrence_note_links_template',
     'idx_task_relationships_active_pair',
     'idx_task_relationships_child',
     'idx_task_relationships_parent',
@@ -397,6 +405,8 @@ ORDER BY name;
     "idx_tags_workspace_status",
     "idx_task_checklist_items_task",
     "idx_task_checklist_items_workspace_updated",
+    "idx_task_recurrence_note_links_note",
+    "idx_task_recurrence_note_links_template",
     "idx_task_relationships_active_pair",
     "idx_task_relationships_child",
     "idx_task_relationships_parent",

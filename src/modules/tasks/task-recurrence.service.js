@@ -1,5 +1,6 @@
 import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
+import { notesService } from "../notes/notes.service.js";
 import { AppError } from "../../core/errors.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
@@ -79,7 +80,13 @@ async function createNextInstance({ session, completedTask, createTask }) {
     return null;
   }
 
-  return materializeInstance({ session, template, instanceDate: nextDate, createTask });
+  return materializeInstance({
+    session,
+    template,
+    instanceDate: nextDate,
+    createTask,
+    sourceTaskId: completedTask.task_id,
+  });
 }
 
 // Re-anchor a stalled chain: create the first occurrence on or after `today` for a template
@@ -113,7 +120,7 @@ async function ensureUpcomingInstance({ session, template, latestInstanceDate, h
   return materializeInstance({ session, template, instanceDate, createTask });
 }
 
-async function materializeInstance({ session, template, instanceDate, createTask }) {
+async function materializeInstance({ session, template, instanceDate, createTask, sourceTaskId = "" }) {
   const existing = await createTask.findExisting(template.recurrence_template_id, instanceDate);
   if (existing) {
     return {
@@ -149,6 +156,12 @@ async function materializeInstance({ session, template, instanceDate, createTask
     task,
     template,
   });
+  await copyTemplateNoteLinksToTask({
+    session,
+    sourceTaskId,
+    task,
+    template,
+  });
 
   return {
     task,
@@ -181,6 +194,30 @@ async function copyTemplateChecklistToTask({ session, task, template }) {
   }
 
   return checklistItems;
+}
+
+async function copyTemplateNoteLinksToTask({ session, task, template, sourceTaskId = "" }) {
+  if (!task?.task_id || !template?.recurrence_template_id) {
+    return {
+      createdCount: 0,
+      removedCount: 0,
+      skipped: true,
+    };
+  }
+
+  const noteLinks = Array.isArray(template.noteLinks)
+    ? template.noteLinks
+    : await taskRecurrenceRepository.readTemplateNoteLinks(
+        session.workspace_id,
+        template.recurrence_template_id,
+      );
+
+  return notesService.replacePropagatedTaskLinkedNotes(session, {
+    links: noteLinks,
+    sourceTaskId,
+    taskId: task.task_id,
+    templateId: template.recurrence_template_id,
+  });
 }
 
 async function readTaskRecurrenceDetails(task) {

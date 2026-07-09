@@ -118,6 +118,7 @@ check("registry exposes Tasks event types", () => {
     "task.completed",
     "task.created",
     "task.due_soon",
+    "task.linked_notes.propagated",
     "task.overdue",
     "task.relationship.created",
     "task.relationship.removed",

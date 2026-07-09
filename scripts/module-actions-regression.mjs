@@ -36,6 +36,7 @@ check("first-party module modal actions are registered", () => {
     "time-entries.edit",
     "notes.add",
     "notes.edit",
+    "notes.view",
     "lists.add",
     "lists.edit",
     "projects.add",
@@ -157,12 +158,14 @@ check("Notes, Lists, and Files actions use module-owned canonical openers", () =
   assert.match(filesView, /js\/shared\/module-actions\.js\?v=2/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFilePreviewAction\(params, hostContext\)/);
   assert.match(notesScript, /window\.LongtailForge\.notesDialog = Object\.freeze/);
   assert.match(notesScript, /openNoteEditor/);
+  assert.match(notesScript, /openNoteViewer/);
   assert.match(listsScript, /window\.LongtailForge\.listsDialog = Object\.freeze/);
   assert.match(listsScript, /openListEditor/);
   assert.match(filesScript, /openFileEditorAction/);

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recordedAtVersion": "0.33.5.29.5",
-  "minimumRegisteredScripts": 306,
+  "minimumRegisteredScripts": 307,
   "minimumCloseoutScripts": 22,
   "requiredScripts": [
     "scripts/check-js.mjs",

@@ -12,12 +12,12 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.6.12j:
+Current totals as of 0.33.6.12n:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.
-- Existing direct bound-params operation sites: 395.
-- Total runtime database operation calls seen by the audit scanner: 439.
+- Existing direct bound-params operation sites: 402.
+- Total runtime database operation calls seen by the audit scanner: 446.
 
 Original 0.33.5.23.1 baseline totals:
 
@@ -73,7 +73,7 @@ Status legend:
 | core/search/tag-text | Converted | 0 | 0 | 1 | 1 |
 | services/search-index-rebuild.service | Converted | 0 | 0 | 2 | 2 |
 | tasks/task-checklists.repo | Converted | 0 | 0 | 11 | 11 |
-| tasks/task-recurrence.repo | Converted | 0 | 0 | 10 | 10 |
+| tasks/task-recurrence.repo | Converted | 0 | 0 | 13 | 13 |
 | tasks/task-relationships.repo | Converted | 0 | 0 | 12 | 12 |
 | tasks/task-reminders.repo | Converted | 0 | 0 | 4 | 4 |
 | tasks/tasks.repo | Converted | 0 | 0 | 17 | 17 |
@@ -84,7 +84,7 @@ Status legend:
 | permissions.repo | Converted | 0 | 0 | 8 | 10 |
 | user-workspaces.repo | Converted | 0 | 0 | 6 | 7 |
 | settings.repo | Converted | 0 | 0 | 4 | 4 |
-| notes/notes.repo | Converted | 0 | 0 | 21 | 21 |
+| notes/notes.repo | Converted | 0 | 0 | 25 | 25 |
 | notifications.repo | Converted | 0 | 0 | 25 | 25 |
 | lists/lists.repo | Converted | 0 | 0 | 21 | 21 |
 | app-settings.repo | Converted | 0 | 0 | 2 | 3 |

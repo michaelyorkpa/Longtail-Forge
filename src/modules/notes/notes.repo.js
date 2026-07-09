@@ -651,6 +651,26 @@ ORDER BY created_at ASC;
   return rows.map(linkRowToAppValue);
 }
 
+async function listLinksForTarget(workspaceId, target) {
+  const rows = await db.query(`
+SELECT *
+FROM note_links
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND target_type = :targetType
+  AND target_id = :targetId
+  AND removed_at IS NULL
+ORDER BY created_at ASC, note_link_id ASC;
+`, {
+    moduleId: text(target.module_id),
+    targetId: text(target.target_id),
+    targetType: text(target.target_type),
+    workspaceId: text(workspaceId),
+  });
+
+  return rows.map(linkRowToAppValue);
+}
+
 async function readLinkById(workspaceId, noteId, linkId) {
   const row = await db.get(`
 SELECT *
@@ -662,6 +682,114 @@ LIMIT 1;
 `, { linkId, noteId, workspaceId });
 
   return row ? linkRowToAppValue(row) : null;
+}
+
+async function replacePropagatedLinksForTarget(workspaceId, target, links = [], propagation = {}) {
+  const now = new Date().toISOString();
+  const normalizedLinks = normalizePropagatedLinks(links);
+  const removedLinks = [];
+  const createdLinks = [];
+  const templateId = text(propagation.recurrence_template_id);
+  const sourceTaskId = text(propagation.source_task_id);
+  const propagatedMetadata = recurrencePropagationMetadata({
+    recurrenceTemplateId: templateId,
+    sourceTaskId,
+  });
+
+  await db.transaction(async (transaction) => {
+    const existingPropagated = await transaction.query(`
+SELECT *
+FROM note_links
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND target_type = :targetType
+  AND target_id = :targetId
+  AND removed_at IS NULL
+  AND metadata_json LIKE :propagationNeedle
+  AND metadata_json LIKE :templateNeedle
+ORDER BY created_at ASC, note_link_id ASC;
+`, {
+      moduleId: text(target.module_id),
+      propagationNeedle: "%\"propagation_source\"%\"task_recurrence\"%",
+      targetId: text(target.target_id),
+      targetType: text(target.target_type),
+      templateNeedle: `%\"recurrence_template_id\"%\"${templateId}\"%`,
+      workspaceId: text(workspaceId),
+    });
+
+    if (existingPropagated.length > 0) {
+      await transaction.run(`
+UPDATE note_links
+SET removed_at = :removedAt
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND target_type = :targetType
+  AND target_id = :targetId
+  AND removed_at IS NULL
+  AND metadata_json LIKE :propagationNeedle
+  AND metadata_json LIKE :templateNeedle;
+`, {
+        moduleId: text(target.module_id),
+        propagationNeedle: "%\"propagation_source\"%\"task_recurrence\"%",
+        removedAt: now,
+        targetId: text(target.target_id),
+        targetType: text(target.target_type),
+        templateNeedle: `%\"recurrence_template_id\"%\"${templateId}\"%`,
+        workspaceId: text(workspaceId),
+      });
+
+      removedLinks.push(...existingPropagated.map((link) => linkRowToAppValue({
+        ...link,
+        removed_at: now,
+      })));
+    }
+
+    for (const link of normalizedLinks) {
+      const existing = await transaction.get(`
+SELECT *
+FROM note_links
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
+  AND module_id = :moduleId
+  AND target_type = :targetType
+  AND target_id = :targetId
+  AND removed_at IS NULL
+LIMIT 1;
+`, {
+        moduleId: text(target.module_id),
+        noteId: text(link.note_id),
+        targetId: text(target.target_id),
+        targetType: text(target.target_type),
+        workspaceId: text(workspaceId),
+      });
+
+      if (existing) {
+        continue;
+      }
+
+      const linkId = randomUUID();
+      await insertNoteLink(transaction, workspaceId, {
+        created_by_user_id: propagation.created_by_user_id,
+        link_role: link.link_role,
+        metadata_json: JSON.stringify(propagatedMetadata),
+        module_id: target.module_id,
+        note_id: link.note_id,
+        scope_role: link.scope_role,
+        target_id: target.target_id,
+        target_type: target.target_type,
+      }, linkId, now);
+
+      const created = await readLinkByIdWithClient(transaction, workspaceId, link.note_id, linkId);
+      if (created) {
+        createdLinks.push(created);
+      }
+    }
+  });
+
+  return {
+    createdLinks,
+    removedLinks,
+  };
 }
 
 async function removeLink(workspaceId, noteId, linkId) {
@@ -682,6 +810,23 @@ WHERE workspace_id = :workspaceId
   });
 
   return readLinkById(workspaceId, noteId, linkId);
+}
+
+async function readLinkByIdWithClient(databaseClient, workspaceId, noteId, linkId) {
+  const row = await databaseClient.get(`
+SELECT *
+FROM note_links
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
+  AND note_link_id = :linkId
+LIMIT 1;
+`, {
+    linkId,
+    noteId,
+    workspaceId,
+  });
+
+  return row ? linkRowToAppValue(row) : null;
 }
 
 async function listCollections(workspaceId, filters = {}) {
@@ -1227,6 +1372,35 @@ function normalizedText(value) {
   return String(value || "").trim();
 }
 
+function normalizePropagatedLinks(links = []) {
+  const seen = new Set();
+  return (Array.isArray(links) ? links : [])
+    .map((link) => ({
+      link_role: normalizedText(link?.link_role || link?.linkRole) || "related",
+      note_id: normalizedText(link?.note_id || link?.noteId),
+      scope_role: normalizedText(link?.scope_role || link?.scopeRole) || "related",
+    }))
+    .filter((link) => {
+      if (!link.note_id) {
+        return false;
+      }
+      const key = [link.note_id, link.link_role, link.scope_role].join(":");
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+}
+
+function recurrencePropagationMetadata({ recurrenceTemplateId, sourceTaskId }) {
+  return {
+    propagation_source: "task_recurrence",
+    recurrence_template_id: recurrenceTemplateId,
+    source_task_id: sourceTaskId,
+  };
+}
+
 function normalizedFilter(value) {
   return normalizedText(value).toLowerCase();
 }
@@ -1248,6 +1422,7 @@ export const notesRepository = {
   list,
   listCollections,
   listForTarget,
+  listLinksForTarget,
   listLinks,
   listLinksForNotes,
   listRevisions,
@@ -1259,6 +1434,7 @@ export const notesRepository = {
   readLinkById,
   readRevisionById,
   removeLink,
+  replacePropagatedLinksForTarget,
   updateCollection,
   update,
 };

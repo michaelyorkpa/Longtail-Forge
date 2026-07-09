@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -20,7 +20,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task Focus checklist version");
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
+  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
   "Workbench should cache-bust CSS and JS for the Task Focus checklist surface",
 );
 
@@ -75,6 +75,11 @@ assert.match(
   /result\.task \|\| \{[\s\S]*checklistItems: result\.items \|\| existingTask\.checklistItems \|\| \[\][\s\S]*checklistProgress: result\.checklistProgress \|\| existingTask\.checklistProgress[\s\S]*applyActiveTaskFocusTask\(nextTask\)/,
   "Checklist mutation results should refresh the focused task from the Tasks response shape",
 );
+assert.match(
+  functionBody(workbenchScript, "applyActiveTaskFocusTask"),
+  /status: task\?\.status \|\| state\.activeTaskFocus\.status \|\| ""/,
+  "Task Focus should refresh the selected task status from the returned Tasks payload",
+);
 
 assert.match(
   tasksRoutes,
@@ -91,6 +96,16 @@ assert.match(
   /async function finalizeChecklistMutation\(\{[\s\S]*tasksRepository\.markWorkedAt[\s\S]*auditService\.record\([\s\S]*modulesService\.emitInternalEvent\(eventName[\s\S]*syncTaskSearchIndex\(session\.workspace_id, task\.task_id, eventName\)[\s\S]*return \{[\s\S]*items: currentItems[\s\S]*checklistProgress[\s\S]*task: taskWithDetails/,
   "Checklist mutations should preserve progress, audit, event, search, and task refresh side effects",
 );
+assert.match(
+  tasksService,
+  /function checklistDrivenStatus\(task, checked, currentItems = \[\]\)[\s\S]*checked === true && task\.status === "open"[\s\S]*return "in_progress"[\s\S]*checked === false && task\.status === "in_progress"[\s\S]*hasCheckedItems \? "" : "open"/,
+  "Checklist check/uncheck should own the eligible open/in-progress status transitions in Tasks service code",
+);
+assert.match(
+  tasksService,
+  /async function applyChecklistDrivenStatusTransition\(\{[\s\S]*recordTaskAudit\([\s\S]*emitTaskEvent\("task\.updated"[\s\S]*syncTaskSearchIndex\(session\.workspace_id, task\.task_id, "task\.checklist_status_updated"[\s\S]*queueTaskReminderJobsForTask/,
+  "Checklist-driven status transitions should preserve task-level audit, event, search, and reminder side effects",
+);
 
 assert.match(
   css,
@@ -99,27 +114,27 @@ assert.match(
 );
 assert.match(
   moduleContract,
-  /As of 0\.33\.6\.12c-2[\s\S]*Task Focus Checklist[\s\S]*check and uncheck only[\s\S]*POST `\/api\/tasks\/:taskId\/checklist\/:itemId\/\{check\|uncheck\}`/,
+  /As of 0\.33\.6\.12l[\s\S]*Task Focus checklist toggles are status-aware[\s\S]*Open[\s\S]*In Progress[\s\S]*complete[\s\S]*archived[\s\S]*blocked/,
   "Module contract should record the Task Focus checklist boundary",
 );
 assert.match(
   uiSurfaceContract,
-  /As of 0\.33\.6\.12c-2[\s\S]*Task Focus Checklist[\s\S]*open by default when populated[\s\S]*`Edit task to add checklist items\.`/,
+  /As of 0\.33\.6\.12l[\s\S]*Task Focus checklist toggles refresh the selected task summary status chip[\s\S]*full page reload/,
   "UI surface contract should describe populated and empty Task Focus checklist states",
 );
 assert.match(
   tasksModuleDoc,
-  /As of 0\.33\.6\.12c-2[\s\S]*Task Focus can check and uncheck existing checklist items[\s\S]*structure editing remains in the canonical Task editor/,
+  /As of 0\.33\.6\.12l[\s\S]*[Cc]hecking any checklist item on an Open task moves it to In Progress[\s\S]*unchecking the last checked item on an In Progress task moves it back to Open/,
   "Tasks docs should state the Workbench checklist execution boundary",
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*Task Focus Checklist check-only execution surface/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12l[\s\S]*checklist mutation response refreshes the selected task status chip/,
   "View-building contract should include the Task Focus checklist anatomy",
 );
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12c-2 - Task Focus checklist execution[\s\S]*- \[x\] Render Checklist as a prominent Task Focus section[\s\S]*- \[x\] Use existing Tasks-owned checklist routes\/services[\s\S]*- \[x\] Add focused regressions proving:[\s\S]*Acceptance criteria:/,
+  /### Version 0\.33\.6\.12l - Task Focus checklist-driven status transitions[\s\S]*- \[x\] On checklist `check`, transition eligible `Open` tasks to `In Progress`[\s\S]*- \[x\] Add focused regressions proving:[\s\S]*Task Focus displays the refreshed status without requiring a full page reload\./,
   "Roadmap should mark the Task Focus checklist slice complete",
 );
 

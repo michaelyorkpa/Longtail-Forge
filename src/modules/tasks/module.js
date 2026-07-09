@@ -101,7 +101,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.6.12j",
+  version: "0.33.6.12n",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -648,6 +648,13 @@ const tasksModule = {
       description: "Emitted after a parent/child task relationship is removed.",
       recordType: "task_relationship",
     },
+    {
+      event: "task.linked_notes.propagated",
+      moduleId: "tasks",
+      label: "Task Recurring Linked Notes Propagated",
+      description: "Emitted after linked Note relationships are propagated to a recurring task occurrence.",
+      recordType: "task",
+    },
   ],
   eventSummaries: [
     {
@@ -839,6 +846,15 @@ const tasksModule = {
         label: "Task Relationship Removed",
         summary: ({ event }) => `Removed child task relationship for "${event.metadata?.child_title || event.metadata?.child_task_id || "Task"}".`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.parent_task_id || "")}`,
+      },
+    },
+    {
+      event: "task.linked_notes.propagated",
+      moduleId: "tasks",
+      activity: {
+        label: "Recurring Linked Notes Propagated",
+        summary: ({ event }) => `Propagated ${event.metadata?.note_link_count || 0} linked note(s) for "${event.new_value?.title || event.record_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
       },
     },
   ],

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const appShellService = readText("src/services/app-shell.service.js");
 const footerScript = readText("public/js/footer.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
+  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
   "Workbench should bump its script cache key after removing Quick Notes",
 );
 assert.doesNotMatch(
@@ -46,7 +46,7 @@ assert.match(
 );
 assert.match(
   footerScript,
-  /"notes\.add": \[[\s\S]*module: true, src: "js\/notes\.js\?v=71"[\s\S]*function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)/,
+  /"notes\.add": \[[\s\S]*module: true, src: "js\/notes\.js\?v=72"[\s\S]*function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)/,
   "QAC Note should still lazy-load the existing Notes dialog safely",
 );
 assert.match(

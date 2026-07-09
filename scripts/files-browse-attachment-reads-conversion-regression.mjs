@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-browse-reads-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-browse-reads-conversion.db");
@@ -88,7 +88,7 @@ function assertStaticContract() {
   assert.match(functionBlock(filesServiceSource, "attachmentOrderByClause"), /orderByNoCase\("COALESCE\(files\.display_name, files\.original_filename, ''\)", "ASC"\)/, "filename ordering should use the comparison seam");
   assert.match(functionBlock(filesServiceSource, "attachmentOrderByClause"), /orderByNoCase\("files\.status", "ASC"\)/, "status ordering should use the comparison seam");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12j:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 395[\s\S]*Total runtime database operation calls seen by the audit scanner: 439/, "audit docs should record the current Files conversion ratchet");
+  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should record the current Files conversion ratchet");
   assert.match(auditDocs, /\| services\/files\.service \| Converted \| 0 \| 0 \| 32 \| 33 \|/, "audit inventory should record the fully converted Files service state");
   assert.match(auditDocs, /0\.33\.5\.27\.18 Files Browse and Attachment Reads Conversion[\s\S]*browse\/read metadata paths[\s\S]*709 runtime literal-helper invocations[\s\S]*145 direct interpolated SQL operation sites[\s\S]*206 existing bound operation sites/, "audit docs should record the Files browse/read conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.18[\s\S]*Files browse and attachment read metadata paths[\s\S]*709 remaining helper invocations/, "database docs should record the concrete Files browse/read conversion");

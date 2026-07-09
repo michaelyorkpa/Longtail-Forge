@@ -865,18 +865,18 @@ Product rule:
 - In Task Focus, the selected task's timer appears only in the Task Timer section for the focused task.
 - The lower timer panel is renamed `Other Active Timers` and shows only running/paused timers for other tasks or manual timers.
 
-- [ ] In Task Focus, remove/filter the focused task's running/paused timer from any lower timer list or card below the task-linked timer controls.
-- [ ] Do not render a duplicate timer card for the focused task after starting, pausing, saving, or resetting the task-linked timer.
-- [ ] Ensure the Task Timer section's live counter updates immediately after Start and continues updating while running without waiting for Pause or a full refresh.
-- [ ] Rename the Task Focus lower timer panel heading from `Timers` to `Other Active Timers`.
-- [ ] In `Other Active Timers`, show only active/paused timers that are not tied to the focused task.
+- [x] In Task Focus, remove/filter the focused task's running/paused timer from any lower timer list or card below the task-linked timer controls.
+- [x] Do not render a duplicate timer card for the focused task after starting, pausing, saving, or resetting the task-linked timer.
+- [x] Ensure the Task Timer section's live counter updates immediately after Start and continues updating while running without waiting for Pause or a full refresh.
+- [x] Rename the Task Focus lower timer panel heading from `Timers` to `Other Active Timers`.
+- [x] In `Other Active Timers`, show only active/paused timers that are not tied to the focused task.
   - Other task timers remain eligible.
   - Manual timers remain eligible.
   - The focused task's active/paused timer is always excluded from this panel.
-- [ ] If no other active/paused timers exist, show `No other active or paused timers.`
-- [ ] Preserve Focus Selection timer behavior from 0.33.6.12d-1; outside Task Focus, the general timer list can continue to show all active/paused timers because there is no currently focused task to exclude.
-- [ ] Reuse existing Task/Time Tracking timer services and preserve permissions, elapsed-time calculations, audit/event/search behavior, and focus return.
-- [ ] Add focused regressions proving:
+- [x] If no other active/paused timers exist, show `No other active or paused timers.`
+- [x] Preserve Focus Selection timer behavior from 0.33.6.12d-1; outside Task Focus, the general timer list can continue to show all active/paused timers because there is no currently focused task to exclude.
+- [x] Reuse existing Task/Time Tracking timer services and preserve permissions, elapsed-time calculations, audit/event/search behavior, and focus return.
+- [x] Add focused regressions proving:
   - Starting a Task Focus timer does not create a duplicate focused-task timer card.
   - The focused task's running/paused timer is excluded from `Other Active Timers`.
   - Other task timers and manual timers still appear in `Other Active Timers`.
@@ -888,6 +888,148 @@ Product rule:
 Acceptance criteria:
 
 - Task Focus has exactly one visible representation of the focused task's timer. The lower timer panel is labeled `Other Active Timers`, excludes the focused task's timer, and only shows other running/paused task or manual timers.
+
+### Version 0.33.6.12l - Task Focus checklist-driven status transitions
+
+**Model: GPT-5.5 Extra High** — Task lifecycle transitions touch checklist mutation routes, status side effects, audit/events/search, and Task Focus read refresh behavior.
+
+Purpose:
+
+Make Task Focus checklist execution update task status in the way the work surface implies: checking work means the task has started; clearing all checked work returns the task to not-started.
+
+Product rule:
+
+- Checking any checklist item on an `Open` task moves the task to `In Progress`.
+- Unchecking all checklist items on an `In Progress` task moves the task back to `Open`.
+- The transition is Tasks-owned and should apply through the existing checklist check/uncheck service path, not as browser-only state in Workbench.
+
+- [x] On checklist `check`, transition eligible `Open` tasks to `In Progress` after the checked state is saved.
+- [x] On checklist `uncheck`, transition eligible `In Progress` tasks to `Open` only when no checklist items remain checked.
+- [x] Do not reopen or rewrite `Complete`, `Archived`, or `Blocked` tasks through checklist toggles.
+- [x] Preserve existing checklist mutation behavior: progress counts, refreshed task payloads, audit records, internal events, search updates, notifications, and permission/module/workspace checks.
+- [x] Ensure Task Focus refreshes the summary chip/status text immediately after the checklist mutation response.
+- [x] Keep checklist structure editing in the canonical Task editor; Task Focus remains check/uncheck only.
+- [x] Add focused regressions proving:
+  - Checking the first/any checklist item on an `Open` task returns an `In Progress` task payload.
+  - Unchecking the last checked checklist item on an `In Progress` task returns an `Open` task payload.
+  - Unchecking one of several checked items keeps the task `In Progress`.
+  - Completed, archived, and blocked tasks are not status-mutated by checklist toggles.
+  - Task Focus displays the refreshed status without requiring a full page reload.
+
+Acceptance criteria:
+
+- Task Focus checklist progress and task status stay aligned: started checklist work marks the task `In Progress`, and clearing all checklist work returns eligible in-progress tasks to `Open`, without overriding stronger lifecycle states or bypassing Tasks-owned side effects.
+
+### Version 0.33.6.12m - Task Focus linked-note view modal and edit handoff
+
+**Model: GPT-5.5 Extra High** — Linked note viewing can expose note body content, Markdown rendering, private/secure-note boundaries, modal stacking, and cross-module action behavior.
+
+Purpose:
+
+Make linked notes in the Task Focus Inspector readable first. A linked note title should open a rendered Markdown view, with editing available as an explicit secondary action.
+
+Product rule:
+
+- Clicking a linked note in Task Focus opens a note view/read modal, not the edit modal.
+- The view modal renders Markdown so the note remains readable as reference context.
+- The view modal includes an `Edit` action that closes the view and opens the canonical Notes edit modal for the same note.
+
+- [x] Update Task Focus Inspector linked-note actions to prefer a Notes-owned view/read modal or module action instead of `notes.edit`.
+- [x] If a reusable Notes view modal/action does not already exist, add the smallest Notes-owned view modal needed for linked-context consumption.
+- [x] Render Markdown through the existing Notes/Markdown rendering path; do not show raw Markdown as the primary read surface.
+- [x] Include an explicit `Edit` button/action in the view modal that closes the view modal and opens the existing Notes edit modal with normal focus return and refresh hooks.
+- [x] Preserve Notes permissions, private-note behavior, secure-note behavior, body visibility rules, stale/deleted target handling, and no-raw-ID labels.
+- [x] Keep Task Focus free of embedded preview panes; this is a modal handoff, not an inline Inspector reader.
+- [x] Add focused regressions proving:
+  - Task Focus linked-note clicks open the view/read modal path, not the edit path.
+  - Markdown-rendered note content is visible in the view modal for readable notes.
+  - The view modal `Edit` action opens the canonical edit modal for the same note.
+  - Private/secure/unreadable/stale linked notes do not leak body content or raw IDs.
+
+Acceptance criteria:
+
+- Linked notes in Task Focus behave like readable reference context by default, preserving Markdown formatting, while a clear Edit action still reaches the canonical Notes editor when editing is intentional.
+
+### Version 0.33.6.12n - Recurring linked-note propagation through All Future Tasks
+
+**Model: GPT-5.5 Extra High** — Recurrence propagation touches Tasks recurrence templates, linked Notes/Linked Context persistence, generated future instances, and data-integrity boundaries.
+
+Purpose:
+
+Make linked notes useful on recurring work by ensuring note links saved to a recurring task can carry forward through `All Future Tasks`, instead of requiring the same note to be re-linked every week.
+
+Scope:
+
+- This slice is about linked Notes on recurring Tasks.
+- Do not generalize every Linked Context target type unless the existing storage contract already makes that safer than a Notes-only implementation.
+- Do not copy note body content into recurrence templates or tasks; propagate only the relationship/link metadata needed to reconnect future task instances to the same readable note.
+
+- [x] First prove the current behavior with a recurrence fixture: add a linked note to one occurrence, save with `All Future Tasks`, inspect existing future occurrences and newly generated recurrence instances.
+- [x] If linked notes already propagate correctly, add regressions/docs that lock that behavior and update the user-facing/developer contracts.
+- [x] If linked notes do not propagate, store the active linked-note relationship structure needed by the recurrence template when `All Future Tasks` is selected.
+- [x] Apply saved linked-note structure to eligible future active occurrences in the same recurring series.
+- [x] Copy saved linked-note structure into newly generated recurrence instances.
+- [x] Do not rewrite past occurrences, completed occurrences, archived occurrences, or unrelated tasks.
+- [x] Preserve occurrence-specific task state, checklist completion state, timer state, audit/event/search behavior, permissions, and Notes visibility rules.
+- [x] Decide and document how removals behave: removing a linked note and saving `All Future Tasks` should remove that propagated link from eligible future occurrences only, without deleting the note itself.
+- [x] Add focused regressions proving:
+  - A linked note saved with `All Future Tasks` appears on eligible future recurring occurrences.
+  - Newly generated recurrence instances inherit the saved linked note.
+  - Removing a linked note with `All Future Tasks` removes it from eligible future occurrences without touching the note record.
+  - Past/completed/archived occurrences are not unexpectedly rewritten.
+  - Task Focus Inspector shows the propagated linked note on a future recurring occurrence.
+
+Acceptance criteria:
+
+- A linked note saved to a recurring task with `All Future Tasks` remains linked on future occurrences and newly generated instances, while note bodies, occurrence-specific state, and ineligible historical/completed/archived tasks remain untouched.
+
+### Version 0.33.6.12o - Workbench overdue inclusion across focus modes
+
+**Model: GPT-5.5 Extra High** - Cross-mode Workbench candidate eligibility/ranking correction where hidden overdue work would silently weaken recovery recommendations.
+
+Purpose:
+
+Make overdue work visible and first-priority anywhere a Workbench focus mode is meant to recover due, project-scoped, or urgent active task work. Overdue tasks should not be excluded by due-window lower bounds or source gaps; they should push due-today, upcoming, and no-due work downward inside the relevant mode.
+
+Scope:
+
+- Workbench Focus Selection candidate eligibility and ordering for task-derived candidates.
+- Server-side focus/source read models, recommended-action ordering, and Inspector overflow ordering.
+- Existing client/project filters, permissions, module enablement, recurring-created suppression, and task lifecycle exclusions.
+- Do not change Task Focus execution surfaces, task status semantics, canonical Tasks list views, Dashboard behavior, or recurrence generation behavior in this slice.
+
+- [ ] Audit every user-facing Workbench focus mode and every task-candidate source path that can include due dates:
+  - `Start with what's due` / `whats-due-next`.
+  - `Work this week`.
+  - `Focus on a project`.
+  - `Pick up where I left off`, including resume fallback behavior and the second-most-recent task boost.
+  - `Review blocked work`, including blocked tasks that are also overdue.
+  - The default Focus Selection bootstrap candidate list, if it can feed recommendations before a focus mode reload completes.
+- [ ] Fix the due-focused modes so overdue active tasks are included first:
+  - `Start with what's due` includes readable active overdue tasks before due-today and upcoming due work.
+  - `Work this week` includes readable active overdue tasks before due-today and current-week work, instead of using a lower-bound date filter that hides overdue work.
+  - Future-dated work outside the selected due window remains excluded unless another mode explicitly allows it.
+- [ ] Fix `Focus on a project` so overdue active tasks inside the selected project are eligible and ranked before due-today, upcoming, stale/recent, and no-due project work.
+- [ ] Preserve explicit Client and Project filter boundaries: overdue work from other clients/projects must not leak into scoped modes, and parent/child hierarchy behavior remains whatever the current exact-match filter contract allows until the later hierarchy standard lands.
+- [ ] Review whether focus modes that promise due/project work need a Tasks-owned active-task candidate source in addition to resume-state rows and live timers, so overdue tasks are not hidden merely because they lack a recent resume-state signal.
+- [ ] Keep `Pick up where I left off` resume-first behavior intact: running/paused timers and stronger resume rows stay ahead of fallback due work, but overdue task fallback candidates and the second-most-recent task boost must not be filtered out when they are inside the current Client/Project scope.
+- [ ] Keep `Review blocked work` semantically blocked-only: blocked overdue tasks rank before less urgent blocked work, but non-blocked overdue tasks stay in due/project modes instead of being recast as blocked work.
+- [ ] Ensure the Focus Selection recommended-action top-five window and right-side Inspector overflow are derived from the same ordered candidate list, so overdue items are not visible in one surface but hidden or reordered in the other.
+- [ ] Preserve recurrence passive-created suppression except where the task is overdue or inside the existing near-due window; an overdue recurring occurrence should be recoverable rather than hidden as passive generated noise.
+- [ ] Add focused regressions with fixture coverage for overdue, due-today, current-week, future-out-of-window, no-due, blocked-overdue, blocked-not-overdue, different-client, different-project, completed, archived, unreadable, disabled-module, and passive recurring-created tasks.
+- [ ] Update the existing Workbench focus-mode regression expectations that currently assert overdue tasks are absent from `Work this week`.
+- [ ] Add or update static/docs regressions proving the Workbench contract states:
+  - Due-focused modes include overdue work first.
+  - Project focus does not hide overdue project tasks.
+  - Focus Selection recommendation cycling and Inspector overflow share one canonical overdue-aware order.
+  - Browser code renders the service-owned candidate order instead of rebuilding overdue logic.
+- [ ] Update `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, and `docs/tasks-module.md` only for the behavior actually changed.
+- [ ] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping as part of the implementation closeout.
+- [ ] Run the focused Workbench focus-mode regressions, relevant Workbench UI/static regressions, `npm run check`, and `/api/app-info` verification after restart.
+
+Acceptance criteria:
+
+- Workbench no longer hides overdue active tasks from due-focused or project-focused recommendations. Overdue tasks appear first in every relevant Focus Selection recommendation and Inspector overflow list while permissions, Client/Project scope, blocked-only semantics, recurrence suppression, and Task Focus boundaries remain intact.
 
 ### Version 0.33.6.13y - Dashboard follow-up placeholder
 
@@ -924,10 +1066,13 @@ This closeout block is intentionally deferred and will need to be updated after 
   - Task Focus summary context is non-duplicative and uses safe metadata chips for status, priority, due dates, tags, and other existing task metadata.
   - Task Focus Inspector same-project task context prioritizes nearer due dates.
   - Recurring-task checklist structure is propagated through `All Future Tasks` recurrence updates while checklist completion state remains occurrence-specific.
+  - Task Focus checklist toggles keep task status aligned with visible work: checked checklist work moves eligible Open tasks to In Progress, and clearing all checked work returns eligible In Progress tasks to Open.
+  - Task Focus linked notes open as rendered Markdown view/read modals first, with an explicit Edit handoff to the canonical Notes editor.
+  - Recurring-task linked notes saved through `All Future Tasks` propagate relationship metadata to eligible future occurrences and newly generated instances without copying note bodies.
   - QAC owns quick capture and opens the Time Tracking Create Timer modal for Timer capture.
   - Dashboard remains an overview/orientation surface and must be updated before this closeout is finalized.
 - [ ] Update `AGENTS.md` only if needed to reflect the current Workbench/Dashboard boundary in short active guidance.
-- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, and `docs/tasks-module.md` with:
+- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, `docs/tasks-module.md`, and `docs/notes-module.md` with:
   - Dashboard/Workbench host status.
   - Workbench Focus Selection vs Task Focus anatomy.
   - Candidate overflow vs Task Focus Inspector boundaries.

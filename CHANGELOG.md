@@ -1,3 +1,31 @@
+## Version 0.33.6.12n - 2026-07-09 15:10 -04:00
+
+- Added recurrence-template storage for task linked-note relationship metadata so `All Future` saves carry readable linked notes forward without copying note bodies.
+- Propagated recurring linked notes to eligible future active occurrences and newly generated recurrence instances through Notes-owned `note_links`, while preserving past/completed/archived occurrences, manual links, note records, and occurrence-specific task/checklist/timer state.
+- Documented the Tasks/Notes ownership boundary, added `scripts/task-recurrence-linked-note-propagation-regression.mjs`, wired it into the regression suite, added migration `069_task_recurrence_note_links.sql`, reconciled the parameter-binding audit at 402 bound operation sites / 446 scanned DB calls, and advanced version guardrails to 0.33.6.12n.
+- Verification 2026-07-09 15:17 -04:00: focused recurring linked-note/checklist and Workbench related-context regressions passed; fresh database, migration compatibility, parameter-binding audit, event-bus, runtime/static closeout, permission, and lint gates passed; `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.12n from the refreshed local 8001 server. `npm run check` reached 190/306 regression scripts before stopping on the pre-existing/unrelated `docs/licensing/` legacy-cleanup blocker.
+
+## Version 0.33.6.12m - 2026-07-09 14:40 -04:00
+
+- Routed Task Focus linked Note rows through a new Notes-owned `notes.view` module action so linked notes open as readable reference context instead of jumping straight into edit mode.
+- Added the Notes read modal backed by the canonical note detail route, rendering existing server-generated Markdown HTML while preserving safe unavailable/secure-note messaging and keeping raw Markdown out of the primary read surface.
+- Added an explicit `Edit` handoff from the read modal into the existing Notes editor for the same note, refreshed Workbench/Notes/Task Focus contracts, added `scripts/workbench-task-focus-linked-note-view-regression.mjs`, and advanced version guardrails to 0.33.6.12m.
+- Verification 2026-07-09 14:50 -04:00: focused Workbench/Notes, related-context, module-action, checklist, timer, runtime/static, Notes, and Quick Action regressions passed; `npm run test:permissions` passed 240 checks; standalone ESLint passed; `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.12m from the refreshed local 8001 server. `npm run check` reached 190/305 regression scripts before stopping on pre-existing/unrelated licensing docs under `docs/licensing/` tripping `scripts/legacy-cleanup-regression.mjs`.
+
+## Version 0.33.6.12l - 2026-07-09 14:17 -04:00
+
+- Made Tasks-owned checklist toggles status-aware: checking checklist work on an Open task now returns an In Progress task, and unchecking the last checked item on an eligible In Progress task returns it to Open.
+- Preserved stronger lifecycle states so complete, archived, and blocked tasks are not rewritten by checklist toggles, while task-level audit/events/search/reminder side effects and checklist progress events stay in the service path.
+- Updated Task Focus/checklist contracts, strengthened checklist and Workbench regressions, advanced version guardrails to 0.33.6.12l, and marked the 0.33.6.12l roadmap slice complete.
+- Verification 2026-07-09 14:23 -04:00: focused checklist, Task Focus, related-context, recurrence-checklist, and task QoL regressions passed; `npm run test:permissions` passed 240 checks; standalone ESLint passed; `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.12l from the refreshed local 8001 server. `npm run check` reached 189/304 regression scripts before stopping on pre-existing/unrelated licensing docs under `docs/licensing/` tripping `scripts/legacy-cleanup-regression.mjs`.
+
+## Version 0.33.6.12k - 2026-07-09 13:26 -04:00
+
+- Removed the duplicate focused-task timer card from Task Focus so the focused task's timer is represented only by the Task Timer section counter and controls.
+- Kept the lower timer panel available in Task Focus as `Other Active Timers`, filtered it to exclude the focused task's running/paused timer, preserved other task/manual timers, and added the `No other active or paused timers.` empty state.
+- Updated Workbench timer docs, focused regressions, cache keys, version guardrails, and the 0.33.6.12k roadmap checklist for the timer de-duplication slice.
+- Verification 2026-07-09 13:32 -04:00: focused Workbench timer/view-state/surface/collapsible/checklist/related-context/guided/status regressions passed; `npm run test:permissions` passed 240 checks; standalone ESLint passed; `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.12k from the refreshed local 8001 server. `npm run check` reached 189/304 regression scripts before stopping on pre-existing/unrelated licensing docs under `docs/licensing/` tripping `scripts/legacy-cleanup-regression.mjs`.
+
 ## Version 0.33.6.12j - 2026-07-09 12:51 -04:00
 
 - Added recurrence checklist-structure storage through `task_recurrence_checklist_items` and wired `All Future` task saves to copy the edited occurrence's active checklist label/order structure into the recurrence series.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
+  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
   "Workbench should bump CSS and JS cache keys for the Inspector panel",
 );
 
@@ -70,7 +70,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /"notes\.edit": \[[\s\S]*module: true, src: "js\/notes\.js\?v=71"[\s\S]*"lists\.edit": \[[\s\S]*module: true, src: "js\/lists\.js\?v=14"/,
+  /"notes\.edit": \[[\s\S]*module: true, src: "js\/notes\.js\?v=72"[\s\S]*"lists\.edit": \[[\s\S]*module: true, src: "js\/lists\.js\?v=14"/,
   "Workbench should lazy-load Notes and Lists dialog adapters as modules to avoid classic-script lexical collisions",
 );
 assert.match(

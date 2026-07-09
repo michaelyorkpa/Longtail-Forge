@@ -111,13 +111,15 @@ LIMIT 1;
     return null;
   }
 
-  const [assignees, checklistItems] = await Promise.all([
+  const [assignees, checklistItems, noteLinks] = await Promise.all([
     readTemplateAssignees(workspaceId, templateId),
     readTemplateChecklist(workspaceId, templateId),
+    readTemplateNoteLinks(workspaceId, templateId),
   ]);
   return {
     ...attachTemplateAssignees([templateRowToAppValue(row)], assignees)[0],
     checklistItems,
+    noteLinks,
   };
 }
 
@@ -286,6 +288,106 @@ VALUES (
   return readTemplateChecklist(workspaceId, templateId);
 }
 
+async function readTemplateNoteLinks(workspaceId, templateId) {
+  const rows = await db.query(`
+SELECT
+  recurrence_note_link_id,
+  workspace_id,
+  recurrence_template_id,
+  note_id,
+  link_role,
+  scope_role,
+  sort_order,
+  deleted_at,
+  deleted_by_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at
+FROM task_recurrence_note_links
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+  AND deleted_at IS NULL
+ORDER BY sort_order, created_at;
+`, {
+    templateId: textParam(templateId),
+    workspaceId: textParam(workspaceId),
+  });
+
+  return rows.map(templateNoteLinkRowToAppValue);
+}
+
+async function replaceTemplateNoteLinks(workspaceId, templateId, links, updatedByUserId) {
+  const now = new Date().toISOString();
+  const normalizedLinks = normalizeTemplateNoteLinks(links);
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+UPDATE task_recurrence_note_links
+SET deleted_at = :now,
+    deleted_by_user_id = :updatedByUserId,
+    updated_by_user_id = :updatedByUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+  AND deleted_at IS NULL;
+`, {
+      now,
+      templateId: textParam(templateId),
+      updatedByUserId: nullableTextParam(updatedByUserId),
+      workspaceId: textParam(workspaceId),
+    });
+
+    for (const [index, link] of normalizedLinks.entries()) {
+      await transaction.run(`
+INSERT INTO task_recurrence_note_links (
+  recurrence_note_link_id,
+  workspace_id,
+  recurrence_template_id,
+  note_id,
+  link_role,
+  scope_role,
+  sort_order,
+  deleted_at,
+  deleted_by_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at
+)
+VALUES (
+  :linkId,
+  :workspaceId,
+  :templateId,
+  :noteId,
+  :linkRole,
+  :scopeRole,
+  :sortOrder,
+  NULL,
+  NULL,
+  :createdByUserId,
+  :updatedByUserId,
+  :now,
+  :now
+);
+`, {
+        createdByUserId: nullableTextParam(link.created_by_user_id || updatedByUserId),
+        linkId: textParam(link.recurrence_note_link_id || randomUUID()),
+        linkRole: textParam(link.link_role || "related"),
+        noteId: textParam(link.note_id),
+        now,
+        scopeRole: textParam(link.scope_role || "related"),
+        sortOrder: integerParam(link.sort_order || ((index + 1) * 1000)),
+        templateId: textParam(templateId),
+        updatedByUserId: nullableTextParam(updatedByUserId),
+        workspaceId: textParam(workspaceId),
+      });
+    }
+  });
+
+  return readTemplateNoteLinks(workspaceId, templateId);
+}
+
 async function readTemplateAssignees(workspaceId, templateId) {
   return db.query(`
 SELECT recurrence_template_id, user_id
@@ -382,6 +484,24 @@ function templateChecklistRowToAppValue(row) {
   };
 }
 
+function templateNoteLinkRowToAppValue(row) {
+  return {
+    created_at: row.created_at || "",
+    created_by_user_id: row.created_by_user_id || "",
+    deleted_at: row.deleted_at || "",
+    deleted_by_user_id: row.deleted_by_user_id || "",
+    link_role: row.link_role || "related",
+    note_id: row.note_id || "",
+    recurrence_note_link_id: row.recurrence_note_link_id,
+    recurrence_template_id: row.recurrence_template_id,
+    scope_role: row.scope_role || "related",
+    sort_order: Number.parseInt(row.sort_order, 10) || 0,
+    updated_at: row.updated_at || "",
+    updated_by_user_id: row.updated_by_user_id || "",
+    workspace_id: row.workspace_id,
+  };
+}
+
 function normalizeTemplateChecklistItems(items = []) {
   return (Array.isArray(items) ? items : [])
     .map((item, index) => ({
@@ -390,6 +510,29 @@ function normalizeTemplateChecklistItems(items = []) {
       sort_order: integerParam(item?.sort_order || ((index + 1) * 1000)),
     }))
     .filter((item) => item.label);
+}
+
+function normalizeTemplateNoteLinks(links = []) {
+  const seen = new Set();
+  return (Array.isArray(links) ? links : [])
+    .map((link, index) => ({
+      ...link,
+      link_role: String(link?.link_role || link?.linkRole || "related").trim() || "related",
+      note_id: String(link?.note_id || link?.noteId || "").trim(),
+      scope_role: String(link?.scope_role || link?.scopeRole || "related").trim() || "related",
+      sort_order: integerParam(link?.sort_order || link?.sortOrder || ((index + 1) * 1000)),
+    }))
+    .filter((link) => {
+      if (!link.note_id) {
+        return false;
+      }
+      const key = [link.note_id, link.link_role, link.scope_role].join(":");
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
 }
 
 function templateWriteParams({ includeCreatedByUserId = false, now, template, templateId, workspaceId }) {
@@ -438,7 +581,9 @@ export const taskRecurrenceRepository = {
   createTemplate,
   readActiveTemplates,
   readTemplateChecklist,
+  readTemplateNoteLinks,
   readTemplateById,
   replaceTemplateChecklist,
+  replaceTemplateNoteLinks,
   updateTemplate,
 };

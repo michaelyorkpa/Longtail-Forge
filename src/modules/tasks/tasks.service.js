@@ -10,6 +10,7 @@ import {
   queueTaskRecurrenceGeneration,
   queueTaskReminderJobsForTask,
 } from "./task-jobs.service.js";
+import { notesService } from "../notes/notes.service.js";
 import { clientsService } from "../client-projects/clients.service.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
@@ -463,6 +464,10 @@ async function update(taskId, payload, session) {
       recurrence,
     });
     await syncRecurringChecklistStructure({
+      session,
+      sourceTask: previousTask,
+    });
+    await syncRecurringLinkedNoteStructure({
       session,
       sourceTask: previousTask,
     });
@@ -1728,6 +1733,80 @@ async function syncRecurringChecklistStructure({ session, sourceTask }) {
   };
 }
 
+async function syncRecurringLinkedNoteStructure({ session, sourceTask }) {
+  const templateId = sourceTask?.recurrence_template_id || "";
+  if (!templateId) {
+    return {
+      futureTaskCount: 0,
+      skipped: true,
+      templateNoteLinks: [],
+    };
+  }
+
+  const sourceResult = await notesService.readTaskLinkedNotePropagationStructure(session, sourceTask.task_id);
+  if (sourceResult.skipped) {
+    return {
+      futureTaskCount: 0,
+      skipped: true,
+      templateNoteLinks: [],
+    };
+  }
+
+  const templateNoteLinks = await taskRecurrenceRepository.replaceTemplateNoteLinks(
+    session.workspace_id,
+    templateId,
+    sourceResult.links,
+    session.user_id,
+  );
+  const anchorDate = sourceTask.recurrence_instance_date || sourceTask.due_date || "";
+  if (!anchorDate) {
+    return {
+      futureTaskCount: 0,
+      skipped: false,
+      templateNoteLinks,
+    };
+  }
+
+  const futureTasks = await tasksRepository.readFutureRecurrenceInstances(session.workspace_id, templateId, anchorDate);
+  let futureTaskCount = 0;
+
+  for (const futureTask of futureTasks) {
+    if (!(await canEditTask(session, futureTask))) {
+      continue;
+    }
+
+    const previousValue = await readTaggedTaskWithDetails(session, futureTask.task_id);
+    const propagationResult = await notesService.replacePropagatedTaskLinkedNotes(session, {
+      links: templateNoteLinks,
+      sourceTaskId: sourceTask.task_id,
+      taskId: futureTask.task_id,
+      templateId,
+    });
+    if (propagationResult.skipped) {
+      continue;
+    }
+
+    const newValue = await readTaggedTaskWithDetails(session, futureTask.task_id);
+    await recordRecurringLinkedNotePropagation({
+      session,
+      previousValue,
+      newValue,
+      sourceTask,
+      templateId,
+      noteLinkCount: templateNoteLinks.length,
+      propagationResult,
+    });
+    await syncTaskSearchIndex(session.workspace_id, futureTask.task_id, "task.recurrence_linked_notes_propagated");
+    futureTaskCount += 1;
+  }
+
+  return {
+    futureTaskCount,
+    skipped: false,
+    templateNoteLinks,
+  };
+}
+
 function recurringChecklistStructureItems(items = []) {
   return (Array.isArray(items) ? items : [])
     .filter((item) => !item.deleted_at)
@@ -1810,6 +1889,7 @@ async function setChecklistItemChecked(taskId, itemId, checked, session) {
     session,
     task,
     action: checked ? "task_checklist_item_checked" : "task_checklist_item_unchecked",
+    checked,
     eventName: checked ? "task.checklist_item.checked" : "task.checklist_item.unchecked",
     previousItem,
     item,
@@ -1826,12 +1906,19 @@ async function readChecklistItemOrThrow(workspaceId, itemId, taskId) {
   return item;
 }
 
-async function finalizeChecklistMutation({ session, task, action, eventName, previousItem, item, items = null }) {
+async function finalizeChecklistMutation({ session, task, action, checked = null, eventName, previousItem, item, items = null }) {
   const workedAt = new Date().toISOString();
   await tasksRepository.markWorkedAt(session.workspace_id, task.task_id, workedAt, session.user_id);
   const currentItems = items || await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id);
   const checklistProgress = taskChecklistProgress(currentItems);
-  const taskWithDetails = await readTaggedTaskWithDetails(session, task.task_id);
+  const transitionedTask = await applyChecklistDrivenStatusTransition({
+    session,
+    task,
+    checked,
+    currentItems,
+    workedAt,
+  });
+  const taskWithDetails = transitionedTask || await readTaggedTaskWithDetails(session, task.task_id);
   const nextItem = item || previousItem || currentItems[0] || {};
 
   await auditService.record({
@@ -1876,6 +1963,61 @@ async function finalizeChecklistMutation({ session, task, action, eventName, pre
     checklistProgress,
     task: taskWithDetails,
   };
+}
+
+async function applyChecklistDrivenStatusTransition({ session, task, checked, currentItems, workedAt }) {
+  const nextStatus = checklistDrivenStatus(task, checked, currentItems);
+
+  if (!nextStatus) {
+    return null;
+  }
+
+  await tasksRepository.update(session.workspace_id, {
+    ...task,
+    status: nextStatus,
+    last_worked_at: workedAt,
+    updated_by_user_id: session.user_id,
+    assignee_ids: task.assignee_ids,
+  });
+
+  const taskWithDetails = await readTaggedTaskWithDetails(session, task.task_id);
+  await recordTaskAudit({
+    session,
+    action: "task_updated",
+    changeType: "update",
+    previousValue: task,
+    newValue: taskWithDetails,
+  });
+  await emitTaskEvent("task.updated", {
+    session,
+    previousValue: task,
+    newValue: taskWithDetails,
+    metadata: {
+      transition: nextStatus === "in_progress"
+        ? "checklist_started"
+        : "checklist_cleared",
+    },
+  });
+  await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.checklist_status_updated");
+  await queueTaskReminderJobsForTask(taskWithDetails, {
+    reason: "task.checklist_status_updated",
+    session,
+  });
+
+  return taskWithDetails;
+}
+
+function checklistDrivenStatus(task, checked, currentItems = []) {
+  if (checked === true && task.status === "open") {
+    return "in_progress";
+  }
+
+  if (checked === false && task.status === "in_progress") {
+    const hasCheckedItems = currentItems.some((currentItem) => currentItem.is_checked);
+    return hasCheckedItems ? "" : "open";
+  }
+
+  return "";
 }
 
 async function attachReminderDetailsToTask(task) {
@@ -2677,6 +2819,55 @@ async function recordRecurringChecklistPropagation({ session, previousValue, new
       checklist_progress: checklistProgress,
       item_count: checklistProgress.total_count,
       completed_count: checklistProgress.completed_count,
+    },
+  });
+}
+
+async function recordRecurringLinkedNotePropagation({
+  session,
+  previousValue,
+  newValue,
+  sourceTask,
+  templateId,
+  noteLinkCount = 0,
+  propagationResult = {},
+}) {
+  await auditService.record({
+    session,
+    action: "task_recurrence_linked_notes_propagated",
+    changeType: "update",
+    recordType: "task",
+    recordId: newValue?.task_id || previousValue?.task_id,
+    recordLabel: newValue?.title || previousValue?.title,
+    recordUrl: `tasks.html?task=${encodeURIComponent(newValue?.task_id || previousValue?.task_id || "")}`,
+    previousValue,
+    newValue,
+    metadata: {
+      summary: `Propagated recurring linked notes for "${newValue?.title || previousValue?.title || "Task"}"`,
+      recurrence_template_id: templateId,
+      source_task_id: sourceTask?.task_id || "",
+      task_id: newValue?.task_id || previousValue?.task_id || "",
+      note_link_count: noteLinkCount,
+      created_link_count: propagationResult.createdCount || 0,
+      removed_link_count: propagationResult.removedCount || 0,
+    },
+  });
+
+  await modulesService.emitInternalEvent("task.linked_notes.propagated", {
+    session,
+    moduleId: TASKS_MODULE_ID,
+    recordType: "task",
+    recordId: newValue?.task_id || previousValue?.task_id,
+    previousValue,
+    newValue,
+    source: session?.api_key_id ? "public_api" : "manual",
+    metadata: {
+      recurrence_template_id: templateId,
+      source_task_id: sourceTask?.task_id || "",
+      task_id: newValue?.task_id || previousValue?.task_id || "",
+      note_link_count: noteLinkCount,
+      created_link_count: propagationResult.createdCount || 0,
+      removed_link_count: propagationResult.removedCount || 0,
     },
   });
 }

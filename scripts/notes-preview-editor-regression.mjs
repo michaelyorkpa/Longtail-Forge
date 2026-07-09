@@ -73,7 +73,7 @@ async function assertStaticBrowserContract() {
   assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/);
   assert.match(notesHtml, /js\/shared\/icons\.js\?v=4/);
   assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(notesHtml, /js\/notes\.js\?v=71/);
+  assert.match(notesHtml, /js\/notes\.js\?v=72/);
   assert.match(notesJs, /const markdownEditor = document\.querySelector\("\[data-note-markdown-editor\]"\);/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);

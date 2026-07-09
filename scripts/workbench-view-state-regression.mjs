@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -13,7 +13,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/workbench\.js\?v=35/,
+  /js\/workbench\.js\?v=36/,
   "Workbench should cache-bust the view-state adapter",
 );
 assert.match(
@@ -146,8 +146,8 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /toggleWorkbenchStatePanel\(taskFocusPanelElement, !isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(focusPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(recommendedActionPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, isTaskFocus\);/,
-  "Workbench should keep Task Focus-only and Focus Selection-only panels mutually exclusive",
+  /toggleWorkbenchStatePanel\(taskFocusPanelElement, !isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(focusPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(recommendedActionPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, false\);/,
+  "Workbench should hide opposite-state focus panels while keeping the state-aware timer panel mounted",
 );
 
 console.log("Workbench view-state regression passed.");

@@ -39,10 +39,15 @@ const FOCUS_QUESTION_COPY = {
 };
 const workbenchActionScriptLoads = new Map();
 const WORKBENCH_MODULE_ACTION_DEPENDENCIES = {
+  "notes.view": [
+    { src: "js/shared/notification-subscriptions.js?v=1", test: () => window.LongtailForge?.notificationSubscriptions },
+    { src: "js/shared/notes-editor.js?v=4", test: () => window.LongtailForge?.notesEditor },
+    { module: true, src: "js/notes.js?v=72", test: () => window.LongtailForge?.notesDialog?.openNoteViewer },
+  ],
   "notes.edit": [
     { src: "js/shared/notification-subscriptions.js?v=1", test: () => window.LongtailForge?.notificationSubscriptions },
     { src: "js/shared/notes-editor.js?v=4", test: () => window.LongtailForge?.notesEditor },
-    { module: true, src: "js/notes.js?v=71", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
+    { module: true, src: "js/notes.js?v=72", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
   ],
   "lists.edit": [
     { src: "js/shared/client-project-options.js?v=2", test: () => window.LongtailForge?.clientProjectOptions },
@@ -432,7 +437,7 @@ function createTimerSection() {
     body: [timerList],
     cardId: "active-work-timers",
     count: timerCountText,
-    defaultOpen: hasActiveOrPausedTimers(),
+    defaultOpen: shouldOpenTimerSectionByDefault(),
     rendererId: "active-work-timers",
     title: "Timers",
   });
@@ -644,7 +649,7 @@ function renderWorkbenchViewState() {
   toggleWorkbenchStatePanel(taskFocusPanelElement, !isTaskFocus);
   toggleWorkbenchStatePanel(focusPanelElement, isTaskFocus);
   toggleWorkbenchStatePanel(recommendedActionPanelElement, isTaskFocus);
-  toggleWorkbenchStatePanel(secondaryWorkbenchPanelElement, isTaskFocus);
+  toggleWorkbenchStatePanel(secondaryWorkbenchPanelElement, false);
 
   if (!changeFocusButton) {
     return;
@@ -1460,7 +1465,6 @@ function createTaskFocusTimerBody(active, timer) {
 
   return [
     createTaskFocusTimerControls(active, timer, eligibility),
-    createTaskFocusTimerList(active, timer),
   ];
 }
 
@@ -1531,63 +1535,6 @@ function createTaskFocusTimerButton({ action, danger = false, disabled = false, 
   button.dataset.taskId = taskId || "";
   button.dataset.workbenchTaskFocusTimerAction = action;
   return button;
-}
-
-function createTaskFocusTimerList(active, timer) {
-  const list = workbenchViewHelpers.createElement("div", {
-    className: "workbench-task-focus-timer-list",
-    dataset: { workbenchTaskFocusTimerList: "" },
-  });
-
-  if (!timer) {
-    list.appendChild(emptyState("No active or paused timers."));
-    return list;
-  }
-
-  list.appendChild(createTaskFocusTimerCard(active, timer));
-  return list;
-}
-
-function createTaskFocusTimerCard(active, timer) {
-  const duration = workbenchViewHelpers.createElement("strong", {
-    className: "workbench-duration",
-    text: formatDuration(readElapsedSeconds(timer)),
-  });
-  if (timer?.active_timer_id) {
-    duration.dataset.workbenchDuration = timer.active_timer_id;
-  }
-
-  return workbenchViewHelpers.createElement("article", {
-    className: "workbench-task-focus-timer-card",
-    dataset: {
-      workbenchTaskFocusActiveTimer: "",
-      workbenchTimerKey: timerKey(timer),
-    },
-    children: [
-      workbenchViewHelpers.createElement("div", {
-        className: "workbench-task-focus-timer-card-heading",
-        children: [
-          workbenchViewHelpers.createElement("span", {
-            className: "workbench-task-focus-timer-title",
-            text: taskFocusTitle(active),
-          }),
-          workbenchViewHelpers.createElement("span", {
-            className: "workbench-card-meta",
-            children: [badge(sourceLabel(timer), timer.source_enabled ? "" : "disabled"), badge(formatToken(timer.timer_status), timer.timer_status)],
-          }),
-        ],
-      }),
-      workbenchViewHelpers.createElement("div", {
-        className: "workbench-task-focus-timer-card-body",
-        children: [
-          duration,
-          workbenchViewHelpers.createElement("p", {
-            text: [timer.client_name, timer.project_name].filter(Boolean).join(" / ") || taskFocusContextLabel(active?.task || {}, active),
-          }),
-        ],
-      }),
-    ],
-  });
 }
 
 function currentTaskFocusTimer(active = state.activeTaskFocus) {
@@ -2535,6 +2482,9 @@ function relatedContextActionLabel(item = {}) {
   if (actionId === "notes.edit") {
     return "Open note";
   }
+  if (actionId === "notes.view") {
+    return "Open note";
+  }
   if (actionId === "lists.edit") {
     return "Open list";
   }
@@ -2682,13 +2632,16 @@ function renderRegisteredWorkbenchCards() {
 }
 
 function renderTimers() {
-  const timers = sortedTimers(activeOrPausedTimers(state.timers));
+  const timers = sortedTimers(visibleTimerPanelTimers());
+  const emptyMessage = timerPanelEmptyStateText();
+
+  updateTimerSectionTitle();
   timerCountText.textContent = String(timers.length);
   timerList.replaceChildren();
   syncTimerSectionOpenState();
 
   if (timers.length === 0) {
-    timerList.appendChild(emptyState("No active or paused timers."));
+    timerList.appendChild(emptyState(emptyMessage));
     return;
   }
 
@@ -3037,6 +2990,41 @@ function activeOrPausedTimers(timers = []) {
   return (Array.isArray(timers) ? timers : []).filter((timer) => ["running", "paused"].includes(timer?.timer_status));
 }
 
+function visibleTimerPanelTimers() {
+  const timers = activeOrPausedTimers(state.timers);
+
+  if (!isTaskFocusView()) {
+    return timers;
+  }
+
+  const focusedTaskId = currentTaskFocusId();
+  return timers.filter((timer) => !taskTimerMatches(timer, focusedTaskId));
+}
+
+function currentTaskFocusId() {
+  if (!isTaskFocusView()) {
+    return "";
+  }
+
+  return String(state.activeTaskFocus?.taskId || state.activeTaskFocus?.task?.task_id || "");
+}
+
+function timerPanelEmptyStateText() {
+  return isTaskFocusView() ? "No other active or paused timers." : "No active or paused timers.";
+}
+
+function updateTimerSectionTitle() {
+  const title = timerSectionElement?.querySelector(".workbench-section-title");
+
+  if (title) {
+    title.textContent = isTaskFocusView() ? "Other Active Timers" : "Timers";
+  }
+}
+
+function isTaskFocusView() {
+  return resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_TASK_FOCUS;
+}
+
 function timerKey(timer) {
   if (timer.source_type === "task" && timer.source_id) {
     return `task:${timer.source_id}`;
@@ -3087,7 +3075,7 @@ function syncTimerSectionOpenState() {
     return;
   }
   if (!timerSectionUserToggled) {
-    setWorkbenchDisclosureOpen(timerSectionElement, hasActiveOrPausedTimers());
+    setWorkbenchDisclosureOpen(timerSectionElement, shouldOpenTimerSectionByDefault());
   } else {
     updateDisclosureExpandedState(timerSectionElement);
   }
@@ -3114,7 +3102,11 @@ function updateDisclosureExpandedState(details) {
 }
 
 function hasActiveOrPausedTimers() {
-  return activeOrPausedTimers(state.timers).length > 0;
+  return visibleTimerPanelTimers().length > 0;
+}
+
+function shouldOpenTimerSectionByDefault() {
+  return isTaskFocusView() || hasActiveOrPausedTimers();
 }
 
 function isTimerWorkbenchCard(card) {

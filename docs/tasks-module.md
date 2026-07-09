@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.12j. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.6.12n. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -29,6 +29,8 @@ As of version 0.33.5.27.10, the task relationships repository uses named bound p
 As of version 0.33.5.27.11, the task recurrence and reminder repositories use named bound params for recurrence template reads/writes, template assignee reads, reminder offset reads, batched reminder target reads, and replacement writes. Template assignee replacement and reminder offset replacement use `db.transaction(callback)`, while reminder target batch reads use generated named params for each target pair. Durable recurrence generation handoff and reminder delivery semantics remain owned by the existing Tasks services and worker jobs.
 
 As of 0.33.6.12j, recurrence templates also own checklist structure rows through `task_recurrence_checklist_items`. The recurrence checklist structure stores active item label/order only; occurrence-specific checked state remains in `task_checklist_items`.
+
+As of 0.33.6.12n, recurrence templates also own linked-note relationship structure through `task_recurrence_note_links`. Saving a recurring occurrence with `All Future` records the active readable task-linked note relationships from the source occurrence, applies them through Notes-owned `note_links` rows to eligible future active occurrences, and copies them into newly generated recurrence instances. Only relationship metadata is stored; note Markdown, rendered note bodies, secure payloads, and note content revisions remain exclusively Notes-owned. Removing a linked note from the source occurrence and saving `All Future` clears propagated links from eligible future occurrences for that recurrence template without deleting the note, removing manual links, or rewriting past/completed/archived occurrences.
 
 Sorting and Filters controls narrow the selected saved task view instead of replacing it. Changing the saved task view preserves compatible advanced filters, clears incompatible assignee filters for `My Tasks` and `Unassigned`, and resets incompatible status filters to the selected view's default. The `Reset Filters` action resets sort, status, assignee, client, project, and tag controls without changing the selected saved task view.
 
@@ -61,9 +63,15 @@ As of 0.33.6.12c-1, Workbench Task Focus uses Tasks-owned browser API paths for 
 
 As of 0.33.6.12c-2, Workbench Task Focus can check and uncheck existing checklist items through the same Tasks-owned checklist routes used by the Task editor. Workbench renders a check-only execution section and refreshes from the Tasks response shape, while structure editing remains in the canonical Task editor: add, remove, rename, and reorder controls are not exposed in Task Focus.
 
+As of 0.33.6.12l, those checklist toggles are also status-aware in the Tasks service path. Checking any checklist item on an Open task moves it to In Progress after the checked state is saved, and unchecking the last checked item on an In Progress task moves it back to Open. Complete, archived, and blocked tasks keep their stronger lifecycle status when checklist items are toggled. The mutation response returns the refreshed task payload so Task Focus updates the summary status chip immediately while checklist structure editing stays in the canonical Task editor.
+
 As of 0.33.6.12d-1, Workbench Task Focus exposes the selected task's timer controls without asking the user to reselect Client, Project, or Task. Start and Pause call `PUT /api/tasks/:taskId/timer`, Save Time calls `POST /api/tasks/:taskId/timer/finalize`, and Reset calls `DELETE /api/tasks/:taskId/timer`. Workbench owns the default-open timer section, selected-task display, and refresh wiring; Tasks and Time Tracking still own timer eligibility, permissions, sourced active-timer persistence, open-to-in-progress side effects, audit/event/search behavior, elapsed-time calculations, and saved time-entry creation.
 
+As of 0.33.6.12k, the Workbench Task Focus timer UI renders the focused task's timer only inside the Task Timer section. It does not render the focused task's active/paused timer in `Other Active Timers`; that lower panel is filtered to other task timers and manual timers while all timer mutations still use the existing Tasks-owned task timer routes.
+
 As of 0.33.6.12e-1, Workbench Task Focus related context reads the selected task through the Tasks service, uses Tasks list paths for same-project active task context and shared-direct-tag task matches, and emits only safe task titles, labels, badges, and existing `tasks.edit` action descriptors. Tasks still owns task visibility, lifecycle rules, and canonical edit behavior; Workbench does not query task tables directly or reuse focus-mode candidate overflow for selected-task related context.
+
+As of 0.33.6.12m, linked Note rows in that same Task Focus related-context read model dispatch the Notes-owned `notes.view` action instead of editing immediately. Tasks still does not own note body reads, Markdown rendering, secure/private note body visibility, stale linked-note handling, or Notes editor handoff behavior.
 
 As of 0.33.6.12j, Workbench Task Focus summary reuses the existing Tasks read payload for summary metadata. It shows the selected task's Client/Project path once and surfaces status, priority, due date/time, and safe direct tags as summary chips while keeping Task Details read-only for expanded metadata rather than summary essentials. Tasks still owns readable task labels, due fields, direct-tag decoration, and permission-safe omission of inaccessible data.
 
@@ -137,6 +145,8 @@ Task checklists are lightweight progress aids inside a parent task. Checklist it
 Checklist mutations update `last_worked_at`, task search indexing, audit metadata, and internal events. Event metadata includes parent task identity and checklist progress so downstream consumers can update summaries without reading checklist rows directly.
 
 As of 0.33.6.12j, choosing `All Future` when saving a recurring task records the edited occurrence's active checklist structure to the recurrence template and applies that structure to eligible future open/in-progress/blocked occurrences in the same series. Past occurrences, completed occurrences, and archived occurrences are not rewritten. Future occurrences keep their own checklist completion state: exact label matches preserve checked/completed progress, newly propagated rows start unchecked, and future generated recurrence instances copy the template checklist rows unchecked.
+
+As of 0.33.6.12n, choosing `All Future` also records the edited occurrence's active readable linked-note relationship structure to the recurrence template and applies it to eligible future open/in-progress/blocked occurrences in the same series. Future generated recurrence instances inherit those linked notes as normal task-target `note_links`. Past occurrences, completed occurrences, archived occurrences, note bodies, Notes visibility rules, and occurrence-specific task/checklist/timer state are not rewritten.
 
 ## Parent And Child Tasks
 

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 import { listFrameworkViewSurfaces } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const listsModule = readText("src/modules/lists/module.js");
@@ -69,7 +69,7 @@ assertMinimalHost("views/protected/clients.html", /<main class="wide-page client
 assertMinimalHost("views/protected/projects.html", /<main class="wide-page client-projects-page projects-page" data-client-projects-host><\/main>/);
 
 assertHostScripts("views/protected/lists.html", [/view-builder\.js\?v=5/, /view-renderer\.js\?v=6/, /lists\.js\?v=14/]);
-assertHostScripts("views/protected/notes.html", [/view-builder\.js\?v=11/, /view-renderer\.js\?v=12/, /notes\.js\?v=71/]);
+assertHostScripts("views/protected/notes.html", [/view-builder\.js\?v=11/, /view-renderer\.js\?v=12/, /notes\.js\?v=72/]);
 assertHostScripts("views/protected/tasks.html", [/view-builder\.js\?v=16/, /view-renderer\.js\?v=13/, /task-dialog\.js\?v=23/, /tasks\.js\?v=22/]);
 assertHostScripts("views/protected/files.html", [/view-builder\.js\?v=16/, /view-renderer\.js\?v=13/, /file-preview\.js\?v=1/, /files\.js\?v=15/]);
 assertHostScripts("views/protected/clients.html", [/view-builder\.js\?v=5/, /view-renderer\.js\?v=16/, /clients-projects\.js\?v=20/]);

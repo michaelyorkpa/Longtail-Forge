@@ -102,6 +102,7 @@ let state = {
   workspaceType: "",
   openExternalLinksNewTab: readStoredOpenExternalLinksPreference(),
 };
+let activeNoteViewDialog = null;
 
 const notesWorkspaceHost = document.querySelector("[data-notes-host]");
 const isNotesWorkspaceSurface = Boolean(notesWorkspaceHost);
@@ -251,6 +252,8 @@ const notesDialogApi = Object.freeze({
   openAdd: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "add" }, hostContext),
   openEdit: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
   openNoteEditor,
+  openNoteViewer,
+  openView: openNoteViewer,
 });
 
 window.LongtailForge.notesDialog = Object.freeze({
@@ -281,6 +284,18 @@ window.LongtailForge.moduleActions?.register?.({
   requiredModules: ["notes"],
   requiredPermissions: ["notes.view"],
   title: "Edit Note",
+});
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "notes.view",
+  id: "notes.view",
+  label: "View Note",
+  mode: "view",
+  moduleId: "notes",
+  open: (params, hostContext) => openNoteViewer(params, hostContext),
+  recordType: "note",
+  requiredModules: ["notes"],
+  requiredPermissions: ["notes.view"],
+  title: "View Note",
 });
 
 if (isNotesWorkspaceSurface) {
@@ -446,6 +461,172 @@ async function openNoteEditor(params = {}, hostContext = null) {
     trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
   });
   return hostContext?.result || result;
+}
+
+async function openNoteViewer(params = {}, hostContext = null) {
+  const noteId = readNoteEditorId(params);
+
+  if (!noteId) {
+    throw new Error("Note ID is required.");
+  }
+
+  await window.LongtailForge.workspaceContextReady;
+  await loadMarkdownRenderingPreference();
+
+  if (activeNoteViewDialog?.isConnected) {
+    view.closeModal(activeNoteViewDialog, "replace");
+  }
+
+  const trigger = params.returnFocusTo || params.trigger || hostContext?.trigger || null;
+  const dialog = createNoteViewDialog(noteId);
+  const closeResult = new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+  });
+
+  dialog.addEventListener("close", () => {
+    if (activeNoteViewDialog === dialog) {
+      activeNoteViewDialog = null;
+    }
+    if (dialog.returnValue !== "edit") {
+      hostContext?.cancel?.({
+        actionId: "notes.view",
+        recordId: noteId,
+      });
+    }
+    dialog.remove();
+  }, { once: true });
+
+  document.body.appendChild(dialog);
+  activeNoteViewDialog = dialog;
+  view.showModal(dialog, { parent: params.parent || null, trigger });
+
+  try {
+    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+    renderNoteViewDialog(dialog, result.note, params, hostContext);
+  } catch (error) {
+    renderNoteViewError(dialog, error);
+    hostContext?.setStatus?.(noteViewErrorMessage(error), { isError: true });
+  }
+
+  return hostContext?.result || closeResult;
+}
+
+function createNoteViewDialog(noteId) {
+  let dialog = null;
+  const body = view.createElement("div", {
+    className: "notes-view-body",
+    attrs: { "aria-live": "polite" },
+    dataset: { noteViewBody: "" },
+    children: [emptyText("Loading note...")],
+  });
+  const closeAction = view.createActionButton({
+    action: "notes.view.close",
+    className: "surface-modal-footer-action",
+    label: "Close",
+    role: "secondary",
+    onClick: () => view.closeModal(dialog, "close"),
+  });
+  const editAction = view.createActionButton({
+    action: "notes.view.edit",
+    className: "surface-modal-footer-action",
+    disabled: true,
+    label: "Edit",
+    role: "primary",
+  });
+
+  closeAction.dataset.noteViewAction = "close";
+  editAction.dataset.noteViewAction = "edit";
+
+  dialog = view.createModal({
+    title: "View Note",
+    className: "notes-view-dialog",
+    size: "wide",
+    body: [body],
+    actions: [closeAction, editAction],
+  });
+  dialog.dataset.noteViewDialog = "";
+  dialog.dataset.noteId = noteId;
+  return dialog;
+}
+
+function renderNoteViewDialog(dialog, note = {}, params = {}, hostContext = null) {
+  const noteId = note.note_id || note.id || readNoteEditorId(params);
+  const title = note.title || "Untitled note";
+
+  dialog.dataset.noteId = noteId || "";
+  dialog.viewParts.title.textContent = title;
+
+  const meta = view.createElement("p", {
+    className: "notes-detail-meta notes-view-meta",
+    children: detailMetaItems(note),
+  });
+  const tags = view.createElement("div", {
+    className: "notes-detail-tags notes-view-tags",
+    children: [tagChips(note.tags || [])],
+  });
+  const body = view.createElement("div", { className: "notes-rendered-body notes-view-rendered-body" });
+  body.innerHTML = note.body_html || "";
+  applyExternalMarkdownLinkPreference(body);
+  if (!body.textContent.trim() && !note.body_html) {
+    body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
+  }
+
+  noteViewBodyElement(dialog)?.replaceChildren(meta, tags, body);
+
+  const editAction = noteViewEditAction(dialog);
+  editAction.disabled = note.status === "archived";
+  editAction.title = note.status === "archived"
+    ? "Restore archived notes before editing."
+    : "Edit this note";
+  editAction.addEventListener("click", () => openNoteViewEditHandoff(dialog, noteId, {
+    ...params,
+    note,
+    noteId,
+  }, hostContext), { once: true });
+}
+
+function renderNoteViewError(dialog, error = {}) {
+  dialog.viewParts.title.textContent = "Note unavailable";
+  noteViewBodyElement(dialog)?.replaceChildren(emptyText(noteViewErrorMessage(error)));
+  const editAction = noteViewEditAction(dialog);
+  editAction.disabled = true;
+  editAction.title = "This note cannot be edited from here.";
+}
+
+function noteViewBodyElement(dialog) {
+  return dialog?.querySelector("[data-note-view-body]");
+}
+
+function noteViewEditAction(dialog) {
+  return dialog?.querySelector("[data-note-view-action='edit']");
+}
+
+function openNoteViewEditHandoff(dialog, noteId, params = {}, hostContext = null) {
+  if (!noteId) {
+    return;
+  }
+
+  view.closeModal(dialog, "edit");
+  void openNoteEditor({
+    ...params,
+    mode: "edit",
+    noteId,
+    returnFocusTo: params.returnFocusTo || hostContext?.trigger || null,
+  }, hostContext).catch((error) => {
+    hostContext?.setStatus?.(safeNoteErrorMessage(error, "Note could not be opened."), { isError: true });
+    hostContext?.cancel?.({
+      actionId: "notes.edit",
+      recordId: noteId,
+    });
+  });
+}
+
+function noteViewErrorMessage(error = {}) {
+  if (isSecureError(error)) {
+    return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
+  }
+
+  return "Note is unavailable or you do not have access.";
 }
 
 async function prepareNoteDialogData() {

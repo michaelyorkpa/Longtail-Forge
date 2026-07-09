@@ -86,6 +86,17 @@
       open: (params, hostContext) => namespace.notesDialog.openNoteEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
+      id: "notes.view",
+      moduleId: "notes",
+      label: "View Note",
+      title: "View Note",
+      mode: "view",
+      recordType: "note",
+      requiredModules: ["notes"],
+      requiredPermissions: ["notes.view"],
+      open: (params, hostContext) => namespace.notesDialog.openNoteViewer(params, hostContext),
+    },
+    {
       id: "lists.add",
       moduleId: "lists",
       label: "Add List",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12j";
+const appVersion = "0.33.6.12n";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -19,7 +19,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
+  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
   "Workbench should cache-bust CSS and JS for the Task Focus surface",
 );
 assert.match(
@@ -29,8 +29,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "renderWorkbenchViewState"),
-  /toggleWorkbenchStatePanel\(taskFocusPanelElement, !isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(focusPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(recommendedActionPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, isTaskFocus\);/,
-  "Task Focus should hide the focus questions, recommendation card, and timer/module panels",
+  /toggleWorkbenchStatePanel\(taskFocusPanelElement, !isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(focusPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(recommendedActionPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, false\);/,
+  "Task Focus should hide the focus questions and recommendation card while keeping the state-aware timer panel mounted",
 );
 assert.match(
   functionBody(workbenchScript, "renderWorkbench"),

@@ -69,7 +69,7 @@ check("QAC dispatches modal actions through the module action registry with safe
   assert.match(footer, /"time-tracking\.timer\.create": \[[\s\S]*js\/time-tracking-timer-dialog\.js\?v=1/);
   assert.match(footer, /quickActionDependencySets = \{[\s\S]*"tasks\.add": \[[\s\S]*js\/shared\/module-actions\.js\?v=2[\s\S]*js\/task-dialog\.js\?v=23/);
   assert.match(footer, /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js\?v=2/);
-  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js\?v=71"/);
+  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js\?v=72"/);
   assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js\?v=14"/);
   assert.match(footer, /function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/);
   assert.match(footer, /ensureQuickActionDependencies\(action\.moduleActionId\)/);

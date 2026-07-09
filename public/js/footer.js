@@ -116,7 +116,7 @@ const quickActionDependencySets = {
     { src: "js/shared/notification-subscriptions.js?v=1", test: () => window.LongtailForge?.notificationSubscriptions },
     { src: "js/shared/notes-editor.js?v=4", test: () => window.LongtailForge?.notesEditor },
     { src: "js/shared/file-preview.js?v=1", test: () => window.LongtailForge?.filePreview },
-    { module: true, src: "js/notes.js?v=71", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
+    { module: true, src: "js/notes.js?v=72", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
   ],
   "lists.add": [
     ...moduleActionBaseDependencies,
