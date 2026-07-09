@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.12e-2. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.6.12f. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -124,7 +124,7 @@ Tasks expose resume-safe context through task reads, task summaries, Workbench t
 
 Completed and archived tasks keep their readable context but do not become active resume candidates by default. Inaccessible tasks do not expose resume-safe context through task reads, summaries, Workbench items, or permission-shaped browser routes.
 
-The global resume-state service, ranking model, dismissal state, API, and Workbench Pick up where I left off feed are framework-owned. Tasks provides source context, resume notes, recurrence metadata, and safe lifecycle events for those consumers without owning the global resume-state framework. Recurring task instances whose only fresh signal is `Task Created` should not become resume recommendations until they are within roughly a day of their due date.
+The global resume-state service, ranking model, dismissal state, API, and Workbench Pick up where I left off feed are framework-owned. Tasks provides source context, resume notes, recurrence metadata, canonical Workbench item sorting by `updated_at`, and safe lifecycle events for those consumers without owning the global resume-state framework. As of 0.33.6.12f, Pick up where I left off may read Tasks-owned Workbench items to boost the second-most-recent updated readable active task after running/paused timer precedence while still excluding completed, archived, disabled, inaccessible, or out-of-filter tasks. Recurring task instances whose only fresh signal is `Task Created` should not become resume recommendations until they are within roughly a day of their due date.
 
 ## Checklists
 

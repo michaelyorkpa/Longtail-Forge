@@ -1,4 +1,5 @@
 import { modulesService } from "../core/modules/modules.service.js";
+import { tasksService } from "../modules/tasks/tasks.service.js";
 import { activeTimersService } from "../modules/time-tracking/active-timers.service.js";
 import {
   ALLOWED_PAYLOAD_FIELDS,
@@ -111,6 +112,8 @@ const RANK_BUCKET_ID_BY_VALUE = Object.freeze({
 const RECENTLY_TOUCHED_DAYS = 2;
 const RESUME_SOURCE_KIND = "resume_state";
 const STALE_DAYS = 7;
+const TASK_UPDATED_BOOST_SOURCE_KIND = "task_updated_boost";
+const TASK_WORK_ITEM_SOURCE_KEY = "tasks:task";
 const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
 
 async function listResumeCandidates(session, query = {}) {
@@ -178,6 +181,33 @@ async function listLiveTimerCandidates(session, query = {}, sourceContext = null
     .filter((candidate) => matchesCandidateQuery(candidate, normalizedQuery));
 }
 
+async function readSecondMostRecentUpdatedTaskCandidate(session, query = {}, sourceContext = null) {
+  const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
+  const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
+
+  if (!resolvedSourceContext.workItemSourceKeys.has(TASK_WORK_ITEM_SOURCE_KEY)) {
+    return null;
+  }
+
+  const result = await tasksService.listWorkbenchItems(session, {
+    ...optionalContextFilter("clientId", normalizedQuery.clientId),
+    ...optionalContextFilter("projectId", normalizedQuery.projectId),
+    sort: "updated",
+    status: "active",
+  });
+
+  if (result.source_enabled === false) {
+    return null;
+  }
+
+  const eligibleTasks = (result.items || [])
+    .filter((item) => item?.task_id || item?.source_id)
+    .filter((item) => !["complete", "archived"].includes(normalizeFilterToken(item.status)));
+  const secondMostRecentTask = eligibleTasks[1];
+
+  return secondMostRecentTask ? candidateFromTaskWorkItem(secondMostRecentTask) : null;
+}
+
 function rankWorkCandidates(candidates = [], options = {}) {
   const context = rankContext(options);
 
@@ -192,6 +222,39 @@ function rankWorkCandidates(candidates = [], options = {}) {
     }))
     .sort(compareRankedCandidates)
     .map((entry) => entry.candidate);
+}
+
+function candidateFromTaskWorkItem(item = {}) {
+  const taskId = textValue(firstValue(item.task_id, item.source_id), TEXT_LIMITS.recordId);
+  const sourceUrl = safeUrl(item.source_url) || (taskId ? `tasks.html?task=${encodeURIComponent(taskId)}` : "");
+  const title = textValue(firstValue(item.title, item.source_label), TEXT_LIMITS.title) || "Task";
+
+  return normalizeWorkCandidate({
+    candidateId: `${TASK_UPDATED_BOOST_SOURCE_KIND}:tasks:task:${taskId}`,
+    clientId: item.client_id,
+    contextLabel: taskWorkItemContextLabel(item),
+    dueAt: firstValue(item.due_at_utc, item.due_at, item.due_date),
+    handoffNote: item.resume_note,
+    lastWorkedAt: item.last_worked_at,
+    metadata: {
+      assigned_to_current_user: item.assigned_to_current_user === true,
+      checklist_progress: item.checklist_progress || item.checklistProgress || null,
+      timer_status: item.timer_status || "",
+    },
+    moduleId: "tasks",
+    nextAction: item.next_action,
+    primaryAction: openPrimaryAction(sourceUrl),
+    priority: item.priority,
+    projectId: item.project_id,
+    reason: "Recover the work before the latest update.",
+    recordId: taskId,
+    recordType: "task",
+    sourceKind: TASK_UPDATED_BOOST_SOURCE_KIND,
+    sourceUrl,
+    status: item.status,
+    title,
+    updatedAt: item.updated_at,
+  });
 }
 
 function candidateFromResumeRow(row = {}) {
@@ -230,6 +293,13 @@ function candidateFromResumeRow(row = {}) {
     ...candidate,
     reason: candidate.reason || resumeReason(candidate),
   };
+}
+
+function taskWorkItemContextLabel(item = {}) {
+  return [item.client_name, item.project_name]
+    .map((value) => textValue(value, 120))
+    .filter(Boolean)
+    .join(" / ");
 }
 
 function candidateFromTimer(timer = {}) {
@@ -1068,6 +1138,11 @@ function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null);
 }
 
+function optionalContextFilter(key, value) {
+  const text = textValue(value, TEXT_LIMITS.recordId);
+  return text ? { [key]: text } : {};
+}
+
 function textValue(value, limit = 1000) {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, limit);
 }
@@ -1096,14 +1171,17 @@ const workCandidateService = {
   listWorkCandidates,
   normalizeWorkCandidate,
   rankWorkCandidates,
+  readSecondMostRecentUpdatedTaskCandidate,
   resolveWorkCandidateRankBucket,
 };
 
 export {
   candidateFromResumeRow,
+  candidateFromTaskWorkItem,
   candidateFromTimer,
   normalizeWorkCandidate,
   rankWorkCandidates,
+  readSecondMostRecentUpdatedTaskCandidate,
   resolveWorkCandidateRankBucket,
   WORK_CANDIDATE_RANK_BUCKETS,
   WORK_CANDIDATE_SORTS,

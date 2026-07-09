@@ -139,6 +139,8 @@ As of 0.33.6.12e-1, Task Focus has a backend related-context read model but no n
 
 As of 0.33.6.12e-2, the Task Focus Inspector renders that selected-task related-context read model in the existing Workbench right panel. It is default-open and collapsible with a visible caret on wide layouts, hides only the scrollable related-context body when collapsed, keeps the existing narrow-layout hide behavior, and opens related rows through existing module actions or explicit safe fallback URLs. It does not embed Notes, Files, Lists, or Tasks previews inside the Inspector.
 
+As of 0.33.6.12f, the Pick up where I left off Focus Selection recommendation list may insert a Tasks-owned second-most-recent updated active task after running/paused timer resume rows. This is candidate ordering only: it does not add a new Workbench panel, embedded task list, task filter bar, or browser-side task ordering source.
+
 ## Main-Screen Internal Surfaces
 
 Use `.surface-main-panel` for main-screen internal boxes such as filters, bulk toolbars, settings groups, notification panels, task timer/recovery panels, list detail panels, and contextual work surfaces. Use `.surface-main-panel--sticky` only when the panel persists near the top of the work surface while the user scrolls. The Tasks filter toolbar and bulk toolbar are the first proof target for this shell; later adoption slices can broaden it to Notifications, Time Tracking, Lists, Clients/Projects, and Notes.

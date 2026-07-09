@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12e-2";
+const appVersion = "0.33.6.12f";
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");

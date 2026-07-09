@@ -238,17 +238,53 @@ async function executeFocusCandidateStrategy(session, focusContext) {
 }
 
 async function listResumeFocusCandidates(session, focusContext) {
-  const primaryResult = await workCandidateService.listResumeCandidates(session, resumePrimaryQuery(focusContext));
+  const primaryQuery = resumePrimaryQuery(focusContext);
+  const primaryResult = await workCandidateService.listResumeCandidates(session, primaryQuery);
 
   if (primaryResult.items.length > 0) {
-    return primaryResult;
+    return mergeSecondMostRecentTaskBoost(session, focusContext, primaryResult, primaryQuery);
   }
 
   if (focusContext.resumeStrategy?.fallback === "ranked-candidates") {
-    return workCandidateService.listWorkCandidates(session, resumeFallbackQuery(focusContext));
+    const fallbackQuery = resumeFallbackQuery(focusContext);
+    const fallbackResult = await workCandidateService.listWorkCandidates(session, fallbackQuery);
+    return mergeSecondMostRecentTaskBoost(session, focusContext, fallbackResult, fallbackQuery);
   }
 
   return primaryResult;
+}
+
+async function mergeSecondMostRecentTaskBoost(session, focusContext, result, query) {
+  if (focusContext?.id !== FOCUS_MODE_IDS.pickUpWhereLeftOff) {
+    return result;
+  }
+
+  const boostedTask = await workCandidateService.readSecondMostRecentUpdatedTaskCandidate(session, query);
+
+  if (!boostedTask) {
+    return result;
+  }
+
+  const items = result.items || [];
+  const timerItems = [];
+  const remainingItems = [];
+
+  for (const item of items) {
+    if (isTimerResumeCandidate(item)) {
+      timerItems.push(item);
+    } else {
+      remainingItems.push(item);
+    }
+  }
+
+  return {
+    ...result,
+    items: dedupeCandidatesBySource([
+      ...timerItems,
+      boostedTask,
+      ...remainingItems,
+    ]).slice(0, focusCandidateLimit(query)),
+  };
 }
 
 function resumePrimaryQuery(focusContext) {
@@ -495,6 +531,47 @@ function boundedInteger(value, min, max, fallback = min) {
   }
 
   return Math.min(max, Math.max(min, parsed));
+}
+
+function dedupeCandidatesBySource(candidates = []) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const candidate of candidates) {
+    const key = candidateSourceKey(candidate);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(candidate);
+  }
+
+  return deduped;
+}
+
+function candidateSourceKey(candidate = {}) {
+  return [
+    textValue(candidate.moduleId || candidate.module_id, 80),
+    textValue(candidate.recordType || candidate.record_type, 80),
+    textValue(candidate.recordId || candidate.record_id, 160),
+  ].join(":");
+}
+
+function isTimerResumeCandidate(candidate = {}) {
+  const recordType = textValue(candidate.recordType || candidate.record_type, 80);
+  const timerStatus = textValue(
+    candidate.metadata?.timer_status || candidate.metadata?.timerStatus,
+    80,
+  ).toLowerCase();
+
+  return recordType === "active_work_timer" ||
+    ["running", "active", "paused"].includes(timerStatus);
+}
+
+function focusCandidateLimit(query = {}) {
+  return boundedInteger(firstValue(query.limit, query.pageSize, query.page_size), 1, 100, 25);
 }
 
 const workFocusModesService = {

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12e-2";
+const appVersion = "0.33.6.12f";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-catalog-links-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-catalog-links-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";

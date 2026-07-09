@@ -77,7 +77,7 @@ check("protected pages load the action registry before module adapters", () => {
   assert.ok(filesView.indexOf("js/shared/module-actions.js?v=2") < filesView.indexOf("js/files.js?v=15"));
 });
 
-check("documentation and suite registration cover the 0.33.6.12e-2 boundary", () => {
+check("documentation and suite registration cover the 0.33.6.12f boundary", () => {
   assert.match(moduleContract, /As of 0\.33\.6\.10b[\s\S]*Notes and Lists now expose canonical add\/edit opener registrations/);
   assert.match(moduleContract, /Files exposes attachment-scoped `files\.edit` and `files\.preview` registrations/);
   assert.match(surfaceContract, /As of 0\.33\.6\.10b[\s\S]*Task, Note, and List capture rows use registered module actions/);

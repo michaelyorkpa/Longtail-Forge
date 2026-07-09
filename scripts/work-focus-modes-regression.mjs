@@ -20,6 +20,7 @@ const {
 const { activeTimersRepository } = await import("../src/modules/time-tracking/active-timers.repo.js");
 const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
+const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const {
   WORK_CANDIDATE_SORTS,
   workCandidateService,
@@ -39,6 +40,7 @@ try {
   await assertModeResolutionContracts(session);
   await assertResolvedContextsDriveCandidates(session);
   await assertPickUpWhereLeftOffExecutesResumeStrategy(session);
+  await assertPickUpWhereLeftOffBoostsSecondUpdatedTask(session);
   await assertClientFocusWorkspaceGating(session);
 
   console.log("Work focus modes regression passed.");
@@ -551,6 +553,194 @@ async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
   assert.equal(fallbackFocus.items[0]?.sourceKind, "live_timer");
 }
 
+async function assertPickUpWhereLeftOffBoostsSecondUpdatedTask(session) {
+  const today = "2026-07-09";
+  const clientId = `updated-boost-client-${randomUUID()}`;
+  const otherClientId = `updated-boost-other-client-${randomUUID()}`;
+  const projectId = `updated-boost-project-${randomUUID()}`;
+  const sameClientOtherProjectId = `updated-boost-same-client-project-${randomUUID()}`;
+  const otherClientProjectId = `updated-boost-other-client-project-${randomUUID()}`;
+  const singleProjectId = `updated-boost-single-${randomUUID()}`;
+
+  await createClient(session.workspace_id, clientId, "Updated Boost Client");
+  await createClient(session.workspace_id, otherClientId, "Updated Boost Other Client");
+  await createProject(session.workspace_id, projectId, "Updated Boost Project", clientId);
+  await createProject(session.workspace_id, sameClientOtherProjectId, "Updated Boost Same Client Project", clientId);
+  await createProject(session.workspace_id, otherClientProjectId, "Updated Boost Other Client Project", otherClientId);
+  await createProject(session.workspace_id, singleProjectId, "Updated Boost Single Project", clientId);
+
+  const newestId = await createUpdatedTask(session, {
+    projectId,
+    title: "Latest interruption task",
+    updatedAt: "2026-07-09T18:00:00.000Z",
+  });
+  const boostedId = await createUpdatedTask(session, {
+    projectId,
+    title: "Second updated recovery task",
+    updatedAt: "2026-07-09T17:00:00.000Z",
+  });
+  const olderId = await createUpdatedTask(session, {
+    projectId,
+    title: "Older recovery task",
+    updatedAt: "2026-07-09T16:00:00.000Z",
+  });
+  const completedId = await createUpdatedTask(session, {
+    projectId,
+    status: "complete",
+    title: "Completed high-update decoy",
+    updatedAt: "2026-07-09T21:00:00.000Z",
+  });
+  const archivedId = await createUpdatedTask(session, {
+    projectId,
+    status: "archived",
+    title: "Archived high-update decoy",
+    updatedAt: "2026-07-09T20:00:00.000Z",
+  });
+  const sameClientOtherProjectIdTask = await createUpdatedTask(session, {
+    projectId: sameClientOtherProjectId,
+    title: "Same client other project decoy",
+    updatedAt: "2026-07-09T19:00:00.000Z",
+  });
+  const otherClientNewestId = await createUpdatedTask(session, {
+    projectId: otherClientProjectId,
+    title: "Other client newest decoy",
+    updatedAt: "2026-07-09T23:00:00.000Z",
+  });
+  const otherClientSecondId = await createUpdatedTask(session, {
+    projectId: otherClientProjectId,
+    title: "Other client second decoy",
+    updatedAt: "2026-07-09T22:00:00.000Z",
+  });
+  const singleTaskId = await createUpdatedTask(session, {
+    projectId: singleProjectId,
+    title: "Only active task in scope",
+    updatedAt: "2026-07-09T15:00:00.000Z",
+  });
+  const runningResumeId = await upsertTaskCandidate(session, {
+    lastActionLabel: "Timer Running",
+    lastActionType: "timer.running",
+    lastWorkedAt: "2026-07-09T19:10:00.000Z",
+    metadata: { timer_status: "running" },
+    nextAction: "",
+    projectId,
+    statusSnapshot: "active",
+    title: "Running timer resume row",
+  });
+  const pausedResumeId = await upsertTaskCandidate(session, {
+    lastActionLabel: "Timer Paused",
+    lastActionType: "timer.paused",
+    lastWorkedAt: "2026-07-09T19:00:00.000Z",
+    metadata: { timer_status: "paused" },
+    nextAction: "",
+    projectId,
+    statusSnapshot: "paused",
+    title: "Paused timer resume row",
+  });
+
+  await upsertResumeTaskCandidate(session, newestId, {
+    clientId,
+    lastWorkedAt: "2026-07-09T18:00:00.000Z",
+    projectId,
+    title: "Latest interruption task",
+  });
+  await upsertResumeTaskCandidate(session, boostedId, {
+    clientId,
+    lastWorkedAt: "2026-07-09T17:00:00.000Z",
+    projectId,
+    title: "Second updated recovery task",
+  });
+  await upsertResumeTaskCandidate(session, olderId, {
+    clientId,
+    lastWorkedAt: "2026-07-09T16:00:00.000Z",
+    projectId,
+    title: "Older recovery task",
+  });
+
+  const projectScoped = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId,
+    today,
+  });
+  const orderedProjectIds = intersectCandidateIds(projectScoped.items, [
+    runningResumeId,
+    pausedResumeId,
+    boostedId,
+    newestId,
+    olderId,
+  ]);
+
+  assert.deepEqual(orderedProjectIds, [
+    runningResumeId,
+    pausedResumeId,
+    boostedId,
+    newestId,
+    olderId,
+  ], "Pick up focus should keep timer resume rows before the second-updated task boost");
+  assert.equal(projectScoped.items[2]?.recordId, boostedId, "second-most-recent updated active task should be boosted");
+  assert.equal(projectScoped.items[2]?.sourceKind, "task_updated_boost");
+  assert.notEqual(projectScoped.items[2]?.recordId, newestId, "newest updated task should not be the boost target");
+  assert.equal(projectScoped.items.filter((candidate) => candidate.recordId === boostedId).length, 1, "boosted task should dedupe with its resume row");
+  assert.equal(projectScoped.items.some((candidate) => candidate.recordId === completedId), false);
+  assert.equal(projectScoped.items.some((candidate) => candidate.recordId === archivedId), false);
+  assert.equal(projectScoped.items.some((candidate) => candidate.recordId === sameClientOtherProjectIdTask), false);
+
+  const clientScoped = await workFocusModesService.listFocusCandidates(session, {
+    clientId,
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    today,
+  });
+
+  assert.equal(clientScoped.items.some((candidate) => candidate.recordId === otherClientNewestId), false);
+  assert.equal(clientScoped.items.some((candidate) => candidate.recordId === otherClientSecondId), false);
+
+  const singleTaskFocus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId: singleProjectId,
+    today,
+  });
+
+  assert.equal(singleTaskFocus.items.some((candidate) => candidate.sourceKind === "task_updated_boost"), false);
+  assert.equal(singleTaskFocus.items.some((candidate) => candidate.recordId === singleTaskId), false);
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'disabled',
+    disabled_at = '2026-07-09T20:10:00.000Z'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tasks';
+`);
+
+  const disabledTasksFocus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId,
+    today,
+  });
+
+  assert.equal(disabledTasksFocus.items.some((candidate) => candidate.recordId === boostedId), false);
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'enabled',
+    disabled_at = NULL
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tasks';
+`);
+
+  const limitedSession = await createLimitedSession(session.workspace_id);
+  const unreadableFocus = await workFocusModesService.listFocusCandidates(limitedSession, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId,
+    today,
+  });
+
+  assert.equal(unreadableFocus.items.some((candidate) => candidate.recordId === boostedId), false);
+}
+
 async function assertClientFocusWorkspaceGating(session) {
   await setWorkspaceType(session.workspace_id, "personal");
 
@@ -632,8 +822,8 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
-async function createProject(workspaceId, projectId, name) {
-  await projectsRepository.create(workspaceId, "", {
+async function createProject(workspaceId, projectId, name, clientId = "") {
+  await projectsRepository.create(workspaceId, clientId, {
     billable: "no",
     id: projectId,
     name,
@@ -648,6 +838,64 @@ async function createClient(workspaceId, clientId, name) {
     name,
     status: "Active",
   });
+}
+
+async function createUpdatedTask(session, { projectId, status = "open", title, updatedAt }) {
+  const created = (await tasksService.create({
+    project_id: projectId,
+    status,
+    title,
+  }, session)).task;
+
+  await runSql(`
+UPDATE tasks
+SET status = ${sqlText(status)},
+    updated_at = ${sqlText(updatedAt)},
+    last_worked_at = ${sqlText(updatedAt)},
+    completed_at = CASE WHEN ${sqlText(status)} = 'complete' THEN ${sqlText(updatedAt)} ELSE completed_at END,
+    completed_by_user_id = CASE WHEN ${sqlText(status)} = 'complete' THEN ${sqlText(session.user_id)} ELSE completed_by_user_id END,
+    archived_at = CASE WHEN ${sqlText(status)} = 'archived' THEN ${sqlText(updatedAt)} ELSE archived_at END,
+    archived_by_user_id = CASE WHEN ${sqlText(status)} = 'archived' THEN ${sqlText(session.user_id)} ELSE archived_by_user_id END
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND task_id = ${sqlText(created.task_id)};
+`);
+
+  return created.task_id;
+}
+
+async function upsertResumeTaskCandidate(session, taskId, overrides = {}) {
+  await workResumeStateService.upsertResumeState(session, {
+    moduleId: "tasks",
+    nextAction: "Resume the task.",
+    recordId: taskId,
+    recordType: "task",
+    sourceUrl: `tasks.html?task=${encodeURIComponent(taskId)}`,
+    statusSnapshot: "active",
+    title: "Resume task",
+    ...overrides,
+  });
+}
+
+async function createLimitedSession(workspaceId) {
+  const userId = randomUUID();
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO users (user_id, home_workspace_id, username, display_name, password, protected_user, active_workspace_id)
+VALUES (${sqlText(userId)}, ${sqlText(workspaceId)}, ${sqlText(`${userId}@example.test`)}, 'Limited Focus User', 'x', 'no', ${sqlText(workspaceId)});
+
+INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
+VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, 'active', ${sqlText(now)}, ${sqlText(now)});
+`);
+
+  return {
+    home_workspace_id: workspaceId,
+    ip: "127.0.0.1",
+    timezone: "America/New_York",
+    user_id: userId,
+    username: `${userId}@example.test`,
+    workspace_id: workspaceId,
+  };
 }
 
 async function readSeedSession() {

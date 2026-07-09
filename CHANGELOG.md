@@ -1,3 +1,12 @@
+## Version 0.33.6.12f - 2026-07-09 06:28 -04:00
+
+- Corrected Pick up where I left off so it boosts the second-most-recent updated readable active task after running/paused timer resume precedence.
+- Read the boost candidate through the Tasks-owned Workbench item source using canonical task `updated_at`, current Client/Project filters, module state, and task read permissions.
+- Deduplicated the boosted task against existing resume rows and kept the normal resume/candidate order after the boost.
+- Expanded `scripts/work-focus-modes-regression.mjs` to cover the second-updated boost, newest-task exclusion, completed/archived/unreadable/disabled exclusions, Client/Project filters, dedupe, fewer-than-two fallback, and timer precedence.
+- Updated Workbench/Tasks architecture and module contracts, advanced version guardrails to 0.33.6.12f, and marked the 0.33.6.12f roadmap slice complete.
+- Verification 2026-07-09 06:32 -04:00: changed Workbench candidate/focus services and focus-mode regression passed `node --check`; focused Workbench focus-mode, work-candidate, work-resume-state, guided UI, and view-state regressions passed; `npm run check` passed 303/303 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.12f from the refreshed local 8001 server.
+
 ## Version 0.33.6.12e-2 - 2026-07-08 17:38 -04:00
 
 - Rendered Task Focus related context in the Workbench right-side Inspector using the selected-task related-context read model from 0.33.6.12e-1 instead of Focus Selection candidate overflow.

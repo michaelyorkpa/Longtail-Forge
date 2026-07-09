@@ -687,17 +687,17 @@ Adjust "Pick up where I left off" so it better handles interruption recovery.
 
 When the user chooses "Pick up where I left off," the first visible candidate should be the **second-most-recently updated active task** the user can read, because the most recently updated task is often the interruption itself. After that boosted task, the existing resume/candidate list should continue in its normal order, deduplicated.
 
-- [ ] For the `pick-up-where-left-off` focus, compute a second-most-recently updated visible task candidate.
+- [x] For the `pick-up-where-left-off` focus, compute a second-most-recently updated visible task candidate.
   - Exclude completed and archived tasks.
   - Respect workspace scope, readable task permissions, enabled-module state, private/secure boundaries, and current client/project filters.
   - Use task `updated_at` / canonical task update timestamp, not browser-local ordering.
   - If fewer than two eligible recently updated tasks exist, do not fabricate a boost; fall back to the existing resume/candidate ordering.
-- [ ] Prepend the second-most-recent updated task to the `pick-up-where-left-off` candidate list.
-- [ ] Deduplicate the boosted task if it already appears elsewhere in the list.
-- [ ] Preserve the existing resume-first strategy for active resume rows and active timers unless this boost is explicitly being applied to the task list after those higher-priority resume signals.
+- [x] Prepend the second-most-recent updated task to the `pick-up-where-left-off` candidate list.
+- [x] Deduplicate the boosted task if it already appears elsewhere in the list.
+- [x] Preserve the existing resume-first strategy for active resume rows and active timers unless this boost is explicitly being applied to the task list after those higher-priority resume signals.
   - Preferred ordering: running timer / paused timer resume rows remain strongest; then second-most-recent updated task; then the rest of the resume/candidate list.
-- [ ] Keep candidate ranking deterministic and testable.
-- [ ] Add focused regressions proving:
+- [x] Keep candidate ranking deterministic and testable.
+- [x] Add focused regressions proving:
   - The second-most-recent updated readable active task is boosted for Pick up where I left off.
   - The most recently updated task is not the boost target when at least two eligible tasks exist.
   - Completed/archived/unreadable/disabled-module tasks are excluded.

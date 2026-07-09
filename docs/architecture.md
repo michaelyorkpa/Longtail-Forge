@@ -830,6 +830,8 @@ As of 0.33.6.12e-1, Task Focus related context is a Workbench service route for 
 
 As of 0.33.6.12e-2, the Task Focus Inspector consumes that selected-task related-context read model. The browser owns collapsible right-panel presentation, loading/error/empty states, and module-action dispatch; owning modules still own Notes/List/Task editor behavior and Files Preview behavior. Workbench does not render embedded previews, does not fetch unrelated focus-mode overflow candidates for Task Focus, and does not load the full Files browse page adapter just to preview a related attachment.
 
+As of 0.33.6.12f, the Pick up where I left off focus corrects its recovery recommendation by boosting the second-most-recent updated readable active task from the Tasks Workbench item source, scoped by the current Client/Project filters and ordered by canonical task `updated_at`. Running and paused timer resume rows stay first, the boosted task is deduplicated against any existing resume row, and disabled, completed, archived, unreadable, private/secure, or out-of-filter tasks remain excluded by the existing source and permission boundaries.
+
 Notification preferences should be framework-owned, but modules may declare notification types/templates that users can enable, mute, or configure where practical.
 
 ---
