@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const now = new Date("2026-07-02T12:00:00.000Z");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-retention-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=32[\s\S]*workbench\.js\?v=31/,
+  /longtail-forge\.css\?v=34[\s\S]*workbench\.js\?v=33/,
   "Workbench should cache-bust CSS and JS for the Task Focus surface",
 );
 assert.match(
@@ -112,8 +112,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "renderTaskFocusInspector"),
-  /setWorkbenchInspectorCopy\("Task context", "Related work for the focused task\."\)[\s\S]*workbenchInspectorCountText\.textContent = "0";/,
-  "Task Focus Inspector should switch away from More-in-this-focus candidate overflow",
+  /setWorkbenchInspectorCopy\("Task context", "Related work for the focused task\."\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*taskFocusRelatedContextGroups\(context\)[\s\S]*workbenchInspectorCountText\.textContent = String\(items\.length\);/,
+  "Task Focus Inspector should switch from More-in-this-focus candidate overflow to selected-task related context",
 );
 
 assert.match(
@@ -144,7 +144,7 @@ assert.match(
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12c-2[\s\S]*Task Focus shows a selected-task action strip, summary, read-only collapsed Task Details/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*Task Focus shows a selected-task action strip, summary, read-only collapsed Task Details/,
   "View-building contract should include the Task Focus anatomy",
 );
 assert.match(

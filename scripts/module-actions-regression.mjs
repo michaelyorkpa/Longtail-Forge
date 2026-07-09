@@ -14,6 +14,7 @@ const workbenchScript = fs.readFileSync("public/js/workbench.js", "utf8");
 const tasksScript = fs.readFileSync("public/js/tasks.js", "utf8");
 const taskDialogScript = fs.readFileSync("public/js/task-dialog.js", "utf8");
 const timeEntryDialogScript = fs.readFileSync("public/js/time-entry-dialog.js", "utf8");
+const timeTrackingTimerDialogScript = fs.readFileSync("public/js/time-tracking-timer-dialog.js", "utf8");
 const timeEntriesScript = fs.readFileSync("public/js/time-entries.js", "utf8");
 const clientsProjectsScript = fs.readFileSync("public/js/clients-projects.js", "utf8");
 const notesScript = fs.readFileSync("public/js/notes.js", "utf8");
@@ -30,6 +31,7 @@ check("first-party module modal actions are registered", () => {
   [
     "tasks.add",
     "tasks.edit",
+    "time-tracking.timer.create",
     "time-entries.add",
     "time-entries.edit",
     "notes.add",
@@ -127,6 +129,15 @@ check("Time Entry actions use module-owned reusable dialog helpers", () => {
   assert.match(timeEntriesScript, /timeEntryDialog\.openEdit/);
 });
 
+check("Time Tracking timer action uses module-owned reusable dialog helpers", () => {
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeTrackingTimerDialog\.openCreate\(params, hostContext\)/);
+  assert.match(timeTrackingTimerDialogScript, /actionId: TIMER_ACTION_ID/);
+  assert.match(timeTrackingTimerDialogScript, /namespace\.timeTrackingTimerDialog = timeTrackingTimerDialogApi/);
+  assert.match(timeTrackingTimerDialogScript, /openCreate/);
+  assert.match(timeTrackingTimerDialogScript, /api\.putJson\(`\/api\/active-timers\/\$\{encodeURIComponent\(timerSlot\)\}`/);
+  assert.match(timeTrackingTimerDialogScript, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.id\)\}\/timer`/);
+});
+
 check("Client and Project actions use module-owned reusable dialog helpers", () => {
   assert.match(workbenchView, /js\/clients-projects\.js/);
   assert.match(projectsView, /js\/clients-projects\.js/);
@@ -161,6 +172,8 @@ check("Notes, Lists, and Files actions use module-owned canonical openers", () =
 check("module-owned saves can signal host completion", () => {
   assert.match(taskDialogScript, /hostContext\?\.complete/);
   assert.match(timeEntryDialogScript, /hostContext\?\.complete/);
+  assert.match(timeTrackingTimerDialogScript, /hostContext\?\.complete/);
+  assert.match(timeTrackingTimerDialogScript, /hostContext\?\.refresh/);
   assert.match(clientsProjectsScript, /hostContext\.complete\(detail\)/);
   assert.match(notesScript, /completeNoteEditorHostContext/);
   assert.match(listsScript, /completeListDialogHostContext/);

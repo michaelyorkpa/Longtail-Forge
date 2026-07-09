@@ -37,12 +37,12 @@ check("quick actions are gated by module, capability, permission, and search ava
   assert.match(appShellService, /normalizeSearchTargetsForQuickActions\(options\.searchTargets\)\.length === 0/);
 });
 
-check("first action set routes modal-backed Task, Note, and List actions through the registry", () => {
+check("first action set routes modal-backed Timer, Task, Note, and List actions through the registry", () => {
+  assert.match(appShellService, /id: "timer"[\s\S]*actionType: "module-action"[\s\S]*moduleActionId: "time-tracking\.timer\.create"[\s\S]*requiredPermissions: \["time_entries\.create"\]/);
   assert.match(appShellService, /id: "task"[\s\S]*actionType: "module-action"[\s\S]*moduleActionId: "tasks\.add"[\s\S]*requiredPermissions: \["tasks\.create"\]/);
   assert.match(appShellService, /id: "note"[\s\S]*actionType: "module-action"[\s\S]*moduleActionId: "notes\.add"[\s\S]*requiredPermissions: \["notes\.create"\]/);
   assert.match(appShellService, /id: "list"[\s\S]*actionType: "module-action"[\s\S]*moduleActionId: "lists\.add"[\s\S]*requiredPermissions: \["lists\.create"\]/);
   [
-    ["timer", "time-tracker.html", "time_entries.create"],
     ["file", "files.html", "target-aware file upload capture ships"],
     ["reporting", "reporting.html", "reporting.view"],
     ["search", "search.html", "Temporary fallback: opens Search"],
@@ -66,6 +66,7 @@ check("shared footer owns a quiet bottom-right drawer on protected shell pages",
 });
 
 check("QAC dispatches modal actions through the module action registry with safe current-page context", () => {
+  assert.match(footer, /"time-tracking\.timer\.create": \[[\s\S]*js\/time-tracking-timer-dialog\.js\?v=1/);
   assert.match(footer, /quickActionDependencySets = \{[\s\S]*"tasks\.add": \[[\s\S]*js\/shared\/module-actions\.js\?v=2[\s\S]*js\/task-dialog\.js\?v=23/);
   assert.match(footer, /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js\?v=2/);
   assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js\?v=71"/);
@@ -76,6 +77,7 @@ check("QAC dispatches modal actions through the module action registry with safe
   assert.match(footer, /function readQuickActionPageContext\(\)[\s\S]*path: window\.location\.pathname[\s\S]*query: window\.location\.search[\s\S]*title:/);
   assert.match(moduleActions, /trigger\.focus\(\)/);
   assert.match(moduleActions, /complete: \(detail = \{\}\) => finish\(true, detail\)/);
+  assert.match(footer, /refresh: \(detail\) => notifyQuickActionHostRefresh\(action, detail\)/);
 });
 
 check("QAC uses the shared icon registry and avoids badge or recommendation behavior", () => {
@@ -109,8 +111,10 @@ check("all shell-backed protected hosts load the shared app shell includes that 
 check("documentation records the QAC framework/module boundary", () => {
   assert.match(moduleContract, /As of 0\.33\.6\.10b[\s\S]*Quick Action Capture/);
   assert.match(moduleContract, /Task, Note, and List actions dispatch through `LongtailForge\.moduleActions`/);
+  assert.match(moduleContract, /As of 0\.33\.6\.12d-2[\s\S]*Time Tracking owns `time-tracking\.timer\.create`/);
   assert.match(surfaceContract, /As of 0\.33\.6\.10b[\s\S]*Quick Action Capture/);
   assert.match(surfaceContract, /must not show badges, alerts, or recommendation behavior/);
+  assert.match(surfaceContract, /As of 0\.33\.6\.12d-2[\s\S]*QAC Timer opens the Time Tracking Create Timer modal/);
 });
 
 check("regression suite includes QAC coverage", () => {

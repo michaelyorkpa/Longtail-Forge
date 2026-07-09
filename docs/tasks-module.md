@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.12c-2. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.6.12e-2. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -58,6 +58,10 @@ The framework may own action discovery, availability filtering, dispatch status,
 As of 0.33.6.12c-1, Workbench Task Focus uses Tasks-owned browser API paths for selected-task execution: Edit dispatches through the canonical `tasks.edit` module action, Complete calls `POST /api/tasks/:taskId/complete`, and Block calls the existing `PUT /api/tasks/:taskId` update path with `status: "blocked"`. Workbench owns the focused shell and read-only task summary/details presentation; Tasks still owns permission checks, status transition validation, audit/events/search updates, recurrence completion behavior, checklist mutations, timer mutations, and the canonical editor body.
 
 As of 0.33.6.12c-2, Workbench Task Focus can check and uncheck existing checklist items through the same Tasks-owned checklist routes used by the Task editor. Workbench renders a check-only execution section and refreshes from the Tasks response shape, while structure editing remains in the canonical Task editor: add, remove, rename, and reorder controls are not exposed in Task Focus.
+
+As of 0.33.6.12d-1, Workbench Task Focus exposes the selected task's timer controls without asking the user to reselect Client, Project, or Task. Start and Pause call `PUT /api/tasks/:taskId/timer`, Save Time calls `POST /api/tasks/:taskId/timer/finalize`, and Reset calls `DELETE /api/tasks/:taskId/timer`. Workbench owns the default-open timer section, selected-task display, and refresh wiring; Tasks and Time Tracking still own timer eligibility, permissions, sourced active-timer persistence, open-to-in-progress side effects, audit/event/search behavior, elapsed-time calculations, and saved time-entry creation.
+
+As of 0.33.6.12e-1, Workbench Task Focus related context reads the selected task through the Tasks service, uses Tasks list paths for same-project active task context and shared-direct-tag task matches, and emits only safe task titles, labels, badges, and existing `tasks.edit` action descriptors. Tasks still owns task visibility, lifecycle rules, and canonical edit behavior; Workbench does not query task tables directly or reuse focus-mode candidate overflow for selected-task related context.
 
 As of 0.33.5.18.9.3, the Task editor uses one framework-owned `Task Details` section before the specialized task-owned fragments. Task Details contains status, priority, parent task, due date, due time, resume note, next action, nullable Client/Project controls, description, assignees, and the final blocked reason field. Blocked Reason is hidden and disabled unless Status is `Blocked`. The dialog uses the shared `wide` modal size without a narrower Task-only width override.
 

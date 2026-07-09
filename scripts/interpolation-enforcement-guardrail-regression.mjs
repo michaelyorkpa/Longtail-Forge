@@ -8,7 +8,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const helperDefinitionFile = "src/db/sql-literals.js";
 const helperCallPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/g;
 const helperCallTestPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/;

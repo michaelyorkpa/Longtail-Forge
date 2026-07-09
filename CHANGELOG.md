@@ -1,3 +1,34 @@
+## Version 0.33.6.12e-2 - 2026-07-08 17:38 -04:00
+
+- Rendered Task Focus related context in the Workbench right-side Inspector using the selected-task related-context read model from 0.33.6.12e-1 instead of Focus Selection candidate overflow.
+- Added default-open Task Focus Inspector collapse behavior with a visible caret, scrollable grouped related-context rows, loading/error/empty states, and existing narrow-layout hiding preserved.
+- Routed related Notes, Files, Lists, and Tasks rows through existing module actions or explicit safe fallbacks, including a Workbench-safe `files.preview` adapter backed by the shared File Preview helper rather than the Files browse page adapter.
+- Added `scripts/workbench-task-focus-related-context-ui-regression.mjs`, registered it with the suite/coverage manifest, updated Workbench/module docs, advanced version guardrails to 0.33.6.12e-2, and marked the 0.33.6.12e-2 roadmap slice complete.
+- Verification 2026-07-08 17:45 -04:00: changed Workbench related-context UI and regression files passed `node --check`; focused Workbench Task Focus related-context UI/service/surface/checklist/timer, Workbench Inspector/view-state, module-actions, Files preview modal, and regression coverage checks passed; `npm run check` passed 303/303 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; `git diff --check` reported no whitespace errors aside from line-ending warnings; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12e-2 from the refreshed local 8001 server.
+
+## Version 0.33.6.12e-1 - 2026-07-08 15:38 -04:00
+
+- Added a Workbench Task Focus related-context service and route for one selected task, using owning module services instead of focus-mode candidate overflow.
+- Ranked related context as linked Notes, task Files, linked Lists, same-project active Tasks, then direct shared-tag records, with deduplication preserving the strongest reason.
+- Shaped related items with safe source labels, record types, readable titles, reason labels, badges, and existing module-action descriptors or explicit fallback URLs while excluding note bodies, secure payloads, file storage details, scanner internals, and raw unsafe labels.
+- Added `scripts/workbench-task-focus-related-context-regression.mjs`, registered it with the suite/coverage manifest, updated Workbench/module docs, advanced version guardrails to 0.33.6.12e-1, and marked the 0.33.6.12e-1 roadmap slice complete.
+- Verification 2026-07-08 15:46 -04:00: changed Workbench related-context service, route, regression, docs, and version files passed `node --check`; focused Workbench Task Focus related-context/dehardcode/surface/checklist/timer, Workbench Inspector/view-state, QAC opener, Time Tracking Create Timer modal, module-actions, Notes linked panel, Lists service, Files attachment panel, and regression coverage checks passed; `npm run check` passed 302/302 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; `git diff --check` reported no whitespace errors aside from line-ending warnings; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12e-1 from the refreshed local 8001 server.
+
+## Version 0.33.6.12d-2 - 2026-07-08 14:12 -04:00
+
+- Added a Time Tracking-owned Create Timer modal registered as `time-tracking.timer.create`, with Client, Project, optional Task, Description, and Billable controls.
+- Updated QAC Timer to dispatch the Create Timer module action instead of navigating to `time-tracker.html`, including lazy-loaded dependencies, focus-return through the shared module-action host, and host timer-refresh notification after start.
+- Routed manual timer starts through the existing active-timer route with the next available manual slot, and routed selected-task timer starts through the existing Tasks timer route so task-timer side effects remain owned by Tasks.
+- Added `scripts/time-tracking-create-timer-modal-regression.mjs`, updated QAC/module-action/Workbench timer regressions, refreshed docs/version guardrails, and marked the 0.33.6.12d-2 roadmap slice complete.
+- Verification 2026-07-08 14:23 -04:00: changed footer, module-action, Time Tracking dialog, and regression files passed `node --check`; focused Time Tracking Create Timer modal, QAC, module-action, Workbench Task Focus timer, quick-action opener, regression coverage ratchet, task-options payload, Tasks timer utility, active-timer repository, and task timer status regressions passed; `npm run check` passed 301/301 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; `git diff --check` reported no whitespace errors aside from line-ending warnings; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12d-2 from the refreshed local 8001 server.
+
+## Version 0.33.6.12d-1 - 2026-07-08 13:36 -04:00
+
+- Split Workbench timer behavior by view state: Focus Selection Timers now lists only active/paused timers and no longer renders the manual creation row.
+- Added a default-open Task Focus Task Timer section after Checklist, using the focused task context automatically with Start, Pause, Save Time, and Reset controls routed through the existing Tasks timer APIs.
+- Kept QAC Timer on its existing temporary Time Tracker fallback for the 0.33.6.12d-2 modal slice, bumped Workbench cache keys to `longtail-forge.css?v=33` and `workbench.js?v=32`, added `scripts/workbench-task-focus-timer-regression.mjs`, updated docs/version guardrails, and marked the 0.33.6.12d-1 roadmap slice complete.
+- Verification 2026-07-08 13:50 -04:00: changed Workbench/regression files passed `node --check`; focused Workbench Task Focus timer/checklist/surface, view-state, collapsible-section, guided UI, Dashboard/Workbench, quick-action opener, Task modal completion, and regression coverage ratchet checks passed; `npm run check` passed 300/300 regression scripts plus ESLint; `npm run test:permissions` passed 240 checks; `git diff --check` reported no whitespace errors aside from line-ending warnings; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.12d-1 from the refreshed local 8001 server.
+
 ## Version 0.33.6.12c-2 - 2026-07-08 12:55 -04:00
 
 - Added the Task Focus Checklist execution section after read-only Task Details, opening populated checklists by default and collapsing empty checklists with `Edit task to add checklist items.`.

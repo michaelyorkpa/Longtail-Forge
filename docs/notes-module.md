@@ -1,12 +1,14 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.6.12c-2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.6.12e-2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
 Notes is a first-party workflow module registered by `src/modules/notes/module.js`. The module owns note-specific schema, migrations, routes, service methods, repository reads/writes, access-policy helpers, Markdown helpers, search indexer shape, and the protected Notes browser workspace.
 
 The framework owns module registration, route mounting, protected view serving, app-shell navigation, permissions, tags, search persistence, file storage, audit logging, internal events, notifications, Help discovery, and module enablement. Notes consumes those framework services through declarations and service calls instead of adding parallel storage or UI systems.
+
+As of 0.33.6.12e-1, Workbench Task Focus related context consumes Notes through Notes-owned linked-target and list service paths. Linked notes outrank project and shared-tag matches, shared-tag matches use direct tags only, and the related-context read model emits safe labels/action descriptors without note body text, secure bodies, encrypted payload metadata, or storage-sensitive fields. Notes editor/preview behavior remains owned by the Notes module.
 
 Important files:
 

@@ -40,6 +40,18 @@
       open: (params, hostContext) => namespace.timeEntryDialog.openAdd(params, hostContext),
     },
     {
+      id: "time-tracking.timer.create",
+      moduleId: "time-tracking",
+      label: "Create Timer",
+      title: "Create Timer",
+      mode: "create",
+      recordType: "active_timer",
+      requiredModules: ["time-tracking"],
+      requiredPermissions: ["time_entries.create"],
+      requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+      open: (params, hostContext) => namespace.timeTrackingTimerDialog.openCreate(params, hostContext),
+    },
+    {
       id: "time-entries.edit",
       moduleId: "time-tracking",
       label: "Edit Time Entry",

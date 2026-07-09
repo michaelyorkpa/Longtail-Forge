@@ -9,7 +9,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";

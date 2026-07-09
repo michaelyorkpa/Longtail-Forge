@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -13,7 +13,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/workbench\.js\?v=31/,
+  /js\/workbench\.js\?v=33/,
   "Workbench should cache-bust the view-state adapter",
 );
 assert.match(

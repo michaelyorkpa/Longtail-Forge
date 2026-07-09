@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=32[\s\S]*workbench\.js\?v=31/,
+  /longtail-forge\.css\?v=34[\s\S]*workbench\.js\?v=33/,
   "Workbench should bump CSS and JS cache keys for the Inspector panel",
 );
 
@@ -91,8 +91,8 @@ assert.match(
 );
 assert.doesNotMatch(
   workbenchScript,
-  /workbench-inspector-preview|iframe|\.innerHTML|files\.preview/,
-  "Inspector should not introduce an embedded preview pane or file preview shortcut in this slice",
+  /workbench-inspector-preview|iframe|\.innerHTML/,
+  "Inspector should not introduce an embedded preview pane",
 );
 
 assert.match(
@@ -128,7 +128,7 @@ assert.match(
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12c-2[\s\S]*right-side "More in this focus" Inspector overflow list[\s\S]*main-column "More in this focus" section/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*right-side "More in this focus" Inspector overflow list[\s\S]*main-column "More in this focus" section/,
   "View-building contract should include the current Workbench Inspector anatomy",
 );
 assert.match(

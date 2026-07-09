@@ -55,11 +55,6 @@ const modal = window.LongtailForge.modal;
 const workbenchHost = document.querySelector("[data-workbench-host]");
 
 let focusModeList = null;
-let manualBillableInput = null;
-let manualClientInput = null;
-let manualDescriptionInput = null;
-let manualProjectInput = null;
-let manualTimerForm = null;
 let clientFocusControl = null;
 let clientFocusInput = null;
 let projectFocusControl = null;
@@ -76,10 +71,13 @@ let taskFocusActionMount = null;
 let taskFocusBody = null;
 let taskFocusPanelElement = null;
 let changeFocusButton = null;
+let workbenchInspectorCollapseButton = null;
 let workbenchInspectorCountText = null;
+let workbenchInspectorElement = null;
 let workbenchInspectorHeadingText = null;
 let workbenchInspectorHelperText = null;
 let workbenchInspectorList = null;
+let taskFocusInspectorCollapsed = false;
 let timerSectionElement = null;
 let timerSectionUserToggled = false;
 let timerCountText = null;
@@ -118,7 +116,6 @@ let transientStatus = {
 const workbenchCardRenderers = {
   "active-work-timers": () => {
     renderTimers();
-    updateManualTimerState();
   },
 };
 const workbenchCardDataLoaders = {
@@ -183,6 +180,15 @@ function createWorkbenchShell() {
 }
 
 function createWorkbenchInspectorPanel() {
+  workbenchInspectorCollapseButton = workbenchViewHelpers.createActionButton({
+    className: "workbench-inspector-collapse-button",
+    icon: "down",
+    iconOnly: true,
+    label: "Collapse Task Focus Inspector",
+    onClick: toggleTaskFocusInspectorCollapse,
+    text: "",
+    title: "Collapse Task Focus Inspector",
+  });
   workbenchInspectorCountText = workbenchViewHelpers.createElement("span", {
     className: "workbench-count",
     dataset: { workbenchInspectorCount: "" },
@@ -197,10 +203,11 @@ function createWorkbenchInspectorPanel() {
   });
   workbenchInspectorList = workbenchViewHelpers.createElement("div", {
     className: "workbench-inspector-list",
+    attrs: { id: "workbench-inspector-related-context-list" },
     dataset: { workbenchInspectorList: "" },
   });
 
-  return workbenchViewHelpers.createElement("aside", {
+  workbenchInspectorElement = workbenchViewHelpers.createElement("aside", {
     className: ["workbench-inspector", "surface-main-panel"],
     attrs: {
       "aria-labelledby": "workbench-inspector-heading",
@@ -220,6 +227,7 @@ function createWorkbenchInspectorPanel() {
               workbenchInspectorHeadingText,
             ],
           }),
+          workbenchInspectorCollapseButton,
           workbenchInspectorCountText,
           workbenchInspectorHelperText,
         ],
@@ -227,6 +235,8 @@ function createWorkbenchInspectorPanel() {
       workbenchInspectorList,
     ],
   });
+  syncTaskFocusInspectorCollapseState(false, { enableCollapse: false });
+  return workbenchInspectorElement;
 }
 
 function createTaskFocusPanel() {
@@ -262,9 +272,6 @@ function bindWorkbenchEvents() {
   focusModeList?.addEventListener("click", handleFocusModeClick);
   clientFocusInput?.addEventListener("change", handleClientFocusChange);
   projectFocusInput?.addEventListener("change", handleProjectFocusChange);
-  manualTimerForm?.addEventListener("submit", startManualTimer);
-  manualClientInput?.addEventListener("change", () => populateManualProjects({ notifyBillableChange: true }));
-  manualProjectInput?.addEventListener("change", () => updateManualBillableDefault({ notify: true }));
 }
 
 function createGuidedFocusPanel() {
@@ -416,50 +423,13 @@ function createTimerSection() {
     dataset: { workbenchTimerCount: "" },
     text: "0",
   });
-  manualClientInput = workbenchViewHelpers.createElement("select", { dataset: { workbenchManualClient: "" } });
-  manualProjectInput = workbenchViewHelpers.createElement("select", {
-    attrs: { required: "" },
-    dataset: { workbenchManualProject: "" },
-  });
-  manualDescriptionInput = workbenchViewHelpers.createElement("input", {
-    attrs: { type: "text" },
-    dataset: { workbenchManualDescription: "" },
-  });
-  manualBillableInput = workbenchViewHelpers.createElement("input", {
-    attrs: { checked: "", type: "checkbox" },
-    dataset: { workbenchManualBillable: "" },
-  });
-  manualTimerForm = workbenchViewHelpers.createElement("form", {
-    className: "workbench-manual-timer-form",
-    dataset: { workbenchManualTimerForm: "" },
-    children: [
-      workbenchViewHelpers.createElement("label", {
-        attrs: { "data-client-workspace-control": "" },
-        children: ["Client", manualClientInput],
-      }),
-      workbenchViewHelpers.createElement("label", {
-        children: ["Project", manualProjectInput],
-      }),
-      workbenchViewHelpers.createElement("label", {
-        children: ["Description", manualDescriptionInput],
-      }),
-      workbenchViewHelpers.createElement("label", {
-        className: "inline-option workbench-billable-option",
-        children: [manualBillableInput, "Billable"],
-      }),
-      workbenchViewHelpers.createElement("button", {
-        attrs: { type: "submit" },
-        text: "Start Timer",
-      }),
-    ],
-  });
   timerList = workbenchViewHelpers.createElement("div", {
     className: "workbench-timer-list",
     dataset: { workbenchTimerList: "" },
   });
 
   timerSectionElement = createWorkbenchCardSection({
-    body: [manualTimerForm, timerList],
+    body: [timerList],
     cardId: "active-work-timers",
     count: timerCountText,
     defaultOpen: hasActiveOrPausedTimers(),
@@ -558,7 +528,6 @@ async function loadWorkbench() {
       focusContext: focusData?.focusContext || null,
     };
     restoreCardState();
-    populateManualTimerForm();
     renderWorkbench();
     startTicking();
     setStatus("");
@@ -700,6 +669,7 @@ function resolvedWorkbenchViewState() {
 function resetTaskFocusState() {
   state.viewState = WORKBENCH_VIEW_STATE_FOCUS_SELECTION;
   state.activeTaskFocus = null;
+  taskFocusInspectorCollapsed = false;
 }
 
 function toggleWorkbenchStatePanel(element, hidden) {
@@ -830,6 +800,7 @@ function renderWorkbenchInspector() {
     return;
   }
 
+  syncTaskFocusInspectorCollapseState(false, { enableCollapse: false });
   setWorkbenchInspectorCopy(
     "More in this focus",
     "Other work matching the selected focus. Choose one to focus it.",
@@ -855,14 +826,43 @@ function renderWorkbenchInspector() {
 }
 
 function renderTaskFocusInspector() {
+  syncTaskFocusInspectorCollapseState(taskFocusInspectorCollapsed, { enableCollapse: true });
   setWorkbenchInspectorCopy("Task context", "Related work for the focused task.");
-  workbenchInspectorCountText.textContent = "0";
+  const context = taskFocusRelatedContextState();
+  const groups = taskFocusRelatedContextGroups(context);
+  const items = groups.flatMap((group) => group.items || []);
+  workbenchInspectorCountText.textContent = String(items.length);
   workbenchInspectorList.replaceChildren();
-  workbenchInspectorList.appendChild(emptyState(
-    state.activeTaskFocus?.error
-      ? "Task context is unavailable while task details cannot be loaded."
-      : "No related task context is loaded.",
-  ));
+
+  if (taskFocusInspectorCollapsed) {
+    return;
+  }
+
+  if (state.activeTaskFocus?.error) {
+    workbenchInspectorList.appendChild(emptyState("Task context is unavailable while task details cannot be loaded."));
+    return;
+  }
+
+  if (context.isLoading) {
+    workbenchInspectorList.appendChild(emptyState("Loading related task context..."));
+    return;
+  }
+
+  if (context.error) {
+    workbenchInspectorList.appendChild(emptyState(context.error));
+    return;
+  }
+
+  if (items.length === 0) {
+    workbenchInspectorList.appendChild(emptyState("No related task context is available yet."));
+    return;
+  }
+
+  groups.forEach((group) => {
+    if ((group.items || []).length > 0) {
+      workbenchInspectorList.appendChild(createTaskFocusRelatedContextGroup(group));
+    }
+  });
 }
 
 function setWorkbenchInspectorCopy(heading, helper) {
@@ -872,6 +872,128 @@ function setWorkbenchInspectorCopy(heading, helper) {
   if (workbenchInspectorHelperText) {
     workbenchInspectorHelperText.textContent = helper;
   }
+}
+
+function syncTaskFocusInspectorCollapseState(collapsed, options = {}) {
+  const enableCollapse = Boolean(options.enableCollapse);
+
+  if (workbenchInspectorElement) {
+    workbenchInspectorElement.dataset.workbenchInspectorTaskFocus = enableCollapse ? "true" : "false";
+    workbenchInspectorElement.dataset.workbenchInspectorCollapsed = enableCollapse && collapsed ? "true" : "false";
+  }
+  if (workbenchInspectorList) {
+    workbenchInspectorList.hidden = enableCollapse && collapsed;
+  }
+  if (!workbenchInspectorCollapseButton) {
+    return;
+  }
+
+  workbenchInspectorCollapseButton.hidden = !enableCollapse;
+  workbenchInspectorCollapseButton.disabled = !enableCollapse;
+  workbenchInspectorCollapseButton.setAttribute("aria-expanded", enableCollapse && !collapsed ? "true" : "false");
+  workbenchInspectorCollapseButton.setAttribute("aria-controls", "workbench-inspector-related-context-list");
+  workbenchInspectorCollapseButton.setAttribute(
+    "aria-label",
+    collapsed ? "Expand Task Focus Inspector" : "Collapse Task Focus Inspector",
+  );
+  workbenchInspectorCollapseButton.title = collapsed ? "Expand Task Focus Inspector" : "Collapse Task Focus Inspector";
+}
+
+function toggleTaskFocusInspectorCollapse() {
+  if (resolvedWorkbenchViewState() !== WORKBENCH_VIEW_STATE_TASK_FOCUS) {
+    return;
+  }
+
+  taskFocusInspectorCollapsed = !taskFocusInspectorCollapsed;
+  renderTaskFocusInspector();
+}
+
+function taskFocusRelatedContextState(active = state.activeTaskFocus) {
+  return active?.relatedContext || {
+    error: "",
+    groups: [],
+    isLoading: false,
+    items: [],
+    taskId: active?.taskId || "",
+  };
+}
+
+function taskFocusRelatedContextGroups(context = taskFocusRelatedContextState()) {
+  return Array.isArray(context.groups) ? context.groups : [];
+}
+
+function createTaskFocusRelatedContextGroup(group = {}) {
+  const count = Number.parseInt(group.count, 10) || (group.items || []).length;
+  const header = workbenchViewHelpers.createElement("div", {
+    className: "workbench-inspector-group-heading",
+    children: [
+      workbenchViewHelpers.createElement("h3", {
+        text: safeRelatedContextText(group.label, "Related context"),
+      }),
+      workbenchViewHelpers.createElement("span", {
+        className: "workbench-count",
+        text: String(count),
+      }),
+    ],
+  });
+  const list = workbenchViewHelpers.createElement("div", {
+    className: "workbench-inspector-group-list",
+    children: (group.items || []).map((item) => createTaskFocusRelatedContextItem(item)),
+  });
+
+  return workbenchViewHelpers.createElement("section", {
+    className: "workbench-inspector-group",
+    dataset: {
+      workbenchRelatedContextGroup: group.id || group.reason || "related",
+    },
+    children: [header, list],
+  });
+}
+
+function createTaskFocusRelatedContextItem(item = {}) {
+  const title = relatedContextTitle(item);
+  const context = relatedContextContextLabel(item);
+  const canOpen = relatedContextCanOpen(item);
+  const titleButton = workbenchViewHelpers.createElement("button", {
+    className: "workbench-inspector-title",
+    attrs: {
+      "aria-label": `${relatedContextActionLabel(item)}: ${title}`,
+      type: "button",
+    },
+    dataset: {
+      workbenchRelatedContextAction: item.action?.moduleActionId || "",
+      workbenchRelatedContextOpen: item.recordType || item.moduleId || "related",
+      workbenchRelatedContextRecord: item.recordId || "",
+    },
+    text: title,
+  });
+  const badges = relatedContextBadges(item);
+
+  titleButton.disabled = !canOpen;
+  titleButton.addEventListener("click", (event) => openTaskFocusRelatedContextItem(item, event.currentTarget));
+
+  return workbenchViewHelpers.createElement("article", {
+    className: "workbench-inspector-item",
+    dataset: {
+      workbenchInspectorItem: "",
+      workbenchRelatedContextItem: "",
+      workbenchRelatedContextReason: item.reason || "",
+      workbenchRelatedContextSource: item.moduleId || "",
+    },
+    children: [
+      titleButton,
+      workbenchViewHelpers.createElement("p", {
+        className: "workbench-inspector-context",
+        text: context,
+      }),
+      badges.length > 0
+        ? workbenchViewHelpers.createElement("div", {
+            className: "workbench-inspector-badges",
+            children: badges,
+          })
+        : null,
+    ].filter(Boolean),
+  });
 }
 
 function workbenchInspectorCandidates() {
@@ -1072,6 +1194,7 @@ function renderTaskFocusSurface() {
     createTaskFocusSummary(active),
     createTaskDetailsSection(active),
     createTaskFocusChecklistSection(active),
+    createTaskFocusTimerSection(active),
   );
 }
 
@@ -1278,6 +1401,262 @@ function createTaskFocusChecklistSection(active) {
   );
   setWorkbenchDisclosureOpen(details, items.length > 0);
   return details;
+}
+
+function createTaskFocusTimerSection(active) {
+  const timer = currentTaskFocusTimer(active);
+  const bodyId = "workbench-task-focus-timer-body";
+  const count = workbenchViewHelpers.createElement("span", {
+    className: "workbench-section-count",
+    dataset: { workbenchTaskFocusTimerState: "" },
+    text: taskFocusTimerSummaryText(active, timer),
+  });
+  const details = workbenchViewHelpers.createElement("details", {
+    className: ["workbench-section", "surface-main-panel", "workbench-task-timer-section"],
+    dataset: {
+      workbenchTaskFocusTimer: "",
+      workbenchTaskFocusTimerDefaultOpen: "true",
+      workbenchTaskFocusTimerLinked: "task",
+    },
+  });
+  const body = workbenchViewHelpers.createElement("div", {
+    attrs: { id: bodyId },
+    className: ["workbench-section-body", "workbench-task-timer-body"],
+    children: createTaskFocusTimerBody(active, timer),
+  });
+
+  details.append(
+    createWorkbenchSectionSummary({
+      bodyId,
+      count,
+      title: "Task Timer",
+    }),
+    body,
+  );
+  setWorkbenchDisclosureOpen(details, true);
+  return details;
+}
+
+function createTaskFocusTimerBody(active, timer) {
+  if (active?.isLoading) {
+    return [emptyState("Task timer is loading.")];
+  }
+  if (active?.error) {
+    return [emptyState("Task timer could not be loaded.")];
+  }
+
+  const eligibility = taskFocusTimerEligibility(active);
+
+  return [
+    createTaskFocusTimerControls(active, timer, eligibility),
+    createTaskFocusTimerList(active, timer),
+  ];
+}
+
+function createTaskFocusTimerControls(active, timer, eligibility) {
+  const duration = workbenchViewHelpers.createElement("strong", {
+    className: "workbench-duration",
+    dataset: { workbenchTaskFocusTimerDisplay: "" },
+    text: formatDuration(readElapsedSeconds(timer)),
+  });
+  if (timer?.active_timer_id) {
+    duration.dataset.workbenchDuration = timer.active_timer_id;
+  }
+
+  const running = timer?.timer_status === "running";
+  const startButton = createTaskFocusTimerButton({
+    action: "start",
+    disabled: !eligibility.eligible || running,
+    label: "Start",
+    onClick: () => saveFocusedTaskTimer("running"),
+    taskId: active?.taskId || "",
+  });
+  const pauseButton = createTaskFocusTimerButton({
+    action: "pause",
+    disabled: !eligibility.eligible || !running,
+    label: "Pause",
+    onClick: () => saveFocusedTaskTimer("paused"),
+    taskId: active?.taskId || "",
+  });
+  const saveButton = createTaskFocusTimerButton({
+    action: "save",
+    disabled: !eligibility.eligible || !timer,
+    label: "Save Time",
+    onClick: finalizeFocusedTaskTimer,
+    taskId: active?.taskId || "",
+  });
+  const resetButton = createTaskFocusTimerButton({
+    action: "reset",
+    danger: true,
+    disabled: !timer,
+    label: "Reset",
+    onClick: resetFocusedTaskTimer,
+    taskId: active?.taskId || "",
+  });
+
+  return workbenchViewHelpers.createElement("div", {
+    className: "workbench-task-focus-timer-control-box",
+    dataset: {
+      taskId: active?.taskId || "",
+      workbenchTaskFocusTimerControls: "",
+    },
+    children: [
+      workbenchViewHelpers.createElement("p", {
+        className: "workbench-task-focus-timer-status",
+        dataset: { workbenchTaskFocusTimerStatus: "" },
+        text: taskFocusTimerStatusText(active, timer, eligibility),
+      }),
+      workbenchViewHelpers.createElement("div", {
+        className: ["task-timer-controls", "surface-dense-actions", "workbench-task-focus-timer-controls"],
+        children: [duration, startButton, pauseButton, saveButton, resetButton],
+      }),
+    ],
+  });
+}
+
+function createTaskFocusTimerButton({ action, danger = false, disabled = false, label, onClick, taskId }) {
+  const button = actionButton(label, onClick, { danger });
+  button.disabled = Boolean(disabled);
+  button.dataset.taskId = taskId || "";
+  button.dataset.workbenchTaskFocusTimerAction = action;
+  return button;
+}
+
+function createTaskFocusTimerList(active, timer) {
+  const list = workbenchViewHelpers.createElement("div", {
+    className: "workbench-task-focus-timer-list",
+    dataset: { workbenchTaskFocusTimerList: "" },
+  });
+
+  if (!timer) {
+    list.appendChild(emptyState("No active or paused timers."));
+    return list;
+  }
+
+  list.appendChild(createTaskFocusTimerCard(active, timer));
+  return list;
+}
+
+function createTaskFocusTimerCard(active, timer) {
+  const duration = workbenchViewHelpers.createElement("strong", {
+    className: "workbench-duration",
+    text: formatDuration(readElapsedSeconds(timer)),
+  });
+  if (timer?.active_timer_id) {
+    duration.dataset.workbenchDuration = timer.active_timer_id;
+  }
+
+  return workbenchViewHelpers.createElement("article", {
+    className: "workbench-task-focus-timer-card",
+    dataset: {
+      workbenchTaskFocusActiveTimer: "",
+      workbenchTimerKey: timerKey(timer),
+    },
+    children: [
+      workbenchViewHelpers.createElement("div", {
+        className: "workbench-task-focus-timer-card-heading",
+        children: [
+          workbenchViewHelpers.createElement("span", {
+            className: "workbench-task-focus-timer-title",
+            text: taskFocusTitle(active),
+          }),
+          workbenchViewHelpers.createElement("span", {
+            className: "workbench-card-meta",
+            children: [badge(sourceLabel(timer), timer.source_enabled ? "" : "disabled"), badge(formatToken(timer.timer_status), timer.timer_status)],
+          }),
+        ],
+      }),
+      workbenchViewHelpers.createElement("div", {
+        className: "workbench-task-focus-timer-card-body",
+        children: [
+          duration,
+          workbenchViewHelpers.createElement("p", {
+            text: [timer.client_name, timer.project_name].filter(Boolean).join(" / ") || taskFocusContextLabel(active?.task || {}, active),
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+function currentTaskFocusTimer(active = state.activeTaskFocus) {
+  const taskId = String(active?.taskId || active?.task?.task_id || "");
+  if (!taskId) {
+    return null;
+  }
+
+  return activeOrPausedTimers(state.timers).find((timer) => taskTimerMatches(timer, taskId)) || null;
+}
+
+function taskTimerMatches(timer, taskId) {
+  const sourceId = String(timer?.task_id || timer?.source_id || "");
+  return Boolean(
+    taskId &&
+    sourceId === taskId &&
+    (timer?.source_type === "task" || timer?.source_module_id === "tasks" || timer?.active_task_timer_id),
+  );
+}
+
+function taskFocusTimerEligibility(active = state.activeTaskFocus) {
+  const task = active?.task || null;
+  const status = String(task?.status || "").trim();
+  const options = state.taskOptions || {};
+
+  if (!active?.taskId) {
+    return { eligible: false, reason: "Choose a task before using a task timer." };
+  }
+  if (active.isLoading || !task) {
+    return { eligible: false, reason: "Task details are loading." };
+  }
+  if (active.error) {
+    return { eligible: false, reason: "Task details could not be loaded." };
+  }
+  if (!moduleEnabled("tasks")) {
+    return { eligible: false, reason: "Tasks are not available in this workspace." };
+  }
+  if (!moduleEnabled("time-tracking") || options.timeTrackingEnabled === false) {
+    return { eligible: false, reason: "Time Tracking is disabled." };
+  }
+  if (options.taskTimersEnabled === false) {
+    return { eligible: false, reason: "Task timers are disabled." };
+  }
+  if (!task.project_id) {
+    return { eligible: false, reason: "Task timers require a project-linked task." };
+  }
+  if (status === "complete" || status === "archived") {
+    return { eligible: false, reason: "Completed and archived tasks cannot use task timers." };
+  }
+
+  return { eligible: true, reason: "" };
+}
+
+function taskFocusTimerStatusText(active, timer, eligibility = taskFocusTimerEligibility(active)) {
+  if (!eligibility.eligible) {
+    return eligibility.reason;
+  }
+  if (timer?.timer_status === "running") {
+    return "Running.";
+  }
+  if (timer) {
+    return "Paused.";
+  }
+  return "No active timer.";
+}
+
+function taskFocusTimerSummaryText(active, timer) {
+  if (active?.isLoading) {
+    return "Loading";
+  }
+  if (active?.error) {
+    return "Unavailable";
+  }
+  if (timer?.timer_status === "running") {
+    return "Running";
+  }
+  if (timer) {
+    return "Paused";
+  }
+  return "Ready";
 }
 
 function createTaskFocusChecklistBody(active, items) {
@@ -1531,6 +1910,7 @@ async function enterTaskFocus(candidate, taskId) {
 
   state.viewState = WORKBENCH_VIEW_STATE_TASK_FOCUS;
   state.activeTaskFocus = taskFocusFromCandidate(candidate, taskId);
+  taskFocusInspectorCollapsed = false;
   renderWorkbench();
   setStatus("Loading focused task...");
   await refreshActiveTaskFocus();
@@ -1549,6 +1929,13 @@ function taskFocusFromCandidate(candidate, taskId) {
     checklistMutationItemId: "",
     isLoading: true,
     priority: candidate.priority || "",
+    relatedContext: {
+      error: "",
+      groups: [],
+      isLoading: true,
+      items: [],
+      taskId,
+    },
     status: candidate.status || "",
     task: null,
     taskId,
@@ -1580,6 +1967,7 @@ async function refreshActiveTaskFocus() {
     renderTaskFocusSurface();
     renderWorkbenchInspector();
     renderWorkbenchViewState();
+    await refreshTaskFocusRelatedContext(taskId);
   } catch (error) {
     if (state.activeTaskFocus?.taskId !== taskId) {
       return;
@@ -1593,6 +1981,73 @@ async function refreshActiveTaskFocus() {
     renderWorkbenchInspector();
     setStatus(state.activeTaskFocus.error, { isError: true });
   }
+}
+
+async function refreshTaskFocusRelatedContext(taskId = state.activeTaskFocus?.taskId || "") {
+  if (!taskId || !state.activeTaskFocus || state.activeTaskFocus.taskId !== taskId) {
+    return;
+  }
+
+  state.activeTaskFocus = {
+    ...state.activeTaskFocus,
+    relatedContext: {
+      ...taskFocusRelatedContextState(state.activeTaskFocus),
+      error: "",
+      groups: [],
+      isLoading: true,
+      items: [],
+      taskId,
+    },
+  };
+  renderTaskFocusInspector();
+
+  try {
+    const result = await api.getJson(
+      `/api/workbench/task-focus/${encodeURIComponent(taskId)}/related-context`,
+      { cache: "no-store" },
+    );
+    if (!state.activeTaskFocus || state.activeTaskFocus.taskId !== taskId) {
+      return;
+    }
+    state.activeTaskFocus = {
+      ...state.activeTaskFocus,
+      relatedContext: normalizeTaskFocusRelatedContext(result, taskId),
+    };
+    renderTaskFocusInspector();
+  } catch (error) {
+    if (!state.activeTaskFocus || state.activeTaskFocus.taskId !== taskId) {
+      return;
+    }
+    state.activeTaskFocus = {
+      ...state.activeTaskFocus,
+      relatedContext: {
+        error: error.message || "Related task context could not be loaded.",
+        groups: [],
+        isLoading: false,
+        items: [],
+        taskId,
+      },
+    };
+    renderTaskFocusInspector();
+  }
+}
+
+function normalizeTaskFocusRelatedContext(result = {}, taskId = "") {
+  const groups = (Array.isArray(result.groups) ? result.groups : [])
+    .map((group) => ({
+      ...group,
+      items: Array.isArray(group.items) ? group.items : [],
+    }));
+
+  return {
+    error: "",
+    groups,
+    isLoading: false,
+    items: Array.isArray(result.items) ? result.items : groups.flatMap((group) => group.items || []),
+    meta: result.meta || {},
+    task: result.task || null,
+    taskId: result.meta?.selectedTaskId || taskId,
+  };
 }
 
 function applyActiveTaskFocusTask(task) {
@@ -1841,6 +2296,89 @@ async function openModuleActionCandidate(candidate, action, trigger = null) {
   }
 }
 
+async function openTaskFocusRelatedContextItem(item = {}, trigger = null) {
+  const action = item.action || {};
+
+  if (action.type === "module-action" && action.moduleActionId) {
+    await openRelatedContextModuleAction(item, action, trigger);
+    return;
+  }
+
+  if (action.fallbackUrl) {
+    setStatus(`Opening ${relatedContextSourceLabel(item).toLowerCase()}...`);
+    window.location.href = action.fallbackUrl;
+    return;
+  }
+
+  setStatus("This related item does not have a safe opener yet.", { isError: true });
+}
+
+async function openRelatedContextModuleAction(item = {}, action = {}, trigger = null) {
+  const sourceLabel = relatedContextSourceLabel(item);
+  const params = {
+    ...(action.params || {}),
+    context: {
+      source: "workbench",
+      sourceTaskId: state.activeTaskFocus?.taskId || "",
+      sourceType: "task-focus-related-context",
+    },
+    recordId: item.recordId || "",
+    returnFocusTo: trigger || document.activeElement,
+  };
+
+  setStatus(`Opening ${sourceLabel.toLowerCase()}...`);
+  try {
+    await ensureWorkbenchModuleAction(action.moduleActionId);
+    const result = await window.LongtailForge.moduleActions.open(action.moduleActionId, params, {
+      refresh: loadWorkbench,
+      setStatus,
+    });
+    if (result.completed) {
+      setStatus(`${sourceLabel} opened.`);
+      return;
+    }
+    setStatus("");
+  } catch (error) {
+    if (action.fallbackUrl) {
+      setStatus(`Opening ${sourceLabel.toLowerCase()} in its module page.`);
+      window.location.href = action.fallbackUrl;
+      return;
+    }
+    setStatus(error.message || `${sourceLabel} could not be opened.`, { isError: true });
+  }
+}
+
+function ensureWorkbenchFilePreviewAction(actionId) {
+  if (actionId !== "files.preview" || !window.LongtailForge?.filePreview?.openFilePreview) {
+    return;
+  }
+  if (window.LongtailForge.filesDialog?.openFilePreviewAction) {
+    return;
+  }
+
+  const existingFilesDialog = window.LongtailForge.filesDialog || {};
+  window.LongtailForge.filesDialog = Object.freeze({
+    ...existingFilesDialog,
+    openFilePreviewAction: (params = {}, hostContext = null) => {
+      const attachmentOrRow = params.attachment || params.row || params.file || params;
+      return window.LongtailForge.filePreview.openFilePreview(attachmentOrRow, {
+        trigger: params.returnFocusTo || hostContext?.trigger || null,
+      });
+    },
+  });
+  window.LongtailForge.moduleActions?.register?.({
+    actionId: "files.preview",
+    id: "files.preview",
+    label: "Preview File",
+    mode: "preview",
+    moduleId: "framework",
+    open: window.LongtailForge.filesDialog.openFilePreviewAction,
+    recordType: "file_attachment",
+    requiredPermissions: ["files.view"],
+    title: "Preview File",
+  });
+}
+
 function openCandidateNavigationFallback(candidate) {
   const href = candidate.primaryAction?.href || candidate.sourceUrl || "";
 
@@ -1924,6 +2462,65 @@ function inspectorCandidateContext(candidate = {}) {
   return "Ready to review.";
 }
 
+function relatedContextTitle(item = {}) {
+  return safeRelatedContextText(item.title, `${formatToken(item.recordType || item.moduleId || "Related")} context`);
+}
+
+function relatedContextSourceLabel(item = {}) {
+  return safeRelatedContextText(item.sourceLabel, formatToken(item.moduleId || item.recordType || "Related"));
+}
+
+function relatedContextContextLabel(item = {}) {
+  const parts = [
+    relatedContextSourceLabel(item),
+    safeRelatedContextText(item.reasonLabel, ""),
+    safeRelatedContextText(item.contextLabel, ""),
+  ].filter(Boolean);
+  const uniqueParts = [...new Set(parts)];
+
+  return uniqueParts.join(" - ") || "Related context";
+}
+
+function relatedContextBadges(item = {}) {
+  return (Array.isArray(item.badges) ? item.badges : [])
+    .map((itemBadge) => {
+      const label = safeRelatedContextText(itemBadge.label, "");
+      if (!label) {
+        return null;
+      }
+      return badge(label, itemBadge.type || itemBadge.slug || "related");
+    })
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function relatedContextCanOpen(item = {}) {
+  const action = item.action || {};
+  return Boolean((action.type === "module-action" && action.moduleActionId) || action.fallbackUrl);
+}
+
+function relatedContextActionLabel(item = {}) {
+  const actionId = item.action?.moduleActionId || "";
+  if (actionId === "files.preview") {
+    return "Preview file";
+  }
+  if (actionId === "tasks.edit") {
+    return "Open task";
+  }
+  if (actionId === "notes.edit") {
+    return "Open note";
+  }
+  if (actionId === "lists.edit") {
+    return "Open list";
+  }
+  return item.action?.fallbackUrl ? "Open related context" : "Review related context";
+}
+
+function safeRelatedContextText(value, fallback = "") {
+  const text = String(value || "").trim();
+  return text && !looksLikeRawId(text) ? text : fallback;
+}
+
 function safeCandidateText(value, fallback = "") {
   const text = String(value || "").trim();
 
@@ -1937,6 +2534,7 @@ function looksLikeRawId(value) {
 }
 
 async function ensureWorkbenchModuleAction(actionId) {
+  ensureWorkbenchFilePreviewAction(actionId);
   const dependencies = WORKBENCH_MODULE_ACTION_DEPENDENCIES[actionId] || [];
 
   for (const dependency of dependencies) {
@@ -2059,7 +2657,7 @@ function renderRegisteredWorkbenchCards() {
 }
 
 function renderTimers() {
-  const timers = sortedTimers(state.timers);
+  const timers = sortedTimers(activeOrPausedTimers(state.timers));
   timerCountText.textContent = String(timers.length);
   timerList.replaceChildren();
   syncTimerSectionOpenState();
@@ -2123,38 +2721,6 @@ function createTimerCard(timer) {
   return details;
 }
 
-async function startManualTimer(event) {
-  event.preventDefault();
-  const selectedClient = currentManualClient();
-  const selectedProject = currentManualProject(selectedClient);
-  const timerSlot = nextManualTimerSlot();
-
-  if (!selectedProject) {
-    setStatus("Select a project before starting a timer.", { isError: true });
-    return;
-  }
-
-  pendingActivatedTimerKey = `manual-slot:${timerSlot}`;
-  setStatus("Starting timer...");
-  try {
-    await api.putJson(`/api/active-timers/${encodeURIComponent(timerSlot)}`, {
-      client_id: selectedClient?.isWorkspaceScope ? "" : selectedClient?.id || "",
-      client_name: selectedClient?.isWorkspaceScope ? "" : selectedClient?.name || "",
-      project_id: selectedProject.id,
-      project_name: selectedProject.name,
-      description: manualDescriptionInput.value.trim(),
-      billable: manualBillableInput.checked ? "yes" : "no",
-      accumulated_elapsed_seconds: 0,
-      last_active_start_time: new Date().toISOString(),
-      timer_status: "running",
-    });
-    manualDescriptionInput.value = "";
-    await loadWorkbench();
-  } catch (error) {
-    setStatus(error.message || "Timer could not be started.", { isError: true });
-  }
-}
-
 async function startExistingTimer(timer) {
   pendingActivatedTimerKey = timerKey(timer);
   if (timer.source_type === "task" && timer.source_enabled) {
@@ -2192,7 +2758,7 @@ async function saveTaskTimer(taskId, timerStatus, elapsedSeconds, activeTimerId 
   setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
   try {
     await api.putJson(`/api/tasks/${encodeURIComponent(taskId)}/timer`, {
-      active_timer_id: activeTimerId,
+      active_task_timer_id: activeTimerId,
       timer_status: timerStatus,
       accumulated_elapsed_seconds: elapsedSeconds,
       last_active_start_time: new Date().toISOString(),
@@ -2200,6 +2766,101 @@ async function saveTaskTimer(taskId, timerStatus, elapsedSeconds, activeTimerId 
     await loadWorkbench();
   } catch (error) {
     setStatus(error.message || "Task timer could not be updated.", { isError: true });
+  }
+}
+
+async function saveFocusedTaskTimer(timerStatus) {
+  const taskId = state.activeTaskFocus?.taskId || "";
+  const timer = currentTaskFocusTimer();
+
+  if (!taskId) {
+    setStatus("Choose a task before using a task timer.", { isError: true });
+    return;
+  }
+
+  if (timerStatus === "running") {
+    pendingActivatedTimerKey = `task:${taskId}`;
+  }
+  setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
+
+  try {
+    const result = await api.putJson(`/api/tasks/${encodeURIComponent(taskId)}/timer`, {
+      active_task_timer_id: timer?.active_task_timer_id || timer?.active_timer_id || "",
+      timer_status: timerStatus,
+      accumulated_elapsed_seconds: readElapsedSeconds(timer),
+      last_active_start_time: new Date().toISOString(),
+    });
+    await refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId);
+    setStatus(timerStatus === "running" ? "Task timer started." : "Task timer paused.");
+  } catch (error) {
+    setStatus(error.message || "Task timer could not be updated.", { isError: true });
+  }
+}
+
+async function finalizeFocusedTaskTimer() {
+  const taskId = state.activeTaskFocus?.taskId || "";
+  const timer = currentTaskFocusTimer();
+
+  if (!taskId || !timer) {
+    setStatus("Start a task timer before saving time.", { isError: true });
+    return;
+  }
+
+  setStatus("Saving task timer...");
+  try {
+    const result = await api.postJson(`/api/tasks/${encodeURIComponent(taskId)}/timer/finalize`, {
+      duration_seconds: Math.max(1, readElapsedSeconds(timer)),
+      end_time: new Date().toISOString(),
+    });
+    await refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId);
+    setStatus("Task time saved.");
+  } catch (error) {
+    setStatus(error.message || "Task time could not be saved.", { isError: true });
+  }
+}
+
+async function resetFocusedTaskTimer() {
+  const taskId = state.activeTaskFocus?.taskId || "";
+  const taskTitle = taskFocusTitle();
+
+  if (!taskId || !currentTaskFocusTimer()) {
+    setStatus("No task timer is active.", { isError: true });
+    return;
+  }
+
+  const confirmed = await modal.confirm({
+    title: "Reset task timer",
+    message: `Reset the timer for "${taskTitle}"?`,
+    confirmLabel: "Reset",
+    danger: true,
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  setStatus("Resetting task timer...");
+  try {
+    const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(taskId)}/timer`);
+    await refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId);
+    setStatus("Task timer reset.");
+  } catch (error) {
+    setStatus(error.message || "Task timer could not be reset.", { isError: true });
+  }
+}
+
+async function refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId) {
+  if (result?.task && state.activeTaskFocus?.taskId === taskId) {
+    applyActiveTaskFocusTask(result.task);
+  }
+
+  await loadWorkbench();
+
+  if (result?.task && state.activeTaskFocus?.taskId === taskId) {
+    applyActiveTaskFocusTask(result.task);
+    renderTaskFocusSurface();
+    renderWorkbenchInspector();
+    renderWorkbenchViewState();
   }
 }
 
@@ -2232,6 +2893,11 @@ function setTaskCompletionStatus(detail = {}) {
 }
 
 async function finalizeTimer(timer) {
+  if (timer.source_type === "task" && timer.source_enabled && timer.source_id) {
+    await finalizeSourceTaskTimer(timer);
+    return;
+  }
+
   const durationSeconds = Math.max(1, readElapsedSeconds(timer));
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - durationSeconds * 1000);
@@ -2258,6 +2924,22 @@ async function finalizeTimer(timer) {
   }
 }
 
+async function finalizeSourceTaskTimer(timer) {
+  const durationSeconds = Math.max(1, readElapsedSeconds(timer));
+
+  setStatus("Saving task timer...");
+  try {
+    await api.postJson(`/api/tasks/${encodeURIComponent(timer.source_id)}/timer/finalize`, {
+      duration_seconds: durationSeconds,
+      end_time: new Date().toISOString(),
+    });
+    await loadWorkbench();
+    setStatus("Task time saved.");
+  } catch (error) {
+    setStatus(error.message || "Task time could not be saved.", { isError: true });
+  }
+}
+
 async function discardTimer(timer) {
   const confirmed = await modal.confirm({
     title: "Discard timer",
@@ -2272,84 +2954,16 @@ async function discardTimer(timer) {
 
   setStatus("Discarding timer...");
   try {
-    await api.deleteJson(`/api/active-timers/${encodeURIComponent(timer.timer_slot)}`);
+    if (timer.source_type === "task" && timer.source_enabled && timer.source_id) {
+      await api.deleteJson(`/api/tasks/${encodeURIComponent(timer.source_id)}/timer`);
+    } else {
+      await api.deleteJson(`/api/active-timers/${encodeURIComponent(timer.timer_slot)}`);
+    }
     await loadWorkbench();
     setStatus("");
   } catch (error) {
     setStatus(error.message || "Timer could not be discarded.", { isError: true });
   }
-}
-
-function populateManualTimerForm() {
-  replaceOptions(manualClientInput, [
-    option("", "Select a client"),
-    ...state.clients.map((client) => option(client.id, clientOptionLabel(client))),
-  ]);
-  if (state.clients.length === 1 && state.clients[0].isWorkspaceScope) {
-    manualClientInput.value = state.clients[0].id;
-  }
-  populateManualProjects();
-}
-
-function populateManualProjects(options = {}) {
-  const client = currentManualClient();
-  const projects = client?.projects || [];
-
-  replaceOptions(manualProjectInput, [
-    option("", "Select a project"),
-    ...projects.map((project) => option(project.id, project.name)),
-  ]);
-  updateManualBillableDefault({ notify: Boolean(options.notifyBillableChange) });
-}
-
-function updateManualTimerState() {
-  const enabled = moduleEnabled("time-tracking") && state.clients.length > 0;
-  manualTimerForm.hidden = !enabled;
-}
-
-function currentManualClient() {
-  return state.clients.find((client) => client.id === manualClientInput.value);
-}
-
-function currentManualProject(client) {
-  return (client?.projects || []).find((project) => project.id === manualProjectInput.value);
-}
-
-function nextManualTimerSlot() {
-  const manualSlots = new Set(state.timers
-    .filter((timer) => timer.source_type === "manual")
-    .map((timer) => Number.parseInt(timer.timer_slot, 10))
-    .filter(Number.isFinite));
-  let slot = 1;
-
-  while (manualSlots.has(slot)) {
-    slot += 1;
-  }
-
-  return String(slot);
-}
-
-function updateManualBillableDefault(options = {}) {
-  const selectedClient = currentManualClient();
-  const selectedProject = currentManualProject(selectedClient);
-  const billableSource = selectedProject || selectedClient;
-  const nextChecked = billableSource?.billable !== "no";
-  const changed = manualBillableInput.checked !== nextChecked;
-
-  manualBillableInput.checked = nextChecked;
-  if (changed && options.notify) {
-    flashManualBillableFlag();
-  }
-}
-
-function flashManualBillableFlag() {
-  const label = manualBillableInput.closest("label");
-
-  if (!label) {
-    return;
-  }
-
-  flashElement(label, "is-billable-inherited");
 }
 
 function flashActivatedTimer(timers) {
@@ -2392,6 +3006,10 @@ function sortedTimers(timers) {
     }
     return String(second.updated_at || "").localeCompare(String(first.updated_at || ""));
   });
+}
+
+function activeOrPausedTimers(timers = []) {
+  return (Array.isArray(timers) ? timers : []).filter((timer) => ["running", "paused"].includes(timer?.timer_status));
 }
 
 function timerKey(timer) {
@@ -2471,7 +3089,7 @@ function updateDisclosureExpandedState(details) {
 }
 
 function hasActiveOrPausedTimers() {
-  return state.timers.length > 0;
+  return activeOrPausedTimers(state.timers).length > 0;
 }
 
 function isTimerWorkbenchCard(card) {
@@ -2762,11 +3380,14 @@ window.LongtailForge.pageController.register("workbench", {
     activeTaskFocusId: state.activeTaskFocus?.taskId || "",
     focusCandidateCount: state.focusCandidates.length,
     focusModeId: state.focusModeId,
-    inspectorCandidateCount: workbenchInspectorCandidates().length,
+    inspectorCandidateCount: resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_TASK_FOCUS
+      ? taskFocusRelatedContextGroups().flatMap((group) => group.items || []).length
+      : workbenchInspectorCandidates().length,
     recommendedCandidateIndex: state.recommendedCandidateIndex,
     recommendedCandidateWindowSize: recommendedCandidateWindow().length,
     selectedClientId: state.selectedClientId,
     selectedProjectId: state.selectedProjectId,
+    taskFocusInspectorCollapsed,
     timerCount: state.timers.length,
     enabledModules: enabledModuleIds(),
     moduleActionCount: window.LongtailForge.moduleActions?.list?.().length || 0,

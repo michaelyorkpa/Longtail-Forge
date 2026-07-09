@@ -28,6 +28,14 @@ Dashboard billing contributions:
 
 As of 0.33.6.10b, Time Tracking owns the Dashboard billing panels. The module declares `current-month-billables` and `hours-billables-chart` dashboard contributions with `reporting.view`, Time Tracking workspace capability, and enabled-module gates. `public/js/time-tracking-dashboard.js` registers the `time-tracking.current-month-billables` and `time-tracking.hours-billables-chart` renderers with the framework Dashboard host, and both renderers fetch `/api/time-tracking/dashboard/billing-summary`. `src/modules/time-tracking/time-tracking-billing.service.js` owns the permission-checked billing aggregation for the current-month billable table and trailing hours/billables chart so later project time/billing work can reuse the same calculation boundary. Dashboard remains responsible only for contribution filtering, panel placement, status, and empty states.
 
+Workbench timer contribution:
+
+As of 0.33.6.12d-1, Workbench Focus Selection consumes active and paused timers as a read/control list from the Time Tracking contribution, but it does not render the manual creation row. Manual timer creation is deferred to the QAC/Time Tracking create-timer modal slice. Task-sourced timers remain backed by the same active timer storage, but readable task timers in Workbench dispatch Start/Pause/Save Time/Reset through the Tasks timer routes so task eligibility, permissions, status side effects, audit/event/search behavior, and final time-entry creation remain owned by the existing task timer service path.
+
+Create Timer modal:
+
+As of version 0.33.6.12d-2, Time Tracking owns the Create Timer modal registered as `time-tracking.timer.create`. QAC and future framework surfaces open this module action through `LongtailForge.moduleActions` instead of navigating to the Time Tracker page. The modal supports Client, Project, optional Task, Description, and Billable controls; manual timer starts use the existing `/api/active-timers/:timerSlot` route with the next available manual slot, while selected Task timers use `PUT /api/tasks/:taskId/timer` so Tasks keeps task-timer eligibility, status-transition, audit/event/search, and task-worked side effects. After a successful start, the modal completes the host action, returns focus through the module-action host, and notifies the host that timer state changed.
+
 Disabled-module rule:
 
 Time Tracking keeps historical read-only access so existing entries remain visible, but create, update, delete, active-timer save, finalize, and remove operations are blocked when the module is disabled.

@@ -536,19 +536,19 @@ Task Focus timer rule:
 - The top of the box should visually align with the existing Task Timer box in the Task edit modal.
 - Active/paused timers appear below the task timer controls and support Start/Pause/Save/Reset behavior consistent with the old Workbench timer model.
 
-- [ ] In Focus Selection, remove the manual timer creation row from the Workbench Timers section.
-- [ ] In Focus Selection, keep the Timers section focused on active/paused timers only.
+- [x] In Focus Selection, remove the manual timer creation row from the Workbench Timers section.
+- [x] In Focus Selection, keep the Timers section focused on active/paused timers only.
   - If no timers exist, keep the existing empty state: `No active or paused timers.`
   - Keep the section collapsible with the existing caret behavior.
-- [ ] In Task Focus, render a task-linked timer section at the bottom of the main column.
+- [x] In Task Focus, render a task-linked timer section at the bottom of the main column.
   - Open by default.
   - Collapsible with visible caret.
   - Use selected task context automatically; do not require the user to reselect Client/Project/Task.
   - Show controls matching the Task edit modal timer model as closely as practical.
-- [ ] In Task Focus, list active/paused timers below the task-linked timer controls.
+- [x] In Task Focus, list active/paused timers below the task-linked timer controls.
   - Start/Pause/Save/Reset behavior should reuse existing Time Tracking/Tasks timer services and preserve permissions, audit/event/search behavior, and elapsed-time calculations.
-- [ ] Keep QAC Timer on its current explicit fallback until 0.33.6.12d-2 replaces it with the Time Tracking-owned modal.
-- [ ] Add focused regressions proving:
+- [x] Keep QAC Timer on its current explicit fallback until 0.33.6.12d-2 replaces it with the Time Tracking-owned modal.
+- [x] Add focused regressions proving:
   - Focus Selection no longer renders the manual timer creation row.
   - Focus Selection Timers renders only active/paused timers and the no-timers empty state.
   - Task Focus renders a default-open, collapsible timer section with caret.
@@ -573,15 +573,15 @@ Time Tracking modal rule:
 - Time Tracking owns a new Create Timer modal and registers it as a shared module action.
 - QAC Timer opens that modal instead of navigating to `time-tracker.html`.
 
-- [ ] Build a Time Tracking-owned Create Timer modal.
+- [x] Build a Time Tracking-owned Create Timer modal.
   - Register a module action such as `time-tracking.timer.create`.
   - Modal should support quickly creating/starting a timer with Client, Project, optional Task, Description, and Billable behavior consistent with existing timer rules.
   - Billable inheritance should match the existing Time Tracking/Task timer behavior.
   - The modal must be usable from QAC and future Workbench surfaces through `LongtailForge.moduleActions`.
   - The modal must return focus to the trigger and notify the host to refresh timer state after save/start.
-- [ ] Update the QAC Timer action to open the new Time Tracking Create Timer modal.
-- [ ] Remove the previous QAC Timer temporary page fallback once the modal is registered and covered.
-- [ ] Add focused regressions proving:
+- [x] Update the QAC Timer action to open the new Time Tracking Create Timer modal.
+- [x] Remove the previous QAC Timer temporary page fallback once the modal is registered and covered.
+- [x] Add focused regressions proving:
   - Time Tracking registers a Create Timer module action.
   - QAC Timer dispatches the Create Timer modal instead of navigating to Time Tracker.
   - The modal supports Client, Project, optional Task, Description, and Billable behavior consistent with existing timer rules.
@@ -616,22 +616,22 @@ Refinements:
 - Bound each group to a calm display count with "View more" or equivalent future-safe affordance only if an existing module route/modal can handle it safely.
 - Do not expose body text, secure note bodies, protected file data, storage keys, scanner internals, raw IDs, or unreadable labels.
 
-- [ ] Add a Workbench Task Focus related-context service path that returns a permission-shaped read model for one selected task.
+- [x] Add a Workbench Task Focus related-context service path that returns a permission-shaped read model for one selected task.
   - Prefer provider/service integration over Workbench directly querying other modules' tables.
   - Use existing Notes linked-context providers/helpers where available.
   - Use Files service/attachment read models for task attachments.
   - Use Lists linked-record service/provider behavior for lists linked to the task.
   - Use Tasks service/repository paths for same-project task context.
   - Use Tags service/provider paths for direct shared-tag context.
-- [ ] Shape each related item with:
+- [x] Shape each related item with:
   - module ID / source label
   - record type
   - safe readable title
   - short safe context/reason label
   - existing module action ID or explicit fallback URL
   - badges/chips where safe
-- [ ] Keep this service independent from focus-mode candidate overflow; it must resolve context from the selected task.
-- [ ] Add focused regressions proving:
+- [x] Keep this service independent from focus-mode candidate overflow; it must resolve context from the selected task.
+- [x] Add focused regressions proving:
   - The related-context service uses selected-task context, not focus-mode candidate overflow.
   - Related items are ordered by linked notes, task files, linked lists, same-project tasks, then direct shared tags.
   - Items are deduplicated with strongest reason preserved.
@@ -653,20 +653,20 @@ Make the Inspector mean what it was originally intended to mean in Task Focus: c
 
 In Task Focus, the Inspector becomes a collapsible, scrollable related-context panel for the selected task, backed by the read model from 0.33.6.12e-1.
 
-- [ ] In Task Focus, keep the Inspector visible on wide layouts but make it collapsible.
+- [x] In Task Focus, keep the Inspector visible on wide layouts but make it collapsible.
   - Default open.
   - Visible caret.
   - Scrollable list body.
   - Collapsed state should preserve layout without stealing focus.
-- [ ] In narrow layouts, preserve the current graceful hide/collapse behavior unless a later mobile-specific slice designs a drawer.
-- [ ] Render related items from the selected-task related-context read model, not from focus-mode candidate overflow.
-- [ ] Clicking a related item opens the existing module preview/edit modal when one exists.
+- [x] In narrow layouts, preserve the current graceful hide/collapse behavior unless a later mobile-specific slice designs a drawer.
+- [x] Render related items from the selected-task related-context read model, not from focus-mode candidate overflow.
+- [x] Clicking a related item opens the existing module preview/edit modal when one exists.
   - Notes: existing note editor/preview path as available.
   - Files: existing File Preview or File Context modal, depending on whether the item represents previewable content or attachment context.
   - Lists: existing list editor/detail opener if registered.
   - Tasks: existing task editor only when explicitly choosing Edit/Open from context, not as the primary Task Focus selection behavior.
-- [ ] Do not build an embedded preview pane inside the Inspector.
-- [ ] Add focused regressions proving:
+- [x] Do not build an embedded preview pane inside the Inspector.
+- [x] Add focused regressions proving:
   - Inspector is collapsible with a caret, default-open in Task Focus, scrollable, and hidden/collapsed safely on narrow screens.
   - Inspector rows render the service-provided safe titles, source labels, reason labels, and badges/chips.
   - Task Focus Inspector uses selected-task related context rather than Focus Selection overflow candidates.

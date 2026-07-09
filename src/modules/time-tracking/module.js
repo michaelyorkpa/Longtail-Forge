@@ -21,7 +21,7 @@ const timeTrackingModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.6.12c-2",
+  version: "0.33.6.12e-2",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -157,7 +157,7 @@ const timeTrackingModule = {
     {
       id: "active-work-timers",
       label: "Active Timers",
-      description: "Active and paused timers with manual timer controls.",
+      description: "Active and paused timers.",
       renderer: "active-work-timers",
       moduleId: "time-tracking",
       sourceType: "manual",

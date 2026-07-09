@@ -1,3 +1,5 @@
+/* global CustomEvent */
+
 // Shared footer for public and authenticated pages.
 const footer = document.createElement("footer");
 footer.className = "site-footer";
@@ -85,6 +87,12 @@ const moduleActionBaseDependencies = [
   { src: "js/shared/view-renderer.js?v=13", test: () => window.LongtailForge?.view?.renderSurface },
 ];
 const quickActionDependencySets = {
+  "time-tracking.timer.create": [
+    { src: "js/shared/page-controller.js", test: () => window.LongtailForge?.pageController },
+    ...moduleActionBaseDependencies,
+    { src: "js/shared/client-project-options.js?v=2", test: () => window.LongtailForge?.clientProjectOptions },
+    { src: "js/time-tracking-timer-dialog.js?v=1", test: () => window.LongtailForge?.timeTrackingTimerDialog?.openCreate },
+  ],
   "tasks.add": [
     { src: "js/shared/modal.js", test: () => window.LongtailForge?.modal },
     { src: "js/shared/api-client.js", test: () => window.LongtailForge?.api },
@@ -289,6 +297,7 @@ async function activateQuickAction(action, button, shell) {
         source: "quick-action-capture",
       },
     }, {
+      refresh: (detail) => notifyQuickActionHostRefresh(action, detail),
       setStatus: (message, options = {}) => setQuickActionStatus(shell.status, message, options.isError),
     });
     setQuickActionStatus(shell.status, "");
@@ -297,6 +306,16 @@ async function activateQuickAction(action, button, shell) {
   } finally {
     button.disabled = false;
   }
+}
+
+function notifyQuickActionHostRefresh(action, detail = {}) {
+  window.dispatchEvent?.(new CustomEvent("longtailforge:quick-action-refresh", {
+    detail: {
+      actionId: action.moduleActionId || action.id,
+      quickActionId: action.id,
+      ...detail,
+    },
+  }));
 }
 
 async function ensureQuickActionDependencies(moduleActionId) {

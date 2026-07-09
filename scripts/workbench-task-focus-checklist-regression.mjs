@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -20,7 +20,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task Focus checklist version");
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=32[\s\S]*workbench\.js\?v=31/,
+  /longtail-forge\.css\?v=34[\s\S]*workbench\.js\?v=33/,
   "Workbench should cache-bust CSS and JS for the Task Focus checklist surface",
 );
 
@@ -114,7 +114,7 @@ assert.match(
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12c-2[\s\S]*Task Focus Checklist[\s\S]*check-only execution surface/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*Task Focus Checklist check-only execution surface/,
   "View-building contract should include the Task Focus checklist anatomy",
 );
 assert.match(

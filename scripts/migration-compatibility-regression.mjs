@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-migration-compatibility-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-migration-compatibility.db");

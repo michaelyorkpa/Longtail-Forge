@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12c-2";
+const appVersion = "0.33.6.12e-2";
 const appShellService = readText("src/services/app-shell.service.js");
 const footerScript = readText("public/js/footer.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=32[\s\S]*workbench\.js\?v=31/,
+  /longtail-forge\.css\?v=34[\s\S]*workbench\.js\?v=33/,
   "Workbench should bump its script cache key after removing Quick Notes",
 );
 assert.doesNotMatch(
@@ -67,7 +67,7 @@ assert.match(
 );
 assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12c-2[\s\S]*must not render[\s\S]*Quick Notes/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*must not render[\s\S]*Quick Notes/,
   "View-building contract should include the current no-Quick-Notes Workbench anatomy",
 );
 assert.match(

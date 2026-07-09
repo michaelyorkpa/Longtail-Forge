@@ -2,6 +2,7 @@ import { Router } from "express";
 import { activeTimersService } from "../modules/time-tracking/active-timers.service.js";
 import { workFocusModesService } from "../services/work-focus-modes.service.js";
 import { workbenchService } from "../services/workbench.service.js";
+import { workbenchTaskFocusRelatedContextService } from "../services/workbench-task-focus-related-context.service.js";
 import { asyncRoute, readJsonBody } from "../core/http.js";
 
 const workbenchRoutes = Router();
@@ -18,6 +19,14 @@ workbenchRoutes.get("/workbench/focus-modes", asyncRoute(async (request, respons
 
 workbenchRoutes.get("/workbench/focus-candidates", asyncRoute(async (request, response) => {
   const result = await workFocusModesService.listFocusCandidates(request.session, request.query);
+  response.status(200).json(result);
+}));
+
+workbenchRoutes.get("/workbench/task-focus/:taskId/related-context", asyncRoute(async (request, response) => {
+  const result = await workbenchTaskFocusRelatedContextService.readTaskFocusRelatedContext(
+    request.session,
+    request.params.taskId,
+  );
   response.status(200).json(result);
 }));
 

@@ -186,7 +186,7 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.6.12c-2",
+  version: "0.33.6.12e-2",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

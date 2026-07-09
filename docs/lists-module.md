@@ -1,12 +1,14 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.6.12c-2. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.6.12e-2. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
 Lists is a first-party workflow module registered by `src/modules/lists/module.js`. The module owns list-specific schema, migrations, routes, service methods, repository reads/writes, access-policy helpers, search indexer shape, and the protected Lists browser workspace.
 
 The framework owns module registration, route mounting, protected view serving, app-shell navigation, permissions, tags, search persistence, file storage, audit logging, internal events, Help discovery, and module enablement. Lists consumes those framework services through declarations and service calls instead of adding parallel storage or UI systems.
+
+As of 0.33.6.12e-1, Workbench Task Focus related context consumes Lists through Lists-owned list and linked-record service paths. Lists linked directly to the selected task outrank shared-tag matches, shared-tag matches use direct tags only, and related rows expose safe list titles, labels, badges, and existing `lists.edit` action descriptors without moving list workflow into Workbench.
 
 Important files:
 
