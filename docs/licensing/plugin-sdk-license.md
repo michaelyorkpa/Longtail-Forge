@@ -1,119 +1,89 @@
-# Ownership and Entity Plan
+# Plugin SDK and Integration Example License Policy
 
-## Current Owner
+## Purpose
 
-Longtail Forge is currently owned and maintained by:
+Longtail Forge may eventually expose plugin APIs, integration examples, SDKs, starter templates, and compatibility examples.
 
-```text
-Michael York d/b/a Raymond Tec
-```
+The goal is to make third-party integration practical without weakening the AGPL public core or accidentally giving away proprietary hosted-service code.
 
-Raymond Tec is treated in these documents as a registered trade name / DBA used by Michael York. Unless and until a separate entity receives the project assets by written assignment, the individual owner remains the owner of the copyrights, trademarks, repositories, domains, commercial rights, and project goodwill.
+## Default Rule
 
-## EIN and Tax Records
+The public Longtail Forge core remains AGPL-3.0-only.
 
-Do not commit EINs, tax IDs, bank details, legal registration numbers, or private tax records to the public repository.
+Plugin SDKs, starter templates, and integration examples are licensed under Apache-2.0 **only when expressly marked** by file header, directory-level notice, package metadata, or README.
 
-Maintain private records showing:
-
-- trade name / DBA registration details;
-- EIN confirmation letter or tax ID documentation, if available;
-- bank/payment account ownership;
-- domain registration ownership;
-- GitHub account/repository ownership;
-- customer payment records;
-- invoices and receipts;
-- business expenses;
-- software/service subscriptions;
-- trademark-use evidence.
-
-## Copyright Notices
-
-Recommended public copyright notice:
+Recommended identifier:
 
 ```text
-Copyright © 2026 Michael York d/b/a Raymond Tec
+SPDX-License-Identifier: Apache-2.0
 ```
 
-If the project later transfers into an LLC or other entity, future notices may change after assignment, for example:
+Official license reference:
 
 ```text
-Copyright © 2026-2027 Longtail Forge LLC
+https://www.apache.org/licenses/LICENSE-2.0
 ```
 
-Do not change historical ownership language casually. Preserve a clear chain of title.
+## What May Be Apache-2.0
 
-## Trademark Ownership
+The Project Owner may license the following under Apache-2.0:
 
-Until written assignment says otherwise, the Longtail Forge name, LTF mark where used to identify the project, logos, icons, domains, service names, trade dress, and related goodwill are claimed by Michael York d/b/a Raymond Tec.
+- plugin SDK packages;
+- client libraries for public APIs;
+- integration starter templates;
+- minimal example plugins;
+- sample import/export connectors;
+- test fixtures for SDK consumers;
+- documentation examples that are intended to be copied into third-party plugins.
 
-Keep records of first use, public announcements, screenshots, domains, social handles, logos, release pages, and customer-facing materials.
+## What Should Stay AGPL-3.0-only
 
-## Repository Ownership
+The following should stay AGPL-3.0-only unless a deliberate exception is made:
 
-The public repository may remain under the personal GitHub account while the project is young, but preserve records tying it to the Project Owner.
+- core framework code;
+- app runtime code;
+- first-party public modules;
+- database adapters;
+- migrations;
+- UI framework components used by the core app;
+- permission and workspace systems;
+- internal event bus implementation;
+- core search, files, help, reminders, notifications, and module registration code;
+- anything copied from or tightly coupled to the public core.
 
-If a GitHub organization is created later, document:
+## What May Stay Proprietary
 
-- when the repository moved;
-- who controlled the organization;
-- whether the organization belongs to the individual, the DBA, or a formed entity;
-- what assets moved with it.
+The following may remain proprietary / all rights reserved:
 
-## Future LLC Plan
+- official hosted-service plugin marketplace code;
+- private billing integrations;
+- paid first-party plugins;
+- managed-hosting automation;
+- private deployment code;
+- private support/admin tooling;
+- private SaaS-only modules;
+- customer-specific integrations;
+- commercial connector packs.
 
-The intended future path is:
+## Third-Party Plugins
 
-1. Operate initially as Michael York d/b/a Raymond Tec.
-2. Form Raymond Tec LLC or another appropriate Pennsylvania LLC when revenue, risk, customer expectations, accounting, or operational needs justify it.
-3. Assign Longtail Forge copyrights, trademarks, domains, repositories, customer contracts, and commercial rights into the LLC if that is the desired structure.
-4. Optionally form or spin out Longtail Forge LLC later if the product becomes large enough to justify a separate entity.
-5. Transfer assets from Raymond Tec LLC to Longtail Forge LLC through written assignment or contribution documents.
+A third-party plugin that uses only a stable public plugin API, does not copy AGPL-covered Longtail Forge code, and runs as a separable work may be distributed under the third party's chosen license.
 
-## Assignment Documents Needed Later
+However, this policy does not guarantee that every plugin is legally separate from the AGPL-covered core in every jurisdiction or architecture. A plugin that copies, modifies, links deeply with, or derives from AGPL-covered code may trigger AGPL obligations.
 
-When an entity is formed, do not rely on "everyone knows it belongs to the LLC." Use written documents.
+When in doubt, plugin authors should consult counsel.
 
-Potential documents:
+## Directory Notices
 
-- IP Assignment Agreement;
-- trademark assignment;
-- domain/account transfer record;
-- repository transfer record;
-- contractor IP assignment records;
-- CLA records transfer or successor acknowledgement;
-- customer contract assignment where allowed;
-- commercial license exception assignment records;
-- private repo transfer records;
-- payment processor/account update records.
+A directory intended to be Apache-2.0 should include a README or license notice such as:
 
-## Sole Owner / Beneficiary Position
+```text
+Files in this directory are licensed under the Apache License 2.0 unless a specific file says otherwise.
+SPDX-License-Identifier: Apache-2.0
+```
 
-Until additional written agreements say otherwise:
+Do not rely on assumptions. Mark SDK/example directories clearly.
 
-- contributors receive no ownership or revenue rights;
-- users receive only the rights granted by applicable licenses;
-- customers receive only the rights in their customer agreements;
-- contractors receive only the compensation and rights in their contractor agreements;
-- no partnership, joint venture, employment relationship, franchise, or agency relationship is created by project participation.
+---
 
-## Exit Readiness
-
-A future buyer, investor, attorney, or partner will care about whether the project can prove ownership.
-
-Preserve:
-
-- clean license notices;
-- contribution records;
-- CLA records;
-- contractor agreements;
-- release history;
-- trademark history;
-- domain and account ownership;
-- customer agreements;
-- private repo history;
-- commercial license records;
-- dependency/license inventory;
-- financial records.
-
-A clean paper trail is cheaper than trying to reconstruct ownership later.
+[← Back to the licensing index](README.md)

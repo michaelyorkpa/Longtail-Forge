@@ -1,137 +1,113 @@
-# Third-Party Dependencies and Asset Intake Policy
+# Trademark and Brand Policy
+
+## Owner
+
+The Longtail Forge name, "LTF" when used to identify the project, the Longtail Forge logo, icons, marks, service names, trade dress, visual identity, and official branding are owned by **Michael York d/b/a Raymond Tec** unless and until assigned in writing to a successor entity.
+
+The software license does not grant trademark rights.
 
 ## Purpose
 
-This policy reduces licensing risk from dependencies, snippets, fonts, icons, images, generated assets, templates, and other third-party material.
+This policy allows truthful reference to Longtail Forge while preventing confusion about official products, hosted services, forks, support, endorsements, and commercial offerings.
 
-## General Rule
+## Permitted Uses
 
-Do not add third-party material unless the source, license, and compatibility are understood.
+You may use the Longtail Forge name without separate written permission to:
 
-Track enough information that the project can later prove what was used, where it came from, and why it was allowed.
+- refer truthfully to the original project;
+- link to the official repository or website;
+- state that your work is compatible with Longtail Forge if that statement is accurate;
+- state that your project is a fork of, based on, or derived from Longtail Forge, if true;
+- discuss, review, compare, teach, or document Longtail Forge;
+- identify unmodified copies of the official Longtail Forge software.
 
-## Preferred Dependency Licenses
+Permitted use must be truthful, not misleading, and not imply endorsement, sponsorship, partnership, affiliation, or official status unless written permission has been granted.
 
-For runtime and development dependencies, prefer well-known licenses that are generally compatible with the public core's AGPL posture, such as:
+## Prohibited Uses
 
-- MIT;
-- BSD-2-Clause;
-- BSD-3-Clause;
-- ISC;
-- Apache-2.0;
-- MPL-2.0, with review;
-- LGPL, with review and clear separation.
+Without written permission, you may not:
 
-This is a policy preference, not a legal compatibility guarantee.
+- use "Longtail Forge" as the name of a competing hosted service;
+- use "Longtail Forge" as the primary name of a fork, modified distribution, app listing, marketplace listing, package, container image, or commercial product;
+- use the Longtail Forge logo, icons, official color system, official trade dress, or confusingly similar branding for a fork, plugin, hosted service, consulting service, app, package, or distribution;
+- register domains, social handles, package names, app names, company names, product names, or service names that imply official Longtail Forge status;
+- use names such as "Longtail Forge Cloud", "Longtail Forge Hosted", "Longtail Forge Enterprise", "Longtail Forge Pro", "Longtail Forge Managed", or similar names for an unofficial service;
+- imply that the Project Owner endorses, certifies, sponsors, maintains, or supports your product or service;
+- remove or alter trademark notices in official materials;
+- use the marks in a way that damages the goodwill of the project.
 
-## Licenses Requiring Extra Review
+## Fork Naming
 
-Do not add the following without deliberate review:
+Forks must use a distinct name and branding.
 
-- GPL-only dependencies;
-- AGPL dependencies from third parties;
-- LGPL dependencies that may be statically linked, bundled unusually, or modified;
-- MPL dependencies that require file-level source availability;
-- copyleft fonts or icon packs;
-- CC BY-SA assets;
-- licenses with advertising clauses;
-- custom "source available" licenses;
-- Business Source License / BSL;
-- Server Side Public License / SSPL;
-- Elastic License;
-- PolyForm licenses;
-- Commons Clause;
-- any license restricting commercial use, field of use, hosting, or competition.
+Acceptable descriptive language:
 
-## Prohibited or Strongly Discouraged Material
+```text
+ExampleTaskHub is a fork of Longtail Forge.
+ExampleTaskHub is based on Longtail Forge.
+ExampleTaskHub is compatible with Longtail Forge exports.
+```
 
-Do not add:
+Unacceptable naming:
 
-- CC BY-NC material;
-- CC BY-ND material;
-- "free for personal use" assets;
-- assets copied from websites without a clear license;
-- Stack Overflow / forum snippets without review;
-- customer data;
-- private data;
-- scraped datasets without permission;
-- commercial fonts without a license file and purchase record;
-- icons or images from paid packs unless the license permits repository inclusion and redistribution;
-- code copied from proprietary products;
-- AI-generated material that may be substantially similar to an unlicensed source.
+```text
+Longtail Forge Cloud by ExampleCo
+Longtail Forge Pro
+Longtail Forge Enterprise Edition
+Official Longtail Forge Hosting
+Longtail Forge Managed
+```
 
-## Fonts
+## Plugins and Integrations
 
-Fonts are legally messy. Before adding a font:
+Third-party plugins, connectors, templates, importers, and integrations must use distinct names.
 
-- confirm the font license;
-- confirm whether the font may be embedded, redistributed, modified, and used commercially;
-- keep the license text;
-- keep the source URL or purchase record;
-- do not commit paid font files unless the license expressly allows repository redistribution.
+Acceptable descriptive language:
 
-Prefer system fonts or clearly licensed open fonts.
+```text
+Example Connector for Longtail Forge
+Example Importer compatible with Longtail Forge
+```
 
-## Icons and Images
+Unacceptable naming:
 
-Before adding icons, logos, screenshots, diagrams, or images:
+```text
+Longtail Forge Example Connector
+Official Longtail Forge Example Connector
+Longtail Forge Payments
+```
 
-- confirm license and attribution requirements;
-- confirm commercial use rights;
-- confirm modification rights;
-- confirm redistribution rights;
-- keep attribution records;
-- avoid assets that conflict with Longtail Forge branding or third-party marks.
+unless written permission has been granted.
 
-The Longtail Forge logo and official marks should be kept separate from general reusable assets.
+## Domains, Social Accounts, and Package Names
 
-## AI-Generated Material
+Do not register or use domains, social media accounts, package names, container names, marketplace names, or app names that are likely to confuse users into believing that the account, package, product, or service is official.
 
-AI-generated code, docs, icons, copy, images, and other materials must be reviewed before inclusion.
+Examples requiring permission include names containing:
 
-Review should consider:
+- `longtailforge`
+- `longtail-forge`
+- `ltf` where used in a project-management/productivity context that creates confusion
+- confusing misspellings or lookalikes of the Longtail Forge name
 
-- whether the output appears copied from known sources;
-- whether it introduces license-incompatible code;
-- whether it contains third-party trademarks or recognizable protected elements;
-- whether it contains confidential or personal data;
-- whether prompts or outputs should be retained for provenance.
+## Logo Use
 
-## Dependency Records
+The Longtail Forge logo and official visual identity may not be used for forks, third-party services, unofficial plugins, merchandise, marketing, app listings, marketplace listings, documentation sites, or commercial offerings without written permission.
 
-Before public launch, maintain or generate a dependency/license inventory.
+Screenshots of the unmodified application may be used for truthful commentary, review, documentation, or compatibility discussion if the use is not misleading and does not imply endorsement.
 
-Recommended files or tooling:
+## Official Hosted Service
 
-- `package-lock.json` or equivalent lockfile;
-- `THIRD_PARTY_NOTICES.md`;
-- license scanner output;
-- dependency review notes for unusual licenses;
-- asset attribution records.
+Only the Project Owner or an authorized successor may operate an official Longtail Forge hosted service under the Longtail Forge name or brand.
 
-## Updating Dependencies
+A third party may host AGPL-compliant software, but it must use a distinct service name and branding.
 
-When adding or updating dependencies:
+## Reservation of Rights
 
-- review the license before merging;
-- check whether the package changed license;
-- check whether new transitive dependencies were introduced;
-- check whether the dependency is maintained;
-- check for security advisories when practical;
-- avoid replacing simple internal code with risky dependencies.
+All trademark, service mark, trade dress, unfair competition, passing off, domain name, and related rights are reserved.
 
-## Removing Dependencies
+The Project Owner may revoke permission for uses that create confusion, imply endorsement, violate this policy, or harm the project.
 
-When removing dependencies, also remove:
+---
 
-- license notices that no longer apply;
-- bundled assets;
-- attribution entries;
-- unused code imported from the dependency;
-- generated files if they include dependency code.
-
-## Contributor Submissions
-
-Contributors must disclose third-party material in their contributions.
-
-The Project Owner may reject contributions that include unclear, incompatible, undocumented, or high-risk third-party material.
+[← Back to the licensing index](README.md)

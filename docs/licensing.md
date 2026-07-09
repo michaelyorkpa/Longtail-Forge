@@ -4,6 +4,8 @@ Longtail Forge is owned and maintained by **Michael York d/b/a Raymond Tec** unl
 
 This page is the repo-level licensing hub. It summarizes the intended license stack and points to the controlling project policy documents in [`docs/licensing/`](licensing/).
 
+> **Attorney review note:** These documents are intended to lock down the project's operating position as clearly as possible before outside contributors, paid hosting, or commercial licensing. They should be reviewed by a qualified attorney before accepting non-trivial third-party contributions, selling hosted services, granting commercial license exceptions, or transferring the project into an LLC or other entity.
+
 ## License Stack
 
 | Area | License / Policy | Notes |
@@ -38,7 +40,6 @@ Commercial use of the AGPL version is allowed, subject to the AGPL. Separate com
 - [`licensing/third-party-dependencies.md`](licensing/third-party-dependencies.md): dependency and third-party asset intake rules
 - [`licensing/source-file-notices.md`](licensing/source-file-notices.md): SPDX and file-header conventions
 - [`licensing/repo-integration-checklist.md`](licensing/repo-integration-checklist.md): checklist for applying these docs cleanly across the repo
-- `licensing/attorney-review-checklist.md`: legal review checklist before launch/contributors (kept locally; excluded from version control)
 
 ## Trademark
 

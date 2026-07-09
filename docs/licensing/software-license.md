@@ -1,127 +1,87 @@
-# Repository Integration Checklist
+# Core Software License Policy
 
-Use this checklist when applying the licensing docs to the repo.
+## Project Owner
 
-## Apply the ZIP
+Longtail Forge is owned and maintained by **Michael York d/b/a Raymond Tec** unless and until ownership is assigned in writing to a successor entity.
 
-Extract the ZIP at the repository root so these paths exist:
+References in this document to the **Project Owner** mean Michael York d/b/a Raymond Tec and any future person or entity that receives the Longtail Forge copyrights, trademarks, commercial rights, or project assets by written assignment, merger, conversion, acquisition, or other lawful transfer.
 
-```text
-docs/licensing.md
-docs/licensing/
-```
+## Core License
 
-The new `docs/licensing.md` replaces the current shorter licensing document.
-
-## Align README
-
-Update the README license section so it says:
+The Longtail Forge public core software is licensed under:
 
 ```text
-Longtail Forge is licensed under the GNU Affero General Public License v3.0 only.
+GNU Affero General Public License v3.0 only
+SPDX-License-Identifier: AGPL-3.0-only
 ```
 
-Avoid "or later" unless the Project Owner intentionally chooses `AGPL-3.0-or-later`.
+The full license text is in the repository root [`LICENSE`](../../LICENSE) file.
 
-Suggested README text:
+This is intentionally **AGPL-3.0-only**, not "AGPL-3.0-or-later", unless a specific file says otherwise in an explicit SPDX identifier or license notice.
 
-```md
-## License
+## Software Covered by AGPL-3.0-only
 
-Longtail Forge Core is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
+Unless a file, package, or directory-level notice clearly states otherwise, AGPL-3.0-only applies to:
 
-You may use, study, modify, and self-host Longtail Forge under the terms of the AGPL. If you modify Longtail Forge and make it available to users over a network, you are responsible for complying with the AGPL's source-code availability requirements for that modified version.
+- application source code;
+- server-side code;
+- client-side code;
+- framework code;
+- first-party modules included in the public repository;
+- migrations, seeds, schemas, and database adapters;
+- public API implementation code;
+- test and regression code;
+- build scripts and development scripts;
+- templates, UI components, and bundled app assets that are part of the running software;
+- code examples that are tightly coupled to the AGPL core and are not expressly marked Apache-2.0.
 
-Commercial licensing, managed hosting, official SaaS, support plans, private deployment tooling, and first-party commercial plugins may be offered separately by Michael York d/b/a Raymond Tec or a successor entity.
+## Software Not Automatically Covered by the Core AGPL License
 
-See [docs/licensing.md](docs/licensing.md).
-```
+The core AGPL license does not automatically apply to:
 
-## Root LICENSE
+- official Longtail Forge hosted-service code kept outside the public repository;
+- managed deployment automation kept outside the public repository;
+- billing, tenant provisioning, metering, monitoring, backup orchestration, support tooling, or cloud operations code kept outside the public repository;
+- first-party commercial plugins or SaaS-only modules kept outside the public repository;
+- commercial license agreements or private customer agreements;
+- the Longtail Forge name, logo, trade dress, marks, icons, or official branding;
+- third-party dependencies, assets, fonts, icons, or libraries, which remain governed by their own licenses.
 
-The root `LICENSE` file may remain the standard AGPL v3 text.
+## Network Use and Modified Versions
 
-The project-level notices and SPDX identifiers should make clear that the project chooses `AGPL-3.0-only`, not `AGPL-3.0-or-later`.
+Longtail Forge is a network-capable application. If a person or organization modifies AGPL-covered Longtail Forge software and makes that modified version available for users to interact with over a network, that operator is responsible for complying with the AGPL's source-code availability obligations for that modified version.
 
-## Package Metadata
+The Project Owner's intended compliance pattern for official AGPL distributions is:
 
-Consider adding or updating `package.json`:
+- keep the full source code for AGPL-covered public releases available in the public repository or a clearly linked source archive;
+- include a prominent license/source link in public distribution materials where practical;
+- include appropriate legal notices in the application where practical;
+- keep AGPL-covered modifications to the public core available under AGPL-3.0-only when those modifications are distributed or made available in a way that triggers AGPL obligations.
 
-```json
-{
-  "license": "AGPL-3.0-only"
-}
-```
+## Commercial Use
 
-If the package remains `"private": true`, this is still useful for scanners and future audits.
+Commercial use of the AGPL-3.0-only version is allowed, subject to the AGPL.
 
-## Source Headers
+The Project Owner reserves the right to offer separate commercial licenses, exceptions, support plans, managed hosting, private hosting, proprietary plugins, or SaaS terms for code and assets the Project Owner owns or has sufficient rights to license commercially.
 
-Start using SPDX headers for new files:
+A commercial license from the Project Owner may allow terms that differ from AGPL-3.0-only. No commercial license is granted unless it is in a separate written agreement signed or otherwise accepted by the Project Owner.
 
-```js
-// SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
-// SPDX-License-Identifier: AGPL-3.0-only
-```
+## Dual Licensing
 
-Do not mass-edit generated, vendored, lockfile, or third-party files without review.
+The Project Owner may dual-license Longtail Forge code where the Project Owner owns the relevant copyrights or has received sufficient rights through a contributor license agreement, contractor agreement, assignment, or other written grant.
 
-## Contribution Gate
+Contributions that do not include sufficient relicensing rights may not be accepted into the public repository.
 
-Before accepting outside code:
+## No Trademark License
 
-- add `CONTRIBUTING.md` language pointing to `docs/licensing/contributor-policy.md`;
-- activate a CLA process or manually collect signed CLAs;
-- store CLA records privately;
-- add PR template language warning that non-trivial contributions require a CLA.
+The AGPL-3.0-only software license grants copyright permissions for covered software. It does not grant permission to use the Longtail Forge name, logo, service marks, trademarks, trade dress, domain names, official hosted-service branding, or confusingly similar branding.
 
-## Trademark Notices
+See [`trademark-policy.md`](trademark-policy.md).
 
-Add a short trademark notice anywhere public users are likely to check:
+## No Warranty
 
-- README;
-- docs licensing hub;
-- website footer;
-- app "About" screen;
-- self-hosted admin/about page.
+Longtail Forge is provided under the warranty and liability disclaimers in the applicable licenses. The public core is provided without any separate warranty, support promise, service-level commitment, uptime promise, data recovery promise, or indemnity unless the Project Owner separately agrees in writing.
 
-Suggested short notice:
+---
 
-```text
-Longtail Forge and related marks are trademarks or service marks of Michael York d/b/a Raymond Tec. Use of the name and marks is governed by docs/licensing/trademark-policy.md.
-```
-
-## App Legal Notices
-
-Before public release, consider adding an in-app legal/about screen containing:
-
-- project name and version;
-- copyright notice;
-- AGPL license notice;
-- link to source repository;
-- no warranty notice;
-- third-party notices link;
-- trademark notice.
-
-## Third-Party Notices
-
-Before public release, generate or maintain:
-
-```text
-THIRD_PARTY_NOTICES.md
-```
-
-At minimum, track runtime dependencies and any bundled assets/fonts/icons/images.
-
-## Private Repo Boundary
-
-Keep these out of the public repo unless intentionally open-sourced:
-
-- SaaS billing;
-- tenant provisioning;
-- hosted backups;
-- production monitoring;
-- customer admin tooling;
-- managed-instance deployment automation;
-- paid first-party plugins;
-- commercial license templates with customer-specific terms.
+[← Back to the licensing index](README.md)

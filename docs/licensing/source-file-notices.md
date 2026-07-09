@@ -1,83 +1,117 @@
-# Core Software License Policy
+# Source File Notices and SPDX Conventions
 
-## Project Owner
+## Purpose
 
-Longtail Forge is owned and maintained by **Michael York d/b/a Raymond Tec** unless and until ownership is assigned in writing to a successor entity.
+Clear file notices reduce ambiguity and make future audits, commercial licensing, contributor review, and entity transfer easier.
 
-References in this document to the **Project Owner** mean Michael York d/b/a Raymond Tec and any future person or entity that receives the Longtail Forge copyrights, trademarks, commercial rights, or project assets by written assignment, merger, conversion, acquisition, or other lawful transfer.
+## Core Software Files
 
-## Core License
+Use AGPL-3.0-only for public core software files unless a file or directory says otherwise.
 
-The Longtail Forge public core software is licensed under:
+Recommended header for JavaScript and TypeScript files:
 
-```text
-GNU Affero General Public License v3.0 only
-SPDX-License-Identifier: AGPL-3.0-only
+```js
+// SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
+// SPDX-License-Identifier: AGPL-3.0-only
 ```
 
-The full license text is in the repository root [`LICENSE`](../../LICENSE) file.
+Recommended header for CSS files:
 
-This is intentionally **AGPL-3.0-only**, not "AGPL-3.0-or-later", unless a specific file says otherwise in an explicit SPDX identifier or license notice.
+```css
+/* SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec */
+/* SPDX-License-Identifier: AGPL-3.0-only */
+```
 
-## Software Covered by AGPL-3.0-only
+Recommended header for shell scripts:
 
-Unless a file, package, or directory-level notice clearly states otherwise, AGPL-3.0-only applies to:
+```sh
+# SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
+# SPDX-License-Identifier: AGPL-3.0-only
+```
 
-- application source code;
-- server-side code;
-- client-side code;
-- framework code;
-- first-party modules included in the public repository;
-- migrations, seeds, schemas, and database adapters;
-- public API implementation code;
-- test and regression code;
-- build scripts and development scripts;
-- templates, UI components, and bundled app assets that are part of the running software;
-- code examples that are tightly coupled to the AGPL core and are not expressly marked Apache-2.0.
+Do not add headers mechanically to generated files, vendored files, lockfiles, or third-party files unless appropriate.
 
-## Software Not Automatically Covered by the Core AGPL License
+## Documentation Files
 
-The core AGPL license does not automatically apply to:
+Documentation prose is generally CC BY 4.0 unless a document says otherwise.
 
-- official Longtail Forge hosted-service code kept outside the public repository;
-- managed deployment automation kept outside the public repository;
-- billing, tenant provisioning, metering, monitoring, backup orchestration, support tooling, or cloud operations code kept outside the public repository;
-- first-party commercial plugins or SaaS-only modules kept outside the public repository;
-- commercial license agreements or private customer agreements;
-- the Longtail Forge name, logo, trade dress, marks, icons, or official branding;
-- third-party dependencies, assets, fonts, icons, or libraries, which remain governed by their own licenses.
+Optional Markdown notice:
 
-## Network Use and Modified Versions
+```md
+<!-- SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec -->
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+```
 
-Longtail Forge is a network-capable application. If a person or organization modifies AGPL-covered Longtail Forge software and makes that modified version available for users to interact with over a network, that operator is responsible for complying with the AGPL's source-code availability obligations for that modified version.
+## Plugin SDK and Integration Example Files
 
-The Project Owner's intended compliance pattern for official AGPL distributions is:
+Files intentionally licensed under Apache-2.0 should be clearly marked:
 
-- keep the full source code for AGPL-covered public releases available in the public repository or a clearly linked source archive;
-- include a prominent license/source link in public distribution materials where practical;
-- include appropriate legal notices in the application where practical;
-- keep AGPL-covered modifications to the public core available under AGPL-3.0-only when those modifications are distributed or made available in a way that triggers AGPL obligations.
+```js
+// SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
+// SPDX-License-Identifier: Apache-2.0
+```
 
-## Commercial Use
+A directory-level README should also state that files in that directory are Apache-2.0 unless a specific file says otherwise.
 
-Commercial use of the AGPL-3.0-only version is allowed, subject to the AGPL.
+## Proprietary Files
 
-The Project Owner reserves the right to offer separate commercial licenses, exceptions, support plans, managed hosting, private hosting, proprietary plugins, or SaaS terms for code and assets the Project Owner owns or has sufficient rights to license commercially.
+Proprietary files should not normally be committed to the public repository.
 
-A commercial license from the Project Owner may allow terms that differ from AGPL-3.0-only. No commercial license is granted unless it is in a separate written agreement signed or otherwise accepted by the Project Owner.
+If a private repository contains proprietary Longtail Forge hosted-service or commercial plugin code, use notices such as:
 
-## Dual Licensing
+```text
+SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
+SPDX-License-Identifier: LicenseRef-Longtail-Forge-Proprietary
+```
 
-The Project Owner may dual-license Longtail Forge code where the Project Owner owns the relevant copyrights or has received sufficient rights through a contributor license agreement, contractor agreement, assignment, or other written grant.
+and include a private license notice defining `LicenseRef-Longtail-Forge-Proprietary`.
 
-Contributions that do not include sufficient relicensing rights may not be accepted into the public repository.
+## Third-Party Files
 
-## No Trademark License
+Do not change third-party license notices.
 
-The AGPL-3.0-only software license grants copyright permissions for covered software. It does not grant permission to use the Longtail Forge name, logo, service marks, trademarks, trade dress, domain names, official hosted-service branding, or confusingly similar branding.
+Vendored third-party code or assets should retain original copyright and license notices and should be tracked in a third-party notices file.
 
-See [`trademark-policy.md`](trademark-policy.md).
+## Package Metadata
 
-## No Warranty
+When the public package is not intended for npm publication, `package.json` may remain private. Still, a license field can be useful for tooling:
 
-Longtail Forge is provided under the warranty and liability disclaimers in the applicable licenses. The public core is provided without any separate warranty, support promise, service-level commitment, uptime promise, data recovery promise, or indemnity unless the Project Owner separately agrees in writing.
+```json
+{
+  "license": "AGPL-3.0-only"
+}
+```
+
+If package-level metadata would conflict with mixed-license SDK directories, use directory-level package metadata or explicit SPDX headers.
+
+## No "Or Later" Unless Intentional
+
+Use:
+
+```text
+AGPL-3.0-only
+```
+
+Do not use:
+
+```text
+AGPL-3.0-or-later
+```
+
+unless the Project Owner intentionally decides to permit future AGPL versions for that file.
+
+## Header Rollout Strategy
+
+Do not interrupt feature work to header every file manually.
+
+Recommended rollout:
+
+1. Update README and licensing docs first.
+2. Add package metadata where useful.
+3. Add SPDX headers to new files.
+4. Add headers opportunistically when editing existing files.
+5. Use a script later if the repo needs a full SPDX pass.
+
+---
+
+[← Back to the licensing index](README.md)

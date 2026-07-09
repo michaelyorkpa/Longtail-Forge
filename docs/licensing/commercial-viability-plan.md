@@ -1,103 +1,205 @@
-# Commercial Licensing and Paid-Product Policy
+# Commercial Viability Plan
 
-## Purpose
+## Goal
 
-Longtail Forge is intended to be commercially viable while preserving a transparent, self-hostable public core.
+Longtail Forge should remain transparent, self-hostable, and useful to solo/small-business users while preserving a realistic path to revenue, paid hosting, private instances, commercial licensing, and eventual entity transfer.
 
-The public core is AGPL-3.0-only. The business model may include hosted services, managed private instances, support, setup assistance, migration services, commercial license exceptions, and proprietary first-party plugins or services.
+The intended model is:
 
-## Current Commercial Owner
+```text
+AGPL public core + protected official brand + private commercial/hosted layer + paid services
+```
 
-Until a separate legal entity receives the project by written assignment, commercial rights are held and exercised by **Michael York d/b/a Raymond Tec**.
+This structure lets the project build trust through an open self-hosted core while keeping the highest-leverage commercial infrastructure outside the public repo.
 
-Money received from Longtail Forge may be received by Michael York d/b/a Raymond Tec unless and until project assets, contracts, accounts, or revenue streams are assigned to a future entity.
+## What Must Stay Public
 
-## Commercial Product Lines
+The public core should include the usable self-hosted application:
 
-The Project Owner may offer any of the following.
+- workspace/account basics for self-hosted users;
+- core modules;
+- database adapters needed for supported self-hosting;
+- migrations and baseline schema;
+- public API foundations included in the core;
+- module framework surfaces needed for first-party public modules;
+- self-hosting documentation;
+- license/source notices.
 
-### 1. Community Self-Hosted Version
+Public core changes should remain AGPL-3.0-only unless a file or directory is intentionally licensed differently.
 
-The public AGPL-3.0-only version that users may self-host, study, modify, and redistribute under the AGPL.
+## What Should Stay Private
 
-### 2. Official Hosted Service
+The following should remain outside the public AGPL core unless there is a deliberate business decision to open them:
 
-A hosted Longtail Forge service operated by the Project Owner or a successor entity.
+- SaaS tenant provisioning;
+- billing and subscription enforcement;
+- account limits and commercial plan enforcement;
+- hosted backup orchestration;
+- production monitoring and alerting;
+- support/admin console tooling;
+- private deployment automation;
+- managed private instance orchestration;
+- SSO/SCIM/SAML/OIDC enterprise integration where developed as a paid layer;
+- passkeys/2FA policy administration where developed as a paid layer;
+- hosted-only analytics and usage metering;
+- customer lifecycle automation;
+- paid marketplace or first-party commercial plugin infrastructure;
+- first-party commercial modules.
 
-The hosted service may include proprietary code, private repositories, private infrastructure automation, billing systems, tenant provisioning, SSO/passkey/2FA support, monitoring, backup systems, storage integrations, administrative tooling, analytics, and other hosted-only capabilities that are not part of the public AGPL core.
+## Release Lanes
 
-### 3. Managed Private Instances
+### Lane 1: Community Self-Hosted
 
-Single-tenant or private hosted deployments operated for customers by the Project Owner or a successor entity.
+Purpose: build credibility, adoption, trust, feedback, and proof that the app is real.
 
-Managed private instances may combine the public AGPL core with proprietary operations tooling, support processes, deployment scripts, backup systems, billing, monitoring, and service agreements.
+Must have before public release:
 
-### 4. Commercial License Exceptions
+- stable install/update flow;
+- clear SQLite/Postgres support statement;
+- backup/restore documentation;
+- admin/bootstrap documentation;
+- license/source notices;
+- security disclosure path;
+- basic migration testing;
+- clear limitations.
 
-The Project Owner may sell commercial license exceptions for organizations that want to use, modify, embed, distribute, or host Longtail Forge under terms different from AGPL-3.0-only.
+Revenue options:
 
-A commercial license exception must be in writing. No one receives a commercial exception merely because they pay for hosting, support, consulting, migration, or services.
+- sponsorships;
+- paid setup help;
+- paid migration help;
+- paid support;
+- donations;
+- later commercial license exceptions.
 
-### 5. First-Party Commercial Plugins
+### Lane 2: Official Shared Hosted SaaS
 
-The Project Owner may develop first-party plugins, modules, connectors, automation layers, SaaS features, marketplace tools, compliance tools, or administrative features under proprietary terms.
+Purpose: turn people who like the product but do not want to self-host into recurring revenue.
 
-Those proprietary components are not licensed under AGPL-3.0-only unless the Project Owner expressly releases them under that license.
+Must have before charging:
 
-### 6. Services and Support
-
-The Project Owner may charge for implementation, setup, support, training, data migration, custom development, managed updates, hosting, backups, monitoring, or professional services.
-
-## What Other Parties May Do
-
-The AGPL version permits commercial use subject to AGPL-3.0-only.
-
-A third party may offer services around the AGPL-covered software only if it complies with the AGPL and does not violate the Longtail Forge trademark policy.
-
-A third party may not:
-
-- imply that its service is the official Longtail Forge service;
-- use the Longtail Forge logo or confusingly similar branding without permission;
-- operate a competing hosted service under the Longtail Forge name;
-- hide AGPL-covered modifications when the AGPL requires source availability;
-- remove required copyright, license, warranty, or attribution notices;
-- use the Project Owner's proprietary hosted-service code, private plugins, private deployment tooling, or private commercial materials without a written license.
-
-## Forks and Competing Services
-
-Forks are allowed under the AGPL, but forks must comply with the AGPL and the trademark policy.
-
-A fork that becomes a product, hosted service, app, package, or distribution must use a distinct name and branding. It may accurately say that it is "based on Longtail Forge" or "a fork of Longtail Forge" if the statement is truthful, not misleading, and not presented as official endorsement.
-
-## Commercial License Reservation
-
-The Project Owner reserves all rights not granted by the public licenses.
-
-The existence of the AGPL public core does not waive the Project Owner's right to:
-
-- sell hosted services;
-- sell support;
-- sell commercial licenses;
-- keep SaaS/private hosting code proprietary;
-- keep first-party commercial plugins proprietary;
-- enforce trademarks;
-- refuse contribution intake;
-- change future licensing for new code the Project Owner solely owns;
-- assign or transfer project assets to a future LLC, corporation, acquirer, or successor entity.
-
-## Customer Terms Still Required
-
-Before paid hosted services or managed private instances are sold, the Project Owner should prepare separate customer-facing documents, including:
-
-- Terms of Service or Master Services Agreement;
+- customer Terms of Service;
 - Privacy Policy;
-- Acceptable Use Policy;
-- Data Processing Addendum if business/customer data requires it;
-- backup and retention policy;
-- service/support policy;
-- billing and refund policy;
-- security disclosure policy;
-- incident response and breach notification process;
-- contractor/vendor agreements for anyone with access to customer data.
+- billing provider setup;
+- tenant isolation model;
+- admin/support access policy;
+- data export path;
+- backup policy;
+- account cancellation/deletion flow;
+- production monitoring;
+- incident response plan;
+- tax/payment records;
+- security baseline.
 
-These customer terms are separate from the open-source license.
+Recommended commercial posture:
+
+- AGPL core remains public;
+- SaaS infrastructure remains private;
+- hosted-only operational features remain proprietary;
+- trademark policy protects the official service.
+
+### Lane 3: Managed Private Instances
+
+Purpose: higher-ticket hosted deployments for customers who want isolation, control, or custom support.
+
+Must have before charging:
+
+- written service agreement;
+- scope of support;
+- backup/restore terms;
+- uptime/support expectations;
+- update policy;
+- customer data handling terms;
+- access control and admin policy;
+- termination/export process;
+- clear pricing and billing terms.
+
+Recommended commercial posture:
+
+- use the public AGPL core as the deployed app;
+- keep provisioning, monitoring, backups, update orchestration, and customer-specific automation private;
+- offer commercial license exceptions only when actually needed and priced accordingly.
+
+### Lane 4: Commercial License Exceptions
+
+Purpose: monetize organizations that cannot or will not comply with AGPL obligations.
+
+Use cases:
+
+- embedding Longtail Forge into a proprietary internal/customer product;
+- operating a modified hosted version without offering source as AGPL would require;
+- distributing modified versions under non-AGPL terms;
+- enterprise customers requiring negotiated license terms.
+
+Guardrails:
+
+- do not grant commercial exceptions casually;
+- do not grant commercial rights by email shorthand;
+- use written agreements;
+- only license code the Project Owner owns or has sufficient CLA/assignment rights for;
+- price commercial exceptions substantially higher than normal hosting.
+
+## Budget-Aware Operating Plan
+
+While budget is constrained, prioritize documents and actions that preserve future value without requiring expensive entity work immediately:
+
+1. Keep copyright notices consistent.
+2. Keep the public core AGPL-3.0-only.
+3. Keep private SaaS/commercial code in private repositories.
+4. Do not accept non-trivial outside code until the CLA process is active.
+5. Keep records of domains, repos, marks, release dates, screenshots, and public announcements.
+6. Keep personal/DBA financial records clean enough to separate Longtail Forge revenue later.
+7. Add customer terms before paid hosted launch.
+8. Form an LLC when revenue, liability, or customer expectations justify it.
+9. Assign project assets into the LLC with written records when the entity exists.
+
+## Moat
+
+The moat should not be secrecy around the entire app. The moat should be:
+
+- the official brand and trust;
+- clean self-hosting experience;
+- practical small-business workflows;
+- opinionated product design;
+- hosted convenience;
+- migration/support skill;
+- private operations tooling;
+- first-party commercial plugins;
+- customer relationships;
+- accumulated documentation and product authority.
+
+## What Not To Do
+
+Do not:
+
+- relicense the public core to MIT/Apache unless the business goal changes;
+- add "no commercial use" restrictions and still call the core open source;
+- put proprietary SaaS code in the public AGPL repo by accident;
+- accept outside PRs without contributor rights;
+- use copied license templates without tracking provenance;
+- use third-party assets without license review;
+- promise support, uptime, security, backups, or legal compliance without written terms;
+- mix customer data into development fixtures or public issue reports;
+- transfer project ownership casually without written assignment records.
+
+## Future Exit Readiness
+
+To keep a future sale or investment possible, preserve:
+
+- clean Git history;
+- license files and policy history;
+- CLA records;
+- contractor IP assignments;
+- trademark/domain/social account ownership records;
+- dependency/license inventory;
+- release artifacts;
+- customer contracts;
+- revenue records;
+- data protection policies;
+- records of any commercial license exceptions granted.
+
+The target is not corporate theater. The target is clean enough chain-of-title and licensing history that a future buyer, attorney, accountant, or partner does not have to excavate the project with a toothbrush.
+
+---
+
+[← Back to the licensing index](README.md)

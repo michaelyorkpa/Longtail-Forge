@@ -1,141 +1,122 @@
-# Longtail Forge Contributor License Agreement
+# Contributor Policy
 
-This Contributor License Agreement ("Agreement") governs contributions submitted to Longtail Forge.
+## Current Status
 
-## 1. Parties
+Longtail Forge is **not currently accepting non-trivial outside code contributions**.
 
-**Project Owner:** Michael York d/b/a Raymond Tec, and any successor or assignee that later receives the Longtail Forge project assets by written assignment.
+Issues, bug reports, product feedback, documentation suggestions, and small typo reports are welcome. Non-trivial code pull requests may be closed or deferred until the contributor license process is active.
 
-**Contributor:** The individual or entity submitting a Contribution to Longtail Forge.
+This policy exists to keep ownership, relicensing rights, commercial licensing, and future entity transfer clean while the project is still early.
 
-If the Contributor is submitting on behalf of an employer, client, company, organization, or other legal entity, the person accepting this Agreement represents that they have authority to bind that entity.
+## Project Owner
 
-## 2. Definitions
+For contribution purposes, the **Project Owner** means **Michael York d/b/a Raymond Tec** and any future successor entity that receives the project assets by written assignment.
 
-**Contribution** means any copyrightable work, invention, code, documentation, text, design, data, test, patch, pull request, issue attachment, translation, example, configuration, script, image, or other material intentionally submitted to the Project Owner for inclusion in, use with, or consideration for Longtail Forge.
+## What Counts as a Non-Trivial Contribution
 
-**Submit** means to provide a Contribution through a pull request, patch, email, issue, chat, upload, repository access, written communication, or other project-approved channel.
+A non-trivial contribution includes, without limitation:
 
-**Project** means Longtail Forge, including its public core, documentation, tests, modules, plugin surfaces, websites, official hosted services, private or public repositories, and related products or services.
+- new source files;
+- meaningful code changes;
+- new features;
+- bug fixes beyond obvious one-character or one-line corrections;
+- database migrations;
+- tests;
+- design assets;
+- substantial documentation;
+- examples;
+- translations;
+- architectural proposals that include copyrightable implementation text;
+- any contribution that may affect future commercial licensing or copyright ownership.
 
-## 3. Copyright License Grant
+If there is any doubt, treat the contribution as non-trivial.
 
-Contributor grants to the Project Owner a perpetual, worldwide, non-exclusive, irrevocable, royalty-free, fully paid-up, transferable, and sublicensable license to do all of the following with each Contribution:
+## Contributions That May Be Accepted Without a CLA
 
-- reproduce;
-- prepare derivative works;
-- modify;
-- adapt;
-- translate;
-- publicly display;
-- publicly perform;
-- distribute;
-- make available;
-- sublicense;
-- relicense;
-- use;
-- host;
-- operate;
-- combine with other works;
-- make, have made, sell, offer for sale, import, export, and otherwise exploit the Contribution.
+The maintainer may accept very small, low-risk contributions without a signed CLA, including:
 
-This grant includes the right to license the Contribution under:
+- typo fixes;
+- broken link fixes;
+- formatting corrections;
+- issue reports;
+- bug reproduction steps;
+- high-level product feedback;
+- non-copyrightable facts or suggestions.
 
-- AGPL-3.0-only;
-- any other open-source license selected by the Project Owner;
-- proprietary or commercial license terms;
-- hosted-service terms;
-- customer-specific license exceptions;
-- dual-license or multi-license models.
+Even for small contributions, the contributor must have the right to submit the contribution.
 
-This grant applies to the Contribution as submitted and to any modified, adapted, combined, or derivative version of the Contribution created by or for the Project Owner.
+## CLA Requirement
 
-## 4. Patent License Grant
+Before accepting non-trivial contributions, the Project Owner should activate a contributor license process based on [`contributor-license-agreement.md`](contributor-license-agreement.md).
 
-Contributor grants to the Project Owner and to recipients of software or services from the Project Owner a perpetual, worldwide, non-exclusive, irrevocable, royalty-free, fully paid-up patent license under patent claims owned or controlled by Contributor that are necessarily infringed by the Contribution alone or by the Contribution as combined with the Project in the manner contemplated by the Contribution.
+The intended requirement is:
 
-This patent license includes the right to make, have made, use, sell, offer to sell, import, export, distribute, host, operate, and otherwise exploit the Contribution and covered Project implementations.
+- every non-trivial contributor must agree to the CLA before contribution acceptance;
+- the CLA must grant rights broad enough for AGPL distribution, commercial relicensing, proprietary hosted-service use, dual licensing, and future transfer to a successor entity;
+- the CLA must include copyright and patent grants;
+- the CLA must include contributor representations that the contribution is original or properly licensed;
+- CLA records must be retained with enough detail to prove who agreed, when they agreed, and what identity/account/email was used.
 
-If Contributor initiates a patent claim alleging that the Project or a Contribution infringes a patent, the patent license granted by Contributor under this Agreement may terminate to the maximum extent permitted by law.
+## DCO Is Not Enough
 
-## 5. Moral Rights and Similar Rights
+A Developer Certificate of Origin sign-off may be used as an additional provenance signal, but it is not a substitute for the CLA.
 
-To the extent permitted by law, Contributor waives and agrees not to assert moral rights, droit moral, rights of attribution or integrity, and similar rights that would interfere with the Project Owner's exercise of the rights granted in this Agreement.
+The Project Owner's commercial plan requires rights broad enough to support dual licensing, commercial exceptions, proprietary hosted-service combinations, and future entity transfer. A DCO-only workflow is not sufficient for that goal.
 
-Where such rights cannot be waived, Contributor agrees not to enforce them against the Project Owner, its licensees, sublicensees, customers, users, successors, or assigns in a way that interferes with the rights granted in this Agreement.
+## Contractor and Freelancer Work
 
-## 6. Contributor Ownership
+Contractors, freelancers, vendors, and paid helpers must not contribute under the public CLA alone.
 
-Contributor retains ownership of Contributor's own Contributions, subject to the rights granted in this Agreement.
+Before a contractor, freelancer, or vendor performs project work, the Project Owner should have a separate written agreement covering:
 
-This Agreement does not require the Contributor to assign copyright ownership to the Project Owner. It grants the Project Owner broad license rights so the Project can remain open-source, commercially viable, dual-licensable, and transferable.
+- work made for hire where applicable;
+- assignment of copyright and other IP rights;
+- confidentiality;
+- invention assignment where appropriate;
+- third-party code restrictions;
+- AI-generated material restrictions and disclosure;
+- warranty that the contractor has the right to deliver the work;
+- data security and customer-data restrictions if applicable.
 
-## 7. Representations
+Contractor work should be reviewed before being merged into public or private repositories.
 
-Contributor represents that:
+## Employer-Owned and Client-Owned Code
 
-- Contributor has the legal right to submit the Contribution and grant the rights in this Agreement;
-- the Contribution is Contributor's original work, or Contributor has sufficient rights to submit it under this Agreement;
-- the Contribution does not knowingly infringe another party's copyright, patent, trademark, trade secret, privacy, publicity, contract, employment, or other rights;
-- the Contribution does not contain confidential information, trade secrets, private customer data, personal data, or employer/client-owned material unless expressly disclosed and approved by the Project Owner in writing;
-- the Contribution does not contain malicious code, intentionally hidden behavior, undisclosed telemetry, backdoors, credential harvesting, or code designed to bypass user consent or security controls;
-- all third-party material included in the Contribution is identified, licensed, and accompanied by required notices;
-- Contributor has disclosed any AI-generated or AI-assisted material included in the Contribution.
+Contributors must not submit code, documentation, designs, data, assets, trade secrets, or confidential information owned by an employer, client, school, customer, or other third party unless they have written permission and disclose the relevant details to the Project Owner.
 
-## 8. Employer, Client, and Organization Rights
+## AI-Generated Material
 
-If Contributor's employer, client, school, customer, or other organization may own or control rights in the Contribution, Contributor must obtain authorization before submitting it.
+Contributors must disclose if a contribution contains material generated by an AI coding assistant or other generative tool.
 
-The Project Owner may require written confirmation from the organization before accepting the Contribution.
+AI assistance is not automatically prohibited, but the contributor remains responsible for ensuring that the contribution does not contain copied, license-incompatible, confidential, proprietary, or infringing material.
 
-## 9. No Obligation to Use
+The Project Owner may reject AI-assisted contributions if provenance is unclear.
 
-The Project Owner has no obligation to review, accept, merge, publish, maintain, support, compensate, credit, or continue using any Contribution.
+## Third-Party Code and Assets
 
-The Project Owner may reject, rewrite, reimplement, remove, replace, revert, relicensed where allowed, or stop using Contributions at any time.
+Contributors must not include third-party code, assets, fonts, icons, images, text, data, models, snippets, or generated outputs unless:
 
-## 10. No Compensation or Revenue Rights
+- the material is clearly identified;
+- the original source is disclosed;
+- the license is disclosed;
+- the license is compatible with the target Longtail Forge license;
+- required notices are included;
+- the Project Owner agrees to accept the material.
 
-Contributor is not entitled to payment, royalties, revenue share, equity, ownership, governance rights, employment, partnership status, agency status, or other compensation because of a Contribution unless a separate written agreement says otherwise.
+## No Governance or Ownership Rights
 
-## 11. Trademarks
+Submitting feedback, issues, pull requests, suggestions, documentation, code, designs, or other materials does not give the contributor ownership, governance rights, voting rights, revenue rights, trademark rights, project control, employment status, partnership status, or agency authority.
 
-This Agreement does not grant Contributor any right to use the Longtail Forge name, marks, logos, trade dress, domains, or official branding.
+## Security Reports
 
-## 12. Confidentiality
+Security reports are welcome. A security report alone is not a code contribution.
 
-Contributor should not submit confidential information. Contributions are generally expected to be public or capable of becoming public.
+If a reporter submits a patch, proof-of-concept code, exploit code, reproduction repository, or other copyrightable material, this contributor policy applies.
 
-If a confidential disclosure is required for security reporting or private coordination, the Project Owner and Contributor should use a separate written confidentiality arrangement.
+## Maintainer Discretion
 
-## 13. Electronic Acceptance
+The Project Owner may reject, close, defer, rewrite, reimplement, or decline any contribution for any reason, including licensing risk, unclear provenance, security risk, architectural mismatch, commercial licensing risk, or project direction.
 
-Contributor may accept this Agreement by any process approved by the Project Owner, including:
+---
 
-- checking a CLA acceptance box;
-- signing through a CLA tool;
-- signing electronically;
-- submitting a pull request after the CLA bot or project workflow presents the CLA and records acceptance;
-- sending written confirmation in a project-approved channel.
-
-The Project Owner should retain acceptance records, including contributor name, username, email address where available, date, version of the CLA, and repository/account identity.
-
-## 14. Future Entity Transfer
-
-Contributor agrees that the rights granted in this Agreement may be transferred, assigned, or sublicensed to a future entity that receives the Longtail Forge project assets, including a Pennsylvania LLC, corporation, acquirer, successor, affiliate, or other project owner.
-
-## 15. Governing Law Placeholder
-
-The governing law and venue should be selected by counsel before this CLA is activated.
-
-Until reviewed, use this placeholder:
-
-```text
-Governing law and venue to be determined before activation.
-```
-
-## 16. Entire Agreement for Contributions
-
-This Agreement is the complete agreement governing Contributions unless the Project Owner and Contributor sign a separate written agreement covering the same Contribution.
-
-If any part of this Agreement is unenforceable, the remaining parts should remain effective to the maximum extent permitted by law.
+[← Back to the licensing index](README.md)

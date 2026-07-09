@@ -122,12 +122,14 @@ npm run test:permissions
 
 ## License
 
-Longtail Forge is licensed under the GNU Affero General Public License v3.0 or later.
+Longtail Forge Core is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
 
-You may use, study, modify, and self-host Longtail Forge under the terms of the AGPL. If you modify Longtail Forge and make it available to users over a network, you must make the corresponding source code for your modified version available under the AGPL.
+You may use, study, modify, and self-host Longtail Forge under the terms of the AGPL. If you modify Longtail Forge and make it available to users over a network, you are responsible for complying with the AGPL's source-code availability requirements for that modified version.
 
-Commercial licensing may be available separately.
+Commercial licensing, managed hosting, official SaaS, support plans, private deployment tooling, and first-party commercial plugins may be offered separately by Michael York d/b/a Raymond Tec or a successor entity.
+
+See [docs/licensing.md](docs/licensing.md) for the full license stack and the policy documents in [docs/licensing/](docs/licensing/).
 
 ## Trademark
 
-"Longtail Forge" and the Longtail Forge logo are trademarks of Michael York DBA Raymond Tec. You may use the name to refer to the original project, but you may not use the name, logo, or confusingly similar branding for a competing hosted service or modified distribution without permission.
+"Longtail Forge" and the Longtail Forge logo are trademarks of Michael York d/b/a Raymond Tec. You may use the name to refer to the original project, but you may not use the name, logo, or confusingly similar branding for a competing hosted service or modified distribution without permission. See [docs/licensing/trademark-policy.md](docs/licensing/trademark-policy.md).

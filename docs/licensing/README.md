@@ -1,22 +1,39 @@
-# Longtail Forge Licensing Documents
+# Licensing Directory
 
-This directory holds the controlling licensing and policy documents for Longtail Forge, owned and maintained by **Michael York d/b/a Raymond Tec** unless and until ownership is assigned in writing to a successor entity.
+This directory contains the operating license and commercialization policies for Longtail Forge.
 
-Start at the repo-level hub in [`../licensing.md`](../licensing.md) for the summarized license stack; the documents below are the detailed policies.
+The short version:
 
-## Index
+- **Core software:** AGPL-3.0-only.
+- **Documentation prose:** CC BY 4.0 unless otherwise noted.
+- **Plugin SDKs and integration examples:** Apache-2.0 only where expressly marked.
+- **Official hosted-service code, managed deployment tooling, billing code, cloud operations code, and first-party commercial plugins:** proprietary / all rights reserved unless separately licensed.
+- **Branding:** trademark rights reserved.
+- **Non-trivial outside contributions:** not accepted until the CLA process is active.
 
-- [`software-license.md`](software-license.md): core software license policy
-- [`commercial-licensing.md`](commercial-licensing.md): commercial licensing and paid-product policy
+These documents are written for the current project owner, **Michael York d/b/a Raymond Tec**, and for any successor entity that later receives the project assets by written assignment.
+
+## Documents
+
+- [`software-license.md`](software-license.md): core AGPL-3.0-only software policy
+- [`commercial-licensing.md`](commercial-licensing.md): paid services, private plugins, SaaS, and commercial license exceptions
 - [`commercial-viability-plan.md`](commercial-viability-plan.md): commercial moat, release lanes, and budget-aware viability plan
-- [`contributor-policy.md`](contributor-policy.md): contribution intake rules
-- [`contributor-license-agreement.md`](contributor-license-agreement.md): draft CLA terms for future contributors
-- [`trademark-policy.md`](trademark-policy.md): Longtail Forge name and brand use rules
-- [`documentation-license.md`](documentation-license.md): documentation licensing policy
-- [`plugin-sdk-license.md`](plugin-sdk-license.md): plugin SDK and integration-example policy
-- [`ownership-and-entity-plan.md`](ownership-and-entity-plan.md): current owner, DBA, and future LLC transfer plan
-- [`third-party-dependencies.md`](third-party-dependencies.md): dependency and third-party asset intake rules
-- [`source-file-notices.md`](source-file-notices.md): SPDX and file-header conventions
-- [`repo-integration-checklist.md`](repo-integration-checklist.md): checklist for applying these docs cleanly across the repo
+- [`contributor-policy.md`](contributor-policy.md): contribution intake rules and boundaries
+- [`contributor-license-agreement.md`](contributor-license-agreement.md): draft contributor license agreement
+- [`trademark-policy.md`](trademark-policy.md): permitted and prohibited use of the Longtail Forge name and marks
+- [`documentation-license.md`](documentation-license.md): documentation licensing and attribution rules
+- [`plugin-sdk-license.md`](plugin-sdk-license.md): plugin SDK and integration-example licensing
+- [`ownership-and-entity-plan.md`](ownership-and-entity-plan.md): present ownership and future LLC transfer plan
+- [`third-party-dependencies.md`](third-party-dependencies.md): dependency, asset, font, icon, and third-party code intake rules
+- [`source-file-notices.md`](source-file-notices.md): SPDX identifiers and file-header conventions
+- [`repo-integration-checklist.md`](repo-integration-checklist.md): repo-wide application checklist
 
-An `attorney-review-checklist.md` is kept locally for legal review and is intentionally excluded from version control (see the repo `.gitignore`).
+## Scope
+
+These documents are intended to guide repository operation, contributor intake, public licensing, and commercial planning. They do not replace the full text of the applicable licenses and do not provide legal advice to third parties.
+
+If a file contains a specific SPDX identifier, license header, or directory-level license notice, that specific notice controls for that file to the extent it conflicts with the general summary here.
+
+---
+
+See also the repo-level licensing hub: [`../licensing.md`](../licensing.md).

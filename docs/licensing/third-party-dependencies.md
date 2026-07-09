@@ -1,113 +1,141 @@
-# Source File Notices and SPDX Conventions
+# Third-Party Dependencies and Asset Intake Policy
 
 ## Purpose
 
-Clear file notices reduce ambiguity and make future audits, commercial licensing, contributor review, and entity transfer easier.
+This policy reduces licensing risk from dependencies, snippets, fonts, icons, images, generated assets, templates, and other third-party material.
 
-## Core Software Files
+## General Rule
 
-Use AGPL-3.0-only for public core software files unless a file or directory says otherwise.
+Do not add third-party material unless the source, license, and compatibility are understood.
 
-Recommended header for JavaScript and TypeScript files:
+Track enough information that the project can later prove what was used, where it came from, and why it was allowed.
 
-```js
-// SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
-// SPDX-License-Identifier: AGPL-3.0-only
-```
+## Preferred Dependency Licenses
 
-Recommended header for CSS files:
+For runtime and development dependencies, prefer well-known licenses that are generally compatible with the public core's AGPL posture, such as:
 
-```css
-/* SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec */
-/* SPDX-License-Identifier: AGPL-3.0-only */
-```
+- MIT;
+- BSD-2-Clause;
+- BSD-3-Clause;
+- ISC;
+- Apache-2.0;
+- MPL-2.0, with review;
+- LGPL, with review and clear separation.
 
-Recommended header for shell scripts:
+This is a policy preference, not a legal compatibility guarantee.
 
-```sh
-# SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
-# SPDX-License-Identifier: AGPL-3.0-only
-```
+## Licenses Requiring Extra Review
 
-Do not add headers mechanically to generated files, vendored files, lockfiles, or third-party files unless appropriate.
+Do not add the following without deliberate review:
 
-## Documentation Files
+- GPL-only dependencies;
+- AGPL dependencies from third parties;
+- LGPL dependencies that may be statically linked, bundled unusually, or modified;
+- MPL dependencies that require file-level source availability;
+- copyleft fonts or icon packs;
+- CC BY-SA assets;
+- licenses with advertising clauses;
+- custom "source available" licenses;
+- Business Source License / BSL;
+- Server Side Public License / SSPL;
+- Elastic License;
+- PolyForm licenses;
+- Commons Clause;
+- any license restricting commercial use, field of use, hosting, or competition.
 
-Documentation prose is generally CC BY 4.0 unless a document says otherwise.
+## Prohibited or Strongly Discouraged Material
 
-Optional Markdown notice:
+Do not add:
 
-```md
-<!-- SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec -->
-<!-- SPDX-License-Identifier: CC-BY-4.0 -->
-```
+- CC BY-NC material;
+- CC BY-ND material;
+- "free for personal use" assets;
+- assets copied from websites without a clear license;
+- Stack Overflow / forum snippets without review;
+- customer data;
+- private data;
+- scraped datasets without permission;
+- commercial fonts without a license file and purchase record;
+- icons or images from paid packs unless the license permits repository inclusion and redistribution;
+- code copied from proprietary products;
+- AI-generated material that may be substantially similar to an unlicensed source.
 
-## Plugin SDK and Integration Example Files
+## Fonts
 
-Files intentionally licensed under Apache-2.0 should be clearly marked:
+Fonts are legally messy. Before adding a font:
 
-```js
-// SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
-// SPDX-License-Identifier: Apache-2.0
-```
+- confirm the font license;
+- confirm whether the font may be embedded, redistributed, modified, and used commercially;
+- keep the license text;
+- keep the source URL or purchase record;
+- do not commit paid font files unless the license expressly allows repository redistribution.
 
-A directory-level README should also state that files in that directory are Apache-2.0 unless a specific file says otherwise.
+Prefer system fonts or clearly licensed open fonts.
 
-## Proprietary Files
+## Icons and Images
 
-Proprietary files should not normally be committed to the public repository.
+Before adding icons, logos, screenshots, diagrams, or images:
 
-If a private repository contains proprietary Longtail Forge hosted-service or commercial plugin code, use notices such as:
+- confirm license and attribution requirements;
+- confirm commercial use rights;
+- confirm modification rights;
+- confirm redistribution rights;
+- keep attribution records;
+- avoid assets that conflict with Longtail Forge branding or third-party marks.
 
-```text
-SPDX-FileCopyrightText: 2026 Michael York d/b/a Raymond Tec
-SPDX-License-Identifier: LicenseRef-Longtail-Forge-Proprietary
-```
+The Longtail Forge logo and official marks should be kept separate from general reusable assets.
 
-and include a private license notice defining `LicenseRef-Longtail-Forge-Proprietary`.
+## AI-Generated Material
 
-## Third-Party Files
+AI-generated code, docs, icons, copy, images, and other materials must be reviewed before inclusion.
 
-Do not change third-party license notices.
+Review should consider:
 
-Vendored third-party code or assets should retain original copyright and license notices and should be tracked in a third-party notices file.
+- whether the output appears copied from known sources;
+- whether it introduces license-incompatible code;
+- whether it contains third-party trademarks or recognizable protected elements;
+- whether it contains confidential or personal data;
+- whether prompts or outputs should be retained for provenance.
 
-## Package Metadata
+## Dependency Records
 
-When the public package is not intended for npm publication, `package.json` may remain private. Still, a license field can be useful for tooling:
+Before public launch, maintain or generate a dependency/license inventory.
 
-```json
-{
-  "license": "AGPL-3.0-only"
-}
-```
+Recommended files or tooling:
 
-If package-level metadata would conflict with mixed-license SDK directories, use directory-level package metadata or explicit SPDX headers.
+- `package-lock.json` or equivalent lockfile;
+- `THIRD_PARTY_NOTICES.md`;
+- license scanner output;
+- dependency review notes for unusual licenses;
+- asset attribution records.
 
-## No "Or Later" Unless Intentional
+## Updating Dependencies
 
-Use:
+When adding or updating dependencies:
 
-```text
-AGPL-3.0-only
-```
+- review the license before merging;
+- check whether the package changed license;
+- check whether new transitive dependencies were introduced;
+- check whether the dependency is maintained;
+- check for security advisories when practical;
+- avoid replacing simple internal code with risky dependencies.
 
-Do not use:
+## Removing Dependencies
 
-```text
-AGPL-3.0-or-later
-```
+When removing dependencies, also remove:
 
-unless the Project Owner intentionally decides to permit future AGPL versions for that file.
+- license notices that no longer apply;
+- bundled assets;
+- attribution entries;
+- unused code imported from the dependency;
+- generated files if they include dependency code.
 
-## Header Rollout Strategy
+## Contributor Submissions
 
-Do not interrupt feature work to header every file manually.
+Contributors must disclose third-party material in their contributions.
 
-Recommended rollout:
+The Project Owner may reject contributions that include unclear, incompatible, undocumented, or high-risk third-party material.
 
-1. Update README and licensing docs first.
-2. Add package metadata where useful.
-3. Add SPDX headers to new files.
-4. Add headers opportunistically when editing existing files.
-5. Use a script later if the repo needs a full SPDX pass.
+---
+
+[← Back to the licensing index](README.md)

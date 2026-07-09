@@ -1,118 +1,66 @@
-# Contributor Policy
+# Documentation License Policy
 
-## Current Status
+## License
 
-Longtail Forge is **not currently accepting non-trivial outside code contributions**.
+Unless a specific document says otherwise, Longtail Forge documentation prose in the public repository is licensed under:
 
-Issues, bug reports, product feedback, documentation suggestions, and small typo reports are welcome. Non-trivial code pull requests may be closed or deferred until the contributor license process is active.
+```text
+Creative Commons Attribution 4.0 International
+SPDX-License-Identifier: CC-BY-4.0
+```
 
-This policy exists to keep ownership, relicensing rights, commercial licensing, and future entity transfer clean while the project is still early.
+Official license reference:
 
-## Project Owner
+```text
+https://creativecommons.org/licenses/by/4.0/
+```
 
-For contribution purposes, the **Project Owner** means **Michael York d/b/a Raymond Tec** and any future successor entity that receives the project assets by written assignment.
+## Scope
 
-## What Counts as a Non-Trivial Contribution
+This policy applies to documentation prose, including:
 
-A non-trivial contribution includes, without limitation:
+- Markdown documentation in `docs/`;
+- public planning documents intended as documentation;
+- help-center prose stored as source documentation;
+- tutorials;
+- module guides;
+- public API prose;
+- architecture notes intended for publication.
 
-- new source files;
-- meaningful code changes;
-- new features;
-- bug fixes beyond obvious one-character or one-line corrections;
-- database migrations;
-- tests;
-- design assets;
-- substantial documentation;
-- examples;
-- translations;
-- architectural proposals that include copyrightable implementation text;
-- any contribution that may affect future commercial licensing or copyright ownership.
+## Exclusions
 
-If there is any doubt, treat the contribution as non-trivial.
+This documentation license does not apply to:
 
-## Contributions That May Be Accepted Without a CLA
+- source code snippets that are part of the running software;
+- code examples expressly marked under another license;
+- screenshots containing protectable UI artwork or trademarks;
+- logos, icons, brand assets, marks, or trade dress;
+- confidential/private planning documents not intended for public distribution;
+- third-party text, images, diagrams, or assets included under their own licenses.
 
-The maintainer may accept very small, low-risk contributions without a signed CLA, including:
+## Attribution
 
-- typo fixes;
-- broken link fixes;
-- formatting corrections;
-- issue reports;
-- bug reproduction steps;
-- high-level product feedback;
-- non-copyrightable facts or suggestions.
+When reusing Longtail Forge documentation under CC BY 4.0, attribution should include:
 
-Even for small contributions, the contributor must have the right to submit the contribution.
+```text
+Longtail Forge documentation by Michael York d/b/a Raymond Tec, licensed under CC BY 4.0.
+Source: https://github.com/michaelyorkpa/Longtail-Forge
+```
 
-## CLA Requirement
+If the reused document has a more specific title or URL, include that title or URL when practical.
 
-Before accepting non-trivial contributions, the Project Owner should activate a contributor license process based on [`contributor-license-agreement.md`](contributor-license-agreement.md).
+## Documentation Contributions
 
-The intended requirement is:
+Substantial documentation contributions are non-trivial contributions and require the contributor process described in [`contributor-policy.md`](contributor-policy.md).
 
-- every non-trivial contributor must agree to the CLA before contribution acceptance;
-- the CLA must grant rights broad enough for AGPL distribution, commercial relicensing, proprietary hosted-service use, dual licensing, and future transfer to a successor entity;
-- the CLA must include copyright and patent grants;
-- the CLA must include contributor representations that the contribution is original or properly licensed;
-- CLA records must be retained with enough detail to prove who agreed, when they agreed, and what identity/account/email was used.
+The Project Owner must have sufficient rights to publish documentation contributions under CC BY 4.0 and, where necessary, under commercial or proprietary terms for hosted-service documentation, customer materials, training, support, or marketing.
 
-## DCO Is Not Enough
+## Brand and Screenshots
 
-A Developer Certificate of Origin sign-off may be used as an additional provenance signal, but it is not a substitute for the CLA.
+The documentation license does not grant permission to use Longtail Forge trademarks, logos, official branding, or confusingly similar branding.
 
-The Project Owner's commercial plan requires rights broad enough to support dual licensing, commercial exceptions, proprietary hosted-service combinations, and future entity transfer. A DCO-only workflow is not sufficient for that goal.
+Screenshots may be included in documentation for truthful reference, training, support, or review, but screenshots do not grant trademark rights or rights in third-party content visible inside them.
 
-## Contractor and Freelancer Work
+---
 
-Contractors, freelancers, vendors, and paid helpers must not contribute under the public CLA alone.
-
-Before a contractor, freelancer, or vendor performs project work, the Project Owner should have a separate written agreement covering:
-
-- work made for hire where applicable;
-- assignment of copyright and other IP rights;
-- confidentiality;
-- invention assignment where appropriate;
-- third-party code restrictions;
-- AI-generated material restrictions and disclosure;
-- warranty that the contractor has the right to deliver the work;
-- data security and customer-data restrictions if applicable.
-
-Contractor work should be reviewed before being merged into public or private repositories.
-
-## Employer-Owned and Client-Owned Code
-
-Contributors must not submit code, documentation, designs, data, assets, trade secrets, or confidential information owned by an employer, client, school, customer, or other third party unless they have written permission and disclose the relevant details to the Project Owner.
-
-## AI-Generated Material
-
-Contributors must disclose if a contribution contains material generated by an AI coding assistant or other generative tool.
-
-AI assistance is not automatically prohibited, but the contributor remains responsible for ensuring that the contribution does not contain copied, license-incompatible, confidential, proprietary, or infringing material.
-
-The Project Owner may reject AI-assisted contributions if provenance is unclear.
-
-## Third-Party Code and Assets
-
-Contributors must not include third-party code, assets, fonts, icons, images, text, data, models, snippets, or generated outputs unless:
-
-- the material is clearly identified;
-- the original source is disclosed;
-- the license is disclosed;
-- the license is compatible with the target Longtail Forge license;
-- required notices are included;
-- the Project Owner agrees to accept the material.
-
-## No Governance or Ownership Rights
-
-Submitting feedback, issues, pull requests, suggestions, documentation, code, designs, or other materials does not give the contributor ownership, governance rights, voting rights, revenue rights, trademark rights, project control, employment status, partnership status, or agency authority.
-
-## Security Reports
-
-Security reports are welcome. A security report alone is not a code contribution.
-
-If a reporter submits a patch, proof-of-concept code, exploit code, reproduction repository, or other copyrightable material, this contributor policy applies.
-
-## Maintainer Discretion
-
-The Project Owner may reject, close, defer, rewrite, reimplement, or decline any contribution for any reason, including licensing risk, unclear provenance, security risk, architectural mismatch, commercial licensing risk, or project direction.
+[← Back to the licensing index](README.md)

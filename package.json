@@ -2,6 +2,7 @@
   "name": "longtail-forge",
   "version": "0.33.6.12n",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
     "node": ">=24 <25"
