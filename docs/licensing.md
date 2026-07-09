@@ -4,8 +4,6 @@ Longtail Forge is owned and maintained by **Michael York d/b/a Raymond Tec** unl
 
 This page is the repo-level licensing hub. It summarizes the intended license stack and points to the controlling project policy documents in [`docs/licensing/`](licensing/).
 
-> **Attorney review note:** These documents are intended to lock down the project's operating position as clearly as possible before outside contributors, paid hosting, or commercial licensing. They should be reviewed by a qualified attorney before accepting non-trivial third-party contributions, selling hosted services, granting commercial license exceptions, or transferring the project into an LLC or other entity.
-
 ## License Stack
 
 | Area | License / Policy | Notes |
@@ -32,7 +30,7 @@ Commercial use of the AGPL version is allowed, subject to the AGPL. Separate com
 - [`licensing/commercial-licensing.md`](licensing/commercial-licensing.md): commercial licensing and paid-product policy
 - [`licensing/commercial-viability-plan.md`](licensing/commercial-viability-plan.md): commercial moat, release lanes, and budget-aware viability plan
 - [`licensing/contributor-policy.md`](licensing/contributor-policy.md): contribution intake rules
-- [`licensing/contributor-license-agreement.md`](licensing/contributor-license-agreement.md): draft CLA terms for future contributors
+- [`licensing/contributor-license-agreement.md`](licensing/contributor-license-agreement.md): CLA terms for future contributors
 - [`licensing/trademark-policy.md`](licensing/trademark-policy.md): Longtail Forge name and brand use rules
 - [`licensing/documentation-license.md`](licensing/documentation-license.md): documentation licensing policy
 - [`licensing/plugin-sdk-license.md`](licensing/plugin-sdk-license.md): plugin SDK and integration-example policy

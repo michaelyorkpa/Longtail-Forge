@@ -1,7 +1,5 @@
 # Longtail Forge Contributor License Agreement
 
-> **Draft status:** This CLA is a project draft. Do not activate it for outside contributors until it has been reviewed and adapted by qualified counsel.
-
 This Contributor License Agreement ("Agreement") governs contributions submitted to Longtail Forge.
 
 ## 1. Parties
@@ -126,15 +124,9 @@ The Project Owner should retain acceptance records, including contributor name, 
 
 Contributor agrees that the rights granted in this Agreement may be transferred, assigned, or sublicensed to a future entity that receives the Longtail Forge project assets, including a Pennsylvania LLC, corporation, acquirer, successor, affiliate, or other project owner.
 
-## 15. Governing Law Placeholder
+## 15. Governing Law
 
-The governing law and venue should be selected by counsel before this CLA is activated.
-
-Until reviewed, use this placeholder:
-
-```text
-Governing law and venue to be determined before activation.
-```
+This Agreement is governed by the laws of the Commonwealth of Pennsylvania, United States, without regard to its conflict-of-laws rules. The state and federal courts located in Pennsylvania have exclusive jurisdiction over disputes arising out of or relating to this Agreement.
 
 ## 16. Entire Agreement for Contributions
 

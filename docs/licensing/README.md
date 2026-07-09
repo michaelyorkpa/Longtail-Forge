@@ -19,7 +19,7 @@ These documents are written for the current project owner, **Michael York d/b/a 
 - [`commercial-licensing.md`](commercial-licensing.md): paid services, private plugins, SaaS, and commercial license exceptions
 - [`commercial-viability-plan.md`](commercial-viability-plan.md): commercial moat, release lanes, and budget-aware viability plan
 - [`contributor-policy.md`](contributor-policy.md): contribution intake rules and boundaries
-- [`contributor-license-agreement.md`](contributor-license-agreement.md): draft contributor license agreement
+- [`contributor-license-agreement.md`](contributor-license-agreement.md): contributor license agreement
 - [`trademark-policy.md`](trademark-policy.md): permitted and prohibited use of the Longtail Forge name and marks
 - [`documentation-license.md`](documentation-license.md): documentation licensing and attribution rules
 - [`plugin-sdk-license.md`](plugin-sdk-license.md): plugin SDK and integration-example licensing
