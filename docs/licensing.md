@@ -38,7 +38,7 @@ Commercial use of the AGPL version is allowed, subject to the AGPL. Separate com
 - [`licensing/third-party-dependencies.md`](licensing/third-party-dependencies.md): dependency and third-party asset intake rules
 - [`licensing/source-file-notices.md`](licensing/source-file-notices.md): SPDX and file-header conventions
 - [`licensing/repo-integration-checklist.md`](licensing/repo-integration-checklist.md): checklist for applying these docs cleanly across the repo
-- [`licensing/attorney-review-checklist.md`](licensing/attorney-review-checklist.md): legal review checklist before launch/contributors
+- `licensing/attorney-review-checklist.md`: legal review checklist before launch/contributors (kept locally; excluded from version control)
 
 ## Trademark
 
