@@ -141,6 +141,12 @@ As of 0.33.6.12e-2, the Task Focus Inspector renders that selected-task related-
 
 As of 0.33.6.12f, the Pick up where I left off Focus Selection recommendation list may insert a Tasks-owned second-most-recent updated active task after running/paused timer resume rows. This is candidate ordering only: it does not add a new Workbench panel, embedded task list, task filter bar, or browser-side task ordering source.
 
+As of 0.33.6.12g, Workbench view-state panels are mutually exclusive in both layout and focus order. Focus Selection must not show the Task Focus action box, summary shell, checklist/timer/details wrappers, or disabled task buttons; Task Focus must not show the focus-question cards, split focus filters, recommended-action panel, or Focus Selection timer list until `Change Focus` returns there.
+
+As of 0.33.6.12h, the visible row order inside Task Focus Inspector's `Same project tasks` group is due-driven rather than newest-first. Users should see due-today and overdue tasks first, then upcoming due tasks from nearest to farthest, with no-due tasks at the end of that group.
+
+As of 0.33.6.12i, the Task Focus summary keeps one Client/Project context line and uses the summary chip row for status, priority, due date/time, and safe direct tags. The summary lead text should not repeat the same Client/Project path when a task has no next action, resume note, or description.
+
 ## Main-Screen Internal Surfaces
 
 Use `.surface-main-panel` for main-screen internal boxes such as filters, bulk toolbars, settings groups, notification panels, task timer/recovery panels, list detail panels, and contextual work surfaces. Use `.surface-main-panel--sticky` only when the panel persists near the top of the work surface while the user scrolls. The Tasks filter toolbar and bulk toolbar are the first proof target for this shell; later adoption slices can broaden it to Notifications, Time Tracking, Lists, Clients/Projects, and Notes.

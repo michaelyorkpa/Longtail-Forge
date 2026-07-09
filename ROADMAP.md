@@ -1,4 +1,4 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -193,17 +193,17 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Focus-filter UI split feeding the existing focus-context resolver.
 
-Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7. First consumer of the app-wide scoping standard in 0.33.6.13.
+Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7. First consumer of the app-wide scoping standard in 0.33.6.14.
 
 - [x] Replace the single combined client/project dropdown in the "What should we focus on?" box with two separate filters - a client filter (Business workspaces only) and a project filter - and make them active for ALL focus modes, not only Project focus.
 - [x] Mirror the two-filter behavior used elsewhere in Tasks so scoping is consistent; keep client scope hidden on Personal/Family workspaces.
-- [x] Consume the hierarchical (parent-includes-descendants) scoping standard from 0.33.6.13 so selecting a parent client/project includes its sub-clients/sub-projects; if 0.33.6.13 has not landed, scope to the exact client/project and cross-reference 0.33.6.13 as the follow-up that generalizes it.
+- [x] Consume the hierarchical (parent-includes-descendants) scoping standard from 0.33.6.14 so selecting a parent client/project includes its sub-clients/sub-projects; if 0.33.6.14 has not landed, scope to the exact client/project and cross-reference 0.33.6.14 as the follow-up that generalizes it.
 - [x] Preserve permission/workspace boundaries and the focus-context contract; the split filters feed the same focus-context resolver (0.33.6.4).
-- [x] Add regressions for the two-filter split, all-focus-mode applicability, workspace-type gating of the client filter, and (once 0.33.6.13 lands) parent-includes-descendants scoping.
+- [x] Add regressions for the two-filter split, all-focus-mode applicability, workspace-type gating of the client filter, and (once 0.33.6.14 lands) parent-includes-descendants scoping.
 
 Acceptance criteria:
 
-- The Workbench focus box exposes separate client and project filters that apply to every focus mode, are workspace-type aware, and use exact client/project scoping until 0.33.6.13 generalizes parent/child descendant inclusion.
+- The Workbench focus box exposes separate client and project filters that apply to every focus mode, are workspace-type aware, and use exact client/project scoping until 0.33.6.14 generalizes parent/child descendant inclusion.
 
 ### Version 0.33.6.6f - Collapsible Workbench sections: default state and caret affordance
 
@@ -709,7 +709,187 @@ Acceptance criteria:
 
 - "Pick up where I left off" intentionally helps recover the prior work thread after an interruption by boosting the second-most-recent updated eligible task without breaking resume/timer precedence or permission safety.
 
-### Version 0.33.6.12g - Dashboard follow-up placeholder
+### Version 0.33.6.12g - Workbench view-state isolation: hide opposite-state panels
+
+**Model: GPT-5.4** — Single Workbench presentation/state correction with no service, permission, or schema change.
+
+Purpose:
+
+Correct Workbench state isolation so each view state renders only its own surface. When a task is selected, the Focus Selection panels must be completely out of view until the user activates `Change Focus`. When Workbench is in Focus Selection, Task Focus-only boxes, disabled task action buttons, selected-task shells, and task timer placeholders must be completely out of view.
+
+- [x] In `task-focus`, completely hide/remove from visible layout:
+  - `What should we focus on?`
+  - Focus-mode question cards.
+  - Client/Project focus filters.
+  - `Recommended Next Action`.
+  - Focus Selection recommendation cycling controls.
+- [x] In `focus-selection`, completely hide/remove from visible layout:
+  - Task Focus action strip/box.
+  - Disabled Edit/Complete/Block/Pause-style task action buttons.
+  - Selected-task summary placeholders.
+  - Task Details / Checklist / Task Timer shells.
+  - Any empty wrapper card reserved only for Task Focus.
+- [x] Ensure hidden opposite-state panels do not leave blank space, scroll height, visible headings, tab stops, or screen-reader confusion.
+- [x] Keep `Change Focus` as the only way back to Focus Selection from Task Focus.
+- [x] When `Change Focus` returns to Focus Selection, clear the active Task Focus UI state enough that no Task Focus box remains visible, while restoring the previously selected focus mode and Client/Project filters without mutating them.
+- [x] Preserve reload/refresh behavior: if the implementation persists Task Focus across refresh, Focus Selection panels must still stay hidden until `Change Focus`; if it intentionally falls back to Focus Selection, document and test that behavior explicitly.
+- [x] Add focused regressions proving:
+  - Task Focus does not render visible Focus Selection controls or Recommended Next Action.
+  - Task Focus has no focusable controls from the hidden Focus Selection panels.
+  - Focus Selection does not render the Task Focus action box, disabled task buttons, selected-task summary, or task timer shells.
+  - Focus Selection has no focusable controls from hidden Task Focus panels.
+  - `Change Focus` restores Focus Selection panels and keeps focus mode/client/project filter state intact.
+  - Focus Selection continues to render its panels normally.
+
+Acceptance criteria:
+
+- Task Focus shows only the selected task work surface and task-context Inspector, while Focus Selection shows only focus choice/recommendation/candidate-overflow surfaces. Neither state leaks boxes, controls, tab stops, or empty placeholders from the other state.
+
+### Version 0.33.6.12h - Task Focus Inspector same-project due-date ordering
+
+**Model: GPT-5.4** — Narrow selected-task related-context ordering correction with existing permission-shaped read models.
+
+Purpose:
+
+Sort the Task Focus Inspector's same-project task group so nearer due dates are prioritized. The Inspector is already showing the correct related tasks; this slice corrects their order.
+
+- [x] In Task Focus related context, sort the `Same project tasks` group by due date proximity:
+  - Overdue and due-today tasks first.
+  - Then future due dates from nearest to farthest.
+  - Tasks with no due date after dated tasks.
+- [x] Keep ordering deterministic within equal due-date buckets.
+  - Use existing task priority/status/update/title tie-breakers where they already exist.
+  - Do not rely on browser insertion order.
+- [x] Preserve the selected-task related-context group ordering from 0.33.6.12e-1; this slice only changes ordering inside the same-project task group unless a bug requires a tightly documented adjustment.
+- [x] Preserve permission pruning, enabled-module checks, workspace scope, private/secure boundaries, and safe labels.
+- [x] Add focused regressions proving:
+  - Same-project tasks in Task Focus Inspector are ordered by nearest due date.
+  - No-due-date tasks appear after dated same-project tasks.
+  - Ties are deterministic.
+  - Unreadable/completed/archived/disabled-module tasks do not leak into the group.
+  - Other related-context groups keep their intended precedence.
+
+Acceptance criteria:
+
+- Task Focus Inspector still shows selected-task related context, but same-project tasks are ordered by useful due-date proximity instead of arbitrary or stale ordering.
+
+### Version 0.33.6.12i - Task Focus summary metadata cleanup and chips
+
+**Model: GPT-5.4** — Contained Workbench Task Focus presentation correction using existing task read-model fields.
+
+Purpose:
+
+Clean up the selected-task summary in Task Focus so Client/Project context appears once and the task metadata chips live in the expected summary row.
+
+- [x] Remove duplicated Client/Project context from the Task Focus summary card.
+  - The selected task's Client/Project path should appear once in the Task Focus summary region.
+  - Do not duplicate the same Client/Project line immediately below itself.
+- [x] Add/restore the Task Focus summary chip row for the usual task metadata:
+  - Status.
+  - Priority.
+  - Due date/time where present.
+  - Tags where present and safe to show.
+  - Other existing safe task chips already used by the Tasks surface when available.
+- [x] Keep chip labels safe and readable; do not expose raw IDs, hidden client/project labels, inaccessible tags, or private/secure data.
+- [x] Keep the read-only `Task Details` section available for expanded detail, but avoid using it as the only place where summary-level status/priority/due/tags can be seen.
+- [x] Preserve Task Focus action strip layout, checklist section, timer section, and Inspector layout.
+- [x] Add focused regressions proving:
+  - Task Focus summary renders Client/Project context once.
+  - Status, priority, due date/time, and safe tags render as chips in the summary row.
+  - No raw IDs or hidden labels appear in the chip row.
+  - Task Details remains read-only and does not regress action/checklist/timer behavior.
+
+Acceptance criteria:
+
+- Task Focus summary is compact and non-redundant: Client/Project context appears once, and status/priority/due/tags are visible as chips in the selected-task summary row.
+
+### Version 0.33.6.12j - Recurring checklist propagation through All Future Tasks
+
+**Model: GPT-5.5 Extra High** — Tasks recurrence/checklist mutation correctness touches canonical editor payloads, recurrence series updates, future instance generation, audit/search/event side effects, and data integrity.
+
+Purpose:
+
+Ensure checklist structure changes made on a recurring task are wired into recurrence updates when the user chooses `All Future Tasks`.
+
+Observed correction:
+
+- A completed recurring task occurrence can have checklist items, while later generated occurrences in the same series show `0 / 0 complete`. If the checklist was saved to `All Future Tasks`, future occurrences should inherit the checklist structure.
+
+Product rule:
+
+- `All Future Tasks` applies checklist **structure** to the recurrence series and eligible future occurrences.
+- Future generated occurrences inherit checklist item text/order from the recurrence series.
+- Checklist completion state does not carry forward as completed work; future occurrences should start with the copied checklist items unchecked unless an existing future occurrence already has its own preserved progress.
+
+- [ ] Audit the canonical Task editor save path for recurring tasks and confirm whether checklist changes are included in the `All Future Tasks` update payload.
+- [ ] Wire checklist item structure into the recurrence-series update path used by the `All Future Tasks` button.
+  - Include item text, order, and active/deleted state needed to reproduce the checklist.
+  - Do not copy completed/check-state as completed future work.
+- [ ] Ensure newly generated future recurrence instances inherit the saved checklist structure.
+- [ ] Ensure already-generated eligible future instances in the same series receive the checklist structure when `All Future Tasks` is applied.
+  - Do not alter past instances.
+  - Do not alter completed/archived instances unless the existing recurrence-update contract already explicitly includes them and tests prove the behavior is intended.
+  - Preserve existing per-instance checklist progress where a future occurrence already has progress that can be safely matched.
+- [ ] Preserve Tasks-owned permissions, validation, audit/event/search/notification side effects, and recurrence update semantics.
+- [ ] Keep checklist structure editing in the canonical Task editor; Task Focus continues to execute checklist check/uncheck only.
+- [ ] Update Tasks documentation to record the `All Future Tasks` checklist-structure propagation rule and occurrence-specific checklist completion state.
+- [ ] Add focused regressions proving:
+  - Editing a recurring task checklist and choosing `All Future Tasks` updates the recurrence series checklist structure.
+  - Future generated instances inherit checklist items.
+  - Already-generated eligible future instances receive the checklist items.
+  - Copied checklist items start unchecked on new future occurrences.
+  - Past/completed/archived instances are not unexpectedly rewritten.
+  - Per-instance checklist progress is preserved where safe.
+  - Task Focus shows the propagated checklist for a future recurring occurrence.
+
+Acceptance criteria:
+
+- A checklist saved to `All Future Tasks` on a recurring task appears on future occurrences of that recurring task, with structure propagated through recurrence and future task generation while completion state remains occurrence-specific.
+
+### Version 0.33.6.12k - Task Focus timer de-duplication and Other Active Timers
+
+**Model: GPT-5.5 Extra High** — Timer-state/rendering correction touches task-linked timers, active/paused timer filtering, elapsed-time display, and Workbench/Time Tracking behavior.
+
+Purpose:
+
+Clean up Task Focus timer behavior so the focused task's timer has one visible representation and the secondary timer panel only shows other active work.
+
+Current correction:
+
+- Starting the Task Focus timer can create a second timer card below the task timer controls.
+- That duplicate card can drift from the live task timer display.
+- The lower timer panel can also show the focused task's active/paused timer, even though the user is already inside that task.
+
+Product rule:
+
+- In Task Focus, the selected task's timer appears only in the Task Timer section for the focused task.
+- The lower timer panel is renamed `Other Active Timers` and shows only running/paused timers for other tasks or manual timers.
+
+- [ ] In Task Focus, remove/filter the focused task's running/paused timer from any lower timer list or card below the task-linked timer controls.
+- [ ] Do not render a duplicate timer card for the focused task after starting, pausing, saving, or resetting the task-linked timer.
+- [ ] Ensure the Task Timer section's live counter updates immediately after Start and continues updating while running without waiting for Pause or a full refresh.
+- [ ] Rename the Task Focus lower timer panel heading from `Timers` to `Other Active Timers`.
+- [ ] In `Other Active Timers`, show only active/paused timers that are not tied to the focused task.
+  - Other task timers remain eligible.
+  - Manual timers remain eligible.
+  - The focused task's active/paused timer is always excluded from this panel.
+- [ ] If no other active/paused timers exist, show `No other active or paused timers.`
+- [ ] Preserve Focus Selection timer behavior from 0.33.6.12d-1; outside Task Focus, the general timer list can continue to show all active/paused timers because there is no currently focused task to exclude.
+- [ ] Reuse existing Task/Time Tracking timer services and preserve permissions, elapsed-time calculations, audit/event/search behavior, and focus return.
+- [ ] Add focused regressions proving:
+  - Starting a Task Focus timer does not create a duplicate focused-task timer card.
+  - The focused task's running/paused timer is excluded from `Other Active Timers`.
+  - Other task timers and manual timers still appear in `Other Active Timers`.
+  - The Task Timer live counter updates while running.
+  - The lower panel heading is `Other Active Timers`.
+  - The empty state reads `No other active or paused timers.`
+  - Focus Selection timer behavior is unchanged.
+
+Acceptance criteria:
+
+- Task Focus has exactly one visible representation of the focused task's timer. The lower timer panel is labeled `Other Active Timers`, excludes the focused task's timer, and only shows other running/paused task or manual timers.
+
+### Version 0.33.6.13y - Dashboard follow-up placeholder
 
 **Model: GPT-5.4** — Planning placeholder only until the Dashboard correction requirements are written.
 
@@ -724,13 +904,13 @@ Acceptance criteria:
 
 - Dashboard updates are explicitly acknowledged as remaining work before closeout, without guessing the Dashboard redesign before requirements are provided.
 
-### Version 0.33.6.12z - Dashboard/Workbench guardrails, docs, decisions, and closeout
+### Version 0.33.6.13z - Dashboard/Workbench guardrails, docs, decisions, and closeout
 
-**Model: GPT-5.4** — Routine closeout/docs/guardrails slice after Workbench Task Focus and Dashboard follow-ups land.
+**Model: GPT-5.4** — Routine closeout/docs/guardrails slice after Workbench Task Focus corrections and Dashboard follow-ups land.
 
 Proviso:
 
-This closeout block is intentionally deferred and will need to be updated after Dashboard updates occur.
+This closeout block is intentionally deferred and will need to be updated after Workbench correction slices and Dashboard updates occur.
 
 - [ ] Record the branch decisions in `DECISIONS.md`:
   - Workbench has two view states: Focus Selection and Task Focus.
@@ -740,22 +920,32 @@ This closeout block is intentionally deferred and will need to be updated after 
     - Task Focus: task-related work context.
   - Workbench candidate primary actions enter Task Focus for task candidates instead of opening the edit modal.
   - Task editing remains available through explicit Edit actions and canonical module-action openers.
+  - Task Focus hides Focus Selection panels and Recommended Next Action until `Change Focus` is pressed.
+  - Task Focus summary context is non-duplicative and uses safe metadata chips for status, priority, due dates, tags, and other existing task metadata.
+  - Task Focus Inspector same-project task context prioritizes nearer due dates.
+  - Recurring-task checklist structure is propagated through `All Future Tasks` recurrence updates while checklist completion state remains occurrence-specific.
   - QAC owns quick capture and opens the Time Tracking Create Timer modal for Timer capture.
   - Dashboard remains an overview/orientation surface and must be updated before this closeout is finalized.
 - [ ] Update `AGENTS.md` only if needed to reflect the current Workbench/Dashboard boundary in short active guidance.
-- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/view-building-contract.md`, and `docs/ui-surface-contract.md` with:
+- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, and `docs/tasks-module.md` with:
   - Dashboard/Workbench host status.
   - Workbench Focus Selection vs Task Focus anatomy.
   - Candidate overflow vs Task Focus Inspector boundaries.
   - Time Tracking Create Timer modal/QAC Timer boundary.
   - Task Focus checklist/timer/action ownership.
+  - Task Focus hidden-Focus-Selection rule.
+  - Task Focus metadata/chip summary rule.
+  - Recurring checklist propagation through `All Future Tasks`.
 - [ ] Add/update guardrails so Dashboard/Workbench hosts do not hand-build framework-owned page/header/filter/status anatomy when a view primitive covers it.
 - [ ] Add/update guardrails so Workbench does not reintroduce:
   - A main-column "More in this focus" task list.
   - A Focus Selection manual timer creation row.
   - A default "Open work opens edit modal" path for task candidates.
   - A `Dismiss` action on recommended/resume candidates.
+  - Visible Focus Selection panels or Recommended Next Action while in Task Focus.
+  - Duplicated Client/Project context in the Task Focus summary.
   - A Task Focus Inspector sourced from generic focus-mode candidates instead of selected-task context.
+  - Same-project Inspector tasks sorted without due-date proximity.
   - An embedded Inspector preview pane.
 - [ ] Add a framework-coupling guardrail or update the existing one so `src/core/**` and framework aggregation services under `src/services/**` do not import specific first-party module services/repos or hardcode first-party module IDs to make generic decisions outside the documented allowlist.
 - [ ] Record the allowlist and still-coupled framework services deferred to later slices.
@@ -766,6 +956,7 @@ This closeout block is intentionally deferred and will need to be updated after 
   - Report-creation modal, cross-referenced to `0.37.5`.
   - Any remaining Files target-aware upload modal if still needed after QAC/File behavior is reviewed.
 - [ ] Run the Dashboard/Workbench regressions, QAC regressions, Time Tracking timer regressions, `npm run check`, and `npm run test:permissions`.
+- [ ] Run the Tasks recurrence/checklist regressions alongside the Dashboard/Workbench regressions, QAC regressions, Time Tracking timer regressions, `npm run check`, and `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version after restart.
 - [ ] Verify Dashboard and Workbench render correctly with relevant modules enabled and disabled.
 - [ ] Verify Focus Selection and Task Focus both behave correctly after reload/return navigation if the selected task state is persisted.
@@ -773,11 +964,11 @@ This closeout block is intentionally deferred and will need to be updated after 
 
 Acceptance criteria:
 
-- Dashboard/Workbench closeout occurs only after the new Workbench Task Focus model and Dashboard follow-up work land. Decisions and docs reflect the final state, guardrails prevent the distracting Workbench patterns from returning, and the full verification gate covers Dashboard, Workbench, QAC, Time Tracking, permissions, and app-info version reporting.
+- Dashboard/Workbench closeout occurs only after the new Workbench Task Focus model, Workbench correction slices, and Dashboard follow-up work land. Decisions and docs reflect the final state, guardrails prevent the distracting Workbench patterns from returning, and the full verification gate covers Dashboard, Workbench, QAC, Time Tracking, permissions, and app-info version reporting.
 
 ## Remaining 0.33.6 Direction
 
-### Version 0.33.6.13 - App-wide hierarchical client/project scoping standard
+### Version 0.33.6.14 - App-wide hierarchical client/project scoping standard
 
 **Model: GPT-5.5 Extra High** - Cross-cutting scope-resolution standard shared by every client/project filter.
 
@@ -796,15 +987,15 @@ Acceptance criteria:
 
 - Selecting a parent client or project includes its descendants across all client/project filters via a shared permission-aware scope resolver, single drill-down is preserved, and no unreadable or cross-workspace records leak.
 
-### Version 0.33.6.13a - Linked Context picker: client-scoped project selection
+### Version 0.33.6.14a - Linked Context picker: client-scoped project selection
 
-**Model: GPT-5.5 Extra High** - Client-context selection for the shared Linked Context picker, applying the 0.33.6.13 scoping standard.
+**Model: GPT-5.5 Extra High** - Client-context selection for the shared Linked Context picker, applying the 0.33.6.14 scoping standard.
 
-Promoted from user request. Consumes the app-wide client/project scoping conventions from 0.33.6.13 and applies them to the shared Linked Context picker (`createLinkedContextPicker` in `public/js/shared/view-builder.js`, wired in `public/js/notes.js`, contract `docs/linked-context-picker-contract.md`). Today the picker has only a target-type + search + record control set with no client context, and project rows are labeled `"{{projectName}} - {{clientName}}"` unconditionally on business workspaces (`primaryProjectOptionLabel` in `notes.js`).
+Promoted from user request. Consumes the app-wide client/project scoping conventions from 0.33.6.14 and applies them to the shared Linked Context picker (`createLinkedContextPicker` in `public/js/shared/view-builder.js`, wired in `public/js/notes.js`, contract `docs/linked-context-picker-contract.md`). Today the picker has only a target-type + search + record control set with no client context, and project rows are labeled `"{{projectName}} - {{clientName}}"` unconditionally on business workspaces (`primaryProjectOptionLabel` in `notes.js`).
 
 - [ ] Add a client-context selector to the Linked Context picker on BUSINESS workspaces only, defaulting to "All Clients": with "All Clients" selected the picker shows all projects/records across clients (unchanged breadth).
 - [ ] Include a "{{workspaceName}}" entry in the client selector (e.g. "Raymond Tec") that scopes the results to client-less workspace projects (projects with no client) - the workspace-projects bucket, presented as if it were a client.
-- [ ] List the real clients after "All Clients" and "{{workspaceName}}", and scope the project/record list to the chosen client; apply the 0.33.6.13 parent-includes-descendants rule so a parent client includes its sub-clients' projects, with single drill-down preserved.
+- [ ] List the real clients after "All Clients" and "{{workspaceName}}", and scope the project/record list to the chosen client; apply the 0.33.6.14 parent-includes-descendants rule so a parent client includes its sub-clients' projects, with single drill-down preserved.
 - [ ] Label rule: under "All Clients", project rows keep the `"{{projectName}} - {{clientName}}"` suffix so same-named projects across clients stay distinguishable; once a specific client OR the "{{workspaceName}}" entry is selected, drop the suffix and show just the project name (the client context is now explicit).
 - [ ] PERSONAL/FAMILY workspaces must never show a client selector, a "{{workspaceName}}"-as-client entry, or any `- clientName` label anywhere in this picker - no client concept leaks into non-business scope.
 - [ ] Keep the shared shell data-agnostic: the picker shell must not fetch or own client/project data (its regression forbids `fetch`/storage in the shell); the caller (`notes.js`) supplies the client options and scoped records, and the shell only renders the client select and reflects the selection. Preserve permission/workspace boundaries and the no-raw-ID label rules from the picker contract.

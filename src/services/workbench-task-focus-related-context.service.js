@@ -36,19 +36,20 @@ async function readTaskFocusRelatedContext(session, taskId) {
   await addSameProjectTasks(collection, session, selectedTask);
   await addSharedDirectTagItems(collection, session, selectedTask, selectedTagIds);
 
-  const items = [...collection.values()]
-    .sort(compareRelatedItems)
-    .map(stripInternalItemFields);
+  const items = [...collection.values()].sort(compareRelatedItems);
   const groups = GROUP_DEFINITIONS.map((group) => {
     const groupItems = items.filter((item) => item.reason === group.reason);
-    const visibleItems = groupItems.slice(0, GROUP_LIMIT);
+    const orderedGroupItems = group.reason === "same_project_task"
+      ? [...groupItems].sort((left, right) => compareSameProjectTaskItems(left, right, session))
+      : groupItems;
+    const visibleItems = orderedGroupItems.slice(0, GROUP_LIMIT).map(stripInternalItemFields);
     return {
       id: group.id,
       label: group.label,
       reason: group.reason,
       reasonLabel: group.reasonLabel,
-      count: groupItems.length,
-      hasMore: groupItems.length > visibleItems.length,
+      count: orderedGroupItems.length,
+      hasMore: orderedGroupItems.length > visibleItems.length,
       items: visibleItems,
       limit: GROUP_LIMIT,
     };
@@ -249,7 +250,14 @@ function taskRelatedItem(task, options = {}) {
     action: moduleAction("tasks.edit", { taskId: task.task_id }, taskUrl(task.task_id)),
     badges: taskBadges(task, options.matchedTagIds),
     matchedTagIds: options.matchedTagIds || [],
+    dueAt: task.due_at || task.due_at_utc || task.due_date || "",
+    dueAtUtc: task.due_at_utc || "",
+    dueDate: task.due_date || "",
+    dueTime: task.due_time || "",
+    priority: task.priority || "",
+    status: task.status || "",
     sortValue: task.due_at || task.due_at_utc || task.due_date || task.updated_at || task.created_at || "",
+    updatedAt: task.updated_at || task.created_at || "",
     sourceOrder: options.sourceOrder || 0,
   };
 }
@@ -275,7 +283,19 @@ function addRelatedItem(collection, item) {
 }
 
 function stripInternalItemFields(item) {
-  const { rank: _rank, sourceOrder: _sourceOrder, sortValue: _sortValue, ...publicItem } = item;
+  const {
+    dueAt: _dueAt,
+    dueAtUtc: _dueAtUtc,
+    dueDate: _dueDate,
+    dueTime: _dueTime,
+    priority: _priority,
+    rank: _rank,
+    sortValue: _sortValue,
+    sourceOrder: _sourceOrder,
+    status: _status,
+    updatedAt: _updatedAt,
+    ...publicItem
+  } = item;
   return publicItem;
 }
 
@@ -284,6 +304,57 @@ function compareRelatedItems(left, right) {
     String(right.sortValue || "").localeCompare(String(left.sortValue || "")) ||
     String(left.title || "").localeCompare(String(right.title || ""), undefined, { sensitivity: "base" }) ||
     String(left.recordId || "").localeCompare(String(right.recordId || ""));
+}
+
+function compareSameProjectTaskItems(left, right, session = {}) {
+  if (left.reason !== "same_project_task" || right.reason !== "same_project_task") {
+    return 0;
+  }
+
+  const today = localDateKey(new Date(), session.timezone);
+  const leftBucket = sameProjectDueBucket(left, today);
+  const rightBucket = sameProjectDueBucket(right, today);
+
+  return leftBucket - rightBucket ||
+    compareSameProjectDueAt(left, right, leftBucket) ||
+    priorityRank(right.priority) - priorityRank(left.priority) ||
+    statusRank(left.status) - statusRank(right.status) ||
+    String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")) ||
+    String(left.title || "").localeCompare(String(right.title || ""), undefined, { sensitivity: "base" }) ||
+    String(left.recordId || "").localeCompare(String(right.recordId || ""));
+}
+
+function sameProjectDueBucket(item, today) {
+  const dueDateValue = parseDateKey(item.dueDate);
+  const todayValue = parseDateKey(today);
+
+  if (Number.isNaN(dueDateValue) || Number.isNaN(todayValue)) {
+    return 2;
+  }
+
+  return dueDateValue <= todayValue ? 0 : 1;
+}
+
+function compareSameProjectDueAt(left, right, bucket) {
+  if (bucket === 0) {
+    return String(right.dueAtUtc || sameProjectDueSortValue(right))
+      .localeCompare(String(left.dueAtUtc || sameProjectDueSortValue(left)));
+  }
+
+  if (bucket === 1) {
+    return String(left.dueAtUtc || sameProjectDueSortValue(left))
+      .localeCompare(String(right.dueAtUtc || sameProjectDueSortValue(right)));
+  }
+
+  return 0;
+}
+
+function sameProjectDueSortValue(item) {
+  if (item.dueAtUtc) {
+    return item.dueAtUtc;
+  }
+
+  return `${item.dueDate || "9999-12-31"}T${item.dueTime || "23:59"}:00`;
 }
 
 async function optionalRead(read, options = {}) {
@@ -436,6 +507,49 @@ function formatToken(value) {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function priorityRank(priority) {
+  return {
+    urgent: 4,
+    high: 3,
+    normal: 2,
+    low: 1,
+  }[priority] || 0;
+}
+
+function statusRank(status) {
+  return {
+    blocked: 1,
+    in_progress: 2,
+    open: 3,
+    complete: 4,
+    archived: 5,
+  }[status] || 99;
+}
+
+function localDateKey(date, timezone = "America/New_York") {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone || "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function parseDateKey(dateKey) {
+  const match = safeText(dateKey).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return Number.NaN;
+  }
+
+  return Date.UTC(
+    Number.parseInt(match[1], 10),
+    Number.parseInt(match[2], 10) - 1,
+    Number.parseInt(match[3], 10),
+  );
 }
 
 function taskUrl(taskId) {

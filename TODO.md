@@ -13,6 +13,39 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Tasks - Checklists
+
+The spacing is a little tight in the checklist dialog.
+
+I want to be able to hit enter to record new/save changes to checklist items. Currently hitting enter closes the modal without saving changes to the checklist.
+
+## Tasks - Sorting & Filters - Tags
+
+Tags is a drop down, it should be a box you type into with suggestions (similar to the way you enter them).
+
+## Tasks - Parent/Child Tasks
+
+When creating a new task, "Parent Task" properly filters once client/project are selected. Don't change that, however, Parent Task shouldn't display completed/archived tasks for new tasks. Those can be filtered out of the list.
+
+Child tasks should inherit the Parent task's:
+- Due Date
+- Due Time
+- Priority
+- Client (If not already selected)
+- Project (If not already selected)
+
+It would appear there is no real indicator that parent/child tasks are linked other than the "Parent Tasks" drop down. There should be something on line-item displays (a clickable link chip perhaps) that says "Child of: {{truncatedTaskName}}"
+
+Line-item displays, as in Actions->Tasks should have child tasks nested under parent tasks like we do for Clients and Projects.
+
+## Tasks - Modal behavior
+
+Often, when entering a task, I'm doing so to add either a checklist or files. But I can't do that on the create modal. That's fine, however, if I randomly capture a task while working on something else, click the save button, the task goes away and I have to go find it again in the Actions -> Tasks menu.
+
+I would like the save button to NOT close the dialog, but "convert" it to the edit dialog, which can then be dismissed. This may require creating a "Save & Close" button at the bottom so that I don't ALWAYS have to wait for the task to be saved. Sometimes I really do just need to write it down and save it.
+
+We should extend this functionality to Notes, as well.
+
 ## Timers - Context Linking
 
 Sometimes it might be necessary to suddenly switch to a different task, just by starting a timer. It would be beneficial to be able to link a timer to a task AFTER it's been started, thereby converting the timer from "Manual" to "Task Timer."

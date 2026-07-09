@@ -58,6 +58,11 @@ async function assertRelatedContextReadModel(session, fixtures) {
     "task_file",
     "linked_list",
     "same_project_task",
+    "same_project_task",
+    "same_project_task",
+    "same_project_task",
+    "same_project_task",
+    "same_project_task",
     "shared_direct_tag",
     "shared_direct_tag",
     "shared_direct_tag",
@@ -65,11 +70,26 @@ async function assertRelatedContextReadModel(session, fixtures) {
   assert.equal(groupCounts["linked-notes"], 1);
   assert.equal(groupCounts["task-files"], 1);
   assert.equal(groupCounts["linked-lists"], 1);
-  assert.equal(groupCounts["same-project-tasks"], 1);
+  assert.equal(groupCounts["same-project-tasks"], 6);
   assert.equal(groupCounts["shared-direct-tags"], 3);
+  const sameProjectGroup = result.groups.find((group) => group.id === "same-project-tasks");
+  assert.deepEqual(
+    (sameProjectGroup?.items || []).map((item) => item.title),
+    [
+      "Due today same project task",
+      "Overdue yesterday same project task",
+      "Tomorrow newer same project task",
+      "Tomorrow older same project task",
+      "Same project shared task",
+      "No due same project task",
+    ],
+    "same-project tasks should prioritize overdue/today, then nearest future due dates, then no-due tasks",
+  );
   assert.equal(reasonByTitle.get("Linked context note"), "linked_note", "linked notes should outrank shared direct tags");
   assert.equal(reasonByTitle.get("Linked procurement list"), "linked_list", "linked lists should outrank shared direct tags");
   assert.equal(reasonByTitle.get("Same project shared task"), "same_project_task", "same-project tasks should outrank shared direct tags");
+  assert.equal(reasonByTitle.get("Completed same project task"), undefined, "completed same-project tasks should not leak into related context");
+  assert.equal(reasonByTitle.get("Archived same project task"), undefined, "archived same-project tasks should not leak into related context");
   assert.equal(reasonByTitle.get("Other project shared task"), "shared_direct_tag");
   assert.equal(reasonByTitle.get("Shared direct tag note"), "shared_direct_tag");
   assert.equal(reasonByTitle.get("Shared direct tag list"), "shared_direct_tag");
@@ -106,20 +126,35 @@ async function assertStaticContracts() {
   const routesSource = readText("src/routes/workbench.routes.js");
   const roadmap = readText("ROADMAP.md");
 
-  assert.equal(packageJson.version, "0.33.6.12f");
-  assert.equal(packageLock.version, "0.33.6.12f");
-  assert.equal(packageLock.packages[""].version, "0.33.6.12f");
+  assert.equal(packageJson.version, "0.33.6.12i");
+  assert.equal(packageLock.version, "0.33.6.12i");
+  assert.equal(packageLock.packages[""].version, "0.33.6.12i");
   assert.match(routesSource, /\/workbench\/task-focus\/:taskId\/related-context/);
   assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");
   assert.match(serviceSource, /tagsService\.listAssignments[\s\S]*targetType: "task"/, "selected task direct tags should come from the Tags service");
   assert.match(serviceSource, /record\.directTags \|\| record\.direct_tags/, "shared-tag matching should inspect direct tags only");
   assert.match(serviceSource, /reason: "linked_note"[\s\S]*reason: "task_file"[\s\S]*reason: "linked_list"[\s\S]*reason: "same_project_task"[\s\S]*reason: "shared_direct_tag"/, "service should encode the roadmap ordering");
+  assert.match(serviceSource, /compareSameProjectTaskItems[\s\S]*sameProjectDueBucket[\s\S]*compareSameProjectDueAt/, "same-project task ordering should bucket by due-date usefulness before comparing due-date proximity");
+  assert.match(serviceSource, /compareSameProjectDueAt[\s\S]*bucket === 0[\s\S]*right\.dueAtUtc[\s\S]*left\.dueAtUtc/, "overdue and due-today same-project tasks should be sorted by closest-to-now overdue/due timestamp first");
+  assert.match(serviceSource, /compareSameProjectDueAt[\s\S]*bucket === 1[\s\S]*left\.dueAtUtc[\s\S]*right\.dueAtUtc/, "future same-project tasks should be sorted from nearest due date to farthest");
+  assert.match(serviceSource, /priorityRank\(right\.priority\) - priorityRank\(left\.priority\)/, "same-project task ordering should use priority as a deterministic tie-breaker");
+  assert.match(serviceSource, /statusRank\(left\.status\) - statusRank\(right\.status\)/, "same-project task ordering should use status as a deterministic tie-breaker");
+  assert.match(serviceSource, /String\(right\.updatedAt \|\| ""\)\.localeCompare\(String\(left\.updatedAt \|\| ""\)\)/, "same-project task ordering should use updated_at as a deterministic tie-breaker");
+  assert.match(
+    serviceSource,
+    /tasksService\.list\(session, \{[\s\S]*projectId: task\.project_id,[\s\S]*status: "active"/,
+    "same-project task reads should stay on the Tasks service active-task contract so completed, archived, permission-filtered, and disabled-module tasks remain pruned by owning behavior",
+  );
   assert.match(serviceSource, /files-not-taggable/, "service should document the current Files shared-tag boundary");
-  assert.match(roadmap, /### Version 0\.33\.6\.12e-1[\s\S]*- \[x\] Add a Workbench Task Focus related-context service path[\s\S]*- \[x\] Shape each related item[\s\S]*- \[x\] Keep this service independent[\s\S]*- \[x\] Add focused regressions/);
+  assert.match(roadmap, /### Version 0\.33\.6\.12h[\s\S]*- \[x\] In Task Focus related context, sort the `Same project tasks` group by due date proximity:[\s\S]*- \[x\] Keep ordering deterministic within equal due-date buckets\.[\s\S]*- \[x\] Add focused regressions proving:/);
 }
 
 async function createRelatedContextFixtures(session) {
+  const today = localDateKey(new Date(), session.timezone);
+  const yesterday = addDaysKey(today, -1);
+  const tomorrow = addDaysKey(today, 1);
+  const inTwoDays = addDaysKey(today, 2);
   const client = (await clientsService.createClient({ name: "Related Context Client" }, session)).client;
   const project = (await clientsService.createProject(client.id, { name: "Related Context Project" }, session)).project;
   const otherProject = (await clientsService.createProject(client.id, { name: "Related Context Other Project" }, session)).project;
@@ -162,11 +197,58 @@ async function createRelatedContextFixtures(session) {
   }, session);
   await tagsService.assign(session, { tagId: tag.tag_id, targetId: linkedList.list_id, targetType: "list" });
 
+  const _dueTodayTask = (await tasksService.create({
+    title: "Due today same project task",
+    due_date: today,
+    project_id: project.id,
+  }, session)).task;
+
+  const _overdueTask = (await tasksService.create({
+    title: "Overdue yesterday same project task",
+    due_date: yesterday,
+    project_id: project.id,
+  }, session)).task;
+
+  const tomorrowOlderTask = (await tasksService.create({
+    title: "Tomorrow older same project task",
+    due_date: tomorrow,
+    project_id: project.id,
+  }, session)).task;
+
+  const tomorrowNewerTask = (await tasksService.create({
+    title: "Tomorrow newer same project task",
+    due_date: tomorrow,
+    project_id: project.id,
+  }, session)).task;
+
   const sameProjectTask = (await tasksService.create({
     title: "Same project shared task",
+    due_date: inTwoDays,
     project_id: project.id,
   }, session)).task;
   await tagsService.assign(session, { tagId: tag.tag_id, targetId: sameProjectTask.task_id, targetType: "task" });
+
+  const _noDueTask = (await tasksService.create({
+    title: "No due same project task",
+    project_id: project.id,
+  }, session)).task;
+
+  const completedSameProjectTask = (await tasksService.create({
+    title: "Completed same project task",
+    due_date: tomorrow,
+    project_id: project.id,
+  }, session)).task;
+  await tasksService.complete(completedSameProjectTask.task_id, session);
+
+  const archivedSameProjectTask = (await tasksService.create({
+    title: "Archived same project task",
+    due_date: inTwoDays,
+    project_id: project.id,
+  }, session)).task;
+  await tasksService.update(archivedSameProjectTask.task_id, { status: "archived" }, session);
+
+  await setTaskUpdatedAt(tomorrowOlderTask.task_id, `${tomorrow}T08:00:00.000Z`);
+  await setTaskUpdatedAt(tomorrowNewerTask.task_id, `${tomorrow}T09:00:00.000Z`);
 
   const otherProjectTask = (await tasksService.create({
     title: "Other project shared task",
@@ -237,6 +319,14 @@ VALUES (
 `);
 }
 
+async function setTaskUpdatedAt(taskId, updatedAt) {
+  await runSql(`
+UPDATE tasks
+SET updated_at = ${sqlText(updatedAt)}
+WHERE task_id = ${sqlText(taskId)};
+`);
+}
+
 async function assertIntegrity() {
   const result = await querySql("PRAGMA integrity_check;");
   assert.equal(result[0]?.integrity_check, "ok");
@@ -265,4 +355,21 @@ LIMIT 1;
 
 function readText(filePath) {
   return readFileSync(new URL(`../${filePath}`, import.meta.url), "utf8");
+}
+
+function localDateKey(date, timezone = "America/New_York") {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone || "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function addDaysKey(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12f";
+const appVersion = "0.33.6.12i";
 const appShellService = readText("src/services/app-shell.service.js");
 const css = readText("public/css/longtail-forge.css");
 const moduleActions = readText("public/js/shared/module-actions.js");
@@ -25,7 +25,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task Focus timer version");
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=34[\s\S]*workbench\.js\?v=33/,
+  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
   "Workbench should cache-bust CSS and JS for the Task Focus timer surface",
 );
 

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12f";
+const appVersion = "0.33.6.12i";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
+const tasksModuleDoc = readText("docs/tasks-module.md");
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -18,7 +19,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=34[\s\S]*workbench\.js\?v=33/,
+  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
   "Workbench should cache-bust CSS and JS for the Task Focus surface",
 );
 assert.match(
@@ -84,6 +85,21 @@ assert.match(
   /dataset: \{ workbenchTaskFocusSummary: "" \}[\s\S]*text: "Task Focus"[\s\S]*id: "workbench-task-focus-heading"[\s\S]*taskFocusBadges\(task, active\)/,
   "Task Focus should render a readable selected-task heading and summary",
 );
+assert.doesNotMatch(
+  functionBody(workbenchScript, "taskFocusLeadText"),
+  /active\?\.contextLabel/,
+  "Task Focus summary lead text should not duplicate the Client/Project context fallback",
+);
+assert.match(
+  functionBody(workbenchScript, "taskFocusBadges"),
+  /badge\(formatToken\(task\.status \|\| active\?\.status \|\| "open"\)[\s\S]*badge\(formatToken\(task\.priority \|\| active\?\.priority \|\| "normal"\)[\s\S]*dueText \? badge\(`Due \$\{dueText\}`, "due"\) : null[\s\S]*taskFocusTagBadges\(task\)/,
+  "Task Focus summary badges should include status, priority, due date, and safe task tags",
+);
+assert.match(
+  functionBody(workbenchScript, "taskFocusTagBadges"),
+  /task\.directTags[\s\S]*task\.direct_tags[\s\S]*tag\.name \|\| tag\.slug[\s\S]*badge\(label, "tag"\)/,
+  "Task Focus summary tag badges should come from safe direct-tag labels, not IDs",
+);
 assert.match(
   functionBody(workbenchScript, "createTaskDetailsSection"),
   /workbenchTaskDetailsReadonly: "true"[\s\S]*createWorkbenchSectionSummary\([\s\S]*title: "Task Details"[\s\S]*setWorkbenchDisclosureOpen\(details, false\);/,
@@ -143,14 +159,29 @@ assert.match(
   "UI surface contract should describe the Task Focus main surface",
 );
 assert.match(
+  moduleContract,
+  /As of 0\.33\.6\.12i[\s\S]*Client\/Project path once[\s\S]*summary chips[\s\S]*safe direct tags/,
+  "Module contract should record the compact Task Focus summary metadata boundary",
+);
+assert.match(
+  uiSurfaceContract,
+  /As of 0\.33\.6\.12i[\s\S]*Task Focus summary keeps one Client\/Project context line[\s\S]*status, priority, due date\/time, and safe direct tags/,
+  "UI surface contract should document the non-duplicated Task Focus summary and chip row",
+);
+assert.match(
+  tasksModuleDoc,
+  /As of 0\.33\.6\.12i[\s\S]*Task Focus summary reuses the existing Tasks read payload[\s\S]*Client\/Project path once[\s\S]*safe direct tags as summary chips/,
+  "Tasks docs should describe the Task Focus summary metadata contract",
+);
+assert.match(
   viewContract,
-  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*Task Focus shows a selected-task action strip, summary, read-only collapsed Task Details/,
+  /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12i, the selected-task summary shows one Client\/Project path line and uses the summary chip row/,
   "View-building contract should include the Task Focus anatomy",
 );
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12c-1 - Task Focus main surface[\s\S]*- \[x\] In `task-focus`, hide the Focus Selection controls[\s\S]*- \[x\] Add a top task action strip[\s\S]*- \[x\] Render Task Details as a read-only collapsible section[\s\S]*Acceptance criteria:/,
-  "Roadmap should mark the Task Focus main-surface slice complete",
+  /### Version 0\.33\.6\.12i - Task Focus summary metadata cleanup and chips[\s\S]*- \[x\] Remove duplicated Client\/Project context from the Task Focus summary card\.[\s\S]*- \[x\] Add\/restore the Task Focus summary chip row for the usual task metadata:[\s\S]*- \[x\] Keep chip labels safe and readable; do not expose raw IDs, hidden client\/project labels, inaccessible tags, or private\/secure data\.[\s\S]*Acceptance criteria:/,
+  "Roadmap should mark the Task Focus summary metadata cleanup slice complete",
 );
 
 console.log("Workbench Task Focus surface regression passed.");

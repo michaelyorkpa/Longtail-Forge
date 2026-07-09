@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12f";
+const appVersion = "0.33.6.12i";
 const appShellService = readText("src/services/app-shell.service.js");
 const footerScript = readText("public/js/footer.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=34[\s\S]*workbench\.js\?v=33/,
+  /longtail-forge\.css\?v=35[\s\S]*workbench\.js\?v=35/,
   "Workbench should bump its script cache key after removing Quick Notes",
 );
 assert.doesNotMatch(

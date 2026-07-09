@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.12f";
+const appVersion = "0.33.6.12i";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -13,7 +13,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/workbench\.js\?v=33/,
+  /js\/workbench\.js\?v=35/,
   "Workbench should cache-bust the view-state adapter",
 );
 assert.match(
@@ -41,6 +41,16 @@ assert.match(
   functionBody(workbenchScript, "renderWorkbenchViewState"),
   /workbenchHost\.dataset\.workbenchViewState = viewState;[\s\S]*workbenchHost\.dataset\.workbenchActiveTaskFocus = activeTaskFocus\?\.taskId \|\| "";[\s\S]*changeFocusButton\.disabled = !isTaskFocus;[\s\S]*workbenchChangeFocusEnabled = isTaskFocus \? "true" : "false"/,
   "Workbench should publish state hooks and keep Change Focus disabled outside Task Focus",
+);
+assert.match(
+  functionBody(workbenchScript, "toggleWorkbenchStatePanel"),
+  /const isHidden = Boolean\(hidden\);[\s\S]*element\.hidden = isHidden;[\s\S]*setAttribute\("aria-hidden", isHidden \? "true" : "false"\);[\s\S]*element\.style\.display = isHidden \? "none" : "";[\s\S]*element\.inert = isHidden;/,
+  "Workbench state panels should leave hidden opposite-state surfaces out of layout and focus order",
+);
+assert.match(
+  functionBody(workbenchScript, "renderTaskFocusSurface"),
+  /taskFocusActionMount\.hidden = !isTaskFocus;[\s\S]*taskFocusBody\.hidden = !isTaskFocus;[\s\S]*taskFocusActionMount\.replaceChildren\(\);[\s\S]*taskFocusBody\.replaceChildren\(\);[\s\S]*if \(!isTaskFocus \|\| !active\) \{[\s\S]*return;[\s\S]*taskFocusActionMount\.appendChild\(createTaskFocusActionStrip\(active\)\);/,
+  "Workbench should only build Task Focus actions and shells while Task Focus is the active view state",
 );
 
 assert.match(
@@ -133,6 +143,11 @@ assert.match(
   functionBody(workbenchScript, "snapshot"),
   /activeTaskFocusId: state\.activeTaskFocus\?\.taskId \|\| ""[\s\S]*viewState: resolvedWorkbenchViewState\(\)/,
   "Workbench page-controller snapshots should expose the active view state and focused task",
+);
+assert.match(
+  workbenchScript,
+  /toggleWorkbenchStatePanel\(taskFocusPanelElement, !isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(focusPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(recommendedActionPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, isTaskFocus\);/,
+  "Workbench should keep Task Focus-only and Focus Selection-only panels mutually exclusive",
 );
 
 console.log("Workbench view-state regression passed.");

@@ -677,7 +677,13 @@ function toggleWorkbenchStatePanel(element, hidden) {
     return;
   }
 
-  element.hidden = Boolean(hidden);
+  const isHidden = Boolean(hidden);
+  element.hidden = isHidden;
+  element.setAttribute("aria-hidden", isHidden ? "true" : "false");
+  element.style.display = isHidden ? "none" : "";
+  if ("inert" in element) {
+    element.inert = isHidden;
+  }
 }
 
 function renderWorkbenchStatus() {
@@ -1183,13 +1189,18 @@ function renderTaskFocusSurface() {
   const isTaskFocus = resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_TASK_FOCUS;
   const active = isTaskFocus ? state.activeTaskFocus : null;
 
-  taskFocusActionMount.replaceChildren(createTaskFocusActionStrip(active));
+  taskFocusActionMount.hidden = !isTaskFocus;
+  taskFocusBody.hidden = !isTaskFocus;
+  taskFocusActionMount.setAttribute("aria-hidden", isTaskFocus ? "false" : "true");
+  taskFocusBody.setAttribute("aria-hidden", isTaskFocus ? "false" : "true");
+  taskFocusActionMount.replaceChildren();
   taskFocusBody.replaceChildren();
 
-  if (!active) {
+  if (!isTaskFocus || !active) {
     return;
   }
 
+  taskFocusActionMount.appendChild(createTaskFocusActionStrip(active));
   taskFocusBody.append(
     createTaskFocusSummary(active),
     createTaskDetailsSection(active),
@@ -1330,9 +1341,9 @@ function createTaskFocusSummary(active) {
   });
 }
 
-function taskFocusLeadText(task, active) {
+function taskFocusLeadText(task, _active) {
   const text = safeTaskFocusText(
-    task.next_action || task.resume_note || task.description || active?.contextLabel || "",
+    task.next_action || task.resume_note || task.description || "",
     "Ready to work.",
   );
 
@@ -1804,6 +1815,7 @@ function taskFocusBadges(task = {}, active = state.activeTaskFocus) {
     badge(formatToken(task.status || active?.status || "open"), task.status || active?.status || "open"),
     badge(formatToken(task.priority || active?.priority || "normal"), task.priority || active?.priority || "normal"),
     dueText ? badge(`Due ${dueText}`, "due") : null,
+    ...taskFocusTagBadges(task),
   ].filter(Boolean);
 }
 
@@ -1844,6 +1856,19 @@ function taskFocusAssigneesText(task = {}) {
     .filter(Boolean);
 
   return labels.length > 0 ? labels.join(", ") : "Unassigned";
+}
+
+function taskFocusTagBadges(task = {}) {
+  const tags = Array.isArray(task.directTags) && task.directTags.length > 0
+    ? task.directTags
+    : Array.isArray(task.direct_tags)
+      ? task.direct_tags
+      : [];
+
+  return tags
+    .map((tag) => safeTaskFocusText(tag.name || tag.slug || "", ""))
+    .filter(Boolean)
+    .map((label) => badge(label, "tag"));
 }
 
 function safeTaskFocusText(value, fallback = "") {

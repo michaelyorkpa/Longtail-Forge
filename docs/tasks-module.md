@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.12f. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.6.12i. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -62,6 +62,8 @@ As of 0.33.6.12c-2, Workbench Task Focus can check and uncheck existing checklis
 As of 0.33.6.12d-1, Workbench Task Focus exposes the selected task's timer controls without asking the user to reselect Client, Project, or Task. Start and Pause call `PUT /api/tasks/:taskId/timer`, Save Time calls `POST /api/tasks/:taskId/timer/finalize`, and Reset calls `DELETE /api/tasks/:taskId/timer`. Workbench owns the default-open timer section, selected-task display, and refresh wiring; Tasks and Time Tracking still own timer eligibility, permissions, sourced active-timer persistence, open-to-in-progress side effects, audit/event/search behavior, elapsed-time calculations, and saved time-entry creation.
 
 As of 0.33.6.12e-1, Workbench Task Focus related context reads the selected task through the Tasks service, uses Tasks list paths for same-project active task context and shared-direct-tag task matches, and emits only safe task titles, labels, badges, and existing `tasks.edit` action descriptors. Tasks still owns task visibility, lifecycle rules, and canonical edit behavior; Workbench does not query task tables directly or reuse focus-mode candidate overflow for selected-task related context.
+
+As of 0.33.6.12i, Workbench Task Focus summary reuses the existing Tasks read payload for summary metadata. It shows the selected task's Client/Project path once and surfaces status, priority, due date/time, and safe direct tags as summary chips while keeping Task Details read-only for expanded metadata rather than summary essentials. Tasks still owns readable task labels, due fields, direct-tag decoration, and permission-safe omission of inaccessible data.
 
 As of 0.33.5.18.9.3, the Task editor uses one framework-owned `Task Details` section before the specialized task-owned fragments. Task Details contains status, priority, parent task, due date, due time, resume note, next action, nullable Client/Project controls, description, assignees, and the final blocked reason field. Blocked Reason is hidden and disabled unless Status is `Blocked`. The dialog uses the shared `wide` modal size without a narrower Task-only width override.
 
