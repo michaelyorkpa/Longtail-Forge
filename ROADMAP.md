@@ -1,4 +1,4 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -1197,115 +1197,332 @@ Acceptance criteria:
 - Calendar entries link back to their task; the surface reuses framework view anatomy and adds no event/iCal/external-sync behavior (those remain at 0.36.0 / 0.70.x).
 - The calendar is reachable from Workbench/Dashboard and reinforces the "what's due / this week" focus without duplicating calendar logic.
 
-## Version 0.33.8 - TypeScript Contract Checking Foundation
+## Version 0.33.8 - TypeScript, Runtime Contracts, and Fast Test Foundation
 
 Purpose:
 
-Introduce TypeScript as a dev-time framework contract-checking tool without a rewrite or any runtime behavior change. Longtail Forge stays a Node/ESM app running unmodified JavaScript; shared framework contracts move toward typed definitions so future modules, reports, calendars, tickets, notes, public API routes, search results, and plugin extension points have safer, self-documenting shapes. The goal is to catch wrong-shape / contract-drift errors at `typecheck` time (fast, local, precise) before they surface as regression-suite failures, and to make shared contracts readable without cross-file spelunking. This narrows a specific, token-expensive class of iteration (shape mismatches, producer/consumer drift, renamed-field fallout); it does not catch logic/behavioral bugs or source-pinned test churn, which still need runtime validation and regressions.
+Introduce TypeScript, Zod, and Vitest as a focused correctness-and-speed foundation without rewriting the app, changing the runtime boot path, or turning Longtail Forge into a multi-language/polyglot project.
+
+This version is not a TypeScript conversion wave. It establishes the contract pattern that future modules and framework surfaces should use:
+
+- TypeScript catches code/contract drift at development time.
+- Zod validates untrusted runtime input at the edges.
+- Vitest provides fast, narrow contract/service tests so Codex/Claude can fail quickly before running the full regression suite.
+
+The goal is to reduce slow regression churn by catching common shape errors, renamed fields, invalid payloads, broken module contracts, and contract-test failures early and locally. This does not replace the existing regression suite, permission regressions, database regressions, browser/static regressions, or release closeout checks.
 
 Dependencies and sequencing:
 
-- Lands after 0.33.7 (Task Calendar) so the tangible Dashboard/Workbench/Calendar features ship first, and before 0.33.9 (Reporting Framework) and the later contract-heavy 0.3x modules so those are built with type protection in place.
-- Types the framework contracts stabilized through 0.33.6: the focus-mode contract/resolver (0.33.6.4), the normalized work-candidate shape (0.33.6.2-0.33.6.3), the resume-state producer payload, and the Dashboard/Workbench contribution contracts.
-- Dev-time only: no runtime behavior change and no build/emit in the app boot path (`noEmit` for this whole version).
+- Lands after 0.33.7 (Task Calendar) so Dashboard/Workbench/Calendar product work ships first.
+- Lands before 0.33.9 (Reporting Framework) so Reporting, public API expansion, tickets, creator tools, and future module contribution points are built against clearer contracts.
+- Builds on the framework contracts stabilized through 0.33.5-0.33.7:
+  - Module manifests.
+  - Declarative view surfaces.
+  - Dashboard/Workbench contributions.
+  - Work candidates.
+  - Focus modes.
+  - Resume-state producers.
+  - Search.
+  - Notifications.
+  - Tags.
+  - Files.
+  - Permissions.
+  - Public API envelopes.
+  - Jobs.
+  - Database seam.
+- Keeps the primary app as Node/Express/ESM.
+- Does not introduce PHP, Python, or any second backend runtime in this version.
+- Does not add a TypeScript compile step to `npm start`.
 
-Key decisions (settled):
+Key decisions:
 
-- Incremental, not a rewrite: dev-time type checker first, existing JavaScript keeps running, convert files only where the contract benefit is clear.
-- `npm run start` must NOT run TypeScript compilation or type checking. Type checking belongs in `npm run typecheck`, `npm run check`, CI, and Codex/Claude verification, not normal app boot.
-- First pass uses `allowJs` + narrowly-scoped `checkJs`, shared `.d.ts`/`.ts` contract files, and selective conversion of framework contract modules only (JSDoc-typed `.js` where a rename is not worth it).
-- Type backend and shared framework contracts before browser UI; browser scripts remain JavaScript until backend contracts stabilize.
+- Incremental, not a rewrite.
+- TypeScript is introduced first as dev-time checking.
+- Zod is introduced as runtime validation for selected edge contracts, not as a blanket internal-object parser.
+- Vitest is introduced for narrow unit/contract tests, not as a replacement for the existing regression runner.
+- Runtime-imported contract/schema files must remain runnable by the current Node app.
+  - If a schema is used at runtime, keep it in JavaScript (`.js`) with JSDoc/type support until the repo has an intentional build strategy.
+  - Type-only `.ts` files may exist, but runtime JavaScript must not import `.ts` files directly.
+- `npm start` must remain `node server.js`.
+- `npm run check` should run the fastest checks first:
+  1. TypeScript typecheck.
+  2. Vitest narrow/unit tests.
+  3. Existing regression runner.
+  4. ESLint.
+- Codex/Claude should run module-specific tests first, then typecheck, then full `npm run check` only when the change touches shared framework contracts, shared services, release closeout, or multiple modules.
 
-Scope guidance for the contract types (0.33.8.2):
+Non-goals:
 
-- **Highest-leverage single file:** `src/core/modules/manifest-contract.js` is the source of truth for ~30 cross-module manifest axes plus the entire declarative view/descriptor system - type it first.
-- **Dual-cased shapes:** many contracts (work-resume payloads, files `shapeAttachment`, jobs `enqueueJob`, search record refs) accept/emit both camelCase and snake_case keys; the types must model this (normalized-key or union) rather than pretending one casing.
-- **Dedup opportunities to unify under one type while typing:** the public-API `paged`/`withWorkspaceAlias` helpers copied into every `src/modules/*/public-api.service.js`; the `TEXT_LIMITS`/`STRING_LIMITS` near-duplicated across the three work-resume files; the repeated `DEFAULT_TIMEZONE` literal.
-- The database dialect seam already carries `contractVersion` in `src/db/adapters/sqlite-dialect-seams.js` - a natural anchor for a versioned typed interface.
+- Do not convert the whole repo to TypeScript.
+- Do not convert browser UI scripts broadly in this version.
+- Do not add a runtime TypeScript loader to app startup.
+- Do not add PHP or Python for Files or other module logic.
+- Do not replace the existing regression runner.
+- Do not weaken permission, workspace, module-enabled, private/secure-content, storage-key, or no-raw-ID guardrails.
+- Do not silence type errors with blanket `any`, broad `// @ts-ignore`, or global type exclusions.
 
-### Version 0.33.8.1 - TypeScript tooling setup
+### Version 0.33.8.1 - Tooling setup: TypeScript, Zod, and Vitest
 
-- [ ] Add the TypeScript dev dependency.
+**Model: GPT-5.5 Extra High** - Tooling foundation with no app boot-path change.
+
+- [ ] Add TypeScript as a dev dependency.
+- [ ] Add Vitest as a dev dependency.
+- [ ] Add Zod as a runtime dependency because schemas will be used by runtime validation paths.
 - [ ] Add `tsconfig.json`.
   - [ ] Node/ESM-compatible compiler settings.
-  - [ ] Enable `allowJs`; scope `checkJs`/`include` narrowly at first rather than checking the whole tree.
-  - [ ] Start with strictness that reveals useful contract issues without blocking the project (e.g. `strict` on typed contract files, `noImplicitAny` there first).
-  - [ ] `noEmit` for the first pass so TypeScript checks without producing runtime files.
-- [ ] Add package scripts: `npm run typecheck`; do NOT change `npm run start`.
-  - [ ] Wiring `npm run typecheck` into `npm run check` is a REQUIRED outcome of this version, not an open decision. Sequencing within the version is allowed - land the wiring after the first typed contracts (0.33.8.3) are clean so `check` never fails on pre-existing untyped code - but 0.33.8 must NOT close with `typecheck` unwired from `check` (enforced in 0.33.8.5). Leaving it optional/agent-remembered is precisely what makes TypeScript inert for the automated loop.
-- [ ] Add TypeScript ignores/exclusions for runtime data, generated files, `archive/`, vendor/build output, and `node_modules`.
+  - [ ] `noEmit: true`.
+  - [ ] `allowJs: true`.
+  - [ ] Scope `include` narrowly at first.
+  - [ ] Use `checkJs` selectively instead of type-checking the entire repo immediately.
+  - [ ] Exclude runtime data, generated files, `archive/`, build/vendor output, temporary directories, and `node_modules`.
+- [ ] Add package scripts:
+  - [ ] `typecheck` - runs `tsc --noEmit`.
+  - [ ] `test:unit` - runs Vitest once.
+  - [ ] `test:watch` - runs Vitest in watch mode.
+  - [ ] `test:contracts` - runs contract/schema-focused Vitest tests.
+  - [ ] `test:files` - runs Files-focused Vitest tests once Files is the proving-ground module.
+  - [ ] `test:tasks` - runs Tasks-focused Vitest tests once Tasks has contract tests.
+- [ ] Keep `npm start` unchanged.
+- [ ] Update `npm run check` so it runs fast checks before the existing slow suite:
+  - [ ] `npm run typecheck`
+  - [ ] `npm run test:unit`
+  - [ ] existing regression runner
+  - [ ] ESLint
+- [ ] Add a guardrail proving `npm run check` invokes `typecheck` and `test:unit` before the full regression runner.
+- [ ] Do not alter runtime behavior in this slice except dependency availability and script wiring.
 
 Acceptance criteria:
 
-- `npm run typecheck` runs TypeScript in `noEmit` mode over the in-scope files without altering runtime behavior or app startup, and wiring it into `npm run check` is committed as a closeout requirement (0.33.8.5).
+- TypeScript, Zod, and Vitest are installed.
+- `npm run typecheck` works in `noEmit` mode.
+- `npm run test:unit` works even with an initial minimal test.
+- `npm run check` runs typecheck and unit tests before the existing regression runner.
+- `npm start` remains unchanged and does not run TypeScript compilation.
 
-### Version 0.33.8.2 - Framework contract types
+### Version 0.33.8.2 - Contract folder and module public-entry pattern
 
-Add shared typed definitions (`.d.ts` or `.ts`) for the cross-module contracts that exist today. Group by domain; each references its source-of-truth file(s).
+**Model: GPT-5.5 Extra High** - Repo-shape guardrails before broad conversion.
 
-- [ ] **Module system** (`src/core/modules/manifest-contract.js`, `modules.service.js`, `registry.js`, `terminology.js`, `module-access.js`): module identity/lifecycle fields and the allowed-field whitelist; terminology overrides; navigation, protectedViews/publicViews, browserAssets; dashboard/workbench contributions; settings fields; permissions/defaultRolePermissions/resourceDefinitions; apiScopes/publicApiEndpoints; eventTypes/auditRecordTypes/eventSummaries/hooks; timerSources/workItemSources; linkedContextProviders; taggableTypes/tagPropagation; searchableTypes; attachableTypes; help; notification catalogs; framework/module dependency + workspace-capability requirements; seed/repair/migration hooks; and the normalized workspace-module-context/module-state shapes.
-- [ ] **View/descriptor system** (`manifest-contract.js` for the shapes, `public/js/shared/view-renderer.js` + `view-builder.js` for the runtime): `viewSurfaces` root descriptor and layout/filterPlacement enums; dataSource, pageHeader, sidebarPanels, filters, indexPanel, table (+ columns/secondaryRows), detail (+ linkedRecords/itemForm/itemRows), modals, regions; the shared field/action/label descriptors; the `renderSurface` engine contract, the `registerBehavior` handler arg contract, and the `view-builder` DOM-primitive API.
-- [ ] **Work / Workbench / Resume** (`src/services/work-candidate.service.js`, `work-focus-modes.service.js`, `work-resume-state*.js`, `workbench.service.js`): the normalized work-candidate shape + allowed-fields gate, the primary-action descriptor, the candidate list-query + rank-bucket enum, candidate source-context gating; the focus-mode definition/descriptor/context (filters/scope/resumeStrategy); the resume-state producer definition, the shared allowlist/forbidden-field denylist, the read-resolver registry + read-check result, the `work_resume_state` row + upsert/guarded-row shapes, `listResumeState` query/result; and the Workbench bootstrap result + module-state-map entry.
-- [ ] **Search** (`src/services/search.service.js`, `search-index-rebuild.service.js`, `search-index-jobs.service.js`, `search-index-sync.service.js`): capabilities descriptor; searchable-type declaration; permission-safe single-target filters and the multi-target request contract; normalized search document; record reference; indexing-operation result; indexer fn contract; index-job payload + queue envelope; rebuild/repair summary and adapter repair result.
-- [ ] **Notifications** (`src/services/notifications.service.js`, plus manifest declarations): internal event object; event-job payload + queue-skip result; normalized create payload; delivery payload; decorated read model; list/preferences/save-preferences/workspace-defaults payloads; subscription target + follow/unfollow response.
-- [ ] **Tags** (`src/services/tags.service.js`, `tag-propagation-registry.js`, manifest): tag descriptor; taggable-type descriptor; resolved tag target; assignment row + shaped read model; listAssignments/assign/remove/replace/bulk responses; decorated-record-with-tags; tag-filter intent; propagation rule declaration + resolver contract + propagation pair/refresh/repair/snapshot shapes.
-- [ ] **Files** (`src/services/files.service.js`, `src/core/files/*`): storage-provider interface; scanner-adapter interface; file-lifecycle event contract (statuses + sanitize); attachable-type manifest contract; upload/multipart payload + batch result; file record shape; attachment record shape; preview descriptor; storage accounting/diagnostics; startup storage-health contract.
-- [ ] **Permissions** (`src/services/permissions.service.js`, `module-access.js`): permission-check request/result and dotted action strings; role-assignment/permission descriptor + role/scope enums; permission-override contract; readable-record filtering contracts + readable-scope set; module write-gate contract; role-assignment API shapes.
-- [ ] **Public API** (`src/routes/public-api.routes.js`, `src/services/public-api.service.js`, `src/modules/*/public-api.service.js`, `src/middleware/require-api-key.js`, `src/core/bounded-pagination.js`): success/list envelope; error envelope; public "paged" pagination metadata (unify the duplicated helper); internal bounded/cursor pagination envelope; API scope descriptor; API-key record + `apiSession` context; the per-module public-api service fn contract.
-- [ ] **Jobs** (`src/core/jobs/*`, `src/services/jobs.service.js`, `import-jobs.service.js`): job-handler registry + handler signature; job-handler object shape; `enqueueJob` input/dedupe/return; shaped Job DTO; runner/worker lifecycle contract + return-column sets; jobs-admin readout/prune shapes; import-job producer contract.
-- [ ] **Database seam / dialect** (`src/db/adapters/*`, `provider.js`, `index.js`, `parameter-bindings.js`): database adapter interface; transaction-client contract; adapter capabilities descriptor; the dialect seam interface (versioned via `contractVersion`); provider bootstrap/selection wrappers; database facade API; parameter-binding seam.
-- [ ] **Per-module record & repository return shapes** (`src/modules/*/*.repo.js`, `*.service.js`, `src/utils/normalizers.js`, `src/repositories/*`): normalized app-value shapes for tasks (task, assignees, recurrence template, checklist + progress, relationship + summary, reminder offsets/policy, task-timer view, enriched list projection); notes (note, revision, link, collection); lists (list, item, catalog, link); clients/projects (client with nested billing, project with task defaults); time-tracking (active timer, time entry); and users/workspaces (user, assignable workspace, membership-decorated user).
-- [ ] **Shared API response helpers/types** where useful: standard success, standard error, pagination metadata, permission-denied response - defined once and reused instead of the current per-module copies.
+Purpose:
 
-Acceptance criteria:
+Create the structure that prevents future modules from becoming import spaghetti. This slice establishes where contracts live and how other code imports module capabilities.
 
-- The shared framework/view/work/search/notification/tag/file/permission/public-API/jobs/database/record contracts have typed definitions that consumers can import and that `typecheck` enforces, with no runtime change and dual-casing modeled where it exists.
-
-### Version 0.33.8.3 - Selective type checking of high-value files
-
-- [ ] Add `// @ts-check` + JSDoc typing (or selective `.ts`) to the highest-leverage framework files first, against the 0.33.8.2 types:
-  - [ ] `src/core/modules/manifest-contract.js` and the module registry/validation path (source of truth for ~30 axes + the descriptor system).
-  - [ ] Search service and search-adapter boundary.
-  - [ ] Notification service contracts.
-  - [ ] Tag service + tag-propagation registry.
-  - [ ] Settings / app-shell bootstrap payloads.
-  - [ ] Work-candidate / resume-state / focus-mode services, so the producer-to-consumer contract is enforced end to end.
-- [ ] Avoid broad UI conversion this version unless a file is already being touched for contract cleanup; avoid converting every route file in one pass.
+- [ ] Establish the preferred contract/schema pattern:
+  - [ ] `*.contracts.js` or `*.schema.js` for runtime Zod schemas and JSDoc-backed types.
+  - [ ] Optional `*.types.ts` or shared `.d.ts` files for type-only definitions that are never imported by runtime JavaScript.
+  - [ ] Tests live beside contracts or in a clearly named test folder.
+- [ ] Establish module public entry points where practical:
+  - [ ] `src/modules/files/index.js`
+  - [ ] `src/modules/tasks/index.js`
+  - [ ] `src/modules/notes/index.js`
+  - [ ] Similar pattern for other modules as they are touched.
+- [ ] Document the import rule:
+  - [ ] Framework/shared code should import module capabilities from public entry points.
+  - [ ] Other modules must not import another module's internal repositories/services directly unless an explicit contract allows it.
+- [ ] Add a lightweight static guardrail for obvious forbidden imports between module internals.
+- [ ] Document the distinction:
+  - [ ] TypeScript types describe trusted internal shapes.
+  - [ ] Zod validates untrusted runtime input and config.
+  - [ ] Vitest proves contracts and service behavior.
+  - [ ] Existing regressions still prove integration, permissions, database behavior, and browser/static behavior.
 
 Acceptance criteria:
 
-- The selected high-value framework files pass `@ts-check` against the shared contracts, surfacing and fixing existing shape mismatches without broad UI churn.
+- The repo has a documented contract/schema/test pattern.
+- Module public-entry rules are documented.
+- At least one guardrail prevents obvious cross-module internal imports.
+- No broad module rewrite occurs.
 
-### Version 0.33.8.4 - Codex/Claude and regression workflow
+### Version 0.33.8.3 - Zod proving ground: Files contract schemas
 
-- [ ] Make `typecheck` part of the automatic verification path, not memory-dependent prose:
-  - [ ] `npm run check` runs `npm run typecheck` (the 0.33.8.1 wiring) so every standard verification catches type errors before the full regression suite runs.
-  - [ ] The repo's built-in verify/check flow (and any project `verify` skill) invokes `typecheck` so agents get fast, precise contract feedback automatically rather than relying on remembering to run it.
-- [ ] Update `AGENTS.md` / development docs:
-  - [ ] Agents run `npm run typecheck` as part of standard pre-finish verification when changing framework contracts, module manifests, search, tags, notifications, files, permissions, public API routes, view descriptors, or shared API payloads.
-  - [ ] Agents do not silence type errors with blanket `any` unless the roadmap explicitly allows it.
-  - [ ] New framework contracts include type definitions or JSDoc-backed shapes.
-- [ ] Add a "proof it bites" guardrail regression (so the typecheck can never become vacuous/inert or silently rot):
-  - [ ] Assert the `typecheck` script exists and that `npm run check` invokes it.
-  - [ ] Assert a seeded/fixture type error in a `@ts-check`'d contract file actually fails `npm run typecheck` (restore the fixture after), proving the loop is live and non-vacuous rather than passing because nothing is in scope.
-  - [ ] Assert the checked contract files are not blanket-`any`'d away (e.g. grep-guard that the 0.33.8.3 files keep `@ts-check` and do not disable it).
-- [ ] Add focused regression coverage where type-contract changes expose existing weak spots.
-- [ ] Document the difference between runtime validation and TypeScript checking: TypeScript catches wrong shapes before runtime; API input, database rows, uploaded files, module manifests, and user data still require runtime validation.
+**Model: GPT-5.5 Extra High** - Runtime contract proof on the module most likely to grow storage/preview/upload complexity.
+
+Purpose:
+
+Use Files as the first Zod proving ground because Files will eventually need upload metadata, attachment contracts, previews, storage adapters, scanners, SaaS/private-hosted storage differences, and future indexing. This is where runtime validation will pay for itself without converting the whole app.
+
+- [ ] Add Files-owned runtime schemas in JavaScript, for example:
+  - [ ] `CreateFileSchema`
+  - [ ] `UpdateFileSchema`
+  - [ ] `FileMetadataSchema`
+  - [ ] `FileAttachmentSchema`
+  - [ ] `FilePreviewRequestSchema`
+  - [ ] `FileStorageAdapterConfigSchema`
+- [ ] Keep schemas focused on edge payloads:
+  - [ ] Request bodies.
+  - [ ] Query params.
+  - [ ] Upload metadata.
+  - [ ] Storage configuration.
+  - [ ] Preview/action payloads.
+- [ ] Do not Zod-parse every internal object passed between already-trusted service functions.
+- [ ] Preserve the existing Files behavior and error envelope for valid requests.
+- [ ] If invalid payload handling changes, make the error shape explicit, consistent, and tested.
+- [ ] Add JSDoc typedefs inferred from Zod schemas where useful.
+- [ ] Add Vitest contract tests proving:
+  - [ ] Valid create/update payloads pass.
+  - [ ] Empty/invalid required fields fail.
+  - [ ] Defaults are applied intentionally.
+  - [ ] Unknown/unsafe fields are stripped or rejected according to the chosen contract.
+  - [ ] Private/storage/scanner-sensitive fields cannot be accepted from user input.
+- [ ] Add one narrow Files command, such as `npm run test:files`, that runs only Files Vitest tests.
 
 Acceptance criteria:
 
-- `npm run check` (and the built-in verify flow) runs `typecheck` automatically, a guardrail regression proves a real type error fails the check and that the checked files stay `@ts-check`'d without blanket `any`, and the runtime-validation-vs-type-checking boundary is documented.
+- Files has runtime Zod schemas for its highest-risk edge payloads.
+- Files schemas are covered by fast Vitest tests.
+- Valid existing Files behavior is preserved.
+- Unsafe/unknown file input is explicitly handled.
+- `npm run test:files` gives Codex/Claude a narrow first check for Files work.
 
-### Version 0.33.8.5 - Release closeout
+### Version 0.33.8.4 - TypeScript contract checking for high-value framework seams
 
-- [ ] Confirm the version does not close inert: `npm run check` invokes `npm run typecheck` (0.33.8.1 wiring landed), and the "proof it bites" guardrail (0.33.8.4) passes. This is a hard gate - 0.33.8 is not done if `typecheck` is unwired from `check` or the guardrail is absent.
-- [ ] Update documentation: add TypeScript migration notes to architecture/module-development docs; note that TypeScript is dev-time checking only in this version.
-- [ ] Update `CHANGELOG.md` and package metadata for the version bump.
-- [ ] Run verification: `npm run typecheck`, `npm run check` (which now includes `typecheck`), `npm run test:permissions`.
+**Model: GPT-5.5 Extra High** - Selective type coverage over shared contracts without broad conversion.
+
+Purpose:
+
+Type the seams that cause the most expensive regression churn when they drift. This slice should not try to type every module.
+
+- [ ] Add shared typed/JSDoc-backed definitions for the highest-value contracts:
+  - [ ] Module manifest shape.
+  - [ ] Declarative view descriptor shape.
+  - [ ] Dashboard contribution shape.
+  - [ ] Workbench contribution shape.
+  - [ ] Work candidate shape.
+  - [ ] Focus-mode definition/context shape.
+  - [ ] Resume-state producer payload shape.
+  - [ ] Search record/reference/result shape.
+  - [ ] Notification event/create/read payload shape.
+  - [ ] Taggable/searchable/attachable manifest contribution shapes.
+  - [ ] Public API success/error/list envelope.
+  - [ ] Job enqueue/handler payload shape.
+  - [ ] Database adapter/dialect seam shape.
+- [ ] Add `// @ts-check` plus JSDoc typing only to selected high-value JavaScript files first:
+  - [ ] `src/core/modules/manifest-contract.js`
+  - [ ] module registry/validation path
+  - [ ] work-candidate/focus/resume services
+  - [ ] search contract/service seam
+  - [ ] notification contract/service seam
+  - [ ] tag contract/service seam
+  - [ ] Files contract/service seam from 0.33.8.3
+- [ ] Model dual-cased shapes honestly where they still exist.
+  - [ ] Do not pretend everything is camelCase if existing code still accepts or emits snake_case.
+  - [ ] Prefer a normalized internal shape plus explicit edge adapters where practical.
+- [ ] Fix real contract drift exposed by typecheck.
+- [ ] Do not mask drift with blanket `any`.
+- [ ] Do not type-check the entire browser UI in this slice.
+- [ ] Do not rename working files just to make them `.ts`.
 
 Acceptance criteria:
 
-- TypeScript dev-time checking is documented, the changelog/version are updated, `npm run check` runs `typecheck` automatically, the proof-it-bites guardrail passes, and the full verification suite passes.
+- High-value framework contracts have importable/checkable definitions.
+- Selected files pass `@ts-check` or TypeScript checking against those contracts.
+- Typecheck catches real shape drift without requiring a repo-wide conversion.
+- Dual casing is modeled explicitly where it still exists.
+
+### Version 0.33.8.5 - Vitest narrow tests and Codex/Claude workflow
+
+**Model: GPT-5.5 Extra High** - Fast verification paths that reduce unnecessary full-regression runs.
+
+Purpose:
+
+Give agents fast, targeted commands before the full suite. Vitest does not replace the existing regression runner; it creates cheap tripwires for contracts and service logic.
+
+- [ ] Add initial Vitest tests for:
+  - [ ] Files schemas from 0.33.8.3.
+  - [ ] Work candidate ranking pure functions.
+  - [ ] Focus-mode context resolution.
+  - [ ] Resume payload allowlist/denylist behavior.
+  - [ ] Public API envelope helpers.
+  - [ ] Shared pagination/envelope helpers where currently duplicated.
+- [ ] Add or document narrow commands:
+  - [ ] `npm run test:contracts`
+  - [ ] `npm run test:files`
+  - [ ] `npm run test:tasks`
+  - [ ] `npm run test:unit`
+- [ ] Update agent/development docs with the verification order:
+  - [ ] For a one-module change: run that module's narrow test first.
+  - [ ] For schema/contract changes: run `npm run test:contracts` and `npm run typecheck`.
+  - [ ] For shared framework changes: run `npm run typecheck`, `npm run test:unit`, then `npm run check`.
+  - [ ] For release closeout: run full required verification.
+- [ ] Add a guardrail proving the narrow commands exist and are wired to Vitest.
+- [ ] Keep existing regression scripts as the source of truth for integration behavior, permissions, database migrations, file-storage side effects, browser/static guardrails, and closeout coverage.
+- [ ] Do not delete existing regressions merely because a Vitest test now covers a smaller unit; retirement/consolidation must follow the regression coverage-ratchet rules.
+
+Acceptance criteria:
+
+- Vitest has useful initial coverage of schemas and pure contract/service logic.
+- Narrow test commands exist and pass.
+- Agent docs tell Codex/Claude to run narrow tests first.
+- Existing regression coverage remains intact.
+
+### Version 0.33.8.6 - Optional Tasks contract schemas, only if Files proves the pattern cleanly
+
+**Model: GPT-5.5 Extra High** - Second-module validation only if the first proving ground is stable.
+
+Purpose:
+
+Apply the same Zod/Vitest pattern to Tasks only if Files establishes the pattern without churn. This slice may be deferred if 0.33.8 is getting too large.
+
+- [ ] Add Tasks-owned runtime schemas for selected edge payloads:
+  - [ ] Create task.
+  - [ ] Update task.
+  - [ ] Checklist item mutation.
+  - [ ] Recurrence update mode.
+  - [ ] Task focus/action payload where applicable.
+- [ ] Validate only edge inputs, not every internal service object.
+- [ ] Add Vitest tests for:
+  - [ ] Required title/status/priority behavior.
+  - [ ] Checklist mutation payloads.
+  - [ ] Recurrence update mode validation.
+  - [ ] Invalid parent/child/context payload shapes.
+- [ ] Add or activate `npm run test:tasks`.
+
+Acceptance criteria:
+
+- Tasks has the same contract/schema/test pattern as Files for selected edge payloads.
+- The work remains contained and does not become a broad Tasks rewrite.
+- If deferred, document the reason and keep Files as the completed proving ground.
+
+### Version 0.33.8.7 - Release closeout
+
+**Model: GPT-5.5 Extra High** - Prove the new loop is useful, wired, and non-vacuous.
+
+- [ ] Confirm `npm start` remains unchanged and does not compile or typecheck.
+- [ ] Confirm `npm run typecheck` runs in `noEmit` mode.
+- [ ] Confirm `npm run test:unit` runs Vitest tests.
+- [ ] Confirm `npm run check` runs:
+  - [ ] typecheck
+  - [ ] unit/Vitest tests
+  - [ ] existing regression runner
+  - [ ] ESLint
+- [ ] Confirm fast-failure ordering: typecheck/Vitest failures stop before the slow regression runner.
+- [ ] Add a "proof it bites" guardrail:
+  - [ ] A seeded temporary contract/type error fails `npm run typecheck`.
+  - [ ] A seeded temporary schema test failure fails the relevant Vitest command.
+  - [ ] The seeded failures are removed before final verification.
+- [ ] Confirm no blanket `any`, broad `@ts-ignore`, or global `@ts-nocheck` was added to bypass the new checks.
+- [ ] Confirm no PHP, Python, second backend runtime, app-start TypeScript loader, or broad browser TypeScript conversion was introduced.
+- [ ] Update documentation:
+  - [ ] Architecture notes.
+  - [ ] Module contract docs.
+  - [ ] Development/agent verification workflow.
+  - [ ] Runtime validation vs. TypeScript checking explanation.
+- [ ] Update `CHANGELOG.md` and package metadata.
+- [ ] Run final verification:
+  - [ ] `npm run typecheck`
+  - [ ] `npm run test:unit`
+  - [ ] `npm run check`
+  - [ ] `npm run test:permissions`
+
+Acceptance criteria:
+
+- TypeScript, Zod, and Vitest are installed and documented.
+- `npm start` remains pure Node runtime startup.
+- `npm run check` fails faster by running typecheck and Vitest before the full regression runner.
+- Files has a proven Zod + Vitest contract pattern.
+- High-value framework seams have initial type coverage.
+- Existing regression coverage remains intact.
+- The repo has clearer contracts without becoming a rewrite, a polyglot app, or a TypeScript build-system project.
 
 ## Version 0.33.9 - Reporting Framework and Time Report Contribution
 
