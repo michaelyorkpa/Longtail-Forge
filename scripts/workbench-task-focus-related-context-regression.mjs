@@ -126,9 +126,9 @@ async function assertStaticContracts() {
   const routesSource = readText("src/routes/workbench.routes.js");
   const roadmap = readText("ROADMAP.md");
 
-  assert.equal(packageJson.version, "0.33.6.12n");
-  assert.equal(packageLock.version, "0.33.6.12n");
-  assert.equal(packageLock.packages[""].version, "0.33.6.12n");
+  assert.equal(packageJson.version, "0.33.6.12o");
+  assert.equal(packageLock.version, "0.33.6.12o");
+  assert.equal(packageLock.packages[""].version, "0.33.6.12o");
   assert.match(routesSource, /\/workbench\/task-focus\/:taskId\/related-context/);
   assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");

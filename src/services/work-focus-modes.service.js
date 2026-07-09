@@ -33,6 +33,8 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
     sortOrder: 10,
     resolve: ({ dates }) => ({
       filters: {
+        excludePassiveRecurringCreated: true,
+        includeTaskCandidates: true,
         rankBuckets: [
           WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
           WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
@@ -56,6 +58,7 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
         rankBuckets: [
           WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
           WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+          WORK_CANDIDATE_RANK_BUCKETS.overdueAssignedWork,
           WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
         ],
       },
@@ -64,6 +67,7 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
         fallbackRankBuckets: [
           WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
           WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+          WORK_CANDIDATE_RANK_BUCKETS.overdueAssignedWork,
           WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
         ],
         primary: "work-resume",
@@ -79,6 +83,8 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
     sortOrder: 30,
     resolve: ({ dates }) => ({
       filters: {
+        excludePassiveRecurringCreated: true,
+        includeTaskCandidates: true,
         date: { dueTo: dates.weekEnd },
         sort: WORK_CANDIDATE_SORTS.dueDatetime,
       },
@@ -93,13 +99,14 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
     sortOrder: 40,
     resolve: ({ dates }) => ({
       filters: {
+        excludePassiveRecurringCreated: true,
+        includeTaskCandidates: true,
         date: {
-          dueFrom: dates.today,
           dueTo: dates.weekEnd,
         },
         sort: WORK_CANDIDATE_SORTS.dueDatetime,
       },
-      summary: `Work due from ${dates.today} through ${dates.weekEnd}.`,
+      summary: `Overdue work and work due through ${dates.weekEnd}.`,
     }),
   }),
   Object.freeze({
@@ -110,6 +117,8 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
     sortOrder: 50,
     resolve: () => ({
       filters: {
+        excludePassiveRecurringCreated: true,
+        includeTaskCandidates: true,
         status: ["blocked"],
       },
       summary: "Blocked work only.",
@@ -143,7 +152,11 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
       }
 
       return {
-        filters: { projectId },
+        filters: {
+          excludePassiveRecurringCreated: true,
+          includeTaskCandidates: true,
+          projectId,
+        },
         scope: { projectId },
         summary: "Work scoped to the selected project.",
       };
@@ -165,7 +178,11 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
       }
 
       return {
-        filters: { clientId },
+        filters: {
+          clientId,
+          excludePassiveRecurringCreated: true,
+          includeTaskCandidates: true,
+        },
         scope: { clientId },
         summary: "Work scoped to the selected client.",
       };
@@ -339,6 +356,8 @@ function normalizeFilters(filters = {}) {
       dueOn: normalizeDateKey(date.dueOn),
       dueTo: normalizeDateKey(date.dueTo),
     },
+    excludePassiveRecurringCreated: Boolean(filters.excludePassiveRecurringCreated),
+    includeTaskCandidates: Boolean(filters.includeTaskCandidates),
     projectId: textValue(filters.projectId, 160),
     rankBuckets: normalizeTextList(filters.rankBuckets),
     sort: normalizeSortMode(filters.sort),
@@ -390,6 +409,12 @@ function buildCandidateQuery(definition, filters, dates, input, workspaceContext
   }
   if (filters.clientId) {
     query.clientId = filters.clientId;
+  }
+  if (filters.excludePassiveRecurringCreated) {
+    query.excludePassiveRecurringCreated = true;
+  }
+  if (filters.includeTaskCandidates) {
+    query.includeTaskCandidates = true;
   }
   if (filters.projectId) {
     query.projectId = filters.projectId;

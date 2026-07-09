@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
-const appVersion = "0.33.6.12n";
+const appVersion = "0.33.6.12o";
 const scenarioArgIndex = process.argv.indexOf("--scenario");
 const scannerSecretExecutable = "secret-clamscan-path";
 const scannerSecretOutput = "Eicar-Test-Signature FOUND";

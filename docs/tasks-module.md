@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.12n. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.6.12o. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -72,6 +72,8 @@ As of 0.33.6.12k, the Workbench Task Focus timer UI renders the focused task's t
 As of 0.33.6.12e-1, Workbench Task Focus related context reads the selected task through the Tasks service, uses Tasks list paths for same-project active task context and shared-direct-tag task matches, and emits only safe task titles, labels, badges, and existing `tasks.edit` action descriptors. Tasks still owns task visibility, lifecycle rules, and canonical edit behavior; Workbench does not query task tables directly or reuse focus-mode candidate overflow for selected-task related context.
 
 As of 0.33.6.12m, linked Note rows in that same Task Focus related-context read model dispatch the Notes-owned `notes.view` action instead of editing immediately. Tasks still does not own note body reads, Markdown rendering, secure/private note body visibility, stale linked-note handling, or Notes editor handoff behavior.
+
+As of 0.33.6.12o, the Tasks-owned Workbench item payload includes recurrence identifiers and created timestamps needed by the framework candidate service to distinguish passive recurring-created occurrences from startable active task work. Workbench focus modes may opt into these active task candidates when due/project/client/blocked recovery semantics require Tasks-owned work that lacks a resume-state row; Tasks still owns task visibility, active lifecycle filtering, scoped Client/Project labels, and readable due fields.
 
 As of 0.33.6.12j, Workbench Task Focus summary reuses the existing Tasks read payload for summary metadata. It shows the selected task's Client/Project path once and surfaces status, priority, due date/time, and safe direct tags as summary chips while keeping Task Details read-only for expanded metadata rather than summary essentials. Tasks still owns readable task labels, due fields, direct-tag decoration, and permission-safe omission of inaccessible data.
 

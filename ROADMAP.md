@@ -998,34 +998,34 @@ Scope:
 - Existing client/project filters, permissions, module enablement, recurring-created suppression, and task lifecycle exclusions.
 - Do not change Task Focus execution surfaces, task status semantics, canonical Tasks list views, Dashboard behavior, or recurrence generation behavior in this slice.
 
-- [ ] Audit every user-facing Workbench focus mode and every task-candidate source path that can include due dates:
+- [x] Audit every user-facing Workbench focus mode and every task-candidate source path that can include due dates:
   - `Start with what's due` / `whats-due-next`.
   - `Work this week`.
   - `Focus on a project`.
   - `Pick up where I left off`, including resume fallback behavior and the second-most-recent task boost.
   - `Review blocked work`, including blocked tasks that are also overdue.
   - The default Focus Selection bootstrap candidate list, if it can feed recommendations before a focus mode reload completes.
-- [ ] Fix the due-focused modes so overdue active tasks are included first:
+- [x] Fix the due-focused modes so overdue active tasks are included first:
   - `Start with what's due` includes readable active overdue tasks before due-today and upcoming due work.
   - `Work this week` includes readable active overdue tasks before due-today and current-week work, instead of using a lower-bound date filter that hides overdue work.
   - Future-dated work outside the selected due window remains excluded unless another mode explicitly allows it.
-- [ ] Fix `Focus on a project` so overdue active tasks inside the selected project are eligible and ranked before due-today, upcoming, stale/recent, and no-due project work.
-- [ ] Preserve explicit Client and Project filter boundaries: overdue work from other clients/projects must not leak into scoped modes, and parent/child hierarchy behavior remains whatever the current exact-match filter contract allows until the later hierarchy standard lands.
-- [ ] Review whether focus modes that promise due/project work need a Tasks-owned active-task candidate source in addition to resume-state rows and live timers, so overdue tasks are not hidden merely because they lack a recent resume-state signal.
-- [ ] Keep `Pick up where I left off` resume-first behavior intact: running/paused timers and stronger resume rows stay ahead of fallback due work, but overdue task fallback candidates and the second-most-recent task boost must not be filtered out when they are inside the current Client/Project scope.
-- [ ] Keep `Review blocked work` semantically blocked-only: blocked overdue tasks rank before less urgent blocked work, but non-blocked overdue tasks stay in due/project modes instead of being recast as blocked work.
-- [ ] Ensure the Focus Selection recommended-action top-five window and right-side Inspector overflow are derived from the same ordered candidate list, so overdue items are not visible in one surface but hidden or reordered in the other.
-- [ ] Preserve recurrence passive-created suppression except where the task is overdue or inside the existing near-due window; an overdue recurring occurrence should be recoverable rather than hidden as passive generated noise.
-- [ ] Add focused regressions with fixture coverage for overdue, due-today, current-week, future-out-of-window, no-due, blocked-overdue, blocked-not-overdue, different-client, different-project, completed, archived, unreadable, disabled-module, and passive recurring-created tasks.
-- [ ] Update the existing Workbench focus-mode regression expectations that currently assert overdue tasks are absent from `Work this week`.
-- [ ] Add or update static/docs regressions proving the Workbench contract states:
+- [x] Fix `Focus on a project` so overdue active tasks inside the selected project are eligible and ranked before due-today, upcoming, stale/recent, and no-due project work.
+- [x] Preserve explicit Client and Project filter boundaries: overdue work from other clients/projects must not leak into scoped modes, and parent/child hierarchy behavior remains whatever the current exact-match filter contract allows until the later hierarchy standard lands.
+- [x] Review whether focus modes that promise due/project work need a Tasks-owned active-task candidate source in addition to resume-state rows and live timers, so overdue tasks are not hidden merely because they lack a recent resume-state signal.
+- [x] Keep `Pick up where I left off` resume-first behavior intact: running/paused timers and stronger resume rows stay ahead of fallback due work, but overdue task fallback candidates and the second-most-recent task boost must not be filtered out when they are inside the current Client/Project scope.
+- [x] Keep `Review blocked work` semantically blocked-only: blocked overdue tasks rank before less urgent blocked work, but non-blocked overdue tasks stay in due/project modes instead of being recast as blocked work.
+- [x] Ensure the Focus Selection recommended-action top-five window and right-side Inspector overflow are derived from the same ordered candidate list, so overdue items are not visible in one surface but hidden or reordered in the other.
+- [x] Preserve recurrence passive-created suppression except where the task is overdue or inside the existing near-due window; an overdue recurring occurrence should be recoverable rather than hidden as passive generated noise.
+- [x] Add focused regressions with fixture coverage for overdue, due-today, current-week, future-out-of-window, no-due, blocked-overdue, blocked-not-overdue, different-client, different-project, completed, archived, unreadable, disabled-module, and passive recurring-created tasks.
+- [x] Update the existing Workbench focus-mode regression expectations that currently assert overdue tasks are absent from `Work this week`.
+- [x] Add or update static/docs regressions proving the Workbench contract states:
   - Due-focused modes include overdue work first.
   - Project focus does not hide overdue project tasks.
   - Focus Selection recommendation cycling and Inspector overflow share one canonical overdue-aware order.
   - Browser code renders the service-owned candidate order instead of rebuilding overdue logic.
-- [ ] Update `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, and `docs/tasks-module.md` only for the behavior actually changed.
-- [ ] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping as part of the implementation closeout.
-- [ ] Run the focused Workbench focus-mode regressions, relevant Workbench UI/static regressions, `npm run check`, and `/api/app-info` verification after restart.
+- [x] Update `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, and `docs/tasks-module.md` only for the behavior actually changed.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping as part of the implementation closeout.
+- [x] Run the focused Workbench focus-mode regressions, relevant Workbench UI/static regressions, `npm run check`, and `/api/app-info` verification after restart.
 
 Acceptance criteria:
 

@@ -13,9 +13,9 @@ const notesHelp = await read("help/modules/notes/markdown.md");
 const packageJson = JSON.parse(await read("package.json"));
 const packageLock = JSON.parse(await read("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.6.12n", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.6.12n", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.6.12n", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.6.12o", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.6.12o", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.6.12o", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(
   roadmap,
@@ -46,7 +46,7 @@ for (const phrase of [
 }
 
 for (const phrase of [
-  "current Notes implementation as of 0.33.6.12n",
+  "current Notes implementation as of 0.33.6.12o",
   "CommonMark paragraphs",
   "safe underline through the `++text++` token",
   "approved tables and task lists",

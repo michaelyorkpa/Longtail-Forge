@@ -113,6 +113,7 @@ const RECENTLY_TOUCHED_DAYS = 2;
 const RESUME_SOURCE_KIND = "resume_state";
 const STALE_DAYS = 7;
 const TASK_UPDATED_BOOST_SOURCE_KIND = "task_updated_boost";
+const TASK_WORK_ITEM_SOURCE_KIND = "task_work_item";
 const TASK_WORK_ITEM_SOURCE_KEY = "tasks:task";
 const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
 
@@ -139,13 +140,14 @@ async function listResumeCandidates(session, query = {}) {
 async function listWorkCandidates(session, query = {}) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const sourceContext = await readCandidateSourceContext(session);
-  const [resumeResult, liveTimers] = await Promise.all([
+  const [resumeResult, liveTimers, taskWorkItems] = await Promise.all([
     listResumeCandidates(session, { ...query, limit: Math.min(MAX_LIMIT, normalizedQuery.limit * 4) }),
     listLiveTimerCandidates(session, normalizedQuery, sourceContext),
+    listTaskWorkItemCandidates(session, normalizedQuery, sourceContext),
   ]);
   const bySource = new Map();
 
-  for (const candidate of [...liveTimers, ...(resumeResult.items || [])]) {
+  for (const candidate of [...liveTimers, ...(resumeResult.items || []), ...taskWorkItems]) {
     if (!matchesCandidateQuery(candidate, normalizedQuery) || !isCandidateSourceAvailable(candidate, sourceContext)) {
       continue;
     }
@@ -165,6 +167,28 @@ async function listWorkCandidates(session, query = {}) {
     }).slice(0, normalizedQuery.limit),
     mode: normalizedQuery.mode || resumeResult.mode,
   };
+}
+
+async function listTaskWorkItemCandidates(session, query = {}, sourceContext = null) {
+  const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
+  const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
+
+  if (!normalizedQuery.includeTaskCandidates || !resolvedSourceContext.workItemSourceKeys.has(TASK_WORK_ITEM_SOURCE_KEY)) {
+    return [];
+  }
+
+  const result = await tasksService.listWorkbenchItems(session, {
+    ...optionalContextFilter("clientId", normalizedQuery.clientId),
+    ...optionalContextFilter("projectId", normalizedQuery.projectId),
+    sort: "due_at",
+    status: "active",
+  });
+
+  if (result.source_enabled === false) {
+    return [];
+  }
+
+  return (result.items || []).map((item) => candidateFromTaskWorkItem(item));
 }
 
 async function listLiveTimerCandidates(session, query = {}, sourceContext = null) {
@@ -205,7 +229,12 @@ async function readSecondMostRecentUpdatedTaskCandidate(session, query = {}, sou
     .filter((item) => !["complete", "archived"].includes(normalizeFilterToken(item.status)));
   const secondMostRecentTask = eligibleTasks[1];
 
-  return secondMostRecentTask ? candidateFromTaskWorkItem(secondMostRecentTask) : null;
+  return secondMostRecentTask
+    ? candidateFromTaskWorkItem(secondMostRecentTask, {
+        reason: "Recover the work before the latest update.",
+        sourceKind: TASK_UPDATED_BOOST_SOURCE_KIND,
+      })
+    : null;
 }
 
 function rankWorkCandidates(candidates = [], options = {}) {
@@ -224,21 +253,26 @@ function rankWorkCandidates(candidates = [], options = {}) {
     .map((entry) => entry.candidate);
 }
 
-function candidateFromTaskWorkItem(item = {}) {
+function candidateFromTaskWorkItem(item = {}, options = {}) {
   const taskId = textValue(firstValue(item.task_id, item.source_id), TEXT_LIMITS.recordId);
   const sourceUrl = safeUrl(item.source_url) || (taskId ? `tasks.html?task=${encodeURIComponent(taskId)}` : "");
   const title = textValue(firstValue(item.title, item.source_label), TEXT_LIMITS.title) || "Task";
+  const sourceKind = textValue(options.sourceKind, TEXT_LIMITS.sourceKind) || TASK_WORK_ITEM_SOURCE_KIND;
 
   return normalizeWorkCandidate({
-    candidateId: `${TASK_UPDATED_BOOST_SOURCE_KIND}:tasks:task:${taskId}`,
+    blockedReason: item.blocked_reason,
+    candidateId: `${sourceKind}:tasks:task:${taskId}`,
     clientId: item.client_id,
     contextLabel: taskWorkItemContextLabel(item),
-    dueAt: firstValue(item.due_at_utc, item.due_at, item.due_date),
+    createdAt: item.created_at,
+    dueAt: firstNonEmptyValue(item.due_at_utc, item.due_at, item.due_date),
     handoffNote: item.resume_note,
     lastWorkedAt: item.last_worked_at,
     metadata: {
       assigned_to_current_user: item.assigned_to_current_user === true,
       checklist_progress: item.checklist_progress || item.checklistProgress || null,
+      recurrence_instance_date: item.recurrence_instance_date || "",
+      recurrence_template_id: item.recurrence_template_id || "",
       timer_status: item.timer_status || "",
     },
     moduleId: "tasks",
@@ -246,10 +280,10 @@ function candidateFromTaskWorkItem(item = {}) {
     primaryAction: openPrimaryAction(sourceUrl),
     priority: item.priority,
     projectId: item.project_id,
-    reason: "Recover the work before the latest update.",
+    reason: options.reason || taskWorkItemReason(item),
     recordId: taskId,
     recordType: "task",
-    sourceKind: TASK_UPDATED_BOOST_SOURCE_KIND,
+    sourceKind,
     sourceUrl,
     status: item.status,
     title,
@@ -300,6 +334,20 @@ function taskWorkItemContextLabel(item = {}) {
     .map((value) => textValue(value, 120))
     .filter(Boolean)
     .join(" / ");
+}
+
+function taskWorkItemReason(item = {}) {
+  if (item.next_action) {
+    return item.next_action;
+  }
+  if (item.blocked_reason) {
+    return `Blocked: ${item.blocked_reason}`.slice(0, TEXT_LIMITS.reason);
+  }
+  if (item.due_at || item.due_at_utc || item.due_date) {
+    return "Due work is ready to focus.";
+  }
+
+  return "Task work is ready to focus.";
 }
 
 function candidateFromTimer(timer = {}) {
@@ -588,6 +636,10 @@ function normalizeListQuery(query = {}, options = {}) {
     dueFrom: dateKeyFrom(firstValue(flattenedQuery.dueFrom, flattenedQuery.due_from), timezone),
     dueOn: dateKeyFrom(firstValue(flattenedQuery.dueOn, flattenedQuery.due_on), timezone),
     dueTo: dateKeyFrom(firstValue(flattenedQuery.dueTo, flattenedQuery.due_to), timezone),
+    includeTaskCandidates: booleanFlag(firstValue(
+      flattenedQuery.includeTaskCandidates,
+      flattenedQuery.include_task_candidates,
+    )),
     limit: boundedInteger(flattenedQuery.limit, 1, MAX_LIMIT, DEFAULT_LIMIT),
     mode: textValue(flattenedQuery.mode, 40) || "left_off",
     moduleId: textValue(firstValue(flattenedQuery.moduleId, flattenedQuery.module_id), TEXT_LIMITS.moduleId),
@@ -804,8 +856,8 @@ function compareResumeCandidates(left, right) {
 }
 
 function compareDueDatetimeCandidates(left, right) {
-  return compareOptionalNumber(left.facts.dueTime, right.facts.dueTime) ||
-    compareOptionalText(left.facts.dueDateKey, right.facts.dueDateKey) ||
+  return compareOptionalText(left.facts.dueDateKey, right.facts.dueDateKey) ||
+    compareOptionalNumber(left.facts.dueTime, right.facts.dueTime) ||
     left.facts.bucket - right.facts.bucket ||
     right.facts.rankHint - left.facts.rankHint ||
     right.facts.priorityRank - left.facts.priorityRank ||
@@ -871,12 +923,12 @@ function isInProgressTask(candidate) {
 function matchesPassiveRecurringCreated(candidate, query) {
   return !query.excludePassiveRecurringCreated ||
     !isPassiveRecurringCreatedCandidate(candidate) ||
-    isWithinRecurringCreatedDueWindow(candidate, rankContext(query));
+    isOverdueOrWithinRecurringCreatedDueWindow(candidate, rankContext(query));
 }
 
 function isNearDueRecurringCreatedCandidate(candidate, context) {
   return isPassiveRecurringCreatedCandidate(candidate) &&
-    isWithinRecurringCreatedDueWindow(candidate, context) &&
+    isOverdueOrWithinRecurringCreatedDueWindow(candidate, context) &&
     isRecentlyTouched(
       dateKeyFrom(candidate.lastWorkedAt || candidate.updatedAt || candidate.createdAt, context.timezone),
       context.recentSinceDateKey,
@@ -908,7 +960,25 @@ function isTaskCreatedSignal(candidate) {
 
   return actionType === "task.created" ||
     actionType === "task_created" ||
-    actionLabel === "task_created";
+    actionLabel === "task_created" ||
+    isPassiveTaskWorkItemCandidate(candidate);
+}
+
+function isPassiveTaskWorkItemCandidate(candidate) {
+  return candidate.sourceKind === TASK_WORK_ITEM_SOURCE_KIND &&
+    normalizeFilterToken(candidate.status) === "open" &&
+    !candidate.nextAction &&
+    !candidate.handoffNote &&
+    !textValue(candidate.metadata?.timer_status || candidate.metadata?.timerStatus, TEXT_LIMITS.status);
+}
+
+function isOverdueOrWithinRecurringCreatedDueWindow(candidate, context) {
+  const dueDateKey = dateKeyFrom(
+    candidate.dueAt || candidate.metadata?.recurrence_instance_date || candidate.metadata?.recurrenceInstanceDate,
+    context.timezone,
+  );
+
+  return isOverdueWork(dueDateKey, context.today) || isWithinRecurringCreatedDueWindow(candidate, context);
 }
 
 function isWithinRecurringCreatedDueWindow(candidate, context) {
@@ -1136,6 +1206,10 @@ function safeUrl(value) {
 
 function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null);
+}
+
+function firstNonEmptyValue(...values) {
+  return values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
 }
 
 function optionalContextFilter(key, value) {

@@ -145,6 +145,8 @@ As of 0.33.6.12g, Workbench view-state panels are mutually exclusive in both lay
 
 As of 0.33.6.12h, the visible row order inside Task Focus Inspector's `Same project tasks` group is due-driven rather than newest-first. Users should see due-today and overdue tasks first, then upcoming due tasks from nearest to farthest, with no-due tasks at the end of that group.
 
+As of 0.33.6.12o, Focus Selection due/project/client/blocked modes render the service-owned overdue-aware candidate order. Due-focused modes include overdue active task work before due-today and upcoming work, project/client focus modes do not hide overdue scoped tasks, blocked focus remains blocked-only while putting blocked-overdue work first, and the recommended-action top-five plus right-side Inspector overflow must stay slices of the same ordered list.
+
 As of 0.33.6.12j, the Task Focus summary keeps one Client/Project context line and uses the summary chip row for status, priority, due date/time, and safe direct tags. The summary lead text should not repeat the same Client/Project path when a task has no next action, resume note, or description.
 
 As of 0.33.6.12k, the Task Focus timer display has one visible focused-task timer representation: the Task Timer section counter and controls. The lower timer panel is renamed `Other Active Timers`, remains available in Task Focus, excludes the focused task's active/paused timer, keeps other task and manual active/paused timers visible, and uses `No other active or paused timers.` when its filtered list is empty.

@@ -1,3 +1,10 @@
+## Version 0.33.6.12o - 2026-07-09 16:02 -04:00
+
+- Made Workbench due-focused modes include overdue active Tasks-owned work first, including task work that has no recent resume-state row, and removed the `Work this week` lower-bound filter that hid overdue work.
+- Extended project, client, and blocked focus candidate sourcing so overdue scoped tasks are eligible and ordered before less urgent work while blocked focus remains blocked-only and Client/Project exact-match scope still holds.
+- Preserved passive recurring-created suppression except for overdue or near-due occurrences, added overdue-focused fixture and docs assertions to `scripts/work-focus-modes-regression.mjs`, refreshed Workbench/Tasks contracts, advanced version guardrails to 0.33.6.12o, and marked the roadmap slice complete.
+- Verification 2026-07-09 16:09 -04:00: focused Workbench focus-mode, guided UI, recommendation cycling, Inspector, split filter, view-state, and Task Focus related-context regressions passed; `npm run test:permissions` passed 240 checks; standalone ESLint passed; `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.12o from the refreshed local 8001 server. `npm run check` reached 191/306 regression scripts before stopping on the pre-existing/unrelated `docs/licensing/` legacy-cleanup blocker.
+
 ## Version 0.33.6.12n - 2026-07-09 15:10 -04:00
 
 - Added recurrence-template storage for task linked-note relationship metadata so `All Future` saves carry readable linked notes forward without copying note bodies.
