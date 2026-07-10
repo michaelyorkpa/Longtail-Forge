@@ -2,6 +2,8 @@
 
 Use this checklist when applying the licensing docs to the repo.
 
+Current process-gate status is maintained in the [repo-level licensing hub](../licensing.md#future-process-gates). Run `npm run licensing:gates` for the warning-only artifact readout. Missing future public-release or contributor-intake files do not block ordinary private development.
+
 ## Repository Layout
 
 The licensing documents live at these paths:
@@ -91,7 +93,7 @@ Suggested short notice:
 Longtail Forge and related marks are trademarks or service marks of Michael York d/b/a Raymond Tec. Use of the name and marks is governed by docs/licensing/trademark-policy.md.
 ```
 
-## App Legal Notices
+## App Legal Notices (Public-Release Gate)
 
 Before public release, consider adding an in-app legal/about screen containing:
 
@@ -103,7 +105,7 @@ Before public release, consider adding an in-app legal/about screen containing:
 - third-party notices link;
 - trademark notice.
 
-## Third-Party Notices
+## Third-Party Notices (Public-Release Gate)
 
 Before public release, generate or maintain:
 

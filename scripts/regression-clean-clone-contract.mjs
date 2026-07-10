@@ -26,6 +26,8 @@ const requiredSupportFiles = [
   "scripts/lib/regression-metadata.mjs",
   "scripts/lib/regression-runner-options.mjs",
   "scripts/generate-regression-manifest.mjs",
+  "scripts/check-licensing-gates.mjs",
+  "scripts/lib/licensing-gates.mjs",
   "scripts/test-support/regression-runner-scheduler.mjs",
   "scripts/test-support/source-scan.mjs",
 ];

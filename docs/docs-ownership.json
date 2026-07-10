@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "noteConvention": {
+    "docsUpdated": "Docs updated: <comma-separated paths>.",
+    "noDocsChangeNeeded": "No docs change needed: <short reason>."
+  },
+  "areas": [
+    {
+      "id": "workbench",
+      "label": "Workbench",
+      "sourcePatterns": [
+        "^public/js/workbench(?:[./-]|$)",
+        "^src/(?:routes|services)/workbench(?:[./-]|$)",
+        "^views/protected/workbench\\.html$"
+      ],
+      "docs": [
+        "docs/ui-layout-guide.md",
+        "docs/workflow-context-contract.md"
+      ]
+    },
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "sourcePatterns": [
+        "^public/js/dashboard(?:[./-]|$)",
+        "^src/(?:modules|routes|services)/dashboard(?:/|[.-])",
+        "^views/protected/dashboard\\.html$"
+      ],
+      "docs": [
+        "docs/ui-layout-guide.md",
+        "docs/workflow-context-contract.md"
+      ]
+    },
+    {
+      "id": "tasks",
+      "label": "Tasks",
+      "sourcePatterns": [
+        "^public/js/tasks(?:[./-]|$)",
+        "^src/modules/tasks/",
+        "^views/protected/tasks\\.html$"
+      ],
+      "docs": [
+        "docs/tasks-module.md",
+        "docs/tasks-strict-guardrail-inventory.md",
+        "docs/workflow-context-contract.md",
+        "help/framework/tasks-basics.md",
+        "help/modules/tasks/resuming-task-work.md"
+      ]
+    },
+    {
+      "id": "notes",
+      "label": "Notes",
+      "sourcePatterns": [
+        "^public/js/notes(?:[./-]|$)",
+        "^src/modules/notes/",
+        "^views/protected/notes\\.html$"
+      ],
+      "docs": [
+        "docs/notes-import-planning.md",
+        "docs/notes-module.md",
+        "docs/workflow-context-contract.md",
+        "help/modules/notes/using-notes.md"
+      ]
+    },
+    {
+      "id": "lists",
+      "label": "Lists",
+      "sourcePatterns": [
+        "^public/js/lists(?:[./-]|$)",
+        "^src/modules/lists/",
+        "^views/protected/lists\\.html$"
+      ],
+      "docs": [
+        "docs/lists-module.md",
+        "help/modules/lists/using-lists.md"
+      ]
+    },
+    {
+      "id": "files",
+      "label": "Files",
+      "sourcePatterns": [
+        "^public/js/(?:shared/)?files?(?:[./-]|$)",
+        "^src/(?:core|modules|routes|services)/files?(?:/|[.-])",
+        "^views/protected/files\\.html$"
+      ],
+      "docs": [
+        "docs/file-scanner-setup.md",
+        "docs/files-strict-guardrail-inventory.md",
+        "docs/module-contract.md",
+        "help/framework/files-and-attachments.md"
+      ]
+    },
+    {
+      "id": "search",
+      "label": "Search",
+      "sourcePatterns": [
+        "^public/js/search(?:[./-]|$)",
+        "^src/(?:core|routes|services)/search(?:/|[.-])"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/module-contract.md",
+        "help/framework/search.md"
+      ]
+    },
+    {
+      "id": "notifications",
+      "label": "Notifications",
+      "sourcePatterns": [
+        "^public/js/notifications?(?:[./-]|$)",
+        "^src/(?:core|modules|repositories|routes|services)/notifications?(?:/|[.-])"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/module-contract.md",
+        "help/framework/notifications.md"
+      ]
+    },
+    {
+      "id": "tags",
+      "label": "Tags",
+      "sourcePatterns": [
+        "^public/js/tags?(?:[./-]|$)",
+        "^src/(?:core|modules|repositories|routes|services)/tags?(?:/|[.-])"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/module-contract.md",
+        "help/framework/tags.md"
+      ]
+    },
+    {
+      "id": "time-tracking",
+      "label": "Time Tracking",
+      "sourcePatterns": [
+        "^public/js/(?:time-tracking|time-entries|timer)(?:[./-]|$)",
+        "^src/modules/time-tracking/",
+        "^views/protected/(?:time-entries|time-tracking)\\.html$"
+      ],
+      "docs": [
+        "docs/time-tracking-module.md",
+        "docs/workflow-context-contract.md",
+        "help/framework/time-tracking-basics.md"
+      ]
+    },
+    {
+      "id": "permissions",
+      "label": "Permissions",
+      "sourcePatterns": [
+        "^src/(?:repositories|routes|services)/permissions?(?:[./-]|$)",
+        "^src/(?:repositories|routes|services)/(?:sessions?|users?|workspaces?|user-workspaces)(?:[./-]|$)",
+        "^src/middleware/(?:auth|permissions?)(?:[./-]|$)"
+      ],
+      "docs": [
+        "docs/longtail_forge_permissions_matrix.md",
+        "docs/settings-control-matrix.md",
+        "help/framework/users-roles-and-permissions.md",
+        "help/framework/workspaces-and-switching.md"
+      ]
+    },
+    {
+      "id": "database",
+      "label": "Database",
+      "sourcePatterns": [
+        "^src/core/database\\.js$",
+        "^src/db/"
+      ],
+      "docs": [
+        "docs/database-parameter-binding-audit.md",
+        "docs/database.md",
+        "docs/sqlite-small-office-mode.md"
+      ]
+    },
+    {
+      "id": "module-contracts",
+      "label": "Module contracts",
+      "sourcePatterns": [
+        "^src/core/modules/",
+        "^src/modules/[^/]+/(?:index|manifest)\\.js$"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/module-contract.md",
+        "docs/module-development.md"
+      ]
+    },
+    {
+      "id": "view-building",
+      "label": "View building and declarative surfaces",
+      "sourcePatterns": [
+        "^public/js/shared/(?:view-|modal|drawer|surface)",
+        "^src/(?:core|views?)/.*(?:view|descriptor|surface)",
+        "^src/modules/[^/]+/.*(?:descriptor|surface)"
+      ],
+      "docs": [
+        "docs/accessibility.md",
+        "docs/declarative-view-surfaces.md",
+        "docs/ui-layout-guide.md",
+        "docs/ui-surface-contract.md",
+        "docs/view-building-contract.md"
+      ]
+    },
+    {
+      "id": "public-api",
+      "label": "Public API",
+      "sourcePatterns": [
+        "^src/(?:core|routes|services)/public-api(?:/|[.-])",
+        "^src/routes/api-v1(?:/|[.-])"
+      ],
+      "docs": [
+        "docs/longtail_forge_permissions_matrix.md",
+        "docs/public-api.md"
+      ]
+    },
+    {
+      "id": "licensing",
+      "label": "Licensing",
+        "sourcePatterns": [
+          "^LICENSE$",
+          "^docs/licensing(?:/|\\.md$)",
+          "^scripts/(?:check-licensing-gates|lib/licensing-gates)\\.mjs$",
+          "^scripts/regressions/licensing/"
+      ],
+      "docs": [
+        "docs/licensing.md",
+        "docs/licensing/README.md"
+      ]
+    },
+    {
+      "id": "release-process",
+      "label": "Release process",
+      "sourcePatterns": [
+        "^docs/docs-ownership\\.(?:json|md)$",
+        "^scripts/(?:bump-version|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-regressions|version-literal)",
+        "^scripts/(?:lib/docs-change-routing|suggest-docs-for-changes)\\.mjs$",
+        "^scripts/regressions/release/",
+        "^src/core/(?:asset-version|version)\\.js$",
+        "^src/routes/app-info\\.routes\\.js$"
+      ],
+      "docs": [
+        "docs/docs-ownership.json",
+        "docs/docs-ownership.md",
+        "docs/regression-suite-performance.md",
+        "docs/regression-suite.md",
+        "docs/versioning.md"
+      ]
+    }
+  ]
+}

@@ -69,33 +69,16 @@ FROM schema_migrations
 ORDER BY version;
 `);
 
-  assert.deepEqual(rows, [
-    {
-      version: "0.33.5.18.6.5.4",
-      module_id: "core",
-      name: "current_fresh_start_database",
-    },
-    {
-      version: migrationVersion,
-      module_id: "core",
-      name: "job_outbox_schema",
-    },
-    {
-      version: "066",
-      module_id: "core",
-      name: "user_markdown_link_preference",
-    },
-    {
-      version: "067",
-      module_id: "core",
-      name: "user_theme_auto_source",
-    },
-    {
-      version: "068",
-      module_id: "core",
-      name: "task_recurrence_checklist_items",
-    },
-  ]);
+  assert.deepEqual(
+    rows.filter((row) => row.version === migrationVersion),
+    [{ version: migrationVersion, module_id: "core", name: "job_outbox_schema" }],
+    "the owned job/outbox migration should be recorded exactly once without forbidding later migrations",
+  );
+  assert.deepEqual(rows[0], {
+    version: "0.33.5.18.6.5.4",
+    module_id: "core",
+    name: "current_fresh_start_database",
+  });
 }
 
 async function assertJobsTableShape() {

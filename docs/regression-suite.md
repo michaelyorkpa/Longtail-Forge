@@ -1,6 +1,6 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract after 0.33.6.16.5. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes narrow area commands plus conservative changed-file suggestions while preserving every 0.33.6.16.1 legacy script and its execution/isolation mode through a checked-in migration snapshot.
+This document records the current regression-suite contract through 0.33.6.16.9. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes narrow area commands plus conservative changed-file suggestions while preserving every 0.33.6.16.1 legacy script and its execution/isolation mode through a checked-in migration snapshot.
 
 ## Current Entry Points
 
@@ -13,6 +13,8 @@ This document records the current regression-suite contract after 0.33.6.16.5. T
 | `scripts/lib/regression-runner-options.mjs` | Parses area/tag/tier/list/dry-run options and filters the discovered bucket entries. |
 | `scripts/lib/regression-change-routing.mjs` | Maps changed repository paths to conservative focused-area commands without changing suite membership. |
 | `scripts/suggest-regressions-for-changes.mjs` | Inspects tracked and untracked working-tree changes and prints likely focused commands plus the unchanged release gate. |
+| `scripts/lib/docs-change-routing.mjs` | Validates the data-only documentation ownership index and maps changed source paths to likely owning documents. |
+| `scripts/suggest-docs-for-changes.mjs` | Prints changed-area documentation suggestions and the warning-only closeout disposition gate. |
 | `scripts/regression-legacy-snapshot.json` | Freezes the 312-script 0.33.6.16.1 legacy path and run-mode set so discovery cannot silently drop or parallelize an existing regression. |
 | `scripts/regression-coverage-ratchet.mjs` | Validates discovered metadata against the generated index and explicit policy, including active/area/release-gate/family floors plus retirement evidence. |
 | `scripts/lib/regression-manifest.mjs` | Builds the deterministic metadata index and owns coverage-policy validation shared by the generator and ratchet regressions. |
@@ -35,6 +37,12 @@ Current package commands:
 | `npm run audit:params` | Reports parameter-binding scan totals, reviewed baseline exceptions, new violations, and resolved findings without pinning informational counts. |
 | `npm run audit:params:check` | Fails on new unreviewed legacy-helper or template-interpolated SQL findings. |
 | `npm run audit:params:update-baseline` | Deterministically updates the reviewed finding baseline; reserved for dedicated parameter-binding cleanup. |
+| `npm run docs:suggest` | Lists mapped source areas and likely documentation owners for current tracked and untracked changes. |
+| `npm run docs:check` | Runs the same documentation review as a warning-only closeout gate and accepts an optional explicit `--note`. |
+| `npm run licensing:gates` | Reports missing future public-release and outside-contribution artifacts without failing ordinary private development. |
+| `npm run db:migration:create -- <name>` | Creates the next globally numbered core migration with a forward-only template after validating core/module migration numbers. |
+| `npm run db:schema:refresh` | Replays the fresh-start baseline plus ordered migrations into disposable SQLite and rewrites the generated final-schema snapshot. |
+| `npm run db:schema:check` | Fails on migration-number collisions, invalid names, generated snapshot drift, or an unaccompanied baseline-schema change. |
 | `npm run regressions:manifest` | Regenerates `scripts/regression-coverage-manifest.json` deterministically from discovery metadata and the exceptions policy. |
 | `npm run regressions:manifest:check` | Fails when the checked-in generated manifest differs from current discovery metadata or policy. |
 | `npm run lint` | Runs cached ESLint without the custom regression suite. |
@@ -42,11 +50,11 @@ Current package commands:
 
 ## Current Execution Model
 
-At completion of 0.33.6.16.5, the suite contains 316 discovered scripts: all 312 paths in `scripts/regression-legacy-snapshot.json` plus convention-path guardrails for discovery, manifest generation, regression routing, and canonical asset cache versioning. Existing regressions remain in their original buckets.
+At completion of 0.33.6.16.9, the suite contains 319 discovered scripts: all 312 paths in `scripts/regression-legacy-snapshot.json` plus convention-path guardrails for discovery, manifest generation, regression routing, canonical asset cache versioning, documentation ownership routing, migration/schema workflow, and licensing/public-release process gates. Existing regressions remain in their original buckets.
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |
-| `static/source regressions` | 155 | parallel | 6 | The 151 legacy read-only/parallel-safe checks plus the discovery, manifest-generation, regression-routing, and asset-version guardrails; these do not receive a runner database fixture. |
+| `static/source regressions` | 158 | parallel | 6 | The 151 legacy read-only/parallel-safe checks plus the discovery, manifest-generation, regression-routing, asset-version, documentation-ownership, migration/schema-workflow, and licensing-gate guardrails; these do not receive a runner database fixture. |
 | `default database regressions` | 6 | serial | 1 | Search/database checks whose current ordering and shared-state assumptions remain serial. |
 | `file storage regressions` | 29 | serial | 1 | File storage/scanner checks remain serial until their database, filesystem, port, and process isolation is explicitly proven. |
 | `isolated database regressions` | 126 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
@@ -75,7 +83,7 @@ Legacy scripts live primarily at `scripts/*-regression.mjs`, and names frequentl
 | Module contracts | `scripts/module-*`, manifest/contribution checks, module sanity, and module-owned workflow regressions; cross-cutting module-contract checks use the `framework` area plus tags | `framework` |
 | Background jobs and worker runner | `scripts/job-*`, `worker-runner-regression.mjs`, `separate-worker-end-to-end-regression.mjs`, `background-work-jobs-regression.mjs`, and producer-specific job checks | `jobs` |
 | App-info, version, and release gates | `bump-version-regression.mjs`, `version-literal-guardrail-regression.mjs`, clean-clone/coverage ratchets, and app-info/version assertions distributed through runtime and closeout checks | `release` |
-| Licensing and public-release gates | No dedicated licensing/public-release gate exists yet. `shared-icons-regression.mjs` protects Lucide attribution, and `legacy-cleanup-regression.mjs` recognizes the root `LICENSE`; 0.33.6.16.9 owns any explicit warning-only gate | `licensing` |
+| Licensing and public-release gates | The warning-only licensing/public-release process gate protects the current AGPL/package/README/link contract and reports future publication/contribution artifacts without failing ordinary private development | `licensing` |
 
 Additional canonical areas cover inventory that is not called out as a separate legacy category: `framework`, `time-tracking`, and `docs`. Cross-cutting behavior belongs to one primary area and carries its other concerns as tags rather than being registered more than once.
 

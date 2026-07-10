@@ -342,13 +342,13 @@ SQLite inline mode remains intentionally simple: the app's inline worker poll ti
 
 ## Fresh Baseline
 
-The active schema lives in:
+The manually maintained fresh-start baseline lives in:
 
 ```text
 src/db/schema/current.sql
 ```
 
-That file creates the current workspace-native schema directly, including framework tables, first-party module tables, indexes, current role/permission seed rows, and the `schema_migrations` table.
+That file creates the consolidated workspace-native baseline through version `0.33.5.18.6.5.4`, including framework tables, first-party module tables, indexes, baseline seed rows, and the `schema_migrations` table. It is executable startup input, not the generated final-schema snapshot. Post-baseline migrations remain separate checksum-tracked files and are applied after it.
 
 Fresh databases record one baseline row:
 
@@ -358,7 +358,18 @@ module_id = core
 name = current_fresh_start_database
 ```
 
-The old incremental migration files were consolidated into `current.sql` and removed from the active source tree. Startup no longer replays historical migration files for a new database.
+The old incremental migration files were consolidated into `current.sql` and removed from the active source tree. Startup does not replay that removed history for a new database; it executes the baseline and then the active post-baseline migration set.
+
+The generated final SQLite schema verification snapshot lives at `src/db/schema/current.generated.sql`. It is derived by applying the manually maintained fresh-start baseline plus every ordered core/module migration to a disposable in-memory SQLite database, then serializing the resulting `sqlite_schema`. It contains schema only, not seed data, and must not be edited by hand.
+
+Refresh or verify it with:
+
+```sh
+npm run db:schema:refresh
+npm run db:schema:check
+```
+
+`db:schema:check` fails when the checked-in generated snapshot differs from a fresh replay, when migration numbers collide, or when migration filenames do not follow the required convention. A change to `src/db/schema/current.sql` without a forward migration also fails. The explicit `--allow-schema-without-migration` option exists only for bounded test/maintenance work; it is not a normal feature-development escape hatch.
 
 ## Existing Databases
 
@@ -370,21 +381,29 @@ Checksum validation remains active for the current baseline and for any future m
 
 ## Future Migrations
 
-New schema changes after 0.33.5.18.6.5.4 should be added as normal SQL migration files with versions newer than the baseline. The first future migration is `065_job_outbox_schema.sql`; later migrations should keep advancing the migration number, such as:
+New schema changes after 0.33.5.18.6.5.4 must be added as forward-only SQL migration files with versions newer than the baseline. Create the next core migration with:
 
-```text
-src/db/migrations/066_add_example.sql
+```sh
+npm run db:migration:create -- <name>
 ```
 
-Future migrations are applied after the baseline and still receive checksum validation. Do not edit an applied future migration in place.
+The helper scans core and module migration directories, rejects duplicate global migration numbers, chooses the next number, normalizes the name to lowercase snake case, and creates a minimal transaction-free template. The migration runner owns the transaction. With migrations currently ending at `069`, the next generated shape is:
 
-First-party module schema that is required by the bundled app should be folded into `src/db/schema/current.sql` when the baseline is deliberately refreshed. Optional or third-party module schema should use future module-owned migrations once third-party loading exists.
+```text
+src/db/migrations/070_add_example.sql
+```
+
+After filling in the migration, run `npm run db:schema:refresh`, review the generated snapshot diff, and run `npm run db:schema:check`. Future migrations are applied after the baseline and still receive checksum validation. Do not edit an applied future migration in place.
+
+`src/db/schema/current.sql` remains the manually maintained fresh-start baseline and is verified against the generated final schema; it is not refreshed for every ordinary migration. A deliberate future baseline consolidation must preserve upgrade migrations/checksums for existing installs and update the baseline marker contract explicitly. Optional or third-party module schema should use module-owned migration directories once third-party loading exists.
 
 ## Verification
 
 Database-related changes should run:
 
 ```sh
+npm run db:schema:check
+npm run test:regressions:database
 npm run check
 ```
 

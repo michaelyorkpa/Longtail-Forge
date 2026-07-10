@@ -3,16 +3,17 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 316,
+    "discoveredScripts": 319,
     "legacyScripts": 312,
-    "releaseGateScripts": 11,
+    "releaseGateScripts": 14,
     "areaCounts": {
       "dashboard": 1,
-      "database": 25,
-      "docs": 7,
+      "database": 26,
+      "docs": 8,
       "files": 44,
       "framework": 35,
       "jobs": 7,
+      "licensing": 1,
       "lists": 12,
       "notes": 35,
       "notifications": 3,
@@ -29,14 +30,14 @@
     "tierCounts": {
       "focused": 143,
       "integration": 153,
-      "release-gate": 11,
+      "release-gate": 14,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 126,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 155
+      "static": 158
     }
   },
   "coverageFamilies": [
@@ -2407,6 +2408,37 @@
       "tier": "release-gate"
     },
     {
+      "area": "database",
+      "description": "Proves deterministic migration creation and generated final-schema drift detection without changing the SQLite runtime contract.",
+      "id": "database.migration-schema-workflow",
+      "legacy": false,
+      "path": "scripts/regressions/database/migration-schema-workflow.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "database",
+        "migrations",
+        "release",
+        "schema"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "docs",
+      "description": "Proves changed source areas suggest owning documentation while the closeout gate remains explicit and warning-only.",
+      "id": "docs.ownership-routing",
+      "legacy": false,
+      "path": "scripts/regressions/docs/docs-ownership-routing.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "docs",
+        "release",
+        "routing"
+      ],
+      "tier": "release-gate"
+    },
+    {
       "area": "framework",
       "description": "Proves one application-derived asset version decorates served pages, runtime loaders, and module assets while raw keys stay guarded.",
       "id": "framework.asset-cache-version",
@@ -2417,6 +2449,20 @@
       "tags": [
         "assets",
         "cache",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "licensing",
+      "description": "Proves current licensing references and warning-only future publication and contribution gates remain explicit.",
+      "id": "licensing.public-release-gates",
+      "legacy": false,
+      "path": "scripts/regressions/licensing/licensing-public-release-gates.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "licensing",
         "release"
       ],
       "tier": "release-gate"

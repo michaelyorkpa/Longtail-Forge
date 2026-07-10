@@ -430,53 +430,53 @@ Reduce time spent guessing which docs must be updated for every implementation s
 
 This slice does not reduce documentation quality. It makes documentation ownership explicit so Codex/Claude can update the right docs and explicitly skip irrelevant docs.
 
-* [ ] Add a docs ownership index, for example:
+* [x] Add a docs ownership index, for example:
 
-  * [ ] `docs/docs-ownership.json`
-  * [ ] or `docs/maintenance/docs-ownership.json`
-* [ ] Map source areas to likely docs:
+  * [x] `docs/docs-ownership.json`
+  * Not selected: `docs/maintenance/docs-ownership.json`
+* [x] Map source areas to likely docs:
 
-  * [ ] Workbench.
-  * [ ] Dashboard.
-  * [ ] Tasks.
-  * [ ] Notes.
-  * [ ] Lists.
-  * [ ] Files.
-  * [ ] Search.
-  * [ ] Notifications.
-  * [ ] Tags.
-  * [ ] Time Tracking.
-  * [ ] Permissions.
-  * [ ] Database.
-  * [ ] Module contracts.
-  * [ ] View-building/declarative surfaces.
-  * [ ] Public API.
-  * [ ] Licensing.
-  * [ ] Release process.
-* [ ] Add a docs suggestion helper, for example:
+  * [x] Workbench.
+  * [x] Dashboard.
+  * [x] Tasks.
+  * [x] Notes.
+  * [x] Lists.
+  * [x] Files.
+  * [x] Search.
+  * [x] Notifications.
+  * [x] Tags.
+  * [x] Time Tracking.
+  * [x] Permissions.
+  * [x] Database.
+  * [x] Module contracts.
+  * [x] View-building/declarative surfaces.
+  * [x] Public API.
+  * [x] Licensing.
+  * [x] Release process.
+* [x] Add a docs suggestion helper, for example:
 
-  * [ ] `scripts/suggest-docs-for-changes.mjs`
-* [ ] The helper should inspect changed files and list likely docs to review.
-* [ ] Add a docs-change note convention:
+  * [x] `scripts/suggest-docs-for-changes.mjs`
+* [x] The helper should inspect changed files and list likely docs to review.
+* [x] Add a docs-change note convention:
 
-  * [ ] Docs updated: list paths.
-  * [ ] No docs change needed: short reason.
-* [ ] Add a lightweight guardrail for release closeout:
+  * [x] Docs updated: list paths.
+  * [x] No docs change needed: short reason.
+* [x] Add a lightweight guardrail for release closeout:
 
-  * [ ] If source files in a mapped area changed and no likely docs changed, print a warning or require an explicit no-doc-change note.
-  * [ ] Keep this as warning-only at first unless the project decides to hard-fail later.
-* [ ] Add focused regressions proving:
+  * [x] If source files in a mapped area changed and no likely docs changed, print a warning or require an explicit no-doc-change note.
+  * [x] Keep this as warning-only at first unless the project decides to hard-fail later.
+* [x] Add focused regressions proving:
 
-  * [ ] Changed tasks files suggest Tasks docs.
-  * [ ] Changed Workbench files suggest UI/view/workbench docs.
-  * [ ] Changed database/migration files suggest database docs.
-  * [ ] Changed licensing docs suggest licensing docs/index.
-  * [ ] Unmapped files do not produce noisy false positives.
-* [ ] Update agent/development docs:
+  * [x] Changed tasks files suggest Tasks docs.
+  * [x] Changed Workbench files suggest UI/view/workbench docs.
+  * [x] Changed database/migration files suggest database docs.
+  * [x] Changed licensing docs suggest licensing docs/index.
+  * [x] Unmapped files do not produce noisy false positives.
+* [x] Update agent/development docs:
 
-  * [ ] Use docs suggestion helper during closeout.
-  * [ ] Do not update five docs by reflex.
-  * [ ] Do update docs that own the changed contract.
+  * [x] Use docs suggestion helper during closeout.
+  * [x] Do not update five docs by reflex.
+  * [x] Do update docs that own the changed contract.
 
 Acceptance criteria:
 
@@ -495,46 +495,46 @@ Reduce hand-maintained migration/schema drift before the TypeScript and database
 
 This slice does not change the database engine or add Postgres. It improves the workflow around migrations and schema snapshots.
 
-* [ ] Inventory current migration/schema workflow:
+* [x] Inventory current migration/schema workflow:
 
-  * [ ] migration file naming
-  * [ ] migration runner behavior
-  * [ ] `src/db/schema/current.sql`
-  * [ ] fresh database regression
-  * [ ] migration compatibility regression
-  * [ ] SQLite performance/seed regressions
-* [ ] Add a migration creation helper, for example:
+  * [x] migration file naming
+  * [x] migration runner behavior
+  * [x] `src/db/schema/current.sql`
+  * [x] fresh database regression
+  * [x] migration compatibility regression
+  * [x] SQLite performance/seed regressions
+* [x] Add a migration creation helper, for example:
 
-  * [ ] `npm run db:migration:create -- <name>`
-* [ ] The helper should:
+  * [x] `npm run db:migration:create -- <name>`
+* [x] The helper should:
 
-  * [ ] choose the next migration number
-  * [ ] create a correctly named migration file
-  * [ ] include a minimal safe template
-  * [ ] avoid duplicate numbers
-* [ ] Add a schema refresh/check workflow, for example:
+  * [x] choose the next migration number
+  * [x] create a correctly named migration file
+  * [x] include a minimal safe template
+  * [x] avoid duplicate numbers
+* [x] Add a schema refresh/check workflow, for example:
 
-  * [ ] `npm run db:schema:refresh`
-  * [ ] `npm run db:schema:check`
-* [ ] Decide and document whether `src/db/schema/current.sql` is:
+  * [x] `npm run db:schema:refresh`
+  * [x] `npm run db:schema:check`
+* [x] Decide and document whether `src/db/schema/current.sql` is:
 
-  * [ ] generated from migrations; or
-  * [ ] manually maintained but verified against a generated schema.
-* [ ] Prefer generated-or-verified schema over hand-edited schema drift.
+  * Not selected: generated from migrations.
+  * [x] manually maintained but verified against a generated schema.
+* [x] Prefer generated-or-verified schema over hand-edited schema drift.
 
   * Recommended default: keep `current.sql` manually maintained but verified against a generated schema (lighter than full generation); move to fully generating it from migrations only if drift keeps recurring.
-* [ ] Add a guardrail:
+* [x] Add a guardrail:
 
-  * [ ] If migrations change, schema check must prove `current.sql` is current.
-  * [ ] If schema changes without a migration, fail unless explicitly allowed for docs/test-only work.
-* [ ] Add focused regressions proving:
+  * [x] If migrations change, schema check must prove `current.sql` is current.
+  * [x] If schema changes without a migration, fail unless explicitly allowed for docs/test-only work.
+* [x] Add focused regressions proving:
 
-  * [ ] migration creation helper produces deterministic next names
-  * [ ] duplicate migration numbers fail
-  * [ ] schema refresh/check detects drift
-  * [ ] fresh database still builds from migrations
-  * [ ] migration compatibility regression still runs
-* [ ] Update database docs with the new workflow.
+  * [x] migration creation helper produces deterministic next names
+  * [x] duplicate migration numbers fail
+  * [x] schema refresh/check detects drift
+  * [x] fresh database still builds from migrations
+  * [x] migration compatibility regression still runs
+* [x] Update database docs with the new workflow.
 
 Acceptance criteria:
 
@@ -554,39 +554,39 @@ Clarify that the licensing docs are not a routine per-slice cleanup burden. Sepa
 
 This slice is not a legal rewrite. It is a repo-process clarification.
 
-* [ ] Review the current licensing hub, licensing directory index, root README license section, package metadata license value, root `LICENSE`, and trademark notice.
-* [ ] Confirm the current state is documented:
+* [x] Review the current licensing hub, licensing directory index, root README license section, package metadata license value, root `LICENSE`, and trademark notice.
+* [x] Confirm the current state is documented:
 
-  * [ ] Longtail Forge Core uses `AGPL-3.0-only`.
-  * [ ] Commercial licensing / hosted SaaS / private deployment tooling may be separate.
-  * [ ] Trademark policy is linked.
-  * [ ] Licensing policy docs are discoverable from README and `docs/licensing.md`.
-* [ ] Clarify future gates in one place:
+  * [x] Longtail Forge Core uses `AGPL-3.0-only`.
+  * [x] Commercial licensing / hosted SaaS / private deployment tooling may be separate.
+  * [x] Trademark policy is linked.
+  * [x] Licensing policy docs are discoverable from README and `docs/licensing.md`.
+* [x] Clarify future gates in one place:
 
-  * [ ] Contribution gate.
-  * [ ] Public release legal/about screen.
-  * [ ] Third-party notices.
-  * [ ] PR template / CLA requirement before accepting outside contributions.
-  * [ ] Private repo boundary for SaaS billing, tenant provisioning, hosted backups, production monitoring, customer admin tooling, managed deployment automation, paid plugins, and commercial license templates.
-* [ ] Add a lightweight licensing gate check, warning-only unless the project decides otherwise:
+  * [x] Contribution gate.
+  * [x] Public release legal/about screen.
+  * [x] Third-party notices.
+  * [x] PR template / CLA requirement before accepting outside contributions.
+  * [x] Private repo boundary for SaaS billing, tenant provisioning, hosted backups, production monitoring, customer admin tooling, managed deployment automation, paid plugins, and commercial license templates.
+* [x] Add a lightweight licensing gate check, warning-only unless the project decides otherwise:
 
-  * [ ] Before public release, warn if `THIRD_PARTY_NOTICES.md` does not exist.
-  * [ ] Before public contribution acceptance, warn if `CONTRIBUTING.md` / PR template / CLA process is not present.
-  * [ ] Do not block normal private development slices on contribution/public-release gates.
-* [ ] Add or update docs so agents understand:
+  * [x] Before public release, warn if `THIRD_PARTY_NOTICES.md` does not exist.
+  * [x] Before public contribution acceptance, warn if `CONTRIBUTING.md` / PR template / CLA process is not present.
+  * [x] Do not block normal private development slices on contribution/public-release gates.
+* [x] Add or update docs so agents understand:
 
-  * [ ] Do not keep rewriting licensing docs during unrelated slices.
-  * [ ] Do not add public-contributor language until outside contributions are actually being accepted.
-  * [ ] Do not put private SaaS/commercial templates in the public repo.
-  * [ ] Licensing docs are updated only for legal/policy changes, dependency notice changes, release-publication gates, or contributor-process gates.
-* [ ] Add focused regressions or static checks proving:
+  * [x] Do not keep rewriting licensing docs during unrelated slices.
+  * [x] Do not add public-contributor language until outside contributions are actually being accepted.
+  * [x] Do not put private SaaS/commercial templates in the public repo.
+  * [x] Licensing docs are updated only for legal/policy changes, dependency notice changes, release-publication gates, or contributor-process gates.
+* [x] Add focused regressions or static checks proving:
 
-  * [ ] README license still says `AGPL-3.0-only`.
-  * [ ] `package.json` license remains `AGPL-3.0-only`.
-  * [ ] Root `LICENSE` exists.
-  * [ ] docs licensing hub and index links resolve.
-  * [ ] Trademark policy link is still reachable.
-  * [ ] Public-release/contribution gate warnings do not fail ordinary development.
+  * [x] README license still says `AGPL-3.0-only`.
+  * [x] `package.json` license remains `AGPL-3.0-only`.
+  * [x] Root `LICENSE` exists.
+  * [x] docs licensing hub and index links resolve.
+  * [x] Trademark policy link is still reachable.
+  * [x] Public-release/contribution gate warnings do not fail ordinary development.
 
 Acceptance criteria:
 

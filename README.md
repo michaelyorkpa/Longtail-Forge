@@ -60,6 +60,7 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 - [CHANGELOG.md](CHANGELOG.md): completed release notes
 - [docs/architecture.md](docs/architecture.md): framework/module architecture direction
 - [docs/versioning.md](docs/versioning.md): application/asset-version sources, bump command, guardrails, and release workflow
+- [docs/docs-ownership.md](docs/docs-ownership.md): changed-area documentation suggestions and closeout note convention
 - [docs/module-contract.md](docs/module-contract.md): current module definition contract
 - [docs/notes-module.md](docs/notes-module.md): Notes module developer guide
 - [docs/time-tracking-module.md](docs/time-tracking-module.md): Time Tracking module boundary
@@ -117,6 +118,12 @@ The main check runs the full regression suite through a timed runner before ESLi
 
 For database query changes, run `npm run audit:params:check`. The scanner rejects new unreviewed interpolation findings while allowing informational bound/scanned totals to change without documentation reconciliation. Baseline updates are reserved for dedicated reviewed cleanup.
 
+For migration/schema changes, use `npm run db:migration:create -- <name>`, refresh the generated final-schema snapshot with `npm run db:schema:refresh`, and verify it with `npm run db:schema:check`.
+
+Run `npm run docs:suggest` during closeout to review likely documentation owners. `npm run docs:check` reports warning-only gaps; either update the owning docs or record `No docs change needed: <short reason>.` instead of updating unrelated docs by reflex.
+
+Run `npm run licensing:gates` when preparing a public release, changing dependency notices, or activating outside contribution intake. Its missing-artifact readout is warning-only and does not block ordinary private development.
+
 See [docs/regression-suite.md](docs/regression-suite.md) for the current metadata-driven discovery contract, bucket safety model, focused selection options, and add-a-regression workflow.
 
 Run the permission regression suite when permissions, workspace lifecycle, task access, reporting access, or module access rules change:
@@ -134,6 +141,8 @@ You may use, study, modify, and self-host Longtail Forge under the terms of the 
 Commercial licensing, managed hosting, official SaaS, support plans, private deployment tooling, and first-party commercial plugins may be offered separately by Michael York d/b/a Raymond Tec or a successor entity.
 
 See [docs/licensing.md](docs/licensing.md) for the full license stack and the policy documents in [docs/licensing/](docs/licensing/).
+
+Public-release and outside-contributor artifacts are future process gates. Their warning-only status is documented in the licensing hub; unrelated feature slices should not rewrite licensing policy to clear those future warnings.
 
 ## Trademark
 

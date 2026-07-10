@@ -123,6 +123,7 @@ async function assertActiveSourceHasNoLegacyOrganizationSurface() {
     /(^|[\\/])TODO\.md$/,
     /(^|[\\/])LICENSE$/,
     /(^|[\\/])archive[\\/]/,
+    /(^|[\\/])docs[\\/]licensing(?:\.md|[\\/])/,
     /(^|[\\/])docs[\\/]storage-rename-plan\.md$/,
     /(^|[\\/])src[\\/]db[\\/]migrations\.js$/,
     /(^|[\\/])scripts[\\/]legacy-cleanup-regression\.mjs$/,

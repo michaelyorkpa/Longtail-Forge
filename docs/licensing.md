@@ -23,6 +23,37 @@ If you modify Longtail Forge and make the modified app available to users over a
 
 Commercial use of the AGPL version is allowed, subject to the AGPL. Separate commercial licenses, hosted services, support plans, managed deployments, and proprietary first-party plugins may be offered by Michael York d/b/a Raymond Tec or a successor entity.
 
+## Current Repository Status
+
+The current licensing state is complete for ordinary private development:
+
+- Longtail Forge Core and the root package metadata use `AGPL-3.0-only`; the full license text is in the root [`LICENSE`](../LICENSE) file.
+- The commercial/hosted/private-tooling boundary remains separate from the public core license.
+- The [trademark policy](licensing/trademark-policy.md) governs use of the Longtail Forge name and branding.
+- Non-trivial outside code contributions are not currently being accepted. The existing contributor policy and agreement are planning documents, not an active public contribution process.
+
+Missing future publication or contribution artifacts do not mean the current license is broken, and they do not block ordinary private feature slices.
+
+## Future Process Gates
+
+These gates activate only when their trigger is intentionally reached:
+
+| Gate | Trigger | Required before activation |
+| --- | --- | --- |
+| Public contribution acceptance | The project begins accepting non-trivial outside code contributions | Add `CONTRIBUTING.md`, add a pull-request template, activate the CLA workflow, and link those instructions to the contributor policy. Do not add public-contributor language before that decision. |
+| Public app legal/about notice | The app is prepared for a public release | Add the legal/about surface with project/version, copyright, AGPL/source, warranty, third-party notice, and trademark references described by the repository integration checklist. |
+| Third-party notices | A public release is prepared or dependency/asset notice requirements change | Generate and review `THIRD_PARTY_NOTICES.md` for shipped dependencies and bundled third-party material. |
+
+Run `npm run licensing:gates` to see the current future-gate readout. The command is deliberately warning-only: absent public-release or public-contribution artifacts do not fail normal private development.
+
+### Private repository boundary
+
+Keep SaaS billing, tenant provisioning, hosted backups, production monitoring, customer admin tooling, managed deployment automation, paid first-party plugins, and customer-specific commercial license templates out of the public core repository unless the project intentionally changes that boundary.
+
+### Maintenance rule
+
+Do not rewrite licensing policy during unrelated feature slices. Update these documents only for an intentional legal/policy change, a dependency or bundled-asset notice change, a public-release publication gate, or activation of the outside-contributor process. Private SaaS/commercial templates do not belong in this public repository.
+
 ## Licensing Documents
 
 - [`licensing/README.md`](licensing/README.md): index of the licensing directory

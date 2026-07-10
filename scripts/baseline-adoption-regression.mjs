@@ -27,6 +27,7 @@ async function simulateCurrentSchemaWithHistoricalMigrationRows() {
   await runSql(`
 DROP TABLE IF EXISTS jobs;
 DROP TABLE IF EXISTS task_recurrence_checklist_items;
+DROP TABLE IF EXISTS task_recurrence_note_links;
 
 PRAGMA foreign_keys = OFF;
 PRAGMA legacy_alter_table = ON;
@@ -151,6 +152,11 @@ ORDER BY version;
       version: "068",
       module_id: "core",
       name: "task_recurrence_checklist_items",
+    },
+    {
+      version: "069",
+      module_id: "core",
+      name: "task_recurrence_note_links",
     },
   ]);
 }

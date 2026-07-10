@@ -60,7 +60,7 @@ for (const runMode of ["static", "serial-database", "serial-files", "isolated-da
 
 assert.match(docs, /scripts\/regressions\/<area>\/<name>\.regression\.mjs/);
 assert.match(docs, /scripts\/\*-regression\.mjs/);
-assert.match(docs, /No dedicated licensing\/public-release gate exists yet/);
+assert.match(docs, /warning-only licensing\/public-release process gate/);
 assert.match(docs, /0\.33\.6\.16\.2/);
 assert.match(docs, /auto-discover/);
 assert.match(docs, /Agents do not manually add the same regression/);
@@ -81,11 +81,11 @@ assert.ok(
   "inventory contract guardrail should be registered",
 );
 assert.equal(legacySnapshot.scripts.length, 312, "legacy migration snapshot should preserve the inventory baseline");
-assert.equal(REGRESSION_ENTRIES.length, 316, "auto-discovery should add four convention-path release guardrails to the legacy baseline");
+assert.equal(REGRESSION_ENTRIES.length, 319, "auto-discovery should add seven convention-path guardrails to the legacy baseline");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [155, 6, 29, 126],
-  "auto-discovery must preserve legacy bucket counts and add four static release guardrails",
+  [158, 6, 29, 126],
+  "auto-discovery must preserve legacy bucket counts and add seven static convention guardrails",
 );
 assert.match(suite, /discoverRegressionEntries/);
 assert.match(suite, /createRegressionSuite/);
@@ -102,6 +102,7 @@ assert.equal(packageJson.scripts["test:permissions"], "node scripts/permission-r
 assert.equal(packageJson.scripts["test:sqlite-driver"], "node scripts/better-sqlite3-install-smoke.mjs");
 assert.equal(packageJson.scripts["regressions:manifest"], "node scripts/generate-regression-manifest.mjs");
 assert.equal(packageJson.scripts["regressions:manifest:check"], "node scripts/generate-regression-manifest.mjs --check");
+assert.equal(packageJson.scripts["licensing:gates"], "node scripts/check-licensing-gates.mjs");
 assert.equal(packageJson.scripts["version:guard"], "node scripts/version-literal-guardrail-regression.mjs");
 
 console.log("Regression suite inventory contract passed.");
