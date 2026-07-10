@@ -28,6 +28,7 @@ import { AppError } from "../utils/app-error.js";
 import { notesService } from "../modules/notes/notes.service.js";
 import { NOTE_SECURITY_MODES } from "../modules/notes/library.js";
 import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
+import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
@@ -499,6 +500,12 @@ async function listAttachments(session, filters = {}) {
   });
   const listOptions = normalizeAttachmentListOptions(filters);
   await assertTargetScopedAttachmentRead(session, filters);
+  const contextScope = await resolveClientProjectFilterScope(session, {
+    clientId: normalizeOptionalText(filters.clientId ?? filters.client_id),
+    hasClientFilter: hasFilterParameter(filters, ["clientId", "client_id"]),
+    hasProjectFilter: hasFilterParameter(filters, ["projectId", "project_id"]),
+    projectId: normalizeOptionalText(filters.projectId ?? filters.project_id),
+  });
   const statusFilter = normalizeFileStatusFilter(filters.status || filters.fileStatus || filters.file_status);
   const targetScopedRead = Boolean(filters.targetId || filters.target_id);
   const params = {
@@ -545,14 +552,7 @@ async function listAttachments(session, filters = {}) {
     conditions.push("file_attachments.target_id = :attachmentTargetId");
     params.attachmentTargetId = filters.targetId || filters.target_id;
   }
-  if (filters.clientId || filters.client_id) {
-    conditions.push("file_attachments.client_id = :attachmentClientId");
-    params.attachmentClientId = filters.clientId || filters.client_id;
-  }
-  if (filters.projectId || filters.project_id) {
-    conditions.push("file_attachments.project_id = :attachmentProjectId");
-    params.attachmentProjectId = filters.projectId || filters.project_id;
-  }
+  applyAttachmentContextScopeFilters(conditions, contextScope, params);
   if (filters.filename || filters.fileName || filters.q) {
     const filename = String(filters.filename || filters.fileName || filters.q || "").trim();
     if (filename) {
@@ -1042,6 +1042,12 @@ WHERE workspace_id = :attachmentWorkspaceId
 async function listAttachableTargetOptions(session, filters = {}) {
   const normalizedFilters = normalizeAttachableTargetOptionFilters(filters);
   const workspaceType = await readWorkspaceType(session.workspace_id);
+  const contextScope = await resolveClientProjectFilterScope(session, {
+    clientId: normalizedFilters.clientId,
+    hasClientFilter: hasFilterParameter(filters, ["clientId", "client_id"]),
+    hasProjectFilter: hasFilterParameter(filters, ["projectId", "project_id"]),
+    projectId: normalizedFilters.projectId,
+  });
   const filteredTypes = (await listActiveAttachableTypes(session.workspace_id))
     .filter((attachableType) => {
       if (normalizedFilters.moduleId && attachableType.moduleId !== normalizedFilters.moduleId) {
@@ -1065,6 +1071,7 @@ async function listAttachableTargetOptions(session, filters = {}) {
       session.workspace_id,
       attachableType,
       normalizedFilters,
+      contextScope,
       workspaceType,
       Math.min(remaining * 3, MAX_ATTACHABLE_TARGET_LIMIT),
     );
@@ -3239,7 +3246,7 @@ function normalizeAttachableTargetOptionFilters(filters = {}) {
   };
 }
 
-async function readAttachableTargetOptionRows(workspaceId, attachableType, filters, workspaceType, limit) {
+async function readAttachableTargetOptionRows(workspaceId, attachableType, filters, contextScope, workspaceType, limit) {
   const tableName = safeSqlIdentifier(attachableType.tableName);
   const idField = safeSqlIdentifier(attachableType.idField);
   const labelField = safeSqlIdentifier(attachableType.labelField);
@@ -3255,7 +3262,7 @@ async function readAttachableTargetOptionRows(workspaceId, attachableType, filte
   const conditions = [
     `${workspaceField} = :attachableTargetWorkspaceId`,
     ...attachableTargetActiveConditions(columns),
-    ...attachableTargetFilterConditions(attachableType, filters, workspaceType, { clientField, idField, projectField }, params),
+    ...attachableTargetFilterConditions(attachableType, contextScope, workspaceType, { clientField, idField, projectField }, params),
   ];
 
   if (filters.search) {
@@ -3415,6 +3422,14 @@ function compareLabels(left, right) {
   return String(left.label || "").localeCompare(String(right.label || ""), undefined, { sensitivity: "base" });
 }
 
+function hasFilterParameter(filters, keys) {
+  if (!filters || typeof filters !== "object") {
+    return false;
+  }
+
+  return keys.some((key) => Object.hasOwn(filters, key));
+}
+
 async function readClientLabelMap(workspaceId, clientIds) {
   if (clientIds.length === 0) {
     return new Map();
@@ -3475,35 +3490,160 @@ function attachableTargetActiveConditions(columns) {
   return conditions;
 }
 
-function attachableTargetFilterConditions(attachableType, filters, workspaceType, fields, params) {
+function attachableTargetFilterConditions(attachableType, contextScope, workspaceType, fields, params) {
   const conditions = [];
-  const businessClientId = workspaceType === "business" ? filters.clientId : "";
-
-  if (businessClientId) {
-    if (attachableType.targetType === "client") {
-      params.attachableTargetClientId = businessClientId;
-      conditions.push(`${fields.idField} = :attachableTargetClientId`);
-    } else if (fields.clientField) {
-      params.attachableTargetClientId = businessClientId;
-      conditions.push(`${fields.clientField} = :attachableTargetClientId`);
-    } else {
-      conditions.push("1 = 0");
-    }
-  }
-
-  if (filters.projectId) {
-    if (attachableType.targetType === "project") {
-      params.attachableTargetProjectId = filters.projectId;
-      conditions.push(`${fields.idField} = :attachableTargetProjectId`);
-    } else if (fields.projectField) {
-      params.attachableTargetProjectId = filters.projectId;
-      conditions.push(`${fields.projectField} = :attachableTargetProjectId`);
-    } else {
-      conditions.push("1 = 0");
-    }
-  }
+  applyAttachableProjectScopeFilter(conditions, attachableType, contextScope, fields, params);
+  applyAttachableClientScopeFilter(conditions, attachableType, contextScope, workspaceType, fields, params);
 
   return conditions;
+}
+
+function applyAttachmentContextScopeFilters(conditions, scope, params) {
+  if (scope.hasProjectFilter) {
+    if (scope.projectFilterMode === "blank") {
+      conditions.push("(file_attachments.project_id IS NULL OR file_attachments.project_id = '')");
+    } else if (scope.projectFilterMode === "ids") {
+      const projectIds = uniqueNonEmpty(scope.projectIds);
+
+      if (projectIds.length === 0) {
+        conditions.push("1 = 0");
+      } else {
+        conditions.push("file_attachments.project_id IN (:attachmentProjectIds)");
+        params.attachmentProjectIds = projectIds;
+      }
+    }
+  }
+
+  if (!scope.hasClientFilter || scope.omitClientFilterBecauseProjectSelected) {
+    return;
+  }
+
+  if (scope.clientFilterMode === "blank") {
+    conditions.push("(file_attachments.client_id IS NULL OR file_attachments.client_id = '')");
+    return;
+  }
+
+  if (scope.clientFilterMode !== "ids") {
+    return;
+  }
+
+  const clientIds = uniqueNonEmpty(scope.clientIds);
+  const clientProjectIds = uniqueNonEmpty(scope.clientProjectIds);
+
+  if (clientIds.length === 0 && clientProjectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  const scopedConditions = [];
+
+  if (clientIds.length > 0) {
+    scopedConditions.push("file_attachments.client_id IN (:attachmentClientIds)");
+    params.attachmentClientIds = clientIds;
+  }
+
+  if (clientProjectIds.length > 0) {
+    scopedConditions.push("file_attachments.project_id IN (:attachmentClientProjectIds)");
+    params.attachmentClientProjectIds = clientProjectIds;
+  }
+
+  conditions.push(`(${scopedConditions.join(" OR ")})`);
+}
+
+function applyAttachableProjectScopeFilter(conditions, attachableType, scope, fields, params) {
+  if (!scope.hasProjectFilter) {
+    return;
+  }
+
+  if (scope.projectFilterMode === "blank") {
+    if (attachableType.targetType === "project") {
+      conditions.push("1 = 0");
+    } else if (fields.projectField) {
+      conditions.push(`(${fields.projectField} IS NULL OR ${fields.projectField} = '')`);
+    }
+    return;
+  }
+
+  if (scope.projectFilterMode !== "ids") {
+    return;
+  }
+
+  const projectIds = uniqueNonEmpty(scope.projectIds);
+
+  if (projectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  if (attachableType.targetType === "project") {
+    params.attachableTargetProjectIds = projectIds;
+    conditions.push(`${fields.idField} IN (:attachableTargetProjectIds)`);
+  } else if (fields.projectField) {
+    params.attachableTargetProjectIds = projectIds;
+    conditions.push(`${fields.projectField} IN (:attachableTargetProjectIds)`);
+  } else {
+    conditions.push("1 = 0");
+  }
+}
+
+function applyAttachableClientScopeFilter(conditions, attachableType, scope, workspaceType, fields, params) {
+  if (workspaceType !== "business" || !scope.hasClientFilter || scope.omitClientFilterBecauseProjectSelected) {
+    return;
+  }
+
+  if (scope.clientFilterMode === "blank") {
+    if (attachableType.targetType === "client") {
+      conditions.push("1 = 0");
+    } else if (fields.clientField) {
+      conditions.push(`(${fields.clientField} IS NULL OR ${fields.clientField} = '')`);
+    }
+    return;
+  }
+
+  if (scope.clientFilterMode !== "ids") {
+    return;
+  }
+
+  const clientIds = uniqueNonEmpty(scope.clientIds);
+  const clientProjectIds = uniqueNonEmpty(scope.clientProjectIds);
+
+  if (clientIds.length === 0 && clientProjectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  if (attachableType.targetType === "client") {
+    if (clientIds.length === 0) {
+      conditions.push("1 = 0");
+      return;
+    }
+
+    params.attachableTargetClientIds = clientIds;
+    conditions.push(`${fields.idField} IN (:attachableTargetClientIds)`);
+    return;
+  }
+
+  const scopedConditions = [];
+
+  if (fields.clientField && clientIds.length > 0) {
+    params.attachableTargetClientIds = clientIds;
+    scopedConditions.push(`${fields.clientField} IN (:attachableTargetClientIds)`);
+  }
+
+  if (attachableType.targetType === "project" && clientProjectIds.length > 0) {
+    params.attachableTargetClientProjectIds = clientProjectIds;
+    scopedConditions.push(`${fields.idField} IN (:attachableTargetClientProjectIds)`);
+  } else if (fields.projectField && clientProjectIds.length > 0) {
+    params.attachableTargetClientProjectIds = clientProjectIds;
+    scopedConditions.push(`${fields.projectField} IN (:attachableTargetClientProjectIds)`);
+  }
+
+  if (scopedConditions.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  conditions.push(`(${scopedConditions.join(" OR ")})`);
 }
 
 function moduleLabelForAttachableType(attachableType) {

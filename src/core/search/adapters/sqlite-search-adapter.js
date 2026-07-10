@@ -734,8 +734,7 @@ function buildSearchWhereClause(request, alias, params) {
     whereParts.push(`(${targetConditions.join(" OR ")})`);
   }
 
-  const clientId = normalizeSearchText(request?.scopes?.clientId);
-  const projectId = normalizeSearchText(request?.scopes?.projectId);
+  const scope = request?.scopes || {};
   const libraryBucket = normalizeSearchText(request?.libraryBucket || request?.library_bucket);
   const noteCollectionId = normalizeSearchText(request?.noteCollectionId || request?.note_collection_id);
   const recordStatus = normalizeSearchText(request?.recordStatus);
@@ -746,12 +745,8 @@ function buildSearchWhereClause(request, alias, params) {
     : [];
   const noTagsMode = normalizeSearchText(request?.noTagsMode);
 
-  if (clientId) {
-    whereParts.push(`${qualifiedAlias}.client_id = ${bindSearchParam(params, "clientId", clientId)}`);
-  }
-  if (projectId) {
-    whereParts.push(`${qualifiedAlias}.project_id = ${bindSearchParam(params, "projectId", projectId)}`);
-  }
+  applyProjectScopeFilter(whereParts, params, qualifiedAlias, scope);
+  applyClientScopeFilter(whereParts, params, qualifiedAlias, scope);
   if (libraryBucket) {
     whereParts.push(`${qualifiedAlias}.library_bucket = ${bindSearchParam(params, "libraryBucket", libraryBucket)}`);
   }
@@ -807,6 +802,108 @@ function bindSearchParam(params, name, value) {
 
   params[name] = value;
   return `:${name}`;
+}
+
+function applyProjectScopeFilter(whereParts, params, alias, scope = {}) {
+  const hasProjectFilter = scope.hasProjectFilter === true ||
+    (!Object.hasOwn(scope, "hasProjectFilter") && normalizeSearchText(scope.projectId));
+  const projectFilterMode = resolveScopeFilterMode(scope.projectFilterMode, hasProjectFilter, scope.projectId);
+
+  if (!hasProjectFilter) {
+    return;
+  }
+
+  if (projectFilterMode === "blank") {
+    whereParts.push(`(${alias}.project_id IS NULL OR ${alias}.project_id = '')`);
+    return;
+  }
+
+  if (projectFilterMode !== "ids") {
+    return;
+  }
+
+  const projectIds = normalizedScopeIds(scope.projectIds);
+
+  if (projectIds.length > 0) {
+    whereParts.push(`${alias}.project_id IN (${bindSearchParam(params, "projectIds", projectIds)})`);
+    return;
+  }
+
+  const projectId = normalizeSearchText(scope.projectId);
+
+  if (projectId) {
+    whereParts.push(`${alias}.project_id = ${bindSearchParam(params, "projectId", projectId)}`);
+    return;
+  }
+
+  whereParts.push("1 = 0");
+}
+
+function applyClientScopeFilter(whereParts, params, alias, scope = {}) {
+  const hasClientFilter = scope.hasClientFilter === true ||
+    (!Object.hasOwn(scope, "hasClientFilter") && normalizeSearchText(scope.clientId));
+
+  if (!hasClientFilter || scope.omitClientFilterBecauseProjectSelected) {
+    return;
+  }
+
+  const clientFilterMode = resolveScopeFilterMode(scope.clientFilterMode, hasClientFilter, scope.clientId);
+
+  if (clientFilterMode === "blank") {
+    whereParts.push(`(${alias}.client_id IS NULL OR ${alias}.client_id = '')`);
+    return;
+  }
+
+  if (clientFilterMode !== "ids") {
+    return;
+  }
+
+  const clientIds = normalizedScopeIds(scope.clientIds);
+  const clientProjectIds = normalizedScopeIds(scope.clientProjectIds);
+
+  if (clientIds.length > 0 && clientProjectIds.length > 0) {
+    whereParts.push(`(${alias}.client_id IN (${bindSearchParam(params, "clientIds", clientIds)}) OR ${alias}.project_id IN (${bindSearchParam(params, "clientProjectIds", clientProjectIds)}))`);
+    return;
+  }
+
+  if (clientIds.length > 0) {
+    whereParts.push(`${alias}.client_id IN (${bindSearchParam(params, "clientIds", clientIds)})`);
+    return;
+  }
+
+  if (clientProjectIds.length > 0) {
+    whereParts.push(`${alias}.project_id IN (${bindSearchParam(params, "clientProjectIds", clientProjectIds)})`);
+    return;
+  }
+
+  const clientId = normalizeSearchText(scope.clientId);
+
+  if (clientId) {
+    whereParts.push(`${alias}.client_id = ${bindSearchParam(params, "clientId", clientId)}`);
+    return;
+  }
+
+  whereParts.push("1 = 0");
+}
+
+function resolveScopeFilterMode(filterMode, hasFilter, filterId) {
+  const normalizedMode = normalizeSearchText(filterMode);
+
+  if (normalizedMode) {
+    return normalizedMode;
+  }
+
+  if (!hasFilter) {
+    return "all";
+  }
+
+  return normalizeSearchText(filterId) ? "ids" : "blank";
+}
+
+function normalizedScopeIds(value) {
+  return [...new Set((Array.isArray(value) ? value : [])
+    .map((entry) => normalizeSearchText(entry))
+    .filter(Boolean))];
 }
 
 function normalizeSearchLimit(value) {

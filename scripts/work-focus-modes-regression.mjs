@@ -39,6 +39,7 @@ try {
   await assertCanonicalBusinessFocusModes(session);
   await assertModeResolutionContracts(session);
   await assertResolvedContextsDriveCandidates(session);
+  await assertDescendantHierarchyFocusScopes(session);
   await assertPickUpWhereLeftOffExecutesResumeStrategy(session);
   await assertPickUpWhereLeftOffBoostsSecondUpdatedTask(session);
   await assertClientFocusWorkspaceGating(session);
@@ -86,13 +87,13 @@ async function assertDocumentedOverdueFocusContracts() {
 
   assert.match(
     moduleContract,
-    /As of 0\.33\.6\.12o,[\s\S]*"Start with what's due" and "Work this week" include overdue active tasks first/,
+    /"Start with what's due" and "Work this week" include overdue active tasks first/,
     "module contract should document due-focused modes including overdue work first",
   );
   assert.match(
     moduleContract,
-    /Project and Client focus modes use the same Tasks-owned candidate source inside the current exact-match scope/,
-    "module contract should document overdue-aware project/client focus sourcing",
+    /Project and Client focus modes use the same Tasks-owned candidate source inside the shared descendant-aware client\/project scope/,
+    "module contract should document descendant-aware overdue project/client focus sourcing",
   );
   assert.match(
     moduleContract,
@@ -123,6 +124,11 @@ async function assertDocumentedOverdueFocusContracts() {
     tasksModule,
     /Tasks-owned Workbench item payload includes recurrence identifiers and created timestamps/,
     "Tasks module guide should document Workbench item fields used for passive recurring-created suppression",
+  );
+  assert.match(
+    tasksModule,
+    /Tasks client\/project filters and Tasks-owned Workbench item reads consume the shared hierarchy scope resolver/,
+    "Tasks module guide should document descendant-aware client/project scoping",
   );
 }
 
@@ -229,7 +235,7 @@ async function assertModeResolutionContracts(session) {
   });
   assert.equal(scopedStart.filters.clientId, "client-alpha");
   assert.equal(scopedStart.filters.projectId, "project-alpha");
-  assert.equal(scopedStart.candidateQuery.clientId, "client-alpha");
+  assert.equal(scopedStart.candidateQuery.clientId, undefined);
   assert.equal(scopedStart.candidateQuery.projectId, "project-alpha");
 }
 
@@ -576,6 +582,124 @@ async function assertResolvedContextsDriveCandidates(session) {
     [taskSourceBlockedOverdueId],
     "blocked focus should include task-source blocked work without treating stale or active candidates as blocked",
   );
+}
+
+async function assertDescendantHierarchyFocusScopes(session) {
+  const today = "2026-07-07";
+  const parentClientId = `focus-parent-client-${randomUUID()}`;
+  const childClientId = `focus-child-client-${randomUUID()}`;
+  const siblingClientId = `focus-sibling-client-${randomUUID()}`;
+  const parentProjectId = `focus-parent-project-${randomUUID()}`;
+  const childProjectId = `focus-child-project-${randomUUID()}`;
+  const childClientProjectId = `focus-child-client-project-${randomUUID()}`;
+  const siblingProjectId = `focus-sibling-project-${randomUUID()}`;
+
+  await createClient(session.workspace_id, parentClientId, "Hierarchy Parent Client");
+  await createClient(session.workspace_id, childClientId, "Hierarchy Child Client", parentClientId);
+  await createClient(session.workspace_id, siblingClientId, "Hierarchy Sibling Client");
+  await createProject(session.workspace_id, parentProjectId, "Hierarchy Parent Project", parentClientId);
+  await createProject(session.workspace_id, childProjectId, "Hierarchy Child Project", parentClientId, parentProjectId);
+  await createProject(session.workspace_id, childClientProjectId, "Hierarchy Child Client Project", childClientId);
+  await createProject(session.workspace_id, siblingProjectId, "Hierarchy Sibling Project", siblingClientId);
+
+  const descendantClientResumeId = await upsertTaskCandidate(session, {
+    clientId: childClientId,
+    projectId: childClientProjectId,
+    title: "Hierarchy descendant client resume row",
+  });
+  const descendantClientTaskId = await createTaskSourceCandidate(session, {
+    dueDate: "2026-07-08",
+    projectId: childClientProjectId,
+    title: "Hierarchy descendant client task row",
+  });
+  const descendantProjectResumeId = await upsertTaskCandidate(session, {
+    clientId: parentClientId,
+    projectId: childProjectId,
+    title: "Hierarchy descendant project resume row",
+  });
+  const descendantProjectTaskId = await createTaskSourceCandidate(session, {
+    dueDate: "2026-07-09",
+    projectId: childProjectId,
+    title: "Hierarchy descendant project task row",
+  });
+  const siblingTaskId = await createTaskSourceCandidate(session, {
+    dueDate: "2026-07-08",
+    projectId: siblingProjectId,
+    title: "Hierarchy sibling task row",
+  });
+
+  const parentClientContext = await workFocusModesService.resolveFocusMode(session, {
+    clientId: parentClientId,
+    modeId: FOCUS_MODE_IDS.clientFocus,
+    today,
+  });
+  assert.ok(
+    parentClientContext.candidateQuery.clientIds.includes(parentClientId) &&
+      parentClientContext.candidateQuery.clientIds.includes(childClientId),
+    "parent client focus should resolve readable descendant client IDs",
+  );
+  assert.ok(
+    parentClientContext.candidateQuery.clientProjectIds.includes(childClientProjectId) &&
+      parentClientContext.candidateQuery.clientProjectIds.includes(childProjectId),
+    "parent client focus should resolve readable descendant project IDs",
+  );
+
+  const parentClientFocus = await workFocusModesService.listFocusCandidates(session, {
+    clientId: parentClientId,
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.clientFocus,
+    today,
+  });
+  assert.ok(parentClientFocus.items.some((candidate) => candidate.recordId === descendantClientResumeId));
+  assert.ok(parentClientFocus.items.some((candidate) => candidate.recordId === descendantClientTaskId));
+  assert.ok(parentClientFocus.items.some((candidate) => candidate.recordId === descendantProjectResumeId));
+  assert.ok(parentClientFocus.items.some((candidate) => candidate.recordId === descendantProjectTaskId));
+  assert.equal(parentClientFocus.items.some((candidate) => candidate.recordId === siblingTaskId), false);
+
+  const leafClientFocus = await workFocusModesService.listFocusCandidates(session, {
+    clientId: childClientId,
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.clientFocus,
+    today,
+  });
+  assert.ok(leafClientFocus.items.some((candidate) => candidate.recordId === descendantClientResumeId));
+  assert.ok(leafClientFocus.items.some((candidate) => candidate.recordId === descendantClientTaskId));
+  assert.equal(leafClientFocus.items.some((candidate) => candidate.recordId === descendantProjectResumeId), false);
+  assert.equal(leafClientFocus.items.some((candidate) => candidate.recordId === descendantProjectTaskId), false);
+
+  const parentProjectContext = await workFocusModesService.resolveFocusMode(session, {
+    modeId: FOCUS_MODE_IDS.projectFocus,
+    projectId: parentProjectId,
+    today,
+  });
+  assert.ok(
+    parentProjectContext.candidateQuery.projectIds.includes(parentProjectId) &&
+      parentProjectContext.candidateQuery.projectIds.includes(childProjectId),
+    "parent project focus should resolve readable descendant project IDs",
+  );
+
+  const parentProjectFocus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.projectFocus,
+    projectId: parentProjectId,
+    today,
+  });
+  assert.ok(parentProjectFocus.items.some((candidate) => candidate.recordId === descendantProjectResumeId));
+  assert.ok(parentProjectFocus.items.some((candidate) => candidate.recordId === descendantProjectTaskId));
+  assert.equal(parentProjectFocus.items.some((candidate) => candidate.recordId === descendantClientResumeId), false);
+  assert.equal(parentProjectFocus.items.some((candidate) => candidate.recordId === descendantClientTaskId), false);
+  assert.equal(parentProjectFocus.items.some((candidate) => candidate.recordId === siblingTaskId), false);
+
+  const leafProjectFocus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.projectFocus,
+    projectId: childProjectId,
+    today,
+  });
+  assert.ok(leafProjectFocus.items.some((candidate) => candidate.recordId === descendantProjectResumeId));
+  assert.ok(leafProjectFocus.items.some((candidate) => candidate.recordId === descendantProjectTaskId));
+  assert.equal(leafProjectFocus.items.some((candidate) => candidate.recordId === descendantClientResumeId), false);
+  assert.equal(leafProjectFocus.items.some((candidate) => candidate.recordId === descendantClientTaskId), false);
 }
 
 async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
@@ -1015,20 +1139,22 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
-async function createProject(workspaceId, projectId, name, clientId = "") {
+async function createProject(workspaceId, projectId, name, clientId = "", parentProjectId = "") {
   await projectsRepository.create(workspaceId, clientId, {
     billable: "no",
     id: projectId,
     name,
+    parent_project_id: parentProjectId,
     status: "Active",
   });
 }
 
-async function createClient(workspaceId, clientId, name) {
+async function createClient(workspaceId, clientId, name, parentClientId = "") {
   await clientsRepository.create(workspaceId, {
     billable: "yes",
     id: clientId,
     name,
+    parent_client_id: parentClientId,
     status: "Active",
   });
 }

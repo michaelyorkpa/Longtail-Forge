@@ -46,6 +46,8 @@ const LINK_TARGET_TYPE_LABELS = {
 };
 const DEFAULT_LINK_TARGET_TYPE = "project";
 const LINK_TARGET_TYPE_ORDER = ["project", "task", "note", "list", "client", "user"];
+const LINK_CLIENT_CONTEXT_ALL = "all";
+const LINK_CLIENT_CONTEXT_WORKSPACE = "workspace";
 const OPEN_EXTERNAL_LINKS_STORAGE_KEY = "lf_open_external_links_new_tab";
 const NOTE_WORKFLOW_HANDLERS = {
   "notes.workflow.edit": (note) => openEditor(note),
@@ -82,6 +84,7 @@ let state = {
   editorSelectedTarget: null,
   editorStagedTargets: [],
   libraryManuallyChanged: false,
+  linkTargetClientContext: LINK_CLIENT_CONTEXT_ALL,
   linkTargetSearchTimer: null,
   linkTargets: [],
   notes: [],
@@ -144,6 +147,7 @@ const typeInput = document.querySelector("[data-note-type]");
 const visibilityInput = document.querySelector("[data-note-visibility]");
 const securityInput = document.querySelector("[data-note-security]");
 const secureWarning = document.querySelector("[data-note-secure-warning]");
+const contextClientInput = document.querySelector("[data-note-context-client]");
 const contextTargetTypeInput = document.querySelector("[data-note-context-target-type]");
 const contextSearchInput = document.querySelector("[data-note-context-search]");
 const contextResultsInput = document.querySelector("[data-note-context-results]");
@@ -236,6 +240,7 @@ clientInput?.addEventListener("change", handlePrimaryClientChange);
 projectInput?.addEventListener("change", handlePrimaryProjectChange);
 [taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
 contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
+contextClientInput?.addEventListener("change", handleEditorLinkClientContextChange);
 contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
 contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
 document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
@@ -1029,13 +1034,18 @@ function createNoteContextPanel() {
   panel.appendChild(view.createElement("summary", { className: "surface-modal-section-heading", text: "Linked Context" }));
 
   const picker = view.createLinkedContextPicker({
+    clientContexts: [],
+    clientContextLabel: "Client",
     providers: linkTargetProviderOptions(),
     records: [],
     linkedItems: [],
     emptyMessage: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
+    onClientContextChange: handleEditorLinkClientContextChange,
     onRemove: handleEditorLinkedContextRemove,
+    showClientContext: true,
   });
   picker.dataset.noteContextPicker = "";
+  picker.viewParts.clientContextSelect.dataset.noteContextClient = "";
   picker.viewParts.rows.dataset.noteContextList = "";
   picker.viewParts.targetSelect.dataset.noteContextTargetType = "";
   picker.viewParts.searchInput.dataset.noteContextSearch = "";
@@ -1374,6 +1384,7 @@ function applyWorkspaceContext() {
   state.workspaceType = normalizeWorkspaceType(context.workspaceType || context.workspace_type || "");
   populateWorkspaceVisibilityOptions();
   populateLinkTargetTypeSelect(contextTargetTypeInput);
+  populateLinkClientContextSelect();
   updatePrimaryContextVisibility();
 }
 
@@ -2190,6 +2201,7 @@ async function loadPrimaryContextOptions(selected = {}) {
     ]);
     state.primaryContextClients = clients.filter(isActivePrimaryClientTarget);
     state.primaryContextProjects = projects;
+    populateLinkClientContextSelect();
 
     const selectedProject = findPrimaryContextProject(selectedProjectId) || primaryContextSummaryForSelection("project", selectedProjectId);
     const derivedClientId = usesBusinessScope() ? selectedProject?.clientId || selectedClientId || "" : "";
@@ -2198,6 +2210,7 @@ async function loadPrimaryContextOptions(selected = {}) {
   } catch {
     state.primaryContextClients = [];
     state.primaryContextProjects = [];
+    populateLinkClientContextSelect();
     populatePrimaryClientOptions("");
     populatePrimaryProjectOptions("");
   } finally {
@@ -2370,6 +2383,7 @@ async function loadEditorLinkTargets() {
 
   try {
     const targets = await fetchLinkTargets({
+      ...readLinkTargetClientContext(),
       targetType: contextTargetTypeInput?.value || defaultLinkTargetType(),
       search: contextSearchInput?.value || "",
       limit: 40,
@@ -2384,11 +2398,20 @@ async function loadEditorLinkTargets() {
   }
 }
 
-async function fetchLinkTargets({ targetType = "all", search = "", limit = 20 } = {}) {
+async function fetchLinkTargets({ targetType = "all", search = "", limit = 20, clientScope = LINK_CLIENT_CONTEXT_ALL, clientId = "" } = {}) {
   const params = new URLSearchParams({
     targetType,
     limit: String(limit),
   });
+
+  if (usesBusinessScope()) {
+    if (clientScope === LINK_CLIENT_CONTEXT_WORKSPACE) {
+      params.set("clientScope", LINK_CLIENT_CONTEXT_WORKSPACE);
+    } else if (clientScope === "client" && clientId) {
+      params.set("clientScope", "client");
+      params.set("clientId", clientId);
+    }
+  }
 
   if (search.trim()) {
     params.set("q", search.trim());
@@ -2428,6 +2451,89 @@ function populateLinkTargetTypeSelect(select) {
   });
   select.replaceChildren(...options);
   select.value = selectedValue;
+}
+
+function handleEditorLinkClientContextChange() {
+  state.linkTargetClientContext = normalizeText(contextClientInput?.value) || LINK_CLIENT_CONTEXT_ALL;
+  void loadEditorLinkTargets();
+}
+
+function populateLinkClientContextSelect(selectedValue = state.linkTargetClientContext || LINK_CLIENT_CONTEXT_ALL) {
+  const parts = editorContextPickerParts();
+  const select = contextClientInput || parts.clientContextSelect;
+  const setClientContexts = typeof parts.setClientContexts === "function"
+    ? parts.setClientContexts
+    : null;
+
+  if (!select && !setClientContexts) {
+    return;
+  }
+
+  if (!usesBusinessScope()) {
+    state.linkTargetClientContext = LINK_CLIENT_CONTEXT_ALL;
+    if (setClientContexts) {
+      setClientContexts([]);
+    } else if (select) {
+      select.replaceChildren();
+      select.disabled = true;
+    }
+    return;
+  }
+
+  const options = linkTargetClientContextOptions();
+  const normalizedSelectedValue = normalizeText(selectedValue) || LINK_CLIENT_CONTEXT_ALL;
+  const nextValue = options.some((option) => option.value === normalizedSelectedValue)
+    ? normalizedSelectedValue
+    : LINK_CLIENT_CONTEXT_ALL;
+  const selectableOptions = options.map((option) => ({
+    ...option,
+    selected: option.value === nextValue,
+  }));
+
+  state.linkTargetClientContext = nextValue;
+  if (setClientContexts) {
+    setClientContexts(selectableOptions);
+  } else if (select) {
+    select.replaceChildren(...selectableOptions.map((option) => new window.Option(option.label, option.value, false, option.selected)));
+  }
+  if (select) {
+    select.value = nextValue;
+    select.disabled = false;
+  }
+}
+
+function linkTargetClientContextOptions() {
+  if (!usesBusinessScope()) {
+    return [];
+  }
+
+  return [
+    { value: LINK_CLIENT_CONTEXT_ALL, label: "All Clients" },
+    { value: LINK_CLIENT_CONTEXT_WORKSPACE, label: linkTargetWorkspaceClientLabel() },
+    ...state.primaryContextClients.map((client) => ({
+      value: client.clientId || client.targetId || "",
+      label: primaryClientOptionLabel(client),
+    })).filter((option) => option.value),
+  ];
+}
+
+function linkTargetWorkspaceClientLabel() {
+  return normalizeText(window.LongtailForge?.workspaceContext?.workspaceName) || "Workspace";
+}
+
+function readLinkTargetClientContext() {
+  const value = normalizeText(contextClientInput?.value || state.linkTargetClientContext || LINK_CLIENT_CONTEXT_ALL);
+
+  if (!usesBusinessScope()) {
+    return { clientScope: LINK_CLIENT_CONTEXT_ALL, clientId: "" };
+  }
+  if (value === LINK_CLIENT_CONTEXT_WORKSPACE) {
+    return { clientScope: LINK_CLIENT_CONTEXT_WORKSPACE, clientId: "" };
+  }
+  if (value && value !== LINK_CLIENT_CONTEXT_ALL) {
+    return { clientScope: "client", clientId: value };
+  }
+  return { clientScope: LINK_CLIENT_CONTEXT_ALL, clientId: "" };
 }
 
 function availableLinkTargetTypes() {

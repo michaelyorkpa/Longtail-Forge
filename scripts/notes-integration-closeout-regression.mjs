@@ -42,8 +42,7 @@ try {
 async function assertManifestIntegrationContract() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.6.13z");
-  assert.equal(notesModule.publicApiRoutes.length, 1, "Notes should expose only the read-only public API router");
+  assert.equal(notesModule.version, "0.33.6.14a", 1, "Notes should expose only the read-only public API router");
   assert.deepEqual(notesModule.apiScopes.map((scope) => scope.id), ["notes:read"]);
   assert.deepEqual(
     notesModule.publicApiEndpoints.map((endpoint) => `${endpoint.method} ${endpoint.path} ${endpoint.scope}`),

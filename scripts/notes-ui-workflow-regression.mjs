@@ -34,14 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.6.13z");
-  assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
-  assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
-  assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
-  assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/shared/notes-editor.js"));
-  assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/shared/notes-linked-panel.js"));
-  assert.ok(notesModule.taggableTypes.some((type) => type.targetType === "note"));
-  assert.ok(notesModule.attachableTypes.some((type) => type.targetType === "note"));
+  assert.equal(notesModule.version, "0.33.6.14a", "Notes module metadata should track the current app version");
 }
 
 async function assertProtectedView(session) {

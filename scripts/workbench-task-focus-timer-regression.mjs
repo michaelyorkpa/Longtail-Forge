@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
 const appShellService = readText("src/services/app-shell.service.js");
+const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -210,9 +211,14 @@ assert.match(
   "View-building contract should include the Task Focus timer anatomy",
 );
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12k[\s\S]*focused task's timer is represented only by the Task Timer section[\s\S]*Other Active Timers/,
+  "Changelog should preserve the Workbench Task Focus timer de-duplication closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12k - Task Focus timer de-duplication and Other Active Timers[\s\S]*- \[x\] In Task Focus, remove\/filter the focused task's running\/paused timer[\s\S]*- \[x\] Rename the Task Focus lower timer panel heading from `Timers` to `Other Active Timers`[\s\S]*- Focus Selection timer behavior is unchanged\./,
-  "Roadmap should mark the Workbench Task Focus timer de-duplication slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 assert.match(regressionSuite, /scripts\/workbench-task-focus-timer-regression\.mjs/);
 assert.match(regressionManifest, /scripts\/workbench-task-focus-timer-regression\.mjs/);

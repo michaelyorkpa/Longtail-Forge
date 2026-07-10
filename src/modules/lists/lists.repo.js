@@ -106,8 +106,6 @@ async function list(workspaceId, filters = {}) {
   for (const [filterKey, columnName] of Object.entries({
     status: "status",
     listType: "list_type",
-    clientId: "client_id",
-    projectId: "project_id",
     createdByUserId: "created_by_user_id",
   })) {
     if (filters[filterKey]) {
@@ -120,6 +118,9 @@ async function list(workspaceId, filters = {}) {
     clauses.push("is_reusable = :isReusable");
     params.isReusable = db.dialect.boolean.bind(Boolean(filters.isReusable));
   }
+
+  applyListProjectScopeFilter(clauses, filters, params);
+  applyListClientScopeFilter(clauses, filters, params);
 
   const rows = await db.query(`
 SELECT ${LIST_COLUMNS.join(", ")}
@@ -981,6 +982,69 @@ function normalizeIdList(ids = []) {
   return [...new Set((Array.isArray(ids) ? ids : [])
     .map((id) => String(id || "").trim())
     .filter(Boolean))];
+}
+
+function applyListProjectScopeFilter(conditions, filters, params) {
+  if (!filters.hasProjectFilter) {
+    return;
+  }
+
+  if (filters.projectFilterMode === "blank") {
+    conditions.push("(project_id IS NULL OR project_id = '')");
+    return;
+  }
+
+  if (filters.projectFilterMode !== "ids") {
+    return;
+  }
+
+  const projectIds = normalizeIdList(filters.projectIds);
+
+  if (projectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  conditions.push("project_id IN (:projectIds)");
+  params.projectIds = projectIds;
+}
+
+function applyListClientScopeFilter(conditions, filters, params) {
+  if (!filters.hasClientFilter || filters.omitClientFilterBecauseProjectSelected) {
+    return;
+  }
+
+  if (filters.clientFilterMode === "blank") {
+    conditions.push("(client_id IS NULL OR client_id = '')");
+    return;
+  }
+
+  if (filters.clientFilterMode !== "ids") {
+    return;
+  }
+
+  const clientIds = normalizeIdList(filters.clientIds);
+  const clientProjectIds = normalizeIdList(filters.clientProjectIds);
+
+  if (clientIds.length === 0 && clientProjectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  if (clientIds.length > 0 && clientProjectIds.length > 0) {
+    conditions.push("(client_id IN (:clientIds) OR project_id IN (:clientProjectIds))");
+    params.clientIds = clientIds;
+    params.clientProjectIds = clientProjectIds;
+    return;
+  }
+
+  if (clientIds.length > 0) {
+    conditions.push("client_id IN (:clientIds)");
+    params.clientIds = clientIds;
+  } else if (clientProjectIds.length > 0) {
+    conditions.push("project_id IN (:clientProjectIds)");
+    params.clientProjectIds = clientProjectIds;
+  }
 }
 
 function listRowToAppValue(row = {}) {

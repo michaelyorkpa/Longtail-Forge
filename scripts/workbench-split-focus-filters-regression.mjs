@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
 const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
@@ -74,13 +74,13 @@ assert.match(
 
 assert.match(
   moduleContract,
-  /As of 0\.33\.6\.6e[\s\S]*separate client and project focus filters[\s\S]*0\.33\.6\.13[\s\S]*exact-match filters/,
-  "Module contract should document the split filters and hierarchy follow-up",
+  /As of 0\.33\.6\.14\.1[\s\S]*shared permission-aware hierarchy scope resolver:[\s\S]*readable descendant sub-clients\/sub-projects[\s\S]*leaf still drills down to that one client or project/,
+  "Module contract should document the split filters and shipped descendant-aware hierarchy scope",
 );
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.6e - Split Workbench client and project focus filters[\s\S]*- \[x\] Replace the single combined client\/project dropdown[\s\S]*- \[x\] Mirror the two-filter behavior[\s\S]*- \[x\] Consume the hierarchical[\s\S]*0\.33\.6\.13[\s\S]*Acceptance criteria:/,
-  "Roadmap should mark the Workbench split focus-filter slice complete with the hierarchy handoff preserved",
+  /Active cursor: `0\.33\.6\.15`[\s\S]*Completed work through `0\.33\.6\.14a` is archived in `ROADMAP-ARCHIVE\.md`\./,
+  "Roadmap should archive the shipped hierarchy follow-up and advance to the next live slice",
 );
 assert.match(
   changelog,

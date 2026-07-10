@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
+const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const roadmap = readText("ROADMAP.md");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -78,9 +79,14 @@ assert.match(secondaryWorkbenchPanel, /createTimerSection\(\)/, "Workbench shoul
 assert.doesNotMatch(secondaryWorkbenchPanel, /createTaskSection|task-workbench-items|createSecondaryCandidateSection/, "Workbench should not add the removed all-tasks or main-column overflow sections to its layout");
 
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.6g[\s\S]*no all-tasks\/taskItems\/task-list hooks while retaining recommended-action and secondary-candidate hooks/,
+  "Changelog should preserve the completed no-all-tasks-list Workbench slice",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.6g - Remove the all-tasks list from the Workbench[\s\S]*- \[x\] Remove the full Tasks list from the Workbench[\s\S]*- \[x\] Remove the now-dead task-list data plumbing[\s\S]*- \[x\] Preserve permission\/enabled-module handling[\s\S]*- \[x\] Add regressions proving the Workbench renders no all-tasks list[\s\S]*Acceptance criteria:/,
-  "Roadmap should mark the no-all-tasks-list Workbench slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench remove all-tasks list regression passed.");

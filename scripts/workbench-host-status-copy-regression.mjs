@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
+const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -66,9 +68,19 @@ assert.doesNotMatch(
 );
 
 assert.match(
+  moduleContract,
+  /As of 0\.33\.6\.6b, the Workbench host no longer renders a standalone top status box or a static intro subtitle under the page heading[\s\S]*shared `LongtailForge\.view\.createStatusMessage\(\)` primitive inside the page-header body/,
+  "Module contract should preserve the Workbench host status cleanup boundary",
+);
+assert.match(
+  changelog,
+  /## Version 0\.33\.6\.6b[\s\S]*relocated `workbench-header-status` contract without the old intro copy or standalone status box/,
+  "Changelog should preserve the Workbench host status cleanup closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.6b - Workbench host status and intro-copy cleanup[\s\S]*- \[x\] Remove the frequently-empty status box[\s\S]*- \[x\] Relocate the transient status messages[\s\S]*- \[x\] Do not hand-build framework-owned header\/status anatomy[\s\S]*- \[x\] Add a focused static\/browser regression/,
-  "Roadmap should mark the Workbench host status cleanup slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench host status and intro-copy cleanup regression passed.");

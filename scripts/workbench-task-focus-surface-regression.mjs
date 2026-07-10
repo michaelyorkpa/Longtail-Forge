@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -179,9 +180,14 @@ assert.match(
   "View-building contract should include the Task Focus anatomy",
 );
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12i[\s\S]*summary now shows that context once[\s\S]*summary chip row to surface status, priority, due date\/time, and safe direct tags/,
+  "Changelog should preserve the Task Focus summary metadata cleanup closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12i - Task Focus summary metadata cleanup and chips[\s\S]*- \[x\] Remove duplicated Client\/Project context from the Task Focus summary card\.[\s\S]*- \[x\] Add\/restore the Task Focus summary chip row for the usual task metadata:[\s\S]*- \[x\] Keep chip labels safe and readable; do not expose raw IDs, hidden client\/project labels, inaccessible tags, or private\/secure data\.[\s\S]*Acceptance criteria:/,
-  "Roadmap should mark the Task Focus summary metadata cleanup slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench Task Focus surface regression passed.");

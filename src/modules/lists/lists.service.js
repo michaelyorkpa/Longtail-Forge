@@ -37,6 +37,7 @@ import { tasksRepository } from "../tasks/tasks.repo.js";
 import { notesRepository } from "../notes/notes.repo.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { tagsService } from "../../services/tags.service.js";
+import { resolveClientProjectFilterScope } from "../../core/client-project-filter-scope.js";
 
 const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
@@ -44,7 +45,7 @@ const PURCHASE_STATUS_SET = new Set(LIST_ITEM_PURCHASE_STATUS_VALUES);
 
 async function list(session, query = {}) {
   await assertListsReadable(session);
-  const normalizedQuery = normalizeListQuery(query);
+  const normalizedQuery = await normalizeListQuery(session, query);
   const lists = await listsRepository.list(session.workspace_id, normalizedQuery.repositoryFilters);
   const readableLists = [];
 
@@ -1114,7 +1115,7 @@ async function nextSortOrder(workspaceId, listId) {
   return items.length === 0 ? 0 : Math.max(...items.map((item) => Number(item.sort_order) || 0)) + 10;
 }
 
-function normalizeListQuery(query = {}) {
+async function normalizeListQuery(session, query = {}) {
   const status = normalizeListStatusFilter(query.status || query.status_filter);
   const archiveState = normalizeToken(query.archiveState || query.archive_state || query.archive || query.archivedState || query.archived_state);
   const effectiveStatus = archiveState === "archived" || archiveState === "deleted"
@@ -1141,21 +1142,43 @@ function normalizeListQuery(query = {}) {
     archiveState === "all" ||
     query.includeDeleted === true ||
     query.include_deleted === "true";
+  const scope = await resolveClientProjectFilterScope(session, {
+    clientId: clientId === "all" ? "" : clientId,
+    hasClientFilter: hasQueryField(query, ["clientId", "client_id", "client"]),
+    hasProjectFilter: hasQueryField(query, ["projectId", "project_id", "project"]),
+    projectId: projectId === "all" ? "" : projectId,
+  });
 
   return {
     archiveState,
     assigneeId,
+    clientFilterMode: scope.clientFilterMode,
     clientId,
+    clientIds: scope.clientIds,
+    clientProjectIds: scope.clientProjectIds,
+    hasClientFilter: scope.hasClientFilter,
+    hasProjectFilter: scope.hasProjectFilter,
     listType,
     neededByDate,
+    omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
+    projectFilterMode: scope.projectFilterMode,
     projectId,
+    projectIds: scope.projectIds,
     repositoryFilters: {
-      clientId: clientId === "all" ? "" : clientId,
+      clientFilterMode: scope.clientFilterMode,
+      clientId: scope.clientId,
+      clientIds: scope.clientIds,
+      clientProjectIds: scope.clientProjectIds,
       createdByUserId: normalizeOptionalText(query.createdByUserId || query.created_by_user_id),
+      hasClientFilter: scope.hasClientFilter,
+      hasProjectFilter: scope.hasProjectFilter,
       includeDeleted,
       isReusable: reusable === "all" ? undefined : reusable === "yes",
       listType: listType === "all" ? "" : listType,
-      projectId: projectId === "all" ? "" : projectId,
+      omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
+      projectFilterMode: scope.projectFilterMode,
+      projectId: scope.projectId,
+      projectIds: scope.projectIds,
       status: effectiveStatus === "all" ? "" : effectiveStatus,
     },
     response: {
@@ -1258,10 +1281,7 @@ function listMatchesCanonicalQuery(listRecord = {}, query = {}, session = {}) {
   if (query.listType !== "all" && listRecord.list_type !== query.listType) {
     return false;
   }
-  if (query.clientId !== "all" && (listRecord.client_id || "") !== query.clientId) {
-    return false;
-  }
-  if (query.projectId !== "all" && (listRecord.project_id || "") !== query.projectId) {
+  if (!matchesListContextFilters(listRecord, query)) {
     return false;
   }
   if (query.assigneeId !== "all" && !matchesAssigneeFilter(listRecord, query.assigneeId, session.user_id)) {
@@ -1274,6 +1294,44 @@ function listMatchesCanonicalQuery(listRecord = {}, query = {}, session = {}) {
     return false;
   }
   return true;
+}
+
+function matchesListContextFilters(listRecord = {}, query = {}) {
+  if (query.hasProjectFilter) {
+    if (query.projectFilterMode === "blank") {
+      if (String(listRecord.project_id || "").trim()) {
+        return false;
+      }
+    } else if (query.projectFilterMode === "ids") {
+      const scopedProjectIds = Array.isArray(query.projectIds) && query.projectIds.length > 0
+        ? query.projectIds
+        : [String(query.projectId === "all" ? "" : query.projectId || "").trim()].filter(Boolean);
+
+      if (!scopedProjectIds.includes(String(listRecord.project_id || "").trim())) {
+        return false;
+      }
+    }
+  }
+
+  if (!query.hasClientFilter || query.omitClientFilterBecauseProjectSelected) {
+    return true;
+  }
+
+  if (query.clientFilterMode === "blank") {
+    return !String(listRecord.client_id || "").trim();
+  }
+
+  if (query.clientFilterMode !== "ids") {
+    return true;
+  }
+
+  const scopedClientIds = Array.isArray(query.clientIds) && query.clientIds.length > 0
+    ? query.clientIds
+    : [String(query.clientId === "all" ? "" : query.clientId || "").trim()].filter(Boolean);
+  const scopedProjectIds = Array.isArray(query.clientProjectIds) ? query.clientProjectIds : [];
+
+  return scopedClientIds.includes(String(listRecord.client_id || "").trim()) ||
+    scopedProjectIds.includes(String(listRecord.project_id || "").trim());
 }
 
 function matchesAssigneeFilter(listRecord = {}, assigneeId = "all", currentUserId = "") {

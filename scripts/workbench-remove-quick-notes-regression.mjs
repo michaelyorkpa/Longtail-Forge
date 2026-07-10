@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
 const appShellService = readText("src/services/app-shell.service.js");
+const changelog = readText("CHANGELOG.md");
 const footerScript = readText("public/js/footer.js");
 const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
@@ -71,9 +72,14 @@ assert.match(
   "View-building contract should include the current no-Quick-Notes Workbench anatomy",
 );
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.11b[\s\S]*marked the 0\.33\.6\.11b roadmap slice complete[\s\S]*no Quick Notes markers/,
+  "Changelog should preserve the Workbench no-Quick-Notes slice closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.11b - Remove the Quick Notes section from the Workbench[\s\S]*- \[x\] Remove the Quick Notes section[\s\S]*- \[x\] Confirm no capture\/context gap remains[\s\S]*- \[x\] Preserve permission\/enabled-module handling[\s\S]*- \[x\] Add a regression proving the Workbench renders no Quick Notes section/,
-  "Roadmap should mark the Workbench no-Quick-Notes slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench remove Quick Notes regression passed.");

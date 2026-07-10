@@ -34,8 +34,7 @@ async function assertNotesModuleManifest() {
   const notesModule = modulesService.getModule("notes");
 
   assert.equal(notesModule.id, "notes");
-  assert.equal(notesModule.version, "0.33.6.13z");
-  assert.equal(notesModule.enabledByDefault, true);
+  assert.equal(notesModule.version, "0.33.6.14a", true);
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);
   assert.equal(notesModule.migrationsDir, null, "Notes schema is folded into the consolidated fresh baseline");

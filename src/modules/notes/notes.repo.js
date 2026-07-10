@@ -1207,8 +1207,8 @@ function noteListWhereSql(options, params) {
   applyNoteExactFilter(conditions, options, params, "noteType", "note_type");
   applyNoteExactFilter(conditions, options, params, "visibility", "visibility");
   applyNoteExactFilter(conditions, options, params, "securityMode", "security_mode");
-  applyNoteExactFilter(conditions, options, params, "clientId", "client_id");
-  applyNoteExactFilter(conditions, options, params, "projectId", "project_id");
+  applyNoteProjectScopeFilter(conditions, options, params);
+  applyNoteClientScopeFilter(conditions, options, params);
   applyNoteExactFilter(conditions, options, params, "taskId", "task_id");
   applyNoteExactFilter(conditions, options, params, "ticketId", "ticket_id");
   applyNoteExactFilter(conditions, options, params, "linkedUserId", "linked_user_id");
@@ -1250,6 +1250,68 @@ function applyNoteExactFilter(conditions, options, params, optionName, columnNam
 
   conditions.push(`notes.${columnName} = :${optionName}`);
   params[optionName] = value;
+}
+
+function applyNoteProjectScopeFilter(conditions, options, params) {
+  if (!options.hasProjectFilter) {
+    return;
+  }
+
+  if (options.projectFilterMode === "blank") {
+    conditions.push("(notes.project_id IS NULL OR notes.project_id = '')");
+    return;
+  }
+
+  if (options.projectFilterMode !== "ids") {
+    return;
+  }
+
+  const projectIds = normalizedIdArray(options.projectIds);
+
+  if (projectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  conditions.push("notes.project_id IN (:projectIds)");
+  params.projectIds = projectIds;
+}
+
+function applyNoteClientScopeFilter(conditions, options, params) {
+  if (!options.hasClientFilter || options.omitClientFilterBecauseProjectSelected) {
+    return;
+  }
+
+  if (options.clientFilterMode === "blank") {
+    conditions.push("(notes.client_id IS NULL OR notes.client_id = '')");
+    return;
+  }
+
+  if (options.clientFilterMode !== "ids") {
+    return;
+  }
+
+  const clientIds = normalizedIdArray(options.clientIds);
+  const clientProjectIds = normalizedIdArray(options.clientProjectIds);
+
+  if (clientIds.length === 0 && clientProjectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  const scopedConditions = [];
+
+  if (clientIds.length > 0) {
+    scopedConditions.push("notes.client_id IN (:clientIds)");
+    params.clientIds = clientIds;
+  }
+
+  if (clientProjectIds.length > 0) {
+    scopedConditions.push("notes.project_id IN (:clientProjectIds)");
+    params.clientProjectIds = clientProjectIds;
+  }
+
+  conditions.push(`(${scopedConditions.join(" OR ")})`);
 }
 
 function applyNoteCollectionFilter(conditions, options, params) {
@@ -1370,6 +1432,12 @@ function noteListOrderSql(sort) {
 
 function normalizedText(value) {
   return String(value || "").trim();
+}
+
+function normalizedIdArray(values) {
+  return [...new Set((Array.isArray(values) ? values : [])
+    .map(normalizedText)
+    .filter(Boolean))];
 }
 
 function normalizePropagatedLinks(links = []) {

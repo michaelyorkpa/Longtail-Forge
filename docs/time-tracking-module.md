@@ -30,7 +30,7 @@ As of 0.33.6.13c, Time Tracking contributes compact Dashboard effort cards inste
 
 As of 0.33.6.13d, the active/recent Time Tracking cards live in the Dashboard Module Overview grid, not the Recent Activity region. The Recent Activity region is reserved for future permission-safe activity digest rows and currently renders a quiet deferred state when no safe source exists.
 
-Detailed billing analysis remains outside the default Dashboard. The retired Dashboard contributions `current-month-billables` and `hours-billables-chart` must not return to default Dashboard placement. `src/modules/time-tracking/time-tracking-billing.service.js` still owns the permission-checked billing aggregation boundary for Reporting and compatible report reads. As of 0.33.6.13z, the closeout guardrail keeps Time Tracking Dashboard cards compact and active/recent only; detailed billables, billing charts, invoice-ready copy, and full report tables belong in Reporting, while QAC remains the timer capture entry through the Time Tracking Create Timer modal.
+Detailed billing analysis remains outside the default Dashboard. The retired Dashboard contributions `current-month-billables` and `hours-billables-chart` must not return to default Dashboard placement. `src/modules/time-tracking/time-tracking-billing.service.js` still owns the permission-checked billing aggregation boundary for Reporting and compatible report reads. As of 0.33.6.14.1, the closeout guardrail keeps Time Tracking Dashboard cards compact and active/recent only; detailed billables, billing charts, invoice-ready copy, and full report tables belong in Reporting, while QAC remains the timer capture entry through the Time Tracking Create Timer modal.
 
 Workbench timer contribution:
 

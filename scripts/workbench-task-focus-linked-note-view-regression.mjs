@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const moduleActionsSource = readText("public/js/shared/module-actions.js");
@@ -95,9 +96,14 @@ assert.doesNotMatch(
 );
 
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12m[\s\S]*linked Note rows through a new Notes-owned `notes\.view` module action[\s\S]*rendering existing server-generated Markdown HTML[\s\S]*explicit `Edit` handoff/,
+  "Changelog should preserve the linked-note view modal and edit handoff closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12m - Task Focus linked-note view modal and edit handoff[\s\S]*- \[x\] Update Task Focus Inspector linked-note actions[\s\S]*- \[x\] Add focused regressions proving:[\s\S]*Markdown-rendered note content is visible in the view modal/,
-  "Roadmap should mark the linked-note view slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench Task Focus linked-note view regression passed.");

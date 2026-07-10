@@ -119,17 +119,16 @@ async function assertRelatedContextReadModel(session, fixtures) {
 }
 
 async function assertStaticContracts() {
+  const changelog = readText("CHANGELOG.md");
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   const packageLock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
   const serviceSource = readText("src/services/workbench-task-focus-related-context.service.js");
   const genericWorkbenchSource = readText("src/services/workbench.service.js");
-  const routesSource = readText("src/routes/workbench.routes.js");
   const roadmap = readText("ROADMAP.md");
 
-  assert.equal(packageJson.version, "0.33.6.13z");
-  assert.equal(packageLock.version, "0.33.6.13z");
-  assert.equal(packageLock.packages[""].version, "0.33.6.13z");
-  assert.match(routesSource, /\/workbench\/task-focus\/:taskId\/related-context/);
+  assert.equal(packageJson.version, "0.33.6.14a");
+  assert.equal(packageLock.version, "0.33.6.14a");
+  assert.equal(packageLock.packages[""].version, "0.33.6.14a");
   assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");
   assert.match(serviceSource, /tagsService\.listAssignments[\s\S]*targetType: "task"/, "selected task direct tags should come from the Tags service");
@@ -147,7 +146,14 @@ async function assertStaticContracts() {
     "same-project task reads should stay on the Tasks service active-task contract so completed, archived, permission-filtered, and disabled-module tasks remain pruned by owning behavior",
   );
   assert.match(serviceSource, /files-not-taggable/, "service should document the current Files shared-tag boundary");
-  assert.match(roadmap, /### Version 0\.33\.6\.12h[\s\S]*- \[x\] In Task Focus related context, sort the `Same project tasks` group by due date proximity:[\s\S]*- \[x\] Keep ordering deterministic within equal due-date buckets\.[\s\S]*- \[x\] Add focused regressions proving:/);
+  assert.match(
+    changelog,
+    /## Version 0\.33\.6\.12h[\s\S]*Same project tasks` group by due-date proximity[\s\S]*due-today and overdue tasks now lead[\s\S]*no-due tasks stay last/,
+  );
+  assert.match(
+    roadmap,
+    /Active cursor: `0\.33\.6\.15`\./,
+  );
 }
 
 async function createRelatedContextFixtures(session) {

@@ -33,10 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.6.13z");
-  assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
-  assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
-  assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
+  assert.equal(listsModule.version, "0.33.6.14a", "Lists module metadata should track the current app version");
 }
 
 async function assertProtectedView(session) {

@@ -12,6 +12,7 @@ import {
 import { registerFrameworkHelpSearchIndexers } from "../core/help/search-indexers.js";
 import { helpService } from "./help.service.js";
 import { AppError } from "../utils/app-error.js";
+import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 
 const SEARCH_SERVICE_VERSION = "0.33.5.6.1";
 
@@ -211,7 +212,7 @@ function validateSearchableTypeDeclarations(declarations = [], options = {}) {
   };
 }
 
-function composePermissionSafeSearchFilters({ session, searchableType, filters = {} }) {
+async function composePermissionSafeSearchFilters({ session, searchableType, filters = {} }) {
   if (!session?.workspace_id) {
     throw new AppError("Search requires an active workspace session.", 400);
   }
@@ -228,6 +229,12 @@ function composePermissionSafeSearchFilters({ session, searchableType, filters =
     throw new AppError("Search filters must stay inside the active workspace.", 403);
   }
   const tagFilters = normalizeSearchTagFilters(filters.tagIds || filters.tag_ids);
+  const scope = await resolveClientProjectFilterScope(session, {
+    clientId: normalizeString(filters.clientId || filters.client_id),
+    hasClientFilter: resolveHasSearchFilter(filters, "hasClientFilter", ["clientId", "client_id"]),
+    hasProjectFilter: resolveHasSearchFilter(filters, "hasProjectFilter", ["projectId", "project_id"]),
+    projectId: normalizeString(filters.projectId || filters.project_id),
+  });
 
   return {
     workspaceId,
@@ -237,8 +244,16 @@ function composePermissionSafeSearchFilters({ session, searchableType, filters =
     requiredModules: [...declaration.requiredModules],
     text: typeof filters.text === "string" ? filters.text.trim() : "",
     scopes: {
-      clientId: filters.clientId || filters.client_id || null,
-    projectId: filters.projectId || filters.project_id || null,
+      clientFilterMode: scope.clientFilterMode,
+      clientId: scope.clientId || null,
+      clientIds: [...scope.clientIds],
+      clientProjectIds: [...scope.clientProjectIds],
+      hasClientFilter: scope.hasClientFilter,
+      hasProjectFilter: scope.hasProjectFilter,
+      omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
+      projectFilterMode: scope.projectFilterMode,
+      projectId: scope.projectId || null,
+      projectIds: [...scope.projectIds],
     },
     libraryBucket: normalizeNullableString(filters.libraryBucket || filters.library_bucket),
     noteCollectionId: normalizeNullableString(filters.noteCollectionId || filters.note_collection_id || filters.collectionId || filters.collection_id),
@@ -272,15 +287,21 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
     filters.recordTypes || filters.record_types || filters.recordType || filters.record_type,
   ));
   const tagFilters = normalizeSearchTagFilters(filters.tagIds || filters.tag_ids);
+  const scope = await resolveClientProjectFilterScope(session, {
+    clientId: normalizeString(filters.clientId || filters.client_id),
+    hasClientFilter: resolveHasSearchFilter(filters, "hasClientFilter", ["clientId", "client_id"]),
+    hasProjectFilter: resolveHasSearchFilter(filters, "hasProjectFilter", ["projectId", "project_id"]),
+    projectId: normalizeString(filters.projectId || filters.project_id),
+  });
   const activeSearchableTypes = await listActiveSearchableTypes(workspaceId);
-  const targets = activeSearchableTypes
+  const targets = (await Promise.all(activeSearchableTypes
     .filter((declaration) => allowedModuleIds.size === 0 || allowedModuleIds.has(declaration.moduleId))
     .filter((declaration) => allowedRecordTypes.size === 0 || allowedRecordTypes.has(declaration.recordType))
     .map((declaration) => composePermissionSafeSearchFilters({
       session,
       searchableType: declaration,
       filters,
-    }))
+    }))))
     .map(({ declaration, ...target }) => ({
       ...target,
       sourceLabel: declaration.sourceLabel || declaration.label || declaration.moduleId,
@@ -304,8 +325,16 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
     adapterSyntax: null,
     text: typeof filters.text === "string" ? filters.text.trim() : "",
     scopes: {
-      clientId: filters.clientId || filters.client_id || null,
-      projectId: filters.projectId || filters.project_id || null,
+      clientFilterMode: scope.clientFilterMode,
+      clientId: scope.clientId || null,
+      clientIds: [...scope.clientIds],
+      clientProjectIds: [...scope.clientProjectIds],
+      hasClientFilter: scope.hasClientFilter,
+      hasProjectFilter: scope.hasProjectFilter,
+      omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
+      projectFilterMode: scope.projectFilterMode,
+      projectId: scope.projectId || null,
+      projectIds: [...scope.projectIds],
     },
     libraryBucket: normalizeNullableString(filters.libraryBucket || filters.library_bucket),
     noteCollectionId: normalizeNullableString(filters.noteCollectionId || filters.note_collection_id || filters.collectionId || filters.collection_id),
@@ -690,6 +719,14 @@ function normalizeFilterList(value) {
   }
 
   return normalizeString(value) ? [normalizeString(value)] : [];
+}
+
+function resolveHasSearchFilter(filters, explicitField, aliasFields = []) {
+  if (Object.hasOwn(filters, explicitField)) {
+    return Boolean(filters[explicitField]);
+  }
+
+  return aliasFields.some((fieldName) => Object.hasOwn(filters, fieldName));
 }
 
 function normalizeString(value) {

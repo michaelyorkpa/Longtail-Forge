@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
+const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
+const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
@@ -106,14 +108,24 @@ assert.match(
 );
 
 assert.match(
-  roadmap,
-  /### Version 0\.33\.6\.6f - Collapsible Workbench sections: default state and caret affordance[\s\S]*- \[x\] Start the "More in this focus" secondary-candidate section collapsed by default[\s\S]*- \[x\] Make the Timers section[\s\S]*- \[x\] Add a clear, consistent caret\/chevron affordance[\s\S]*Acceptance criteria:/,
-  "Roadmap should mark collapsible Workbench section defaults and caret affordance complete",
+  changelog,
+  /## Version 0\.33\.6\.6f[\s\S]*Collapsible Workbench sections: default state and caret affordance|## Version 0\.33\.6\.6f[\s\S]*workbench-collapsible-sections-regression/m,
+  "Changelog should preserve the completed collapsible Workbench sections slice",
+);
+assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12b[\s\S]*Removed the retired main-column secondary-candidate DOM\/CSS hooks/,
+  "Changelog should preserve the retired main-column overflow section closeout",
 );
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12b - Focus Selection cleanup: Inspector owns More in this focus[\s\S]*- \[x\] Remove the main-column `More in this focus` collapsible section entirely/,
-  "Roadmap should mark the retired main-column overflow section complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
+);
+assert.match(
+  moduleContract,
+  /As of 0\.33\.6\.6f, Workbench collapsible sections keep native `<details>`\/`<summary>` semantics[\s\S]*former main-column "More in this focus" collapsible section is retired in favor of the right-side Inspector overflow[\s\S]*The Timers section still starts open only when active or paused timers are loaded in Focus Selection/,
+  "Module contract should preserve the live Workbench collapsible and retired-overflow boundary",
 );
 
 console.log("Workbench collapsible sections regression passed.");

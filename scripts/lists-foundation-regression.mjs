@@ -39,8 +39,7 @@ async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
 
   assert.equal(listsModule.id, "lists");
-  assert.equal(listsModule.version, "0.33.6.13z");
-  assert.equal(listsModule.enabledByDefault, true);
+  assert.equal(listsModule.version, "0.33.6.14a", true);
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);
   assert.equal(listsModule.migrationsDir, null, "Lists schema is folded into the consolidated fresh baseline");

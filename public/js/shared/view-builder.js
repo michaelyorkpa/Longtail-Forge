@@ -1059,6 +1059,8 @@
 
   function createLinkedContextPicker(options = {}) {
     const readonly = Boolean(options.readonly || options.disabled || options.permissionDisabled);
+    const clientContextOptions = normalizePickerOptions(options.clientContexts || options.clientContextOptions || []);
+    const showClientContext = Boolean(options.showClientContext || clientContextOptions.length);
     const providerOptions = normalizePickerOptions(options.targets || options.providers || []);
     const recordOptions = normalizePickerRecords(options.records || options.recordOptions || []);
     const picker = createElement("section", {
@@ -1083,6 +1085,10 @@
       className: "view-linked-context-picker-target",
       attrs: { name: options.targetName || "linkedContextTarget" },
     });
+    const clientContextSelect = createElement("select", {
+      className: "view-linked-context-picker-client",
+      attrs: { name: options.clientContextName || "linkedContextClient" },
+    });
     const searchInput = createElement("input", {
       className: "view-linked-context-picker-search",
       attrs: {
@@ -1103,6 +1109,7 @@
       disabled: readonly || Boolean(options.useTargetDisabled),
       onClick: options.onUseTarget,
     });
+    let clientContextField = null;
     const renderLinkedItems = (items = []) => renderLinkedContextRows(rows, items, {
       empty,
       readonly,
@@ -1112,6 +1119,14 @@
     });
     const setTargets = (targets = []) => {
       replaceElementChildren(targetSelect, normalizePickerOptions(targets).map((target) => createPickerOption(target)));
+    };
+    const setClientContexts = (clientContexts = []) => {
+      const normalizedClientContexts = normalizePickerOptions(clientContexts);
+      replaceElementChildren(clientContextSelect, normalizedClientContexts.map((clientContext) => createPickerOption(clientContext)));
+      if (clientContextField) {
+        clientContextField.hidden = normalizedClientContexts.length === 0;
+      }
+      clientContextSelect.disabled = readonly || normalizedClientContexts.length === 0;
     };
     const setRecords = (records = []) => {
       const normalizedRecords = normalizePickerRecords(records);
@@ -1141,7 +1156,7 @@
         picker.classList.remove("is-readonly");
       }
       picker.setAttribute("data-view-readonly", nextReadonly ? "true" : "false");
-      [targetSelect, searchInput, recordSelect, useTargetButton].forEach((control) => {
+      [clientContextSelect, targetSelect, searchInput, recordSelect, useTargetButton].forEach((control) => {
         control.disabled = nextReadonly;
       });
     };
@@ -1150,12 +1165,15 @@
     setTargets(providerOptions);
     setRecords(recordOptions);
 
-    [targetSelect, searchInput, recordSelect].forEach((control) => {
+    [clientContextSelect, targetSelect, searchInput, recordSelect].forEach((control) => {
       if (readonly) {
         control.disabled = true;
       }
     });
 
+    if (typeof options.onClientContextChange === "function") {
+      clientContextSelect.addEventListener("change", options.onClientContextChange);
+    }
     if (typeof options.onTargetChange === "function") {
       targetSelect.addEventListener("change", options.onTargetChange);
     }
@@ -1166,15 +1184,20 @@
       recordSelect.addEventListener("change", options.onRecordChange);
     }
 
+    clientContextField = showClientContext
+      ? createLinkedContextPickerField({ label: options.clientContextLabel || "Client", control: clientContextSelect, width: "narrow" })
+      : null;
+    setClientContexts(clientContextOptions);
     const controls = createFieldGrid({
       surface: false,
       className: "view-linked-context-picker-controls",
       fields: [
+        clientContextField,
         createLinkedContextPickerField({ label: options.targetLabel || "Target", control: targetSelect, width: "narrow" }),
         createLinkedContextPickerField({ label: options.searchLabel || "Search", control: searchInput, width: "wide" }),
         createLinkedContextPickerField({ label: options.recordLabel || "Record", control: recordSelect, width: "wide" }),
         useTargetButton,
-      ],
+      ].filter(Boolean),
     });
 
     picker.append(rows, controls);
@@ -1190,11 +1213,13 @@
       rows,
       empty,
       controls,
+      clientContextSelect,
       targetSelect,
       searchInput,
       recordSelect,
       useTargetButton,
       setLinkedItems: renderLinkedItems,
+      setClientContexts,
       setRecords,
       setTargets,
       setReadonly,

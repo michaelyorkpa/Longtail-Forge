@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -133,9 +134,14 @@ assert.match(
   "View-building contract should include the Task Focus checklist anatomy",
 );
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12l[\s\S]*checking checklist work on an Open task now returns an In Progress task, and unchecking the last checked item on an eligible In Progress task returns it to Open\./,
+  "Changelog should preserve the Task Focus checklist-driven status transition closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12l - Task Focus checklist-driven status transitions[\s\S]*- \[x\] On checklist `check`, transition eligible `Open` tasks to `In Progress`[\s\S]*- \[x\] Add focused regressions proving:[\s\S]*Task Focus displays the refreshed status without requiring a full page reload\./,
-  "Roadmap should mark the Task Focus checklist slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench Task Focus checklist regression passed.");

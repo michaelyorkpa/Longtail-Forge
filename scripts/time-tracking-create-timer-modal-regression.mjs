@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const appShellService = readText("src/services/app-shell.service.js");
+const changelog = readText("CHANGELOG.md");
 const footer = readText("public/js/footer.js");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const timerDialog = readText("public/js/time-tracking-timer-dialog.js");
@@ -144,9 +145,14 @@ assert.match(
   "Architecture docs should record that Timer is no longer a QAC fallback",
 );
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12d-2[\s\S]*Time Tracking-owned Create Timer modal registered as `time-tracking\.timer\.create`[\s\S]*QAC Timer to dispatch the Create Timer module action instead of navigating to `time-tracker\.html`/,
+  "Changelog should preserve the Create Timer modal closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12d-2 - Time Tracking Create Timer modal for QAC and shared dispatch[\s\S]*- \[x\] Build a Time Tracking-owned Create Timer modal[\s\S]*- \[x\] Update the QAC Timer action[\s\S]*- \[x\] Remove the previous QAC Timer temporary page fallback/,
-  "Roadmap should mark the Create Timer modal slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 assert.match(regressionSuite, /scripts\/time-tracking-create-timer-modal-regression\.mjs/);
 assert.match(regressionManifest, /scripts\/time-tracking-create-timer-modal-regression\.mjs/);

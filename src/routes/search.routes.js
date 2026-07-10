@@ -213,7 +213,9 @@ function parseSearchQuery(query = {}) {
       moduleIds,
       recordTypes,
       clientId,
+      hasClientFilter: hasQueryField(query, ["clientId", "client_id", "client"]),
       projectId,
+      hasProjectFilter: hasQueryField(query, ["projectId", "project_id", "project"]),
       libraryBucket,
       noteCollectionId,
       tagIds,
@@ -458,6 +460,10 @@ function firstString(...values) {
   }
 
   return "";
+}
+
+function hasQueryField(query = {}, keys = []) {
+  return keys.some((key) => Object.hasOwn(query, key));
 }
 
 function readStringList(...values) {

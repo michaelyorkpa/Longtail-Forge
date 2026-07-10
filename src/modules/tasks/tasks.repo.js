@@ -646,22 +646,53 @@ function applyDueFilter(conditions, options, params) {
 }
 
 function applyContextFilters(conditions, options, params) {
-  if (options.hasProjectFilter && options.projectId !== "all") {
-    if (!options.projectId) {
+  if (options.hasProjectFilter) {
+    if (options.projectFilterMode === "blank") {
       conditions.push("(tasks.project_id IS NULL OR tasks.project_id = '')");
-    } else {
-      conditions.push("tasks.project_id = :projectId");
-      params.projectId = options.projectId;
+    } else if (options.projectFilterMode === "ids") {
+      if (!Array.isArray(options.projectIds) || options.projectIds.length === 0) {
+        conditions.push("1 = 0");
+      } else {
+        conditions.push("tasks.project_id IN (:projectIds)");
+        params.projectIds = options.projectIds;
+      }
     }
   }
 
-  if (options.hasClientFilter && options.clientId !== "all") {
-    if (!options.clientId) {
-      conditions.push("(tasks.client_id IS NULL OR tasks.client_id = '')");
-    } else {
-      conditions.push("tasks.client_id = :clientId");
-      params.clientId = options.clientId;
-    }
+  if (!options.hasClientFilter || options.omitClientFilterBecauseProjectSelected) {
+    return;
+  }
+
+  if (options.clientFilterMode === "blank") {
+    conditions.push("(tasks.client_id IS NULL OR tasks.client_id = '')");
+    return;
+  }
+
+  if (options.clientFilterMode !== "ids") {
+    return;
+  }
+
+  const scopedClientIds = Array.isArray(options.clientIds) ? options.clientIds : [];
+  const scopedProjectIds = Array.isArray(options.clientProjectIds) ? options.clientProjectIds : [];
+
+  if (scopedClientIds.length === 0 && scopedProjectIds.length === 0) {
+    conditions.push("1 = 0");
+    return;
+  }
+
+  if (scopedClientIds.length > 0 && scopedProjectIds.length > 0) {
+    conditions.push("(tasks.client_id IN (:clientIds) OR tasks.project_id IN (:clientProjectIds))");
+    params.clientIds = scopedClientIds;
+    params.clientProjectIds = scopedProjectIds;
+    return;
+  }
+
+  if (scopedClientIds.length > 0) {
+    conditions.push("tasks.client_id IN (:clientIds)");
+    params.clientIds = scopedClientIds;
+  } else if (scopedProjectIds.length > 0) {
+    conditions.push("tasks.project_id IN (:clientProjectIds)");
+    params.clientProjectIds = scopedProjectIds;
   }
 }
 

@@ -56,6 +56,7 @@ async function clientToSearchDocument(client) {
 
   return {
     workspace_id: client.workspace_id,
+    client_id: client.id,
     id: client.id,
     name: client.name,
     summary: client.status,
@@ -110,6 +111,7 @@ async function projectToSearchDocument(project) {
     body,
     tags_text: tagsText,
     client_id: project.client_id,
+    project_id: project.id,
     search_status: normalizeClientProjectStatus(project.status),
     record_created_at: project.created_at,
     record_updated_at: project.updated_at,

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -132,9 +133,14 @@ assert.match(
   "View-building contract should include the current Workbench Inspector anatomy",
 );
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.11[\s\S]*served `workbench\.js\?v=26`, `longtail-forge\.css\?v=29`, and `footer\.js` exposed the Inspector and module-loader markers/,
+  "Changelog should preserve the Workbench Inspector panel closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.11 - Workbench Inspector panel[\s\S]*- \[x\] Add a persistent Inspector panel[\s\S]*- \[x\] Show permission-safe related record titles\/context[\s\S]*- \[x\] Do not build an embedded preview pane[\s\S]*- \[x\] Keep the Inspector permission-safe[\s\S]*- \[x\] Degrade gracefully[\s\S]*- \[x\] Add regressions/,
-  "Roadmap should mark the Workbench Inspector panel slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench Inspector panel regression passed.");

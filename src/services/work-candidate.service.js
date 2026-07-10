@@ -119,7 +119,10 @@ const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
 
 async function listResumeCandidates(session, query = {}) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
-  const result = await workResumeStateService.listResumeState(session, query);
+  const result = await workResumeStateService.listResumeState(session, {
+    ...stripScopeFilters(query),
+    limit: Math.min(MAX_LIMIT, normalizedQuery.limit * 4),
+  });
   const candidates = (result.items || [])
     .map((row) => candidateFromResumeRow(row))
     .filter((candidate) => matchesCandidateQuery(candidate, normalizedQuery));
@@ -609,8 +612,8 @@ function matchesCandidateQuery(candidate, query = {}) {
 
   return matchesTextFilter(candidate.moduleId, normalizedQuery.moduleId) &&
     matchesTextFilter(candidate.recordType, normalizedQuery.recordType) &&
-    matchesTextFilter(candidate.clientId, normalizedQuery.clientId) &&
-    matchesTextFilter(candidate.projectId, normalizedQuery.projectId) &&
+    matchesClientScopeFilter(candidate, normalizedQuery) &&
+    matchesProjectScopeFilter(candidate, normalizedQuery) &&
     matchesStatusFilters(candidate, normalizedQuery) &&
     matchesDueDateFilters(candidate, normalizedQuery) &&
     matchesPassiveRecurringCreated(candidate, normalizedQuery) &&
@@ -628,6 +631,8 @@ function normalizeListQuery(query = {}, options = {}) {
   return {
     [NORMALIZED_QUERY_MARKER]: true,
     clientId: textValue(firstValue(flattenedQuery.clientId, flattenedQuery.client_id), 160),
+    clientIds: normalizeIdList(firstValue(flattenedQuery.clientIds, flattenedQuery.client_ids)),
+    clientProjectIds: normalizeIdList(firstValue(flattenedQuery.clientProjectIds, flattenedQuery.client_project_ids)),
     dueBefore: dateKeyFrom(firstValue(flattenedQuery.dueBefore, flattenedQuery.due_before), timezone),
     excludePassiveRecurringCreated: booleanFlag(firstValue(
       flattenedQuery.excludePassiveRecurringCreated,
@@ -644,6 +649,7 @@ function normalizeListQuery(query = {}, options = {}) {
     mode: textValue(flattenedQuery.mode, 40) || "left_off",
     moduleId: textValue(firstValue(flattenedQuery.moduleId, flattenedQuery.module_id), TEXT_LIMITS.moduleId),
     projectId: textValue(firstValue(flattenedQuery.projectId, flattenedQuery.project_id), 160),
+    projectIds: normalizeIdList(firstValue(flattenedQuery.projectIds, flattenedQuery.project_ids)),
     rankBuckets: normalizeTextList(firstValue(
       flattenedQuery.rankBuckets,
       flattenedQuery.rank_buckets,
@@ -665,6 +671,28 @@ function normalizeListQuery(query = {}, options = {}) {
 
 function matchesTextFilter(value, filter) {
   return !filter || String(value || "") === filter;
+}
+
+function matchesClientScopeFilter(candidate, query) {
+  const scopedClientIds = Array.isArray(query.clientIds) ? query.clientIds : [];
+  const scopedProjectIds = Array.isArray(query.clientProjectIds) ? query.clientProjectIds : [];
+
+  if (scopedClientIds.length > 0 || scopedProjectIds.length > 0) {
+    return scopedClientIds.includes(String(candidate.clientId || "")) ||
+      scopedProjectIds.includes(String(candidate.projectId || ""));
+  }
+
+  return matchesTextFilter(candidate.clientId, query.clientId);
+}
+
+function matchesProjectScopeFilter(candidate, query) {
+  const scopedProjectIds = Array.isArray(query.projectIds) ? query.projectIds : [];
+
+  if (scopedProjectIds.length > 0) {
+    return scopedProjectIds.includes(String(candidate.projectId || ""));
+  }
+
+  return matchesTextFilter(candidate.projectId, query.projectId);
 }
 
 function matchesStatusFilters(candidate, query) {
@@ -1096,6 +1124,16 @@ function normalizeTextList(value) {
     .filter(Boolean))];
 }
 
+function normalizeIdList(value) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : String(value ?? "").split(",");
+
+  return [...new Set(rawValues
+    .map((item) => textValue(item, TEXT_LIMITS.recordId))
+    .filter(Boolean))];
+}
+
 function normalizeSortMode(value) {
   const sort = normalizeFilterToken(value);
   return Object.values(WORK_CANDIDATE_SORTS).includes(sort) ? sort : "";
@@ -1215,6 +1253,31 @@ function firstNonEmptyValue(...values) {
 function optionalContextFilter(key, value) {
   const text = textValue(value, TEXT_LIMITS.recordId);
   return text ? { [key]: text } : {};
+}
+
+function stripScopeFilters(query = {}) {
+  if (!query || typeof query !== "object" || Array.isArray(query)) {
+    return {};
+  }
+
+  const rest = { ...query };
+
+  for (const key of [
+    "clientId",
+    "client_id",
+    "clientIds",
+    "client_ids",
+    "clientProjectIds",
+    "client_project_ids",
+    "projectId",
+    "project_id",
+    "projectIds",
+    "project_ids",
+  ]) {
+    delete rest[key];
+  }
+
+  return rest;
 }
 
 function textValue(value, limit = 1000) {

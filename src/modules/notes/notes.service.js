@@ -52,9 +52,13 @@ import { searchIndexSyncService } from "../../services/search-index-sync.service
 import { usersRepository } from "../../repositories/users.repo.js";
 import { workspacesRepository } from "../../repositories/workspaces.repo.js";
 import { normalizeWorkspaceType } from "../../utils/workspaces.js";
+import {
+  resolveClientProjectFilterScope,
+} from "../../core/client-project-filter-scope.js";
 
 const NOTES_MODULE_ID = "notes";
 const LINK_TARGET_TYPES = new Set(["workspace", "client", "project", "task", "note", "list", "user"]);
+const LINK_TARGET_CLIENT_SCOPED_TYPES = new Set(["client", "project", "task", "note", "list"]);
 const NOTE_TYPE_VALUES = new Set([...Object.values(NOTE_TYPES), ...Object.values(LEGACY_NOTE_TYPES)]);
 const LIBRARY_BUCKET_VALUES = new Set(Object.values(NOTE_LIBRARY_BUCKETS));
 const LIBRARY_BUCKET_SOURCE_VALUES = new Set(Object.values(NOTE_LIBRARY_BUCKET_SOURCES));
@@ -792,6 +796,8 @@ async function listLinkTargets(session, query = {}) {
   const targetType = normalizeOptionalText(query.targetType || query.target_type || "all") || "all";
   const search = normalizeOptionalText(query.q || query.query || query.search).toLowerCase();
   const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50);
+  const clientContext = normalizeLinkTargetClientContext(query);
+  const clientScope = await resolveLinkTargetClientScope(session, clientContext);
   const targetTypes = targetType === "all" ? ["workspace", "client", "project", "task", "note", "list", "user"] : [targetType];
   const targets = [];
 
@@ -800,15 +806,74 @@ async function listLinkTargets(session, query = {}) {
       throw new AppError("Unsupported note link target type.", 400);
     }
 
-    targets.push(...await listTargetsByType(session, type));
+    targets.push(...await listTargetsByType(session, type, { clientContext }));
   }
 
   return {
     targets: targets
+      .filter((target) => targetMatchesClientContext(target, clientScope))
       .filter((target) => targetMatchesSearch(target, search))
       .sort(compareLinkTargets)
       .slice(0, limit),
   };
+}
+
+function normalizeLinkTargetClientContext(query = {}) {
+  const clientScope = normalizeOptionalText(query.clientScope || query.client_scope || query.clientContext || query.client_context).toLowerCase();
+  const clientId = normalizeOptionalText(query.clientId || query.client_id || query.clientContextId || query.client_context_id);
+
+  if (clientScope === "workspace") {
+    return { clientId: "", mode: "workspace" };
+  }
+  if (clientScope === "client" && clientId) {
+    return { clientId, mode: "client" };
+  }
+  if (clientId) {
+    return { clientId, mode: "client" };
+  }
+  return { clientId: "", mode: "all" };
+}
+
+function isScopedLinkTargetClientContext(clientContext = {}) {
+  return ["client", "workspace"].includes(clientContext.mode);
+}
+
+async function resolveLinkTargetClientScope(session, clientContext = {}) {
+  if (!isScopedLinkTargetClientContext(clientContext)) {
+    return { hasClientFilter: false };
+  }
+
+  return resolveClientProjectFilterScope(session, {
+    clientId: clientContext.mode === "workspace" ? "" : clientContext.clientId,
+    hasClientFilter: true,
+    hasProjectFilter: false,
+  });
+}
+
+function targetMatchesClientContext(target = {}, scope = {}) {
+  if (!scope.hasClientFilter) {
+    return true;
+  }
+
+  const targetType = normalizeOptionalText(target.targetType || target.target_type);
+  if (!LINK_TARGET_CLIENT_SCOPED_TYPES.has(targetType)) {
+    return true;
+  }
+
+  const targetId = normalizeOptionalText(target.targetId || target.target_id);
+  const clientId = normalizeOptionalText(target.clientId || target.client_id || (targetType === "client" ? targetId : ""));
+  const projectId = normalizeOptionalText(target.projectId || target.project_id);
+
+  if (scope.clientFilterMode === "blank") {
+    return targetType === "client" ? false : !clientId;
+  }
+  if (scope.clientFilterMode !== "ids") {
+    return true;
+  }
+
+  const clientIds = new Set(scope.clientIds || []);
+  const projectIds = new Set(scope.clientProjectIds || []);
+  return Boolean((clientId && clientIds.has(clientId)) || (projectId && projectIds.has(projectId)));
 }
 
 async function listLibrary(session) {
@@ -1071,7 +1136,6 @@ function isNoTagsQuery(value) {
 }
 
 async function filterAccessibleNotes(session, notes) {
-  const permissionSet = await readNotePermissionSet(session);
   const moduleState = await readNotesModuleState(session);
   const batch = createVisibleRecordBatch(notes, { idField: "note_id" });
   const links = await notesRepository.listLinksForNotes(session.workspace_id, batch.ids);
@@ -1084,7 +1148,7 @@ async function filterAccessibleNotes(session, notes) {
       note,
       operation: "read",
       session,
-      permissions: permissionSet,
+      permissions: await readNotePermissionSet(session, notePermissionResource(note)),
       linkedRecordAccess,
       notesModuleEnabled: moduleState.enabled,
       historicalReadAccess: moduleState.historicalReadAccess,
@@ -1105,7 +1169,7 @@ async function assertCanAccess(session, note, operation) {
     note,
     operation,
     session,
-    permissions: await readNotePermissionSet(session),
+    permissions: await readNotePermissionSet(session, notePermissionResource(note)),
     linkedRecordAccess,
     ...(await readNotesModuleState(session)),
   });
@@ -1357,7 +1421,7 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
       note,
       operation: "read",
       session,
-      permissions: await readNotePermissionSet(session),
+      permissions: await readNotePermissionSet(session, notePermissionResource(note)),
       linkedRecordAccess,
       ...(await readNotesModuleState(session)),
     });
@@ -1411,7 +1475,7 @@ async function canAccessNoteTarget(session, target, seenTargets = new Set()) {
     note,
     operation: "read",
     session,
-    permissions: await readNotePermissionSet(session),
+    permissions: await readNotePermissionSet(session, notePermissionResource(note)),
     linkedRecordAccess,
     ...(await readNotesModuleState(session)),
   });
@@ -1432,7 +1496,7 @@ async function canAccessListTarget(session, target) {
     permissionsService.can(session, LIST_PERMISSIONS.VIEW, listResource(listRecord));
 }
 
-async function listTargetsByType(session, targetType) {
+async function listTargetsByType(session, targetType, options = {}) {
   if (!(await canReadLinkTargetType(session, targetType))) {
     return [];
   }
@@ -1481,6 +1545,9 @@ async function listTargetsByType(session, targetType) {
     const projects = await permissionsService.filterReadableProjects(session, await projectsRepository.readAll(session.workspace_id));
     const workspace = await workspacesRepository.readById(session.workspace_id);
     const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
+    const projectLabelOptions = {
+      omitBusinessContext: isScopedLinkTargetClientContext(options.clientContext),
+    };
     return projects.map((project) => {
       const projectName = projectTargetPlainLabel(project);
 
@@ -1488,9 +1555,9 @@ async function listTargetsByType(session, targetType) {
         target_type: "project",
         target_id: project.id,
         label: projectName,
-        display_label: projectTargetDisplayLabel(project, workspace, isBusinessWorkspace),
-        secondary_label: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace),
-        sort_key: projectTargetSortKey(project, workspace, isBusinessWorkspace),
+        display_label: projectTargetDisplayLabel(project, workspace, isBusinessWorkspace, projectLabelOptions),
+        secondary_label: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace, projectLabelOptions),
+        sort_key: projectTargetSortKey(project, workspace, isBusinessWorkspace, projectLabelOptions),
         source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
         client_id: project.client_id || "",
         client_name: project.client_name || "",
@@ -1716,22 +1783,22 @@ function projectTargetPlainLabel(project = {}) {
   return readableTargetLabel(project.name || project.label, "project");
 }
 
-function projectTargetDisplayLabel(project = {}, workspace = {}, isBusinessWorkspace = false) {
+function projectTargetDisplayLabel(project = {}, workspace = {}, isBusinessWorkspace = false, options = {}) {
   const projectName = projectTargetPlainLabel(project);
-  if (!isBusinessWorkspace) {
+  if (!isBusinessWorkspace || options.omitBusinessContext) {
     return projectName;
   }
 
   return `${projectName} - ${projectTargetContextLabel(project, workspace)}`;
 }
 
-function projectTargetSecondaryLabel(project = {}, workspace = {}, isBusinessWorkspace = false) {
-  return isBusinessWorkspace ? projectTargetContextLabel(project, workspace) : "";
+function projectTargetSecondaryLabel(project = {}, workspace = {}, isBusinessWorkspace = false, options = {}) {
+  return isBusinessWorkspace && !options.omitBusinessContext ? projectTargetContextLabel(project, workspace) : "";
 }
 
-function projectTargetSortKey(project = {}, workspace = {}, isBusinessWorkspace = false) {
+function projectTargetSortKey(project = {}, workspace = {}, isBusinessWorkspace = false, options = {}) {
   const projectName = projectTargetPlainLabel(project);
-  if (!isBusinessWorkspace) {
+  if (!isBusinessWorkspace || options.omitBusinessContext) {
     return sortText(projectName);
   }
 
@@ -2751,12 +2818,23 @@ async function readNoteOrThrow(session, noteId) {
   return note;
 }
 
-async function readNotePermissionSet(session) {
+function notePermissionResource(note = {}) {
+  return {
+    client_id: note.client_id || "",
+    operation: "read",
+    project_id: note.project_id || "",
+    workspace_id: note.workspace_id || "",
+  };
+}
+
+async function readNotePermissionSet(session, resource = {}) {
   const entries = await Promise.all(NOTE_PERMISSION_VALUES.map(async (permissionId) => [
     permissionId,
     await permissionsService.can(session, permissionId, {
-      workspace_id: session.workspace_id,
-      operation: "read",
+      workspace_id: resource.workspace_id || session.workspace_id,
+      client_id: resource.client_id || "",
+      project_id: resource.project_id || "",
+      operation: resource.operation || "read",
     }),
   ]));
 
@@ -2784,10 +2862,24 @@ async function assertNotesWriteEnabled(session) {
 async function normalizeNoteListQuery(session, query = {}) {
   const filters = normalizeListFilters(query);
   const collectionFilter = await resolveCollectionListFilter(session, filters);
+  const scope = await resolveClientProjectFilterScope(session, {
+    clientId: filters.clientId,
+    hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
+    hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
+    projectId: filters.projectId,
+  });
 
   return {
     ...filters,
     ...collectionFilter,
+    clientFilterMode: scope.clientFilterMode,
+    clientIds: scope.clientIds,
+    clientProjectIds: scope.clientProjectIds,
+    hasClientFilter: scope.hasClientFilter,
+    hasProjectFilter: scope.hasProjectFilter,
+    omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
+    projectFilterMode: scope.projectFilterMode,
+    projectIds: scope.projectIds,
   };
 }
 
@@ -2867,6 +2959,14 @@ function normalizeNoteListPagination(query = {}, options = {}) {
 function normalizeOffset(value) {
   const offset = Number.parseInt(value || "", 10);
   return Number.isInteger(offset) && offset > 0 ? offset : 0;
+}
+
+function hasQueryFilter(query, keys) {
+  if (!query || typeof query !== "object") {
+    return false;
+  }
+
+  return keys.some((key) => Object.hasOwn(query, key));
 }
 
 function encodeNoteListCursor(offset) {

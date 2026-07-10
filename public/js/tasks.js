@@ -790,11 +790,40 @@ function projectMatchesClient(project, clientValue) {
   if (clientValue === "all") {
     return true;
   }
-  return String(project?.client_id ?? "") === String(clientValue ?? "");
+  return descendantClientScopeIdsForFilter(clientValue).includes(String(project?.client_id ?? ""));
 }
 
 function projectOptionsForClient(clientValue) {
   return state.options.projects.filter((project) => projectMatchesClient(project, clientValue));
+}
+
+function descendantClientScopeIdsForFilter(clientValue) {
+  const normalizedClientId = String(clientValue ?? "").trim();
+
+  if (!normalizedClientId) {
+    return [""];
+  }
+
+  const descendants = new Set([normalizedClientId]);
+  const pending = [normalizedClientId];
+
+  while (pending.length > 0) {
+    const currentId = pending.pop();
+
+    (state.options.clients || []).forEach((client) => {
+      const candidateId = String(client?.id || "").trim();
+      const parentId = String(client?.parent_client_id || "").trim();
+
+      if (!candidateId || descendants.has(candidateId) || parentId !== currentId) {
+        return;
+      }
+
+      descendants.add(candidateId);
+      pending.push(candidateId);
+    });
+  }
+
+  return [...descendants];
 }
 
 function reconcileProjectFilterForClient() {

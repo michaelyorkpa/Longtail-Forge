@@ -1,4 +1,5 @@
 import { db } from "../core/database.js";
+import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 import { AppError } from "../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../utils/workspaces.js";
 import {
@@ -215,11 +216,17 @@ async function resolveFocusMode(session, input = {}) {
   const dates = focusDates(input, workspaceContext);
   const resolved = definition.resolve({ dates, input, workspaceContext }) || {};
   const filters = normalizeFilters(mergeScopeFilters(resolved.filters, input, workspaceContext));
+  const hierarchyScope = await resolveClientProjectFilterScope(session, {
+    clientId: filters.clientId,
+    hasClientFilter: Boolean(filters.clientId),
+    hasProjectFilter: Boolean(filters.projectId),
+    projectId: filters.projectId,
+  });
   const scope = normalizeScope({
     ...(resolved.scope || {}),
     type: definition.scope,
   }, filters);
-  const candidateQuery = buildCandidateQuery(definition, filters, dates, input, workspaceContext);
+  const candidateQuery = buildCandidateQuery(definition, filters, dates, input, workspaceContext, hierarchyScope);
 
   return {
     candidateQuery,
@@ -396,7 +403,7 @@ function normalizeScope(scope, filters) {
   };
 }
 
-function buildCandidateQuery(definition, filters, dates, input, workspaceContext) {
+function buildCandidateQuery(definition, filters, dates, input, workspaceContext, hierarchyScope = {}) {
   const query = {
     mode: definition.id,
     timezone: workspaceContext.timezone,
@@ -407,8 +414,14 @@ function buildCandidateQuery(definition, filters, dates, input, workspaceContext
   if (limit) {
     query.limit = limit;
   }
-  if (filters.clientId) {
+  if (filters.clientId && !hierarchyScope.omitClientFilterBecauseProjectSelected) {
     query.clientId = filters.clientId;
+    if (Array.isArray(hierarchyScope.clientIds) && hierarchyScope.clientIds.length > 0) {
+      query.clientIds = [...hierarchyScope.clientIds];
+    }
+    if (Array.isArray(hierarchyScope.clientProjectIds) && hierarchyScope.clientProjectIds.length > 0) {
+      query.clientProjectIds = [...hierarchyScope.clientProjectIds];
+    }
   }
   if (filters.excludePassiveRecurringCreated) {
     query.excludePassiveRecurringCreated = true;
@@ -418,6 +431,9 @@ function buildCandidateQuery(definition, filters, dates, input, workspaceContext
   }
   if (filters.projectId) {
     query.projectId = filters.projectId;
+    if (Array.isArray(hierarchyScope.projectIds) && hierarchyScope.projectIds.length > 0) {
+      query.projectIds = [...hierarchyScope.projectIds];
+    }
   }
   if (filters.date.dueBefore) {
     query.dueBefore = filters.date.dueBefore;

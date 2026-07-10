@@ -158,8 +158,8 @@ check("manifest validation accepts well-formed searchableTypes and rejects direc
     .some((error) => error.includes("searchableTypes[0].indexer")));
 });
 
-check("search service composes permission-safe filter models inside the active workspace", () => {
-  const request = searchService.composePermissionSafeSearchFilters({
+await checkAsync("search service composes permission-safe filter models inside the active workspace", async () => {
+  const request = await searchService.composePermissionSafeSearchFilters({
     session: {
       workspace_id: "workspace-1",
       user_id: "user-1",
@@ -183,10 +183,14 @@ check("search service composes permission-safe filter models inside the active w
   assert.equal(request.permissionFilterRequired, true);
   assert.equal(request.moduleMustBeEnabled, true);
   assert.equal(request.text, "invoice copy");
-  assert.deepEqual(request.scopes, {
-    clientId: "client-1",
-    projectId: "project-1",
-  });
+  assert.equal(request.scopes.clientId, "client-1");
+  assert.equal(request.scopes.projectId, "project-1");
+  assert.equal(request.scopes.hasClientFilter, true);
+  assert.equal(request.scopes.hasProjectFilter, true);
+  assert.equal(request.scopes.omitClientFilterBecauseProjectSelected, true);
+  assert.deepEqual(request.scopes.clientIds, []);
+  assert.deepEqual(request.scopes.clientProjectIds, []);
+  assert.deepEqual(request.scopes.projectIds, []);
   assert.deepEqual(request.exactTagIds, ["tag-1", "tag-2"]);
   assert.equal(request.recordStatus, "active");
   assert.equal(request.visibility, "normal");
@@ -195,8 +199,8 @@ check("search service composes permission-safe filter models inside the active w
   assert.equal(request.metadataSemantics.source, "display_source_label_not_permission_source");
 });
 
-check("search filters cannot escape the active workspace", () => {
-  assert.throws(
+await checkAsync("search filters cannot escape the active workspace", async () => {
+  await assert.rejects(
     () => searchService.composePermissionSafeSearchFilters({
       session: {
         workspace_id: "workspace-1",
@@ -308,8 +312,16 @@ ON CONFLICT(workspace_id, module_id) DO UPDATE SET
   assert.equal(target.permissionFilterRequired, true);
   assert.equal(target.moduleMustBeEnabled, true);
   assert.deepEqual(target.scopes, {
+    clientFilterMode: "ids",
     clientId: "client-1",
+    clientIds: [],
+    clientProjectIds: [],
+    hasClientFilter: true,
+    hasProjectFilter: true,
+    omitClientFilterBecauseProjectSelected: true,
+    projectFilterMode: "ids",
     projectId: "project-1",
+    projectIds: [],
   });
   assert.equal(target.fields.workspace, "workspace_id");
   assert.equal(target.fields.tagsText, null);

@@ -1,6 +1,6 @@
 # Linked Context Picker Provider And Shell Contract
 
-This document defines the shared Linked Context picker provider and shell contract as of 0.33.5.18.10.4. The framework owns the reusable picker shell and linked-context read-list anatomy. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
+This document defines the shared Linked Context picker provider and shell contract as of 0.33.6.14a. The framework owns the reusable picker shell and linked-context read-list anatomy. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
 
 ## Ownership
 
@@ -54,6 +54,7 @@ Already-saved context rows may outlive their target records or target providers.
 The shell renders:
 
 - Target select.
+- Optional client-context selector when a consuming module supplies client-context options.
 - Search input.
 - Record dropdown.
 - `Use Target` action.
@@ -70,6 +71,14 @@ The shell does not fetch provider data, sort records, infer workspace behavior, 
 
 Do not use the shell to construct labels such as `Project: Name - Client - Active`, `Client: Name - Client - Active`, or `Task: Name - Active`. If a module needs status, client, workspace, or other context in picker text, its provider must return a safe `displayLabel` or `secondaryLabel` that already represents the intended display.
 
+## Client-Context Selector
+
+The picker shell may render a client-context selector only when the consuming module supplies client-context options and change handling. The shell owns the field anatomy and disabled state, but it does not fetch clients, derive workspace type, expand descendants, filter target records, or decide whether a client concept is available. The caller must provide safe option labels, persist the selected value in module state, pass the selected scope to its route, and refresh provider-owned record options.
+
+The Notes Add/Edit Linked Context picker uses this selector on Business workspaces only. Its default option is `All Clients`, which keeps the unscoped provider breadth. The second option is the readable workspace name and represents client-less workspace projects and records. Real clients follow those entries. Selecting a parent client includes readable descendant clients and projects through the shared hierarchy scope resolver while preserving single drill-down for leaf selections.
+
+Personal and Family workspaces must not render the client-context selector, must not include a workspace-as-client entry, and must not leak client names through Linked Context picker labels.
+
 ## Client And Project Labels
 
 The Clients/Projects provider owns Client and Project target option labels and sort keys.
@@ -83,6 +92,8 @@ Project targets use the plain project name as compatibility `label` and a provid
 - Personal and Family workspace project: `Project Name`.
 
 Business Project targets sort workspace-level projects first, then by the workspace/client display name, then by project name. Personal and Family Project targets sort by project name. Project labels do not include `Project:`, status, UUIDs, or raw ids.
+
+When a Business Linked Context picker is scoped by a specific client or by the workspace-projects client-context entry, Project target `displayLabel` and `secondaryLabel` drop the Business client/workspace suffix and show the project name only because the picker context already supplies that disambiguation. Under `All Clients`, Business Project targets keep the `Project Name - Client Name` or `Project Name - Workspace Name` suffix so same-named projects remain distinguishable. Personal and Family Project targets always stay plain.
 
 ## Task Labels
 

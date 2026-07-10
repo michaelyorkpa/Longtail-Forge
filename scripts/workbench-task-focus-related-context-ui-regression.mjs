@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -119,9 +120,14 @@ assert.match(
   "View-building contract should include the selected-task related-context Inspector boundary",
 );
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12e-2[\s\S]*selected-task related-context read model from 0\.33\.6\.12e-1 instead of Focus Selection candidate overflow[\s\S]*existing module actions or explicit safe fallbacks/,
+  "Changelog should preserve the Task Focus related-context UI closeout",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12e-2[\s\S]*- \[x\] In Task Focus, keep the Inspector visible[\s\S]*- \[x\] Render related items from the selected-task related-context read model[\s\S]*- \[x\] Clicking a related item opens the existing module preview\/edit modal[\s\S]*- \[x\] Do not build an embedded preview pane[\s\S]*- \[x\] Add focused regressions/,
-  "Roadmap should mark the Task Focus related-context UI slice complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench Task Focus related-context UI regression passed.");

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
+const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -107,19 +109,24 @@ assert.match(
   "Recommended-action arrows should remain compact icon-only controls",
 );
 assert.match(
-  roadmap,
-  /### Version 0\.33\.6\.6a - Recommended-action candidate cycling and overflow[\s\S]*- \[x\] Add a "not this one" affordance[\s\S]*- \[x\] Keep everything beyond the top 3-5[\s\S]*- \[x\] Preserve the one-recommended-action emphasis[\s\S]*- \[x\] Preserve the permission\/workspace\/enabled-module scoping[\s\S]*- \[x\] Add focused browser\/static regressions/,
-  "Roadmap should mark recommended-action cycling and overflow complete",
+  changelog,
+  /## Version 0\.33\.6\.6a[\s\S]*top-five cycling contract without the old secondary-list slice/,
+  "Changelog should preserve the recommended-action cycling and overflow closeout",
+);
+assert.match(
+  moduleContract,
+  /As of 0\.33\.6\.6a, the Workbench recommended-action panel gained right-aligned icon-only cycle controls[\s\S]*active recommendation window is the top five ranked candidates[\s\S]*overflow starts after the top-five window/,
+  "Module contract should preserve the top-five recommended-action and Inspector overflow boundary",
+);
+assert.match(
+  changelog,
+  /## Version 0\.33\.6\.6h[\s\S]*Previous`\/`Next` without the old verbose recommendation-cycle labels/,
+  "Changelog should preserve the recommended-action cycle label correction closeout",
 );
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12b - Focus Selection cleanup: Inspector owns More in this focus[\s\S]*- \[x\] Change `RECOMMENDED_CANDIDATE_LIMIT` from `1` to `5`[\s\S]*- \[x\] Ensure candidates in the top-five recommendation cycle are not duplicated/,
-  "Roadmap should mark the Focus Selection top-five/Inspector overflow slice complete",
-);
-assert.match(
-  roadmap,
-  /### Version 0\.33\.6\.6h - Shorten recommendation cycle-button labels[\s\S]*- \[x\] Shorten the two cycle-button labels[\s\S]*- \[x\] On the icon-only arrows[\s\S]*- \[x\] Update any regression that pins the old button labels[\s\S]*Acceptance criteria:/,
-  "Roadmap should mark the recommended-action cycle label correction complete",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench recommended-action cycling regression passed.");

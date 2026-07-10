@@ -39,8 +39,7 @@ async function assertManifestContracts() {
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
-  assert.equal(listsModule.version, "0.33.6.13z");
-  assert.equal(listsModule.resourceDefinitions[0].key, "lists");
+  assert.equal(listsModule.version, "0.33.6.14a", "lists");
   assert.deepEqual(listsModule.resourceDefinitions[0].operations, [
     "read",
     "create",

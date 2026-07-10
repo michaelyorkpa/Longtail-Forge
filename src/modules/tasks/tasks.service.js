@@ -20,6 +20,10 @@ import { modulesService } from "../../core/modules/modules.service.js";
 import { usersRepository } from "../../repositories/users.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
+import {
+  FILTER_SCOPE_MODES,
+  resolveClientProjectFilterScope,
+} from "../../core/client-project-filter-scope.js";
 import { createVisibleRecordBatch } from "../../core/list-enrichment.js";
 import { tagsService } from "../../services/tags.service.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
@@ -41,6 +45,7 @@ const DASHBOARD_TASK_UPCOMING_LIMIT = 5;
 const DASHBOARD_TASK_PRESSURE_LIMIT = 5;
 const DASHBOARD_WORKBENCH_URL = "workbench.html";
 const DASHBOARD_TASKS_URL = "tasks.html";
+const TASK_SCOPE_QUERY_MARKER = Symbol("taskScopeQuery");
 
 async function list(session, query = {}) {
   const { options, pagination, tasks } = await queryTasks(session, query, { paginate: true });
@@ -67,7 +72,7 @@ async function queryTasks(session, query = {}, options = {}) {
   const timers = await taskTimersService.list(session);
   const timerByTaskId = new Map((timers.timers || []).map((timer) => [timer.task_id, timer]));
   const pagination = normalizeTaskPagination(query, options);
-  const repositoryQuery = taskListRepositoryQuery(session, query);
+  const repositoryQuery = await taskListRepositoryQuery(session, query);
   const tasks = [];
   let offset = pagination?.offset || 0;
   let hasMoreCandidates = false;
@@ -97,6 +102,7 @@ async function queryTasks(session, query = {}, options = {}) {
       candidates,
       offset,
       query,
+      resolvedQuery: repositoryQuery,
       session,
       timerByTaskId,
     });
@@ -139,7 +145,7 @@ async function queryTasks(session, query = {}, options = {}) {
   });
 }
 
-async function filterAndShapeTaskListCandidates({ candidates, offset, query, session, timerByTaskId }) {
+async function filterAndShapeTaskListCandidates({ candidates, offset, query, resolvedQuery, session, timerByTaskId }) {
   const readableTasks = [];
 
   for (let index = 0; index < candidates.length; index += 1) {
@@ -160,7 +166,10 @@ async function filterAndShapeTaskListCandidates({ candidates, offset, query, ses
   );
   const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks);
 
-  return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, query, session, timerByTaskId));
+  return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, {
+    ...(query || {}),
+    ...(resolvedQuery || {}),
+  }, session, timerByTaskId));
 }
 
 async function queryTasksResult({ pagination, query, session, tasks, timers, nextCursor = "" }) {
@@ -178,24 +187,37 @@ async function queryTasksResult({ pagination, query, session, tasks, timers, nex
   };
 }
 
-function taskListRepositoryQuery(session, query = {}) {
+async function taskListRepositoryQuery(session, query = {}) {
   const now = new Date();
   const today = localDateKey(now, session.timezone);
   const taskView = normalizedTaskView(query.taskView || query.task_view || query.view);
   const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || (!taskView ? query.assigneeFilter || query.assignee_filter : ""));
+  const scope = await resolveClientProjectFilterScope(session, {
+    clientId: String(query.clientId || query.client_id || "").trim(),
+    hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
+    hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
+    projectId: String(query.projectId || query.project_id || "").trim(),
+  });
 
   return {
+    [TASK_SCOPE_QUERY_MARKER]: true,
     assigneeFilter: normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value),
     assigneeId: String(query.assigneeId || query.assignee_id || "").trim(),
-    clientId: String(query.clientId || query.client_id || "").trim(),
+    clientFilterMode: scope.clientFilterMode,
+    clientId: scope.clientId,
+    clientIds: scope.clientIds,
+    clientProjectIds: scope.clientProjectIds,
     currentUserId: session.user_id,
     currentWeekEnd: currentWeekEndKey(today),
     dueFilter: normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter),
     dueSoonCutoff: addDaysKey(today, 7),
-    hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
-    hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
+    hasClientFilter: scope.hasClientFilter,
+    hasProjectFilter: scope.hasProjectFilter,
     nowIso: now.toISOString(),
-    projectId: String(query.projectId || query.project_id || "").trim(),
+    omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
+    projectFilterMode: scope.projectFilterMode,
+    projectId: scope.projectId,
+    projectIds: scope.projectIds,
     quickFilter,
     sort: normalizedTaskSort(query.sort || query.sort_by || query.order),
     statusFilter: normalizedTaskFilter(query.status || query.status_filter || query.filter),
@@ -1049,7 +1071,7 @@ async function readTaskOptionPayload(session, query = {}) {
     : includeCompleted
       ? "history"
       : "active";
-  const repositoryQuery = taskListRepositoryQuery(session, {
+  const repositoryQuery = await taskListRepositoryQuery(session, {
     sort: "context",
     status,
   });
@@ -2376,11 +2398,8 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
   const dueFilter = normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter);
   const timerFilter = normalizedTaskFilter(query.timer || query.timer_status);
   const assigneeFilter = normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value);
-  const projectId = String(query.projectId || query.project_id || "").trim();
-  const clientId = String(query.clientId || query.client_id || "").trim();
   const assigneeId = String(query.assigneeId || query.assignee_id || "").trim();
-  const hasProjectFilter = hasQueryFilter(query, ["projectId", "project_id"]);
-  const hasClientFilter = hasQueryFilter(query, ["clientId", "client_id"]);
+  const scopeQuery = normalizeTaskScopeQuery(query);
 
   // An explicit terminal Status filter (or "all") overrides a saved view's implicit active-only
   // scope, so combinations like "Today + Complete" or "All + All" resolve instead of contradicting.
@@ -2404,11 +2423,7 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
     return false;
   }
 
-  if (hasProjectFilter && projectId !== "all" && (task.project_id || "") !== projectId) {
-    return false;
-  }
-
-  if (hasClientFilter && clientId !== "all" && (task.client_id || "") !== clientId) {
+  if (!matchesTaskContextFilters(task, scopeQuery)) {
     return false;
   }
 
@@ -2427,6 +2442,67 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
   }
 
   return true;
+}
+
+function normalizeTaskScopeQuery(query = {}) {
+  if (query?.[TASK_SCOPE_QUERY_MARKER]) {
+    return query;
+  }
+
+  return {
+    clientFilterMode: hasQueryFilter(query, ["clientId", "client_id"])
+      ? (String(query.clientId || query.client_id || "").trim() ? FILTER_SCOPE_MODES.ids : FILTER_SCOPE_MODES.blank)
+      : FILTER_SCOPE_MODES.all,
+    clientId: String(query.clientId || query.client_id || "").trim(),
+    clientIds: [],
+    clientProjectIds: [],
+    hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
+    omitClientFilterBecauseProjectSelected: false,
+    projectFilterMode: hasQueryFilter(query, ["projectId", "project_id"])
+      ? (String(query.projectId || query.project_id || "").trim() ? FILTER_SCOPE_MODES.ids : FILTER_SCOPE_MODES.blank)
+      : FILTER_SCOPE_MODES.all,
+    projectId: String(query.projectId || query.project_id || "").trim(),
+    projectIds: [],
+    hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
+  };
+}
+
+function matchesTaskContextFilters(task = {}, query = {}) {
+  if (query.hasProjectFilter) {
+    if (query.projectFilterMode === FILTER_SCOPE_MODES.blank) {
+      if (String(task.project_id || "").trim()) {
+        return false;
+      }
+    } else if (query.projectFilterMode === FILTER_SCOPE_MODES.ids) {
+      const scopedProjectIds = Array.isArray(query.projectIds) && query.projectIds.length > 0
+        ? query.projectIds
+        : [String(query.projectId || "").trim()].filter(Boolean);
+
+      if (!scopedProjectIds.includes(String(task.project_id || "").trim())) {
+        return false;
+      }
+    }
+  }
+
+  if (!query.hasClientFilter || query.omitClientFilterBecauseProjectSelected) {
+    return true;
+  }
+
+  if (query.clientFilterMode === FILTER_SCOPE_MODES.blank) {
+    return !String(task.client_id || "").trim();
+  }
+
+  if (query.clientFilterMode !== FILTER_SCOPE_MODES.ids) {
+    return true;
+  }
+
+  const scopedClientIds = Array.isArray(query.clientIds) && query.clientIds.length > 0
+    ? query.clientIds
+    : [String(query.clientId || "").trim()].filter(Boolean);
+  const scopedProjectIds = Array.isArray(query.clientProjectIds) ? query.clientProjectIds : [];
+
+  return scopedClientIds.includes(String(task.client_id || "").trim()) ||
+    scopedProjectIds.includes(String(task.project_id || "").trim());
 }
 
 function matchesTaskView(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope = false) {

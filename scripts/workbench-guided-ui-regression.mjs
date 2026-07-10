@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -132,8 +132,8 @@ assert.match(css, /\.workbench-inspector-list[\s\S]*overflow-y: auto;/, "Workben
 
 assert.match(
   roadmap,
-  /### Version 0\.33\.6\.6 - Guided Workbench UI[\s\S]*- \[x\] Replace the hardcoded `views\/protected\/workbench\.html` host[\s\S]*Acceptance criteria:/,
-  "Roadmap should mark guided Workbench UI host conversion complete",
+  /Active cursor: `0\.33\.6\.15`[\s\S]*Completed work through `0\.33\.6\.14a` is archived in `ROADMAP-ARCHIVE\.md`\./,
+  "Roadmap should archive the completed hierarchy follow-up and advance to the next live slice",
 );
 
 console.log("Workbench guided UI regression passed.");

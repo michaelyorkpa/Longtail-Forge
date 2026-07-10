@@ -3234,8 +3234,9 @@ function projectFocusOptions(clients = state.clients, clientId = state.selectedC
   const projects = [];
   const seen = new Set();
   const selectedClientId = String(clientId || "").trim();
+  const scopedClientIds = selectedClientId ? descendantClientScopeIds(clients, selectedClientId) : [];
   const scopedClients = selectedClientId
-    ? (clients || []).filter((client) => client.id === selectedClientId)
+    ? (clients || []).filter((client) => scopedClientIds.includes(client.id))
     : (clients || []);
 
   scopedClients.forEach((client) => {
@@ -3257,6 +3258,35 @@ function projectFocusOptions(clients = state.clients, clientId = state.selectedC
   });
 
   return projects;
+}
+
+function descendantClientScopeIds(clients = state.clients, clientId = "") {
+  const normalizedClientId = String(clientId || "").trim();
+
+  if (!normalizedClientId) {
+    return [];
+  }
+
+  const descendants = new Set([normalizedClientId]);
+  const pending = [normalizedClientId];
+
+  while (pending.length > 0) {
+    const currentId = pending.pop();
+
+    (clients || []).forEach((client) => {
+      const candidateId = String(client?.id || "").trim();
+      const parentId = String(client?.parent_client_id || "").trim();
+
+      if (!candidateId || descendants.has(candidateId) || parentId !== currentId) {
+        return;
+      }
+
+      descendants.add(candidateId);
+      pending.push(candidateId);
+    });
+  }
+
+  return [...descendants];
 }
 
 function normalizeClientProjectOptions(data) {

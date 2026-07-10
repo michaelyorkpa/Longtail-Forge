@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recordedAtVersion": "0.33.5.29.5",
-  "minimumRegisteredScripts": 307,
+  "minimumRegisteredScripts": 309,
   "minimumCloseoutScripts": 22,
   "requiredScripts": [
     "scripts/check-js.mjs",
@@ -82,6 +82,8 @@
     "scripts/notes-declarative-readonly-surface-regression.mjs",
     "scripts/notes-server-side-list-paging-regression.mjs",
     "scripts/notes-records-filters-repository-conversion-regression.mjs",
+    "scripts/notes-files-hierarchy-scope-regression.mjs",
+    "scripts/client-project-hierarchy-branch-closeout-regression.mjs",
     "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
     "scripts/markdown-platform-contract-regression.mjs",
     "scripts/markdown-renderer-service-regression.mjs",
@@ -246,6 +248,7 @@
     "scripts/notes-ui-workflow-regression.mjs",
     "scripts/notes-primary-context-regression.mjs",
     "scripts/linked-context-client-project-label-sort-regression.mjs",
+    "scripts/linked-context-client-scope-picker-regression.mjs",
     "scripts/linked-context-task-label-sort-regression.mjs",
     "scripts/linked-context-note-list-label-regression.mjs",
     "scripts/linked-context-unavailable-fallback-regression.mjs",

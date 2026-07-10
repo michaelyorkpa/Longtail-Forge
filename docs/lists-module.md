@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.6.13z. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.6.14a. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -82,6 +82,8 @@ Catalog item create/update history uses the `list_item_catalog` audit record typ
 The Lists service owns index filtering, sorting, progress summaries, linked-record context, reusable-list views, and catalog suggestion ranking. Browser code sends query intent to `/api/lists` and renders the returned canonical payload instead of rebuilding the authoritative list view locally.
 
 The default Lists index is active, non-reusable working lists. Explicit service-owned filters support list status, list type, reusable lists, business client/project context, assigned list items, needed-by dates, linked records, and Tags/No Tags through the framework tag service.
+
+As of 0.33.6.14.3, direct Lists client/project filters now use the shared hierarchy scope resolver. On Business workspaces, selecting a parent client includes readable descendant sub-clients and descendant projects, selecting a parent project includes readable descendant sub-projects, leaf selection still drills down to the selected client/project only, unreadable descendants remain excluded, and Personal/Family workspaces still hide client scope.
 
 Deterministic sorts are service-owned. Supported ordering includes recent activity, needed-by date, incomplete/progress count, title, type, status, finalized date, and reusable/source context ordering. Permission checks happen before labels, links, tags, source context, progress summaries, or catalog suggestions are returned.
 

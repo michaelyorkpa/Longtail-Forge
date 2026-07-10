@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.13z";
+const appVersion = "0.33.6.14a";
+const changelog = readText("CHANGELOG.md");
+const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -104,9 +106,19 @@ assert.match(
 );
 
 assert.match(
+  changelog,
+  /## Version 0\.33\.6\.12a[\s\S]*Focus Selection\/Task Focus[\s\S]*`Focus task` markers/,
+  "Changelog should preserve the Workbench Task Focus primary-action direction closeout",
+);
+assert.match(
+  moduleContract,
+  /As of 0\.33\.6\.12c-1, Workbench has explicit `focus-selection` and `task-focus` browser states[\s\S]*Primary actions on normalized Task candidates are labeled `Focus task` and enter Task Focus[\s\S]*The header action slot is `Change Focus`/,
+  "Module contract should preserve the Workbench Task Focus primary-action direction",
+);
+assert.match(
   roadmap,
-  /### Version 0\.33\.6\.12a - Workbench view-state split: Focus Selection and Task Focus[\s\S]*Change all Workbench candidate primary actions[\s\S]*enter `task-focus`/,
-  "Roadmap should record the Workbench Task Focus primary-action direction",
+  /Active cursor: `0\.33\.6\.15`\./,
+  "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 
 console.log("Workbench explicit open/context regression passed.");

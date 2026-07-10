@@ -32,7 +32,28 @@ try {
 
 async function createFixtures(session) {
   const client = (await clientsService.createClient({ name: "Canonical Query Client" }, session)).client;
+  const childClient = (await clientsService.createClient({
+    name: "Canonical Query Child Client",
+    parent_client_id: client.id,
+  }, session)).client;
   const project = (await clientsService.createProject(client.id, { name: "Canonical Query Project" }, session)).project;
+  const childClientProject = (await clientsService.createProject(childClient.id, {
+    name: "Canonical Query Child Client Project",
+  }, session)).project;
+  const projectParent = (await clientsService.createProject(client.id, {
+    name: "Canonical Query Parent Project",
+  }, session)).project;
+  const projectChild = (await clientsService.createProject(client.id, {
+    name: "Canonical Query Child Project",
+    parent_project_id: projectParent.id,
+  }, session)).project;
+  const unreadableChildClient = (await clientsService.createClient({
+    name: "Canonical Query Hidden Child Client",
+    parent_client_id: client.id,
+  }, session)).client;
+  const unreadableChildProject = (await clientsService.createProject(unreadableChildClient.id, {
+    name: "Canonical Query Hidden Child Project",
+  }, session)).project;
   const tag = await tagsService.create(session, { name: "Canonical Query" });
   const now = new Date();
   const yesterday = dateKey(addDays(now, -1), session.timezone);
@@ -62,6 +83,24 @@ async function createFixtures(session) {
     project_id: project.id,
     assignee_ids: [],
   }, session)).task;
+  const descendantClientTask = (await tasksService.create({
+    title: "Canonical descendant client task",
+    due_date: nextWeek,
+    priority: "normal",
+    project_id: childClientProject.id,
+  }, session)).task;
+  const descendantProjectTask = (await tasksService.create({
+    title: "Canonical descendant project task",
+    due_date: nextWeek,
+    priority: "normal",
+    project_id: projectChild.id,
+  }, session)).task;
+  const unreadableDescendantTask = (await tasksService.create({
+    title: "Canonical unreadable descendant task",
+    due_date: nextWeek,
+    priority: "normal",
+    project_id: unreadableChildProject.id,
+  }, session)).task;
   const blocked = (await tasksService.update(todayTask.task_id, {
     ...todayTask,
     status: "blocked",
@@ -76,10 +115,20 @@ async function createFixtures(session) {
 
   return {
     blocked,
+    client,
+    childClient,
+    childClientProject,
     complete,
+    descendantClientTask,
+    descendantProjectTask,
     overdue,
     project,
+    projectChild,
+    projectParent,
     tag,
+    unreadableChildClient,
+    unreadableChildProject,
+    unreadableDescendantTask,
   };
 }
 
@@ -99,6 +148,36 @@ async function assertCanonicalFilters(session, fixtures) {
 
   const project = await tasksService.list(session, { project_id: fixtures.project.id, status: "active" });
   assert.ok(project.tasks.every((task) => task.project_id === fixtures.project.id));
+
+  const parentClientScope = await tasksService.list(session, { client_id: fixtures.client.id, status: "active" });
+  assert.ok(
+    parentClientScope.tasks.some((task) => task.task_id === fixtures.descendantClientTask.task_id),
+    "parent client filters should include readable descendant-client tasks",
+  );
+  assert.ok(
+    parentClientScope.tasks.some((task) => task.task_id === fixtures.descendantProjectTask.task_id),
+    "parent client filters should keep same-client descendant-project tasks in scope",
+  );
+
+  const leafClientScope = await tasksService.list(session, { client_id: fixtures.childClient.id, status: "active" });
+  assert.deepEqual(
+    leafClientScope.tasks.map((task) => task.task_id),
+    [fixtures.descendantClientTask.task_id],
+    "leaf client drill-down should stay limited to the selected client scope",
+  );
+
+  const parentProjectScope = await tasksService.list(session, { project_id: fixtures.projectParent.id, status: "active" });
+  assert.ok(
+    parentProjectScope.tasks.some((task) => task.task_id === fixtures.descendantProjectTask.task_id),
+    "parent project filters should include readable descendant-project tasks",
+  );
+
+  const leafProjectScope = await tasksService.list(session, { project_id: fixtures.projectChild.id, status: "active" });
+  assert.deepEqual(
+    leafProjectScope.tasks.map((task) => task.task_id),
+    [fixtures.descendantProjectTask.task_id],
+    "leaf project drill-down should stay limited to the selected project scope",
+  );
 
   const tagged = await tasksService.list(session, { tags: [fixtures.tag.tag_id], status: "active" });
   assert.ok(tagged.tasks.some((task) => task.task_id === fixtures.overdue.task_id), "tag filter should include the directly tagged task");
@@ -148,6 +227,24 @@ async function assertWorkItemSummaryPayload(session, fixtures) {
   assert.equal(item.checklist_progress.total_count, 0);
   assert.equal(item.project_id, fixtures.project.id);
 
+  const descendantClientItems = await tasksService.listWorkItems(session, {
+    client_id: fixtures.client.id,
+    status: "active",
+  });
+  assert.ok(
+    descendantClientItems.items.some((candidate) => candidate.task_id === fixtures.descendantClientTask.task_id),
+    "Workbench task items should include descendant-client tasks under a parent client filter",
+  );
+
+  const descendantProjectItems = await tasksService.listWorkItems(session, {
+    project_id: fixtures.projectParent.id,
+    status: "active",
+  });
+  assert.ok(
+    descendantProjectItems.items.some((candidate) => candidate.task_id === fixtures.descendantProjectTask.task_id),
+    "Workbench task items should include descendant-project tasks under a parent project filter",
+  );
+
   const complete = (await tasksService.listWorkItems(session, { status: "history" })).items.find((candidate) =>
     candidate.task_id === fixtures.complete.task_id
   );
@@ -168,6 +265,30 @@ async function assertPermissionFiltering(session) {
   assert.equal(result.tasks.length, 0, "canonical list should filter unreadable tasks before shaping");
   assert.equal(workItems.items.length, 0, "canonical work items should not expose unreadable task context");
   assert.equal(workbench.items.length, 0, "Workbench should consume permission-filtered canonical task work items");
+
+  const hierarchyFixtures = await createHierarchyPermissionFixtures(session);
+  const limitedSession = await createNoRoleSession(session.workspace_id);
+  await assignProjectAdminRole(limitedSession.user_id, session.workspace_id, hierarchyFixtures.readableProject.id);
+
+  const limitedClientScope = await tasksService.list(limitedSession, {
+    client_id: hierarchyFixtures.parentClient.id,
+    status: "active",
+  });
+  assert.deepEqual(
+    limitedClientScope.tasks.map((task) => task.task_id),
+    [hierarchyFixtures.readableTask.task_id],
+    "parent client filters should include only readable descendant tasks for limited users",
+  );
+
+  const limitedWorkbenchItems = await tasksService.listWorkItems(limitedSession, {
+    client_id: hierarchyFixtures.parentClient.id,
+    status: "active",
+  });
+  assert.deepEqual(
+    limitedWorkbenchItems.items.map((candidate) => candidate.task_id),
+    [hierarchyFixtures.readableTask.task_id],
+    "Workbench task items should exclude unreadable descendant tasks for limited users",
+  );
 }
 
 async function createNoRoleSession(workspaceId) {
@@ -224,6 +345,67 @@ VALUES (
     username: `task-canonical-no-role-${userId}@example.test`,
     workspace_id: workspaceId,
   };
+}
+
+async function createHierarchyPermissionFixtures(session) {
+  const parentClient = (await clientsService.createClient({ name: "Canonical Permission Parent Client" }, session)).client;
+  const readableChildClient = (await clientsService.createClient({
+    name: "Canonical Permission Readable Child Client",
+    parent_client_id: parentClient.id,
+  }, session)).client;
+  const hiddenChildClient = (await clientsService.createClient({
+    name: "Canonical Permission Hidden Child Client",
+    parent_client_id: parentClient.id,
+  }, session)).client;
+  const readableProject = (await clientsService.createProject(readableChildClient.id, {
+    name: "Canonical Permission Readable Project",
+  }, session)).project;
+  const hiddenProject = (await clientsService.createProject(hiddenChildClient.id, {
+    name: "Canonical Permission Hidden Project",
+  }, session)).project;
+  const readableTask = (await tasksService.create({
+    title: "Canonical permission readable task",
+    project_id: readableProject.id,
+  }, session)).task;
+  const hiddenTask = (await tasksService.create({
+    title: "Canonical permission hidden task",
+    project_id: hiddenProject.id,
+  }, session)).task;
+
+  return {
+    hiddenProject,
+    hiddenTask,
+    parentClient,
+    readableProject,
+    readableTask,
+  };
+}
+
+async function assignProjectAdminRole(userId, workspaceId, projectId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO user_role_assignments (
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(randomUUID())},
+  ${sqlText(workspaceId)},
+  ${sqlText(userId)},
+  'project_admin',
+  'project',
+  ${sqlText(projectId)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
 }
 
 async function readSeedSession() {

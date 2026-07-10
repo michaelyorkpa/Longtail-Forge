@@ -621,42 +621,42 @@ assert.match(
 );
 assert.match(
   files.declarativeViewSurfaces,
-  /As of 0\.33\.6\.13z, Dashboard host guardrails are strict[\s\S]*As of 0\.33\.6\.13z, Workbench host guardrails are strict/,
-  "Declarative surface docs must record the 13z closeout guardrails",
+  /As of 0\.33\.6\.14\.1, Dashboard host guardrails are strict[\s\S]*shared descendant-aware hierarchy resolver[\s\S]*As of 0\.33\.6\.14\.1, Workbench host guardrails are strict/,
+  "Declarative surface docs must record the current closeout guardrails and descendant-aware Workbench scope",
 );
 assert.match(
   files.moduleContract,
-  /As of 0\.33\.6\.13z, Dashboard\/Workbench closeout locks the host boundary[\s\S]*Reporting remains assigned to `0\.33\.11`[\s\S]*Public API plus tag propagation remain assigned to `0\.39\.15`/,
+  /As of 0\.33\.6\.14\.1, Dashboard\/Workbench closeout locks the host boundary[\s\S]*Reporting remains assigned to `0\.33\.11`[\s\S]*Public API plus tag propagation remain assigned to `0\.39\.15`/,
   "Module contract must record the host boundary and deferred framework-coupling follow-ups",
 );
 assert.match(
   files.moduleContract,
-  /documented closeout allowlist[\s\S]*src\/core\/modules\/registry\.js[\s\S]*src\/services\/work-candidate\.service\.js[\s\S]*src\/services\/workbench-task-focus-related-context\.service\.js[\s\S]*New generic Dashboard\/Workbench host decisions should not add first-party module imports/,
+  /documented closeout allowlist[\s\S]*src\/core\/modules\/registry\.js[\s\S]*src\/core\/client-project-filter-scope\.js[\s\S]*src\/services\/work-candidate\.service\.js[\s\S]*src\/services\/workbench-task-focus-related-context\.service\.js[\s\S]*New generic Dashboard\/Workbench host decisions should not add first-party module imports/,
   "Module contract must document the framework-coupling allowlist used by the closeout guardrail",
 );
 assert.match(
   files.uiSurfaceContract,
-  /As of 0\.33\.6\.13z, Dashboard's visual and interaction rule is summary, pressure, direction[\s\S]*Dashboard must not add capture forms, inline editors, full report tables\/charts, full task indexes/,
+  /As of 0\.33\.6\.14\.1, Dashboard's visual and interaction rule is summary, pressure, direction[\s\S]*Dashboard must not add capture forms, inline editors, full report tables\/charts, full task indexes/,
   "UI surface contract must record Dashboard closeout surface rules",
 );
 assert.match(
   files.viewBuildingContract,
-  /As of 0\.33\.6\.13z, the Workbench host guardrail is strict[\s\S]*As of 0\.33\.6\.13z, the host guardrail is strict/,
+  /As of 0\.33\.6\.14\.1, the Workbench host guardrail is strict[\s\S]*As of 0\.33\.6\.14\.1, the host guardrail is strict/,
   "View-building contract must record strict Dashboard and Workbench host guardrails",
 );
 assert.match(
   files.tasksModuleDoc,
-  /current Tasks module behavior as of 0\.33\.6\.13z[\s\S]*Dashboard can show capped Tasks pressure[\s\S]*Dashboard must not open task rows directly into the edit modal/,
+  /current Tasks module behavior as of 0\.33\.6\.14a[\s\S]*Dashboard can show capped Tasks pressure[\s\S]*Dashboard must not open task rows directly into the edit modal/,
   "Tasks docs must record the Dashboard card and Workbench execution boundary",
 );
 assert.match(
   files.timeTrackingModuleDoc,
-  /As of 0\.33\.6\.13z[\s\S]*Time Tracking Dashboard cards compact and active\/recent only[\s\S]*detailed billables[\s\S]*belong in Reporting/,
+  /As of 0\.33\.6\.14\.1, the closeout guardrail keeps Time Tracking Dashboard cards compact and active\/recent only[\s\S]*detailed billables[\s\S]*belong in Reporting/,
   "Time Tracking docs must record Dashboard and Reporting closeout boundaries",
 );
 assert.match(
   files.notesModuleDoc,
-  /current Notes implementation as of 0\.33\.6\.13z[\s\S]*Task Focus linked notes open the Notes-owned read modal before editing[\s\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route/,
+  /current Notes implementation as of 0\.33\.6\.14a[\s\S]*Task Focus linked notes open the Notes-owned read modal before editing[\s\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route/,
   "Notes docs must record the Task Focus read-first and Dashboard-deferred boundaries",
 );
 
@@ -669,6 +669,7 @@ function readText(path) {
 function scanUnexpectedFrameworkCoupling() {
   const allowedFiles = new Set([
     "src/core/app.js",
+    "src/core/client-project-filter-scope.js",
     "src/core/jobs/worker-cli.js",
     "src/core/modules/modules.service.js",
     "src/core/modules/registry.js",

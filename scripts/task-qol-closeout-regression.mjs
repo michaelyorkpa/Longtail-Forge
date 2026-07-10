@@ -136,9 +136,8 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
 
 async function assertTasksHelpAndDocsAreCurrent() {
   const tasksModule = modulesService.getModule("tasks");
-  assert.equal(tasksModule.version, "0.33.6.13z");
+  assert.equal(tasksModule.version, "0.33.6.14a");
   assert.ok(tasksModule.help?.articles?.some((article) => article.id === "tasks.resume-context"));
-
   const docs = await fs.readFile(new URL("../docs/tasks-module.md", import.meta.url), "utf8");
   assert.match(docs, /resume-safe context/i);
   assert.match(docs, /global resume-state service/i);
