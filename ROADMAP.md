@@ -2,34 +2,74 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.6.14`. Completed work through `0.33.6.13z` is archived in `ROADMAP-ARCHIVE.md`.
+Active cursor: `0.33.6.14.1`. Completed work through `0.33.6.13z` is archived in `ROADMAP-ARCHIVE.md`.
 
 ## Remaining 0.33.6 Direction
 
 ### Version 0.33.6.14 - App-wide hierarchical client/project scoping standard
 
-**Model: GPT-5.5 Extra High** - Cross-cutting scope-resolution standard shared by every client/project filter.
+**Model: GPT-5.5 Extra High** - Cross-cutting scope-resolution work that spans multiple query architectures and one existing reporting exception.
 
 Scope decision:
 
-Promoted from `TODO.md` (Recommended Next Action Interface & Algorithm, hierarchy note). This is a cross-cutting scoping standard, not a Dashboard/Workbench surface, so it is intentionally sequenced after the 0.33.6 host work and its closeout; it may be promoted to its own dedicated version if it grows. The Workbench two-filter split (0.33.6.6e) is its first consumer, and this slice generalizes the behavior to every surface that filters by client/project.
+Promoted from `TODO.md` (Recommended Next Action Interface & Algorithm, hierarchy note). This is still the right branch, but the current code does not expose one uniform blast radius: Workbench/Tasks, Notes/Files, and Lists/Search each have separate filter/query seams, while Reporting already has an explicit `includeDescendants` rollup model that should not be silently changed as collateral. Keep the shared scope standard here, but split implementation by consumer family instead of trying to land every client/project filter in one ceremony-heavy pass.
 
-- [ ] Establish an app-wide standard that a client/project filter selecting a PARENT includes all descendant sub-clients/sub-projects, while still allowing drill-down to a single client/project - using the existing `parent_client_id`/`parent_project_id` hierarchy in `client-projects`.
-- [ ] Apply the standard consistently across the client/project filters in Tasks, Notes, Files, the Workbench focus filters (0.33.6.6e), and any other list surface that filters by client/project; do not fork per-surface scoping logic.
-- [ ] Provide a shared, permission-aware scope-resolution helper (parent -> descendant id set) that each surface's query uses, rather than duplicating descendant expansion per module; respect readable-client/readable-project filtering so descendants the user cannot read are excluded.
+Branch rules:
+
+- [ ] Establish one app-wide standard for direct client/project filters: selecting a PARENT includes readable descendant sub-clients/sub-projects, while selecting a leaf still drills down to that single client/project.
+- [ ] Provide one shared, permission-aware scope resolver (parent -> readable descendant ID set) built from the existing `parent_client_id` / `parent_project_id` hierarchy in `client-projects`; do not fork descendant expansion per module.
 - [ ] Preserve workspace boundaries and workspace-type gating (client scope hidden on Personal/Family); the standard must not leak cross-workspace or unreadable descendants.
-- [ ] Update the relevant `docs/` scoping/contract docs to record parent-includes-descendants as the app-wide default.
-- [ ] Add regressions proving parent selection includes descendants, single drill-down still works, unreadable descendants are excluded, and the behavior is consistent across at least Tasks, Notes, and Workbench.
+- [ ] Keep Reporting out of this branch's default-behavior change. Reporting already exposes explicit descendant rollups through its own `includeDescendants` semantics; do not silently replace or broaden that behavior here.
+- [ ] Close the branch only after the direct client/project filter surfaces that exist today are explicitly covered: Workbench, Tasks, Notes, Files, Lists, and Search.
+
+#### Version 0.33.6.14.1 - Shared hierarchy scope resolver plus Tasks/Workbench adoption
+
+**Model: GPT-5.5 Extra High** - Shared resolver plus the first live consumer family, including the Workbench exact-match contract it was already sequenced behind.
+
+- [ ] Extract a shared, permission-aware client/project hierarchy scope resolver from the existing `client-projects` hierarchy data/helpers so consumers can ask for the readable descendant client/project ID set of a selected parent without duplicating tree walking.
+- [ ] Define the resolver contract carefully for Business versus Personal/Family workspaces, workspace-project scope, explicit blank/all filters, and leaf drill-down so downstream modules consume one canonical shape instead of ad hoc arrays.
+- [ ] Apply the resolver to the Workbench focus filters and the Tasks list/query path together, since both currently rely on Tasks-owned exact-match client/project filtering and the Workbench docs already defer this exact follow-up.
+- [ ] Update the Tasks repository/service filtering path and canonical post-filter checks so parent selection includes descendant task rows without leaking unreadable or cross-workspace records.
+- [ ] Update the Workbench contract/docs to replace the current exact-match-only note with the shared descendant-aware standard once the behavior lands.
+- [ ] Add focused regressions proving: parent client/project selection includes descendants in Tasks and Workbench, leaf drill-down still works, unreadable descendants are excluded, and Personal/Family still do not surface client scope.
 
 Acceptance criteria:
 
-- Selecting a parent client or project includes its descendants across all client/project filters via a shared permission-aware scope resolver, single drill-down is preserved, and no unreadable or cross-workspace records leak.
+- Workbench and Tasks consume one shared permission-aware hierarchy resolver, parent selection includes readable descendants, leaf drill-down still works, and no unreadable or cross-workspace rows leak.
+
+#### Version 0.33.6.14.2 - Notes and Files adoption
+
+**Model: GPT-5.5 Extra High** - Two more permission-shaped list/browse surfaces adopting the shared resolver without redefining scope semantics again.
+
+- [ ] Apply the shared hierarchy resolver to the Notes list/query path so parent client/project filters include readable descendant notes while preserving existing secure/private shaping and current collection/tag behavior.
+- [ ] Apply the same resolver to Files browse and attachment-context filter reads so parent client/project filters include readable descendant attachments without changing Files-owned visibility, recovery, File Context, or Preview behavior.
+- [ ] Keep consumer code thin: Notes and Files should consume the shared resolver/expanded scope shape rather than reimplement descendant walking in their own services or browser code.
+- [ ] Update the relevant Notes/Files developer docs only for the shipped filter behavior change.
+- [ ] Add focused regressions proving descendant inclusion, leaf drill-down preservation, and unreadable-descendant exclusion for Notes and Files.
+
+Acceptance criteria:
+
+- Notes and Files adopt the same shared descendant-aware client/project scope behavior as Tasks/Workbench, without changing their existing permission or workflow boundaries.
+
+#### Version 0.33.6.14.3 - Lists and Search adoption plus branch closeout
+
+**Model: GPT-5.5 Extra High** - Finishes the remaining direct filter surfaces and locks the app-wide rule in docs/regressions.
+
+- [ ] Apply the shared hierarchy resolver to Lists filtering so parent client/project selection includes readable descendant lists while preserving current archive/status/reusable/tag/linked-target semantics.
+- [ ] Apply the same resolver to Search route filtering so client/project-scoped search requests include descendant matches through the shared rule rather than exact-match-only filtering.
+- [ ] Update the relevant `docs/` scoping/contract docs to record parent-includes-descendants as the default for direct client/project filters on Workbench, Tasks, Notes, Files, Lists, and Search.
+- [ ] Add branch-level regressions proving the behavior is consistent across at least Tasks, Notes, Files, Workbench, Lists, and Search, and that unreadable descendants remain excluded.
+- [ ] Update `CHANGELOG.md` and roadmap bookkeeping for this branch through normal release ceremony.
+
+Acceptance criteria:
+
+- The shared permission-aware hierarchy resolver is the shipped default for direct client/project filters across Workbench, Tasks, Notes, Files, Lists, and Search; Reporting keeps its separate explicit descendant-rollup control; and no unreadable or cross-workspace records leak.
 
 ### Version 0.33.6.14a - Linked Context picker: client-scoped project selection
 
 **Model: GPT-5.5 Extra High** - Client-context selection for the shared Linked Context picker, applying the 0.33.6.14 scoping standard.
 
-Promoted from user request. Consumes the app-wide client/project scoping conventions from 0.33.6.14 and applies them to the shared Linked Context picker (`createLinkedContextPicker` in `public/js/shared/view-builder.js`, wired in `public/js/notes.js`, contract `docs/linked-context-picker-contract.md`). Today the picker has only a target-type + search + record control set with no client context, and project rows are labeled `"{{projectName}} - {{clientName}}"` unconditionally on business workspaces (`primaryProjectOptionLabel` in `notes.js`).
+Promoted from user request. Consumes the shared hierarchy resolver and scoping conventions established in `0.33.6.14.1`, not the later Lists/Search closeout work, and applies them to the shared Linked Context picker (`createLinkedContextPicker` in `public/js/shared/view-builder.js`, wired in `public/js/notes.js`, contract `docs/linked-context-picker-contract.md`). Today the picker has only a target-type + search + record control set with no client context, and project rows are labeled `"{{projectName}} - {{clientName}}"` unconditionally on business workspaces (`primaryProjectOptionLabel` in `notes.js`).
 
 - [ ] Add a client-context selector to the Linked Context picker on BUSINESS workspaces only, defaulting to "All Clients": with "All Clients" selected the picker shows all projects/records across clients (unchanged breadth).
 - [ ] Include a "{{workspaceName}}" entry in the client selector (e.g. "Raymond Tec") that scopes the results to client-less workspace projects (projects with no client) - the workspace-projects bucket, presented as if it were a client.
