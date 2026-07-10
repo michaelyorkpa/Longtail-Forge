@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -6,7 +7,6 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-catalog-links-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-catalog-links-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -77,7 +77,7 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| lists\/lists\.repo \| Converted \| 0 \| 0 \| 21 \| 21 \|/, "audit inventory should mark lists/lists.repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.17 Lists Catalog and Linked Records Repository Conversion[\s\S]*`lists\/lists\.repo` is fully converted[\s\S]*726 runtime literal-helper invocations[\s\S]*149 direct interpolated SQL operation sites[\s\S]*201 existing bound operation sites/, "audit docs should record the Lists catalog/link conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.17[\s\S]*`lists\/lists\.repo` is fully converted[\s\S]*726 remaining helper invocations/, "database docs should record the full Lists repository conversion");
-  assert.match(listsDocs, new RegExp(`current Lists implementation as of ${escapeRegExp(appVersion)}`), "Lists docs should report the current implementation version");
+  assert.match(listsDocs, new RegExp(`current Lists implementation as of ${escapeRegExp("0.33.6.15.1")}`), "Lists docs should report the current implementation version");
   assert.match(listsDocs, /As of 0\.33\.5\.27\.17[\s\S]*Lists repository is fully converted[\s\S]*catalog[\s\S]*linked-record/, "Lists docs should document the fully converted repository boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.17 - Conversion wave: Lists catalog and linked records[\s\S]*- \[x\] Convert the remaining `lists\/lists\.repo`[\s\S]*- \[x\] Preserve catalog suggestions[\s\S]*- \[x\] Because the 0\.33\.5\.27\.16\/0\.33\.5\.27\.17 split[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.17 - [\s\S]*Lists catalog and linked records repository conversion[\s\S]*726 helper invocations[\s\S]*149 direct interpolated operation sites[\s\S]*201 bound operation sites/, "changelog should record the Lists catalog/link conversion burndown");

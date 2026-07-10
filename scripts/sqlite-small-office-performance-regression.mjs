@@ -1,9 +1,9 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-const appVersion = "0.33.6.15.1";
 const root = process.cwd();
 const expectedRouteIds = Object.freeze([
   "app-shell-bootstrap",

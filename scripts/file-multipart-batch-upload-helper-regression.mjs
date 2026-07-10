@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 /* global Blob, FormData, fetch */
 
 import assert from "node:assert/strict";
@@ -9,7 +10,6 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-batch-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;

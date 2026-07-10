@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -12,7 +13,6 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { appShellService } = await import("../src/services/app-shell.service.js");
 
-const appVersion = "0.33.6.15.1";
 const workspaceId = "files-descriptor-host-workspace";
 const protectedUserId = "files-descriptor-host-protected-user";
 const deniedUserId = "files-descriptor-host-denied-user";

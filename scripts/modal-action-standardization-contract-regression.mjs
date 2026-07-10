@@ -1,7 +1,7 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.15.1";
 const modalStandardVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -46,14 +46,14 @@ for (const [name, doc] of [
   assert.match(doc, /inline (parent-body )?Tags\/Files|substantial footer utilities\s+inside the parent modal body|expanding\s+inline\s+inside the parent editor body/, `${name} should reject inline parent-body utility panels`);
 }
 
-assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current module handoff version");
 assert.match(tasksDocs, new RegExp(`As of ${escapeRegExp(modalStandardVersion)}[\\s\\S]*Task editor is the Tasks reference implementation`), "Tasks docs should keep the historical modal contract version");
 assert.match(tasksDocs, /Task Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should align utility action placement");
 assert.match(tasksDocs, /Task modal notification following is owned by the heading bell/, "Tasks docs should align heading action placement");
 assert.match(tasksDocs, /Task editor is the Tasks reference implementation for the finalized converted-modal action standard/, "Tasks docs should identify the reference modal standard");
 
-assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current module handoff version");
+assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp("0.33.6.15.1")}`), "Notes docs should report the current module handoff version");
 assert.match(notesDocs, new RegExp(`As of ${escapeRegExp(modalStandardVersion)}[\\s\\S]*Notes editor is the Notes reference implementation`), "Notes docs should keep the historical modal contract version");
 assert.match(notesDocs, /`Tags`, `Files`, and saved-note `Copy Link`/, "Notes docs should document the shipped Copy Link footer utility");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should align utility action placement");

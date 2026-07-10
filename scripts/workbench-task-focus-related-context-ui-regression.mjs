@@ -1,7 +1,7 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.15.1";
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -126,7 +126,7 @@ assert.match(
 );
 assert.match(
   roadmap,
-  /Active cursor: `0\.33\.6\.15`\./,
+  /Active cursor: `0\.33\.6\.16`\./,
   "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 

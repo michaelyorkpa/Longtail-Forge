@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -9,9 +10,9 @@ const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.6.15.1", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.6.15.1", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.6.15.1", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 for (const primitive of [
   "Page header",

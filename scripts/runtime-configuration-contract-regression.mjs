@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { appVersion as canonicalAppVersion } from "../src/core/version.js";
+import { appVersion } from "../src/core/version.js";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -24,7 +23,7 @@ const { modulesService } = await import("../src/core/modules/modules.service.js"
 assert.equal(packageJson.version, appVersion, "package.json should report the runtime configuration slice version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the runtime configuration slice version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the runtime configuration slice version");
-assert.equal(canonicalAppVersion, packageJson.version, "the runtime version helper should read package.json metadata");
+assert.equal(appVersion, packageJson.version, "the runtime version helper should read package.json metadata");
 for (const moduleDefinition of modulesService.listModules().filter(({ id }) => [
   "client-projects",
   "lists",
@@ -32,7 +31,7 @@ for (const moduleDefinition of modulesService.listModules().filter(({ id }) => [
   "tasks",
   "time-tracking",
 ].includes(id))) {
-  assert.equal(moduleDefinition.version, canonicalAppVersion, `${moduleDefinition.id} should report the canonical app version`);
+  assert.equal(moduleDefinition.version, appVersion, `${moduleDefinition.id} should report the canonical app version`);
 }
 
 for (const heading of [

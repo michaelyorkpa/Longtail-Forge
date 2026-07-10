@@ -3,6 +3,8 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/accessibility-regression.mjs",
   "scripts/event-bus-regression.mjs",
   "scripts/runtime-configuration-contract-regression.mjs",
+  "scripts/bump-version-regression.mjs",
+  "scripts/version-literal-guardrail-regression.mjs",
   "scripts/runtime-env-loading-regression.mjs",
   "scripts/runtime-local-env-materialization-regression.mjs",
   "scripts/runtime-diagnostics-route-regression.mjs",

@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.6.15.1",
+  "version": "0.33.6.15.4",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -12,7 +12,9 @@
     "check": "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
     "test:permissions": "node scripts/permission-regression.mjs",
     "test:sqlite-driver": "node scripts/better-sqlite3-install-smoke.mjs",
-    "lint": "eslint . --cache --cache-strategy content --cache-location .eslintcache"
+    "lint": "eslint . --cache --cache-strategy content --cache-location .eslintcache",
+    "version:bump": "node scripts/bump-version.mjs",
+    "version:guard": "node scripts/version-literal-guardrail-regression.mjs"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",

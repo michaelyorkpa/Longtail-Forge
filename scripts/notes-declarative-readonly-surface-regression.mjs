@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -11,9 +12,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.6.15.1", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.6.15.1", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.6.15.1", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");

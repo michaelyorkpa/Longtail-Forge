@@ -59,6 +59,7 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 - [ROADMAP.md](ROADMAP.md): detailed per-version plan and forward roadmap
 - [CHANGELOG.md](CHANGELOG.md): completed release notes
 - [docs/architecture.md](docs/architecture.md): framework/module architecture direction
+- [docs/versioning.md](docs/versioning.md): application-version source, bump command, guardrail, and release workflow
 - [docs/module-contract.md](docs/module-contract.md): current module definition contract
 - [docs/notes-module.md](docs/notes-module.md): Notes module developer guide
 - [docs/time-tracking-module.md](docs/time-tracking-module.md): Time Tracking module boundary

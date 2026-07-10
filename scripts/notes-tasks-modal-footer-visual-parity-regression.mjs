@@ -1,7 +1,7 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.15.1";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -46,9 +46,9 @@ assert.match(taskDecorateControls, /icons\.decorateButton\(fields\.cancel, \{ ic
 assert.match(notesView, /js\/notes\.js\?v=72/, "Notes view should cache-bust follow-bell browser wiring");
 assert.match(tasksView, /js\/task-dialog\.js\?v=23/, "Tasks view should cache-bust footer visual parity browser wiring");
 assert.match(workbenchView, /js\/task-dialog\.js\?v=23/, "Workbench should cache-bust the shared Task dialog browser wiring");
-assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current module handoff version");
+assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp("0.33.6.15.1")}`), "Notes docs should report the current module handoff version");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
-assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current module handoff version");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should document footer utility visual parity");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(regressionSuite, /scripts\/notes-tasks-modal-footer-visual-parity-regression\.mjs/, "Regression suite should include the modal footer visual parity regression");

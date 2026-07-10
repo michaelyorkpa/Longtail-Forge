@@ -1,3 +1,26 @@
+## Version 0.33.6.15.4 - 2026-07-10 08:41 -04:00
+
+- Added a narrow current-version literal allowlist and registered `npm run version:guard`, which reads the canonical package/helper value and rejects exact current-version literals in unapproved runtime, regression, or repository files.
+- Added focused guardrail coverage for package/lock/helper alignment, `/api/app-info`, clean workspace scanning, synthetic unapproved-source failures, and historical roadmap, changelog, docs, and archive exemptions.
+- Updated the version-bump helper checklist, agent workflow, current governing decision, README, and new `docs/versioning.md` guide around scoped bumps, explicit history preservation, focused guard verification, normal release checks, and refreshed app-info proof.
+- Used the scoped helper for the `0.33.6.15.4` bump, preserved roadmap/changelog/archive history during the command, archived the completed `0.33.6.15` branch, and advanced the live roadmap cursor to `0.33.6.16`.
+- Verification 2026-07-10 08:44 -04:00: the focused version guard, synthetic rejection/history exemption proof, bump-helper, clean-clone, coverage-ratchet, runtime configuration, runtime/database closeout, hierarchy, Linked Context, Notes/Files, Time Tracking, and Workbench regressions passed; standalone lint and `git diff --check` passed; SQLite `PRAGMA integrity_check` returned `ok`; package, lock, lock-root, and canonical helper metadata all reported `0.33.6.15.4`; and `/api/app-info` returned HTTP 200 with `0.33.6.15.4` from the refreshed local 8001 server. `npm run check` passed all 150 static/source regressions, all 6 default-database regressions, and all 29 file-storage regressions before reaching only the pre-existing unrelated `scripts/legacy-cleanup-regression.mjs` failure caused by active `docs/licensing/` cleanup work at 195/311 completed scripts.
+
+## Version 0.33.6.15.3 - 2026-07-10 08:28 -04:00
+
+- Added `scripts/bump-version.mjs` and `npm run version:bump -- <version>` as the single scoped command for updating `package.json` plus the root version fields in `package-lock.json`.
+- Added validation for supported Longtail Forge version shapes, pre-write package/lock alignment checks, same-version rejection, and a concise printed follow-up checklist for changelog, active roadmap bookkeeping, verification, restart, and `/api/app-info` proof.
+- Added and registered `scripts/bump-version-regression.mjs`, which uses an isolated fixture to prove the helper changes only the two approved metadata files while leaving roadmap, changelog, archive, docs, and other source history byte-for-byte untouched.
+- Used the helper itself for the 0.33.6.15.2 to 0.33.6.15.3 bump; the command reported only `package.json` and `package-lock.json` as changed, and pre/post SHA-256 checks confirmed `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, and `CHANGELOG.md` were untouched until the explicit follow-up ceremony edits.
+- Verification 2026-07-10 08:31 -04:00: the focused bump-helper, clean-clone, coverage-ratchet, regression-runner, runtime configuration, runtime/database closeout, module sanity, lint, and syntax checks passed; `git diff --check` passed; SQLite `PRAGMA integrity_check` returned `ok`; package, lock, lock-root, and canonical helper metadata all reported `0.33.6.15.3`; and `/api/app-info` reported `0.33.6.15.3` from the refreshed local 8001 server. `npm run check` passed all 149 static/source regressions, all 6 default-database regressions, and all 29 file-storage regressions before reaching only the pre-existing unrelated `scripts/legacy-cleanup-regression.mjs` failure caused by active `docs/licensing/` cleanup work at 194/310 completed scripts.
+
+## Version 0.33.6.15.2 - 2026-07-10 08:19 -04:00
+
+- Converted the regression suite's duplicated current-version declarations and direct package-version pins to consume the canonical `src/core/version.js` helper.
+- Preserved historical documentation assertions at their recorded versions, including the 0.33.6.15.1 module/runtime handoff labels, while advancing only live package metadata and helper consumers to 0.33.6.15.2.
+- Kept the anti-literal guardrail and version-bump command deferred to their owning 0.33.6.15.3-0.33.6.15.4 slices.
+- Verification 2026-07-10 08:23 -04:00: the focused version inventory reported zero hardcoded `const appVersion` declarations, zero `0.33.6.15.2` literals in regression scripts, and zero legacy package/lock literal pins while retaining 21 historical 0.33.6.15.1 documentation-label matches; focused runtime configuration, runtime/database closeout, hierarchy, list enrichment, Files scanner, and modal contract regressions passed; `npm run lint` and `git diff --check` passed; SQLite `PRAGMA integrity_check` returned `ok`; the canonical helper reported `0.33.6.15.2`; and `/api/app-info` reported `0.33.6.15.2` from the refreshed local 8001 server. `npm run check` passed all 148 static/source, 6 default-database, and 29 file-storage regressions before reaching only the pre-existing unrelated `scripts/legacy-cleanup-regression.mjs` failure caused by active `docs/licensing/` cleanup work at 193/309 completed scripts.
+
 ## Version 0.33.6.15.1 - 2026-07-10 07:52 -04:00
 
 - Established `package.json` as the single current application-version metadata source and added `src/core/version.js` as the runtime reader.

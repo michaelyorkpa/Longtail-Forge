@@ -1,7 +1,7 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -132,7 +132,7 @@ assert.match(css, /\.workbench-inspector-list[\s\S]*overflow-y: auto;/, "Workben
 
 assert.match(
   roadmap,
-  /Active cursor: `0\.33\.6\.15`[\s\S]*Completed work through `0\.33\.6\.14a` is archived in `ROADMAP-ARCHIVE\.md`\./,
+  /Active cursor: `0\.33\.6\.16`[\s\S]*Completed work through `0\.33\.6\.15\.4` is archived in `ROADMAP-ARCHIVE\.md`\./,
   "Roadmap should archive the completed hierarchy follow-up and advance to the next live slice",
 );
 

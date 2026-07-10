@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -8,7 +9,6 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.6.15.1";
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-high-volume-admin-lists-"));
 const disposableDb = path.join(tempDir, "longtail-forge-high-volume-admin-lists-scale-demo.db");

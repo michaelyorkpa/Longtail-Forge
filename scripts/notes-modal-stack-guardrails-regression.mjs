@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
@@ -10,9 +11,9 @@ const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.6.15.1", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.6.15.1", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.6.15.1", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should cache-bust the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=12/, "Notes should cache-bust the shared view renderer modal opener");

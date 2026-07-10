@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -17,7 +18,6 @@ const { clientsRepository } = await import("../src/modules/client-projects/clien
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
 
-const appVersion = "0.33.6.15.1";
 const businessWorkspaceId = "clients-projects-descriptor-business";
 const personalWorkspaceId = "clients-projects-descriptor-personal";
 const familyWorkspaceId = "clients-projects-descriptor-family";

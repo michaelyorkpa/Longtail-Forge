@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "currentVersionLiteralFiles": [
+    "package.json",
+    "package-lock.json",
+    "scripts/regression-coverage-manifest.json"
+  ],
+  "historicalLabelFiles": [
+    "ROADMAP.md",
+    "ROADMAP-ARCHIVE.md",
+    "CHANGELOG.md"
+  ],
+  "historicalLabelDirectories": [
+    "docs/",
+    "archive/",
+    "archives/"
+  ]
+}

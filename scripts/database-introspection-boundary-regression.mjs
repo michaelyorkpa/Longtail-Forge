@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -5,7 +6,6 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const dialectContractVersion = "0.33.6.14a";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-introspection-boundary-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;

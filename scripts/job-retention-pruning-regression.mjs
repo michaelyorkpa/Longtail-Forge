@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -6,7 +7,6 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const now = new Date("2026-07-02T12:00:00.000Z");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-retention-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;

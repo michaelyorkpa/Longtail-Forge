@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -6,7 +7,6 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-files-hierarchy-scope-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-files-hierarchy-scope.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Files-Hierarchy-Scope-Test-123!";
@@ -55,7 +55,7 @@ function assertStaticContract() {
 
   assert.match(
     notesDocs,
-    new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`),
+    new RegExp(`current Notes implementation as of ${escapeRegExp("0.33.6.15.1")}`),
     "Notes docs should report the current implementation version",
   );
   assert.match(
@@ -75,7 +75,7 @@ function assertStaticContract() {
   );
   assert.match(
     roadmap,
-    /Active cursor: `0\.33\.6\.15`/,
+    /Active cursor: `0\.33\.6\.16`/,
     "Roadmap should advance beyond the completed hierarchy and Linked Context follow-up slices",
   );
   assert.match(

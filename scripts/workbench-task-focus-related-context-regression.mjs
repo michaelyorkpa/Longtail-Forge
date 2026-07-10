@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -126,9 +127,9 @@ async function assertStaticContracts() {
   const genericWorkbenchSource = readText("src/services/workbench.service.js");
   const roadmap = readText("ROADMAP.md");
 
-  assert.equal(packageJson.version, "0.33.6.15.1");
-  assert.equal(packageLock.version, "0.33.6.15.1");
-  assert.equal(packageLock.packages[""].version, "0.33.6.15.1");
+  assert.equal(packageJson.version, appVersion);
+  assert.equal(packageLock.version, appVersion);
+  assert.equal(packageLock.packages[""].version, appVersion);
   assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");
   assert.match(serviceSource, /tagsService\.listAssignments[\s\S]*targetType: "task"/, "selected task direct tags should come from the Tags service");
@@ -152,7 +153,7 @@ async function assertStaticContracts() {
   );
   assert.match(
     roadmap,
-    /Active cursor: `0\.33\.6\.15`\./,
+    /Active cursor: `0\.33\.6\.16`\./,
   );
 }
 

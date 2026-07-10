@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -9,7 +10,6 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-client-project-hierarchy-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-client-project-hierarchy-closeout.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -87,7 +87,7 @@ function assertStaticContract() {
 
   assert.match(
     listsDocs,
-    new RegExp(`current Lists implementation as of ${escapeRegExp(appVersion)}`),
+    new RegExp(`current Lists implementation as of ${escapeRegExp("0.33.6.15.1")}`),
     "Lists docs should report the current implementation version",
   );
   assert.match(
@@ -107,7 +107,7 @@ function assertStaticContract() {
   );
   assert.match(
     roadmap,
-    /Active cursor: `0\.33\.6\.15`/,
+    /Active cursor: `0\.33\.6\.16`/,
     "Roadmap should advance the active cursor beyond the completed hierarchy follow-up slice",
   );
   assert.doesNotMatch(

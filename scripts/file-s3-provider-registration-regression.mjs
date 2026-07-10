@@ -1,10 +1,10 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-s3-provider-registration-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;

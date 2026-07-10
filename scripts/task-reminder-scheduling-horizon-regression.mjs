@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -5,7 +6,6 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-reminder-horizon-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-reminder-horizon.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -63,7 +63,7 @@ function assertStaticContract() {
   assert.match(taskJobsSource, /readReminderSchedulingCandidates/, "task reminder sweep should read existing due-task candidates");
   assert.match(appSource, /queueTaskReminderSweepJobs/, "app startup should queue reminder sweeps");
   assert.match(workerCliSource, /queueTaskReminderSweepJobs/, "separate worker startup should queue reminder sweeps");
-  assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current implementation version");
+  assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current implementation version");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.3[\s\S]*30-day scheduling horizon[\s\S]*12-hour sweep/, "database docs should document reminder horizon and sweep behavior");
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*30-day scheduling horizon[\s\S]*12-hour top-up sweep/, "runtime docs should document reminder horizon and sweep behavior");
   assert.match(regressionSuite, /scripts\/task-reminder-scheduling-horizon-regression\.mjs/, "regression suite should include reminder horizon coverage");

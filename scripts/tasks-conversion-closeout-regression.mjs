@@ -1,7 +1,7 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.15.1";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -28,7 +28,7 @@ assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, cha
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should not keep previous completed Tasks slice bodies");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the Tasks conversion closeout version");
 
-assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Tasks closeout version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current Tasks closeout version");
 assert.match(tasksDocs, /## Canonical Task Editor Entry Point/, "Tasks docs should document the canonical editor entry point");
 assert.match(tasksDocs, /The Tasks page calls `LongtailForge\.tasksDialog\.openTaskEditor\(\)`/, "Tasks docs should document the Tasks page opener path");
 assert.match(tasksDocs, /Workbench calls the same opener through the registered module action path/, "Tasks docs should document the Workbench opener path");

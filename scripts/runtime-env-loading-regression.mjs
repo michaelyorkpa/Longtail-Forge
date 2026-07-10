@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -6,7 +7,6 @@ import path from "node:path";
 import { loadRuntimeEnvFile, parseRuntimeEnvText } from "../src/runtime-env.js";
 
 const root = process.cwd();
-const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const serverSource = readText("server.js");

@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -15,7 +16,6 @@ const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
-const appVersion = "0.33.6.15.1";
 
 try {
   await initializeDatabase();
@@ -66,7 +66,7 @@ async function assertStaticContract() {
   assert.match(notesServiceSource, /targetMatchesClientContext/, "Notes service should filter link targets by the resolved client context");
   assert.match(notesServiceSource, /omitBusinessContext: isScopedLinkTargetClientContext/, "Project target labels should drop client/workspace suffixes in scoped client contexts");
   assert.match(pickerContract, /0\.33\.6\.15\.1[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
-  assert.match(roadmap, /Active cursor: `0\.33\.6\.15`/, "Roadmap should advance to 0.33.6.15 after the Linked Context client-scope slice closes");
+  assert.match(roadmap, /Active cursor: `0\.33\.6\.16`/, "Roadmap should advance to 0.33.6.15 after the Linked Context client-scope slice closes");
   assert.match(regressionSuite, /scripts\/linked-context-client-scope-picker-regression\.mjs/, "Regression suite should include the Linked Context client-scope picker proof");
 }
 
