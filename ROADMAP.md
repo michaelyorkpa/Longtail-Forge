@@ -1962,6 +1962,639 @@ Acceptance criteria:
 * Future version bumps should have a much smaller blast radius before 0.33.7+ TypeScript/Zod/Vitest work lands.
 
 
+### Version 0.33.6.16 - Release workflow, regression-suite, and maintenance-gate cleanup before TypeScript
+
+**Model: GPT-5.5 Extra High** - Pre-TypeScript maintenance cleanup to reduce Codex/Claude clerical churn.
+
+Purpose:
+
+Remove recurring release-process and regression-suite friction before the TypeScript/Zod/Vitest foundation lands in 0.33.7.
+
+This version is about making future slices cheaper to implement. It should reduce the amount of time Codex/Claude spends manually wiring regression scripts, updating coverage manifests, bumping cache keys, reconciling scanner/audit counts, guessing which docs need updates, and performing release-gate bookkeeping.
+
+This is a maintenance/workflow cleanup branch, not a product-feature branch.
+
+Sequencing:
+
+* Lands after 0.33.6.15 app-version source-of-truth cleanup.
+* Lands before 0.33.7 TypeScript/Zod/Vitest so the TypeScript slice inherits cleaner versioning, regression routing, docs ownership, asset cache-busting, audit baselines, and database migration/schema workflows.
+* Lands before 0.33.8 Playwright so browser/mobile tests are added onto a cleaner regression runner instead of becoming another manually wired test island.
+* Lands before 0.33.9 mobile polish so mobile work can use clear narrow commands and stable asset/test conventions.
+
+Intra-branch dependencies and suggested order:
+
+* 0.33.6.16.1 (inventory/convention) is a prerequisite for the rest; do it first.
+* 0.33.6.16.2 (discovery + metadata runner) is the backbone; 0.33.6.16.3 (manifest generation) and 0.33.6.16.4 (narrow commands) depend on it, so keep 16.2 -> 16.3 -> 16.4 in order.
+* 0.33.6.16.5 (asset cache-bust), 0.33.6.16.6 (parameter-binding baseline), 0.33.6.16.7 (docs ownership), 0.33.6.16.8 (migration/schema), and 0.33.6.16.9 (licensing gate) are largely independent of the runner work and of each other; they can ship in any order (or in parallel) once 0.33.6.16.1 is done.
+* 0.33.6.16.2 and 0.33.6.16.3 are the highest-blast-radius slices because they touch the runner and coverage ratchet the whole suite trusts; treat them as the risky core and verify against a full-suite run before and after. If time-constrained, 16.2/16.3/16.4 plus 16.5 deliver most of the churn savings; 16.7 and 16.9 are the safest to defer.
+* 0.33.6.16.10 (closeout) is last and depends on all of the above.
+
+Core goals:
+
+* Make regression scripts discoverable by convention instead of manually wired everywhere.
+* Make regression coverage manifest/ratchet upkeep generated or semi-generated instead of hand-maintained.
+* Add narrow regression commands by area/tier/tag so agents do not default to the full suite for every small change.
+* Centralize asset cache-busting so UI/static changes do not require manual cache-key edits.
+* Convert the parameter-binding audit into a baseline-driven scanner that reports only new violations.
+* Add a docs ownership index so doc updates are intentional instead of scattered guesswork.
+* Add migration/schema helper workflow so database changes do not require hand-maintained schema drift.
+* Clarify licensing/public-release gates so licensing docs do not become a recurring release-blocking mystery.
+
+Non-goals:
+
+* Do not introduce TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, or another runtime in this version.
+* Do not rewrite existing regression behavior.
+* Do not delete existing regression coverage.
+* Do not weaken permission, workspace, module-enabled, private/secure-content, storage-key, no-raw-ID, migration, or app-info release checks.
+* Do not move product roadmap work into this slice.
+* Do not change `npm start`.
+* Do not change user-facing product behavior except where asset cache-busting/runtime metadata is surfaced through existing app-info/legal/about paths.
+* Do not treat historical roadmap/changelog/docs labels as current version pins; 0.33.6.15 owns that boundary.
+
+#### Version 0.33.6.16.1 - Regression-suite inventory and discovery convention
+
+**Model: GPT-5.5 Extra High** - Planning/inventory slice for regression-suite cleanup.
+
+Purpose:
+
+Inventory the current custom regression suite and define the convention that later 0.33.6.16 slices will implement. This slice should not rewrite the runner yet.
+
+* [ ] Inventory the current regression runner entry points:
+
+  * [ ] `scripts/run-regressions.mjs`
+  * [ ] `scripts/regression-suite.mjs`
+  * [ ] `scripts/regression-coverage-ratchet.mjs`
+  * [ ] `scripts/regression-clean-clone-contract.mjs`
+  * [ ] `scripts/regression-coverage-manifest.json`
+  * [ ] `package.json` scripts that invoke regressions.
+* [ ] Inventory current regression categories by path/name:
+
+  * [ ] Workbench.
+  * [ ] Dashboard.
+  * [ ] Files.
+  * [ ] Tasks.
+  * [ ] Notes.
+  * [ ] Lists.
+  * [ ] Search.
+  * [ ] Notifications.
+  * [ ] Tags.
+  * [ ] Public API.
+  * [ ] Permissions.
+  * [ ] Database/migrations.
+  * [ ] View builder / declarative views.
+  * [ ] Module contracts.
+  * [ ] Background jobs / worker runner.
+  * [ ] App-info/version/release gates.
+  * [ ] Licensing/public-release gates, if any.
+* [ ] Define a regression file convention for future discovery.
+
+  * Preferred final shape:
+
+    * `scripts/regressions/<area>/<name>.regression.mjs`
+  * Transitional support:
+
+    * Existing `scripts/*-regression.mjs` files continue to run until migrated.
+* [ ] Define required metadata for discovered regressions:
+
+  * [ ] `id`
+  * [ ] `area`
+  * [ ] `tier`
+  * [ ] `tags`
+  * [ ] `description`
+  * [ ] `runMode` or equivalent parallel/serial safety flag, only if needed by the existing runner.
+* [ ] Define canonical area names:
+
+  * [ ] `framework`
+  * [ ] `views`
+  * [ ] `dashboard`
+  * [ ] `workbench`
+  * [ ] `tasks`
+  * [ ] `notes`
+  * [ ] `lists`
+  * [ ] `files`
+  * [ ] `search`
+  * [ ] `notifications`
+  * [ ] `tags`
+  * [ ] `time-tracking`
+  * [ ] `database`
+  * [ ] `permissions`
+  * [ ] `jobs`
+  * [ ] `public-api`
+  * [ ] `release`
+  * [ ] `docs`
+  * [ ] `licensing`
+* [ ] Define canonical tiers:
+
+  * [ ] `unit-like`
+  * [ ] `focused`
+  * [ ] `integration`
+  * [ ] `release-gate`
+  * [ ] `slow`
+* [ ] Document the intended future behavior:
+
+  * [ ] Agents add a regression script with metadata.
+  * [ ] The runner discovers it.
+  * [ ] The coverage index/manifest is generated or validated from metadata.
+  * [ ] Agents do not manually edit multiple suite files for every new regression.
+
+Acceptance criteria:
+
+* The current regression suite shape is documented.
+* The future discovery convention is documented.
+* Required metadata fields are defined.
+* Existing regressions continue unchanged in this slice.
+* No regression is removed, disabled, or silently skipped.
+
+#### Version 0.33.6.16.2 - Regression metadata and auto-discovery runner
+
+**Model: GPT-5.5 Extra High** - Custom regression runner cleanup without changing regression semantics.
+
+Purpose:
+
+Teach the regression runner to discover regression scripts by convention and metadata so future slices do not require manual suite wiring.
+
+* [ ] Add a small regression metadata helper, for example:
+
+  * [ ] `scripts/lib/regression-metadata.mjs`
+  * [ ] or `scripts/regressions/registry.mjs`
+* [ ] Support metadata exported by regression scripts, for example:
+
+  * [ ] `export const regressionMeta = { ... }`
+  * [ ] Keep the exact API simple and documented.
+* [ ] Add discovery for:
+
+  * [ ] New convention path: `scripts/regressions/**/*.regression.mjs`
+  * [ ] Existing transitional path: `scripts/*-regression.mjs`
+* [ ] Ensure discovered scripts are sorted deterministically.
+* [ ] Preserve existing serial/parallel behavior.
+
+  * [ ] If the current runner has safe parallel buckets, preserve them.
+  * [ ] Regressions that touch shared files, global temp state, database files, ports, or process state must remain serial unless explicitly marked safe.
+* [ ] Add runner options:
+
+  * [ ] `--area <area>`
+  * [ ] `--tag <tag>`
+  * [ ] `--tier <tier>`
+  * [ ] `--list`
+  * [ ] `--dry-run`
+* [ ] Keep `npm run check` behavior intact unless 0.33.6.16.4 changes the command wiring explicitly.
+* [ ] Add focused regressions proving:
+
+  * [ ] New convention files are discovered.
+  * [ ] Existing legacy `scripts/*-regression.mjs` files are still discovered.
+  * [ ] Metadata is validated.
+  * [ ] Missing/invalid metadata fails with a useful error for new-style regressions.
+  * [ ] Ordering is deterministic.
+  * [ ] Area/tag/tier filters include the right scripts and exclude unrelated scripts.
+  * [ ] Serial-only regressions are not accidentally parallelized.
+  * [ ] The set of scripts discovered by the new runner exactly equals (or is a superset of) the set the current runner runs today - captured as a checked-in snapshot - so no regression is silently dropped during the discovery migration.
+* [ ] Document how to add a new regression with metadata.
+
+Acceptance criteria:
+
+* New regression scripts can be added by convention without manually editing the central suite.
+* Existing regression scripts still run.
+* The runner supports list/dry-run/area/tag/tier filtering.
+* Parallelization safety is preserved.
+* `npm run check` still runs the full intended regression coverage.
+* No script that runs today is dropped by the new discovery, proven by the snapshot-equality check.
+
+#### Version 0.33.6.16.3 - Regression coverage manifest generation and ratchet cleanup
+
+**Model: GPT-5.5 Extra High** - Reduce manual coverage-manifest upkeep while preserving the coverage ratchet.
+
+Purpose:
+
+Stop making Codex/Claude manually update the regression coverage manifest every time a regression is added, renamed, or moved.
+
+* [ ] Review the current `scripts/regression-coverage-manifest.json` contract and how `scripts/regression-coverage-ratchet.mjs` consumes it.
+* [ ] Decide whether the manifest becomes:
+
+  * [ ] Fully generated from regression metadata; or
+  * [ ] Semi-generated with a checked-in generated file and explicit legacy exceptions.
+* [ ] Prefer metadata as the source of truth for:
+
+  * [ ] regression ID
+  * [ ] area
+  * [ ] tier
+  * [ ] tags
+  * [ ] protected contract/feature
+  * [ ] release-gate status
+* [ ] Add a manifest generation/check command, for example:
+
+  * [ ] `npm run regressions:manifest`
+  * [ ] `npm run regressions:manifest:check`
+* [ ] Update the ratchet so it validates discovered regression metadata rather than relying on hand-maintained duplicate lists.
+* [ ] Preserve any existing ratchet behavior that prevents coverage from being deleted or weakened.
+* [ ] Add an explicit exception mechanism for:
+
+  * [ ] intentionally retired regressions
+  * [ ] merged/consolidated regressions
+  * [ ] legacy scripts awaiting migration
+* [ ] Add focused regressions proving:
+
+  * [ ] Manifest generation is deterministic.
+  * [ ] Missing metadata is detected.
+  * [ ] Duplicate regression IDs fail.
+  * [ ] Removing a covered area without an explicit retirement entry fails.
+  * [ ] Legacy exceptions are honored.
+  * [ ] No existing coverage is silently dropped.
+* [ ] Update docs so agents know:
+
+  * [ ] Add metadata to the regression script.
+  * [ ] Run the manifest check/generator.
+  * [ ] Do not manually hand-edit the coverage manifest except for explicit retirement/exception entries.
+
+Acceptance criteria:
+
+* Regression coverage manifest upkeep is generated or semi-generated from regression metadata.
+* The coverage ratchet still prevents accidental coverage loss.
+* Agents no longer need to manually wire every new regression in multiple places.
+* Existing release-gate coverage remains intact.
+
+#### Version 0.33.6.16.4 - Narrow regression commands and changed-area routing
+
+**Model: GPT-5.5 Extra High** - Fast regression routing before TypeScript/Vitest/Playwright arrive.
+
+Purpose:
+
+Give Codex/Claude fast, narrow commands for common work areas so they do not default to the full regression suite for every small change.
+
+* [ ] Add package scripts for narrow regression areas:
+
+  * [ ] `test:regressions`
+  * [ ] `test:regressions:list`
+  * [ ] `test:regressions:framework`
+  * [ ] `test:regressions:views`
+  * [ ] `test:regressions:dashboard`
+  * [ ] `test:regressions:workbench`
+  * [ ] `test:regressions:tasks`
+  * [ ] `test:regressions:notes`
+  * [ ] `test:regressions:files`
+  * [ ] `test:regressions:database`
+  * [ ] `test:regressions:permissions`
+  * [ ] `test:regressions:release`
+* [ ] Add a changed-area helper, for example:
+
+  * [ ] `scripts/suggest-regressions-for-changes.mjs`
+* [ ] The helper should inspect changed files and suggest likely regression commands.
+
+  * [ ] It may use git diff against the working tree/current branch.
+  * [ ] It should be conservative: suggest more checks rather than fewer when shared files change.
+* [ ] Add route rules for common paths:
+
+  * [ ] `src/modules/tasks/**` -> tasks regressions.
+  * [ ] `src/modules/files/**` and file UI scripts -> files regressions.
+  * [ ] `public/js/workbench.js`, Workbench routes/services/docs -> workbench regressions.
+  * [ ] `public/js/shared/view-builder.js`, view renderer/core view files -> view/framework regressions.
+  * [ ] `src/db/**`, migrations, repositories -> database regressions.
+  * [ ] permissions/session/workspace/membership files -> permissions regressions.
+  * [ ] package/version/app-info/release docs -> release regressions.
+* [ ] Keep `npm run check` as the full release gate.
+* [ ] Add agent/developer docs:
+
+  * [ ] One-module change: run the narrow area command first.
+  * [ ] Shared framework change: run framework/view commands plus relevant module commands.
+  * [ ] DB change: run database command plus affected module commands.
+  * [ ] Release closeout: run full `npm run check`.
+* [ ] Add focused regressions proving:
+
+  * [ ] Area scripts call the regression runner with the right filters.
+  * [ ] Changed-area helper suggests expected commands for representative path sets.
+  * [ ] Shared/framework changes produce conservative suggestions.
+  * [ ] Full `npm run check` remains the release gate.
+
+Acceptance criteria:
+
+* Agents have clear narrow regression commands before 0.33.7 TypeScript/Vitest.
+* Changed-file routing suggests the right focused checks.
+* Full release verification remains available and unchanged in purpose.
+* The new command structure reduces unnecessary full-suite runs during focused feature work.
+
+#### Version 0.33.6.16.5 - Asset cache-bust source-of-truth
+
+**Model: GPT-5.5 Extra High** - Centralize UI asset versioning so cache-key updates stop becoming release-churn.
+
+Purpose:
+
+Stop manually bumping scattered cache keys or asset query strings during UI/static slices.
+
+This complements 0.33.6.15 but is not the same thing. 0.33.6.15 centralizes the current app version. This slice centralizes asset cache-busting.
+
+* [ ] Inventory all script/style asset cache-bust patterns:
+
+  * [ ] Static HTML query strings.
+  * [ ] Shared app-shell includes.
+  * [ ] Navigation/footer injected assets.
+  * [ ] Module-declared assets.
+  * [ ] Any tests that pin asset query strings or cache-bust values.
+* [ ] Define one asset version/cache-bust source.
+
+  * [ ] Prefer deriving from the current app version helper when acceptable.
+  * [ ] If asset version must differ from app version, add a dedicated source such as `src/core/asset-version.js`.
+* [ ] Route shared script/style URL generation through one helper where practical.
+* [ ] Update static/protected pages and app-shell includes so asset URLs receive cache-bust values consistently.
+* [ ] Remove scattered manually maintained cache-bust literals where safe.
+* [ ] Preserve existing browser behavior and asset loading order.
+* [ ] Add guardrails:
+
+  * [ ] New raw `?v=...` or `?cache=...` asset literals outside approved helper/source files should fail unless explicitly allowed.
+  * [ ] Historical docs/changelog examples should not be flagged.
+* [ ] Add focused regressions proving:
+
+  * [ ] Shared app-shell assets include the canonical cache-bust value.
+  * [ ] Module assets receive consistent cache-bust behavior.
+  * [ ] Manual cache-bust literals outside allowlisted files are caught.
+  * [ ] Existing pages still load required scripts/styles.
+  * [ ] No product behavior changes.
+* [ ] Update docs to explain:
+
+  * [ ] Do not manually bump cache keys.
+  * [ ] Use the asset helper/source.
+  * [ ] App version and asset version relationship.
+
+Acceptance criteria:
+
+* Asset cache-busting has one source-of-truth path.
+* UI/static slices no longer require scattered manual cache-key edits.
+* Guardrails prevent new scattered asset version literals.
+* Existing pages and module assets continue loading correctly.
+
+#### Version 0.33.6.16.6 - Parameter-binding audit baseline cleanup
+
+**Model: GPT-5.5 Extra High** - Turn parameter-binding audit upkeep into a scanner/baseline workflow.
+
+Purpose:
+
+Stop making Codex/Claude repeatedly reconcile raw parameter-binding counts during unrelated database work.
+
+This slice keeps the safety goal but changes the workflow: the scanner should report new violations against a known baseline rather than forcing broad count reconciliation every time.
+
+* [ ] Inventory current parameter-binding audit scripts and docs:
+
+  * [ ] audit scanner
+  * [ ] audit regression
+  * [ ] database parameter-binding audit docs
+  * [ ] known exception lists, if any
+* [ ] Define a baseline file, for example:
+
+  * [ ] `scripts/baselines/parameter-binding-baseline.json`
+  * [ ] or `docs/generated/parameter-binding-baseline.json`
+* [ ] The baseline should track known legacy findings by stable location/signature.
+* [ ] The scanner should report:
+
+  * [ ] total scanned sites
+  * [ ] safe bound sites
+  * [ ] known baseline exceptions
+  * [ ] new violations
+  * [ ] resolved legacy findings, if useful
+* [ ] The regression should fail on new violations.
+* [ ] The regression should not fail merely because total scanned count changes due to unrelated safe code movement, unless a new unsafe pattern appears.
+* [ ] Add a baseline update command for dedicated cleanup slices only, for example:
+
+  * [ ] `npm run audit:params`
+  * [ ] `npm run audit:params:update-baseline`
+  * [ ] `npm run audit:params:check`
+* [ ] Document the rule:
+
+  * [ ] Do not update the baseline in unrelated feature work.
+  * [ ] If a feature introduces a new query site, it must use the safe binding helper.
+  * [ ] If a legacy unsafe site is fixed, the baseline may shrink in a dedicated cleanup or as part of that fix.
+* [ ] Add focused regressions proving:
+
+  * [ ] New unsafe query patterns fail.
+  * [ ] Known baseline exceptions are reported but do not fail.
+  * [ ] Safe new bound query sites pass.
+  * [ ] Count-only drift does not force manual doc edits.
+  * [ ] Baseline updates are deterministic.
+* [ ] Update database docs to point to the scanner/baseline workflow.
+
+Acceptance criteria:
+
+* Parameter-binding safety remains enforced.
+* New unsafe query sites fail fast.
+* Known legacy findings are baseline-managed.
+* Agents no longer have to manually reconcile broad scanned/bound counts during unrelated feature work.
+
+#### Version 0.33.6.16.7 - Documentation ownership index and docs-change gate
+
+**Model: GPT-5.5 Extra High** - Make docs updates intentional rather than scattered release ritual.
+
+Purpose:
+
+Reduce time spent guessing which docs must be updated for every implementation slice.
+
+This slice does not reduce documentation quality. It makes documentation ownership explicit so Codex/Claude can update the right docs and explicitly skip irrelevant docs.
+
+* [ ] Add a docs ownership index, for example:
+
+  * [ ] `docs/docs-ownership.json`
+  * [ ] or `docs/maintenance/docs-ownership.json`
+* [ ] Map source areas to likely docs:
+
+  * [ ] Workbench.
+  * [ ] Dashboard.
+  * [ ] Tasks.
+  * [ ] Notes.
+  * [ ] Lists.
+  * [ ] Files.
+  * [ ] Search.
+  * [ ] Notifications.
+  * [ ] Tags.
+  * [ ] Time Tracking.
+  * [ ] Permissions.
+  * [ ] Database.
+  * [ ] Module contracts.
+  * [ ] View-building/declarative surfaces.
+  * [ ] Public API.
+  * [ ] Licensing.
+  * [ ] Release process.
+* [ ] Add a docs suggestion helper, for example:
+
+  * [ ] `scripts/suggest-docs-for-changes.mjs`
+* [ ] The helper should inspect changed files and list likely docs to review.
+* [ ] Add a docs-change note convention:
+
+  * [ ] Docs updated: list paths.
+  * [ ] No docs change needed: short reason.
+* [ ] Add a lightweight guardrail for release closeout:
+
+  * [ ] If source files in a mapped area changed and no likely docs changed, print a warning or require an explicit no-doc-change note.
+  * [ ] Keep this as warning-only at first unless the project decides to hard-fail later.
+* [ ] Add focused regressions proving:
+
+  * [ ] Changed tasks files suggest Tasks docs.
+  * [ ] Changed Workbench files suggest UI/view/workbench docs.
+  * [ ] Changed database/migration files suggest database docs.
+  * [ ] Changed licensing docs suggest licensing docs/index.
+  * [ ] Unmapped files do not produce noisy false positives.
+* [ ] Update agent/development docs:
+
+  * [ ] Use docs suggestion helper during closeout.
+  * [ ] Do not update five docs by reflex.
+  * [ ] Do update docs that own the changed contract.
+
+Acceptance criteria:
+
+* The repo has an explicit docs ownership index.
+* Agents can ask the repo which docs are likely affected.
+* Docs updates become targeted and intentional.
+* Release closeout still preserves documentation quality.
+
+#### Version 0.33.6.16.8 - Database migration and schema helper workflow
+
+**Model: GPT-5.5 Extra High** - Prepare database workflow for upcoming TypeScript and later Postgres/database abstraction work.
+
+Purpose:
+
+Reduce hand-maintained migration/schema drift before the TypeScript and database abstraction work get heavier.
+
+This slice does not change the database engine or add Postgres. It improves the workflow around migrations and schema snapshots.
+
+* [ ] Inventory current migration/schema workflow:
+
+  * [ ] migration file naming
+  * [ ] migration runner behavior
+  * [ ] `src/db/schema/current.sql`
+  * [ ] fresh database regression
+  * [ ] migration compatibility regression
+  * [ ] SQLite performance/seed regressions
+* [ ] Add a migration creation helper, for example:
+
+  * [ ] `npm run db:migration:create -- <name>`
+* [ ] The helper should:
+
+  * [ ] choose the next migration number
+  * [ ] create a correctly named migration file
+  * [ ] include a minimal safe template
+  * [ ] avoid duplicate numbers
+* [ ] Add a schema refresh/check workflow, for example:
+
+  * [ ] `npm run db:schema:refresh`
+  * [ ] `npm run db:schema:check`
+* [ ] Decide and document whether `src/db/schema/current.sql` is:
+
+  * [ ] generated from migrations; or
+  * [ ] manually maintained but verified against a generated schema.
+* [ ] Prefer generated-or-verified schema over hand-edited schema drift.
+
+  * Recommended default: keep `current.sql` manually maintained but verified against a generated schema (lighter than full generation); move to fully generating it from migrations only if drift keeps recurring.
+* [ ] Add a guardrail:
+
+  * [ ] If migrations change, schema check must prove `current.sql` is current.
+  * [ ] If schema changes without a migration, fail unless explicitly allowed for docs/test-only work.
+* [ ] Add focused regressions proving:
+
+  * [ ] migration creation helper produces deterministic next names
+  * [ ] duplicate migration numbers fail
+  * [ ] schema refresh/check detects drift
+  * [ ] fresh database still builds from migrations
+  * [ ] migration compatibility regression still runs
+* [ ] Update database docs with the new workflow.
+
+Acceptance criteria:
+
+* Database migration creation is scripted.
+* Schema snapshot refresh/check is scripted.
+* `current.sql` drift is detected.
+* Future database changes require less manual bookkeeping.
+* No database engine change occurs in this slice.
+
+#### Version 0.33.6.16.9 - Licensing and public-release gate clarification
+
+**Model: GPT-5.5 Extra High** - Clarify licensing/public-release gates so they do not become recurring mystery work.
+
+Purpose:
+
+Clarify that the licensing docs are not a routine per-slice cleanup burden. Separate current licensing state from future gates for public contributors, public release, app legal notices, and third-party notices.
+
+This slice is not a legal rewrite. It is a repo-process clarification.
+
+* [ ] Review the current licensing hub, licensing directory index, root README license section, package metadata license value, root `LICENSE`, and trademark notice.
+* [ ] Confirm the current state is documented:
+
+  * [ ] Longtail Forge Core uses `AGPL-3.0-only`.
+  * [ ] Commercial licensing / hosted SaaS / private deployment tooling may be separate.
+  * [ ] Trademark policy is linked.
+  * [ ] Licensing policy docs are discoverable from README and `docs/licensing.md`.
+* [ ] Clarify future gates in one place:
+
+  * [ ] Contribution gate.
+  * [ ] Public release legal/about screen.
+  * [ ] Third-party notices.
+  * [ ] PR template / CLA requirement before accepting outside contributions.
+  * [ ] Private repo boundary for SaaS billing, tenant provisioning, hosted backups, production monitoring, customer admin tooling, managed deployment automation, paid plugins, and commercial license templates.
+* [ ] Add a lightweight licensing gate check, warning-only unless the project decides otherwise:
+
+  * [ ] Before public release, warn if `THIRD_PARTY_NOTICES.md` does not exist.
+  * [ ] Before public contribution acceptance, warn if `CONTRIBUTING.md` / PR template / CLA process is not present.
+  * [ ] Do not block normal private development slices on contribution/public-release gates.
+* [ ] Add or update docs so agents understand:
+
+  * [ ] Do not keep rewriting licensing docs during unrelated slices.
+  * [ ] Do not add public-contributor language until outside contributions are actually being accepted.
+  * [ ] Do not put private SaaS/commercial templates in the public repo.
+  * [ ] Licensing docs are updated only for legal/policy changes, dependency notice changes, release-publication gates, or contributor-process gates.
+* [ ] Add focused regressions or static checks proving:
+
+  * [ ] README license still says `AGPL-3.0-only`.
+  * [ ] `package.json` license remains `AGPL-3.0-only`.
+  * [ ] Root `LICENSE` exists.
+  * [ ] docs licensing hub and index links resolve.
+  * [ ] Trademark policy link is still reachable.
+  * [ ] Public-release/contribution gate warnings do not fail ordinary development.
+
+Acceptance criteria:
+
+* Licensing status is clear and not treated as broken.
+* Future contributor/public-release gates are explicit.
+* Ordinary feature slices do not keep revisiting licensing docs unnecessarily.
+* No legal/policy rewrite occurs unless intentionally requested.
+
+#### Version 0.33.6.16.10 - Pre-TypeScript maintenance closeout
+
+**Model: GPT-5.5 Extra High** - Prove the maintenance cleanup reduces future agent churn without weakening gates.
+
+Purpose:
+
+Close out the release workflow/regression maintenance cleanup and confirm the repo is ready for 0.33.7 TypeScript/Zod/Vitest.
+
+* [ ] Confirm 0.33.6.15 app-version source-of-truth still works.
+* [ ] Confirm regression auto-discovery works.
+* [ ] Confirm legacy regression scripts still run.
+* [ ] Confirm regression coverage manifest/ratchet still protects coverage.
+* [ ] Confirm narrow regression commands exist and are documented.
+* [ ] Confirm changed-area regression suggestions work.
+* [ ] Confirm asset cache-bust source-of-truth works and scattered manual cache keys are guarded.
+* [ ] Confirm parameter-binding audit baseline reports new unsafe sites without requiring unrelated count reconciliation.
+* [ ] Confirm docs ownership helper suggests relevant docs without requiring broad doc churn.
+* [ ] Confirm database migration/schema helpers work.
+* [ ] Confirm licensing/public-release gates are documented as future/process gates, not routine slice blockers.
+* [ ] Confirm `npm start` is unchanged.
+* [ ] Confirm `npm run check` still represents the full release gate.
+* [ ] Confirm no TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, or second runtime was introduced.
+* [ ] Update agent/development docs with the new recommended order:
+
+  * [ ] Run changed-area suggestions.
+  * [ ] Run narrow regression command first.
+  * [ ] Run full `npm run check` for shared framework/release closeout.
+  * [ ] Update docs only when the docs ownership helper or changed contract warrants it.
+* [ ] Update `CHANGELOG.md`, package metadata, and roadmap bookkeeping.
+* [ ] Run final verification:
+
+  * [ ] `npm run check`
+  * [ ] `npm run test:permissions`
+  * [ ] narrow regression commands for at least Workbench, Files, Tasks, Database, Release, and Docs
+  * [ ] version/app-info verification after restart
+
+Acceptance criteria:
+
+* The repo has cleaner release/version/regression/docs/database/licensing maintenance workflows before TypeScript starts.
+* Agents can add regressions with less manual wiring.
+* Agents can run narrower checks for focused changes.
+* Release-gate coverage is preserved.
+* The repo is ready for 0.33.7 TypeScript/Zod/Vitest without dragging the old maintenance clutter into that slice.
+
 ## Version 0.33.7 - TypeScript, Runtime Contracts, and Fast Test Foundation
 
 Purpose:
