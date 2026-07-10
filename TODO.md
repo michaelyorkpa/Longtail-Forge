@@ -224,6 +224,19 @@ since 0.32.10 (module manifest + view-descriptor system, work/Workbench/resume, 
 files, permissions, public API, jobs, database seam, and per-module record shapes), and Reporting moved to
 0.33.9 to make room (the tentative advanced-search overhaul reference shifted to 0.33.10).
 
+## Regression / Test Tooling — deferred from 0.33.6.16
+
+These were considered during the 0.33.6.16 pre-TypeScript maintenance cleanup and intentionally deferred rather than implemented in that branch. They are not yet assigned to a version.
+
+- Suite-time budget / timing-report consumption
+  - The regression runner already emits a timing report (`LTF_REGRESSION_TIMING_JSON`), but nothing consumes it.
+  - Add a small step that reads it and reports total vs. last run plus the slowest N scripts, so silent suite-time creep is visible before it becomes a problem.
+  - Best timed for **0.33.8 (Playwright)**, right before rendered browser specs start adding real wall-clock weight. Deferring keeps 0.33.6.16 focused on clerical churn rather than perf tooling.
+
+- Affected-tests dependency graph (finer than changed-area routing)
+  - 0.33.6.16.10 adds a changed-area auto-run that reuses the existing route-rule suggester; it deliberately does not build a real dependency/affected-test engine.
+  - Revisit only **after 0.33.7 (Vitest)** provides finer-grained units to key off of. Building a bespoke graph now, over the coarse static regression scripts, would be premature.
+
 ## Search Capability Expansion
 
 - Add public API search after browser search has settled.

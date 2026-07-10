@@ -31,7 +31,8 @@ Intra-branch dependencies and suggested order:
 * 0.33.6.16.2 (discovery + metadata runner) is the backbone; 0.33.6.16.3 (manifest generation) and 0.33.6.16.4 (narrow commands) depend on it, so keep 16.2 -> 16.3 -> 16.4 in order.
 * 0.33.6.16.5 (asset cache-bust), 0.33.6.16.6 (parameter-binding baseline), 0.33.6.16.7 (docs ownership), 0.33.6.16.8 (migration/schema), and 0.33.6.16.9 (licensing gate) are largely independent of the runner work and of each other; they can ship in any order (or in parallel) once 0.33.6.16.1 is done.
 * 0.33.6.16.2 and 0.33.6.16.3 are the highest-blast-radius slices because they touch the runner and coverage ratchet the whole suite trusts; treat them as the risky core and verify against a full-suite run before and after. If time-constrained, 16.2/16.3/16.4 plus 16.5 deliver most of the churn savings; 16.7 and 16.9 are the safest to defer.
-* 0.33.6.16.10 (closeout) is last and depends on all of the above.
+* 0.33.6.16.10 (changed-area auto-run), 0.33.6.16.11 (isolated-DB flake handling), 0.33.6.16.12 (fast-fail bucket ordering), and 0.33.6.16.13 (closeout conductor) are loop-speed/reliability additions layered on the runner and gate work above: 16.10 and 16.13 build on the suggester and gate scripts from 16.4-16.9, while 16.11 and 16.12 touch the runner internals from 16.2. They are largely independent of each other and can ship in any order once their prerequisites exist.
+* 0.33.6.16.14 (closeout) is last and depends on all of the above.
 
 Core goals:
 
@@ -43,6 +44,10 @@ Core goals:
 * Add a docs ownership index so doc updates are intentional instead of scattered guesswork.
 * Add migration/schema helper workflow so database changes do not require hand-maintained schema drift.
 * Clarify licensing/public-release gates so licensing docs do not become a recurring release-blocking mystery.
+* Add a changed-area auto-run command so agents run the right narrow checks in one step instead of reading a suggestion and re-running it by hand.
+* Auto-retry the known-flaky isolated-database bucket so transient failures stop costing investigation turns, while genuine failures still fail fast.
+* Order regression buckets cheap-first so common static mistakes fail in seconds instead of after the slow stateful buckets finish.
+* Add a single closeout conductor command that runs the existing release-gate checks together and reports one consolidated status.
 
 Non-goals:
 
@@ -595,7 +600,139 @@ Acceptance criteria:
 * Ordinary feature slices do not keep revisiting licensing docs unnecessarily.
 * No legal/policy rewrite occurs unless intentionally requested.
 
-#### Version 0.33.6.16.10 - Pre-TypeScript maintenance closeout
+#### Version 0.33.6.16.10 - Changed-area regression auto-run command
+
+**Model: GPT-5.5 Extra High** - Close the suggest->run gap in changed-area regression routing.
+
+Purpose:
+
+0.33.6.16.4 added `scripts/suggest-regressions-for-changes.mjs` and the narrow `test:regressions:<area>` scripts, but the router only prints advice; an agent still has to read the suggestion and then choose and run commands. Add one command that inspects the working tree and runs the narrow buckets the suggester selects, so the most common focused-change action is a single step instead of two.
+
+This reuses the existing suggester's route rules and the existing narrow area scripts. It deliberately does not introduce a dependency-graph/affected-test engine; that finer routing is deferred until Vitest exists in 0.33.7 (tracked in `TODO.md`).
+
+* [ ] Add a package script, for example `test:regressions:changed` (optionally aliased as `check:changed`).
+* [ ] The command should:
+
+  * [ ] reuse `scripts/suggest-regressions-for-changes.mjs` route rules as the single source of routing truth (do not fork the rules)
+  * [ ] resolve changed files on the same basis the suggester uses (working tree / current branch)
+  * [ ] run the selected narrow area buckets through the existing runner filters
+  * [ ] escalate to full `npm run check` (or print a clear escalation instruction) when shared/framework/db/release paths change, matching the suggester's conservative behavior
+  * [ ] print which areas it selected, and why, before running
+* [ ] Be conservative: when routing is ambiguous or shared files changed, run more coverage, never less.
+* [ ] Keep `npm run check` as the full release gate; this command never replaces closeout verification.
+* [ ] Do not report false success: an empty/no-match change set must say so and exit cleanly (or run a documented default), not print a passing full run.
+* [ ] Add focused regressions proving:
+
+  * [ ] a representative one-module change runs only that module's buckets
+  * [ ] a shared/framework/db change escalates to full/framework coverage
+  * [ ] the command and the suggester agree on routing for the same change set
+  * [ ] an empty/no-match change set does not report a passing full run
+
+Acceptance criteria:
+
+* Agents can run the correct narrow regressions for the current diff with one command.
+* Routing stays consistent with the existing changed-area suggester.
+* Shared/framework changes still escalate to full coverage.
+* Full `npm run check` remains the release gate.
+
+#### Version 0.33.6.16.11 - Isolated-database bucket flake handling
+
+**Model: GPT-5.5 Extra High** - Stop transient isolated-DB failures from costing investigation turns.
+
+Purpose:
+
+The isolated-database regression bucket flakes transiently even though it already runs with adaptive parallelism and is safest standalone/serial. When it flakes, an agent sees a red suite and burns a whole turn investigating a non-bug. Encode the known-flaky handling into the runner so a transient failure becomes a reported non-event instead of a manual rediscovery every time.
+
+* [ ] Add a scoped, bounded auto-retry for the isolated-database bucket only:
+
+  * [ ] retry only the failed isolated-DB script(s) a small fixed number of times (for example once), never the whole suite
+  * [ ] on retry, run the affected script(s) serially / with reduced parallelism to remove the known contention source
+  * [ ] a script that passes on retry is reported as flaky-recovered, not silently green
+* [ ] Do not auto-retry other buckets; a genuine logic failure must still fail fast.
+* [ ] Never auto-retry static/source bucket failures (those are deterministic).
+* [ ] Surface flaky recoveries in the run summary and the timing report so repeated flakiness stays visible instead of hidden.
+* [ ] Keep `LTF_REGRESSION_REPEAT` behavior intact for deliberate flake hunting.
+* [ ] Document the rule: transient isolated-DB flakes are auto-retried once and reported; do not "fix" a green-on-retry script by chasing a phantom bug, but do investigate scripts that fail every retry or flake repeatedly.
+* [ ] Add focused regressions proving:
+
+  * [ ] a script that fails once then passes is reported as recovered and the suite passes
+  * [ ] a script that fails every attempt still fails the suite
+  * [ ] non-isolated buckets are not auto-retried
+  * [ ] retry runs the script serially / with reduced parallelism
+
+Acceptance criteria:
+
+* Known transient isolated-DB flakes no longer fail the suite on a single bad run.
+* Genuine, repeatable failures still fail fast.
+* Flaky recoveries are visible, not silently swallowed.
+* Agents stop spending turns investigating phantom isolated-DB failures.
+
+#### Version 0.33.6.16.12 - Fast-fail regression bucket ordering
+
+**Model: GPT-5.5 Extra High** - Order buckets cheap-first so common static mistakes fail in seconds.
+
+Purpose:
+
+The most common agent regression failure is a static/source assertion (a renamed literal, a missing string). If the slow database/file-storage buckets run first, that failure only surfaces after the expensive buckets finish. Order the default full run so the cheap static/source bucket runs before the slow stateful buckets, giving the fastest possible failure on the most common mistake. This is available now and complements the 0.33.7.1 typecheck/Vitest fast-fail ordering that will later sit ahead of it.
+
+* [ ] Confirm the current bucket execution order and per-bucket cost.
+* [ ] Order the default full run cheap-first:
+
+  * [ ] static/source bucket first
+  * [ ] then stateful database / file-storage / isolated buckets
+* [ ] Preserve existing parallelism/serial safety within each bucket; ordering must not reduce coverage or change which scripts run.
+* [ ] Keep the behavior that a failing bucket stops the run, so a fast static failure short-circuits the slow buckets.
+* [ ] Do not change narrow area-command behavior or the set of discovered scripts.
+* [ ] Add a focused regression proving:
+
+  * [ ] the static/source bucket is scheduled before the stateful buckets in a default full run
+  * [ ] the same scripts still run (ordering-only change, snapshot-equal to before)
+  * [ ] a seeded static failure short-circuits before the slow buckets execute
+
+Acceptance criteria:
+
+* A default full run fails fast on static/source mistakes.
+* No script is added or dropped by the reordering.
+* Parallel/serial safety is preserved.
+* Ordering complements the later 0.33.7 typecheck/Vitest fast-fail without conflicting with it.
+
+#### Version 0.33.6.16.13 - Release-gate closeout conductor command
+
+**Model: GPT-5.5 Extra High** - One command that runs the existing release-gate checks together.
+
+Purpose:
+
+0.33.6.16 added several independent gate checks (`version:guard`, `regressions:manifest:check`, `db:schema:check`, `audit:params:check`, `docs:check`, `licensing:gates`). Closeout currently walks them by hand, so agents keep re-deriving which helpers to run at the end of a slice. Add a single conductor command that runs them together and prints one pass/fail board, removing the end-of-slice "which checks do I run again?" churn.
+
+* [ ] Add a package script, for example `npm run closeout`.
+* [ ] The command should run, at minimum:
+
+  * [ ] `version:guard`
+  * [ ] `regressions:manifest:check`
+  * [ ] `db:schema:check`
+  * [ ] `audit:params:check`
+  * [ ] `docs:check`
+  * [ ] `licensing:gates`
+* [ ] Run all checks and aggregate results into one green/red summary rather than stopping at the first failure, so a single run surfaces every outstanding gate.
+* [ ] Exit non-zero if any hard gate fails.
+* [ ] Keep each individual script independently runnable; the conductor only orchestrates.
+* [ ] Warning-only gates (for example docs, licensing) stay warning-only; the conductor reports them without hard-failing unless the project already hard-fails them.
+* [ ] Document the relationship: this is a convenience aggregator of existing gates, not a replacement for the full `npm run check` regression gate.
+* [ ] Add a focused regression proving:
+
+  * [ ] the conductor invokes each expected gate
+  * [ ] a single failing hard gate makes the conductor exit non-zero
+  * [ ] warning-only gates do not hard-fail the conductor
+  * [ ] the summary lists every gate's status
+
+Acceptance criteria:
+
+* One command runs the slice-closeout gate checks and reports a consolidated status.
+* Individual gate scripts remain independently runnable.
+* The conductor complements, and does not replace, the full `npm run check` release gate.
+* Agents stop re-deriving the closeout gate list each slice.
+
+#### Version 0.33.6.16.14 - Pre-TypeScript maintenance closeout
 
 **Model: GPT-5.5 Extra High** - Prove the maintenance cleanup reduces future agent churn without weakening gates.
 
@@ -609,6 +746,10 @@ Close out the release workflow/regression maintenance cleanup and confirm the re
 * [ ] Confirm regression coverage manifest/ratchet still protects coverage.
 * [ ] Confirm narrow regression commands exist and are documented.
 * [ ] Confirm changed-area regression suggestions work.
+* [ ] Confirm the changed-area auto-run command (0.33.6.16.10) runs the right narrow buckets and escalates shared/framework changes to full coverage.
+* [ ] Confirm isolated-DB flake handling (0.33.6.16.11) recovers a transient failure, still fails on a repeatable failure, and reports recoveries visibly.
+* [ ] Confirm fast-fail bucket ordering (0.33.6.16.12) schedules the static/source bucket before the slow stateful buckets without changing the discovered script set.
+* [ ] Confirm the closeout conductor command (0.33.6.16.13) runs every expected gate and exits non-zero on a hard-gate failure.
 * [ ] Confirm asset cache-bust source-of-truth works and scattered manual cache keys are guarded.
 * [ ] Confirm parameter-binding audit baseline reports new unsafe sites without requiring unrelated count reconciliation.
 * [ ] Confirm docs ownership helper suggests relevant docs without requiring broad doc churn.
@@ -619,15 +760,18 @@ Close out the release workflow/regression maintenance cleanup and confirm the re
 * [ ] Confirm no TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, or second runtime was introduced.
 * [ ] Update agent/development docs with the new recommended order:
 
-  * [ ] Run changed-area suggestions.
-  * [ ] Run narrow regression command first.
+  * [ ] Run the changed-area auto-run command for focused changes.
+  * [ ] Run narrow regression command(s) first when working a single area by hand.
   * [ ] Run full `npm run check` for shared framework/release closeout.
+  * [ ] Run the closeout conductor command at slice end to confirm the release-gate checks.
   * [ ] Update docs only when the docs ownership helper or changed contract warrants it.
 * [ ] Update `CHANGELOG.md`, package metadata, and roadmap bookkeeping.
 * [ ] Run final verification:
 
   * [ ] `npm run check`
   * [ ] `npm run test:permissions`
+  * [ ] the changed-area auto-run command against a representative diff
+  * [ ] the closeout conductor command
   * [ ] narrow regression commands for at least Workbench, Files, Tasks, Database, Release, and Docs
   * [ ] version/app-info verification after restart
 
@@ -635,8 +779,8 @@ Acceptance criteria:
 
 * The repo has cleaner release/version/regression/docs/database/licensing maintenance workflows before TypeScript starts.
 * Agents can add regressions with less manual wiring.
-* Agents can run narrower checks for focused changes.
-* Release-gate coverage is preserved.
+* Agents can run narrower checks for focused changes, in one step, with fast static failure and auto-retried known flakes.
+* Release-gate coverage is preserved and runnable as one closeout conductor command.
 * The repo is ready for 0.33.7 TypeScript/Zod/Vitest without dragging the old maintenance clutter into that slice.
 
 ## Version 0.33.7 - TypeScript, Runtime Contracts, and Fast Test Foundation
