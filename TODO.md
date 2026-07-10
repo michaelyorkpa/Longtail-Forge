@@ -13,6 +13,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+> Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.14 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (Lists -> 0.33.13, KB -> 0.34), are human testing goals, or are larger than a quick fix.
+
 ## Lists UI/UX Overhaul (Notes for 0.33.13)
 
 Filters needs to be moved to the app-standard filter button in the bottom left corner.
@@ -27,84 +29,11 @@ The description can also appear in a list details box. This box should start ope
 
 It does not appear that Lists/list modals follow the app's view guidelines. The Edit List modal, in partiuclar. It feels cramped.
 
-## Inactive Users
-
-Users that are inactive in a workspace should NOT show up in assignable people. They shouldn't show up in a workspace at all.
-
-## "Requires Login" warning message (and others)
-
-I was editing a task in Actions -> Tasks and in the middle of it, my 12-hour session must have expired. It happened between adding checklist items. And I almost didn't notice it pop up behind the modal on the main window. These kinds of warnings need to be framework-owned app modals, not hidden away or in the console somewhere.
-
-## Workbench (possibly elsewhere)
-
-When on the workbench, if I select a parent task, it ONLY looks within the parent task for tasks to complete and doesn't include child project tasks. I need this to report all tasks from within a parent project.
-
-## Tasks - Checklists
-
-The spacing is a little tight in the checklist dialog.
-
-I want to be able to hit enter to record new/save changes to checklist items. Currently hitting enter closes the modal without saving changes to the checklist.
-
-## Tasks - Sorting & Filters - Tags
-
-Tags is a drop down, it should be a box you type into with suggestions (similar to the way you enter them).
-
-## Tasks - Parent/Child Tasks
-
-When creating a new task, "Parent Task" properly filters once client/project are selected. Don't change that, however, Parent Task shouldn't display completed/archived tasks for new tasks. Those can be filtered out of the list.
-
-Child tasks should inherit the Parent task's:
-- Due Date
-- Due Time
-- Priority
-- Client (If not already selected)
-- Project (If not already selected)
-
-It would appear there is no real indicator that parent/child tasks are linked other than the "Parent Tasks" drop down. There should be something on line-item displays (a clickable link chip perhaps) that says "Child of: {{truncatedTaskName}}"
-
-Line-item displays, as in Actions->Tasks should have child tasks nested under parent tasks like we do for Clients and Projects.
-
-## Tasks - Modal behavior
-
-Often, when entering a task, I'm doing so to add either a checklist or files. But I can't do that on the create modal. That's fine, however, if I randomly capture a task while working on something else, click the save button, the task goes away and I have to go find it again in the Actions -> Tasks menu.
-
-I would like the save button to NOT close the dialog, but "convert" it to the edit dialog, which can then be dismissed. This may require creating a "Save & Close" button at the bottom so that I don't ALWAYS have to wait for the task to be saved. Sometimes I really do just need to write it down and save it.
-
-We should extend this functionality to Notes, as well.
-
-## Timers - Context Linking
-
-Sometimes it might be necessary to suddenly switch to a different task, just by starting a timer. It would be beneficial to be able to link a timer to a task AFTER it's been started, thereby converting the timer from "Manual" to "Task Timer."
-
-## Notes - Bulk Editing
-
-We need a way to bulk edit certain Note details. For instance:
-
-- Library
-- Collection
-- Note Kind
-- Visibility
-
-This will necessitate a new modal within the Notes action.
-
 ## Notes - Suggested Library
 
 - Revisit this once the app is built more (not quite medium term, but not today 2026/06/18)
   - Library suggestion should be directly below the Library drop down in Note Details, not in Linked context
   - Revisit the logic that builds this and refine the algorithm
-
-## Personal and Family Workspaces
-
-- Billable flag needs to be deprecated everywhere from the front end
-  - It can remain in the database as long as it can never be used on Personal or Family workspaces
-
-## Misc
-
-- I think I lost client change requests from the repo docs, somewhere. This needs to be added back into the project management tools section.
-
-- Adding a task using the {{workspaceName}} in the add tasks modal doesn't narrow the list of projects down to only the Workspace Projects (ones that have no clients)
-
-- In the tag picker, I'd like to be able to start typing a tag and then press the down arrow to select it from the drop down (currently, I have to click and that takes more time)
 
 ## Testing Goals
 
@@ -157,10 +86,6 @@ This section is to define a series of human testing goals for different sections
 
 - Many modules aren't exposing admin/settings properly
   - Perform an audit and figure out what settings are missing and how to get them where they need to be
-
-## Client/Projects Fixes/Tweaks
-
-- Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Near Term Ideas
 
