@@ -189,35 +189,35 @@ Purpose:
 
 Type the seams that cause the most expensive regression churn when they drift. This slice should not try to type every module.
 
-- [ ] Add shared typed/JSDoc-backed definitions for the highest-value contracts:
-  - [ ] Module manifest shape.
-  - [ ] Declarative view descriptor shape.
-  - [ ] Dashboard contribution shape.
-  - [ ] Workbench contribution shape.
-  - [ ] Work candidate shape.
-  - [ ] Focus-mode definition/context shape.
-  - [ ] Resume-state producer payload shape.
-  - [ ] Search record/reference/result shape.
-  - [ ] Notification event/create/read payload shape.
-  - [ ] Taggable/searchable/attachable manifest contribution shapes.
-  - [ ] Public API success/error/list envelope.
-  - [ ] Job enqueue/handler payload shape.
-  - [ ] Database adapter/dialect seam shape.
-- [ ] Add `// @ts-check` plus JSDoc typing only to selected high-value JavaScript files first:
-  - [ ] `src/core/modules/manifest-contract.js`
-  - [ ] module registry/validation path
-  - [ ] work-candidate/focus/resume services
-  - [ ] search contract/service seam
-  - [ ] notification contract/service seam
-  - [ ] tag contract/service seam
-  - [ ] Files contract/service seam from 0.33.7.3
-- [ ] Model dual-cased shapes honestly where they still exist.
-  - [ ] Do not pretend everything is camelCase if existing code still accepts or emits snake_case.
-  - [ ] Prefer a normalized internal shape plus explicit edge adapters where practical.
-- [ ] Fix real contract drift exposed by typecheck.
-- [ ] Do not mask drift with blanket `any`.
-- [ ] Do not type-check the entire browser UI in this slice.
-- [ ] Do not rename working files just to make them `.ts`.
+- [x] Add shared typed/JSDoc-backed definitions for the highest-value contracts (`src/types/framework-contracts.d.ts`, type-only, never imported by runtime JavaScript):
+  - [x] Module manifest shape.
+  - [x] Declarative view descriptor shape.
+  - [x] Dashboard contribution shape.
+  - [x] Workbench contribution shape.
+  - [x] Work candidate shape.
+  - [x] Focus-mode definition/context shape.
+  - [x] Resume-state producer payload shape.
+  - [x] Search record/reference/result shape (plus the registered indexer signature).
+  - [x] Notification event/create/read payload shape.
+  - [x] Taggable/searchable/attachable manifest contribution shapes.
+  - [x] Public API success/error/list envelope.
+  - [x] Job enqueue/handler payload shape.
+  - [x] Database adapter/dialect seam shape.
+- [x] Add `// @ts-check` plus JSDoc typing only to selected high-value JavaScript files first:
+  - [x] `src/core/modules/manifest-contract.js`
+  - [x] module registry/validation path (`registry.js`, with the definition list typed `ModuleManifest[]` so all eight manifests are structurally checked)
+  - [x] work-candidate/focus/resume services (`work-candidate.service.js`, `work-focus-modes.service.js`, `work-resume-state.service.js`, `work-resume-state-producers.js`)
+  - [x] search contract/service seam (`search.service.js`, `indexer-registry.js`)
+  - [x] notification contract/service seam (`notifications.service.js`)
+  - [x] tag contract/service seam (`tags.service.js`, `tag-propagation-registry.js`)
+  - [x] Files contract/service seam from 0.33.7.3 (`files.contracts.js`)
+- [x] Model dual-cased shapes honestly where they still exist.
+  - [x] Do not pretend everything is camelCase if existing code still accepts or emits snake_case — resume payloads, job enqueue options, and search filters are typed with both casings.
+  - [x] Prefer a normalized internal shape plus explicit edge adapters where practical.
+- [x] Fix real contract drift exposed by typecheck — SQLite adapter `query/get/run` signatures documented named-parameter objects (they previously claimed arrays); search indexing now guards an unregistered indexer with a clear 500 instead of a raw TypeError; the contract types themselves were corrected against reality (defaultRolePermissions/auditRecordTypes/eventTypes are structured arrays, view dirs are URL objects, navigation has no id).
+- [x] Do not mask drift with blanket `any` — checking dials are tsconfig-level (`strict` on, `noImplicitAny` off for incremental JS) and the `framework.typecheck-seams` gate rejects `@ts-nocheck`/`@ts-ignore` in runtime files.
+- [x] Do not type-check the entire browser UI in this slice.
+- [x] Do not rename working files just to make them `.ts`.
 
 Acceptance criteria:
 

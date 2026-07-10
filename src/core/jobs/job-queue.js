@@ -23,6 +23,7 @@ const JOB_RETURN_COLUMNS = Object.freeze([
   "dead_at",
 ]);
 
+/** @param {import("../../types/framework-contracts.js").JobEnqueueOptions} [options] */
 async function enqueueJob(options = {}) {
   const now = new Date().toISOString();
   const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Job workspace is required.");

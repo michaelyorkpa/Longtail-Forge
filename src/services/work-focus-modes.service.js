@@ -1,3 +1,4 @@
+// @ts-check
 import { db } from "../core/database.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 import { AppError } from "../utils/app-error.js";
@@ -25,6 +26,18 @@ const FOCUS_SCOPES = Object.freeze({
   project: "project",
   workspace: "workspace",
 });
+/**
+ * @typedef {Object} FocusModeInternalDefinition
+ * @property {string} id
+ * @property {string} label
+ * @property {string} description
+ * @property {string} scope
+ * @property {number} sortOrder
+ * @property {(context: { dates: any, input: any, workspaceContext: any }) => any} resolve
+ * @property {string} [requiredSelection]
+ */
+
+/** @type {readonly FocusModeInternalDefinition[]} */
 const FOCUS_MODE_DEFINITIONS = Object.freeze([
   Object.freeze({
     description: "Start with active, due, blocked, and recently touched work.",
@@ -549,7 +562,8 @@ function normalizeTextList(value) {
 
 function normalizeSortMode(value) {
   const sort = textValue(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
-  return Object.values(WORK_CANDIDATE_SORTS).includes(sort) ? sort : "";
+  const supportedSorts = /** @type {string[]} */ (Object.values(WORK_CANDIDATE_SORTS));
+  return supportedSorts.includes(sort) ? sort : "";
 }
 
 function objectValue(value) {

@@ -1,5 +1,11 @@
+// @ts-check
+/** @type {Map<string, import("../../types/framework-contracts.js").SearchIndexer>} */
 const registeredIndexers = new Map();
 
+/**
+ * @param {string} indexerId
+ * @param {import("../../types/framework-contracts.js").SearchIndexer} indexer
+ */
 function registerSearchIndexer(indexerId, indexer) {
   if (typeof indexerId !== "string" || !indexerId.trim()) {
     throw new Error("Search indexer ID must be a non-empty string.");

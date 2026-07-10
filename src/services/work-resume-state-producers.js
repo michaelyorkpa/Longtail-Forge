@@ -1,3 +1,4 @@
+// @ts-check
 import { summarizeActivityEvent } from "../core/events/event-summaries.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { workResumeStateService } from "./work-resume-state.service.js";
@@ -151,7 +152,7 @@ async function handleProducerEvent(definition, event) {
       summary: summarizeActivityEvent(event),
     });
   } catch (error) {
-    console.warn(`[work-resume] Producer '${definition.id}' skipped event '${event.name}': ${error?.message || error}`);
+    console.warn(`[work-resume] Producer '${definition.id}' skipped event '${event.name}': ${error instanceof Error ? error.message : error}`);
     return { status: "skipped", reason: "producer_failed" };
   }
 

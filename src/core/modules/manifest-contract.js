@@ -1,3 +1,4 @@
+// @ts-check
 import { listTagPropagationResolverIds } from "../../services/tag-propagation-registry.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../linked-context/provider-contract.js";
 

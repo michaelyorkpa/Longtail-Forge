@@ -1,3 +1,4 @@
+// @ts-check
 // Files edge-payload contracts.
 //
 // Runtime Zod schemas for the Files edges: JSON upload bodies, multipart

@@ -1,3 +1,4 @@
+// @ts-check
 import { clientProjectsModule } from "../../modules/client-projects/module.js";
 import { developerExampleModule } from "../../modules/developer-example/module.js";
 import { listsModule } from "../../modules/lists/module.js";
@@ -8,6 +9,12 @@ import { timeTrackingModule } from "../../modules/time-tracking/module.js";
 import { usersModule } from "../../modules/users/module.js";
 import { validateModuleManifests } from "./manifest-contract.js";
 
+/**
+ * Registered first-party module manifests, structurally checked against the
+ * shared contract shape at development time (runtime validation still runs
+ * through validateModuleManifests below).
+ * @type {import("../../types/framework-contracts.js").ModuleManifest[]}
+ */
 const moduleDefinitions = [
   clientProjectsModule,
   developerExampleModule,

@@ -1,3 +1,4 @@
+// @ts-check
 import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
 import { db } from "../core/database.js";

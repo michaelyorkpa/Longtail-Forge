@@ -1,3 +1,4 @@
+// @ts-check
 import { modulesService } from "../core/modules/modules.service.js";
 import {
   getSearchBackendAdapter,
@@ -212,6 +213,43 @@ function validateSearchableTypeDeclarations(declarations = [], options = {}) {
   };
 }
 
+/**
+ * Search filter input. Dual-cased on purpose: browser and API callers still
+ * send either casing, and the composers normalize; both casings remain part
+ * of the accepted edge shape.
+ * @typedef {Object} SearchFilterInput
+ * @property {string} [workspaceId]
+ * @property {string} [workspace_id]
+ * @property {string | string[]} [tagIds]
+ * @property {string | string[]} [tag_ids]
+ * @property {string} [clientId]
+ * @property {string} [client_id]
+ * @property {string} [projectId]
+ * @property {string} [project_id]
+ * @property {string} [text]
+ * @property {string} [libraryBucket]
+ * @property {string} [library_bucket]
+ * @property {string} [noteCollectionId]
+ * @property {string} [note_collection_id]
+ * @property {string} [collectionId]
+ * @property {string} [collection_id]
+ * @property {string} [recordStatus]
+ * @property {string} [record_status]
+ * @property {string} [status]
+ * @property {string} [visibility]
+ * @property {string} [source]
+ * @property {string | string[]} [moduleIds]
+ * @property {string | string[]} [module_ids]
+ * @property {string} [moduleId]
+ * @property {string} [module_id]
+ * @property {string | string[]} [recordTypes]
+ * @property {string | string[]} [record_types]
+ * @property {string} [recordType]
+ * @property {string} [record_type]
+ * @property {any} [key] catch-all for boolean has*Filter flags read dynamically
+ */
+
+/** @param {{ session: any, searchableType: any, filters?: SearchFilterInput }} request */
 async function composePermissionSafeSearchFilters({ session, searchableType, filters = {} }) {
   if (!session?.workspace_id) {
     throw new AppError("Search requires an active workspace session.", 400);
@@ -271,6 +309,7 @@ async function composePermissionSafeSearchFilters({ session, searchableType, fil
   };
 }
 
+/** @param {{ session?: any, filters?: SearchFilterInput }} [request] */
 async function composePermissionSafeSearchRequest({ session, filters = {} } = {}) {
   if (!session?.workspace_id) {
     throw new AppError("Search requires an active workspace session.", 400);
@@ -435,6 +474,9 @@ async function reindexSearchRecord(recordReference = {}, options = {}) {
     }
 
     const indexer = getSearchIndexer(validation.declaration.indexer);
+    if (!indexer) {
+      throw new AppError(`Search indexer '${validation.declaration.indexer}' is not registered.`, 500);
+    }
     const indexedRecord = await indexer({
       ...normalizedReference,
       declaration: validation.declaration,

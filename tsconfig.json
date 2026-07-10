@@ -7,14 +7,17 @@
     "checkJs": false,
     "noEmit": true,
     "strict": true,
+    "noImplicitAny": false,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "types": ["node"],
     "forceConsistentCasingInFileNames": true
   },
   "include": [
     "server.js",
     "worker.js",
     "src/**/*.js",
+    "src/**/*.d.ts",
     "tests/**/*.mjs"
   ],
   "exclude": [

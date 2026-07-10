@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 323,
+  "minimumActiveScripts": 324,
   "minimumAreaScripts": {
     "dashboard": 1,
     "database": 26,
     "docs": 8,
     "files": 44,
-    "framework": 36,
+    "framework": 37,
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
@@ -22,7 +22,7 @@
     "views": 26,
     "workbench": 26
   },
-  "minimumReleaseGateScripts": 18,
+  "minimumReleaseGateScripts": 19,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -41,7 +41,8 @@
     "release.regression-manifest-generation",
     "release.regression-routing-commands",
     "release.fast-check-pipeline",
-    "framework.module-import-boundaries"
+    "framework.module-import-boundaries",
+    "framework.typecheck-seams"
   ],
   "protectedAreas": [
     "dashboard",

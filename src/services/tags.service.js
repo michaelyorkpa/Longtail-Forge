@@ -1,3 +1,4 @@
+// @ts-check
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
@@ -206,9 +207,10 @@ async function bulkAssign(session, payload = {}) {
       });
       results.push(result);
     } catch (error) {
+      const failure = /** @type {{ message?: string, status?: number, statusCode?: number }} */ (error);
       errors.push({
-        message: error.message || "Tags could not be updated.",
-        status: error.status || error.statusCode || 500,
+        message: failure.message || "Tags could not be updated.",
+        status: failure.status || failure.statusCode || 500,
         target_id: targetId,
         target_type: targetType,
       });
@@ -516,7 +518,7 @@ async function refreshPropagatedAssignmentsForTarget(session, payload = {}) {
       console.error(`[tags] Tag propagation refresh failed for ${rule.id}:`, error);
       failedRecords += 1;
       propagationFailures.push({
-        error: error?.message || String(error),
+        error: error instanceof Error ? error.message : String(error),
         event: "tag.effective_tags.refreshed",
         hook_id: "tag-propagation.refresh",
         module_id: TAGS_MODULE_ID,
@@ -1168,6 +1170,7 @@ LIMIT 1;
   return row || null;
 }
 
+/** @param {Record<string, any> | null} [existingTag] */
 async function normalizeTagPayload(workspaceId, payload, existingTag = null) {
   const name = String(payload.name ?? existingTag?.name ?? "").trim().replace(/\s+/g, " ");
   const description = String(payload.description ?? existingTag?.description ?? "").trim();

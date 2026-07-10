@@ -1,3 +1,4 @@
+// @ts-check
 import { createHash } from "node:crypto";
 import {
   buildEventChangedContext,
@@ -25,6 +26,7 @@ let notificationEventUnsubscribers = [];
 let notificationEventHandlersRegistered = false;
 let notificationJobHandlersRegistered = false;
 
+/** @param {Record<string, any> | null} [session] */
 async function create(payload, session = null) {
   const normalized = await normalizeCreatePayload(payload, session);
   await assertNotificationCreateAllowed(normalized);
@@ -395,6 +397,7 @@ async function queueNotificationEvent(event, declaration = null, options = {}) {
   };
 }
 
+/** @param {{ payload?: Record<string, any>, job?: Record<string, any> }} jobContext */
 async function handleNotificationEventJob({ payload = {}, job = {} }) {
   const operation = String(payload.operation || NOTIFICATION_EVENT_JOB_OPERATION).trim();
 
@@ -538,7 +541,7 @@ async function readSubscribedRecipientIds(event, declaration) {
     }) ? subscription : null;
   }));
 
-  return allowedSubscriptions.filter(Boolean).map((subscription) => subscription.user_id);
+  return allowedSubscriptions.flatMap((subscription) => (subscription ? [subscription.user_id] : []));
 }
 
 async function resolveRecipients(event, declaration) {
@@ -614,6 +617,7 @@ function normalizeJobPlainValue(value) {
   return value;
 }
 
+/** @param {Record<string, any> | null} [session] */
 function normalizeJobSession(session = null) {
   if (!session || typeof session !== "object" || Array.isArray(session)) {
     return null;
@@ -676,6 +680,7 @@ function hasTaskDueContext(source = {}) {
   );
 }
 
+/** @param {Record<string, any> | null} [session] */
 async function normalizeCreatePayload(payload = {}, session = null) {
   const workspaceId = payload.workspace_id || payload.workspaceId || session?.workspace_id || "";
   const moduleId = payload.module_id || payload.moduleId || "";
@@ -778,7 +783,7 @@ async function readNoteTargetMetadata(notification, session, baseMetadata) {
 
   try {
     const result = await notesService.read(notification.record_id, session);
-    const note = result.note || {};
+    const note = /** @type {Record<string, any>} */ (result.note || {});
     return {
       ...baseMetadata,
       canOpen: Boolean(notification.url),
@@ -1082,6 +1087,7 @@ function normalizeWorkspaceDefaultList(items, allowedEventIds) {
     .filter((item) => allowedEventIds.has(item.event_type));
 }
 
+/** @param {Record<string, any> | null} [source] */
 function normalizeDisplayPreferences(source = null) {
   if (!source || typeof source !== "object") {
     return null;
@@ -1092,6 +1098,7 @@ function normalizeDisplayPreferences(source = null) {
   };
 }
 
+/** @param {Record<string, any> | null} [preferences] */
 function shapeUserDisplayPreferences(preferences = null) {
   return {
     groupingMode: normalizeGroupingMode(preferences?.groupingMode),

@@ -40,20 +40,40 @@ function createSqliteAdapter() {
     }
   }
 
+  /**
+   * @template T
+   * @param {() => Promise<T> | T} operation
+   * @returns {Promise<T>}
+   */
   function waitForOpenTransaction(operation) {
     return transactionTail.catch(() => {}).then(operation);
   }
 
+  /**
+   * @param {string} sql
+   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @returns {Promise<Record<string, any>[]>} result rows
+   */
   async function executeQuery(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
     return querySql(statement.sql, statement.params);
   }
 
+  /**
+   * @param {string} sql
+   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @returns {Promise<Record<string, any> | null>} first result row, if any
+   */
   async function executeGet(sql, params = []) {
     const rows = await executeQuery(sql, params);
     return rows[0] || null;
   }
 
+  /**
+   * @param {string} sql
+   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @returns {Promise<any>} driver run result
+   */
   async function executeRun(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
     return runSql(statement.sql, statement.params);
@@ -65,16 +85,28 @@ function createSqliteAdapter() {
     });
   }
 
+  /**
+   * @param {string} sql
+   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   */
   async function query(sql, params = []) {
     assertNotInsideTransactionContext("queries");
     return waitForOpenTransaction(() => executeQuery(sql, params));
   }
 
+  /**
+   * @param {string} sql
+   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   */
   async function get(sql, params = []) {
     assertNotInsideTransactionContext("reads");
     return waitForOpenTransaction(() => executeGet(sql, params));
   }
 
+  /**
+   * @param {string} sql
+   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   */
   async function run(sql, params = []) {
     assertNotInsideTransactionContext("writes");
     return waitForOpenTransaction(() => executeRun(sql, params));

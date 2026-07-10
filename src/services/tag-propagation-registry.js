@@ -1,3 +1,4 @@
+// @ts-check
 import { db } from "../core/database.js";
 
 const resolvers = new Map();

@@ -1,3 +1,4 @@
+// @ts-check
 import { modulesService } from "../core/modules/modules.service.js";
 import { tasksService } from "../modules/tasks/tasks.service.js";
 import { activeTimersService } from "../modules/time-tracking/active-timers.service.js";
@@ -172,6 +173,11 @@ async function listWorkCandidates(session, query = {}) {
   };
 }
 
+/**
+ * @typedef {{ manualTimerSourceAvailable: boolean, timerSourceKeys: Set<string>, workItemSourceKeys: Set<string> }} CandidateSourceContext
+ */
+
+/** @param {CandidateSourceContext | null} [sourceContext] */
 async function listTaskWorkItemCandidates(session, query = {}, sourceContext = null) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
@@ -194,6 +200,7 @@ async function listTaskWorkItemCandidates(session, query = {}, sourceContext = n
   return (result.items || []).map((item) => candidateFromTaskWorkItem(item));
 }
 
+/** @param {CandidateSourceContext | null} [sourceContext] */
 async function listLiveTimerCandidates(session, query = {}, sourceContext = null) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
@@ -404,6 +411,10 @@ function candidateFromTimer(timer = {}) {
   });
 }
 
+/**
+ * @param {Record<string, any>} [input]
+ * @returns {import("../types/framework-contracts.js").WorkCandidate}
+ */
 function normalizeWorkCandidate(input = {}) {
   const picked = pickAllowedCandidateFields(input);
   const sourceUrl = safeUrl(firstValue(picked.sourceUrl, picked.source_url));
@@ -1092,6 +1103,7 @@ function timerCandidateSourceKey(candidate) {
   return `${candidate.moduleId}:${sourceType}`;
 }
 
+/** @param {{ moduleId?: string, recordId?: string, recordType?: string, sourceKind?: string }} [parts] */
 function candidateIdFor({ moduleId, recordId, recordType, sourceKind } = {}) {
   const prefix = textValue(sourceKind, TEXT_LIMITS.sourceKind) || "candidate";
   return `${prefix}:${moduleId}:${recordType}:${recordId}`.slice(0, TEXT_LIMITS.candidateId);
@@ -1136,7 +1148,8 @@ function normalizeIdList(value) {
 
 function normalizeSortMode(value) {
   const sort = normalizeFilterToken(value);
-  return Object.values(WORK_CANDIDATE_SORTS).includes(sort) ? sort : "";
+  const supportedSorts = /** @type {string[]} */ (Object.values(WORK_CANDIDATE_SORTS));
+  return supportedSorts.includes(sort) ? sort : "";
 }
 
 function normalizeFilterToken(value) {
