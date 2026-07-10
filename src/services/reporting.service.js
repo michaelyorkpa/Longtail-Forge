@@ -1,5 +1,4 @@
 import { clientsService } from "../modules/client-projects/clients.service.js";
-import { tasksService } from "../modules/tasks/tasks.service.js";
 import { timeEntriesService } from "../modules/time-tracking/time-entries.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { AppError } from "../core/errors.js";
@@ -7,7 +6,6 @@ import { permissionsService } from "../core/permissions.js";
 import { settingsService } from "./settings.service.js";
 
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
-const TASKS_MODULE_ID = "tasks";
 
 async function readReportingBootstrap(session) {
   const { settings, scopes, moduleContext } = await readReportContext(session);
@@ -77,39 +75,6 @@ async function readProjectSummary(session, query = {}) {
     taskFilter: selectedTaskIds,
     rows,
     totals,
-  };
-}
-
-async function readDashboard(session) {
-  const { settings, scopes, moduleContext } = await readReportContext(session, { includeInactive: true });
-  const dashboardPanels = await modulesService.listDashboardPanels(session.workspace_id, session);
-  const clientFiltersVisible = settings.workspaceType === "business";
-  const activeScopes = scopes.filter((scope) => scope.status === "Active");
-  const taskSummary = panelIsAvailable(dashboardPanels, TASKS_MODULE_ID, "task-summary")
-    ? await tasksService.summary(session)
-    : null;
-
-  return {
-    workspace: workspaceSummary(session, settings),
-    hub: {
-      clientFiltersVisible,
-      countLabel: clientFiltersVisible ? "Active Clients" : "Active Projects",
-      reportLegend: clientFiltersVisible ? "Client Reporting" : "Project Reporting",
-      activeCount: clientFiltersVisible
-        ? activeScopes.filter((scope) => !scope.isWorkspaceScope).length
-        : activeScopes.flatMap((scope) => scope.projects).filter((project) => project.status !== "Inactive").length,
-      reportScopes: clientFiltersVisible ? activeScopes.filter((scope) => !scope.isWorkspaceScope) : activeScopes,
-      defaultReportScopeId: clientFiltersVisible ? "" : activeScopes[0]?.id || "",
-    },
-    tasks: {
-      available: Boolean(taskSummary),
-      summary: taskSummary,
-    },
-    extensionPoints: {
-      dashboardPanels,
-      reportingPanels: readModulePanels(moduleContext.modules, "reporting"),
-      reserved: ["tasks", "notes", "tickets", "notifications", "activity-feed"],
-    },
   };
 }
 
@@ -650,10 +615,6 @@ function emptyProjectSummary(scope, taskFilter = []) {
   };
 }
 
-function panelIsAvailable(panels, moduleId, panelId) {
-  return panels.some((panel) => panel.moduleId === moduleId && panel.id === panelId);
-}
-
 function readModulePanels(modules, panelGroup) {
   return modules
     .filter((moduleDefinition) => moduleDefinition.status === "enabled" || moduleDefinition.historicalReadAccess === true)
@@ -677,7 +638,6 @@ function workspaceSummary(session, settings) {
 }
 
 export const reportingService = {
-  readDashboard,
   readProjectSummary,
   readReportingBootstrap,
 };

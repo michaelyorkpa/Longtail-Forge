@@ -7,7 +7,7 @@ import { Readable } from "node:stream";
 import { createLocalFileStorageAdapter } from "../src/core/files/local-storage-adapter.js";
 
 const root = process.cwd();
-const appVersion = "0.33.6.12o";
+const appVersion = "0.33.6.13z";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-streaming-"));
 const storageRoot = path.join(tempDir, "files");
 

@@ -13,6 +13,8 @@ import { planProjectUpdate } from "./project-update-planner.js";
 import { timeEntriesRepository } from "../time-tracking/time-entries.repo.js";
 import { taskRemindersService } from "../tasks/task-reminders.service.js";
 
+const WORKSPACE_PROJECTS_SCOPE_ID = "__workspace_projects__";
+
 async function readClientProjects(session) {
   const data = await attachReminderPolicies(await readClientProjectData(session.workspace_id), session.workspace_id);
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
@@ -52,6 +54,67 @@ async function readClientProjects(session) {
           includeDepth: true,
         }).map(stripProjectClientIdForNestedPayload),
       })),
+  };
+}
+
+async function readDashboardProjectSummary(session) {
+  await permissionsService.assertCanInAnyScope(session, "reporting.view", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  });
+  const [data, workspaceSettings] = await Promise.all([
+    readClientProjects(session),
+    settingsRepository.readWorkspaceSettings(session.workspace_id),
+  ]);
+  const workspaceScope = dashboardWorkspaceScope(data, workspaceSettings);
+  const clientScopes = (Array.isArray(data.clients) ? data.clients : []).map(dashboardClientScope);
+  const activeClientScopes = clientScopes.filter((scope) => scope.status === "Active");
+  const clientFiltersVisible = workspaceSettings.workspaceType === "business";
+  const reportScopes = clientFiltersVisible
+    ? activeClientScopes
+    : [workspaceScope].filter((scope) => scope.projects.length > 0);
+
+  return {
+    clientFiltersVisible,
+    countLabel: clientFiltersVisible ? "Active Clients" : "Active Projects",
+    reportLegend: clientFiltersVisible ? "Client Reporting" : "Project Reporting",
+    activeCount: clientFiltersVisible
+      ? activeClientScopes.length
+      : workspaceScope.projects.filter((project) => project.status !== "Inactive").length,
+    reportScopes,
+    defaultReportScopeId: clientFiltersVisible ? "" : reportScopes[0]?.id || "",
+  };
+}
+
+function dashboardWorkspaceScope(data, workspaceSettings) {
+  return {
+    id: WORKSPACE_PROJECTS_SCOPE_ID,
+    name: workspaceSettings.workspaceName || "Workspace",
+    status: "Active",
+    isWorkspaceScope: true,
+    projects: (Array.isArray(data.workspaceProjects) ? data.workspaceProjects : []).map(dashboardProjectShape),
+  };
+}
+
+function dashboardClientScope(client) {
+  return {
+    id: String(client.id || "").trim(),
+    name: String(client.name || "").trim(),
+    status: client.status === "Inactive" ? "Inactive" : "Active",
+    isWorkspaceScope: false,
+    parentScopeId: String(client.parent_client_id || "").trim(),
+    depth: Number.isFinite(Number(client.depth)) ? Number(client.depth) : 0,
+    projects: (Array.isArray(client.projects) ? client.projects : []).map(dashboardProjectShape),
+  };
+}
+
+function dashboardProjectShape(project) {
+  return {
+    id: String(project.id || "").trim(),
+    name: String(project.name || "").trim(),
+    status: project.status === "Inactive" ? "Inactive" : "Active",
+    parentProjectId: String(project.parent_project_id || "").trim(),
+    depth: Number.isFinite(Number(project.depth)) ? Number(project.depth) : 0,
   };
 }
 
@@ -1372,6 +1435,7 @@ export const clientsService = {
   listProjects,
   readClient,
   readClientProjects,
+  readDashboardProjectSummary,
   readProject,
   saveClientProjects,
   updateClient,

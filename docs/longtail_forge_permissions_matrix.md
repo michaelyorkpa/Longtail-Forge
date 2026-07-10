@@ -121,7 +121,9 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | POST | /api/notifications/:notificationId/dismiss | notifications.view_own in any assigned scope | current user/workspace | Dismisses only the active user's notification |
 | Browser | GET | /api/reporting/bootstrap | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
 | Browser | GET | /api/reporting/project-summary | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
-| Browser | GET | /api/dashboard | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
+| Browser | GET | /api/dashboard | authenticated user plus contribution permission filters | workspace/module contributions | Returns framework Dashboard pulse, layout, safe warnings, and permission-filtered contribution metadata |
+| Browser | GET | /api/client-projects/dashboard/project-summary | reporting.view | any assigned reporting scope | Module-owned Dashboard data route, enforced then filtered by readable scope |
+| Browser | GET | /api/tasks/dashboard-summary | tasks.view | self/task/project/client | Module-owned Dashboard data route, filtered by readable task scope |
 | Browser | GET | /api/audit-logs* | audit_logs.view | workspace | Enforced |
 | Public API | GET | /api/v1/clients* | clients:read plus Business workspace | API key workspace | Enforced |
 | Public API | GET | /api/v1/projects* | projects:read | API key workspace | Enforced |

@@ -24,9 +24,13 @@ Framework dependencies:
 - Timezone normalization for persisted UTC timestamps.
 - Workspace settings/bootstrap responses for module status and metadata.
 
-Dashboard billing contributions:
+Dashboard effort contributions:
 
-As of 0.33.6.10b, Time Tracking owns the Dashboard billing panels. The module declares `current-month-billables` and `hours-billables-chart` dashboard contributions with `reporting.view`, Time Tracking workspace capability, and enabled-module gates. `public/js/time-tracking-dashboard.js` registers the `time-tracking.current-month-billables` and `time-tracking.hours-billables-chart` renderers with the framework Dashboard host, and both renderers fetch `/api/time-tracking/dashboard/billing-summary`. `src/modules/time-tracking/time-tracking-billing.service.js` owns the permission-checked billing aggregation for the current-month billable table and trailing hours/billables chart so later project time/billing work can reuse the same calculation boundary. Dashboard remains responsible only for contribution filtering, panel placement, status, and empty states.
+As of 0.33.6.13c, Time Tracking contributes compact Dashboard effort cards instead of default billing/report panels. The module declares `active-timers` and `recent-time` Dashboard contributions with Time Tracking workspace capability and enabled-module gates. `active-timers` requires `time_entries.create`, renders through `time-tracking.active-timers`, and links to Workbench without adding timer creation controls. `recent-time` requires `reporting.view`, renders through `time-tracking.recent-time`, and links to Time Entries and Reporting without showing a full table. Both cards hydrate from `/api/time-tracking/dashboard/effort-summary`, which returns safe active/paused timer counts, up to three timer rows, recent saved-time totals, and up to three recent time-entry rows. Business workspaces may include Client/Project context labels; Personal and Family workspaces must not show billable amount, invoice-ready copy, billing charts, Current Month Billables, or Client billing language.
+
+As of 0.33.6.13d, the active/recent Time Tracking cards live in the Dashboard Module Overview grid, not the Recent Activity region. The Recent Activity region is reserved for future permission-safe activity digest rows and currently renders a quiet deferred state when no safe source exists.
+
+Detailed billing analysis remains outside the default Dashboard. The retired Dashboard contributions `current-month-billables` and `hours-billables-chart` must not return to default Dashboard placement. `src/modules/time-tracking/time-tracking-billing.service.js` still owns the permission-checked billing aggregation boundary for Reporting and compatible report reads. As of 0.33.6.13z, the closeout guardrail keeps Time Tracking Dashboard cards compact and active/recent only; detailed billables, billing charts, invoice-ready copy, and full report tables belong in Reporting, while QAC remains the timer capture entry through the Time Tracking Create Timer modal.
 
 Workbench timer contribution:
 

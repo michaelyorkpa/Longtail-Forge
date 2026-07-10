@@ -36,6 +36,11 @@ const TASK_LIST_MAX_PAGE_SIZE = 200;
 const TASK_LIST_BATCH_MULTIPLIER = 5;
 const TASK_LIST_MAX_CANDIDATE_SCAN = 1000;
 const TASK_OPTION_MAX_ITEMS = 200;
+const DASHBOARD_TASK_ATTENTION_LIMIT = 5;
+const DASHBOARD_TASK_UPCOMING_LIMIT = 5;
+const DASHBOARD_TASK_PRESSURE_LIMIT = 5;
+const DASHBOARD_WORKBENCH_URL = "workbench.html";
+const DASHBOARD_TASKS_URL = "tasks.html";
 
 async function list(session, query = {}) {
   const { options, pagination, tasks } = await queryTasks(session, query, { paginate: true });
@@ -250,26 +255,53 @@ function stripTaskListCandidateMetadata(task) {
 }
 
 async function summary(session) {
-  const { tasks } = await queryTasks(session);
+  const { options = {}, tasks, timers = [] } = await queryTasks(session);
   const now = new Date();
   const today = localDateKey(now, session.timezone);
   const dueSoonCutoff = addDaysKey(today, 7);
+  const timerByTaskId = new Map((timers || [])
+    .filter((timer) => timer.task_id)
+    .map((timer) => [timer.task_id, timer]));
   const activeTasks = tasks.filter(isActiveTask);
   const assignedToMe = activeTasks.filter((task) => (task.assignee_ids || []).includes(session.user_id));
   const overdue = activeTasks.filter((task) => isTaskOverdue(task, now, today));
+  const blocked = activeTasks.filter((task) => task.status === "blocked");
   const dueSoon = activeTasks.filter((task) =>
     isTaskDueSoon(task, now, today, dueSoonCutoff),
   );
+  const activeTimerTasks = activeTasks.filter((task) => hasDashboardTaskTimer(timerByTaskId.get(task.task_id)));
+  const dashboardContext = {
+    currentUserId: session.user_id,
+    dueSoonCutoff,
+    now,
+    timerByTaskId,
+    today,
+    workspaceType: options.workspaceType || "business",
+  };
+  const attentionRows = dashboardAttentionRows(activeTasks, dashboardContext);
+  const upcomingRows = dashboardUpcomingRows(activeTasks, dashboardContext);
 
   return {
     counts: {
       active: activeTasks.length,
       assignedToMe: assignedToMe.length,
+      activeTimers: activeTimerTasks.length,
+      blocked: blocked.length,
       overdue: overdue.length,
       dueSoon: dueSoon.length,
       completed: tasks.filter((task) => task.status === "complete").length,
       archived: tasks.filter((task) => task.status === "archived").length,
     },
+    metrics: {
+      overdue: dashboardTaskMetric("Overdue", overdue.length),
+      dueSoon: dashboardTaskMetric("Due soon", dueSoon.length),
+      blocked: dashboardTaskMetric("Blocked", blocked.length),
+      assignedToMe: dashboardTaskMetric("Assigned to me", assignedToMe.length, DASHBOARD_TASKS_URL),
+    },
+    actions: dashboardTaskActions(),
+    attentionRows,
+    upcomingRows,
+    pressureRows: attentionRows.slice(0, DASHBOARD_TASK_PRESSURE_LIMIT),
     overdue: sortTaskSummaryRows(overdue).slice(0, 5).map((task) => taskSummaryRow(task, session.user_id)),
     dueSoon: sortTaskSummaryRows(dueSoon).slice(0, 5).map((task) => taskSummaryRow(task, session.user_id)),
     assignedToMe: sortTaskSummaryRows(assignedToMe).slice(0, 5).map((task) => taskSummaryRow(task, session.user_id)),
@@ -2161,6 +2193,176 @@ function sortTaskSummaryRows(tasks) {
     priorityRank(secondTask.priority) - priorityRank(firstTask.priority) ||
     String(secondTask.updated_at || "").localeCompare(String(firstTask.updated_at || "")),
   );
+}
+
+function dashboardAttentionRows(activeTasks, context) {
+  const rows = sortDashboardAttentionTasks(
+    activeTasks.filter((task) => dashboardTaskReasons(task, context).length > 0),
+    context,
+  ).map((task) => dashboardTaskRow(task, context));
+
+  return dedupeDashboardRows(rows).slice(0, DASHBOARD_TASK_ATTENTION_LIMIT);
+}
+
+function dashboardUpcomingRows(activeTasks, context) {
+  const upcomingTasks = activeTasks.filter((task) =>
+    task.status !== "blocked" &&
+    isTaskDueSoon(task, context.now, context.today, context.dueSoonCutoff),
+  );
+
+  return sortTaskSummaryRows(upcomingTasks)
+    .map((task) => dashboardTaskRow(task, {
+      ...context,
+      horizon: task.due_date === context.today ? "today" : "this-week",
+      reasonBadge: task.due_date === context.today ? "Due today" : "This week",
+      reasons: [task.due_date === context.today ? "Due today" : "This week"],
+    }))
+    .slice(0, DASHBOARD_TASK_UPCOMING_LIMIT);
+}
+
+function sortDashboardAttentionTasks(tasks, context) {
+  return [...tasks].sort((leftTask, rightTask) =>
+    dashboardAttentionRank(leftTask, context) - dashboardAttentionRank(rightTask, context) ||
+    compareByDueAt(leftTask, rightTask) ||
+    priorityRank(rightTask.priority) - priorityRank(leftTask.priority) ||
+    String(rightTask.updated_at || "").localeCompare(String(leftTask.updated_at || "")) ||
+    compareByStableTitle(leftTask, rightTask),
+  );
+}
+
+function dashboardAttentionRank(task, context) {
+  if (isTaskOverdue(task, context.now, context.today)) {
+    return 10;
+  }
+
+  if (task.status === "blocked") {
+    return 20;
+  }
+
+  const timerStatus = context.timerByTaskId.get(task.task_id)?.timer_status || "";
+  if (timerStatus === "running") {
+    return 30;
+  }
+
+  if (timerStatus === "paused") {
+    return 40;
+  }
+
+  if (isTaskDueSoon(task, context.now, context.today, context.dueSoonCutoff)) {
+    return 50;
+  }
+
+  return 99;
+}
+
+function dashboardTaskRow(task, context) {
+  const timer = context.timerByTaskId.get(task.task_id);
+  const reasons = Array.isArray(context.reasons) ? context.reasons : dashboardTaskReasons(task, context);
+  const reasonBadge = context.reasonBadge || reasons[0] || "Needs attention";
+
+  return {
+    id: task.task_id,
+    task_id: task.task_id,
+    dedupeKey: `tasks:task:${task.task_id}`,
+    moduleId: TASKS_MODULE_ID,
+    sourceLabel: "Tasks",
+    recordType: "task",
+    title: task.title || "Untitled task",
+    status: task.status || "open",
+    priority: task.priority || "normal",
+    reasonBadge,
+    reasons,
+    horizon: context.horizon || "",
+    contextLabel: dashboardTaskContextLabel(task, context.workspaceType),
+    due_date: task.due_date || "",
+    due_time: task.due_time || "",
+    due_timezone: task.due_timezone || "",
+    due_at: task.due_at_utc || task.due_date || "",
+    dueLabel: dashboardTaskDueLabel(task),
+    timerStatus: timer?.timer_status || "",
+    assignedToCurrentUser: (task.assignee_ids || []).includes(context.currentUserId),
+    action: dashboardTaskActions().workbench,
+    secondaryAction: dashboardTaskActions().tasks,
+  };
+}
+
+function dashboardTaskReasons(task, context) {
+  const reasons = [];
+  const timer = context.timerByTaskId.get(task.task_id);
+
+  if (isTaskOverdue(task, context.now, context.today)) {
+    reasons.push("Overdue");
+  }
+
+  if (task.status === "blocked") {
+    reasons.push("Blocked");
+  }
+
+  if (hasDashboardTaskTimer(timer)) {
+    reasons.push(timer.timer_status === "running" ? "Timer running" : "Timer paused");
+  }
+
+  if (isTaskDueSoon(task, context.now, context.today, context.dueSoonCutoff)) {
+    reasons.push(task.due_date === context.today ? "Due today" : "Due soon");
+  }
+
+  return reasons;
+}
+
+function dashboardTaskContextLabel(task, workspaceType = "business") {
+  const clientName = String(task.client_name || "").trim();
+  const projectName = String(task.project_name || "").trim();
+
+  if (workspaceType === "business") {
+    return [clientName, projectName].filter(Boolean).join(" / ") || "Workspace task";
+  }
+
+  return projectName || "Workspace task";
+}
+
+function dashboardTaskDueLabel(task) {
+  if (!task.due_date) {
+    return "No due date";
+  }
+
+  return task.due_time ? `Due ${task.due_date} at ${task.due_time}` : `Due ${task.due_date}`;
+}
+
+function dashboardTaskMetric(label, value, href = DASHBOARD_WORKBENCH_URL) {
+  return {
+    label,
+    value: Number(value) || 0,
+    href,
+  };
+}
+
+function dashboardTaskActions() {
+  return {
+    workbench: {
+      label: "Open Workbench",
+      href: DASHBOARD_WORKBENCH_URL,
+    },
+    tasks: {
+      label: "View Tasks",
+      href: DASHBOARD_TASKS_URL,
+    },
+  };
+}
+
+function hasDashboardTaskTimer(timer) {
+  return ["running", "paused"].includes(timer?.timer_status || "");
+}
+
+function dedupeDashboardRows(rows) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = row.dedupeKey || row.id || row.task_id;
+    if (!key || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId = new Map()) {

@@ -1,3 +1,38 @@
+## Version 0.33.6.13z - 2026-07-09 19:47 -04:00
+
+- Closed the Dashboard/Workbench formalization branch with strict Dashboard, Workbench, Reporting, QAC, Tasks, Time Tracking, and Notes boundary decisions.
+- Added Dashboard closeout polish and guardrails for Pulse visual priority, compact module cards, safe secondary Recent Activity/Reporting regions, responsive wrapping, no fake future-module placeholders, and no default Dashboard billing/task-index/editor/report drift.
+- Removed the Dashboard service's reserved future-module placeholder payload, documented the remaining framework-coupling allowlist, deferred Reporting/Public API/tag-propagation follow-ups to their owning branches, and refreshed docs/version guardrails for 0.33.6.13z.
+- Verification 2026-07-09 19:54 -04:00: focused Dashboard/Workbench, QAC, Workbench Task Focus, recurrence, linked-note, timer, runtime-version, clean-clone, lint, and permission regressions passed; `npm run test:permissions` passed 253 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.13z from the refreshed local 8001 server; local protected Dashboard HTML kept the minimal `data-dashboard-host`, `dashboard.js?v=6`, and `longtail-forge.css?v=10`; served Dashboard JS/CSS exposed Module Overview, safe no-task-edit/default-billing markers, Pulse gradient, and compact responsive grid markers. `npm run check` reached 190/306 regression scripts before stopping on the pre-existing/unrelated `docs/licensing/` legacy-cleanup blocker.
+
+## Version 0.33.6.13d - 2026-07-09 19:26 -04:00
+
+- Added the Dashboard Module Overview grid behavior for compact enabled-module cards, including Tasks pressure as metrics plus one suggested row and Time Tracking active/recent cards in the overview region.
+- Added a quiet deferred Recent Activity state so Dashboard has a safe region without exposing audit payloads, raw IDs, private content, storage/scanner internals, or fake future-module activity.
+- Updated Dashboard/Module Overview docs, Tasks and Time Tracking module docs, Dashboard regressions, permission coverage, cache-busters, and version guardrails for 0.33.6.13d.
+- Verification 2026-07-09 19:26 -04:00: `node --check` for changed Dashboard service, browser, and regression files passed; `node scripts/dashboard-workbench-regression.mjs` passed; `npm run test:permissions` passed 253 checks; `npm run lint` passed; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.13d from the refreshed local 8001 server; served `dashboard.js?v=6` exposed Module Overview/deferred Recent Activity markers, one-row pressure limit, and no audit/payload/future-placeholder strings. `npm run check` reached 191/306 regression scripts before stopping on the pre-existing/unrelated `docs/licensing/` legacy-cleanup blocker.
+
+## Version 0.33.6.13c - 2026-07-09 19:09 -04:00
+
+- Removed the default Dashboard `Current Month Billables` and `Hours & Billables by Month` billing panels from Time Tracking contributions while keeping the billing aggregation boundary available for Reporting-compatible reads.
+- Added compact Time Tracking Dashboard effort cards: `Active Timers` shows running/paused counts and safe Workbench handoffs, while `Recent Time` shows recent saved-time totals and safe Time Entries/Reporting handoffs without full tables, invoice copy, or billing charts.
+- Updated Dashboard/Reporting boundary docs, Time Tracking module docs, Dashboard regressions, permission coverage, cache-busters, and version guardrails for 0.33.6.13c.
+- Verification 2026-07-09 19:09 -04:00: `node --check` for changed Time Tracking Dashboard, browser, and regression files passed; `node scripts/dashboard-workbench-regression.mjs`, `node scripts/time-tracking-create-timer-modal-regression.mjs`, `node scripts/workbench-task-focus-timer-regression.mjs`, and `node scripts/timer-timestamp-integrity-regression.mjs` passed; `npm run lint` passed; `npm run test:permissions` passed 253 checks; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.13c from the refreshed local 8001 server; served `time-tracking-dashboard.js?v=2` exposed active/recent effort renderers and no retired billing renderer, Current Month Billables copy, or billing-summary fetch. `npm run check` reached 191/306 regression scripts before stopping on the pre-existing/unrelated `docs/licensing/` legacy-cleanup blocker.
+
+## Version 0.33.6.13b - 2026-07-09 18:45 -04:00
+
+- Replaced the old three-list Dashboard Task Summary with Tasks-owned `Needs Attention`, `Today / Upcoming`, and compact `Tasks` panels placed by contribution metadata.
+- Added a Dashboard-safe Tasks summary read model with deduped attention rows, upcoming rows, pressure metrics, Workbench/Tasks handoffs, and task-linked running/paused timer visibility while keeping task pressure logic server-owned.
+- Updated Dashboard/Tasks docs, task dashboard regressions, permission coverage, cache-busters, and version guardrails for 0.33.6.13b.
+- Verification 2026-07-09 18:49 -04:00: `node --check` for the changed Tasks service, Dashboard browser, and regression files passed; `node scripts/dashboard-workbench-regression.mjs` passed; `npm run lint` passed; `npm run test:permissions` passed 246 checks, including scoped Dashboard summary and running/paused task-timer attention coverage; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors aside from line-ending warnings; `/api/app-info` reported 0.33.6.13b from the refreshed local 8001 server; served `dashboard.js?v=5` exposed the new Tasks attention/upcoming/pressure renderers and no default `tasks.html?task=` row link. `npm run check` reached 190/306 regression scripts before stopping on the pre-existing/unrelated `docs/licensing/` legacy-cleanup blocker.
+
+## Version 0.33.6.13a - 2026-07-09 18:22 -04:00
+
+- Moved the stable `/api/dashboard` read model out of Reporting into a framework-owned Dashboard service and route while keeping Reporting focused on reporting bootstrap/project-summary routes.
+- Added the validated Dashboard contribution `placement` contract, defaulted omitted placements to `main`, and updated the Dashboard browser host to render framework-owned Pulse, warning, and region anatomy from contribution metadata instead of panel ID placement checks.
+- Moved Project Summary and Task Summary Dashboard data hydration to module-owned routes, documented the Dashboard product/service boundary, refreshed version guardrails to 0.33.6.13a, and advanced the Dashboard host cache-busters.
+- Verification 2026-07-09 18:25 -04:00: `node --check` for the changed Dashboard service/route/browser/regression files passed; focused Dashboard/Workbench, performance, and runtime-configuration regressions passed; `npm run test:permissions` passed 242 checks; standalone ESLint passed; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` reported 0.33.6.13a from the refreshed local 8001 server; served `dashboard.js?v=4` exposed the pulse and placement markers without the Project Summary placement special-case. `npm run check` reached 190/306 regression scripts before stopping on the pre-existing/unrelated `docs/licensing/` legacy-cleanup blocker.
+
 ## Version 0.33.6.12o - 2026-07-09 16:02 -04:00
 
 - Made Workbench due-focused modes include overdue active Tasks-owned work first, including task work that has no recent resume-state row, and removed the `Work this week` lower-bound filter that hid overdue work.

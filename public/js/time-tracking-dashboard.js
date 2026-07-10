@@ -1,202 +1,188 @@
 (function () {
   const dashboard = window.LongtailForge?.dashboard;
   const formatters = window.LongtailForge?.formatters || {};
-  const billingSummaryPromises = new Map();
-  const DEFAULT_BILLING_SUMMARY_ROUTE = "/api/time-tracking/dashboard/billing-summary";
+  const effortSummaryPromises = new Map();
+  const DEFAULT_EFFORT_SUMMARY_ROUTE = "/api/time-tracking/dashboard/effort-summary";
 
   if (!dashboard?.registerPanelRenderer) {
     return;
   }
 
-  dashboard.registerPanelRenderer("time-tracking.current-month-billables", renderCurrentMonthBillablesPanel);
-  dashboard.registerPanelRenderer("time-tracking.hours-billables-chart", renderHoursBillablesChartPanel);
+  dashboard.registerPanelRenderer("time-tracking.active-timers", renderActiveTimersPanel);
+  dashboard.registerPanelRenderer("time-tracking.recent-time", renderRecentTimePanel);
 
-  function renderCurrentMonthBillablesPanel(contribution, context) {
-    const body = createPanelBody(context, "Loading billables...");
+  function renderActiveTimersPanel(contribution, context) {
+    const body = createPanelBody(context, "Loading active timers...");
     const panel = context.createPanel({
-      title: "Current Month Billables",
+      className: "time-tracking-dashboard-panel",
+      title: contribution.label || "Active Timers",
       children: [body],
     });
 
-    hydrateCurrentMonthBillables(body, contribution, context);
+    hydrateTimeTrackingPanel(body, contribution, context, createActiveTimersContent);
     return panel;
   }
 
-  function renderHoursBillablesChartPanel(contribution, context) {
-    const body = createPanelBody(context, "Loading billables chart...");
+  function renderRecentTimePanel(contribution, context) {
+    const body = createPanelBody(context, "Loading recent time...");
     const panel = context.createPanel({
-      title: "Hours & Billables by Month",
+      className: "time-tracking-dashboard-panel",
+      title: contribution.label || "Recent Time",
       children: [body],
     });
 
-    hydrateHoursBillablesChart(body, contribution, context);
+    hydrateTimeTrackingPanel(body, contribution, context, createRecentTimeContent);
     return panel;
   }
 
-  async function hydrateCurrentMonthBillables(body, contribution, context) {
+  async function hydrateTimeTrackingPanel(body, contribution, context, renderContent) {
     try {
-      const data = await loadBillingSummary(contribution);
-      const table = createCurrentMonthBillablesTable(data, context);
-      body.replaceChildren(table);
+      const data = await loadEffortSummary(contribution);
+      body.replaceChildren(renderContent(data, context));
     } catch (error) {
-      renderError(body, context, "Billables could not be loaded.");
+      renderError(body, context, "Time Tracking summary could not be loaded.");
       console.error(error);
     }
   }
 
-  async function hydrateHoursBillablesChart(body, contribution, context) {
-    try {
-      const data = await loadBillingSummary(contribution);
-      const chart = createBillablesChart(data, context);
-      body.replaceChildren(chart);
-    } catch (error) {
-      renderError(body, context, "Billables chart could not be loaded.");
-      console.error(error);
-    }
-  }
+  async function loadEffortSummary(contribution) {
+    const route = String(contribution?.dataRoute || DEFAULT_EFFORT_SUMMARY_ROUTE);
 
-  async function loadBillingSummary(contribution) {
-    const route = String(contribution?.dataRoute || DEFAULT_BILLING_SUMMARY_ROUTE);
-
-    if (!billingSummaryPromises.has(route)) {
-      billingSummaryPromises.set(route, fetch(route, { cache: "no-store" })
+    if (!effortSummaryPromises.has(route)) {
+      effortSummaryPromises.set(route, fetch(route, { cache: "no-store" })
         .then((response) => {
           if (!response.ok) {
-            throw new Error(`Could not load Time Tracking billing summary: ${response.status}`);
+            throw new Error(`Could not load Time Tracking summary: ${response.status}`);
           }
 
           return response.json();
         }));
     }
 
-    return billingSummaryPromises.get(route);
+    return effortSummaryPromises.get(route);
   }
 
-  function createCurrentMonthBillablesTable(data, context) {
-    const view = context.view;
-    const rows = Array.isArray(data?.currentMonthBillables) ? data.currentMonthBillables : [];
-    const tableRows = rows.map((billableRow) => ({
-      scope: billableRow.scope,
-      hours: formatHours(billableRow.billableSeconds),
-      amount: formatCurrency(billableRow.amount),
-    }));
-    const tableWrap = view.createDataTable({
-      className: "report-table-wrap",
-      tableClassName: "report-table",
-      columns: [
-        {
-          header: true,
-          label: "Client",
-          render: (row) => createScopeLink(row.scope, context),
-        },
-        { key: "hours", label: "Hours", align: "right" },
-        { key: "amount", label: "Billable Amount", align: "right" },
+  function createActiveTimersContent(data, context) {
+    const activeTimers = data?.activeTimers || {};
+    const rows = Array.isArray(activeTimers.rows) ? activeTimers.rows : [];
+
+    return context.view.createElement("div", {
+      className: "time-tracking-dashboard-content",
+      children: [
+        createMetricStrip(context, [
+          { label: "Active/paused", value: activeTimers.count || 0 },
+          { label: "Running", value: activeTimers.runningCount || 0 },
+          { label: "Paused", value: activeTimers.pausedCount || 0 },
+        ]),
+        createTimeTrackingRows(context, rows, "No active or paused timers."),
+        createActionRow(context, [activeTimers.action]),
       ],
-      rows: tableRows,
-      emptyMessage: "No billables for the current month.",
     });
-    const table = tableWrap.querySelector("table");
-    table?.appendChild(createBillablesFooter(data, context));
-
-    return tableWrap;
   }
 
-  function createBillablesFooter(data, context) {
-    const view = context.view;
-    const totals = data?.currentMonthTotals || {};
-    const footer = document.createElement("tfoot");
-    const row = document.createElement("tr");
-    const label = view.createElement("th", {
-      attrs: { scope: "row" },
-      text: "Totals",
-    });
+  function createRecentTimeContent(data, context) {
+    const recentTime = data?.recentTime || {};
+    const rows = Array.isArray(recentTime.rows) ? recentTime.rows : [];
+    const windowDays = Number(recentTime.windowDays) || 7;
 
-    row.append(
-      label,
-      view.createElement("td", {
-        dataset: { currentMonthHours: "" },
-        text: formatHours(totals.seconds || 0),
-      }),
-      view.createElement("td", {
-        dataset: { currentMonthAmount: "" },
-        text: formatCurrency(totals.amount || 0),
-      }),
-    );
-    footer.appendChild(row);
-    return footer;
+    return context.view.createElement("div", {
+      className: "time-tracking-dashboard-content",
+      children: [
+        createMetricStrip(context, [
+          { label: `Last ${windowDays} days`, value: formatHours(recentTime.totalSeconds || 0) },
+          { label: "Today", value: formatHours(recentTime.todaySeconds || 0) },
+          { label: "Entries", value: recentTime.entriesCount || 0 },
+        ]),
+        createTimeTrackingRows(context, rows, "No recent saved time."),
+        createActionRow(context, recentTime.actions || []),
+      ],
+    });
   }
 
-  function createBillablesChart(data, context) {
-    const view = context.view;
-    const points = (Array.isArray(data?.chartPoints) ? data.chartPoints : []).map((point) => ({
-      label: formatMonthLabel(new Date(point.labelDate)),
-      hours: Number(point.hours) || 0,
-      amount: Number(point.amount) || 0,
-    }));
-    const chart = view.createElement("div", {
-      className: "billables-chart",
-      attrs: { "aria-label": "Previous 12 months and current month hours and billables" },
-      dataset: { billablesChart: "" },
+  function createMetricStrip(context, metrics) {
+    return context.view.createElement("div", {
+      className: "time-tracking-dashboard-metrics",
+      children: metrics.map((metric) => context.view.createElement("span", {
+        children: [
+          context.view.createElement("strong", { text: String(metric.value ?? 0) }),
+          context.view.createElement("span", { text: metric.label || "Metric" }),
+        ],
+      })),
     });
-
-    chart.innerHTML = createBillablesSvg(points);
-    return chart;
   }
 
-  function createBillablesSvg(points) {
-    const width = 900;
-    const height = 340;
-    const padding = { top: 64, right: 122, bottom: 48, left: 96 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    const normalizedPoints = points.length > 0 ? points : [{ label: "", hours: 0, amount: 0 }];
-    const maxHours = Math.max(1, ...normalizedPoints.map((point) => point.hours));
-    const maxAmount = Math.max(1, ...normalizedPoints.map((point) => point.amount));
-    const groupWidth = chartWidth / normalizedPoints.length;
-    const hourBarWidth = Math.min(18, groupWidth * 0.28);
-    const amountBarWidth = Math.min(18, groupWidth * 0.28);
-    const monthLabels = normalizedPoints.map((point, index) => {
-      const x = padding.left + groupWidth * index + groupWidth / 2;
-      return `<text x="${x}" y="${height - 18}" text-anchor="middle">${point.label}</text>`;
-    }).join("");
-    const bars = normalizedPoints.map((point, index) => {
-      const centerX = padding.left + groupWidth * index + groupWidth / 2;
-      const hourHeight = (point.hours / maxHours) * chartHeight;
-      const amountHeight = (point.amount / maxAmount) * chartHeight;
-      const hourX = centerX - hourBarWidth - 2;
-      const amountX = centerX + 2;
-      const hourY = padding.top + chartHeight - hourHeight;
-      const amountY = padding.top + chartHeight - amountHeight;
+  function createTimeTrackingRows(context, rows, emptyMessage) {
+    if (rows.length === 0) {
+      return context.view.createElement("p", {
+        className: "dashboard-task-empty",
+        text: emptyMessage,
+      });
+    }
 
-      return `
-        <rect class="chart-hours" x="${hourX}" y="${hourY}" width="${hourBarWidth}" height="${hourHeight}">
-          <title>${formatChartHours(point.hours)}</title>
-        </rect>
-        <rect class="chart-amount" x="${amountX}" y="${amountY}" width="${amountBarWidth}" height="${amountHeight}">
-          <title>${formatCurrency(point.amount)}</title>
-        </rect>
-      `;
-    }).join("");
+    return context.view.createElement("ul", {
+      className: "dashboard-task-row-list time-tracking-dashboard-list",
+      children: rows.map((row) => createTimeTrackingRow(context, row)),
+    });
+  }
 
-    return `
-      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Hours and billables by month">
-        <line class="chart-axis" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + chartHeight}"></line>
-        <line class="chart-axis" x1="${width - padding.right}" y1="${padding.top}" x2="${width - padding.right}" y2="${padding.top + chartHeight}"></line>
-        <line class="chart-axis" x1="${padding.left}" y1="${padding.top + chartHeight}" x2="${width - padding.right}" y2="${padding.top + chartHeight}"></line>
-        <text class="chart-axis-label" x="${padding.left - 54}" y="${padding.top + 22}">Hours</text>
-        <text class="chart-axis-label" x="${width - padding.right + 54}" y="${padding.top + 22}" text-anchor="middle">Dollars</text>
-        <text x="${padding.left - 8}" y="${padding.top + 4}" text-anchor="end">${maxHours.toFixed(1)}</text>
-        <text x="${width - padding.right + 8}" y="${padding.top + 4}">${formatCurrency(maxAmount)}</text>
-        ${bars}
-        ${monthLabels}
-        <g class="chart-legend">
-          <rect class="chart-hours" x="${padding.left}" y="28" width="12" height="12"></rect>
-          <text x="${padding.left + 18}" y="38">Hours</text>
-          <rect class="chart-amount" x="${padding.left + 86}" y="28" width="12" height="12"></rect>
-          <text x="${padding.left + 104}" y="38">Billable</text>
-        </g>
-      </svg>
-    `;
+  function createTimeTrackingRow(context, row = {}) {
+    const action = row.action || {};
+    const meta = [
+      row.sourceLabel,
+      row.contextLabel,
+      row.elapsedLabel || row.durationLabel,
+      row.endedAtLabel,
+    ].filter(Boolean);
+
+    return context.view.createElement("li", {
+      className: "dashboard-task-row time-tracking-dashboard-row",
+      children: [
+        context.view.createElement("div", {
+          className: "dashboard-task-row-main",
+          children: [
+            context.view.createElement("div", {
+              className: "dashboard-task-row-heading",
+              children: [
+                context.view.createElement("strong", {
+                  className: "dashboard-task-row-title",
+                  text: row.title || "Time Tracking item",
+                }),
+                row.status ? context.view.createElement("span", {
+                  className: "dashboard-task-row-badge",
+                  text: row.status,
+                }) : null,
+              ].filter(Boolean),
+            }),
+            context.view.createElement("div", {
+              className: "dashboard-task-row-meta",
+              children: meta.map((item) => context.view.createElement("span", { text: item })),
+            }),
+          ],
+        }),
+        action.href ? context.view.createElement("a", {
+          className: "link-button dashboard-task-row-action",
+          attrs: { href: action.href },
+          text: action.label || "Open",
+        }) : null,
+      ].filter(Boolean),
+    });
+  }
+
+  function createActionRow(context, actions = []) {
+    const availableActions = actions.filter((action) => action?.href);
+
+    if (availableActions.length === 0) {
+      return null;
+    }
+
+    return context.view.createElement("div", {
+      className: "dashboard-task-actions",
+      children: availableActions.map((action) => context.view.createElement("a", {
+        className: "button-link secondary",
+        attrs: { href: action.href },
+        text: action.label || "Open",
+      })),
+    });
   }
 
   function createPanelBody(context, message) {
@@ -214,37 +200,9 @@
     }));
   }
 
-  function createScopeLink(scope, context) {
-    return context.view.createElement("a", {
-      attrs: { href: `reporting.html?scope=${encodeURIComponent(scope?.id || "")}` },
-      text: scope?.isWorkspaceScope ? workspaceProjectsLabel(context) : scope?.name || "Reporting scope",
-    });
-  }
-
   function formatHours(seconds) {
     return typeof formatters.hours === "function"
       ? formatters.hours(seconds)
       : `${((Number(seconds) || 0) / 3600).toFixed(2)} hrs`;
-  }
-
-  function formatCurrency(amount) {
-    return typeof formatters.currency === "function"
-      ? formatters.currency(amount)
-      : `$${(Number(amount) || 0).toFixed(2)}`;
-  }
-
-  function formatMonthLabel(date) {
-    return typeof formatters.monthLabel === "function"
-      ? formatters.monthLabel(date)
-      : `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
-  }
-
-  function formatChartHours(hours) {
-    const value = Number(hours) || 0;
-    return `${value.toFixed(1)} hours`;
-  }
-
-  function workspaceProjectsLabel(context) {
-    return context.workspaceProjectsLabel?.() || window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
   }
 }());

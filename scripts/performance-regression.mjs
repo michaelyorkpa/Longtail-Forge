@@ -14,6 +14,7 @@ const { settingsService } = await import("../src/services/settings.service.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { reportingService } = await import("../src/services/reporting.service.js");
+const { dashboardService } = await import("../src/services/dashboard.service.js");
 
 try {
   await initializeDatabase();
@@ -24,7 +25,7 @@ try {
     clientProjects: await measureMedian(() => clientsService.readClientProjects(session)),
     tasks: await measureMedian(() => tasksService.list(session)),
     reportingBootstrap: await measureMedian(() => reportingService.readReportingBootstrap(session)),
-    dashboard: await measureMedian(() => reportingService.readDashboard(session)),
+    dashboard: await measureMedian(() => dashboardService.readDashboard(session)),
   };
   const integrity = await querySql("PRAGMA integrity_check;");
 
@@ -34,7 +35,7 @@ try {
   assert.ok(serviceTimings.clientProjects < 125, `clientsService.readClientProjects exceeded threshold: ${serviceTimings.clientProjects.toFixed(2)} ms`);
   assert.ok(serviceTimings.tasks < 175, `tasksService.list exceeded threshold: ${serviceTimings.tasks.toFixed(2)} ms`);
   assert.ok(serviceTimings.reportingBootstrap < 175, `reportingService.readReportingBootstrap exceeded threshold: ${serviceTimings.reportingBootstrap.toFixed(2)} ms`);
-  assert.ok(serviceTimings.dashboard < 300, `reportingService.readDashboard exceeded threshold: ${serviceTimings.dashboard.toFixed(2)} ms`);
+  assert.ok(serviceTimings.dashboard < 300, `dashboardService.readDashboard exceeded threshold: ${serviceTimings.dashboard.toFixed(2)} ms`);
 
   console.log("Performance regression passed.", JSON.stringify({
     databaseReadMs: Number(databaseReadMs.toFixed(2)),

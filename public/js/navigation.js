@@ -145,7 +145,17 @@ function buildSiteHeader() {
   brand.className = "site-brand";
 
   homeLink.href = "dashboard.html";
-  homeLink.textContent = "Longtail Forge";
+  homeLink.className = "site-brand-home";
+  const brandLogo = document.createElement("img");
+  brandLogo.className = "site-brand-logo";
+  brandLogo.src = "/assets/logo.webp";
+  brandLogo.alt = "";
+  brandLogo.width = 32;
+  brandLogo.height = 32;
+  const brandName = document.createElement("span");
+  brandName.className = "site-brand-name";
+  brandName.textContent = "Longtail Forge";
+  homeLink.append(brandLogo, brandName);
 
   workspaceSelect.className = "workspace-selector";
   workspaceSelect.dataset.workspaceSelector = "";

@@ -12,8 +12,4 @@ reportingRoutes.get("/reporting/project-summary", asyncRoute(async (request, res
   response.status(200).json(await reportingService.readProjectSummary(request.session, request.query));
 }));
 
-reportingRoutes.get("/dashboard", asyncRoute(async (request, response) => {
-  response.status(200).json(await reportingService.readDashboard(request.session));
-}));
-
 export { reportingRoutes };

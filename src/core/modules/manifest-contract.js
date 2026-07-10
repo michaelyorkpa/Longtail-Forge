@@ -67,6 +67,7 @@ const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "mul
 const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
+const DASHBOARD_PLACEMENTS = new Set(["pulse", "attention", "today", "main", "activity", "secondary", "reporting"]);
 const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "stacked", "sidebar-detail", "slide-out-sidebar", "table-page"]);
 const VIEW_FILTER_PLACEMENTS = new Set(["inline", "slide-out-sidebar"]);
 const VIEW_SIDEBAR_PANEL_TYPES = new Set(["filters", "navigation", "index"]);
@@ -1024,6 +1025,10 @@ function validateDashboard(dashboard, errors) {
     requireString(item, "moduleId", errors, { prefix: `dashboard[${index}]` });
     optionalString(item, "description", errors, { prefix: `dashboard[${index}]` });
     optionalString(item, "dataRoute", errors, { prefix: `dashboard[${index}]` });
+    optionalString(item, "placement", errors, { prefix: `dashboard[${index}]` });
+    if (typeof item.placement === "string" && !DASHBOARD_PLACEMENTS.has(item.placement)) {
+      errors.push(`dashboard[${index}].placement must be one of ${[...DASHBOARD_PLACEMENTS].join(", ")}.`);
+    }
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `dashboard[${index}]` });
     optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `dashboard[${index}]` });
     optionalStringArray(item, "requiresEnabledModules", errors, { prefix: `dashboard[${index}]` });

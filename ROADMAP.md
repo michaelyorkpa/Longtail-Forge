@@ -15,7 +15,7 @@ This is a formalization and de-hardcoding pass, not greenfield. Dashboard, Workb
 Dependencies and framework baseline:
 
 - 0.33.5.9 shipped the framework-owned resume-state service and `/api/work-resume`.
-- 0.33.5.15/0.33.5.16/0.33.5.18 provide the `LongtailForge.view` primitives, validated `viewSurfaces`/`renderSurface(...)`, minimal protected hosts, and the finalized view baseline. Dashboard/Workbench hosts must consume this baseline rather than hand-building framework-owned anatomy (mirrors the Reporting host rule in 0.33.9).
+- 0.33.5.15/0.33.5.16/0.33.5.18 provide the `LongtailForge.view` primitives, validated `viewSurfaces`/`renderSurface(...)`, minimal protected hosts, and the finalized view baseline. Dashboard/Workbench hosts must consume this baseline rather than hand-building framework-owned anatomy (mirrors the Reporting host rule in 0.33.11).
 
 Current wiring (grounding for this branch):
 
@@ -44,7 +44,7 @@ Key decisions for this branch:
 - [x] Define Dashboard as the workspace overview/orientation surface and Workbench as the active work/resumption/focus surface, and keep them separate.
 - [x] Confirm and document the already-existing contribution contracts (`dashboard`, `workbench`, `timerSources`, `workItemSources`) and the resume-state producer registry, so later slices extend rather than reinvent them.
 - [x] Name the net-new contracts this branch adds: a focus-mode contract/registry (0.33.6.4) and a normalized work-candidate source (0.33.6.2-0.33.6.3).
-- [x] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls and its hardcoded `modules: { tasks, timeTracking }` bootstrap return shape; the inline panels in `views/protected/dashboard.html`; and the first-party module IDs baked into the framework registry service itself — `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants, the `readModuleSettingValue` `taskTimersEnabled` special-case, and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` in `src/core/modules/modules.service.js`) and assign each to its owning slice. These compat flags cannot be retired until the Dashboard/Workbench/settings browser code that reads them is de-hardcoded in this branch, which is why they land here rather than in the earlier 0.33.5.27 database-conversion waves.
+- [x] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls and its hardcoded `modules: { tasks, timeTracking }` bootstrap return shape; the inline panels in `views/protected/dashboard.html`; and the first-party module IDs baked into the framework registry service itself ? `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants, the `readModuleSettingValue` `taskTimersEnabled` special-case, and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` in `src/core/modules/modules.service.js`) and assign each to its owning slice. These compat flags cannot be retired until the Dashboard/Workbench/settings browser code that reads them is de-hardcoded in this branch, which is why they land here rather than in the earlier 0.33.5.27 database-conversion waves.
 - [x] Preserve, as a standing requirement for every slice, permission checks, module enabled/disabled checks, workspace boundaries, and private/secure/deleted-record handling.
 - [x] Update the implementation plan only; do not change runtime behavior in this slice.
 
@@ -287,8 +287,8 @@ Acceptance criteria:
 
 - [x] Narrow this slice to the Time-Tracking-owned billing panels only: move the current-month billables table and the hours-and-billables chart out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
 - [x] Task summary remains the Tasks-owned contribution already covered by the host contract; it is not part of this extraction slice.
-- [x] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.9.
-- [x] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.9's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
+- [x] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.11.
+- [x] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.11's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
 - [x] Ensure the panels disappear cleanly when Time Tracking is disabled or the user lacks the required permissions, via the existing contribution filtering.
 - [x] Add regressions proving the panels appear only when Time Tracking is enabled and permitted, and that no hardcoded Task/Time assumptions remain in the Dashboard host.
 
@@ -384,7 +384,7 @@ Task candidate primary actions enter Task Focus by default. Editing remains expl
 
 ### Version 0.33.6.12a - Workbench view-state split: Focus Selection and Task Focus
 
-**Model: GPT-5.5 Extra High** — Workbench UX/state architecture correction with framework-owned surface behavior, task action dispatch, and candidate/list behavior changes.
+**Model: GPT-5.5 Extra High** ? Workbench UX/state architecture correction with framework-owned surface behavior, task action dispatch, and candidate/list behavior changes.
 
 Purpose:
 
@@ -417,7 +417,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12b - Focus Selection cleanup: Inspector owns More in this focus
 
-**Model: GPT-5.4** — Focused Workbench presentation cleanup after the view-state split, with no service, permission, or architecture change.
+**Model: GPT-5.4** ? Focused Workbench presentation cleanup after the view-state split, with no service, permission, or architecture change.
 
 Purpose:
 
@@ -449,7 +449,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12c-1 - Task Focus main surface: read-only task work view and task actions
 
-**Model: GPT-5.5 Extra High** — Task Focus introduces task lifecycle actions from a new Workbench view state, requiring careful permission/status/regression handling.
+**Model: GPT-5.5 Extra High** ? Task Focus introduces task lifecycle actions from a new Workbench view state, requiring careful permission/status/regression handling.
 
 Purpose:
 
@@ -491,7 +491,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12c-2 - Task Focus checklist execution
 
-**Model: GPT-5.5 Extra High** — Checklist mutation from Workbench must preserve Tasks-owned permission checks, progress side effects, audit/event/search behavior, and the canonical editor boundary.
+**Model: GPT-5.5 Extra High** ? Checklist mutation from Workbench must preserve Tasks-owned permission checks, progress side effects, audit/event/search behavior, and the canonical editor boundary.
 
 Purpose:
 
@@ -518,7 +518,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12d-1 - Workbench timers by view state and task-linked timer surface
 
-**Model: GPT-5.5 Extra High** — Workbench timer behavior touches task-linked timer context, elapsed-time controls, and state-specific surface rules.
+**Model: GPT-5.5 Extra High** ? Workbench timer behavior touches task-linked timer context, elapsed-time controls, and state-specific surface rules.
 
 Purpose:
 
@@ -562,7 +562,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12d-2 - Time Tracking Create Timer modal for QAC and shared dispatch
 
-**Model: GPT-5.5 Extra High** — Crosses Time Tracking, QAC, and shared module-action dispatch while preserving timer creation rules, billable inheritance, focus return, and host refresh behavior.
+**Model: GPT-5.5 Extra High** ? Crosses Time Tracking, QAC, and shared module-action dispatch while preserving timer creation rules, billable inheritance, focus return, and host refresh behavior.
 
 Purpose:
 
@@ -593,7 +593,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12e-1 - Task Focus related-context service and ranking algorithm
 
-**Model: GPT-5.5 Extra High** — Cross-module, permission-shaped context aggregation around a focused task with Files/Notes/Lists/Tags integration risk.
+**Model: GPT-5.5 Extra High** ? Cross-module, permission-shaped context aggregation around a focused task with Files/Notes/Lists/Tags integration risk.
 
 Purpose:
 
@@ -645,7 +645,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12e-2 - Task Focus Inspector related-context UI and action dispatch
 
-**Model: GPT-5.5 Extra High** — Task Focus Inspector UI consumes cross-module context and dispatches existing module actions without becoming an embedded viewer or leaking unsafe labels.
+**Model: GPT-5.5 Extra High** ? Task Focus Inspector UI consumes cross-module context and dispatches existing module actions without becoming an embedded viewer or leaking unsafe labels.
 
 Purpose:
 
@@ -679,7 +679,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12f - Resume candidate correction: second-most-recent updated task boost
 
-**Model: GPT-5.5 Extra High** — Ranking behavior correction touching resume/candidate ordering and deterministic focus behavior.
+**Model: GPT-5.5 Extra High** ? Ranking behavior correction touching resume/candidate ordering and deterministic focus behavior.
 
 Purpose:
 
@@ -711,7 +711,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12g - Workbench view-state isolation: hide opposite-state panels
 
-**Model: GPT-5.4** — Single Workbench presentation/state correction with no service, permission, or schema change.
+**Model: GPT-5.4** ? Single Workbench presentation/state correction with no service, permission, or schema change.
 
 Purpose:
 
@@ -747,7 +747,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12h - Task Focus Inspector same-project due-date ordering
 
-**Model: GPT-5.4** — Narrow selected-task related-context ordering correction with existing permission-shaped read models.
+**Model: GPT-5.4** ? Narrow selected-task related-context ordering correction with existing permission-shaped read models.
 
 Purpose:
 
@@ -775,7 +775,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12i - Task Focus summary metadata cleanup and chips
 
-**Model: GPT-5.4** — Contained Workbench Task Focus presentation correction using existing task read-model fields.
+**Model: GPT-5.4** ? Contained Workbench Task Focus presentation correction using existing task read-model fields.
 
 Purpose:
 
@@ -805,7 +805,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12j - Recurring checklist propagation through All Future Tasks
 
-**Model: GPT-5.5 Extra High** — Tasks recurrence/checklist mutation correctness touches canonical editor payloads, recurrence series updates, future instance generation, audit/search/event side effects, and data integrity.
+**Model: GPT-5.5 Extra High** ? Tasks recurrence/checklist mutation correctness touches canonical editor payloads, recurrence series updates, future instance generation, audit/search/event side effects, and data integrity.
 
 Purpose:
 
@@ -848,7 +848,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12k - Task Focus timer de-duplication and Other Active Timers
 
-**Model: GPT-5.5 Extra High** — Timer-state/rendering correction touches task-linked timers, active/paused timer filtering, elapsed-time display, and Workbench/Time Tracking behavior.
+**Model: GPT-5.5 Extra High** ? Timer-state/rendering correction touches task-linked timers, active/paused timer filtering, elapsed-time display, and Workbench/Time Tracking behavior.
 
 Purpose:
 
@@ -891,7 +891,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12l - Task Focus checklist-driven status transitions
 
-**Model: GPT-5.5 Extra High** — Task lifecycle transitions touch checklist mutation routes, status side effects, audit/events/search, and Task Focus read refresh behavior.
+**Model: GPT-5.5 Extra High** ? Task lifecycle transitions touch checklist mutation routes, status side effects, audit/events/search, and Task Focus read refresh behavior.
 
 Purpose:
 
@@ -922,7 +922,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12m - Task Focus linked-note view modal and edit handoff
 
-**Model: GPT-5.5 Extra High** — Linked note viewing can expose note body content, Markdown rendering, private/secure-note boundaries, modal stacking, and cross-module action behavior.
+**Model: GPT-5.5 Extra High** ? Linked note viewing can expose note body content, Markdown rendering, private/secure-note boundaries, modal stacking, and cross-module action behavior.
 
 Purpose:
 
@@ -952,7 +952,7 @@ Acceptance criteria:
 
 ### Version 0.33.6.12n - Recurring linked-note propagation through All Future Tasks
 
-**Model: GPT-5.5 Extra High** — Recurrence propagation touches Tasks recurrence templates, linked Notes/Linked Context persistence, generated future instances, and data-integrity boundaries.
+**Model: GPT-5.5 Extra High** ? Recurrence propagation touches Tasks recurrence templates, linked Notes/Linked Context persistence, generated future instances, and data-integrity boundaries.
 
 Purpose:
 
@@ -1031,85 +1031,775 @@ Acceptance criteria:
 
 - Workbench no longer hides overdue active tasks from due-focused or project-focused recommendations. Overdue tasks appear first in every relevant Focus Selection recommendation and Inspector overflow list while permissions, Client/Project scope, blocked-only semantics, recurrence suppression, and Task Focus boundaries remain intact.
 
-### Version 0.33.6.13y - Dashboard follow-up placeholder
+Slice-sizing note:
 
-**Model: GPT-5.4** — Planning placeholder only until the Dashboard correction requirements are written.
+- `0.33.6.13` is intentionally compressed to four implementation slices plus closeout.
+- The earlier split between Dashboard attention and the Tasks Dashboard card added ceremony without real isolation value; they now land together.
+- The earlier split between module-overview/activity work and the final Dashboard polish likewise added a second ceremony pass over the same surface; polish now closes with the final guardrail/docs sweep.
 
-Dashboard is not ready for final Dashboard/Workbench closeout yet.
+### Version 0.33.6.13a - Dashboard foundation: product contract, placement, service boundary, and Workspace Pulse
 
-- [ ] Leave this placeholder open until the Dashboard update requirements are provided.
-- [ ] Do not close the Dashboard/Workbench branch until Dashboard requirements are added, implemented, documented, and verified.
-- [ ] Once Dashboard requirements are known, replace this placeholder with one or more concrete Dashboard update slices.
-- [ ] Keep Dashboard as an overview/orientation surface; do not turn it into the detailed work execution surface now owned by Task Focus in Workbench.
+**Model: GPT-5.5 Extra High** ? This slice establishes the full framework-owned Dashboard foundation in one pass so later panel work lands on the final host/data contract instead of a temporary intermediary.
+
+Purpose:
+
+Turn the remaining Dashboard placeholder into an explicit product and implementation contract, with the final framework-owned host boundary and top-level Workspace Pulse in place before module panel reshaping begins.
+
+Dashboard becomes the workspace pulse/orientation surface:
+
+1. Is anything on fire?
+2. What changed recently?
+3. What areas of this workspace need attention?
+4. Where should I go next?
+
+Boundary:
+
+- Dashboard summarizes state, pressure, and direction.
+- Workbench owns active work, focus selection, Task Focus, next actions, resumable work, active timers, and recovery.
+- Reporting owns detailed time, billing, charts, and financial analysis.
+- Module pages own full lists, record management, and detailed workflows.
+- QAC owns quick capture.
+
+Surface rule:
+
+Dashboard surface = summary, pressure, and direction.
+
+Dashboard may show:
+
+- Counts.
+- Reasons.
+- Safe short labels.
+- Up to 3-5 rows when a short list is useful.
+- One obvious drilldown/action per panel.
+- Empty states that tell the user where useful work will appear.
+
+Dashboard must not show:
+
+- Full task lists.
+- Full report tables.
+- Full charts as default content.
+- Inline editors.
+- Full module indexes.
+- Billing tables/charts as default panels.
+- Browser-rebuilt permission, ranking, or workspace-scope logic.
+- Raw IDs, hidden labels, secure/private content, storage keys, scanner data, audit payload JSON, protected paths, or signed URLs.
+
+Drilldown rule:
+
+- Do the work -> Workbench.
+- See the full list -> owning module page with filter/query when supported.
+- Analyze time/money -> Reporting.
+- Inspect one thing -> existing owning-module read/preview/modal action when already safe.
+- Configure/fix setup -> Settings/Admin.
+- Capture something -> QAC.
+
+Implementation scope:
+
+- [x] Add or formalize a Dashboard contribution placement field, such as:
+  - `pulse`
+  - `attention`
+  - `today`
+  - `main`
+  - `activity`
+  - `secondary`
+  - `reporting`
+- [x] Default existing/legacy Dashboard contributions to `main` when no placement is declared.
+- [x] Update the manifest validator to reject unknown placement values.
+- [x] Update `public/js/dashboard.js` so placement is driven by contribution metadata, not hardcoded contribution IDs.
+- [x] Remove the `project-summary` special-case for deciding panel placement.
+- [x] Add framework-owned Dashboard regions:
+  - Workspace Pulse.
+  - Needs Attention.
+  - Today / Upcoming.
+  - Module Overview.
+  - Recent Activity.
+  - Secondary / Reporting shortcuts.
+- [x] Move Dashboard read-model ownership out of `reporting.service.js` into a framework-owned Dashboard service/route module while keeping `/api/dashboard` stable.
+  - A thin compatibility wrapper is acceptable if moving route ownership all at once is risky.
+- [x] Dashboard service may assemble:
+  - Workspace summary.
+  - Workspace type.
+  - Active Dashboard contribution metadata.
+  - Framework-owned layout/placement metadata.
+  - Safe high-level signal counts where they already come through framework or contribution seams.
+- [x] Dashboard service must not directly import first-party module services/repos to make generic decisions.
+- [x] Module-specific data must hydrate through module-owned `dataRoute` endpoints or registered contribution seams.
+- [x] If any direct coupling remains temporarily, document it in `0.33.6.13z` with file/function, reason, retained coverage owner, and follow-up version.
+
+Workspace Pulse:
+
+- [x] Add a top full-width Workspace Pulse strip.
+- [x] Show workspace name.
+- [x] Show a compact signal line, such as:
+  - Overdue count.
+  - Due-soon count.
+  - Blocked count.
+  - Active/paused timer count.
+  - Recent activity count if safely available.
+  - Setup/system warning count if present.
+- [x] One primary action: `Open Workbench`.
+- [x] Secondary signal links may point to:
+  - Workbench focus modes.
+  - Filtered module page.
+  - Reporting.
+  - Settings/Admin for setup issues.
+- [x] Keep copy calm and practical.
+- [x] Do not include full task rows, full timer rows, full activity rows, or billable tables in the pulse strip.
+
+Setup / Admin warnings:
+
+- [x] Add a conditional warnings area that appears only when needed.
+- [x] Eligible warnings may include:
+  - Module enabled but missing setup data.
+  - Integration/storage/scanner/job/runtime warnings already available through safe diagnostics.
+  - Search indexing/job failure counts if safe and already available.
+  - Time Tracking active timer warnings when they can be safely summarized.
+- [x] Do not expose:
+  - Secrets.
+  - Raw runtime values.
+  - Job payload JSON.
+  - Storage paths/keys.
+  - Scanner internals.
+  - Raw IDs.
+- [x] Hide the warning region completely when there are no warnings.
+
+Workspace-type gating:
+
+- Business workspaces may show Client-aware labels only where current permissions and safe labels allow.
+- Personal/Family workspaces must not show:
+  - Client filter/radio controls.
+  - Client reporting language.
+  - Billable amount.
+  - Invoice-ready amount.
+  - Billing chart.
+  - Current Month Billables.
+  - Client-only labels.
+
+Regressions:
+
+- [x] Dashboard protected HTML remains a minimal host.
+- [x] Dashboard host renders framework-owned regions through shared view primitives.
+- [x] Dashboard contribution placement accepts only known placement values.
+- [x] Existing contributions without placement default to `main`.
+- [x] Browser Dashboard placement no longer special-cases `project-summary`.
+- [x] `/api/dashboard` remains stable.
+- [x] Dashboard read-model is framework-owned or routed through a documented thin wrapper.
+- [x] Dashboard service does not import first-party module services/repos for generic Dashboard decisions outside an allowlist.
+- [x] Workspace Pulse renders with safe summary signals.
+- [x] Workspace Pulse has exactly one primary Workbench action.
+- [x] Setup/admin warnings appear only when safe warning data exists.
+- [x] Setup/admin warning payloads do not expose raw job payloads, scanner internals, storage paths/keys, secrets, or raw IDs.
+- [x] Dashboard still hides disabled/unpermitted contributions through existing contribution filtering.
+- [x] Dashboard empty state appears when no panels are available.
+- [x] Personal/Family pulse does not show Client/billable/billing language.
+- [x] Business pulse respects permission-shaped labels.
+- [x] Disabled/unpermitted modules do not contribute pulse signals.
+
+Docs:
+
+- [x] Update `docs/module-contract.md`.
+- [x] Update `docs/view-building-contract.md`.
+- [x] Update `docs/ui-surface-contract.md`.
+- [x] Update `docs/declarative-view-surfaces.md`.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping as normal.
+
+Verification:
+
+- [x] Run focused Dashboard host/contribution regressions.
+- [x] Run Dashboard service/route regressions.
+- [x] Run manifest-contract regressions.
+- [x] Run relevant static guardrails.
+- [x] Run permission regressions if route/module visibility changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
 
 Acceptance criteria:
 
-- Dashboard updates are explicitly acknowledged as remaining work before closeout, without guessing the Dashboard redesign before requirements are provided.
+- Dashboard has a documented product contract and contribution placement contract.
+- Dashboard layout regions are framework-owned and contribution-driven.
+- Dashboard has a framework-owned read-model boundary and a calm Workspace Pulse that summarizes workspace state without becoming a task list, report, or editor surface.
+- Safe setup/admin warnings appear only when needed and do not leak sensitive/internal data.
+- Existing Dashboard panels can still render through default placement.
+- No framework/browser Dashboard placement logic depends on first-party panel IDs.
 
-### Version 0.33.6.13z - Dashboard/Workbench guardrails, docs, decisions, and closeout
+### Version 0.33.6.13b - Dashboard attention surfaces and Tasks pressure card
 
-**Model: GPT-5.4** — Routine closeout/docs/guardrails slice after Workbench Task Focus corrections and Dashboard follow-ups land.
+**Model: GPT-5.5 Extra High** ? Urgent/near-term attention and the Tasks Dashboard reshaping share one task-pressure contract, one dedupe story, and one set of Workbench-facing drilldowns, so they should land together.
+
+Purpose:
+
+Replace the noisy task/report visibility on Dashboard with one urgent attention surface, one calmer near-term horizon surface, and one Tasks-owned pressure card that all reinforce the same Dashboard/Workbench boundary.
+
+Product rule:
+
+- Dashboard can show what needs attention.
+- Workbench is where the user focuses and works.
+- Tasks remains list-first.
+- Dashboard should point to Workbench or module pages; it should not become a second Workbench candidate list or a full task index.
+
+Needs Attention:
+
+- [x] Add a first main Dashboard panel titled `Needs Attention`.
+- [x] Aggregate urgent signals into one deduped list.
+- [x] Initial eligible sources:
+  - Overdue active tasks.
+  - Blocked active tasks.
+  - Due-soon active tasks.
+  - Running/paused timers needing visibility.
+  - Safe module-owned attention contributions where already available.
+- [x] Future-ready sources, but do not invent their full modules in this slice:
+  - Tickets waiting on the user.
+  - KB articles needing review.
+  - Creator Studio missed schedule/drafts ready.
+  - Lists/files/integrations needing attention.
+- [x] Deduplicate rows by module ID + record type + record ID.
+- [x] Show at most five rows.
+- [x] Each row should include:
+  - Safe title.
+  - Module/source label.
+  - Reason badge.
+  - Safe context label when available.
+  - One drilldown action.
+- [x] Drilldown actions should prefer:
+  - `Focus in Workbench` for task-like work.
+  - `Open Workbench` with focus mode/context when specific Task Focus routing is not available.
+  - `View` or owning module page for non-task records.
+- [x] Do not open the Task edit modal by default from Dashboard attention rows.
+
+Today / Upcoming:
+
+- [x] Add a compact horizon card.
+- [x] Include due-today and due-this-week active work where safely available.
+- [x] Include scheduled future module signals later when their modules exist.
+- [x] Show top 3-5 rows only.
+- [x] Keep urgency distinct:
+  - Overdue/blocked belongs in Needs Attention.
+  - Today/upcoming belongs in horizon.
+- [x] Drilldowns go to Workbench focus, filtered Tasks, or owning module page.
+
+Tasks pressure card:
+
+- [x] Replace the current three-column Tasks Dashboard panel with a compact Tasks-owned card.
+- [x] Show task pressure metrics:
+  - Overdue.
+  - Due soon.
+  - Blocked.
+  - Assigned to me.
+- [x] Show a short deduped list only if useful:
+  - Top 3-5 task attention rows.
+  - Safe title.
+  - Reason badge.
+  - Safe context.
+  - Due date/time when relevant.
+  - One drilldown.
+- [x] Do not show separate full lists for Overdue, Due Soon, and Assigned to Me.
+- [x] Avoid duplicate display of the same task.
+- [x] Drilldowns:
+  - `Open Workbench` or `Focus in Workbench` for active task work.
+  - `View Tasks` for full filtered list.
+  - Task edit remains explicit and should not be the default Dashboard action.
+- [x] Use the Tasks-owned service/read model for row shaping and permission checks.
+- [x] Keep browser rendering thin.
+
+Ordering and safety:
+
+- [x] Server/module-owned order is authoritative.
+- [x] Browser code renders returned order.
+- [x] Browser must not rebuild due/priority/workspace/permission logic.
+- [x] Overdue and blocked work must not be hidden from Needs Attention because it lacks a recent resume-state row.
+- [x] Candidate reuse is allowed if it comes from safe framework work-candidate seams.
+- [x] If a more specific Dashboard attention service is needed, keep it framework-owned and fed by existing contribution/provider seams.
+- [x] Rows must be body-free.
+- [x] Secure/private/unreadable rows must be omitted or represented by a safe unavailable state.
+- [x] No raw IDs as visible labels.
+- [x] No attachment internals.
+- [x] No storage keys.
+- [x] No scanner data.
+- [x] No audit payload JSON.
+
+Workspace-type gating:
+
+- [x] Business workspaces may show readable Client/Project context.
+- [x] Personal/Family workspaces show Project/workspace context only.
+- [x] No Client-only labels in Personal/Family.
+
+Regressions:
+
+- [x] Needs Attention renders up to five deduped rows.
+- [x] Repeated task signals render once.
+- [x] Overdue, blocked, due-soon, and active/paused timer signals are shaped safely.
+- [x] Needs Attention rows point to Workbench/module drilldowns, not default Task edit.
+- [x] Today / Upcoming renders due-today/week rows separately from overdue/blocked pressure.
+- [x] Old three-column Tasks Dashboard lists no longer render.
+- [x] Task pressure metrics render.
+- [x] Deduped task attention rows render at the configured cap.
+- [x] A task that is overdue and assigned to the user appears once.
+- [x] Task rows use safe labels and no raw IDs.
+- [x] Dashboard task action points to Workbench/module drilldown, not default edit modal.
+- [x] Personal/Family rows never show Client labels.
+- [x] Business rows show Client labels only when safely readable.
+- [x] Disabled/unpermitted modules contribute no attention/upcoming rows.
+- [x] Tasks card disappears when Tasks is disabled or the user lacks `tasks.view`.
+- [x] Browser renders server-owned order and does not rebuild task priority, scope, or permission logic.
+- [x] Unsafe content patterns are absent from row payloads and DOM.
+
+Docs:
+
+- [x] Update Dashboard/Workbench boundary docs.
+- [x] Update `docs/ui-surface-contract.md` for Dashboard attention/horizon panels.
+- [x] Update `docs/module-contract.md` if attention-style contribution metadata or the Tasks Dashboard contribution shape changes.
+- [x] Update `docs/tasks-module.md`.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping.
+
+Verification:
+
+- [x] Run Dashboard attention/upcoming regressions.
+- [x] Run Tasks Dashboard regressions.
+- [x] Run Workbench candidate/focus regressions if work-candidate seams are reused. No work-candidate seam reuse was added in this slice.
+- [x] Run Workbench regressions if task drilldowns use Workbench focus/Task Focus routes. Dashboard uses the existing `Open Workbench` handoff, not a new Task Focus route.
+- [x] Run permission regressions if visibility/route guards changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
+
+Acceptance criteria:
+
+- Dashboard shows one deduped Needs Attention panel, one calm Today / Upcoming panel, and one compact Tasks pressure card.
+- The user can quickly see urgent and near-term task pressure without seeing full task lists or duplicated task columns.
+- Dashboard points to Workbench/module drilldowns without becoming the execution surface.
+
+### Version 0.33.6.13c - Time Tracking dashboard cards and Reporting boundary cleanup
+
+**Model: GPT-5.5 Extra High** ? Time Tracking Dashboard changes affect module contributions, Reporting boundaries, workspace-type gating, and financial/billing visibility, but remain one primary blast radius.
+
+Purpose:
+
+Remove detailed billables from the default Dashboard and replace them with compact active/recent time visibility that matches the Dashboard pulse model.
+
+Product rule:
+
+- Time Tracking records effort and supports active work.
+- Reporting owns detailed time/billing analysis.
+- Dashboard may show active/recent time signals.
+- Dashboard should not show full billing tables/charts by default.
+
+Implementation:
+
+- [x] Remove the default Dashboard rendering of:
+  - `Current Month Billables`.
+  - `Hours & Billables by Month`.
+- [x] Keep detailed billable tables/charts in Reporting.
+- [x] Update Time Tracking dashboard contributions:
+  - Retire or hide `current-month-billables` from default Dashboard placement.
+  - Retire or hide `hours-billables-chart` from default Dashboard placement.
+  - Implement the existing reserved `active-timers` contribution as a compact Dashboard card.
+  - Implement the existing reserved `recent-time` contribution as a compact Dashboard card.
+- [x] Active Timers card:
+  - Shows active/paused timer count.
+  - Shows top 1-3 active/paused timers only if useful.
+  - Links to Workbench or opens existing Time Tracking timer behavior where safe.
+  - No timer creation form; QAC owns quick timer capture.
+- [x] Recent Time card:
+  - Shows recent saved time summary.
+  - Links to Time Entries or Reporting as appropriate.
+  - Does not show a full table.
+- [x] Business Pulse: deferred to `0.33.11`; this slice adds no default billing shortcut.
+  - If a compact Business-only Reporting shortcut is trivial and safe, it may show as a secondary/reporting shortcut.
+  - It must not be a full billables table/chart.
+  - It must be hidden for Personal/Family.
+  - If it requires meaningful Reporting redesign, defer it to `0.33.11`.
+- [x] Personal/Family:
+  - No billable amount.
+  - No invoice-ready copy.
+  - No billing chart.
+  - No Current Month Billables.
+  - No Client billing language.
+
+Regressions:
+
+- [x] Current Month Billables no longer renders on default Dashboard.
+- [x] Hours & Billables chart no longer renders on default Dashboard.
+- [x] Detailed billing routes/reports still work in Reporting.
+- [x] Active Timers Dashboard card renders when Time Tracking is enabled/permitted.
+- [x] Recent Time Dashboard card renders when Time Tracking is enabled/permitted.
+- [x] Time Tracking cards disappear when Time Tracking is disabled or permission/capability checks fail.
+- [x] Personal/Family Dashboard has no billable/billing/invoice language.
+- [x] QAC Timer capture behavior remains unchanged.
+- [x] Workbench timer behavior remains unchanged.
+- [x] Reporting navigation remains available where appropriate.
+
+Docs:
+
+- [x] Update `docs/time-tracking-module.md`.
+- [x] Update `docs/module-contract.md` for Time Tracking Dashboard contribution behavior if needed.
+- [x] Update Dashboard/Reporting boundary docs.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping.
+
+Verification:
+
+- [x] Run Time Tracking Dashboard regressions.
+- [x] Run Reporting regressions touched by billables movement.
+- [x] Run QAC Timer regressions.
+- [x] Run Workbench timer regressions.
+- [x] Run permission regressions if route/contribution visibility changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
+
+Acceptance criteria:
+
+- Dashboard no longer behaves like a billing/report page.
+- Time Tracking contributes compact active/recent effort cards.
+- Detailed billable analysis remains available through Reporting.
+- Personal/Family workspaces do not leak billing concepts.
+
+### Version 0.33.6.13d - Module overview grid, Recent Activity region, and sparse-workspace readiness
+
+**Model: GPT-5.5 Extra High** ? This slice creates the general module overview and safe activity pattern that makes Dashboard viable across enabled-module mixes without inventing future modules or unsafe event feeds.
+
+Purpose:
+
+Make Dashboard useful for module-specific and future module-limited workspaces such as KB-only, Tickets-only, Creator Studio-only, Personal, Family, and Business workspaces.
+
+Product rule:
+
+- Dashboard should work even when a workspace has only a subset of modules enabled.
+- Module cards summarize; they do not become full module indexes.
+- Recent Activity should catch the user up only if it can be done safely.
+
+Module Overview Grid:
+
+- [x] Add a Module Overview grid below Pulse/Attention/Horizon.
+- [x] Enabled modules can contribute compact overview cards.
+- [x] Disabled/unpermitted modules are hidden.
+- [x] Each card should show:
+  - Module title.
+  - 2-3 safe metrics.
+  - Optional one latest/suggested row.
+  - One primary link.
+- [x] Initial first-party cards:
+  - Tasks: pressure metrics and link to Tasks/Workbench render through the compact Tasks pressure overview card.
+  - Time Tracking: active/recent time cards now live in the Module Overview grid.
+  - Notes: deferred because no existing safe body-free overview route/read model was added in this slice.
+  - Lists: deferred because no existing safe summary overview route/read model was added in this slice.
+  - Files: deferred because no existing safe summary overview route/read model was added in this slice.
+- [x] Future module cards remain documented expectations only:
+  - Knowledge Base: drafts/stale/review-needed articles.
+  - Tickets: new/waiting/high-priority/stale tickets.
+  - Creator Studio: drafts/scheduled/missed schedule/ideas ready.
+- [x] Do not implement future modules in this slice.
+- [x] Do not add speculative schema for future modules.
+
+Recent Activity region:
+
+- [x] Add the Recent Activity Dashboard region now.
+- [x] Existing event/audit/notification seams were not safe enough for body-free, raw-ID-free rows without new infrastructure, so no activity rows ship in this slice.
+- [x] Render a quiet empty/deferred state because safe Recent Activity rows cannot be produced inside this slice.
+- [x] Do not build a new global activity-feed framework from scratch in this slice.
+- [x] Activity rows must never expose:
+  - Audit payload JSON.
+  - Raw IDs.
+  - Secure/private note bodies.
+  - Hidden labels.
+  - Storage keys/paths.
+  - Scanner internals.
+  - Protected filesystem data.
+  - Job payload JSON.
+- [x] Activity examples remain deferred until safe rows exist:
+  - Task completed.
+  - Note updated.
+  - File attached.
+  - List finalized/completed.
+  - Timer saved.
+  - KB/Ticket/Creator Studio events later.
+
+Empty/sparse workspaces:
+
+- [x] Dashboard should feel intentional when little data exists.
+- [x] Empty states should explain what will appear and link to useful starting points.
+- [x] Do not show a wall of disabled/empty module panels.
+- [x] A KB-only or Tickets-only future workspace should not require Dashboard redesign.
+
+Regressions:
+
+- [x] Module Overview grid renders only enabled/permitted module cards.
+- [x] Disabled modules do not leave empty card shells.
+- [x] Module cards show compact metrics only, not full module lists.
+- [x] Notes card, Lists card, and Files card either render safe summaries or are omitted/deferred safely.
+- [x] Future module placeholders do not render as fake live cards.
+- [x] Recent Activity region renders safe rows only when safe source data exists.
+- [x] Recent Activity hides or shows a quiet empty state when no safe source exists.
+- [x] Activity rows do not expose raw IDs, payload JSON, secure/private content, storage/scanner internals, or hidden labels.
+- [x] Sparse Dashboard empty states are useful and not noisy.
+- [x] Personal/Family module cards do not leak Client/billing concepts.
+
+Docs:
+
+- [x] Update `docs/module-contract.md` for module overview card expectations if needed.
+- [x] Update `docs/ui-surface-contract.md` for compact module overview cards.
+- [x] Update module docs for any module card actually implemented.
+- [x] Record richer activity digest as deferred if only the region/empty state ships.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping.
+
+Verification:
+
+- [x] Run Dashboard module-card regressions.
+- [x] Run relevant module card route regressions.
+- [x] Run activity safety/static regressions.
+- [x] Run permission regressions if activity/card visibility changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
+
+Acceptance criteria:
+
+- Dashboard has a compact Module Overview grid that works for enabled modules without becoming a module index.
+- Recent Activity has a safe region and either safe rows or an explicitly quiet deferred/empty state.
+- Future KB/Tickets/Creator Studio module cards can plug into Dashboard without reworking the page.
+
+### Version 0.33.6.13z - Dashboard polish, guardrails, docs, decisions, and closeout
+
+**Model: GPT-5.5 Extra High** ? Closeout updates governing decisions, docs, static guardrails, coupling allowlists, and verification across Dashboard, Workbench, QAC, Tasks, Time Tracking, Notes, permissions, and app-info.
+
+Purpose:
+
+Close the Dashboard/Workbench formalization branch only after the Workbench Task Focus model and Dashboard Pulse redesign have landed, and lock the final product/architecture boundaries so future slices do not drift back into noisy dashboard/report/workbench hybrids.
 
 Proviso:
 
-This closeout block is intentionally deferred and will need to be updated after Workbench correction slices and Dashboard updates occur.
+Do not close this branch until `0.33.6.13a` through `0.33.6.13d` are implemented, documented, regressed, and verified.
 
-- [ ] Record the branch decisions in `DECISIONS.md`:
-  - Workbench has two view states: Focus Selection and Task Focus.
-  - Focus Selection is for choosing work; Task Focus is for working one selected task.
-  - The right-side Workbench panel has state-specific meaning:
-    - Focus Selection: "More in this focus" candidate overflow.
-    - Task Focus: task-related work context.
-  - Workbench candidate primary actions enter Task Focus for task candidates instead of opening the edit modal.
-  - Task editing remains available through explicit Edit actions and canonical module-action openers.
-  - Task Focus hides Focus Selection panels and Recommended Next Action until `Change Focus` is pressed.
-  - Task Focus summary context is non-duplicative and uses safe metadata chips for status, priority, due dates, tags, and other existing task metadata.
-  - Task Focus Inspector same-project task context prioritizes nearer due dates.
-  - Recurring-task checklist structure is propagated through `All Future Tasks` recurrence updates while checklist completion state remains occurrence-specific.
-  - Task Focus checklist toggles keep task status aligned with visible work: checked checklist work moves eligible Open tasks to In Progress, and clearing all checked work returns eligible In Progress tasks to Open.
-  - Task Focus linked notes open as rendered Markdown view/read modals first, with an explicit Edit handoff to the canonical Notes editor.
-  - Recurring-task linked notes saved through `All Future Tasks` propagate relationship metadata to eligible future occurrences and newly generated instances without copying note bodies.
-  - QAC owns quick capture and opens the Time Tracking Create Timer modal for Timer capture.
-  - Dashboard remains an overview/orientation surface and must be updated before this closeout is finalized.
-- [ ] Update `AGENTS.md` only if needed to reflect the current Workbench/Dashboard boundary in short active guidance.
-- [ ] Update `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, `docs/tasks-module.md`, and `docs/notes-module.md` with:
-  - Dashboard/Workbench host status.
-  - Workbench Focus Selection vs Task Focus anatomy.
-  - Candidate overflow vs Task Focus Inspector boundaries.
-  - Time Tracking Create Timer modal/QAC Timer boundary.
-  - Task Focus checklist/timer/action ownership.
-  - Task Focus hidden-Focus-Selection rule.
-  - Task Focus metadata/chip summary rule.
-  - Recurring checklist propagation through `All Future Tasks`.
-- [ ] Add/update guardrails so Dashboard/Workbench hosts do not hand-build framework-owned page/header/filter/status anatomy when a view primitive covers it.
-- [ ] Add/update guardrails so Workbench does not reintroduce:
-  - A main-column "More in this focus" task list.
+Final polish scope:
+
+- [x] CSS/layout refinement.
+- [x] Responsive behavior.
+- [x] Empty/loading/error state copy.
+- [x] Workspace-type copy audit.
+- [x] Drilldown label audit.
+- [x] Final Dashboard manual smoke checks before closeout.
+- [x] No new workflow behavior unless a regression reveals a small bug in the shipped Dashboard slices.
+
+Layout and copy rules:
+
+- [x] Pulse is first and visually distinct without becoming a hero billboard.
+- [x] Needs Attention comes before lower-priority panels.
+- [x] Today / Upcoming remains visually calmer than Needs Attention.
+- [x] Module Overview grid uses compact cards.
+- [x] Recent Activity is visually secondary.
+- [x] Reporting/Business shortcuts are secondary and never dominate the page.
+- [x] Setup/admin warnings appear only when needed and are visually clear but not noisy.
+- [x] Mobile/narrow layouts stack cleanly:
+  - Pulse.
+  - Needs Attention.
+  - Today / Upcoming.
+  - Module cards.
+  - Activity.
+  - Secondary/reporting shortcuts.
+- [x] Cards should not create horizontal scrolling at normal desktop widths.
+- [x] Long task/client/project/module labels truncate or wrap safely without raw IDs.
+- [x] Use calm, practical language.
+- [x] Avoid `billing` and `client` language outside Business workspaces.
+- [x] Avoid medical/diagnostic/neurodivergence-specific UI language.
+- [x] Avoid `empty because broken` vibes.
+- [x] Empty states should tell the user what will show here and where to start.
+
+Drilldown audit:
+
+- [x] Pulse primary action -> Workbench.
+- [x] Needs Attention active-work rows -> Workbench/focus.
+- [x] Module card primary actions -> owning module page or Workbench when action-oriented.
+- [x] Reporting links -> Reporting.
+- [x] Settings/admin warnings -> Settings/Admin.
+- [x] QAC remains capture; Dashboard does not add capture forms.
+
+Record branch decisions in `DECISIONS.md`:
+
+- [x] Dashboard is the workspace pulse/orientation surface.
+- [x] Dashboard answers:
+  - Is anything on fire?
+  - What changed recently?
+  - What areas need attention?
+  - Where should I go next?
+- [x] Dashboard summarizes state; it does not become the main place users complete detailed work.
+- [x] Dashboard surface rule:
+  - Summary.
+  - Pressure.
+  - Direction.
+  - Short safe lists only when useful.
+  - No full tables, full charts, full editors, full reports, or full module indexes.
+- [x] Dashboard default layout is:
+  - Workspace Pulse.
+  - Needs Attention.
+  - Today / Upcoming.
+  - Module Overview.
+  - Recent Activity when safely available.
+  - Secondary/reporting/setup shortcuts only where relevant.
+- [x] Dashboard panels are contribution-driven and placed by a validated placement/region contract, not by hardcoded panel IDs.
+- [x] Needs Attention rows are deduped, permission-shaped, body-free, raw-ID-free, and capped.
+- [x] Recent Activity is safe-summary-only and may remain a quiet/deferred region until richer event/activity infrastructure is deliberately expanded.
+- [x] Admin/setup warnings appear only when there is safe warning data.
+- [x] Workbench is the live work surface: Focus Selection and Task Focus.
+- [x] Focus Selection is for choosing work.
+- [x] Task Focus is for working one selected task.
+- [x] Dashboard may link to Workbench focus modes or Task Focus, but it does not recreate Workbench recommendation lists as full Dashboard task lists.
+- [x] Reporting owns detailed time/billing analysis.
+- [x] Time Tracking Dashboard content is compact active/recent time visibility by default, not current-month billable tables/charts.
+- [x] A compact Business Pulse/reporting shortcut may exist only as a secondary Dashboard surface; detailed billable tables/charts remain Reporting-owned.
+- [x] Personal and Family workspaces must not show Client/billable/invoice/billing Dashboard language.
+- [x] The right-side Workbench panel has state-specific meaning:
+  - Focus Selection: `More in this focus` candidate overflow.
+  - Task Focus: task-related work context.
+- [x] Workbench candidate primary actions enter Task Focus for task candidates instead of opening the edit modal.
+- [x] Task editing remains available through explicit Edit actions and canonical module-action openers.
+- [x] Task Focus hides Focus Selection panels and Recommended Next Action until `Change Focus` is pressed.
+- [x] Task Focus summary context is non-duplicative and uses safe metadata chips for status, priority, due dates, tags, and other existing task metadata.
+- [x] Task Focus Inspector same-project task context prioritizes nearer due dates.
+- [x] Recurring-task checklist structure is propagated through `All Future Tasks` recurrence updates while checklist completion state remains occurrence-specific.
+- [x] Task Focus checklist toggles keep task status aligned with visible work: checked checklist work moves eligible Open tasks to In Progress, and clearing all checked work returns eligible In Progress tasks to Open.
+- [x] Task Focus linked notes open as rendered Markdown view/read modals first, with an explicit Edit handoff to the canonical Notes editor.
+- [x] Recurring-task linked notes saved through `All Future Tasks` propagate relationship metadata to eligible future occurrences and newly generated instances without copying note bodies.
+- [x] QAC owns quick capture and opens the Time Tracking Create Timer modal for Timer capture.
+
+Update `AGENTS.md` only if needed to reflect short active guidance:
+
+- [x] Dashboard is overview/pulse.
+- [x] Workbench is live action/recovery.
+- [x] Reporting is detailed analysis.
+- [x] QAC is quick capture.
+- [x] Do not implement TODO scratchpad items unless promoted into `ROADMAP.md`.
+- [x] Do not turn Dashboard into the primary work surface, report page, or module index.
+
+Current `AGENTS.md` already carries the short active Dashboard, Workbench, and TODO-promotion guidance, so no AGENTS edit was needed for this closeout.
+
+Update docs:
+
+- [x] `docs/declarative-view-surfaces.md`
+  - Dashboard host status.
+  - Dashboard region placement.
+  - Workbench Focus Selection vs Task Focus status.
+  - Dashboard/Workbench/Reporting/QAC boundary.
+- [x] `docs/module-contract.md`
+  - Dashboard contribution placement/region field.
+  - Dashboard contribution ownership.
+  - Module-owned panel data routes/renderers.
+  - Contribution filtering by module, permissions, capabilities, workspace type.
+- [x] `docs/view-building-contract.md`
+  - Dashboard region layout ownership.
+  - Framework-owned panel/status/empty/error anatomy.
+  - Workbench state-specific layout boundary.
+- [x] `docs/ui-surface-contract.md`
+  - Dashboard surface rule: summary, pressure, direction.
+  - Dashboard must not render full task indexes, full report tables/charts, editors, or browser-owned permission/ranking logic.
+- [x] `docs/tasks-module.md`
+  - Task Dashboard card boundary.
+  - Workbench Task Focus checklist/status behavior.
+  - Recurring checklist and linked-note propagation boundaries.
+- [x] `docs/time-tracking-module.md`
+  - Dashboard active/recent time cards.
+  - Detailed billables live in Reporting, not default Dashboard panels.
+  - QAC Time Tracking Create Timer modal.
+  - Task-linked timer behavior.
+- [x] `docs/notes-module.md`
+  - Task Focus linked-note view/read modal and Edit handoff.
+  - Recurring linked-note relationship propagation without copying note bodies.
+- [x] Any module docs touched by Module Overview cards.
+
+Add/update static guardrails:
+
+Dashboard guardrails:
+
+- [x] Dashboard protected host remains minimal.
+- [x] Dashboard browser host must use shared view primitives for framework-owned page/header/status/empty/error/panel anatomy.
+- [x] Dashboard region placement must not hardcode first-party panel IDs such as `project-summary`.
+- [x] Dashboard must not render:
+  - Current Month Billables default table.
+  - Hours & Billables default chart.
+  - Full task lists.
+  - Full report tables/charts.
+  - Inline editors/forms.
+  - Browser-rebuilt task ranking or permission logic.
+- [x] Dashboard Personal/Family surfaces must not show Client/billable/invoice/billing language.
+- [x] Dashboard module cards must disappear when the module is disabled or permission/capability checks fail.
+- [x] Dashboard activity rows must not expose unsafe content, raw audit payloads, raw IDs, storage internals, scanner data, secure/private body content, or hidden labels.
+- [x] Dashboard warning rows must not expose secrets, raw runtime values, job payload JSON, storage internals, or scanner internals.
+- [x] Dashboard empty/sparse states must remain useful.
+
+Workbench guardrails:
+
+- [x] Workbench must not reintroduce:
+  - A main-column `More in this focus` task list.
   - A Focus Selection manual timer creation row.
-  - A default "Open work opens edit modal" path for task candidates.
+  - A default `Open work` opens edit modal path for task candidates.
   - A `Dismiss` action on recommended/resume candidates.
   - Visible Focus Selection panels or Recommended Next Action while in Task Focus.
   - Duplicated Client/Project context in the Task Focus summary.
   - A Task Focus Inspector sourced from generic focus-mode candidates instead of selected-task context.
   - Same-project Inspector tasks sorted without due-date proximity.
   - An embedded Inspector preview pane.
-- [ ] Add a framework-coupling guardrail or update the existing one so `src/core/**` and framework aggregation services under `src/services/**` do not import specific first-party module services/repos or hardcode first-party module IDs to make generic decisions outside the documented allowlist.
-- [ ] Record the allowlist and still-coupled framework services deferred to later slices.
-  - Reporting remains deferred to `0.33.9`.
+- [x] Workbench Task Focus must keep editing explicit through Edit actions and canonical module-action openers.
+- [x] Workbench Task Focus checklist execution must stay check/uncheck only; checklist structure editing remains in the Task editor.
+- [x] Workbench Task Focus linked Note reads must use the Notes-owned view/read modal first, with explicit Edit handoff.
+
+Framework coupling guardrails:
+
+- [x] Add/update a framework-coupling guardrail so `src/core/**` and framework aggregation services under `src/services/**` do not import specific first-party module services/repos or hardcode first-party module IDs for generic decisions outside a documented allowlist.
+- [x] Record still-coupled framework services deferred to later branches:
+  - Reporting remains deferred to `0.33.11`.
   - Public API and tag propagation remain deferred to `0.39.15`.
-- [ ] Define remaining deferred modal follow-ups after the Time Tracking Create Timer modal lands:
-  - Advanced-search modal + search-result display modal, including routing main-ribbon search results through it if that remains the direction.
-  - Report-creation modal, cross-referenced to `0.37.5`.
-  - Any remaining Files target-aware upload modal if still needed after QAC/File behavior is reviewed.
-- [ ] Run the Dashboard/Workbench regressions, QAC regressions, Time Tracking timer regressions, `npm run check`, and `npm run test:permissions`.
-- [ ] Run the Tasks recurrence/checklist regressions alongside the Dashboard/Workbench regressions, QAC regressions, Time Tracking timer regressions, `npm run check`, and `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the expected version after restart.
-- [ ] Verify Dashboard and Workbench render correctly with relevant modules enabled and disabled.
-- [ ] Verify Focus Selection and Task Focus both behave correctly after reload/return navigation if the selected task state is persisted.
-- [ ] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping according to normal release ceremony.
+- [x] Any temporary Dashboard direct coupling left by `0.33.6.13a` through `0.33.6.13d` must be documented with:
+  - File/function.
+  - Why it remains.
+  - Retained coverage owner.
+  - Follow-up version.
+
+Deferred follow-up inventory:
+
+- Richer Dashboard Recent Activity digest if `0.33.6.13d` only adds the safe region/empty state.
+- Compact Business Pulse/reporting shortcut if it is deferred to Reporting `0.33.11`.
+- Advanced-search modal + search-result display modal, including routing main-ribbon search results through it if that remains the direction.
+- Report-creation modal, cross-referenced to `0.37.5`.
+- Any remaining Files target-aware upload modal if still needed after QAC/File behavior is reviewed.
+- Future KB/Tickets/Creator Studio Dashboard module cards.
+
+Verification:
+
+- [x] Run focused Dashboard regressions.
+- [x] Run Dashboard host/static guardrail regressions.
+- [x] Run Dashboard contribution/manifest regressions.
+- [x] Run Dashboard/Workbench regression set.
+- [x] Run QAC regressions.
+- [x] Run Time Tracking timer/dashboard regressions.
+- [x] Run Tasks recurrence/checklist/dashboard regressions.
+- [x] Run Notes linked-note modal regressions.
+- [x] Run permission regressions if contribution filtering, workspace-type gating, route guards, or safe visibility changed.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Restart and verify `/api/app-info` reports the expected version.
+- [x] Manually verify:
+  - Business Dashboard.
+  - Personal/Family Dashboard.
+  - Sparse/no-data Dashboard.
+  - Tasks enabled/disabled.
+  - Time Tracking enabled/disabled.
+  - Reporting permission present/missing.
+  - Workbench Focus Selection.
+  - Workbench Task Focus.
+  - QAC Timer capture.
+  - Dashboard responsive/narrow layout.
+
+Closeout bookkeeping:
+
+- [x] Update `CHANGELOG.md`.
+- [x] Update `package.json` and `package-lock.json` when the version changes.
+- [x] Archive completed roadmap sections according to the roadmap bookkeeping rule.
+- [x] Do not add a top-level `## Archived Roadmap History` section to `ROADMAP.md`.
+
+Archive bookkeeping note: `0.33.6` remains the active roadmap family for `0.33.6.14+`, so this completed Dashboard/Workbench branch stays checked in place and shipped history is recorded in `CHANGELOG.md` without adding a top-level archived-history block.
 
 Acceptance criteria:
 
-- Dashboard/Workbench closeout occurs only after the new Workbench Task Focus model, Workbench correction slices, and Dashboard follow-up work land. Decisions and docs reflect the final state, guardrails prevent the distracting Workbench patterns from returning, and the full verification gate covers Dashboard, Workbench, QAC, Time Tracking, permissions, and app-info version reporting.
+- Dashboard/Workbench closeout occurs only after the Dashboard Pulse redesign and Workbench Task Focus model are both landed.
+- Current governing decisions and docs clearly separate Dashboard, Workbench, Reporting, QAC, module pages, and module-owned panel behavior.
+- Guardrails prevent Dashboard from regressing into full task lists, billing reports, hardcoded panel placement, unsafe activity feeds, warning leaks, browser-owned permission/ranking logic, or primary-work-surface behavior.
+- Guardrails prevent Workbench from regressing into distracting Focus Selection lists during Task Focus or edit-modal-first task execution.
+- The verification gate covers Dashboard, Workbench, QAC, Tasks, Time Tracking, Notes, permissions, `npm run check`, `npm run test:permissions`, and app-info version reporting.
 
 ## Remaining 0.33.6 Direction
 
@@ -1150,54 +1840,129 @@ Acceptance criteria:
 
 - On business workspaces the Linked Context picker offers a client selector (All Clients default, "{{workspaceName}}" for workspace projects, then clients with parent-includes-descendants scoping); the `- client` suffix shows only under All Clients and drops once a specific client/workspace is picked; Personal/Family never surface any client selector or label; and the shared shell stays data-agnostic.
 
-## Version 0.33.7 - Task Calendar Views (lean, read-only)
+### Version 0.33.6.15 - App version source-of-truth and version-bump cleanup
+
+**Model: GPT-5.5 Extra High** - Mechanical versioning cleanup to reduce release/update blast radius before TypeScript/Zod/Vitest lands.
 
 Purpose:
 
-Give the Dashboard/Workbench work a calendar companion as soon as it lands: a read-only calendar that visualizes existing task due dates and the reminder schedule shipped in 0.33.5.21.8. This is intentionally lean. User-created calendar events, iCal/shared-calendar display, and external Google/Outlook sync stay at 0.36.0 (Calendars and Calendar Views) and the 0.70.x integrations work; this slice must not build them.
+Reduce the amount of manual version-string churn during every release slice by separating the current app version from historical roadmap/changelog labels and regression documentation.
 
-Scope decision:
+This is a source-of-truth cleanup, not a product feature. It should make future version bumps smaller, safer, and easier for Codex/Claude to perform without accidentally rewriting historical slice labels such as `0.33.6.13a` / `0.33.6.14a` or “As of…” documentation assertions.
 
-- Read-only. No calendar event record type, no event creation, no iCal, and no external calendar sync in this slice.
-- Framework-owned Calendar host built on the finalized 0.33.5.18 view baseline and the bounded-query pattern from 0.33.5.20, not a bespoke Calendar-only layout.
-- Data comes from the existing task calendar-window path (`GET /api/tasks/calendar` -> `tasksService.calendarWindow` -> `tasksRepository.readDueBetween`), which is already workspace- and permission-aware and date-range bounded (`canReadTask` filtering, `taskCalendarRow` shape). Extend it only where needed; do not replace it with a load-everything query.
+Current problem:
 
-### Version 0.33.7.1 - Task calendar data contract
+* The current app version is pinned in multiple runtime, metadata, and regression locations.
+* Some version strings are true current-version assertions.
+* Some version strings are historical roadmap/changelog/docs labels that must never be rewritten during a version bump.
+* Codex/Claude currently has to distinguish those manually during broad replacements, which creates unnecessary blast radius and slows regression/update work.
 
-- [ ] Confirm/extend `tasksService.calendarWindow` (`src/modules/tasks/tasks.service.js`) to return everything a month/week/day render needs: task id, title, due date, due time/`due_at_utc`, status, priority, client/project context, assignee summary, and a task URL/link.
-- [ ] Include reminder markers from the 0.33.5.21 reminder schedule (the `reminder_at_utc` occurrences from `taskRemindersService`) so the calendar can show when reminders fire, not only the due date.
-- [ ] Keep the range bounded (reuse the existing start/end window and the 0.33.5.20 bounded-query pattern via `readDueBetween`); clamp or reject overly wide ranges instead of loading all tasks.
-- [ ] Keep results permission- and workspace-aware (already enforced by `canReadTask` in `calendarWindow`); archived/complete and disabled-module handling must match the rest of Tasks.
+Scope:
 
-### Version 0.33.7.2 - Framework Calendar host and month/week/day views
+* Current app-version reporting.
+* Package metadata.
+* `/api/app-info` version reporting.
+* Version assertion regressions.
+* Version bump/update workflow.
+* Guardrails preventing accidental current-version literals outside approved source-of-truth files.
 
-- [ ] Add a framework-owned Calendar surface (protected page + browser behavior) built on `LongtailForge.view` primitives and the 0.33.5.18 anatomy, not hand-built layout/CSS.
-- [ ] Render read-only month, week, and day views of task due dates (year view can defer to 0.36.0).
-- [ ] Show each task as a calendar entry with its title and a priority/status affordance, plus a reminder indicator on days a reminder fires; clicking an entry opens the existing task editor/detail (reuse the task modal) rather than an inline editor.
-- [ ] Handle empty/loading/error states through the framework view states, not ad-hoc DOM.
+Non-goals:
 
-### Version 0.33.7.3 - Filters, navigation, and Workbench hook
+* Do not rewrite historical roadmap, changelog, archive, or docs slice labels.
+* Do not rewrite “As of 0.x.x” historical documentation assertions unless a human explicitly asks for that specific documentation update.
+* Do not change product behavior.
+* Do not introduce TypeScript, Zod, Vitest, Playwright, or any new testing framework in this slice.
+* Do not change `npm start`.
+* Do not weaken the existing release ceremony or app-info verification.
 
-- [ ] Add client (business workspace only) and project filters, mirroring the filter behavior used by Tasks and the Reporting host.
-- [ ] Add period navigation (previous/next/today) and view switching (month/week/day) that re-query the bounded window.
-- [ ] Add framework navigation for the Calendar surface, permission- and module-aware.
-- [ ] Provide a lightweight entry point from Workbench/Dashboard (e.g. a "this week" affordance or link) so the calendar reinforces the "what's due next / work this week" focus modes; keep Workbench framework-owned and do not duplicate calendar logic there.
+Feasibility and required sequence:
 
-### Version 0.33.7.4 - Guardrails, docs, and closeout
+This slice can be done in one pass, but only if the steps are ordered correctly. Today the current app-version literal lives in ~200 files per bump: `package.json` + `package-lock.json`, 5 module manifests (`src/modules/*/module.js` `version:`) and `src/db/adapters/sqlite-dialect-seams.js` (`contractVersion:`), plus ~190 regression scripts that each hardcode `const appVersion = "<literal>"` before asserting that `package.json` / `package-lock.json` / module source match it. That regression pattern is uniform, so the bulk conversion is mechanical and low-risk - but the new anti-literal guardrail must be added LAST, after every consumer already derives the version, or it will fail the suite the moment it is introduced. The guardrail must also distinguish a live current-version pin from a historical label, because regressions legitimately embed historical strings (for example an `as of 0.33.6.12n` documentation assertion) that must never be rewritten during a bump.
 
-- [ ] Do not introduce a calendar event record type, iCal parsing, or external calendar sync in this slice; cross-reference 0.36.0 as the owner of events/iCal and the 0.70.x work as the owner of Google/Outlook sync.
-- [ ] Add guardrails so the Calendar host does not hand-build framework-owned page/header/filter/status anatomy when a view primitive already covers it.
-- [ ] Add focused regressions: bounded-range enforcement, permission/workspace scoping (no cross-workspace or unreadable tasks leak), reminder-marker correctness, and disabled-module behavior.
-- [ ] Update `docs/declarative-view-surfaces.md` and the view/module contract docs with the Calendar host status.
-- [ ] Update the changelog and verify `/api/app-info` after restart.
+Decisions to make first:
+
+* Canonical source mechanism: keep `package.json` as the single current-version source, and have the runtime helper (`src/core/version.js`) read and re-export it (fs read / import assertion); regression scripts read `package.json.version` through the same helper or a tiny shared reader. Avoid a second hand-maintained version constant that can drift from `package.json`.
+* `contractVersion` in `src/db/adapters/sqlite-dialect-seams.js`: decide whether it is the app version (route it through the helper) or an independent contract version that only currently coincides with it (leave it alone and exclude it from the app-version guardrail). Default to independent unless a human confirms it should track the app version.
+
+#### Version 0.33.6.15.1 - Canonical version source and runtime consumers (no guardrail yet)
+
+**Model: GPT-5.5 Extra High** - Establish the source of truth and move runtime consumers onto it.
+
+* [ ] Establish one canonical current app-version source: `package.json` remains the metadata source.
+* [ ] Add a runtime helper (`src/core/version.js` or `src/services/app-version.service.js`) that reads/exports the current app version from the approved source; runtime code calls the helper instead of duplicating the literal.
+* [ ] Route `/api/app-info` version reporting through the helper.
+* [ ] Convert the 5 module manifests (`src/modules/*/module.js` `version:`) to derive the version from the helper instead of a hardcoded literal.
+* [ ] Resolve the `contractVersion` decision for `sqlite-dialect-seams.js` per "Decisions to make first"; only route it through the helper if it is intended to track the app version.
+* [ ] Update the module-version regressions in lockstep so module version is asserted against the helper/runtime value rather than a hardcoded source-string regex.
+* [ ] Do NOT add the anti-literal guardrail in this sub-slice.
 
 Acceptance criteria:
 
-- A read-only task calendar (month/week/day) shows task due dates and reminder markers, filtered by client/project, consuming the existing bounded, permission-aware task calendar-window path.
-- Calendar entries link back to their task; the surface reuses framework view anatomy and adds no event/iCal/external-sync behavior (those remain at 0.36.0 / 0.70.x).
-- The calendar is reachable from Workbench/Dashboard and reinforces the "what's due / this week" focus without duplicating calendar logic.
+* `/api/app-info` and all module manifests report the version with no hardcoded current-version literal in those runtime files.
+* `npm run check` stays green.
 
-## Version 0.33.8 - TypeScript, Runtime Contracts, and Fast Test Foundation
+#### Version 0.33.6.15.2 - Regression source-of-truth conversion (bulk, mechanical)
+
+**Model: GPT-5.5 Extra High** - Remove the ~190 duplicated `const appVersion` literals in one mechanical pass.
+
+* [ ] Replace the uniform `const appVersion = "<literal>";` across the regression scripts with a read from the canonical source (shared reader or inline `package.json` read); the scripts already read `package.json` / `package-lock.json` and assert equality, so this is a mechanical transform.
+* [ ] Verify the full suite stays green after the conversion; the equality assertions now compare the source to itself and to the runtime consumers converted in 0.33.6.15.1.
+* [ ] Leave historical-label assertions untouched (for example `as of 0.33.6.12n` documentation checks); they are documentation assertions, not current-version pins.
+
+Acceptance criteria:
+
+* No regression script hardcodes the current app-version literal for its own `appVersion`.
+* `npm run check` stays green.
+
+#### Version 0.33.6.15.3 - Version-bump helper
+
+**Model: GPT-5.5 Extra High** - One command to bump, no repo-wide find/replace.
+
+* [ ] Add a version bump helper (`scripts/bump-version.mjs`) that updates only the approved current-version source(s) plus `package.json` / `package-lock.json`.
+* [ ] It must not bulk-rewrite roadmap/changelog/archive history; it prints a short follow-up release-ceremony checklist instead of silently touching docs.
+* [ ] Add a package script: `version:bump` (or `version:set`).
+
+Acceptance criteria:
+
+* A bump updates only the approved current-version files and leaves history untouched.
+* `npm run check` stays green after a bump.
+
+#### Version 0.33.6.15.4 - Anti-literal guardrail, allowlist, docs, and closeout (added LAST)
+
+**Model: GPT-5.5 Extra High** - Lock the boundary only after every literal is already gone.
+
+* [ ] Add an allowlist for current-version literals, limited to `package.json`, `package-lock.json`, the version helper/source file (only if it intentionally mirrors the package version), and any narrowly approved release metadata files.
+* [ ] Keep historical labels allowed in `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `CHANGELOG.md`, `docs/**`, and archived release/history documentation.
+* [ ] Add a regression/guardrail that fails if the current app-version literal appears outside the allowlist. It must not flag historical roadmap/changelog/docs labels, and must distinguish a live current-version assertion from a historical slice label. Register it with the suite/coverage manifest.
+* [ ] Add focused regressions proving: `/api/app-info` reports the current package/app version; the helper returns the value expected by package metadata; the current-version literal does not appear in unapproved runtime/regression files; historical version labels are ignored by the guardrail; and the bump helper does not rewrite historical roadmap/changelog labels.
+* [ ] Update developer/agent docs with the new version-bump workflow: use the bump helper, do not broad find/replace for release bumps, preserve historical roadmap/changelog/archive labels, and verify `/api/app-info` after restart. Record the source-of-truth decision in `DECISIONS.md`.
+* [ ] Update `CHANGELOG.md` and roadmap bookkeeping for this slice through normal release ceremony.
+
+Acceptance criteria:
+
+* The guardrail passes now (because 0.33.6.15.1-0.33.6.15.2 removed the stray literals) and fails if a current-version literal is reintroduced outside the allowlist.
+* Historical roadmap/changelog/docs labels are preserved and ignored by the guardrail.
+
+Suggested version-bump workflow after this slice:
+
+1. Run the version bump helper with the new app version.
+2. Review only the approved current-version files it changed.
+3. Run the focused version guardrail.
+4. Run the normal release verification.
+5. Update changelog/roadmap history manually as historical documentation, not as app-version pins.
+
+Acceptance criteria:
+
+* The current app version has one canonical source-of-truth path.
+* Runtime app-info/version reporting uses that source instead of duplicated literals.
+* Current-version assertions are centralized or derived from the helper/source.
+* A guardrail prevents the current app-version literal from spreading into unrelated runtime/regression files.
+* Historical roadmap/changelog/docs labels are preserved and not treated as current app-version pins.
+* A version bump helper exists and avoids broad repository find/replace.
+* Future version bumps should have a much smaller blast radius before 0.33.7+ TypeScript/Zod/Vitest work lands.
+
+
+## Version 0.33.7 - TypeScript, Runtime Contracts, and Fast Test Foundation
 
 Purpose:
 
@@ -1213,9 +1978,9 @@ The goal is to reduce slow regression churn by catching common shape errors, ren
 
 Dependencies and sequencing:
 
-- Lands after 0.33.7 (Task Calendar) so Dashboard/Workbench/Calendar product work ships first.
-- Lands before 0.33.9 (Reporting Framework) so Reporting, public API expansion, tickets, creator tools, and future module contribution points are built against clearer contracts.
-- Builds on the framework contracts stabilized through 0.33.5-0.33.7:
+- Lands after 0.33.6 (Dashboard/Workbench formalization) so the framework surfaces it contracts against are stable, and before the Playwright, Mobile, Calendar, and Reporting slices that build on the contracts it establishes.
+- Lands before 0.33.11 (Reporting Framework) so Reporting, public API expansion, tickets, creator tools, and future module contribution points are built against clearer contracts.
+- Builds on the framework contracts stabilized through 0.33.5-0.33.6:
   - Module manifests.
   - Declarative view surfaces.
   - Dashboard/Workbench contributions.
@@ -1261,7 +2026,7 @@ Non-goals:
 - Do not weaken permission, workspace, module-enabled, private/secure-content, storage-key, or no-raw-ID guardrails.
 - Do not silence type errors with blanket `any`, broad `// @ts-ignore`, or global type exclusions.
 
-### Version 0.33.8.1 - Tooling setup: TypeScript, Zod, and Vitest
+### Version 0.33.7.1 - Tooling setup: TypeScript, Zod, and Vitest
 
 **Model: GPT-5.5 Extra High** - Tooling foundation with no app boot-path change.
 
@@ -1299,7 +2064,7 @@ Acceptance criteria:
 - `npm run check` runs typecheck and unit tests before the existing regression runner.
 - `npm start` remains unchanged and does not run TypeScript compilation.
 
-### Version 0.33.8.2 - Contract folder and module public-entry pattern
+### Version 0.33.7.2 - Contract folder and module public-entry pattern
 
 **Model: GPT-5.5 Extra High** - Repo-shape guardrails before broad conversion.
 
@@ -1333,7 +2098,7 @@ Acceptance criteria:
 - At least one guardrail prevents obvious cross-module internal imports.
 - No broad module rewrite occurs.
 
-### Version 0.33.8.3 - Zod proving ground: Files contract schemas
+### Version 0.33.7.3 - Zod proving ground: Files contract schemas
 
 **Model: GPT-5.5 Extra High** - Runtime contract proof on the module most likely to grow storage/preview/upload complexity.
 
@@ -1374,7 +2139,7 @@ Acceptance criteria:
 - Unsafe/unknown file input is explicitly handled.
 - `npm run test:files` gives Codex/Claude a narrow first check for Files work.
 
-### Version 0.33.8.4 - TypeScript contract checking for high-value framework seams
+### Version 0.33.7.4 - TypeScript contract checking for high-value framework seams
 
 **Model: GPT-5.5 Extra High** - Selective type coverage over shared contracts without broad conversion.
 
@@ -1403,7 +2168,7 @@ Type the seams that cause the most expensive regression churn when they drift. T
   - [ ] search contract/service seam
   - [ ] notification contract/service seam
   - [ ] tag contract/service seam
-  - [ ] Files contract/service seam from 0.33.8.3
+  - [ ] Files contract/service seam from 0.33.7.3
 - [ ] Model dual-cased shapes honestly where they still exist.
   - [ ] Do not pretend everything is camelCase if existing code still accepts or emits snake_case.
   - [ ] Prefer a normalized internal shape plus explicit edge adapters where practical.
@@ -1419,7 +2184,7 @@ Acceptance criteria:
 - Typecheck catches real shape drift without requiring a repo-wide conversion.
 - Dual casing is modeled explicitly where it still exists.
 
-### Version 0.33.8.5 - Vitest narrow tests and Codex/Claude workflow
+### Version 0.33.7.5 - Vitest narrow tests and Codex/Claude workflow
 
 **Model: GPT-5.5 Extra High** - Fast verification paths that reduce unnecessary full-regression runs.
 
@@ -1428,7 +2193,7 @@ Purpose:
 Give agents fast, targeted commands before the full suite. Vitest does not replace the existing regression runner; it creates cheap tripwires for contracts and service logic.
 
 - [ ] Add initial Vitest tests for:
-  - [ ] Files schemas from 0.33.8.3.
+  - [ ] Files schemas from 0.33.7.3.
   - [ ] Work candidate ranking pure functions.
   - [ ] Focus-mode context resolution.
   - [ ] Resume payload allowlist/denylist behavior.
@@ -1455,13 +2220,13 @@ Acceptance criteria:
 - Agent docs tell Codex/Claude to run narrow tests first.
 - Existing regression coverage remains intact.
 
-### Version 0.33.8.6 - Optional Tasks contract schemas, only if Files proves the pattern cleanly
+### Version 0.33.7.6 - Optional Tasks contract schemas, only if Files proves the pattern cleanly
 
 **Model: GPT-5.5 Extra High** - Second-module validation only if the first proving ground is stable.
 
 Purpose:
 
-Apply the same Zod/Vitest pattern to Tasks only if Files establishes the pattern without churn. This slice may be deferred if 0.33.8 is getting too large.
+Apply the same Zod/Vitest pattern to Tasks only if Files establishes the pattern without churn. This slice may be deferred if 0.33.7 is getting too large.
 
 - [ ] Add Tasks-owned runtime schemas for selected edge payloads:
   - [ ] Create task.
@@ -1483,7 +2248,7 @@ Acceptance criteria:
 - The work remains contained and does not become a broad Tasks rewrite.
 - If deferred, document the reason and keep Files as the completed proving ground.
 
-### Version 0.33.8.7 - Release closeout
+### Version 0.33.7.7 - Release closeout
 
 **Model: GPT-5.5 Extra High** - Prove the new loop is useful, wired, and non-vacuous.
 
@@ -1524,13 +2289,268 @@ Acceptance criteria:
 - Existing regression coverage remains intact.
 - The repo has clearer contracts without becoming a rewrite, a polyglot app, or a TypeScript build-system project.
 
-## Version 0.33.9 - Reporting Framework and Time Report Contribution
+## Version 0.33.8 - Playwright End-to-End Smoke Foundation (dev/test tooling only)
+
+Purpose:
+
+Add the missing rendered signal. The existing regression suite (300+ scripts) is entirely static source/string assertion and never launches a browser, so it cannot see real viewport behavior, horizontal overflow, mobile navigation, or runtime console errors. This version introduces Playwright as a narrow, dev/test-only end-to-end smoke harness that renders the real app at desktop and mobile viewports and asserts the handful of things static checks cannot.
+
+This is a foundation slice, not an end-to-end test conversion. Keep the first suite intentionally small: load, overflow, mobile nav, and console-error smoke on the highest-traffic surfaces. It exists so that 0.33.9 (Mobile Polish) and future responsive work have an objective, rendered pass/fail signal instead of "the static suite is green."
+
+Dependencies and sequencing:
+
+- Lands after 0.33.7 (TypeScript/Vitest foundation) so dev tooling conventions and `npm run check` ordering already exist.
+- Lands before 0.33.9 (Mobile Polish), which consumes this harness as its acceptance signal.
+- Builds on the framework-owned app shell, navigation, Dashboard, and Workbench surfaces already shipped through 0.33.6.
+- Does not depend on Reporting (now 0.33.11).
+
+Key decisions:
+
+- Playwright is dev/test tooling ONLY. It must never enter the production runtime or the app boot path.
+  - `@playwright/test` is a `devDependencies` entry, never a `dependencies` entry.
+  - Playwright browser binaries are installed on demand in dev/CI (`npx playwright install`), never required by `npm start` or app startup.
+  - No file under `src/`, `server.js`, `public/`, or any runtime path imports `@playwright/test` or `playwright`.
+  - The e2e suite lives in a dedicated `tests/e2e/` folder that is not shipped, served, or imported by runtime code.
+- `npm start` remains `node server.js`, unchanged.
+- The e2e smoke is a SEPARATE npm script (`test:e2e`), not wired into the default `npm run check`, because it requires browser binaries and a running server that not every environment (or fast local loop) will have. `npm run check` stays the fast static/regression gate; `test:e2e` is run explicitly, in CI, and as the acceptance gate for 0.33.9 and future responsive slices.
+- The smoke suite authenticates against a local dev server using a seeded test session/`storageState`, so protected surfaces (Dashboard, Workbench) are reachable without hard-coding real credentials.
+- Viewports are fixed and named: a desktop profile (e.g. 1280x800) and a mobile profile (e.g. 375x812), reused across specs.
+- "No major console errors" means captured `pageerror` and `console.error` events, minus a small, documented allowlist of known-benign messages; unexpected entries fail the spec.
+
+Non-goals:
+
+- Do not convert the existing static regression suite to Playwright.
+- Do not add Playwright to production `dependencies` or to `npm start`.
+- Do not build a large page-object framework or exhaustive E2E coverage in this pass.
+- Do not make `npm run check` depend on browser binaries.
+- Do not weaken permission, workspace, module-enabled, private/secure-content, or no-raw-ID guardrails to make a page testable.
+
+### Version 0.33.8.1 - Playwright dev-dependency install and config (no boot-path change)
+
+**Model: GPT-5.5 Extra High** - Dev tooling foundation with zero production-runtime footprint.
+
+- [ ] Add `@playwright/test` as a `devDependencies` entry only.
+- [ ] Add a `playwright.config.js` (or a type-only `.ts` per the 0.33.7 runtime-import rule) under the repo root or `tests/e2e/`:
+  - [ ] Define named `projects` for a desktop viewport (e.g. 1280x800) and a mobile viewport (e.g. 375x812 / a device profile).
+  - [ ] Point `testDir` at `tests/e2e/`.
+  - [ ] Set `baseURL` to the local dev server (configurable via env, defaulting to the existing local port).
+  - [ ] Optionally use `webServer` to boot `node server.js` for the run, or document the "server already running" expectation; either way `npm start` itself stays unchanged.
+  - [ ] Capture trace/screenshot on failure for debugging.
+- [ ] Add package scripts:
+  - [ ] `test:e2e` - runs the Playwright smoke suite once.
+  - [ ] `test:e2e:install` - runs `npx playwright install` for local/CI browser setup.
+  - [ ] (optional) `test:e2e:ui` - Playwright UI mode for local debugging.
+- [ ] Add a seeded test-session/auth helper so protected surfaces are reachable:
+  - [ ] Establish a `storageState` (or login-per-run) against a dev/test account without committing real credentials.
+  - [ ] Keep any test seed/fixture data separate from production data paths.
+- [ ] Keep `npm start` unchanged and do NOT wire `test:e2e` into `npm run check`.
+- [ ] Do not alter runtime behavior in this slice except dev-dependency availability, config, and script wiring.
+
+Acceptance criteria:
+
+- `@playwright/test` is present only in `devDependencies`.
+- `npm run test:e2e` runs (even with a single trivial spec) at both desktop and mobile viewports.
+- `npm start` is unchanged and does not require Playwright or browser binaries.
+- `npm run check` does not invoke Playwright.
+
+### Version 0.33.8.2 - Core smoke specs: load, overflow, mobile nav, console
+
+**Model: GPT-5.4** - Narrow, high-signal rendered smoke on the highest-traffic surfaces.
+
+- [ ] App loads (desktop): the app shell renders at the desktop viewport with primary navigation present and no fatal load error.
+- [ ] App loads (mobile): the app shell renders at the mobile viewport with the mobile navigation affordance present.
+- [ ] Dashboard has no horizontal overflow:
+  - [ ] At the mobile viewport, assert `document.scrollingElement.scrollWidth <= clientWidth` (no horizontal scroll) on the Dashboard.
+  - [ ] Assert the same at the desktop viewport.
+- [ ] Workbench has no horizontal overflow:
+  - [ ] At the mobile viewport, assert no horizontal scroll on the Workbench.
+  - [ ] Assert the same at the desktop viewport.
+- [ ] Mobile nav opens/closes:
+  - [ ] At the mobile viewport, the nav toggle opens the navigation drawer/menu.
+  - [ ] Closing (toggle, overlay, or close control) hides it again and returns focus safely.
+- [ ] No major console errors:
+  - [ ] Capture `pageerror` and `console.error` while loading the app shell, Dashboard, and Workbench.
+  - [ ] Fail on any entry outside a small, documented allowlist of known-benign messages.
+- [ ] Keep specs organized by concern (e.g. `app-load.spec`, `overflow.spec`, `mobile-nav.spec`, `console.spec`) under `tests/e2e/`.
+- [ ] Keep selectors resilient: prefer stable framework anatomy hooks (existing `data-view-*` / nav hooks) over brittle text or nth-child selectors.
+
+Acceptance criteria:
+
+- All six smoke checks pass at their intended viewports against a running dev server.
+- The overflow checks measure real rendered width, not CSS strings.
+- The console check fails on a deliberately injected error and passes when clean.
+
+### Version 0.33.8.3 - Guardrails, docs, and closeout
+
+**Model: GPT-5.5 Extra High** - Lock the dev-only boundary and document the harness.
+
+- [ ] Add a static guardrail regression (in the existing `scripts/` suite) proving the dev-only boundary:
+  - [ ] `@playwright/test` appears in `devDependencies` and NOT in `dependencies`.
+  - [ ] No `src/`, `server.js`, or `public/` runtime file imports `@playwright/test` or `playwright`.
+  - [ ] `npm start` remains `node server.js`.
+- [ ] Confirm the version-guardrail ceremony: bump package/package-lock and any version-asserting scripts consistently, and register the new `scripts/` guardrail with the suite/coverage manifest.
+- [ ] Document the harness:
+  - [ ] Add `docs/e2e-testing.md` (or a section in an existing testing doc) describing how to install browsers, run `test:e2e`, add specs, the viewport profiles, and the console allowlist policy.
+  - [ ] Note explicitly that Playwright is dev/test-only and never part of production runtime.
+- [ ] Update `CHANGELOG.md`, package metadata, `DECISIONS.md` (record the "rendered smoke is a separate gate, not part of `npm run check`" decision), and roadmap archive bookkeeping.
+- [ ] Run `npm run check` (static suite still green).
+- [ ] Run `npm run test:e2e` (rendered smoke green at both viewports).
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- A guardrail fails if Playwright is ever moved into production `dependencies` or imported by runtime code.
+- The static regression suite and the rendered smoke suite both pass.
+- The harness is documented and reproducible from a clean checkout.
+
+## Version 0.33.9 - Mobile Polish (rendered against the 0.33.8 smoke harness)
+
+Purpose:
+
+Make Longtail Forge load and look good on a phone. With the 0.33.8 Playwright smoke providing a real rendered signal, this version does the actual responsive polish across the framework-owned app shell and the highest-traffic surfaces, then extends the smoke suite so mobile quality stays green going forward.
+
+Do the foundation first, then polish per surface. A single global "make everything mobile" sweep is unsafe on an 8k-line framework CSS with static-only guardrails; a foundation slice plus bounded per-surface slices, each verified in a real browser, is not.
+
+Dependencies and sequencing:
+
+- Lands after 0.33.8 (Playwright smoke) and uses `npm run test:e2e` as its acceptance gate.
+- Stays within existing guardrails: the framework owns layout/anatomy and `.view-*`; modules own data/behavior. Do not rename or restructure the DOM anatomy that the static regressions assert; add responsive behavior on top of it.
+- Centralizes responsive rules in the framework CSS (`public/css/longtail-forge.css`, ~8k lines, currently ~13 media queries) rather than scattering per-module overrides.
+
+Key decisions:
+
+- Establish shared breakpoint tokens/util classes once in the framework CSS; surfaces consume them instead of inventing per-page breakpoints.
+- Ensure a correct viewport meta tag and mobile-safe base typography/tap targets app-wide before per-surface tweaks.
+- Preserve the existing graceful narrow-layout hide/collapse behavior (e.g. the Workbench Inspector) unless a slice intentionally designs a drawer.
+- Every surface touched must pass the 0.33.8 overflow + console smoke at the mobile viewport before its slice closes.
+
+Non-goals:
+
+- Do not restructure framework-owned anatomy or `.view-*` hooks the static regressions pin.
+- Do not build a separate mobile app, separate mobile templates, or a parallel mobile CSS file.
+- Do not add horizontal-scrolling data tables; wrap/stack or provide contained overflow instead.
+
+### Version 0.33.9.1 - Mobile foundation: viewport, breakpoints, base type and tap targets
+
+**Model: GPT-5.5 Extra High** - Framework CSS foundation that every later surface consumes.
+
+- [ ] Confirm/add a correct `<meta name="viewport" content="width=device-width, initial-scale=1">` in the framework app shell for all protected views.
+- [ ] Add shared breakpoint tokens/util classes to `public/css/longtail-forge.css` (a small, documented set of breakpoints) as the single source of responsive truth.
+- [ ] Set mobile-safe base typography, line-height, spacing, and minimum tap-target sizing at the shell level.
+- [ ] Ensure the base page/container never forces horizontal scroll at the mobile viewport (no fixed min-widths, safe `overflow-x`, images/media constrained to `max-width: 100%`).
+- [ ] Do not change framework-owned anatomy class names or `.view-*` hooks; add responsive rules on top of existing anatomy.
+- [ ] Extend the 0.33.8 smoke: app-shell has no horizontal overflow and no console errors at the mobile viewport.
+
+Acceptance criteria:
+
+- Shared breakpoints/tokens exist and are documented.
+- The app shell has a correct viewport meta and no base horizontal overflow on mobile.
+- Static regressions remain green (no anatomy renamed).
+
+### Version 0.33.9.2 - Mobile navigation drawer
+
+**Model: GPT-5.4** - Framework-owned mobile navigation.
+
+- [ ] Convert the primary navigation into a mobile-friendly drawer/menu below the mobile breakpoint, using the existing framework nav anatomy/hooks.
+- [ ] Provide an accessible toggle (open/close), overlay/escape/close affordances, focus management, and body-scroll handling while open.
+- [ ] Preserve full desktop navigation above the breakpoint unchanged.
+- [ ] Extend the 0.33.8 smoke: mobile nav opens and closes, and focus returns safely.
+
+Acceptance criteria:
+
+- Mobile nav opens/closes via the smoke spec at the mobile viewport.
+- Desktop navigation is unchanged.
+- Keyboard/focus behavior is safe.
+
+### Version 0.33.9.3 - Per-surface responsive polish (Dashboard, Workbench, and primary list/modal surfaces)
+
+**Model: Claude Fable 5** - Bounded, mechanical per-surface CSS/layout polish on top of the foundation, verified by the rendered smoke. This is the safe home for a Fable pass: the foundation and a rendered pass/fail signal already exist, and scope is one surface at a time - not a blind global sweep.
+
+- [ ] Dashboard: stack panels cleanly in the specified order on mobile, compact cards, no horizontal overflow, long labels wrap/truncate safely (consume the existing 0.33.6.13g responsive intent).
+- [ ] Workbench: focus box, filters, task-focus sections, and Inspector reflow/stack or collapse safely on mobile with no horizontal overflow; preserve existing collapse/hide behavior.
+- [ ] Primary list and modal surfaces (Tasks, Notes, Files, Lists, Linked Context picker): tables wrap/stack or use contained overflow, modals fit the mobile viewport, controls remain reachable and tappable.
+- [ ] Keep all changes CSS/layout-level on top of existing anatomy; route any behavior changes through existing framework/module hooks, not new anatomy.
+- [ ] Extend the 0.33.8 smoke per surface: Dashboard and Workbench (already covered) plus at least one list and one modal assert no horizontal overflow and no console errors at the mobile viewport.
+
+Acceptance criteria:
+
+- Dashboard and Workbench pass mobile overflow + console smoke.
+- At least one list surface and one modal pass mobile overflow smoke.
+- No framework-owned anatomy was renamed; static regressions stay green.
+
+### Version 0.33.9.4 - Guardrails, docs, and closeout
+
+**Model: GPT-5.5 Extra High** - Lock mobile quality in and document it.
+
+- [ ] Ensure the extended Playwright smoke covers app-shell, Dashboard, Workbench, one list, and one modal at the mobile viewport (overflow + console) plus mobile nav open/close.
+- [ ] Confirm the version-guardrail ceremony and register any new `scripts/` guardrails with the suite/coverage manifest.
+- [ ] Update docs: responsive/mobile conventions (breakpoints, viewport, drawer, no-horizontal-table rule) in the relevant `docs/` UI/view contracts; note the mobile smoke as an ongoing gate.
+- [ ] Update `CHANGELOG.md`, package metadata, `DECISIONS.md`, and roadmap archive bookkeeping.
+- [ ] Manual smoke on a real phone or emulated device for the primary surfaces.
+- [ ] Run `npm run check` (static suite green).
+- [ ] Run `npm run test:e2e` (mobile smoke green).
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- The app loads and looks good on a phone across the primary surfaces.
+- The mobile smoke suite is green and guards against regressions.
+- Static regressions remain green; no anatomy was renamed to achieve mobile polish.
+
+## Version 0.33.10 - Task Calendar Views (lean, read-only)
+
+Purpose:
+
+Give the Dashboard/Workbench work a calendar companion: a read-only calendar that visualizes existing task due dates and the reminder schedule shipped in 0.33.5.21.8. This is intentionally lean. User-created calendar events, iCal/shared-calendar display, and external Google/Outlook sync stay at 0.36.0 (Calendars and Calendar Views) and the 0.70.x integrations work; this slice must not build them.
+
+Scope decision:
+
+- Read-only. No calendar event record type, no event creation, no iCal, and no external calendar sync in this slice.
+- Framework-owned Calendar host built on the finalized 0.33.5.18 view baseline and the bounded-query pattern from 0.33.5.20, not a bespoke Calendar-only layout.
+- Data comes from the existing task calendar-window path (`GET /api/tasks/calendar` -> `tasksService.calendarWindow` -> `tasksRepository.readDueBetween`), which is already workspace- and permission-aware and date-range bounded (`canReadTask` filtering, `taskCalendarRow` shape). Extend it only where needed; do not replace it with a load-everything query.
+
+### Version 0.33.10.1 - Task calendar data contract
+
+- [ ] Confirm/extend `tasksService.calendarWindow` (`src/modules/tasks/tasks.service.js`) to return everything a month/week/day render needs: task id, title, due date, due time/`due_at_utc`, status, priority, client/project context, assignee summary, and a task URL/link.
+- [ ] Include reminder markers from the 0.33.5.21 reminder schedule (the `reminder_at_utc` occurrences from `taskRemindersService`) so the calendar can show when reminders fire, not only the due date.
+- [ ] Keep the range bounded (reuse the existing start/end window and the 0.33.5.20 bounded-query pattern via `readDueBetween`); clamp or reject overly wide ranges instead of loading all tasks.
+- [ ] Keep results permission- and workspace-aware (already enforced by `canReadTask` in `calendarWindow`); archived/complete and disabled-module handling must match the rest of Tasks.
+
+### Version 0.33.10.2 - Framework Calendar host and month/week/day views
+
+- [ ] Add a framework-owned Calendar surface (protected page + browser behavior) built on `LongtailForge.view` primitives and the 0.33.5.18 anatomy, not hand-built layout/CSS.
+- [ ] Render read-only month, week, and day views of task due dates (year view can defer to 0.36.0).
+- [ ] Show each task as a calendar entry with its title and a priority/status affordance, plus a reminder indicator on days a reminder fires; clicking an entry opens the existing task editor/detail (reuse the task modal) rather than an inline editor.
+- [ ] Handle empty/loading/error states through the framework view states, not ad-hoc DOM.
+
+### Version 0.33.10.3 - Filters, navigation, and Workbench hook
+
+- [ ] Add client (business workspace only) and project filters, mirroring the filter behavior used by Tasks and the Reporting host.
+- [ ] Add period navigation (previous/next/today) and view switching (month/week/day) that re-query the bounded window.
+- [ ] Add framework navigation for the Calendar surface, permission- and module-aware.
+- [ ] Provide a lightweight entry point from Workbench/Dashboard (e.g. a "this week" affordance or link) so the calendar reinforces the "what's due next / work this week" focus modes; keep Workbench framework-owned and do not duplicate calendar logic there.
+
+### Version 0.33.10.4 - Guardrails, docs, and closeout
+
+- [ ] Do not introduce a calendar event record type, iCal parsing, or external calendar sync in this slice; cross-reference 0.36.0 as the owner of events/iCal and the 0.70.x work as the owner of Google/Outlook sync.
+- [ ] Add guardrails so the Calendar host does not hand-build framework-owned page/header/filter/status anatomy when a view primitive already covers it.
+- [ ] Add focused regressions: bounded-range enforcement, permission/workspace scoping (no cross-workspace or unreadable tasks leak), reminder-marker correctness, and disabled-module behavior.
+- [ ] Update `docs/declarative-view-surfaces.md` and the view/module contract docs with the Calendar host status.
+- [ ] Update the changelog and verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- A read-only task calendar (month/week/day) shows task due dates and reminder markers, filtered by client/project, consuming the existing bounded, permission-aware task calendar-window path.
+- Calendar entries link back to their task; the surface reuses framework view anatomy and adds no event/iCal/external-sync behavior (those remain at 0.36.0 / 0.70.x).
+- The calendar is reachable from Workbench/Dashboard and reinforces the "what's due / this week" focus without duplicating calendar logic.
+
+## Version 0.33.11 - Reporting Framework and Time Report Contribution
 
 Decision:
 
 Reporting is framework-owned report infrastructure, not a normal disable-able first-party workflow module. The framework owns the Reporting page, report catalog, contribution filtering, report execution dispatch, shared filter host, loading/error/empty states, and future saved/export/export scheduling behavior. Individual modules own the actual report definitions, report runners, data queries, domain calculations, result shapes, and record-level permission checks.
 
-The first 0.33.9 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
+The first 0.33.11 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
 
 ### Dependencies and Framework Baseline
 
@@ -1548,12 +2568,12 @@ reintroduce a hard-coded Reporting page:
   instead of creating Reporting-only anatomy for filters, tables, status messages, or host layout.
 
 Reporting is a framework-owned surface, so it should not create a fake disable-able
-`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.9 must decide
+`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.11 must decide
 and document the framework-owned equivalent: either a framework-owned descriptor/config source that
 the same renderer can consume, or a narrow framework host adapter built directly on
 `LongtailForge.view` primitives where the descriptor contract cannot yet model report execution.
 
-### Version 0.33.9.1 - Reporting Architecture and Framework View Baseline
+### Version 0.33.11.1 - Reporting Architecture and Framework View Baseline
 
 - [ ] Review the completed 0.33.5.18 renderer/primitive capabilities before implementing Reporting.
 - [ ] Decide whether the Reporting host should use:
@@ -1577,7 +2597,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
   - [ ] Record-level permission checks.
 - [ ] Update the implementation plan only; do not change runtime behavior in this slice.
 
-### Version 0.33.9.2 - Reporting Contribution Contract
+### Version 0.33.11.2 - Reporting Contribution Contract
 
 - [ ] Keep this roadmap section named "Reporting Framework and Time Report Contribution."
 - [ ] Keep `reporting.html` framework-owned.
@@ -1599,7 +2619,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep report contribution filtering separate from report execution so the catalog can be permission-safe without running report code.
 - [ ] Update `docs/module-contract.md` with the finalized reporting contribution shape.
 
-### Version 0.33.9.3 - Reporting Framework Catalog Route
+### Version 0.33.11.3 - Reporting Framework Catalog Route
 
 - [ ] Add framework-owned report catalog route:
   - [ ] `GET /api/reporting/catalog`
@@ -1609,7 +2629,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure reports from historically readable disabled modules are only visible when explicitly allowed by contribution and module policy.
 - [ ] Add focused catalog regressions for disabled modules, missing permissions, workspace capability filtering, and required-module filtering.
 
-### Version 0.33.9.4 - Reporting Runner Registry and Execution Route
+### Version 0.33.11.4 - Reporting Runner Registry and Execution Route
 
 - [ ] Add framework-owned report execution route:
   - [ ] `GET /api/reporting/reports/:moduleId/:reportId/run`
@@ -1620,10 +2640,10 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Normalize execution errors into framework-owned report status/error payloads without exposing implementation details.
 - [ ] Add focused execution regressions for unknown report IDs, missing runners, denied permissions, disabled modules, and invalid filter shape.
 
-### Version 0.33.9.5 - Time Tracking Project Time & Billing Contribution
+### Version 0.33.11.5 - Time Tracking Project Time & Billing Contribution
 
 - [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
-- [ ] Make removal of framework→module coupling a hard bar for this move, not just a logic relocation: after the migration, `src/services/reporting.service.js` must not directly import `tasksService`, `timeEntriesService`, `clientsService`, or any other specific module service/repo. The framework Reporting service keeps only catalog/dispatch/host responsibilities; all client/project/task/time-entry data access moves behind the module-owned runner registered by ID. Any client/project hierarchy the runner needs must come through a module-owned contract (the Clients/Projects module), not a framework-level import.
+- [ ] Make removal of framework?module coupling a hard bar for this move, not just a logic relocation: after the migration, `src/services/reporting.service.js` must not directly import `tasksService`, `timeEntriesService`, `clientsService`, or any other specific module service/repo. The framework Reporting service keeps only catalog/dispatch/host responsibilities; all client/project/task/time-entry data access moves behind the module-owned runner registered by ID. Any client/project hierarchy the runner needs must come through a module-owned contract (the Clients/Projects module), not a framework-level import.
 - [ ] Time Tracking should contribute the initial report:
   - [ ] ID: `project-time-billing`
   - [ ] Label: `Project Time & Billing`
@@ -1645,7 +2665,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve existing task-linked time entry reporting behavior where already supported.
 - [ ] Add focused Time Tracking report runner regressions before the page-host rewrite depends on it.
 
-### Version 0.33.9.6 - Correct Project and Client Rollup Billing Math
+### Version 0.33.11.6 - Correct Project and Client Rollup Billing Math
 
 - [ ] Fix descendant rollup calculation so each project/subproject computes its own direct time first.
 - [ ] Apply that project's effective billing rate, billing period, and rounding rules to that project's direct time.
@@ -1660,7 +2680,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve display-only expandable child project rows without double-counting totals.
 - [ ] Add fixture coverage for parent projects, child projects, deeper descendants, parent clients, child clients, mixed rates, and mixed billing periods.
 
-### Version 0.33.9.7 - Framework Reporting Host Shell
+### Version 0.33.11.7 - Framework Reporting Host Shell
 
 - [ ] Keep one framework-owned `reporting.html` page.
 - [ ] Reduce `views/protected/reporting.html` to a minimal framework host that loads shared view assets,
@@ -1671,7 +2691,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the first host simple: one selected report, one filter area, one status area, and one results area.
 - [ ] Add a focused static regression proving the Reporting page is a minimal framework host.
 
-### Version 0.33.9.8 - Reporting Filter Host and Report Selection
+### Version 0.33.11.8 - Reporting Filter Host and Report Selection
 
 - [ ] Load report definitions from `GET /api/reporting/catalog`.
 - [ ] Select the first available report by default when no valid report is requested.
@@ -1687,7 +2707,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure filter changes call the framework execution route and refresh the current result without rebuilding the host layout by hand.
 - [ ] Add focused browser/static regressions for report selection, custom date visibility, empty catalog state, and filter refresh behavior.
 
-### Version 0.33.9.9 - Project Time & Billing Result Renderer
+### Version 0.33.11.9 - Project Time & Billing Result Renderer
 
 - [ ] Add a registered report result renderer for `time-project-billing-table`.
 - [ ] The first renderer may remain specific to Project Time & Billing, but it should use framework table/action primitives where they fit.
@@ -1699,7 +2719,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the framework responsible for result-host placement, overflow wrappers, loading/error/empty states, and renderer dispatch.
 - [ ] Add focused regressions for expandable child rows, totals, no-results state, and renderer-not-found recovery.
 
-### Version 0.33.9.10 - Permissions, Navigation, Guardrails, and Closeout
+### Version 0.33.11.10 - Permissions, Navigation, Guardrails, and Closeout
 
 - [ ] Decide whether `reporting.view` should become a framework-owned permission instead of being contributed by Time Tracking.
 - [ ] Keep report-specific visibility dependent on both `reporting.view` and the owning module's required permissions.
@@ -2323,9 +3343,9 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
 
 ## Version 0.36.0 - Calendars and Calendar Views
 
-A lean, read-only task calendar shipped earlier in 0.33.7 (task due dates + reminder markers). This
+A lean, read-only task calendar shipped earlier in 0.33.10 (task due dates + reminder markers). This
 section owns the fuller Calendar module: user-created calendar events, iCal/shared-calendar display,
-and richer views beyond the 0.33.7 task read-out. External Google/Outlook sync remains later integrations work.
+and richer views beyond the 0.33.10 task read-out. External Google/Outlook sync remains later integrations work.
 
 - [ ] Calendars
   - [ ] Year view
@@ -2533,7 +3553,7 @@ Deliverables:
 6. Add documentation:
    - How to run locally.
    - How to expose via tunnel for testing.
-   - How to connect in ChatGPT Settings → Connectors → Create.
+   - How to connect in ChatGPT Settings ? Connectors ? Create.
    - Security warning that tunnels/no-auth are for dev only.
 
 Non-goals:
@@ -2674,7 +3694,7 @@ Purpose:
 
 Decouple the public/integration-facing surfaces from both specific module internals and from any assumption about the storage backend, **before** the 0.40.0 PostgreSQL adapter and dual-backend work begins. This is deliberately ordered ahead of 0.40.0: the public API is the contract external integrations, the MCP connector (0.38.8), the ticket public API (0.35.5), and the future 0.70.0 integrations all depend on, and it must not care whether SQLite or PostgreSQL is running underneath, nor reach around module boundaries to assemble its responses. Doing this decoupling while the backend is still single-provider means the public API contract is proven stable *before* a second backend can perturb it.
 
-Entry contract and grounding (re-verify at implementation time — code will have drifted):
+Entry contract and grounding (re-verify at implementation time ? code will have drifted):
 
 - `src/services/public-api.service.js` currently imports `clientsService`, `clientsRepository`, and `projectsRepository` directly, reaching around the module boundary to assemble responses instead of consuming module-owned contracts.
 - `src/services/tag-propagation-registry.js` is nominally a framework registry but `registerBuiltInResolvers()` embeds module-specific SQL against `clients`, `projects`, `tasks`, `notes`, and `note_links` (with a literal `sqlText("client-projects")` module id). That is module data logic living in a framework file, and it is also raw-dialect/interpolation surface that the 0.33.5.27 seam work does not own because it is keyed on module semantics.
@@ -2721,17 +3741,17 @@ Acceptance criteria:
 
 ## Version 0.39.16 - SQLite adapter performance cleanup
 
-**Model: GPT-5.5 Extra High** — database adapter internals with prepared-statement lifecycle, transaction, and durability/data-integrity implications; a subtle cache-invalidation or PRAGMA-durability error is high-cost.
+**Model: GPT-5.5 Extra High** ? database adapter internals with prepared-statement lifecycle, transaction, and durability/data-integrity implications; a subtle cache-invalidation or PRAGMA-durability error is high-cost.
 
 Purpose:
 
-Now that the SQLite adapter is fully isolated behind the provider-neutral database seam and every application call site goes through `db.query/get/run` + `db.dialect.*` (0.33.5.27), the adapter's own internals can be optimized without touching a single call site or the agnostic contract. This is a self-contained, behavior-preserving cleanup of `src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`, deliberately placed at the end of 0.39 so the SQLite adapter is tuned *before* the 0.40.0 PostgreSQL adapter lands — that way both backends can be benchmarked fairly and the PostgreSQL adapter can mirror the same startup-tuning and statement-lifecycle patterns instead of diverging.
+Now that the SQLite adapter is fully isolated behind the provider-neutral database seam and every application call site goes through `db.query/get/run` + `db.dialect.*` (0.33.5.27), the adapter's own internals can be optimized without touching a single call site or the agnostic contract. This is a self-contained, behavior-preserving cleanup of `src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`, deliberately placed at the end of 0.39 so the SQLite adapter is tuned *before* the 0.40.0 PostgreSQL adapter lands ? that way both backends can be benchmarked fairly and the PostgreSQL adapter can mirror the same startup-tuning and statement-lifecycle patterns instead of diverging.
 
 Scope decision (record in `DECISIONS.md`):
 
 - Adapter-internal only. This slice changes no query result, no error contract, no transaction semantics, and no call-site code. It must not touch the dialect seams, the parameter-binding contract's observable behavior, migrations, or the agnostic-by-contract guarantees. Any durability-affecting change (e.g. `synchronous`) must be runtime-config-gated with a documented default and surfaced in health/diagnostics, not silently changed.
 
-Entry contract and grounding (re-verify at implementation time — code will have drifted):
+Entry contract and grounding (re-verify at implementation time ? code will have drifted):
 
 - Prepared statements are recompiled on every call: `executePreparedRun`/`executePreparedQuery` in `src/db/sqlite.js` call `getSqliteDatabase().prepare(sql)` per query with no statement cache. better-sqlite3 is fastest when prepared statements are reused.
 - The SQL string is scanned up to three times per query: `prepareDatabaseBindings()` (adapter) tokenizes it, then `countSqlStatements()` scans it again, then `resolveStatementBindings()` -> `collectSqlParameters()` scans it a third time in `src/db/sqlite.js`, re-deriving parameter shape the binding layer already computed. The tokenizing logic is duplicated across `src/db/parameter-bindings.js` and `src/db/sqlite.js`.
@@ -2741,7 +3761,7 @@ Entry contract and grounding (re-verify at implementation time — code will hav
 
 Sizing rule for this branch:
 
-- One primary blast radius: the SQLite adapter (`src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`). Measure first, then land the changes behind behavior-preserving regressions. Split only if the 0.39.16.1 measurement shows the prepared-statement cache is materially more complex than the rest — do not pre-split the tuning bullets, since they share the same blast radius.
+- One primary blast radius: the SQLite adapter (`src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`). Measure first, then land the changes behind behavior-preserving regressions. Split only if the 0.39.16.1 measurement shows the prepared-statement cache is materially more complex than the rest ? do not pre-split the tuning bullets, since they share the same blast radius.
 
 - [ ] Establish a repeatable micro-benchmark for the adapter (hot single-row read, hot list read, hot write, and a transaction) and record a baseline before any change, so each optimization can be shown to help and proven not to change results.
 - [ ] Add a bounded, connection-scoped prepared-statement cache keyed on the final rewritten SQL, reused across `query`/`get`/`run`. It must be invalidated/reset when the connection is closed and reopened (`initializeSqliteRuntime` closes and recreates the database), must not grow unbounded under variable-length `IN (:ids)` expansion (cap/evict), and must not change results, errors, or transaction behavior.

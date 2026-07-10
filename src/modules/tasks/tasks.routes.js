@@ -37,6 +37,11 @@ tasksRoutes.get("/tasks/workbench-items", asyncRoute(async (request, response) =
   response.status(200).json(result);
 }));
 
+tasksRoutes.get("/tasks/dashboard-summary", asyncRoute(async (request, response) => {
+  const result = await tasksService.summary(request.session);
+  response.status(200).json(result);
+}));
+
 tasksRoutes.get("/tasks/:taskId", asyncRoute(async (request, response) => {
   const result = await tasksService.read(request.params.taskId, request.session);
   response.status(200).json(result);

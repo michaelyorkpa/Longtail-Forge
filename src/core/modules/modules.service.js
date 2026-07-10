@@ -1040,11 +1040,18 @@ async function listWorkbenchCards(workspaceId, session = null) {
 async function listDashboardPanels(workspaceId, session = null) {
   const panels = await listWorkspaceContributions(workspaceId, session, "dashboard");
 
-  return panels.sort((left, right) => (
+  return panels.map(normalizeDashboardPanel).sort((left, right) => (
     Number(left.sortOrder) - Number(right.sortOrder) ||
     left.label.localeCompare(right.label) ||
     left.id.localeCompare(right.id)
   ));
+}
+
+function normalizeDashboardPanel(panel) {
+  return {
+    ...panel,
+    placement: String(panel.placement || "").trim() || "main",
+  };
 }
 
 async function listTimerSources(workspaceId, session = null) {

@@ -13,6 +13,18 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Inactive Users
+
+Users that are inactive in a workspace should NOT show up in assignable people. They shouldn't show up in a workspace at all.
+
+## "Requires Login" warning message (and others)
+
+I was editing a task in Actions -> Tasks and in the middle of it, my 12-hour session must have expired. It happened between adding checklist items. And I almost didn't notice it pop up behind the modal on the main window. These kinds of warnings need to be framework-owned app modals, not hidden away or in the console somewhere.
+
+## Workbench (possibly elsewhere)
+
+When on the workbench, if I select a parent task, it ONLY looks within the parent task for tasks to complete and doesn't include child project tasks. I need this to report all tasks from within a parent project.
+
 ## Tasks - Checklists
 
 The spacing is a little tight in the checklist dialog.

@@ -405,14 +405,14 @@ async function runTaskMutationTests(api, fixtures) {
   );
   await expectStatus(
     "dashboard task summary respects due time for overdue tasks",
-    api.get("/api/dashboard", { cookie: fixtures.sessions.projectUser }),
+    api.get("/api/tasks/dashboard-summary", { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
-    check("same-day timed overdue task is overdue, not due soon", () => {
-      const overdueIds = response.body.tasks.summary.overdue.map((task) => task.task_id);
-      const dueSoonIds = response.body.tasks.summary.dueSoon.map((task) => task.task_id);
-      assert.ok(overdueIds.includes(timedOverdueTask.body.task.task_id));
-      assert.equal(dueSoonIds.includes(timedOverdueTask.body.task.task_id), false);
+    check("same-day timed overdue task is attention, not upcoming", () => {
+      const attentionIds = response.body.attentionRows.map((task) => task.task_id);
+      const upcomingIds = response.body.upcomingRows.map((task) => task.task_id);
+      assert.ok(attentionIds.includes(timedOverdueTask.body.task.task_id));
+      assert.equal(upcomingIds.includes(timedOverdueTask.body.task.task_id), false);
     });
   });
 
@@ -632,15 +632,42 @@ async function runTaskMutationTests(api, fixtures) {
   });
   await expectStatus(
     "dashboard task panels include scoped task links",
+    api.get("/api/tasks/dashboard-summary", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("dashboard task summary respects task scope and exposes Dashboard-safe handoffs", () => {
+      const upcomingIds = response.body.upcomingRows.map((task) => task.task_id);
+      assert.ok(upcomingIds.includes(nextRecurringTask.task_id));
+      assert.ok(!upcomingIds.includes(workspaceTask.body.task.task_id));
+      assert.equal(response.body.upcomingRows[0].action.href, "workbench.html");
+      assert.equal(response.body.actions.tasks.href, "tasks.html");
+    });
+  });
+  await expectStatus(
+    "dashboard bootstrap advertises the task summary contribution metadata",
     api.get("/api/dashboard", { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
-    check("dashboard task summary respects task scope and exposes task URLs", () => {
-      const dueSoonIds = response.body.tasks.summary.dueSoon.map((task) => task.task_id);
-      assert.ok(dueSoonIds.includes(nextRecurringTask.task_id));
-      assert.ok(!dueSoonIds.includes(workspaceTask.body.task.task_id));
-      assert.equal(response.body.tasks.summary.dueSoon[0].url.startsWith("tasks.html?task="), true);
-      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => panel.id === "task-summary" && panel.renderer === "task-summary"));
+    check("dashboard task summary contribution is metadata-only and module-routed", () => {
+      assert.ok(!Object.hasOwn(response.body, "tasks"));
+      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => (
+        panel.id === "tasks-needs-attention" &&
+        panel.renderer === "tasks.needs-attention" &&
+        panel.placement === "attention" &&
+        panel.dataRoute === "/api/tasks/dashboard-summary"
+      )));
+      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => (
+        panel.id === "tasks-today-upcoming" &&
+        panel.renderer === "tasks.today-upcoming" &&
+        panel.placement === "today" &&
+        panel.dataRoute === "/api/tasks/dashboard-summary"
+      )));
+      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => (
+        panel.id === "task-summary" &&
+        panel.renderer === "tasks.pressure" &&
+        panel.placement === "main" &&
+        panel.dataRoute === "/api/tasks/dashboard-summary"
+      )));
     });
   });
   const timerTask = await expectStatus(
@@ -675,6 +702,18 @@ async function runTaskMutationTests(api, fixtures) {
     check("task timer returns active timer state", () => {
       assert.equal(response.body.timer.task_id, timerTask.body.task.task_id);
       assert.equal(response.body.timer.timer_status, "running");
+    });
+  });
+  await expectStatus(
+    "dashboard attention includes running task timer",
+    api.get("/api/tasks/dashboard-summary", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("running task timer is a deduped attention signal", () => {
+      const timerRow = response.body.attentionRows.find((row) => row.task_id === timerTask.body.task.task_id);
+      assert.ok(timerRow);
+      assert.ok(timerRow.reasons.includes("Timer running"));
+      assert.equal(timerRow.action.href, "workbench.html");
     });
   });
   await assertUnifiedTimerState({
@@ -720,6 +759,18 @@ async function runTaskMutationTests(api, fixtures) {
     check("normal timer start paused task timer", () => {
       const timer = response.body.timers.find((item) => item.task_id === timerTask.body.task.task_id);
       assert.equal(timer.timer_status, "paused");
+    });
+  });
+  await expectStatus(
+    "dashboard attention includes paused task timer",
+    api.get("/api/tasks/dashboard-summary", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("paused task timer is a deduped attention signal", () => {
+      const timerRow = response.body.attentionRows.find((row) => row.task_id === timerTask.body.task.task_id);
+      assert.ok(timerRow);
+      assert.ok(timerRow.reasons.includes("Timer paused"));
+      assert.equal(timerRow.action.href, "workbench.html");
     });
   });
   await assertUnifiedTimerState({
@@ -924,6 +975,33 @@ async function runTimeEntryMutationTests(api, fixtures) {
     assert.equal(Number(corrected?.duration_seconds), 5400);
     assert.ok((corrected?.tags || []).some((tag) => tag.tag_id === correctionTag.tagId));
   });
+  const recentDashboardEnd = new Date();
+  const recentDashboardStart = new Date(recentDashboardEnd.getTime() - 45 * 60 * 1000);
+  const recentDashboardEntry = await expectStatus(
+    "project user can create a recent dashboard time entry",
+    api.post("/api/time-entries", timeEntryPayload(fixtures.projects.alpha.id, {
+      description: "Dashboard recent time entry",
+      duration_hours: "0.75",
+      duration_seconds: 2700,
+      end_time: recentDashboardEnd.toISOString(),
+      start_time: recentDashboardStart.toISOString(),
+    }), { cookie: fixtures.sessions.projectUser }),
+    201,
+  );
+  await expectStatus(
+    "dashboard effort summary includes recent saved time",
+    api.get("/api/time-tracking/dashboard/effort-summary", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("recent time dashboard payload is compact and Dashboard-safe", () => {
+      const row = response.body.recentTime.rows.find((item) => item.id === recentDashboardEntry.body.entry_id);
+      assert.ok(row);
+      assert.equal(row.action.href, "time-entries.html");
+      assert.equal(Object.hasOwn(row, "description"), false);
+      assert.equal(Object.hasOwn(row, "billable"), false);
+      assert.equal(JSON.stringify(response.body).includes("invoice"), false);
+    });
+  });
   const reporting = await expectStatus(
     "reporting reflects workspace admin time entry correction",
     api.get(`/api/reporting/project-summary?period=custom&scopeId=${encodeURIComponent(fixtures.clients.alpha.id)}&projectIds=${encodeURIComponent(fixtures.projects.alpha.id)}&startDate=2026-06-01&endDate=2026-06-30`, { cookie: fixtures.sessions.workspaceAdmin }),
@@ -993,6 +1071,19 @@ async function runActiveTimerMutationTests(api, fixtures) {
     api.put("/api/active-timers/1", timerPayload(fixtures.projects.alpha.id), { cookie: fixtures.sessions.projectUser }),
     200,
   );
+  await expectStatus(
+    "dashboard effort summary includes active timers",
+    api.get("/api/time-tracking/dashboard/effort-summary", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("active timers dashboard payload is compact and Workbench-routed", () => {
+      assert.ok(response.body.activeTimers.count >= 1);
+      assert.ok(response.body.activeTimers.rows.some((row) =>
+        row.action.href === "workbench.html" &&
+        ["Running", "Paused"].includes(row.status)));
+      assert.equal(JSON.stringify(response.body.activeTimers).includes("invoice"), false);
+    });
+  });
   await expectStatus(
     "project user can finalize active timers",
     api.post("/api/active-timers/1/finalize", timeEntryPayload(fixtures.projects.alpha.id), { cookie: fixtures.sessions.projectUser }),
@@ -1456,13 +1547,17 @@ async function runDisabledModuleTests(api, fixtures) {
     assert.ok(timeTrackingModule);
     assert.ok(timeTrackingModule.navigation.some((item) => item.href === "time-tracker.html"));
     assert.ok(timeTrackingModule.dashboard.some((item) =>
-      item.id === "current-month-billables" &&
-      item.renderer === "time-tracking.current-month-billables" &&
-      item.dataRoute === "/api/time-tracking/dashboard/billing-summary"));
+      item.id === "active-timers" &&
+      item.renderer === "time-tracking.active-timers" &&
+      item.placement === "main" &&
+      item.dataRoute === "/api/time-tracking/dashboard/effort-summary"));
     assert.ok(timeTrackingModule.dashboard.some((item) =>
-      item.id === "hours-billables-chart" &&
-      item.renderer === "time-tracking.hours-billables-chart" &&
-      item.dataRoute === "/api/time-tracking/dashboard/billing-summary"));
+      item.id === "recent-time" &&
+      item.renderer === "time-tracking.recent-time" &&
+      item.placement === "main" &&
+      item.dataRoute === "/api/time-tracking/dashboard/effort-summary"));
+    assert.equal(timeTrackingModule.dashboard.some((item) => item.id === "current-month-billables"), false);
+    assert.equal(timeTrackingModule.dashboard.some((item) => item.id === "hours-billables-chart"), false);
     assert.ok(timeTrackingModule.publicApiEndpoints.some((item) => item.path === "/api/v1/time-entries"));
     assert.ok(timeTrackingModule.settings.some((item) => item.id === "timeTrackingEnabled"));
   });
@@ -1470,6 +1565,21 @@ async function runDisabledModuleTests(api, fixtures) {
     const tasksModule = settings.body.modules.find((moduleDefinition) => moduleDefinition.id === "tasks");
     assert.ok(tasksModule);
     assert.ok(tasksModule.navigation.some((item) => item.href === "tasks.html"));
+    assert.ok(tasksModule.dashboard.some((item) =>
+      item.id === "tasks-needs-attention" &&
+      item.renderer === "tasks.needs-attention" &&
+      item.placement === "attention" &&
+      item.dataRoute === "/api/tasks/dashboard-summary"));
+    assert.ok(tasksModule.dashboard.some((item) =>
+      item.id === "tasks-today-upcoming" &&
+      item.renderer === "tasks.today-upcoming" &&
+      item.placement === "today" &&
+      item.dataRoute === "/api/tasks/dashboard-summary"));
+    assert.ok(tasksModule.dashboard.some((item) =>
+      item.id === "task-summary" &&
+      item.renderer === "tasks.pressure" &&
+      item.placement === "main" &&
+      item.dataRoute === "/api/tasks/dashboard-summary"));
     assert.ok(tasksModule.publicApiEndpoints.some((item) => item.path === "/api/v1/tasks"));
     assert.ok(tasksModule.settings.some((item) => item.id === "tasksEnabled"));
     assert.ok(tasksModule.settings.some((item) => item.id === "taskTimersEnabled"));
@@ -1490,6 +1600,17 @@ async function runDisabledModuleTests(api, fixtures) {
   check("disabled Time Tracking is removed from enabled module list", () => {
     assert.equal(Object.hasOwn(disabledSettings.body.data, "timeTrackingEnabled"), false);
     assert.equal(disabledSettings.body.data.enabledModules.includes("time-tracking"), false);
+  });
+  await expectStatus(
+    "disabled Time Tracking removes compact dashboard cards",
+    api.get("/api/dashboard", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("disabled Time Tracking contributes no active or recent time dashboard panels", () => {
+      const panels = response.body.extensionPoints.dashboardPanels || [];
+      assert.equal(panels.some((panel) => panel.id === "active-timers"), false);
+      assert.equal(panels.some((panel) => panel.id === "recent-time"), false);
+    });
   });
 
   await expectStatus(
