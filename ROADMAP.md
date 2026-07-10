@@ -114,24 +114,24 @@ Purpose:
 
 Create the structure that prevents future modules from becoming import spaghetti. This slice establishes where contracts live and how other code imports module capabilities.
 
-- [ ] Establish the preferred contract/schema pattern:
-  - [ ] `*.contracts.js` or `*.schema.js` for runtime Zod schemas and JSDoc-backed types.
-  - [ ] Optional `*.types.ts` or shared `.d.ts` files for type-only definitions that are never imported by runtime JavaScript.
-  - [ ] Tests live beside contracts or in a clearly named test folder.
-- [ ] Establish module public entry points where practical:
-  - [ ] `src/modules/files/index.js`
-  - [ ] `src/modules/tasks/index.js`
-  - [ ] `src/modules/notes/index.js`
-  - [ ] Similar pattern for other modules as they are touched.
-- [ ] Document the import rule:
-  - [ ] Framework/shared code should import module capabilities from public entry points.
-  - [ ] Other modules must not import another module's internal repositories/services directly unless an explicit contract allows it.
-- [ ] Add a lightweight static guardrail for obvious forbidden imports between module internals.
-- [ ] Document the distinction:
-  - [ ] TypeScript types describe trusted internal shapes.
-  - [ ] Zod validates untrusted runtime input and config.
-  - [ ] Vitest proves contracts and service behavior.
-  - [ ] Existing regressions still prove integration, permissions, database behavior, and browser/static behavior.
+- [x] Establish the preferred contract/schema pattern:
+  - [x] `*.contracts.js` or `*.schema.js` for runtime Zod schemas and JSDoc-backed types.
+  - [x] Optional `*.types.ts` or shared `.d.ts` files for type-only definitions that are never imported by runtime JavaScript.
+  - [x] Tests live beside contracts or in a clearly named test folder (`tests/**/*.test.mjs`).
+- [x] Establish module public entry points where practical:
+  - [x] `src/modules/files/index.js` — not applicable: Files is framework-owned with no `src/modules/files/` directory; its public seam is `src/services/files.service.js` plus `src/core/files/`, documented in the module development guide.
+  - [x] `src/modules/tasks/index.js`
+  - [x] `src/modules/notes/index.js`
+  - [x] Similar pattern for other modules as they are touched — `lists`, `client-projects`, and `time-tracking` entries created now because they already have cross-module consumers; `tags`/`users`/`developer-example` are manifest-only and get entries when touched.
+- [x] Document the import rule:
+  - [x] Framework/shared code should import module capabilities from public entry points.
+  - [x] Other modules must not import another module's internal repositories/services directly unless an explicit contract allows it.
+- [x] Add a lightweight static guardrail for obvious forbidden imports between module internals (`framework.module-import-boundaries` release gate; the 22 pre-existing deep imports are frozen in `scripts/baselines/module-internal-import-baseline.json`).
+- [x] Document the distinction:
+  - [x] TypeScript types describe trusted internal shapes.
+  - [x] Zod validates untrusted runtime input and config.
+  - [x] Vitest proves contracts and service behavior.
+  - [x] Existing regressions still prove integration, permissions, database behavior, and browser/static behavior.
 
 Acceptance criteria:
 

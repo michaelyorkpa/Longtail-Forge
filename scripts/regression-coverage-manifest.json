@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 322,
+    "discoveredScripts": 323,
     "legacyScripts": 312,
-    "releaseGateScripts": 17,
+    "releaseGateScripts": 18,
     "areaCounts": {
       "dashboard": 1,
       "database": 26,
       "docs": 8,
       "files": 44,
-      "framework": 35,
+      "framework": 36,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 143,
       "integration": 153,
-      "release-gate": 17,
+      "release-gate": 18,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 126,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 161
+      "static": 162
     }
   },
   "coverageFamilies": [
@@ -2451,6 +2451,21 @@
         "assets",
         "cache",
         "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Rejects new cross-module internal imports: modules must consume another module's capabilities through its public index.js entry point; pre-existing deep imports are baseline-managed.",
+      "id": "framework.module-import-boundaries",
+      "legacy": false,
+      "path": "scripts/regressions/framework/module-import-boundaries.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "framework",
+        "imports",
+        "modules"
       ],
       "tier": "release-gate"
     },

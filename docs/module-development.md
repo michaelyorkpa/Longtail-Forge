@@ -18,6 +18,33 @@ Browser/session routes go in `browserApiRoutes` and are mounted under `/api` aft
 
 Public API routes go in `publicApiRoutes` and should use API key middleware with a module-declared scope. Describe those endpoints in `publicApiEndpoints` so docs and sanity checks can discover them.
 
+## Public Entry Points And Import Boundaries
+
+As of 0.33.7.2, modules with cross-module consumers expose a public entry point at `src/modules/<module>/index.js`: Tasks, Notes, Lists, Clients/Projects, and Time Tracking. The entry point re-exports the module's supported cross-module capabilities (manifest, service, repository, and contract constants). Files has no `src/modules/files/` entry because Files is framework-owned; its public seam is `src/services/files.service.js` plus the `src/core/files/` adapters.
+
+The import rule:
+
+- Framework/shared code should import module capabilities from the module's public entry point.
+- One module must not import another module's internal repositories, services, routes, or helpers directly. Import the other module's `index.js`, or extend that entry point (in the owning module's slice) when a capability is genuinely public.
+- Imports inside a module's own directory remain unrestricted.
+
+The `framework.module-import-boundaries` regression enforces this statically. Pre-0.33.7.2 deep imports are recorded in `scripts/baselines/module-internal-import-baseline.json` and are tolerated but frozen: new cross-module deep imports fail the suite. Do not add entries to the baseline in feature work; shrink it when a touched file can switch to the entry point, or in a dedicated cleanup slice. Framework-to-module deep imports are not yet blocked — converting them is future work — but new framework code should still prefer the entry points.
+
+## Contracts, Schemas, And Tests
+
+As of 0.33.7.2, module contracts follow one pattern:
+
+- Runtime Zod schemas and JSDoc-backed types live in `*.contracts.js` or `*.schema.js` files owned by the module. Files that runtime JavaScript imports stay JavaScript; runtime code must not import `.ts` files.
+- Type-only definitions may live in `*.types.ts` or shared `.d.ts` files, but nothing imported at runtime may depend on them.
+- Vitest tests live beside the contract they prove or under `tests/` (discovered as `tests/**/*.test.mjs`); run them with `npm run test:unit` or the filtered `test:contracts`/`test:files`/`test:tasks` commands.
+
+Each tool has one job, and they do not substitute for each other:
+
+- TypeScript types describe trusted internal shapes and catch drift at development time (`npm run typecheck`).
+- Zod validates untrusted runtime input at the edges: request bodies, query params, upload metadata, and configuration. Do not Zod-parse trusted internal objects between service functions.
+- Vitest proves contracts and pure service behavior quickly, before the slow suite.
+- The existing regression suite still proves integration, permissions, database behavior, and browser/static guardrails; Vitest coverage never justifies retiring a regression outside the coverage-ratchet rules.
+
 ## Module Settings
 
 Declare settings in `settings`. A setting with `moduleStatus: true` controls the module enablement row in `workspace_modules`. Writable non-status settings need explicit server-side handling before they should be accepted by settings saves.

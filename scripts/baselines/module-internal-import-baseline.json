@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "rationale": "Pre-existing cross-module deep imports frozen when the module public-entry pattern landed. New cross-module imports must use the target module public entry point (src/modules/<module>/index.js). Shrink this baseline only in dedicated cleanup slices or when converting a listed import to the entry point as part of touching that file. The pattern contract lives in docs/module-development.md.",
+  "deepImports": [
+    {
+      "file": "src/modules/client-projects/clients.service.js",
+      "specifier": "../tasks/task-reminders.service.js"
+    },
+    {
+      "file": "src/modules/client-projects/clients.service.js",
+      "specifier": "../time-tracking/time-entries.repo.js"
+    },
+    {
+      "file": "src/modules/lists/lists.service.js",
+      "specifier": "../client-projects/clients.repo.js"
+    },
+    {
+      "file": "src/modules/lists/lists.service.js",
+      "specifier": "../client-projects/projects.repo.js"
+    },
+    {
+      "file": "src/modules/lists/lists.service.js",
+      "specifier": "../notes/notes.repo.js"
+    },
+    {
+      "file": "src/modules/lists/lists.service.js",
+      "specifier": "../tasks/tasks.repo.js"
+    },
+    {
+      "file": "src/modules/notes/notes.service.js",
+      "specifier": "../client-projects/clients.repo.js"
+    },
+    {
+      "file": "src/modules/notes/notes.service.js",
+      "specifier": "../client-projects/clients.service.js"
+    },
+    {
+      "file": "src/modules/notes/notes.service.js",
+      "specifier": "../client-projects/projects.repo.js"
+    },
+    {
+      "file": "src/modules/notes/notes.service.js",
+      "specifier": "../lists/access-policy.js"
+    },
+    {
+      "file": "src/modules/notes/notes.service.js",
+      "specifier": "../lists/lists.repo.js"
+    },
+    {
+      "file": "src/modules/notes/notes.service.js",
+      "specifier": "../tasks/tasks.repo.js"
+    },
+    {
+      "file": "src/modules/tasks/task-recurrence.service.js",
+      "specifier": "../notes/notes.service.js"
+    },
+    {
+      "file": "src/modules/tasks/task-reminders.service.js",
+      "specifier": "../client-projects/clients.repo.js"
+    },
+    {
+      "file": "src/modules/tasks/task-reminders.service.js",
+      "specifier": "../client-projects/projects.repo.js"
+    },
+    {
+      "file": "src/modules/tasks/task-timers.repo.js",
+      "specifier": "../time-tracking/active-timers.repo.js"
+    },
+    {
+      "file": "src/modules/tasks/task-timers.service.js",
+      "specifier": "../time-tracking/active-timers.service.js"
+    },
+    {
+      "file": "src/modules/tasks/tasks.service.js",
+      "specifier": "../client-projects/clients.repo.js"
+    },
+    {
+      "file": "src/modules/tasks/tasks.service.js",
+      "specifier": "../client-projects/clients.service.js"
+    },
+    {
+      "file": "src/modules/tasks/tasks.service.js",
+      "specifier": "../client-projects/projects.repo.js"
+    },
+    {
+      "file": "src/modules/tasks/tasks.service.js",
+      "specifier": "../notes/notes.service.js"
+    },
+    {
+      "file": "src/modules/time-tracking/time-tracking-billing.service.js",
+      "specifier": "../client-projects/clients.service.js"
+    }
+  ]
+}
