@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.6.16.14",
+  "version": "0.33.7.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -9,7 +9,13 @@
   },
   "scripts": {
     "start": "node server.js",
-    "check": "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
+    "check": "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:contracts": "vitest run --passWithNoTests contracts",
+    "test:files": "vitest run --passWithNoTests files",
+    "test:tasks": "vitest run --passWithNoTests tasks",
     "test:regressions": "node scripts/run-regressions.mjs",
     "test:regressions:changed": "node scripts/run-changed-regressions.mjs",
     "test:regressions:list": "node scripts/run-regressions.mjs --list",
@@ -46,9 +52,12 @@
     "busboy": "^1.6.0",
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2",
-    "markdown-it": "^14.2.0"
+    "markdown-it": "^14.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "eslint": "^9.27.0"
+    "eslint": "^9.27.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

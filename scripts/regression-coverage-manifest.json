@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 321,
+    "discoveredScripts": 322,
     "legacyScripts": 312,
-    "releaseGateScripts": 16,
+    "releaseGateScripts": 17,
     "areaCounts": {
       "dashboard": 1,
       "database": 26,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 3,
       "public-api": 3,
-      "release": 14,
+      "release": 15,
       "search": 12,
       "tags": 12,
       "tasks": 47,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 143,
       "integration": 153,
-      "release-gate": 16,
+      "release-gate": 17,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 126,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 160
+      "static": 161
     }
   },
   "coverageFamilies": [
@@ -2495,6 +2495,21 @@
         "closeout",
         "commands",
         "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves npm run check runs the TypeScript typecheck and Vitest unit tests before the slow regression runner, and that npm start stays a pure Node boot.",
+      "id": "release.fast-check-pipeline",
+      "legacy": false,
+      "path": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "commands",
+        "release",
+        "tooling"
       ],
       "tier": "release-gate"
     },

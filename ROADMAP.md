@@ -72,31 +72,31 @@ Non-goals:
 
 **Model: GPT-5.5 Extra High** - Tooling foundation with no app boot-path change.
 
-- [ ] Add TypeScript as a dev dependency.
-- [ ] Add Vitest as a dev dependency.
-- [ ] Add Zod as a runtime dependency because schemas will be used by runtime validation paths.
-- [ ] Add `tsconfig.json`.
-  - [ ] Node/ESM-compatible compiler settings.
-  - [ ] `noEmit: true`.
-  - [ ] `allowJs: true`.
-  - [ ] Scope `include` narrowly at first.
-  - [ ] Use `checkJs` selectively instead of type-checking the entire repo immediately.
-  - [ ] Exclude runtime data, generated files, `archive/`, build/vendor output, temporary directories, and `node_modules`.
-- [ ] Add package scripts:
-  - [ ] `typecheck` - runs `tsc --noEmit`.
-  - [ ] `test:unit` - runs Vitest once.
-  - [ ] `test:watch` - runs Vitest in watch mode.
-  - [ ] `test:contracts` - runs contract/schema-focused Vitest tests.
-  - [ ] `test:files` - runs Files-focused Vitest tests once Files is the proving-ground module.
-  - [ ] `test:tasks` - runs Tasks-focused Vitest tests once Tasks has contract tests.
-- [ ] Keep `npm start` unchanged.
-- [ ] Update `npm run check` so it runs fast checks before the existing slow suite:
-  - [ ] `npm run typecheck`
-  - [ ] `npm run test:unit`
-  - [ ] existing regression runner
-  - [ ] ESLint
-- [ ] Add a guardrail proving `npm run check` invokes `typecheck` and `test:unit` before the full regression runner.
-- [ ] Do not alter runtime behavior in this slice except dependency availability and script wiring.
+- [x] Add TypeScript as a dev dependency.
+- [x] Add Vitest as a dev dependency.
+- [x] Add Zod as a runtime dependency because schemas will be used by runtime validation paths.
+- [x] Add `tsconfig.json`.
+  - [x] Node/ESM-compatible compiler settings (`module`/`moduleResolution` `nodenext`).
+  - [x] `noEmit: true`.
+  - [x] `allowJs: true`.
+  - [x] Scope `include` narrowly at first (`server.js`, `worker.js`, `src/**/*.js`, `tests/**/*.mjs`; browser `public/` scripts excluded).
+  - [x] Use `checkJs` selectively instead of type-checking the entire repo immediately (`checkJs: false`; files opt in with `// @ts-check`).
+  - [x] Exclude runtime data, generated files, `archive/`, build/vendor output, temporary directories, and `node_modules`.
+- [x] Add package scripts:
+  - [x] `typecheck` - runs `tsc --noEmit`.
+  - [x] `test:unit` - runs Vitest once.
+  - [x] `test:watch` - runs Vitest in watch mode.
+  - [x] `test:contracts` - runs contract/schema-focused Vitest tests (filtered pass; `--passWithNoTests` until 0.33.7.3).
+  - [x] `test:files` - runs Files-focused Vitest tests once Files is the proving-ground module (filtered pass; `--passWithNoTests` until then).
+  - [x] `test:tasks` - runs Tasks-focused Vitest tests once Tasks has contract tests (filtered pass; `--passWithNoTests` until then).
+- [x] Keep `npm start` unchanged.
+- [x] Update `npm run check` so it runs fast checks before the existing slow suite:
+  - [x] `npm run typecheck`
+  - [x] `npm run test:unit`
+  - [x] existing regression runner
+  - [x] ESLint
+- [x] Add a guardrail proving `npm run check` invokes `typecheck` and `test:unit` before the full regression runner (`scripts/regressions/release/fast-check-pipeline.regression.mjs`, a required release gate).
+- [x] Do not alter runtime behavior in this slice except dependency availability and script wiring.
 
 Acceptance criteria:
 

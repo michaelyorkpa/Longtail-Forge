@@ -34,7 +34,11 @@ Current package commands:
 
 | Command | Current behavior |
 | --- | --- |
-| `npm run check` | Runs `scripts/run-regressions.mjs`, then cached ESLint. |
+| `npm run check` | Runs the fast checks first (`npm run typecheck`, then `npm run test:unit`), then `scripts/run-regressions.mjs`, then cached ESLint. A typecheck or unit-test failure stops the gate before the slow regression suite starts. |
+| `npm run typecheck` | Runs `tsc --noEmit` against the narrow `tsconfig.json` scope; `checkJs` stays off so JavaScript files opt in per file with `// @ts-check`. |
+| `npm run test:unit` | Runs the Vitest suite (`tests/**/*.test.mjs`) once. |
+| `npm run test:watch` | Runs Vitest in watch mode for local iteration. |
+| `npm run test:contracts` / `test:files` / `test:tasks` | Filtered Vitest passes for contract/schema, Files, and Tasks tests; they tolerate an empty match (`--passWithNoTests`) until 0.33.7.3+ land their tests. |
 | `npm run test:regressions` | Runs the full discovered regression registry without the lint stage. |
 | `npm run test:regressions:changed` | Runs changed-area routing in one step; focused module paths use narrow commands while framework/view, database, and release paths escalate to `npm run check`. |
 | `npm run test:regressions:list` | Lists every discovered regression and its metadata without executing it. |

@@ -48,7 +48,7 @@ assert.deepEqual(
 
 assert.equal(
   packageJson.scripts.check,
-  "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
+  "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
 );
 assert.equal(
   packageJson.scripts.lint,

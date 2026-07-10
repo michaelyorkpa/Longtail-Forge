@@ -81,11 +81,11 @@ assert.ok(
   "inventory contract guardrail should be registered",
 );
 assert.equal(legacySnapshot.scripts.length, 312, "legacy migration snapshot should preserve the inventory baseline");
-assert.equal(REGRESSION_ENTRIES.length, 321, "auto-discovery should add nine convention-path guardrails to the legacy baseline");
+assert.equal(REGRESSION_ENTRIES.length, 322, "auto-discovery should add ten convention-path guardrails to the legacy baseline");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [160, 6, 29, 126],
-  "auto-discovery must preserve legacy bucket counts and add nine static convention guardrails",
+  [161, 6, 29, 126],
+  "auto-discovery must preserve legacy bucket counts and add ten static convention guardrails",
 );
 assert.match(suite, /discoverRegressionEntries/);
 assert.match(suite, /createRegressionSuite/);
@@ -96,7 +96,7 @@ assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
 assert.equal(
   packageJson.scripts.check,
-  "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
+  "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
 );
 assert.equal(packageJson.scripts["test:permissions"], "node scripts/permission-regression.mjs");
 assert.equal(packageJson.scripts["test:sqlite-driver"], "node scripts/better-sqlite3-install-smoke.mjs");

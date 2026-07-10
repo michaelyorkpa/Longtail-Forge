@@ -57,7 +57,7 @@ assert.deepEqual(
   ["npm run test:regressions"],
   "unmapped changes should fall back to the whole regression runner rather than guessing narrowly",
 );
-assert.equal(packageJson.scripts.check, "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache");
+assert.equal(packageJson.scripts.check, "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache");
 assert.equal(suggestRegressionsForPaths([]).releaseGate, "npm run check");
 assert.deepEqual(suggestRegressionsForPaths([]).commands, [], "an empty change set should not suggest a passing fallback run");
 
