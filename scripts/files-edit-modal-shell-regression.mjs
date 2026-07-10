@@ -49,7 +49,7 @@ const packageJson = JSON.parse(read("package.json"));
 const packageLock = JSON.parse(read("package-lock.json"));
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
-const regressionSuite = read("scripts/regression-suite.mjs");
+const regressionSuite = read("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

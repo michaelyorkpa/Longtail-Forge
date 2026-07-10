@@ -4,6 +4,12 @@
 
 Database adapter `contractVersion` fields are independent provider-contract markers. They change only when their adapter contract changes and must not be updated merely because the application version changes.
 
+## Asset Cache Version
+
+The browser asset cache version is derived directly from the same application version through `src/core/asset-version.js`; it is not an independently bumped release value. The static view service rewrites every local JavaScript and CSS reference in served public/protected HTML to the canonical version, injects version metadata plus the shared browser helper in the page head, and leaves the existing first-paint theme attribute contract intact. Runtime-injected Footer and Workbench dependencies use `LongtailForge.assetVersion.url(...)`, and normalized module `browserAssets` paths use the server helper.
+
+Do not manually add or bump `?v=...` or `?cache=...` literals. Older source-view and dynamic-loader literals are frozen compatibility input only: runtime decoration overwrites them, and `scripts/asset-cache-legacy-baseline.json` prevents additions or manual changes. Shrink that baseline when a dedicated cleanup removes an old literal; do not refresh it during ordinary UI work. A normal scoped application version bump automatically changes the served asset version.
+
 ## Bump Workflow
 
 Run the scoped helper with the intended release version:
@@ -27,7 +33,7 @@ After the helper runs:
    ```
 
 4. Run the normal release verification, including `npm run check`.
-5. Restart the app and verify `/api/app-info` reports the intended version.
+5. Restart the app and verify `/api/app-info` reports the intended version and served HTML uses the same value for local JavaScript/CSS URLs.
 
 ## Literal Guardrail
 

@@ -28,7 +28,7 @@ const styles = readText("public/css/longtail-forge.css");
 const jobsRouteSource = readText("src/routes/jobs.routes.js");
 const jobsServiceSource = readText("src/services/jobs.service.js");
 const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");

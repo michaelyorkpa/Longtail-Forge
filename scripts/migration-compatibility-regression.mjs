@@ -20,7 +20,7 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -64,7 +64,7 @@ function assertStaticContract() {
   assert.match(migrationsSource, /await runSql\(baseline\.sql\)/, "fresh-start schema scripts should remain migration-owned compatibility SQL");
   assert.match(migrationsSource, /await runSql\(migration\.sql\)/, "future migration SQL files should remain migration-owned compatibility SQL");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should record the current ratchet after interpolation enforcement");
+  assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migrations as compatibility-tracked with values converted");
   assert.match(auditDocs, /0\.33\.5\.27\.30 Migration Compatibility Path[\s\S]*`src\/db\/migrations\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*0 runtime literal-helper invocations[\s\S]*385 existing bound operation sites/, "audit docs should record the migration compatibility slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.30[\s\S]*`src\/db\/migrations\.js` has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*current baseline SQL[\s\S]*future migration SQL files remain migration-owned compatibility SQL[\s\S]*385 existing bound operation sites/, "database docs should record the migration compatibility outcome");

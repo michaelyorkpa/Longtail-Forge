@@ -24,7 +24,7 @@ const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 assertPerformanceSmoke();

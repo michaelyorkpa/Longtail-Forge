@@ -67,7 +67,7 @@ function assertStaticContracts() {
   const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
   const workspaceSettingsScript = readText("public/js/workspace-settings.js");
-  const regressionSuite = readText("scripts/regression-suite.mjs");
+  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the storage diagnostics version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the storage diagnostics version");

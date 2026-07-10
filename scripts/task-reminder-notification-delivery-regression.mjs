@@ -21,7 +21,7 @@ const tasksModuleSource = readText("src/modules/tasks/module.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   resetJobWorkerStatusForTests,

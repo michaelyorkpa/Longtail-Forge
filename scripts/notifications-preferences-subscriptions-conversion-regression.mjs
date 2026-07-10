@@ -22,7 +22,7 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { notificationsRepository } = await import("../src/repositories/notifications.repo.js");
@@ -105,7 +105,7 @@ function assertStaticContract() {
   assert.match(sqliteDialectSource, /buildInsertOnAnyConflictDoUpdate/, "SQLite dialect should expose an any-conflict upsert seam for expression-index conflicts");
   assert.match(sqliteDialectSource, /function onAnyConflictDoUpdateSet\(updateColumns\)[\s\S]*ON CONFLICT DO UPDATE SET/, "SQLite dialect should own bare ON CONFLICT DO UPDATE SQL");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should record the Notifications preferences/subscriptions conversion ratchet");
+  assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| notifications\.repo \| Converted \| 0 \| 0 \| 25 \| 25 \|/, "audit inventory should mark notifications repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.22 Notifications Preferences and Subscriptions Conversion[\s\S]*`notifications\.repo` is fully converted[\s\S]*487 runtime literal-helper invocations[\s\S]*103 direct interpolated SQL operation sites[\s\S]*256 existing bound operation sites/, "audit docs should record the Notifications preferences/subscriptions conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.22[\s\S]*Notification preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications\.repo` are converted[\s\S]*487 remaining helper invocations/, "database docs should record the concrete Notifications preferences/subscriptions conversion");

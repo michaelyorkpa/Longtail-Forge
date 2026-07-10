@@ -1,363 +1,4107 @@
 {
-  "schemaVersion": 1,
-  "recordedAtVersion": "0.33.6.15.4",
-  "minimumRegisteredScripts": 311,
-  "minimumCloseoutScripts": 22,
-  "requiredScripts": [
-    "scripts/check-js.mjs",
-    "scripts/accessibility-regression.mjs",
-    "scripts/event-bus-regression.mjs",
-    "scripts/runtime-configuration-contract-regression.mjs",
-    "scripts/bump-version-regression.mjs",
-    "scripts/version-literal-guardrail-regression.mjs",
-    "scripts/runtime-env-loading-regression.mjs",
-    "scripts/runtime-local-env-materialization-regression.mjs",
-    "scripts/runtime-diagnostics-route-regression.mjs",
-    "scripts/sqlite-small-office-readout-regression.mjs",
-    "scripts/static-contract-closeout-regression.mjs",
-    "scripts/parameter-binding-audit-regression.mjs",
-    "scripts/parameter-binding-layer-regression.mjs",
-    "scripts/parameter-binding-conversion-wave-regression.mjs",
-    "scripts/interpolation-enforcement-guardrail-regression.mjs",
-    "scripts/dialect-enforcement-guardrail-regression.mjs",
-    "scripts/better-sqlite3-install-smoke.mjs",
-    "scripts/better-sqlite3-helper-core-regression.mjs",
-    "scripts/audit-extensibility-regression.mjs",
-    "scripts/search-results-page-regression.mjs",
-    "scripts/regression-runner-regression.mjs",
-    "scripts/regression-coverage-ratchet.mjs",
-    "scripts/regression-clean-clone-contract.mjs",
-    "scripts/tag-usability-ui-regression.mjs",
-    "scripts/tag-inline-picker-regression.mjs",
-    "scripts/tag-record-workflow-regression.mjs",
-    "scripts/tag-management-page-regression.mjs",
-    "scripts/file-ui-integration-regression.mjs",
-    "scripts/notes-developer-docs-regression.mjs",
-    "scripts/notes-context-terminology-regression.mjs",
-    "scripts/notes-modal-stack-guardrails-regression.mjs",
-    "scripts/notes-tags-stacked-modal-regression.mjs",
-    "scripts/notes-files-stacked-modal-regression.mjs",
-    "scripts/linked-context-provider-contract-regression.mjs",
-    "scripts/linked-context-picker-shell-regression.mjs",
-    "scripts/project-hierarchy-move-regression.mjs",
-    "scripts/app-shell-navigation-regression.mjs",
-    "scripts/module-sanity-check.mjs",
-    "scripts/ui-contract-regression.mjs",
-    "scripts/surface-token-contract-regression.mjs",
-    "scripts/modal-section-contract-regression.mjs",
-    "scripts/modal-footer-contract-regression.mjs",
-    "scripts/overlay-host-contract-regression.mjs",
-    "scripts/drawer-main-surface-contract-regression.mjs",
-    "scripts/surface-adoption-pass-regression.mjs",
-    "scripts/view-builder-contract-regression.mjs",
-    "scripts/view-builder-helper-regression.mjs",
-    "scripts/lists-view-builder-pilot-regression.mjs",
-    "scripts/view-builder-converted-surface-guardrails.mjs",
-    "scripts/view-descriptor-manifest-regression.mjs",
-    "scripts/view-descriptor-reference-regression.mjs",
-    "scripts/view-descriptor-terminology-regression.mjs",
-    "scripts/view-descriptor-declarative-guardrails.mjs",
-    "scripts/view-renderer-shell-regression.mjs",
-    "scripts/view-descriptor-bootstrap-regression.mjs",
-    "scripts/view-renderer-data-binding-regression.mjs",
-    "scripts/files-descriptor-host-regression.mjs",
-    "scripts/files-filter-sidebar-regression.mjs",
-    "scripts/files-browse-list-shell-regression.mjs",
-    "scripts/files-browse-compact-reset-regression.mjs",
-    "scripts/files-edit-modal-shell-regression.mjs",
-    "scripts/files-edit-modal-save-regression.mjs",
-    "scripts/files-preview-modal-regression.mjs",
-    "scripts/files-upload-shell-regression.mjs",
-    "scripts/files-attachment-panel-shell-regression.mjs",
-    "scripts/files-row-attachment-actions-regression.mjs",
-    "scripts/files-visual-state-control-parity-regression.mjs",
-    "scripts/files-strict-guardrail-inventory-regression.mjs",
-    "scripts/view-index-primitive-regression.mjs",
-    "scripts/view-shared-capabilities-regression.mjs",
-    "scripts/view-renderer-actions-regression.mjs",
-    "scripts/lists-declarative-readonly-surface-regression.mjs",
-    "scripts/lists-items-modals-descriptor-regression.mjs",
-    "scripts/lists-workflow-linked-layout-regression.mjs",
-    "scripts/batched-list-enrichment-regression.mjs",
-    "scripts/high-volume-admin-lists-regression.mjs",
-    "scripts/sqlite-small-office-performance-regression.mjs",
-    "scripts/notes-declarative-readonly-surface-regression.mjs",
-    "scripts/notes-server-side-list-paging-regression.mjs",
-    "scripts/notes-records-filters-repository-conversion-regression.mjs",
-    "scripts/notes-files-hierarchy-scope-regression.mjs",
-    "scripts/client-project-hierarchy-branch-closeout-regression.mjs",
-    "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
-    "scripts/markdown-platform-contract-regression.mjs",
-    "scripts/markdown-renderer-service-regression.mjs",
-    "scripts/notes-external-markdown-links-preference-regression.mjs",
-    "scripts/notes-file-preview-actions-regression.mjs",
-    "scripts/user-theme-auto-mode-regression.mjs",
-    "scripts/dashboard-workbench-regression.mjs",
-    "scripts/quick-action-capture-regression.mjs",
-    "scripts/quick-action-opener-rollout-regression.mjs",
-    "scripts/workbench-service-dehardcode-regression.mjs",
-    "scripts/workbench-guided-ui-regression.mjs",
-    "scripts/workbench-split-focus-filters-regression.mjs",
-    "scripts/workbench-collapsible-sections-regression.mjs",
-    "scripts/workbench-remove-all-tasks-list-regression.mjs",
-    "scripts/workbench-remove-quick-notes-regression.mjs",
-    "scripts/workbench-recommended-cycling-regression.mjs",
-    "scripts/workbench-host-status-copy-regression.mjs",
-    "scripts/workbench-in-place-open-work-regression.mjs",
-    "scripts/workbench-view-state-regression.mjs",
-    "scripts/workbench-inspector-panel-regression.mjs",
-    "scripts/workbench-task-focus-surface-regression.mjs",
-    "scripts/workbench-task-focus-checklist-regression.mjs",
-    "scripts/workbench-task-focus-timer-regression.mjs",
-    "scripts/workbench-task-focus-related-context-regression.mjs",
-    "scripts/workbench-task-focus-related-context-ui-regression.mjs",
-    "scripts/time-tracking-create-timer-modal-regression.mjs",
-    "scripts/task-list-density-regression.mjs",
-    "scripts/task-list-canonical-ui-regression.mjs",
-    "scripts/tasks-declarative-readonly-surface-regression.mjs",
-    "scripts/tasks-filter-sidebar-anatomy-regression.mjs",
-    "scripts/tasks-readonly-list-binding-regression.mjs",
-    "scripts/tasks-bulk-toolbar-shell-regression.mjs",
-    "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
-    "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
-    "scripts/tasks-lifecycle-action-descriptor-regression.mjs",
-    "scripts/tasks-workflow-action-descriptor-regression.mjs",
-    "scripts/tasks-detail-read-panel-regression.mjs",
-    "scripts/tasks-relationship-linked-context-regression.mjs",
-    "scripts/tasks-strict-guardrail-inventory-regression.mjs",
-    "scripts/tasks-list-surface-boundary-regression.mjs",
-    "scripts/tasks-modal-shell-regression.mjs",
-    "scripts/task-modal-complete-action-regression.mjs",
-    "scripts/tasks-recurrence-reminder-escape-hatch-regression.mjs",
-    "scripts/tasks-checklist-escape-hatch-regression.mjs",
-    "scripts/task-checklist-editor-display-regression.mjs",
-    "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
-    "scripts/tasks-canonical-editor-opener-regression.mjs",
-    "scripts/tasks-modal-context-sections-regression.mjs",
-    "scripts/modal-action-standardization-contract-regression.mjs",
-    "scripts/tasks-tags-files-child-dialog-regression.mjs",
-    "scripts/notes-tasks-modal-footer-visual-parity-regression.mjs",
-    "scripts/notes-notification-follow-regression.mjs",
-    "scripts/client-picker-hierarchy-regression.mjs",
-    "scripts/client-modal-footer-actions-regression.mjs",
-    "scripts/clients-projects-read-descriptor-host-regression.mjs",
-    "scripts/clients-projects-framework-read-anatomy-regression.mjs",
-    "scripts/clients-projects-action-registration-regression.mjs",
-    "scripts/clients-projects-related-regions-regression.mjs",
-    "scripts/clients-projects-bulk-toolbar-regression.mjs",
-    "scripts/clients-projects-hierarchy-reparent-regression.mjs",
-    "scripts/time-entries-screen-regression.mjs",
-    "scripts/workbench-task-ordering-regression.mjs",
-    "scripts/module-actions-regression.mjs",
-    "scripts/shared-icons-regression.mjs",
-    "scripts/icon-control-conversion-regression.mjs",
-    "scripts/remaining-icon-actions-regression.mjs",
-    "scripts/icon-accessibility-contract-regression.mjs",
-    "scripts/search-contract-regression.mjs",
-    "scripts/search-index-sync-regression.mjs",
-    "scripts/search-rebuild-regression.mjs",
-    "scripts/search-index-jobs-regression.mjs",
-    "scripts/search-fts-repair-regression.mjs",
-    "scripts/search-lifecycle-regression.mjs",
-    "scripts/file-framework-contract-regression.mjs",
-    "scripts/file-api-lifecycle-regression.mjs",
-    "scripts/file-storage-provider-configuration-regression.mjs",
-    "scripts/file-storage-diagnostics-regression.mjs",
-    "scripts/file-storage-streaming-contract-regression.mjs",
-    "scripts/file-storage-quota-enforcement-regression.mjs",
-    "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
-    "scripts/file-streamed-validation-download-metadata-regression.mjs",
-    "scripts/file-s3-provider-registration-regression.mjs",
-    "scripts/file-s3-object-operation-proof-regression.mjs",
-    "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
-    "scripts/file-multipart-upload-route-regression.mjs",
-    "scripts/file-multipart-batch-upload-helper-regression.mjs",
-    "scripts/file-upload-compatibility-error-hardening-regression.mjs",
-    "scripts/file-scanner-mode-resolver-regression.mjs",
-    "scripts/file-scanner-health-diagnostics-regression.mjs",
-    "scripts/file-clamscan-adapter-regression.mjs",
-    "scripts/file-clamd-adapter-regression.mjs",
-    "scripts/file-scanner-setup-docs-regression.mjs",
-    "scripts/file-scan-job-handoff-regression.mjs",
-    "scripts/files-attachment-context-route-regression.mjs",
-    "scripts/files-attachable-target-options-regression.mjs",
-    "scripts/files-browse-attachment-reads-conversion-regression.mjs",
-    "scripts/files-context-targets-conversion-regression.mjs",
-    "scripts/files-preview-availability-route-regression.mjs",
-    "scripts/files-preview-content-route-regression.mjs",
-    "scripts/file-storage-accounting-regression.mjs",
-    "scripts/file-settings-regression.mjs",
-    "scripts/files-attachment-readmodel-regression.mjs",
-    "scripts/workspace-storage-regression.mjs",
-    "scripts/legacy-cleanup-regression.mjs",
-    "scripts/fresh-database-regression.mjs",
-    "scripts/sqlite-connection-hardening-regression.mjs",
-    "scripts/database-adapter-contract-regression.mjs",
-    "scripts/database-parameterized-query-pilot-regression.mjs",
-    "scripts/database-transaction-helper-regression.mjs",
-    "scripts/database-migration-locking-regression.mjs",
-    "scripts/database-result-fidelity-regression.mjs",
-    "scripts/database-dialect-seam-scaffold-regression.mjs",
-    "scripts/database-conflict-identity-seam-regression.mjs",
-    "scripts/database-case-insensitive-seam-regression.mjs",
-    "scripts/database-boolean-time-seam-regression.mjs",
-    "scripts/search-fts-seam-regression.mjs",
-    "scripts/search-adapter-rebuild-service-conversion-regression.mjs",
-    "scripts/database-introspection-boundary-regression.mjs",
-    "scripts/better-sqlite3-driver-closeout-regression.mjs",
-    "scripts/job-outbox-schema-regression.mjs",
-    "scripts/worker-runner-regression.mjs",
-    "scripts/job-claiming-locking-regression.mjs",
-    "scripts/scale-seed-framework-regression.mjs",
-    "scripts/baseline-adoption-regression.mjs",
-    "scripts/performance-regression.mjs",
-    "scripts/notification-jobs-regression.mjs",
-    "scripts/background-work-jobs-regression.mjs",
-    "scripts/task-reminder-scheduling-horizon-regression.mjs",
-    "scripts/task-reminder-notification-delivery-regression.mjs",
-    "scripts/job-idempotency-at-least-once-regression.mjs",
-    "scripts/job-retention-pruning-regression.mjs",
-    "scripts/admin-job-observability-regression.mjs",
-    "scripts/separate-worker-end-to-end-regression.mjs",
-    "scripts/async-recurrence-response-closeout-regression.mjs",
-    "scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
-    "scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
-    "scripts/notification-regression.mjs",
-    "scripts/search-api-regression.mjs",
-    "scripts/search-shell-regression.mjs",
-    "scripts/search-workflow-regression.mjs",
-    "scripts/help-contract-regression.mjs",
-    "scripts/help-markdown-source-layout-regression.mjs",
-    "scripts/help-center-surface-regression.mjs",
-    "scripts/help-navigation-boundary-regression.mjs",
-    "scripts/help-search-regression.mjs",
-    "scripts/help-content-regression.mjs",
-    "scripts/help-workflow-regression.mjs",
-    "scripts/tags-repository-conversion-regression.mjs",
-    "scripts/tag-propagation-service-conversion-regression.mjs",
-    "scripts/tag-service-regression.mjs",
-    "scripts/tag-core-records-regression.mjs",
-    "scripts/tag-propagation-foundation-regression.mjs",
-    "scripts/tag-propagation-contract-regression.mjs",
-    "scripts/tag-propagation-paths-regression.mjs",
-    "scripts/tag-bulk-assignment-regression.mjs",
-    "scripts/notes-foundation-regression.mjs",
-    "scripts/notes-markdown-revision-regression.mjs",
-    "scripts/notes-access-contract-regression.mjs",
-    "scripts/notes-api-service-regression.mjs",
-    "scripts/notes-search-help-regression.mjs",
-    "scripts/notes-collections-regression.mjs",
-    "scripts/notes-ui-workflow-regression.mjs",
-    "scripts/notes-primary-context-regression.mjs",
-    "scripts/linked-context-client-project-label-sort-regression.mjs",
-    "scripts/linked-context-client-scope-picker-regression.mjs",
-    "scripts/linked-context-task-label-sort-regression.mjs",
-    "scripts/linked-context-note-list-label-regression.mjs",
-    "scripts/linked-context-unavailable-fallback-regression.mjs",
-    "scripts/notes-task-context-regression.mjs",
-    "scripts/notes-preview-editor-regression.mjs",
-    "scripts/notes-markdown-soft-break-regression.mjs",
-    "scripts/notes-secure-regression.mjs",
-    "scripts/notes-integration-closeout-regression.mjs",
-    "scripts/notes-linked-panel-regression.mjs",
-    "scripts/notes-lists-tags-api-scope-regression.mjs",
-    "scripts/lists-foundation-regression.mjs",
-    "scripts/lists-service-regression.mjs",
-    "scripts/lists-api-regression.mjs",
-    "scripts/lists-ui-workflow-regression.mjs",
-    "scripts/lists-closeout-regression.mjs",
-    "scripts/lists-query-suggestions-regression.mjs",
-    "scripts/lists-records-items-repository-conversion-regression.mjs",
-    "scripts/lists-catalog-links-repository-conversion-regression.mjs",
-    "scripts/personal-family-workspace-scope-regression.mjs",
-    "scripts/client-projects-bugfix-regression.mjs",
-    "scripts/client-projects-canonical-payload-regression.mjs",
-    "scripts/client-projects-repositories-conversion-regression.mjs",
-    "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
-    "scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
-    "scripts/startup-maintenance-compatibility-regression.mjs",
-    "scripts/migration-compatibility-regression.mjs",
-    "scripts/api-key-scope-audit-regression.mjs",
-    "scripts/public-api-client-project-write-regression.mjs",
-    "scripts/task-resume-context-regression.mjs",
-    "scripts/task-activity-metrics-regression.mjs",
-    "scripts/task-recurrence-frequency-regression.mjs",
-    "scripts/task-checklist-regression.mjs",
-    "scripts/task-relationships-regression.mjs",
-    "scripts/task-qol-closeout-regression.mjs",
-    "scripts/task-bulk-due-tags-regression.mjs",
-    "scripts/task-modal-compact-layout-regression.mjs",
-    "scripts/task-modal-reflow-regression.mjs",
-    "scripts/task-modal-followup-regression.mjs",
-    "scripts/task-timer-status-regression.mjs",
-    "scripts/timer-timestamp-integrity-regression.mjs",
-    "scripts/timer-resume-metadata-regression.mjs",
-    "scripts/active-timers-repository-conversion-regression.mjs",
-    "scripts/time-entries-repository-conversion-regression.mjs",
-    "scripts/work-resume-state-conversion-regression.mjs",
-    "scripts/work-resume-state-service-regression.mjs",
-    "scripts/work-resume-state-producer-regression.mjs",
-    "scripts/work-resume-state-initial-producers-regression.mjs",
-    "scripts/work-resume-state-api-regression.mjs",
-    "scripts/work-resume-state-closeout-regression.mjs",
-    "scripts/files-time-tracking-qol-closeout-regression.mjs",
-    "scripts/task-canonical-query-regression.mjs",
-    "scripts/tasks-view-selector-query-contract-regression.mjs",
-    "scripts/tasks-server-side-list-paging-regression.mjs",
-    "scripts/tasks-primary-repository-conversion-regression.mjs",
-    "scripts/task-checklists-repository-conversion-regression.mjs",
-    "scripts/task-relationships-repository-conversion-regression.mjs",
-    "scripts/task-recurrence-reminders-repository-conversion-regression.mjs",
-    "scripts/task-options-payload-regression.mjs",
-    "scripts/project-default-assignee-regression.mjs",
-    "scripts/runtime-database-foundation-closeout-regression.mjs",
-    "scripts/database-agnostic-contract-closeout-regression.mjs",
-    "scripts/module-file-closeout-regression.mjs",
-    "scripts/notes-import-closeout-regression.mjs",
-    "scripts/surface-standardization-closeout-regression.mjs",
-    "scripts/view-builder-closeout-regression.mjs",
-    "scripts/view-conversion-branch-closeout-regression.mjs",
-    "scripts/files-browse-edit-preview-closeout-regression.mjs",
-    "scripts/files-conversion-closeout-regression.mjs",
-    "scripts/notes-slideout-closeout-regression.mjs",
-    "scripts/markdown-closeout-regression.mjs",
-    "scripts/tasks-conversion-closeout-regression.mjs",
-    "scripts/clients-projects-strict-closeout-regression.mjs",
-    "scripts/file-storage-scanner-runtime-closeout-regression.mjs"
-  ],
+  "schemaVersion": 2,
+  "generatedBy": "node scripts/generate-regression-manifest.mjs",
+  "policySource": "scripts/regression-coverage-exceptions.json",
+  "summary": {
+    "discoveredScripts": 316,
+    "legacyScripts": 312,
+    "releaseGateScripts": 11,
+    "areaCounts": {
+      "dashboard": 1,
+      "database": 25,
+      "docs": 7,
+      "files": 44,
+      "framework": 35,
+      "jobs": 7,
+      "lists": 12,
+      "notes": 35,
+      "notifications": 3,
+      "permissions": 3,
+      "public-api": 3,
+      "release": 12,
+      "search": 12,
+      "tags": 12,
+      "tasks": 47,
+      "time-tracking": 6,
+      "views": 26,
+      "workbench": 26
+    },
+    "tierCounts": {
+      "focused": 143,
+      "integration": 153,
+      "release-gate": 11,
+      "slow": 9
+    },
+    "runModeCounts": {
+      "isolated-database": 126,
+      "serial-database": 6,
+      "serial-files": 29,
+      "static": 155
+    }
+  },
   "coverageFamilies": [
     {
       "id": "closeout-regressions",
-      "minimumScripts": 22,
-      "requiredScripts": [
-        "scripts/static-contract-closeout-regression.mjs",
-        "scripts/better-sqlite3-driver-closeout-regression.mjs",
-        "scripts/async-recurrence-response-closeout-regression.mjs",
-        "scripts/notes-integration-closeout-regression.mjs",
-        "scripts/lists-closeout-regression.mjs",
-        "scripts/task-qol-closeout-regression.mjs",
-        "scripts/work-resume-state-closeout-regression.mjs",
-        "scripts/files-time-tracking-qol-closeout-regression.mjs",
-        "scripts/runtime-database-foundation-closeout-regression.mjs",
+      "matchTags": [
+        "closeout"
+      ],
+      "minimumActiveScripts": 9,
+      "activeRegressionIds": [
+        "legacy.async.recurrence.response.closeout",
+        "legacy.better.sqlite3.driver.closeout",
+        "legacy.client.project.hierarchy.branch.closeout",
+        "legacy.files.time.tracking.qol.closeout",
+        "legacy.lists.closeout",
+        "legacy.notes.integration.closeout",
+        "legacy.static.contract.closeout",
+        "legacy.task.qol.closeout",
+        "legacy.work.resume.state.closeout"
+      ],
+      "retiredScripts": [
+        "scripts/clients-projects-strict-closeout-regression.mjs",
         "scripts/database-agnostic-contract-closeout-regression.mjs",
-        "scripts/module-file-closeout-regression.mjs",
-        "scripts/notes-import-closeout-regression.mjs",
-        "scripts/surface-standardization-closeout-regression.mjs",
-        "scripts/view-builder-closeout-regression.mjs",
-        "scripts/view-conversion-branch-closeout-regression.mjs",
+        "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
         "scripts/files-browse-edit-preview-closeout-regression.mjs",
         "scripts/files-conversion-closeout-regression.mjs",
-        "scripts/notes-slideout-closeout-regression.mjs",
         "scripts/markdown-closeout-regression.mjs",
+        "scripts/module-file-closeout-regression.mjs",
+        "scripts/notes-import-closeout-regression.mjs",
+        "scripts/notes-slideout-closeout-regression.mjs",
+        "scripts/runtime-database-foundation-closeout-regression.mjs",
+        "scripts/surface-standardization-closeout-regression.mjs",
         "scripts/tasks-conversion-closeout-regression.mjs",
-        "scripts/clients-projects-strict-closeout-regression.mjs",
-        "scripts/file-storage-scanner-runtime-closeout-regression.mjs"
+        "scripts/view-builder-closeout-regression.mjs",
+        "scripts/view-conversion-branch-closeout-regression.mjs"
       ]
     }
   ],
-  "retiredScripts": [
+  "legacyMetadataException": {
+    "snapshotPath": "scripts/regression-legacy-snapshot.json",
+    "expectedScripts": 312,
+    "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
+  },
+  "regressions": [
     {
-      "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
+      "area": "permissions",
+      "description": "Protects the legacy accessibility contract.",
+      "id": "legacy.accessibility",
+      "legacy": true,
+      "path": "scripts/accessibility-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "permissions"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Protects the legacy active timers repository conversion contract.",
+      "id": "legacy.active.timers.repository.conversion",
+      "legacy": true,
+      "path": "scripts/active-timers-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy admin job observability contract.",
+      "id": "legacy.admin.job.observability",
+      "legacy": true,
+      "path": "scripts/admin-job-observability-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "public-api",
+      "description": "Protects the legacy api key scope audit contract.",
+      "id": "legacy.api.key.scope.audit",
+      "legacy": true,
+      "path": "scripts/api-key-scope-audit-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "permissions"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy app shell navigation contract.",
+      "id": "legacy.app.shell.navigation",
+      "legacy": true,
+      "path": "scripts/app-shell-navigation-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy async recurrence response closeout contract.",
+      "id": "legacy.async.recurrence.response.closeout",
+      "legacy": true,
+      "path": "scripts/async-recurrence-response-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "closeout",
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy audit extensibility contract.",
+      "id": "legacy.audit.extensibility",
+      "legacy": true,
+      "path": "scripts/audit-extensibility-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "jobs",
+      "description": "Protects the legacy background work jobs contract.",
+      "id": "legacy.background.work.jobs",
+      "legacy": true,
+      "path": "scripts/background-work-jobs-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy baseline adoption contract.",
+      "id": "legacy.baseline.adoption",
+      "legacy": true,
+      "path": "scripts/baseline-adoption-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy batched list enrichment contract.",
+      "id": "legacy.batched.list.enrichment",
+      "legacy": true,
+      "path": "scripts/batched-list-enrichment-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy better sqlite3 driver closeout contract.",
+      "id": "legacy.better.sqlite3.driver.closeout",
+      "legacy": true,
+      "path": "scripts/better-sqlite3-driver-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "closeout",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy better sqlite3 helper core contract.",
+      "id": "legacy.better.sqlite3.helper.core",
+      "legacy": true,
+      "path": "scripts/better-sqlite3-helper-core-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "docs"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy better sqlite3 install smoke contract.",
+      "id": "legacy.better.sqlite3.install.smoke",
+      "legacy": true,
+      "path": "scripts/better-sqlite3-install-smoke.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy bump version contract.",
+      "id": "legacy.bump.version",
+      "legacy": true,
+      "path": "scripts/bump-version-regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy check js contract.",
+      "id": "legacy.check.js",
+      "legacy": true,
+      "path": "scripts/check-js.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "release",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy client modal footer actions contract.",
+      "id": "legacy.client.modal.footer.actions",
+      "legacy": true,
+      "path": "scripts/client-modal-footer-actions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy client picker hierarchy contract.",
+      "id": "legacy.client.picker.hierarchy",
+      "legacy": true,
+      "path": "scripts/client-picker-hierarchy-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy client project hierarchy branch closeout contract.",
+      "id": "legacy.client.project.hierarchy.branch.closeout",
+      "legacy": true,
+      "path": "scripts/client-project-hierarchy-branch-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "closeout"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy client projects bugfix contract.",
+      "id": "legacy.client.projects.bugfix",
+      "legacy": true,
+      "path": "scripts/client-projects-bugfix-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy client projects canonical payload contract.",
+      "id": "legacy.client.projects.canonical.payload",
+      "legacy": true,
+      "path": "scripts/client-projects-canonical-payload-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy client projects repositories conversion contract.",
+      "id": "legacy.client.projects.repositories.conversion",
+      "legacy": true,
+      "path": "scripts/client-projects-repositories-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy clients projects action registration contract.",
+      "id": "legacy.clients.projects.action.registration",
+      "legacy": true,
+      "path": "scripts/clients-projects-action-registration-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy clients projects bulk toolbar contract.",
+      "id": "legacy.clients.projects.bulk.toolbar",
+      "legacy": true,
+      "path": "scripts/clients-projects-bulk-toolbar-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy clients projects framework read anatomy contract.",
+      "id": "legacy.clients.projects.framework.read.anatomy",
+      "legacy": true,
+      "path": "scripts/clients-projects-framework-read-anatomy-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy clients projects hierarchy reparent contract.",
+      "id": "legacy.clients.projects.hierarchy.reparent",
+      "legacy": true,
+      "path": "scripts/clients-projects-hierarchy-reparent-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy clients projects read descriptor host contract.",
+      "id": "legacy.clients.projects.read.descriptor.host",
+      "legacy": true,
+      "path": "scripts/clients-projects-read-descriptor-host-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy clients projects related regions contract.",
+      "id": "legacy.clients.projects.related.regions",
+      "legacy": true,
+      "path": "scripts/clients-projects-related-regions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy clients projects strict guardrail inventory contract.",
+      "id": "legacy.clients.projects.strict.guardrail.inventory",
+      "legacy": true,
+      "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "contract",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "dashboard",
+      "description": "Protects the legacy dashboard workbench contract.",
+      "id": "legacy.dashboard.workbench",
+      "legacy": true,
+      "path": "scripts/dashboard-workbench-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database adapter contract contract.",
+      "id": "legacy.database.adapter.contract",
+      "legacy": true,
+      "path": "scripts/database-adapter-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "contract",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database boolean time seam contract.",
+      "id": "legacy.database.boolean.time.seam",
+      "legacy": true,
+      "path": "scripts/database-boolean-time-seam-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database case insensitive seam contract.",
+      "id": "legacy.database.case.insensitive.seam",
+      "legacy": true,
+      "path": "scripts/database-case-insensitive-seam-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database conflict identity seam contract.",
+      "id": "legacy.database.conflict.identity.seam",
+      "legacy": true,
+      "path": "scripts/database-conflict-identity-seam-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database dialect seam scaffold contract.",
+      "id": "legacy.database.dialect.seam.scaffold",
+      "legacy": true,
+      "path": "scripts/database-dialect-seam-scaffold-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database introspection boundary contract.",
+      "id": "legacy.database.introspection.boundary",
+      "legacy": true,
+      "path": "scripts/database-introspection-boundary-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database migration locking contract.",
+      "id": "legacy.database.migration.locking",
+      "legacy": true,
+      "path": "scripts/database-migration-locking-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database parameterized query pilot contract.",
+      "id": "legacy.database.parameterized.query.pilot",
+      "legacy": true,
+      "path": "scripts/database-parameterized-query-pilot-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database result fidelity contract.",
+      "id": "legacy.database.result.fidelity",
+      "legacy": true,
+      "path": "scripts/database-result-fidelity-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy database transaction helper contract.",
+      "id": "legacy.database.transaction.helper",
+      "legacy": true,
+      "path": "scripts/database-transaction-helper-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy dialect enforcement guardrail contract.",
+      "id": "legacy.dialect.enforcement.guardrail",
+      "legacy": true,
+      "path": "scripts/dialect-enforcement-guardrail-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy drawer main surface contract contract.",
+      "id": "legacy.drawer.main.surface.contract",
+      "legacy": true,
+      "path": "scripts/drawer-main-surface-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy event bus contract.",
+      "id": "legacy.event.bus",
+      "legacy": true,
+      "path": "scripts/event-bus-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file api lifecycle contract.",
+      "id": "legacy.file.api.lifecycle",
+      "legacy": true,
+      "path": "scripts/file-api-lifecycle-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file clamd adapter contract.",
+      "id": "legacy.file.clamd.adapter",
+      "legacy": true,
+      "path": "scripts/file-clamd-adapter-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file clamscan adapter contract.",
+      "id": "legacy.file.clamscan.adapter",
+      "legacy": true,
+      "path": "scripts/file-clamscan-adapter-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file framework contract contract.",
+      "id": "legacy.file.framework.contract",
+      "legacy": true,
+      "path": "scripts/file-framework-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "contract",
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file multipart batch upload helper contract.",
+      "id": "legacy.file.multipart.batch.upload.helper",
+      "legacy": true,
+      "path": "scripts/file-multipart-batch-upload-helper-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "docs",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file multipart upload route contract.",
+      "id": "legacy.file.multipart.upload.route",
+      "legacy": true,
+      "path": "scripts/file-multipart-upload-route-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file s3 diagnostics signed url boundary contract.",
+      "id": "legacy.file.s3.diagnostics.signed.url.boundary",
+      "legacy": true,
+      "path": "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file s3 object operation proof contract.",
+      "id": "legacy.file.s3.object.operation.proof",
+      "legacy": true,
+      "path": "scripts/file-s3-object-operation-proof-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file s3 provider registration contract.",
+      "id": "legacy.file.s3.provider.registration",
+      "legacy": true,
+      "path": "scripts/file-s3-provider-registration-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file scan job handoff contract.",
+      "id": "legacy.file.scan.job.handoff",
+      "legacy": true,
+      "path": "scripts/file-scan-job-handoff-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file scanner health diagnostics contract.",
+      "id": "legacy.file.scanner.health.diagnostics",
+      "legacy": true,
+      "path": "scripts/file-scanner-health-diagnostics-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file scanner mode resolver contract.",
+      "id": "legacy.file.scanner.mode.resolver",
+      "legacy": true,
+      "path": "scripts/file-scanner-mode-resolver-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file scanner setup docs contract.",
+      "id": "legacy.file.scanner.setup.docs",
+      "legacy": true,
+      "path": "scripts/file-scanner-setup-docs-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "docs",
+        "files",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file settings contract.",
+      "id": "legacy.file.settings",
+      "legacy": true,
+      "path": "scripts/file-settings-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file storage accounting contract.",
+      "id": "legacy.file.storage.accounting",
+      "legacy": true,
+      "path": "scripts/file-storage-accounting-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file storage diagnostics contract.",
+      "id": "legacy.file.storage.diagnostics",
+      "legacy": true,
+      "path": "scripts/file-storage-diagnostics-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file storage provider configuration contract.",
+      "id": "legacy.file.storage.provider.configuration",
+      "legacy": true,
+      "path": "scripts/file-storage-provider-configuration-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file storage quota enforcement contract.",
+      "id": "legacy.file.storage.quota.enforcement",
+      "legacy": true,
+      "path": "scripts/file-storage-quota-enforcement-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file storage streaming contract contract.",
+      "id": "legacy.file.storage.streaming.contract",
+      "legacy": true,
+      "path": "scripts/file-storage-streaming-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "contract",
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file streamed validation download metadata contract.",
+      "id": "legacy.file.streamed.validation.download.metadata",
+      "legacy": true,
+      "path": "scripts/file-streamed-validation-download-metadata-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file ui integration contract.",
+      "id": "legacy.file.ui.integration",
+      "legacy": true,
+      "path": "scripts/file-ui-integration-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy file upload compatibility error hardening contract.",
+      "id": "legacy.file.upload.compatibility.error.hardening",
+      "legacy": true,
+      "path": "scripts/file-upload-compatibility-error-hardening-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files attachable target options contract.",
+      "id": "legacy.files.attachable.target.options",
+      "legacy": true,
+      "path": "scripts/files-attachable-target-options-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files attachment context route contract.",
+      "id": "legacy.files.attachment.context.route",
+      "legacy": true,
+      "path": "scripts/files-attachment-context-route-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files attachment panel shell contract.",
+      "id": "legacy.files.attachment.panel.shell",
+      "legacy": true,
+      "path": "scripts/files-attachment-panel-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files attachment readmodel contract.",
+      "id": "legacy.files.attachment.readmodel",
+      "legacy": true,
+      "path": "scripts/files-attachment-readmodel-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files browse attachment reads conversion contract.",
+      "id": "legacy.files.browse.attachment.reads.conversion",
+      "legacy": true,
+      "path": "scripts/files-browse-attachment-reads-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files browse compact reset contract.",
+      "id": "legacy.files.browse.compact.reset",
+      "legacy": true,
+      "path": "scripts/files-browse-compact-reset-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files browse list shell contract.",
+      "id": "legacy.files.browse.list.shell",
+      "legacy": true,
+      "path": "scripts/files-browse-list-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files context targets conversion contract.",
+      "id": "legacy.files.context.targets.conversion",
+      "legacy": true,
+      "path": "scripts/files-context-targets-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files descriptor host contract.",
+      "id": "legacy.files.descriptor.host",
+      "legacy": true,
+      "path": "scripts/files-descriptor-host-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files edit modal save contract.",
+      "id": "legacy.files.edit.modal.save",
+      "legacy": true,
+      "path": "scripts/files-edit-modal-save-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files edit modal shell contract.",
+      "id": "legacy.files.edit.modal.shell",
+      "legacy": true,
+      "path": "scripts/files-edit-modal-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files filter sidebar contract.",
+      "id": "legacy.files.filter.sidebar",
+      "legacy": true,
+      "path": "scripts/files-filter-sidebar-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files lifecycle settings quota conversion contract.",
+      "id": "legacy.files.lifecycle.settings.quota.conversion",
+      "legacy": true,
+      "path": "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files preview availability route contract.",
+      "id": "legacy.files.preview.availability.route",
+      "legacy": true,
+      "path": "scripts/files-preview-availability-route-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files preview content route contract.",
+      "id": "legacy.files.preview.content.route",
+      "legacy": true,
+      "path": "scripts/files-preview-content-route-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-files",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files preview modal contract.",
+      "id": "legacy.files.preview.modal",
+      "legacy": true,
+      "path": "scripts/files-preview-modal-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files row attachment actions contract.",
+      "id": "legacy.files.row.attachment.actions",
+      "legacy": true,
+      "path": "scripts/files-row-attachment-actions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files strict guardrail inventory contract.",
+      "id": "legacy.files.strict.guardrail.inventory",
+      "legacy": true,
+      "path": "scripts/files-strict-guardrail-inventory-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract",
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files time tracking qol closeout contract.",
+      "id": "legacy.files.time.tracking.qol.closeout",
+      "legacy": true,
+      "path": "scripts/files-time-tracking-qol-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "closeout",
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files upload shell contract.",
+      "id": "legacy.files.upload.shell",
+      "legacy": true,
+      "path": "scripts/files-upload-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy files visual state control parity contract.",
+      "id": "legacy.files.visual.state.control.parity",
+      "legacy": true,
+      "path": "scripts/files-visual-state-control-parity-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy framework admin low count repositories conversion contract.",
+      "id": "legacy.framework.admin.low.count.repositories.conversion",
+      "legacy": true,
+      "path": "scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy fresh database contract.",
+      "id": "legacy.fresh.database",
+      "legacy": true,
+      "path": "scripts/fresh-database-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "baseline-bypass",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the legacy help center surface contract.",
+      "id": "legacy.help.center.surface",
+      "legacy": true,
+      "path": "scripts/help-center-surface-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the legacy help content contract.",
+      "id": "legacy.help.content",
+      "legacy": true,
+      "path": "scripts/help-content-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the legacy help contract contract.",
+      "id": "legacy.help.contract",
+      "legacy": true,
+      "path": "scripts/help-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "contract",
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the legacy help markdown source layout contract.",
+      "id": "legacy.help.markdown.source.layout",
+      "legacy": true,
+      "path": "scripts/help-markdown-source-layout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the legacy help navigation boundary contract.",
+      "id": "legacy.help.navigation.boundary",
+      "legacy": true,
+      "path": "scripts/help-navigation-boundary-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the legacy help search contract.",
+      "id": "legacy.help.search",
+      "legacy": true,
+      "path": "scripts/help-search-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the legacy help workflow contract.",
+      "id": "legacy.help.workflow",
+      "legacy": true,
+      "path": "scripts/help-workflow-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy high volume admin lists contract.",
+      "id": "legacy.high.volume.admin.lists",
+      "legacy": true,
+      "path": "scripts/high-volume-admin-lists-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Protects the legacy icon accessibility contract contract.",
+      "id": "legacy.icon.accessibility.contract",
+      "legacy": true,
+      "path": "scripts/icon-accessibility-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract",
+        "permissions"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy icon control conversion contract.",
+      "id": "legacy.icon.control.conversion",
+      "legacy": true,
+      "path": "scripts/icon-control-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy interpolation enforcement guardrail contract.",
+      "id": "legacy.interpolation.enforcement.guardrail",
+      "legacy": true,
+      "path": "scripts/interpolation-enforcement-guardrail-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "jobs",
+      "description": "Protects the legacy job claiming locking contract.",
+      "id": "legacy.job.claiming.locking",
+      "legacy": true,
+      "path": "scripts/job-claiming-locking-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "jobs",
+      "description": "Protects the legacy job idempotency at least once contract.",
+      "id": "legacy.job.idempotency.at.least.once",
+      "legacy": true,
+      "path": "scripts/job-idempotency-at-least-once-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "jobs",
+      "description": "Protects the legacy job outbox schema contract.",
+      "id": "legacy.job.outbox.schema",
+      "legacy": true,
+      "path": "scripts/job-outbox-schema-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "jobs",
+      "description": "Protects the legacy job retention pruning contract.",
+      "id": "legacy.job.retention.pruning",
+      "legacy": true,
+      "path": "scripts/job-retention-pruning-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy legacy cleanup contract.",
+      "id": "legacy.legacy.cleanup",
+      "legacy": true,
+      "path": "scripts/legacy-cleanup-regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy linked context client project label sort contract.",
+      "id": "legacy.linked.context.client.project.label.sort",
+      "legacy": true,
+      "path": "scripts/linked-context-client-project-label-sort-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy linked context client scope picker contract.",
+      "id": "legacy.linked.context.client.scope.picker",
+      "legacy": true,
+      "path": "scripts/linked-context-client-scope-picker-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "permissions"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy linked context note list label contract.",
+      "id": "legacy.linked.context.note.list.label",
+      "legacy": true,
+      "path": "scripts/linked-context-note-list-label-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy linked context picker shell contract.",
+      "id": "legacy.linked.context.picker.shell",
+      "legacy": true,
+      "path": "scripts/linked-context-picker-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy linked context provider contract contract.",
+      "id": "legacy.linked.context.provider.contract",
+      "legacy": true,
+      "path": "scripts/linked-context-provider-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy linked context task label sort contract.",
+      "id": "legacy.linked.context.task.label.sort",
+      "legacy": true,
+      "path": "scripts/linked-context-task-label-sort-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy linked context unavailable fallback contract.",
+      "id": "legacy.linked.context.unavailable.fallback",
+      "legacy": true,
+      "path": "scripts/linked-context-unavailable-fallback-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists api contract.",
+      "id": "legacy.lists.api",
+      "legacy": true,
+      "path": "scripts/lists-api-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists catalog links repository conversion contract.",
+      "id": "legacy.lists.catalog.links.repository.conversion",
+      "legacy": true,
+      "path": "scripts/lists-catalog-links-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists closeout contract.",
+      "id": "legacy.lists.closeout",
+      "legacy": true,
+      "path": "scripts/lists-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "closeout",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists declarative readonly surface contract.",
+      "id": "legacy.lists.declarative.readonly.surface",
+      "legacy": true,
+      "path": "scripts/lists-declarative-readonly-surface-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists foundation contract.",
+      "id": "legacy.lists.foundation",
+      "legacy": true,
+      "path": "scripts/lists-foundation-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists items modals descriptor contract.",
+      "id": "legacy.lists.items.modals.descriptor",
+      "legacy": true,
+      "path": "scripts/lists-items-modals-descriptor-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists query suggestions contract.",
+      "id": "legacy.lists.query.suggestions",
+      "legacy": true,
+      "path": "scripts/lists-query-suggestions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists records items repository conversion contract.",
+      "id": "legacy.lists.records.items.repository.conversion",
+      "legacy": true,
+      "path": "scripts/lists-records-items-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists service contract.",
+      "id": "legacy.lists.service",
+      "legacy": true,
+      "path": "scripts/lists-service-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists ui workflow contract.",
+      "id": "legacy.lists.ui.workflow",
+      "legacy": true,
+      "path": "scripts/lists-ui-workflow-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists view builder pilot contract.",
+      "id": "legacy.lists.view.builder.pilot",
+      "legacy": true,
+      "path": "scripts/lists-view-builder-pilot-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "lists",
+      "description": "Protects the legacy lists workflow linked layout contract.",
+      "id": "legacy.lists.workflow.linked.layout",
+      "legacy": true,
+      "path": "scripts/lists-workflow-linked-layout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy markdown platform contract contract.",
+      "id": "legacy.markdown.platform.contract",
+      "legacy": true,
+      "path": "scripts/markdown-platform-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract",
+        "docs"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy markdown renderer service contract.",
+      "id": "legacy.markdown.renderer.service",
+      "legacy": true,
+      "path": "scripts/markdown-renderer-service-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "docs"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy migration compatibility contract.",
+      "id": "legacy.migration.compatibility",
+      "legacy": true,
+      "path": "scripts/migration-compatibility-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy modal action standardization contract contract.",
+      "id": "legacy.modal.action.standardization.contract",
+      "legacy": true,
+      "path": "scripts/modal-action-standardization-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy modal footer contract contract.",
+      "id": "legacy.modal.footer.contract",
+      "legacy": true,
+      "path": "scripts/modal-footer-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy modal section contract contract.",
+      "id": "legacy.modal.section.contract",
+      "legacy": true,
+      "path": "scripts/modal-section-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy module actions contract.",
+      "id": "legacy.module.actions",
+      "legacy": true,
+      "path": "scripts/module-actions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy module sanity contract.",
+      "id": "legacy.module.sanity",
+      "legacy": true,
+      "path": "scripts/module-sanity-check.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes access contract contract.",
+      "id": "legacy.notes.access.contract",
+      "legacy": true,
+      "path": "scripts/notes-access-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "contract",
+        "database",
+        "permissions"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes api service contract.",
+      "id": "legacy.notes.api.service",
+      "legacy": true,
+      "path": "scripts/notes-api-service-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes collections contract.",
+      "id": "legacy.notes.collections",
+      "legacy": true,
+      "path": "scripts/notes-collections-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes context terminology contract.",
+      "id": "legacy.notes.context.terminology",
+      "legacy": true,
+      "path": "scripts/notes-context-terminology-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes declarative readonly surface contract.",
+      "id": "legacy.notes.declarative.readonly.surface",
+      "legacy": true,
+      "path": "scripts/notes-declarative-readonly-surface-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes developer docs contract.",
+      "id": "legacy.notes.developer.docs",
+      "legacy": true,
+      "path": "scripts/notes-developer-docs-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "docs"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes external markdown links preference contract.",
+      "id": "legacy.notes.external.markdown.links.preference",
+      "legacy": true,
+      "path": "scripts/notes-external-markdown-links-preference-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "docs"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes file preview actions contract.",
+      "id": "legacy.notes.file.preview.actions",
+      "legacy": true,
+      "path": "scripts/notes-file-preview-actions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes files hierarchy scope contract.",
+      "id": "legacy.notes.files.hierarchy.scope",
+      "legacy": true,
+      "path": "scripts/notes-files-hierarchy-scope-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files",
+        "permissions"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes files stacked modal contract.",
+      "id": "legacy.notes.files.stacked.modal",
+      "legacy": true,
+      "path": "scripts/notes-files-stacked-modal-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes foundation contract.",
+      "id": "legacy.notes.foundation",
+      "legacy": true,
+      "path": "scripts/notes-foundation-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes integration closeout contract.",
+      "id": "legacy.notes.integration.closeout",
+      "legacy": true,
+      "path": "scripts/notes-integration-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "closeout",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes linked panel contract.",
+      "id": "legacy.notes.linked.panel",
+      "legacy": true,
+      "path": "scripts/notes-linked-panel-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "public-api",
+      "description": "Protects the legacy notes lists tags api scope contract.",
+      "id": "legacy.notes.lists.tags.api.scope",
+      "legacy": true,
+      "path": "scripts/notes-lists-tags-api-scope-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "permissions"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes markdown revision contract.",
+      "id": "legacy.notes.markdown.revision",
+      "legacy": true,
+      "path": "scripts/notes-markdown-revision-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes markdown soft break contract.",
+      "id": "legacy.notes.markdown.soft.break",
+      "legacy": true,
+      "path": "scripts/notes-markdown-soft-break-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes modal stack guardrails contract.",
+      "id": "legacy.notes.modal.stack.guardrails",
+      "legacy": true,
+      "path": "scripts/notes-modal-stack-guardrails-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes notification follow contract.",
+      "id": "legacy.notes.notification.follow",
+      "legacy": true,
+      "path": "scripts/notes-notification-follow-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes preview editor contract.",
+      "id": "legacy.notes.preview.editor",
+      "legacy": true,
+      "path": "scripts/notes-preview-editor-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes primary context contract.",
+      "id": "legacy.notes.primary.context",
+      "legacy": true,
+      "path": "scripts/notes-primary-context-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes records filters repository conversion contract.",
+      "id": "legacy.notes.records.filters.repository.conversion",
+      "legacy": true,
+      "path": "scripts/notes-records-filters-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes search help contract.",
+      "id": "legacy.notes.search.help",
+      "legacy": true,
+      "path": "scripts/notes-search-help-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "docs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes secure contract.",
+      "id": "legacy.notes.secure",
+      "legacy": true,
+      "path": "scripts/notes-secure-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "permissions"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes server side list paging contract.",
+      "id": "legacy.notes.server.side.list.paging",
+      "legacy": true,
+      "path": "scripts/notes-server-side-list-paging-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes tags stacked modal contract.",
+      "id": "legacy.notes.tags.stacked.modal",
+      "legacy": true,
+      "path": "scripts/notes-tags-stacked-modal-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes task context contract.",
+      "id": "legacy.notes.task.context",
+      "legacy": true,
+      "path": "scripts/notes-task-context-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes tasks modal footer visual parity contract.",
+      "id": "legacy.notes.tasks.modal.footer.visual.parity",
+      "legacy": true,
+      "path": "scripts/notes-tasks-modal-footer-visual-parity-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes ui workflow contract.",
+      "id": "legacy.notes.ui.workflow",
+      "legacy": true,
+      "path": "scripts/notes-ui-workflow-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notes",
+      "description": "Protects the legacy notes writes revisions links collections repository conversion contract.",
+      "id": "legacy.notes.writes.revisions.links.collections.repository.conversion",
+      "legacy": true,
+      "path": "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "notifications",
+      "description": "Protects the legacy notification jobs contract.",
+      "id": "legacy.notification.jobs",
+      "legacy": true,
+      "path": "scripts/notification-jobs-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy notification contract.",
+      "id": "legacy.notification",
+      "legacy": true,
+      "path": "scripts/notification-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notifications",
+      "description": "Protects the legacy notifications inbox lifecycle conversion contract.",
+      "id": "legacy.notifications.inbox.lifecycle.conversion",
+      "legacy": true,
+      "path": "scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "notifications",
+      "description": "Protects the legacy notifications preferences subscriptions conversion contract.",
+      "id": "legacy.notifications.preferences.subscriptions.conversion",
+      "legacy": true,
+      "path": "scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy overlay host contract contract.",
+      "id": "legacy.overlay.host.contract",
+      "legacy": true,
+      "path": "scripts/overlay-host-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy parameter binding audit contract.",
+      "id": "legacy.parameter.binding.audit",
+      "legacy": true,
+      "path": "scripts/parameter-binding-audit-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy parameter binding conversion wave contract.",
+      "id": "legacy.parameter.binding.conversion.wave",
+      "legacy": true,
+      "path": "scripts/parameter-binding-conversion-wave-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy parameter binding layer contract.",
+      "id": "legacy.parameter.binding.layer",
+      "legacy": true,
+      "path": "scripts/parameter-binding-layer-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy performance contract.",
+      "id": "legacy.performance",
+      "legacy": true,
+      "path": "scripts/performance-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "permissions",
+      "description": "Protects the legacy personal family workspace scope contract.",
+      "id": "legacy.personal.family.workspace.scope",
+      "legacy": true,
+      "path": "scripts/personal-family-workspace-scope-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "permissions"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy project default assignee contract.",
+      "id": "legacy.project.default.assignee",
+      "legacy": true,
+      "path": "scripts/project-default-assignee-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy project hierarchy move contract.",
+      "id": "legacy.project.hierarchy.move",
+      "legacy": true,
+      "path": "scripts/project-hierarchy-move-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "public-api",
+      "description": "Protects the legacy public api client project write contract.",
+      "id": "legacy.public.api.client.project.write",
+      "legacy": true,
+      "path": "scripts/public-api-client-project-write-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy quick action capture contract.",
+      "id": "legacy.quick.action.capture",
+      "legacy": true,
+      "path": "scripts/quick-action-capture-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy quick action opener rollout contract.",
+      "id": "legacy.quick.action.opener.rollout",
+      "legacy": true,
+      "path": "scripts/quick-action-opener-rollout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy regression clean clone contract contract.",
+      "id": "legacy.regression.clean.clone.contract",
+      "legacy": true,
+      "path": "scripts/regression-clean-clone-contract.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "contract",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy regression coverage ratchet contract.",
+      "id": "legacy.regression.coverage.ratchet",
+      "legacy": true,
+      "path": "scripts/regression-coverage-ratchet.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy regression runner contract.",
+      "id": "legacy.regression.runner",
+      "legacy": true,
+      "path": "scripts/regression-runner-regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy regression suite inventory contract.",
+      "id": "legacy.regression.suite.inventory",
+      "legacy": true,
+      "path": "scripts/regression-suite-inventory-regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves one application-derived asset version decorates served pages, runtime loaders, and module assets while raw keys stay guarded.",
+      "id": "framework.asset-cache-version",
+      "legacy": false,
+      "path": "scripts/regressions/framework/asset-cache-version.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "assets",
+        "cache",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves metadata-driven regression discovery preserves the legacy suite and safe execution modes.",
+      "id": "release.regression-discovery-runner",
+      "legacy": false,
+      "path": "scripts/regressions/release/regression-discovery-runner.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "discovery",
+        "metadata",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the generated regression coverage index and explicit exception policy prevent silent coverage loss.",
+      "id": "release.regression-manifest-generation",
+      "legacy": false,
+      "path": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "coverage",
+        "manifest",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves narrow package commands and conservative changed-file routing retain the full release gate.",
+      "id": "release.regression-routing-commands",
+      "legacy": false,
+      "path": "scripts/regressions/release/regression-routing-commands.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "commands",
+        "release",
+        "routing"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy remaining icon actions contract.",
+      "id": "legacy.remaining.icon.actions",
+      "legacy": true,
+      "path": "scripts/remaining-icon-actions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy runtime configuration contract contract.",
+      "id": "legacy.runtime.configuration.contract",
+      "legacy": true,
+      "path": "scripts/runtime-configuration-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy runtime diagnostics route contract.",
+      "id": "legacy.runtime.diagnostics.route",
+      "legacy": true,
+      "path": "scripts/runtime-diagnostics-route-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy runtime env loading contract.",
+      "id": "legacy.runtime.env.loading",
+      "legacy": true,
+      "path": "scripts/runtime-env-loading-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy runtime local env materialization contract.",
+      "id": "legacy.runtime.local.env.materialization",
+      "legacy": true,
+      "path": "scripts/runtime-local-env-materialization-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy scale seed framework contract.",
+      "id": "legacy.scale.seed.framework",
+      "legacy": true,
+      "path": "scripts/scale-seed-framework-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search adapter rebuild service conversion contract.",
+      "id": "legacy.search.adapter.rebuild.service.conversion",
+      "legacy": true,
+      "path": "scripts/search-adapter-rebuild-service-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search api contract.",
+      "id": "legacy.search.api",
+      "legacy": true,
+      "path": "scripts/search-api-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search contract contract.",
+      "id": "legacy.search.contract",
+      "legacy": true,
+      "path": "scripts/search-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-database",
+      "tags": [
+        "contract",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search fts repair contract.",
+      "id": "legacy.search.fts.repair",
+      "legacy": true,
+      "path": "scripts/search-fts-repair-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search fts seam contract.",
+      "id": "legacy.search.fts.seam",
+      "legacy": true,
+      "path": "scripts/search-fts-seam-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search index jobs contract.",
+      "id": "legacy.search.index.jobs",
+      "legacy": true,
+      "path": "scripts/search-index-jobs-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search index sync contract.",
+      "id": "legacy.search.index.sync",
+      "legacy": true,
+      "path": "scripts/search-index-sync-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search lifecycle contract.",
+      "id": "legacy.search.lifecycle",
+      "legacy": true,
+      "path": "scripts/search-lifecycle-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search rebuild contract.",
+      "id": "legacy.search.rebuild",
+      "legacy": true,
+      "path": "scripts/search-rebuild-regression.mjs",
+      "releaseGate": false,
+      "runMode": "serial-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search results page contract.",
+      "id": "legacy.search.results.page",
+      "legacy": true,
+      "path": "scripts/search-results-page-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search shell contract.",
+      "id": "legacy.search.shell",
+      "legacy": true,
+      "path": "scripts/search-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "search",
+      "description": "Protects the legacy search workflow contract.",
+      "id": "legacy.search.workflow",
+      "legacy": true,
+      "path": "scripts/search-workflow-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "jobs",
+      "description": "Protects the legacy separate worker end to end contract.",
+      "id": "legacy.separate.worker.end.to.end",
+      "legacy": true,
+      "path": "scripts/separate-worker-end-to-end-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs",
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy shared icons contract.",
+      "id": "legacy.shared.icons",
+      "legacy": true,
+      "path": "scripts/shared-icons-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy sqlite connection hardening contract.",
+      "id": "legacy.sqlite.connection.hardening",
+      "legacy": true,
+      "path": "scripts/sqlite-connection-hardening-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy sqlite small office performance contract.",
+      "id": "legacy.sqlite.small.office.performance",
+      "legacy": true,
+      "path": "scripts/sqlite-small-office-performance-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "slow"
+      ],
+      "tier": "slow"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy sqlite small office readout contract.",
+      "id": "legacy.sqlite.small.office.readout",
+      "legacy": true,
+      "path": "scripts/sqlite-small-office-readout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Protects the legacy startup maintenance compatibility contract.",
+      "id": "legacy.startup.maintenance.compatibility",
+      "legacy": true,
+      "path": "scripts/startup-maintenance-compatibility-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy static contract closeout contract.",
+      "id": "legacy.static.contract.closeout",
+      "legacy": true,
+      "path": "scripts/static-contract-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy surface adoption pass contract.",
+      "id": "legacy.surface.adoption.pass",
+      "legacy": true,
+      "path": "scripts/surface-adoption-pass-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy surface token contract contract.",
+      "id": "legacy.surface.token.contract",
+      "legacy": true,
+      "path": "scripts/surface-token-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag bulk assignment contract.",
+      "id": "legacy.tag.bulk.assignment",
+      "legacy": true,
+      "path": "scripts/tag-bulk-assignment-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag core records contract.",
+      "id": "legacy.tag.core.records",
+      "legacy": true,
+      "path": "scripts/tag-core-records-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag inline picker contract.",
+      "id": "legacy.tag.inline.picker",
+      "legacy": true,
+      "path": "scripts/tag-inline-picker-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag management page contract.",
+      "id": "legacy.tag.management.page",
+      "legacy": true,
+      "path": "scripts/tag-management-page-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag propagation contract contract.",
+      "id": "legacy.tag.propagation.contract",
+      "legacy": true,
+      "path": "scripts/tag-propagation-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "contract",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag propagation foundation contract.",
+      "id": "legacy.tag.propagation.foundation",
+      "legacy": true,
+      "path": "scripts/tag-propagation-foundation-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag propagation paths contract.",
+      "id": "legacy.tag.propagation.paths",
+      "legacy": true,
+      "path": "scripts/tag-propagation-paths-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag propagation service conversion contract.",
+      "id": "legacy.tag.propagation.service.conversion",
+      "legacy": true,
+      "path": "scripts/tag-propagation-service-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag record workflow contract.",
+      "id": "legacy.tag.record.workflow",
+      "legacy": true,
+      "path": "scripts/tag-record-workflow-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag service contract.",
+      "id": "legacy.tag.service",
+      "legacy": true,
+      "path": "scripts/tag-service-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tag usability ui contract.",
+      "id": "legacy.tag.usability.ui",
+      "legacy": true,
+      "path": "scripts/tag-usability-ui-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tags",
+      "description": "Protects the legacy tags repository conversion contract.",
+      "id": "legacy.tags.repository.conversion",
+      "legacy": true,
+      "path": "scripts/tags-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task activity metrics contract.",
+      "id": "legacy.task.activity.metrics",
+      "legacy": true,
+      "path": "scripts/task-activity-metrics-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task bulk due tags contract.",
+      "id": "legacy.task.bulk.due.tags",
+      "legacy": true,
+      "path": "scripts/task-bulk-due-tags-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task canonical query contract.",
+      "id": "legacy.task.canonical.query",
+      "legacy": true,
+      "path": "scripts/task-canonical-query-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task checklist editor display contract.",
+      "id": "legacy.task.checklist.editor.display",
+      "legacy": true,
+      "path": "scripts/task-checklist-editor-display-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task checklist contract.",
+      "id": "legacy.task.checklist",
+      "legacy": true,
+      "path": "scripts/task-checklist-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task checklists repository conversion contract.",
+      "id": "legacy.task.checklists.repository.conversion",
+      "legacy": true,
+      "path": "scripts/task-checklists-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task list canonical ui contract.",
+      "id": "legacy.task.list.canonical.ui",
+      "legacy": true,
+      "path": "scripts/task-list-canonical-ui-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task list density contract.",
+      "id": "legacy.task.list.density",
+      "legacy": true,
+      "path": "scripts/task-list-density-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task modal compact layout contract.",
+      "id": "legacy.task.modal.compact.layout",
+      "legacy": true,
+      "path": "scripts/task-modal-compact-layout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task modal complete action contract.",
+      "id": "legacy.task.modal.complete.action",
+      "legacy": true,
+      "path": "scripts/task-modal-complete-action-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task modal followup contract.",
+      "id": "legacy.task.modal.followup",
+      "legacy": true,
+      "path": "scripts/task-modal-followup-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task modal reflow contract.",
+      "id": "legacy.task.modal.reflow",
+      "legacy": true,
+      "path": "scripts/task-modal-reflow-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task options payload contract.",
+      "id": "legacy.task.options.payload",
+      "legacy": true,
+      "path": "scripts/task-options-payload-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task qol closeout contract.",
+      "id": "legacy.task.qol.closeout",
+      "legacy": true,
+      "path": "scripts/task-qol-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "closeout",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task recurrence checklist propagation contract.",
+      "id": "legacy.task.recurrence.checklist.propagation",
+      "legacy": true,
+      "path": "scripts/task-recurrence-checklist-propagation-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task recurrence frequency contract.",
+      "id": "legacy.task.recurrence.frequency",
+      "legacy": true,
+      "path": "scripts/task-recurrence-frequency-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task recurrence linked note propagation contract.",
+      "id": "legacy.task.recurrence.linked.note.propagation",
+      "legacy": true,
+      "path": "scripts/task-recurrence-linked-note-propagation-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task recurrence reminders repository conversion contract.",
+      "id": "legacy.task.recurrence.reminders.repository.conversion",
+      "legacy": true,
+      "path": "scripts/task-recurrence-reminders-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task relationships contract.",
+      "id": "legacy.task.relationships",
+      "legacy": true,
+      "path": "scripts/task-relationships-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task relationships repository conversion contract.",
+      "id": "legacy.task.relationships.repository.conversion",
+      "legacy": true,
+      "path": "scripts/task-relationships-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task reminder notification delivery contract.",
+      "id": "legacy.task.reminder.notification.delivery",
+      "legacy": true,
+      "path": "scripts/task-reminder-notification-delivery-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task reminder scheduling horizon contract.",
+      "id": "legacy.task.reminder.scheduling.horizon",
+      "legacy": true,
+      "path": "scripts/task-reminder-scheduling-horizon-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task resume context contract.",
+      "id": "legacy.task.resume.context",
+      "legacy": true,
+      "path": "scripts/task-resume-context-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy task timer status contract.",
+      "id": "legacy.task.timer.status",
+      "legacy": true,
+      "path": "scripts/task-timer-status-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks bulk lifecycle toolbar contract.",
+      "id": "legacy.tasks.bulk.lifecycle.toolbar",
+      "legacy": true,
+      "path": "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks bulk nondestructive toolbar contract.",
+      "id": "legacy.tasks.bulk.nondestructive.toolbar",
+      "legacy": true,
+      "path": "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks bulk toolbar shell contract.",
+      "id": "legacy.tasks.bulk.toolbar.shell",
+      "legacy": true,
+      "path": "scripts/tasks-bulk-toolbar-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks canonical editor opener contract.",
+      "id": "legacy.tasks.canonical.editor.opener",
+      "legacy": true,
+      "path": "scripts/tasks-canonical-editor-opener-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks checklist escape hatch contract.",
+      "id": "legacy.tasks.checklist.escape.hatch",
+      "legacy": true,
+      "path": "scripts/tasks-checklist-escape-hatch-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks declarative readonly surface contract.",
+      "id": "legacy.tasks.declarative.readonly.surface",
+      "legacy": true,
+      "path": "scripts/tasks-declarative-readonly-surface-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks detail read panel contract.",
+      "id": "legacy.tasks.detail.read.panel",
+      "legacy": true,
+      "path": "scripts/tasks-detail-read-panel-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks filter sidebar anatomy contract.",
+      "id": "legacy.tasks.filter.sidebar.anatomy",
+      "legacy": true,
+      "path": "scripts/tasks-filter-sidebar-anatomy-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks lifecycle action descriptor contract.",
+      "id": "legacy.tasks.lifecycle.action.descriptor",
+      "legacy": true,
+      "path": "scripts/tasks-lifecycle-action-descriptor-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks list surface boundary contract.",
+      "id": "legacy.tasks.list.surface.boundary",
+      "legacy": true,
+      "path": "scripts/tasks-list-surface-boundary-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks modal context sections contract.",
+      "id": "legacy.tasks.modal.context.sections",
+      "legacy": true,
+      "path": "scripts/tasks-modal-context-sections-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks modal shell contract.",
+      "id": "legacy.tasks.modal.shell",
+      "legacy": true,
+      "path": "scripts/tasks-modal-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks primary repository conversion contract.",
+      "id": "legacy.tasks.primary.repository.conversion",
+      "legacy": true,
+      "path": "scripts/tasks-primary-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks readonly list binding contract.",
+      "id": "legacy.tasks.readonly.list.binding",
+      "legacy": true,
+      "path": "scripts/tasks-readonly-list-binding-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks recurrence reminder escape hatch contract.",
+      "id": "legacy.tasks.recurrence.reminder.escape.hatch",
+      "legacy": true,
+      "path": "scripts/tasks-recurrence-reminder-escape-hatch-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "jobs"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks relationship linked context contract.",
+      "id": "legacy.tasks.relationship.linked.context",
+      "legacy": true,
+      "path": "scripts/tasks-relationship-linked-context-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks server side list paging contract.",
+      "id": "legacy.tasks.server.side.list.paging",
+      "legacy": true,
+      "path": "scripts/tasks-server-side-list-paging-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks strict guardrail inventory contract.",
+      "id": "legacy.tasks.strict.guardrail.inventory",
+      "legacy": true,
+      "path": "scripts/tasks-strict-guardrail-inventory-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks tags files child dialog contract.",
+      "id": "legacy.tasks.tags.files.child.dialog",
+      "legacy": true,
+      "path": "scripts/tasks-tags-files-child-dialog-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "files"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks timer utility escape hatch contract.",
+      "id": "legacy.tasks.timer.utility.escape.hatch",
+      "legacy": true,
+      "path": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks view selector query contract contract.",
+      "id": "legacy.tasks.view.selector.query.contract",
+      "legacy": true,
+      "path": "scripts/tasks-view-selector-query-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "contract",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Protects the legacy tasks workflow action descriptor contract.",
+      "id": "legacy.tasks.workflow.action.descriptor",
+      "legacy": true,
+      "path": "scripts/tasks-workflow-action-descriptor-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Protects the legacy time entries repository conversion contract.",
+      "id": "legacy.time.entries.repository.conversion",
+      "legacy": true,
+      "path": "scripts/time-entries-repository-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Protects the legacy time entries screen contract.",
+      "id": "legacy.time.entries.screen",
+      "legacy": true,
+      "path": "scripts/time-entries-screen-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Protects the legacy time tracking create timer modal contract.",
+      "id": "legacy.time.tracking.create.timer.modal",
+      "legacy": true,
+      "path": "scripts/time-tracking-create-timer-modal-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Protects the legacy timer resume metadata contract.",
+      "id": "legacy.timer.resume.metadata",
+      "legacy": true,
+      "path": "scripts/timer-resume-metadata-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Protects the legacy timer timestamp integrity contract.",
+      "id": "legacy.timer.timestamp.integrity",
+      "legacy": true,
+      "path": "scripts/timer-timestamp-integrity-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy ui contract contract.",
+      "id": "legacy.ui.contract",
+      "legacy": true,
+      "path": "scripts/ui-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Protects the legacy user theme auto mode contract.",
+      "id": "legacy.user.theme.auto.mode",
+      "legacy": true,
+      "path": "scripts/user-theme-auto-mode-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "release",
+      "description": "Protects the legacy version literal guardrail contract.",
+      "id": "legacy.version.literal.guardrail",
+      "legacy": true,
+      "path": "scripts/version-literal-guardrail-regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "contract",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view builder contract contract.",
+      "id": "legacy.view.builder.contract",
+      "legacy": true,
+      "path": "scripts/view-builder-contract-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view builder converted surface contract.",
+      "id": "legacy.view.builder.converted.surface",
+      "legacy": true,
+      "path": "scripts/view-builder-converted-surface-guardrails.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view builder helper contract.",
+      "id": "legacy.view.builder.helper",
+      "legacy": true,
+      "path": "scripts/view-builder-helper-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "docs"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view descriptor bootstrap contract.",
+      "id": "legacy.view.descriptor.bootstrap",
+      "legacy": true,
+      "path": "scripts/view-descriptor-bootstrap-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view descriptor declarative contract.",
+      "id": "legacy.view.descriptor.declarative",
+      "legacy": true,
+      "path": "scripts/view-descriptor-declarative-guardrails.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view descriptor manifest contract.",
+      "id": "legacy.view.descriptor.manifest",
+      "legacy": true,
+      "path": "scripts/view-descriptor-manifest-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view descriptor reference contract.",
+      "id": "legacy.view.descriptor.reference",
+      "legacy": true,
+      "path": "scripts/view-descriptor-reference-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view descriptor terminology contract.",
+      "id": "legacy.view.descriptor.terminology",
+      "legacy": true,
+      "path": "scripts/view-descriptor-terminology-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view index primitive contract.",
+      "id": "legacy.view.index.primitive",
+      "legacy": true,
+      "path": "scripts/view-index-primitive-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view renderer actions contract.",
+      "id": "legacy.view.renderer.actions",
+      "legacy": true,
+      "path": "scripts/view-renderer-actions-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view renderer data binding contract.",
+      "id": "legacy.view.renderer.data.binding",
+      "legacy": true,
+      "path": "scripts/view-renderer-data-binding-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view renderer shell contract.",
+      "id": "legacy.view.renderer.shell",
+      "legacy": true,
+      "path": "scripts/view-renderer-shell-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Protects the legacy view shared capabilities contract.",
+      "id": "legacy.view.shared.capabilities",
+      "legacy": true,
+      "path": "scripts/view-shared-capabilities-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work candidate service contract.",
+      "id": "legacy.work.candidate.service",
+      "legacy": true,
+      "path": "scripts/work-candidate-service-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work focus modes contract.",
+      "id": "legacy.work.focus.modes",
+      "legacy": true,
+      "path": "scripts/work-focus-modes-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work resume state api contract.",
+      "id": "legacy.work.resume.state.api",
+      "legacy": true,
+      "path": "scripts/work-resume-state-api-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work resume state closeout contract.",
+      "id": "legacy.work.resume.state.closeout",
+      "legacy": true,
+      "path": "scripts/work-resume-state-closeout-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "closeout",
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work resume state conversion contract.",
+      "id": "legacy.work.resume.state.conversion",
+      "legacy": true,
+      "path": "scripts/work-resume-state-conversion-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work resume state initial producers contract.",
+      "id": "legacy.work.resume.state.initial.producers",
+      "legacy": true,
+      "path": "scripts/work-resume-state-initial-producers-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work resume state producer contract.",
+      "id": "legacy.work.resume.state.producer",
+      "legacy": true,
+      "path": "scripts/work-resume-state-producer-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy work resume state service contract.",
+      "id": "legacy.work.resume.state.service",
+      "legacy": true,
+      "path": "scripts/work-resume-state-service-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench collapsible sections contract.",
+      "id": "legacy.workbench.collapsible.sections",
+      "legacy": true,
+      "path": "scripts/workbench-collapsible-sections-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench guided ui contract.",
+      "id": "legacy.workbench.guided.ui",
+      "legacy": true,
+      "path": "scripts/workbench-guided-ui-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench host status copy contract.",
+      "id": "legacy.workbench.host.status.copy",
+      "legacy": true,
+      "path": "scripts/workbench-host-status-copy-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench in place open work contract.",
+      "id": "legacy.workbench.in.place.open.work",
+      "legacy": true,
+      "path": "scripts/workbench-in-place-open-work-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench inspector panel contract.",
+      "id": "legacy.workbench.inspector.panel",
+      "legacy": true,
+      "path": "scripts/workbench-inspector-panel-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench recommended cycling contract.",
+      "id": "legacy.workbench.recommended.cycling",
+      "legacy": true,
+      "path": "scripts/workbench-recommended-cycling-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench remove all tasks list contract.",
+      "id": "legacy.workbench.remove.all.tasks.list",
+      "legacy": true,
+      "path": "scripts/workbench-remove-all-tasks-list-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench remove quick notes contract.",
+      "id": "legacy.workbench.remove.quick.notes",
+      "legacy": true,
+      "path": "scripts/workbench-remove-quick-notes-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench service dehardcode contract.",
+      "id": "legacy.workbench.service.dehardcode",
+      "legacy": true,
+      "path": "scripts/workbench-service-dehardcode-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench split focus filters contract.",
+      "id": "legacy.workbench.split.focus.filters",
+      "legacy": true,
+      "path": "scripts/workbench-split-focus-filters-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench task focus checklist contract.",
+      "id": "legacy.workbench.task.focus.checklist",
+      "legacy": true,
+      "path": "scripts/workbench-task-focus-checklist-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench task focus linked note view contract.",
+      "id": "legacy.workbench.task.focus.linked.note.view",
+      "legacy": true,
+      "path": "scripts/workbench-task-focus-linked-note-view-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench task focus related context contract.",
+      "id": "legacy.workbench.task.focus.related.context",
+      "legacy": true,
+      "path": "scripts/workbench-task-focus-related-context-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench task focus related context ui contract.",
+      "id": "legacy.workbench.task.focus.related.context.ui",
+      "legacy": true,
+      "path": "scripts/workbench-task-focus-related-context-ui-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench task focus surface contract.",
+      "id": "legacy.workbench.task.focus.surface",
+      "legacy": true,
+      "path": "scripts/workbench-task-focus-surface-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench task focus timer contract.",
+      "id": "legacy.workbench.task.focus.timer",
+      "legacy": true,
+      "path": "scripts/workbench-task-focus-timer-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench task ordering contract.",
+      "id": "legacy.workbench.task.ordering",
+      "legacy": true,
+      "path": "scripts/workbench-task-ordering-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Protects the legacy workbench view state contract.",
+      "id": "legacy.workbench.view.state",
+      "legacy": true,
+      "path": "scripts/workbench-view-state-regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [],
+      "tier": "focused"
+    },
+    {
+      "area": "jobs",
+      "description": "Protects the legacy worker runner contract.",
+      "id": "legacy.worker.runner",
+      "legacy": true,
+      "path": "scripts/worker-runner-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "files",
+      "description": "Protects the legacy workspace storage contract.",
+      "id": "legacy.workspace.storage",
+      "legacy": true,
+      "path": "scripts/workspace-storage-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "files"
+      ],
+      "tier": "integration"
+    }
+  ],
+  "retiredRegressions": [
+    {
+      "script": "scripts/clients-projects-strict-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
       "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
@@ -369,7 +4113,8 @@
         "node scripts/static-contract-closeout-regression.mjs",
         "node scripts/regression-coverage-ratchet.mjs",
         "npm run check"
-      ]
+      ],
+      "floorCredit": false
     },
     {
       "script": "scripts/database-agnostic-contract-closeout-regression.mjs",
@@ -384,172 +4129,8 @@
         "node scripts/static-contract-closeout-regression.mjs",
         "node scripts/regression-coverage-ratchet.mjs",
         "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/module-file-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
       ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/notes-import-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/surface-standardization-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/view-builder-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/view-conversion-branch-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/files-browse-edit-preview-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/files-conversion-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/notes-slideout-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/markdown-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/tasks-conversion-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
-    },
-    {
-      "script": "scripts/clients-projects-strict-closeout-regression.mjs",
-      "retiredInVersion": "0.33.5.29.5",
-      "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
-      "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
-      ],
-      "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
-      ]
+      "floorCredit": false
     },
     {
       "script": "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
@@ -564,7 +4145,184 @@
         "node scripts/static-contract-closeout-regression.mjs",
         "node scripts/regression-coverage-ratchet.mjs",
         "npm run check"
-      ]
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/files-browse-edit-preview-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/files-conversion-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/markdown-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/module-file-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/notes-import-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/notes-slideout-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/surface-standardization-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/tasks-conversion-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/view-builder-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/view-conversion-branch-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
     }
   ]
 }

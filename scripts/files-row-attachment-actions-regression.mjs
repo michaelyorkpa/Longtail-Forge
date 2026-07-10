@@ -20,7 +20,7 @@ const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const declarativeSurfaces = readText("docs/declarative-view-surfaces.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Files action-wiring version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Files action-wiring version");

@@ -24,7 +24,7 @@ const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const dbIndexSource = readText("src/db/index.js");
 const migrationsSource = readText("src/db/migrations.js");
 const appSource = readText("src/core/app.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,

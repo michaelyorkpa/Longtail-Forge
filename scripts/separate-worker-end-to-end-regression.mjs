@@ -30,7 +30,7 @@ const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const appSource = readText("src/core/app.js");
 const dbIndexSource = readText("src/db/index.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { closeDatabase, db, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");

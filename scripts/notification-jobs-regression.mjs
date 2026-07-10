@@ -22,7 +22,7 @@ const databaseDocs = readText("docs/database.md");
 const moduleDocs = readText("docs/module-development.md");
 const notificationsSource = readText("src/services/notifications.service.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const {

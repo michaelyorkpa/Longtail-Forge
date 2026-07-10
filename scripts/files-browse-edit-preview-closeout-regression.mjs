@@ -12,7 +12,7 @@ const declarativeSurfaces = readText("docs/declarative-view-surfaces.md");
 const filesCloseout = readText("docs/0.32-module-file-closeout.md");
 const notesModule = readText("src/modules/notes/module.js");
 const tasksModule = readText("src/modules/tasks/module.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the closeout version");

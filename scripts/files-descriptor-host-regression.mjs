@@ -25,7 +25,7 @@ const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

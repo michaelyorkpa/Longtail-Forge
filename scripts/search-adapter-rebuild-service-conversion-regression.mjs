@@ -23,7 +23,7 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -74,7 +74,7 @@ function assertStaticContract() {
   assert.match(searchServiceSource, /backendNeutralQueryModel: true/, "search service should keep callers on backend-neutral request models");
   assert.match(searchServiceSource, /adapterSyntax: null/, "permission-safe search request shaping should not emit backend syntax");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should record the Search adapter/rebuild service conversion ratchet");
+  assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| services\/search-index-rebuild\.service \| Converted \| 0 \| 0 \| 2 \| 2 \|/, "audit inventory should mark the search rebuild service converted");
   assert.match(auditDocs, /\| core\/search\/adapters\/sqlite-search-adapter \| Converted \| 0 \| 0 \| 13 \| 17 \|/, "audit inventory should keep the SQLite search adapter converted");
   assert.match(auditDocs, /\| core\/search\/tag-text \| Converted \| 0 \| 0 \| 1 \| 1 \|/, "audit inventory should keep search tag-text converted");

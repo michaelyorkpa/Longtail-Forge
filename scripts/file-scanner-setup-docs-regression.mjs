@@ -13,7 +13,7 @@ const runtimeDocs = readText("docs/runtime-configuration.md");
 const scannerDocs = readText("docs/file-scanner-setup.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const envExample = readText(".env.example");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the scanner setup docs version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the scanner setup docs version");

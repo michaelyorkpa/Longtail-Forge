@@ -15,13 +15,13 @@ const moduleContractDocs = readText("docs/module-contract.md");
 const moduleDevelopmentDocs = readText("docs/module-development.md");
 const viewContractDocs = readText("docs/view-building-contract.md");
 const declarativeViewDocs = readText("docs/declarative-view-surfaces.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the database agnostic contract closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the database agnostic contract closeout version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the database agnostic contract closeout version");
 
-assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should publish the final parameter-binding ratchet");
+assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*fails only when runtime source introduces an unreviewed legacy helper call or template-interpolated database operation[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should publish the baseline-driven parameter-binding ratchet");
 assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0/, "audit docs should publish the final dialect ratchet");
 assert.match(auditDocs, /0\.33\.5\.27\.33 Docs, Decisions, 0\.40\.0 Reconciliation, and Closeout[\s\S]*finished contract[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct helper-interpolated SQL operation sites[\s\S]*0 raw seam-backed dialect sites/, "audit docs should record the closeout slice");
 

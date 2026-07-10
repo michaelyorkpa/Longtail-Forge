@@ -55,7 +55,7 @@ function assertStaticContracts() {
   const configSource = readText("src/config.js");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
-  const regressionSuite = readText("scripts/regression-suite.mjs");
+  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the scanner resolver version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the scanner resolver version");

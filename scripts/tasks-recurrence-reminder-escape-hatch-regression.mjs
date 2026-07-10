@@ -5,7 +5,7 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
 const taskRemindersService = readText("src/modules/tasks/task-reminders.service.js");
 const tasksModalShellRegression = readText("scripts/tasks-modal-shell-regression.mjs");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.match(
   taskDialogScript,

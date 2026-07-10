@@ -1,0 +1,889 @@
+{
+  "schemaVersion": 1,
+  "scope": "src/**/*.js and src/**/*.mjs",
+  "reviewRule": "Entries are reviewed pre-existing dynamic SQL composition or legacy helper findings. Update only during dedicated parameter-binding cleanup or an explicitly reviewed query change.",
+  "findings": [
+    {
+      "id": "dynamic-sql-template.06dce6cb961c36aa",
+      "file": "src/core/jobs/job-queue.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.query",
+      "signature": "06dce6cb961c36aaa41f3a623dba35b681c634d7aa14ab4735d8101dd65fcdd3"
+    },
+    {
+      "id": "dynamic-sql-template.ba44d5d0efed13ac",
+      "file": "src/core/jobs/job-queue.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.query",
+      "signature": "ba44d5d0efed13ac523b00caf92dab5ba3d373b77d148c2d2dfeb97d1e752ad7"
+    },
+    {
+      "id": "dynamic-sql-template.1c99df019fc01f0d",
+      "file": "src/core/jobs/job-runner.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.query",
+      "signature": "1c99df019fc01f0dd4e58df4c2ef03de9d0d7d37241990e4183800dbb4ee6f23"
+    },
+    {
+      "id": "dynamic-sql-template.2a7d04ccfb926dd1",
+      "file": "src/core/search/adapters/sqlite-search-adapter.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "2a7d04ccfb926dd1015a6c185e61d1a73601016e5d1f6716fafbbdbfde7ef715"
+    },
+    {
+      "id": "dynamic-sql-template.56acf10f5744ca1a",
+      "file": "src/core/search/adapters/sqlite-search-adapter.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "56acf10f5744ca1a3b848cfada6acd385444490e7c03e42b70ed8c52845a8689"
+    },
+    {
+      "id": "dynamic-sql-template.338772b6625dcea0",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "338772b6625dcea0e6655c5bd267e77b525bb70481a51074a07d5d04a11ea743"
+    },
+    {
+      "id": "dynamic-sql-template.4bc81816c7481531",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "4bc81816c7481531ee2db3b24dfee6fc810b22fced5678994effbed54596bc13"
+    },
+    {
+      "id": "dynamic-sql-template.9378d838eac198a1",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "9378d838eac198a135b2878230f10381a30d4e2ca3099f5d137a847119b3aca1"
+    },
+    {
+      "id": "dynamic-sql-template.a6ac02108a3bdc83",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "a6ac02108a3bdc8393e9a515c785f96828c03fda58503123b8e77f8079b32532"
+    },
+    {
+      "id": "dynamic-sql-template.aa3fea8810275911",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "aa3fea881027591180f233ce56447ead70bef1dc22d3762c73f451a999e4db4e"
+    },
+    {
+      "id": "dynamic-sql-template.ab3094296be3f293",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "ab3094296be3f2930fc1c7e3d1dfc81099b5b7078b123ba99c9a09a7cad475a9"
+    },
+    {
+      "id": "dynamic-sql-template.cf8528a28067a10a",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "cf8528a28067a10a752ded329812410c2e478ba3f2f73a5c50f4003437ff5651"
+    },
+    {
+      "id": "dynamic-sql-template.e3face0d3c9c5644",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "e3face0d3c9c5644c213a0ee87bf27119fe226e9f248b357834bd370b3f77a90"
+    },
+    {
+      "id": "dynamic-sql-template.fd8caac8b0302578",
+      "file": "src/db/index.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "fd8caac8b0302578e8c05cb04beed22c51e0b4c3b80558885c8a116efc987e90"
+    },
+    {
+      "id": "dynamic-sql-template.0800aa04ddfed2ae",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "0800aa04ddfed2aebdb09aab0ed50d52e96117e8635f8ebec40ca87f413d7af1"
+    },
+    {
+      "id": "dynamic-sql-template.0f94bd12676c24c4",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "0f94bd12676c24c44d8e42d10ec289012591b5eac0053270395d67cb5cc0db93"
+    },
+    {
+      "id": "dynamic-sql-template.1cd4af61ae120bb5",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "1cd4af61ae120bb5a358778320f4c4ad8eb2ca1538ef922d50d87eb940323a9f"
+    },
+    {
+      "id": "dynamic-sql-template.21bcdb5ef95bc264",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "21bcdb5ef95bc264b48b7ead5958d449d35afe540ee05663bd32fff4ae9c2d73"
+    },
+    {
+      "id": "dynamic-sql-template.252743eb64a6e285",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "252743eb64a6e2850ec5865b4c2d64218e5a8de5c3021d4560071b1bf5e768df"
+    },
+    {
+      "id": "dynamic-sql-template.30704edf6295c32b",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "30704edf6295c32b4b7746f18c83d25dba44a988c977932aa95d545f3dd6b830"
+    },
+    {
+      "id": "dynamic-sql-template.35eab13e757e9c4e",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "35eab13e757e9c4ef75aa1b0ee0b4ccb5cac060ffeb66d2b9972cf4745527769"
+    },
+    {
+      "id": "dynamic-sql-template.72ff4bee5b945eb2",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "72ff4bee5b945eb2b2c116af6b20a2f4e466241e9c9d49fbf61ac21065a413c3"
+    },
+    {
+      "id": "dynamic-sql-template.c227dba904961820",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "c227dba904961820a3a6086d9fae58957c12b909c8e67bc89b7d475317d93660"
+    },
+    {
+      "id": "dynamic-sql-template.de7e52447602a5df",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "de7e52447602a5df84ddebf42ddd979888a7d47fc8dc9d2ef97a016d2cf7c947"
+    },
+    {
+      "id": "dynamic-sql-template.f24de71393e4935a",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "f24de71393e4935a2a06ca856b0a541d1afcf2953b81bb546db140949a39569e"
+    },
+    {
+      "id": "dynamic-sql-template.f24de71393e4935a.2",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "f24de71393e4935a2a06ca856b0a541d1afcf2953b81bb546db140949a39569e"
+    },
+    {
+      "id": "dynamic-sql-template.f9fce1d33914d376",
+      "file": "src/db/migrations.js",
+      "kind": "dynamic-sql-template",
+      "operation": "runSql",
+      "signature": "f9fce1d33914d3769bd6d5aa2737109be007ac581d82e5cb39acf86f9da014cf"
+    },
+    {
+      "id": "dynamic-sql-template.5918e739790a2ff6",
+      "file": "src/modules/client-projects/clients.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "5918e739790a2ff61ecb2363ea64c2197e56c6538c174558ea8f680091b018fa"
+    },
+    {
+      "id": "dynamic-sql-template.757c05b5a107698b",
+      "file": "src/modules/client-projects/clients.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "757c05b5a107698b822db0255a60bb0a7549d9c0d503b892cddba69efa9d9805"
+    },
+    {
+      "id": "dynamic-sql-template.7926894ad8fe74f0",
+      "file": "src/modules/client-projects/clients.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "7926894ad8fe74f07b8f5f0e61440ba6a3d666229437d7d0304dfc7583694065"
+    },
+    {
+      "id": "dynamic-sql-template.052aec1598032f32",
+      "file": "src/modules/client-projects/projects.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "052aec1598032f32e9117f25fc54a90ab27b8614902ddbb4eb23ffcde488b771"
+    },
+    {
+      "id": "dynamic-sql-template.24c3adb9ee19dbeb",
+      "file": "src/modules/client-projects/projects.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "24c3adb9ee19dbeb4446b2e9a167f7d9bcaa7db29a4de300caa71114ad889b1c"
+    },
+    {
+      "id": "dynamic-sql-template.82ef47b36e60a984",
+      "file": "src/modules/client-projects/projects.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "82ef47b36e60a98445d467e3ba55cbd219fe23e21b50473e8a14ffa098e09a07"
+    },
+    {
+      "id": "dynamic-sql-template.87f09963499c50d6",
+      "file": "src/modules/client-projects/projects.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "87f09963499c50d64574d29c9563c7d51f5f5a1a4cfe45aeaa2f99126a86f8ea"
+    },
+    {
+      "id": "dynamic-sql-template.e47274528d7f3fc0",
+      "file": "src/modules/client-projects/projects.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "e47274528d7f3fc0c8883cdc64597a999712893a42679afff0c763c5e2bfe0f6"
+    },
+    {
+      "id": "dynamic-sql-template.0f749b32e7dd68af",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "0f749b32e7dd68affd209c9fd62800f5952254b02d5602418b2b252971e68c1a"
+    },
+    {
+      "id": "dynamic-sql-template.2c59612c160ba7f5",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "2c59612c160ba7f55a84ffaedb6063b10706ab5bda944987c294cc673d225d34"
+    },
+    {
+      "id": "dynamic-sql-template.2e2f3be4cbe5c547",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "2e2f3be4cbe5c547b0ccbb25506a0083ca33f994bb58db4baac2c4227b6d822a"
+    },
+    {
+      "id": "dynamic-sql-template.6e1267c583281b08",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "6e1267c583281b08a3b307a443c4be017fbc0740f472638a0903ce9e60334f02"
+    },
+    {
+      "id": "dynamic-sql-template.93e5dd7536fee1ab",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "93e5dd7536fee1ab949f63126b3d2c84609691eb3da220983ddd280440087b66"
+    },
+    {
+      "id": "dynamic-sql-template.a02f64a91d0bf95b",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "a02f64a91d0bf95b78414fd79306776fcdcf91c1555124f71f6f659b94e65365"
+    },
+    {
+      "id": "dynamic-sql-template.b4e20f5c278035be",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "b4e20f5c278035be8615cd5149d27aa6f4e9c347541344544eb4b87fcf15fa9e"
+    },
+    {
+      "id": "dynamic-sql-template.d31850348341d15f",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "d31850348341d15f5ff766dbaadd490b5b0caecd15e028b5c85489e90e794cf1"
+    },
+    {
+      "id": "dynamic-sql-template.e8461314d8129cdf",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "e8461314d8129cdf2cd7a1781beccd4a3cb3fc37045f0dd1b8aca3ec0c29f4ea"
+    },
+    {
+      "id": "dynamic-sql-template.f2003245c802cea3",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "f2003245c802cea361f29d528e0f36851988bbacfa582c0118d1780f3c9c37c7"
+    },
+    {
+      "id": "dynamic-sql-template.f6bab847a943b692",
+      "file": "src/modules/lists/lists.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "f6bab847a943b6921fba74efea953ddf0d9376680f77bb1e728ca76416f86cbd"
+    },
+    {
+      "id": "dynamic-sql-template.16a977362b3bb8c5",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "16a977362b3bb8c50bd99aca2607515b5622b31b3c7469f29ca54f35279e40ba"
+    },
+    {
+      "id": "dynamic-sql-template.5c0cfb88c04fc9f0",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "5c0cfb88c04fc9f072b483407519b6dc244a56897897337999644d4a2d25a57b"
+    },
+    {
+      "id": "dynamic-sql-template.79d9a5090e8286c4",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "79d9a5090e8286c4ca2edaac16d86fb6b32872dc460a3a4e0bdb025b2140278d"
+    },
+    {
+      "id": "dynamic-sql-template.7ce9c9814bf2a399",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "7ce9c9814bf2a3993a062a70db72fafdb3c68c4a3bb271c2962b60bb34d32b24"
+    },
+    {
+      "id": "dynamic-sql-template.84f1b92af20e07fb",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "84f1b92af20e07fb6c87a9a7d1e8b6993205834c11c25b13077cef67174cb813"
+    },
+    {
+      "id": "dynamic-sql-template.8a004a2a44c43619",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "8a004a2a44c4361917d4ae369507da275cc146843250c03bcdc8e16e37e86e8b"
+    },
+    {
+      "id": "dynamic-sql-template.9a701391340c3139",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "9a701391340c31395d91efe56affe033b9936bb8ef75d601c4a892a0d288cfc3"
+    },
+    {
+      "id": "dynamic-sql-template.ade803869a855a2e",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "ade803869a855a2e8abf3db16b522742a405b7a5b4b11ea39e7176e4c455fddd"
+    },
+    {
+      "id": "dynamic-sql-template.fef1a7e13a17f07e",
+      "file": "src/modules/notes/notes.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "fef1a7e13a17f07e54b97d1f41bbe7c2ee15ece892b0fa2dee0df11cae73a684"
+    },
+    {
+      "id": "dynamic-sql-template.4eeb43213ae44081",
+      "file": "src/modules/tasks/task-reminders.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "4eeb43213ae440817ffe2a21d3368c65ca5c04f0d4419cc338b76e2dce94b853"
+    },
+    {
+      "id": "dynamic-sql-template.1b8cc5962d9426b9",
+      "file": "src/modules/tasks/tasks.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "1b8cc5962d9426b962446cca921d0762b74f16d38d661f79a8a2c2929ea7187e"
+    },
+    {
+      "id": "dynamic-sql-template.440d09fb7ef93b98",
+      "file": "src/modules/tasks/tasks.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "440d09fb7ef93b988cf9b98c74f92555978c8fd914e70715ca2e8931cb571cb3"
+    },
+    {
+      "id": "dynamic-sql-template.6348dc8e5110be01",
+      "file": "src/modules/time-tracking/active-timers.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "6348dc8e5110be01267228604d77944983ff8885b328c614aa93addf17949bff"
+    },
+    {
+      "id": "dynamic-sql-template.657665b6758863f8",
+      "file": "src/modules/time-tracking/active-timers.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "657665b6758863f8e90a301611a580936a12acd8baf0f2ab11bde62caab0da94"
+    },
+    {
+      "id": "dynamic-sql-template.8ea8543079358855",
+      "file": "src/modules/time-tracking/active-timers.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "8ea854307935885596b7276a39b7914a0aa7de6fde4f48be13b5d1c8a8627d10"
+    },
+    {
+      "id": "dynamic-sql-template.fbdf503c29c95f51",
+      "file": "src/modules/time-tracking/active-timers.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "fbdf503c29c95f51976e5e7668f821f13bfda2c9ec143f2892808b6b80e121c0"
+    },
+    {
+      "id": "dynamic-sql-template.e0f96a166dfd3dad",
+      "file": "src/repositories/app-settings.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "e0f96a166dfd3dad881b0ef3d36cb1f9e65a406a77cd0ef26af227ec9a1fa9ac"
+    },
+    {
+      "id": "dynamic-sql-template.612d30101110edcd",
+      "file": "src/repositories/audit-logs.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "612d30101110edcd0ec80bcd82606e4fbcf30f9a649cfef057619a5c7a5fb3ee"
+    },
+    {
+      "id": "dynamic-sql-template.afe5f34bc6064c0a",
+      "file": "src/repositories/audit-logs.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "afe5f34bc6064c0a1603b9da84a8cb6caf4772a7c01d585856f06e6c94cc7c50"
+    },
+    {
+      "id": "dynamic-sql-template.afe5f34bc6064c0a.2",
+      "file": "src/repositories/audit-logs.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "afe5f34bc6064c0a1603b9da84a8cb6caf4772a7c01d585856f06e6c94cc7c50"
+    },
+    {
+      "id": "dynamic-sql-template.b00ab13115fe3061",
+      "file": "src/repositories/audit-logs.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "b00ab13115fe3061ac101f5786aaa8b314e0412389198aa15f2a2e6626aa34c6"
+    },
+    {
+      "id": "dynamic-sql-template.b00ab13115fe3061.2",
+      "file": "src/repositories/audit-logs.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "b00ab13115fe3061ac101f5786aaa8b314e0412389198aa15f2a2e6626aa34c6"
+    },
+    {
+      "id": "dynamic-sql-template.b8d988f5e0f46414",
+      "file": "src/repositories/audit-logs.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "b8d988f5e0f46414259505499b7b5474a5ac00eb475af8ebaec236dfc0c97a1f"
+    },
+    {
+      "id": "dynamic-sql-template.c9fd78e3a25e4a46",
+      "file": "src/repositories/audit-logs.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "c9fd78e3a25e4a468f8298d9fb703bc3e6f726cd650fe0e4427ebbafa89a2892"
+    },
+    {
+      "id": "dynamic-sql-template.22e64cfb1123739c",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "22e64cfb1123739cfde1041cdd7383e7629dd6bdaeeb7bfe495289bedf708631"
+    },
+    {
+      "id": "dynamic-sql-template.3e13378940c29958",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "3e13378940c2995837abf395d4feece5b033bfc7d1574026cae7d89f4fb4fc37"
+    },
+    {
+      "id": "dynamic-sql-template.5047ddbfb297d749",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "5047ddbfb297d74900b023ae100ecaecae45b624d96d17c27badb4b285542d17"
+    },
+    {
+      "id": "dynamic-sql-template.74e329da9a63f2c5",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "74e329da9a63f2c53acc7fa3ea709b740573a8c51e46f29fe6b9b2b41e743a23"
+    },
+    {
+      "id": "dynamic-sql-template.80083b611db721e4",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "80083b611db721e4829c194da81a3426c3e97629b0457a498e0132f016d4736e"
+    },
+    {
+      "id": "dynamic-sql-template.86b53432085bdba5",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "86b53432085bdba5e351e13e1460925104a78d4bc381edd7a7cd3407bb7a4df8"
+    },
+    {
+      "id": "dynamic-sql-template.8c3f4b97cb235bf4",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "8c3f4b97cb235bf4c3ab7954ddc3a9c35a567ad66c6acd2fd654d861cc6cc1c2"
+    },
+    {
+      "id": "dynamic-sql-template.8e29a54fd3a72b69",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "8e29a54fd3a72b6995b2bbc8f0038562e06417f0435b1a4a284f5e8dc90459b3"
+    },
+    {
+      "id": "dynamic-sql-template.bc37dc42eab3acbd",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "bc37dc42eab3acbd062f3c02367123767da4e9540c4ac1138c6342b4a02566ce"
+    },
+    {
+      "id": "dynamic-sql-template.d1adf341174d6412",
+      "file": "src/repositories/notifications.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "d1adf341174d6412a835de7ef7130d8f5afec7929ac5ac1b2680d72f8109e6a4"
+    },
+    {
+      "id": "dynamic-sql-template.bdd2260a629c8041",
+      "file": "src/repositories/permissions.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "bdd2260a629c80419fbfb0e609183d9d90c6c285b8e43450e9ffacc2857bbd00"
+    },
+    {
+      "id": "dynamic-sql-template.bfc8d08fb81c16f8",
+      "file": "src/repositories/permissions.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "bfc8d08fb81c16f8911e1539629c87db552dbc0187f143291399e523d6137fbe"
+    },
+    {
+      "id": "dynamic-sql-template.2e45b177aacd228c",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "2e45b177aacd228cf665a98d06d7f69478b7f3e4446c472475631680624241e3"
+    },
+    {
+      "id": "dynamic-sql-template.3738ea10e660f04a",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "3738ea10e660f04a8760379fd474787e9e975532bdf438b5f8b8e13fd3321c97"
+    },
+    {
+      "id": "dynamic-sql-template.40ca22ed27c15b5a",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "40ca22ed27c15b5ab3af6be99b62a33c74a18b94e8da85d25d78ba43fee6863b"
+    },
+    {
+      "id": "dynamic-sql-template.457e4c351f7154ba",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "457e4c351f7154ba24c80e937656ee75ffb261727242ddecd4549a65f06b9eca"
+    },
+    {
+      "id": "dynamic-sql-template.5145bb9dfff1331b",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "5145bb9dfff1331b4412f51b27dc4f5a9ffaeeaad5262ff1da94599d4e7ba9e5"
+    },
+    {
+      "id": "dynamic-sql-template.66da8ee0ea167c63",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "66da8ee0ea167c633b12712f453aca4a8ddd6854f8d0177a58c6e68119e19a08"
+    },
+    {
+      "id": "dynamic-sql-template.7c8d6d5d464350bc",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "7c8d6d5d464350bc47de472dca12ae26063157d4906d8eaed27638b6bfbceb54"
+    },
+    {
+      "id": "dynamic-sql-template.b9a7b5eeb257a15d",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "b9a7b5eeb257a15d54d3f8d9d1e5f579dfc64f91b7ac50d78498e7ac017fb954"
+    },
+    {
+      "id": "dynamic-sql-template.ceeee667f8dc7fba",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "ceeee667f8dc7fba113a901dc8c5ead5c07d6c4a1a01027259ba0bd442b36295"
+    },
+    {
+      "id": "dynamic-sql-template.e5f1386432bc6a4d",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "e5f1386432bc6a4d51578787e4adcf7e1e3dd8e41c610109ed132558ba6c1f1b"
+    },
+    {
+      "id": "dynamic-sql-template.fd1ab1dd2e9aaa31",
+      "file": "src/repositories/tags.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "fd1ab1dd2e9aaa31d7b4509981e7ef5af6000c93a1421f7dcf6a912d2727a83f"
+    },
+    {
+      "id": "dynamic-sql-template.3ac5d70e044cee8f",
+      "file": "src/repositories/user-workspaces.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "3ac5d70e044cee8fb9f44f15ac90256f24cb743aae2ef8f4462e7951715f042e"
+    },
+    {
+      "id": "dynamic-sql-template.2f9c189a1df0719f",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "2f9c189a1df0719ff68ab618f33be7f018f28c52b15f427dc35f7e80e7eeae15"
+    },
+    {
+      "id": "dynamic-sql-template.537b9bae0065b815",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "537b9bae0065b815ea6c506fbc0bf6e90acbeca91a2ee8caa4b9f2cc4f54a24b"
+    },
+    {
+      "id": "dynamic-sql-template.5c7a13e607035c70",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "5c7a13e607035c7012f632c599a2837963e897c934c2168071486f6fef688d86"
+    },
+    {
+      "id": "dynamic-sql-template.5e1b8fd05c523bdc",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "5e1b8fd05c523bdcdead736ff518b0ff1648b251fc896c6317538da9bc84e1e8"
+    },
+    {
+      "id": "dynamic-sql-template.5f05b396a9174bf9",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "5f05b396a9174bf9c0f207b664b7c8a730c32af8b0ad28e90bf74292c1039512"
+    },
+    {
+      "id": "dynamic-sql-template.719325ec2347207e",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "719325ec2347207e72b163e7a8d574a0157d5bb8ebc90b33502eb142935decbf"
+    },
+    {
+      "id": "dynamic-sql-template.740eae3a79ac619e",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "740eae3a79ac619e8e9d73578ca5d104ec002f2208c6d52daeee0f70fd654638"
+    },
+    {
+      "id": "dynamic-sql-template.9a48ce394ca0af41",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "9a48ce394ca0af41e77857d79bffb468f9cca14830107d6094ddf9ca10114ab9"
+    },
+    {
+      "id": "dynamic-sql-template.a46cc6a0023f3b74",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "a46cc6a0023f3b748f29515eef5c121fb99a9a81780cc9192109bdaef1604a9f"
+    },
+    {
+      "id": "dynamic-sql-template.cf43b95b4b4126a4",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "cf43b95b4b4126a4924ad8e88d5a5fba1668aab4a1e561e39d4a539e7ffbd632"
+    },
+    {
+      "id": "dynamic-sql-template.d69926160d53c78f",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "d69926160d53c78febb98965b928115bffddd9901195a19e7f7a0e2893a3ca2d"
+    },
+    {
+      "id": "dynamic-sql-template.eb25ab3bebdf0303",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "eb25ab3bebdf030392c7e234db3160bbfae97903e191feb1bcea9babbecd3269"
+    },
+    {
+      "id": "dynamic-sql-template.ed3589b09f0cd432",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "ed3589b09f0cd432f7c82d810a1655f478544c066dc3a949b2c56cbb94e4f7c2"
+    },
+    {
+      "id": "dynamic-sql-template.fa6a2007ae9f09ab",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "fa6a2007ae9f09ab7d34a591024b63358a20fb0b0717374725c3ed8b762e30ea"
+    },
+    {
+      "id": "dynamic-sql-template.38ff39f1a8ba60b6",
+      "file": "src/repositories/workspaces.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "38ff39f1a8ba60b6662615dc38de3c17368471374171c9341a2459e247752241"
+    },
+    {
+      "id": "dynamic-sql-template.46f161070e1bf87e",
+      "file": "src/repositories/workspaces.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "46f161070e1bf87e1b60414490f99822cb888660e592ca325fb6542b6b4f8a2b"
+    },
+    {
+      "id": "dynamic-sql-template.1e2625b50bc8b2ce",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "1e2625b50bc8b2ce4e8664f9b72aeb7987a1ffe25964d1bcae1680e49876f791"
+    },
+    {
+      "id": "dynamic-sql-template.20a7c4d0dfb691d0",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "20a7c4d0dfb691d02f3384d4b791dc5eb60924dd77ca0ec614e3e890cfa0f00d"
+    },
+    {
+      "id": "dynamic-sql-template.2330ec8152ecfc88",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "2330ec8152ecfc88ba3da3e433dc4e8c761efa53ee5719ac03ed0684d3600bc7"
+    },
+    {
+      "id": "dynamic-sql-template.3a5be49b203045a4",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "3a5be49b203045a45a04d45c7638227bb42e2f7473d6e22c0b97b29093635107"
+    },
+    {
+      "id": "dynamic-sql-template.527fb1958f4adca5",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "527fb1958f4adca517bbfa94111c896933abaf82ca390a963f45f466c95e66ca"
+    },
+    {
+      "id": "dynamic-sql-template.53068a8fedbf1638",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "53068a8fedbf163893af9d345ba65a3d92e0ac607f76be1a0a74cf0ba2e2b47f"
+    },
+    {
+      "id": "dynamic-sql-template.91ff65a350ed8ca2",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "91ff65a350ed8ca27103334203b6e19aacdf44863b9aad4167a20290b832625e"
+    },
+    {
+      "id": "dynamic-sql-template.9b8f0d1b1becaf7c",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "9b8f0d1b1becaf7ca30d6b2da3a786b761ab4b17f2ac83ae543a89d74be60cf6"
+    },
+    {
+      "id": "dynamic-sql-template.b8de496f1ad66e72",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "b8de496f1ad66e72a6238622518e8e501189c40dad8ebdb9f336a502a7ba9d93"
+    },
+    {
+      "id": "dynamic-sql-template.c3679080db1762d7",
+      "file": "src/services/files.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "c3679080db1762d7e4265f49413d6ca13588de6f59a87e650a8f539e2329dff3"
+    },
+    {
+      "id": "dynamic-sql-template.fbbd7e0d06974a2c",
+      "file": "src/services/jobs.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.query",
+      "signature": "fbbd7e0d06974a2c56f75cb40417de2b725efbbb8bc8ccf8609dd5c072e8c0c8"
+    },
+    {
+      "id": "dynamic-sql-template.e25c9a4df9e5c1d5",
+      "file": "src/services/search-index-rebuild.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "e25c9a4df9e5c1d5dcb5820a4b9076b8cacddc5edb4f6fb05f8a5f4b9163b51b"
+    },
+    {
+      "id": "dynamic-sql-template.212738a214fbf203",
+      "file": "src/services/tag-propagation-registry.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "212738a214fbf203d5664f87c491252e008bff8559d49cc87779fb3b9e73bad0"
+    },
+    {
+      "id": "dynamic-sql-template.3e94d7f5c3e7b4fd",
+      "file": "src/services/tag-propagation-registry.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "3e94d7f5c3e7b4fd001bb2e2cfbcf5316360efb1e9977ae3abbd2f6070c337bb"
+    },
+    {
+      "id": "dynamic-sql-template.7496ad22c7a03dfe",
+      "file": "src/services/tag-propagation-registry.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.query",
+      "signature": "7496ad22c7a03dfe803b1ab2ca90ed4762566d876fba8cc46c0834a487b52a9c"
+    },
+    {
+      "id": "dynamic-sql-template.778dd16690de40e4",
+      "file": "src/services/tags.service.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.get",
+      "signature": "778dd16690de40e476753ebf14d102f35a3ef7f1d341024c91af8ef39e32d906"
+    }
+  ]
+}

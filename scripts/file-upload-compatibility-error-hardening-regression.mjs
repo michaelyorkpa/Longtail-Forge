@@ -61,7 +61,7 @@ function assertStaticContracts() {
   const filesRoutes = readText("src/routes/files.routes.js");
   const filesServiceSource = readText("src/services/files.service.js");
   const previewRegression = readText("scripts/files-preview-availability-route-regression.mjs");
-  const regressionSuite = readText("scripts/regression-suite.mjs");
+  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the upload hardening version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the upload hardening version");

@@ -10,7 +10,7 @@ const projectsHtml = readText("views/protected/projects.html");
 const workbenchHtml = readText("views/protected/workbench.html");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const moduleActionsScript = readText("public/js/shared/module-actions.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects action registration version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects action registration version");

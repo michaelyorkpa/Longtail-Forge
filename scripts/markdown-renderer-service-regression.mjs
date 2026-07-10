@@ -16,7 +16,7 @@ const packageLock = JSON.parse(await readText("package-lock.json"));
 const roadmap = await readText("ROADMAP.md");
 const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
-const regressionSuite = await readText("scripts/regression-suite.mjs");
+const regressionSuite = await readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should carry the Markdown renderer slice version");
 assert.equal(packageLock.version, appVersion, "package-lock root version should carry the Markdown renderer slice version");

@@ -23,7 +23,7 @@ const notificationsRepoSource = readText("src/repositories/notifications.repo.js
 const searchJobsSource = readText("src/services/search-index-jobs.service.js");
 const filesSource = readText("src/services/files.service.js");
 const importJobsSource = readText("src/services/import-jobs.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   resetJobWorkerStatusForTests,

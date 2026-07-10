@@ -16,7 +16,7 @@ const filesView = readText("views/protected/files.html");
 const notesView = readText("views/protected/notes.html");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Notes file preview action version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Notes file preview action version");

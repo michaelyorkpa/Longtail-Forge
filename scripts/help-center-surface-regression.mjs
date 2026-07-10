@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-help-center-surface-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-center-test.db");
@@ -33,9 +34,9 @@ try {
     assert.equal(authenticated.statusCode, 200);
     assert.equal(authenticated.contentType, "text/html; charset=utf-8");
     assert.match(String(authenticated.contents), /data-help-sections/);
-    assert.match(String(authenticated.contents), /\/js\/shared\/icons\.js\?v=1/);
-    assert.match(String(authenticated.contents), /\/css\/longtail-forge\.css\?v=15/);
-    assert.match(String(authenticated.contents), /\/js\/help\.js\?v=5/);
+    assert.ok(String(authenticated.contents).includes(`/js/shared/icons.js?v=${appVersion}`));
+    assert.ok(String(authenticated.contents).includes(`/css/longtail-forge.css?v=${appVersion}`));
+    assert.ok(String(authenticated.contents).includes(`/js/help.js?v=${appVersion}`));
   });
 
   await check("app shell places Help in Settings between User and Log Out", async () => {

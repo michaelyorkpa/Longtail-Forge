@@ -17,7 +17,7 @@ const notesDocs = readText("docs/notes-module.md");
 const viewBuilder = readText("public/js/shared/view-builder.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const notesJs = readText("public/js/notes.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the modal action contract version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the modal action contract version");

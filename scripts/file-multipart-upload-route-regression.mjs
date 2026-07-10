@@ -59,7 +59,7 @@ function assertStaticContracts() {
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const filesRoutes = readText("src/routes/files.routes.js");
   const filesServiceSource = readText("src/services/files.service.js");
-  const regressionSuite = readText("scripts/regression-suite.mjs");
+  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the multipart route version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the multipart route version");

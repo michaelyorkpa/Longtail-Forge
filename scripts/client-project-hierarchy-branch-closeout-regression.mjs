@@ -27,7 +27,7 @@ const viewBuildingContract = readText("docs/view-building-contract.md");
 const clientProjectsModuleSource = readText("src/modules/client-projects/module.js");
 const listsModuleSource = readText("src/modules/lists/module.js");
 const regressionCoverageManifest = readText("scripts/regression-coverage-manifest.json");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");

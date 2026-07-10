@@ -21,7 +21,7 @@ const notesScript = readText("public/js/notes.js");
 const linkedPanelScript = readText("public/js/shared/notes-linked-panel.js");
 const notesView = readText("views/protected/notes.html");
 const notesDocs = readText("docs/notes-module.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 

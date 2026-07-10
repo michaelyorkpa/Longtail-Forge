@@ -19,7 +19,7 @@ const workerCliSource = readText("src/core/jobs/worker-cli.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
 const { closeSqlite, db, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");

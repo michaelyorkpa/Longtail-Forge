@@ -6,15 +6,13 @@ import {
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
+import { filterRegressionBuckets, parseRegressionCliArgs } from "./lib/regression-runner-options.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
 const ISOLATED_BUCKET_NAME = "isolated database regressions";
 const STATIC_BUCKET_NAME = "static/source regressions";
 const DEFAULT_REPEAT_COUNT = 1;
 const MAX_REGRESSION_REPEAT_COUNT = 5;
-const BASELINE_BYPASS_SCRIPTS = new Set([
-  "scripts/fresh-database-regression.mjs",
-]);
 
 const totalStart = performance.now();
 const completedResults = [];
@@ -24,50 +22,60 @@ let scheduledScriptRuns = REGRESSION_SCRIPTS.length;
 
 try {
   assertUniqueScripts();
-  const runOptions = resolveRunOptions(REGRESSION_BUCKETS, process.env);
+  const runOptions = resolveRunOptions(REGRESSION_BUCKETS, process.env, process.argv.slice(2));
   scheduledScriptRuns = countScheduledScriptRuns(runOptions);
 
-  console.log(`Running ${scheduledScriptRuns} regression script run(s).`);
-  if (runOptions.bucketFilter) {
-    console.log(`Bucket filter: ${runOptions.bucketFilter}`);
-  }
-  if (runOptions.repeatCount > 1) {
-    console.log(`Repeat count: ${runOptions.repeatCount}`);
+  if (runOptions.list) {
+    printRegressionList(runOptions.buckets);
   }
 
-  const failedBuckets = [];
+  if (runOptions.dryRun) {
+    printDryRun(runOptions);
+  }
 
-  for (let runIndex = 0; runIndex < runOptions.repeatCount; runIndex += 1) {
-    const runContext = {
-      repeatCount: runOptions.repeatCount,
-      runIndex,
-    };
-
+  if (!runOptions.list && !runOptions.dryRun) {
+    console.log(`Running ${scheduledScriptRuns} regression script run(s).`);
+    if (runOptions.bucketFilter) {
+      console.log(`Bucket filter: ${runOptions.bucketFilter}`);
+    }
     if (runOptions.repeatCount > 1) {
-      console.log(`\nRegression pass ${runIndex + 1}/${runOptions.repeatCount}`);
+      console.log(`Repeat count: ${runOptions.repeatCount}`);
     }
 
-    for (const bucket of runOptions.buckets) {
-      try {
-        completedResults.push(...await runBucket(bucket, runContext));
-      } catch (error) {
-        const failureResults = error?.results || [];
-        completedResults.push(...failureResults);
-        failedBuckets.push(error?.message || error);
+    const failedBuckets = [];
+
+    for (let runIndex = 0; runIndex < runOptions.repeatCount; runIndex += 1) {
+      const runContext = {
+        repeatCount: runOptions.repeatCount,
+        runIndex,
+      };
+
+      if (runOptions.repeatCount > 1) {
+        console.log(`\nRegression pass ${runIndex + 1}/${runOptions.repeatCount}`);
+      }
+
+      for (const bucket of runOptions.buckets) {
+        try {
+          completedResults.push(...await runBucket(bucket, runContext));
+        } catch (error) {
+          const failureResults = error?.results || [];
+          completedResults.push(...failureResults);
+          failedBuckets.push(error?.message || error);
+          break;
+        }
+      }
+
+      if (failedBuckets.length > 0) {
         break;
       }
     }
 
     if (failedBuckets.length > 0) {
-      break;
+      throw new Error(`Regression bucket failure(s): ${failedBuckets.join("; ")}`);
     }
-  }
 
-  if (failedBuckets.length > 0) {
-    throw new Error(`Regression bucket failure(s): ${failedBuckets.join("; ")}`);
+    printSummary(completedResults);
   }
-
-  printSummary(completedResults);
 } catch (error) {
   printSummary(completedResults);
   console.error(error?.message || error);
@@ -106,15 +114,16 @@ async function runBucket(bucket, runContext) {
 
 async function runLimited(bucket, concurrency, runContext) {
   return runLimitedItems(
-    bucket.scripts,
+    bucket.entries,
     concurrency,
-    (script, scriptIndex) => runScript(script, bucket, scriptIndex, runContext),
+    (entry, scriptIndex) => runScript(entry, bucket, scriptIndex, runContext),
   );
 }
 
-async function runScript(script, bucket, scriptIndex, runContext) {
+async function runScript(entry, bucket, scriptIndex, runContext) {
+  const script = entry.path;
   const started = performance.now();
-  const env = await createScriptEnv(script, bucket, scriptIndex, runContext);
+  const env = await createScriptEnv(entry, bucket, scriptIndex, runContext);
 
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [script], {
@@ -153,15 +162,15 @@ async function runScript(script, bucket, scriptIndex, runContext) {
   });
 }
 
-async function createScriptEnv(script, bucket, scriptIndex, runContext) {
+async function createScriptEnv(entry, bucket, scriptIndex, runContext) {
   if (bucket.name === STATIC_BUCKET_NAME) {
     return process.env;
   }
 
   const baseline = await getRegressionBaseline();
-  return baseline.createScriptEnv(script, scriptIndex, {
+  return baseline.createScriptEnv(entry.path, scriptIndex, {
     namespace: scriptEnvNamespace(bucket, runContext),
-    useBaseline: !BASELINE_BYPASS_SCRIPTS.has(script),
+    useBaseline: !entry.tags.includes("baseline-bypass"),
   });
 }
 
@@ -287,13 +296,46 @@ function scriptEnvNamespace(bucket, runContext) {
   return `${formatRunLabel(runContext)}-${bucket.name}`;
 }
 
-function resolveRunOptions(buckets, env) {
+function printRegressionList(buckets) {
+  const entries = buckets.flatMap((bucket) => bucket.entries);
+  console.log(`Discovered ${entries.length} regression script(s).`);
+  console.log("id\tarea\ttier\trunMode\ttags\tpath");
+  for (const entry of entries) {
+    console.log(`${entry.id}\t${entry.area}\t${entry.tier}\t${entry.runMode}\t${entry.tags.join(",")}\t${entry.path}`);
+  }
+}
+
+function printDryRun(runOptions) {
+  console.log(`Dry run: ${countScheduledScriptRuns(runOptions)} regression script run(s) selected.`);
+  for (const bucket of runOptions.buckets) {
+    console.log(`[${bucket.name}] ${bucket.scripts.length} script(s)`);
+    for (const script of bucket.scripts) {
+      console.log(`- ${script}`);
+    }
+  }
+  console.log("No regression scripts executed.");
+}
+
+function resolveRunOptions(buckets, env, args = []) {
   const bucketFilter = String(env.LTF_REGRESSION_BUCKET || "").trim();
   const repeatCount = parseRepeatCount(env.LTF_REGRESSION_REPEAT);
+  const cli = parseRegressionCliArgs(args);
+  const metadataFilteredBuckets = filterRegressionBuckets(buckets, cli);
+  const selectedBuckets = bucketFilter
+    ? filterBuckets(metadataFilteredBuckets, bucketFilter)
+    : metadataFilteredBuckets;
+
+  if (selectedBuckets.length === 0) {
+    const filters = [cli.area && `area=${cli.area}`, cli.tag && `tag=${cli.tag}`, cli.tier && `tier=${cli.tier}`]
+      .filter(Boolean)
+      .join(", ");
+    throw new Error(`No regression scripts matched${filters ? ` ${filters}` : " the requested filters"}.`);
+  }
 
   return {
+    ...cli,
     bucketFilter,
-    buckets: bucketFilter ? filterBuckets(buckets, bucketFilter) : buckets,
+    buckets: selectedBuckets,
     repeatCount,
   };
 }

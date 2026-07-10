@@ -22,7 +22,7 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { readTagPropagationResolver } = await import("../src/services/tag-propagation-registry.js");
@@ -66,7 +66,7 @@ function assertStaticContract() {
   assert.match(tagsServiceSource, /function readTargetRecord[\s\S]*assertIdentifier\(descriptor\.tableName[\s\S]*db\.get\(`[\s\S]*WHERE \$\{workspaceField\} = :workspaceId[\s\S]*AND \$\{idField\} = :targetId/, "tag target reads should keep identifier allowlisting and bind target values");
   assert.match(tagsServiceSource, /function text\(value\)[\s\S]*String\(value \?\? ""\)/, "tags service should preserve sqlText empty-string normalization through bound params");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should record the Tag propagation service conversion ratchet");
+  assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| services\/tag-propagation-registry \| Converted \| 0 \| 0 \| 15 \| 15 \|/, "audit inventory should mark the tag propagation registry converted");
   assert.match(auditDocs, /\| services\/tags\.service \| Converted \| 0 \| 0 \| 3 \| 3 \|/, "audit inventory should mark tags service converted");
   assert.match(auditDocs, /0\.33\.5\.27\.24 Tag Propagation and Tags Service Conversion[\s\S]*`services\/tag-propagation-registry` and `services\/tags\.service` are fully converted[\s\S]*367 runtime literal-helper invocations[\s\S]*68 direct interpolated SQL operation sites[\s\S]*291 existing bound operation sites/, "audit docs should record the Tag propagation service conversion slice");

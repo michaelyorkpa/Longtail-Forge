@@ -15,7 +15,7 @@ const changelog = readText("CHANGELOG.md");
 const configSource = readText("src/config.js");
 const dbIndexSource = readText("src/db/index.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the local .env materialization slice version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the local .env materialization slice version");

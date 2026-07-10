@@ -63,34 +63,34 @@ Purpose:
 
 Inventory the current custom regression suite and define the convention that later 0.33.6.16 slices will implement. This slice should not rewrite the runner yet.
 
-* [ ] Inventory the current regression runner entry points:
+* [x] Inventory the current regression runner entry points:
 
-  * [ ] `scripts/run-regressions.mjs`
-  * [ ] `scripts/regression-suite.mjs`
-  * [ ] `scripts/regression-coverage-ratchet.mjs`
-  * [ ] `scripts/regression-clean-clone-contract.mjs`
-  * [ ] `scripts/regression-coverage-manifest.json`
-  * [ ] `package.json` scripts that invoke regressions.
-* [ ] Inventory current regression categories by path/name:
+  * [x] `scripts/run-regressions.mjs`
+  * [x] `scripts/regression-suite.mjs`
+  * [x] `scripts/regression-coverage-ratchet.mjs`
+  * [x] `scripts/regression-clean-clone-contract.mjs`
+  * [x] `scripts/regression-coverage-manifest.json`
+  * [x] `package.json` scripts that invoke regressions.
+* [x] Inventory current regression categories by path/name:
 
-  * [ ] Workbench.
-  * [ ] Dashboard.
-  * [ ] Files.
-  * [ ] Tasks.
-  * [ ] Notes.
-  * [ ] Lists.
-  * [ ] Search.
-  * [ ] Notifications.
-  * [ ] Tags.
-  * [ ] Public API.
-  * [ ] Permissions.
-  * [ ] Database/migrations.
-  * [ ] View builder / declarative views.
-  * [ ] Module contracts.
-  * [ ] Background jobs / worker runner.
-  * [ ] App-info/version/release gates.
-  * [ ] Licensing/public-release gates, if any.
-* [ ] Define a regression file convention for future discovery.
+  * [x] Workbench.
+  * [x] Dashboard.
+  * [x] Files.
+  * [x] Tasks.
+  * [x] Notes.
+  * [x] Lists.
+  * [x] Search.
+  * [x] Notifications.
+  * [x] Tags.
+  * [x] Public API.
+  * [x] Permissions.
+  * [x] Database/migrations.
+  * [x] View builder / declarative views.
+  * [x] Module contracts.
+  * [x] Background jobs / worker runner.
+  * [x] App-info/version/release gates.
+  * [x] Licensing/public-release gates, if any.
+* [x] Define a regression file convention for future discovery.
 
   * Preferred final shape:
 
@@ -98,48 +98,48 @@ Inventory the current custom regression suite and define the convention that lat
   * Transitional support:
 
     * Existing `scripts/*-regression.mjs` files continue to run until migrated.
-* [ ] Define required metadata for discovered regressions:
+* [x] Define required metadata for discovered regressions:
 
-  * [ ] `id`
-  * [ ] `area`
-  * [ ] `tier`
-  * [ ] `tags`
-  * [ ] `description`
-  * [ ] `runMode` or equivalent parallel/serial safety flag, only if needed by the existing runner.
-* [ ] Define canonical area names:
+  * [x] `id`
+  * [x] `area`
+  * [x] `tier`
+  * [x] `tags`
+  * [x] `description`
+  * [x] `runMode` or equivalent parallel/serial safety flag, only if needed by the existing runner.
+* [x] Define canonical area names:
 
-  * [ ] `framework`
-  * [ ] `views`
-  * [ ] `dashboard`
-  * [ ] `workbench`
-  * [ ] `tasks`
-  * [ ] `notes`
-  * [ ] `lists`
-  * [ ] `files`
-  * [ ] `search`
-  * [ ] `notifications`
-  * [ ] `tags`
-  * [ ] `time-tracking`
-  * [ ] `database`
-  * [ ] `permissions`
-  * [ ] `jobs`
-  * [ ] `public-api`
-  * [ ] `release`
-  * [ ] `docs`
-  * [ ] `licensing`
-* [ ] Define canonical tiers:
+  * [x] `framework`
+  * [x] `views`
+  * [x] `dashboard`
+  * [x] `workbench`
+  * [x] `tasks`
+  * [x] `notes`
+  * [x] `lists`
+  * [x] `files`
+  * [x] `search`
+  * [x] `notifications`
+  * [x] `tags`
+  * [x] `time-tracking`
+  * [x] `database`
+  * [x] `permissions`
+  * [x] `jobs`
+  * [x] `public-api`
+  * [x] `release`
+  * [x] `docs`
+  * [x] `licensing`
+* [x] Define canonical tiers:
 
-  * [ ] `unit-like`
-  * [ ] `focused`
-  * [ ] `integration`
-  * [ ] `release-gate`
-  * [ ] `slow`
-* [ ] Document the intended future behavior:
+  * [x] `unit-like`
+  * [x] `focused`
+  * [x] `integration`
+  * [x] `release-gate`
+  * [x] `slow`
+* [x] Document the intended future behavior:
 
-  * [ ] Agents add a regression script with metadata.
-  * [ ] The runner discovers it.
-  * [ ] The coverage index/manifest is generated or validated from metadata.
-  * [ ] Agents do not manually edit multiple suite files for every new regression.
+  * [x] Agents add a regression script with metadata.
+  * [x] The runner discovers it.
+  * [x] The coverage index/manifest is generated or validated from metadata.
+  * [x] Agents do not manually edit multiple suite files for every new regression.
 
 Acceptance criteria:
 
@@ -157,42 +157,42 @@ Purpose:
 
 Teach the regression runner to discover regression scripts by convention and metadata so future slices do not require manual suite wiring.
 
-* [ ] Add a small regression metadata helper, for example:
+* [x] Add a small regression metadata helper, for example:
 
-  * [ ] `scripts/lib/regression-metadata.mjs`
-  * [ ] or `scripts/regressions/registry.mjs`
-* [ ] Support metadata exported by regression scripts, for example:
+  * [x] Selected `scripts/lib/regression-metadata.mjs`.
+  * Alternative not used: `scripts/regressions/registry.mjs`.
+* [x] Support metadata exported by regression scripts, for example:
 
-  * [ ] `export const regressionMeta = { ... }`
-  * [ ] Keep the exact API simple and documented.
-* [ ] Add discovery for:
+  * [x] `export const regressionMeta = { ... }`
+  * [x] Keep the exact API simple and documented.
+* [x] Add discovery for:
 
-  * [ ] New convention path: `scripts/regressions/**/*.regression.mjs`
-  * [ ] Existing transitional path: `scripts/*-regression.mjs`
-* [ ] Ensure discovered scripts are sorted deterministically.
-* [ ] Preserve existing serial/parallel behavior.
+  * [x] New convention path: `scripts/regressions/**/*.regression.mjs`
+  * [x] Existing transitional path: `scripts/*-regression.mjs`
+* [x] Ensure discovered scripts are sorted deterministically.
+* [x] Preserve existing serial/parallel behavior.
 
-  * [ ] If the current runner has safe parallel buckets, preserve them.
-  * [ ] Regressions that touch shared files, global temp state, database files, ports, or process state must remain serial unless explicitly marked safe.
-* [ ] Add runner options:
+  * [x] If the current runner has safe parallel buckets, preserve them.
+  * [x] Regressions that touch shared files, global temp state, database files, ports, or process state must remain serial unless explicitly marked safe.
+* [x] Add runner options:
 
-  * [ ] `--area <area>`
-  * [ ] `--tag <tag>`
-  * [ ] `--tier <tier>`
-  * [ ] `--list`
-  * [ ] `--dry-run`
-* [ ] Keep `npm run check` behavior intact unless 0.33.6.16.4 changes the command wiring explicitly.
-* [ ] Add focused regressions proving:
+  * [x] `--area <area>`
+  * [x] `--tag <tag>`
+  * [x] `--tier <tier>`
+  * [x] `--list`
+  * [x] `--dry-run`
+* [x] Keep `npm run check` behavior intact unless 0.33.6.16.4 changes the command wiring explicitly.
+* [x] Add focused regressions proving:
 
-  * [ ] New convention files are discovered.
-  * [ ] Existing legacy `scripts/*-regression.mjs` files are still discovered.
-  * [ ] Metadata is validated.
-  * [ ] Missing/invalid metadata fails with a useful error for new-style regressions.
-  * [ ] Ordering is deterministic.
-  * [ ] Area/tag/tier filters include the right scripts and exclude unrelated scripts.
-  * [ ] Serial-only regressions are not accidentally parallelized.
-  * [ ] The set of scripts discovered by the new runner exactly equals (or is a superset of) the set the current runner runs today - captured as a checked-in snapshot - so no regression is silently dropped during the discovery migration.
-* [ ] Document how to add a new regression with metadata.
+  * [x] New convention files are discovered.
+  * [x] Existing legacy `scripts/*-regression.mjs` files are still discovered.
+  * [x] Metadata is validated.
+  * [x] Missing/invalid metadata fails with a useful error for new-style regressions.
+  * [x] Ordering is deterministic.
+  * [x] Area/tag/tier filters include the right scripts and exclude unrelated scripts.
+  * [x] Serial-only regressions are not accidentally parallelized.
+  * [x] The set of scripts discovered by the new runner exactly equals (or is a superset of) the set the current runner runs today - captured as a checked-in snapshot - so no regression is silently dropped during the discovery migration.
+* [x] Document how to add a new regression with metadata.
 
 Acceptance criteria:
 
@@ -211,43 +211,43 @@ Purpose:
 
 Stop making Codex/Claude manually update the regression coverage manifest every time a regression is added, renamed, or moved.
 
-* [ ] Review the current `scripts/regression-coverage-manifest.json` contract and how `scripts/regression-coverage-ratchet.mjs` consumes it.
-* [ ] Decide whether the manifest becomes:
+* [x] Review the current `scripts/regression-coverage-manifest.json` contract and how `scripts/regression-coverage-ratchet.mjs` consumes it.
+* [x] Decide whether the manifest becomes:
 
-  * [ ] Fully generated from regression metadata; or
-  * [ ] Semi-generated with a checked-in generated file and explicit legacy exceptions.
-* [ ] Prefer metadata as the source of truth for:
+  * Alternative not selected: fully generated from regression metadata with no human policy file.
+  * [x] Selected: semi-generated with a checked-in generated file and explicit legacy exceptions.
+* [x] Prefer metadata as the source of truth for:
 
-  * [ ] regression ID
-  * [ ] area
-  * [ ] tier
-  * [ ] tags
-  * [ ] protected contract/feature
-  * [ ] release-gate status
-* [ ] Add a manifest generation/check command, for example:
+  * [x] regression ID
+  * [x] area
+  * [x] tier
+  * [x] tags
+  * [x] protected contract/feature
+  * [x] release-gate status
+* [x] Add a manifest generation/check command, for example:
 
-  * [ ] `npm run regressions:manifest`
-  * [ ] `npm run regressions:manifest:check`
-* [ ] Update the ratchet so it validates discovered regression metadata rather than relying on hand-maintained duplicate lists.
-* [ ] Preserve any existing ratchet behavior that prevents coverage from being deleted or weakened.
-* [ ] Add an explicit exception mechanism for:
+  * [x] `npm run regressions:manifest`
+  * [x] `npm run regressions:manifest:check`
+* [x] Update the ratchet so it validates discovered regression metadata rather than relying on hand-maintained duplicate lists.
+* [x] Preserve any existing ratchet behavior that prevents coverage from being deleted or weakened.
+* [x] Add an explicit exception mechanism for:
 
-  * [ ] intentionally retired regressions
-  * [ ] merged/consolidated regressions
-  * [ ] legacy scripts awaiting migration
-* [ ] Add focused regressions proving:
+  * [x] intentionally retired regressions
+  * [x] merged/consolidated regressions
+  * [x] legacy scripts awaiting migration
+* [x] Add focused regressions proving:
 
-  * [ ] Manifest generation is deterministic.
-  * [ ] Missing metadata is detected.
-  * [ ] Duplicate regression IDs fail.
-  * [ ] Removing a covered area without an explicit retirement entry fails.
-  * [ ] Legacy exceptions are honored.
-  * [ ] No existing coverage is silently dropped.
-* [ ] Update docs so agents know:
+  * [x] Manifest generation is deterministic.
+  * [x] Missing metadata is detected.
+  * [x] Duplicate regression IDs fail.
+  * [x] Removing a covered area without an explicit retirement entry fails.
+  * [x] Legacy exceptions are honored.
+  * [x] No existing coverage is silently dropped.
+* [x] Update docs so agents know:
 
-  * [ ] Add metadata to the regression script.
-  * [ ] Run the manifest check/generator.
-  * [ ] Do not manually hand-edit the coverage manifest except for explicit retirement/exception entries.
+  * [x] Add metadata to the regression script.
+  * [x] Run the manifest check/generator.
+  * [x] Do not manually hand-edit the generated coverage manifest; record explicit retirement/exception entries only in the policy file.
 
 Acceptance criteria:
 
@@ -264,49 +264,49 @@ Purpose:
 
 Give Codex/Claude fast, narrow commands for common work areas so they do not default to the full regression suite for every small change.
 
-* [ ] Add package scripts for narrow regression areas:
+* [x] Add package scripts for narrow regression areas:
 
-  * [ ] `test:regressions`
-  * [ ] `test:regressions:list`
-  * [ ] `test:regressions:framework`
-  * [ ] `test:regressions:views`
-  * [ ] `test:regressions:dashboard`
-  * [ ] `test:regressions:workbench`
-  * [ ] `test:regressions:tasks`
-  * [ ] `test:regressions:notes`
-  * [ ] `test:regressions:files`
-  * [ ] `test:regressions:database`
-  * [ ] `test:regressions:permissions`
-  * [ ] `test:regressions:release`
-* [ ] Add a changed-area helper, for example:
+  * [x] `test:regressions`
+  * [x] `test:regressions:list`
+  * [x] `test:regressions:framework`
+  * [x] `test:regressions:views`
+  * [x] `test:regressions:dashboard`
+  * [x] `test:regressions:workbench`
+  * [x] `test:regressions:tasks`
+  * [x] `test:regressions:notes`
+  * [x] `test:regressions:files`
+  * [x] `test:regressions:database`
+  * [x] `test:regressions:permissions`
+  * [x] `test:regressions:release`
+* [x] Add a changed-area helper, for example:
 
-  * [ ] `scripts/suggest-regressions-for-changes.mjs`
-* [ ] The helper should inspect changed files and suggest likely regression commands.
+  * [x] `scripts/suggest-regressions-for-changes.mjs`
+* [x] The helper should inspect changed files and suggest likely regression commands.
 
-  * [ ] It may use git diff against the working tree/current branch.
-  * [ ] It should be conservative: suggest more checks rather than fewer when shared files change.
-* [ ] Add route rules for common paths:
+  * [x] It may use git diff against the working tree/current branch.
+  * [x] It should be conservative: suggest more checks rather than fewer when shared files change.
+* [x] Add route rules for common paths:
 
-  * [ ] `src/modules/tasks/**` -> tasks regressions.
-  * [ ] `src/modules/files/**` and file UI scripts -> files regressions.
-  * [ ] `public/js/workbench.js`, Workbench routes/services/docs -> workbench regressions.
-  * [ ] `public/js/shared/view-builder.js`, view renderer/core view files -> view/framework regressions.
-  * [ ] `src/db/**`, migrations, repositories -> database regressions.
-  * [ ] permissions/session/workspace/membership files -> permissions regressions.
-  * [ ] package/version/app-info/release docs -> release regressions.
-* [ ] Keep `npm run check` as the full release gate.
-* [ ] Add agent/developer docs:
+  * [x] `src/modules/tasks/**` -> tasks regressions.
+  * [x] `src/modules/files/**` and file UI scripts -> files regressions.
+  * [x] `public/js/workbench.js`, Workbench routes/services/docs -> workbench regressions.
+  * [x] `public/js/shared/view-builder.js`, view renderer/core view files -> view/framework regressions.
+  * [x] `src/db/**`, migrations, repositories -> database regressions.
+  * [x] permissions/session/workspace/membership files -> permissions regressions.
+  * [x] package/version/app-info/release docs -> release regressions.
+* [x] Keep `npm run check` as the full release gate.
+* [x] Add agent/developer docs:
 
-  * [ ] One-module change: run the narrow area command first.
-  * [ ] Shared framework change: run framework/view commands plus relevant module commands.
-  * [ ] DB change: run database command plus affected module commands.
-  * [ ] Release closeout: run full `npm run check`.
-* [ ] Add focused regressions proving:
+  * [x] One-module change: run the narrow area command first.
+  * [x] Shared framework change: run framework/view commands plus relevant module commands.
+  * [x] DB change: run database command plus affected module commands.
+  * [x] Release closeout: run full `npm run check`.
+* [x] Add focused regressions proving:
 
-  * [ ] Area scripts call the regression runner with the right filters.
-  * [ ] Changed-area helper suggests expected commands for representative path sets.
-  * [ ] Shared/framework changes produce conservative suggestions.
-  * [ ] Full `npm run check` remains the release gate.
+  * [x] Area scripts call the regression runner with the right filters.
+  * [x] Changed-area helper suggests expected commands for representative path sets.
+  * [x] Shared/framework changes produce conservative suggestions.
+  * [x] Full `npm run check` remains the release gate.
 
 Acceptance criteria:
 
@@ -325,37 +325,37 @@ Stop manually bumping scattered cache keys or asset query strings during UI/stat
 
 This complements 0.33.6.15 but is not the same thing. 0.33.6.15 centralizes the current app version. This slice centralizes asset cache-busting.
 
-* [ ] Inventory all script/style asset cache-bust patterns:
+* [x] Inventory all script/style asset cache-bust patterns:
 
-  * [ ] Static HTML query strings.
-  * [ ] Shared app-shell includes.
-  * [ ] Navigation/footer injected assets.
-  * [ ] Module-declared assets.
-  * [ ] Any tests that pin asset query strings or cache-bust values.
-* [ ] Define one asset version/cache-bust source.
+  * [x] Static HTML query strings.
+  * [x] Shared app-shell includes.
+  * [x] Navigation/footer injected assets.
+  * [x] Module-declared assets.
+  * [x] Any tests that pin asset query strings or cache-bust values.
+* [x] Define one asset version/cache-bust source.
 
-  * [ ] Prefer deriving from the current app version helper when acceptable.
-  * [ ] If asset version must differ from app version, add a dedicated source such as `src/core/asset-version.js`.
-* [ ] Route shared script/style URL generation through one helper where practical.
-* [ ] Update static/protected pages and app-shell includes so asset URLs receive cache-bust values consistently.
-* [ ] Remove scattered manually maintained cache-bust literals where safe.
-* [ ] Preserve existing browser behavior and asset loading order.
-* [ ] Add guardrails:
+  * [x] Prefer deriving from the current app version helper when acceptable.
+  * Alternative not selected: an independently bumped asset version; `src/core/asset-version.js` instead derives from the app version.
+* [x] Route shared script/style URL generation through one helper where practical.
+* [x] Update static/protected pages and app-shell includes so asset URLs receive cache-bust values consistently.
+* [x] Remove scattered manually maintained cache-bust literals where safe.
+* [x] Preserve existing browser behavior and asset loading order.
+* [x] Add guardrails:
 
-  * [ ] New raw `?v=...` or `?cache=...` asset literals outside approved helper/source files should fail unless explicitly allowed.
-  * [ ] Historical docs/changelog examples should not be flagged.
-* [ ] Add focused regressions proving:
+  * [x] New raw `?v=...` or `?cache=...` asset literals outside approved helper/source files should fail unless explicitly allowed.
+  * [x] Historical docs/changelog examples should not be flagged.
+* [x] Add focused regressions proving:
 
-  * [ ] Shared app-shell assets include the canonical cache-bust value.
-  * [ ] Module assets receive consistent cache-bust behavior.
-  * [ ] Manual cache-bust literals outside allowlisted files are caught.
-  * [ ] Existing pages still load required scripts/styles.
-  * [ ] No product behavior changes.
-* [ ] Update docs to explain:
+  * [x] Shared app-shell assets include the canonical cache-bust value.
+  * [x] Module assets receive consistent cache-bust behavior.
+  * [x] Manual cache-bust literals outside allowlisted files are caught.
+  * [x] Existing pages still load required scripts/styles.
+  * [x] No product behavior changes.
+* [x] Update docs to explain:
 
-  * [ ] Do not manually bump cache keys.
-  * [ ] Use the asset helper/source.
-  * [ ] App version and asset version relationship.
+  * [x] Do not manually bump cache keys.
+  * [x] Use the asset helper/source.
+  * [x] App version and asset version relationship.
 
 Acceptance criteria:
 
@@ -374,44 +374,44 @@ Stop making Codex/Claude repeatedly reconcile raw parameter-binding counts durin
 
 This slice keeps the safety goal but changes the workflow: the scanner should report new violations against a known baseline rather than forcing broad count reconciliation every time.
 
-* [ ] Inventory current parameter-binding audit scripts and docs:
+* [x] Inventory current parameter-binding audit scripts and docs:
 
-  * [ ] audit scanner
-  * [ ] audit regression
-  * [ ] database parameter-binding audit docs
-  * [ ] known exception lists, if any
-* [ ] Define a baseline file, for example:
+  * [x] audit scanner
+  * [x] audit regression
+  * [x] database parameter-binding audit docs
+  * [x] known exception lists, if any
+* [x] Define a baseline file, for example:
 
-  * [ ] `scripts/baselines/parameter-binding-baseline.json`
-  * [ ] or `docs/generated/parameter-binding-baseline.json`
-* [ ] The baseline should track known legacy findings by stable location/signature.
-* [ ] The scanner should report:
+  * [x] `scripts/baselines/parameter-binding-baseline.json`
+  * Alternative not selected: `docs/generated/parameter-binding-baseline.json`.
+* [x] The baseline should track known legacy findings by stable location/signature.
+* [x] The scanner should report:
 
-  * [ ] total scanned sites
-  * [ ] safe bound sites
-  * [ ] known baseline exceptions
-  * [ ] new violations
-  * [ ] resolved legacy findings, if useful
-* [ ] The regression should fail on new violations.
-* [ ] The regression should not fail merely because total scanned count changes due to unrelated safe code movement, unless a new unsafe pattern appears.
-* [ ] Add a baseline update command for dedicated cleanup slices only, for example:
+  * [x] total scanned sites
+  * [x] safe bound sites
+  * [x] known baseline exceptions
+  * [x] new violations
+  * [x] resolved legacy findings, if useful
+* [x] The regression should fail on new violations.
+* [x] The regression should not fail merely because total scanned count changes due to unrelated safe code movement, unless a new unsafe pattern appears.
+* [x] Add a baseline update command for dedicated cleanup slices only, for example:
 
-  * [ ] `npm run audit:params`
-  * [ ] `npm run audit:params:update-baseline`
-  * [ ] `npm run audit:params:check`
-* [ ] Document the rule:
+  * [x] `npm run audit:params`
+  * [x] `npm run audit:params:update-baseline`
+  * [x] `npm run audit:params:check`
+* [x] Document the rule:
 
-  * [ ] Do not update the baseline in unrelated feature work.
-  * [ ] If a feature introduces a new query site, it must use the safe binding helper.
-  * [ ] If a legacy unsafe site is fixed, the baseline may shrink in a dedicated cleanup or as part of that fix.
-* [ ] Add focused regressions proving:
+  * [x] Do not update the baseline in unrelated feature work.
+  * [x] If a feature introduces a new query site, it must use the safe binding helper.
+  * [x] If a legacy unsafe site is fixed, the baseline may shrink in a dedicated cleanup or as part of that fix.
+* [x] Add focused regressions proving:
 
-  * [ ] New unsafe query patterns fail.
-  * [ ] Known baseline exceptions are reported but do not fail.
-  * [ ] Safe new bound query sites pass.
-  * [ ] Count-only drift does not force manual doc edits.
-  * [ ] Baseline updates are deterministic.
-* [ ] Update database docs to point to the scanner/baseline workflow.
+  * [x] New unsafe query patterns fail.
+  * [x] Known baseline exceptions are reported but do not fail.
+  * [x] Safe new bound query sites pass.
+  * [x] Count-only drift does not force manual doc edits.
+  * [x] Baseline updates are deterministic.
+* [x] Update database docs to point to the scanner/baseline workflow.
 
 Acceptance criteria:
 

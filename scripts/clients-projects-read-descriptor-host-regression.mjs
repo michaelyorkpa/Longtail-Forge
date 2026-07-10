@@ -32,7 +32,7 @@ const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const clientsServiceSource = readText("src/modules/client-projects/clients.service.js");
 const clientsRoutes = readText("src/modules/client-projects/clients.routes.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects read descriptor version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects read descriptor version");

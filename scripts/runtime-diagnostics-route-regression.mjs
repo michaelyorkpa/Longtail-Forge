@@ -23,7 +23,7 @@ const runtimeDocs = readText("docs/runtime-configuration.md");
 const appSource = readText("src/core/app.js");
 const routeSource = readText("src/routes/runtime-diagnostics.routes.js");
 const serviceSource = readText("src/services/runtime-diagnostics.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");

@@ -42,7 +42,7 @@ async function assertStaticContract() {
   const notesServiceSource = await readText("src/modules/notes/notes.service.js");
   const pickerContract = await readText("docs/linked-context-picker-contract.md");
   const roadmap = await readText("ROADMAP.md");
-  const regressionSuite = await readText("scripts/regression-suite.mjs");
+  const regressionSuite = await readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the Linked Context client-scope version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the Linked Context client-scope version");

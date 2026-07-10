@@ -56,7 +56,7 @@ function assertStaticContracts() {
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
-  const regressionSuite = readText("scripts/regression-suite.mjs");
+  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the clamd adapter version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the clamd adapter version");

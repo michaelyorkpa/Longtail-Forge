@@ -2526,7 +2526,8 @@ function loadWorkbenchActionDependency(dependency) {
     return Promise.resolve();
   }
 
-  const key = new window.URL(dependency.src, document.baseURI).href;
+  const versionedSrc = window.LongtailForge?.assetVersion?.url(dependency.src) || dependency.src;
+  const key = new window.URL(versionedSrc, document.baseURI).href;
   if (workbenchActionScriptLoads.has(key)) {
     return workbenchActionScriptLoads.get(key);
   }
@@ -2535,7 +2536,7 @@ function loadWorkbenchActionDependency(dependency) {
     ? import(key)
     : new Promise((resolve, reject) => {
         const script = document.createElement("script");
-        script.src = dependency.src;
+        script.src = versionedSrc;
         script.async = false;
         script.addEventListener("load", () => resolve());
         script.addEventListener("error", () => reject(new Error(`Could not load ${dependency.src}.`)));

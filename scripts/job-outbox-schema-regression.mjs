@@ -22,7 +22,7 @@ const databaseDocs = readText("docs/database.md");
 const architectureDocs = readText("docs/architecture.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 let cachedWorkspaceId = "";
 
 const {

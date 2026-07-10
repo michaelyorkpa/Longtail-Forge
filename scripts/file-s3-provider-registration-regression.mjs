@@ -70,7 +70,7 @@ async function assertStaticContracts() {
     readText("src/core/jobs/worker-cli.js"),
     readText("src/services/files.service.js"),
     readText("src/core/files/s3-storage-adapter.js"),
-    readText("scripts/regression-suite.mjs"),
+    readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
   assert.equal(packageJson.version, appVersion, "package.json should report the S3 provider registration version");

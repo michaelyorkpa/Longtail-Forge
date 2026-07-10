@@ -17,7 +17,7 @@ const sessionsSource = readText("src/security/sessions.js");
 const usersService = readText("src/services/users.service.js");
 const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the runtime configuration slice version");

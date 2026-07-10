@@ -8,7 +8,7 @@ const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

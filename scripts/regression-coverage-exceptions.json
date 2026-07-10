@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "minimumActiveScripts": 316,
+  "minimumAreaScripts": {
+    "dashboard": 1,
+    "database": 25,
+    "docs": 7,
+    "files": 44,
+    "framework": 35,
+    "jobs": 7,
+    "lists": 12,
+    "notes": 35,
+    "notifications": 3,
+    "permissions": 3,
+    "public-api": 3,
+    "release": 12,
+    "search": 12,
+    "tags": 12,
+    "tasks": 47,
+    "time-tracking": 6,
+    "views": 26,
+    "workbench": 26
+  },
+  "minimumReleaseGateScripts": 11,
+  "requiredReleaseGateIds": [
+    "legacy.bump.version",
+    "legacy.legacy.cleanup",
+    "legacy.regression.clean.clone.contract",
+    "legacy.regression.coverage.ratchet",
+    "legacy.regression.runner",
+    "legacy.regression.suite.inventory",
+    "framework.asset-cache-version",
+    "legacy.version.literal.guardrail",
+    "release.regression-discovery-runner",
+    "release.regression-manifest-generation",
+    "release.regression-routing-commands"
+  ],
+  "protectedAreas": [
+    "dashboard",
+    "database",
+    "docs",
+    "files",
+    "framework",
+    "jobs",
+    "lists",
+    "notes",
+    "notifications",
+    "permissions",
+    "public-api",
+    "release",
+    "search",
+    "tags",
+    "tasks",
+    "time-tracking",
+    "views",
+    "workbench"
+  ],
+  "coverageFamilies": [
+    {
+      "id": "closeout-regressions",
+      "matchTags": [
+        "closeout"
+      ],
+      "minimumActiveScripts": 9
+    }
+  ],
+  "legacyMetadataException": {
+    "snapshotPath": "scripts/regression-legacy-snapshot.json",
+    "expectedScripts": 312,
+    "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
+  },
+  "retiredScripts": [
+    {
+      "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/database-agnostic-contract-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/module-file-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/notes-import-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/surface-standardization-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/view-builder-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/view-conversion-branch-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/files-browse-edit-preview-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/files-conversion-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/notes-slideout-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/markdown-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/tasks-conversion-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/clients-projects-strict-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    },
+    {
+      "script": "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
+      "retiredInVersion": "0.33.5.29.5",
+      "retirementType": "assertions-moved",
+      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
+      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "retainedCoverageOwners": [
+        "scripts/static-contract-closeout-regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/static-contract-closeout-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run check"
+      ],
+      "floorCredit": false
+    }
+  ]
+}

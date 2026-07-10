@@ -21,7 +21,7 @@ const filesInventory = readText("docs/files-strict-guardrail-inventory.md");
 const tasksInventory = readText("docs/tasks-strict-guardrail-inventory.md");
 const clientsProjectsInventory = readText("docs/clients-projects-strict-guardrail-inventory.md");
 const declarativeGuardrailRegression = readText("scripts/view-descriptor-declarative-guardrails.mjs");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const strictSurfaceIds = [
   "client-projects.clients",

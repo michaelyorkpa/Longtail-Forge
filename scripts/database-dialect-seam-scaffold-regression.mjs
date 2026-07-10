@@ -22,7 +22,7 @@ const providerSource = readText("src/db/provider.js");
 const coreDatabaseSource = readText("src/core/database.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,

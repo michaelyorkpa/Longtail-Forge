@@ -15,7 +15,7 @@ const databaseDocs = readText("docs/database.md");
 const workspaceSettingsView = readText("views/protected/workspace-settings.html");
 const workspaceSettingsScript = readText("public/js/workspace-settings.js");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the SQLite small-office readout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the SQLite small-office readout version");

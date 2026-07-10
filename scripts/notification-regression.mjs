@@ -6,6 +6,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notification-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notification-test.db");
@@ -146,7 +147,7 @@ async function runNotificationApiTests(api, fixtures) {
     assert.match(String(page.body), /data-notification-filter="dismissed"/);
     assert.match(String(page.body), /data-notification-script-fallback/);
     assert.match(String(page.body), /data-notification-preference-script-fallback/);
-    assert.match(String(page.body), /\/js\/notifications\.js\?v=7/);
+    assert.ok(String(page.body).includes(`/js/notifications.js?v=${appVersion}`));
     assert.doesNotMatch(String(page.body), /src="js\/notifications\.js/);
     assert.match(String(page.body), /notificationsPageReady/);
   });

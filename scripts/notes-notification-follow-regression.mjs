@@ -61,7 +61,7 @@ async function assertStaticContracts() {
     readProjectFile("src/services/notifications.service.js"),
     readProjectFile("src/core/modules/manifest-contract.js"),
     readProjectFile("public/css/longtail-forge.css"),
-    readProjectFile("scripts/regression-suite.mjs"),
+    readProjectFile("scripts/regression-legacy-snapshot.json"),
   ]);
 
   assert.equal(packageJson.version, appVersion, "package.json should report the Notes follow-bell slice version");

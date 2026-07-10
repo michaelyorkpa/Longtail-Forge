@@ -23,7 +23,7 @@ const sessionsSource = readText("src/repositories/sessions.repo.js");
 const workspacesSource = readText("src/repositories/workspaces.repo.js");
 const tasksSource = readText("src/modules/tasks/tasks.repo.js");
 const notesSource = readText("src/modules/notes/notes.repo.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,

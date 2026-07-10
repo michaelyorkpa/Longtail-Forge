@@ -59,7 +59,7 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 - [ROADMAP.md](ROADMAP.md): detailed per-version plan and forward roadmap
 - [CHANGELOG.md](CHANGELOG.md): completed release notes
 - [docs/architecture.md](docs/architecture.md): framework/module architecture direction
-- [docs/versioning.md](docs/versioning.md): application-version source, bump command, guardrail, and release workflow
+- [docs/versioning.md](docs/versioning.md): application/asset-version sources, bump command, guardrails, and release workflow
 - [docs/module-contract.md](docs/module-contract.md): current module definition contract
 - [docs/notes-module.md](docs/notes-module.md): Notes module developer guide
 - [docs/time-tracking-module.md](docs/time-tracking-module.md): Time Tracking module boundary
@@ -113,7 +113,11 @@ Run the main verification check before syncing changes:
 npm run check
 ```
 
-The main check runs the full regression suite through a timed runner before ESLint. It preserves release-gate coverage while parallelizing only safe regression buckets.
+The main check runs the full regression suite through a timed runner before ESLint. It preserves release-gate coverage while parallelizing only safe regression buckets. During focused work, use `npm run test:regressions:<area>` or `node scripts/suggest-regressions-for-changes.mjs` to choose narrow checks; these do not replace the full closeout gate.
+
+For database query changes, run `npm run audit:params:check`. The scanner rejects new unreviewed interpolation findings while allowing informational bound/scanned totals to change without documentation reconciliation. Baseline updates are reserved for dedicated reviewed cleanup.
+
+See [docs/regression-suite.md](docs/regression-suite.md) for the current metadata-driven discovery contract, bucket safety model, focused selection options, and add-a-regression workflow.
 
 Run the permission regression suite when permissions, workspace lifecycle, task access, reporting access, or module access rules change:
 

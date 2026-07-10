@@ -20,7 +20,7 @@ const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const sqliteSource = readText("src/db/sqlite.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,

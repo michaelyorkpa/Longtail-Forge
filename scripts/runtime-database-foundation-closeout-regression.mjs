@@ -13,7 +13,7 @@ const runtimeDocs = readText("docs/runtime-configuration.md");
 const databaseDocs = readText("docs/database.md");
 const architectureDocs = readText("docs/architecture.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the runtime/database closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the runtime/database closeout version");

@@ -9,7 +9,7 @@ const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
 const tasksPublicRoutes = readText("src/modules/tasks/public-api.routes.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

@@ -26,7 +26,7 @@ const appSource = readText("src/core/app.js");
 const configSource = readText("src/config.js");
 const serviceSource = readText("src/services/jobs.service.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");
 const { enqueueJob } = await import("../src/core/jobs/job-queue.js");

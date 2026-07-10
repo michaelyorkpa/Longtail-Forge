@@ -10,7 +10,7 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const architecture = readText("docs/architecture.md");
 const viewContract = readText("docs/view-building-contract.md");
 const helpModules = readText("help/framework/modules-and-optional-features.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 

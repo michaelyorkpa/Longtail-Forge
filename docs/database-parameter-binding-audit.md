@@ -1,8 +1,26 @@
 # SQL Parameter-Binding Audit
 
-This document started as the 0.33.5.23.1 plan-only SQL parameter-binding audit and now tracks the live parameter-binding burndown. Audit-doc updates do not change runtime database behavior by themselves.
+This document started as the 0.33.5.23.1 plan-only SQL parameter-binding audit. Its historical sections preserve the completed burndown, while the current safety contract uses a scanner and stable baseline instead of documentation-pinned counts. Audit-doc updates do not change runtime database behavior by themselves.
 
-## Scope
+## Baseline-driven workflow
+
+Current runtime parameter-binding safety is owned by `scripts/audit-parameter-bindings.mjs`, `scripts/lib/parameter-binding-audit.mjs`, and `scripts/baselines/parameter-binding-baseline.json`.
+
+```sh
+npm run audit:params
+npm run audit:params:check
+npm run audit:params:update-baseline
+```
+
+- `audit:params` reports: Total scanned sites, Safe bound sites, Known baseline exceptions, New violations, and Resolved legacy findings.
+- `audit:params:check` fails only when runtime source introduces an unreviewed legacy helper call or template-interpolated database operation.
+- `audit:params:update-baseline` deterministically rewrites stable finding IDs from file, finding kind, operation, and normalized SQL signature. It is reserved for a dedicated parameter-binding cleanup or an explicitly reviewed dynamic-query change.
+
+Do not update the baseline in unrelated feature work. New or touched value-bearing queries must use named params. A safe new bound query may change informational totals without requiring documentation or baseline edits. When a legacy/reviewed dynamic site is removed, the scanner reports it under Resolved legacy findings; shrink the baseline during that fix or a dedicated cleanup. Never use the update command merely to make a new violation pass.
+
+The checked-in baseline contains reviewed pre-existing dynamic SQL composition, including validated identifier/fragment builders and provider/dialect seams. Baseline membership is not permission to interpolate user values. Any new dynamic composition requires explicit review, while new value input belongs in the params object.
+
+## Historical Exact-Count Snapshot
 
 Runtime source scan:
 
@@ -12,7 +30,7 @@ Runtime source scan:
 - Counted direct interpolated SQL operation sites: `db.query/get/run`, `transaction.query/get/run`, `querySql`, `getSql`, and `runSql` calls whose call expression directly contains one of the literal helpers.
 - Counted existing direct bound-params operation sites: the same operation calls with a second `params` argument.
 
-Current totals as of 0.33.6.12n:
+Historical exact-count snapshot as of 0.33.6.12n:
 
 - Remaining runtime literal-helper invocations: 0.
 - Remaining direct interpolated SQL operation sites: 0.
@@ -40,9 +58,9 @@ This is a distinct axis from the parameter-binding counts above. A repository ca
 
 0.33.5.27.32 re-audited every converted or already-bound runtime owner and moved the remaining application call sites found during the sweep onto `db.dialect` seams: `permissions.repo` now uses the conflict insert-or-ignore seam, `app-settings.repo` uses the conflict do-nothing seam, and `workspaces.repo` / `user-workspaces.repo` use the conflict update seam. Durable job returned-row reads remain converted through `transaction.dialect.returning.columns(...)`; the guardrail adds no durable-job `RETURNING` exception.
 
-The inventory below is the canonical per-owner view and should be updated in place after each conversion wave. Do not add separate per-wave owner tables with different counts; historical wave notes should point back to this table.
+The inventory below is the completed conversion-era snapshot. It is historical and must not be updated for current count drift; use the baseline-driven workflow above.
 
-## Inventory
+## Historical Inventory Snapshot
 
 Status legend:
 
@@ -97,17 +115,17 @@ Status legend:
 | db/sqlite-adapter | Already bound | 0 | 0 | 2 | 2 |
 | tasks/task-jobs.service | Already bound | 0 | 0 | 1 | 2 |
 
-## Future Conversion Wave Ratchet Checklist
+## Retired Exact-Count Ratchet Checklist
 
-Every future parameter-binding conversion wave must update these artifacts together before closeout:
+The completed conversion branch used this checklist. It is retained as history and is superseded by the scanner/baseline workflow:
 
-1. `docs/database-parameter-binding-audit.md`: update the current totals above and the canonical Inventory row for every touched owner, including the owner status.
-2. `scripts/parameter-binding-audit-regression.mjs`: update the exact `audit.totals` object, `expectedTopGroups` when top-owner order or counts change, and any owner-specific row/status assertions touched by the wave.
-3. `CHANGELOG.md`: record the shipped burndown with the same helper, direct-interpolation, bound-site, and runtime DB-operation counts.
-4. `docs/database.md`: update only when the wave changes the reusable database contract or a published live ratchet summary.
-5. Focused regressions: run the touched repository/service regression plus `scripts/parameter-binding-audit-regression.mjs`; keep the full closeout checks for release bookkeeping.
+1. Run `npm run audit:params` while reviewing database changes.
+2. Run `npm run audit:params:check`; new violations must be fixed or explicitly reviewed in the owning parameter-binding slice.
+3. Do not reconcile informational scanned/bound totals in docs or regressions.
+4. Update `docs/database.md` only when the reusable database/query contract changes.
+5. Run the touched repository/service regression plus the audit check; keep the full closeout checks for release bookkeeping.
 
-Do not weaken the exact-equality ratchet when it fails. A red ratchet means the conversion changed the live SQL inventory and the artifacts above need to be reconciled.
+Do not baseline new unsafe value interpolation. A red check means runtime source introduced an unreviewed stable finding and the query or explicit review must be handled in scope.
 
 Standing query rule from `DECISIONS.md`: new or touched single-statement repository queries must use named params through `db.query(sql, params)`, `db.get(sql, params)`, or `db.run(sql, params)`. `sqlText()`, `sqlInteger()`, `sqlNullableText()`, and `sqlNullableInteger()` remain deprecated compatibility escape hatches for unconverted literal SQL and no-parameter multi-statement startup/migration paths unless a roadmap slice explicitly keeps a touched statement on that compatibility path.
 

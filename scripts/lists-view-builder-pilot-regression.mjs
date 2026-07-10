@@ -8,7 +8,7 @@ const css = readText("public/css/longtail-forge.css");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 

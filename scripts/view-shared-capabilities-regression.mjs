@@ -7,7 +7,7 @@ import { validateModuleManifest } from "../src/core/modules/manifest-contract.js
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const contract = readText("src/core/modules/manifest-contract.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 // --- Source guards: the three shared capabilities live in the framework, not modules. ---
 assert.match(renderer, /function appendFilterQuery/, "Renderer should build dataSource query params from filters");

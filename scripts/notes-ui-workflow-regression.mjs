@@ -47,14 +47,17 @@ async function assertProtectedView(session) {
   // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
   // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=12/);
-  assert.match(html, /js\/shared\/icons\.js\?v=4/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
-  assert.match(html, /js\/notes\.js\?v=72/);
-  assert.match(html, /js\/shared\/tags\.js\?v=1/);
-  assert.match(html, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/);
-  assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(html, /css\/longtail-forge\.css\?v=56/);
+  assert.ok(html.includes(`js/shared/view-renderer.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/shared/icons.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/shared/view-builder.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/notes.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/shared/tags.js?v=${appVersion}`));
+  assert.ok(
+    html.indexOf(`js/shared/file-attachments.js?v=${appVersion}`)
+      < html.indexOf(`js/shared/file-preview.js?v=${appVersion}`),
+  );
+  assert.ok(html.includes(`js/shared/notes-editor.js?v=${appVersion}`));
+  assert.ok(html.includes(`css/longtail-forge.css?v=${appVersion}`));
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);

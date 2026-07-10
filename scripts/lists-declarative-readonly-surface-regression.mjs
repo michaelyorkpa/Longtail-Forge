@@ -7,7 +7,7 @@ const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 

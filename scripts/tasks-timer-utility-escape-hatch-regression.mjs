@@ -14,7 +14,7 @@ const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const viewContract = readText("docs/view-building-contract.md");
 const taskTimerRegression = readText("scripts/task-timer-status-regression.mjs");
 const notificationRegression = readText("scripts/notification-regression.mjs");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

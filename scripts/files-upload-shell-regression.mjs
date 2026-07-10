@@ -12,7 +12,7 @@ const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
 const workbenchHtml = readText("views/protected/workbench.html");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Files upload-shell slice version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Files upload-shell slice version");

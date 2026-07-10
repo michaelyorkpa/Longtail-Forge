@@ -17,7 +17,7 @@ const surfaceContract = readText("docs/ui-surface-contract.md");
 const timeTrackingDocs = readText("docs/time-tracking-module.md");
 const architectureDocs = readText("docs/architecture.md");
 const roadmap = readText("ROADMAP.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const regressionManifest = readText("scripts/regression-coverage-manifest.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Create Timer modal version");

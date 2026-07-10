@@ -58,7 +58,7 @@ async function assertStaticContracts() {
     readText("docs/module-development.md"),
     readText("docs/runtime-configuration.md"),
     readText("src/services/files.service.js"),
-    readText("scripts/regression-suite.mjs"),
+    readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
   assert.equal(packageJson.version, appVersion, "package.json should report the quota enforcement version");

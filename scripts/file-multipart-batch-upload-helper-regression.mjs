@@ -59,7 +59,7 @@ function assertStaticContracts() {
   const notesHtml = readText("views/protected/notes.html");
   const tasksHtml = readText("views/protected/tasks.html");
   const workbenchHtml = readText("views/protected/workbench.html");
-  const regressionSuite = readText("scripts/regression-suite.mjs");
+  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the streamed batch upload version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the streamed batch upload version");

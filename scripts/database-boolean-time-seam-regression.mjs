@@ -23,8 +23,8 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
 const activeTimersRepoSource = readText("src/modules/time-tracking/active-timers.repo.js");
-const parameterAuditRegression = readText("scripts/parameter-binding-audit-regression.mjs");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const parameterBindingBaseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -73,7 +73,10 @@ function assertStaticContract() {
   }
 
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*1,481 runtime literal-helper invocations[\s\S]*230 direct interpolated SQL operation sites/, "parameter-binding audit should retain the boolean/time proof burndown");
-  assert.match(parameterAuditRegression, /\["time-tracking\/active-timers\.repo", 12\]/, "parameter-binding audit should track the converted active timer row");
+  assert.ok(
+    parameterBindingBaseline.findings.some((finding) => finding.file === "src/modules/time-tracking/active-timers.repo.js"),
+    "parameter-binding baseline should track reviewed active-timer dynamic SQL composition by stable file/signature",
+  );
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.5 - Boolean and timestamp\/interval seams[\s\S]*- \[x\] Implement adapter-owned logical boolean normalization[\s\S]*- \[x\] Implement the provider date\/time helper[\s\S]*- \[x\] Convert one small proof path/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.5[\s\S]*`db\.dialect\.boolean\.bindFields\(\.\.\.\)`[\s\S]*`db\.dialect\.time\.elapsedSecondsSince\(\.\.\.\)`/, "database docs should describe the boolean and timestamp seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*`settings\.repo`[\s\S]*`time-tracking\/active-timers\.repo`/, "audit docs should record the boolean/time proof paths");

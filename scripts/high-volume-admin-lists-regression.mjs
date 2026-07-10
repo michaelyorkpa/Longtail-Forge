@@ -26,7 +26,7 @@ const filesScript = readText("public/js/files.js");
 const notificationsScript = readText("public/js/notifications.js");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 runSeed();

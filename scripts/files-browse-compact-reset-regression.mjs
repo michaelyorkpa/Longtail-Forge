@@ -9,7 +9,7 @@ const filesScript = readText("public/js/files.js");
 const filesService = readText("src/services/files.service.js");
 const styles = readText("public/css/longtail-forge.css");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

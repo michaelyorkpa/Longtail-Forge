@@ -2,8 +2,7 @@
   "schemaVersion": 1,
   "currentVersionLiteralFiles": [
     "package.json",
-    "package-lock.json",
-    "scripts/regression-coverage-manifest.json"
+    "package-lock.json"
   ],
   "historicalLabelFiles": [
     "ROADMAP.md",

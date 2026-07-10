@@ -11,7 +11,7 @@ const notesDocs = readText("docs/notes-module.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the closeout version");

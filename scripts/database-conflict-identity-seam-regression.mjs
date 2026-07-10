@@ -26,7 +26,7 @@ const jobQueueSource = readText("src/core/jobs/job-queue.js");
 const jobRunnerSource = readText("src/core/jobs/job-runner.js");
 const jobsServiceSource = readText("src/services/jobs.service.js");
 const parameterAuditRegression = readText("scripts/parameter-binding-audit-regression.mjs");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,

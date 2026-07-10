@@ -10,7 +10,7 @@ const taskDialog = readText("public/js/task-dialog.js");
 const taskService = readText("src/modules/tasks/tasks.service.js");
 const tasksModule = readText("src/modules/tasks/module.js");
 const stylesheet = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the checklist editor display version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the checklist editor display version");

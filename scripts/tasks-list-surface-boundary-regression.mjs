@@ -13,7 +13,7 @@ const declarativeGuardrails = readText("scripts/view-descriptor-declarative-guar
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const viewContract = readText("docs/view-building-contract.md");
 const tasksDocs = readText("docs/tasks-module.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

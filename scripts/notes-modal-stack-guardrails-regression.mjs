@@ -9,7 +9,7 @@ const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

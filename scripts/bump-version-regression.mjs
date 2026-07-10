@@ -45,7 +45,7 @@ try {
 
   const repoPackage = JSON.parse(await fs.readFile(path.join(process.cwd(), "package.json"), "utf8"));
   const bumpSource = await fs.readFile(path.join(process.cwd(), "scripts/bump-version.mjs"), "utf8");
-  const regressionSuite = await fs.readFile(path.join(process.cwd(), "scripts/regression-suite.mjs"), "utf8");
+  const regressionSuite = await fs.readFile(path.join(process.cwd(), "scripts/regression-legacy-snapshot.json"), "utf8");
   assert.equal(repoPackage.scripts["version:bump"], "node scripts/bump-version.mjs");
   assert.match(bumpSource, /console\.log\(result\.checklist\)/, "the CLI should print its follow-up checklist");
   assert.match(regressionSuite, /scripts\/bump-version-regression\.mjs/);

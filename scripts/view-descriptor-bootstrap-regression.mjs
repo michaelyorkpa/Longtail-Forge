@@ -23,7 +23,7 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const navigationScript = readText("public/js/navigation.js");
 const appShellServiceSource = readText("src/services/app-shell.service.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

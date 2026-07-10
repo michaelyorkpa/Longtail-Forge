@@ -20,7 +20,7 @@ const viewContract = readText("docs/view-building-contract.md");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const relationshipRegression = readText("scripts/task-relationships-regression.mjs");
 const linkedPanelRegression = readText("scripts/notes-linked-panel-regression.mjs");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

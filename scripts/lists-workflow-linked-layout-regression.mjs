@@ -9,7 +9,7 @@ const listsJs = readText("public/js/lists.js");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

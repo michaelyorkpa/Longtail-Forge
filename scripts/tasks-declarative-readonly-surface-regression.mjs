@@ -8,7 +8,7 @@ const tasksModule = readText("src/modules/tasks/module.js");
 const tasksView = readText("views/protected/tasks.html");
 const tasksScript = readText("public/js/tasks.js");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");

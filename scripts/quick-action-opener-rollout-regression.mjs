@@ -14,7 +14,7 @@ const listsView = readText("views/protected/lists.html");
 const filesView = readText("views/protected/files.html");
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 let checks = 0;
 
 function check(name, assertion) {

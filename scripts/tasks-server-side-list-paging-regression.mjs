@@ -18,7 +18,7 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const tasksDocs = readText("docs/tasks-module.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 runSeed();

@@ -23,7 +23,7 @@ const tasksPageSource = readText("public/js/tasks.js");
 const workbenchSource = readText("public/js/workbench.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const publicApiSource = readText("src/modules/tasks/public-api.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeDatabase, db, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");

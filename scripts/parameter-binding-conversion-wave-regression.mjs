@@ -17,7 +17,7 @@ const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const convertedSources = new Map([
   ["app-settings.repo", readText("src/repositories/app-settings.repo.js")],
   ["permissions.repo", readText("src/repositories/permissions.repo.js")],
@@ -49,10 +49,9 @@ try {
   await assertConvertedRepositoriesRuntime();
 
   assert.match(auditDocs, /0\.33\.5\.23\.3 Conversion Wave/, "audit docs should record the conversion wave");
-  assert.match(auditDocs, /The canonical Inventory table above now marks these six repositories as `Converted`/, "audit docs should point converted wave rows back to the canonical inventory");
   assert.match(auditDocs, /`sessions\.repo` is not part of this converted wave; it was already a bound-params pilot/, "audit docs should keep the sessions pilot separate from the converted wave");
-  assert.doesNotMatch(auditDocs, /Converted wave rows in the current runtime audit/, "audit docs should not keep a divergent converted-wave sub-table");
-  assertConvertedInventoryRows();
+  assert.match(auditDocs, /Baseline-driven workflow[\s\S]*audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should direct current work to stable baseline enforcement");
+  assert.match(auditDocs, /Historical Inventory Snapshot/, "audit docs should preserve the completed conversion inventory as history");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the conversion wave: 1,499/, "audit docs should record the wave helper burndown");
   assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the conversion wave: 233/, "audit docs should record the wave operation-site burndown");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.3[\s\S]*auth, workspace, permission, and settings repositories/, "database docs should record the converted wave");
@@ -87,31 +86,6 @@ function assertConvertedSourceShape() {
   assert.match(convertedSources.get("permissions.repo"), /ensurePermissionContracts[\s\S]*db\.transaction/, "permission contract repair should use adapter transactions");
   assert.match(convertedSources.get("settings.repo"), /saveWorkspaceSettings[\s\S]*db\.transaction/, "settings save should use adapter transactions");
   assert.match(convertedSources.get("app-settings.repo"), /ensureDefaults[\s\S]*db\.transaction/, "app settings defaults should use adapter transactions");
-}
-
-function assertConvertedInventoryRows() {
-  const convertedRows = [
-    ["users.repo", 17, 17],
-    ["workspaces.repo", 10, 10],
-    ["permissions.repo", 8, 10],
-    ["user-workspaces.repo", 6, 7],
-    ["settings.repo", 4, 4],
-    ["app-settings.repo", 2, 3],
-  ];
-
-  for (const [group, boundOperationSites, dbOperationSites] of convertedRows) {
-    assert.match(
-      auditDocs,
-      new RegExp(`\\| ${escapeRegExp(group)} \\| Converted \\| 0 \\| 0 \\| ${boundOperationSites} \\| ${dbOperationSites} \\|`),
-      `${group} should be marked Converted in the canonical audit inventory`,
-    );
-  }
-
-  assert.match(
-    auditDocs,
-    /\| sessions\.repo \| Already bound \| 0 \| 0 \| 8 \| 8 \|/,
-    "sessions.repo should be marked Already bound in the canonical audit inventory",
-  );
 }
 
 async function assertConvertedRepositoriesRuntime() {

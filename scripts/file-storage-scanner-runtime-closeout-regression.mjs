@@ -14,7 +14,7 @@ const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const envExample = readText(".env.example");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const branchRegressions = [
   "scripts/file-storage-provider-configuration-regression.mjs",

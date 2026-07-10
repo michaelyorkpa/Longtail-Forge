@@ -50,12 +50,12 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(html, /data-list-detail/);
   assert.doesNotMatch(html, /data-list-dialog/);
   assert.doesNotMatch(html, /<details class="lists-index-panel"/);
-  assert.match(html, /js\/shared\/icons\.js\?v=2/);
-  assert.match(html, /js\/shared\/client-project-options\.js\?v=2/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=5/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=6/);
-  assert.match(html, /js\/lists\.js\?v=14/);
-  assert.match(html, /css\/longtail-forge\.css\?v=32/);
+  assert.ok(html.includes(`js/shared/icons.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/shared/client-project-options.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/shared/view-builder.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/shared/view-renderer.js?v=${appVersion}`));
+  assert.ok(html.includes(`js/lists.js?v=${appVersion}`));
+  assert.ok(html.includes(`css/longtail-forge.css?v=${appVersion}`));
 
   assert.match(listsJs, /buildListsViewShell/);
   assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);

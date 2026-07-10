@@ -22,7 +22,7 @@ const notesScript = readText("public/js/notes.js");
 const css = readText("public/css/longtail-forge.css");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");

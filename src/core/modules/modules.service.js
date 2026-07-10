@@ -30,6 +30,7 @@ import {
   listTagPropagationRules as listRegisteredTagPropagationRules,
   listTaggableTypes as listRegisteredTaggableTypes,
 } from "./registry.js";
+import { withAssetVersion } from "../asset-version.js";
 import { internalEventBus } from "../events/event-bus.js";
 import { resolveContributionTerminology, resolveModuleDefinitionTerminology } from "./terminology.js";
 import {
@@ -1192,7 +1193,7 @@ function omitOwningModuleRequirement(contribution) {
 function normalizeAssetContribution(asset) {
   return {
     ...asset,
-    path: String(asset.path || "").trim(),
+    path: withAssetVersion(asset.path),
     type: asset.type === "style" ? "style" : "script",
   };
 }

@@ -4,7 +4,7 @@ import {
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
-import { REGRESSION_BUCKETS, REGRESSION_COMMANDS } from "./regression-suite.mjs";
+import { REGRESSION_BUCKETS, REGRESSION_COMMANDS, REGRESSION_ENTRIES } from "./regression-suite.mjs";
 
 const runner = await readProjectFile("scripts/run-regressions.mjs");
 const runnerSchedulerSupport = await readProjectFile("scripts/test-support/regression-runner-scheduler.mjs");
@@ -13,6 +13,9 @@ const sourceScanSupport = await readProjectFile("scripts/test-support/source-sca
 const parameterBindingAudit = await readProjectFile("scripts/parameter-binding-audit-regression.mjs");
 const interpolationGuardrail = await readProjectFile("scripts/interpolation-enforcement-guardrail-regression.mjs");
 const dialectGuardrail = await readProjectFile("scripts/dialect-enforcement-guardrail-regression.mjs");
+const discoverySupport = await readProjectFile("scripts/lib/regression-discovery.mjs");
+const metadataSupport = await readProjectFile("scripts/lib/regression-metadata.mjs");
+const runnerOptionsSupport = await readProjectFile("scripts/lib/regression-runner-options.mjs");
 const packageJson = JSON.parse(await readProjectFile("package.json"));
 
 const staticBucket = bucketByName("static/source regressions");
@@ -35,7 +38,7 @@ assert.equal(fileStorageBucket.mode, "serial", "file storage regressions should 
 assert.equal(isolatedDatabaseBucket.mode, "parallel", "isolated database regressions should remain a parallel bucket");
 assert.ok(isolatedDatabaseBucket.concurrency > 1, "isolated database regressions should default to concurrent workers");
 
-assert.match(runner, /resolveRunOptions\(REGRESSION_BUCKETS, process\.env\)/, "runner should derive options from the suite bucket order");
+assert.match(runner, /resolveRunOptions\(REGRESSION_BUCKETS, process\.env, process\.argv\.slice\(2\)\)/, "runner should derive CLI options from the discovered suite");
 assert.match(runner, /for \(const bucket of runOptions\.buckets\)/, "runner should execute selected buckets in suite order");
 assert.doesNotMatch(runner, /Promise\.allSettled\(remainingBuckets/, "runner must not overlap shared database buckets with isolated buckets");
 assert.match(runner, /ISOLATED_BUCKET_NAME = "isolated database regressions"/);
@@ -43,9 +46,8 @@ assert.match(runner, /STATIC_BUCKET_NAME = "static\/source regressions"/);
 assert.match(runner, /MAX_REGRESSION_REPEAT_COUNT = 5/, "repeat stress mode should stay bounded");
 assert.match(runner, /LTF_REGRESSION_BUCKET/, "runner should expose a bucket filter for bounded stress checks");
 assert.match(runner, /LTF_REGRESSION_REPEAT/, "runner should expose a bounded repeat count for stress checks");
-assert.match(runner, /filterBuckets\(buckets, bucketFilter\)/, "runner should resolve the bucket filter before scheduling scripts");
-assert.match(runner, /BASELINE_BYPASS_SCRIPTS = new Set/);
-assert.match(runner, /scripts\/fresh-database-regression\.mjs/);
+assert.match(runner, /filterBuckets\(metadataFilteredBuckets, bucketFilter\)/, "runner should combine metadata and bucket filters before scheduling scripts");
+assert.match(runner, /entry\.tags\.includes\("baseline-bypass"\)/, "baseline bypass should be explicit metadata rather than a second runner path list");
 assert.ok(
   REGRESSION_COMMANDS.includes("node scripts/baseline-adoption-regression.mjs"),
   "Baseline adoption regression should guard pre-baseline local DB preservation",
@@ -53,7 +55,7 @@ assert.ok(
 assert.match(runner, /prepareRegressionBaselineDatabase/);
 assert.match(runner, /regressionBaselinePromise/, "runner should share one in-flight baseline preparation across parallel scripts");
 assert.match(runner, /regressionBaselinePromise = prepareRegressionBaselineDatabase\(\)/, "parallel isolated startup should not prepare multiple baseline databases");
-assert.match(runner, /createScriptEnv\(script, bucket, scriptIndex, runContext\)/);
+assert.match(runner, /createScriptEnv\(entry, bucket, scriptIndex, runContext\)/);
 assert.match(runner, /namespace: scriptEnvNamespace\(bucket, runContext\)/, "runner should namespace isolated DB fixtures by bucket and repeat pass");
 assert.match(runner, /LTF_REGRESSION_TIMING_JSON/);
 assert.match(databaseFixtureSupport, /path\.join\(root, "script-data", namespace/, "database fixture should include the runner namespace in script data paths");
@@ -68,6 +70,23 @@ assert.ok(
   REGRESSION_COMMANDS.includes("node scripts/regression-runner-regression.mjs"),
   "Regression runner guardrail must remain in the full regression suite",
 );
+assert.ok(
+  REGRESSION_COMMANDS.includes("node scripts/regressions/release/regression-discovery-runner.regression.mjs"),
+  "new convention-path regressions should be auto-discovered",
+);
+assert.ok(
+  REGRESSION_ENTRIES.find((entry) => entry.path === "scripts/fresh-database-regression.mjs")?.tags.includes("baseline-bypass"),
+  "fresh database should preserve the baseline bypass through metadata",
+);
+assert.match(discoverySupport, /listConventionCandidates/);
+assert.match(discoverySupport, /listTopLevelLegacyCandidates/);
+assert.match(discoverySupport, /regression-legacy-snapshot\.json/);
+assert.match(metadataSupport, /export\\s\+const\\s\+regressionMeta/);
+assert.match(runnerOptionsSupport, /--area/);
+assert.match(runnerOptionsSupport, /--tag/);
+assert.match(runnerOptionsSupport, /--tier/);
+assert.match(runner, /printRegressionList/);
+assert.match(runner, /printDryRun/);
 assert.match(sourceScanSupport, /function readRuntimeSourceEntries/, "source-scan support should own runtime source entry reads");
 assert.match(sourceScanSupport, /function extractCallExpression/, "source-scan support should own shared call-expression parsing");
 assert.match(parameterBindingAudit, /from "\.\/test-support\/source-scan\.mjs"/, "parameter-binding audit should consume shared source-scan support");

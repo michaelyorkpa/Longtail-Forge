@@ -21,7 +21,7 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { tagsRepository } = await import("../src/repositories/tags.repo.js");
@@ -95,7 +95,7 @@ function assertStaticContract() {
     /suppressionInsertParams/,
   ]);
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should record the current conversion ratchet after the Tags repository conversion");
+  assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| tags\.repo \| Converted \| 0 \| 0 \| 17 \| 17 \|/, "audit inventory should mark tags repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.23 Tags Repository Conversion[\s\S]*`tags\.repo` is fully converted[\s\S]*403 runtime literal-helper invocations[\s\S]*86 direct interpolated SQL operation sites[\s\S]*273 existing bound operation sites/, "audit docs should record the Tags repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.23[\s\S]*`tags\.repo` is converted[\s\S]*403 remaining helper invocations/, "database docs should record the concrete Tags repository conversion");

@@ -52,7 +52,7 @@ const filesScript = read("public/js/files.js");
 const filePreviewScript = read("public/js/shared/file-preview.js");
 const filesStyles = read("public/css/longtail-forge.css");
 const icons = read("public/js/shared/icons.js");
-const regressionSuite = read("scripts/regression-suite.mjs");
+const regressionSuite = read("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

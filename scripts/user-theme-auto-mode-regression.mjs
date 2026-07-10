@@ -33,7 +33,7 @@ const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { staticService } = await import("../src/services/static.service.js");

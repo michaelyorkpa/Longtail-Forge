@@ -9,7 +9,7 @@ const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-scale-seed-regression-"));
 const disposableDb = path.join(tempDir, "longtail-forge-scale-seed-demo.db");
 const seedScript = readText("scripts/seed-scale.mjs");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 try {
   assertStaticContract();

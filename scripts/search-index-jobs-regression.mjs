@@ -28,7 +28,7 @@ const searchJobsSource = readText("src/services/search-index-jobs.service.js");
 const syncSource = readText("src/services/search-index-sync.service.js");
 const routeSource = readText("src/routes/search-index.routes.js");
 const searchScript = readText("public/js/search.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { clearSearchIndexersForTests, registerSearchIndexer } = await import("../src/core/search/indexer-registry.js");

@@ -7,7 +7,7 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const notesServiceJs = readText("src/modules/notes/notes.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

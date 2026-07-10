@@ -11,7 +11,7 @@ const tasksScript = readText("public/js/tasks.js");
 const workbenchScript = readText("public/js/workbench.js");
 const workbenchView = readText("views/protected/workbench.html");
 const moduleActions = readText("public/js/shared/module-actions.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

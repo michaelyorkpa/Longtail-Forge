@@ -16,7 +16,7 @@ const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const changelog = readText("CHANGELOG.md");
 const roadmap = readText("ROADMAP.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const inventoryDoc = readText("docs/clients-projects-strict-guardrail-inventory.md");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the strict Clients/Projects cleanup version");

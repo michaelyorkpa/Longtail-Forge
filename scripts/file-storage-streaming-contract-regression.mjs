@@ -59,7 +59,7 @@ function assertStaticContracts() {
   const changelog = readText("CHANGELOG.md");
   const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
   const filesService = readText("src/services/files.service.js");
-  const regressionSuite = readText("scripts/regression-suite.mjs");
+  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the streaming storage contract version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the streaming storage contract version");

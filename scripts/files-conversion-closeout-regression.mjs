@@ -15,7 +15,7 @@ const viewContract = readText("docs/view-building-contract.md");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const moduleContract = readText("docs/module-contract.md");
 const filesInventory = readText("docs/files-strict-guardrail-inventory.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Files conversion closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Files conversion closeout version");

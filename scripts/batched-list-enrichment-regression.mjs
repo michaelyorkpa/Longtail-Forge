@@ -22,7 +22,7 @@ const clientsRepoSource = readText("src/modules/client-projects/clients.repo.js"
 const projectsRepoSource = readText("src/modules/client-projects/projects.repo.js");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContracts();
 

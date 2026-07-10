@@ -2,6 +2,8 @@
 
 This document is the 0.33.5.29.1 measurement artifact for the regression and check-suite performance branch. It records the pre-optimization baseline, suite inventory, and target list. This slice intentionally changes no runner behavior and does not drop coverage.
 
+For the current metadata-driven discovery, generated coverage index, exception policy, and runner commands, use [regression-suite.md](regression-suite.md). Counts and manifest shapes below are historical measurements and release records for the 0.33.5.29 branch.
+
 ## Baseline Run
 
 - Version target: 0.33.5.29.1.

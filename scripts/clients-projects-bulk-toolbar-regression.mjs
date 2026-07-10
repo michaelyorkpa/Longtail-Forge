@@ -13,7 +13,7 @@ const manifestContract = readText("src/core/modules/manifest-contract.js");
 const viewRenderer = readText("public/js/shared/view-renderer.js");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const css = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects bulk-toolbar version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects bulk-toolbar version");

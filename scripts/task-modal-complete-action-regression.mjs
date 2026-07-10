@@ -23,7 +23,7 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const workbenchScript = readText("public/js/workbench.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");

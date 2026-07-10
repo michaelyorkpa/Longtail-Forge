@@ -27,7 +27,7 @@ const runnerSource = readText("src/core/jobs/job-runner.js");
 const handlersSource = readText("src/core/jobs/job-handlers.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
 const workerRootSource = readText("worker.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,

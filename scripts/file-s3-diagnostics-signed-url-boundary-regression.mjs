@@ -141,7 +141,7 @@ async function assertStaticContracts() {
     readText("src/routes/files.routes.js"),
     readText("src/services/runtime-diagnostics.service.js"),
     readText("public/js/workspace-settings.js"),
-    readText("scripts/regression-suite.mjs"),
+    readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
   assert.equal(packageJson.version, appVersion, "package.json should report the S3 diagnostics boundary version");

@@ -9,7 +9,7 @@ const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const renderer = readText("public/js/shared/view-renderer.js");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");

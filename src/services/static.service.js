@@ -1,6 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
+import {
+  decorateHtmlAssetUrls,
+  injectAssetVersionBootstrap,
+} from "../core/asset-version.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
@@ -133,12 +137,14 @@ function resolvePublicAssetPath(requestPath) {
 }
 
 async function decorateHtml(contents, resolved, session) {
+  const assetDecoratedContents = decorateHtmlAssetUrls(injectAssetVersionBootstrap(contents));
+
   if (!resolved.protectedHtml || !session?.user_id) {
-    return contents;
+    return assetDecoratedContents;
   }
 
   const theme = await readInitialTheme(session);
-  return injectCriticalThemeStyle(injectThemeAttributes(contents, theme));
+  return injectCriticalThemeStyle(injectThemeAttributes(assetDecoratedContents, theme));
 }
 
 async function readInitialTheme(session) {

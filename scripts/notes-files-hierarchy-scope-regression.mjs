@@ -21,7 +21,7 @@ const notesDocs = readText("docs/notes-module.md");
 const roadmap = readText("ROADMAP.md");
 const viewBuildingContract = readText("docs/view-building-contract.md");
 const notesModuleSource = readText("src/modules/notes/module.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, runSql, sqlText, querySql } = await import("../src/db/index.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");

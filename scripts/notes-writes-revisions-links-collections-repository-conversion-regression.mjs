@@ -23,7 +23,7 @@ const databaseDocs = readText("docs/database.md");
 const notesDocs = readText("docs/notes-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { notesRepository } = await import("../src/modules/notes/notes.repo.js");
@@ -65,7 +65,7 @@ function assertStaticContract() {
   assert.match(notesRepoSource, /function nullableText\(value\)[\s\S]*String\(value\)\.trim\(\) === ""[\s\S]*\? null/, "converted nullable params should preserve the old nullable text trimming behavior");
   assert.match(notesRepoSource, /function integer\(value\)[\s\S]*Number\.parseInt[\s\S]*: 0/, "converted integer params should preserve the old integer fallback behavior");
 
-  assert.match(auditDocs, /Current totals as of 0\.33\.6\.12n:[\s\S]*Remaining runtime literal-helper invocations: 0[\s\S]*Remaining direct interpolated SQL operation sites: 0[\s\S]*Existing direct bound-params operation sites: 402[\s\S]*Total runtime database operation calls seen by the audit scanner: 446/, "audit docs should record the current Files lifecycle/settings/quota conversion ratchet");
+  assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| notes\/notes\.repo \| Converted \| 0 \| 0 \| 25 \| 25 \|/, "audit inventory should mark notes/notes.repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.15 Notes Writes, Revisions, Links, and Collections Repository Conversion[\s\S]*`notes\/notes\.repo`[\s\S]*fully converted[\s\S]*904 runtime literal-helper invocations[\s\S]*166 direct interpolated SQL operation sites[\s\S]*180 existing bound operation sites/, "audit docs should record the Notes write conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.15[\s\S]*`notes\/notes\.repo`[\s\S]*fully converted[\s\S]*904 remaining helper invocations/, "database docs should record the full Notes repository conversion");

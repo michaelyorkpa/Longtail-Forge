@@ -22,7 +22,7 @@ const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const tasksSource = readText("src/modules/tasks/tasks.repo.js");
 const notesRepoSource = readText("src/modules/notes/notes.repo.js");
 const notesServiceSource = readText("src/modules/notes/notes.service.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,

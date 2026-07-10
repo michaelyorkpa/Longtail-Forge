@@ -27,7 +27,7 @@ const appSource = readText("src/core/app.js");
 const routeSource = readText("src/routes/jobs.routes.js");
 const serviceSource = readText("src/services/jobs.service.js");
 const runnerSource = readText("src/core/jobs/job-runner.js");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");

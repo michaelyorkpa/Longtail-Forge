@@ -7,7 +7,7 @@ const helper = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-suite.mjs");
+const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
