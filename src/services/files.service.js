@@ -20,6 +20,16 @@ import {
   createNoneFileScannerAdapter,
   createNoopFileScannerAdapter,
 } from "../core/files/scanner-adapter.js";
+import {
+  CreateFileBatchSchema,
+  CreateFileSchema,
+  FileAttachmentSchema,
+  FileMetadataSchema,
+  FilePreviewRequestSchema,
+  FileStorageAdapterConfigSchema,
+  UpdateFileContextSchema,
+  parseFilesEdgePayload,
+} from "../core/files/files.contracts.js";
 import { config } from "../config.js";
 import { db } from "../core/database.js";
 import { permissionsService } from "./permissions.service.js";
@@ -180,7 +190,12 @@ function getFileStorageAdapter(providerId = "local") {
 }
 
 function resolveConfiguredFileStorageProvider() {
-  const providerId = String(config.storage?.provider || "local").trim() || "local";
+  const storageConfig = parseFilesEdgePayload(
+    FileStorageAdapterConfigSchema,
+    config.storage || {},
+    { status: 500 },
+  );
+  const providerId = storageConfig.provider || "local";
 
   return {
     adapter: getFileStorageAdapter(providerId),
@@ -298,14 +313,15 @@ async function uploadAndAttach(session, payload = {}) {
   });
 
   try {
-    const { attachableType, fileSettings, target } = await resolveUploadTarget(session, payload);
+    const parsed = parseFilesEdgePayload(CreateFileSchema, payload);
+    const { attachableType, fileSettings, target } = await resolveUploadTarget(session, parsed);
 
-    const prepared = prepareUpload(payload, attachableType, fileSettings);
+    const prepared = prepareUpload(parsed, attachableType, fileSettings);
     await assertStorageQuotaAllowsUpload(session, fileSettings, prepared.fileSizeBytes);
     const storageProvider = resolveConfiguredFileStorageProvider();
     const storage = await storageProvider.adapter.save(prepared.buffer, { workspaceId: session.workspace_id });
 
-    return finishUploadedFileAttachment(session, payload, attachableType, target, {
+    return finishUploadedFileAttachment(session, parsed, attachableType, target, {
       ...prepared,
       storageProvider: storageProvider.providerId,
       storageKey: storage.storageKey,
@@ -328,10 +344,12 @@ async function uploadStreamAndAttach(session, payload = {}) {
   });
 
   try {
-    const { attachableType, fileSettings, target } = await resolveUploadTarget(session, payload);
-    const prepared = await prepareStreamedUpload(session, payload, attachableType, fileSettings);
+    const { fileStream, ...metadataFields } = payload;
+    const parsed = { ...parseFilesEdgePayload(FileMetadataSchema, metadataFields), fileStream };
+    const { attachableType, fileSettings, target } = await resolveUploadTarget(session, parsed);
+    const prepared = await prepareStreamedUpload(session, parsed, attachableType, fileSettings);
 
-    return finishUploadedFileAttachment(session, payload, attachableType, target, prepared);
+    return finishUploadedFileAttachment(session, parsed, attachableType, target, prepared);
   } catch (error) {
     await recordUploadRejected(session, payload, error);
     throw error;
@@ -408,12 +426,9 @@ async function recordUploadRejected(session, payload = {}, error) {
   });
 }
 
-async function uploadBatchAndAttach(session, payload = {}) {
-  const files = Array.isArray(payload.files) ? payload.files : [];
-
-  if (files.length === 0) {
-    throw new AppError("At least one file is required.", 400);
-  }
+async function uploadBatchAndAttach(session, rawPayload = {}) {
+  const payload = parseFilesEdgePayload(CreateFileBatchSchema, rawPayload);
+  const files = payload.files;
 
   const attachableType = await resolveAttachableType(session.workspace_id, payload.moduleId, payload.targetType);
   const target = await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
@@ -468,7 +483,8 @@ async function uploadBatchAndAttach(session, payload = {}) {
   };
 }
 
-async function attachExistingFile(session, payload = {}) {
+async function attachExistingFile(session, rawPayload = {}) {
+  const payload = parseFilesEdgePayload(FileAttachmentSchema, rawPayload);
   const file = await readFileRow(session.workspace_id, payload.fileId);
   if (!file || file.status === "deleted") {
     throw new AppError("File not found.", 404);
@@ -808,7 +824,12 @@ async function downloadFile(session, fileId) {
 }
 
 async function readAttachmentPreviewDescriptor(session, attachmentId) {
-  const { attachment, availability } = await readAttachmentPreviewAccess(session, attachmentId);
+  const previewRequest = parseFilesEdgePayload(
+    FilePreviewRequestSchema,
+    { fileAttachmentId: attachmentId },
+    { status: 404 },
+  );
+  const { attachment, availability } = await readAttachmentPreviewAccess(session, previewRequest.fileAttachmentId);
 
   return {
     preview: shapeAttachmentPreviewDescriptor(attachment, availability),
@@ -816,7 +837,12 @@ async function readAttachmentPreviewDescriptor(session, attachmentId) {
 }
 
 async function readAttachmentPreviewContent(session, attachmentId) {
-  const { attachment, availability } = await readAttachmentPreviewAccess(session, attachmentId);
+  const previewRequest = parseFilesEdgePayload(
+    FilePreviewRequestSchema,
+    { fileAttachmentId: attachmentId },
+    { status: 404 },
+  );
+  const { attachment, availability } = await readAttachmentPreviewAccess(session, previewRequest.fileAttachmentId);
   const preview = shapeAttachmentPreviewDescriptor(attachment, availability);
 
   if (availability.state !== "previewable") {
@@ -964,13 +990,14 @@ WHERE workspace_id = :workspaceId
   return { attachment: { ...shapeAttachment(attachment), removedAt: now, removed_at: now } };
 }
 
-async function updateAttachmentContext(session, attachmentId, payload = {}) {
+async function updateAttachmentContext(session, attachmentId, rawPayload = {}) {
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
 
   if (!attachment || attachment.removed_at) {
     throw new AppError("Attachment not found.", 404);
   }
 
+  const payload = parseFilesEdgePayload(UpdateFileContextSchema, rawPayload);
   const previousContext = attachmentContextFromRow(attachment);
   const previousAttachableType = await resolveAttachableType(
     session.workspace_id,

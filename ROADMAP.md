@@ -148,30 +148,30 @@ Purpose:
 
 Use Files as the first Zod proving ground because Files will eventually need upload metadata, attachment contracts, previews, storage adapters, scanners, SaaS/private-hosted storage differences, and future indexing. This is where runtime validation will pay for itself without converting the whole app.
 
-- [ ] Add Files-owned runtime schemas in JavaScript, for example:
-  - [ ] `CreateFileSchema`
-  - [ ] `UpdateFileSchema`
-  - [ ] `FileMetadataSchema`
-  - [ ] `FileAttachmentSchema`
-  - [ ] `FilePreviewRequestSchema`
-  - [ ] `FileStorageAdapterConfigSchema`
-- [ ] Keep schemas focused on edge payloads:
-  - [ ] Request bodies.
-  - [ ] Query params.
-  - [ ] Upload metadata.
-  - [ ] Storage configuration.
-  - [ ] Preview/action payloads.
-- [ ] Do not Zod-parse every internal object passed between already-trusted service functions.
-- [ ] Preserve the existing Files behavior and error envelope for valid requests.
-- [ ] If invalid payload handling changes, make the error shape explicit, consistent, and tested.
-- [ ] Add JSDoc typedefs inferred from Zod schemas where useful.
-- [ ] Add Vitest contract tests proving:
-  - [ ] Valid create/update payloads pass.
-  - [ ] Empty/invalid required fields fail.
-  - [ ] Defaults are applied intentionally.
-  - [ ] Unknown/unsafe fields are stripped or rejected according to the chosen contract.
-  - [ ] Private/storage/scanner-sensitive fields cannot be accepted from user input.
-- [ ] Add one narrow Files command, such as `npm run test:files`, that runs only Files Vitest tests.
+- [x] Add Files-owned runtime schemas in JavaScript (`src/core/files/files.contracts.js`, framework-owned per the Files seam):
+  - [x] `CreateFileSchema`
+  - [x] `UpdateFileSchema` — implemented as `UpdateFileContextSchema`: Files has no generic file-update endpoint by design (no rename/replacement); the real update edge is the attachment-scoped File Context editor. `CreateFileBatchSchema` also added for the batch JSON envelope.
+  - [x] `FileMetadataSchema`
+  - [x] `FileAttachmentSchema`
+  - [x] `FilePreviewRequestSchema`
+  - [x] `FileStorageAdapterConfigSchema`
+- [x] Keep schemas focused on edge payloads:
+  - [x] Request bodies (JSON upload, batch, attach-existing, context update).
+  - [x] Query params — preview request attachment ID; list-filter queries stay on the existing normalizers (already validated, no behavior change wanted this slice).
+  - [x] Upload metadata (multipart fields after route assembly).
+  - [x] Storage configuration (validated at provider resolution, 500 on malformed config).
+  - [x] Preview/action payloads.
+- [x] Do not Zod-parse every internal object passed between already-trusted service functions.
+- [x] Preserve the existing Files behavior and error envelope for valid requests (all 44 Files-area regressions pass unchanged; validation failures throw the existing `AppError` envelope).
+- [x] If invalid payload handling changes, make the error shape explicit, consistent, and tested — unknown fields are stripped; wrong-typed known fields and non-object `attachmentMetadata` now fail 400 with explicit messages; server-managed storage/scanner/integrity fields are rejected outright.
+- [x] Add JSDoc typedefs inferred from Zod schemas where useful.
+- [x] Add Vitest contract tests proving:
+  - [x] Valid create/update payloads pass.
+  - [x] Empty/invalid required fields fail.
+  - [x] Defaults are applied intentionally.
+  - [x] Unknown/unsafe fields are stripped or rejected according to the chosen contract.
+  - [x] Private/storage/scanner-sensitive fields cannot be accepted from user input.
+- [x] Add one narrow Files command, such as `npm run test:files`, that runs only Files Vitest tests (wired in 0.33.7.1; now matches the Files contract tests).
 
 Acceptance criteria:
 

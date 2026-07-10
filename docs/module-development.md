@@ -38,6 +38,8 @@ As of 0.33.7.2, module contracts follow one pattern:
 - Type-only definitions may live in `*.types.ts` or shared `.d.ts` files, but nothing imported at runtime may depend on them.
 - Vitest tests live beside the contract they prove or under `tests/` (discovered as `tests/**/*.test.mjs`); run them with `npm run test:unit` or the filtered `test:contracts`/`test:files`/`test:tasks` commands.
 
+As of 0.33.7.3, Files is the first proving ground: `src/core/files/files.contracts.js` holds the runtime Zod schemas for the Files edges (JSON/batch upload bodies, multipart upload metadata, attach-existing payloads, the File Context editor payload, preview requests, and storage adapter configuration), wired at the Files service entry points through `parseFilesEdgePayload`. The contract choices there are the template for later modules: unknown fields are stripped, wrong-typed known fields fail with a 400 `AppError`, server-managed storage/scanner/integrity fields are rejected outright, required-ness stays with the service where its error copy already exists, and trusted internal objects are never re-parsed. Fast proof lives in `tests/contracts/files-contracts.test.mjs` (`npm run test:files` / `npm run test:contracts`).
+
 Each tool has one job, and they do not substitute for each other:
 
 - TypeScript types describe trusted internal shapes and catch drift at development time (`npm run typecheck`).
