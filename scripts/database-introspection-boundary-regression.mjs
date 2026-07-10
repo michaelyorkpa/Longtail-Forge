@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
+const dialectContractVersion = "0.33.6.14a";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-introspection-boundary-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-introspection-boundary.db");
@@ -49,7 +50,7 @@ function assertStaticBoundary() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the introspection boundary version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the introspection boundary version");
 
-  assert.match(sqliteDialectSource, new RegExp(`contractVersion: "${escapeRegExp(appVersion)}"`), "SQLite dialect contract should report the current seam contract version");
+  assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
   assert.match(sqliteDialectSource, /compileOptions/, "SQLite dialect introspection seams should expose compile-options lowering");
   assert.match(sqliteDialectSource, /tableAlias/, "SQLite identity seams should support qualified physical identity reads");
   assert.match(sqliteSearchAdapterSource, /db\.dialect\.introspection\.compileOptions\(\)/, "SQLite search adapter should read compile options through the introspection seam");

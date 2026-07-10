@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -13,7 +13,7 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current Tasks release");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current Tasks release");
 
 assert.match(taskDialogScript, /id: "task_details", label: "Task Details"[\s\S]*id: "checklist", label: "Checklist"[\s\S]*id: "recurrence", label: "Recurrence"[\s\S]*id: "timer", label: "Task Timer"[\s\S]*id: "reminders", label: "Reminders"[\s\S]*id: "notes", label: "Notes"/, "Task editor descriptor should declare one Task Details section before specialized escape hatches");
 assert.match(taskDialogScript, /Task Details[\s\S]*Checklist[\s\S]*Recurrence[\s\S]*Task Timer[\s\S]*Reminders[\s\S]*Notes/, "Task editor markup should keep Task Details before specialized escape hatches");
@@ -49,8 +49,4 @@ console.log("Tasks modal context sections regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

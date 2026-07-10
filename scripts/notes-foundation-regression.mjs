@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-foundation-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-foundation.db");
@@ -34,7 +35,7 @@ async function assertNotesModuleManifest() {
   const notesModule = modulesService.getModule("notes");
 
   assert.equal(notesModule.id, "notes");
-  assert.equal(notesModule.version, "0.33.6.14a", true);
+  assert.equal(notesModule.version, appVersion, true);
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);
   assert.equal(notesModule.migrationsDir, null, "Notes schema is folded into the consolidated fresh baseline");

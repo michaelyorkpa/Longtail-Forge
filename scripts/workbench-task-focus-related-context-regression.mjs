@@ -126,9 +126,9 @@ async function assertStaticContracts() {
   const genericWorkbenchSource = readText("src/services/workbench.service.js");
   const roadmap = readText("ROADMAP.md");
 
-  assert.equal(packageJson.version, "0.33.6.14a");
-  assert.equal(packageLock.version, "0.33.6.14a");
-  assert.equal(packageLock.packages[""].version, "0.33.6.14a");
+  assert.equal(packageJson.version, "0.33.6.15.1");
+  assert.equal(packageLock.version, "0.33.6.15.1");
+  assert.equal(packageLock.packages[""].version, "0.33.6.15.1");
   assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");
   assert.match(serviceSource, /tagsService\.listAssignments[\s\S]*targetType: "task"/, "selected task direct tags should come from the Tags service");

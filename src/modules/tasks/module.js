@@ -2,6 +2,7 @@ import { tasksRoutes } from "./tasks.routes.js";
 import { tasksPublicApiRoutes } from "./public-api.routes.js";
 import { registerTasksSearchIndexers } from "./search-indexers.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
+import { appVersion } from "../../core/version.js";
 
 registerTasksSearchIndexers();
 
@@ -101,7 +102,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.6.14a",
+  version: appVersion,
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

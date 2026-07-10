@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -25,8 +25,8 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the Files attachment-panel shell version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Files attachment-panel shell version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files attachment-panel shell version");
-assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module should report the current attachment-panel shell version");
-assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current attachment-panel shell version");
+assert.match(notesModule, /version:\s*appVersion/, "Notes module should report the current attachment-panel shell version");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current attachment-panel shell version");
 
 const render = functionBlock(helper, "render");
 assert.match(render, /const view = global\.LongtailForge\?\.view/, "Attachment helper render should lazily read the view helper for host load-order safety");
@@ -133,8 +133,4 @@ function functionBlock(source, functionName) {
   assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

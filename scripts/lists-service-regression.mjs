@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-service.db");
@@ -39,7 +40,7 @@ async function assertManifestContracts() {
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
-  assert.equal(listsModule.version, "0.33.6.14a", "lists");
+  assert.equal(listsModule.version, appVersion, "lists");
   assert.deepEqual(listsModule.resourceDefinitions[0].operations, [
     "read",
     "create",

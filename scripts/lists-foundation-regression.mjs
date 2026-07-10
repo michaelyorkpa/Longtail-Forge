@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-foundation-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-foundation.db");
@@ -39,7 +40,7 @@ async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
 
   assert.equal(listsModule.id, "lists");
-  assert.equal(listsModule.version, "0.33.6.14a", true);
+  assert.equal(listsModule.version, appVersion, true);
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);
   assert.equal(listsModule.migrationsDir, null, "Lists schema is folded into the consolidated fresh baseline");

@@ -2,6 +2,7 @@ import { timeEntriesRoutes } from "./time-entries.routes.js";
 import { timeTrackingDashboardRoutes } from "./time-tracking-dashboard.routes.js";
 import { timeTrackingPublicApiRoutes } from "./public-api.routes.js";
 import { registerTimeTrackingSearchIndexers } from "./search-indexers.js";
+import { appVersion } from "../../core/version.js";
 
 registerTimeTrackingSearchIndexers();
 
@@ -21,7 +22,7 @@ const timeTrackingModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.6.14a",
+  version: appVersion,
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

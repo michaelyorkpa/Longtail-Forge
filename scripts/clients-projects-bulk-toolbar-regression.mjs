@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -18,7 +18,7 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects bulk-toolbar version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects bulk-toolbar version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects bulk-toolbar version");
-assert.match(clientProjectsModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Clients/Projects module should report this slice");
+assert.match(clientProjectsModule, /version:\s*appVersion/, "Clients/Projects module should report this slice");
 
 assert.match(manifestContract, /const VIEW_TABLE_FIELDS = new Set\(\["columns", "secondaryRows", "rowActions", "emptyState", "overflow", "hierarchy", "selection"\]\)/, "Manifest validation should allow descriptor table selection and secondary-row metadata");
 assert.match(manifestContract, /function validateTableSelectionDescriptor\(selection, prefix, errors\)[\s\S]*recordType[\s\S]*labelField/, "Manifest validation should keep table selection shape narrow");
@@ -69,9 +69,6 @@ function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function readFunctionBody(source, functionName) {
   const markers = [`function ${functionName}(`, `async function ${functionName}(`];

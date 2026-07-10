@@ -5,8 +5,6 @@ const tasksView = readText("views/protected/tasks.html");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.6.14a";
-
 assert.match(taskDialogScript, /className: "surface-modal-heading"/, "Task modal should use the shared compact modal heading row");
 assert.doesNotMatch(taskDialogScript, /task-dialog-heading/, "Task modal should not keep a Task-only heading row class");
 assert.match(taskDialogScript, /notificationToggle\.dataset\.taskNotificationToggle = ""[\s\S]*notificationToggle\.hidden = true[\s\S]*notificationToggle\.setAttribute\("aria-pressed", "false"\)/, "Task notification settings should be a direct accessible bell toggle");
@@ -35,14 +33,10 @@ assert.match(stylesheet, /\.surface-modal-heading \{[\s\S]*justify-content: spac
 assert.match(stylesheet, /\.task-metadata-ribbon \{[\s\S]*flex-wrap: wrap;/, "Task metadata ribbon should wrap safely");
 assert.match(stylesheet, /\.task-metadata-chip \{[\s\S]*overflow-wrap: anywhere;/, "Task metadata chips should avoid text overflow");
 
-assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module version should match the current Tasks release");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module version should consume the canonical app version");
 
 console.log("Task modal compact layout regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModuleSource = readText("src/modules/tasks/module.js");
@@ -20,7 +20,7 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(tasksModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current app version");
+assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
 const updateBulkControls = functionBlock(tasksScript, "updateBulkControls");
@@ -227,9 +227,6 @@ function readText(pathName) {
   return readFileSync(new URL(`../${pathName}`, import.meta.url), "utf8");
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

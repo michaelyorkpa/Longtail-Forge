@@ -646,7 +646,7 @@ assert.match(
 );
 assert.match(
   files.tasksModuleDoc,
-  /current Tasks module behavior as of 0\.33\.6\.14a[\s\S]*Dashboard can show capped Tasks pressure[\s\S]*Dashboard must not open task rows directly into the edit modal/,
+  /current Tasks module behavior as of 0\.33\.6\.15\.1[\s\S]*Dashboard can show capped Tasks pressure[\s\S]*Dashboard must not open task rows directly into the edit modal/,
   "Tasks docs must record the Dashboard card and Workbench execution boundary",
 );
 assert.match(
@@ -656,7 +656,7 @@ assert.match(
 );
 assert.match(
   files.notesModuleDoc,
-  /current Notes implementation as of 0\.33\.6\.14a[\s\S]*Task Focus linked notes open the Notes-owned read modal before editing[\s\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route/,
+  /current Notes implementation as of 0\.33\.6\.15\.1[\s\S]*Task Focus linked notes open the Notes-owned read modal before editing[\s\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route/,
   "Notes docs must record the Task Focus read-first and Dashboard-deferred boundaries",
 );
 

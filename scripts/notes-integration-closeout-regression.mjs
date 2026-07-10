@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-integration-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-integration-closeout.db");
@@ -42,7 +43,7 @@ try {
 async function assertManifestIntegrationContract() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.6.14a", 1, "Notes should expose only the read-only public API router");
+  assert.equal(notesModule.version, appVersion, 1, "Notes should expose only the read-only public API router");
   assert.deepEqual(notesModule.apiScopes.map((scope) => scope.id), ["notes:read"]);
   assert.deepEqual(
     notesModule.publicApiEndpoints.map((endpoint) => `${endpoint.method} ${endpoint.path} ${endpoint.scope}`),

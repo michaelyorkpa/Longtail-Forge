@@ -11,9 +11,9 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.6.14a";
+const currentTasksVersion = "0.33.6.15.1";
 
-assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module metadata should report the current Tasks version");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should consume the canonical app version");
 
 assert.doesNotMatch(roadmap, /## Version 0\.33\.5\.13 - Framework Surface and Modal Style Standardization/, "Completed surface roadmap should be archived after the next version starts");
 

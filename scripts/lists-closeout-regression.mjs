@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-closeout.db");
@@ -46,7 +47,7 @@ async function assertManifestAndHelp() {
   }));
   const articleText = articleBodies.join("\n");
 
-  assert.equal(listsModule.version, "0.33.6.14a");
+  assert.equal(listsModule.version, appVersion);
   assert.ok(listsModule.help.sections.some((section) => section.id === "lists.overview"));
   for (const articleId of [
     "lists.basics",
@@ -115,7 +116,7 @@ async function assertDeveloperDocs() {
   const docs = await fs.readFile(path.join(process.cwd(), "docs/lists-module.md"), "utf8");
 
   for (const phrase of [
-    "current Lists implementation as of 0.33.6.14a",
+    "current Lists implementation as of 0.33.6.15.1",
     "The framework owns module registration",
     "Workspace Labels",
     "Reusable Lists And Catalog Suggestions",

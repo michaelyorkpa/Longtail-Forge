@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-secure-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-secure.db");
@@ -62,7 +63,7 @@ async function assertManifestAndSchema() {
   const notesModule = modulesService.getModule("notes");
   const permissionIds = new Set(notesModule.permissions.map((permission) => permission.id));
 
-  assert.equal(notesModule.version, "0.33.6.14a");
+  assert.equal(notesModule.version, appVersion);
   for (const permission of [
     NOTE_PERMISSIONS.SECURE_CREATE,
     NOTE_PERMISSIONS.SECURE_VIEW,

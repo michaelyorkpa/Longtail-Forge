@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-search-help-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-search-help.db");
@@ -62,7 +63,7 @@ async function assertNotesManifestContributions() {
   assert.equal(searchableType.indexer, "notes.records");
   assert.equal(searchableType.sourceLabel, "Notes");
   assert.equal(hasSearchIndexer("notes.records"), true);
-  assert.equal(notesModule.version, "0.33.6.14a", "Notes should contribute current-state Help articles");
+  assert.equal(notesModule.version, appVersion, "Notes should contribute current-state Help articles");
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }
 

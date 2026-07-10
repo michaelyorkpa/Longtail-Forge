@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-record-item-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-record-item-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -51,7 +51,7 @@ function assertStaticContract() {
   assert.equal(packageJson.version, appVersion, "package.json should report the Lists records/items conversion version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the Lists records/items conversion version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Lists records/items conversion version");
-  assert.match(listsModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Lists module should report the current app version");
+  assert.match(listsModuleSource, /version:\s*appVersion/, "Lists module should report the current app version");
 
   assert.match(listsRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Lists repository should import only the provider-neutral db facade after the .17 wave");
   const convertedSource = listsRepoSource.slice(

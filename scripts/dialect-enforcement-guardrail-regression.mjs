@@ -7,7 +7,8 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
+const dialectContractVersion = "0.33.6.14a";
 const dialectGuardrailSliceVersion = "0.33.5.27.32";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -90,7 +91,7 @@ const runtimeViolations = findDialectViolations(readRuntimeSourceEntries({ root 
 assert.equal(packageJson.version, appVersion, "package.json should report the dialect enforcement guardrail version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the dialect enforcement guardrail version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the dialect enforcement guardrail version");
-assert.match(sqliteDialectSource, new RegExp(`contractVersion: "${escapeRegExp(appVersion)}"`), "SQLite dialect contract should report the dialect enforcement guardrail version");
+assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
 
 assert.deepEqual(runtimeViolations, [], "runtime source should have no raw seam-backed dialect outside the provider/startup/migration/search-adapter allowlist");
 assertSyntheticRejections();

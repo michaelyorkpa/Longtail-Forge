@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-s3-object-proof-"));
 const privateBucket = "private-proof-bucket";
 const privateEndpoint = "https://objects.private.invalid";

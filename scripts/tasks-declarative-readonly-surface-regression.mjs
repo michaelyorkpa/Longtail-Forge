@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -15,7 +15,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current app version");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(tasksModule, /viewSurfaces:\s*\[/, "Tasks module should declare viewSurfaces");
 assert.match(tasksModule, /id:\s*"tasks\.workspace"[\s\S]*moduleId:\s*"tasks"[\s\S]*viewId:\s*"tasks"/, "Tasks descriptor should bind to the protected Tasks view");
 assert.match(tasksModule, /layout:\s*"slide-out-sidebar"/, "Tasks descriptor should use the slide-out sidebar layout");
@@ -69,9 +69,6 @@ function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function assertNoProtectedAnatomy(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));

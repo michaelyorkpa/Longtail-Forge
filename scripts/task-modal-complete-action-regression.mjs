@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-modal-complete-action-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-modal-complete-action.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -49,7 +49,7 @@ function assertStaticContract() {
   assert.equal(packageJson.version, appVersion, "package.json should report the task modal complete action version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the task modal complete action version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the task modal complete action version");
-  assert.match(tasksModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should track the current app version");
+  assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module metadata should track the current app version");
 
   assert.match(taskDialogScript, /\{ id: "complete", label: "Complete", icon: "complete", role: "primary" \}/, "Task editor footer should declare the Complete action");
   assert.match(taskDialogScript, /complete:\s*dialog\.querySelector\("\[data-complete-task\]"\)/, "Task dialog should keep a Complete button hook");

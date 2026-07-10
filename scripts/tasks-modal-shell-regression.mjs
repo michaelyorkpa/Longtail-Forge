@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -15,7 +15,7 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(appVersion)}"`), "Tasks module version should match the current Tasks release");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module version should match the current Tasks release");
 
 assert.match(taskDialogScript, /function createTaskEditorDialog\(\)/, "Task dialog should create one canonical editor dialog");
 assert.match(taskDialogScript, /const descriptor = taskEditorModalDescriptor\(\)/, "Task dialog should describe the modal before rendering");
@@ -82,8 +82,4 @@ console.log("Tasks modal shell regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

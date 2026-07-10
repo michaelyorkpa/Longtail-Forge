@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -17,8 +17,8 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the closeout version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the closeout version");
-assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should track the current app version");
-assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should track the current app version");
+assert.match(notesModule, /version:\s*appVersion/, "Notes module metadata should track the current app version");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should track the current app version");
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
@@ -56,8 +56,4 @@ console.log("Files browse/edit/preview closeout regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

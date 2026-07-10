@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
+const dialectContractVersion = "0.33.6.14a";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-dialect-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-dialect-seams.db");
@@ -52,7 +53,7 @@ try {
 
   assert.equal(db.provider, "sqlite");
   assert.equal(db.dialect.provider, "sqlite");
-  assert.equal(db.dialect.contractVersion, appVersion);
+  assert.equal(db.dialect.contractVersion, dialectContractVersion);
   assert.equal(databaseDialect, db.dialect, "db/index databaseDialect should reference the active adapter dialect");
   assert.equal(getDatabaseDialect(), db.dialect, "getDatabaseDialect should return the active adapter dialect");
   assert.equal(coreDatabase.databaseDialect, db.dialect, "core database facade should expose the active adapter dialect");

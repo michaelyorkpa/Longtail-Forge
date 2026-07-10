@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -15,7 +15,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current app version");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(tasksModule, /detail:\s*\{[\s\S]*regions:\s*\[[\s\S]*id:\s*"tasks-main-list"[\s\S]*behavior:\s*"tasks\.main\.list"[\s\S]*className:\s*"tasks-main-list-region"[\s\S]*ariaLabel:\s*"Task list"/, "Tasks descriptor should bind the task list to a labeled main-panel detail region");
 assert.match(tasksModule, /sidebarPanels:\s*\[[\s\S]*id:\s*"tasks-view-selector"[\s\S]*id:\s*"tasks-filters"/, "Tasks descriptor should keep list controls in ordered sidebar panels");
 
@@ -75,9 +75,6 @@ function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

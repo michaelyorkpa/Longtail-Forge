@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
+const dialectContractVersion = "0.33.6.14a";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-fts-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-fts-seams.db");
@@ -53,7 +54,7 @@ function assertStaticContract() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the search FTS seam version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the search FTS seam version");
 
-  assert.match(sqliteDialectSource, new RegExp(`contractVersion: "${escapeRegExp(appVersion)}"`), "SQLite dialect contract should report the current seam contract version");
+  assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
   assert.match(sqliteDialectSource, /createVirtualTable/, "SQLite search dialect should own FTS virtual table creation syntax");
   assert.match(sqliteDialectSource, /dropVirtualTable/, "SQLite search dialect should own FTS virtual table cleanup syntax");
   assert.match(sqliteDialectSource, /function match/, "SQLite search dialect should own MATCH lowering");

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-files-hierarchy-scope-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-files-hierarchy-scope.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Files-Hierarchy-Scope-Test-123!";
@@ -51,7 +51,7 @@ function assertStaticContract() {
   assert.equal(packageJson.version, appVersion, "package.json should report the Notes/Files hierarchy scope version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the Notes/Files hierarchy scope version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Notes/Files hierarchy scope version");
-  assert.match(notesModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should track the current app version");
+  assert.match(notesModuleSource, /version:\s*appVersion/, "Notes module metadata should track the current app version");
 
   assert.match(
     notesDocs,

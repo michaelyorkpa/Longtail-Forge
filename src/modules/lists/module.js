@@ -9,6 +9,7 @@ import { listsPublicApiRoutes } from "./public-api.routes.js";
 import { registerListsSearchIndexers } from "./search-indexers.js";
 import { LIST_MODULE_ID } from "./storage-contract.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
+import { appVersion } from "../../core/version.js";
 
 registerListsSearchIndexers();
 
@@ -186,7 +187,7 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.6.14a",
+  version: appVersion,
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

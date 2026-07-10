@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-notification-follow-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-notification-follow.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Notification-Follow-Test-123!";
@@ -79,7 +79,7 @@ async function assertStaticContracts() {
   assert.doesNotMatch(notesScript, /dataset\.noteDialogClose/, "Notes editor should not keep the duplicate top Close button");
   assert.doesNotMatch(notesScript, /document\.querySelector\("\[data-note-dialog-close\]"\)/, "Notes editor should not query a removed top Close button");
 
-  assert.match(notesModuleSource, new RegExp(`version: "${escapeRegExp(appVersion)}"`), "Notes module should report the current follow-bell version");
+  assert.match(notesModuleSource, /version:\s*appVersion/, "Notes module should report the current follow-bell version");
   assert.match(notesModuleSource, /notificationEvents:\s*\[[\s\S]*id: "note\.updated"[\s\S]*id: "note\.archived"[\s\S]*id: "note\.restored"[\s\S]*id: "note\.linked"[\s\S]*id: "note\.unlinked"/, "Notes should declare meaningful notification events");
   assert.match(notesModuleSource, /suppressActorSubscriptions: true/, "Notes notification events should suppress followed-note notifications for the acting user");
   assert.match(notesModuleSource, /notificationFollowTargets:\s*\[[\s\S]*targetType: "note"[\s\S]*eventTypes: \[[\s\S]*"note\.updated"[\s\S]*"note\.unlinked"/, "Notes should declare note as a followable notification target");
@@ -513,8 +513,4 @@ VALUES (
 );`);
 
   return sessionId;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

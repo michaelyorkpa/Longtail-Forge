@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { appVersion } from "./core/version.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(
@@ -77,7 +78,7 @@ function createConfig(env = process.env) {
 
   return {
     appName: toDisplayName(packageJson.name),
-    appVersion: packageJson.version,
+    appVersion,
     environment,
     publicUrl: readText(env, "LONGTAIL_PUBLIC_URL", ""),
     host: readText(env, "HOST", DEFAULT_HOST),

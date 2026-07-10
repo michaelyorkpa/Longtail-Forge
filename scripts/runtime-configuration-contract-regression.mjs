@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { appVersion as canonicalAppVersion } from "../src/core/version.js";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -12,15 +13,27 @@ const gitignore = readText(".gitignore");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
 const configSource = readText("src/config.js");
+const appInfoRoutesSource = readText("src/routes/app-info.routes.js");
 const sessionsSource = readText("src/security/sessions.js");
 const usersService = readText("src/services/users.service.js");
 const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the runtime configuration slice version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the runtime configuration slice version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the runtime configuration slice version");
+assert.equal(canonicalAppVersion, packageJson.version, "the runtime version helper should read package.json metadata");
+for (const moduleDefinition of modulesService.listModules().filter(({ id }) => [
+  "client-projects",
+  "lists",
+  "notes",
+  "tasks",
+  "time-tracking",
+].includes(id))) {
+  assert.equal(moduleDefinition.version, canonicalAppVersion, `${moduleDefinition.id} should report the canonical app version`);
+}
 
 for (const heading of [
   "# App",
@@ -101,6 +114,9 @@ assert.match(runtimeDocs, /Startup fails clearly when active settings are invali
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 assert.match(configSource, /function createConfig\(env = process\.env\)/, "config should expose a testable runtime config builder");
+assert.match(configSource, /import \{ appVersion \} from "\.\/core\/version\.js";/, "runtime config should consume the canonical version helper");
+assert.match(appInfoRoutesSource, /import \{ appVersion \} from "\.\.\/core\/version\.js";/, "app-info should consume the canonical version helper directly");
+assert.match(appInfoRoutesSource, /version: appVersion/, "app-info should report the canonical version helper value");
 assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/, "config should validate the database provider");
 assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
 assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");

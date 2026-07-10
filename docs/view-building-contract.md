@@ -123,7 +123,7 @@ As of 0.33.6.14.2, the Notes list query path and Files browse plus File Context 
 
 As of 0.33.6.14.3, Lists reads and Search route filtering consume the shared descendant-aware hierarchy scope resolver. Browser code and query strings continue to submit only the selected direct client/project values; the Lists service/repository and Search service/adapter expand readable descendants server-side so Lists/Search keep their existing workflow and permission ownership boundaries.
 
-As of 0.33.6.14a, the shared Linked Context picker shell exposes an optional client-context selector for caller-supplied scopes. The shell owns field anatomy and disabled state only; Notes supplies the Business-only `All Clients` / workspace / client options, route parameters, scoped provider results, and project-label suffix behavior, while Personal and Family workspaces omit the selector entirely.
+As of 0.33.6.15.1, the shared Linked Context picker shell exposes an optional client-context selector for caller-supplied scopes. The shell owns field anatomy and disabled state only; Notes supplies the Business-only `All Clients` / workspace / client options, route parameters, scoped provider results, and project-label suffix behavior, while Personal and Family workspaces omit the selector entirely.
 
 ## Adoption Rules
 

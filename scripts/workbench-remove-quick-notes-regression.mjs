@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const appShellService = readText("src/services/app-shell.service.js");
 const changelog = readText("CHANGELOG.md");
 const footerScript = readText("public/js/footer.js");

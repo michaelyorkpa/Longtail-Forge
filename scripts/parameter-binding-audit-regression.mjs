@@ -9,7 +9,7 @@ import {
 } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const booleanTimeSliceVersion = "0.33.5.27.5";
 const searchFtsSliceVersion = "0.33.5.27.6";
@@ -220,7 +220,7 @@ for (const [group, boundOperationSites] of convertedWaveRows) {
 assert.deepEqual(
   returningMatches.map((match) => `${match.file}:${match.line}`),
   [
-    "src/db/adapters/sqlite-dialect-seams.js:284",
+    "src/db/adapters/sqlite-dialect-seams.js:287",
   ],
   "RETURNING inventory should stay provider-owned after durable jobs move to the returning seam",
 );

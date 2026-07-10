@@ -15,7 +15,7 @@ const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 
 try {
   await initializeDatabase();
@@ -65,7 +65,7 @@ async function assertStaticContract() {
   assert.match(notesServiceSource, /resolveLinkTargetClientScope[\s\S]*resolveClientProjectFilterScope/, "Notes service should use the shared hierarchy resolver for picker client scoping");
   assert.match(notesServiceSource, /targetMatchesClientContext/, "Notes service should filter link targets by the resolved client context");
   assert.match(notesServiceSource, /omitBusinessContext: isScopedLinkTargetClientContext/, "Project target labels should drop client/workspace suffixes in scoped client contexts");
-  assert.match(pickerContract, /0\.33\.6\.14a[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
+  assert.match(pickerContract, /0\.33\.6\.15\.1[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
   assert.match(roadmap, /Active cursor: `0\.33\.6\.15`/, "Roadmap should advance to 0.33.6.15 after the Linked Context client-scope slice closes");
   assert.match(regressionSuite, /scripts\/linked-context-client-scope-picker-regression\.mjs/, "Regression suite should include the Linked Context client-scope picker proof");
 }

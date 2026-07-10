@@ -1,6 +1,6 @@
 # Linked Context Picker Provider And Shell Contract
 
-This document defines the shared Linked Context picker provider and shell contract as of 0.33.6.14a. The framework owns the reusable picker shell and linked-context read-list anatomy. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
+This document defines the shared Linked Context picker provider and shell contract as of 0.33.6.15.1. The framework owns the reusable picker shell and linked-context read-list anatomy. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
 
 ## Ownership
 

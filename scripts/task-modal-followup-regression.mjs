@@ -4,8 +4,6 @@ import { readFileSync } from "node:fs";
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.6.14a";
-
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.notificationToggle, \{ icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true \}\)/, "Notification settings should render as a bell-only follow toggle when icons are available");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false \}\)/, "Tags footer action should include visible text");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false \}\)/, "Files footer action should include visible text");
@@ -43,14 +41,10 @@ assert.match(stylesheet, /\.task-blocked-reason-field textarea \{[\s\S]*min-heig
 assert.doesNotMatch(stylesheet, /\.task-footer-panel \{[\s\S]*background: transparent;/, "Tags and Files should not rely on parent-body footer panel styling");
 assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following,[\s\S]*\[data-note-notification-toggle\]\.is-following \{[\s\S]*color: var\(--color-danger\);/, "Followed task and note notification bells should be red");
 
-assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module version should match the current Tasks release");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module version should consume the canonical app version");
 
 console.log("Task modal follow-up regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

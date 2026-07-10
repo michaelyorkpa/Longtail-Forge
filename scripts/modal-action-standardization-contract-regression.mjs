@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const modalStandardVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -22,8 +22,8 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the modal action contract version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the modal action contract version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the modal action contract version");
-assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should report the modal action contract version");
-assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should report the modal action contract version");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should report the modal action contract version");
+assert.match(notesModule, /version:\s*appVersion/, "Notes module metadata should report the modal action contract version");
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");

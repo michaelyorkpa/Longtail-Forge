@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -15,7 +15,7 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the checklist editor display version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the checklist editor display version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the checklist editor display version");
-assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the checklist editor display version");
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the checklist editor display version");
 
 for (const iconName of ["add", "save", "up", "down", "delete"]) {
   assert.match(icons, new RegExp(`["']?${escapeRegExp(iconName)}["']?:\\s*Object\\.freeze`), `shared icons should include ${iconName}`);

@@ -1,3 +1,10 @@
+## Version 0.33.6.15.1 - 2026-07-10 07:52 -04:00
+
+- Established `package.json` as the single current application-version metadata source and added `src/core/version.js` as the runtime reader.
+- Routed `/api/app-info`, runtime configuration, and the five bundled workflow module manifests through the canonical helper, removing their duplicated current-version literals.
+- Resolved the SQLite dialect `contractVersion` as an independent seam-contract marker that changes only when the provider contract changes; updated module/database regressions and current developer guidance in lockstep without adding the deferred anti-literal guardrail.
+- Verification 2026-07-10 07:57 -04:00: focused runtime configuration, module sanity, SQLite dialect seam, parameter-binding audit, Dashboard/Workbench, and Linked Context regressions passed; all six focused database dialect/guardrail regressions passed; `npm run lint` and `git diff --check` passed; SQLite `PRAGMA integrity_check` returned `ok`; the canonical helper and runtime config both reported `0.33.6.15.1`; and `/api/app-info` reported `0.33.6.15.1` from the refreshed local 8001 server. `npm run check` passed all 148 static/source, 6 default-database, and 29 file-storage regressions before reaching only the pre-existing unrelated `scripts/legacy-cleanup-regression.mjs` failure caused by active `docs/licensing/` cleanup work at 193/309 completed scripts.
+
 ## Version 0.33.6.14a - 2026-07-10 06:43 -04:00
 
 - Added a Business-only client-context selector to the Notes Add/Edit Linked Context picker, with `All Clients` as the default, a workspace-name bucket for client-less workspace projects, and real clients ordered after those entries.

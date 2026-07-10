@@ -10,10 +10,13 @@ const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
   timestampIntervalMath: true,
 });
 
+// This identifies the dialect seam contract, not the current application release.
+const SQLITE_DIALECT_CONTRACT_VERSION = "0.33.6.14a";
+
 function createSqliteDialectSeams() {
   return Object.freeze({
     provider: "sqlite",
-    contractVersion: "0.33.6.14a",
+    contractVersion: SQLITE_DIALECT_CONTRACT_VERSION,
     capabilities: SQLITE_DIALECT_SEAM_CAPABILITIES,
     boolean: Object.freeze({
       bind: bindSqliteBoolean,

@@ -8,6 +8,7 @@ import { notesPublicApiRoutes } from "./public-api.routes.js";
 import { notesRoutes } from "./notes.routes.js";
 import { registerNotesSearchIndexers } from "./search-indexers.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
+import { appVersion } from "../../core/version.js";
 
 registerNotesSearchIndexers();
 
@@ -182,7 +183,7 @@ const notesModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.6.14a",
+  version: appVersion,
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.6.14a";
+const appVersion = "0.33.6.15.1";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-client-project-hierarchy-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-client-project-hierarchy-closeout.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -82,8 +82,8 @@ function assertStaticContract() {
   assert.equal(packageJson.version, appVersion, "package.json should report the hierarchy branch closeout version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the hierarchy branch closeout version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the hierarchy branch closeout version");
-  assert.match(listsModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Lists module metadata should track the current app version");
-  assert.match(clientProjectsModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Clients/Projects module metadata should track the current app version");
+  assert.match(listsModuleSource, /version:\s*appVersion/, "Lists module metadata should track the current app version");
+  assert.match(clientProjectsModuleSource, /version:\s*appVersion/, "Clients/Projects module metadata should track the current app version");
 
   assert.match(
     listsDocs,

@@ -54,13 +54,13 @@ Decisions to make first:
 
 **Model: GPT-5.5 Extra High** - Establish the source of truth and move runtime consumers onto it.
 
-* [ ] Establish one canonical current app-version source: `package.json` remains the metadata source.
-* [ ] Add a runtime helper (`src/core/version.js` or `src/services/app-version.service.js`) that reads/exports the current app version from the approved source; runtime code calls the helper instead of duplicating the literal.
-* [ ] Route `/api/app-info` version reporting through the helper.
-* [ ] Convert the 5 module manifests (`src/modules/*/module.js` `version:`) to derive the version from the helper instead of a hardcoded literal.
-* [ ] Resolve the `contractVersion` decision for `sqlite-dialect-seams.js` per "Decisions to make first"; only route it through the helper if it is intended to track the app version.
-* [ ] Update the module-version regressions in lockstep so module version is asserted against the helper/runtime value rather than a hardcoded source-string regex.
-* [ ] Do NOT add the anti-literal guardrail in this sub-slice.
+* [x] Establish one canonical current app-version source: `package.json` remains the metadata source.
+* [x] Add a runtime helper (`src/core/version.js` or `src/services/app-version.service.js`) that reads/exports the current app version from the approved source; runtime code calls the helper instead of duplicating the literal.
+* [x] Route `/api/app-info` version reporting through the helper.
+* [x] Convert the 5 module manifests (`src/modules/*/module.js` `version:`) to derive the version from the helper instead of a hardcoded literal.
+* [x] Resolve the `contractVersion` decision for `sqlite-dialect-seams.js` per "Decisions to make first"; only route it through the helper if it is intended to track the app version.
+* [x] Update the module-version regressions in lockstep so module version is asserted against the helper/runtime value rather than a hardcoded source-string regex.
+* [x] Do NOT add the anti-literal guardrail in this sub-slice.
 
 Acceptance criteria:
 

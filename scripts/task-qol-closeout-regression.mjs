@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-qol-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-qol-closeout.db");
@@ -136,7 +137,7 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
 
 async function assertTasksHelpAndDocsAreCurrent() {
   const tasksModule = modulesService.getModule("tasks");
-  assert.equal(tasksModule.version, "0.33.6.14a");
+  assert.equal(tasksModule.version, appVersion);
   assert.ok(tasksModule.help?.articles?.some((article) => article.id === "tasks.resume-context"));
   const docs = await fs.readFile(new URL("../docs/tasks-module.md", import.meta.url), "utf8");
   assert.match(docs, /resume-safe context/i);
