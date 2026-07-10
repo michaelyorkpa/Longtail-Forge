@@ -4,9 +4,16 @@ import {
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
+import {
+  ISOLATED_RETRY_LIMIT,
+  runIsolatedItemsWithRetry,
+} from "./test-support/isolated-regression-retry.mjs";
+import { runRegressionBucketsFailFast } from "./test-support/regression-bucket-orchestrator.mjs";
+import { filterRegressionBuckets } from "./lib/regression-runner-options.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_COMMANDS, REGRESSION_ENTRIES } from "./regression-suite.mjs";
 
 const runner = await readProjectFile("scripts/run-regressions.mjs");
+const bucketOrchestratorSupport = await readProjectFile("scripts/test-support/regression-bucket-orchestrator.mjs");
 const runnerSchedulerSupport = await readProjectFile("scripts/test-support/regression-runner-scheduler.mjs");
 const databaseFixtureSupport = await readProjectFile("scripts/test-support/database-fixture.mjs");
 const sourceScanSupport = await readProjectFile("scripts/test-support/source-scan.mjs");
@@ -22,6 +29,22 @@ const staticBucket = bucketByName("static/source regressions");
 const defaultDatabaseBucket = bucketByName("default database regressions");
 const fileStorageBucket = bucketByName("file storage regressions");
 const isolatedDatabaseBucket = bucketByName("isolated database regressions");
+
+assert.deepEqual(
+  REGRESSION_BUCKETS.map(({ mode, name, runMode }) => ({ mode, name, runMode })),
+  [
+    { mode: "parallel", name: "static/source regressions", runMode: "static" },
+    { mode: "serial", name: "default database regressions", runMode: "serial-database" },
+    { mode: "serial", name: "file storage regressions", runMode: "serial-files" },
+    { mode: "parallel", name: "isolated database regressions", runMode: "isolated-database" },
+  ],
+  "the default full suite should keep the cheap deterministic bucket before every stateful bucket",
+);
+assert.deepEqual(
+  REGRESSION_BUCKETS.flatMap((bucket) => bucket.scripts).toSorted(),
+  REGRESSION_ENTRIES.map((entry) => entry.path).toSorted(),
+  "fast-fail ordering should retain every discovered script exactly once",
+);
 
 assert.equal(
   packageJson.scripts.check,
@@ -39,7 +62,8 @@ assert.equal(isolatedDatabaseBucket.mode, "parallel", "isolated database regress
 assert.ok(isolatedDatabaseBucket.concurrency > 1, "isolated database regressions should default to concurrent workers");
 
 assert.match(runner, /resolveRunOptions\(REGRESSION_BUCKETS, process\.env, process\.argv\.slice\(2\)\)/, "runner should derive CLI options from the discovered suite");
-assert.match(runner, /for \(const bucket of runOptions\.buckets\)/, "runner should execute selected buckets in suite order");
+assert.match(bucketOrchestratorSupport, /for \(const bucket of buckets\)/, "bucket orchestration should execute selected buckets sequentially in suite order");
+assert.match(runner, /runRegressionBucketsFailFast\(\s*runOptions\.buckets/, "default execution should use the guarded sequential bucket orchestrator");
 assert.doesNotMatch(runner, /Promise\.allSettled\(remainingBuckets/, "runner must not overlap shared database buckets with isolated buckets");
 assert.match(runner, /ISOLATED_BUCKET_NAME = "isolated database regressions"/);
 assert.match(runner, /STATIC_BUCKET_NAME = "static\/source regressions"/);
@@ -64,6 +88,11 @@ assert.match(runnerSchedulerSupport, /LTF_ISOLATED_REGRESSION_PARALLELISM/);
 assert.match(runnerSchedulerSupport, /LTF_REGRESSION_PARALLELISM/);
 assert.match(runner, /resolveIsolatedRegressionParallelism\(\{ fallbackParallelism: bucket\.concurrency \}\)/);
 assert.match(runner, /runLimitedItems\(/);
+assert.match(runner, /bucket\.name === ISOLATED_BUCKET_NAME[\s\S]*runIsolatedWithRetry[\s\S]*runLimited/, "only the isolated bucket should enter retry scheduling");
+assert.match(runner, /flaky-recovered/, "recovered isolated flakes should be visible in console output");
+assert.match(runner, /flakyRecoveries/, "timing reports should carry a recovery summary");
+assert.match(runner, /retrySerial/, "per-script timing records should identify serial retry attempts");
+assert.match(runner, /retry-\$\{String\(runContext\.attemptNumber\)/, "retry fixtures should use a fresh attempt namespace");
 assert.match(runner, /printBucketSummary\(bucketLabel, results\)/, "runner should print a per-bucket summary");
 assert.match(runner, /\[\$\{bucketLabel\}\]/, "runner should keep bucket labels in output");
 assert.ok(
@@ -159,6 +188,110 @@ assert.deepEqual(
   failureResults.map((result) => result.script),
   ["fail", "already-running"],
   "failure results should include only the failed and already-running scripts",
+);
+
+assert.equal(ISOLATED_RETRY_LIMIT, 1, "isolated flakes should receive exactly one bounded retry");
+const recoveryInvocations = [];
+const retryNotifications = [];
+let activeRetries = 0;
+let maxActiveRetries = 0;
+const recoveredResults = await runIsolatedItemsWithRetry(
+  ["fails-once", "already-running", "after-recovery"],
+  2,
+  async (script, scriptIndex, attempt) => {
+    recoveryInvocations.push(`${script}:${attempt.retry ? "retry" : "initial"}:${scriptIndex}`);
+    if (attempt.retry) {
+      activeRetries += 1;
+      maxActiveRetries = Math.max(maxActiveRetries, activeRetries);
+      await delay(3);
+      activeRetries -= 1;
+    } else if (script === "already-running") {
+      await delay(10);
+    } else {
+      await delay(2);
+    }
+    return {
+      attemptNumber: attempt.attemptNumber,
+      exitCode: script === "fails-once" && !attempt.retry ? 1 : 0,
+      retry: attempt.retry,
+      script,
+      seconds: 0.01,
+      stderr: "",
+      stdout: "",
+    };
+  },
+  {
+    onRetry(script, scriptIndex, attempt) {
+      retryNotifications.push(`${script}:${scriptIndex}:${attempt.attemptNumber}`);
+    },
+  },
+);
+assert.deepEqual(recoveredResults.map((result) => result.script), ["fails-once", "already-running", "after-recovery"]);
+assert.equal(recoveredResults[0].exitCode, 0, "a green serial retry should recover the logical script result");
+assert.equal(recoveredResults[0].flakyRecovered, true, "a recovered script must stay visibly marked");
+assert.equal(recoveredResults[0].attemptCount, 2);
+assert.equal(recoveredResults[0].retrySerial, true);
+assert.equal(recoveredResults[0].attempts.length, 2, "timing data should retain both attempts");
+assert.deepEqual(retryNotifications, ["fails-once:0:2"]);
+assert.equal(maxActiveRetries, 1, "retry attempts should execute serially");
+assert.ok(
+  recoveryInvocations.indexOf("after-recovery:initial:2") > recoveryInvocations.indexOf("fails-once:retry:0"),
+  "unscheduled isolated scripts should resume only after the failed script recovers",
+);
+
+const persistentInvocations = [];
+const persistentResults = await runIsolatedItemsWithRetry(
+  ["always-fails", "must-not-start"],
+  1,
+  async (script, _scriptIndex, attempt) => {
+    persistentInvocations.push(`${script}:${attempt.retry ? "retry" : "initial"}`);
+    return {
+      attemptNumber: attempt.attemptNumber,
+      exitCode: script === "always-fails" ? 1 : 0,
+      retry: attempt.retry,
+      script,
+      seconds: 0.01,
+      stderr: "",
+      stdout: "",
+    };
+  },
+);
+assert.deepEqual(persistentInvocations, ["always-fails:initial", "always-fails:retry"]);
+assert.equal(persistentResults[0].exitCode, 1, "a repeatable failure should remain red after its one retry");
+assert.equal(persistentResults[0].flakyRecovered, false);
+assert.equal(persistentResults[0].attemptCount, 2);
+assert.equal(persistentResults.length, 1, "repeatable failure should preserve fail-fast scheduling after retry");
+
+const seededBucketOrder = [
+  { name: "static/source regressions" },
+  { name: "default database regressions" },
+  { name: "file storage regressions" },
+  { name: "isolated database regressions" },
+];
+const seededScheduledBuckets = [];
+const seededStaticFailure = await runRegressionBucketsFailFast(seededBucketOrder, async (bucket) => {
+  seededScheduledBuckets.push(bucket.name);
+  if (bucket.name === "static/source regressions") {
+    const failure = new Error("seeded static failure");
+    failure.results = [{ bucketName: bucket.name, exitCode: 1, script: "seeded-static-regression.mjs" }];
+    throw failure;
+  }
+  return [{ bucketName: bucket.name, exitCode: 0, script: `${bucket.name}.mjs` }];
+});
+assert.deepEqual(seededScheduledBuckets, ["static/source regressions"], "a static failure should short-circuit every stateful bucket");
+assert.equal(seededStaticFailure.failure, "seeded static failure");
+assert.deepEqual(seededStaticFailure.results.map((result) => result.script), ["seeded-static-regression.mjs"]);
+
+const taskBuckets = filterRegressionBuckets(REGRESSION_BUCKETS, { area: "tasks" });
+assert.deepEqual(
+  taskBuckets.map((bucket) => bucket.name),
+  REGRESSION_BUCKETS.filter((bucket) => bucket.entries.some((entry) => entry.area === "tasks")).map((bucket) => bucket.name),
+  "narrow area filtering should preserve the same relative bucket order",
+);
+assert.deepEqual(
+  taskBuckets.flatMap((bucket) => bucket.scripts).toSorted(),
+  REGRESSION_ENTRIES.filter((entry) => entry.area === "tasks").map((entry) => entry.path).toSorted(),
+  "narrow routing should retain the same selected Tasks scripts",
 );
 
 console.log("Regression runner regression passed.");

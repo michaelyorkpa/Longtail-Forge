@@ -26,11 +26,13 @@ assert.deepEqual(
   scanEntriesForCurrentVersion([
     { path: "ROADMAP.md", source: `Completed ${appVersion} planning label` },
     { path: "CHANGELOG.md", source: `## Version ${appVersion} - historical release` },
+    { path: ["DECISIONS", "md"].join("."), source: `As of ${appVersion}, this decision is current.` },
+    { path: "TODO.md", source: `Deferred from ${appVersion}` },
     { path: "docs/release-history.md", source: `As of ${appVersion}` },
     { path: "archive/release-history.md", source: `Archived ${appVersion}` },
   ], appVersion, allowlist),
   [],
-  "historical roadmap, changelog, docs, and archive labels should be ignored",
+  "governing decisions plus historical roadmap, changelog, TODO, docs, and archive labels should be ignored",
 );
 
 const syntheticViolations = scanEntriesForCurrentVersion([

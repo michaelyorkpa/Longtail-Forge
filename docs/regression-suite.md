@@ -1,6 +1,6 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.6.16.9. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes narrow area commands plus conservative changed-file suggestions while preserving every 0.33.6.16.1 legacy script and its execution/isolation mode through a checked-in migration snapshot.
+This document records the current regression-suite contract through the 0.33.6.16.14 pre-TypeScript maintenance closeout. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes narrow area commands plus conservative changed-file suggestions while preserving every 0.33.6.16.1 legacy script and its execution/isolation mode through a checked-in migration snapshot.
 
 ## Current Entry Points
 
@@ -13,6 +13,12 @@ This document records the current regression-suite contract through 0.33.6.16.9.
 | `scripts/lib/regression-runner-options.mjs` | Parses area/tag/tier/list/dry-run options and filters the discovered bucket entries. |
 | `scripts/lib/regression-change-routing.mjs` | Maps changed repository paths to conservative focused-area commands without changing suite membership. |
 | `scripts/suggest-regressions-for-changes.mjs` | Inspects tracked and untracked working-tree changes and prints likely focused commands plus the unchanged release gate. |
+| `scripts/lib/changed-regression-runner.mjs` | Converts the shared routing result into a focused, fallback, empty, or full-check execution plan and runs only controlled package commands. |
+| `scripts/run-changed-regressions.mjs` | Inspects the same working-tree changes as the suggester, prints selected areas and reasons, then executes the shared plan. |
+| `scripts/lib/closeout-gates.mjs` | Defines hard versus warning-only maintenance gates, runs every gate, and formats the consolidated closeout status board. |
+| `scripts/run-closeout.mjs` | Runs the six standing maintenance gates through their existing package scripts and exits nonzero only when a hard gate fails. |
+| `scripts/test-support/isolated-regression-retry.mjs` | Applies the isolated-database bucket's one-retry policy while preserving fail-fast scheduling and logical script counts. |
+| `scripts/test-support/regression-bucket-orchestrator.mjs` | Executes selected buckets sequentially in their discovered order and returns immediately after the first bucket failure. |
 | `scripts/lib/docs-change-routing.mjs` | Validates the data-only documentation ownership index and maps changed source paths to likely owning documents. |
 | `scripts/suggest-docs-for-changes.mjs` | Prints changed-area documentation suggestions and the warning-only closeout disposition gate. |
 | `scripts/regression-legacy-snapshot.json` | Freezes the 312-script 0.33.6.16.1 legacy path and run-mode set so discovery cannot silently drop or parallelize an existing regression. |
@@ -30,6 +36,7 @@ Current package commands:
 | --- | --- |
 | `npm run check` | Runs `scripts/run-regressions.mjs`, then cached ESLint. |
 | `npm run test:regressions` | Runs the full discovered regression registry without the lint stage. |
+| `npm run test:regressions:changed` | Runs changed-area routing in one step; focused module paths use narrow commands while framework/view, database, and release paths escalate to `npm run check`. |
 | `npm run test:regressions:list` | Lists every discovered regression and its metadata without executing it. |
 | `npm run test:regressions:<area>` | Runs one supported focused area: `framework`, `views`, `dashboard`, `workbench`, `tasks`, `notes`, `files`, `database`, `permissions`, or `release`. |
 | `npm run test:permissions` | Runs `scripts/permission-regression.mjs` directly; the same script is also registered in the full suite. |
@@ -39,6 +46,7 @@ Current package commands:
 | `npm run audit:params:update-baseline` | Deterministically updates the reviewed finding baseline; reserved for dedicated parameter-binding cleanup. |
 | `npm run docs:suggest` | Lists mapped source areas and likely documentation owners for current tracked and untracked changes. |
 | `npm run docs:check` | Runs the same documentation review as a warning-only closeout gate and accepts an optional explicit `--note`. |
+| `npm run closeout` | Runs all standing maintenance gates and prints one hard/warning-only status board; it does not invoke or replace `npm run check`. |
 | `npm run licensing:gates` | Reports missing future public-release and outside-contribution artifacts without failing ordinary private development. |
 | `npm run db:migration:create -- <name>` | Creates the next globally numbered core migration with a forward-only template after validating core/module migration numbers. |
 | `npm run db:schema:refresh` | Replays the fresh-start baseline plus ordered migrations into disposable SQLite and rewrites the generated final-schema snapshot. |
@@ -50,16 +58,42 @@ Current package commands:
 
 ## Current Execution Model
 
-At completion of 0.33.6.16.9, the suite contains 319 discovered scripts: all 312 paths in `scripts/regression-legacy-snapshot.json` plus convention-path guardrails for discovery, manifest generation, regression routing, canonical asset cache versioning, documentation ownership routing, migration/schema workflow, and licensing/public-release process gates. Existing regressions remain in their original buckets.
+At completion of 0.33.6.16.13, the suite contains 321 discovered scripts: all 312 paths in `scripts/regression-legacy-snapshot.json` plus convention-path guardrails for discovery, manifest generation, regression routing, changed-area auto-run, the closeout conductor, canonical asset cache versioning, documentation ownership routing, migration/schema workflow, and licensing/public-release process gates. Existing regressions remain in their original buckets.
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |
-| `static/source regressions` | 158 | parallel | 6 | The 151 legacy read-only/parallel-safe checks plus the discovery, manifest-generation, regression-routing, asset-version, documentation-ownership, migration/schema-workflow, and licensing-gate guardrails; these do not receive a runner database fixture. |
+| `static/source regressions` | 160 | parallel | 6 | The 151 legacy read-only/parallel-safe checks plus the discovery, manifest-generation, regression-routing, changed-area auto-run, closeout-conductor, asset-version, documentation-ownership, migration/schema-workflow, and licensing-gate guardrails; these do not receive a runner database fixture. |
 | `default database regressions` | 6 | serial | 1 | Search/database checks whose current ordering and shared-state assumptions remain serial. |
 | `file storage regressions` | 29 | serial | 1 | File storage/scanner checks remain serial until their database, filesystem, port, and process isolation is explicitly proven. |
 | `isolated database regressions` | 126 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.
+
+### Fast-fail bucket order
+
+The default full run uses the table order above: 160 cheap static/source checks run first, followed by 6 serial default-database checks, 29 serial file-storage checks, and 126 isolated-database checks with adaptive safe parallelism. The runner executes buckets sequentially and stops after the first failing bucket, so a deterministic static/source failure does not pay for database fixture, filesystem, port, process, or isolated-database work.
+
+This is an explicit ordering guarantee, not a coverage or safety change. The flattened bucket paths must remain exactly equal to the 321 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Future 0.33.7 typecheck/Vitest work may run ahead of this sequence without replacing it.
+
+### Closeout maintenance conductor
+
+`npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `db:schema:check`, `audit:params:check`, `docs:check`, and `licensing:gates` in that order. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
+
+The conductor is a bookkeeping convenience, not a broader release gate. It does not run the discovered regression suite or ESLint, so `npm run check` remains required for full closeout verification. The auto-discovered conductor regression injects pass, hard-failure, and warning-only outcomes to prove aggregation and exit semantics without deliberately breaking repository state.
+
+### Pre-TypeScript maintenance baseline
+
+The 0.33.6.16.14 closeout establishes this workflow for 0.33.7 and later slices: run `npm run test:regressions:changed` for the current diff or a documented area command for focused work, run `npm run closeout` for the standing maintenance gates, and run the separate full `npm run check` gate for shared/release closeout. The changed-area command conservatively escalates shared framework, database, view, and release changes to that full gate.
+
+The closeout verified all 312 legacy snapshot paths remain in the 321-script discovered registry, the generated manifest and ratchet protect 16 required release gates, static/source work runs before stateful buckets, and isolated-database recovery remains one visible serial retry. `npm start` remains `node server.js`. TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, and any second backend runtime remain outside this completed maintenance branch and begin only in their explicit future roadmap slices.
+
+### Isolated-database flake recovery
+
+Only the `isolated database regressions` bucket receives automatic retry handling. When one or more scripts fail during a parallel scheduling wave, the runner retries only those failed scripts once, sequentially, with a fresh retry fixture namespace. It never reruns the whole bucket. If every retry passes, each recovered logical script is reported as `flaky-recovered`, unscheduled scripts resume, and the bucket may pass. A script that fails its retry remains a hard failure and preserves fail-fast behavior.
+
+Static/source, default-database, and file-storage failures are never auto-retried. A recovered isolated failure is visible in the per-attempt output, bucket summary, final timing summary, and `LTF_REGRESSION_TIMING_JSON` through attempt details plus the `flakyRecoveries` list; it is not silently converted to green. One isolated recovery is normally contention rather than a product bug, so do not spend a turn chasing it. Investigate scripts that fail both attempts or appear repeatedly in recovery summaries.
+
+`LTF_REGRESSION_REPEAT` remains deliberate flake-hunting control. Each requested pass still runs the selected logical scripts, and an isolated script may receive at most one recovery attempt within that pass. Recovery attempts do not become extra repeat passes or change the scheduled logical-script count.
 
 ## Current Category Inventory
 
@@ -238,11 +272,14 @@ npm run test:regressions:workbench
 npm run test:regressions:database
 ```
 
-Run `node scripts/suggest-regressions-for-changes.mjs` to inspect the current tracked and untracked working-tree changes. The helper routes module paths to their owning area, shared view-builder/renderer paths to both `framework` and `views`, database/migration/repository paths to `database`, permission/session/workspace/membership paths to `permissions`, and package/version/app-info/release paths to `release`. Rules are additive: a repository file with permission meaning recommends both database and permissions checks. An unrecognized path falls back to `npm run test:regressions` instead of guessing a narrow owner.
+Run `npm run test:regressions:changed` for the one-step path: it inspects the current tracked and untracked working-tree changes, prints the selected areas and matching route reasons, and then executes the shared routing plan. A one-module change runs only its narrow area command. Any selected `framework`, `views`, `database`, or `release` area escalates to `npm run check`; this intentionally prefers too much coverage over too little for shared or release-sensitive changes. An unrecognized non-empty path falls back to `npm run test:regressions`. An empty change set prints `No changed files found. No regressions were run.`, exits successfully, and never claims a passing test run.
+
+`node scripts/suggest-regressions-for-changes.mjs` remains the advice-only view of the same routing result. Both commands consume `scripts/lib/regression-change-routing.mjs`; route rules are not duplicated in the auto-runner. The helper routes module paths to their owning area, shared view-builder/renderer paths to both `framework` and `views`, database/migration/repository paths to `database`, permission/session/workspace/membership paths to `permissions`, and package/version/app-info/release paths to `release`. Rules are additive: a repository file with permission meaning selects both database and permissions checks.
 
 Operator guidance:
 
 - For a one-module change, run that module's narrow command first.
+- For the common current-diff workflow, run `npm run test:regressions:changed` and review its printed selection before execution.
 - For a shared framework or view change, run both framework/view commands plus every affected module command.
 - For a database change, run the database command plus affected module commands; add permissions when access or workspace boundaries are involved.
 - For release closeout, always run `npm run check`. Narrow commands are iteration aids and never replace the full release gate.

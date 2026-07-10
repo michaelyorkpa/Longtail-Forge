@@ -6,6 +6,8 @@ import {
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
+import { runIsolatedItemsWithRetry } from "./test-support/isolated-regression-retry.mjs";
+import { runRegressionBucketsFailFast } from "./test-support/regression-bucket-orchestrator.mjs";
 import { filterRegressionBuckets, parseRegressionCliArgs } from "./lib/regression-runner-options.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
@@ -54,15 +56,13 @@ try {
         console.log(`\nRegression pass ${runIndex + 1}/${runOptions.repeatCount}`);
       }
 
-      for (const bucket of runOptions.buckets) {
-        try {
-          completedResults.push(...await runBucket(bucket, runContext));
-        } catch (error) {
-          const failureResults = error?.results || [];
-          completedResults.push(...failureResults);
-          failedBuckets.push(error?.message || error);
-          break;
-        }
+      const passResult = await runRegressionBucketsFailFast(
+        runOptions.buckets,
+        (bucket) => runBucket(bucket, runContext),
+      );
+      completedResults.push(...passResult.results);
+      if (passResult.failure) {
+        failedBuckets.push(passResult.failure);
       }
 
       if (failedBuckets.length > 0) {
@@ -98,7 +98,9 @@ async function runBucket(bucket, runContext) {
   const bucketLabel = formatBucketLabel(bucket.name, runContext);
 
   console.log(`\n[${bucketLabel}] ${bucket.scripts.length} script(s), concurrency ${effectiveConcurrency}${concurrencySource}`);
-  const results = await runLimited(bucket, effectiveConcurrency, runContext);
+  const results = bucket.name === ISOLATED_BUCKET_NAME
+    ? await runIsolatedWithRetry(bucket, effectiveConcurrency, runContext, bucketLabel)
+    : await runLimited(bucket, effectiveConcurrency, runContext);
   printBucketSummary(bucketLabel, results);
 
   const failures = results.filter((result) => result.exitCode !== 0);
@@ -117,6 +119,22 @@ async function runLimited(bucket, concurrency, runContext) {
     bucket.entries,
     concurrency,
     (entry, scriptIndex) => runScript(entry, bucket, scriptIndex, runContext),
+  );
+}
+
+async function runIsolatedWithRetry(bucket, concurrency, runContext, bucketLabel) {
+  return runIsolatedItemsWithRetry(
+    bucket.entries,
+    concurrency,
+    (entry, scriptIndex, attemptContext) => runScript(entry, bucket, scriptIndex, {
+      ...runContext,
+      ...attemptContext,
+    }),
+    {
+      onRetry(entry, _scriptIndex, { attemptNumber }) {
+        console.log(`[${bucketLabel}] retrying ${entry.path} serially (attempt ${attemptNumber}/2).`);
+      },
+    },
   );
 }
 
@@ -147,10 +165,12 @@ async function runScript(entry, bucket, scriptIndex, runContext) {
     child.on("close", (exitCode) => {
       const seconds = (performance.now() - started) / 1000;
       const result = {
+        attemptNumber: runContext.attemptNumber || 1,
         bucketName: bucket.name,
         exitCode,
         runIndex: runContext.runIndex,
         runLabel: formatRunLabel(runContext),
+        retry: Boolean(runContext.retry),
         script,
         seconds,
         stderr,
@@ -207,8 +227,10 @@ async function cleanupRegressionBaseline() {
 }
 
 function printResult(result) {
-  const status = result.exitCode === 0 ? "ok" : `failed ${result.exitCode}`;
-  console.log(`${status.padEnd(8)} ${formatSeconds(result.seconds).padStart(7)} ${result.script}`);
+  const status = result.retry
+    ? result.exitCode === 0 ? "flaky-recovered" : `retry failed ${result.exitCode}`
+    : result.exitCode === 0 ? "ok" : `failed ${result.exitCode}`;
+  console.log(`${status.padEnd(16)} ${formatSeconds(result.seconds).padStart(7)} ${result.script}`);
 
   if (result.exitCode !== 0) {
     if (result.stdout.trim()) {
@@ -236,6 +258,7 @@ function printSummary(results) {
   for (const result of slowest) {
     console.log(`- ${formatSeconds(result.seconds).padStart(7)} ${result.script}`);
   }
+  printFlakyRecoveries(results);
 }
 
 async function writeTimingReport(results) {
@@ -249,9 +272,16 @@ async function writeTimingReport(results) {
   const payload = {
     completed: results.length,
     generatedAt: new Date().toISOString(),
-    scripts: results.map(({ bucketName, exitCode, runLabel, script, seconds }) => ({
+    flakyRecoveries: results
+      .filter((result) => result.flakyRecovered)
+      .map((result) => ({ attemptCount: result.attemptCount, script: result.script })),
+    scripts: results.map(({ attemptCount, attempts, bucketName, exitCode, flakyRecovered, retrySerial, runLabel, script, seconds }) => ({
+      attemptCount: attemptCount || 1,
+      attempts: attempts || [],
       bucketName,
       exitCode,
+      flakyRecovered: Boolean(flakyRecovered),
+      retrySerial: Boolean(retrySerial),
       runLabel,
       script,
       seconds,
@@ -269,11 +299,25 @@ function printBucketSummary(bucketName, results) {
   }
 
   const failed = results.filter((result) => result.exitCode !== 0).length;
+  const recovered = results.filter((result) => result.flakyRecovered).length;
   const totalSeconds = results.reduce((sum, result) => sum + result.seconds, 0);
   const wallSeconds = Math.max(...results.map((result) => result.seconds));
   const status = failed > 0 ? `${failed} failed` : "passed";
 
-  console.log(`[${bucketName}] ${status}; ${results.length} completed; ${formatSeconds(totalSeconds)} script time; ${formatSeconds(wallSeconds)} longest script.`);
+  const recoveryStatus = recovered > 0 ? `; ${recovered} flaky-recovered` : "";
+
+  console.log(`[${bucketName}] ${status}; ${results.length} completed${recoveryStatus}; ${formatSeconds(totalSeconds)} script time; ${formatSeconds(wallSeconds)} longest script.`);
+}
+
+function printFlakyRecoveries(results) {
+  const recoveries = results.filter((result) => result.flakyRecovered);
+  if (recoveries.length === 0) {
+    return;
+  }
+  console.log("Flaky recoveries (isolated database, serial retry):");
+  for (const result of recoveries) {
+    console.log(`- ${result.script} recovered on attempt ${result.attemptCount}/2`);
+  }
 }
 
 function formatSeconds(seconds) {
@@ -293,7 +337,8 @@ function formatRunLabel(runContext) {
 }
 
 function scriptEnvNamespace(bucket, runContext) {
-  return `${formatRunLabel(runContext)}-${bucket.name}`;
+  const attemptSuffix = runContext.retry ? `-retry-${String(runContext.attemptNumber).padStart(3, "0")}` : "";
+  return `${formatRunLabel(runContext)}-${bucket.name}${attemptSuffix}`;
 }
 
 function printRegressionList(buckets) {

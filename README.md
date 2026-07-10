@@ -114,7 +114,9 @@ Run the main verification check before syncing changes:
 npm run check
 ```
 
-The main check runs the full regression suite through a timed runner before ESLint. It preserves release-gate coverage while parallelizing only safe regression buckets. During focused work, use `npm run test:regressions:<area>` or `node scripts/suggest-regressions-for-changes.mjs` to choose narrow checks; these do not replace the full closeout gate.
+The main check runs the full regression suite through a timed runner before ESLint. It preserves release-gate coverage while parallelizing only safe regression buckets, and runs the cheap static/source bucket before stateful database and file work so deterministic mistakes stop the gate early. During focused work, run `npm run test:regressions:changed` to inspect the working tree and automatically run the routed narrow checks. One-module changes stay narrow; shared framework/view, database, and release changes escalate to `npm run check`. You can still use `npm run test:regressions:<area>` or `node scripts/suggest-regressions-for-changes.mjs` manually. These iteration commands do not replace the full closeout gate.
+
+If an isolated-database regression fails once under parallel load, the runner retries only that script once with a fresh serial fixture. A pass is reported as `flaky-recovered`; a second failure remains a hard failure. Static/source and other buckets are never auto-retried.
 
 For database query changes, run `npm run audit:params:check`. The scanner rejects new unreviewed interpolation findings while allowing informational bound/scanned totals to change without documentation reconciliation. Baseline updates are reserved for dedicated reviewed cleanup.
 
@@ -123,6 +125,8 @@ For migration/schema changes, use `npm run db:migration:create -- <name>`, refre
 Run `npm run docs:suggest` during closeout to review likely documentation owners. `npm run docs:check` reports warning-only gaps; either update the owning docs or record `No docs change needed: <short reason>.` instead of updating unrelated docs by reflex.
 
 Run `npm run licensing:gates` when preparing a public release, changing dependency notices, or activating outside contribution intake. Its missing-artifact readout is warning-only and does not block ordinary private development.
+
+Run `npm run closeout` at slice closeout to execute the version guard, generated regression-manifest check, database schema check, parameter-binding audit, documentation ownership check, and licensing readiness gate in one pass. It runs every gate and prints a consolidated hard/warning-only status board. This convenience command does not run or replace the full `npm run check` regression and lint gate.
 
 See [docs/regression-suite.md](docs/regression-suite.md) for the current metadata-driven discovery contract, bucket safety model, focused selection options, and add-a-regression workflow.
 

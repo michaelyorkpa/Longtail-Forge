@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 319,
+    "discoveredScripts": 321,
     "legacyScripts": 312,
-    "releaseGateScripts": 14,
+    "releaseGateScripts": 16,
     "areaCounts": {
       "dashboard": 1,
       "database": 26,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 3,
       "public-api": 3,
-      "release": 12,
+      "release": 14,
       "search": 12,
       "tags": 12,
       "tasks": 47,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 143,
       "integration": 153,
-      "release-gate": 14,
+      "release-gate": 16,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 126,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 158
+      "static": 160
     }
   },
   "coverageFamilies": [
@@ -56,7 +56,8 @@
         "legacy.notes.integration.closeout",
         "legacy.static.contract.closeout",
         "legacy.task.qol.closeout",
-        "legacy.work.resume.state.closeout"
+        "legacy.work.resume.state.closeout",
+        "release.closeout-conductor"
       ],
       "retiredScripts": [
         "scripts/clients-projects-strict-closeout-regression.mjs",
@@ -2463,6 +2464,36 @@
       "runMode": "static",
       "tags": [
         "licensing",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves changed-file routing can execute focused areas in one step and escalates shared changes without replacing the release gate.",
+      "id": "release.changed-regression-auto-run",
+      "legacy": false,
+      "path": "scripts/regressions/release/changed-regression-auto-run.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "commands",
+        "release",
+        "routing"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the closeout conductor aggregates every maintenance gate without replacing the full regression gate.",
+      "id": "release.closeout-conductor",
+      "legacy": false,
+      "path": "scripts/regressions/release/closeout-conductor.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "commands",
         "release"
       ],
       "tier": "release-gate"

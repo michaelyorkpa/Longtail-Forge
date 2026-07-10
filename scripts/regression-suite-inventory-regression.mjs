@@ -81,11 +81,11 @@ assert.ok(
   "inventory contract guardrail should be registered",
 );
 assert.equal(legacySnapshot.scripts.length, 312, "legacy migration snapshot should preserve the inventory baseline");
-assert.equal(REGRESSION_ENTRIES.length, 319, "auto-discovery should add seven convention-path guardrails to the legacy baseline");
+assert.equal(REGRESSION_ENTRIES.length, 321, "auto-discovery should add nine convention-path guardrails to the legacy baseline");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [158, 6, 29, 126],
-  "auto-discovery must preserve legacy bucket counts and add seven static convention guardrails",
+  [160, 6, 29, 126],
+  "auto-discovery must preserve legacy bucket counts and add nine static convention guardrails",
 );
 assert.match(suite, /discoverRegressionEntries/);
 assert.match(suite, /createRegressionSuite/);
@@ -100,9 +100,11 @@ assert.equal(
 );
 assert.equal(packageJson.scripts["test:permissions"], "node scripts/permission-regression.mjs");
 assert.equal(packageJson.scripts["test:sqlite-driver"], "node scripts/better-sqlite3-install-smoke.mjs");
+assert.equal(packageJson.scripts["test:regressions:changed"], "node scripts/run-changed-regressions.mjs");
 assert.equal(packageJson.scripts["regressions:manifest"], "node scripts/generate-regression-manifest.mjs");
 assert.equal(packageJson.scripts["regressions:manifest:check"], "node scripts/generate-regression-manifest.mjs --check");
 assert.equal(packageJson.scripts["licensing:gates"], "node scripts/check-licensing-gates.mjs");
+assert.equal(packageJson.scripts.closeout, "node scripts/run-closeout.mjs");
 assert.equal(packageJson.scripts["version:guard"], "node scripts/version-literal-guardrail-regression.mjs");
 
 console.log("Regression suite inventory contract passed.");

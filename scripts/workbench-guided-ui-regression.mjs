@@ -132,7 +132,7 @@ assert.match(css, /\.workbench-inspector-list[\s\S]*overflow-y: auto;/, "Workben
 
 assert.match(
   roadmap,
-  /Active cursor: `0\.33\.6\.16`[\s\S]*Completed work through `0\.33\.6\.15\.4` is archived in `ROADMAP-ARCHIVE\.md`\./,
+  /Active cursor: `0\.33\.7`\./,
   "Roadmap should archive the completed hierarchy follow-up and advance to the next live slice",
 );
 

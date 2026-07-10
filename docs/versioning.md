@@ -26,17 +26,19 @@ After the helper runs:
 
 1. Add the release entry to `CHANGELOG.md`.
 2. Update only active `ROADMAP.md` checklist and archive handoff text required by the completed slice.
-3. Run the focused guardrail:
+3. Run the closeout conductor, which includes the focused version guard plus the standing manifest, schema, parameter-binding, documentation, and licensing checks:
 
    ```sh
-   npm run version:guard
+   npm run closeout
    ```
 
-4. Run the normal release verification, including `npm run check`.
+   The conductor aggregates these maintenance gates and reports warning-only documentation/licensing results without replacing their existing policy. Each underlying package script remains independently runnable.
+
+4. Run the normal release verification, including the separate full `npm run check` regression and lint gate.
 5. Restart the app and verify `/api/app-info` reports the intended version and served HTML uses the same value for local JavaScript/CSS URLs.
 
 ## Literal Guardrail
 
 `scripts/version-literal-guardrail-regression.mjs` reads the current package version and rejects that exact literal in unapproved runtime, regression, or repository files. Its narrow allowlist lives in `scripts/version-literal-allowlist.json`.
 
-Package metadata and narrowly approved release metadata may contain the current literal. `ROADMAP.md`, `CHANGELOG.md`, roadmap archives, `docs/`, and archived release/history directories are historical-label surfaces and are ignored by the guardrail. Older version labels elsewhere are also unaffected because the guardrail searches only for the exact current package version.
+Package metadata and narrowly approved release metadata may contain the current literal. `DECISIONS.md`, `ROADMAP.md`, `CHANGELOG.md`, `TODO.md`, roadmap archives, `docs/`, and archived release/history directories are governing/planning/historical-label surfaces and are ignored by the guardrail. `TODO.md` remains scratchpad only; this exemption does not promote its items into implementation scope. Older version labels elsewhere are also unaffected because the guardrail searches only for the exact current package version.

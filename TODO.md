@@ -13,6 +13,20 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Lists UI/UX Overhaul (Notes for 0.33.13)
+
+Filters needs to be moved to the app-standard filter button in the bottom left corner.
+
+Like notes, the list selector should also be moved to the filters box.
+
+Once a list is selected, the list view should widen the box to be full-width. Chips in the Next box should be put in the top right corner of the box.
+
+Linked Records should be moved into a "List Details" box at the top of the List view. This can become just a list of the linked records. The actual linked records picker can appear in the edit list modal.
+
+The description can also appear in a list details box. This box should start open and be collapsible.
+
+It does not appear that Lists/list modals follow the app's view guidelines. The Edit List modal, in partiuclar. It feels cramped.
+
 ## Inactive Users
 
 Users that are inactive in a workspace should NOT show up in assignable people. They shouldn't show up in a workspace at all.

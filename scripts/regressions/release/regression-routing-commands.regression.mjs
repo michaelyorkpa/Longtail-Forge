@@ -17,6 +17,7 @@ import {
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 
 assert.equal(packageJson.scripts["test:regressions"], "node scripts/run-regressions.mjs");
+assert.equal(packageJson.scripts["test:regressions:changed"], "node scripts/run-changed-regressions.mjs");
 assert.equal(packageJson.scripts["test:regressions:list"], "node scripts/run-regressions.mjs --list");
 for (const [area, command] of Object.entries(AREA_COMMANDS)) {
   assert.equal(
@@ -58,5 +59,6 @@ assert.deepEqual(
 );
 assert.equal(packageJson.scripts.check, "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache");
 assert.equal(suggestRegressionsForPaths([]).releaseGate, "npm run check");
+assert.deepEqual(suggestRegressionsForPaths([]).commands, [], "an empty change set should not suggest a passing fallback run");
 
 console.log("Narrow regression commands and changed-area routing passed.");

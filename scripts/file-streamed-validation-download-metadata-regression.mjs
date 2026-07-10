@@ -76,8 +76,8 @@ async function assertStaticContracts() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the streamed validation version");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streamed validation slice");
   assert.match(changelog, /Version 0\.33\.5\.25\.3[\s\S]*Hardened streamed Files uploads/, "changelog should preserve the shipped streamed validation history");
-  assert.match(roadmap, /^Active cursor: `0\.33\.6\.[^`]+`\. Completed work through `0\.33\.6\.[^`]+` is archived in `ROADMAP-ARCHIVE\.md`\./m, "live roadmap should record the current archived handoff");
-  assert.match(roadmap, /^## Remaining 0\.33\.6 Direction/m, "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
+  assert.match(roadmap, /^Active cursor: `0\.33\.7`\./m, "live roadmap should record the current archived handoff");
+  assert.match(roadmap, /^## Version 0\.33\.7/m, "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
   assert.match(moduleContract, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "module contract should describe route-backed storage metadata prechecks");
   assert.match(moduleDevelopment, /0\.33\.5\.25\.3[\s\S]*streamed upload signature validation/, "module docs should describe service-owned streamed validation");
   assert.match(runtimeDocs, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "runtime docs should describe storage object drift handling");

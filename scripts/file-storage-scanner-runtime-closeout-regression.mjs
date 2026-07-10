@@ -61,12 +61,12 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /Active cursor: `0\.33\.6\.[^`]+`\. Completed work through `0\.33\.6\.[^`]+` is archived in `ROADMAP-ARCHIVE\.md`\./,
+  /Active cursor: `0\.33\.7`\./,
   "roadmap should record the current archived handoff",
 );
 assert.match(
   roadmap,
-  /## Remaining 0\.33\.6 Direction/,
+  /## Version 0\.33\.7/,
   "roadmap should hand off after the completed database extraction contract branch",
 );
 

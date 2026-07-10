@@ -25,10 +25,17 @@ const requiredSupportFiles = [
   "scripts/lib/regression-manifest.mjs",
   "scripts/lib/regression-metadata.mjs",
   "scripts/lib/regression-runner-options.mjs",
+  "scripts/lib/regression-change-routing.mjs",
+  "scripts/lib/changed-regression-runner.mjs",
+  "scripts/lib/closeout-gates.mjs",
   "scripts/generate-regression-manifest.mjs",
+  "scripts/run-changed-regressions.mjs",
+  "scripts/run-closeout.mjs",
   "scripts/check-licensing-gates.mjs",
   "scripts/lib/licensing-gates.mjs",
   "scripts/test-support/regression-runner-scheduler.mjs",
+  "scripts/test-support/isolated-regression-retry.mjs",
+  "scripts/test-support/regression-bucket-orchestrator.mjs",
   "scripts/test-support/source-scan.mjs",
 ];
 const forbiddenLocalDocs = [

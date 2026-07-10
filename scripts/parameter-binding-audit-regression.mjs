@@ -112,7 +112,7 @@ assert.match(auditDocs, /Do not update the baseline in unrelated feature work/);
 assert.match(auditDocs, /Known baseline exceptions/);
 assert.match(auditDocs, /New violations/);
 assert.match(databaseDocs, /audit:params:check/);
-assert.match(roadmap, /^Active cursor: `0\.33\.6\.[^`]+`/m);
+assert.match(roadmap, /^Active cursor: `0\.33\.7`\./m);
 assert.match(regressionSuite, /scripts\/parameter-binding-audit-regression\.mjs/);
 
 console.log("Parameter-binding baseline audit regression passed.");

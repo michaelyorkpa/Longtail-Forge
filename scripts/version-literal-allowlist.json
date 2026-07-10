@@ -5,9 +5,11 @@
     "package-lock.json"
   ],
   "historicalLabelFiles": [
+    "DECISIONS.md",
     "ROADMAP.md",
     "ROADMAP-ARCHIVE.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "TODO.md"
   ],
   "historicalLabelDirectories": [
     "docs/",

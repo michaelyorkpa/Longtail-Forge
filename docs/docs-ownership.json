@@ -215,11 +215,11 @@
     {
       "id": "licensing",
       "label": "Licensing",
-        "sourcePatterns": [
-          "^LICENSE$",
-          "^docs/licensing(?:/|\\.md$)",
-          "^scripts/(?:check-licensing-gates|lib/licensing-gates)\\.mjs$",
-          "^scripts/regressions/licensing/"
+      "sourcePatterns": [
+        "^LICENSE$",
+        "^docs/licensing(?:/|\\.md$)",
+        "^scripts/(?:check-licensing-gates|lib/licensing-gates)\\.mjs$",
+        "^scripts/regressions/licensing/"
       ],
       "docs": [
         "docs/licensing.md",
@@ -231,7 +231,9 @@
       "label": "Release process",
       "sourcePatterns": [
         "^docs/docs-ownership\\.(?:json|md)$",
-        "^scripts/(?:bump-version|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-regressions|version-literal)",
+        "^scripts/(?:bump-version|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-(?:changed-regressions|closeout|regressions)|suggest-regressions|version-literal)",
+        "^scripts/lib/(?:changed-regression-runner|closeout-gates|regression-change-routing)\\.mjs$",
+        "^scripts/test-support/(?:isolated-regression-retry|regression-bucket-orchestrator|regression-runner-scheduler)\\.mjs$",
         "^scripts/(?:lib/docs-change-routing|suggest-docs-for-changes)\\.mjs$",
         "^scripts/regressions/release/",
         "^src/core/(?:asset-version|version)\\.js$",

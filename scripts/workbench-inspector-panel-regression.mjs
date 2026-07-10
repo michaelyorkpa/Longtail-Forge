@@ -139,7 +139,7 @@ assert.match(
 );
 assert.match(
   roadmap,
-  /Active cursor: `0\.33\.6\.16`\./,
+  /Active cursor: `0\.33\.7`\./,
   "Live roadmap should advance to the current active cursor after the completed Workbench history",
 );
 

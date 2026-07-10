@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.6.16.9",
+  "version": "0.33.6.16.14",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -11,6 +11,7 @@
     "start": "node server.js",
     "check": "node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
     "test:regressions": "node scripts/run-regressions.mjs",
+    "test:regressions:changed": "node scripts/run-changed-regressions.mjs",
     "test:regressions:list": "node scripts/run-regressions.mjs --list",
     "test:regressions:framework": "node scripts/run-regressions.mjs --area framework",
     "test:regressions:views": "node scripts/run-regressions.mjs --area views",
@@ -29,6 +30,7 @@
     "audit:params:check": "node scripts/audit-parameter-bindings.mjs --check",
     "docs:suggest": "node scripts/suggest-docs-for-changes.mjs",
     "docs:check": "node scripts/suggest-docs-for-changes.mjs --check",
+    "closeout": "node scripts/run-closeout.mjs",
     "licensing:gates": "node scripts/check-licensing-gates.mjs",
     "db:migration:create": "node scripts/create-migration.mjs",
     "db:schema:refresh": "node scripts/schema-snapshot.mjs --refresh",
