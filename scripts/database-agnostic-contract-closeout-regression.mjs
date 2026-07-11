@@ -33,8 +33,8 @@ assert.match(declarativeViewDocs, /As of 0\.33\.5\.28\.2[\s\S]*completed agnosti
 
 assert.match(changelog, /## Version 0\.33\.5\.27\.33 - [^\n]+[\s\S]*database extraction contract branch[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct helper-interpolated SQL operation sites[\s\S]*0 raw seam-backed dialect sites[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.28/, "changelog should record the database agnostic closeout");
 
-assert.match(roadmap, /^Active cursor: `0\.33\.7`\./m, "live roadmap should record the current archived handoff");
-assert.match(roadmap, /^## Version 0\.33\.7/m, "live roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
+assert.match(roadmap, /^Active cursor: `0\.33\.8`\./m, "live roadmap should record the current archived handoff");
+assert.match(roadmap, /^## Version 0\.33\.8/m, "live roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.27 - Database extraction contract/m, "live roadmap should not keep the completed database extraction contract branch open");
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.33 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should not keep the completed closeout slice body");
 assert.match(roadmap, /Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*completed 0\.33\.5\.27 agnostic-by-contract conversion\/seam branch[\s\S]*interpolation and raw-dialect ratchets enforced at zero[\s\S]*not an app-wide SQL rewrite[\s\S]*consume the closed 0\.33\.5\.27 decisions/, "0.40.0 should be reduced to PostgreSQL implementation and proof behind the established seams");

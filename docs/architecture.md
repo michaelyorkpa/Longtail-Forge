@@ -62,6 +62,16 @@ Hard-coded frontend menus
 Feature-specific framework hacks
 ```
 
+## Correctness Tooling: TypeScript, Zod, and Vitest
+
+As of 0.33.7, the repo carries a three-part correctness foundation that never touches the production boot path (`npm start` remains `node server.js` with no compile, typecheck, or loader step):
+
+* **TypeScript checks trusted internal shapes at development time.** `npm run typecheck` runs `tsc --noEmit` over a narrow scope; JavaScript files opt in per file with `// @ts-check`. The highest-value framework seams are checked against importable contract shapes in `src/types/framework-contracts.d.ts` (module manifest, view surfaces, Dashboard/Workbench contributions, work candidate/focus/resume, search, notifications, contribution shapes, public API envelopes, jobs, and the database seam), and the module registry's definition list is typed so every registered manifest is structurally validated. Type-only files are never imported by runtime JavaScript.
+* **Zod validates untrusted runtime input at the edges.** Files (`src/core/files/files.contracts.js`) and Tasks (`src/modules/tasks/tasks.contracts.js`) are the proving grounds: request bodies, upload metadata, preview requests, and storage configuration are parsed at service entry points, with unknown fields stripped and per-module calibration for server-managed fields. Trusted internal objects passed between services are not re-parsed.
+* **Vitest proves contracts and pure service logic quickly.** The narrow suite (`npm run test:unit`, with `test:contracts`/`test:files`/`test:tasks` filters) runs in seconds and fails `npm run check` before the slow regression suite starts. The regression suite remains the source of truth for integration, permissions, database, and browser/static behavior.
+
+The working contract — file patterns, import rules, calibration guidance, and the verification order — lives in `docs/module-development.md` and `AGENTS.md`.
+
 ---
 
 ## What Belongs in the Framework/Core

@@ -2,334 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.7`.
-
-## Version 0.33.7 - TypeScript, Runtime Contracts, and Fast Test Foundation
-
-Purpose:
-
-Introduce TypeScript, Zod, and Vitest as a focused correctness-and-speed foundation without rewriting the app, changing the runtime boot path, or turning Longtail Forge into a multi-language/polyglot project.
-
-This version is not a TypeScript conversion wave. It establishes the contract pattern that future modules and framework surfaces should use:
-
-- TypeScript catches code/contract drift at development time.
-- Zod validates untrusted runtime input at the edges.
-- Vitest provides fast, narrow contract/service tests so Codex/Claude can fail quickly before running the full regression suite.
-
-The goal is to reduce slow regression churn by catching common shape errors, renamed fields, invalid payloads, broken module contracts, and contract-test failures early and locally. This does not replace the existing regression suite, permission regressions, database regressions, browser/static regressions, or release closeout checks.
-
-Dependencies and sequencing:
-
-- Lands after 0.33.6 (Dashboard/Workbench formalization) so the framework surfaces it contracts against are stable, and before the Playwright, Mobile, Calendar, and Reporting slices that build on the contracts it establishes.
-- Lands before 0.33.12 (Reporting Framework) so Reporting, public API expansion, tickets, creator tools, and future module contribution points are built against clearer contracts.
-- Builds on the framework contracts stabilized through 0.33.5-0.33.6:
-  - Module manifests.
-  - Declarative view surfaces.
-  - Dashboard/Workbench contributions.
-  - Work candidates.
-  - Focus modes.
-  - Resume-state producers.
-  - Search.
-  - Notifications.
-  - Tags.
-  - Files.
-  - Permissions.
-  - Public API envelopes.
-  - Jobs.
-  - Database seam.
-- Keeps the primary app as Node/Express/ESM.
-- Does not introduce PHP, Python, or any second backend runtime in this version.
-- Does not add a TypeScript compile step to `npm start`.
-
-Key decisions:
-
-- Incremental, not a rewrite.
-- TypeScript is introduced first as dev-time checking.
-- Zod is introduced as runtime validation for selected edge contracts, not as a blanket internal-object parser.
-- Vitest is introduced for narrow unit/contract tests, not as a replacement for the existing regression runner.
-- Runtime-imported contract/schema files must remain runnable by the current Node app.
-  - If a schema is used at runtime, keep it in JavaScript (`.js`) with JSDoc/type support until the repo has an intentional build strategy.
-  - Type-only `.ts` files may exist, but runtime JavaScript must not import `.ts` files directly.
-- `npm start` must remain `node server.js`.
-- `npm run check` should run the fastest checks first:
-  1. TypeScript typecheck.
-  2. Vitest narrow/unit tests.
-  3. Existing regression runner.
-  4. ESLint.
-- Codex/Claude should run module-specific tests first, then typecheck, then full `npm run check` only when the change touches shared framework contracts, shared services, release closeout, or multiple modules.
-
-Non-goals:
-
-- Do not convert the whole repo to TypeScript.
-- Do not convert browser UI scripts broadly in this version.
-- Do not add a runtime TypeScript loader to app startup.
-- Do not add PHP or Python for Files or other module logic.
-- Do not replace the existing regression runner.
-- Do not weaken permission, workspace, module-enabled, private/secure-content, storage-key, or no-raw-ID guardrails.
-- Do not silence type errors with blanket `any`, broad `// @ts-ignore`, or global type exclusions.
-
-### Version 0.33.7.1 - Tooling setup: TypeScript, Zod, and Vitest
-
-**Model: GPT-5.5 Extra High** - Tooling foundation with no app boot-path change.
-
-- [x] Add TypeScript as a dev dependency.
-- [x] Add Vitest as a dev dependency.
-- [x] Add Zod as a runtime dependency because schemas will be used by runtime validation paths.
-- [x] Add `tsconfig.json`.
-  - [x] Node/ESM-compatible compiler settings (`module`/`moduleResolution` `nodenext`).
-  - [x] `noEmit: true`.
-  - [x] `allowJs: true`.
-  - [x] Scope `include` narrowly at first (`server.js`, `worker.js`, `src/**/*.js`, `tests/**/*.mjs`; browser `public/` scripts excluded).
-  - [x] Use `checkJs` selectively instead of type-checking the entire repo immediately (`checkJs: false`; files opt in with `// @ts-check`).
-  - [x] Exclude runtime data, generated files, `archive/`, build/vendor output, temporary directories, and `node_modules`.
-- [x] Add package scripts:
-  - [x] `typecheck` - runs `tsc --noEmit`.
-  - [x] `test:unit` - runs Vitest once.
-  - [x] `test:watch` - runs Vitest in watch mode.
-  - [x] `test:contracts` - runs contract/schema-focused Vitest tests (filtered pass; `--passWithNoTests` until 0.33.7.3).
-  - [x] `test:files` - runs Files-focused Vitest tests once Files is the proving-ground module (filtered pass; `--passWithNoTests` until then).
-  - [x] `test:tasks` - runs Tasks-focused Vitest tests once Tasks has contract tests (filtered pass; `--passWithNoTests` until then).
-- [x] Keep `npm start` unchanged.
-- [x] Update `npm run check` so it runs fast checks before the existing slow suite:
-  - [x] `npm run typecheck`
-  - [x] `npm run test:unit`
-  - [x] existing regression runner
-  - [x] ESLint
-- [x] Add a guardrail proving `npm run check` invokes `typecheck` and `test:unit` before the full regression runner (`scripts/regressions/release/fast-check-pipeline.regression.mjs`, a required release gate).
-- [x] Do not alter runtime behavior in this slice except dependency availability and script wiring.
-
-Acceptance criteria:
-
-- TypeScript, Zod, and Vitest are installed.
-- `npm run typecheck` works in `noEmit` mode.
-- `npm run test:unit` works even with an initial minimal test.
-- `npm run check` runs typecheck and unit tests before the existing regression runner.
-- `npm start` remains unchanged and does not run TypeScript compilation.
-
-### Version 0.33.7.2 - Contract folder and module public-entry pattern
-
-**Model: GPT-5.5 Extra High** - Repo-shape guardrails before broad conversion.
-
-Purpose:
-
-Create the structure that prevents future modules from becoming import spaghetti. This slice establishes where contracts live and how other code imports module capabilities.
-
-- [x] Establish the preferred contract/schema pattern:
-  - [x] `*.contracts.js` or `*.schema.js` for runtime Zod schemas and JSDoc-backed types.
-  - [x] Optional `*.types.ts` or shared `.d.ts` files for type-only definitions that are never imported by runtime JavaScript.
-  - [x] Tests live beside contracts or in a clearly named test folder (`tests/**/*.test.mjs`).
-- [x] Establish module public entry points where practical:
-  - [x] `src/modules/files/index.js` — not applicable: Files is framework-owned with no `src/modules/files/` directory; its public seam is `src/services/files.service.js` plus `src/core/files/`, documented in the module development guide.
-  - [x] `src/modules/tasks/index.js`
-  - [x] `src/modules/notes/index.js`
-  - [x] Similar pattern for other modules as they are touched — `lists`, `client-projects`, and `time-tracking` entries created now because they already have cross-module consumers; `tags`/`users`/`developer-example` are manifest-only and get entries when touched.
-- [x] Document the import rule:
-  - [x] Framework/shared code should import module capabilities from public entry points.
-  - [x] Other modules must not import another module's internal repositories/services directly unless an explicit contract allows it.
-- [x] Add a lightweight static guardrail for obvious forbidden imports between module internals (`framework.module-import-boundaries` release gate; the 22 pre-existing deep imports are frozen in `scripts/baselines/module-internal-import-baseline.json`).
-- [x] Document the distinction:
-  - [x] TypeScript types describe trusted internal shapes.
-  - [x] Zod validates untrusted runtime input and config.
-  - [x] Vitest proves contracts and service behavior.
-  - [x] Existing regressions still prove integration, permissions, database behavior, and browser/static behavior.
-
-Acceptance criteria:
-
-- The repo has a documented contract/schema/test pattern.
-- Module public-entry rules are documented.
-- At least one guardrail prevents obvious cross-module internal imports.
-- No broad module rewrite occurs.
-
-### Version 0.33.7.3 - Zod proving ground: Files contract schemas
-
-**Model: GPT-5.5 Extra High** - Runtime contract proof on the module most likely to grow storage/preview/upload complexity.
-
-Purpose:
-
-Use Files as the first Zod proving ground because Files will eventually need upload metadata, attachment contracts, previews, storage adapters, scanners, SaaS/private-hosted storage differences, and future indexing. This is where runtime validation will pay for itself without converting the whole app.
-
-- [x] Add Files-owned runtime schemas in JavaScript (`src/core/files/files.contracts.js`, framework-owned per the Files seam):
-  - [x] `CreateFileSchema`
-  - [x] `UpdateFileSchema` — implemented as `UpdateFileContextSchema`: Files has no generic file-update endpoint by design (no rename/replacement); the real update edge is the attachment-scoped File Context editor. `CreateFileBatchSchema` also added for the batch JSON envelope.
-  - [x] `FileMetadataSchema`
-  - [x] `FileAttachmentSchema`
-  - [x] `FilePreviewRequestSchema`
-  - [x] `FileStorageAdapterConfigSchema`
-- [x] Keep schemas focused on edge payloads:
-  - [x] Request bodies (JSON upload, batch, attach-existing, context update).
-  - [x] Query params — preview request attachment ID; list-filter queries stay on the existing normalizers (already validated, no behavior change wanted this slice).
-  - [x] Upload metadata (multipart fields after route assembly).
-  - [x] Storage configuration (validated at provider resolution, 500 on malformed config).
-  - [x] Preview/action payloads.
-- [x] Do not Zod-parse every internal object passed between already-trusted service functions.
-- [x] Preserve the existing Files behavior and error envelope for valid requests (all 44 Files-area regressions pass unchanged; validation failures throw the existing `AppError` envelope).
-- [x] If invalid payload handling changes, make the error shape explicit, consistent, and tested — unknown fields are stripped; wrong-typed known fields and non-object `attachmentMetadata` now fail 400 with explicit messages; server-managed storage/scanner/integrity fields are rejected outright.
-- [x] Add JSDoc typedefs inferred from Zod schemas where useful.
-- [x] Add Vitest contract tests proving:
-  - [x] Valid create/update payloads pass.
-  - [x] Empty/invalid required fields fail.
-  - [x] Defaults are applied intentionally.
-  - [x] Unknown/unsafe fields are stripped or rejected according to the chosen contract.
-  - [x] Private/storage/scanner-sensitive fields cannot be accepted from user input.
-- [x] Add one narrow Files command, such as `npm run test:files`, that runs only Files Vitest tests (wired in 0.33.7.1; now matches the Files contract tests).
-
-Acceptance criteria:
-
-- Files has runtime Zod schemas for its highest-risk edge payloads.
-- Files schemas are covered by fast Vitest tests.
-- Valid existing Files behavior is preserved.
-- Unsafe/unknown file input is explicitly handled.
-- `npm run test:files` gives Codex/Claude a narrow first check for Files work.
-
-### Version 0.33.7.4 - TypeScript contract checking for high-value framework seams
-
-**Model: GPT-5.5 Extra High** - Selective type coverage over shared contracts without broad conversion.
-
-Purpose:
-
-Type the seams that cause the most expensive regression churn when they drift. This slice should not try to type every module.
-
-- [x] Add shared typed/JSDoc-backed definitions for the highest-value contracts (`src/types/framework-contracts.d.ts`, type-only, never imported by runtime JavaScript):
-  - [x] Module manifest shape.
-  - [x] Declarative view descriptor shape.
-  - [x] Dashboard contribution shape.
-  - [x] Workbench contribution shape.
-  - [x] Work candidate shape.
-  - [x] Focus-mode definition/context shape.
-  - [x] Resume-state producer payload shape.
-  - [x] Search record/reference/result shape (plus the registered indexer signature).
-  - [x] Notification event/create/read payload shape.
-  - [x] Taggable/searchable/attachable manifest contribution shapes.
-  - [x] Public API success/error/list envelope.
-  - [x] Job enqueue/handler payload shape.
-  - [x] Database adapter/dialect seam shape.
-- [x] Add `// @ts-check` plus JSDoc typing only to selected high-value JavaScript files first:
-  - [x] `src/core/modules/manifest-contract.js`
-  - [x] module registry/validation path (`registry.js`, with the definition list typed `ModuleManifest[]` so all eight manifests are structurally checked)
-  - [x] work-candidate/focus/resume services (`work-candidate.service.js`, `work-focus-modes.service.js`, `work-resume-state.service.js`, `work-resume-state-producers.js`)
-  - [x] search contract/service seam (`search.service.js`, `indexer-registry.js`)
-  - [x] notification contract/service seam (`notifications.service.js`)
-  - [x] tag contract/service seam (`tags.service.js`, `tag-propagation-registry.js`)
-  - [x] Files contract/service seam from 0.33.7.3 (`files.contracts.js`)
-- [x] Model dual-cased shapes honestly where they still exist.
-  - [x] Do not pretend everything is camelCase if existing code still accepts or emits snake_case — resume payloads, job enqueue options, and search filters are typed with both casings.
-  - [x] Prefer a normalized internal shape plus explicit edge adapters where practical.
-- [x] Fix real contract drift exposed by typecheck — SQLite adapter `query/get/run` signatures documented named-parameter objects (they previously claimed arrays); search indexing now guards an unregistered indexer with a clear 500 instead of a raw TypeError; the contract types themselves were corrected against reality (defaultRolePermissions/auditRecordTypes/eventTypes are structured arrays, view dirs are URL objects, navigation has no id).
-- [x] Do not mask drift with blanket `any` — checking dials are tsconfig-level (`strict` on, `noImplicitAny` off for incremental JS) and the `framework.typecheck-seams` gate rejects `@ts-nocheck`/`@ts-ignore` in runtime files.
-- [x] Do not type-check the entire browser UI in this slice.
-- [x] Do not rename working files just to make them `.ts`.
-
-Acceptance criteria:
-
-- High-value framework contracts have importable/checkable definitions.
-- Selected files pass `@ts-check` or TypeScript checking against those contracts.
-- Typecheck catches real shape drift without requiring a repo-wide conversion.
-- Dual casing is modeled explicitly where it still exists.
-
-### Version 0.33.7.5 - Vitest narrow tests and Codex/Claude workflow
-
-**Model: GPT-5.5 Extra High** - Fast verification paths that reduce unnecessary full-regression runs.
-
-Purpose:
-
-Give agents fast, targeted commands before the full suite. Vitest does not replace the existing regression runner; it creates cheap tripwires for contracts and service logic.
-
-- [x] Add initial Vitest tests for:
-  - [x] Files schemas from 0.33.7.3 (landed with that slice; 40 tests).
-  - [x] Work candidate ranking pure functions (`rankWorkCandidates`, `resolveWorkCandidateRankBucket`, `normalizeWorkCandidate` allowlist/URL safety).
-  - [x] Focus-mode context resolution (`resolveFocusMode`/`listFocusModes` with workspace type passed via input, so resolution stays database-free; includes the unknown-id fallback and unavailable-mode 403 contracts).
-  - [x] Resume payload allowlist/denylist behavior (`buildSafeProducerPayload`, `isForbiddenField`, `sanitizeMetadata`, dual-cased `ALLOWED_PAYLOAD_FIELDS`).
-  - [x] Public API envelope helpers — covered through the shared bounded-pagination envelope the public API composes; the service's full envelope is integration behavior owned by the existing public API regressions.
-  - [x] Shared pagination/envelope helpers where currently duplicated (`normalizeBoundedPagination`, `boundedPaginationEnvelope`, offset-cursor round-trip).
-- [x] Add or document narrow commands (added in 0.33.7.1; documented with the verification order now):
-  - [x] `npm run test:contracts`
-  - [x] `npm run test:files`
-  - [x] `npm run test:tasks`
-  - [x] `npm run test:unit`
-- [x] Update agent/development docs with the verification order:
-  - [x] For a one-module change: run that module's narrow test first.
-  - [x] For schema/contract changes: run `npm run test:contracts` and `npm run typecheck`.
-  - [x] For shared framework changes: run `npm run typecheck`, `npm run test:unit`, then `npm run check`.
-  - [x] For release closeout: run full required verification.
-- [x] Add a guardrail proving the narrow commands exist and are wired to Vitest (the `release.fast-check-pipeline` gate, extended to also require the initial unit-test files).
-- [x] Keep existing regression scripts as the source of truth for integration behavior, permissions, database migrations, file-storage side effects, browser/static guardrails, and closeout coverage.
-- [x] Do not delete existing regressions merely because a Vitest test now covers a smaller unit; retirement/consolidation must follow the regression coverage-ratchet rules.
-
-Acceptance criteria:
-
-- Vitest has useful initial coverage of schemas and pure contract/service logic.
-- Narrow test commands exist and pass.
-- Agent docs tell Codex/Claude to run narrow tests first.
-- Existing regression coverage remains intact.
-
-### Version 0.33.7.6 - Optional Tasks contract schemas, only if Files proves the pattern cleanly
-
-**Model: GPT-5.5 Extra High** - Second-module validation only if the first proving ground is stable.
-
-Purpose:
-
-Apply the same Zod/Vitest pattern to Tasks only if Files establishes the pattern without churn. This slice may be deferred if 0.33.7 is getting too large.
-
-- [x] Add Tasks-owned runtime schemas for selected edge payloads (`src/modules/tasks/tasks.contracts.js`):
-  - [x] Create task.
-  - [x] Update task.
-  - [x] Checklist item mutation (create, update, and reorder payloads).
-  - [x] Recurrence update mode (`applyTo` is now strictly `future`/`instance`; other values fail instead of silently meaning `instance`).
-  - [x] Task focus/action payload where applicable — not applicable: complete/reopen/archive/restore routes carry no request body; child-relationship payloads (link + blocking-state update) are validated instead.
-- [x] Validate only edge inputs, not every internal service object. Calibration recorded: Tasks strips server-managed audit fields rather than rejecting them (the service ignores them and API callers echo fetched tasks back), unlike Files where server-managed fields are storage/scanner security controls.
-- [x] Add Vitest tests for:
-  - [x] Required title/status/priority behavior (wrong types fail; title required-ness stays with the service's existing message).
-  - [x] Checklist mutation payloads.
-  - [x] Recurrence update mode validation.
-  - [x] Invalid parent/child/context payload shapes.
-- [x] Add or activate `npm run test:tasks` (wired in 0.33.7.1; now matches 18 Tasks contract tests).
-
-Acceptance criteria:
-
-- Tasks has the same contract/schema/test pattern as Files for selected edge payloads.
-- The work remains contained and does not become a broad Tasks rewrite.
-- If deferred, document the reason and keep Files as the completed proving ground.
-
-### Version 0.33.7.7 - Release closeout
-
-**Model: GPT-5.5 Extra High** - Prove the new loop is useful, wired, and non-vacuous.
-
-- [ ] Confirm `npm start` remains unchanged and does not compile or typecheck.
-- [ ] Confirm `npm run typecheck` runs in `noEmit` mode.
-- [ ] Confirm `npm run test:unit` runs Vitest tests.
-- [ ] Confirm `npm run check` runs:
-  - [ ] typecheck
-  - [ ] unit/Vitest tests
-  - [ ] existing regression runner
-  - [ ] ESLint
-- [ ] Confirm fast-failure ordering: typecheck/Vitest failures stop before the slow regression runner.
-- [ ] Add a "proof it bites" guardrail:
-  - [ ] A seeded temporary contract/type error fails `npm run typecheck`.
-  - [ ] A seeded temporary schema test failure fails the relevant Vitest command.
-  - [ ] The seeded failures are removed before final verification.
-- [ ] Confirm no blanket `any`, broad `@ts-ignore`, or global `@ts-nocheck` was added to bypass the new checks.
-- [ ] Confirm no PHP, Python, second backend runtime, app-start TypeScript loader, or broad browser TypeScript conversion was introduced.
-- [ ] Update documentation:
-  - [ ] Architecture notes.
-  - [ ] Module contract docs.
-  - [ ] Development/agent verification workflow.
-  - [ ] Runtime validation vs. TypeScript checking explanation.
-- [ ] Update `CHANGELOG.md` and package metadata.
-- [ ] Run final verification:
-  - [ ] `npm run typecheck`
-  - [ ] `npm run test:unit`
-  - [ ] `npm run check`
-  - [ ] `npm run test:permissions`
-
-Acceptance criteria:
-
-- TypeScript, Zod, and Vitest are installed and documented.
-- `npm start` remains pure Node runtime startup.
-- `npm run check` fails faster by running typecheck and Vitest before the full regression runner.
-- Files has a proven Zod + Vitest contract pattern.
-- High-value framework seams have initial type coverage.
-- Existing regression coverage remains intact.
-- The repo has clearer contracts without becoming a rewrite, a polyglot app, or a TypeScript build-system project.
+Active cursor: `0.33.8`.
 
 ## Version 0.33.8 - Playwright End-to-End Smoke Foundation (dev/test tooling only)
 
@@ -818,7 +491,36 @@ and document the framework-owned equivalent: either a framework-owned descriptor
 the same renderer can consume, or a narrow framework host adapter built directly on
 `LongtailForge.view` primitives where the descriptor contract cannot yet model report execution.
 
-### Version 0.33.12.1 - Reporting Architecture and Framework View Baseline
+### Version 0.33.12.1 - Time Tracking contract schemas and billing unit tests
+
+**Model: GPT-5.5 Extra High** - Third Zod proving ground plus billing-math test coverage, sequenced first because Reporting consumes exactly these seams.
+
+Purpose:
+
+Apply the proven Files/Tasks contract pattern to Time Tracking before Reporting builds on it. Time Tracking has the app's only module-owned public API write route (`POST /api/v1/time-entries` behind an API key — genuinely untrusted external input), and its payloads are the riskiest data in the app: timestamps, durations, numerics, and billable flags that feed billing math. `src/modules/time-tracking/time-tracking-billing.service.js` is ~450 lines of pure, untested billing calculation that both this Reporting version and 0.37 Invoicing will sit on.
+
+- [ ] Add Time Tracking-owned runtime schemas (`src/modules/time-tracking/time-tracking.contracts.js`) for selected edge payloads:
+  - [ ] Time-entry create (browser and public API share the service entry).
+  - [ ] Time-entry update.
+  - [ ] Active-timer slot payloads (update, start, pause, finalize) where the routes carry bodies.
+- [ ] Calibrate against reality before choosing strip vs. reject, following the documented Files/Tasks contrast:
+  - [ ] Trace what the browser timer/entry UI and the public API actually send.
+  - [ ] Keep list/context entries liberal for in-process callers; the service keeps its normalizers.
+  - [ ] Keep required-ness with the service where its error copy already exists.
+  - [ ] Validate only edge inputs, not internal service objects.
+- [ ] Add Vitest contract tests (`tests/contracts/time-tracking-contracts.test.mjs`, matched by a `test:time-tracking`-style filter or the existing contracts filter) proving valid payloads pass, wrong-typed timestamps/durations/billable flags fail 400 in the `AppError` envelope, unknown fields are stripped, and the public-API write payload shape is covered.
+- [ ] Add Vitest unit tests for the pure billing functions (`buildBillingScopes`, `summarizeBillingScopesForRange`, `normalizeTimeEntries`, and the per-project/per-scope summaries): representative scope trees, descendant client/project attachment, billable/non-billable partitioning, range boundaries, and rounding behavior.
+- [ ] Mind the thinner regression net: the time-tracking area floor is small, so verify against the Workbench timer regressions and the permission harness in addition to `npm run test:regressions:time-tracking`-equivalent coverage, and add a narrow area command if one is missing.
+- [ ] Do not change billing behavior, timer semantics, or public API response shapes in this slice; it is contracts and tests only.
+
+Acceptance criteria:
+
+- Time Tracking has the same module-owned contract/schema/test pattern as Files and Tasks for its edge payloads, including the public API write route.
+- The pure billing math has fast unit coverage before Reporting consumes it.
+- Valid existing behavior is preserved; existing regressions and the permission harness pass unchanged.
+- Reporting slices below inherit validated seams instead of raw payloads.
+
+### Version 0.33.12.2 - Reporting Architecture and Framework View Baseline
 
 - [ ] Review the completed 0.33.5.18 renderer/primitive capabilities before implementing Reporting.
 - [ ] Decide whether the Reporting host should use:
@@ -842,7 +544,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
   - [ ] Record-level permission checks.
 - [ ] Update the implementation plan only; do not change runtime behavior in this slice.
 
-### Version 0.33.12.2 - Reporting Contribution Contract
+### Version 0.33.12.3 - Reporting Contribution Contract
 
 - [ ] Keep this roadmap section named "Reporting Framework and Time Report Contribution."
 - [ ] Keep `reporting.html` framework-owned.
@@ -864,7 +566,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep report contribution filtering separate from report execution so the catalog can be permission-safe without running report code.
 - [ ] Update `docs/module-contract.md` with the finalized reporting contribution shape.
 
-### Version 0.33.12.3 - Reporting Framework Catalog Route
+### Version 0.33.12.4 - Reporting Framework Catalog Route
 
 - [ ] Add framework-owned report catalog route:
   - [ ] `GET /api/reporting/catalog`
@@ -874,7 +576,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure reports from historically readable disabled modules are only visible when explicitly allowed by contribution and module policy.
 - [ ] Add focused catalog regressions for disabled modules, missing permissions, workspace capability filtering, and required-module filtering.
 
-### Version 0.33.12.4 - Reporting Runner Registry and Execution Route
+### Version 0.33.12.5 - Reporting Runner Registry and Execution Route
 
 - [ ] Add framework-owned report execution route:
   - [ ] `GET /api/reporting/reports/:moduleId/:reportId/run`
@@ -885,7 +587,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Normalize execution errors into framework-owned report status/error payloads without exposing implementation details.
 - [ ] Add focused execution regressions for unknown report IDs, missing runners, denied permissions, disabled modules, and invalid filter shape.
 
-### Version 0.33.12.5 - Time Tracking Project Time & Billing Contribution
+### Version 0.33.12.6 - Time Tracking Project Time & Billing Contribution
 
 - [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
 - [ ] Make removal of framework?module coupling a hard bar for this move, not just a logic relocation: after the migration, `src/services/reporting.service.js` must not directly import `tasksService`, `timeEntriesService`, `clientsService`, or any other specific module service/repo. The framework Reporting service keeps only catalog/dispatch/host responsibilities; all client/project/task/time-entry data access moves behind the module-owned runner registered by ID. Any client/project hierarchy the runner needs must come through a module-owned contract (the Clients/Projects module), not a framework-level import.
@@ -910,7 +612,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve existing task-linked time entry reporting behavior where already supported.
 - [ ] Add focused Time Tracking report runner regressions before the page-host rewrite depends on it.
 
-### Version 0.33.12.6 - Correct Project and Client Rollup Billing Math
+### Version 0.33.12.7 - Correct Project and Client Rollup Billing Math
 
 - [ ] Fix descendant rollup calculation so each project/subproject computes its own direct time first.
 - [ ] Apply that project's effective billing rate, billing period, and rounding rules to that project's direct time.
@@ -925,7 +627,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve display-only expandable child project rows without double-counting totals.
 - [ ] Add fixture coverage for parent projects, child projects, deeper descendants, parent clients, child clients, mixed rates, and mixed billing periods.
 
-### Version 0.33.12.7 - Framework Reporting Host Shell
+### Version 0.33.12.8 - Framework Reporting Host Shell
 
 - [ ] Keep one framework-owned `reporting.html` page.
 - [ ] Reduce `views/protected/reporting.html` to a minimal framework host that loads shared view assets,
@@ -936,7 +638,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the first host simple: one selected report, one filter area, one status area, and one results area.
 - [ ] Add a focused static regression proving the Reporting page is a minimal framework host.
 
-### Version 0.33.12.8 - Reporting Filter Host and Report Selection
+### Version 0.33.12.9 - Reporting Filter Host and Report Selection
 
 - [ ] Load report definitions from `GET /api/reporting/catalog`.
 - [ ] Select the first available report by default when no valid report is requested.
@@ -952,7 +654,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure filter changes call the framework execution route and refresh the current result without rebuilding the host layout by hand.
 - [ ] Add focused browser/static regressions for report selection, custom date visibility, empty catalog state, and filter refresh behavior.
 
-### Version 0.33.12.9 - Project Time & Billing Result Renderer
+### Version 0.33.12.10 - Project Time & Billing Result Renderer
 
 - [ ] Add a registered report result renderer for `time-project-billing-table`.
 - [ ] The first renderer may remain specific to Project Time & Billing, but it should use framework table/action primitives where they fit.
@@ -964,7 +666,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the framework responsible for result-host placement, overflow wrappers, loading/error/empty states, and renderer dispatch.
 - [ ] Add focused regressions for expandable child rows, totals, no-results state, and renderer-not-found recovery.
 
-### Version 0.33.12.10 - Permissions, Navigation, Guardrails, and Closeout
+### Version 0.33.12.11 - Permissions, Navigation, Guardrails, and Closeout
 
 - [ ] Decide whether `reporting.view` should become a framework-owned permission instead of being contributed by Time Tracking.
 - [ ] Keep report-specific visibility dependent on both `reporting.view` and the owning module's required permissions.

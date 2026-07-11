@@ -83,8 +83,8 @@ try {
   assert.match(auditDocs, /0\.33\.5\.28\.1 Bulk VALUES Placeholder Ceiling Guard[\s\S]*32,766 placeholders[\s\S]*callers must split larger writes before calling `createBulkValuesBindings\(\)`/, "audit docs should record the bulk VALUES placeholder ceiling guard");
   assert.match(auditDocs, /0\.33\.5\.28\.2 Empty-List NOT IN Guardrail[\s\S]*documentation-only guardrail[\s\S]*empty exclusion set should normally preserve all rows/, "audit docs should record the empty-list NOT IN guardrail");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
-  assert.match(roadmap, /^Active cursor: `0\.33\.7`\./m, "live roadmap should record the current archived handoff");
-  assert.match(roadmap, /^## Version 0\.33\.7/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
+  assert.match(roadmap, /^Active cursor: `0\.33\.8`\./m, "live roadmap should record the current archived handoff");
+  assert.match(roadmap, /^## Version 0\.33\.8/m, "live roadmap should advance after the completed parameter-binding gap closeout branch");
   assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should not keep the completed parameter-binding gap closeout branch open");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
   assert.match(changelog, /Archived the completed 0\.33\.5\.28 parameter-binding gap closeout branch[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.29/, "changelog should record the parameter-binding gap closeout archive handoff");

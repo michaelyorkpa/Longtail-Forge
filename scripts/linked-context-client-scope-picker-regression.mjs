@@ -66,7 +66,7 @@ async function assertStaticContract() {
   assert.match(notesServiceSource, /targetMatchesClientContext/, "Notes service should filter link targets by the resolved client context");
   assert.match(notesServiceSource, /omitBusinessContext: isScopedLinkTargetClientContext/, "Project target labels should drop client/workspace suffixes in scoped client contexts");
   assert.match(pickerContract, /0\.33\.6\.15\.1[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
-  assert.match(roadmap, /Active cursor: `0\.33\.7`/, "Roadmap should remain on the current active branch after the Linked Context client-scope slice closes");
+  assert.match(roadmap, /Active cursor: `0\.33\.8`/, "Roadmap should remain on the current active branch after the Linked Context client-scope slice closes");
   assert.match(regressionSuite, /scripts\/linked-context-client-scope-picker-regression\.mjs/, "Regression suite should include the Linked Context client-scope picker proof");
 }
 

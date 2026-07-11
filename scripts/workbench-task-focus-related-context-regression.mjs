@@ -153,7 +153,7 @@ async function assertStaticContracts() {
   );
   assert.match(
     roadmap,
-    /Active cursor: `0\.33\.7`\./,
+    /Active cursor: `0\.33\.8`\./,
   );
 }
 

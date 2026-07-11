@@ -107,7 +107,7 @@ function assertStaticContract() {
   );
   assert.match(
     roadmap,
-    /Active cursor: `0\.33\.7`/,
+    /Active cursor: `0\.33\.8`/,
     "Roadmap should advance the active cursor beyond the completed hierarchy follow-up slice",
   );
   assert.doesNotMatch(
