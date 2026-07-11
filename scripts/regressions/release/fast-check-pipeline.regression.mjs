@@ -85,6 +85,7 @@ assert.match(vitestConfig, /tests\/\*\*\/\*\.test\.mjs/, "Vitest must only disco
 // schemas plus the pure work-candidate/focus/resume/pagination seams.
 const INITIAL_UNIT_TEST_FILES = [
   "tests/contracts/files-contracts.test.mjs",
+  "tests/contracts/tasks-contracts.test.mjs",
   "tests/unit/asset-version.test.mjs",
   "tests/unit/bounded-pagination.test.mjs",
   "tests/unit/focus-mode-resolution.test.mjs",

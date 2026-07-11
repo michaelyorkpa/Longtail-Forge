@@ -1,4 +1,13 @@
 import { randomUUID } from "node:crypto";
+import {
+  CreateTaskSchema,
+  TaskChecklistItemCreateSchema,
+  TaskChecklistItemUpdateSchema,
+  TaskChecklistReorderSchema,
+  TaskChildRelationshipSchema,
+  UpdateTaskSchema,
+  parseTasksEdgePayload,
+} from "./tasks.contracts.js";
 import { tasksRepository } from "./tasks.repo.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
@@ -399,8 +408,9 @@ async function read(taskId, session) {
   };
 }
 
-async function create(payload, session) {
+async function create(rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const payload = parseTasksEdgePayload(CreateTaskSchema, rawPayload);
   const projectId = payload?.project_id || payload?.projectId;
   const taskDefaults = await readProjectTaskDefaults(session, projectId);
   const defaultAssigneeIds = await resolveCreateDefaultAssigneeIds({
@@ -475,10 +485,11 @@ async function create(payload, session) {
   return { task: taskWithDetails };
 }
 
-async function update(taskId, payload, session) {
+async function update(taskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanEditTask(session, previousTask);
+  const payload = parseTasksEdgePayload(UpdateTaskSchema, rawPayload);
   const previousProjectId = previousTask.project_id || "";
 
   const normalizedTask = await normalizeTaskPayload({
@@ -771,8 +782,9 @@ async function listRelationships(taskId, session) {
   };
 }
 
-async function addChildTask(parentTaskId, payload, session) {
+async function addChildTask(parentTaskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const payload = parseTasksEdgePayload(TaskChildRelationshipSchema, rawPayload);
   const parentTask = await readTaskOrThrow(session.workspace_id, parentTaskId);
   const childTask = await readTaskOrThrow(session.workspace_id, payload?.child_task_id || payload?.childTaskId);
   await assertCanEditTask(session, parentTask);
@@ -805,8 +817,9 @@ async function addChildTask(parentTaskId, payload, session) {
   return listRelationships(parentTask.task_id, session);
 }
 
-async function updateChildTaskRelationship(parentTaskId, childTaskId, payload, session) {
+async function updateChildTaskRelationship(parentTaskId, childTaskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const payload = parseTasksEdgePayload(TaskChildRelationshipSchema, rawPayload);
   const parentTask = await readTaskOrThrow(session.workspace_id, parentTaskId);
   const childTask = await readTaskOrThrow(session.workspace_id, childTaskId);
   await assertCanEditTask(session, parentTask);
@@ -856,10 +869,11 @@ async function listChecklistItems(taskId, session) {
   };
 }
 
-async function addChecklistItem(taskId, payload, session) {
+async function addChecklistItem(taskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanEditTask(session, task);
+  const payload = parseTasksEdgePayload(TaskChecklistItemCreateSchema, rawPayload);
 
   const item = await taskChecklistsRepository.create(session.workspace_id, task.task_id, {
     label: normalizeChecklistLabel(payload?.label || payload?.title),
@@ -877,10 +891,11 @@ async function addChecklistItem(taskId, payload, session) {
   });
 }
 
-async function updateChecklistItem(taskId, itemId, payload, session) {
+async function updateChecklistItem(taskId, itemId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanEditTask(session, task);
+  const payload = parseTasksEdgePayload(TaskChecklistItemUpdateSchema, rawPayload);
   const previousItem = await readChecklistItemOrThrow(session.workspace_id, itemId, task.task_id);
   const nextChecked = Object.hasOwn(payload || {}, "is_checked")
     ? Boolean(payload.is_checked)
@@ -918,10 +933,11 @@ async function uncheckChecklistItem(taskId, itemId, session) {
   return setChecklistItemChecked(taskId, itemId, false, session);
 }
 
-async function reorderChecklistItems(taskId, payload, session) {
+async function reorderChecklistItems(taskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanEditTask(session, task);
+  const payload = parseTasksEdgePayload(TaskChecklistReorderSchema, rawPayload);
   const currentItems = await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id);
   const requestedIds = normalizeChecklistItemIds(payload?.item_ids || payload?.itemIds || []);
   const currentIds = currentItems.map((item) => item.task_checklist_item_id);

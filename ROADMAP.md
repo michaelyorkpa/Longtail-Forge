@@ -270,19 +270,19 @@ Purpose:
 
 Apply the same Zod/Vitest pattern to Tasks only if Files establishes the pattern without churn. This slice may be deferred if 0.33.7 is getting too large.
 
-- [ ] Add Tasks-owned runtime schemas for selected edge payloads:
-  - [ ] Create task.
-  - [ ] Update task.
-  - [ ] Checklist item mutation.
-  - [ ] Recurrence update mode.
-  - [ ] Task focus/action payload where applicable.
-- [ ] Validate only edge inputs, not every internal service object.
-- [ ] Add Vitest tests for:
-  - [ ] Required title/status/priority behavior.
-  - [ ] Checklist mutation payloads.
-  - [ ] Recurrence update mode validation.
-  - [ ] Invalid parent/child/context payload shapes.
-- [ ] Add or activate `npm run test:tasks`.
+- [x] Add Tasks-owned runtime schemas for selected edge payloads (`src/modules/tasks/tasks.contracts.js`):
+  - [x] Create task.
+  - [x] Update task.
+  - [x] Checklist item mutation (create, update, and reorder payloads).
+  - [x] Recurrence update mode (`applyTo` is now strictly `future`/`instance`; other values fail instead of silently meaning `instance`).
+  - [x] Task focus/action payload where applicable — not applicable: complete/reopen/archive/restore routes carry no request body; child-relationship payloads (link + blocking-state update) are validated instead.
+- [x] Validate only edge inputs, not every internal service object. Calibration recorded: Tasks strips server-managed audit fields rather than rejecting them (the service ignores them and API callers echo fetched tasks back), unlike Files where server-managed fields are storage/scanner security controls.
+- [x] Add Vitest tests for:
+  - [x] Required title/status/priority behavior (wrong types fail; title required-ness stays with the service's existing message).
+  - [x] Checklist mutation payloads.
+  - [x] Recurrence update mode validation.
+  - [x] Invalid parent/child/context payload shapes.
+- [x] Add or activate `npm run test:tasks` (wired in 0.33.7.1; now matches 18 Tasks contract tests).
 
 Acceptance criteria:
 
