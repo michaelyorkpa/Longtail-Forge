@@ -1,13 +1,13 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 
@@ -77,11 +77,7 @@ assert.match(
   /## Version 0\.33\.6\.6b[\s\S]*relocated `workbench-header-status` contract without the old intro copy or standalone status box/,
   "Changelog should preserve the Workbench host status cleanup closeout",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench host status and intro-copy cleanup regression passed.");
 

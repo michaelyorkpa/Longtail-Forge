@@ -87,6 +87,8 @@ The conductor is a bookkeeping convenience, not a broader release gate. It does 
 
 ### Pre-TypeScript maintenance baseline
 
+Branch-closeout regressions assert roadmap bookkeeping through the shared cursor-floor helper (`scripts/lib/roadmap-cursor.mjs`): call `assertRoadmapCursorAtLeast("<cursor current when the branch closes>", message)` instead of writing exact `Active cursor` or next-section regex pins. Floors are monotonic, so closing a future branch requires no edits to prior closeout regressions; the `release.roadmap-cursor-floor` gate rejects new exact pins and proves floors survive future cursor advances against a fixture. Archived-section `doesNotMatch` assertions are already monotonic-safe and stay as they are.
+
 The 0.33.6.16.14 closeout establishes this workflow for 0.33.7 and later slices: run `npm run test:regressions:changed` for the current diff or a documented area command for focused work, run `npm run closeout` for the standing maintenance gates, and run the separate full `npm run check` gate for shared/release closeout. The changed-area command conservatively escalates shared framework, database, view, and release changes to that full gate.
 
 The closeout verified all 312 legacy snapshot paths remain in the 321-script discovered registry, the generated manifest and ratchet protect 16 required release gates, static/source work runs before stateful buckets, and isolated-database recovery remains one visible serial retry. `npm start` remains `node server.js`. TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, and any second backend runtime remain outside this completed maintenance branch and begin only in their explicit future roadmap slices.

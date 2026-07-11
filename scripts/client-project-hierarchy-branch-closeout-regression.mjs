@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-client-project-hierarchy-closeout-"));
@@ -105,11 +106,7 @@ function assertStaticContract() {
     /As of 0\.33\.6\.14\.3, Lists reads and Search route filtering consume the shared descendant-aware hierarchy scope resolver[\s\S]*Browser code and query strings continue to submit only the selected direct client\/project values[\s\S]*Lists service\/repository and Search service\/adapter expand readable descendants server-side/,
     "View-building contract should document the Lists/Search hierarchy scope ownership boundary",
   );
-  assert.match(
-    roadmap,
-    /Active cursor: `0\.33\.8`/,
-    "Roadmap should advance the active cursor beyond the completed hierarchy follow-up slice",
-  );
+  assertRoadmapCursorAtLeast("0.33.8", "Roadmap should advance the active cursor beyond the completed hierarchy follow-up slice");
   assert.doesNotMatch(
     roadmap,
     /### Version 0\.33\.6\.14 - App-wide hierarchical client\/project scoping standard[\s\S]*#### Version 0\.33\.6\.14\.3 - Lists and Search adoption plus branch closeout/,

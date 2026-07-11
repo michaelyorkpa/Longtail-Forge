@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-linked-context-client-scope-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-context-client-scope.db");
@@ -41,7 +42,6 @@ async function assertStaticContract() {
   const notesJs = await readText("public/js/notes.js");
   const notesServiceSource = await readText("src/modules/notes/notes.service.js");
   const pickerContract = await readText("docs/linked-context-picker-contract.md");
-  const roadmap = await readText("ROADMAP.md");
   const regressionSuite = await readText("scripts/regression-legacy-snapshot.json");
 
   assert.equal(packageJson.version, appVersion, "package.json should report the Linked Context client-scope version");
@@ -66,7 +66,7 @@ async function assertStaticContract() {
   assert.match(notesServiceSource, /targetMatchesClientContext/, "Notes service should filter link targets by the resolved client context");
   assert.match(notesServiceSource, /omitBusinessContext: isScopedLinkTargetClientContext/, "Project target labels should drop client/workspace suffixes in scoped client contexts");
   assert.match(pickerContract, /0\.33\.6\.15\.1[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
-  assert.match(roadmap, /Active cursor: `0\.33\.8`/, "Roadmap should remain on the current active branch after the Linked Context client-scope slice closes");
+  assertRoadmapCursorAtLeast("0.33.8", "Roadmap should remain on the current active branch after the Linked Context client-scope slice closes");
   assert.match(regressionSuite, /scripts\/linked-context-client-scope-picker-regression\.mjs/, "Regression suite should include the Linked Context client-scope picker proof");
 }
 

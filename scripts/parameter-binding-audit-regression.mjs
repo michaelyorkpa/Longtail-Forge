@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import {
   buildParameterBindingBaseline,
   evaluateParameterBindingBaseline,
@@ -18,7 +19,6 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const baseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const runtimeSourceEntries = readRuntimeSourceEntries({ root });
 const report = scanParameterBindings({ entries: runtimeSourceEntries });
@@ -112,7 +112,7 @@ assert.match(auditDocs, /Do not update the baseline in unrelated feature work/);
 assert.match(auditDocs, /Known baseline exceptions/);
 assert.match(auditDocs, /New violations/);
 assert.match(databaseDocs, /audit:params:check/);
-assert.match(roadmap, /^Active cursor: `0\.33\.8`\./m);
+assertRoadmapCursorAtLeast("0.33.8", "live roadmap should stay advanced beyond the parameter-binding baseline slice");
 assert.match(regressionSuite, /scripts\/parameter-binding-audit-regression\.mjs/);
 
 console.log("Parameter-binding baseline audit regression passed.");

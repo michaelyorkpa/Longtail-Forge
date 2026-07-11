@@ -17,22 +17,22 @@ Sequencing:
 * Lands before the 0.33.8 Playwright branch starts, so the next branch closeout is the first to pay no pin tax.
 * The active cursor intentionally stays `0.33.8` while this slice is planned and implemented. Advancing it to `0.33.7.8` would re-trigger the 34 exact pins this slice exists to remove; the slice's own release still follows the normal `npm run version:bump -- 0.33.7.8` package ceremony.
 
-* [ ] Add a shared helper, for example `scripts/lib/roadmap-cursor.mjs`:
-  * [ ] Parse the `Active cursor: \`X\`.` line from `ROADMAP.md` once, failing loudly on a missing or malformed cursor line.
-  * [ ] Export a numeric dotted-version comparison that handles uneven segment counts correctly (`0.33.5.29.5` < `0.33.7.7` < `0.33.8` < `0.33.12.2`); do not use string comparison.
-  * [ ] Export an `assertRoadmapCursorAtLeast(version, message)`-style floor assertion for closeout regressions.
-* [ ] Convert the existing exact pins in the historical closeout regressions:
-  * [ ] Cursor equality matches become floor assertions at the version that was current when that branch closed (for example the database-extraction closeout asserts at-least `0.33.7`, not equals `0.33.8`).
-  * [ ] Next-section header matches (`^## Version 0\.33\.8`) become cursor-floor assertions through the helper; they must not pin whichever section happens to be next.
-  * [ ] Keep the negative assertions unchanged: archived-section and completed-breadcrumb `doesNotMatch` checks are already monotonic-safe and still prevent archived planning from reappearing.
-* [ ] Keep every underlying guarantee: the cursor cannot regress below any closed branch, archived sections cannot reappear, and no closeout regression is retired or weakened (coverage ratchet untouched).
-* [ ] Add a focused regression proving:
-  * [ ] The helper parses the current live roadmap cursor.
-  * [ ] The dotted comparison orders multi-segment versions correctly, including the uneven-length cases above.
-  * [ ] A floor at or below the current cursor passes; a floor above it fails with a useful message.
-  * [ ] A missing or malformed cursor line fails loudly rather than passing vacuously.
-* [ ] Prove the tax is gone: against a fixture copy of the roadmap (not the real file) with an advanced cursor, the converted assertions still pass unchanged — a future branch closeout requires zero edits to prior closeout regressions for cursor/section bookkeeping.
-* [ ] Update `docs/regression-suite.md` and the agent workflow docs so future closeout regressions use the helper instead of writing new exact pins.
+* [x] Add a shared helper, for example `scripts/lib/roadmap-cursor.mjs`:
+  * [x] Parse the `Active cursor: \`X\`.` line from `ROADMAP.md` once, failing loudly on a missing or malformed cursor line.
+  * [x] Export a numeric dotted-version comparison that handles uneven segment counts correctly (`0.33.5.29.5` < `0.33.7.7` < `0.33.8` < `0.33.12.2`); do not use string comparison.
+  * [x] Export an `assertRoadmapCursorAtLeast(version, message)`-style floor assertion for closeout regressions.
+* [x] Convert the existing exact pins in the historical closeout regressions:
+  * [x] Cursor equality matches become floor assertions at the version that was current when that branch closed (for example the database-extraction closeout asserts at-least `0.33.7`, not equals `0.33.8`).
+  * [x] Next-section header matches (`^## Version 0\.33\.8`) become cursor-floor assertions through the helper; they must not pin whichever section happens to be next.
+  * [x] Keep the negative assertions unchanged: archived-section and completed-breadcrumb `doesNotMatch` checks are already monotonic-safe and still prevent archived planning from reappearing.
+* [x] Keep every underlying guarantee: the cursor cannot regress below any closed branch, archived sections cannot reappear, and no closeout regression is retired or weakened (coverage ratchet untouched).
+* [x] Add a focused regression proving:
+  * [x] The helper parses the current live roadmap cursor.
+  * [x] The dotted comparison orders multi-segment versions correctly, including the uneven-length cases above.
+  * [x] A floor at or below the current cursor passes; a floor above it fails with a useful message.
+  * [x] A missing or malformed cursor line fails loudly rather than passing vacuously.
+* [x] Prove the tax is gone: against a fixture copy of the roadmap (not the real file) with an advanced cursor, the converted assertions still pass unchanged — a future branch closeout requires zero edits to prior closeout regressions for cursor/section bookkeeping.
+* [x] Update `docs/regression-suite.md` and the agent workflow docs so future closeout regressions use the helper instead of writing new exact pins.
 
 Acceptance criteria:
 

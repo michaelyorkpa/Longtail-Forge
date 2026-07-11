@@ -28,6 +28,7 @@ const requiredSupportFiles = [
   "scripts/lib/regression-change-routing.mjs",
   "scripts/lib/changed-regression-runner.mjs",
   "scripts/lib/closeout-gates.mjs",
+  "scripts/lib/roadmap-cursor.mjs",
   "scripts/generate-regression-manifest.mjs",
   "scripts/run-changed-regressions.mjs",
   "scripts/run-closeout.mjs",

@@ -1,6 +1,7 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
@@ -8,7 +9,6 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const moduleActionsSource = readText("public/js/shared/module-actions.js");
 const notesScript = readText("public/js/notes.js");
 const relatedContextService = readText("src/services/workbench-task-focus-related-context.service.js");
-const roadmap = readText("ROADMAP.md");
 const workbenchScript = readText("public/js/workbench.js");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Task Focus linked-note view version");
@@ -100,11 +100,7 @@ assert.match(
   /## Version 0\.33\.6\.12m[\s\S]*linked Note rows through a new Notes-owned `notes\.view` module action[\s\S]*rendering existing server-generated Markdown HTML[\s\S]*explicit `Edit` handoff/,
   "Changelog should preserve the linked-note view modal and edit handoff closeout",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Task Focus linked-note view regression passed.");
 

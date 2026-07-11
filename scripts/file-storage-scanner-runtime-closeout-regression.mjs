@@ -1,6 +1,7 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -59,16 +60,8 @@ assert.doesNotMatch(
   /^## Version 0\.33\.5\.22 - Storage Provider and Scanner Runtime/m,
   "live roadmap should not keep the completed storage/scanner branch open",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "roadmap should record the current archived handoff",
-);
-assert.match(
-  roadmap,
-  /## Version 0\.33\.8/,
-  "roadmap should hand off after the completed database extraction contract branch",
-);
+assertRoadmapCursorAtLeast("0.33.8", "roadmap should record the current archived handoff");
+assertRoadmapCursorAtLeast("0.33.8", "roadmap should hand off after the completed database extraction contract branch");
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage/scanner closeout");
 for (let index = 1; index <= 15; index += 1) {

@@ -1,13 +1,13 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 
@@ -123,11 +123,7 @@ assert.match(
   /## Version 0\.33\.6\.6h[\s\S]*Previous`\/`Next` without the old verbose recommendation-cycle labels/,
   "Changelog should preserve the recommended-action cycle label correction closeout",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench recommended-action cycling regression passed.");
 

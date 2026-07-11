@@ -1,13 +1,13 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
-const roadmap = readText("ROADMAP.md");
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -137,11 +137,7 @@ assert.match(
   /## Version 0\.33\.6\.11[\s\S]*served `workbench\.js\?v=26`, `longtail-forge\.css\?v=29`, and `footer\.js` exposed the Inspector and module-loader markers/,
   "Changelog should preserve the Workbench Inspector panel closeout",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Inspector panel regression passed.");
 

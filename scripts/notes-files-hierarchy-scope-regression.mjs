@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-files-hierarchy-scope-"));
@@ -18,7 +19,6 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const notesDocs = readText("docs/notes-module.md");
-const roadmap = readText("ROADMAP.md");
 const viewBuildingContract = readText("docs/view-building-contract.md");
 const notesModuleSource = readText("src/modules/notes/module.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
@@ -73,11 +73,7 @@ function assertStaticContract() {
     /As of 0\.33\.6\.14\.2, the Notes list query path and Files browse plus File Context target reads consume the shared descendant-aware hierarchy scope resolver[\s\S]*Browser code continues to submit only the selected direct client\/project values[\s\S]*Notes service\/repository and Files service expand readable descendants server-side/,
     "View-building contract should document the Notes/Files hierarchy scope ownership boundary",
   );
-  assert.match(
-    roadmap,
-    /Active cursor: `0\.33\.8`/,
-    "Roadmap should advance beyond the completed hierarchy and Linked Context follow-up slices",
-  );
+  assertRoadmapCursorAtLeast("0.33.8", "Roadmap should advance beyond the completed hierarchy and Linked Context follow-up slices");
   assert.match(
     changelog,
     /## Version 0\.33\.6\.14\.2 - [\s\S]*Applied the shared hierarchy scope resolver to Notes list reads plus Files browse and File Context target filters[\s\S]*scripts\/notes-files-hierarchy-scope-regression\.mjs/,

@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-quota-"));
@@ -42,7 +43,7 @@ async function assertStaticContracts() {
   const [
     packageJson,
     packageLock,
-    roadmap,
+    _roadmap,
     changelog,
     moduleContract,
     moduleDevelopment,
@@ -66,8 +67,8 @@ async function assertStaticContracts() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the quota enforcement version");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the quota enforcement slice");
   assert.match(changelog, /Version 0\.33\.5\.25\.2[\s\S]*Activated workspace and per-user Files storage quota enforcement/, "changelog should preserve the shipped quota enforcement history");
-  assert.match(roadmap, /^Active cursor: `0\.33\.8`\./m, "live roadmap should record the current archived handoff");
-  assert.match(roadmap, /^## Version 0\.33\.8/m, "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
+  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
+  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
   assert.match(moduleContract, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module contract should describe service-owned quota enforcement");
   assert.match(moduleDevelopment, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module development docs should describe service-owned quota enforcement");
   assert.match(runtimeDocs, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "runtime docs should describe active quota enforcement");

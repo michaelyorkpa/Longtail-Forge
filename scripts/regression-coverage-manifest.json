@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 324,
+    "discoveredScripts": 325,
     "legacyScripts": 312,
-    "releaseGateScripts": 19,
+    "releaseGateScripts": 20,
     "areaCounts": {
       "dashboard": 1,
       "database": 26,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 3,
       "public-api": 3,
-      "release": 15,
+      "release": 16,
       "search": 12,
       "tags": 12,
       "tasks": 47,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 143,
       "integration": 153,
-      "release-gate": 19,
+      "release-gate": 20,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 126,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 163
+      "static": 164
     }
   },
   "coverageFamilies": [
@@ -57,7 +57,8 @@
         "legacy.static.contract.closeout",
         "legacy.task.qol.closeout",
         "legacy.work.resume.state.closeout",
-        "release.closeout-conductor"
+        "release.closeout-conductor",
+        "release.roadmap-cursor-floor"
       ],
       "retiredScripts": [
         "scripts/clients-projects-strict-closeout-regression.mjs",
@@ -2585,6 +2586,21 @@
         "commands",
         "release",
         "routing"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the shared roadmap-cursor floor helper parses and compares correctly, that closeout regressions use floors instead of exact pins, and that a future cursor advance requires no edits to prior closeout regressions.",
+      "id": "release.roadmap-cursor-floor",
+      "legacy": false,
+      "path": "scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "release",
+        "roadmap"
       ],
       "tier": "release-gate"
     },

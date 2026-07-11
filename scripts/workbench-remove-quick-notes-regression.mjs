@@ -1,6 +1,7 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const appShellService = readText("src/services/app-shell.service.js");
 const changelog = readText("CHANGELOG.md");
@@ -8,7 +9,6 @@ const footerScript = readText("public/js/footer.js");
 const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
-const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
@@ -76,11 +76,7 @@ assert.match(
   /## Version 0\.33\.6\.11b[\s\S]*marked the 0\.33\.6\.11b roadmap slice complete[\s\S]*no Quick Notes markers/,
   "Changelog should preserve the Workbench no-Quick-Notes slice closeout",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench remove Quick Notes regression passed.");
 

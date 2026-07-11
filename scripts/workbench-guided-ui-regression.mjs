@@ -1,11 +1,11 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
 const routes = readText("src/routes/workbench.routes.js");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
@@ -130,11 +130,7 @@ assert.match(css, /\.workbench-focus-question-list/, "Workbench CSS should style
 assert.match(css, /\.workbench-recommended-card/, "Workbench CSS should emphasize the recommended candidate");
 assert.match(css, /\.workbench-inspector-list[\s\S]*overflow-y: auto;/, "Workbench CSS should bound right-panel overflow candidates");
 
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Roadmap should archive the completed hierarchy follow-up and advance to the next live slice",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Roadmap should archive the completed hierarchy follow-up and advance to the next live slice");
 
 console.log("Workbench guided UI regression passed.");
 

@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workbench-related-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-workbench-related-context.db");
@@ -125,7 +126,6 @@ async function assertStaticContracts() {
   const packageLock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
   const serviceSource = readText("src/services/workbench-task-focus-related-context.service.js");
   const genericWorkbenchSource = readText("src/services/workbench.service.js");
-  const roadmap = readText("ROADMAP.md");
 
   assert.equal(packageJson.version, appVersion);
   assert.equal(packageLock.version, appVersion);
@@ -151,10 +151,7 @@ async function assertStaticContracts() {
     changelog,
     /## Version 0\.33\.6\.12h[\s\S]*Same project tasks` group by due-date proximity[\s\S]*due-today and overdue tasks now lead[\s\S]*no-due tasks stay last/,
   );
-  assert.match(
-    roadmap,
-    /Active cursor: `0\.33\.8`\./,
-  );
+  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should stay advanced beyond the related-context slice");
 }
 
 async function createRelatedContextFixtures(session) {

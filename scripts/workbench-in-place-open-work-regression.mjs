@@ -1,12 +1,12 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
-const roadmap = readText("ROADMAP.md");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -115,11 +115,7 @@ assert.match(
   /As of 0\.33\.6\.12c-1, Workbench has explicit `focus-selection` and `task-focus` browser states[\s\S]*Primary actions on normalized Task candidates are labeled `Focus task` and enter Task Focus[\s\S]*The header action slot is `Change Focus`/,
   "Module contract should preserve the Workbench Task Focus primary-action direction",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench explicit open/context regression passed.");
 

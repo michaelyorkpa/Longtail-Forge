@@ -1,6 +1,7 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -16,7 +17,6 @@ const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const timeTrackingDocs = readText("docs/time-tracking-module.md");
 const architectureDocs = readText("docs/architecture.md");
-const roadmap = readText("ROADMAP.md");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const regressionManifest = readText("scripts/regression-coverage-manifest.json");
 
@@ -149,11 +149,7 @@ assert.match(
   /## Version 0\.33\.6\.12d-2[\s\S]*Time Tracking-owned Create Timer modal registered as `time-tracking\.timer\.create`[\s\S]*QAC Timer to dispatch the Create Timer module action instead of navigating to `time-tracker\.html`/,
   "Changelog should preserve the Create Timer modal closeout",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 assert.match(regressionSuite, /scripts\/time-tracking-create-timer-modal-regression\.mjs/);
 assert.match(regressionManifest, /scripts\/time-tracking-create-timer-modal-regression\.mjs/);
 

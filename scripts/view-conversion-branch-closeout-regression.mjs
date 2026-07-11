@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 import { listFrameworkViewSurfaces } from "../src/core/view-surfaces/framework-view-surfaces.js";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -79,8 +80,8 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.15 is archived/, "live roa
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.match(roadmap, /Active cursor: `0\.33\.8`\./, "Roadmap should record the current archived handoff");
-assert.match(roadmap, /## Version 0\.33\.8/, "Roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
+assertRoadmapCursorAtLeast("0.33.8", "Roadmap should record the current archived handoff");
+assertRoadmapCursorAtLeast("0.33.8", "Roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
 assert.doesNotMatch(roadmap, /## Clients\/Projects Pages \(0\.33\.5\.18\.13 - 0\.33\.5\.18\.14\)/, "Live roadmap should not keep the completed Clients/Projects branch open");
 assert.doesNotMatch(roadmap, /## Version 0\.33\.5\.18\.15 - Cross-Surface Guardrails/, "Live roadmap should not keep the completed branch closeout checklist open");
 

@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-streamed-validation-"));
@@ -50,7 +51,7 @@ async function assertStaticContracts() {
   const [
     packageJson,
     packageLock,
-    roadmap,
+    _roadmap,
     changelog,
     moduleContract,
     moduleDevelopment,
@@ -76,8 +77,8 @@ async function assertStaticContracts() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the streamed validation version");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streamed validation slice");
   assert.match(changelog, /Version 0\.33\.5\.25\.3[\s\S]*Hardened streamed Files uploads/, "changelog should preserve the shipped streamed validation history");
-  assert.match(roadmap, /^Active cursor: `0\.33\.8`\./m, "live roadmap should record the current archived handoff");
-  assert.match(roadmap, /^## Version 0\.33\.8/m, "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
+  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
+  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
   assert.match(moduleContract, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "module contract should describe route-backed storage metadata prechecks");
   assert.match(moduleDevelopment, /0\.33\.5\.25\.3[\s\S]*streamed upload signature validation/, "module docs should describe service-owned streamed validation");
   assert.match(runtimeDocs, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "runtime docs should describe storage object drift handling");

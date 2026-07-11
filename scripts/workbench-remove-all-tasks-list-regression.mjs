@@ -1,12 +1,12 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 const workbenchService = readText("src/services/workbench.service.js");
@@ -83,11 +83,7 @@ assert.match(
   /## Version 0\.33\.6\.6g[\s\S]*no all-tasks\/taskItems\/task-list hooks while retaining recommended-action and secondary-candidate hooks/,
   "Changelog should preserve the completed no-all-tasks-list Workbench slice",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench remove all-tasks list regression passed.");
 

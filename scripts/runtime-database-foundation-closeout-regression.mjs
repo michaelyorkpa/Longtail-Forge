@@ -2,6 +2,7 @@ import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const root = process.cwd();
 
@@ -64,16 +65,8 @@ assert.doesNotMatch(
   /^## Version 0\.33\.5\.25 - Storage branch cleanup/m,
   "live roadmap should not keep the completed storage cleanup branch open",
 );
-assert.match(
-  roadmap,
-  /^Active cursor: `0\.33\.8`\./m,
-  "live roadmap should record the current archived handoff",
-);
-assert.match(
-  roadmap,
-  /^## Version 0\.33\.8/m,
-  "live roadmap should stay advanced beyond the completed database extraction contract closeout",
-);
+assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
+assertRoadmapCursorAtLeast("0.33.8", "live roadmap should stay advanced beyond the completed database extraction contract closeout");
 assert.match(
   roadmap,
   /### Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*database seam from 0\.33\.5\.19[\s\S]*advisory-lock/,

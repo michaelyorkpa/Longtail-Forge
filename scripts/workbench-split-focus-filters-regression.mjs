@@ -1,13 +1,13 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
-const roadmap = readText("ROADMAP.md");
 const workbenchScript = readText("public/js/workbench.js");
 const focusModesService = readText("src/services/work-focus-modes.service.js");
 
@@ -77,11 +77,7 @@ assert.match(
   /As of 0\.33\.6\.14\.1[\s\S]*shared permission-aware hierarchy scope resolver:[\s\S]*readable descendant sub-clients\/sub-projects[\s\S]*leaf still drills down to that one client or project/,
   "Module contract should document the split filters and shipped descendant-aware hierarchy scope",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Roadmap should archive the shipped hierarchy follow-up and advance to the next live slice",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Roadmap should archive the shipped hierarchy follow-up and advance to the next live slice");
 assert.match(
   changelog,
   /## Version 0\.33\.6\.6e - [\s\S]*Split the Workbench focus box into separate Client and Project filters[\s\S]*0\.33\.6\.13/,

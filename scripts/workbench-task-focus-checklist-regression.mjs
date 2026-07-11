@@ -1,13 +1,13 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
-const roadmap = readText("ROADMAP.md");
 const tasksModuleDoc = readText("docs/tasks-module.md");
 const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
@@ -138,11 +138,7 @@ assert.match(
   /## Version 0\.33\.6\.12l[\s\S]*checking checklist work on an Open task now returns an In Progress task, and unchecking the last checked item on an eligible In Progress task returns it to Open\./,
   "Changelog should preserve the Task Focus checklist-driven status transition closeout",
 );
-assert.match(
-  roadmap,
-  /Active cursor: `0\.33\.8`\./,
-  "Live roadmap should advance to the current active cursor after the completed Workbench history",
-);
+assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Task Focus checklist regression passed.");
 
