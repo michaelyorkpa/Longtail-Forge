@@ -8,7 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const scripts = packageJson.scripts;
@@ -80,5 +80,19 @@ assert.ok(
 // Vitest scope: unit tests live under tests/, never the regression suite.
 const vitestConfig = readFileSync("vitest.config.mjs", "utf8");
 assert.match(vitestConfig, /tests\/\*\*\/\*\.test\.mjs/, "Vitest must only discover tests/**/*.test.mjs");
+
+// The seed coverage of the fast unit suite stays present: Files contract
+// schemas plus the pure work-candidate/focus/resume/pagination seams.
+const INITIAL_UNIT_TEST_FILES = [
+  "tests/contracts/files-contracts.test.mjs",
+  "tests/unit/asset-version.test.mjs",
+  "tests/unit/bounded-pagination.test.mjs",
+  "tests/unit/focus-mode-resolution.test.mjs",
+  "tests/unit/resume-producer-payload.test.mjs",
+  "tests/unit/work-candidate-ranking.test.mjs",
+];
+for (const testFile of INITIAL_UNIT_TEST_FILES) {
+  assert.ok(statSync(testFile).isFile(), `${testFile} must remain in the fast unit suite`);
+}
 
 console.log("fast-check pipeline regression passed.");

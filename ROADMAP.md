@@ -234,26 +234,26 @@ Purpose:
 
 Give agents fast, targeted commands before the full suite. Vitest does not replace the existing regression runner; it creates cheap tripwires for contracts and service logic.
 
-- [ ] Add initial Vitest tests for:
-  - [ ] Files schemas from 0.33.7.3.
-  - [ ] Work candidate ranking pure functions.
-  - [ ] Focus-mode context resolution.
-  - [ ] Resume payload allowlist/denylist behavior.
-  - [ ] Public API envelope helpers.
-  - [ ] Shared pagination/envelope helpers where currently duplicated.
-- [ ] Add or document narrow commands:
-  - [ ] `npm run test:contracts`
-  - [ ] `npm run test:files`
-  - [ ] `npm run test:tasks`
-  - [ ] `npm run test:unit`
-- [ ] Update agent/development docs with the verification order:
-  - [ ] For a one-module change: run that module's narrow test first.
-  - [ ] For schema/contract changes: run `npm run test:contracts` and `npm run typecheck`.
-  - [ ] For shared framework changes: run `npm run typecheck`, `npm run test:unit`, then `npm run check`.
-  - [ ] For release closeout: run full required verification.
-- [ ] Add a guardrail proving the narrow commands exist and are wired to Vitest.
-- [ ] Keep existing regression scripts as the source of truth for integration behavior, permissions, database migrations, file-storage side effects, browser/static guardrails, and closeout coverage.
-- [ ] Do not delete existing regressions merely because a Vitest test now covers a smaller unit; retirement/consolidation must follow the regression coverage-ratchet rules.
+- [x] Add initial Vitest tests for:
+  - [x] Files schemas from 0.33.7.3 (landed with that slice; 40 tests).
+  - [x] Work candidate ranking pure functions (`rankWorkCandidates`, `resolveWorkCandidateRankBucket`, `normalizeWorkCandidate` allowlist/URL safety).
+  - [x] Focus-mode context resolution (`resolveFocusMode`/`listFocusModes` with workspace type passed via input, so resolution stays database-free; includes the unknown-id fallback and unavailable-mode 403 contracts).
+  - [x] Resume payload allowlist/denylist behavior (`buildSafeProducerPayload`, `isForbiddenField`, `sanitizeMetadata`, dual-cased `ALLOWED_PAYLOAD_FIELDS`).
+  - [x] Public API envelope helpers — covered through the shared bounded-pagination envelope the public API composes; the service's full envelope is integration behavior owned by the existing public API regressions.
+  - [x] Shared pagination/envelope helpers where currently duplicated (`normalizeBoundedPagination`, `boundedPaginationEnvelope`, offset-cursor round-trip).
+- [x] Add or document narrow commands (added in 0.33.7.1; documented with the verification order now):
+  - [x] `npm run test:contracts`
+  - [x] `npm run test:files`
+  - [x] `npm run test:tasks`
+  - [x] `npm run test:unit`
+- [x] Update agent/development docs with the verification order:
+  - [x] For a one-module change: run that module's narrow test first.
+  - [x] For schema/contract changes: run `npm run test:contracts` and `npm run typecheck`.
+  - [x] For shared framework changes: run `npm run typecheck`, `npm run test:unit`, then `npm run check`.
+  - [x] For release closeout: run full required verification.
+- [x] Add a guardrail proving the narrow commands exist and are wired to Vitest (the `release.fast-check-pipeline` gate, extended to also require the initial unit-test files).
+- [x] Keep existing regression scripts as the source of truth for integration behavior, permissions, database migrations, file-storage side effects, browser/static guardrails, and closeout coverage.
+- [x] Do not delete existing regressions merely because a Vitest test now covers a smaller unit; retirement/consolidation must follow the regression coverage-ratchet rules.
 
 Acceptance criteria:
 
