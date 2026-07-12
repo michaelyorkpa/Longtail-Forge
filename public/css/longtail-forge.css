@@ -108,6 +108,73 @@ html[data-theme="dark"] {
     }
 }
 
+/* Responsive foundation
+   Single source of responsive truth for the framework and every module
+   surface. CSS media queries cannot read custom properties, so the canonical
+   breakpoint values are pinned here and every @media rule must use these
+   exact values instead of inventing per-page breakpoints:
+
+   - Mobile (phones):          max-width: 700px   [--breakpoint-mobile]
+     The app shell collapses primary navigation at this width.
+   - Tablet (narrow desktop):  max-width: 1024px  [--breakpoint-tablet]
+   - Desktop (full layout):    widths above 1024px
+
+   The tokens below exist for calc()/JavaScript consumption; pre-existing
+   media queries with other values are frozen legacy input and should migrate
+   to these breakpoints only when their surface is deliberately reworked. */
+:root {
+    --breakpoint-mobile: 700px;
+    --breakpoint-tablet: 1024px;
+    --tap-target-min: 44px;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* Embedded media never forces the page wider than the viewport. A surface
+   that genuinely needs a wider canvas (e.g. .billables-chart) opts in with a
+   min-width inside its own overflow-x: auto container. */
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+}
+
+/* Breakpoint utility classes. */
+@media (max-width: 700px) {
+    .u-hide-mobile {
+        display: none !important;
+    }
+}
+
+@media (min-width: 701px) {
+    .u-mobile-only {
+        display: none !important;
+    }
+}
+
+/* Mobile-safe base typography and minimum tap-target sizing at the shell
+   level. Checkboxes, radios, and ranges keep their compact native sizing. */
+@media (max-width: 700px) {
+    body {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    button {
+        min-height: var(--tap-target-min);
+    }
+
+    select,
+    textarea,
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+        min-height: var(--tap-target-min);
+    }
+}
+
 /* Base page shell */
 body {
     min-height: 100vh;

@@ -10,6 +10,17 @@ Longtail Forge UI should stay quiet, scannable, and operational. Pages should fa
 - Use fieldsets for related form controls.
 - Keep headings proportional to the panel or page they belong to.
 
+## Responsive Breakpoints and Mobile Foundation
+
+The framework CSS (`public/css/longtail-forge.css`) owns the shared responsive foundation. Its "Responsive foundation" section is the single source of responsive truth; surfaces consume it instead of inventing per-page breakpoints.
+
+- Canonical breakpoints: mobile is `max-width: 700px` (the app shell collapses primary navigation there), tablet is `max-width: 1024px`, desktop is everything wider. CSS media queries cannot read custom properties, so `@media` rules must use these exact values; the matching tokens (`--breakpoint-mobile`, `--breakpoint-tablet`) exist for `calc()`/JavaScript consumption.
+- Every view declares `<meta name="viewport" content="width=device-width, initial-scale=1">`.
+- Utility classes: `.u-hide-mobile` hides an element at or below the mobile breakpoint; `.u-mobile-only` shows it only there.
+- At the mobile breakpoint the shell sets base body type to 16px with 1.5 line-height and enforces the shared tap-target floor (`--tap-target-min`, 44px) on buttons, selects, textareas, and text-style inputs.
+- Embedded media (`img`, `svg`, `video`, `canvas`) is constrained to `max-width: 100%` so nothing forces horizontal scroll; a surface that genuinely needs a wider canvas opts in with a `min-width` inside its own `overflow-x: auto` container. Do not add horizontal-scrolling data tables; wrap/stack or use contained overflow.
+- The `views.mobile-foundation` regression pins the viewport meta, the tokens, and a frozen allowlist of pre-existing legacy media-query values; new `@media` rules outside the canonical breakpoints fail it. The rendered mobile smoke (`npm run test:e2e`) is the overflow/console gate at the mobile viewport.
+
 ## Controls
 
 - Use native form controls when they fit: checkboxes for binary settings, selects for option sets, inputs for text and numbers, and buttons for commands.

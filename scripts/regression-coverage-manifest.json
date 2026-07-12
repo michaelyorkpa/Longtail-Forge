@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 326,
+    "discoveredScripts": 327,
     "legacyScripts": 312,
     "releaseGateScripts": 21,
     "areaCounts": {
@@ -24,11 +24,11 @@
       "tags": 12,
       "tasks": 47,
       "time-tracking": 6,
-      "views": 26,
+      "views": 27,
       "workbench": 26
     },
     "tierCounts": {
-      "focused": 143,
+      "focused": 144,
       "integration": 153,
       "release-gate": 21,
       "slow": 9
@@ -37,7 +37,7 @@
       "isolated-database": 126,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 165
+      "static": 166
     }
   },
   "coverageFamilies": [
@@ -2620,6 +2620,22 @@
         "roadmap"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "views",
+      "description": "Pins the mobile foundation: exact viewport meta on every view, shared breakpoint/tap-target tokens, base media constraints, and a frozen media-query allowlist in the framework CSS.",
+      "id": "views.mobile-foundation",
+      "legacy": false,
+      "path": "scripts/regressions/views/mobile-foundation.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "css",
+        "mobile",
+        "responsive",
+        "views"
+      ],
+      "tier": "focused"
     },
     {
       "area": "views",

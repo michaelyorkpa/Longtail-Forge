@@ -15,14 +15,27 @@ test("app shell loads with primary navigation present", async ({ page, isMobile 
   // once it loads; accept both so the assertion is not racing the shell script.
   await expect(page).toHaveTitle(/^Dashboard \|.*Longtail Forge$/);
 
+  // Every protected view must carry the mobile-safe viewport meta so phones
+  // render at device width instead of a zoomed-out desktop canvas.
+  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
+    "content",
+    "width=device-width, initial-scale=1",
+  );
+
   // The shell script builds and prepends the header; its presence proves the
   // shell executed rather than dying on a fatal load error.
   await expect(page.locator(SHELL.primaryNav)).toBeVisible();
 
   if (isMobile) {
-    // Mobile: the navigation affordance is the collapsed menu toggle.
+    // Mobile: the navigation affordance is the collapsed menu toggle, and the
+    // shell-level tap-target floor (44px) applies to rendered controls.
     await expect(page.locator(SHELL.navToggle)).toBeVisible();
     await expect(page.locator(SHELL.navToggle)).toHaveAttribute("aria-expanded", "false");
+
+    const toggleBox = await page.locator(SHELL.navToggle).boundingBox();
+
+    expect(toggleBox?.height, "the nav toggle must render at least 44px tall on mobile").toBeGreaterThanOrEqual(44);
+    expect(toggleBox?.width, "the nav toggle must render at least 44px wide on mobile").toBeGreaterThanOrEqual(44);
   } else {
     // Desktop: the primary menu links render inline (no toggle needed).
     await expect(page.locator(SHELL.primaryMenu)).toBeVisible();

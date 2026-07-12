@@ -60,7 +60,7 @@ Specs are organized one file per concern under `tests/e2e/`:
 
 | Spec | Concern |
 | --- | --- |
-| `app-load.spec.mjs` | App shell renders with the right navigation affordance and no fatal load error |
+| `app-load.spec.mjs` | App shell renders with the right navigation affordance, the exact mobile-safe viewport meta, the 44px tap-target floor on the mobile nav toggle, and no fatal load error |
 | `overflow.spec.mjs` | Dashboard and Workbench have no horizontal overflow (real rendered `document.scrollingElement` width, not CSS strings) |
 | `mobile-nav.spec.mjs` | The mobile nav toggle opens/closes the primary menu and focus stays on a visible control |
 | `console.spec.mjs` | No `pageerror` or `console.error` outside the documented allowlist while loading the app shell, Dashboard, and Workbench |

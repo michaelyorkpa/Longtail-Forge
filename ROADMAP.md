@@ -35,12 +35,12 @@ Non-goals:
 
 **Model: GPT-5.5 Extra High** - Framework CSS foundation that every later surface consumes.
 
-- [ ] Confirm/add a correct `<meta name="viewport" content="width=device-width, initial-scale=1">` in the framework app shell for all protected views.
-- [ ] Add shared breakpoint tokens/util classes to `public/css/longtail-forge.css` (a small, documented set of breakpoints) as the single source of responsive truth.
-- [ ] Set mobile-safe base typography, line-height, spacing, and minimum tap-target sizing at the shell level.
-- [ ] Ensure the base page/container never forces horizontal scroll at the mobile viewport (no fixed min-widths, safe `overflow-x`, images/media constrained to `max-width: 100%`).
-- [ ] Do not change framework-owned anatomy class names or `.view-*` hooks; add responsive rules on top of existing anatomy.
-- [ ] Extend the 0.33.8 smoke: app-shell has no horizontal overflow and no console errors at the mobile viewport.
+- [x] Confirm/add a correct `<meta name="viewport" content="width=device-width, initial-scale=1">` in the framework app shell for all protected views.
+- [x] Add shared breakpoint tokens/util classes to `public/css/longtail-forge.css` (a small, documented set of breakpoints) as the single source of responsive truth.
+- [x] Set mobile-safe base typography, line-height, spacing, and minimum tap-target sizing at the shell level.
+- [x] Ensure the base page/container never forces horizontal scroll at the mobile viewport (no fixed min-widths, safe `overflow-x`, images/media constrained to `max-width: 100%`).
+- [x] Do not change framework-owned anatomy class names or `.view-*` hooks; add responsive rules on top of existing anatomy.
+- [x] Extend the 0.33.8 smoke: app-shell has no horizontal overflow and no console errors at the mobile viewport.
 
 Acceptance criteria:
 
