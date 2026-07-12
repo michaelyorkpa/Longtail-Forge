@@ -8,7 +8,7 @@ Active cursor: `0.33.9`.
 
 Purpose:
 
-Make Longtail Forge load and look good on a phone. With the 0.33.8 Playwright smoke providing a real rendered signal, this version does the actual responsive polish across the framework-owned app shell and the highest-traffic surfaces, then extends the smoke suite so mobile quality stays green going forward.
+Make Longtail Forge load and look good on a phone. With the 0.33.8 Playwright smoke providing a real rendered signal, this version does the actual responsive polish across the framework-owned app shell and the highest-traffic surfaces, adds automated WCAG checks to that rendered harness, then extends the smoke suite so mobile and accessibility quality stay green going forward.
 
 Do the foundation first, then polish per surface. A single global "make everything mobile" sweep is unsafe on an 8k-line framework CSS with static-only guardrails; a foundation slice plus bounded per-surface slices, each verified in a real browser, is not.
 
@@ -24,12 +24,14 @@ Key decisions:
 - Ensure a correct viewport meta tag and mobile-safe base typography/tap targets app-wide before per-surface tweaks.
 - Preserve the existing graceful narrow-layout hide/collapse behavior (e.g. the Workbench Inspector) unless a slice intentionally designs a drawer.
 - Every surface touched must pass the 0.33.8 overflow + console smoke at the mobile viewport before its slice closes.
+- Use `@axe-core/playwright` as dev/test tooling inside the existing rendered harness; automated accessibility scans complement rather than replace keyboard, focus, screen-reader, zoom/reflow, and other manual WCAG assessment.
 
 Non-goals:
 
 - Do not restructure framework-owned anatomy or `.view-*` hooks the static regressions pin.
 - Do not build a separate mobile app, separate mobile templates, or a parallel mobile CSS file.
 - Do not add horizontal-scrolling data tables; wrap/stack or provide contained overflow instead.
+- Do not claim WCAG conformance from a clean automated axe scan alone.
 
 ### Version 0.33.9.1 - Mobile foundation: viewport, breakpoints, base type and tap targets
 
@@ -79,26 +81,67 @@ Acceptance criteria:
 - At least one list surface and one modal pass mobile overflow smoke.
 - No framework-owned anatomy was renamed; static regressions stay green.
 
-### Version 0.33.9.4 - Guardrails, docs, and closeout
+### Version 0.33.9.4 - Automated WCAG accessibility checks in Playwright
 
-**Model: GPT-5.5 Extra High** - Lock mobile quality in and document it.
+**Model: GPT-5.5 Extra High** - A dev-only accessibility gate spans shared shell anatomy, authenticated dynamic states, desktop/mobile rendering, and exception policy where a weak baseline could silently hide real regressions.
 
-- [ ] Ensure the extended Playwright smoke covers app-shell, Dashboard, Workbench, one list, and one modal at the mobile viewport (overflow + console) plus mobile nav open/close.
+Purpose:
+
+Add automated accessibility testing to the rendered Playwright harness while keeping it entirely outside the production runtime. Use axe to catch automatically detectable WCAG failures early, then preserve the repository's existing manual accessibility contracts for behavior that automation cannot judge.
+
+- [x] Add `@axe-core/playwright` to `devDependencies` only:
+  - [x] Do not add it to production `dependencies`, import it from `src/`, `server.js`, or `public/`, or change `npm start`.
+  - [x] Extend the existing Playwright dev-only boundary guardrail so moving axe/Playwright accessibility code into runtime paths fails the static suite.
+- [x] Add a focused `test:a11y` package script that runs the accessibility specs through the existing Playwright configuration, authenticated storage state, managed test server, isolated database, and named desktop/mobile projects.
+  - [x] Keep `test:a11y` browser-dependent and separate from `npm run check`, matching the existing `test:e2e` contract.
+  - [x] Keep the accessibility specs under `tests/e2e/` so the full `npm run test:e2e` gate also exercises them.
+- [x] Add a shared axe fixture/helper for consistent configuration and reporting:
+  - [x] Gate automatically detectable WCAG A/AA rules using `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, and `wcag22aa` tags.
+  - [x] Attach structured axe results to Playwright output on failure so the rule, affected target, impact, and help URL are available without reproducing the run manually.
+  - [x] Start with no blanket excludes or disabled rules. Any temporary known-issue baseline must fingerprint the exact rule/target, document why it is safe to defer, and fail when new targets appear; do not exclude a whole shared shell or modal subtree.
+- [x] Scan meaningful rendered states rather than only initial page loads:
+  - [x] App shell, Dashboard, and Workbench at desktop and mobile viewports.
+  - [x] At least one primary list surface and one canonical modal at desktop and mobile viewports.
+  - [x] Open mobile navigation, filter/drawer state, modal state, validation/error state, and stacked child-dialog state before scanning those otherwise-hidden controls.
+  - [x] Wait for each surface/state to finish rendering before analysis; axe must inspect the same stable state a user can interact with.
+- [x] Add focused non-axe Playwright assertions where WCAG behavior is interaction-dependent: keyboard reachability, visible focus, Escape/close behavior, modal focus containment/return, mobile-drawer focus return, and no keyboard trap on the covered states.
+- [x] Document the boundary in `docs/accessibility.md` and `docs/e2e-testing.md`: automated scans catch only part of WCAG, so manual keyboard, screen-reader, zoom/reflow, text-spacing, motion, labeling-in-context, and inclusive usability assessment remain required.
+
+Non-goals:
+
+- Do not install a second browser runner, crawler, production accessibility SDK, or parallel test server when the existing Playwright harness can own the checks.
+- Do not treat a zero-violation axe result as WCAG certification or replace manual assistive-technology review.
+- Do not suppress broad categories of failures merely to establish a green first run.
+
+Acceptance criteria:
+
+- `@axe-core/playwright` is dev-only, production boot remains unchanged, and the static boundary guard fails on runtime imports or dependency drift.
+- `npm run test:a11y` and the full `npm run test:e2e` exercise WCAG A/AA scans across the named desktop/mobile projects and representative visible interaction states.
+- New automatically detectable violations fail with actionable rule/target evidence; any accepted legacy issue is narrowly fingerprinted and cannot hide new violations.
+- Keyboard/focus checks and the documented manual-assessment list make clear what axe does not prove.
+
+### Version 0.33.9.5 - Mobile and accessibility guardrails, docs, and closeout
+
+**Model: GPT-5.5 Extra High** - Lock the mobile and automated-accessibility quality gates in and document their ongoing boundaries.
+
+- [ ] Ensure the extended Playwright smoke covers app-shell, Dashboard, Workbench, one list, and one modal at the mobile viewport (overflow + console + accessibility) plus mobile nav open/close and its visible-state axe scan.
 - [ ] Confirm the version-guardrail ceremony and register any new `scripts/` guardrails with the suite/coverage manifest.
-- [ ] Update docs: responsive/mobile conventions (breakpoints, viewport, drawer, no-horizontal-table rule) in the relevant `docs/` UI/view contracts; note the mobile smoke as an ongoing gate.
-- [ ] Update `CHANGELOG.md`, package metadata, `DECISIONS.md`, and roadmap archive bookkeeping.
-- [ ] Manual smoke on a real phone or emulated device for the primary surfaces.
+- [ ] Update docs: responsive/mobile conventions (breakpoints, viewport, drawer, no-horizontal-table rule), accessibility automation/manual-review boundaries, and the mobile/accessibility smoke as ongoing gates in the relevant `docs/` UI/view contracts.
+- [ ] Update `CHANGELOG.md`, package metadata, `DECISIONS.md`, documentation ownership, and roadmap archive bookkeeping.
+- [ ] Manual smoke on a real phone or emulated device for the primary surfaces, including keyboard navigation, visible focus, focus return, zoom/reflow, and a brief screen-reader pass on the shared shell and one representative modal workflow.
 - [ ] Run `npm run check` (static suite green).
-- [ ] Run `npm run test:e2e` (mobile smoke green).
+- [ ] Run `npm run test:a11y` (automated WCAG gate green).
+- [ ] Run `npm run test:e2e` (mobile, console, overflow, navigation, and accessibility smoke green).
 - [ ] Verify `/api/app-info` reports the expected version.
 
 Acceptance criteria:
 
 - The app loads and looks good on a phone across the primary surfaces.
-- The mobile smoke suite is green and guards against regressions.
-- Static regressions remain green; no anatomy was renamed to achieve mobile polish.
+- The mobile and accessibility smoke suites are green and guard against new rendered regressions without claiming full WCAG conformance.
+- Static regressions remain green; no anatomy was renamed and no production runtime dependency was added to achieve mobile/accessibility coverage.
+- Manual keyboard/focus/screen-reader findings are resolved or explicitly recorded with an owner; automated axe results are not used as a substitute for that review.
 
-### Version 0.33.9.5 - Recurring-task completion continuity and checklist repair
+### Version 0.33.9.6 - Recurring-task completion continuity and checklist repair
 
 **Model: GPT-5.5 Extra High** - Recurrence completion crosses Tasks and Workbench behavior, durable jobs, checklist-series integrity, and a narrowly verified live-data repair.
 

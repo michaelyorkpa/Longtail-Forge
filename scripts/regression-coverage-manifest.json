@@ -2547,7 +2547,7 @@
     },
     {
       "area": "release",
-      "description": "Proves Playwright stays dev/test-only: devDependencies placement, zero runtime imports, unchanged npm start, a browser-free npm run check, and a documented reproducible e2e harness.",
+      "description": "Proves Playwright and axe stay dev/test-only: devDependencies placement, zero runtime imports, unchanged npm start, a browser-free npm run check, and a documented reproducible e2e/a11y harness.",
       "id": "release.playwright-dev-only-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",

@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.9.3",
+  "version": "0.33.9.4",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "test:e2e:ui": "playwright test --ui",
+    "test:a11y": "playwright test tests/e2e/a11y.spec.mjs tests/e2e/a11y-keyboard.spec.mjs",
     "test:regressions": "node scripts/run-regressions.mjs",
     "test:regressions:changed": "node scripts/run-changed-regressions.mjs",
     "test:regressions:list": "node scripts/run-regressions.mjs --list",
@@ -59,6 +60,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.1",
     "eslint": "^9.27.0",

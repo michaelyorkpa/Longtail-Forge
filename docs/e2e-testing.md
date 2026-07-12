@@ -65,6 +65,10 @@ Specs are organized one file per concern under `tests/e2e/`:
 | `mobile-nav.spec.mjs` | The mobile nav toggle opens/closes the primary menu drawer with focus on a visible control, plus the drawer contract: overlay and Escape close affordances, focus moving into the open drawer and returning to the toggle, and a body scroll lock while open |
 | `console.spec.mjs` | No `pageerror` or `console.error` outside the documented allowlist while loading the app shell and every smoke surface (Dashboard, Workbench, Tasks, Notes, Files, Lists) |
 | `modal.spec.mjs` | The Tasks Add Task dialog fits entirely inside the viewport at both viewports, forces no page horizontal scroll while open, and opens without console errors |
+| `a11y.spec.mjs` | Automated WCAG A/AA axe scans (shared helper in `support/axe.mjs`) of Dashboard, Workbench, Tasks, the open filter sidebar, the Add Task modal, its validation-error state, the stacked tags child dialog, and the open mobile nav drawer |
+| `a11y-keyboard.spec.mjs` | Interaction-dependent accessibility axe cannot judge: keyboard reachability, visible focus, modal focus containment and Escape/focus-return, sidebar Escape/focus-return, and no keyboard trap |
+
+The accessibility specs also run standalone via `npm run test:a11y` (same harness, same managed server and storage state). `@axe-core/playwright` is dev/test-only like Playwright itself; the `release.playwright-dev-only-boundary` gate fails if either package reaches production `dependencies` or any runtime source. Automated scans are not WCAG conformance — `docs/accessibility.md` owns the automation/manual-review boundary and the manual checklist.
 
 Shared surface paths and framework anatomy hooks live in `tests/e2e/support/surfaces.mjs`.
 

@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["closeout", "e2e", "release", "tooling"],
-  description: "Proves Playwright stays dev/test-only: devDependencies placement, zero runtime imports, unchanged npm start, a browser-free npm run check, and a documented reproducible e2e harness.",
+  description: "Proves Playwright and axe stay dev/test-only: devDependencies placement, zero runtime imports, unchanged npm start, a browser-free npm run check, and a documented reproducible e2e/a11y harness.",
   runMode: "static",
 });
 
@@ -17,7 +17,8 @@ const dependencies = packageJson.dependencies || {};
 const devDependencies = packageJson.devDependencies || {};
 const scripts = packageJson.scripts || {};
 
-// Dependency placement: Playwright is dev tooling, never a runtime dependency.
+// Dependency placement: Playwright and axe are dev tooling, never runtime
+// dependencies.
 assert.ok(devDependencies["@playwright/test"], "@playwright/test must be a devDependency");
 assert.equal(dependencies["@playwright/test"], undefined, "@playwright/test must never ship as a runtime dependency");
 assert.equal(
@@ -25,13 +26,25 @@ assert.equal(
   false,
   "no Playwright package may appear in production dependencies",
 );
+assert.ok(devDependencies["@axe-core/playwright"], "@axe-core/playwright must be a devDependency");
+assert.equal(dependencies["@axe-core/playwright"], undefined, "@axe-core/playwright must never ship as a runtime dependency");
+assert.equal(
+  Object.keys(dependencies).some((name) => /axe-core/i.test(name)),
+  false,
+  "no axe package may appear in production dependencies",
+);
 
 // Boot path and gate separation: npm start stays a pure Node boot, and the
 // fast static gate never requires browser binaries.
 assert.equal(scripts.start, "node server.js", "npm start must remain node server.js with no Playwright involvement");
-assert.doesNotMatch(String(scripts.check || ""), /playwright/i, "npm run check must never invoke Playwright");
+assert.doesNotMatch(String(scripts.check || ""), /playwright|axe/i, "npm run check must never invoke Playwright or axe");
 assert.equal(scripts["test:e2e"], "playwright test", "test:e2e must run the Playwright suite once");
 assert.equal(scripts["test:e2e:install"], "playwright install chromium", "test:e2e:install must install the browser binaries on demand");
+assert.equal(
+  scripts["test:a11y"],
+  "playwright test tests/e2e/a11y.spec.mjs tests/e2e/a11y-keyboard.spec.mjs",
+  "test:a11y must run the focused accessibility specs through the shared Playwright harness",
+);
 
 // No runtime source may import or reference Playwright or the e2e harness.
 // The rendered smoke drives the app from outside; the app never knows it exists.
@@ -40,28 +53,33 @@ const runtimeEntries = [
   ...readRuntimeSourceEntries({ sourceDir: "src" }),
   ...readRuntimeSourceEntries({ sourceDir: "public" }),
 ];
-const PLAYWRIGHT_REFERENCE = /@playwright\/test|["']playwright["']|tests\/e2e/;
+const PLAYWRIGHT_REFERENCE = /@playwright\/test|["']playwright["']|@axe-core|["']axe-core["']|tests\/e2e/;
 const runtimeViolations = runtimeEntries
   .filter((entry) => PLAYWRIGHT_REFERENCE.test(entry.source))
   .map((entry) => entry.filePath);
 assert.deepEqual(
   runtimeViolations,
   [],
-  `no src/, server.js, or public/ file may import Playwright or reach into tests/e2e:\n${runtimeViolations.join("\n")}`,
+  `no src/, server.js, or public/ file may import Playwright or axe, or reach into tests/e2e:\n${runtimeViolations.join("\n")}`,
 );
 
 // The harness is reproducible from a clean checkout: config, support files,
-// the four concern specs, the auth setup, and the documentation all exist.
+// the concern specs, the accessibility specs, the auth setup, and the
+// documentation all exist.
 const REQUIRED_HARNESS_FILES = [
   "playwright.config.js",
   "tests/e2e/support/e2e-env.mjs",
   "tests/e2e/support/start-e2e-server.mjs",
   "tests/e2e/support/surfaces.mjs",
+  "tests/e2e/support/axe.mjs",
   "tests/e2e/auth.setup.mjs",
   "tests/e2e/app-load.spec.mjs",
   "tests/e2e/overflow.spec.mjs",
   "tests/e2e/mobile-nav.spec.mjs",
   "tests/e2e/console.spec.mjs",
+  "tests/e2e/modal.spec.mjs",
+  "tests/e2e/a11y.spec.mjs",
+  "tests/e2e/a11y-keyboard.spec.mjs",
   "docs/e2e-testing.md",
 ];
 for (const requiredPath of REQUIRED_HARNESS_FILES) {

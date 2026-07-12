@@ -284,7 +284,9 @@ function createGuidedFocusPanel() {
     className: "workbench-focus-question-list",
     attrs: {
       "aria-label": "Workbench focus questions",
-      role: "list",
+      // A group, not a list: the children are toggle buttons, and the list
+      // role requires listitem children (axe aria-required-children).
+      role: "group",
     },
     dataset: { workbenchFocusModes: "" },
   });
