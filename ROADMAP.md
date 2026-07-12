@@ -52,10 +52,10 @@ Acceptance criteria:
 
 **Model: GPT-5.4** - Framework-owned mobile navigation.
 
-- [ ] Convert the primary navigation into a mobile-friendly drawer/menu below the mobile breakpoint, using the existing framework nav anatomy/hooks.
-- [ ] Provide an accessible toggle (open/close), overlay/escape/close affordances, focus management, and body-scroll handling while open.
-- [ ] Preserve full desktop navigation above the breakpoint unchanged.
-- [ ] Extend the 0.33.8 smoke: mobile nav opens and closes, and focus returns safely.
+- [x] Convert the primary navigation into a mobile-friendly drawer/menu below the mobile breakpoint, using the existing framework nav anatomy/hooks.
+- [x] Provide an accessible toggle (open/close), overlay/escape/close affordances, focus management, and body-scroll handling while open.
+- [x] Preserve full desktop navigation above the breakpoint unchanged.
+- [x] Extend the 0.33.8 smoke: mobile nav opens and closes, and focus returns safely.
 
 Acceptance criteria:
 

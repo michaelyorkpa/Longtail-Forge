@@ -1898,6 +1898,12 @@ details[open] > summary.surface-modal-section-heading::before {
     background: var(--color-text);
 }
 
+/* Click-away backdrop for the mobile navigation drawer. Hidden by default
+   and rendered only at the mobile breakpoint while the drawer is open. */
+.nav-drawer-overlay {
+    display: none;
+}
+
 .site-footer {
     width: 100%;
     box-sizing: border-box;
@@ -8300,21 +8306,49 @@ button:disabled {
     }
 
     .nav-toggle {
+        /* Stays visible and clickable above the open drawer's overlay so it
+           doubles as the close control. */
+        position: relative;
+        z-index: 9910;
         display: flex;
         order: 2;
     }
 
+    /* Mobile navigation drawer: the primary menu becomes a fixed left-side
+       panel above a click-away overlay. Anatomy hooks are unchanged
+       (.nav-toggle, #primary-menu .nav-links, .is-open); desktop navigation
+       above the breakpoint is untouched. */
     .nav-links {
         display: none;
-        grid-column: 1 / -1;
-        padding-top: 12px;
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 9900;
+        width: min(320px, 85vw);
+        box-sizing: border-box;
+        padding: 16px;
+        overflow-y: auto;
         align-items: stretch;
         flex-direction: column;
-        order: 5;
+        gap: 4px;
+        border-right: 1px solid var(--color-border);
+        background: var(--color-surface);
+        box-shadow: var(--shadow-modal);
     }
 
     .nav-links.is-open {
         display: flex;
+    }
+
+    .nav-drawer-overlay:not([hidden]) {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 9890;
+        background: var(--color-overlay);
+    }
+
+    body.nav-drawer-open {
+        overflow: hidden;
     }
 
     .nav-links a,
@@ -8328,6 +8362,14 @@ button:disabled {
         position: static;
         margin-top: 6px;
         box-shadow: none;
+    }
+
+    /* Inside the drawer the notification panel renders inline so the fixed
+       drawer never scrolls horizontally. */
+    .nav-links .notification-panel {
+        position: static;
+        width: 100%;
+        margin-top: 8px;
     }
 
     main {

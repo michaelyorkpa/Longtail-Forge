@@ -22,6 +22,7 @@ const SHELL = {
   header: "header.site-header",
   primaryNav: "header.site-header nav.site-nav",
   navToggle: "header.site-header .nav-toggle",
+  navDrawerOverlay: "header.site-header .nav-drawer-overlay",
   primaryMenu: "#primary-menu",
 };
 

@@ -31,6 +31,8 @@ document.body.prepend(siteHeader);
 
 const navToggle = siteHeader.querySelector(".nav-toggle");
 const navLinks = siteHeader.querySelector("#primary-menu");
+const navDrawerOverlay = siteHeader.querySelector(".nav-drawer-overlay");
+const mobileNavQuery = typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 700px)") : null;
 const notificationBell = siteHeader.querySelector("[data-notification-bell]");
 const notificationCount = siteHeader.querySelector("[data-notification-count]");
 const notificationPanel = siteHeader.querySelector("[data-notification-panel]");
@@ -50,11 +52,90 @@ applyCachedWorkspaceContext();
 
 if (navToggle && navLinks) {
   navToggle.addEventListener("click", () => {
-    const isOpen = navToggle.getAttribute("aria-expanded") === "true";
-
-    navToggle.setAttribute("aria-expanded", String(!isOpen));
-    navLinks.classList.toggle("is-open", !isOpen);
+    setNavDrawerOpen(navToggle.getAttribute("aria-expanded") !== "true");
   });
+
+  navDrawerOverlay?.addEventListener("click", () => {
+    setNavDrawerOpen(false);
+    navToggle.focus();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !navDrawerIsOpen()) {
+      return;
+    }
+
+    setNavDrawerOpen(false);
+    navToggle.focus();
+  });
+
+  // Keep keyboard focus inside the open drawer or on the toggle, which stays
+  // visible above the overlay as the close control.
+  document.addEventListener("focusin", (event) => {
+    if (!navDrawerIsOpen() || !isMobileNavViewport()) {
+      return;
+    }
+
+    if (navLinks.contains(event.target) || navToggle.contains(event.target)) {
+      return;
+    }
+
+    focusFirstNavDrawerItem();
+  });
+
+  // Growing past the mobile breakpoint restores the inline desktop
+  // navigation, so release the drawer state and scroll lock.
+  if (mobileNavQuery) {
+    const closeDrawerOnDesktop = () => {
+      if (!mobileNavQuery.matches && navDrawerIsOpen()) {
+        setNavDrawerOpen(false);
+      }
+    };
+
+    if (typeof mobileNavQuery.addEventListener === "function") {
+      mobileNavQuery.addEventListener("change", closeDrawerOnDesktop);
+    } else if (typeof mobileNavQuery.addListener === "function") {
+      mobileNavQuery.addListener(closeDrawerOnDesktop);
+    }
+  }
+}
+
+function navDrawerIsOpen() {
+  return navToggle?.getAttribute("aria-expanded") === "true";
+}
+
+function isMobileNavViewport() {
+  return mobileNavQuery ? mobileNavQuery.matches : false;
+}
+
+function setNavDrawerOpen(isOpen) {
+  if (!navToggle || !navLinks) {
+    return;
+  }
+
+  navToggle.setAttribute("aria-expanded", String(isOpen));
+  navLinks.classList.toggle("is-open", isOpen);
+  if (navDrawerOverlay) {
+    navDrawerOverlay.hidden = !isOpen;
+  }
+  document.body.classList.toggle("nav-drawer-open", isOpen);
+
+  if (isOpen) {
+    focusFirstNavDrawerItem();
+  }
+}
+
+function focusFirstNavDrawerItem() {
+  const candidates = navLinks.querySelectorAll("a[href], button, select, input, textarea, summary");
+
+  for (const candidate of candidates) {
+    if (candidate.hidden || candidate.closest("[hidden]") || candidate.offsetParent === null) {
+      continue;
+    }
+
+    candidate.focus();
+    return;
+  }
 }
 
 if (notificationBell) {
@@ -263,6 +344,11 @@ function buildSiteHeader() {
     toggle.append(document.createElement("span"));
   }
 
+  const drawerOverlay = document.createElement("div");
+
+  drawerOverlay.className = "nav-drawer-overlay";
+  drawerOverlay.hidden = true;
+
   links.className = "nav-links";
   links.id = "primary-menu";
 
@@ -273,7 +359,7 @@ function buildSiteHeader() {
   links.append(notificationWrap);
 
   nav.append(brand, toggle, links);
-  header.append(nav);
+  header.append(nav, drawerOverlay);
 
   return header;
 }
