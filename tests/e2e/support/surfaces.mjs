@@ -15,6 +15,26 @@ const SMOKE_SURFACES = [
     path: "/workbench.html",
     host: "main[data-workbench-host]",
   },
+  {
+    name: "Tasks",
+    path: "/tasks.html",
+    host: "main[data-tasks-host]",
+  },
+  {
+    name: "Notes",
+    path: "/notes.html",
+    host: "main[data-notes-host]",
+  },
+  {
+    name: "Files",
+    path: "/files.html",
+    host: "main[data-files-host]",
+  },
+  {
+    name: "Lists",
+    path: "/lists.html",
+    host: "main[data-lists-host]",
+  },
 ];
 
 // Framework app-shell anatomy hooks (owned by public/js/navigation.js).

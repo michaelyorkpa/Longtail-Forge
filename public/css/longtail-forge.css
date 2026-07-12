@@ -5161,6 +5161,7 @@ dialog .form-actions {
 .dashboard-task-row-title {
     min-width: 0;
     color: var(--color-text);
+    overflow-wrap: anywhere;
 }
 
 .dashboard-task-row-badge,
@@ -5184,8 +5185,10 @@ dialog .form-actions {
 }
 
 .dashboard-task-row-meta span {
+    min-width: 0;
     color: var(--color-muted);
     font-size: 13px;
+    overflow-wrap: anywhere;
 }
 
 .dashboard-task-row-action {
@@ -8272,6 +8275,26 @@ button:disabled {
 
     .site-brand {
         order: 1;
+        min-width: 0;
+    }
+
+    /* The brand name truncates before it can paint underneath the workspace
+       selector on narrow screens. */
+    .site-brand a {
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .site-brand-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .workspace-selector {
+        flex: 0 1 auto;
+        min-width: 96px;
     }
 
     .global-search-shell {
@@ -8468,8 +8491,40 @@ button:disabled {
         max-width: 11rem;
     }
 
+    /* Task density rows fit the phone width: fixed table layout stops the
+       nowrap title/meta from inflating the content column, titles and meta
+       wrap instead of ellipsizing off-screen, and the row action strip wraps
+       so every control stays reachable without sideways table scrolling. */
+    .task-table {
+        table-layout: fixed;
+    }
+
+    .task-table th:last-child,
+    .task-table td:last-child {
+        width: auto;
+        min-width: 0;
+    }
+
+    .list-table th,
+    .list-table td {
+        padding: 10px 8px;
+    }
+
+    .task-title-wrap .link-button {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .task-meta-item {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
     .task-row-actions {
-        justify-content: flex-end;
+        flex-wrap: wrap;
+        justify-content: flex-start;
     }
 
     .timer-count-control {

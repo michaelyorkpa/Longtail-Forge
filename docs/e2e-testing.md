@@ -61,9 +61,10 @@ Specs are organized one file per concern under `tests/e2e/`:
 | Spec | Concern |
 | --- | --- |
 | `app-load.spec.mjs` | App shell renders with the right navigation affordance, the exact mobile-safe viewport meta, the 44px tap-target floor on the mobile nav toggle, and no fatal load error |
-| `overflow.spec.mjs` | Dashboard and Workbench have no horizontal overflow (real rendered `document.scrollingElement` width, not CSS strings) |
+| `overflow.spec.mjs` | Dashboard, Workbench, Tasks, Notes, Files, and Lists have no horizontal overflow (real rendered `document.scrollingElement` width, not CSS strings) |
 | `mobile-nav.spec.mjs` | The mobile nav toggle opens/closes the primary menu drawer with focus on a visible control, plus the drawer contract: overlay and Escape close affordances, focus moving into the open drawer and returning to the toggle, and a body scroll lock while open |
-| `console.spec.mjs` | No `pageerror` or `console.error` outside the documented allowlist while loading the app shell, Dashboard, and Workbench |
+| `console.spec.mjs` | No `pageerror` or `console.error` outside the documented allowlist while loading the app shell and every smoke surface (Dashboard, Workbench, Tasks, Notes, Files, Lists) |
+| `modal.spec.mjs` | The Tasks Add Task dialog fits entirely inside the viewport at both viewports, forces no page horizontal scroll while open, and opens without console errors |
 
 Shared surface paths and framework anatomy hooks live in `tests/e2e/support/surfaces.mjs`.
 

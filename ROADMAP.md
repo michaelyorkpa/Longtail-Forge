@@ -67,11 +67,11 @@ Acceptance criteria:
 
 **Model: Claude Fable 5** - Bounded, mechanical per-surface CSS/layout polish on top of the foundation, verified by the rendered smoke. This is the safe home for a Fable pass: the foundation and a rendered pass/fail signal already exist, and scope is one surface at a time - not a blind global sweep.
 
-- [ ] Dashboard: stack panels cleanly in the specified order on mobile, compact cards, no horizontal overflow, long labels wrap/truncate safely (consume the existing 0.33.6.13g responsive intent).
-- [ ] Workbench: focus box, filters, task-focus sections, and Inspector reflow/stack or collapse safely on mobile with no horizontal overflow; preserve existing collapse/hide behavior.
-- [ ] Primary list and modal surfaces (Tasks, Notes, Files, Lists, Linked Context picker): tables wrap/stack or use contained overflow, modals fit the mobile viewport, controls remain reachable and tappable.
-- [ ] Keep all changes CSS/layout-level on top of existing anatomy; route any behavior changes through existing framework/module hooks, not new anatomy.
-- [ ] Extend the 0.33.8 smoke per surface: Dashboard and Workbench (already covered) plus at least one list and one modal assert no horizontal overflow and no console errors at the mobile viewport.
+- [x] Dashboard: stack panels cleanly in the specified order on mobile, compact cards, no horizontal overflow, long labels wrap/truncate safely (consume the existing 0.33.6.13g responsive intent).
+- [x] Workbench: focus box, filters, task-focus sections, and Inspector reflow/stack or collapse safely on mobile with no horizontal overflow; preserve existing collapse/hide behavior.
+- [x] Primary list and modal surfaces (Tasks, Notes, Files, Lists, Linked Context picker): tables wrap/stack or use contained overflow, modals fit the mobile viewport, controls remain reachable and tappable.
+- [x] Keep all changes CSS/layout-level on top of existing anatomy; route any behavior changes through existing framework/module hooks, not new anatomy.
+- [x] Extend the 0.33.8 smoke per surface: Dashboard and Workbench (already covered) plus at least one list and one modal assert no horizontal overflow and no console errors at the mobile viewport.
 
 Acceptance criteria:
 
