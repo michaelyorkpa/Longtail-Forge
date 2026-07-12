@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.7.8",
+  "version": "0.33.8.3",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -16,6 +16,9 @@
     "test:contracts": "vitest run --passWithNoTests contracts",
     "test:files": "vitest run --passWithNoTests files",
     "test:tasks": "vitest run --passWithNoTests tasks",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e:ui": "playwright test --ui",
     "test:regressions": "node scripts/run-regressions.mjs",
     "test:regressions:changed": "node scripts/run-changed-regressions.mjs",
     "test:regressions:list": "node scripts/run-regressions.mjs --list",
@@ -56,6 +59,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.1",
     "eslint": "^9.27.0",
     "typescript": "^7.0.2",

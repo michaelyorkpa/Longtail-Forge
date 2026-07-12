@@ -227,6 +227,17 @@
       ]
     },
     {
+      "id": "e2e-testing",
+      "label": "End-to-end smoke testing",
+      "sourcePatterns": [
+        "^playwright\\.config\\.js$",
+        "^tests/e2e/"
+      ],
+      "docs": [
+        "docs/e2e-testing.md"
+      ]
+    },
+    {
       "id": "release-process",
       "label": "Release process",
       "sourcePatterns": [

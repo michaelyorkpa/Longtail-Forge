@@ -40,6 +40,7 @@ assert.deepEqual(
     "view-building",
     "public-api",
     "licensing",
+    "e2e-testing",
     "release-process",
   ],
   "the ownership index should cover every roadmap-listed documentation area",
@@ -74,6 +75,10 @@ const licensing = suggestDocsForPaths(["docs/licensing/software-license.md"], { 
 assert.deepEqual(licensing.matchedAreas.map((area) => area.id), ["licensing"]);
 assert.deepEqual(licensing.docs, ["docs/licensing.md", "docs/licensing/README.md"]);
 assert.deepEqual(licensing.warnings, [], "a documentation-only licensing change should suggest its indexes without a source warning");
+
+const e2e = suggestDocsForPaths(["tests/e2e/console.spec.mjs", "playwright.config.js"], { index: rawIndex });
+assert.deepEqual(e2e.matchedAreas.map((area) => area.id), ["e2e-testing"]);
+assert.ok(e2e.docs.includes("docs/e2e-testing.md"), "e2e harness changes should route to the e2e testing doc");
 
 const acknowledged = suggestDocsForPaths(["src/modules/tasks/tasks.service.js"], {
   index: rawIndex,

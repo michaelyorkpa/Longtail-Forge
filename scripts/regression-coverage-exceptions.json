@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 325,
+  "minimumActiveScripts": 326,
   "minimumAreaScripts": {
     "dashboard": 1,
     "database": 26,
@@ -14,7 +14,7 @@
     "notifications": 3,
     "permissions": 3,
     "public-api": 3,
-    "release": 16,
+    "release": 17,
     "search": 12,
     "tags": 12,
     "tasks": 47,
@@ -22,7 +22,7 @@
     "views": 26,
     "workbench": 26
   },
-  "minimumReleaseGateScripts": 20,
+  "minimumReleaseGateScripts": 21,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -43,7 +43,8 @@
     "release.fast-check-pipeline",
     "framework.module-import-boundaries",
     "framework.typecheck-seams",
-    "release.roadmap-cursor-floor"
+    "release.roadmap-cursor-floor",
+    "release.playwright-dev-only-boundary"
   ],
   "protectedAreas": [
     "dashboard",

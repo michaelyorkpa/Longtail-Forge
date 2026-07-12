@@ -2,157 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.8`.
-
-## Version 0.33.7.8 - Roadmap cursor floor helper (closeout-pin cleanup)
-
-**Model: GPT-5.5 Extra High** - Mechanically wide but guarantee-touching: ~34 closeout regressions convert to a shared helper, and a subtle comparison error would silently weaken the roadmap ratchet.
-
-Purpose:
-
-Historical branch-closeout regressions currently pin the live roadmap's state with exact values: `Active cursor: \`<version>\`` equality matches and `^## Version <next>` section-header matches. The intent is monotonic ("the roadmap has advanced past my branch and my archived block has not reappeared"), but the exact-value implementation means every branch closeout must re-reconcile every prior branch's closeout regression — 34 scripts at the 0.33.7.7 closeout, and growing by roughly one per closed branch. Convert the pins to a shared monotonic cursor floor so closing a branch requires zero edits to prior closeout regressions while preserving every guarantee.
-
-Sequencing:
-
-* Lands before the 0.33.8 Playwright branch starts, so the next branch closeout is the first to pay no pin tax.
-* The active cursor intentionally stays `0.33.8` while this slice is planned and implemented. Advancing it to `0.33.7.8` would re-trigger the 34 exact pins this slice exists to remove; the slice's own release still follows the normal `npm run version:bump -- 0.33.7.8` package ceremony.
-
-* [x] Add a shared helper, for example `scripts/lib/roadmap-cursor.mjs`:
-  * [x] Parse the `Active cursor: \`X\`.` line from `ROADMAP.md` once, failing loudly on a missing or malformed cursor line.
-  * [x] Export a numeric dotted-version comparison that handles uneven segment counts correctly (`0.33.5.29.5` < `0.33.7.7` < `0.33.8` < `0.33.12.2`); do not use string comparison.
-  * [x] Export an `assertRoadmapCursorAtLeast(version, message)`-style floor assertion for closeout regressions.
-* [x] Convert the existing exact pins in the historical closeout regressions:
-  * [x] Cursor equality matches become floor assertions at the version that was current when that branch closed (for example the database-extraction closeout asserts at-least `0.33.7`, not equals `0.33.8`).
-  * [x] Next-section header matches (`^## Version 0\.33\.8`) become cursor-floor assertions through the helper; they must not pin whichever section happens to be next.
-  * [x] Keep the negative assertions unchanged: archived-section and completed-breadcrumb `doesNotMatch` checks are already monotonic-safe and still prevent archived planning from reappearing.
-* [x] Keep every underlying guarantee: the cursor cannot regress below any closed branch, archived sections cannot reappear, and no closeout regression is retired or weakened (coverage ratchet untouched).
-* [x] Add a focused regression proving:
-  * [x] The helper parses the current live roadmap cursor.
-  * [x] The dotted comparison orders multi-segment versions correctly, including the uneven-length cases above.
-  * [x] A floor at or below the current cursor passes; a floor above it fails with a useful message.
-  * [x] A missing or malformed cursor line fails loudly rather than passing vacuously.
-* [x] Prove the tax is gone: against a fixture copy of the roadmap (not the real file) with an advanced cursor, the converted assertions still pass unchanged — a future branch closeout requires zero edits to prior closeout regressions for cursor/section bookkeeping.
-* [x] Update `docs/regression-suite.md` and the agent workflow docs so future closeout regressions use the helper instead of writing new exact pins.
-
-Acceptance criteria:
-
-* Closing a future branch requires no edits to prior closeout regressions for cursor or next-section bookkeeping.
-* All existing closeout guarantees are preserved; only the assertion mechanism changes.
-* The helper has focused regression coverage, and new closeout regressions have a documented pattern to follow.
-
-## Version 0.33.8 - Playwright End-to-End Smoke Foundation (dev/test tooling only)
-
-Purpose:
-
-Add the missing rendered signal. The existing regression suite (300+ scripts) is entirely static source/string assertion and never launches a browser, so it cannot see real viewport behavior, horizontal overflow, mobile navigation, or runtime console errors. This version introduces Playwright as a narrow, dev/test-only end-to-end smoke harness that renders the real app at desktop and mobile viewports and asserts the handful of things static checks cannot.
-
-This is a foundation slice, not an end-to-end test conversion. Keep the first suite intentionally small: load, overflow, mobile nav, and console-error smoke on the highest-traffic surfaces. It exists so that 0.33.9 (Mobile Polish) and future responsive work have an objective, rendered pass/fail signal instead of "the static suite is green."
-
-Dependencies and sequencing:
-
-- Lands after 0.33.7 (TypeScript/Vitest foundation) so dev tooling conventions and `npm run check` ordering already exist.
-- Lands before 0.33.9 (Mobile Polish), which consumes this harness as its acceptance signal.
-- Builds on the framework-owned app shell, navigation, Dashboard, and Workbench surfaces already shipped through 0.33.6.
-- Does not depend on Reporting (now 0.33.12).
-
-Key decisions:
-
-- Playwright is dev/test tooling ONLY. It must never enter the production runtime or the app boot path.
-  - `@playwright/test` is a `devDependencies` entry, never a `dependencies` entry.
-  - Playwright browser binaries are installed on demand in dev/CI (`npx playwright install`), never required by `npm start` or app startup.
-  - No file under `src/`, `server.js`, `public/`, or any runtime path imports `@playwright/test` or `playwright`.
-  - The e2e suite lives in a dedicated `tests/e2e/` folder that is not shipped, served, or imported by runtime code.
-- `npm start` remains `node server.js`, unchanged.
-- The e2e smoke is a SEPARATE npm script (`test:e2e`), not wired into the default `npm run check`, because it requires browser binaries and a running server that not every environment (or fast local loop) will have. `npm run check` stays the fast static/regression gate; `test:e2e` is run explicitly, in CI, and as the acceptance gate for 0.33.9 and future responsive slices.
-- The smoke suite authenticates against a local dev server using a seeded test session/`storageState`, so protected surfaces (Dashboard, Workbench) are reachable without hard-coding real credentials.
-- Viewports are fixed and named: a desktop profile (e.g. 1280x800) and a mobile profile (e.g. 375x812), reused across specs.
-- "No major console errors" means captured `pageerror` and `console.error` events, minus a small, documented allowlist of known-benign messages; unexpected entries fail the spec.
-
-Non-goals:
-
-- Do not convert the existing static regression suite to Playwright.
-- Do not add Playwright to production `dependencies` or to `npm start`.
-- Do not build a large page-object framework or exhaustive E2E coverage in this pass.
-- Do not make `npm run check` depend on browser binaries.
-- Do not weaken permission, workspace, module-enabled, private/secure-content, or no-raw-ID guardrails to make a page testable.
-
-### Version 0.33.8.1 - Playwright dev-dependency install and config (no boot-path change)
-
-**Model: GPT-5.5 Extra High** - Dev tooling foundation with zero production-runtime footprint.
-
-- [ ] Add `@playwright/test` as a `devDependencies` entry only.
-- [ ] Add a `playwright.config.js` (or a type-only `.ts` per the 0.33.7 runtime-import rule) under the repo root or `tests/e2e/`:
-  - [ ] Define named `projects` for a desktop viewport (e.g. 1280x800) and a mobile viewport (e.g. 375x812 / a device profile).
-  - [ ] Point `testDir` at `tests/e2e/`.
-  - [ ] Set `baseURL` to the local dev server (configurable via env, defaulting to the existing local port).
-  - [ ] Optionally use `webServer` to boot `node server.js` for the run, or document the "server already running" expectation; either way `npm start` itself stays unchanged.
-  - [ ] Capture trace/screenshot on failure for debugging.
-- [ ] Add package scripts:
-  - [ ] `test:e2e` - runs the Playwright smoke suite once.
-  - [ ] `test:e2e:install` - runs `npx playwright install` for local/CI browser setup.
-  - [ ] (optional) `test:e2e:ui` - Playwright UI mode for local debugging.
-- [ ] Add a seeded test-session/auth helper so protected surfaces are reachable:
-  - [ ] Establish a `storageState` (or login-per-run) against a dev/test account without committing real credentials.
-  - [ ] Keep any test seed/fixture data separate from production data paths.
-- [ ] Keep `npm start` unchanged and do NOT wire `test:e2e` into `npm run check`.
-- [ ] Do not alter runtime behavior in this slice except dev-dependency availability, config, and script wiring.
-
-Acceptance criteria:
-
-- `@playwright/test` is present only in `devDependencies`.
-- `npm run test:e2e` runs (even with a single trivial spec) at both desktop and mobile viewports.
-- `npm start` is unchanged and does not require Playwright or browser binaries.
-- `npm run check` does not invoke Playwright.
-
-### Version 0.33.8.2 - Core smoke specs: load, overflow, mobile nav, console
-
-**Model: GPT-5.4** - Narrow, high-signal rendered smoke on the highest-traffic surfaces.
-
-- [ ] App loads (desktop): the app shell renders at the desktop viewport with primary navigation present and no fatal load error.
-- [ ] App loads (mobile): the app shell renders at the mobile viewport with the mobile navigation affordance present.
-- [ ] Dashboard has no horizontal overflow:
-  - [ ] At the mobile viewport, assert `document.scrollingElement.scrollWidth <= clientWidth` (no horizontal scroll) on the Dashboard.
-  - [ ] Assert the same at the desktop viewport.
-- [ ] Workbench has no horizontal overflow:
-  - [ ] At the mobile viewport, assert no horizontal scroll on the Workbench.
-  - [ ] Assert the same at the desktop viewport.
-- [ ] Mobile nav opens/closes:
-  - [ ] At the mobile viewport, the nav toggle opens the navigation drawer/menu.
-  - [ ] Closing (toggle, overlay, or close control) hides it again and returns focus safely.
-- [ ] No major console errors:
-  - [ ] Capture `pageerror` and `console.error` while loading the app shell, Dashboard, and Workbench.
-  - [ ] Fail on any entry outside a small, documented allowlist of known-benign messages.
-- [ ] Keep specs organized by concern (e.g. `app-load.spec`, `overflow.spec`, `mobile-nav.spec`, `console.spec`) under `tests/e2e/`.
-- [ ] Keep selectors resilient: prefer stable framework anatomy hooks (existing `data-view-*` / nav hooks) over brittle text or nth-child selectors.
-
-Acceptance criteria:
-
-- All six smoke checks pass at their intended viewports against a running dev server.
-- The overflow checks measure real rendered width, not CSS strings.
-- The console check fails on a deliberately injected error and passes when clean.
-
-### Version 0.33.8.3 - Guardrails, docs, and closeout
-
-**Model: GPT-5.5 Extra High** - Lock the dev-only boundary and document the harness.
-
-- [ ] Add a static guardrail regression (in the existing `scripts/` suite) proving the dev-only boundary:
-  - [ ] `@playwright/test` appears in `devDependencies` and NOT in `dependencies`.
-  - [ ] No `src/`, `server.js`, or `public/` runtime file imports `@playwright/test` or `playwright`.
-  - [ ] `npm start` remains `node server.js`.
-- [ ] Confirm the version-guardrail ceremony: bump package/package-lock and any version-asserting scripts consistently, and register the new `scripts/` guardrail with the suite/coverage manifest.
-- [ ] Document the harness:
-  - [ ] Add `docs/e2e-testing.md` (or a section in an existing testing doc) describing how to install browsers, run `test:e2e`, add specs, the viewport profiles, and the console allowlist policy.
-  - [ ] Note explicitly that Playwright is dev/test-only and never part of production runtime.
-- [ ] Update `CHANGELOG.md`, package metadata, `DECISIONS.md` (record the "rendered smoke is a separate gate, not part of `npm run check`" decision), and roadmap archive bookkeeping.
-- [ ] Run `npm run check` (static suite still green).
-- [ ] Run `npm run test:e2e` (rendered smoke green at both viewports).
-- [ ] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- A guardrail fails if Playwright is ever moved into production `dependencies` or imported by runtime code.
-- The static regression suite and the rendered smoke suite both pass.
-- The harness is documented and reproducible from a clean checkout.
+Active cursor: `0.33.9`.
 
 ## Version 0.33.9 - Mobile Polish (rendered against the 0.33.8 smoke harness)
 
@@ -247,6 +97,58 @@ Acceptance criteria:
 - The app loads and looks good on a phone across the primary surfaces.
 - The mobile smoke suite is green and guards against regressions.
 - Static regressions remain green; no anatomy was renamed to achieve mobile polish.
+
+### Version 0.33.9.5 - Recurring-task completion continuity and checklist repair
+
+**Model: GPT-5.5 Extra High** - Recurrence completion crosses Tasks and Workbench behavior, durable jobs, checklist-series integrity, and a narrowly verified live-data repair.
+
+Purpose:
+
+Make recurring-task completion visibly continuous and prevent an empty recurrence template from silently dropping an occurrence's checklist structure. A completed recurring occurrence may leave the Workbench immediately while its replacement is created asynchronously, but the user must be able to see that the series continued and recover the next scheduled occurrence without guessing whether the task was deleted.
+
+Observed evidence from the affected workspace:
+
+- `Check and Update Relevant SEMA Brands` and `Update Shipping` both completed on 2026-07-09, their `task.recurrence` jobs completed on the first attempt, and each series produced an open 2026-07-16 occurrence.
+- Workbench refreshes before the asynchronous recurrence worker creates the next occurrence, then deliberately suppresses passive recurring-created candidates until they are within roughly one day of due. That combination makes a healthy recurring series look as though it disappeared.
+- The current SEMA occurrence and its recurrence template have five active checklist items. `Update Shipping` has no template checklist structure and no checklist on the current occurrence even though its 2026-06-25 occurrence had four items; the historical series predates checklist-template propagation and was never backfilled.
+
+Product rules:
+
+- Keep recurrence generation asynchronous and durable. Do not recreate the next task inline, expose job IDs/dedupe keys/payloads, or weaken the existing periodic stalled-series sweep.
+- Keep passive far-future recurring occurrences out of normal Workbench recommendation ranking, but do not make series continuity invisible: completion feedback must expose a quiet, safe `Next scheduled` state and a route to the next occurrence once it exists.
+- When a recurring occurrence is completed and its active recurrence template has no active checklist structure, seed the template from that occurrence's active checklist labels/order before generating the next occurrence. Never copy checked/completed state into future work, and do not overwrite an established non-empty template unless the user explicitly chose `All Future`.
+
+- [ ] Harden the canonical recurrence-aware completion service used by every completion entry point:
+  - [ ] Preserve the dedicated Workbench, Tasks row, Task editor, and protected/public API completion routes, and keep generic/bulk transitions to `complete` on the same recurrence-queue contract.
+  - [ ] Return safe recurrence-continuity metadata needed by browser consumers, including the computed next scheduled date or an ended-series state, without returning worker internals.
+  - [ ] Distinguish `task completed, next occurrence queued` from a recurrence-queue failure after the task row was already completed; do not report the entire completion as failed when only the follow-up handoff needs recovery.
+- [ ] Add a bounded post-completion continuity read/refresh:
+  - [ ] Workbench and Tasks surfaces show `Next scheduled <date>` while generation is pending and replace it with a safe link/open action when the next occurrence becomes available.
+  - [ ] Do not promote a far-future passive occurrence into Recommended Next Action solely because it was created; preserve the existing overdue/near-due candidate behavior.
+  - [ ] A delayed worker, refresh, navigation away/back, or periodic recurrence sweep must converge on the same visible next-occurrence state without duplicate tasks.
+- [ ] Prevent checklist loss at the empty-template boundary:
+  - [ ] Before queuing the next occurrence, seed an empty active recurrence checklist template from the completing occurrence's active checklist label/order structure when that occurrence has items.
+  - [ ] Keep future checklist items unchecked, preserve an existing non-empty template, and keep `All Future` as the explicit way to replace established checklist structure across a series.
+  - [ ] Keep the completion behavior identical regardless of whether completion came from Workbench, the Tasks row, the Task editor, bulk status, or an API client.
+- [ ] Repair the two verified local series without embedding workspace-, client-, title-, or record-ID-specific behavior in the product runtime:
+  - [ ] Re-read the live rows immediately before repair; keep both active series and their next open occurrences intact rather than reopening already completed history.
+  - [ ] Confirm the SEMA template/current occurrence still carry the expected five active checklist items and make no duplicate repair if already healthy.
+  - [ ] Restore the four historical `Update Shipping` checklist labels/order to its active recurrence template and current open occurrence as unchecked items, using an idempotent bounded repair with backup/transaction/integrity verification.
+- [ ] Add focused regressions covering every completion surface, delayed worker completion, queue failure after task completion, safe next-date/next-link feedback, recurrence-sweep recovery, deduplication, empty-template checklist seeding, established-template preservation, unchecked generated items, and ended recurrences.
+- [ ] Update the Tasks/Workbench contracts, Help only if visible shipped behavior changes, `CHANGELOG.md`, package metadata, and roadmap/archive bookkeeping; run the normal closeout, full check, permission checks, SQLite integrity check, rendered Workbench smoke, restart, and `/api/app-info` verification.
+
+Non-goals:
+
+- Do not make future recurring tasks permanent Recommended Next Action noise before they are startable.
+- Do not make checklist checked state recur, rewrite completed historical occurrences, or infer checklist templates globally from arbitrary old task rows.
+- Do not replace the durable worker with synchronous recurrence creation or expose background-job internals in browser/API payloads.
+
+Acceptance criteria:
+
+- Completing a recurring task from any shipped completion surface produces one next occurrence or an explicit ended-series result, and the user can see the next scheduled date/occurrence without treating its absence from ranking as deletion.
+- Worker delay or handoff failure is accurately reported and recoverable through the existing sweep without duplicate recurrence instances.
+- An empty recurrence checklist template no longer causes a completing occurrence's active checklist structure to vanish from the next task; future items start unchecked and established templates remain unchanged unless `All Future` is chosen.
+- The affected SEMA series remains healthy, and the four-item `Update Shipping` checklist is restored to its active template/current occurrence with database integrity preserved.
 
 ## Version 0.33.10 - Task Calendar Views (lean, read-only)
 

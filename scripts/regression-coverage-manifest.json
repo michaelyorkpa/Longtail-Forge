@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 325,
+    "discoveredScripts": 326,
     "legacyScripts": 312,
-    "releaseGateScripts": 20,
+    "releaseGateScripts": 21,
     "areaCounts": {
       "dashboard": 1,
       "database": 26,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 3,
       "public-api": 3,
-      "release": 16,
+      "release": 17,
       "search": 12,
       "tags": 12,
       "tasks": 47,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 143,
       "integration": 153,
-      "release-gate": 20,
+      "release-gate": 21,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 126,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 164
+      "static": 165
     }
   },
   "coverageFamilies": [
@@ -58,6 +58,7 @@
         "legacy.task.qol.closeout",
         "legacy.work.resume.state.closeout",
         "release.closeout-conductor",
+        "release.playwright-dev-only-boundary",
         "release.roadmap-cursor-floor"
       ],
       "retiredScripts": [
@@ -2539,6 +2540,22 @@
       "runMode": "static",
       "tags": [
         "commands",
+        "release",
+        "tooling"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves Playwright stays dev/test-only: devDependencies placement, zero runtime imports, unchanged npm start, a browser-free npm run check, and a documented reproducible e2e harness.",
+      "id": "release.playwright-dev-only-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "e2e",
         "release",
         "tooling"
       ],

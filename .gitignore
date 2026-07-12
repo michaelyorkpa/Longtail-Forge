@@ -23,6 +23,11 @@ images/logo-concepts.png
 .vscode/
 .claude/
 
+# Playwright end-to-end harness output and saved test sessions
+test-results/
+playwright-report/
+tests/e2e/.auth/
+
 # Ignore environment variable files and database files
 .env
 *.db
