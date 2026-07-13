@@ -238,6 +238,18 @@
       ]
     },
     {
+      "id": "accessibility",
+      "label": "Accessibility testing",
+      "sourcePatterns": [
+        "^scripts/accessibility-regression\\.mjs$",
+        "^tests/e2e/a11y",
+        "^tests/e2e/support/axe\\.mjs$"
+      ],
+      "docs": [
+        "docs/accessibility.md"
+      ]
+    },
+    {
       "id": "release-process",
       "label": "Release process",
       "sourcePatterns": [

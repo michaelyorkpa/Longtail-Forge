@@ -130,7 +130,7 @@ Run `npm run closeout` at slice closeout to execute the version guard, generated
 
 See [docs/regression-suite.md](docs/regression-suite.md) for the current metadata-driven discovery contract, bucket safety model, focused selection options, and add-a-regression workflow.
 
-The rendered end-to-end smoke (`npm run test:e2e`, after a one-time `npm run test:e2e:install`) is a separate, explicitly-run gate: it renders the real app in a browser at named desktop and mobile viewports against an isolated managed server. Playwright is dev/test-only and never part of the production runtime or `npm run check`. See [docs/e2e-testing.md](docs/e2e-testing.md).
+The rendered end-to-end smoke (`npm run test:e2e`, after a one-time `npm run test:e2e:install`) is a separate, explicitly-run gate: it renders the real app in a browser at named desktop and mobile viewports against an isolated managed server, including automated WCAG A/AA axe scans and keyboard/focus checks (run those alone with `npm run test:a11y`). Playwright and axe are dev/test-only and never part of the production runtime or `npm run check`. A clean axe run is not WCAG conformance; see [docs/e2e-testing.md](docs/e2e-testing.md) and [docs/accessibility.md](docs/accessibility.md).
 
 Run the permission regression suite when permissions, workspace lifecycle, task access, reporting access, or module access rules change:
 

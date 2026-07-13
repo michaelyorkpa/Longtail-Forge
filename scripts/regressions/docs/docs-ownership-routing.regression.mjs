@@ -41,6 +41,7 @@ assert.deepEqual(
     "public-api",
     "licensing",
     "e2e-testing",
+    "accessibility",
     "release-process",
   ],
   "the ownership index should cover every roadmap-listed documentation area",
@@ -79,6 +80,11 @@ assert.deepEqual(licensing.warnings, [], "a documentation-only licensing change 
 const e2e = suggestDocsForPaths(["tests/e2e/console.spec.mjs", "playwright.config.js"], { index: rawIndex });
 assert.deepEqual(e2e.matchedAreas.map((area) => area.id), ["e2e-testing"]);
 assert.ok(e2e.docs.includes("docs/e2e-testing.md"), "e2e harness changes should route to the e2e testing doc");
+
+const a11y = suggestDocsForPaths(["tests/e2e/a11y.spec.mjs", "tests/e2e/support/axe.mjs"], { index: rawIndex });
+assert.deepEqual(a11y.matchedAreas.map((area) => area.id), ["e2e-testing", "accessibility"]);
+assert.ok(a11y.docs.includes("docs/accessibility.md"), "accessibility spec changes should route to the accessibility doc");
+assert.ok(a11y.docs.includes("docs/e2e-testing.md"), "accessibility specs stay part of the e2e harness routing");
 
 const acknowledged = suggestDocsForPaths(["src/modules/tasks/tasks.service.js"], {
   index: rawIndex,

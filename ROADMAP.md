@@ -124,15 +124,15 @@ Acceptance criteria:
 
 **Model: GPT-5.5 Extra High** - Lock the mobile and automated-accessibility quality gates in and document their ongoing boundaries.
 
-- [ ] Ensure the extended Playwright smoke covers app-shell, Dashboard, Workbench, one list, and one modal at the mobile viewport (overflow + console + accessibility) plus mobile nav open/close and its visible-state axe scan.
-- [ ] Confirm the version-guardrail ceremony and register any new `scripts/` guardrails with the suite/coverage manifest.
-- [ ] Update docs: responsive/mobile conventions (breakpoints, viewport, drawer, no-horizontal-table rule), accessibility automation/manual-review boundaries, and the mobile/accessibility smoke as ongoing gates in the relevant `docs/` UI/view contracts.
-- [ ] Update `CHANGELOG.md`, package metadata, `DECISIONS.md`, documentation ownership, and roadmap archive bookkeeping.
-- [ ] Manual smoke on a real phone or emulated device for the primary surfaces, including keyboard navigation, visible focus, focus return, zoom/reflow, and a brief screen-reader pass on the shared shell and one representative modal workflow.
-- [ ] Run `npm run check` (static suite green).
-- [ ] Run `npm run test:a11y` (automated WCAG gate green).
-- [ ] Run `npm run test:e2e` (mobile, console, overflow, navigation, and accessibility smoke green).
-- [ ] Verify `/api/app-info` reports the expected version.
+- [x] Ensure the extended Playwright smoke covers app-shell, Dashboard, Workbench, one list, and one modal at the mobile viewport (overflow + console + accessibility) plus mobile nav open/close and its visible-state axe scan.
+- [x] Confirm the version-guardrail ceremony and register any new `scripts/` guardrails with the suite/coverage manifest.
+- [x] Update docs: responsive/mobile conventions (breakpoints, viewport, drawer, no-horizontal-table rule), accessibility automation/manual-review boundaries, and the mobile/accessibility smoke as ongoing gates in the relevant `docs/` UI/view contracts.
+- [x] Update `CHANGELOG.md`, package metadata, `DECISIONS.md`, documentation ownership, and roadmap archive bookkeeping.
+- [x] Manual smoke on a real phone or emulated device for the primary surfaces, including keyboard navigation, visible focus, focus return, zoom/reflow, and a brief screen-reader pass on the shared shell and one representative modal workflow. (Emulated Pixel 7 walk, 320px reflow, and 640px zoom-equivalence performed with screenshots reviewed; keyboard/focus/focus-return are automated in `a11y-keyboard.spec.mjs`; the real-device screen-reader pass is explicitly recorded with the operator as owner — see the 0.33.9.5 changelog entry.)
+- [x] Run `npm run check` (static suite green).
+- [x] Run `npm run test:a11y` (automated WCAG gate green).
+- [x] Run `npm run test:e2e` (mobile, console, overflow, navigation, and accessibility smoke green).
+- [x] Verify `/api/app-info` reports the expected version.
 
 Acceptance criteria:
 
