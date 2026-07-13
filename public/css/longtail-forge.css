@@ -6083,6 +6083,13 @@ dialog .form-actions {
     gap: 12px;
 }
 
+.task-recurrence-continuity:not([hidden]) {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .project-defaults-details {
     grid-column: 1 / -1;
     padding: 10px 0;

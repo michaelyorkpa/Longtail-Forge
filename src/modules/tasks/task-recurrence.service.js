@@ -89,6 +89,94 @@ async function createNextInstance({ session, completedTask, createTask }) {
   });
 }
 
+async function prepareCompletionContinuity({ session, completedTask, findExisting }) {
+  const continuity = await readCompletionContinuity({ session, completedTask, findExisting });
+
+  if (!continuity || continuity.status === "ended") {
+    return continuity;
+  }
+
+  const sourceItems = Array.isArray(completedTask.checklistItems)
+    ? completedTask.checklistItems
+    : await taskChecklistsRepository.readForTask(session.workspace_id, completedTask.task_id);
+  const seedResult = await taskRecurrenceRepository.seedTemplateChecklistIfEmpty(
+    session.workspace_id,
+    completedTask.recurrence_template_id,
+    sourceItems.map((item, index) => ({
+      label: String(item?.label || "").trim(),
+      sort_order: Number.parseInt(item?.sort_order, 10) || ((index + 1) * 1000),
+    })).filter((item) => item.label),
+    session.user_id,
+  );
+
+  return {
+    ...continuity,
+    checklistTemplateSeeded: seedResult.seeded === true,
+  };
+}
+
+async function readCompletionContinuity({ session, completedTask, findExisting }) {
+  if (!completedTask?.recurrence_template_id || !completedTask?.recurrence_instance_date) {
+    return null;
+  }
+
+  const template = await taskRecurrenceRepository.readTemplateById(
+    session.workspace_id,
+    completedTask.recurrence_template_id,
+  );
+  if (!template || template.template_status !== "active") {
+    return endedContinuity();
+  }
+
+  const nextScheduledDate = nextOccurrenceDate(
+    completedTask.recurrence_instance_date,
+    template.rrule,
+    template.recurrence_end_date,
+  );
+  if (!nextScheduledDate) {
+    return endedContinuity();
+  }
+
+  const nextTask = typeof findExisting === "function"
+    ? await findExisting(template.recurrence_template_id, nextScheduledDate)
+    : null;
+
+  return {
+    checklistTemplateSeeded: false,
+    followUpFailed: false,
+    followUpQueued: false,
+    isRecurring: true,
+    nextScheduledDate,
+    nextTask: safeNextTask(nextTask),
+    status: nextTask ? "available" : "pending",
+  };
+}
+
+function endedContinuity() {
+  return {
+    checklistTemplateSeeded: false,
+    followUpFailed: false,
+    followUpQueued: false,
+    isRecurring: true,
+    nextScheduledDate: "",
+    nextTask: null,
+    status: "ended",
+  };
+}
+
+function safeNextTask(task) {
+  if (!task?.task_id) {
+    return null;
+  }
+
+  return {
+    due_date: task.due_date || task.recurrence_instance_date || "",
+    task_id: task.task_id,
+    title: task.title || "Task",
+    url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+  };
+}
+
 // Re-anchor a stalled chain: create the first occurrence on or after `today` for a template
 // that has no open instance. Recurrence is generated on completion only, so if a completion
 // ever fails to enqueue generation the chain has no open instance left and stays dead — this
@@ -399,6 +487,8 @@ export const taskRecurrenceService = {
   createTemplateFromTask,
   ensureUpcomingInstance,
   parseRRule,
+  prepareCompletionContinuity,
+  readCompletionContinuity,
   readTaskRecurrenceDetails,
   updateTemplateFromTask,
 };

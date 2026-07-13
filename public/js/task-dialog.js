@@ -248,6 +248,7 @@
     writeChecklistFields(isDuplicate ? null : task);
     selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
     writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
+    writeRecurrenceContinuity(isDuplicate ? null : task?.recurrenceContinuity);
     writeReminderFields(task?.reminderDetails);
     writeTaskTimerFields(isDuplicate ? null : task);
     mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
@@ -318,6 +319,7 @@
       project: dialog.querySelector("[data-task-project]"),
       parentTask: dialog.querySelector("[data-task-parent-task]"),
       recurrenceDetails: dialog.querySelector("[data-task-recurrence-details]"),
+      recurrenceContinuity: dialog.querySelector("[data-task-recurrence-continuity]"),
       recurrenceField: dialog.querySelector("[data-task-recurrence-panel]"),
       recurrenceSummary: dialog.querySelector("[data-task-recurrence-summary]"),
       recurring: dialog.querySelector("[data-task-recurring]"),
@@ -593,13 +595,20 @@
       updateCompleteTaskActionState();
       await notifyTaskEditorSaved(result);
       if (closeOnSuccess) {
-        context?.hostContext?.complete?.({
-          actionId: wasEditing ? "tasks.edit" : "tasks.add",
-          recordId: result.task?.task_id || "",
-          title: result.task?.title || "",
-        });
+        const completedBySave = wasEditing && editingTask?.status !== "complete" && result.task?.status === "complete";
+        context?.hostContext?.complete?.(completedBySave
+          ? taskCompletionHostDetail(result)
+          : {
+              actionId: wasEditing ? "tasks.edit" : "tasks.add",
+              recordId: result.task?.task_id || "",
+              title: result.task?.title || "",
+            });
         closeTaskModal(dialog, "complete");
-        setStatus("");
+        if (completedBySave) {
+          setTaskCompletionStatus(result);
+        } else {
+          setStatus("");
+        }
       }
       return result;
     } catch (error) {
@@ -645,12 +654,14 @@
     }
 
     currentTask = result.task;
+    currentTask.recurrenceContinuity = result.recurrenceContinuity || currentTask.recurrenceContinuity || null;
     currentTaskId = result.task.task_id || currentTaskId;
     rememberTaskInContext(currentTask);
     syncTaskStatusField(currentTask);
     updateBlockedReasonState();
     writeTaskCompletionFields(currentTask);
     writeTaskMetadataRibbon(currentTask);
+    writeRecurrenceContinuity(currentTask.recurrenceContinuity);
     writeTaskTimerFields(currentTask);
     updateCompleteTaskActionState();
   }
@@ -666,18 +677,16 @@
         : null,
       recordId: result.task?.task_id || currentTaskId || "",
       recurrenceQueued: result.recurrenceJob?.queued === true,
+      recurrenceContinuity: result.recurrenceContinuity || null,
       taskLifecycleAction: "complete",
       title: result.task?.title || currentTask?.title || "",
     };
   }
 
   function setTaskCompletionStatus(result = {}) {
-    if (result.createdTask) {
-      setStatus(`Created next recurring task: ${result.createdTask.title}`);
-      return;
-    }
-    if (result.recurrenceJob?.queued === true) {
-      setStatus("Next recurring task queued.");
+    const continuityMessage = recurrenceContinuityMessage(result.recurrenceContinuity);
+    if (continuityMessage) {
+      setStatus(continuityMessage);
       return;
     }
     setStatus("");
@@ -1544,6 +1553,80 @@
       : "Not recurring.";
   }
 
+  function writeRecurrenceContinuity(continuity) {
+    renderRecurrenceContinuity(fields.recurrenceContinuity, continuity);
+  }
+
+  function recurrenceContinuityMessage(continuity = {}) {
+    if (!continuity?.isRecurring) {
+      return "";
+    }
+
+    if (continuity.status === "ended") {
+      return "Task completed. Recurring series ended.";
+    }
+
+    const scheduled = continuity.nextScheduledDate
+      ? `Next scheduled ${continuity.nextScheduledDate}`
+      : "Recurring follow-up";
+
+    if (continuity.status === "available" && continuity.nextTask) {
+      return `Task completed. ${scheduled}.`;
+    }
+    if (continuity.status === "handoff_failed") {
+      return `Task completed. ${scheduled}; automatic recovery is pending.`;
+    }
+    return `Task completed. ${scheduled} (creating now).`;
+  }
+
+  function renderRecurrenceContinuity(container, continuity = {}) {
+    if (!container) {
+      return;
+    }
+
+    const message = recurrenceContinuityMessage(continuity);
+    container.replaceChildren();
+    container.hidden = !message;
+    if (!message) {
+      return;
+    }
+
+    container.append(document.createTextNode(message));
+    if (continuity.status === "available" && continuity.nextTask?.url) {
+      const link = document.createElement("a");
+      link.className = "button button-secondary button-compact";
+      link.href = continuity.nextTask.url;
+      link.textContent = "Open next task";
+      container.append(document.createTextNode(" "), link);
+    }
+  }
+
+  async function pollRecurrenceContinuity(taskId, options = {}) {
+    const attempts = Math.max(1, Number.parseInt(options.attempts, 10) || 7);
+    const delayMs = Math.max(100, Number.parseInt(options.delayMs, 10) || 1500);
+    let continuity = options.initialContinuity || null;
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (attempt > 0) {
+        await new Promise((resolve) => global.setTimeout(resolve, delayMs));
+      }
+
+      const result = await api.getJson(
+        `/api/tasks/${encodeURIComponent(taskId)}/recurrence-continuity`,
+        { cache: "no-store" },
+      );
+      continuity = result?.recurrenceContinuity || continuity;
+      if (typeof options.onUpdate === "function") {
+        await options.onUpdate(continuity, attempt);
+      }
+      if (["available", "ended"].includes(continuity?.status)) {
+        break;
+      }
+    }
+
+    return continuity;
+  }
+
   function readRecurrencePayload() {
     return {
       enabled: Boolean(fields.recurring.checked),
@@ -2341,6 +2424,11 @@
           attrs: { "data-task-recurrence-summary": "" },
           text: "Not recurring.",
         }),
+        view.createElement("p", {
+          className: "surface-modal-section-help task-recurrence-continuity",
+          attrs: { "data-task-recurrence-continuity": "" },
+          hidden: true,
+        }),
       ],
     });
   }
@@ -2601,6 +2689,9 @@
     openAdd,
     openEdit,
     openTaskEditor,
+    pollRecurrenceContinuity,
+    recurrenceContinuityMessage,
+    renderRecurrenceContinuity,
   };
 
   namespace.tasksDialog = taskDialogApi;

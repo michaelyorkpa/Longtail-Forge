@@ -607,15 +607,22 @@ async function update(taskId, rawPayload, session) {
   // recurrence instance here too so the chain never silently stalls. Safe for non-recurring
   // tasks (skipped) and deduped against complete() by template + instance date.
   let recurrenceJob = null;
+  let recurrenceContinuity = null;
   if (previousTask.status !== "complete" && taskWithDetails.status === "complete") {
-    recurrenceJob = await queueTaskRecurrenceGeneration({
-      session,
-      completedTask: taskWithDetails,
+    const recurrenceHandoff = await completeRecurrenceHandoff(taskWithDetails, session, {
       source: "task.updated",
     });
+    recurrenceJob = recurrenceHandoff.recurrenceJob;
+    recurrenceContinuity = recurrenceHandoff.recurrenceContinuity;
   }
 
-  return { task: taskWithDetails, recurrenceJob };
+  return {
+    task: recurrenceContinuity
+      ? { ...taskWithDetails, recurrenceContinuity }
+      : taskWithDetails,
+    recurrenceContinuity,
+    recurrenceJob,
+  };
 }
 
 async function complete(taskId, session) {
@@ -651,12 +658,94 @@ async function complete(taskId, session) {
   await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.completed");
   await recoverParentsAfterChildStatusChange(session, task);
 
-  const recurrenceQueueResult = await queueTaskRecurrenceGeneration({
-    session,
-    completedTask: task,
-  });
+  const recurrenceHandoff = await completeRecurrenceHandoff(task, session);
 
-  return { task, createdTask: null, recurrenceJob: recurrenceQueueResult };
+  return {
+    task: recurrenceHandoff.recurrenceContinuity
+      ? { ...task, recurrenceContinuity: recurrenceHandoff.recurrenceContinuity }
+      : task,
+    createdTask: null,
+    recurrenceContinuity: recurrenceHandoff.recurrenceContinuity,
+    recurrenceJob: recurrenceHandoff.recurrenceJob,
+  };
+}
+
+async function completeRecurrenceHandoff(completedTask, session, options = {}) {
+  if (!completedTask?.recurrence_template_id || !completedTask?.recurrence_instance_date) {
+    return {
+      recurrenceContinuity: null,
+      recurrenceJob: {
+        queued: false,
+      },
+    };
+  }
+
+  let continuity = null;
+
+  try {
+    continuity = await taskRecurrenceService.prepareCompletionContinuity({
+      session,
+      completedTask,
+      findExisting: (templateId, instanceDate) => tasksRepository.readByRecurrenceInstance(
+        session.workspace_id,
+        templateId,
+        instanceDate,
+      ),
+    });
+
+    if (!continuity || continuity.status === "ended" || continuity.status === "available") {
+      return {
+        recurrenceContinuity: continuity,
+        recurrenceJob: {
+          queued: false,
+        },
+      };
+    }
+
+    const queueResult = await (options.queueGeneration || queueTaskRecurrenceGeneration)({
+      session,
+      completedTask,
+      source: options.source || "task.completed",
+    });
+    const queued = queueResult.queued === true || queueResult.deduped === true;
+
+    return {
+      recurrenceContinuity: {
+        ...continuity,
+        followUpQueued: queued,
+        status: "pending",
+      },
+      recurrenceJob: {
+        queued,
+      },
+    };
+  } catch (error) {
+    console.error(`[tasks] Recurrence follow-up handoff failed after completing ${completedTask.task_id}:`, error);
+    return {
+      recurrenceContinuity: {
+        checklistTemplateSeeded: continuity?.checklistTemplateSeeded === true,
+        followUpFailed: true,
+        followUpQueued: false,
+        isRecurring: true,
+        nextScheduledDate: continuity?.nextScheduledDate || "",
+        nextTask: continuity?.nextTask || null,
+        status: "handoff_failed",
+      },
+      recurrenceJob: {
+        failed: true,
+        queued: false,
+      },
+    };
+  }
+}
+
+async function readRecurrenceContinuity(taskId, session) {
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanReadTask(session, task);
+
+  return {
+    recurrenceContinuity: await readTaskCompletionContinuity(task),
+  };
 }
 
 async function reopen(taskId, session) {
@@ -981,6 +1070,7 @@ async function bulkUpdate(payload, session) {
   const action = String(payload?.action || "").trim();
   const results = [];
   const errors = [];
+  const recurrenceContinuities = [];
 
   if (["tag_add", "tag_remove", "tag_replace"].includes(action)) {
     const tagResult = await tagsService.bulkAssign(session, {
@@ -1007,6 +1097,12 @@ async function bulkUpdate(payload, session) {
     try {
       const result = await applyBulkAction(taskId, action, payload, session);
       results.push(result.task);
+      if (result.recurrenceContinuity) {
+        recurrenceContinuities.push({
+          task_id: result.task?.task_id || taskId,
+          ...result.recurrenceContinuity,
+        });
+      }
     } catch (error) {
       errors.push({
         task_id: taskId,
@@ -1016,7 +1112,7 @@ async function bulkUpdate(payload, session) {
     }
   }
 
-  return { tasks: results, errors };
+  return { tasks: results, errors, recurrenceContinuities };
 }
 
 async function readOptions(session) {
@@ -2145,9 +2241,28 @@ async function attachTaskDetails(task) {
     checklistProgress,
     relationshipSummary,
     completionMetrics: taskCompletionMetrics(taskWithReminders),
+    recurrenceContinuity: await readTaskCompletionContinuity(taskWithReminders),
     resumeContext: taskResumeContext({ ...taskWithReminders, checklistProgress, relationshipSummary }),
     recurrenceDetails: await taskRecurrenceService.readTaskRecurrenceDetails(taskWithReminders),
   };
+}
+
+async function readTaskCompletionContinuity(task) {
+  if (task?.status !== "complete" || !task.recurrence_template_id || !task.recurrence_instance_date) {
+    return null;
+  }
+
+  return taskRecurrenceService.readCompletionContinuity({
+    session: {
+      workspace_id: task.workspace_id,
+    },
+    completedTask: task,
+    findExisting: (templateId, instanceDate) => tasksRepository.readByRecurrenceInstance(
+      task.workspace_id,
+      templateId,
+      instanceDate,
+    ),
+  });
 }
 
 function normalizeStatus(value) {
@@ -3367,6 +3482,7 @@ export const tasksService = {
   listWorkItems,
   listRelationships,
   read,
+  readRecurrenceContinuity,
   reopen,
   removeChildTaskRelationship,
   reorderChecklistItems,
@@ -3376,4 +3492,5 @@ export const tasksService = {
   update,
   updateChecklistItem,
   updateChildTaskRelationship,
+  completeRecurrenceHandoff,
 };

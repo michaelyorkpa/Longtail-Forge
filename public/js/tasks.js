@@ -48,6 +48,7 @@ let state = {
   tagOptions: [],
 };
 let hasLoadedTasks = false;
+const recurrenceContinuityTrackers = new Map();
 
 buildTasksViewShell();
 window.LongtailForge.tasksDialog?.configure?.();
@@ -1843,15 +1844,11 @@ async function postTaskAction(task, action) {
   try {
     const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/${action}`, {});
     upsertTask(result.task);
-    const recurrenceQueued = result.recurrenceJob?.queued === true;
-    if (result.createdTask) {
-      upsertTask(result.createdTask);
-      setStatus(`Created next recurring task: ${result.createdTask.title}`);
-    } else if (action === "complete" && recurrenceQueued) {
-      setStatus("Next recurring task queued.");
-    }
     await reloadTaskList();
-    if (!result.createdTask && !recurrenceQueued) {
+    if (action === "complete" && result.recurrenceContinuity) {
+      renderTaskRecurrenceContinuity(result.recurrenceContinuity);
+      trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
+    } else {
       setStatus("");
     }
   } catch (error) {
@@ -1866,10 +1863,68 @@ async function updateTaskLifecycleStatus(task, payload) {
     const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}`, payload);
     upsertTask(result.task);
     await reloadTaskList();
-    setStatus("");
+    if (result.recurrenceContinuity) {
+      renderTaskRecurrenceContinuity(result.recurrenceContinuity);
+      trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
+    } else {
+      setStatus("");
+    }
   } catch (error) {
     setStatus(error.message || "Task action failed.", { isError: true });
   }
+}
+
+function renderTaskRecurrenceContinuity(continuity) {
+  const tasksDialog = window.LongtailForge.tasksDialog;
+  const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
+  setStatus(message);
+  tasksDialog?.renderRecurrenceContinuity?.(taskStatus, continuity);
+}
+
+function renderBulkRecurrenceContinuity(continuities = []) {
+  const messages = continuities
+    .map((continuity) => window.LongtailForge.tasksDialog?.recurrenceContinuityMessage?.(continuity))
+    .filter(Boolean);
+  const message = `Updated recurring tasks. ${messages.join(" ")}`.trim();
+  setStatus(message);
+
+  for (const continuity of continuities) {
+    if (continuity.status !== "available" || !continuity.nextTask?.url) {
+      continue;
+    }
+    const link = document.createElement("a");
+    link.className = "button button-secondary button-compact";
+    link.href = continuity.nextTask.url;
+    link.textContent = `Open ${continuity.nextTask.title || "next task"}`;
+    taskStatus.append(document.createTextNode(" "), link);
+  }
+}
+
+function trackTaskRecurrenceContinuity(taskId, initialContinuity) {
+  if (!taskId || initialContinuity?.status !== "pending") {
+    return;
+  }
+
+  const tracker = Symbol(taskId);
+  recurrenceContinuityTrackers.set(taskId, tracker);
+  window.LongtailForge.tasksDialog?.pollRecurrenceContinuity?.(taskId, {
+    initialContinuity,
+    onUpdate: async (continuity) => {
+      if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
+        return;
+      }
+      if (continuity?.status === "available") {
+        await reloadTaskList();
+      }
+      renderTaskRecurrenceContinuity(continuity);
+    },
+  }).catch(() => {
+    // Keep the safe scheduled-date message; navigation or the recurrence sweep can recover it.
+  }).finally(() => {
+    if (recurrenceContinuityTrackers.get(taskId) === tracker) {
+      recurrenceContinuityTrackers.delete(taskId);
+    }
+  });
 }
 
 function duplicateTask(task) {
@@ -1898,6 +1953,12 @@ function configureTaskDialog() {
         upsertTask(result.task);
       }
       await reloadTaskList();
+      if (result.recurrenceContinuity) {
+        globalThis.setTimeout(() => {
+          renderTaskRecurrenceContinuity(result.recurrenceContinuity);
+          trackTaskRecurrenceContinuity(result.task?.task_id || "", result.recurrenceContinuity);
+        }, 0);
+      }
     },
     onAttachmentsChanged: refreshTaskAttachmentCounts,
     onAttachmentsRefreshed: refreshTaskAttachmentCounts,
@@ -1968,11 +2029,13 @@ async function applyBulkAction() {
   try {
     const results = [];
     const errors = [];
+    const recurrenceContinuities = [];
 
     for (const payload of actions) {
       const result = await api.postJson("/api/tasks/bulk", payload);
       results.push(...(result.tasks || []));
       errors.push(...(result.errors || []));
+      recurrenceContinuities.push(...(result.recurrenceContinuities || []));
     }
 
     results.forEach(upsertTask);
@@ -1983,6 +2046,11 @@ async function applyBulkAction() {
       const firstError = errors[0]?.message ? ` ${errors[0].message}` : "";
       setStatus(`Updated ${results.length} task changes. ${errors.length} changes could not be updated.${firstError}`, {
         isError: results.length === 0,
+      });
+    } else if (recurrenceContinuities.length > 0) {
+      renderBulkRecurrenceContinuity(recurrenceContinuities);
+      recurrenceContinuities.forEach((continuity) => {
+        trackTaskRecurrenceContinuity(continuity.task_id, continuity);
       });
     } else {
       setStatus(`Updated ${results.length} task changes.`);

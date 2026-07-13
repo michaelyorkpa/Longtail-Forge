@@ -4,4 +4,6 @@ Use Next action for the immediate step, Blocked reason when work cannot continue
 
 Completed tasks can show a compact `TTC:` duration chip after the completed task has saved completion metadata. Selecting a completed status before saving does not create the duration chip by itself.
 
+Completing a recurring task shows its next scheduled date even when the future occurrence is still too far away to appear in normal Workbench recommendations. The message becomes an `Open next task` action after background creation finishes. If a recurring checklist template was empty, the completing task's checklist labels and order seed future occurrences once; future checked state always starts clear.
+
 Tasks expose this context through task reads, summaries, Workbench task items, search, audit, and internal task event metadata. Resume-state rows use the task's safe context fields and read checks so completed, archived, inaccessible, or hidden task records do not appear as active work to resume.

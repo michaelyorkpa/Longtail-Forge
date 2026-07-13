@@ -288,6 +288,83 @@ VALUES (
   return readTemplateChecklist(workspaceId, templateId);
 }
 
+async function seedTemplateChecklistIfEmpty(workspaceId, templateId, items, updatedByUserId) {
+  const now = new Date().toISOString();
+  const normalizedItems = normalizeTemplateChecklistItems(items);
+
+  if (normalizedItems.length === 0) {
+    return {
+      items: await readTemplateChecklist(workspaceId, templateId),
+      seeded: false,
+    };
+  }
+
+  const seeded = await db.transaction(async (transaction) => {
+    const existing = await transaction.get(`
+SELECT recurrence_checklist_item_id
+FROM task_recurrence_checklist_items
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+  AND deleted_at IS NULL
+LIMIT 1;
+`, {
+      templateId: textParam(templateId),
+      workspaceId: textParam(workspaceId),
+    });
+
+    if (existing) {
+      return false;
+    }
+
+    for (const [index, item] of normalizedItems.entries()) {
+      await transaction.run(`
+INSERT INTO task_recurrence_checklist_items (
+  recurrence_checklist_item_id,
+  workspace_id,
+  recurrence_template_id,
+  label,
+  sort_order,
+  deleted_at,
+  deleted_by_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at
+)
+VALUES (
+  :itemId,
+  :workspaceId,
+  :templateId,
+  :label,
+  :sortOrder,
+  NULL,
+  NULL,
+  :createdByUserId,
+  :updatedByUserId,
+  :now,
+  :now
+);
+`, {
+        createdByUserId: nullableTextParam(item.created_by_user_id || updatedByUserId),
+        itemId: textParam(item.recurrence_checklist_item_id || randomUUID()),
+        label: textParam(item.label),
+        now,
+        sortOrder: integerParam(item.sort_order || ((index + 1) * 1000)),
+        templateId: textParam(templateId),
+        updatedByUserId: nullableTextParam(updatedByUserId),
+        workspaceId: textParam(workspaceId),
+      });
+    }
+
+    return true;
+  });
+
+  return {
+    items: await readTemplateChecklist(workspaceId, templateId),
+    seeded,
+  };
+}
+
 async function readTemplateNoteLinks(workspaceId, templateId) {
   const rows = await db.query(`
 SELECT
@@ -585,5 +662,6 @@ export const taskRecurrenceRepository = {
   readTemplateById,
   replaceTemplateChecklist,
   replaceTemplateNoteLinks,
+  seedTemplateChecklistIfEmpty,
   updateTemplate,
 };

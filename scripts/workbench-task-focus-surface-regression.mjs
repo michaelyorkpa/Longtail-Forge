@@ -72,8 +72,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "completeFocusedTask"),
-  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*setTaskCompletionStatus\(result\);/,
-  "Task Focus Complete should call the existing Tasks complete route and return to Focus Selection",
+  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*setTaskCompletionStatus\(\{[\s\S]*\.\.\.result,[\s\S]*recordId: result\.task\?\.task_id \|\| taskId/,
+  "Task Focus Complete should call the existing Tasks complete route, return to Focus Selection, and retain continuity polling identity",
 );
 assert.match(
   functionBody(workbenchScript, "blockFocusedTask"),

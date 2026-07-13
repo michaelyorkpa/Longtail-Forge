@@ -37,18 +37,18 @@ try {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the async recurrence closeout version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the async recurrence closeout version");
 
-  assert.match(tasksServiceSource, /return \{ task, createdTask: null, recurrenceJob: recurrenceQueueResult \}/, "task completion should return a queued recurrence response instead of an inline task");
+  assert.match(tasksServiceSource, /const recurrenceHandoff = await completeRecurrenceHandoff\(task, session\)/, "task completion should use the shared asynchronous recurrence handoff");
+  assert.match(tasksServiceSource, /createdTask: null,[\s\S]*recurrenceContinuity: recurrenceHandoff\.recurrenceContinuity,[\s\S]*recurrenceJob: recurrenceHandoff\.recurrenceJob/, "task completion should return safe continuity and queued metadata instead of an inline task");
   assert.doesNotMatch(tasksServiceSource, /const recurrenceResult = await taskRecurrenceService\.createNextInstance/, "task completion should not create the next recurrence instance inline");
   assert.match(publicApiSource, /recurrenceJob: publicRecurrenceJob\(result\.recurrenceJob\)/, "public API completion should expose a safe recurrence queued hint");
   assert.doesNotMatch(functionBlock(publicApiSource, "publicRecurrenceJob"), /jobId|job_id|dedupe|payload/i, "public recurrence job response should not expose job internals");
-  assert.match(tasksPageSource, /const recurrenceQueued = result\.recurrenceJob\?\.queued === true/, "Tasks page should read the queued recurrence hint");
-  assert.match(tasksPageSource, /setStatus\("Next recurring task queued\."\)/, "Tasks page should surface the queued recurrence affordance");
-  assert.match(tasksPageSource, /if \(!result\.createdTask && !recurrenceQueued\)/, "Tasks page should not immediately clear the queued recurrence affordance");
+  assert.match(tasksPageSource, /renderTaskRecurrenceContinuity\(result\.recurrenceContinuity\)/, "Tasks page should render safe recurrence continuity");
+  assert.match(tasksPageSource, /trackTaskRecurrenceContinuity\([^\n]+result\.recurrenceContinuity\)/, "Tasks page should track pending recurrence continuity without creating inline");
   assert.match(workbenchSource, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
-  assert.match(functionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.createdTask\?\.title[\s\S]*detail\.recurrenceQueued === true/, "Workbench completion should prefer the queued recurrence hint over assuming synchronous recurrence");
+  assert.match(functionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.recurrenceContinuity[\s\S]*trackTaskRecurrenceContinuity/, "Workbench completion should render and track safe recurrence continuity");
   assert.doesNotMatch(functionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
-  assert.match(tasksDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "Tasks docs should describe the async recurrence response contract");
-  assert.match(publicApiDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "public API docs should describe the safe recurrence queued hint");
+  assert.match(tasksDocs, /As of 0\.33\.9\.6[\s\S]*does not create the next instance inline[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "Tasks docs should describe the async recurrence continuity contract");
+  assert.match(publicApiDocs, /As of 0\.33\.9\.6[\s\S]*createdTask` remains `null`[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "public API docs should describe the safe recurrence continuity contract");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(asyncRecurrenceVersion)} - `), "changelog should include the async recurrence closeout slice");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
@@ -86,8 +86,11 @@ async function assertProtectedCompletionResponse(session) {
 
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.createdTask, null, "protected completion should not return a synchronously created next task");
-  assert.equal(completed.recurrenceJob.queued, true, "protected completion should report queued recurrence work");
-  assert.ok(completed.recurrenceJob.jobId, "internal protected completion may keep the job id for server consumers");
+  assert.deepEqual(completed.recurrenceJob, { queued: true }, "protected completion should report only safe queued recurrence metadata");
+  assert.equal(completed.recurrenceContinuity.status, "pending", "protected completion should report pending recurrence continuity");
+  assert.equal(completed.recurrenceContinuity.nextScheduledDate, "2026-09-02");
+  assert.equal(completed.recurrenceContinuity.followUpQueued, true);
+  assert.equal(completed.recurrenceContinuity.nextTask, null);
   assert.equal(await recurrenceInstanceCount(session.workspace_id, task.recurrence_template_id, "2026-09-02"), 0, "next instance should not exist before worker processing");
 
   await runRecurrenceWorker();
@@ -110,7 +113,11 @@ async function assertPublicCompletionResponse(session) {
 
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.createdTask, null, "public API completion should not return a synchronously created next task");
-  assert.deepEqual(completed.recurrenceJob, { queued: true }, "public API completion should expose only the safe queued hint");
+  assert.deepEqual(completed.recurrenceJob, { failed: false, queued: true }, "public API completion should expose only safe queue and failure hints");
+  assert.equal(completed.recurrenceContinuity.status, "pending", "public API completion should report pending recurrence continuity");
+  assert.equal(completed.recurrenceContinuity.nextScheduledDate, "2026-10-07");
+  assert.equal(completed.recurrenceContinuity.followUpQueued, true);
+  assert.equal(completed.recurrenceContinuity.nextTask, null);
   assert.equal(await recurrenceInstanceCount(session.workspace_id, task.recurrence_template_id, "2026-10-07"), 0, "public API completion should leave next instance creation to the worker");
 
   await runRecurrenceWorker();

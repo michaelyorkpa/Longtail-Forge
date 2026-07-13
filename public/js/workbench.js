@@ -113,6 +113,7 @@ let state = {
 };
 let tickIntervalId = null;
 let pendingActivatedTimerKey = "";
+const recurrenceContinuityTrackers = new Map();
 let transientStatus = {
   isError: false,
   message: "",
@@ -2091,7 +2092,10 @@ async function completeFocusedTask() {
     resetTaskFocusState();
     await refreshFocusCandidates();
     renderWorkbench();
-    setTaskCompletionStatus(result);
+    setTaskCompletionStatus({
+      ...result,
+      recordId: result.task?.task_id || taskId,
+    });
     focusActiveFocusQuestion();
   } catch (error) {
     setStatus(error.message || "Task was not completed.", { isError: true });
@@ -2862,15 +2866,47 @@ async function openAddTaskAction() {
 }
 
 function setTaskCompletionStatus(detail = {}) {
-  if (detail.createdTask?.title) {
-    setStatus(`Created next recurring task: ${detail.createdTask.title}`);
-    return;
-  }
-  if (detail.recurrenceQueued === true || detail.recurrenceJob?.queued === true) {
-    setStatus("Next recurring task queued.");
+  const continuity = detail.recurrenceContinuity || null;
+  if (continuity) {
+    renderTaskRecurrenceContinuity(continuity);
+    trackTaskRecurrenceContinuity(detail.recordId || detail.task?.task_id || "", continuity);
     return;
   }
   setStatus("Task completed.");
+}
+
+function renderTaskRecurrenceContinuity(continuity) {
+  const tasksDialog = window.LongtailForge.tasksDialog;
+  const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
+  setStatus(message);
+  tasksDialog?.renderRecurrenceContinuity?.(statusText, continuity);
+}
+
+function trackTaskRecurrenceContinuity(taskId, initialContinuity) {
+  if (!taskId || initialContinuity?.status !== "pending") {
+    return;
+  }
+
+  const tracker = Symbol(taskId);
+  recurrenceContinuityTrackers.set(taskId, tracker);
+  window.LongtailForge.tasksDialog?.pollRecurrenceContinuity?.(taskId, {
+    initialContinuity,
+    onUpdate: async (continuity) => {
+      if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
+        return;
+      }
+      if (continuity?.status === "available") {
+        await refreshFocusCandidates();
+      }
+      renderTaskRecurrenceContinuity(continuity);
+    },
+  }).catch(() => {
+    // Preserve the scheduled-date message; a later read or recurrence sweep can converge it.
+  }).finally(() => {
+    if (recurrenceContinuityTrackers.get(taskId) === tracker) {
+      recurrenceContinuityTrackers.delete(taskId);
+    }
+  });
 }
 
 async function finalizeTimer(timer) {

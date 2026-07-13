@@ -9,3 +9,5 @@ The task heading bell follows or unfollows notifications for the task; a red bel
 Task permissions control who can view, create, edit, assign, complete, archive, restore, or attach files to tasks. Users may see only the tasks allowed by their role scope.
 
 When Tasks and Time Tracking are both enabled, eligible open tasks can start task timers. Task timers finalize into normal time entries with task context. Completed tasks can show a compact `TTC:` duration chip after completion metadata is saved.
+
+When a recurring task is completed, Tasks shows `Next scheduled` while the next occurrence is created in the background. Once it is ready, `Open next task` goes directly to that occurrence. If the series has no future date, Tasks says that the recurring series ended. Future checklist steps start unchecked.

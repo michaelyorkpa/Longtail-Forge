@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 327,
+    "discoveredScripts": 328,
     "legacyScripts": 312,
     "releaseGateScripts": 21,
     "areaCounts": {
@@ -22,19 +22,19 @@
       "release": 17,
       "search": 12,
       "tags": 12,
-      "tasks": 47,
+      "tasks": 48,
       "time-tracking": 6,
       "views": 27,
       "workbench": 26
     },
     "tierCounts": {
       "focused": 144,
-      "integration": 153,
+      "integration": 154,
       "release-gate": 21,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 126,
+      "isolated-database": 127,
       "serial-database": 6,
       "serial-files": 29,
       "static": 166
@@ -3312,6 +3312,22 @@
       "tags": [
         "database",
         "jobs"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "tasks",
+      "description": "Proves recurrence completion continuity, checklist-template seeding, safe feedback, and durable sweep recovery across every completion surface.",
+      "id": "tasks.recurrence-completion-continuity",
+      "legacy": false,
+      "path": "scripts/task-recurrence-completion-continuity-regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "checklist",
+        "jobs",
+        "recurrence",
+        "workbench"
       ],
       "tier": "integration"
     },

@@ -152,6 +152,8 @@ Checklist mutations update `last_worked_at`, task search indexing, audit metadat
 
 As of 0.33.6.12j, choosing `All Future` when saving a recurring task records the edited occurrence's active checklist structure to the recurrence template and applies that structure to eligible future open/in-progress/blocked occurrences in the same series. Past occurrences, completed occurrences, and archived occurrences are not rewritten. Future occurrences keep their own checklist completion state: exact label matches preserve checked/completed progress, newly propagated rows start unchecked, and future generated recurrence instances copy the template checklist rows unchecked.
 
+As of 0.33.9.6, recurrence completion repairs the empty-template boundary before queuing the next occurrence. If the active recurrence template has no active checklist rows, the completing occurrence's active labels and order seed it once; checked state never propagates. An established non-empty template remains unchanged unless the user explicitly saves with `All Future`.
+
 As of 0.33.6.12n, choosing `All Future` also records the edited occurrence's active readable linked-note relationship structure to the recurrence template and applies it to eligible future open/in-progress/blocked occurrences in the same series. Future generated recurrence instances inherit those linked notes as normal task-target `note_links`. Past occurrences, completed occurrences, archived occurrences, note bodies, Notes visibility rules, and occurrence-specific task/checklist/timer state are not rewritten.
 
 ## Parent And Child Tasks
@@ -166,7 +168,9 @@ The browser may display compact blocking-child relationship summaries in the tas
 
 Task recurrence supports Daily, Weekdays, Weekends, Weekly, and Monthly frequencies. Weekdays are Monday through Friday; Weekends are Saturday and Sunday; Daily remains every day. Recurrence generation is owned by the Tasks module and emits normal task records for follow-up instances.
 
-As of 0.33.5.21.7.7, completing a recurring task queues `task.recurrence` work and does not create the next instance in the completion request. `tasks.service.complete()` and the protected completion route return the completed task, `createdTask` is `null`, and `recurrenceJob.queued` indicates whether recurrence work was queued; the worker creates the next recurring task asynchronously. The Tasks page shows a small "Next recurring task queued." status when that happens, while Workbench keeps the generic completion confirmation. Public API completion responses expose only the safe `recurrenceJob.queued` hint and do not expose job IDs, dedupe keys, payload JSON, or other job internals.
+As of 0.33.9.6, completing a recurring task still queues durable `task.recurrence` work and does not create the next instance inline. Dedicated completion, generic/edit status completion, bulk status completion, Workbench, and the public completion API use the same recurrence handoff. Responses expose safe `recurrenceContinuity` metadata (`pending`, `available`, `ended`, or `handoff_failed`), the next scheduled date, and a safe next-task link only after the occurrence exists; `recurrenceJob` is limited to queue/failure booleans. A queue failure after the task row is complete is reported as a recoverable follow-up failure rather than undoing or misreporting the completed task. `GET /api/tasks/:taskId/recurrence-continuity` supports bounded browser refresh and navigation recovery without exposing job IDs, dedupe keys, payloads, or worker internals.
+
+The Tasks page, canonical Task editor, and Workbench show a quiet `Next scheduled` message while the worker is pending, replace it with `Open next task` when the occurrence is readable, and show an ended-series result when no future date remains. The recurring-task sweep remains the recovery path for a missed handoff. Passive far-future recurrence-created tasks remain outside normal Workbench recommendation ranking until overdue or near due; continuity feedback does not promote them into Recommended Next Action.
 
 As of 0.33.6.12j, the recurrence worker copies saved recurrence checklist structure into newly materialized task instances after the task row is created. Copied checklist rows start unchecked even if the source occurrence was completed with checked checklist items.
 
@@ -184,6 +188,7 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/task-activity-metrics-regression.mjs`
 - `scripts/task-recurrence-frequency-regression.mjs`
 - `scripts/task-recurrence-checklist-propagation-regression.mjs`
+- `scripts/task-recurrence-completion-continuity-regression.mjs`
 - `scripts/task-checklist-regression.mjs`
 - `scripts/task-relationships-regression.mjs`
 - `scripts/task-list-density-regression.mjs`
