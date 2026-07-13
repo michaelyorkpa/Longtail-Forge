@@ -21,17 +21,17 @@ assert.match(
 );
 assert.match(
   notificationsView,
-  /css\/longtail-forge\.css\?v=11/,
+  /css\/longtail-forge\.css/,
   "Notifications page should load the adoption-pass stylesheet cache key",
 );
 assert.match(
   notificationsView,
-  /\/js\/notifications\.js\?v=7/,
+  /\/js\/notifications\.js/,
   "Notifications page should load the adoption-pass notifications script cache key",
 );
 assert.match(
   notificationsView,
-  /\/js\/shared\/notification-preferences\.js\?v=4/,
+  /\/js\/shared\/notification-preferences\.js/,
   "Notifications page should load the adoption-pass notification preferences helper cache key",
 );
 assert.match(
@@ -80,7 +80,7 @@ assert.match(
   /className: "surface-chip"[\s\S]*"data-task-timer-display": ""[\s\S]*text: "00:00:00"/,
   "Fallback task dialog timer display should use the shared chip surface",
 );
-assert.match(tasksView, /css\/longtail-forge\.css\?v=74/, "Tasks view should load the adoption-pass stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css/, "Tasks view should load the adoption-pass stylesheet cache key");
 
 assert.match(
   styles,

@@ -343,7 +343,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   const workspaceType = workspaceContext.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
   const moduleNavByHref = new Map(moduleNavigation.map((item) => [item.href, item]));
-  const frameworkOwnedTopLevelHrefs = new Set(["time-tracker.html", "tasks.html", "projects.html", "clients.html", "reporting.html"]);
+  const frameworkOwnedTopLevelHrefs = new Set(["time-tracker.html", "tasks.html", "calendar.html", "projects.html", "clients.html", "reporting.html"]);
   const standaloneModuleNavigation = moduleNavigation.filter((item) => (
     item.href &&
     !item.parent &&
@@ -372,6 +372,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
 
   addTimeKeepingNavigation(actionsMenu.items, moduleNavigation);
   addModuleNavItem(actionsMenu.items, moduleNavByHref.get("tasks.html"));
+  addModuleNavItem(actionsMenu.items, moduleNavByHref.get("calendar.html"));
   addModuleNavItem(actionsMenu.items, moduleNavByHref.get("notes.html"));
   addModuleNavItem(actionsMenu.items, moduleNavByHref.get("lists.html"));
   actionsMenu.items.push({

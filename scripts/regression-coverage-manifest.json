@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 328,
+    "discoveredScripts": 330,
     "legacyScripts": 312,
     "releaseGateScripts": 21,
     "areaCounts": {
@@ -22,22 +22,22 @@
       "release": 17,
       "search": 12,
       "tags": 12,
-      "tasks": 48,
+      "tasks": 49,
       "time-tracking": 6,
-      "views": 27,
+      "views": 28,
       "workbench": 26
     },
     "tierCounts": {
-      "focused": 144,
+      "focused": 146,
       "integration": 154,
       "release-gate": 21,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 127,
+      "isolated-database": 128,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 166
+      "static": 167
     }
   },
   "coverageFamilies": [
@@ -2620,6 +2620,39 @@
         "roadmap"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "tasks",
+      "description": "Proves the task calendar-window contract: bounded-range enforcement, workspace and permission scoping without cross-workspace or unreadable-task leaks, reminder-marker correctness including the lookahead and completed/archived exclusions, client/project filter scoping, and disabled-module read behavior.",
+      "id": "tasks.task-calendar-window",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-calendar-window.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "bounded-query",
+        "calendar",
+        "permissions",
+        "reminders",
+        "tasks"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
+      "id": "views.calendar-host",
+      "legacy": false,
+      "path": "scripts/regressions/views/calendar-host.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "anatomy",
+        "calendar",
+        "guardrail",
+        "views"
+      ],
+      "tier": "focused"
     },
     {
       "area": "views",

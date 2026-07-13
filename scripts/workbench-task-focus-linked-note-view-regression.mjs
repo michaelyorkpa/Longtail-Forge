@@ -38,7 +38,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /"notes\.view": \[[\s\S]*js\/notes\.js\?v=72[\s\S]*openNoteViewer/,
+  /"notes\.view": \[[\s\S]*js\/notes\.js[\s\S]*openNoteViewer/,
   "Workbench should lazy-load Notes only for the Notes-owned read action",
 );
 

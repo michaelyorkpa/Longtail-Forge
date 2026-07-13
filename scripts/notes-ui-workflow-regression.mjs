@@ -344,7 +344,7 @@ async function assertNavigation(session) {
   assert.equal(topLevelProjectLink, undefined, "Project Settings should not duplicate the framework-owned Actions menu");
   assert.deepEqual(
     actionsMenu.items.map((item) => item.label),
-    ["Time Keeping", "Tasks", "Notes", "Procurement Lists", "Files", "Project Settings", "Reporting"],
+    ["Time Keeping", "Tasks", "Calendar", "Notes", "Procurement Lists", "Files", "Project Settings", "Reporting"],
     "Actions menu should keep the requested direct item order",
   );
   assert.deepEqual(

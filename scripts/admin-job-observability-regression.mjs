@@ -70,7 +70,7 @@ function assertStaticContract() {
   assert.match(workspaceSettingsView, /data-job-observability-summary/, "Workspace Settings should include a Jobs summary target");
   assert.match(workspaceSettingsView, /data-job-observability-failures/, "Workspace Settings should include a recent failures target");
   assert.match(workspaceSettingsView, /data-job-observability-more/, "Workspace Settings should include a bounded pagination load-more control");
-  assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=6/, "Workspace Settings should bump its script cache key");
+  assert.match(workspaceSettingsView, /js\/workspace-settings\.js/, "Workspace Settings should bump its script cache key");
 
   assert.match(workspaceSettingsScript, /loadJobObservability\(\)/, "Workspace Settings should load job observability separately");
   assert.match(workspaceSettingsScript, /\/api\/jobs\/status\?\$\{params\.toString\(\)\}/, "Workspace Settings should consume the protected jobs route");

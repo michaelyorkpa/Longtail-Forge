@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
   workbenchHtml,
-  /view-builder\.js\?v=16[\s\S]*view-renderer\.js\?v=13[\s\S]*workbench\.js\?v=36/,
+  /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*workbench\.js/,
   "Workbench host should load view helpers before the guided Workbench adapter",
 );
 assert.match(

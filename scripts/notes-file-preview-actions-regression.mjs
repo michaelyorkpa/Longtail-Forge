@@ -68,13 +68,13 @@ for (const [icon, action] of [
     `${action} should render with the expected icon`);
 }
 
-assert.match(filesView, /js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/,
+assert.match(filesView, /js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/,
   "Files view should load the shared preview helper before Files browser code");
-assert.match(notesView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/notes\.js\?v=72/,
+assert.match(notesView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/notes\.js/,
   "Notes view should load updated attachment actions and shared preview before Notes mounts panels");
-assert.match(tasksView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
+assert.match(tasksView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/task-dialog\.js/,
   "Tasks view should load updated attachment actions and shared preview before Task Files dialogs");
-assert.match(workbenchView, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=23/,
+assert.match(workbenchView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/task-dialog\.js/,
   "Workbench should load updated attachment actions and shared preview before Task Files dialogs");
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,

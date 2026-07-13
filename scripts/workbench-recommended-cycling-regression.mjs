@@ -17,7 +17,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /workbench\.js\?v=36/,
+  /workbench\.js/,
   "Workbench should bump its script cache key for the resume recommendation update",
 );
 assert.match(

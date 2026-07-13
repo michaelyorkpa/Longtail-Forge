@@ -13,10 +13,10 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the stacked Files modal warning styles");
-assert.match(notesHtml, /js\/notes\.js\?v=72/, "Notes should cache-bust the stacked Tags and Files modal browser wiring");
-assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should keep using the modal-stack-enabled view builder");
-assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=12/, "Notes should keep using the modal-stack-enabled renderer");
+assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the stacked Files modal warning styles");
+assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the stacked Tags and Files modal browser wiring");
+assert.match(notesHtml, /js\/shared\/view-builder\.js/, "Notes should keep using the modal-stack-enabled view builder");
+assert.match(notesHtml, /js\/shared\/view-renderer\.js/, "Notes should keep using the modal-stack-enabled renderer");
 
 assert.match(notesJs, /function createNoteTagsDialogShell\(\)/, "Notes should build a dedicated Tags dialog shell");
 assert.match(notesJs, /document\.body\.append\([\s\S]*createNoteDialogShell\(\),[\s\S]*createNoteTagsDialogShell\(\),[\s\S]*createNoteFilesDialogShell\(\),[\s\S]*createCollectionDialogShell\(\),[\s\S]*createCollectionActionsDialogShell\(\),[\s\S]*\)/, "The Tags dialog should be a sibling dialog, not body content inside the editor form");

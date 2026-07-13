@@ -81,13 +81,13 @@ assert.ok(tasksScript.includes("task-attachment-count"), "Task rows should rende
 assert.ok(filesPage.includes('<main class="wide-page files-page" data-files-host></main>'), "Files page should expose the minimal descriptor host.");
 assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the shared modal helper for in-app warnings.");
 assert.ok(
-  filesPage.indexOf("js/shared/client-project-options.js?v=2") < filesPage.indexOf("js/shared/view-builder.js?v=16") &&
-    filesPage.indexOf("js/shared/view-builder.js?v=16") < filesPage.indexOf("js/shared/view-renderer.js?v=13") &&
-    filesPage.indexOf("js/shared/view-renderer.js?v=13") < filesPage.indexOf("js/shared/file-preview.js?v=1") &&
-    filesPage.indexOf("js/shared/file-preview.js?v=1") < filesPage.indexOf("js/files.js?v=15"),
+  filesPage.indexOf("js/shared/client-project-options.js") < filesPage.indexOf("js/shared/view-builder.js") &&
+    filesPage.indexOf("js/shared/view-builder.js") < filesPage.indexOf("js/shared/view-renderer.js") &&
+    filesPage.indexOf("js/shared/view-renderer.js") < filesPage.indexOf("js/shared/file-preview.js") &&
+    filesPage.indexOf("js/shared/file-preview.js") < filesPage.indexOf("js/files.js"),
   "Files page should load client/project helpers plus the shared view builder/renderer before the Files adapter.",
 );
-assert.ok(filesPage.includes("js/files.js?v=15"), "Files page should cache-bust the protected Files script.");
+assert.ok(filesPage.includes("js/files.js"), "Files page should reference the protected Files script.");
 assert.doesNotMatch(filesPage, /\b(data-file-filters|data-file-business-control|data-file-list)\b/, "Files page should not ship browse hooks outside the descriptor host.");
 assert.ok(filesScript.includes("data-file-filters") || filesScript.includes("dataset.fileFilters"), "Files adapter should mount the filter form.");
 assert.ok(filesScript.includes("data-file-business-control") || filesScript.includes("dataset.fileBusinessControl"), "Files adapter should mark business-only client controls.");

@@ -49,6 +49,8 @@ const TASK_LIST_MAX_PAGE_SIZE = 200;
 const TASK_LIST_BATCH_MULTIPLIER = 5;
 const TASK_LIST_MAX_CANDIDATE_SCAN = 1000;
 const TASK_OPTION_MAX_ITEMS = 200;
+const TASK_CALENDAR_WINDOW_MAX_DAYS = 93;
+const TASK_CALENDAR_REMINDER_LOOKAHEAD_DAYS = 7;
 const DASHBOARD_TASK_ATTENTION_LIMIT = 5;
 const DASHBOARD_TASK_UPCOMING_LIMIT = 5;
 const DASHBOARD_TASK_PRESSURE_LIMIT = 5;
@@ -379,11 +381,25 @@ async function calendarWindow(session, query = {}) {
     throw new AppError("Calendar end date must be on or after the start date.", 400);
   }
 
-  const tasks = await tasksRepository.readDueBetween(session.workspace_id, startDate, endDate);
+  if (calendarDayCount(startDate, endDate) > TASK_CALENDAR_WINDOW_MAX_DAYS) {
+    throw new AppError(`Calendar range cannot exceed ${TASK_CALENDAR_WINDOW_MAX_DAYS} days.`, 400);
+  }
+
+  const reminderLookaheadEndDate = addCalendarDaysKey(endDate, TASK_CALENDAR_REMINDER_LOOKAHEAD_DAYS);
+  const [scope, moduleStatus, dueTasks] = await Promise.all([
+    resolveClientProjectFilterScope(session, {
+      clientId: String(query.clientId || query.client_id || "").trim(),
+      hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
+      hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
+      projectId: String(query.projectId || query.project_id || "").trim(),
+    }),
+    modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
+    tasksRepository.readDueBetween(session.workspace_id, startDate, reminderLookaheadEndDate),
+  ]);
   const readableTasks = [];
 
-  for (const task of tasks) {
-    if (await canReadTask(session, task)) {
+  for (const task of dueTasks) {
+    if (matchesTaskContextFilters(task, scope) && await canReadTask(session, task)) {
       readableTasks.push(task);
     }
   }
@@ -393,8 +409,41 @@ async function calendarWindow(session, query = {}) {
       startDate,
       endDate,
     },
-    tasks: readableTasks.map(taskCalendarRow),
+    source_enabled: moduleStatus === "enabled",
+    tasks: readableTasks
+      .filter((task) => task.due_date <= endDate)
+      .map((task) => taskCalendarRow(task, session.user_id)),
+    reminders: await calendarReminderMarkers(session, readableTasks, startDate, endDate),
   };
+}
+
+async function calendarReminderMarkers(session, readableTasks, startDate, endDate) {
+  const candidates = readableTasks.filter((task) => !["complete", "archived"].includes(task.status));
+  const occurrencesByTaskId = await taskRemindersService.computeReminderOccurrencesForTasks(session.workspace_id, candidates);
+  const markers = [];
+
+  for (const task of candidates) {
+    for (const occurrence of occurrencesByTaskId.get(task.task_id) || []) {
+      const date = localDateKey(new Date(occurrence.reminder_at_utc), session.timezone);
+
+      if (date >= startDate && date <= endDate) {
+        markers.push({
+          task_id: task.task_id,
+          title: task.title,
+          date,
+          reminder_at_utc: occurrence.reminder_at_utc,
+          due_at_utc: occurrence.due_at_utc,
+          due_kind: occurrence.due_kind,
+          offset_minutes: occurrence.offset_minutes,
+          source: occurrence.source,
+          url: taskUrl(task),
+        });
+      }
+    }
+  }
+
+  return markers.sort((first, second) => first.reminder_at_utc.localeCompare(second.reminder_at_utc)
+    || first.task_id.localeCompare(second.task_id));
 }
 
 async function read(taskId, session) {
@@ -3010,8 +3059,8 @@ function descriptionExcerpt(description, maxLength = 160) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}...` : text;
 }
 
-function taskCalendarRow(task) {
-  const base = taskSummaryRow(task);
+function taskCalendarRow(task, currentUserId = "") {
+  const base = taskSummaryRow(task, currentUserId);
 
   return {
     ...base,
@@ -3020,6 +3069,11 @@ function taskCalendarRow(task) {
     startDate: task.due_date,
     startDateTimeUtc: task.due_at_utc || "",
     endDate: task.due_date,
+    assignees: (task.assignees || []).map((assignee) => ({
+      user_id: assignee.user_id,
+      username: assignee.username,
+      displayName: assignee.displayName,
+    })),
     source: {
       type: "task",
       id: task.task_id,
@@ -3067,6 +3121,12 @@ function addCalendarDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function calendarDayCount(startKey, endKey) {
+  const start = Date.parse(`${startKey}T00:00:00.000Z`);
+  const end = Date.parse(`${endKey}T00:00:00.000Z`);
+  return Math.round((end - start) / 86400000) + 1;
 }
 
 function isActiveStatus(status) {

@@ -22,7 +22,7 @@ assert.match(html, /data-search-note-collection/);
 assert.match(html, /data-search-results/);
 assert.match(html, /data-search-pagination/);
 assert.match(html, /js\/navigation\.js/);
-assert.match(html, /js\/search\.js\?v=2/);
+assert.match(html, /js\/search\.js/);
 
 assert.match(script, /new URLSearchParams\(window\.location\.search\)/);
 assert.match(script, /fetch\(`\/api\/search\?\$\{params\}`,\s*\{\s*cache: "no-store"\s*\}\)/);

@@ -15,8 +15,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(filesHtml, /css\/longtail-forge\.css\?v=13/, "Files host should cache-bust the stylesheet for the compact reset");
-assert.match(filesHtml, /js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/, "Files host should load the compact-reset adapter after the renderer and shared preview");
+assert.match(filesHtml, /css\/longtail-forge\.css/, "Files host should reference the stylesheet for the compact reset");
+assert.match(filesHtml, /js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the compact-reset adapter after the renderer and shared preview");
 
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should keep the service-owned attachments read route");
 [

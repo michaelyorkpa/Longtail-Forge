@@ -14,8 +14,8 @@ const workbenchService = readText("src/services/workbench.service.js");
 assert.equal(packageJson.version, appVersion, "package.json should report the Workbench no-all-tasks-list version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Workbench no-all-tasks-list version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Workbench no-all-tasks-list version");
-assert.match(workbenchHtml, /longtail-forge\.css\?v=36/, "Workbench should bump the stylesheet cache key after removing task-list styles");
-assert.match(workbenchHtml, /workbench\.js\?v=36/, "Workbench should bump the script cache key after removing task-list rendering");
+assert.match(workbenchHtml, /longtail-forge\.css/, "Workbench should bump the stylesheet cache key after removing task-list styles");
+assert.match(workbenchHtml, /workbench\.js/, "Workbench should bump the script cache key after removing task-list rendering");
 
 assert.doesNotMatch(
   workbenchScript,

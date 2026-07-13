@@ -15,10 +15,10 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should cache-bust the shared view builder stack helper");
-assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=12/, "Notes should cache-bust the shared view renderer modal opener");
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust stacked modal warning styles");
-assert.match(notesHtml, /js\/notes\.js\?v=72/, "Notes should cache-bust the Notes modal wiring");
+assert.match(notesHtml, /js\/shared\/view-builder\.js/, "Notes should reference the shared view builder stack helper");
+assert.match(notesHtml, /js\/shared\/view-renderer\.js/, "Notes should reference the shared view renderer modal opener");
+assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference stacked modal warning styles");
+assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the Notes modal wiring");
 
 assert.match(notesJs, /label: "Tags"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Tags"[\s\S]*title: "Tags"/, "Tags utility should use the concise icon plus text label");
 assert.match(notesJs, /label: "Files"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Files"[\s\S]*title: "Files"/, "Files utility should use the concise icon plus text label");

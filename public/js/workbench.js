@@ -40,18 +40,18 @@ const FOCUS_QUESTION_COPY = {
 const workbenchActionScriptLoads = new Map();
 const WORKBENCH_MODULE_ACTION_DEPENDENCIES = {
   "notes.view": [
-    { src: "js/shared/notification-subscriptions.js?v=1", test: () => window.LongtailForge?.notificationSubscriptions },
-    { src: "js/shared/notes-editor.js?v=4", test: () => window.LongtailForge?.notesEditor },
-    { module: true, src: "js/notes.js?v=72", test: () => window.LongtailForge?.notesDialog?.openNoteViewer },
+    { src: "js/shared/notification-subscriptions.js", test: () => window.LongtailForge?.notificationSubscriptions },
+    { src: "js/shared/notes-editor.js", test: () => window.LongtailForge?.notesEditor },
+    { module: true, src: "js/notes.js", test: () => window.LongtailForge?.notesDialog?.openNoteViewer },
   ],
   "notes.edit": [
-    { src: "js/shared/notification-subscriptions.js?v=1", test: () => window.LongtailForge?.notificationSubscriptions },
-    { src: "js/shared/notes-editor.js?v=4", test: () => window.LongtailForge?.notesEditor },
-    { module: true, src: "js/notes.js?v=72", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
+    { src: "js/shared/notification-subscriptions.js", test: () => window.LongtailForge?.notificationSubscriptions },
+    { src: "js/shared/notes-editor.js", test: () => window.LongtailForge?.notesEditor },
+    { module: true, src: "js/notes.js", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
   ],
   "lists.edit": [
-    { src: "js/shared/client-project-options.js?v=2", test: () => window.LongtailForge?.clientProjectOptions },
-    { module: true, src: "js/lists.js?v=14", test: () => window.LongtailForge?.listsDialog?.openListEditor },
+    { src: "js/shared/client-project-options.js", test: () => window.LongtailForge?.clientProjectOptions },
+    { module: true, src: "js/lists.js", test: () => window.LongtailForge?.listsDialog?.openListEditor },
   ],
 };
 const workbenchViewHelpers = window.LongtailForge.view;
@@ -65,6 +65,7 @@ let clientFocusInput = null;
 let projectFocusControl = null;
 let projectFocusInput = null;
 let focusPanelElement = null;
+let calendarWeekLinkElement = null;
 let recommendedActionBody = null;
 let recommendedCycleControls = null;
 let recommendedCycleNextButton = null;
@@ -342,10 +343,40 @@ function createGuidedFocusPanel() {
           projectFocusControl,
         ],
       }),
+      createCalendarWeekLink(),
     ],
   });
 
   return focusPanelElement;
+}
+
+// Lightweight entry point to the read-only Calendar surface; the calendar
+// owns all calendar logic, Workbench only links to its week view.
+function createCalendarWeekLink() {
+  calendarWeekLinkElement = workbenchViewHelpers.createElement("a", {
+    className: "workbench-calendar-link",
+    attrs: { href: "calendar.html?view=week" },
+    text: "See this week on the calendar",
+    dataset: { workbenchCalendarLink: "" },
+    hidden: true,
+  });
+
+  return calendarWeekLinkElement;
+}
+
+function updateCalendarWeekLinkVisibility() {
+  if (!calendarWeekLinkElement) {
+    return;
+  }
+
+  const navigation = window.LongtailForge?.workspaceContext?.navigation || [];
+  calendarWeekLinkElement.hidden = !navigationContainsHref(navigation, "calendar.html");
+}
+
+function navigationContainsHref(items, href) {
+  return (Array.isArray(items) ? items : []).some((item) => (
+    item?.href === href || navigationContainsHref(item?.items, href)
+  ));
 }
 
 function createRecommendedActionPanel() {
@@ -497,6 +528,7 @@ async function loadWorkbench() {
 
   try {
     await window.LongtailForge.workspaceContextReady;
+    updateCalendarWeekLinkVisibility();
     await window.LongtailForge.timezones?.loadSessionTimezone?.();
     restoreFocusState();
     const [bootstrap, clientProjectData, focusModeData] = await Promise.all([

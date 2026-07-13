@@ -121,9 +121,9 @@ check("time entry dialog sizing avoids horizontal modal overflow", () => {
   assert.match(stylesheet, /\.time-entry-dialog \.entry-form\s*\{[^}]*padding: 24px/s);
   assert.match(stylesheet, /\.time-entry-dialog \.duration-editor\s*\{[^}]*minmax\(96px, 1fr\)/s);
   assert.match(stylesheet, /@media[\s\S]*\.time-entry-dialog \.duration-editor\s*\{[^}]*grid-template-columns: 1fr/s);
-  assert.match(timeEntriesView, /css\/longtail-forge\.css\?v=11/);
-  assert.match(timeTrackerView, /css\/longtail-forge\.css\?v=11/);
-  assert.match(workbenchView, /css\/longtail-forge\.css\?v=36/);
+  assert.match(timeEntriesView, /css\/longtail-forge\.css/);
+  assert.match(timeTrackerView, /css\/longtail-forge\.css/);
+  assert.match(workbenchView, /css\/longtail-forge\.css/);
 });
 
 console.log(`Time Entries screen regression passed ${checks} checks.`);

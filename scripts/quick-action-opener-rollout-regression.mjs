@@ -27,9 +27,9 @@ check("QAC dispatches Notes and Lists through shared module actions", () => {
   assert.match(appShellService, /id: "list"[\s\S]*actionType: "module-action"[\s\S]*moduleActionId: "lists\.add"[\s\S]*requiredPermissions: \["lists\.create"\]/);
   assert.doesNotMatch(actionDefinitionBlock(appShellService, "note"), /temporaryFallback: true/);
   assert.doesNotMatch(actionDefinitionBlock(appShellService, "list"), /temporaryFallback: true/);
-  assert.match(footer, /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js\?v=2/);
-  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js\?v=72"/);
-  assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js\?v=14"/);
+  assert.match(footer, /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js/);
+  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js"/);
+  assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js"/);
   assert.match(footer, /function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/);
 });
 
@@ -74,9 +74,9 @@ check("Files registry stays attachment-scoped and does not invent a targetless u
 });
 
 check("protected pages load the action registry before module adapters", () => {
-  assert.ok(notesView.indexOf("js/shared/module-actions.js?v=2") < notesView.indexOf("js/notes.js?v=72"));
-  assert.ok(listsView.indexOf("js/shared/module-actions.js?v=2") < listsView.indexOf("js/lists.js?v=14"));
-  assert.ok(filesView.indexOf("js/shared/module-actions.js?v=2") < filesView.indexOf("js/files.js?v=15"));
+  assert.ok(notesView.indexOf("js/shared/module-actions.js") < notesView.indexOf("js/notes.js"));
+  assert.ok(listsView.indexOf("js/shared/module-actions.js") < listsView.indexOf("js/lists.js"));
+  assert.ok(filesView.indexOf("js/shared/module-actions.js") < filesView.indexOf("js/files.js"));
 });
 
 check("documentation and suite registration cover the 0.33.6.12j boundary", () => {

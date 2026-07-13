@@ -13,8 +13,8 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/workbench\.js\?v=36/,
-  "Workbench should cache-bust the view-state adapter",
+  /js\/workbench\.js/,
+  "Workbench should reference the view-state adapter",
 );
 assert.match(
   workbenchScript,

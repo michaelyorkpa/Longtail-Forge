@@ -90,7 +90,7 @@ console.log("Client picker hierarchy regression passed.");
 
 async function assertPageLoadsHelperBeforeScript(pagePath, scriptPath) {
   const html = await fs.readFile(new URL(pagePath, root), "utf8");
-  const helperIndex = html.indexOf("js/shared/client-project-options.js?v=2");
+  const helperIndex = html.indexOf("js/shared/client-project-options.js");
   const scriptIndex = html.indexOf(scriptPath);
 
   assert.ok(helperIndex >= 0, `${pagePath} should load the shared client-project options helper.`);

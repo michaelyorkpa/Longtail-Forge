@@ -16,7 +16,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should remain a minimal host");
-assert.match(html, /js\/shared\/view-builder\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=14/, "Lists should load the renderer between the view builder and module script");
+assert.match(html, /js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/lists\.js/, "Lists should load the renderer between the view builder and module script");
 assert.doesNotMatch(html, /data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists HTML should not reintroduce protected workspace anatomy");
 
 assert.match(listsModule, /viewSurfaces:\s*\[/, "Lists manifest should declare a viewSurfaces descriptor");

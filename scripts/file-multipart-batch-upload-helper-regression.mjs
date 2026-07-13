@@ -95,9 +95,9 @@ function assertStaticContracts() {
   assert.match(uploadFiles, /emit\(container, state, "attachmentAdded", result\)/, "Upload flow should preserve attachmentAdded callbacks");
   assert.match(uploadFiles, /await refresh\(container, state\)/, "Upload flow should refresh the host attachment list after completion");
 
-  assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the streamed attachment helper");
-  assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the streamed attachment helper");
-  assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the streamed attachment helper");
+  assert.match(notesHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Notes should reference the streamed attachment helper");
+  assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the streamed attachment helper");
+  assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the streamed attachment helper");
   assert.match(moduleContract, /As of 0\.33\.5\.22\.15[\s\S]*\/api\/files\/upload\/batch/, "module contract should record the streamed batch boundary");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streamed batch upload slice");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");

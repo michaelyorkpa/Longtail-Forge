@@ -465,12 +465,12 @@ assert.match(
 );
 assert.match(
   files.dashboardView,
-  /css\/longtail-forge\.css\?v=10/,
+  /css\/longtail-forge\.css/,
   "dashboard protected HTML must load the refreshed Dashboard region styles",
 );
 assert.match(
   files.dashboardView,
-  /js\/shared\/view-builder\.js\?v=16[\s\S]*js\/dashboard\.js\?v=6[\s\S]*js\/time-tracking-dashboard\.js\?v=2/,
+  /js\/shared\/view-builder\.js[\s\S]*js\/dashboard\.js[\s\S]*js\/time-tracking-dashboard\.js/,
   "dashboard protected HTML must load the view builder, dashboard adapter, and Time Tracking dashboard renderer in order",
 );
 assert.doesNotMatch(

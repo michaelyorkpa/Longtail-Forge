@@ -96,11 +96,11 @@ assert.match(filesRoutes, /post\("\/files\/:fileId\/quarantine"/, "Files quarant
 assert.match(functionBlock(filesService, "reportFile"), /canReadAnyAttachment[\s\S]*normalizeReportReason[\s\S]*SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Report service should keep read checks, allowed reasons, and quarantine lifecycle behavior through bound params");
 assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session, "files\.manage_quarantine"[\s\S]*SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Quarantine service should keep server-side permission authority through bound params");
 
-assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared row-action icons");
-assert.match(filesHtml, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/, "Files page should load shared preview and cache-bust the Files action wiring");
-assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the shared attachment action helper and load preview");
-assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the shared attachment action helper and load preview");
-assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the shared attachment action helper and load preview");
+assert.match(filesHtml, /js\/shared\/icons\.js/, "Files page should reference the shared row-action icons");
+assert.match(filesHtml, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should load shared preview and reference the Files action wiring");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Notes should reference the shared attachment action helper and load preview");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the shared attachment action helper and load preview");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the shared attachment action helper and load preview");
 
 assert.match(changelog, /## Version 0\.33\.5\.18\.12\.4[\s\S]*Files visual states and control parity/, "Changelog should document the current Files visual parity slice");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");

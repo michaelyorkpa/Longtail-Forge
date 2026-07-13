@@ -144,6 +144,7 @@ const tasksModule = {
   repairHooks: [],
   navigation: [
     { label: "Tasks", href: "tasks.html", parent: "projects.html", counts: ["overdue", "dueSoon"] },
+    { label: "Calendar", href: "calendar.html", parent: "tasks.html", requiredPermissions: ["tasks.view"] },
   ],
   protectedViews: [
     {

@@ -17,7 +17,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
+  /longtail-forge\.css[\s\S]*workbench\.js/,
   "Workbench host should bump stylesheet and script cache keys for the status-slot cleanup",
 );
 assert.doesNotMatch(

@@ -107,9 +107,9 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.match(view, /data-help-status/);
     assert.match(view, /data-help-sections/);
     assert.match(view, /data-help-article/);
-    assert.match(view, /\/css\/longtail-forge\.css\?v=15/);
-    assert.match(view, /\/js\/shared\/icons\.js\?v=1/);
-    assert.match(view, /\/js\/help\.js\?v=5/);
+    assert.match(view, /\/css\/longtail-forge\.css/);
+    assert.match(view, /\/js\/shared\/icons\.js/);
+    assert.match(view, /\/js\/help\.js/);
     assert.match(script, /fetch\("\/api\/help"/);
     assert.match(script, /fetch\(`\/api\/help\/articles\/\$\{encodeURIComponent/);
     assert.match(script, /normalizeNavigation/);

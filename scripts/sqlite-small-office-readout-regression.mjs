@@ -38,7 +38,7 @@ assert.match(workspaceSettingsView, /data-runtime-diagnostics-fieldset/, "Worksp
 assert.match(workspaceSettingsView, /data-runtime-diagnostics-summary/, "Workspace Settings should include the diagnostics summary target");
 assert.match(workspaceSettingsView, /data-runtime-diagnostics-warnings/, "Workspace Settings should include diagnostics warning copy target");
 assert.match(workspaceSettingsView, /data-job-observability-fieldset/, "Workspace Settings should include a Jobs readout fieldset");
-assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=6/, "Workspace Settings should load the diagnostics readout script cache key");
+assert.match(workspaceSettingsView, /js\/workspace-settings\.js/, "Workspace Settings should load the diagnostics readout script cache key");
 assert.equal(existsSync(path.join(root, "views/protected/runtime-diagnostics.html")), false, "runtime diagnostics should not add a new dashboard page");
 
 assert.match(workspaceSettingsScript, /loadRuntimeDiagnostics\(\)/, "Workspace Settings should load runtime diagnostics separately from editable settings");

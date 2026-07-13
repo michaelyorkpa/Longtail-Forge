@@ -19,7 +19,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
+  /longtail-forge\.css[\s\S]*workbench\.js/,
   "Workbench should bump its script cache key after removing Quick Notes",
 );
 assert.doesNotMatch(
@@ -47,7 +47,7 @@ assert.match(
 );
 assert.match(
   footerScript,
-  /"notes\.add": \[[\s\S]*module: true, src: "js\/notes\.js\?v=72"[\s\S]*function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)/,
+  /"notes\.add": \[[\s\S]*module: true, src: "js\/notes\.js"[\s\S]*function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)/,
   "QAC Note should still lazy-load the existing Notes dialog safely",
 );
 assert.match(

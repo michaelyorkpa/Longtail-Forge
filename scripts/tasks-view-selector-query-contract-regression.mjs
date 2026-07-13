@@ -28,7 +28,7 @@ assert.match(tasksServiceSource, /function matchesTaskView\(task, taskView, curr
 assert.match(tasksServiceSource, /taskView === "completed"[\s\S]*task\.status === "complete"/, "Completed view should be scoped intentionally");
 assert.match(tasksServiceSource, /taskView === "archived"[\s\S]*task\.status === "archived"/, "Archived view should be scoped intentionally");
 assert.match(tasksServiceSource, /function currentWeekEndKey\(dateKey\)/, "Due This Week should use a Tasks-owned user-local current-week boundary");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=74[\s\S]*js\/tasks\.js\?v=22/, "Tasks host should load the task_view query contract cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/tasks\.js/, "Tasks host should load the task_view query contract cache keys");
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-view-selector-query-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-view-selector-query.db");

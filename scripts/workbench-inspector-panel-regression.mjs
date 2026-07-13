@@ -19,7 +19,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
+  /longtail-forge\.css[\s\S]*workbench\.js/,
   "Workbench should bump CSS and JS cache keys for the Inspector panel",
 );
 
@@ -71,7 +71,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /"notes\.edit": \[[\s\S]*module: true, src: "js\/notes\.js\?v=72"[\s\S]*"lists\.edit": \[[\s\S]*module: true, src: "js\/lists\.js\?v=14"/,
+  /"notes\.edit": \[[\s\S]*module: true, src: "js\/notes\.js"[\s\S]*"lists\.edit": \[[\s\S]*module: true, src: "js\/lists\.js"/,
   "Workbench should lazy-load Notes and Lists dialog adapters as modules to avoid classic-script lexical collisions",
 );
 assert.match(
@@ -134,7 +134,9 @@ assert.match(
 );
 assert.match(
   changelog,
-  /## Version 0\.33\.6\.11[\s\S]*served `workbench\.js\?v=26`, `longtail-forge\.css\?v=29`, and `footer\.js` exposed the Inspector and module-loader markers/,
+  // Historical changelog text is preserved verbatim, including its inert
+  // ?v= keys; only live source dropped raw keys in the inert-key retirement.
+  /## Version 0\.33\.6\.11[\s\S]*served `workbench\.js\?v=\d+`, `longtail-forge\.css\?v=\d+`, and `footer\.js` exposed the Inspector and module-loader markers/,
   "Changelog should preserve the Workbench Inspector panel closeout",
 );
 assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");

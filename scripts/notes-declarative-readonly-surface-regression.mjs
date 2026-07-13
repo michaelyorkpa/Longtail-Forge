@@ -18,8 +18,8 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
-assert.match(html, /css\/longtail-forge\.css\?v=56/, "Notes host should load the refreshed stylesheet");
-assert.match(html, /js\/shared\/icons\.js\?v=4[\s\S]*js\/shared\/view-builder\.js\?v=11[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/notes\.js\?v=72/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
+assert.match(html, /css\/longtail-forge\.css/, "Notes host should load the refreshed stylesheet");
+assert.match(html, /js\/shared\/icons\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/notes\.js/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
 assert.doesNotMatch(html, /data-notes-list|data-notes-collections-panel|data-note-filter-status|class="notes-filters-panel"/, "Notes static HTML should not own the converted read workspace anatomy");
 assert.doesNotMatch(html, /data-note-dialog/, "Editor dialog is framework-built as of .18.4, not static HTML");
 assert.doesNotMatch(html, /data-note-collection-dialog/, "Collection dialog is framework-built as of .18.4, not static HTML");

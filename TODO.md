@@ -13,6 +13,12 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Workbench algorithm
+
+Blocked items should only show up in "Review blocked work".
+
+This needs to be adjustable in settings. 
+
 > Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.14 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (Lists -> 0.33.13, KB -> 0.34), are human testing goals, or are larger than a quick fix.
 
 ## Lists UI/UX Overhaul (Notes for 0.33.13)

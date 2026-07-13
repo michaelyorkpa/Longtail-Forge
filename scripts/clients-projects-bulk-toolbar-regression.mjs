@@ -58,9 +58,9 @@ assert.match(readFunctionBody(clientsProjectsScript, "refreshClientProjectsAfter
 
 assert.match(css, /\.client-projects-bulk-region\s*\{[\s\S]*background:\s*transparent/, "Bulk descriptor region should stay visually neutral around the shared toolbar");
 assert.match(css, /\.view-data-table \.view-row-select\s*\{[\s\S]*width:\s*16px[\s\S]*height:\s*16px/, "Shared table selection checkboxes should have stable dimensions");
-assert.match(clientsHtml, /css\/longtail-forge\.css\?v=11[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Clients host should cache-bust CSS, renderer, and adapter for bulk toolbar conversion");
-assert.match(projectsHtml, /css\/longtail-forge\.css\?v=11[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Projects host should cache-bust CSS, renderer, and adapter for bulk toolbar conversion");
-assert.match(workbenchHtml, /clients-projects\.js\?v=20/, "Workbench should load the updated Clients/Projects adapter for module-triggered actions");
+assert.match(clientsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Clients host should reference CSS, renderer, and adapter for bulk toolbar conversion");
+assert.match(projectsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Projects host should reference CSS, renderer, and adapter for bulk toolbar conversion");
+assert.match(workbenchHtml, /clients-projects\.js/, "Workbench should load the updated Clients/Projects adapter for module-triggered actions");
 assert.match(regressionSuite, /scripts\/clients-projects-bulk-toolbar-regression\.mjs/, "Regression suite should include the Clients/Projects bulk toolbar regression");
 
 console.log("Clients/Projects bulk toolbar regression passed.");

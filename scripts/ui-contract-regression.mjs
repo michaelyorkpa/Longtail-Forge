@@ -90,9 +90,9 @@ for (const [label, view] of Object.entries({
   timeTrackingSettingsView: files.timeTrackingSettingsView,
   userSettingsView: files.userSettingsView,
 })) {
-  assert.match(view, /js\/shared\/settings-normalizers\.js\?v=1/, `${label} must load settings-normalizers with a cache key`);
-  assert.match(view, /js\/shared\/settings-controls\.js\?v=2/, `${label} must load settings-controls with the updated cache key`);
-  assert.match(view, /js\/shared\/status\.js\?v=1/, `${label} must load status helper with a cache key`);
+  assert.match(view, /js\/shared\/settings-normalizers\.js/, `${label} must load settings-normalizers with a cache key`);
+  assert.match(view, /js\/shared\/settings-controls\.js/, `${label} must load settings-controls with the updated cache key`);
+  assert.match(view, /js\/shared\/status\.js/, `${label} must load status helper with a cache key`);
 }
 
 assert.match(

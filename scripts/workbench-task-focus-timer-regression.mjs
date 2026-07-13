@@ -26,8 +26,8 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task Focus timer version");
 assert.match(
   workbenchHtml,
-  /longtail-forge\.css\?v=36[\s\S]*workbench\.js\?v=36/,
-  "Workbench should cache-bust CSS and JS for the Task Focus timer surface",
+  /longtail-forge\.css[\s\S]*workbench\.js/,
+  "Workbench should reference CSS and JS for the Task Focus timer surface",
 );
 
 assert.doesNotMatch(

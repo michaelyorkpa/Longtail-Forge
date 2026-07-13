@@ -16,9 +16,9 @@ assert.equal(packageJson.version, appVersion, "package.json should report the Cl
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects action registration version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects action registration version");
 
-assert.match(clientsHtml, /clients-projects\.js\?v=20/, "Clients host should load the action-registration adapter cache key");
-assert.match(projectsHtml, /clients-projects\.js\?v=20/, "Projects host should load the action-registration adapter cache key");
-assert.match(workbenchHtml, /clients-projects\.js\?v=20/, "Workbench should load the action-registration adapter cache key for module-triggered actions");
+assert.match(clientsHtml, /clients-projects\.js/, "Clients host should load the action-registration adapter cache key");
+assert.match(projectsHtml, /clients-projects\.js/, "Projects host should load the action-registration adapter cache key");
+assert.match(workbenchHtml, /clients-projects\.js/, "Workbench should load the action-registration adapter cache key for module-triggered actions");
 
 for (const [behaviorId, actionId] of [
   ["client-projects.clients.create", "clients.add"],

@@ -35,10 +35,12 @@ assert.equal(withAssetVersion("/css/app.css?theme=wide#main"), `/css/app.css?the
 assert.equal(withAssetVersion("https://cdn.example.test/app.js?v=vendor"), "https://cdn.example.test/app.js?v=vendor");
 assert.equal(withAssetVersion("images/logo.webp"), "images/logo.webp");
 
+assert.equal(liveFindings.size, 0, "active source must not contain raw .css?v=/.js?v= cache keys (the inert-key retirement may only stay empty)");
+assert.deepEqual(Object.keys(baseline.files), [], "the legacy asset cache baseline must stay empty");
 assert.deepEqual(
   collectAssetCacheGuardErrors({ baseline, findings: liveFindings }),
   [],
-  "all retained raw keys should exactly match their explicit frozen legacy exceptions",
+  "the empty baseline and key-free source should produce no guard errors",
 );
 
 const unapprovedFindings = new Map(liveFindings);
@@ -50,19 +52,25 @@ unapprovedFindings.set("public/js/new-feature.js", {
 assert.match(
   collectAssetCacheGuardErrors({ baseline, findings: unapprovedFindings }).join("\n"),
   /public\/js\/new-feature\.js contains 1 unapproved raw asset cache key/,
-  "a new raw cache key outside the frozen baseline should fail",
+  "a new raw cache key outside the baseline should fail",
 );
 
-const changedFindings = new Map(liveFindings);
-const changedPath = "views/protected/tasks.html";
-changedFindings.set(changedPath, {
-  ...changedFindings.get(changedPath),
-  sha256: "synthetic-manual-bump",
-});
+const syntheticBaseline = {
+  schemaVersion: 1,
+  files: { "views/protected/synthetic.html": { count: 1, sha256: "synthetic-frozen" } },
+};
 assert.match(
-  collectAssetCacheGuardErrors({ baseline, findings: changedFindings }).join("\n"),
-  /tasks\.html raw asset cache keys differ from the frozen legacy exception/,
-  "manually bumping a frozen legacy key should fail",
+  collectAssetCacheGuardErrors({
+    baseline: syntheticBaseline,
+    findings: new Map([["views/protected/synthetic.html", { count: 1, references: ["a.js?v=9"], sha256: "synthetic-manual-bump" }]]),
+  }).join("\n"),
+  /synthetic\.html raw asset cache keys differ from the frozen legacy exception/,
+  "changing a frozen legacy key should fail",
+);
+assert.match(
+  collectAssetCacheGuardErrors({ baseline: syntheticBaseline, findings: new Map() }).join("\n"),
+  /synthetic\.html no longer needs its legacy asset cache exception; shrink the baseline/,
+  "a stale baseline entry should demand shrinking",
 );
 
 for (const viewPath of await listFiles("views", ".html")) {

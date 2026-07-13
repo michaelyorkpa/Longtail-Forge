@@ -40,7 +40,9 @@ assert.doesNotMatch(packageJson, /lucide/i, "shared icon foundation must not add
 
 protectedViews.forEach((viewName) => {
   const view = readText(`views/protected/${viewName}`);
-  assert.match(view, /js\/shared\/icons\.js\?v=\d+/, `${viewName} must load the shared icon helper`);
+  // Views reference the bare asset path; the server stamps the canonical
+  // version at serve time and raw ?v= keys are rejected by the asset-cache gate.
+  assert.match(view, /js\/shared\/icons\.js"/, `${viewName} must load the shared icon helper`);
 });
 
 console.log("Shared icons regression passed.");

@@ -72,8 +72,8 @@ assert.match(clientProjectsModule, /filterPlacement:\s*"slide-out-sidebar"[\s\S]
 assert.match(clientProjectsModule, /filterPlacement:\s*"slide-out-sidebar"[\s\S]*id:\s*"client-projects-projects-filters"[\s\S]*secondaryRows:[\s\S]*id:\s*"project-tags"[\s\S]*iconOnly:\s*true/, "Projects descriptor should use drawer filters, secondary tags, and icon-only edit action");
 assert.match(clientsHtml, /<main class="wide-page client-projects-page clients-page" data-client-projects-host><\/main>/, "Clients host should be a minimal descriptor host");
 assert.match(projectsHtml, /<main class="wide-page client-projects-page projects-page" data-client-projects-host><\/main>/, "Projects host should be a minimal descriptor host");
-assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Clients host should load builder, renderer, then adapter");
-assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Projects host should load builder, renderer, then adapter");
+assert.match(clientsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Clients host should load builder, renderer, then adapter");
+assert.match(projectsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Projects host should load builder, renderer, then adapter");
 
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Clients/Projects adapter should not bridge page/filter/status/list anatomy after 13.3");
 assert.doesNotMatch(clientsProjectsScript, /function renderClients\(|function createProjectTable\(|function createClientTable\(|function openProjectBulkEditor\(|data-client-status-filter|data-project-client-filter|list-table-wrap|project-bulk-dialog/, "Clients/Projects adapter should not keep legacy page filter/table/bulk-dialog chrome after strict cleanup");

@@ -56,10 +56,10 @@ assert.doesNotMatch(fieldNodes, /data-task-tags-panel|data-task-files-panel|task
 assert.doesNotMatch(taskDialog, /taskOverlayHost|toggleTaskFooterPanel|toggleTaskFooterPanelFallback|taskEditorFooterPanel|data-task-tags-panel|data-task-files-panel/, "Task Tags and Files should no longer use parent-body overlay panel plumbing");
 assert.doesNotMatch(taskDialog, /className: \["task-footer-panel"|"surface-overlay-panel"/, "Task dialog should not mount Tags or Files as overlay panels");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=74/, "Tasks page should cache-bust the child-dialog stylesheet cleanup");
-assert.match(tasksView, /js\/task-dialog\.js\?v=23/, "Tasks page should cache-bust the Task child-dialog browser wiring");
-assert.match(workbenchView, /css\/longtail-forge\.css\?v=36/, "Workbench should cache-bust the child-dialog stylesheet cleanup");
-assert.match(workbenchView, /js\/task-dialog\.js\?v=23/, "Workbench should cache-bust the Task child-dialog browser wiring");
+assert.match(tasksView, /css\/longtail-forge\.css/, "Tasks page should reference the child-dialog stylesheet cleanup");
+assert.match(tasksView, /js\/task-dialog\.js/, "Tasks page should reference the Task child-dialog browser wiring");
+assert.match(workbenchView, /css\/longtail-forge\.css/, "Workbench should reference the child-dialog stylesheet cleanup");
+assert.match(workbenchView, /js\/task-dialog\.js/, "Workbench should reference the Task child-dialog browser wiring");
 
 assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current Task child-dialog version");
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");

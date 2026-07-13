@@ -60,6 +60,35 @@ async function computePendingReminderOccurrences(task, now = new Date()) {
     .filter((occurrence) => occurrence.status === "pending" && new Date(occurrence.reminder_at_utc) >= now);
 }
 
+async function computeReminderOccurrencesForTasks(workspaceId, tasks) {
+  const occurrencesByTaskId = new Map();
+  const candidates = (Array.isArray(tasks) ? tasks : [])
+    .filter((task) => task?.task_id && task.due_date && task.workspace_id === workspaceId);
+
+  if (candidates.length === 0) {
+    return occurrencesByTaskId;
+  }
+
+  const settings = await settingsRepository.readWorkspaceSettings(workspaceId);
+  const targetsByTaskId = new Map(candidates.map((task) => [
+    task.task_id,
+    policyChainTargets(task, settings.workspaceType),
+  ]));
+  const uniqueTargets = [...new Map(
+    [...targetsByTaskId.values()]
+      .flat()
+      .map((target) => [taskRemindersRepository.reminderKey(target.targetType, target.targetId), target]),
+  ).values()];
+  const offsetsByTarget = await taskRemindersRepository.readOffsetsForTargets(workspaceId, uniqueTargets);
+
+  for (const task of candidates) {
+    const chain = policyChainEntries(targetsByTaskId.get(task.task_id) || [], offsetsByTarget);
+    occurrencesByTaskId.set(task.task_id, computeReminderOccurrences(task, readEffectivePolicyFromChain(chain)));
+  }
+
+  return occurrencesByTaskId;
+}
+
 function normalizeTaskReminderPayload(payload) {
   const overrideEnabled = Boolean(payload?.overrideEnabled || payload?.override_enabled);
   const policy = normalizeReminderPolicy(payload?.policy || payload?.reminderPolicy || payload);
@@ -137,6 +166,30 @@ async function readPolicyChain(task) {
   }
 
   const offsetsByTarget = await taskRemindersRepository.readOffsetsForTargets(task.workspace_id, targets);
+  return policyChainEntries(targets, offsetsByTarget);
+}
+
+function policyChainTargets(task, workspaceType) {
+  const targets = [
+    { targetType: "workspace", targetId: task.workspace_id },
+  ];
+
+  if (workspaceType === "business" && task.client_id) {
+    targets.push({ targetType: "client", targetId: task.client_id });
+  }
+
+  if (task.project_id) {
+    targets.push({ targetType: "project", targetId: task.project_id });
+  }
+
+  if (task.reminder_override_enabled) {
+    targets.push({ targetType: "task", targetId: task.task_id });
+  }
+
+  return targets;
+}
+
+function policyChainEntries(targets, offsetsByTarget) {
   return targets.map((target) => {
     const offsets = offsetsByTarget.get(taskRemindersRepository.reminderKey(target.targetType, target.targetId)) || [];
     const fallback = target.targetType === "workspace" ? defaultPolicy() : { dateTime: [], dateOnly: [] };
@@ -218,6 +271,7 @@ function readTaskDueUtc(task, dueKind) {
 
 export const taskRemindersService = {
   computePendingReminderOccurrences,
+  computeReminderOccurrencesForTasks,
   defaultPolicy,
   normalizeReminderPolicy,
   normalizeTaskReminderPayload,

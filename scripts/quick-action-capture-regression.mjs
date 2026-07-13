@@ -66,11 +66,11 @@ check("shared footer owns a quiet bottom-right drawer on protected shell pages",
 });
 
 check("QAC dispatches modal actions through the module action registry with safe current-page context", () => {
-  assert.match(footer, /"time-tracking\.timer\.create": \[[\s\S]*js\/time-tracking-timer-dialog\.js\?v=1/);
-  assert.match(footer, /quickActionDependencySets = \{[\s\S]*"tasks\.add": \[[\s\S]*js\/shared\/module-actions\.js\?v=2[\s\S]*js\/task-dialog\.js\?v=23/);
-  assert.match(footer, /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js\?v=2/);
-  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js\?v=72"/);
-  assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js\?v=14"/);
+  assert.match(footer, /"time-tracking\.timer\.create": \[[\s\S]*js\/time-tracking-timer-dialog\.js/);
+  assert.match(footer, /quickActionDependencySets = \{[\s\S]*"tasks\.add": \[[\s\S]*js\/shared\/module-actions\.js[\s\S]*js\/task-dialog\.js/);
+  assert.match(footer, /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js/);
+  assert.match(footer, /"notes\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/notes\.js"/);
+  assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js"/);
   assert.match(footer, /function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/);
   assert.match(footer, /ensureQuickActionDependencies\(action\.moduleActionId\)/);
   assert.match(footer, /window\.LongtailForge\.moduleActions\.open\(action\.moduleActionId, \{[\s\S]*source: "quick-action-capture"/);

@@ -63,7 +63,7 @@ assert.match(tasksScript, /\[sortInput, statusFilter, assigneeFilter, projectFil
 assert.match(tasksScript, /clientFilter\?\.addEventListener\("change", async \(\) => \{[\s\S]*reconcileProjectFilterForClient\(\)[\s\S]*await reloadTaskList\(\)/, "Client filter should narrow the project dropdown and reload the visible task list");
 
 assert.match(tasksView, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Tasks protected view should remain a minimal descriptor host");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=74[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/tasks\.js\?v=22/, "Tasks host should load the read-only list binding cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the read-only list binding cache keys");
 assert.match(renderer, /detail\.itemRows\s*\? renderItemCollection\(detail\.itemRows, view, state\)/, "Renderer should only show the generic Items placeholder when itemRows are declared");
 assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Framework region wrapper should not visually redesign the task list");
 assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0/, "Framework list shell should own no-gap list placement");

@@ -108,8 +108,8 @@ function assertStaticContract() {
   assert.match(userSettingsView, /data-theme-auto-source-controls/, "User Settings should expose auto-source controls");
   assert.match(userSettingsView, /name="themeAutoSource" value="system" data-theme-auto-source/, "User Settings should expose OS-match auto source");
   assert.doesNotMatch(userSettingsView, /data-theme-mode-toggle|theme-mode-switch|theme-switch-track/, "User Settings should not keep the old binary slider");
-  assert.match(userSettingsView, /css\/longtail-forge\.css\?v=10/, "User Settings CSS cache key should advance with the segmented theme controls");
-  assert.match(userSettingsView, /js\/user-settings\.js\?v=6/, "User Settings script cache key should advance with the scoped three-way settings hydrator");
+  assert.match(userSettingsView, /css\/longtail-forge\.css/, "User Settings CSS cache key should advance with the segmented theme controls");
+  assert.match(userSettingsView, /js\/user-settings\.js/, "User Settings script cache key should advance with the scoped three-way settings hydrator");
   assert.match(userSettingsScript, /^\(function attachUserSettingsPage\(\) \{[\s\S]*\}\)\(\);\s*$/, "User Settings should be scoped so theme helper names cannot collide with navigation.js");
   assert.match(userSettingsScript, /putJson\("\/api\/user\/settings", \{ themeMode, themeAutoSource \}\)/, "User Settings should save mode and source together");
   assert.match(userSettingsScript, /themeAutoSourceControls\.hidden = normalizedThemeMode !== "auto"/, "auto-source controls should only show for auto mode");

@@ -73,8 +73,8 @@ function assertStaticContract() {
   assert.match(tasksServiceSource, /taskTimersService\.hasActiveTaskTimers[\s\S]*Tasks cannot be completed while they have active task timers/,
     "Complete route should preserve the active-timer guard");
 
-  assert.match(tasksView, /js\/task-dialog\.js\?v=23/, "Tasks view should load the updated Task dialog cache key");
-  assert.match(workbenchView, /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=36/, "Workbench should load the updated Task dialog and Workbench cache keys");
+  assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should load the updated Task dialog cache key");
+  assert.match(workbenchView, /js\/task-dialog\.js[\s\S]*js\/workbench\.js/, "Workbench should load the updated Task dialog and Workbench cache keys");
   assert.match(regressionSuite, /scripts\/task-modal-complete-action-regression\.mjs/, "Regression suite should include modal complete action coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
     "live roadmap should not carry completed-history breadcrumbs");

@@ -18,8 +18,8 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   workbenchHtml,
-  /js\/task-dialog\.js\?v=23[\s\S]*js\/workbench\.js\?v=36/,
-  "Workbench should load the canonical Task dialog before the cache-busted Workbench adapter",
+  /js\/task-dialog\.js[\s\S]*js\/workbench\.js/,
+  "Workbench should load the canonical Task dialog before the referenceed Workbench adapter",
 );
 
 assert.match(

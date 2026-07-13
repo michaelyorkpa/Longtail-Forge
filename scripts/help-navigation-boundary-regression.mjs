@@ -62,8 +62,8 @@ try {
     assert.match(script, /navigationItemContainsArticle\(item, state\.selectedArticleId\)/);
     assert.match(script, /list\.hidden = !expanded/);
     assert.match(script, /heading\.setAttribute\("aria-expanded", String\(expanded\)\)/);
-    assert.match(view, /\/css\/longtail-forge\.css\?v=15/);
-    assert.match(view, /\/js\/help\.js\?v=5/);
+    assert.match(view, /\/css\/longtail-forge\.css/);
+    assert.match(view, /\/js\/help\.js/);
   });
 
   await check("Help article surfaces contain long Markdown content", async () => {

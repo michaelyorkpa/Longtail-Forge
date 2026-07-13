@@ -23,12 +23,12 @@ assert.equal(packageJson.version, appVersion, "package.json should report the Fi
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Files visual parity version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files visual parity version");
 
-assert.match(filesHtml, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust the visual parity stylesheet");
-assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared action icons");
-assert.match(filesHtml, /js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/, "Files page should cache-bust the visual parity adapter");
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=56[\s\S]*js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust shared attachment visuals");
-assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74[\s\S]*js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust shared attachment visuals");
-assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=36[\s\S]*js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust shared attachment visuals");
+assert.match(filesHtml, /css\/longtail-forge\.css/, "Files page should reference the visual parity stylesheet");
+assert.match(filesHtml, /js\/shared\/icons\.js/, "Files page should reference the shared action icons");
+assert.match(filesHtml, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should reference the visual parity adapter");
+assert.match(notesHtml, /css\/longtail-forge\.css[\s\S]*js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Notes should reference shared attachment visuals");
+assert.match(tasksHtml, /css\/longtail-forge\.css[\s\S]*js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference shared attachment visuals");
+assert.match(workbenchHtml, /css\/longtail-forge\.css[\s\S]*js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference shared attachment visuals");
 
 const filesTable = functionBlock(filesScript, "createFilesTable");
 assert.match(filesTable, /emptyMessage:\s*"No file attachments match the current filters\."/,

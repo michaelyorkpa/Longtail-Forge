@@ -57,8 +57,8 @@ for (const expectedCall of [
   assert.match(taskDialogScript, expectedCall, "task footer controls should keep visible utility labels and compact commit labels");
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=74/, "Tasks view must load the footer-contract stylesheet cache key");
-assert.match(tasksView, /js\/task-dialog\.js\?v=23/, "Tasks view must load the footer-contract task-dialog cache key");
+assert.match(tasksView, /css\/longtail-forge\.css/, "Tasks view must load the footer-contract stylesheet cache key");
+assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view must load the footer-contract task-dialog cache key");
 
 console.log("Modal footer contract regression passed.");
 

@@ -66,14 +66,14 @@ assert.match(stylesheet, /\.task-details-field \{[\s\S]*box-sizing: border-box;[
 assert.match(stylesheet, /\.task-details-grid > label \{[\s\S]*min-width: 0;/, "Task Details controls should shrink safely in their grid columns");
 
 assert.ok(
-  tasksView.indexOf("js/shared/view-builder.js?v=16") < tasksView.indexOf("js/shared/view-renderer.js?v=13")
-    && tasksView.indexOf("js/shared/view-renderer.js?v=13") < tasksView.indexOf("js/task-dialog.js?v=23")
-    && tasksView.indexOf("js/task-dialog.js?v=23") < tasksView.indexOf("js/tasks.js?v=22"),
+  tasksView.indexOf("js/shared/view-builder.js") < tasksView.indexOf("js/shared/view-renderer.js")
+    && tasksView.indexOf("js/shared/view-renderer.js") < tasksView.indexOf("js/task-dialog.js")
+    && tasksView.indexOf("js/task-dialog.js") < tasksView.indexOf("js/tasks.js"),
   "Tasks host should load framework view helpers before the Task dialog and page controller",
 );
 assert.ok(
-  workbenchView.indexOf("js/shared/view-builder.js?v=16") < workbenchView.indexOf("js/shared/view-renderer.js?v=13")
-    && workbenchView.indexOf("js/shared/view-renderer.js?v=13") < workbenchView.indexOf("js/task-dialog.js?v=23"),
+  workbenchView.indexOf("js/shared/view-builder.js") < workbenchView.indexOf("js/shared/view-renderer.js")
+    && workbenchView.indexOf("js/shared/view-renderer.js") < workbenchView.indexOf("js/task-dialog.js"),
   "Workbench host should load framework view helpers before the shared Task dialog",
 );
 assert.match(regressionSuite, /scripts\/tasks-modal-shell-regression\.mjs/, "Task modal shell regression should be included in the regression suite");

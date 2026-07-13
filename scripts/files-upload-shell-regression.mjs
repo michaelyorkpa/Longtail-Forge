@@ -85,12 +85,12 @@ assert.match(styles, /\.file-attachment-upload-hint\s*\{[\s\S]*color:\s*var\(--c
 assert.match(styles, /\.file-attachment-upload-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*wrap/, "Upload action row should wrap safely on narrow widths");
 assert.match(styles, /\.file-attachment-upload-results\s*\{[\s\S]*display:\s*grid/, "Upload result rows should remain grouped and readable");
 
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for upload shell changes");
-assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper");
-assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74/, "Tasks should cache-bust the shared stylesheet for upload shell changes");
-assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper");
-assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=36/, "Workbench should cache-bust the shared stylesheet for upload shell changes");
-assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper");
+assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the shared stylesheet for upload shell changes");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Notes should reference the attachment helper");
+assert.match(tasksHtml, /css\/longtail-forge\.css/, "Tasks should reference the shared stylesheet for upload shell changes");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the attachment helper");
+assert.match(workbenchHtml, /css\/longtail-forge\.css/, "Workbench should reference the shared stylesheet for upload shell changes");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the attachment helper");
 
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View-building contract should document the Files upload-shell slice");
 assert.match(regressionSuite, /scripts\/files-upload-shell-regression\.mjs/, "Regression suite should include the Files upload-shell regression");

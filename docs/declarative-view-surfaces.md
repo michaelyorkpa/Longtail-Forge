@@ -74,9 +74,9 @@ The protected HTML page should provide only document metadata, shared assets, a 
 
 ```html
 <main class="wide-page lists-page" data-lists-host></main>
-<script src="js/shared/view-builder.js?v=2"></script>
-<script src="js/shared/view-renderer.js?v=1"></script>
-<script src="js/lists.js?v=5"></script>
+<script src="js/shared/view-builder.js"></script>
+<script src="js/shared/view-renderer.js"></script>
+<script src="js/lists.js"></script>
 ```
 
 The module adapter decorates descriptor-rendered nodes with compatibility hooks only where existing data binding still needs them.
@@ -89,6 +89,7 @@ The inventory below is current for 0.33.5.18.15 plus the 0.33.6 Dashboard/Workbe
 | --- | --- | --- | --- | --- |
 | API Keys | api-keys | api-keys.html | - | reported |
 | Audit Log | audit-log | audit-log.html | - | reported |
+| Calendar | calendar | calendar.html | framework-built read-only host | strict |
 | Client Projects | clients | clients.html | client-projects.clients | strict |
 | Client Projects | projects | projects.html | client-projects.projects | strict |
 | Dashboard | dashboard | dashboard.html | framework-built contribution host | strict |
@@ -125,5 +126,11 @@ As of 0.33.6.12d-1, Workbench Task Focus adds a default-open, collapsible Task T
 As of 0.33.6.12e-1, Workbench Task Focus has a selected-task related-context route and service read model. It aggregates linked Notes, task Files, linked Lists, same-project active Tasks, and direct shared-tag records through owning services, deduplicates strongest reasons, and exposes safe module-action descriptors for the later Inspector UI slice. Browser rendering is unchanged until 0.33.6.12e-2.
 
 As of 0.33.6.12e-2, Workbench Task Focus renders that selected-task related context in the right-side Inspector. The browser fetches the route after the focused task read succeeds, groups rows by the service-provided groups, shows source/reason labels and badges, defaults the Inspector open, supports a caret collapse that preserves the side panel, and dispatches existing module actions or safe fallbacks without adding an embedded preview pane.
+
+As of 0.33.10.2, Calendar is a framework-owned read-only host in the Dashboard/Workbench style: `views/protected/calendar.html` is a minimal `data-calendar-host` shell and `public/js/calendar.js` builds the page header, status message, period label, month/week/day segmented view switch, day grid, and empty state through `LongtailForge.view` primitives plus the framework `.calendar-*` CSS section. The surface consumes only the bounded, permission-shaped task calendar-window read (`GET /api/tasks/calendar`), renders task due entries with priority/status affordances and per-day reminder indicators from the payload's `reminders` markers, and opens entries through the canonical `LongtailForge.tasksDialog.openTaskEditor()` opener instead of any inline editor. Loading/error/disabled-module states run through the shared status-message anatomy and the period-empty state uses `createEmptyState`. The host intentionally has no calendar event record type, iCal, or external-sync behavior (0.36.0 / 0.70.x own those); guardrails/regressions close out in 0.33.10.4.
+
+As of 0.33.10.4, the Calendar host is guardrailed and the 0.33.10 calendar branch is closed at this boundary. The `views.calendar-host` static guardrail fails if the protected page stops being a minimal host, if the adapter hand-builds framework-owned page/header/filter/status anatomy instead of using view primitives, if entries stop opening through the canonical Task editor opener, if the surface fetches anything beyond the bounded calendar window and filter options or adds mutating methods, if calendar event records/iCal/external-provider references appear in the surface or schema (0.36.0 owns events/iCal; 0.70.x owns Google/Outlook sync), or if Workbench grows beyond its lightweight week-view link. The `tasks.task-calendar-window` isolated regression proves bounded-range enforcement, workspace and permission scoping (no cross-workspace or unreadable-task leaks in rows or reminder markers), reminder-marker correctness (default date-only/date-time timing, lookahead, completed/archived exclusion, ordering), client/project filter scoping, and disabled-module read behavior. Year view, calendar events, iCal, and shared-calendar display remain 0.36.0 work.
+
+As of 0.33.10.3, the Calendar surface has filters, period navigation, and framework navigation. A collapsed shared filter panel offers Client (Business workspaces only, hidden elsewhere) and Project selects hydrated from `/api/client-projects` through the shared `clientProjectOptions` helper, mirroring the Files/Tasks filter behavior; the server applies the shared descendant-aware filter scope before permission filtering. Previous/Today/Next period controls and the month/week/day switch re-query the bounded window, and `calendar.html?view=` / `?date=` query parameters select the initial view and anchor. The Tasks module contributes the permission-aware `Calendar` navigation entry (`requiredPermissions: ["tasks.view"]`, module-enabled gated) which the framework places in the Actions menu after Tasks, and Workbench's focus panel carries a lightweight "See this week on the calendar" link to `calendar.html?view=week` that is hidden when the navigation entry is not present — Workbench does not duplicate any calendar logic.
 
 As of 0.33.6.12f, the Pick up where I left off focus boosts the second-most-recent updated readable active task from the Tasks Workbench item source after running/paused timer resume rows. The boost uses canonical task `updated_at`, respects Client/Project filters and source permissions, deduplicates against existing resume rows, and does not fabricate a candidate when fewer than two eligible tasks are in scope.

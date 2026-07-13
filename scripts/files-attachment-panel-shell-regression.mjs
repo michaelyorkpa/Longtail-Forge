@@ -105,12 +105,12 @@ assert.match(styles, /\.file-attachment-item\.is-unavailable:not\(\.is-deleted\)
 assert.match(styles, /\.file-attachment-recovery-state\s*\{[\s\S]*color:\s*var\(--color-muted\)/, "Recovery-state copy should stay quiet");
 assert.match(styles, /\.file-attachment-actions\s*\{[\s\S]*flex-wrap:\s*wrap/, "Attachment action shell should wrap safely in stacked dialogs");
 
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for attachment panel shell changes");
-assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Notes should cache-bust the attachment helper for panel shell changes");
-assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74/, "Tasks should cache-bust the shared stylesheet for attachment panel shell changes");
-assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Tasks should cache-bust the attachment helper for panel shell changes");
-assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=36/, "Workbench should cache-bust the shared stylesheet for attachment panel shell changes");
-assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=8[\s\S]*js\/shared\/file-preview\.js\?v=1/, "Workbench should cache-bust the attachment helper for panel shell changes");
+assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the shared stylesheet for attachment panel shell changes");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Notes should reference the attachment helper for panel shell changes");
+assert.match(tasksHtml, /css\/longtail-forge\.css/, "Tasks should reference the shared stylesheet for attachment panel shell changes");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the attachment helper for panel shell changes");
+assert.match(workbenchHtml, /css\/longtail-forge\.css/, "Workbench should reference the shared stylesheet for attachment panel shell changes");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the attachment helper for panel shell changes");
 
 assert.match(functionBlock(notesJs, "openFilesDialog"), /view\.showModal\(filesDialog, \{ parent: dialog, trigger: filesToggle \}\)[\s\S]*data-file-attachment-input[\s\S]*focusTarget\?\.focus\(\)/, "Notes Files utility should still open as a stacked child dialog and focus the helper input when available");
 assert.match(functionBlock(taskDialog, "openTaskFilesDialog"), /showTaskModal\(filesDialog, \{ parent: dialog, trigger: fields\.fileToggle \}\)[\s\S]*\[data-file-attachment-input\]/, "Tasks Files utility should still open as a stacked child dialog and focus the helper input when saved");

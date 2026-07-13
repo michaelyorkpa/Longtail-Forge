@@ -127,6 +127,22 @@ Task list rows show compact linked-note count badges where the current user may 
 
 Tasks do not expose a task delete workflow in the shipped browser or public API surface. Archive and restore are the lifecycle actions for inactive task history.
 
+## Calendar Window Read Model
+
+`GET /api/tasks/calendar` -> `tasksService.calendarWindow` -> `tasksRepository.readDueBetween` is the read-only task calendar-window contract consumed by the 0.33.10 Calendar surface. It is a bounded, permission-shaped read model, not a calendar event store: there is no calendar event record type, no event creation, no iCal, and no external calendar sync (those remain 0.36.0 / 0.70.x work).
+
+As of 0.33.10.1 the contract is:
+
+- The window is date-key bounded. `start`/`end` (or `startDate`/`endDate` forms) default to today and a 30-day window; `end` before `start` is rejected with 400, and windows wider than 93 days are rejected with 400 instead of loading all tasks.
+- As of 0.33.10.3, optional `clientId` (Business workspaces only) and `projectId` query filters narrow the window through the same shared descendant-aware client/project filter scope the Tasks list uses (`resolveClientProjectFilterScope` + the canonical context-filter match), applied before permission filtering, so reminder markers reflect the filtered set. A selected project takes precedence over the client filter exactly as in the Tasks list.
+- Results stay workspace-scoped through `readDueBetween` and permission-shaped through the same `canReadTask` filter as other Tasks reads. Archived tasks are excluded by the repository query; completed tasks stay visible as history rows with their `complete` status, matching the rest of Tasks.
+- Each calendar row extends the shared task summary row with `id`, `allDay`, `startDate`/`endDate`, `startDateTimeUtc`, a `source` descriptor, and an `assignees` summary (`user_id`, `username`, `displayName`). Rows therefore carry title, status, priority, due date/time/timezone, `due_at_utc`, client/project ids and readable names, `assignee_ids`, `assigned_to_current_user`, and the `tasks.html?task=...` URL a calendar entry links back to.
+- The payload includes `reminders`: read-only markers for the 0.33.5.21 reminder schedule, computed from the same effective reminder policy chain as the scheduler (`taskRemindersService.computeReminderOccurrencesForTasks`, one batched offsets read per window instead of per-task chain reads). Each marker carries `task_id`, `title`, the session-timezone `date` key the reminder fires on, `reminder_at_utc`, `due_at_utc`, `due_kind`, `offset_minutes`, policy `source`, and the task URL, sorted by fire time. Completed and archived tasks produce no markers.
+- Reminder markers use a 7-day due-date lookahead past the window end so reminders that fire inside the window for tasks due shortly after it still appear; those lookahead tasks are not returned as calendar rows.
+- `source_enabled` reports the Tasks module status like the Workbench items payload. The read stays available when the module is disabled, matching other Tasks GET routes (module gating blocks writes, not reads).
+
+As of 0.33.10.4, this contract is regression-backed: `scripts/regressions/tasks/task-calendar-window.regression.mjs` proves bounded-range enforcement, workspace/permission scoping, reminder-marker correctness, filter scoping, and disabled-module reads, and `scripts/regressions/views/calendar-host.regression.mjs` pins the read-only host boundary (no calendar event records, iCal, or external sync — 0.36.0 / 0.70.x own those).
+
 ## Resume-Safe Context
 
 Tasks expose resume-safe context through task reads, task summaries, Workbench task items, task search documents, audit metadata, and internal task event metadata. The core fields are:

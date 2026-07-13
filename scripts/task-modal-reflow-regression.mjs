@@ -16,9 +16,9 @@ assert.match(taskDialogScript, /utilityActions: \[[\s\S]*id: "tags"[\s\S]*id: "f
 assert.match(taskDialogScript, /button\.dataset\.taskTagsToggle[\s\S]*button\.dataset\.taskFilesToggle[\s\S]*button\.dataset\.copyTaskLink/, "Footer utility actions should keep task-owned hooks");
 assert.match(taskDialogScript, /function createTaskTagsDialog\(\)[\s\S]*view\.createModal\([\s\S]*title: "Task Tags"/, "Tags picker should mount in a stacked child dialog");
 assert.match(taskDialogScript, /function createTaskFilesDialog\(\)[\s\S]*view\.createModal\([\s\S]*title: "Task Files"/, "Files helper should mount in a stacked child dialog");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=74/, "Task reflow should cache-bust shared CSS");
-assert.match(tasksView, /js\/shared\/icons\.js\?v=4/, "Task reflow should cache-bust shared icons");
-assert.match(tasksView, /js\/task-dialog\.js\?v=23/, "Task reflow should cache-bust Task dialog JS");
+assert.match(tasksView, /css\/longtail-forge\.css/, "Task reflow should reference shared CSS");
+assert.match(tasksView, /js\/shared\/icons\.js/, "Task reflow should reference shared icons");
+assert.match(tasksView, /js\/task-dialog\.js/, "Task reflow should reference Task dialog JS");
 
 assert.match(taskDialogScript, /fields\.taskDetailsPanel\.open = !task \|\| isDuplicate/, "Task Details should open for Add/Duplicate and collapse for Edit");
 assert.match(taskDialogScript, /writeParentTaskFields/, "Task dialog should populate Parent Task options");

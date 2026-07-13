@@ -30,9 +30,13 @@ try {
   const actionLabels = (actionsMenu.items || []).map((item) => item.label);
   assert.deepEqual(
     actionLabels,
-    ["Time Keeping", "Tasks", "Files", "Project Settings", "Reporting"],
+    ["Time Keeping", "Tasks", "Calendar", "Files", "Project Settings", "Reporting"],
     "Actions menu should keep the expected direct item order",
   );
+
+  const calendarItem = (actionsMenu.items || []).find((item) => item.href === "calendar.html");
+  assert.ok(calendarItem, "Actions should contain the Tasks-contributed Calendar entry");
+  assert.equal(calendarItem.moduleId, "tasks", "Calendar nav entry should stay module-aware through the Tasks contribution");
 
   const projectSettings = (actionsMenu.items || []).find((item) => item.id === "projects-settings");
   assert.ok(projectSettings, "Actions should directly contain Project Settings");

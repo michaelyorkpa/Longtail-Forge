@@ -40,8 +40,8 @@ assertStrictSurface(surfaces.get("client-projects.projects"), {
 
 assertMinimalStrictHost(clientsHtml, "Clients");
 assertMinimalStrictHost(projectsHtml, "Projects");
-assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Clients should load the updated shared renderer stack");
-assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Projects should load the updated shared renderer stack");
+assert.match(clientsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Clients should load the updated shared renderer stack");
+assert.match(projectsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Projects should load the updated shared renderer stack");
 
 assert.match(manifestContract, /VIEW_FILTER_PLACEMENTS[\s\S]*slide-out-sidebar/, "Manifest contract should allow shared filter placement");
 assert.match(manifestContract, /VIEW_TABLE_SECONDARY_ROW_FIELDS[\s\S]*startColumn[\s\S]*endBeforeColumn/, "Manifest contract should allow table secondary rows");

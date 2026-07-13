@@ -49,12 +49,12 @@ assert.match(
 
 assert.match(
   footer,
-  /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js\?v=2/,
+  /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js/,
   "QAC should keep module action registry loading in the shared dependency base",
 );
 assert.match(
   footer,
-  /"time-tracking\.timer\.create": \[[\s\S]*js\/shared\/page-controller\.js[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/time-tracking-timer-dialog\.js\?v=1/,
+  /"time-tracking\.timer\.create": \[[\s\S]*js\/shared\/page-controller\.js[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*js\/shared\/client-project-options\.js[\s\S]*js\/time-tracking-timer-dialog\.js/,
   "QAC should lazy-load the Time Tracking Create Timer dialog dependencies",
 );
 assert.match(

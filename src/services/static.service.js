@@ -20,6 +20,7 @@ const contentTypes = {
 const frameworkProtectedViews = new Map([
   ["api-keys.html", { id: "api-keys", file: "api-keys.html" }],
   ["audit-log.html", { id: "audit-log", file: "audit-log.html" }],
+  ["calendar.html", { id: "calendar", file: "calendar.html" }],
   ["dashboard.html", { id: "dashboard", file: "dashboard.html" }],
   ["files.html", { id: "files", file: "files.html" }],
   ["files-settings.html", { id: "files-settings", file: "files-settings.html" }],

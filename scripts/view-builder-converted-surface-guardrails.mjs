@@ -38,7 +38,7 @@ assert.match(helper, /function createDetailActionStrip/, "View builder should ow
 assert.match(helper, /function createInlineActionRow/, "View builder should own inline action rows");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists converted surface should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=5[\s\S]*js\/lists\.js\?v=14/, "Lists should load view-builder before the converted module script");
+assert.match(listsHtml, /js\/shared\/view-builder\.js[\s\S]*js\/lists\.js/, "Lists should load view-builder before the converted module script");
 assert.doesNotMatch(listsHtml, /<dialog|data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists HTML should not reintroduce converted anatomy");
 assert.doesNotMatch(listsJs, /document\.createElement\("dialog"\)/, "Converted Lists should use the shared modal helper for dialogs");
 assertNoHardcodedLightBackgrounds(listsJs, "Lists converted browser source");
@@ -67,11 +67,11 @@ for (const helperName of [
 }
 
 for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
-  assert.match(html, /js\/shared\/view-builder\.js\?v=\d+/, "Client/Project surfaces should load view-builder");
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=\d+/, "Client/Project surfaces should load view-renderer");
+  assert.match(html, /js\/shared\/view-builder\.js/, "Client/Project surfaces should load view-builder");
+  assert.match(html, /js\/shared\/view-renderer\.js/, "Client/Project surfaces should load view-renderer");
   assert.ok(
     html.indexOf("js/shared/view-builder.js") < html.indexOf("js/shared/view-renderer.js") &&
-      html.indexOf("js/shared/view-renderer.js") < html.indexOf("clients-projects.js?v=20"),
+      html.indexOf("js/shared/view-renderer.js") < html.indexOf("clients-projects.js"),
     "Client/Project surfaces should load view-builder and view-renderer before shared Client/Project code",
   );
 }

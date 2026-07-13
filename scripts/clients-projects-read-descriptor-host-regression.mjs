@@ -49,8 +49,8 @@ assertMinimalHost(projectsHtml, {
   hostClass: "projects-page",
   forbiddenHooks: /\b(data-add-project-top|data-client-list|data-client-status-filter|data-project-client-filter|data-client-project-status|project-page-toolbar|page-heading)\b/,
 });
-assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Clients host should load builder, renderer, then adapter");
-assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Projects host should load builder, renderer, then adapter");
+assert.match(clientsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Clients host should load builder, renderer, then adapter");
+assert.match(projectsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Projects host should load builder, renderer, then adapter");
 
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Adapter should no longer recreate page/filter/status/list anatomy inside minimal hosts");
 assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor pages");

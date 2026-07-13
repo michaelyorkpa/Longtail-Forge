@@ -263,7 +263,7 @@ async function assertNavigation(session) {
   assert.equal(listsLink.label, "Procurement Lists");
   assert.deepEqual(
     actionsMenu.items.map((item) => item.label),
-    ["Time Keeping", "Tasks", "Notes", "Procurement Lists", "Files", "Project Settings", "Reporting"],
+    ["Time Keeping", "Tasks", "Calendar", "Notes", "Procurement Lists", "Files", "Project Settings", "Reporting"],
   );
 }
 

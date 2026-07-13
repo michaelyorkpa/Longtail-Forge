@@ -16,7 +16,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should stay a minimal descriptor host");
-assert.match(filesHtml, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/shared\/file-preview\.js\?v=1[\s\S]*js\/files\.js\?v=15/, "Files host should load the client/project provider helper, renderer, and shared preview before the Files adapter");
+assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the client/project provider helper, renderer, and shared preview before the Files adapter");
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
 
 assert.match(frameworkSurfaceSource, /id:\s*"files\.browse"[\s\S]*layout:\s*"slide-out-sidebar"/, "Files descriptor should use the shared slide-out sidebar layout");

@@ -14,8 +14,8 @@ const workbenchScript = readText("public/js/workbench.js");
 assert.equal(packageJson.version, appVersion, "package.json should report the collapsible Workbench sections version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the collapsible Workbench sections version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the collapsible Workbench sections version");
-assert.match(workbenchHtml, /longtail-forge\.css\?v=36/, "Workbench should bump the shared stylesheet cache key for Workbench section styling");
-assert.match(workbenchHtml, /workbench\.js\?v=36/, "Workbench should bump its script cache key for Workbench section changes");
+assert.match(workbenchHtml, /longtail-forge\.css/, "Workbench should bump the shared stylesheet cache key for Workbench section styling");
+assert.match(workbenchHtml, /workbench\.js/, "Workbench should bump its script cache key for Workbench section changes");
 
 assert.doesNotMatch(
   workbenchScript,

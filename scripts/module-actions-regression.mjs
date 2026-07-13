@@ -153,9 +153,9 @@ check("Client and Project actions use module-owned reusable dialog helpers", () 
 });
 
 check("Notes, Lists, and Files actions use module-owned canonical openers", () => {
-  assert.match(notesView, /js\/shared\/module-actions\.js\?v=2/);
-  assert.match(listsView, /js\/shared\/module-actions\.js\?v=2/);
-  assert.match(filesView, /js\/shared\/module-actions\.js\?v=2/);
+  assert.match(notesView, /js\/shared\/module-actions\.js/);
+  assert.match(listsView, /js\/shared\/module-actions\.js/);
+  assert.match(filesView, /js\/shared\/module-actions\.js/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/);
