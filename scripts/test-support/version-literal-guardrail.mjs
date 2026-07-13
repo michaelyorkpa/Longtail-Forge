@@ -12,9 +12,6 @@ const EXCLUDED_DIRECTORIES = new Set([
 ]);
 const EXCLUDED_FILES = new Set([
   ".eslintcache",
-  ".node-server.pid",
-  ".node-server.stderr.log",
-  ".node-server.stdout.log",
 ]);
 const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
 

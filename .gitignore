@@ -1,5 +1,5 @@
-# Don't upload the PID file for the node server
-.node-server.pid
+# Local node-server process artifacts. Logs belong under logs/.
+.node-server*
 
 # Dependencies
 node_modules/
@@ -9,7 +9,7 @@ node_modules/
 data/*
 !data/.gitkeep
 
-# Local runtime logs
+# Local runtime logs (all repository-local logging belongs here)
 logs/*
 !logs/.gitkeep
 
