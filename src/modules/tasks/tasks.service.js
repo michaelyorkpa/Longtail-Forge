@@ -2483,8 +2483,17 @@ function dashboardTaskRow(task, context) {
     dueLabel: dashboardTaskDueLabel(task),
     timerStatus: timer?.timer_status || "",
     assignedToCurrentUser: (task.assignee_ids || []).includes(context.currentUserId),
-    action: dashboardTaskActions().workbench,
+    action: dashboardTaskWorkbenchAction(task),
     secondaryAction: dashboardTaskActions().tasks,
+  };
+}
+
+function dashboardTaskWorkbenchAction(task) {
+  // Per-row Workbench handoffs deep-link into Task Focus for that task; the
+  // panel-level Open Workbench action stays the generic Workbench entry.
+  return {
+    ...dashboardTaskActions().workbench,
+    href: `${DASHBOARD_WORKBENCH_URL}?taskId=${encodeURIComponent(task.task_id)}`,
   };
 }
 

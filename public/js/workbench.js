@@ -323,15 +323,21 @@ function createGuidedFocusPanel() {
     attrs: { "aria-labelledby": "workbench-focus-heading" },
     children: [
       workbenchViewHelpers.createElement("div", {
-        className: "workbench-panel-heading",
+        className: ["workbench-panel-heading", "workbench-focus-heading-row"],
         children: [
-          workbenchViewHelpers.createElement("h2", {
-            id: "workbench-focus-heading",
-            text: "What should we focus on?",
+          workbenchViewHelpers.createElement("div", {
+            className: "workbench-focus-heading-copy",
+            children: [
+              workbenchViewHelpers.createElement("h2", {
+                id: "workbench-focus-heading",
+                text: "What should we focus on?",
+              }),
+              workbenchViewHelpers.createElement("p", {
+                text: "Pick the question closest to the work you want to resume.",
+              }),
+            ],
           }),
-          workbenchViewHelpers.createElement("p", {
-            text: "Pick the question closest to the work you want to resume.",
-          }),
+          createCalendarWeekLink(),
         ],
       }),
       focusModeList,
@@ -343,7 +349,6 @@ function createGuidedFocusPanel() {
           projectFocusControl,
         ],
       }),
-      createCalendarWeekLink(),
     ],
   });
 
@@ -351,15 +356,25 @@ function createGuidedFocusPanel() {
 }
 
 // Lightweight entry point to the read-only Calendar surface; the calendar
-// owns all calendar logic, Workbench only links to its week view.
+// owns all calendar logic, Workbench only links to its week view. Icon-only
+// in the panel's top-right, aligned like the Task modal's heading utilities.
 function createCalendarWeekLink() {
   calendarWeekLinkElement = workbenchViewHelpers.createElement("a", {
-    className: "workbench-calendar-link",
-    attrs: { href: "calendar.html?view=week" },
-    text: "See this week on the calendar",
+    className: ["button-link", "icon-button", "workbench-calendar-link"],
+    attrs: {
+      href: "calendar.html?view=week",
+      title: "See this week on the calendar",
+      "aria-label": "See this week on the calendar",
+    },
     dataset: { workbenchCalendarLink: "" },
     hidden: true,
   });
+
+  const icons = window.LongtailForge?.icons;
+
+  if (icons?.createIcon) {
+    calendarWeekLinkElement.appendChild(icons.createIcon("calendar", { size: 18 }));
+  }
 
   return calendarWeekLinkElement;
 }
@@ -570,10 +585,52 @@ async function loadWorkbench() {
     restoreCardState();
     renderWorkbench();
     startTicking();
-    setStatus("");
+
+    if (!(await applyTaskFocusDeepLink())) {
+      setStatus("");
+    }
   } catch (error) {
     setStatus(error.message || "Workbench could not be loaded.", { isError: true });
   }
+}
+
+// Deep-link contract: workbench.html?taskId=<id> lands directly in Task Focus
+// for a readable task. Anything else — unknown id, unreadable or
+// cross-workspace task, or a disabled Tasks module — falls back to Focus
+// Selection with the same generic message, so the link reveals nothing about
+// whether the task exists.
+const WORKBENCH_TASK_FOCUS_LINK_FALLBACK = "The linked task could not be opened. Choose a focus to continue.";
+
+function taskFocusDeepLinkTaskId() {
+  const params = new URLSearchParams(window.location?.search || "");
+  return String(params.get("taskId") || "").trim();
+}
+
+async function applyTaskFocusDeepLink() {
+  const taskId = taskFocusDeepLinkTaskId();
+
+  if (!taskId) {
+    return false;
+  }
+
+  if (!moduleEnabled("tasks")) {
+    setStatus(WORKBENCH_TASK_FOCUS_LINK_FALLBACK, { isError: true });
+    return true;
+  }
+
+  const candidate = (state.focusCandidates || []).find((entry) => candidateTaskId(entry) === taskId)
+    || (state.workCandidates || []).find((entry) => candidateTaskId(entry) === taskId)
+    || {};
+
+  await enterTaskFocus(candidate, taskId);
+
+  if (state.activeTaskFocus?.error) {
+    resetTaskFocusState();
+    renderWorkbench();
+    setStatus(WORKBENCH_TASK_FOCUS_LINK_FALLBACK, { isError: true });
+  }
+
+  return true;
 }
 
 async function loadWorkbenchSourceData(registry) {
@@ -1176,12 +1233,14 @@ function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
     children: [
       workbenchViewHelpers.createDetailHeader({
         badges: candidateBadges(candidate),
-        meta: candidate.contextLabel || candidate.reason || "",
-        title: candidate.title || "Untitled work",
+        meta: recommendedCandidateMeta(candidate),
+        title: safeCandidateText(candidate.title, "Untitled work"),
       }),
       workbenchViewHelpers.createElement("p", {
         className: "workbench-recommended-reason",
-        text: candidate.reason || candidate.nextAction || "This is the strongest match for the selected focus.",
+        text: safeCandidateText(candidate.reason, "")
+          || safeCandidateText(candidate.nextAction, "")
+          || "This is the strongest match for the selected focus.",
       }),
       workbenchViewHelpers.createDetailActionStrip({
         actions: actionElements,
@@ -1191,6 +1250,40 @@ function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
   });
 
   return card;
+}
+
+function recommendedCandidateMeta(candidate = {}) {
+  // Prefer real client/project context so identically-titled work is
+  // distinguishable; never surface copy carrying a raw identifier.
+  return candidateClientProjectLabel(candidate)
+    || safeCandidateText(candidate.contextLabel, "")
+    || safeCandidateText(candidate.reason, "");
+}
+
+function candidateClientProjectLabel(candidate = {}) {
+  const parts = [];
+  const clientId = String(candidate.clientId || "").trim();
+  const projectId = String(candidate.projectId || "").trim();
+  const client = clientId
+    ? (state.clients || []).find((entry) => entry.id === clientId && !entry.isWorkspaceScope)
+    : null;
+
+  if (client) {
+    parts.push(clientOptionLabel(client) || client.name || "");
+  }
+
+  if (projectId) {
+    for (const entry of state.clients || []) {
+      const project = (entry.projects || []).find((item) => item.id === projectId);
+
+      if (project) {
+        parts.push(project.optionLabel || project.name || "");
+        break;
+      }
+    }
+  }
+
+  return parts.filter(Boolean).join(" / ");
 }
 
 function recommendedEmptyState() {
@@ -2541,9 +2634,11 @@ function safeCandidateText(value, fallback = "") {
 }
 
 function looksLikeRawId(value) {
+  // Matches embedded identifiers too ("Timer Paused for <uuid>."), not only
+  // whole-string ids: copy that carries a raw id anywhere is not user-safe.
   const text = String(value || "").trim();
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text) ||
-    /^[0-9a-f]{24,}$/i.test(text);
+  return /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i.test(text) ||
+    /\b[0-9a-f]{24,}\b/i.test(text);
 }
 
 async function ensureWorkbenchModuleAction(actionId) {

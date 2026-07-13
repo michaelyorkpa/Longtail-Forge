@@ -639,7 +639,13 @@ async function runTaskMutationTests(api, fixtures) {
       const upcomingIds = response.body.upcomingRows.map((task) => task.task_id);
       assert.ok(upcomingIds.includes(nextRecurringTask.task_id));
       assert.ok(!upcomingIds.includes(workspaceTask.body.task.task_id));
-      assert.equal(response.body.upcomingRows[0].action.href, "workbench.html");
+      const firstUpcomingRow = response.body.upcomingRows[0];
+      assert.equal(
+        firstUpcomingRow.action.href,
+        `workbench.html?taskId=${encodeURIComponent(firstUpcomingRow.task_id)}`,
+        "per-task Open Workbench handoffs must deep-link into Task Focus for that row's task",
+      );
+      assert.equal(response.body.actions.workbench.href, "workbench.html");
       assert.equal(response.body.actions.tasks.href, "tasks.html");
     });
   });
@@ -713,7 +719,7 @@ async function runTaskMutationTests(api, fixtures) {
       const timerRow = response.body.attentionRows.find((row) => row.task_id === timerTask.body.task.task_id);
       assert.ok(timerRow);
       assert.ok(timerRow.reasons.includes("Timer running"));
-      assert.equal(timerRow.action.href, "workbench.html");
+      assert.equal(timerRow.action.href, `workbench.html?taskId=${encodeURIComponent(timerRow.task_id)}`);
     });
   });
   await assertUnifiedTimerState({
@@ -770,7 +776,7 @@ async function runTaskMutationTests(api, fixtures) {
       const timerRow = response.body.attentionRows.find((row) => row.task_id === timerTask.body.task.task_id);
       assert.ok(timerRow);
       assert.ok(timerRow.reasons.includes("Timer paused"));
-      assert.equal(timerRow.action.href, "workbench.html");
+      assert.equal(timerRow.action.href, `workbench.html?taskId=${encodeURIComponent(timerRow.task_id)}`);
     });
   });
   await assertUnifiedTimerState({

@@ -4,208 +4,123 @@ This file is the detailed per-version forward plan for Longtail Forge. README.md
 
 Active cursor: `0.33.11`.
 
-## Version 0.33.11 - Self-Hosted Release Packaging and Bare-Metal Auto-Upgrade
+## Version 0.33.11 - Short-Term Critical Cleanup Sweep
 
 Purpose:
 
-Give self-hosted installs a clean, runtime-only release artifact and a safe, opt-in mechanism that checks GitHub for a newer published release and can apply it in place. This is the first packaging/distribution slice: before it, "self-hosting" means cloning the whole repo (dev/test tooling and all); after it, a self-hoster runs a slim runtime artifact and can upgrade without manually re-pulling and reinstalling.
+Knock out the backlog of small, concrete UI/UX and behavior fixes that accumulated in the `TODO.md` Short Term section, before they slip any further. These are individually minor but collectively degrade day-to-day usability. Each item below is promoted verbatim-in-intent from `TODO.md` Short Term and should be a small, self-contained change.
 
-The upgrade target for this version is bare-metal: a single Node process on a host (for example under systemd or a process manager), not a container or orchestrated fleet. Container images and SaaS/managed-fleet upgrades are explicitly out of scope here and deferred to later hosting/SaaS work.
+This is a cleanup/polish sweep, not a feature version. Items are grouped by area so they can be picked off independently; none should turn into a large refactor. If any item turns out to be larger than a quick fix, split it into its own slice rather than expanding this one.
 
-This version has two halves that must land together to be useful:
+Items intentionally left in `TODO.md` (not part of this sweep): the Lists UI/UX notes (they belong to 0.33.13), the Suggested-Library revisit (deferred), the human Testing Goals checklist, the Knowledge Base "make it smart" idea (belongs to 0.34), the Mobile Tweaks (deferred to mobile polish), and the broader Administration/Settings audit (larger than a quick fix).
 
-- A packaging boundary that separates runtime code from dev/test tooling so the shipped artifact is slim and does not require ESLint/TypeScript/Vitest/Playwright/the regression suite to run.
-- A bare-metal updater that compares the installed version against the latest GitHub release, surfaces availability, and can download, verify, back up, apply, migrate, restart, and roll back on failure.
+### Version 0.33.11.1 - Tasks quick fixes
 
-Dependencies and sequencing:
+**Model: High Effort** — Tasks behavior spans recurrence, lifecycle validation, hierarchy, modal focus, and shared input interactions, so subtle regressions need careful coverage.
 
-- Builds on 0.33.6.15 canonical app-version source-of-truth, which the updater uses to compare installed vs. latest.
-- Builds on the 0.33.6.16 release-gate closeout conductor, so a release artifact can be gated before it is published.
-- Relies on the runtime-vs-dev separation the codebase already maintains (`npm start` stays `node server.js`; TypeScript/Vitest/Playwright are dev-only; Zod stays a runtime dependency because it validates untrusted input). This slice formalizes that separation into a packaging boundary rather than inventing it.
-- Assumes an actual published release channel exists (GitHub Releases for the AGPL core; see the 0.33.6.16.9 licensing/public-release gates). If releases are not yet published, this slice defines the mechanism and the manual-artifact fallback, and the GitHub fetch activates once a public release channel is live.
-- Slotted before Reporting (now 0.33.12) at project direction; it is otherwise independent of Reporting.
-- Bare-metal only; container and multi-tenant SaaS upgrade orchestration are deferred and cross-referenced to later hosting/SaaS and 0.38.x production-hardening work.
-
-Key decisions:
-
-- Release source is GitHub Releases of the repository; the updater compares the canonical installed app version against the latest release tag.
-- The release artifact is a packaged, runtime-only tarball plus a checksum (with room to add a signature later); the updater verifies the checksum before applying anything.
-- Upgrades are owner/admin-gated, opt-in, and never destructive-by-default: the updater always backs up the current code and database before applying, and rolls back automatically if a post-upgrade health check fails.
-- The app can stage an update and request a restart; the actual process restart is owned by the host supervisor (systemd/process manager), not by the app force-killing itself unmanaged.
-- An air-gapped/manual fallback lets an admin upload a verified artifact instead of fetching from GitHub.
-- Self-hosted installs only: hosted/SaaS deployments manage their own pipeline and must be able to disable the in-app updater entirely.
-
-Non-goals:
-
-- Do not add container/Docker/Kubernetes image auto-upgrade in this version; bare-metal single-host only.
-- Do not build multi-tenant/fleet upgrade orchestration.
-- Do not change `npm start`.
-- Do not auto-apply an upgrade without explicit opt-in and a completed backup.
-- Do not ship dev/test tooling, dev fixtures, `.env` files, or secrets in the release artifact.
-- Do not strip Zod or other runtime validation as if it were test tooling.
-- Do not weaken permission, workspace, private/secure-content, storage-key, or migration guardrails to make upgrades possible.
-- Do not build a full update-server/CDN; GitHub Releases plus manual upload is the surface for this version.
-
-### Version 0.33.11.1 - Runtime/dev file boundary and release-artifact packaging
-
-Purpose:
-
-Formalize which files are runtime vs. dev/test and produce a slim, runtime-only release artifact.
-
-- [ ] Define the runtime file boundary explicitly:
-
-  - [ ] runtime: `server.js`, `src/`, `public/`, database migrations/schema, runtime dependencies, canonical version/asset-version sources.
-  - [ ] excluded: `scripts/` regression tooling, tests, ESLint/tsconfig/Vitest/Playwright configs, dev fixtures, roadmap/dev docs, `devDependencies`.
-- [ ] Choose and implement the boundary mechanism:
-
-  - [ ] a `package.json` `files` allowlist and/or `.npmignore`, so a packed artifact contains only runtime paths.
-  - [ ] install with `npm ci --omit=dev` on the target.
-- [ ] Add a package/release script that produces a runtime-only artifact (tarball) plus a checksum.
-- [ ] Keep `npm start` as `node server.js` on the packaged artifact.
-- [ ] Keep Zod and other runtime dependencies in the artifact; do not treat them as dev tooling.
-- [ ] Add a guardrail/regression proving:
-
-  - [ ] the packaged artifact excludes `scripts/`/regression/test/dev-config paths.
-  - [ ] the packaged artifact includes every runtime path required to boot.
-  - [ ] a booted artifact does not import any dev/test package.
-  - [ ] no `.env`/secret/dev fixture is present in the artifact.
-- [ ] Add self-hosted install/upgrade docs describing the slim artifact and `--omit=dev`.
+- [ ] Workbench: when a parent task is selected, include child project tasks in the completable set, not just tasks directly on the parent — report all tasks within the parent project.
+- [ ] Checklists: tighten the spacing in the checklist dialog (currently a little cramped).
+- [ ] Checklists: pressing Enter should record a new checklist item / save changes to the current item, not close the modal without saving.
+- [ ] Tags filter (Sorting & Filters): replace the tags dropdown with a type-to-search box with suggestions, matching how tags are entered elsewhere.
+- [ ] Tag input generally: allow starting to type a tag and then pressing the down arrow to select from the suggestions (no mouse required).
+- [ ] Parent/Child - Parent Task picker: for new tasks, do not list completed/archived tasks as candidate parents (keep the existing client/project filtering).
+- [ ] Parent/Child - inheritance: child tasks inherit the parent's Due Date, Due Time, Priority, Client (if not already selected), and Project (if not already selected).
+- [ ] Parent/Child - linkage indicator: show a clickable "Child of: {{truncatedTaskName}}" chip on line-item displays so the link is visible beyond the Parent Task dropdown.
+- [ ] Parent/Child - nested display: in list views (e.g. Actions -> Tasks), nest child tasks under their parent, the way Clients and Projects nest.
+- [ ] Modal behavior: on the create modal, Save should convert the dialog into the edit dialog (keeping it open) rather than closing and losing the just-captured task; add a "Save & Close" for the write-it-down-and-go case.
+- [ ] Workspace project narrowing: adding a task with the {{workspaceName}} context should narrow the project list to that workspace's projects (workspace projects with no client).
+- [ ] Recurrence template isolation: a recurring occurrence may be moved into Blocked status and must use its own occurrence-specific Blocked Reason, but the recurrence template must never store that reason or propagate it to later occurrences. Newly generated occurrences start without an inherited Blocked Reason.
+- [ ] Block action: clicking "Block" must open the canonical edit modal for the selected task and focus the "Blocked Reason" field.
+  - [ ] Require Blocked Reason whenever a task is saved in Blocked status; enforce the rule through Tasks-owned validation rather than only the browser control.
 
 Acceptance criteria:
 
-- A packaged release artifact contains runtime code and runtime dependencies only.
-- The artifact boots with `node server.js` and requires no dev/test tooling.
-- A guardrail proves dev/test files and secrets are excluded and runtime files are complete.
+- Each Tasks fix is implemented and covered by focused Tasks regressions where it has testable behavior.
+- A recurring occurrence can be blocked with its own required Blocked Reason; that reason never enters the recurrence template or carries into another occurrence.
+- Block opens the correct task in the canonical editor with Blocked Reason focused, and a task cannot be saved in Blocked status without a reason.
+- No fix expands into a broad Tasks rewrite.
 
-### Version 0.33.11.2 - GitHub release check and version comparison
+### Version 0.33.11.2 - Notes quick fixes
 
-Purpose:
-
-Let a self-hosted install discover whether a newer published release exists.
-
-- [ ] Add an update-check service that queries the GitHub Releases API for the latest release of the configured repository.
-- [ ] Compare the latest release tag against the canonical installed app version (0.33.6.15 source of truth).
-- [ ] Support a configured update channel:
-
-  - [ ] repository/owner.
-  - [ ] stable vs. prerelease inclusion.
-  - [ ] check interval and manual "check now".
-  - [ ] optional token for authenticated/rate-limited access.
-- [ ] Handle failure gracefully: network errors, rate limits, no releases, or malformed tags never crash the app or block normal use.
-- [ ] Cache the last check result and timestamp.
-- [ ] Do not fetch or apply anything in this slice beyond release metadata.
-- [ ] Add focused regressions:
-
-  - [ ] a newer release is detected as available.
-  - [ ] an equal/older release is reported as up to date.
-  - [ ] a prerelease is excluded unless opted in.
-  - [ ] network/rate-limit/malformed responses fail safe.
+- [ ] Bulk editing: add a Notes bulk-edit modal that can set Library, Collection, Note Kind, and Visibility across selected notes.
+- [ ] Modal behavior parity: extend the Tasks Save -> convert-to-edit / "Save & Close" behavior to the Notes create modal.
 
 Acceptance criteria:
 
-- The app can determine whether a newer GitHub release exists without affecting normal operation.
-- Version comparison uses the canonical version source.
-- Update checking is configurable and fails safe.
+- Notes bulk edit updates the listed fields across a selection, respecting permission/workspace scope.
+- Notes create-modal save behavior matches the Tasks pattern.
 
-### Version 0.33.11.3 - Update availability surfacing (admin/about)
+### Version 0.33.11.3 - Timers quick fixes
 
-Purpose:
-
-Show update status to authorized users without nagging everyone.
-
-- [ ] Surface update availability in an owner/admin-visible location (about/app-info and/or admin settings).
-- [ ] Show installed version, latest available version, a release-notes link, and last-checked time.
-- [ ] Gate visibility and any upgrade action behind owner/admin permission; never expose it to ordinary users.
-- [ ] Provide a manual "check now" action.
-- [ ] Keep this warning/informational only in this slice; applying the upgrade is 0.33.11.4+.
-- [ ] Add focused regressions:
-
-  - [ ] the update banner/status is visible to owner/admin only.
-  - [ ] correct installed vs. latest values are shown.
-  - [ ] no exposure to non-admin users or other workspaces.
+- [ ] Context linking after start: allow linking a running timer to a task after it has been started, converting it from a Manual timer to a Task Timer.
 
 Acceptance criteria:
 
-- Authorized users can see whether an update is available and what it contains.
-- Update status respects permission and workspace boundaries.
+- A running manual timer can be linked to a task mid-run and becomes a task timer, with correct attribution.
 
-### Version 0.33.11.4 - Bare-metal upgrade executor: download, verify, backup, apply, migrate, restart
+### Version 0.33.11.4 - Remove leaked development workspaces and harden regression database isolation
 
-Purpose:
-
-Apply an update safely on a single-host bare-metal install.
-
-- [ ] Download the release artifact and its checksum from the selected release.
-- [ ] Verify the checksum (and signature if present) before touching the install; abort on mismatch.
-- [ ] Back up before applying:
-
-  - [ ] the current code/artifact.
-  - [ ] the database file(s).
-  - [ ] a recorded restore point with the pre-upgrade version.
-- [ ] Apply the new artifact into the install location.
-- [ ] Install runtime dependencies with `npm ci --omit=dev`.
-- [ ] Run database migrations using the existing migration runner.
-- [ ] Request a supervised restart (systemd/process manager) rather than force-killing the app; document the supervisor expectation.
-- [ ] Make each step idempotent/resumable where practical and log progress.
-- [ ] Require explicit opt-in/confirmation before any destructive step; a completed backup is a precondition to apply.
-- [ ] Add focused regressions/tests (dry-run/mocked where a full restart is impractical):
-
-  - [ ] a checksum mismatch aborts before any change.
-  - [ ] a backup is created before apply.
-  - [ ] migrations run after apply.
-  - [ ] a missing backup blocks apply.
-
-Acceptance criteria:
-
-- An authorized admin can apply a verified update on bare metal with an automatic pre-upgrade backup.
-- Migrations run as part of the upgrade.
-- The upgrade never applies an unverified artifact and never applies without a backup.
-
-### Version 0.33.11.5 - Health check, rollback, and manual/air-gapped fallback
+**Model: High Effort** — This is destructive, dependency-aware database cleanup plus regression-harness hardening; a subtle mistake could delete retained workspace data or allow fixtures to leak again.
 
 Purpose:
 
-Guarantee a failed upgrade cannot leave the install broken, and support offline installs.
+Remove coding/test-only workspace fixtures from the current canonical database, then make every database-writing regression safe whether it runs through the suite or directly. This is an operator-approved cleanup for the current installation, not a product-level workspace-name allowlist and not a normal startup migration.
 
-- [ ] After restart, run a post-upgrade health check (boot, database connectivity, `/api/app-info` reflects the new version).
-- [ ] On health-check failure, roll back automatically to the backed-up code and database and restore the previous version.
-- [ ] Record upgrade history and outcomes (from/to version, timestamp, success/rollback).
-- [ ] Add a manual/air-gapped fallback: upload a verified artifact and run the same verify/backup/apply/migrate/health-check/rollback path without GitHub access.
-- [ ] Ensure rollback restores the database backup consistently with the code rollback.
-- [ ] Add focused regressions/tests:
-
-  - [ ] a failed health check triggers rollback to the prior version and database.
-  - [ ] a successful upgrade records history and reports the new version.
-  - [ ] the manual artifact path enforces the same verification and backup rules.
-  - [ ] rollback restores a bootable prior state.
-
-Acceptance criteria:
-
-- A failed upgrade automatically restores the prior working install and database.
-- Upgrades are auditable via recorded history.
-- Air-gapped installs can upgrade from a verified local artifact.
-
-### Version 0.33.11.6 - Config, kill-switch, permissions, and closeout
-
-Purpose:
-
-Make the updater safe to ship, configurable, and disable-able, and close out the packaging/upgrade version.
-
-- [ ] Add configuration for: enable/disable the updater, channel (stable/prerelease), check interval, repository, optional token, and auto-check vs. manual-only.
-- [ ] Add a hard kill-switch so hosted/SaaS or locked-down deployments can disable in-app updates entirely.
-- [ ] Restrict all update configuration and actions to owner/admin.
-- [ ] Confirm the updater is inert on hosted/SaaS deployments that manage their own pipeline.
-- [ ] Confirm `npm start` is unchanged and the runtime artifact carries no dev/test tooling.
-- [ ] Confirm no permission/workspace/private-content/storage-key/migration guardrail was weakened to enable upgrades.
-- [ ] Update self-hosted install/upgrade/backup docs and the changelog; verify `/api/app-info` after a simulated upgrade.
-- [ ] Run final verification, including a full backup -> apply -> migrate -> health-check -> rollback dry run.
+- [ ] Add a dedicated maintenance command with a read-only dry-run mode that inventories every workspace proposed for retention or removal, including dependent membership and record counts.
+  - [ ] Resolve and retain exactly these four user-confirmed workspaces in the current installation:
+    - [ ] `York Family`
+    - [ ] `York-Lasher`
+    - [ ] `Personal [michaelyork@raymondtec.com]`
+    - [ ] `Raymond Tec`
+  - [ ] Resolve the displayed `Personal [michaelyork@raymondtec.com]` workspace to its actual workspace and membership identifiers before cleanup; duplicate raw `Personal` rows must never be treated as interchangeable or deleted by name alone.
+  - [ ] Report every development/regression workspace and its dependent-row impact before applying any deletion.
+- [ ] Require an explicit apply flag, a verified pre-cleanup database backup, and one transaction with rollback-on-failure before deleting any unapproved workspace, membership, or dependent record.
+- [ ] Remove all other coding/test-only workspaces from the current installation without changing records, memberships, roles, settings, or ownership inside the four retained workspaces.
+- [ ] Audit every regression and developer utility that creates workspace or membership rows:
+  - [ ] Both suite-run and direct invocation must select a disposable database before importing database/runtime modules.
+  - [ ] A database-writing test must refuse to run against the canonical `data/longtail-forge.db` or another non-disposable configured path.
+  - [ ] Add a guardrail proving the full regression gate and representative direct script runs leave the canonical workspace inventory unchanged.
+- [ ] After cleanup, verify `PRAGMA integrity_check`, `PRAGMA foreign_key_check`, retained workspace ownership/membership access, and the user-visible workspace list.
 
 Acceptance criteria:
 
-- The in-app updater is opt-in, permission-gated, configurable, and fully disable-able.
-- Bare-metal self-hosted installs can check for, apply, and safely roll back GitHub releases with automatic backups.
-- The release artifact is runtime-only, and `npm start` remains `node server.js`.
-- Container/fleet/SaaS upgrade orchestration remains explicitly deferred.
+- The current installation shows only `York Family`, `York-Lasher`, `Personal [michaelyork@raymondtec.com]`, and `Raymond Tec` as workspaces.
+- No data or access belonging to those four retained workspaces is removed or reassigned.
+- Database-writing regressions and developer utilities cannot create fixture workspaces in the canonical database, whether invoked through the suite or directly.
+- The cleanup is dry-run-first, backed up, transactional, idempotent on rerun, and leaves SQLite integrity and foreign-key checks clean.
+
+### Version 0.33.11.5 - Workspace and permission cleanups
+
+- [ ] Inactive users: users inactive in a workspace must not appear in assignable-people pickers, and should not appear in the workspace at all.
+- [ ] Personal/Family workspaces: deprecate the Billable flag everywhere on the front end; it may remain in the database only so long as it can never be used on Personal or Family workspaces.
+- [ ] Remove Workspace wording: review the User Settings "Remove Workspace" flow copy now that it removes the signed-in user's membership rather than deleting the workspace record.
+
+Acceptance criteria:
+
+- Inactive users are absent from assignable pickers and workspace views.
+- The Billable flag is not surfaced in the front end for Personal/Family workspaces.
+- The Remove Workspace copy accurately describes membership removal.
+
+### Version 0.33.11.6 - Framework-owned session/auth warnings
+
+- [ ] Session-expiry and similar warnings (e.g. "Requires Login") must be framework-owned in-app modals, not console messages or notices hidden behind an open modal on the main window. A session that expires mid-edit should surface a clear, foreground framework modal.
+
+Acceptance criteria:
+
+- Auth/session warnings render as framework-owned app modals that are visible even when another modal is open, not console-only or hidden.
+
+### Version 0.33.11.7 - Misc cleanup and closeout
+
+- [ ] Restore the client change-requests documentation that was lost from the repo docs, back into the project-management tools section.
+- [ ] Sweep `TODO.md` Short Term: confirm every item promoted here has been removed from `TODO.md` to prevent drift, and that remaining Short Term items are intentionally deferred.
+- [ ] Update `CHANGELOG.md`, package metadata, and roadmap bookkeeping.
+- [ ] Run relevant narrow regressions plus `npm run check`; verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- The client change-requests docs are restored.
+- Promoted items are removed from `TODO.md`; only intentionally-deferred items remain in Short Term.
+- Release-gate checks pass.
 
 ## Version 0.33.12 - Reporting Framework and Time Report Contribution
 
@@ -455,88 +370,211 @@ Scope (to be defined):
 
 Sequencing:
 
-- Lands after Reporting (0.33.12) and before Knowledge Base (0.34), at project direction.
+- Lands after Reporting (0.33.12), before Self-Hosted Release Packaging (0.33.14), and before Knowledge Base (0.34), at project direction.
 - Requirements must be captured before implementation begins; do not implement from this placeholder.
 
-## Version 0.33.14 - Short-Term Critical Cleanup Sweep
+## Version 0.33.14 - Self-Hosted Release Packaging and Bare-Metal Auto-Upgrade
 
 Purpose:
 
-Knock out the backlog of small, concrete UI/UX and behavior fixes that accumulated in the `TODO.md` Short Term section, before they slip any further. These are individually minor but collectively degrade day-to-day usability. Each item below is promoted verbatim-in-intent from `TODO.md` Short Term and should be a small, self-contained change.
+Give self-hosted installs a clean, runtime-only release artifact and a safe, opt-in mechanism that checks GitHub for a newer published release and can apply it in place. This is the first packaging/distribution slice: before it, "self-hosting" means cloning the whole repo (dev/test tooling and all); after it, a self-hoster runs a slim runtime artifact and can upgrade without manually re-pulling and reinstalling.
 
-This is a cleanup/polish sweep, not a feature version. Items are grouped by area so they can be picked off independently; none should turn into a large refactor. If any item turns out to be larger than a quick fix, split it into its own slice rather than expanding this one.
+The upgrade target for this version is bare-metal: a single Node process on a host (for example under systemd or a process manager), not a container or orchestrated fleet. Container images and SaaS/managed-fleet upgrades are explicitly out of scope here and deferred to later hosting/SaaS work.
 
-Items intentionally left in `TODO.md` (not part of this sweep): the Lists UI/UX notes (they belong to 0.33.13), the Suggested-Library revisit (deferred), the human Testing Goals checklist, the Knowledge Base "make it smart" idea (belongs to 0.34), the Mobile Tweaks (deferred to mobile polish), and the broader Administration/Settings audit (larger than a quick fix).
+This version has two halves that must land together to be useful:
 
-### Version 0.33.14.1 - Tasks quick fixes
+- A packaging boundary that separates runtime code from dev/test tooling so the shipped artifact is slim and does not require ESLint/TypeScript/Vitest/Playwright/the regression suite to run.
+- A bare-metal updater that compares the installed version against the latest GitHub release, surfaces availability, and can download, verify, back up, apply, migrate, restart, and roll back on failure.
 
-- [ ] Workbench: when a parent task is selected, include child project tasks in the completable set, not just tasks directly on the parent — report all tasks within the parent project.
-- [ ] Checklists: tighten the spacing in the checklist dialog (currently a little cramped).
-- [ ] Checklists: pressing Enter should record a new checklist item / save changes to the current item, not close the modal without saving.
-- [ ] Tags filter (Sorting & Filters): replace the tags dropdown with a type-to-search box with suggestions, matching how tags are entered elsewhere.
-- [ ] Tag input generally: allow starting to type a tag and then pressing the down arrow to select from the suggestions (no mouse required).
-- [ ] Parent/Child - Parent Task picker: for new tasks, do not list completed/archived tasks as candidate parents (keep the existing client/project filtering).
-- [ ] Parent/Child - inheritance: child tasks inherit the parent's Due Date, Due Time, Priority, Client (if not already selected), and Project (if not already selected).
-- [ ] Parent/Child - linkage indicator: show a clickable "Child of: {{truncatedTaskName}}" chip on line-item displays so the link is visible beyond the Parent Task dropdown.
-- [ ] Parent/Child - nested display: in list views (e.g. Actions -> Tasks), nest child tasks under their parent, the way Clients and Projects nest.
-- [ ] Modal behavior: on the create modal, Save should convert the dialog into the edit dialog (keeping it open) rather than closing and losing the just-captured task; add a "Save & Close" for the write-it-down-and-go case.
-- [ ] Workspace project narrowing: adding a task with the {{workspaceName}} context should narrow the project list to that workspace's projects (workspace projects with no client).
+Dependencies and sequencing:
 
-Acceptance criteria:
+- Builds on 0.33.6.15 canonical app-version source-of-truth, which the updater uses to compare installed vs. latest.
+- Builds on the 0.33.6.16 release-gate closeout conductor, so a release artifact can be gated before it is published.
+- Relies on the runtime-vs-dev separation the codebase already maintains (`npm start` stays `node server.js`; TypeScript/Vitest/Playwright are dev-only; Zod stays a runtime dependency because it validates untrusted input). This slice formalizes that separation into a packaging boundary rather than inventing it.
+- Assumes an actual published release channel exists (GitHub Releases for the AGPL core; see the 0.33.6.16.9 licensing/public-release gates). If releases are not yet published, this slice defines the mechanism and the manual-artifact fallback, and the GitHub fetch activates once a public release channel is live.
+- Slotted at 0.33.14 after Reporting (0.33.12) and the Lists UI/UX overhaul (0.33.13), at project direction; it is otherwise independent of both branches.
+- Bare-metal only; container and multi-tenant SaaS upgrade orchestration are deferred and cross-referenced to later hosting/SaaS and 0.38.x production-hardening work.
 
-- Each Tasks fix is implemented and covered by focused Tasks regressions where it has testable behavior.
-- No fix expands into a broad Tasks rewrite.
+Key decisions:
 
-### Version 0.33.14.2 - Notes quick fixes
+- Release source is GitHub Releases of the repository; the updater compares the canonical installed app version against the latest release tag.
+- The release artifact is a packaged, runtime-only tarball plus a checksum (with room to add a signature later); the updater verifies the checksum before applying anything.
+- Upgrades are owner/admin-gated, opt-in, and never destructive-by-default: the updater always backs up the current code and database before applying, and rolls back automatically if a post-upgrade health check fails.
+- The app can stage an update and request a restart; the actual process restart is owned by the host supervisor (systemd/process manager), not by the app force-killing itself unmanaged.
+- An air-gapped/manual fallback lets an admin upload a verified artifact instead of fetching from GitHub.
+- Self-hosted installs only: hosted/SaaS deployments manage their own pipeline and must be able to disable the in-app updater entirely.
 
-- [ ] Bulk editing: add a Notes bulk-edit modal that can set Library, Collection, Note Kind, and Visibility across selected notes.
-- [ ] Modal behavior parity: extend the Tasks Save -> convert-to-edit / "Save & Close" behavior to the Notes create modal.
+Non-goals:
 
-Acceptance criteria:
+- Do not add container/Docker/Kubernetes image auto-upgrade in this version; bare-metal single-host only.
+- Do not build multi-tenant/fleet upgrade orchestration.
+- Do not change `npm start`.
+- Do not auto-apply an upgrade without explicit opt-in and a completed backup.
+- Do not ship dev/test tooling, dev fixtures, `.env` files, or secrets in the release artifact.
+- Do not strip Zod or other runtime validation as if it were test tooling.
+- Do not weaken permission, workspace, private/secure-content, storage-key, or migration guardrails to make upgrades possible.
+- Do not build a full update-server/CDN; GitHub Releases plus manual upload is the surface for this version.
 
-- Notes bulk edit updates the listed fields across a selection, respecting permission/workspace scope.
-- Notes create-modal save behavior matches the Tasks pattern.
+### Version 0.33.14.1 - Runtime/dev file boundary and release-artifact packaging
 
-### Version 0.33.14.3 - Timers quick fixes
+Purpose:
 
-- [ ] Context linking after start: allow linking a running timer to a task after it has been started, converting it from a Manual timer to a Task Timer.
+Formalize which files are runtime vs. dev/test and produce a slim, runtime-only release artifact.
 
-Acceptance criteria:
+- [ ] Define the runtime file boundary explicitly:
 
-- A running manual timer can be linked to a task mid-run and becomes a task timer, with correct attribution.
+  - [ ] runtime: `server.js`, `src/`, `public/`, database migrations/schema, runtime dependencies, canonical version/asset-version sources.
+  - [ ] excluded: `scripts/` regression tooling, tests, ESLint/tsconfig/Vitest/Playwright configs, dev fixtures, roadmap/dev docs, `devDependencies`.
+- [ ] Choose and implement the boundary mechanism:
 
-### Version 0.33.14.4 - Workspace and permission cleanups
+  - [ ] a `package.json` `files` allowlist and/or `.npmignore`, so a packed artifact contains only runtime paths.
+  - [ ] install with `npm ci --omit=dev` on the target.
+- [ ] Add a package/release script that produces a runtime-only artifact (tarball) plus a checksum.
+- [ ] Keep `npm start` as `node server.js` on the packaged artifact.
+- [ ] Keep Zod and other runtime dependencies in the artifact; do not treat them as dev tooling.
+- [ ] Add a guardrail/regression proving:
 
-- [ ] Inactive users: users inactive in a workspace must not appear in assignable-people pickers, and should not appear in the workspace at all.
-- [ ] Personal/Family workspaces: deprecate the Billable flag everywhere on the front end; it may remain in the database only so long as it can never be used on Personal or Family workspaces.
-- [ ] Remove Workspace wording: review the User Settings "Remove Workspace" flow copy now that it removes the signed-in user's membership rather than deleting the workspace record.
-
-Acceptance criteria:
-
-- Inactive users are absent from assignable pickers and workspace views.
-- The Billable flag is not surfaced in the front end for Personal/Family workspaces.
-- The Remove Workspace copy accurately describes membership removal.
-
-### Version 0.33.14.5 - Framework-owned session/auth warnings
-
-- [ ] Session-expiry and similar warnings (e.g. "Requires Login") must be framework-owned in-app modals, not console messages or notices hidden behind an open modal on the main window. A session that expires mid-edit should surface a clear, foreground framework modal.
-
-Acceptance criteria:
-
-- Auth/session warnings render as framework-owned app modals that are visible even when another modal is open, not console-only or hidden.
-
-### Version 0.33.14.6 - Misc cleanup and closeout
-
-- [ ] Restore the client change-requests documentation that was lost from the repo docs, back into the project-management tools section.
-- [ ] Sweep `TODO.md` Short Term: confirm every item promoted here has been removed from `TODO.md` to prevent drift, and that remaining Short Term items are intentionally deferred.
-- [ ] Update `CHANGELOG.md`, package metadata, and roadmap bookkeeping.
-- [ ] Run relevant narrow regressions plus `npm run check`; verify `/api/app-info` after restart.
+  - [ ] the packaged artifact excludes `scripts/`/regression/test/dev-config paths.
+  - [ ] the packaged artifact includes every runtime path required to boot.
+  - [ ] a booted artifact does not import any dev/test package.
+  - [ ] no `.env`/secret/dev fixture is present in the artifact.
+- [ ] Add self-hosted install/upgrade docs describing the slim artifact and `--omit=dev`.
 
 Acceptance criteria:
 
-- The client change-requests docs are restored.
-- Promoted items are removed from `TODO.md`; only intentionally-deferred items remain in Short Term.
-- Release-gate checks pass.
+- A packaged release artifact contains runtime code and runtime dependencies only.
+- The artifact boots with `node server.js` and requires no dev/test tooling.
+- A guardrail proves dev/test files and secrets are excluded and runtime files are complete.
+
+### Version 0.33.14.2 - GitHub release check and version comparison
+
+Purpose:
+
+Let a self-hosted install discover whether a newer published release exists.
+
+- [ ] Add an update-check service that queries the GitHub Releases API for the latest release of the configured repository.
+- [ ] Compare the latest release tag against the canonical installed app version (0.33.6.15 source of truth).
+- [ ] Support a configured update channel:
+
+  - [ ] repository/owner.
+  - [ ] stable vs. prerelease inclusion.
+  - [ ] check interval and manual "check now".
+  - [ ] optional token for authenticated/rate-limited access.
+- [ ] Handle failure gracefully: network errors, rate limits, no releases, or malformed tags never crash the app or block normal use.
+- [ ] Cache the last check result and timestamp.
+- [ ] Do not fetch or apply anything in this slice beyond release metadata.
+- [ ] Add focused regressions:
+
+  - [ ] a newer release is detected as available.
+  - [ ] an equal/older release is reported as up to date.
+  - [ ] a prerelease is excluded unless opted in.
+  - [ ] network/rate-limit/malformed responses fail safe.
+
+Acceptance criteria:
+
+- The app can determine whether a newer GitHub release exists without affecting normal operation.
+- Version comparison uses the canonical version source.
+- Update checking is configurable and fails safe.
+
+### Version 0.33.14.3 - Update availability surfacing (admin/about)
+
+Purpose:
+
+Show update status to authorized users without nagging everyone.
+
+- [ ] Surface update availability in an owner/admin-visible location (about/app-info and/or admin settings).
+- [ ] Show installed version, latest available version, a release-notes link, and last-checked time.
+- [ ] Gate visibility and any upgrade action behind owner/admin permission; never expose it to ordinary users.
+- [ ] Provide a manual "check now" action.
+- [ ] Keep this warning/informational only in this slice; applying the upgrade is 0.33.14.4+.
+- [ ] Add focused regressions:
+
+  - [ ] the update banner/status is visible to owner/admin only.
+  - [ ] correct installed vs. latest values are shown.
+  - [ ] no exposure to non-admin users or other workspaces.
+
+Acceptance criteria:
+
+- Authorized users can see whether an update is available and what it contains.
+- Update status respects permission and workspace boundaries.
+
+### Version 0.33.14.4 - Bare-metal upgrade executor: download, verify, backup, apply, migrate, restart
+
+Purpose:
+
+Apply an update safely on a single-host bare-metal install.
+
+- [ ] Download the release artifact and its checksum from the selected release.
+- [ ] Verify the checksum (and signature if present) before touching the install; abort on mismatch.
+- [ ] Back up before applying:
+
+  - [ ] the current code/artifact.
+  - [ ] the database file(s).
+  - [ ] a recorded restore point with the pre-upgrade version.
+- [ ] Apply the new artifact into the install location.
+- [ ] Install runtime dependencies with `npm ci --omit=dev`.
+- [ ] Run database migrations using the existing migration runner.
+- [ ] Request a supervised restart (systemd/process manager) rather than force-killing the app; document the supervisor expectation.
+- [ ] Make each step idempotent/resumable where practical and log progress.
+- [ ] Require explicit opt-in/confirmation before any destructive step; a completed backup is a precondition to apply.
+- [ ] Add focused regressions/tests (dry-run/mocked where a full restart is impractical):
+
+  - [ ] a checksum mismatch aborts before any change.
+  - [ ] a backup is created before apply.
+  - [ ] migrations run after apply.
+  - [ ] a missing backup blocks apply.
+
+Acceptance criteria:
+
+- An authorized admin can apply a verified update on bare metal with an automatic pre-upgrade backup.
+- Migrations run as part of the upgrade.
+- The upgrade never applies an unverified artifact and never applies without a backup.
+
+### Version 0.33.14.5 - Health check, rollback, and manual/air-gapped fallback
+
+Purpose:
+
+Guarantee a failed upgrade cannot leave the install broken, and support offline installs.
+
+- [ ] After restart, run a post-upgrade health check (boot, database connectivity, `/api/app-info` reflects the new version).
+- [ ] On health-check failure, roll back automatically to the backed-up code and database and restore the previous version.
+- [ ] Record upgrade history and outcomes (from/to version, timestamp, success/rollback).
+- [ ] Add a manual/air-gapped fallback: upload a verified artifact and run the same verify/backup/apply/migrate/health-check/rollback path without GitHub access.
+- [ ] Ensure rollback restores the database backup consistently with the code rollback.
+- [ ] Add focused regressions/tests:
+
+  - [ ] a failed health check triggers rollback to the prior version and database.
+  - [ ] a successful upgrade records history and reports the new version.
+  - [ ] the manual artifact path enforces the same verification and backup rules.
+  - [ ] rollback restores a bootable prior state.
+
+Acceptance criteria:
+
+- A failed upgrade automatically restores the prior working install and database.
+- Upgrades are auditable via recorded history.
+- Air-gapped installs can upgrade from a verified local artifact.
+
+### Version 0.33.14.6 - Config, kill-switch, permissions, and closeout
+
+Purpose:
+
+Make the updater safe to ship, configurable, and disable-able, and close out the packaging/upgrade version.
+
+- [ ] Add configuration for: enable/disable the updater, channel (stable/prerelease), check interval, repository, optional token, and auto-check vs. manual-only.
+- [ ] Add a hard kill-switch so hosted/SaaS or locked-down deployments can disable in-app updates entirely.
+- [ ] Restrict all update configuration and actions to owner/admin.
+- [ ] Confirm the updater is inert on hosted/SaaS deployments that manage their own pipeline.
+- [ ] Confirm `npm start` is unchanged and the runtime artifact carries no dev/test tooling.
+- [ ] Confirm no permission/workspace/private-content/storage-key/migration guardrail was weakened to enable upgrades.
+- [ ] Update self-hosted install/upgrade/backup docs and the changelog; verify `/api/app-info` after a simulated upgrade.
+- [ ] Run final verification, including a full backup -> apply -> migrate -> health-check -> rollback dry run.
+
+Acceptance criteria:
+
+- The in-app updater is opt-in, permission-gated, configurable, and fully disable-able.
+- Bare-metal self-hosted installs can check for, apply, and safely roll back GitHub releases with automatic backups.
+- The release artifact is runtime-only, and `npm start` remains `node server.js`.
+- Container/fleet/SaaS upgrade orchestration remains explicitly deferred.
 
 ## Version 0.34 - Knowledge Base Module
 

@@ -12,26 +12,24 @@ let dashboardRegionContainer = null;
 const dashboardPanelRenderers = {};
 const dashboardRegionBodies = new Map();
 const dashboardDataPromises = new Map();
-const DEFAULT_PROJECT_SUMMARY_ROUTE = "/api/client-projects/dashboard/project-summary";
 const DEFAULT_TASK_SUMMARY_ROUTE = "/api/tasks/dashboard-summary";
 const KNOWN_DASHBOARD_PLACEMENTS = new Set([
   "pulse",
   "attention",
+  "calendar",
   "today",
   "main",
   "activity",
   "secondary",
-  "reporting",
 ]);
 
 publishDashboardApi();
-registerDashboardPanelRenderer("project-summary", renderProjectHub);
 registerDashboardPanelRenderer("tasks.needs-attention", renderTasksNeedsAttentionContribution);
+registerDashboardPanelRenderer("tasks.calendar", renderTasksCalendarContribution);
 registerDashboardPanelRenderer("tasks.today-upcoming", renderTasksTodayUpcomingContribution);
 registerDashboardPanelRenderer("tasks.pressure", renderTasksPressureContribution);
 registerDashboardPanelRenderer("task-summary", renderTasksPressureContribution);
 buildDashboardHost();
-bindDashboardEvents();
 loadDashboardData();
 
 function buildDashboardHost() {
@@ -74,28 +72,6 @@ function buildDashboardHost() {
   );
 }
 
-function bindDashboardEvents() {
-  dashboardHost?.addEventListener("change", (event) => {
-    if (event.target?.matches?.("input[name='dashboard-report-client']")) {
-      updateOpenReportButton();
-    }
-  });
-
-  dashboardHost?.addEventListener("click", (event) => {
-    const button = event.target?.closest?.("[data-open-client-report]");
-
-    if (!button) {
-      return;
-    }
-
-    const scopeId = getSelectedReportScopeId();
-
-    if (scopeId) {
-      window.location.href = `reporting.html?scope=${encodeURIComponent(scopeId)}`;
-    }
-  });
-}
-
 async function loadDashboardData() {
   setDashboardStatus("Loading dashboard...");
 
@@ -120,12 +96,13 @@ async function loadDashboardData() {
 }
 
 function publishDashboardApi() {
-  window.LongtailForge = {
-    ...(window.LongtailForge || {}),
-    dashboard: {
-      ...(window.LongtailForge?.dashboard || {}),
-      registerPanelRenderer: registerDashboardPanelRenderer,
-    },
+  // Mutate the shared namespace in place: replacing the object would orphan
+  // earlier scripts (like the Task dialog) that captured a reference at load,
+  // while navigation later assigns workspaceContext through window.LongtailForge.
+  const namespace = window.LongtailForge = window.LongtailForge || {};
+  namespace.dashboard = {
+    ...(namespace.dashboard || {}),
+    registerPanelRenderer: registerDashboardPanelRenderer,
   };
 }
 
@@ -374,86 +351,9 @@ function createDashboardRendererContext(contribution) {
     loadContributionData,
     setStatus: setDashboardStatus,
     view: dashboardView,
-    workspaceProjectsLabel,
     createPanel: (options = {}) => createDashboardPanel(contribution, options),
     createDashboardPanel,
   };
-}
-
-function renderProjectHub(contribution, context) {
-  const body = dashboardView.createElement("div", {
-    className: "dashboard-panel-body",
-    attrs: { role: "status" },
-    text: "Loading reporting shortcuts...",
-  });
-  const panel = createDashboardPanel(contribution, {
-    className: "active-client-panel",
-    title: contribution.label || "Project Summary",
-    children: [body],
-  });
-
-  hydrateProjectHub(body, contribution, context, panel);
-  return panel;
-}
-
-async function hydrateProjectHub(body, contribution, context, panel) {
-  try {
-    const hub = await loadContributionData(contribution, DEFAULT_PROJECT_SUMMARY_ROUTE);
-    const reportScopes = Array.isArray(hub.reportScopes) ? hub.reportScopes : [];
-    const details = dashboardView.createElement("details", {
-      className: "dashboard-client-details",
-      children: [
-        dashboardView.createElement("summary", {
-          children: [
-            dashboardView.createElement("span", {
-              dataset: { dashboardHubCountLabel: "" },
-              text: hub.countLabel || "Active Projects",
-            }),
-            dashboardView.createElement("span", {
-              className: "metric-value",
-              dataset: { activeClientCount: "" },
-              text: String(hub.activeCount || 0),
-            }),
-          ],
-        }),
-        createReportScopeOptions(hub, reportScopes),
-        dashboardView.createElement("button", {
-          attrs: {
-            type: "button",
-            "data-open-client-report": "",
-            disabled: true,
-          },
-          text: "Open Reporting",
-        }),
-      ],
-    });
-
-    body.replaceChildren(details);
-    selectDefaultReportScope(hub.defaultReportScopeId || "");
-    updateOpenReportButton(panel);
-  } catch (error) {
-    body.replaceChildren(context.view.createEmptyState({
-      title: "Reporting shortcuts unavailable",
-      message: "Project reporting links could not be loaded.",
-    }));
-    console.error(error);
-  }
-}
-
-function createReportScopeOptions(hub, reportScopes) {
-  const fieldset = dashboardView.createElement("fieldset", {
-    className: "client-radio-list",
-    dataset: { clientReportOptions: "" },
-    children: [
-      createLegend(hub.reportLegend || "Project Reporting"),
-    ],
-  });
-
-  reportScopes.forEach((scope) => {
-    fieldset.appendChild(createScopeRadio(scope));
-  });
-
-  return fieldset;
 }
 
 function renderTasksNeedsAttentionContribution(contribution, context) {
@@ -465,6 +365,126 @@ function renderTasksNeedsAttentionContribution(contribution, context) {
     renderContent: createTasksNeedsAttentionContent,
     title: contribution.label || "Needs Attention",
   });
+}
+
+function renderTasksCalendarContribution(contribution, context) {
+  const taskCalendar = window.LongtailForge?.taskCalendar;
+
+  if (!taskCalendar) {
+    return null;
+  }
+
+  const state = { view: "month" };
+  let hydrateToken = 0;
+
+  const periodLabel = dashboardView.createElement("p", {
+    className: "dashboard-calendar-period",
+    dataset: { dashboardCalendarPeriod: "" },
+  });
+  const body = dashboardView.createElement("div", {
+    className: "dashboard-calendar-body",
+    attrs: { role: "status" },
+    text: "Loading calendar...",
+  });
+  const viewButtons = ["month", "week", "day"].map((viewId) => createViewButton(viewId));
+  const toolbar = dashboardView.createElement("div", {
+    className: "dashboard-calendar-toolbar",
+    children: [
+      periodLabel,
+      dashboardView.createElement("div", {
+        className: "segmented-control dashboard-calendar-view-switch",
+        attrs: { role: "group", "aria-label": "Dashboard calendar view" },
+        children: viewButtons,
+      }),
+    ],
+  });
+  const panel = createDashboardPanel(contribution, {
+    className: "dashboard-task-calendar-panel",
+    title: contribution.label || "Calendar",
+    children: [
+      toolbar,
+      body,
+      createDashboardTaskActions([{ label: "Open full calendar", href: "calendar.html" }]),
+    ],
+  });
+
+  hydrate();
+  return panel;
+
+  function createViewButton(viewId) {
+    const button = dashboardView.createElement("button", {
+      className: "calendar-view-button",
+      text: viewId.charAt(0).toUpperCase() + viewId.slice(1),
+      attrs: { type: "button", "aria-pressed": viewId === state.view ? "true" : "false" },
+      dataset: { dashboardCalendarView: viewId },
+    });
+
+    button.addEventListener("click", () => {
+      if (state.view === viewId) {
+        return;
+      }
+
+      state.view = viewId;
+
+      for (const other of viewButtons) {
+        other.setAttribute("aria-pressed", other.dataset.dashboardCalendarView === viewId ? "true" : "false");
+      }
+
+      hydrate();
+    });
+
+    return button;
+  }
+
+  async function hydrate() {
+    const token = ++hydrateToken;
+
+    try {
+      const range = taskCalendar.calendarRange(state.view, new Date());
+      const data = await taskCalendar.fetchCalendarWindow(range);
+
+      if (token !== hydrateToken) {
+        return;
+      }
+
+      periodLabel.textContent = range.label;
+      body.removeAttribute("role");
+      taskCalendar.renderCalendarBody(body, {
+        viewId: state.view,
+        range,
+        data,
+        onOpenTask: openTask,
+      });
+    } catch (error) {
+      if (token !== hydrateToken) {
+        return;
+      }
+
+      body.replaceChildren(context.view.createEmptyState({
+        title: "Calendar unavailable",
+        message: "Task calendar data could not be loaded.",
+      }));
+      console.error(error);
+    }
+  }
+
+  function openTask(taskId, trigger) {
+    const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
+
+    if (typeof opener !== "function" || !taskId) {
+      return;
+    }
+
+    opener({
+      taskId,
+      mode: "edit",
+      returnFocusTo: trigger,
+      onSaved: () => hydrate(),
+    }).catch((error) => {
+      context.setStatus("The task could not be opened.", { isError: true });
+      console.error(error);
+    });
+  }
 }
 
 function renderTasksTodayUpcomingContribution(contribution, context) {
@@ -671,12 +691,25 @@ function createDashboardPanel(contribution = {}, options = {}) {
     },
   });
 
-  if (options.title) {
-    panel.appendChild(dashboardView.createElement("h3", { text: options.title }));
+  const title = String(options.title || "").trim();
+
+  if (title && title === dashboardRegionLabel(normalizeDashboardPlacement(contribution?.placement))) {
+    // The region heading already says this; a repeated panel title reads as
+    // clutter. Keep the panel identifiable for assistive tech instead.
+    if (!options.ariaLabel) {
+      panel.setAttribute("aria-label", title);
+    }
+  } else if (title) {
+    panel.appendChild(dashboardView.createElement("h3", { text: title }));
   }
 
   panel.append(...(Array.isArray(options.children) ? options.children : [options.children]).filter(Boolean));
   return panel;
+}
+
+function dashboardRegionLabel(regionId) {
+  const regions = Array.isArray(dashboardData?.layout?.regions) ? dashboardData.layout.regions : [];
+  return String(regions.find((region) => normalizeDashboardPlacement(region?.id) === regionId)?.label || "").trim();
 }
 
 function findDashboardContribution(renderer, id = "") {
@@ -710,57 +743,6 @@ async function loadContributionData(contribution, fallbackRoute = "") {
 function normalizeDashboardPlacement(placement) {
   const value = String(placement || "").trim();
   return KNOWN_DASHBOARD_PLACEMENTS.has(value) ? value : "main";
-}
-
-function createLegend(text) {
-  return dashboardView.createElement("legend", { text });
-}
-
-function createScopeRadio(scope) {
-  const input = dashboardView.createElement("input", {
-    attrs: {
-      type: "radio",
-      name: "dashboard-report-client",
-      value: scope.id,
-    },
-  });
-
-  return dashboardView.createElement("label", {
-    className: "client-radio-option",
-    children: [
-      input,
-      document.createTextNode(scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name),
-    ],
-  });
-}
-
-function selectDefaultReportScope(defaultScopeId) {
-  if (!defaultScopeId) {
-    return;
-  }
-
-  const defaultInput = [...dashboardHost?.querySelectorAll("input[name='dashboard-report-client']") || []]
-    .find((input) => input.value === defaultScopeId);
-
-  if (defaultInput) {
-    defaultInput.checked = true;
-  }
-}
-
-function updateOpenReportButton(root = dashboardHost) {
-  const button = root?.querySelector?.("[data-open-client-report]");
-
-  if (button) {
-    button.disabled = !getSelectedReportScopeId(root);
-  }
-}
-
-function getSelectedReportScopeId(root = dashboardHost) {
-  return root?.querySelector?.("input[name='dashboard-report-client']:checked")?.value || "";
-}
-
-function workspaceProjectsLabel() {
-  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
 
 function setDashboardStatus(message, options = {}) {

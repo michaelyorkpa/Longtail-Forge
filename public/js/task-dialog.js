@@ -221,6 +221,10 @@
 
     fields.title.textContent = isDuplicate ? "Duplicate Task" : task ? "Edit Task" : "Add Task";
     fields.copyLink.hidden = !task || isDuplicate;
+    // Workbench handoff only works for a persisted task: hidden on the create
+    // and duplicate dialogs. Workbench itself is an unconditional framework
+    // surface for every authenticated user, so no extra reachability gate.
+    fields.workbenchOpen.hidden = !currentTaskId;
     fields.titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || defaults.title || "";
     fields.status.value = isDuplicate ? "open" : task?.status || statusDefault || "open";
     fields.priority.value = task?.priority || priorityDefault || "normal";
@@ -350,6 +354,7 @@
       timerStatus: dialog.querySelector("[data-task-timer-status]"),
       title: dialog.querySelector("[data-task-dialog-title]"),
       titleInput: dialog.querySelector("[data-task-title]"),
+      workbenchOpen: dialog.querySelector("[data-task-workbench-open]"),
     };
     fields.recurrence = {
       cancel: recurrenceDialog.querySelector("[data-task-recurrence-cancel]"),
@@ -404,6 +409,7 @@
     fields.tagToggle?.addEventListener("click", openTaskTagsDialog);
     fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
     fields.notificationToggle?.addEventListener("click", toggleTaskNotificationFollow);
+    fields.workbenchOpen?.addEventListener("click", openTaskInWorkbench);
     fields.notesContainer?.addEventListener("notes-linked-panel:link", () => context?.onNotesChanged?.());
     fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => context?.onNotesChanged?.());
   }
@@ -420,6 +426,7 @@
     icons.decorateButton(fields.timerFinalize, { icon: "save", label: "Save task timer as time", text: "Save Time", iconOnly: false });
     icons.decorateButton(fields.timerReset, { icon: "restore", label: "Reset task timer", text: "Reset", iconOnly: false, variant: "danger" });
     icons.decorateButton(fields.notificationToggle, { icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true });
+    icons.decorateButton(fields.workbenchOpen, { icon: "anvil", label: "Open in Workbench", text: "", title: "Open in Workbench", iconOnly: true });
     icons.decorateButton(fields.tagToggle, { icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false });
     icons.decorateButton(fields.fileToggle, { icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false });
     icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false });
@@ -1736,6 +1743,18 @@
     }
   }
 
+  function openTaskInWorkbench() {
+    // Reuses the Workbench task-focus deep-link contract so an unreadable or
+    // stale task degrades to Focus Selection there instead of erroring here.
+    if (!currentTaskId) {
+      return;
+    }
+
+    const url = new global.URL("workbench.html", global.location.href);
+    url.searchParams.set("taskId", currentTaskId);
+    global.location.assign(url.toString());
+  }
+
   async function copyTaskLink(task) {
     const url = new global.URL("tasks.html", global.location.href);
     url.searchParams.set("task", task.task_id);
@@ -2102,9 +2121,24 @@
       role: "utility",
       title: "Follow task notifications",
     });
+    const workbenchOpen = view.createActionButton({
+      action: "open-task-in-workbench",
+      className: "task-workbench-open",
+      icon: "anvil",
+      iconOnly: true,
+      label: "Open in Workbench",
+      role: "utility",
+      title: "Open in Workbench",
+    });
     const heading = view.createElement("div", {
       className: "surface-modal-heading",
-      children: [dialog.viewParts.title, notificationToggle],
+      children: [
+        dialog.viewParts.title,
+        view.createElement("div", {
+          className: "surface-modal-heading-actions",
+          children: [workbenchOpen, notificationToggle],
+        }),
+      ],
     });
 
     dialog.dataset.taskDialog = "";
@@ -2115,6 +2149,8 @@
     dialog.viewParts.footer.classList.add("form-actions", "task-modal-actions", "surface-modal-footer--dense");
     dialog.viewParts.footer.dataset.modalFooter = "";
     heading.dataset.taskDialogHeading = "";
+    workbenchOpen.dataset.taskWorkbenchOpen = "";
+    workbenchOpen.hidden = true;
     notificationToggle.dataset.taskNotificationToggle = "";
     notificationToggle.hidden = true;
     notificationToggle.setAttribute("aria-pressed", "false");

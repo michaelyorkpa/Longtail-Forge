@@ -93,6 +93,50 @@ assert.match(
   "Recommended-action cycling should keep the right-side overflow count/list synchronized",
 );
 
+const recommendedCardBody = extractFunctionBody(workbenchScript, "createRecommendedCandidateCard");
+assert.match(
+  recommendedCardBody,
+  /meta: recommendedCandidateMeta\(candidate\)/,
+  "Recommended card meta should come from the client/project-aware, id-safe helper",
+);
+assert.match(
+  recommendedCardBody,
+  /title: safeCandidateText\(candidate\.title, "Untitled work"\)/,
+  "Recommended card title should never surface raw-identifier copy",
+);
+assert.match(
+  recommendedCardBody,
+  /safeCandidateText\(candidate\.reason, ""\)[\s\S]*safeCandidateText\(candidate\.nextAction, ""\)[\s\S]*"This is the strongest match for the selected focus\."/,
+  "Recommended card reason copy should be id-safe with a friendly fallback",
+);
+assert.match(
+  workbenchScript,
+  /function recommendedCandidateMeta\(candidate = \{\}\) \{[\s\S]*?candidateClientProjectLabel\(candidate\)[\s\S]*?safeCandidateText\(candidate\.contextLabel, ""\)[\s\S]*?safeCandidateText\(candidate\.reason, ""\);[\s\S]*?\}/,
+  "Recommended meta should prefer resolved client/project context before any snapshot copy",
+);
+assert.match(
+  workbenchScript,
+  /function candidateClientProjectLabel\(candidate = \{\}\) \{[\s\S]*?state\.clients[\s\S]*?isWorkspaceScope[\s\S]*?\.join\(" \/ "\)/,
+  "The client/project label should resolve names from loaded workbench clients, skipping workspace-scope pseudo-clients",
+);
+assert.match(
+  workbenchScript,
+  /function looksLikeRawId\(value\) \{[\s\S]*?\\b\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{12\}\\b[\s\S]*?\\b\[0-9a-f\]\{24,\}\\b/,
+  "looksLikeRawId must catch identifiers embedded inside copy, not only whole-string ids",
+);
+
+const eventSummaries = readText("src/core/events/event-summaries.js");
+assert.match(
+  eventSummaries,
+  /function fallbackSummary\(event\) \{[\s\S]*?recordLabel \? `\$\{fallbackLabel\(event\)\} for \$\{recordLabel\}\.` : `\$\{fallbackLabel\(event\)\}\.`/,
+  "Event fallback summaries must omit the record clause when no readable label exists instead of leaking a placeholder",
+);
+assert.doesNotMatch(
+  eventSummaries.slice(eventSummaries.indexOf("function safeRecordLabel")),
+  /event\?\.record_id \|\|/,
+  "safeRecordLabel must never fall back to the raw record id: identifiers are not user-facing labels",
+);
+
 assert.match(
   css,
   /\.workbench-recommended-heading \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*\}/,

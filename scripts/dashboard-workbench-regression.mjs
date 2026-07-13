@@ -58,7 +58,7 @@ for (const moduleDefinition of modules) {
     if (panel.placement) {
       assert.match(
         panel.placement,
-        /^(pulse|attention|today|main|activity|secondary|reporting)$/,
+        /^(pulse|attention|calendar|today|main|activity|secondary)$/,
         `${moduleDefinition.id}:${panel.id} dashboard placement must be known`,
       );
     }
@@ -99,14 +99,10 @@ assert.ok(
     panel.requiresEnabledModules?.includes("tasks")),
   "Tasks compact dashboard card must be a module data route contribution placed in main",
 );
-assert.ok(
-  clientProjectsModule.dashboard.some((panel) =>
-    panel.id === "project-summary" &&
-    panel.renderer === "project-summary" &&
-    panel.dataRoute === "/api/client-projects/dashboard/project-summary" &&
-    panel.placement === "reporting" &&
-    panel.requiredPermissions?.includes("reporting.view")),
-  "Client/Project dashboard summary must be a reporting-placed module data route contribution",
+assert.equal(
+  clientProjectsModule.dashboard.length,
+  0,
+  "Client/Project must not contribute dashboard panels: the reporting-shortcuts relic panel was removed with the Dashboard reporting region",
 );
 assert.ok(
   timeTrackingModule.dashboard.some((panel) =>
@@ -222,15 +218,15 @@ assert.doesNotMatch(
   /process\.env|storageKey|storage_path|scanner_|payload_json|audit_logs|record_events|jobs|secret|password/i,
   "dashboard service warning payloads must not expose secrets, raw runtime values, job payloads, storage internals, or scanner internals",
 );
-assert.match(
+assert.doesNotMatch(
   files.clientsRoutes,
-  /\/client-projects\/dashboard\/project-summary[\s\S]*clientsService\.readDashboardProjectSummary/,
-  "Client/Project dashboard data must hydrate through a module-owned route",
+  /dashboard\/project-summary/,
+  "the retired Client/Project dashboard summary route must not return",
 );
-assert.match(
+assert.doesNotMatch(
   files.clientsService,
-  /async function readDashboardProjectSummary[\s\S]*permissionsService\.assertCanInAnyScope[\s\S]*"reporting\.view"[\s\S]*readClientProjects/,
-  "Client/Project dashboard data must remain permission-shaped by the owning module service",
+  /readDashboardProjectSummary/,
+  "the retired Client/Project dashboard summary read must not return",
 );
 assert.match(
   files.tasksRoutes,
@@ -375,7 +371,7 @@ assert.doesNotMatch(
 );
 assert.match(
   files.dashboard,
-  /KNOWN_DASHBOARD_PLACEMENTS[\s\S]*"pulse"[\s\S]*"reporting"[\s\S]*function normalizeDashboardPlacement/,
+  /KNOWN_DASHBOARD_PLACEMENTS[\s\S]*"pulse"[\s\S]*"secondary"[\s\S]*function normalizeDashboardPlacement/,
   "dashboard browser script must know the framework-owned placement allowlist",
 );
 assert.match(
@@ -604,7 +600,7 @@ assert.deepEqual(
   validateModuleManifest({
     ...tasksModule,
     dashboard: [{ ...tasksModule.dashboard[0], placement: "mystery-region" }],
-  }, allModuleIds).some((error) => error.includes("placement must be one of pulse, attention, today, main, activity, secondary, reporting")),
+  }, allModuleIds).some((error) => error.includes("placement must be one of pulse, attention, calendar, today, main, activity, secondary")),
   true,
   "manifest validation must reject unknown dashboard placements",
 );

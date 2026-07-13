@@ -378,24 +378,7 @@ const clientProjectsModule = {
       views: ["clients", "projects", "workbench"],
     },
   ],
-  dashboard: [
-    {
-      id: "project-summary",
-      label: "Project Summary",
-      description: "Framework project/client hub data for dashboard reporting shortcuts.",
-      renderer: "project-summary",
-      dataRoute: "/api/client-projects/dashboard/project-summary",
-      moduleId: "client-projects",
-      placement: "reporting",
-      requiredPermissions: ["reporting.view"],
-      requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      sortOrder: 10,
-      terminology: {
-        business: { label: "Client & Project Summary" },
-        personal: { label: "Project Summary" },
-      },
-    },
-  ],
+  dashboard: [],
   publicApiEndpoints: [
     { method: "GET", path: "/api/v1/clients", scope: "clients:read" },
     { method: "POST", path: "/api/v1/clients", scope: "clients:write" },

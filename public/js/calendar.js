@@ -1,15 +1,17 @@
 // Calendar renders the read-only task calendar through framework view primitives.
-// It consumes the bounded task calendar-window read model (/api/tasks/calendar)
-// and opens entries through the canonical Task editor.
+// Period math, the bounded task calendar-window fetch (/api/tasks/calendar), and
+// grid/day rendering live in the shared LongtailForge.taskCalendar helpers; this
+// adapter owns the page chrome (toolbar, filters, status) and opens entries
+// through the canonical Task editor.
 const calendarHost = document.querySelector("[data-calendar-host]");
 const calendarView = window.LongtailForge?.view;
+const taskCalendar = window.LongtailForge?.taskCalendar;
 
 const CALENDAR_VIEW_OPTIONS = [
   { id: "month", label: "Month" },
   { id: "week", label: "Week" },
   { id: "day", label: "Day" },
 ];
-const CALENDAR_WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const calendarState = {
   view: "month",
@@ -35,7 +37,7 @@ buildCalendarHost();
 initializeCalendar();
 
 async function initializeCalendar() {
-  if (!calendarHost || !calendarView) {
+  if (!calendarHost || !calendarView || !taskCalendar) {
     return;
   }
 
@@ -47,6 +49,10 @@ async function initializeCalendar() {
 }
 
 function applyCalendarQueryParams() {
+  if (!taskCalendar) {
+    return;
+  }
+
   const params = new URLSearchParams(window.location?.search || "");
   const requestedView = String(params.get("view") || "").trim().toLowerCase();
 
@@ -57,7 +63,7 @@ function applyCalendarQueryParams() {
   const requestedDate = String(params.get("date") || "").trim();
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
-    const anchor = parseDateKey(requestedDate);
+    const anchor = taskCalendar.parseDateKey(requestedDate);
 
     if (Number.isFinite(anchor.getTime())) {
       calendarState.anchor = anchor;
@@ -198,9 +204,9 @@ function shiftCalendarPeriod(direction) {
   if (calendarState.view === "month") {
     calendarState.anchor = new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
   } else if (calendarState.view === "week") {
-    calendarState.anchor = addDays(anchor, direction * 7);
+    calendarState.anchor = taskCalendar.addDays(anchor, direction * 7);
   } else {
-    calendarState.anchor = addDays(anchor, direction);
+    calendarState.anchor = taskCalendar.addDays(anchor, direction);
   }
 
   loadCalendarWindow();
@@ -328,36 +334,25 @@ function updateViewSwitchButtons() {
 }
 
 async function loadCalendarWindow() {
-  if (!calendarHost || !calendarView) {
+  if (!calendarHost || !calendarView || !taskCalendar) {
     return;
   }
 
   setCalendarStatus("Loading calendar...");
 
   try {
-    const range = calendarRange();
-    const params = new URLSearchParams({ start: range.fetchStart, end: range.fetchEnd });
-
-    if (calendarState.clientId) {
-      params.set("clientId", calendarState.clientId);
-    }
-
-    if (calendarState.projectId) {
-      params.set("projectId", calendarState.projectId);
-    }
-
-    const response = await fetch(`/api/tasks/calendar?${params.toString()}`, { cache: "no-store" });
-
-    if (response.status === 403) {
-      throw new Error("You do not have permission to view tasks.");
-    }
-
-    if (!response.ok) {
-      throw new Error(`Could not load calendar data: ${response.status}`);
-    }
-
-    calendarState.data = await response.json();
-    renderCalendarBody(range);
+    const range = taskCalendar.calendarRange(calendarState.view, calendarState.anchor);
+    calendarState.data = await taskCalendar.fetchCalendarWindow(range, {
+      clientId: calendarState.clientId,
+      projectId: calendarState.projectId,
+    });
+    calendarPeriodLabel.textContent = range.label;
+    taskCalendar.renderCalendarBody(calendarBodyRegion, {
+      viewId: calendarState.view,
+      range,
+      data: calendarState.data,
+      onOpenTask: openCalendarTask,
+    });
     setCalendarStatus(calendarState.data?.source_enabled === false
       ? "The Tasks module is disabled for this workspace. Existing due dates are shown read-only."
       : "");
@@ -365,278 +360,6 @@ async function loadCalendarWindow() {
     setCalendarStatus(error.message || "Calendar data could not be loaded.", { isError: true });
     console.error(error);
   }
-}
-
-function calendarRange() {
-  const anchor = calendarState.anchor;
-
-  if (calendarState.view === "day") {
-    const dayKey = dateKeyOf(anchor);
-    return {
-      fetchStart: dayKey,
-      fetchEnd: dayKey,
-      days: [dayKey],
-      label: formatFullDate(anchor),
-    };
-  }
-
-  if (calendarState.view === "week") {
-    const weekStart = addDays(anchor, -anchor.getDay());
-    const days = listDayKeys(weekStart, 7);
-    return {
-      fetchStart: days[0],
-      fetchEnd: days[days.length - 1],
-      days,
-      label: `Week of ${formatFullDate(weekStart)}`,
-    };
-  }
-
-  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
-  const gridStart = addDays(monthStart, -monthStart.getDay());
-  const gridEnd = addDays(monthEnd, 6 - monthEnd.getDay());
-  const dayCount = Math.round((gridEnd.getTime() - gridStart.getTime()) / 86400000) + 1;
-  const days = listDayKeys(gridStart, dayCount);
-  return {
-    fetchStart: days[0],
-    fetchEnd: days[days.length - 1],
-    days,
-    label: anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
-    monthIndex: anchor.getMonth(),
-  };
-}
-
-function renderCalendarBody(range) {
-  if (!calendarBodyRegion) {
-    return;
-  }
-
-  calendarPeriodLabel.textContent = range.label;
-
-  const tasksByDate = groupByKey(calendarState.data?.tasks || [], (task) => task.due_date);
-  const remindersByDate = groupByKey(calendarState.data?.reminders || [], (marker) => marker.date);
-  const children = [];
-
-  if (calendarState.view === "day") {
-    children.push(createDayView(range.days[0], tasksByDate, remindersByDate));
-  } else {
-    children.push(createWeekdayHeaderRow());
-    children.push(createDayGrid(range, tasksByDate, remindersByDate));
-  }
-
-  const hasEntries = range.days.some((dayKey) => (tasksByDate.get(dayKey) || []).length > 0
-    || (remindersByDate.get(dayKey) || []).length > 0);
-
-  if (!hasEntries) {
-    children.push(calendarView.createEmptyState({
-      title: "Nothing scheduled",
-      message: "No task due dates or reminders in this period.",
-    }));
-  }
-
-  calendarBodyRegion.replaceChildren(...children);
-}
-
-function createWeekdayHeaderRow() {
-  return calendarView.createElement("div", {
-    className: "calendar-weekday-row",
-    attrs: { "aria-hidden": "true" },
-    children: CALENDAR_WEEKDAY_LABELS.map((label) => calendarView.createElement("div", {
-      className: "calendar-weekday",
-      text: label,
-    })),
-  });
-}
-
-function createDayGrid(range, tasksByDate, remindersByDate) {
-  const todayKey = dateKeyOf(new Date());
-  const grid = calendarView.createElement("div", {
-    className: ["calendar-grid", calendarState.view === "week" ? "calendar-grid--week" : "calendar-grid--month"],
-  });
-
-  for (const dayKey of range.days) {
-    const dayTasks = tasksByDate.get(dayKey) || [];
-    const dayReminders = remindersByDate.get(dayKey) || [];
-    const dayDate = parseDateKey(dayKey);
-    const classNames = ["calendar-day"];
-
-    if (dayKey === todayKey) {
-      classNames.push("is-today");
-    }
-
-    if (typeof range.monthIndex === "number" && dayDate.getMonth() !== range.monthIndex) {
-      classNames.push("is-outside");
-    }
-
-    if (dayTasks.length === 0 && dayReminders.length === 0) {
-      classNames.push("calendar-day--empty");
-    }
-
-    const isMonthGrid = typeof range.monthIndex === "number";
-    const headerChildren = [
-      calendarView.createElement("span", {
-        className: ["calendar-day-number", isMonthGrid ? "u-hide-mobile" : ""],
-        text: isMonthGrid
-          ? String(dayDate.getDate())
-          : dayDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        attrs: { "aria-label": formatFullDate(dayDate) },
-      }),
-    ];
-
-    if (isMonthGrid) {
-      headerChildren.push(calendarView.createElement("span", {
-        className: "calendar-day-date-long u-mobile-only",
-        text: dayDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
-      }));
-    }
-
-    if (dayReminders.length > 0) {
-      headerChildren.push(createReminderIndicator(dayReminders));
-    }
-
-    grid.appendChild(calendarView.createElement("section", {
-      className: classNames,
-      attrs: { "aria-label": formatFullDate(dayDate) },
-      dataset: { calendarDay: dayKey },
-      children: [
-        calendarView.createElement("div", {
-          className: "calendar-day-header",
-          children: headerChildren,
-        }),
-        calendarView.createElement("div", {
-          className: "calendar-day-entries",
-          children: dayTasks.map((task) => createTaskEntry(task)),
-        }),
-      ],
-    }));
-  }
-
-  return grid;
-}
-
-function createDayView(dayKey, tasksByDate, remindersByDate) {
-  const dayTasks = tasksByDate.get(dayKey) || [];
-  const dayReminders = remindersByDate.get(dayKey) || [];
-  const children = [];
-
-  if (dayReminders.length > 0) {
-    children.push(calendarView.createElement("section", {
-      className: "calendar-day-reminders",
-      attrs: { "aria-label": "Reminders" },
-      children: [
-        calendarView.createElement("h3", { className: "calendar-section-title", text: "Reminders" }),
-        ...dayReminders.map((marker) => createReminderRow(marker)),
-      ],
-    }));
-  }
-
-  children.push(calendarView.createElement("section", {
-    className: "calendar-day-tasks",
-    attrs: { "aria-label": "Tasks due" },
-    children: [
-      calendarView.createElement("h3", { className: "calendar-section-title", text: "Tasks due" }),
-      calendarView.createElement("div", {
-        className: "calendar-day-entries",
-        children: dayTasks.map((task) => createTaskEntry(task, { showMeta: true })),
-      }),
-    ],
-  }));
-
-  return calendarView.createElement("div", {
-    className: "calendar-day-view",
-    dataset: { calendarDay: dayKey },
-    children,
-  });
-}
-
-function createTaskEntry(task, options = {}) {
-  const timeLabel = task.due_time ? formatDueTime(task.due_time) : "";
-  const contextLabel = [task.client_name, task.project_name].filter(Boolean).join(" / ");
-  const tooltip = [
-    task.title,
-    `Status: ${formatToken(task.status)}`,
-    `Priority: ${formatToken(task.priority)}`,
-    contextLabel,
-    timeLabel ? `Due ${timeLabel}` : "Due all day",
-  ].filter(Boolean).join("\n");
-  const children = [];
-
-  if (timeLabel) {
-    children.push(calendarView.createElement("span", { className: "calendar-entry-time", text: timeLabel }));
-  }
-
-  children.push(calendarView.createElement("span", { className: "calendar-entry-title", text: task.title }));
-
-  if (options.showMeta) {
-    const metaText = [formatToken(task.status), formatToken(task.priority), contextLabel].filter(Boolean).join(" - ");
-    children.push(calendarView.createElement("span", { className: "calendar-entry-meta", text: metaText }));
-  }
-
-  const entry = calendarView.createElement("button", {
-    className: "calendar-entry",
-    attrs: {
-      type: "button",
-      title: tooltip,
-      "aria-label": `Open task: ${task.title}`,
-    },
-    dataset: {
-      calendarEntry: task.task_id,
-      priority: task.priority || "normal",
-      status: task.status || "open",
-    },
-    children,
-  });
-
-  entry.addEventListener("click", () => openCalendarTask(task.task_id, entry));
-  return entry;
-}
-
-function createReminderIndicator(reminders) {
-  const summary = reminders
-    .map((marker) => `${formatReminderTime(marker.reminder_at_utc)} ${marker.title}`)
-    .join("\n");
-  const indicator = calendarView.createElement("span", {
-    className: "calendar-reminder-indicator",
-    attrs: {
-      title: `Reminders:\n${summary}`,
-      role: "img",
-      "aria-label": `${reminders.length} reminder${reminders.length === 1 ? "" : "s"}`,
-    },
-  });
-  const icons = window.LongtailForge?.icons;
-
-  if (icons?.createIcon) {
-    indicator.appendChild(icons.createIcon("bell", { size: 12 }));
-  }
-
-  indicator.appendChild(calendarView.createElement("span", {
-    className: "calendar-reminder-count",
-    text: String(reminders.length),
-  }));
-
-  return indicator;
-}
-
-function createReminderRow(marker) {
-  const row = calendarView.createElement("button", {
-    className: "calendar-reminder-row",
-    attrs: {
-      type: "button",
-      title: `Reminder for ${marker.title}`,
-      "aria-label": `Open task: ${marker.title}`,
-    },
-    dataset: { calendarReminder: marker.task_id },
-    children: [
-      calendarView.createElement("span", {
-        className: "calendar-entry-time",
-        text: formatReminderTime(marker.reminder_at_utc),
-      }),
-      calendarView.createElement("span", { className: "calendar-entry-title", text: marker.title }),
-    ],
-  });
-
-  row.addEventListener("click", () => openCalendarTask(marker.task_id, row));
-  return row;
 }
 
 function openCalendarTask(taskId, trigger) {
@@ -667,72 +390,4 @@ function setCalendarStatus(message, options = {}) {
   calendarStatus.dataset.viewTone = options.isError ? "danger" : "info";
   calendarStatus.setAttribute("role", options.isError ? "alert" : "status");
   calendarStatus.setAttribute("aria-live", options.isError ? "assertive" : "polite");
-}
-
-function groupByKey(rows, readKey) {
-  const grouped = new Map();
-
-  for (const row of rows) {
-    const key = readKey(row);
-
-    if (!key) {
-      continue;
-    }
-
-    if (!grouped.has(key)) {
-      grouped.set(key, []);
-    }
-
-    grouped.get(key).push(row);
-  }
-
-  return grouped;
-}
-
-function dateKeyOf(date) {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-function parseDateKey(dateKey) {
-  const [year, month, day] = String(dateKey || "").split("-").map(Number);
-  return new Date(year, (month || 1) - 1, day || 1);
-}
-
-function addDays(date, days) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-}
-
-function listDayKeys(startDate, count) {
-  const days = [];
-
-  for (let index = 0; index < count; index += 1) {
-    days.push(dateKeyOf(addDays(startDate, index)));
-  }
-
-  return days;
-}
-
-function formatFullDate(date) {
-  return date.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-}
-
-function formatDueTime(dueTime) {
-  const [hours, minutes] = String(dueTime).split(":").map(Number);
-  const probe = new Date();
-  probe.setHours(hours || 0, minutes || 0, 0, 0);
-  return probe.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
-function formatReminderTime(reminderAtUtc) {
-  const date = new Date(reminderAtUtc);
-  return Number.isFinite(date.getTime())
-    ? date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    : "";
-}
-
-function formatToken(value) {
-  const text = String(value || "").replaceAll("_", " ").trim();
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
 }

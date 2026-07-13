@@ -142,9 +142,11 @@ function fallbackLabel(event) {
 }
 
 function fallbackSummary(event) {
-  const recordLabel = safeRecordLabel(event) || "record";
+  const recordLabel = safeRecordLabel(event);
 
-  return `${fallbackLabel(event)} for ${recordLabel}.`;
+  // Without a human-readable record label, "Timer Paused." beats leaking a
+  // placeholder or an identifier into user-facing summary copy.
+  return recordLabel ? `${fallbackLabel(event)} for ${recordLabel}.` : `${fallbackLabel(event)}.`;
 }
 
 function buildEventChangedContext(event, changedFields = readChangedFields(event?.previous_value, event?.new_value)) {
@@ -292,6 +294,8 @@ function truncateSnippet(value, maxLength = 120) {
 }
 
 function safeRecordLabel(event) {
+  // Raw record ids are identifiers, not labels: they must never reach
+  // user-facing summary copy, so there is deliberately no record_id fallback.
   return String(
     event?.record_label ||
     event?.recordLabel ||
@@ -301,7 +305,6 @@ function safeRecordLabel(event) {
     event?.new_value?.name ||
     event?.previous_value?.title ||
     event?.previous_value?.name ||
-    event?.record_id ||
     "",
   ).replace(/\s+/g, " ").trim();
 }

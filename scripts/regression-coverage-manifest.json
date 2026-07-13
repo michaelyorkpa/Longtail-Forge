@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 330,
+    "discoveredScripts": 333,
     "legacyScripts": 312,
     "releaseGateScripts": 21,
     "areaCounts": {
@@ -22,13 +22,13 @@
       "release": 17,
       "search": 12,
       "tags": 12,
-      "tasks": 49,
+      "tasks": 50,
       "time-tracking": 6,
-      "views": 28,
-      "workbench": 26
+      "views": 29,
+      "workbench": 27
     },
     "tierCounts": {
-      "focused": 146,
+      "focused": 149,
       "integration": 154,
       "release-gate": 21,
       "slow": 9
@@ -37,7 +37,7 @@
       "isolated-database": 128,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 167
+      "static": 170
     }
   },
   "coverageFamilies": [
@@ -2639,8 +2639,25 @@
       "tier": "focused"
     },
     {
+      "area": "tasks",
+      "description": "Pins the task editor's icon-only Open in Workbench handoff: placed immediately left of the notification bell, edit-mode only, accessible icon-only anatomy, and navigation through the canonical workbench.html?taskId= deep-link contract.",
+      "id": "tasks.task-editor-workbench-handoff",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-editor-workbench-handoff.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "deep-link",
+        "guardrail",
+        "modal",
+        "tasks",
+        "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
       "area": "views",
-      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
+      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
       "id": "views.calendar-host",
       "legacy": false,
       "path": "scripts/regressions/views/calendar-host.regression.mjs",
@@ -2649,6 +2666,23 @@
       "tags": [
         "anatomy",
         "calendar",
+        "guardrail",
+        "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Pins the Dashboard calendar embed: hidden-by-default status anatomy, calendar region ordered below Workspace Pulse and Needs Attention, a gated Tasks module contribution, and rendering through the shared task-calendar path instead of duplicated grid logic.",
+      "id": "views.dashboard-calendar-embed",
+      "legacy": false,
+      "path": "scripts/regressions/views/dashboard-calendar-embed.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "anatomy",
+        "calendar",
+        "dashboard",
         "guardrail",
         "views"
       ],
@@ -2667,6 +2701,23 @@
         "mobile",
         "responsive",
         "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Pins the Workbench task-focus deep-link contract: workbench.html?taskId= enters Task Focus through the existing path, every failure falls back to Focus Selection with one generic message that leaks nothing, and dashboard per-task handoffs carry the task while panel-level actions stay generic.",
+      "id": "workbench.task-focus-deep-link",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/task-focus-deep-link.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "dashboard",
+        "deep-link",
+        "guardrail",
+        "tasks",
+        "workbench"
       ],
       "tier": "focused"
     },

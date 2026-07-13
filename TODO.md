@@ -13,13 +13,23 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+> The Calendar/Dashboard/Tasks tweaks captured here after 0.33.10 shipped were promoted to **ROADMAP.md 0.33.10 follow-up slices 0.33.10.6 - 0.33.10.9** and removed from this file to prevent drift.
+
+## Wishlist
+
+One thing I've always wanted and really want to figure out how to make happen, is having this figure out where to fit in tasks that don't have due dates.
+
+This will require some thinking and some idea of how long tasks will take.
+
+It will also require a "business/working hours" put in the app somewhere so the app knows how long someone works each day.
+
 ## Workbench algorithm
 
 Blocked items should only show up in "Review blocked work".
 
-This needs to be adjustable in settings. 
+The algorithm needs to be adjustable in settings.
 
-> Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.14 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (Lists -> 0.33.13, KB -> 0.34), are human testing goals, or are larger than a quick fix.
+> Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, Tasks blocked-state behavior, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.11 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (Lists -> 0.33.13, KB -> 0.34), are human testing goals, or are larger than a quick fix.
 
 ## Lists UI/UX Overhaul (Notes for 0.33.13)
 
@@ -69,24 +79,6 @@ This section is to define a series of human testing goals for different sections
     - Keywords pulled from titles/descriptions/note bodies
   - Should be similar to context around displaying notes within workspace
   - Maybe just displays headings/titles?
-
-## Notes / Lists / Modals refinement — promoted to ROADMAP
-
-- Eventually, I'd like to be able to check off items on notes checklists from the display pages (might be very complicated.)
-
-## Mobile Tweaks - Fill this section out after the modal/display standardization slices above land
-
-- Projects -> Tasks
-  - Get rid of "Task Details" heading (mobile & desktop)
-    - It's right aligned and isn't necessary
-  - Meta data should each get its own line on mobile (keep line spacing tight)
-  - Task name doesn't wrap and gets cut off
-    - Should truncate after a character limit
-
-- Projects -> Notes
-  - On mobile, everything stacks neatly, but the collections selector and notes list makes it tough to find the actual content
-    - On desktop, make the collections box and notes list right aligned and put the content viewpane on the left
-    - On mobile, hide the content viewpane unless content is loaded
 
 ## Administration/Settings
 

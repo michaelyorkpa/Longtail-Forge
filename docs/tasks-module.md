@@ -143,6 +143,10 @@ As of 0.33.10.1 the contract is:
 
 As of 0.33.10.4, this contract is regression-backed: `scripts/regressions/tasks/task-calendar-window.regression.mjs` proves bounded-range enforcement, workspace/permission scoping, reminder-marker correctness, filter scoping, and disabled-module reads, and `scripts/regressions/views/calendar-host.regression.mjs` pins the read-only host boundary (no calendar event records, iCal, or external sync — 0.36.0 / 0.70.x own those).
 
+As of 0.33.10.7, dashboard-summary task rows carry a deep-linked Workbench handoff: each row's `action.href` is `workbench.html?taskId=<task_id>` (built by the Tasks service, so it only ever points at tasks the permission-filtered summary already exposed), landing directly in Workbench Task Focus for that task. The payload's panel-level `actions.workbench`/`actions.tasks` stay the generic `workbench.html`/`tasks.html` entries.
+
+As of 0.33.10.6, the Dashboard is a second consumer of this read model: Tasks contributes the `tasks-calendar` dashboard panel (placement `calendar`, gated by `tasks.view` and module-enabled status), which embeds a read-only current-month view through the shared `LongtailForge.taskCalendar` helpers rather than a second query path or duplicated grid logic. Dashboard calendar entries open the canonical Task editor and the panel links out to the full `calendar.html` surface; `scripts/regressions/views/dashboard-calendar-embed.regression.mjs` pins that boundary.
+
 ## Resume-Safe Context
 
 Tasks expose resume-safe context through task reads, task summaries, Workbench task items, task search documents, audit metadata, and internal task event metadata. The core fields are:

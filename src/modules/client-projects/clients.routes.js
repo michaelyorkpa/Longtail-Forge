@@ -9,11 +9,6 @@ clientsRoutes.get("/client-projects", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
-clientsRoutes.get("/client-projects/dashboard/project-summary", asyncRoute(async (request, response) => {
-  const result = await clientsService.readDashboardProjectSummary(request.session);
-  response.status(200).json(result);
-}));
-
 clientsRoutes.put("/client-projects", asyncRoute(async (request, response) => {
   const result = await clientsService.saveClientProjects(request.session);
   response.status(200).json(result);

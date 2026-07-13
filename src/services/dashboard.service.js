@@ -5,11 +5,11 @@ import { settingsRepository } from "../repositories/settings.repo.js";
 const DASHBOARD_REGIONS = [
   { id: "pulse", label: "Workspace Pulse" },
   { id: "attention", label: "Needs Attention" },
+  { id: "calendar", label: "Calendar" },
   { id: "today", label: "Today / Upcoming" },
   { id: "main", label: "Module Overview" },
   { id: "activity", label: "Recent Activity" },
   { id: "secondary", label: "Secondary" },
-  { id: "reporting", label: "Reporting" },
 ];
 
 async function readDashboard(session) {

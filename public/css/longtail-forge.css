@@ -228,6 +228,12 @@ body.view-slideout-sidebar-lock {
     min-width: 0;
 }
 
+.surface-modal-heading-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .surface-main-panel {
     box-sizing: border-box;
     display: grid;
@@ -613,6 +619,12 @@ details[open] > summary.surface-modal-section-heading::before {
 .view-status-message,
 .view-empty-state {
     margin: 0;
+}
+
+/* .surface-main-panel sets display: grid, which would otherwise defeat the
+   hidden attribute on every status message built by the view primitive. */
+.view-status-message[hidden] {
+    display: none;
 }
 
 .view-empty-state {
@@ -2858,6 +2870,12 @@ a.search-result-title:hover {
     background: var(--color-hover);
 }
 
+/* display: inline-flex above would otherwise defeat the hidden attribute on
+   hidden button-styled links (like the gated Workbench calendar button). */
+.button-link[hidden] {
+    display: none;
+}
+
 /* Shared settings forms */
 .login-form {
     display: grid;
@@ -3572,14 +3590,12 @@ button.danger-button {
 }
 
 .dashboard-region--activity,
-.dashboard-region--secondary,
-.dashboard-region--reporting {
+.dashboard-region--secondary {
     margin-top: 12px;
 }
 
 .dashboard-region--activity .dashboard-region-heading,
-.dashboard-region--secondary .dashboard-region-heading,
-.dashboard-region--reporting .dashboard-region-heading {
+.dashboard-region--secondary .dashboard-region-heading {
     color: var(--color-text-secondary);
     font-size: 16px;
 }
@@ -3597,9 +3613,27 @@ button.danger-button {
 }
 
 .dashboard-region-body--activity .view-empty-state,
-.dashboard-region-body--secondary .dashboard-panel,
-.dashboard-region-body--reporting .dashboard-panel {
+.dashboard-region-body--secondary .dashboard-panel {
     background: var(--color-surface-muted);
+}
+
+.dashboard-calendar-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.dashboard-calendar-period {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+}
+
+.dashboard-calendar-body {
+    display: grid;
+    gap: 6px;
 }
 
 .dashboard-panel {
@@ -3617,20 +3651,6 @@ button.danger-button {
 .dashboard-panel,
 .dashboard-panel-body {
     min-width: 0;
-}
-
-.active-client-panel {
-    margin-top: 0;
-}
-
-.dashboard-client-details summary {
-    color: var(--color-text);
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.dashboard-client-details summary span {
-    margin-left: 8px;
 }
 
 @media (max-width: 720px) {
@@ -3657,44 +3677,9 @@ button.danger-button {
 
     .dashboard-region,
     .dashboard-region--activity,
-    .dashboard-region--secondary,
-    .dashboard-region--reporting {
+    .dashboard-region--secondary {
         margin-top: 14px;
     }
-}
-
-.metric-value {
-    margin: 0;
-    color: var(--color-text);
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.client-radio-list {
-    display: grid;
-    gap: 10px;
-    margin: 16px 0;
-    padding: 0;
-    border: 0;
-}
-
-.client-radio-list legend {
-    margin-bottom: 8px;
-    color: var(--color-text-secondary);
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.client-radio-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.client-radio-option input {
-    width: auto;
-    margin: 0;
 }
 
 .billables-chart {
@@ -5312,6 +5297,17 @@ dialog .form-actions {
 .workbench-panel-heading p {
     color: var(--color-muted);
     font-size: 14px;
+}
+
+.workbench-focus-heading-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+}
+
+.workbench-focus-heading-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
 }
 
 .workbench-recommended-heading {
@@ -8236,6 +8232,13 @@ button:disabled {
     line-height: 1;
 }
 
+/* display: inline-flex above would otherwise defeat the hidden attribute on
+   every hidden action button (modal utility toggles like the notification
+   bell and the Workbench handoff). */
+.action-button[hidden] {
+    display: none;
+}
+
 .action-button-label {
     min-width: 0;
 }
@@ -8623,11 +8626,6 @@ button:disabled {
     text-align: left;
 }
 
-/* .surface-main-panel sets display: grid, which defeats the hidden attribute. */
-.calendar-status[hidden] {
-    display: none;
-}
-
 .calendar-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -8842,9 +8840,7 @@ button:disabled {
 }
 
 .workbench-calendar-link {
-    display: inline-block;
-    margin-top: 4px;
-    font-size: 0.9rem;
+    justify-self: end;
 }
 
 @media (max-width: 700px) {
