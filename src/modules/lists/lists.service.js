@@ -38,10 +38,12 @@ import { notesRepository } from "../notes/notes.repo.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { tagsService } from "../../services/tags.service.js";
 import { resolveClientProjectFilterScope } from "../../core/client-project-filter-scope.js";
+import { assertLinkedContextTargetContract } from "../../core/linked-context/provider-contract.js";
 
 const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
 const PURCHASE_STATUS_SET = new Set(LIST_ITEM_PURCHASE_STATUS_VALUES);
+const LIST_LINK_TARGET_TYPES = new Set(["client", "note", "project", "task"]);
 
 async function list(session, query = {}) {
   await assertListsReadable(session);
@@ -310,11 +312,48 @@ async function listLinks(listId, session) {
   return { links: await readPermissionSafeLinks(session, listRecord) };
 }
 
+async function listLinkTargets(session, query = {}) {
+  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
+  await permissionsService.assertCanInAnyScope(session, LIST_PERMISSIONS.MANAGE_LINKS, {
+    operation: "manage_links",
+    workspace_id: session.workspace_id,
+  });
+
+  const activeProviders = (await modulesService.listActiveLinkedContextProviders(session.workspace_id, session))
+    .filter((provider) => LIST_LINK_TARGET_TYPES.has(provider.targetType));
+  const targetType = normalizeOptionalText(query.targetType || query.target_type) || activeProviders[0]?.targetType || "";
+
+  if (!targetType || !activeProviders.some((provider) => provider.targetType === targetType)) {
+    throw new AppError("Linked target type is not available for this list.", 400);
+  }
+
+  const search = normalizeOptionalText(query.q || query.query || query.search).toLowerCase();
+  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50);
+  const provider = activeProviders.find((entry) => entry.targetType === targetType);
+  const targets = await listLinkTargetsByType(session, targetType, provider);
+
+  return {
+    providers: activeProviders.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      moduleId: entry.moduleId,
+      providerId: entry.provider,
+      targetType: entry.targetType,
+    })),
+    targets: targets
+      .filter((target) => !search || [target.displayLabel, target.secondaryLabel, target.title]
+        .some((value) => String(value || "").toLowerCase().includes(search)))
+      .sort((left, right) => left.sortKey.localeCompare(right.sortKey) || left.targetId.localeCompare(right.targetId))
+      .slice(0, limit),
+  };
+}
+
 async function createLink(listId, payload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const listRecord = await readListOrThrow(session, listId);
   await assertCanAccessList(session, listRecord, "manage_links");
   const link = normalizeLinkPayload(payload, listRecord, session);
+  await assertLinkTargetProviderAvailable(session, link);
   const target = await readLinkedTargetSummary(session, link, { requireAccess: true });
   const createdLink = await listsRepository.createLink(session.workspace_id, link);
   await recordLinkAudit(session, "list_link_created", "create", null, createdLink, listRecord);
@@ -336,7 +375,6 @@ async function removeLink(listId, linkId, session) {
     throw new AppError("List link not found.", 404);
   }
 
-  await readLinkedTargetSummary(session, previousLink, { requireAccess: true });
   const link = await listsRepository.removeLink(session.workspace_id, listRecord.list_id, previousLink.list_link_id);
   await recordLinkAudit(session, "list_link_removed", "delete", previousLink, link, listRecord);
   await emitListEvent("lists.link.removed", session, listRecord, listRecord, {
@@ -629,6 +667,7 @@ async function assertCanAccessList(session, listRecord, operation) {
         restore: LIST_PERMISSIONS.RESTORE,
         delete: LIST_PERMISSIONS.DELETE,
         manage_items: LIST_PERMISSIONS.MANAGE_ITEMS,
+        manage_links: LIST_PERMISSIONS.MANAGE_LINKS,
         manage_reusable: LIST_PERMISSIONS.MANAGE_REUSABLE,
       }[operation] || LIST_PERMISSIONS.VIEW;
 
@@ -787,7 +826,7 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
         module_id: "client-projects",
         target_id: client.id,
         target_type: "client",
-        url: `clients-projects.html?client=${encodeURIComponent(client.id)}`,
+        url: `clients.html?client=${encodeURIComponent(client.id)}`,
       });
     }
 
@@ -811,7 +850,7 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
         module_id: "client-projects",
         target_id: project.id,
         target_type: "project",
-        url: `clients-projects.html?project=${encodeURIComponent(project.id)}`,
+        url: `projects.html?project=${encodeURIComponent(project.id)}`,
       });
     }
 
@@ -882,6 +921,181 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
   }
 
   return summaries;
+}
+
+async function listLinkTargetsByType(session, targetType, provider) {
+  if (targetType === "client") {
+    const clients = await permissionsService.filterReadableClients(
+      session,
+      await clientsRepository.readAll(session.workspace_id),
+    );
+    return clients.map((client) => shapeListLinkTarget({
+      moduleId: "client-projects",
+      targetType,
+      targetId: client.id,
+      displayLabel: client.name || "Unavailable client",
+      secondaryLabel: "",
+      sortKey: `client:${sortableTargetText(client.name)}:${client.id}`,
+      sourceUrl: `clients.html?client=${encodeURIComponent(client.id)}`,
+      clientId: client.id,
+      projectId: "",
+      workspaceId: session.workspace_id,
+      title: client.name || "Unavailable client",
+    }, provider));
+  }
+
+  const [clients, projects] = await Promise.all([
+    clientsRepository.readAll(session.workspace_id),
+    projectsRepository.readAll(session.workspace_id),
+  ]);
+  const clientsById = new Map(clients.map((client) => [client.id, client]));
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const workspaceType = String((await settingsRepository.readWorkspaceSettings(session.workspace_id)).workspaceType || "business").toLowerCase();
+  const isBusiness = workspaceType === "business";
+
+  if (targetType === "project") {
+    const readableProjects = await permissionsService.filterReadableProjects(session, projects);
+    return readableProjects.map((project) => {
+      const clientName = clientsById.get(project.client_id)?.name || project.client_name || "";
+      const contextLabel = isBusiness ? clientName || "Workspace" : "";
+      const displayLabel = contextLabel ? `${project.name} - ${contextLabel}` : project.name;
+      return shapeListLinkTarget({
+        moduleId: "client-projects",
+        targetType,
+        targetId: project.id,
+        displayLabel: displayLabel || "Unavailable project",
+        secondaryLabel: "",
+        sortKey: `project:${sortableTargetText(contextLabel)}:${sortableTargetText(project.name)}:${project.id}`,
+        sourceUrl: `projects.html?project=${encodeURIComponent(project.id)}`,
+        clientId: project.client_id || "",
+        projectId: project.id,
+        workspaceId: session.workspace_id,
+        title: project.name || "Unavailable project",
+      }, provider);
+    });
+  }
+
+  if (targetType === "task") {
+    const tasks = await tasksRepository.readAll(session.workspace_id);
+    const readableTasks = [];
+    for (const task of tasks) {
+      if (await permissionsService.can(session, "tasks.view", {
+        client_id: task.client_id,
+        operation: "read",
+        project_id: task.project_id,
+        task_id: task.task_id,
+        workspace_id: session.workspace_id,
+      })) {
+        readableTasks.push(task);
+      }
+    }
+    return readableTasks.map((task) => shapeContextualListLinkTarget({
+      record: task,
+      recordId: task.task_id,
+      title: task.title,
+      targetType,
+      moduleId: "tasks",
+      sourceUrl: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+      statusRank: task.archived_at || task.status === "archived" ? "2" : task.status === "complete" ? "1" : "0",
+      clientsById,
+      projectsById,
+      isBusiness,
+      provider,
+      workspaceId: session.workspace_id,
+    }));
+  }
+
+  const notes = await notesRepository.list(session.workspace_id, {});
+  const readableNotes = [];
+  for (const note of notes) {
+    if (note.status === "deleted" || note.deleted_at) {
+      continue;
+    }
+    if (note.visibility === "private" && note.owner_user_id !== session.user_id) {
+      continue;
+    }
+    if (note.security_mode === "secure" && note.owner_user_id !== session.user_id && !(await permissionsService.can(session, "notes.secure.view_all", {
+      note_id: note.note_id,
+      operation: "read",
+      workspace_id: session.workspace_id,
+    }))) {
+      continue;
+    }
+    if (await permissionsService.can(session, "notes.view", {
+      client_id: note.client_id,
+      note_id: note.note_id,
+      operation: "read",
+      project_id: note.project_id,
+      workspace_id: session.workspace_id,
+    })) {
+      readableNotes.push(note);
+    }
+  }
+  return readableNotes.map((note) => shapeContextualListLinkTarget({
+    record: note,
+    recordId: note.note_id,
+    title: note.title,
+    targetType,
+    moduleId: "notes",
+    sourceUrl: `notes.html?note=${encodeURIComponent(note.note_id)}`,
+    statusRank: note.status === "archived" ? "1" : "0",
+    clientsById,
+    projectsById,
+    isBusiness,
+    provider,
+    workspaceId: session.workspace_id,
+  }));
+}
+
+function shapeContextualListLinkTarget(options = {}) {
+  const record = options.record || {};
+  const project = options.projectsById.get(record.project_id) || {};
+  const clientId = record.client_id || project.client_id || "";
+  const clientName = options.clientsById.get(clientId)?.name || project.client_name || "";
+  const projectName = project.name || record.project_name || "";
+  const contextParts = options.isBusiness
+    ? [clientName || (projectName ? "Workspace" : ""), projectName].filter(Boolean)
+    : [projectName].filter(Boolean);
+  const secondaryLabel = contextParts.join(" | ");
+  const safeTitle = normalizeOptionalText(options.title) || `Unavailable ${options.targetType}`;
+  const compactTitle = compactLinkedTargetTitle(safeTitle);
+
+  return shapeListLinkTarget({
+    moduleId: options.moduleId,
+    targetType: options.targetType,
+    targetId: options.recordId,
+    displayLabel: secondaryLabel ? `${compactTitle} - ${secondaryLabel}` : compactTitle,
+    secondaryLabel,
+    sortKey: `${options.statusRank}:${sortableTargetText(secondaryLabel)}:${sortableTargetText(safeTitle)}:${options.recordId}`,
+    sourceUrl: options.sourceUrl,
+    clientId,
+    projectId: record.project_id || "",
+    workspaceId: options.workspaceId,
+    title: safeTitle,
+  }, options.provider);
+}
+
+function shapeListLinkTarget(target = {}, provider = {}) {
+  const normalized = assertLinkedContextTargetContract({
+    ...target,
+    isAvailable: true,
+  }, provider);
+  const title = normalizeOptionalText(target.title) || normalized.displayLabel;
+  return {
+    ...normalized,
+    ariaLabel: title,
+    fullLabel: title,
+    title,
+  };
+}
+
+function compactLinkedTargetTitle(value) {
+  const title = normalizeOptionalText(value);
+  return title.length > 20 ? `${title.slice(0, 20).trimEnd()}...` : title;
+}
+
+function sortableTargetText(value) {
+  return normalizeOptionalText(value).toLowerCase();
 }
 
 function linkedTargetKey(target = {}) {
@@ -1547,13 +1761,15 @@ function normalizeLinkPayload(payload = {}, listRecord, session) {
 function normalizeTarget(payload = {}) {
   const targetType = normalizeRequiredText(payload.targetType || payload.target_type, "Target type");
   const targetId = normalizeRequiredText(payload.targetId || payload.target_id, "Target ID");
-  const moduleId = normalizeOptionalText(payload.moduleId || payload.module_id) || moduleIdForTargetType(targetType);
+  const expectedModuleId = moduleIdForTargetType(targetType);
+  const requestedModuleId = normalizeOptionalText(payload.moduleId || payload.module_id);
+  const moduleId = requestedModuleId || expectedModuleId;
 
   if (!["client", "project", "task", "note"].includes(targetType)) {
     throw new AppError(`Linked target type '${targetType}' is not supported for Lists.`, 400);
   }
 
-  if (!moduleId) {
+  if (!moduleId || (requestedModuleId && requestedModuleId !== expectedModuleId)) {
     throw new AppError(`Linked target type '${targetType}' is not supported for Lists.`, 400);
   }
 
@@ -1562,6 +1778,17 @@ function normalizeTarget(payload = {}) {
     target_id: targetId,
     target_type: targetType,
   };
+}
+
+async function assertLinkTargetProviderAvailable(session, target = {}) {
+  const providers = await modulesService.listActiveLinkedContextProviders(session.workspace_id, session);
+  if (!providers.some((provider) => (
+    provider.targetType === target.target_type &&
+    provider.moduleId === target.module_id &&
+    LIST_LINK_TARGET_TYPES.has(provider.targetType)
+  ))) {
+    throw new AppError("Linked target provider is not available for this list.", 400);
+  }
 }
 
 function moduleIdForTargetType(targetType) {
@@ -1993,6 +2220,7 @@ const listsService = {
   finalize,
   createLink,
   list,
+  listLinkTargets,
   listLinks,
   markReusable,
   read,

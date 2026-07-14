@@ -24,19 +24,13 @@ const PURCHASE_STATUS_LABELS = {
   planned: "Planned",
   received: "Received",
 };
-const TASK_STATUS_LABELS = {
-  archived: "Archived",
-  blocked: "Blocked",
-  complete: "Complete",
-  in_progress: "In Progress",
-  open: "Open",
-};
 const LIST_LINK_TYPE_LABELS = {
   client: "Client",
   note: "Note",
   project: "Project",
   task: "Task",
 };
+const LIST_LINK_TARGET_ORDER = ["task", "note", "project", "client"];
 
 const view = window.LongtailForge?.view;
 let activeListsViewDescriptor = null;
@@ -74,6 +68,11 @@ const listTypeInput = document.querySelector("[data-list-type]");
 const listClientInput = document.querySelector("[data-list-client]");
 const listProjectInput = document.querySelector("[data-list-project]");
 const listDescriptionInput = document.querySelector("[data-list-description]");
+const listLinkPicker = document.querySelector("[data-list-link-picker]");
+const listLinkTargetTypeInput = document.querySelector("[data-list-link-target-type]");
+const listLinkSearchInput = document.querySelector("[data-list-link-search]");
+const listLinkResultsInput = document.querySelector("[data-list-link-results]");
+const listLinkApplyButton = document.querySelector("[data-list-link-apply]");
 const listFormStatus = document.querySelector("[data-list-form-status]");
 const listCancelButton = document.querySelector("[data-list-cancel]");
 const listSaveButton = document.querySelector("[data-list-save]");
@@ -90,13 +89,16 @@ let state = {
   currentUserId: "",
   dialogDataReady: null,
   editingListId: "",
+  editorList: null,
+  editorStagedTargets: [],
   itemDialogList: null,
   itemSuggestions: new Map(),
+  linkTargetSearchTimer: null,
+  linkTargets: [],
   listDialogHostContext: null,
   listDialogHostContextSettled: false,
   lists: [],
   selectedListId: new URLSearchParams(window.location.search).get("list") || "",
-  taskLinkTargets: [],
   users: [],
   workspaceType: "business",
 };
@@ -310,7 +312,8 @@ function fallbackListsViewSurfaceDescriptor() {
     id: "lists.workspace",
     moduleId: "lists",
     viewId: "lists",
-    layout: "stacked",
+    layout: "slide-out-sidebar",
+    sidebarLabel: "Lists navigation",
     pageHeader: {
       title: "Lists",
       primaryAction: {
@@ -320,6 +323,21 @@ function fallbackListsViewSurfaceDescriptor() {
         behavior: "lists.create",
       },
     },
+    sidebarPanels: [
+      {
+        id: "lists-filters",
+        type: "filters",
+        title: "Filters",
+        open: false,
+        className: "lists-filters-panel",
+      },
+      {
+        id: "lists-index",
+        type: "index",
+        title: "List Selector",
+        open: true,
+      },
+    ],
     filters: [
       descriptorSelect("status", "Status", [["active", "Active", true], ["completed", "Completed"], ["finalized", "Finalized"], ["archived", "Archived"], ["deleted", "Deleted"], ["all", "All visible"]]),
       descriptorSelect("listType", "Type", [["all", "All types", true], ...Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label])]),
@@ -345,13 +363,15 @@ function fallbackListsViewSurfaceDescriptor() {
         description: "Choose a list to inspect.",
       },
       summaryPanels: [
+        {
+          title: "List Details",
+          description: "Description and read-only linked records.",
+        },
         { title: "Next", description: "List progress and next action context." },
         { title: "Source", description: "Template and working-copy context." },
         { title: "Costs", description: "Estimated and actual item costs." },
-        { title: "Linked Records", description: "Task, note, project, and client links." },
       ],
       actionStrip: listsWorkflowActionStripDescriptor(),
-      linkedRecords: listsLinkedRecordsDescriptor(),
       emptyState: {
         message: "Select a list to review its context.",
       },
@@ -388,30 +408,6 @@ function listsWorkflowActionStripDescriptor() {
   };
 }
 
-function listsLinkedRecordsDescriptor() {
-  return {
-    title: "Linked Records",
-    recordsField: "links",
-    targetTypeField: "target_type",
-    targetLabelField: "target.label",
-    targetUrlField: "target.url",
-    targetIdField: "list_link_id",
-    emptyState: {
-      message: "No linked records yet.",
-    },
-    fields: [
-      { field: "target_type", type: "select", label: "Type", default: "task", options: [["task", "Task"], ["note", "Note"], ["project", "Project"], ["client", "Client"]] },
-      { field: "task_search", type: "search", label: "Search tasks", placeholder: "Search tasks", autocomplete: "off", behavior: "lists.link.task-search" },
-      { field: "task_picker", type: "select", label: "Task", optionsSource: "taskLinkTargets", behavior: "lists.link.task-picker" },
-      { field: "target_id", type: "text", label: "Record ID", required: true, placeholder: "Paste record ID", behavior: "lists.link.raw-record-id" },
-    ],
-    actions: [
-      { id: "add-link", label: "Add Link", role: "primary", behavior: "lists.link.add" },
-      { id: "remove-link", label: "Remove", role: "destructive", behavior: "lists.link.remove" },
-    ],
-  };
-}
-
 function listsItemFormDescriptor() {
   return {
     title: "Items",
@@ -423,13 +419,13 @@ function listsItemFormDescriptor() {
       { field: "needed_by_date", type: "date", label: "Needed by", width: "compact" },
       { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users", width: "compact" },
       { field: "purchase_status", type: "select", label: "Status", default: "needed", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]), width: "compact" },
-      { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced" },
-      { field: "url", type: "url", label: "URL", placement: "advanced" },
-      { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced" },
-      { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced" },
-      { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced" },
+      { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced", width: "wide" },
+      { field: "url", type: "url", label: "URL", placement: "advanced", width: "wide" },
+      { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
+      { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
+      { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced", width: "wide" },
       { field: "notes", type: "textarea", label: "Notes", rows: "2", width: "full" },
-      { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true" },
+      { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true", width: "full" },
     ],
     actions: [
       { id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save" },
@@ -465,12 +461,13 @@ function listsModalDescriptor() {
   return {
     id: "list-editor",
     title: "List",
+    size: "wide",
     fields: [
-      { field: "title", type: "text", label: "Title", required: true },
-      { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]) },
-      { field: "client_id", type: "select", label: "Client", optionsSource: "clients" },
-      { field: "project_id", type: "select", label: "Project", optionsSource: "projects" },
-      { field: "description", type: "textarea", label: "Description", rows: "4" },
+      { field: "title", type: "text", label: "Title", required: true, width: "full" },
+      { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]), width: "compact" },
+      { field: "client_id", type: "select", label: "Client", optionsSource: "clients", width: "wide" },
+      { field: "project_id", type: "select", label: "Project", optionsSource: "projects", width: "wide" },
+      { field: "description", type: "textarea", label: "Description", rows: "4", width: "full" },
     ],
     footerActions: [
       { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
@@ -506,7 +503,8 @@ function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDe
   status.dataset.listsStatus = "";
   header?.after(status);
 
-  const filterPanel = surface.querySelector(".view-filter-panel");
+  const filterPanel = surface.querySelector('[data-view-sidebar-panel="lists-filters"]')
+    || surface.querySelector(".view-filter-panel");
   filterPanel?.classList.add("lists-filters-panel");
   if (filterPanel) {
     filterPanel.dataset.listsFiltersPanel = "";
@@ -527,10 +525,12 @@ function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDe
   decorateFilterControl(surface, "archiveState", "listFilterArchive");
   decorateFilterControl(surface, "sort", "listSort");
 
-  const workspace = surface.querySelector(".view-stacked");
+  const workspace = surface.querySelector(".view-slideout-sidebar")
+    || surface.querySelector(".view-stacked");
   workspace?.classList.add("lists-workspace");
 
-  const indexPanel = surface.querySelector(".view-collapsible-index");
+  const indexPanel = surface.querySelector('[data-view-sidebar-panel="lists-index"]')
+    || surface.querySelector(".view-collapsible-index");
   indexPanel?.classList.add("lists-index-panel");
   if (indexPanel) {
     indexPanel.dataset.listsIndexPanel = "";
@@ -546,7 +546,8 @@ function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDe
   mount.dataset.listsList = "";
   indexBody?.replaceChildren(mount);
 
-  const detail = surface.querySelector(".view-stacked-detail");
+  const detail = surface.querySelector(".view-slideout-sidebar-main")
+    || surface.querySelector(".view-stacked-detail");
   detail?.classList.add("lists-detail-panel");
   if (detail) {
     detail.dataset.listDetail = "";
@@ -571,18 +572,46 @@ function decorateFilterControl(surface, fieldName, datasetName, wrapperDatasetNa
 
 function createListDialogShell() {
   const modal = listsEditorModalDescriptor();
-  const title = listModalField("title", "listTitle", { required: true });
-  const type = listModalField("list_type", "listType");
-  const client = listModalField("client_id", "listClient", {}, { listBusinessControl: "" }, []);
-  const project = listModalField("project_id", "listProject", {}, { listContextControl: "" }, []);
-  const contextFields = view.renderDescriptorFieldGrid({ fields: modal.fields || [] }, {
+  const editorFields = view.renderDescriptorFieldGrid({ fields: modal.fields || [] }, {
     surface: false,
-    className: "lists-form-grid",
-    fields: [type, client, project],
+    className: "lists-editor-fields",
   });
-  const description = listModalField("description", "listDescription");
+  editorFields.dataset.viewFieldWidth = "full";
+  decorateListEditorField(editorFields, "title", "listTitle");
+  decorateListEditorField(editorFields, "list_type", "listType");
+  decorateListEditorField(editorFields, "client_id", "listClient", "listBusinessControl");
+  decorateListEditorField(editorFields, "project_id", "listProject", "listContextControl");
+  decorateListEditorField(editorFields, "description", "listDescription");
+
+  const picker = view.createLinkedContextPicker({
+    ariaLabel: "List linked records",
+    emptyMessage: "No linked records yet.",
+    linkedItems: [],
+    onRemove: handleListEditorLinkedContextRemove,
+    onSearchInput: queueListEditorLinkTargetSearch,
+    onTargetChange: loadListEditorLinkTargets,
+    onUseTarget: applyListEditorLinkTarget,
+    providers: listLinkProviderOptions(),
+    records: [],
+    rowsLabel: "Linked records",
+  });
+  picker.dataset.listLinkPicker = "";
+  picker.viewParts.targetSelect.dataset.listLinkTargetType = "";
+  picker.viewParts.searchInput.dataset.listLinkSearch = "";
+  picker.viewParts.recordSelect.dataset.listLinkResults = "";
+  picker.viewParts.useTargetButton.dataset.listLinkApply = "";
+  const linkedRecordsSection = view.createElement("div", {
+    className: "lists-editor-linked-records",
+    children: [
+      view.createElement("h3", { className: "surface-modal-section-heading", text: "Linked Records" }),
+      picker,
+    ],
+  });
+  linkedRecordsSection.dataset.viewFieldWidth = "full";
+
   const formStatus = view.createStatusMessage({ className: "lists-form-status" });
   formStatus.dataset.listFormStatus = "";
+  formStatus.dataset.viewFieldWidth = "full";
 
   const cancelAction = modal.footerActions?.find((action) => action.id === "cancel-list") || {};
   const saveAction = modal.footerActions?.find((action) => action.id === "save-list") || {};
@@ -594,7 +623,7 @@ function createListDialogShell() {
   const dialog = view.renderDescriptorModalForm(modal, {
     className: "lists-dialog",
     formClassName: "lists-form",
-    fields: [title, contextFields, description, formStatus],
+    fields: [editorFields, linkedRecordsSection, formStatus],
     actions: [cancel, save],
   });
   dialog.dataset.listDialog = "";
@@ -604,8 +633,14 @@ function createListDialogShell() {
   const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
   close.dataset.listDialogClose = "";
   const heading = view.createElement("div", {
-    className: "lists-dialog-heading",
-    children: [dialog.viewParts.title, close],
+    className: "surface-modal-heading",
+    children: [
+      dialog.viewParts.title,
+      view.createElement("div", {
+        className: "surface-modal-heading-actions",
+        children: [close],
+      }),
+    ],
   });
   dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
   return dialog;
@@ -615,59 +650,15 @@ function listsEditorModalDescriptor() {
   return listsViewSurfaceDescriptor().modals?.find((modal) => modal.id === "list-editor") || listsModalDescriptor();
 }
 
-function listModalField(fieldName, dataName, attrs = {}, wrapperDataset = {}, optionEntries = null) {
-  const field = listsEditorModalDescriptor().fields?.find((entry) => entry.field === fieldName) || {};
-  if (field.type === "textarea") {
-    return textareaControl(field.label || fieldName, dataName, {
-      rows: field.rows,
-      ...attrs,
-    }, wrapperDataset);
+function decorateListEditorField(grid, fieldName, dataName, wrapperDataName = "") {
+  const wrapper = grid.querySelector(`[data-view-field="${fieldName}"]`);
+  const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+  if (control) {
+    control.dataset[dataName] = "";
   }
-  if (field.type === "select") {
-    return selectControl(
-      field.label || fieldName,
-      dataName,
-      optionEntries || optionsFromDescriptor(field),
-      wrapperDataset,
-    );
+  if (wrapper && wrapperDataName) {
+    wrapper.dataset[wrapperDataName] = "";
   }
-  return inputControl(field.label || fieldName, field.type || "text", dataName, {
-    required: field.required,
-    min: field.min,
-    step: field.step,
-    autocomplete: field.autocomplete,
-    ...attrs,
-  }, wrapperDataset);
-}
-
-function inputControl(labelText, type, dataName, attributes = {}, wrapperDataset = {}) {
-  const label = view.createElement("label", { dataset: wrapperDataset });
-  const input = view.createElement("input", { attrs: attributes });
-  input.type = type;
-  input.dataset[dataName] = "";
-  label.append(labelText, input);
-  return label;
-}
-
-function textareaControl(labelText, dataName, attributes = {}, wrapperDataset = {}) {
-  const label = view.createElement("label", { dataset: wrapperDataset });
-  const textarea = view.createElement("textarea", { attrs: attributes });
-  textarea.dataset[dataName] = "";
-  label.append(labelText, textarea);
-  return label;
-}
-
-function selectControl(labelText, dataName, entries = [], wrapperDataset = {}) {
-  const label = view.createElement("label", { dataset: wrapperDataset });
-  const select = document.createElement("select");
-  select.dataset[dataName] = "";
-  select.append(...entries.map(([value, text, selected]) => {
-    const entry = option(value, text);
-    entry.selected = Boolean(selected);
-    return entry;
-  }));
-  label.append(labelText, select);
-  return label;
 }
 
 async function initialize() {
@@ -708,14 +699,12 @@ function applyWorkspaceContext() {
 }
 
 async function loadOptions() {
-  const [clientProjects, users, taskLinkTargets] = await Promise.all([
+  const [clientProjects, users] = await Promise.all([
     loadClientProjects(),
     loadUsers(),
-    loadTaskLinkTargets(),
   ]);
 
   state.clients = window.LongtailForge.clientProjectOptions.normalizeClients(clientProjects);
-  state.taskLinkTargets = taskLinkTargets;
   state.users = users.users || [];
 }
 
@@ -732,15 +721,6 @@ async function loadUsers() {
     return await api.getJson("/api/users", { cache: "no-store" });
   } catch {
     return { users: [] };
-  }
-}
-
-async function loadTaskLinkTargets() {
-  try {
-    const result = await api.getJson("/api/tasks?status=active&sort=updated_desc", { cache: "no-store" });
-    return result.tasks || [];
-  } catch {
-    return [];
   }
 }
 
@@ -934,21 +914,18 @@ function renderDetail(list) {
   const locked = list.status === "archived" || list.status === "deleted" || list.status === "finalized";
   const article = view.createElement("section", { className: "lists-detail-content" });
   const header = createListDetailHeader(list, locked);
+  const listDetails = createListDetailsPanel(list);
   const nextAction = createNextActionStrip(list);
   const sourceContext = shouldShowSourceContext(list) ? createSourceContextPanel(list) : null;
-  const linkedRecords = createLinkedRecordsPanel(list, locked);
   const costSummary = createCostSummaryPanel(list);
-  const description = view.createElement("p", { className: "lists-description" });
   const itemsHeader = createItemsHeader(list, locked);
   const items = view.createElement("div", { className: "lists-items" });
 
-  description.textContent = list.description || "No description.";
   items.appendChild(createItemsTable(list, locked));
 
-  // Reorganized detail order: identity (header) -> what it is (description) -> what to do next ->
-  // provenance (only when meaningful) -> linked records -> Items heading + Add Item -> the items table ->
-  // the cost rollup beneath the items it totals. The add/edit item form opens as a modal.
-  article.append(...[header, description, nextAction, sourceContext, linkedRecords, itemsHeader, items, costSummary].filter(Boolean));
+  // Detail order: identity -> details context -> what to do next -> provenance (only when meaningful) ->
+  // Items heading + Add Item -> the items table -> the cost rollup beneath the items it totals.
+  article.append(...[header, listDetails, nextAction, sourceContext, itemsHeader, items, costSummary].filter(Boolean));
   detailPanel.replaceChildren(article);
 }
 
@@ -977,6 +954,29 @@ function createListActionStrip(list, locked) {
     ariaLabel: label,
     title: label,
   });
+}
+
+function createListDetailsPanel(list) {
+  const panel = view.createInfoPanel({
+    title: "List Details",
+    className: "lists-details-panel",
+    collapsible: true,
+    open: true,
+    ariaLabel: "List details",
+  });
+  const description = view.createElement("p", { className: "lists-description" });
+  const linkedRecords = view.createLinkedContextList({
+    ariaLabel: "Linked records",
+    className: "lists-linked-context-list",
+    emptyMessage: "No linked records yet.",
+    items: linkedContextItems(list),
+    readonly: true,
+  });
+
+  description.textContent = list.description || "No description.";
+  panel.dataset.listDetailsPanel = "";
+  panel.append(description, linkedRecords);
+  return panel;
 }
 
 function listsActionStripSurfaceDescriptor() {
@@ -1054,11 +1054,14 @@ function createItemDialogShell() {
       .map((fieldName) => createItemFieldFromDescriptor(itemFormField(fieldName))),
   });
   const advancedDescriptorFields = (descriptor.fields || []).filter((field) => field.placement === "advanced");
-  const advanced = view.createElement("details", { className: "lists-item-advanced" });
-  const advancedSummary = view.createElement("summary", { text: "Details" });
+  const advanced = view.createElement("details", { className: ["lists-item-advanced", "surface-modal-group"] });
+  const advancedSummary = view.createElement("summary", {
+    className: "surface-modal-section-heading",
+    text: "Details",
+  });
   const advancedFields = view.renderDescriptorFieldGrid({ fields: advancedDescriptorFields }, {
     surface: false,
-    className: "lists-item-advanced-fields",
+    className: ["lists-item-advanced-fields", "surface-modal-section-body"],
     fields: advancedDescriptorFields.map((field) => createItemFieldFromDescriptor(field)),
   });
   advanced.append(advancedSummary, advancedFields);
@@ -1088,8 +1091,14 @@ function createItemDialogShell() {
   const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
   close.dataset.listItemDialogClose = "";
   const heading = view.createElement("div", {
-    className: "lists-dialog-heading",
-    children: [dialog.viewParts.title, close],
+    className: "surface-modal-heading",
+    children: [
+      dialog.viewParts.title,
+      view.createElement("div", {
+        className: "surface-modal-heading-actions",
+        children: [close],
+      }),
+    ],
   });
   dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
   return dialog;
@@ -1291,187 +1300,31 @@ function listsItemRowsSurfaceDescriptor() {
   return listsViewSurfaceDescriptor().detail?.itemRows || listsItemRowsDescriptor();
 }
 
-function createLinkedRecordsPanel(list, locked) {
-  const descriptor = listsLinkedRecordsSurfaceDescriptor();
-  const targetType = createLinkedRecordField(linkedRecordField("target_type"), linkTargetTypeOptions());
-  const taskSearch = createLinkedRecordField(linkedRecordField("task_search"));
-  const taskPicker = createLinkedRecordField(linkedRecordField("task_picker"), []);
-  const targetId = createLinkedRecordField(linkedRecordField("target_id"));
-  const targetTypeSelect = targetType.querySelector("select");
-  const taskSearchInput = taskSearch.querySelector("input");
-  const taskPickerSelect = taskPicker.querySelector("select");
-  const targetIdInput = targetId.querySelector("input");
-  const addAction = descriptor.actions?.find((action) => action.id === "add-link") || {};
-  const submit = view.createActionButton({
-    icon: "add",
-    iconOnly: true,
-    label: addAction.label || "Add Link",
-    title: addAction.label || "Add Link",
-    type: "submit",
-    role: addAction.role || "primary",
-    action: addAction.behavior || addAction.id,
-  });
-  const section = view.renderDescriptorLinkedRecordsPanel(descriptor, {
-    className: "lists-links-panel",
-    collapsible: true,
-    open: false,
-    recordsClassName: "lists-link-list",
-    formClassName: "lists-link-form view-field-grid surface-modal-section-body",
-    formDataset: {
-      listLinkForm: "",
-      listId: list.list_id,
-    },
-    formFields: [targetType, taskSearch, taskPicker, targetId],
-    formActions: [submit],
-    locked,
-    emptyClassName: "lists-empty-state",
-  });
-  const form = section.querySelector("[data-list-link-form]");
-
-  section.dataset.listLinksPanel = "";
-  section.querySelector(".lists-link-list")?.replaceChildren(...linkRecordNodes(list, descriptor, locked));
-
-  taskSearch.dataset.listTaskPickerControl = "";
-  taskPicker.dataset.listTaskPickerControl = "";
-  targetId.dataset.listRawLinkControl = "";
-  taskPickerSelect.dataset.listTaskPicker = "";
-  taskSearchInput.addEventListener("input", () => populateTaskLinkPicker(taskPickerSelect, taskSearchInput.value));
-  taskPickerSelect.addEventListener("change", () => {
-    targetIdInput.value = taskPickerSelect.value;
-  });
-  targetTypeSelect.addEventListener("change", () => {
-    targetIdInput.value = "";
-    syncLinkPickerMode(form);
-  });
-  populateTaskLinkPicker(taskPickerSelect);
-  syncLinkPickerMode(form);
-  return section;
-}
-
-function listsLinkedRecordsSurfaceDescriptor() {
-  return listsViewSurfaceDescriptor().detail?.linkedRecords || listsLinkedRecordsDescriptor();
-}
-
-function linkedRecordField(fieldName) {
-  return listsLinkedRecordsSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
-}
-
-function createLinkedRecordField(field, optionEntries = null) {
-  if (field.type === "select") {
-    return selectField(field.label || field.field, field.field, optionEntries || optionsFromDescriptor(field).map(([value, label]) => option(value, label)));
-  }
-  return inputField(field.label || field.field, field.type || "text", field.field, {
-    autocomplete: field.autocomplete,
-    placeholder: field.placeholder,
-    required: field.required,
+function linkedContextItems(list) {
+  return (list.links || []).map((link) => {
+    const target = link.target || {};
+    const targetType = link.target_type || "";
+    const typeLabel = LIST_LINK_TYPE_LABELS[targetType] || formatToken(targetType);
+    const displayLabel = target.label || unavailableLinkedRecordLabel(targetType);
+    return {
+      className: "lists-linked-context-row",
+      displayLabel,
+      fullLabel: displayLabel,
+      hintLabel: typeLabel,
+      isAvailable: Boolean(target.label),
+      moduleId: target.moduleId || target.module_id || targetType || "lists",
+      removable: false,
+      secondaryLabel: typeLabel,
+      sourceUrl: target.url || "",
+      targetId: target.id || target.target_id || "",
+      targetType,
+    };
   });
 }
 
-function linkRecordNodes(list, descriptor, locked) {
-  const links = list.links || [];
-  if (links.length === 0) {
-    return [view.createElement("p", {
-      className: "lists-empty-state",
-      text: descriptor.emptyState?.message || "No linked records yet.",
-    })];
-  }
-  return links.map((link) => createLinkItem(list, link, locked));
-}
-
-function linkTargetTypeOptions() {
-  return [
-    option("task", "Task"),
-    option("note", "Note"),
-    option("project", "Project"),
-    ...(usesBusinessScope() ? [option("client", "Client")] : []),
-  ];
-}
-
-function syncLinkPickerMode(form) {
-  const targetType = form.elements.target_type?.value || "task";
-  const taskControls = form.querySelectorAll("[data-list-task-picker-control]");
-  const rawControl = form.querySelector("[data-list-raw-link-control]");
-  const targetIdInput = form.elements.target_id;
-  const taskPicker = form.elements.task_picker;
-  const usesTaskPicker = targetType === "task";
-
-  taskControls.forEach((control) => {
-    control.hidden = !usesTaskPicker;
-  });
-  if (rawControl) {
-    rawControl.hidden = usesTaskPicker;
-  }
-  if (targetIdInput) {
-    targetIdInput.required = !usesTaskPicker;
-    targetIdInput.value = usesTaskPicker ? taskPicker?.value || "" : targetIdInput.value;
-  }
-}
-
-function populateTaskLinkPicker(select, search = "") {
-  if (!select) {
-    return;
-  }
-
-  const normalizedSearch = search.trim().toLowerCase();
-  const tasks = state.taskLinkTargets
-    .filter((task) => taskMatchesLinkSearch(task, normalizedSearch))
-    .slice(0, 40);
-
-  replaceOptions(select, [
-    option("", tasks.length > 0 ? "Select a task" : "No matching tasks"),
-    ...tasks.map((task) => option(task.task_id, taskLinkOptionLabel(task))),
-  ]);
-  if (select.form?.elements.target_type?.value === "task" && select.form.elements.target_id) {
-    select.form.elements.target_id.value = select.value;
-  }
-}
-
-function taskMatchesLinkSearch(task, search) {
-  if (!search) {
-    return true;
-  }
-
-  return [
-    task.title,
-    task.client_name,
-    task.project_name,
-    task.status,
-    task.priority,
-    task.due_date,
-  ].some((value) => String(value || "").toLowerCase().includes(search));
-}
-
-function taskLinkOptionLabel(task = {}) {
-  const context = [task.client_name, task.project_name].filter(Boolean).join(" / ");
-  const meta = [context, TASK_STATUS_LABELS[task.status] || task.status, task.due_date ? `due ${task.due_date}` : ""].filter(Boolean).join(" - ");
-  return `${task.title || "Untitled task"}${meta ? ` (${meta})` : ""}`;
-}
-
-function createLinkItem(list, link, locked) {
-  const item = view.createElement("div", { className: "lists-link-item" });
-  const label = view.createElement("span");
-  const anchor = view.createElement("a");
-  const removeAction = listsLinkedRecordsSurfaceDescriptor().actions?.find((action) => action.id === "remove-link") || {};
-  const remove = actionButton(removeAction.label || "Remove", removeAction.id || "remove-link", list.list_id, removeAction.role === "destructive" ? "secondary" : "", {
-    disabled: locked,
-    behavior: removeAction.behavior,
-    icon: "delete",
-  });
-  const target = link.target || {};
-  const typeLabel = LIST_LINK_TYPE_LABELS[link.target_type] || formatToken(link.target_type);
-  const unavailable = !target.label;
-
-  item.dataset.linkAccess = unavailable ? "unavailable" : "available";
-  anchor.href = target.url || "#";
-  anchor.textContent = target.label || "Unavailable linked record";
-  if (!target.url) {
-    anchor.removeAttribute("href");
-  }
-  label.append(`${typeLabel}: `, anchor);
-  remove.dataset.linkId = link.list_link_id;
-  remove.hidden = locked;
-  item.append(label, remove);
-  return item;
+function unavailableLinkedRecordLabel(targetType) {
+  const typeLabel = LIST_LINK_TYPE_LABELS[targetType] || formatToken(targetType);
+  return typeLabel ? `Unavailable ${typeLabel.toLowerCase()}` : "Unavailable linked record";
 }
 
 function createItemRow(list, item, index, total, locked) {
@@ -1780,9 +1633,248 @@ function formatToken(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function listEditorPickerParts() {
+  return listLinkPicker?.viewParts || {};
+}
+
+function listLinkProviderOptions(providers = []) {
+  const source = providers.length > 0
+    ? providers
+    : LIST_LINK_TARGET_ORDER.map((targetType) => ({
+        label: LIST_LINK_TYPE_LABELS[targetType],
+        moduleId: moduleIdForListLinkTarget(targetType),
+        targetType,
+      }));
+  const providersByType = new Map(source.map((provider) => [provider.targetType, provider]));
+
+  return LIST_LINK_TARGET_ORDER
+    .filter((targetType) => targetType !== "client" || usesBusinessScope())
+    .map((targetType) => providersByType.get(targetType))
+    .filter(Boolean)
+    .map((provider) => ({
+      label: provider.label || LIST_LINK_TYPE_LABELS[provider.targetType] || formatToken(provider.targetType),
+      moduleId: provider.moduleId || moduleIdForListLinkTarget(provider.targetType),
+      providerId: provider.providerId || provider.provider || provider.id || "",
+      targetType: provider.targetType,
+      value: provider.targetType,
+    }));
+}
+
+function moduleIdForListLinkTarget(targetType) {
+  return {
+    client: "client-projects",
+    note: "notes",
+    project: "client-projects",
+    task: "tasks",
+  }[targetType] || "";
+}
+
+function queueListEditorLinkTargetSearch() {
+  window.clearTimeout(state.linkTargetSearchTimer);
+  state.linkTargetSearchTimer = window.setTimeout(() => loadListEditorLinkTargets(), 180);
+}
+
+async function loadListEditorLinkTargets() {
+  const parts = listEditorPickerParts();
+  const targetType = listLinkTargetTypeInput?.value || "task";
+  if (!parts.setRecords || !canManageListLinks()) {
+    parts.setRecords?.([]);
+    return;
+  }
+
+  listLinkResultsInput.disabled = true;
+  listLinkApplyButton.disabled = true;
+  parts.setRecords([{ targetId: "", displayLabel: "Loading records...", disabled: true }]);
+
+  const params = new URLSearchParams({
+    limit: "40",
+    targetType,
+  });
+  if (listLinkSearchInput?.value.trim()) {
+    params.set("q", listLinkSearchInput.value.trim());
+  }
+
+  try {
+    const result = await api.getJson(`/api/lists/link-targets?${params.toString()}`, { cache: "no-store" });
+    const providerOptions = listLinkProviderOptions(result.providers || []);
+    parts.setTargets?.(providerOptions);
+    if (listLinkTargetTypeInput) {
+      listLinkTargetTypeInput.value = providerOptions.some((provider) => provider.targetType === targetType)
+        ? targetType
+        : providerOptions[0]?.targetType || "";
+    }
+    state.linkTargets = result.targets || [];
+    parts.setRecords(state.linkTargets);
+    listLinkApplyButton.disabled = state.linkTargets.length === 0;
+    listFormStatus.textContent = "";
+  } catch (error) {
+    state.linkTargets = [];
+    parts.setRecords([]);
+    listLinkApplyButton.disabled = true;
+    listFormStatus.textContent = error.message || "Linked records could not be loaded.";
+  } finally {
+    listLinkResultsInput.disabled = false;
+  }
+}
+
+function selectedListEditorLinkTarget() {
+  const targetId = listLinkResultsInput?.value || "";
+  const targetType = listLinkTargetTypeInput?.value || "";
+  return state.linkTargets.find((target) => target.targetId === targetId && target.targetType === targetType) || null;
+}
+
+async function applyListEditorLinkTarget() {
+  const target = selectedListEditorLinkTarget();
+  if (!target?.targetType || !target.targetId || listEditorHasLinkTarget(target)) {
+    listFormStatus.textContent = target ? "Linked record is already added." : "Choose a linked record first.";
+    return;
+  }
+
+  if (!state.editingListId) {
+    state.editorStagedTargets = [...state.editorStagedTargets, target];
+    renderListEditorLinkedItems();
+    listFormStatus.textContent = "";
+    return;
+  }
+
+  listLinkApplyButton.disabled = true;
+  listFormStatus.textContent = "Adding linked record...";
+  try {
+    await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links`, listLinkPayload(target));
+    await refreshListEditor(state.editingListId);
+    listFormStatus.textContent = "";
+  } catch (error) {
+    listFormStatus.textContent = error.message || "Linked record could not be added.";
+  } finally {
+    listLinkApplyButton.disabled = false;
+  }
+}
+
+function handleListEditorLinkedContextRemove(item = {}) {
+  if (item.link) {
+    void removeListEditorLink(item.link);
+    return;
+  }
+  if (item.target) {
+    state.editorStagedTargets = state.editorStagedTargets.filter((target) => !sameListLinkTarget(target, item.target));
+    renderListEditorLinkedItems();
+  }
+}
+
+async function removeListEditorLink(link = {}) {
+  const linkId = link.list_link_id || link.id || "";
+  if (!state.editingListId || !linkId) {
+    return;
+  }
+
+  listFormStatus.textContent = "Removing linked record...";
+  try {
+    await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links/${encodeURIComponent(linkId)}/remove`, {});
+    await refreshListEditor(state.editingListId);
+    listFormStatus.textContent = "";
+  } catch (error) {
+    listFormStatus.textContent = error.message || "Linked record could not be removed.";
+  }
+}
+
+function listEditorHasLinkTarget(target = {}) {
+  return [
+    ...(state.editorList?.links || []),
+    ...state.editorStagedTargets,
+  ].some((entry) => sameListLinkTarget(entry, target));
+}
+
+function sameListLinkTarget(left = {}, right = {}) {
+  const leftType = left.targetType || left.target_type || left.target?.target_type || "";
+  const rightType = right.targetType || right.target_type || right.target?.target_type || "";
+  const leftId = left.targetId || left.target_id || left.target?.target_id || "";
+  const rightId = right.targetId || right.target_id || right.target?.target_id || "";
+  return leftType === rightType && leftId === rightId;
+}
+
+function listLinkPayload(target = {}) {
+  return {
+    moduleId: target.moduleId || moduleIdForListLinkTarget(target.targetType),
+    targetId: target.targetId,
+    targetType: target.targetType,
+  };
+}
+
+function renderListEditorLinkedItems() {
+  const parts = listEditorPickerParts();
+  const removable = canManageListLinks();
+  const savedItems = linkedContextItems(state.editorList || {}).map((item, index) => ({
+    ...item,
+    link: state.editorList?.links?.[index],
+    removable,
+  }));
+  const stagedItems = state.editorStagedTargets.map((target) => ({
+    ...target,
+    displayLabel: target.displayLabel || unavailableLinkedRecordLabel(target.targetType),
+    removable,
+    target,
+  }));
+  parts.setLinkedItems?.([...savedItems, ...stagedItems]);
+}
+
+async function refreshListEditor(listId) {
+  const list = await loadListDetail(listId);
+  if (!list) {
+    throw new Error("List could not be refreshed.");
+  }
+  state.editorList = list;
+  const index = state.lists.findIndex((entry) => entry.list_id === listId);
+  if (index >= 0) {
+    state.lists.splice(index, 1, list);
+    renderLists();
+  }
+  if (state.selectedListId === listId) {
+    renderDetail(list);
+  }
+  renderListEditorLinkedItems();
+  return list;
+}
+
+function configureListEditorPicker(list = null) {
+  const parts = listEditorPickerParts();
+  state.linkTargets = [];
+  state.editorStagedTargets = [];
+  parts.setTargets?.(listLinkProviderOptions());
+  if (listLinkTargetTypeInput) {
+    listLinkTargetTypeInput.value = "task";
+  }
+  if (listLinkSearchInput) {
+    listLinkSearchInput.value = "";
+  }
+  parts.setRecords?.([]);
+  parts.setReadonly?.(!canManageListLinks(list));
+  renderListEditorLinkedItems();
+  if (canManageListLinks(list)) {
+    void loadListEditorLinkTargets();
+  }
+}
+
+function canManageListLinks(list = state.editorList) {
+  if (list && ["archived", "deleted", "finalized"].includes(list.status)) {
+    return false;
+  }
+  const permissionValues = window.LongtailForge?.workspaceContext?.permissionIds
+    || window.LongtailForge?.workspaceContext?.permissions;
+  if (!permissionValues) {
+    return true;
+  }
+  const permissions = permissionValues instanceof Set
+    ? permissionValues
+    : new Set(Array.isArray(permissionValues)
+        ? permissionValues
+        : Object.entries(permissionValues).filter(([, allowed]) => Boolean(allowed)).map(([permissionId]) => permissionId));
+  return permissions.has("lists.manage_links");
+}
+
 function openListDialog(list = null, options = {}) {
   const defaults = options.defaults || {};
   state.editingListId = list?.list_id || "";
+  state.editorList = list;
   state.listDialogHostContext = options.hostContext || null;
   state.listDialogHostContextSettled = false;
   listDialogTitle.textContent = list ? "Edit List" : "Create List";
@@ -1794,14 +1886,11 @@ function openListDialog(list = null, options = {}) {
   populateProjectOptions(listProjectInput, list?.client_id || defaults.client_id || "", list?.project_id || defaults.project_id || "");
   listFormStatus.textContent = "";
   listSaveButton.textContent = list ? "Save List" : "Create List";
+  configureListEditorPicker(list);
   const closeResult = new Promise((resolve) => {
     listDialog?.addEventListener("close", () => resolve(listDialog.returnValue || "closed"), { once: true });
   });
-  if (typeof listDialog.showModal === "function") {
-    listDialog.showModal();
-  } else {
-    listDialog.setAttribute("open", "open");
-  }
+  view.showModal(listDialog, { trigger: options.trigger || null });
   listTitleInput.focus();
   return closeResult;
 }
@@ -1813,8 +1902,7 @@ function closeListDialog(options = {}) {
       recordId: state.editingListId || "",
     });
   }
-  listDialog.close?.(options.returnValue || "");
-  listDialog.removeAttribute("open");
+  view.closeModal(listDialog, options.returnValue || "");
 }
 
 function cancelListDialog() {
@@ -1859,6 +1947,7 @@ async function saveList(event) {
   };
   const wasEditing = Boolean(state.editingListId);
   let savedListId = state.editingListId || "";
+  let createdDuringSave = false;
 
   try {
     listSaveButton.disabled = true;
@@ -1868,8 +1957,15 @@ async function saveList(event) {
     } else {
       const result = await api.postJson("/api/lists", payload);
       savedListId = result.list?.list_id || "";
+      createdDuringSave = Boolean(savedListId);
+      state.editingListId = savedListId;
+      state.editorList = normalizeListRecord(result.list, [], []);
       state.selectedListId = savedListId || state.selectedListId;
     }
+    for (const target of state.editorStagedTargets) {
+      await api.postJson(`/api/lists/${encodeURIComponent(savedListId)}/links`, listLinkPayload(target));
+    }
+    state.editorStagedTargets = [];
     if (typeof state.listDialogHostContext?.refresh === "function") {
       await state.listDialogHostContext.refresh({ list: { ...payload, list_id: savedListId } });
     }
@@ -1885,6 +1981,15 @@ async function saveList(event) {
     setStatus("");
   } catch (error) {
     listFormStatus.textContent = error.message || "List could not be saved.";
+    if (createdDuringSave && savedListId) {
+      listDialogTitle.textContent = "Edit List";
+      listSaveButton.textContent = "Save List";
+      try {
+        await refreshListEditor(savedListId);
+      } catch {
+        // Preserve the original save/link error; the normal page refresh can recover the created list.
+      }
+    }
   } finally {
     listSaveButton.disabled = false;
   }

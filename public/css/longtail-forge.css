@@ -5702,9 +5702,21 @@ dialog .form-actions {
     gap: 12px;
 }
 
-.workbench-task-checklist-progress {
+.workbench-section-heading {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.workbench-checklist-summary-progress {
     margin: 0;
+    max-width: 100%;
+    overflow: hidden;
     color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 400;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .workbench-task-checklist-list {
@@ -7111,28 +7123,21 @@ summary.view-info-panel-title {
     max-width: 100%;
 }
 
-.lists-filters,
-.lists-form-grid {
+.lists-filters {
     display: grid;
     gap: 12px;
 }
 
-/* The item-entry form is governed by the framework `.view-field-grid` flex layout (with per-field
-   width hints); its legacy `.lists-item-form` grid rules below are inert and retained only until a
-   later cleanup. */
+/* The item editor body is governed by the framework modal and field-grid primitives. Local Lists
+   styling is limited to workflow-specific spacing and the boxed Details disclosure. */
 
 .lists-filters {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
-.lists-form-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 /* List/detail split sizing is owned by the framework `.view-split-list-detail` primitive. */
 
 .lists-detail-actions,
-.lists-dialog-heading,
 .lists-item-actions {
     display: flex;
     align-items: center;
@@ -7155,10 +7160,6 @@ summary.view-info-panel-title {
 .lists-items-table .lists-item-actions .icon-button {
     min-width: 0;
     flex: 0 0 auto;
-}
-
-.lists-dialog-heading {
-    justify-content: space-between;
 }
 
 /* The detail header mirrors the Notes header: a title row (title + badges, with the 3-dot action menu
@@ -7214,6 +7215,10 @@ summary.view-info-panel-title {
 .lists-empty-state,
 .lists-locked-note {
     color: var(--color-muted);
+}
+
+.lists-description {
+    margin: 0;
 }
 
 .lists-state-summary {
@@ -7293,12 +7298,26 @@ summary.view-info-panel-title {
     color: var(--color-danger);
 }
 
+.lists-details-panel {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 14px;
+}
+
+.lists-details-panel .view-info-panel-title {
+    margin-bottom: 0;
+}
+
+.lists-linked-context-list {
+    gap: 8px;
+}
+
 .lists-next-action {
     display: grid;
-    gap: 8px;
-    /* Roughly half width so the short fact run wraps into a compact block instead of a long chip line. */
-    max-width: 520px;
-    margin: 14px 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: start;
+    margin: 0 0 14px;
     padding: 12px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -7316,6 +7335,9 @@ summary.view-info-panel-title {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    justify-content: flex-end;
+    grid-column: 2;
+    grid-row: 1 / span 2;
 }
 
 .lists-next-action-facts span {
@@ -7371,36 +7393,6 @@ summary.view-info-panel-title {
     gap: 8px;
 }
 
-.lists-link-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 10px;
-    border: 1px solid var(--color-border-subtle);
-    border-radius: 8px;
-    background: var(--color-surface);
-}
-
-.lists-link-item[data-link-access="unavailable"] span,
-.lists-link-item[data-link-access="unavailable"] a {
-    color: var(--color-text-muted);
-}
-
-.lists-link-item[data-link-access="unavailable"] a {
-    cursor: default;
-    text-decoration: none;
-}
-
-.lists-link-form {
-    display: grid;
-    grid-template-columns: minmax(120px, 0.5fr) minmax(180px, 1fr) minmax(220px, 1fr) minmax(180px, 1fr) auto;
-    gap: 10px;
-    align-items: end;
-    min-width: 0;
-    max-width: 100%;
-}
-
 .lists-item-entry {
     box-sizing: border-box;
     display: grid;
@@ -7433,29 +7425,12 @@ summary.view-info-panel-title {
     margin: 0;
 }
 
-.lists-item-form {
-    align-items: end;
-    min-width: 0;
-}
-
 .lists-item-advanced {
     flex: 1 1 100%;
     min-width: 0;
 }
 
-.lists-item-advanced summary {
-    /* No display override here: a plain disclosure summary keeps the native list-item marker (the
-       caret). A flex or grid display would remove that marker (see the UI layout guide). */
-    cursor: pointer;
-    font-weight: 700;
-}
-
-.lists-item-advanced[open] {
-    grid-column: 1 / -1;
-}
-
 .lists-item-advanced-fields {
-    /* Flows as one wrapping row via the inherited .view-field-grid flex; only the top spacing is local. */
     margin-top: 10px;
 }
 
@@ -7524,8 +7499,10 @@ summary.view-info-panel-title {
     white-space: normal;
 }
 
-.lists-dialog {
-    max-width: min(720px, 94vw);
+.lists-editor-linked-records {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
 }
 
 .lists-form {
@@ -7553,7 +7530,6 @@ summary.view-info-panel-title {
     }
 
     .lists-detail-actions button,
-    .lists-link-item button,
     .lists-item-actions button {
         flex: 1 1 92px;
         min-width: 0;
@@ -7561,28 +7537,21 @@ summary.view-info-panel-title {
         overflow-wrap: anywhere;
     }
 
-    .lists-item-form {
-        grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
-    }
-
-    .lists-item-form label:first-child {
-        grid-column: span 2;
-    }
-
-    .lists-link-form {
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    }
-
-    .lists-link-form button,
-    .lists-item-form > button {
-        justify-self: stretch;
-    }
-
     .lists-source-context,
     .lists-cost-summary,
     .lists-next-action {
         max-width: 100%;
         box-sizing: border-box;
+    }
+
+    .lists-next-action {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lists-next-action-facts {
+        justify-content: flex-start;
+        grid-column: auto;
+        grid-row: auto;
     }
 
     .lists-items-table {
@@ -8523,7 +8492,6 @@ button:disabled {
     .task-filter-grid,
     .task-bulk-grid,
     .time-entry-bulk-grid,
-    .lists-form-grid,
     .lists-item-form,
     .workbench-focus-question-list,
     .workbench-focus-scope-controls,
@@ -8553,17 +8521,6 @@ button:disabled {
 
     .task-bulk-grid [data-task-bulk-apply] {
         grid-column: auto;
-    }
-
-    .lists-item-advanced[open],
-    .lists-item-advanced-fields,
-    .lists-item-form label:first-child,
-    .lists-item-advanced-fields label:last-child {
-        grid-column: auto;
-    }
-
-    .lists-item-advanced-fields {
-        grid-template-columns: 1fr;
     }
 
     .page-heading,

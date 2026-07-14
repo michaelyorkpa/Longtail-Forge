@@ -140,13 +140,13 @@ for (const helper of [
   "renderDescriptorDataTable",
   "renderDescriptorFieldGrid",
   "renderDescriptorInlineActions",
-  "renderDescriptorLinkedRecordsPanel",
   "renderDescriptorModalForm",
 ]) {
   assert.match(listsJs, new RegExp(`view\\.${helper}`), `Strict declarative Lists source should consume ${helper}`);
 }
 assert.doesNotMatch(listsJs, /className:\s*["'`][^"'`]*(modal-actions|form-actions|list-table-wrap|lists-workspace)[^"'`]*/, "Strict declarative Lists source should not create one-off layout/footer class shells");
 assert.doesNotMatch(listsJs, /classList\.add\([^)]*(modal-actions|form-actions|list-table-wrap)[^)]*\)/, "Strict declarative Lists source should not add one-off layout/footer classes");
+assert.doesNotMatch(listsJs, /listsLinkedRecordsSurfaceDescriptor|renderDescriptorLinkedRecordsPanel|field:\s*"task_search"|field:\s*"task_picker"|loadTaskLinkTargets|taskLinkTargets/, "Strict declarative Lists source should not keep the retired detail-side linked-record editor or its task-target bootstrap");
 
 // Notes strict declarative enforcement. Notes mounts a secondary Library navigation panel through the
 // framework `createCollapsibleIndexPanel` primitive, which is an allowed exception (the descriptor's

@@ -116,7 +116,7 @@ async function assertDeveloperDocs() {
   const docs = await fs.readFile(path.join(process.cwd(), "docs/lists-module.md"), "utf8");
 
   for (const phrase of [
-    "current Lists implementation as of 0.33.6.15.1",
+    `current Lists implementation as of ${appVersion}`,
     "The framework owns module registration",
     "Workspace Labels",
     "Reusable Lists And Catalog Suggestions",

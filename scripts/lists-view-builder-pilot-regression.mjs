@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const html = readText("views/protected/lists.html");
+const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -22,6 +23,10 @@ assert.match(html, /js\/shared\/view-renderer\.js/, "Lists protected view should
 assert.match(html, /js\/lists\.js/, "Lists protected view should reference the converted Lists script");
 assert.doesNotMatch(html, /data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists static HTML should not own converted workspace anatomy");
 assert.doesNotMatch(html, /lists-filters-panel|lists-index-panel|lists-detail-panel|list-table-wrap/, "Lists static HTML should not rely on one-off layout classes for converted structures");
+assert.match(listsModule, /layout:\s*"slide-out-sidebar"/, "Lists workspace should use the shared slide-out sidebar layout");
+assert.match(listsModule, /sidebarPanels:\s*\[[\s\S]*type:\s*"filters"[\s\S]*type:\s*"index"/, "Lists workspace should declare filter and index drawer panels");
+assert.match(listsJs, /surface\.querySelector\('\[data-view-sidebar-panel="lists-filters"\]'\)/, "Lists adapter should find the filter panel through its drawer hook");
+assert.match(listsJs, /surface\.querySelector\('\[data-view-sidebar-panel="lists-index"\]'\)/, "Lists adapter should find the selector panel through its drawer hook");
 
 for (const helper of [
   "createPageHeader",
@@ -46,7 +51,6 @@ for (const helper of [
   "renderDescriptorDataTable",
   "renderDescriptorFieldGrid",
   "renderDescriptorInlineActions",
-  "renderDescriptorLinkedRecordsPanel",
   "renderDescriptorModalForm",
 ]) {
   assert.match(listsJs, new RegExp(`view\\.${helper}`), `Lists declarative adapter should consume LongtailForge.view.${helper}`);

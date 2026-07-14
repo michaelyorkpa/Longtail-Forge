@@ -152,7 +152,7 @@ const VIEW_DETAIL_FIELDS = new Set([
   "emptyState",
   "regions",
 ]);
-const VIEW_MODAL_FIELDS = new Set(["id", "label", "labelKey", "title", "titleKey", "fields", "footerActions", "actions"]);
+const VIEW_MODAL_FIELDS = new Set(["id", "label", "labelKey", "title", "titleKey", "size", "fields", "footerActions", "actions"]);
 const VIEW_FIELD_FIELDS = new Set([
   "id",
   "field",
@@ -962,6 +962,10 @@ function validateModalsDescriptor(modals, prefix, errors) {
     validateKnownObjectFields(modal, VIEW_MODAL_FIELDS, modalPrefix, errors);
     requireString(modal, "id", errors, { prefix: modalPrefix });
     validateLabelDescriptor(modal, modalPrefix, errors);
+    optionalString(modal, "size", errors, { prefix: modalPrefix });
+    if (modal.size !== undefined && modal.size !== "wide") {
+      errors.push(`${modalPrefix}.size must be wide when provided.`);
+    }
     optionalArrayOfObjects(modal.fields, `${modalPrefix}.fields`, errors, (field, fieldIndex) => {
       const fieldPrefix = `${modalPrefix}.fields[${fieldIndex}]`;
       validateKnownObjectFields(field, VIEW_FIELD_FIELDS, fieldPrefix, errors);

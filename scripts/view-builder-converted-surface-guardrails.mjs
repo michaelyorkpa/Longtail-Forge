@@ -60,7 +60,6 @@ for (const helperName of [
   "renderDescriptorDataTable",
   "renderDescriptorFieldGrid",
   "renderDescriptorInlineActions",
-  "renderDescriptorLinkedRecordsPanel",
   "renderDescriptorModalForm",
 ]) {
   assert.match(listsJs, new RegExp(`view\\.${helperName}`), `Converted Lists should use LongtailForge.view.${helperName}`);

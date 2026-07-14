@@ -20,8 +20,11 @@ assert.match(listsModule, /version:\s*appVersion/, "Lists module should report t
 assert.match(listsModule, /itemForm:\s*\{[\s\S]*field:\s*"item_name"[\s\S]*behavior:\s*"lists\.catalog-suggestions"[\s\S]*field:\s*"save_to_catalog"/, "Lists descriptor should declare item entry fields and catalog behavior hook");
 assert.match(listsModule, /itemRows:\s*\{[\s\S]*columns:\s*\[[\s\S]*id:\s*"done"[\s\S]*id:\s*"actions"[\s\S]*actions:\s*\[[\s\S]*id:\s*"edit-item"[\s\S]*id:\s*"delete-item"/, "Lists descriptor should declare item row columns and action placement");
 assert.match(listsModule, /modals:\s*\[[\s\S]*id:\s*"list-editor"[\s\S]*field:\s*"title"[\s\S]*field:\s*"description"[\s\S]*footerActions:\s*\[[\s\S]*id:\s*"cancel-list"[\s\S]*id:\s*"save-list"/, "Lists descriptor should declare the create/edit list modal shell");
+assert.match(listsModule, /id:\s*"list-editor"[\s\S]*size:\s*"wide"[\s\S]*field:\s*"title"[\s\S]*width:\s*"full"[\s\S]*field:\s*"list_type"[\s\S]*width:\s*"compact"[\s\S]*field:\s*"project_id"[\s\S]*width:\s*"wide"/, "The List editor should use the framework wide modal and field width hints");
+assert.match(listsModule, /itemForm:\s*\{[\s\S]*field:\s*"vendor_name"[\s\S]*width:\s*"wide"[\s\S]*field:\s*"estimated_cost"[\s\S]*width:\s*"compact"[\s\S]*field:\s*"save_to_catalog"[\s\S]*width:\s*"full"/, "The item editor descriptor should use framework field width hints for the Details section and reusable toggle");
 
 assert.match(manifestContract, /VIEW_FIELD_FIELDS = new Set\(\[[\s\S]*"placement"[\s\S]*"behavior"[\s\S]*"hidden"/, "Manifest contract should allow descriptor field behavior metadata");
+assert.match(manifestContract, /VIEW_MODAL_FIELDS = new Set\(\[[\s\S]*"size"/, "Manifest contract should allow framework modal sizing");
 assert.match(manifestContract, /function validateItemFormDescriptor/, "Manifest contract should validate item form descriptors");
 assert.match(manifestContract, /function validateItemRowsDescriptor/, "Manifest contract should validate item row descriptors");
 assert.match(manifestContract, /detail\.itemForm\.actions/, "Reference validation should include item form actions");
@@ -35,6 +38,10 @@ assert.match(listsJs, /listsItemFormSurfaceDescriptor\(\)/, "Lists item form sho
 assert.match(listsJs, /createItemFieldFromDescriptor/, "Lists item fields should be bound from descriptor fields");
 assert.match(listsJs, /listsItemRowsSurfaceDescriptor\(\)\.actions\.map/, "Lists item row actions should be placed from descriptor actions");
 assert.match(listsJs, /listsEditorModalDescriptor\(\)/, "Lists modal shell should consume the descriptor modal block");
+assert.match(listsJs, /view\.renderDescriptorFieldGrid\(\{ fields: modal\.fields \|\| \[\] \}[\s\S]*className:\s*"lists-editor-fields"/, "Lists editor fields should use the shared field-grid renderer");
+assert.match(listsJs, /view\.createLinkedContextPicker\(\{[\s\S]*ariaLabel:\s*"List linked records"/, "Lists editor should host the shared linked-context picker");
+assert.match(listsJs, /className:\s*"surface-modal-heading"[\s\S]*className:\s*"surface-modal-heading-actions"/, "Lists add\/edit modals should use the shared framework heading anatomy");
+assert.match(listsJs, /className:\s*\[\s*"lists-item-advanced",\s*"surface-modal-group"\s*\][\s\S]*className:\s*"surface-modal-section-heading"[\s\S]*className:\s*\[\s*"lists-item-advanced-fields",\s*"surface-modal-section-body"\s*\]/, "The item editor Details disclosure should use the shared modal group and section anatomy");
 assert.match(listsJs, /api\.postJson\(`\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/items`/, "Lists item create route should remain module-owned");
 assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/items\/\$\{encodeURIComponent\(editingItemId\)\}`/, "Lists item edit route should remain module-owned");
 assert.match(listsJs, /api\.postJson\(`\/api\/lists\/\$\{encodeURIComponent\(list\.list_id\)\}\/items\/reorder`/, "Lists item reorder route should remain module-owned");
@@ -46,6 +53,10 @@ assert.match(stylesheet, /\.lists-item-entry\s*\{[\s\S]*box-sizing:\s*border-box
 assert.match(stylesheet, /\.lists-items\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/, "Lists items wrapper should cap table overflow inside the detail panel");
 assert.match(stylesheet, /\.lists-items-table\s*\{[\s\S]*width:\s*auto;[\s\S]*min-width:\s*0;[\s\S]*table-layout:\s*auto;[\s\S]*\}/, "Lists item table should be content-sized (auto layout, not stretched) so columns pack together");
 assert.doesNotMatch(stylesheet, /\.lists-items-table\s*\{[\s\S]*min-width:\s*(680|760)px/, "Lists item table should not reintroduce the old fixed minimum width");
+assert.doesNotMatch(stylesheet, /\.lists-form-grid/, "The retired three-column Lists modal grid should be removed");
+assert.doesNotMatch(stylesheet, /\.lists-dialog\s*\{[\s\S]*max-width:/, "Lists should not override the framework wide modal size");
+assert.doesNotMatch(stylesheet, /\.lists-dialog-heading/, "Lists modal heading layout should come from the shared framework heading classes");
+assert.doesNotMatch(stylesheet, /\.lists-item-form\s*\{[\s\S]*grid-template-columns:/, "The item editor should not keep a one-off grid-template layout");
 
 assert.match(changelog, /## Version 0\.33\.5\.16\.10 - /, "Changelog should include the Lists item/modal descriptor version");
 assert.match(regressionSuite, /scripts\/lists-items-modals-descriptor-regression\.mjs/, "Regression suite should include Lists item/modal descriptor regression");

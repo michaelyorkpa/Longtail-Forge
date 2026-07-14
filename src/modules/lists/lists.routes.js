@@ -25,6 +25,11 @@ listsRoutes.get("/lists/catalog-items", asyncRoute(async (request, response) => 
   response.status(200).json({ catalogItems: result.suggestions });
 }));
 
+listsRoutes.get("/lists/link-targets", asyncRoute(async (request, response) => {
+  const result = await listsService.listLinkTargets(request.session, request.query);
+  response.status(200).json(result);
+}));
+
 listsRoutes.post("/lists/catalog-items", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await listsService.createCatalogItem(payload, request.session);

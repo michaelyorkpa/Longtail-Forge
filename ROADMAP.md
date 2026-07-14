@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.13.1`.
+Active cursor: `0.33.14.1`.
 
 ## Version 0.33.13 - Lists Module UI/UX Overhaul
 
@@ -10,7 +10,7 @@ Decision:
 
 The Lists workspace is a framework-declarative view surface (`lists.workspace` in `src/modules/lists/module.js`), so this overhaul is expressed by moving Lists onto the same framework anatomy Notes already uses — not by hand-building Lists-only page chrome. The framework owns page layout, the slide-out filter/navigation drawer and its bottom-left filter button, collapsible boxes, the shared Linked Context picker/read-list shells, and modal sizing/anatomy. Lists owns its filter/selector data, detail content, linked-record provider queries and save payloads, item workflow, and `.lists-*` content styling.
 
-The current Lists page renders filters and the "List Selector" inline above a full-width detail (`layout: "stacked"`), shows the description as a bare `.lists-description` paragraph, and puts both the linked-records read-list and its add/remove picker (including a raw "paste record ID" box) inline in the detail. The result is cluttered and does not follow the app's view guidelines, especially the cramped Edit List modal. This version reorganizes the page to match Notes and folds link management into the Edit List modal via the shared picker.
+Before this branch, Lists rendered filters and the "List Selector" inline above the detail through `layout: "stacked"`. As of 0.33.13.1, both controls live in the framework slide-out drawer and the selected-list detail owns the full-width main surface. As of 0.33.13.2, the detail opens with a collapsible List Details box that contains the description and read-only linked records through the shared linked-context list shell. As of 0.33.13.3, Create/Edit List owns all link management through the shared Linked Context picker in a framework-wide modal, with permission-filtered readable/writable targets and no raw record-ID entry. As of 0.33.13.4, the Add/Edit Item modal follows the same framework modal heading, section, and width-hint guidelines without the leftover one-off item-grid layout CSS. As of 0.33.13.5, Lists is closed on one declarative linked-record path per purpose, the retired detail-side linked-record editor/bootstrap/CSS are gone, and the branch is complete.
 
 Purpose:
 
@@ -27,90 +27,6 @@ Non-goals:
 - Do not change the Lists data model, routes, permissions, item/reusable/catalog workflow, or billing/cost math.
 - Do not build Lists-only layout classes where a framework primitive exists; consume `renderDescriptor*` / `view.*` helpers.
 - Do not revive the deprecated `.view-split-list-detail` primitive; Lists moves from `stacked` to `slide-out-sidebar`.
-
-### Version 0.33.13.1 - Filters and List Selector into the bottom-left filter drawer
-
-**Model: High Effort** — Changing the surface `layout` re-hosts filters, the selector, and the detail through a different framework layout branch and must preserve every filter, selection, and decoration hook.
-
-- [ ] Convert the `lists.workspace` descriptor from `layout: "stacked"` to `layout: "slide-out-sidebar"` with a `sidebarPanels` array, mirroring `notes.workspace`:
-  - [ ] a `type: "filters"` panel (title "Filters", collapsed by default, `className: "lists-filters-panel"`) carrying the existing nine filters unchanged,
-  - [ ] a `type: "index"` panel for the "List Selector" (move `indexPanel` into the drawer, preserving `initialSelection`, `collapseOnSelect`, and the empty state).
-- [ ] Let the framework supply the fixed bottom-left filter button (`.view-slideout-sidebar-toggle`, icon `filter`), backdrop, drawer, and full-width `.view-slideout-sidebar-main`; do not add a Lists-owned filter toggle or width CSS.
-- [ ] Update `public/js/lists.js` decoration to read the sidebar filter and index panels from the drawer (as `notes.js` does via its `.notes-index-chrome`/sidebar-panel hooks) instead of the inline stacked regions, keeping the `[data-lists-filters]` / `[data-lists-index-panel]` hooks, filter binding, and list rendering intact.
-- [ ] Confirm the detail area renders full-width once a list is selected, with the selector collapsing into the drawer.
-- [ ] Preserve the cross-module list-dialog entry points and lazy-load behavior (`window.LongtailForge.listsDialog`, `lists.add`/`lists.edit`).
-- [ ] Update `scripts/lists-declarative-readonly-surface-regression.mjs` and `scripts/lists-view-builder-pilot-regression.mjs` for the new layout / `sidebarPanels`.
-
-Acceptance criteria:
-
-- Lists opens as a clean full-width page; filters and the List Selector live in the bottom-left filter drawer exactly like Notes.
-- All nine filters, selection, `collapseOnSelect`, and empty states behave as before.
-
-### Version 0.33.13.2 - Collapsible "List Details" box: description and read-only linked records
-
-**Model: Medium Effort** — Detail-body reorganization plus a read-only linked-records shell swap; risk is confined to the detail render path.
-
-- [ ] Add a single collapsible "List Details" box at the top of the detail (open by default) via the framework collapsible `view.createInfoPanel`, containing, in order:
-  - [ ] the list description (moved out of the bare `.lists-description` paragraph; keep the "No description." empty state),
-  - [ ] a read-only list of linked records rendered through `view.createLinkedContextList(...)`.
-- [ ] Remove the inline linked-records add/remove picker from the detail and drop the separate "Linked Records" `summaryPanel`; the detail no longer hosts link editing (that moves to the Edit List modal in 0.33.13.3).
-- [ ] Render linked rows through the Lists linked-context soft-read path so stale/unavailable targets show safe fallback labels (`Unavailable list`, etc.) without echoing raw ids.
-- [ ] Move the "Next" panel's fact chips (`.lists-next-action-facts`) to the top-right corner of the Next box.
-- [ ] Preserve the rest of the detail body order and the Source/Costs panels; only the description, the linked-records display, and the Next-chip placement change.
-- [ ] Update `scripts/lists-workflow-linked-layout-regression.mjs` and the readonly-surface regression.
-
-Acceptance criteria:
-
-- The detail opens with a "List Details" box (description + linked records) at the top, open and collapsible.
-- Linked records are read-only in the detail; the Next box shows its chips in the top-right corner.
-
-### Version 0.33.13.3 - Edit List modal: shared Linked Context picker and view-guideline conformance
-
-**Model: High Effort** — Adopting the shared picker crosses the linked-context provider, permission, and save-payload boundaries, and the modal must keep working as the cross-module `listsDialog` / `lists.add` / `lists.edit` entry point.
-
-- [ ] Add link management to the Create/Edit List modal (`list-editor`) using `view.createLinkedContextPicker(...)` bound to the Lists-consumable providers (Task, Note, Project, Client), replacing the bespoke `target_type` / `task_search` / `task_picker` / `target_id` picker and the raw "paste record ID" box.
-- [ ] Route add/remove through the existing Lists link add/remove service routes and keep create/update strict target validation and permission checks (`MANAGE_LINKS`); saved-row readback stays on the soft path.
-- [ ] Bring the modal to the view guidelines (`docs/view-building-contract.md`, `docs/ui-layout-guide.md`): select the framework wide modal size, use framework field anatomy / `.view-field-grid` width hints instead of the ad-hoc three-column `.lists-form-grid`, and remove the cramped custom grid.
-- [ ] Preserve `window.LongtailForge.listsDialog.openListEditor()`, the `lists.add` / `lists.edit` module actions, Business client/project derivation, and Personal/Family scope behavior.
-- [ ] Update `scripts/lists-workflow-linked-layout-regression.mjs`, `scripts/lists-items-modals-descriptor-regression.mjs`, and `scripts/lists-ui-workflow-regression.mjs`; add coverage that the picker only permits readable/writable targets.
-
-Acceptance criteria:
-
-- All linked-record add/remove happens in the Edit List modal through the shared picker; the raw record-ID box is gone.
-- The Create/Edit List modal renders at the framework wide size with framework field anatomy and no longer feels cramped.
-
-### Version 0.33.13.4 - Add/Edit Item modal view-guideline conformance
-
-**Model: Low Effort** — The item entry became a framework modal in 0.33.5.18.5.11; this is an audit-and-align pass, not a rebuild.
-
-- [ ] Audit the Add/Edit Item modal (`.lists-item-dialog`) against `docs/view-building-contract.md` and `docs/ui-layout-guide.md`.
-- [ ] Align its sizing, field anatomy, and the Details disclosure with the guidelines and the reworked Edit List modal; retire any remaining item-modal one-off layout CSS the framework covers.
-- [ ] Preserve item validation, catalog suggestions, defaults (Status = Needed, Save-as-reusable on), and the startup-built-dialog rule (no `state` reads at dialog build time).
-- [ ] Update `scripts/lists-items-modals-descriptor-regression.mjs` if the descriptor changes.
-
-Acceptance criteria:
-
-- Both Lists modals follow the same framework modal guidelines; no cramped custom grids remain.
-
-### Version 0.33.13.5 - Guardrails, docs, and closeout
-
-**Model: Low Effort** — Consolidation, documentation, and the strict-surface guardrail/regression pass.
-
-- [ ] Keep `lists.workspace` within the strict declarative-surface guardrails: no `view.createModalForm` / `document.createElement("dialog"|"table"|"details")` / one-off layout classes where a `renderDescriptor*` / `view.*` primitive exists; the picker and read-list flow through the shared shells.
-- [ ] Remove now-dead Lists code and CSS (the inline `.lists-link-form` picker, the raw-record-ID control, `.lists-form-grid`, and any retired stacked-layout hooks).
-- [ ] Update docs: `docs/lists-module.md` (new layout, List Details box, picker-in-modal), `docs/linked-context-picker-contract.md` (Lists as a picker consumer), and the Lists row in the declarative-view surface inventory.
-- [ ] Add/refresh the focused Lists regressions and run the affected suite; update `CHANGELOG.md` per slice.
-- [ ] Run `npm run check` and the Lists regression scripts; advance the active cursor.
-
-Acceptance criteria:
-
-- Lists matches the Notes reference layout and the app view guidelines; guardrails and regressions enforce the single declarative path.
-- Docs and changelog reflect the new layout, the List Details box, and the shared-picker adoption.
-
-Sequencing:
-
-- Lands after Reporting (0.33.12), before the view-primitive foundation (0.33.14), the Settings de-hardcoding pass (0.33.15), and Self-Hosted Release Packaging (0.33.16), and before Knowledge Base (0.34), at project direction.
-- Promoted from the TODO "Lists UI/UX Overhaul" notes with four scoping decisions settled: one combined "List Details" box, read-only linking in the detail, adoption of the shared Linked Context picker, and a full view-guideline pass over both Lists modals.
 
 ## Version 0.33.14 - Framework View Primitives: Editable Form-Field Factory
 

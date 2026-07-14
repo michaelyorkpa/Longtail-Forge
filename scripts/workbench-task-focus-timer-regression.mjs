@@ -148,6 +148,16 @@ assert.match(
   /applyActiveTaskFocusTask\(result\.task\)[\s\S]*await loadWorkbench\(\)[\s\S]*renderTaskFocusSurface\(\)/,
   "Task Focus timer mutations should refresh both timer state and the focused task read model",
 );
+assert.match(
+  functionBody(workbenchScript, "applyActiveTaskFocusTask"),
+  /preserveTaskFocusChecklistData\(task, state\.activeTaskFocus\.task\)/,
+  "Applying a focused task should preserve prior checklist data when the payload omits it",
+);
+assert.match(
+  functionBody(workbenchScript, "preserveTaskFocusChecklistData"),
+  /!Array\.isArray\(merged\.checklistItems\) && Array\.isArray\(existingTask\?\.checklistItems\)[\s\S]*!merged\.checklistProgress && existingTask\?\.checklistProgress/,
+  "Checklist preservation should carry forward the focused task's checklist items and progress across un-enriched timer payloads",
+);
 
 assert.match(
   functionBody(workbenchScript, "finalizeTimer"),

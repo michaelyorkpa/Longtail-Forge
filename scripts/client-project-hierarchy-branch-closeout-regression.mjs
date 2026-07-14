@@ -88,7 +88,7 @@ function assertStaticContract() {
 
   assert.match(
     listsDocs,
-    new RegExp(`current Lists implementation as of ${escapeRegExp("0.33.6.15.1")}`),
+    new RegExp(`current Lists implementation as of ${escapeRegExp(appVersion)}`),
     "Lists docs should report the current implementation version",
   );
   assert.match(

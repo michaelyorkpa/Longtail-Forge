@@ -490,6 +490,16 @@ The 0.33.5.18.13.1 readiness support remains the descriptor foundation for these
 
 The helper is intentionally layout-only. Providers and consuming modules still own available target decisions, search/filter requests, record sorting, display labels, secondary labels, URLs, Primary Context hints, save payloads, API calls, and permission enforcement. The shell renders provider-supplied labels as text and must not synthesize module-specific strings such as target-type prefixes, client/status suffixes, or raw IDs.
 
+## Implementation Notes For 0.33.13.3
+
+Validated view modal descriptors may set `size: "wide"`; the descriptor renderer passes that value to `createModalForm`, which applies the framework `.view-modal--wide` size. Modules should pair the wide shell with descriptor field `width` hints and the shared `.view-field-grid` anatomy instead of adding a module-owned fixed modal width or custom column grid.
+
+Lists is the second shared Linked Context picker consumer. Its wide Create/Edit List modal uses the shell for active Task, Note, Project, and Business-only Client providers, while Lists retains target queries, permission pruning, create-mode staging, strict save payloads, link routes, and refresh behavior. The selected-list detail continues to use the read-only `createLinkedContextList` shell.
+
+## Implementation Notes For 0.33.13.5
+
+The Lists branch closes with one linked-record path per purpose. `List Details` keeps the read-only `createLinkedContextList(...)` rows, and the Create/Edit List modal keeps the only write path through `createLinkedContextPicker(...)`. The retired detail-side `linkedRecords` descriptor, task bootstrap read, raw record-ID field, and related `.lists-link-*` anatomy are removed rather than left behind as dormant fallbacks, so strict guardrails can enforce the single declarative path cleanly.
+
 ## Implementation Notes For 0.33.5.18.6.7.1
 
 Converted modal surfaces should open and close through `LongtailForge.view.showModal(dialog, options)` and `LongtailForge.view.closeModal(dialog, value)` instead of calling `dialog.showModal()` / `dialog.close()` directly when stacked secondary dialogs are possible. The helper records parent/child dialog relationships, tracks the top dialog, prevents non-top dialogs from reacting to Escape or backdrop-style clicks, and closes child dialogs when the parent editor closes.

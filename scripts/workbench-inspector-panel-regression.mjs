@@ -61,8 +61,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "candidateModuleAction"),
-  /actionId: "notes\.edit"[\s\S]*recordParam: "noteId"[\s\S]*actionId: "lists\.edit"[\s\S]*recordParam: "listId"/,
-  "Inspector should reuse existing Notes and Lists registered edit actions for modal opens",
+  /actionId: "notes\.view"[\s\S]*recordParam: "noteId"[\s\S]*actionId: "lists\.edit"[\s\S]*recordParam: "listId"/,
+  "Inspector should open Notes in the registered view modal and reuse the Lists registered edit action for modal opens",
 );
 assert.match(
   functionBody(workbenchScript, "openModuleActionCandidate"),

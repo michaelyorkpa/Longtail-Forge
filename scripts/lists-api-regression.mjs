@@ -206,6 +206,16 @@ async function assertBusinessListApiFlow(api, fixtures) {
   assert.equal(savedCatalogItem.status, 201);
   assert.ok(savedCatalogItem.body.item.catalog_item_id);
 
+  const projectTargets = await api.get("/api/lists/link-targets?targetType=project&q=Lists%20API", {
+    cookie: fixtures.adminSessionId,
+  });
+  assert.equal(projectTargets.status, 200);
+  assert.deepEqual(projectTargets.body.providers.map((provider) => provider.targetType), ["client", "note", "project", "task"]);
+  assert.equal(projectTargets.body.targets[0].targetId, fixtures.projectId);
+  assert.equal(projectTargets.body.targets[0].displayLabel, "Lists API Project - Lists API Client");
+  assert.equal(projectTargets.body.targets[0].isAvailable, true);
+  assert.ok(!projectTargets.body.targets[0].displayLabel.includes(fixtures.projectId));
+
   const projectLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
     targetId: fixtures.projectId,
     targetType: "project",
@@ -220,6 +230,13 @@ async function assertBusinessListApiFlow(api, fixtures) {
   }, { cookie: fixtures.adminSessionId });
   assert.equal(clientLink.status, 201);
   assert.equal(clientLink.body.link.target.label, "Lists API Client");
+
+  const mismatchedProviderLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
+    moduleId: "tasks",
+    targetId: fixtures.projectId,
+    targetType: "project",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(mismatchedProviderLink.status, 400, "Strict link creation should reject a provider/type mismatch");
 
   const links = await api.get(`/api/lists/${fixtures.businessListId}/links`, { cookie: fixtures.adminSessionId });
   assert.equal(links.status, 200);
@@ -344,6 +361,11 @@ async function assertUnauthorizedAndIsolation(api, fixtures) {
     targetType: "project",
   }, { cookie: fixtures.externalSessionId });
   assert.equal(externalLink.status, 403);
+
+  const externalTargets = await api.get("/api/lists/link-targets?targetType=project", {
+    cookie: fixtures.externalSessionId,
+  });
+  assert.equal(externalTargets.status, 403, "Users without lists.manage_links must not receive picker targets");
 
   const crossWorkspaceRead = await api.get(`/api/lists/${fixtures.familyListId}`, {
     cookie: fixtures.adminSessionId,

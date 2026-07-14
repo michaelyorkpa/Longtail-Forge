@@ -228,7 +228,8 @@ const listsModule = {
       id: "lists.workspace",
       moduleId: LIST_MODULE_ID,
       viewId: "lists",
-      layout: "stacked",
+      layout: "slide-out-sidebar",
+      sidebarLabel: "Lists navigation",
       pageHeader: {
         title: "Lists",
         titleKey: "label",
@@ -241,6 +242,21 @@ const listsModule = {
           requiredPermissions: [LIST_PERMISSIONS.CREATE],
         },
       },
+      sidebarPanels: [
+        {
+          id: "lists-filters",
+          type: "filters",
+          title: "Filters",
+          open: false,
+          className: "lists-filters-panel",
+        },
+        {
+          id: "lists-index",
+          type: "index",
+          title: "List Selector",
+          open: true,
+        },
+      ],
       filters: [
         {
           id: "status-filter",
@@ -378,6 +394,10 @@ const listsModule = {
         },
         summaryPanels: [
           {
+            title: "List Details",
+            description: "Description and read-only linked records.",
+          },
+          {
             title: "Next",
             description: "List progress and next action context.",
           },
@@ -389,32 +409,7 @@ const listsModule = {
             title: "Costs",
             description: "Estimated and actual item costs.",
           },
-          {
-            title: "Linked Records",
-            description: "Task, note, project, and client links.",
-          },
         ],
-        linkedRecords: {
-          title: "Linked Records",
-          recordsField: "links",
-          targetTypeField: "target_type",
-          targetLabelField: "target.label",
-          targetUrlField: "target.url",
-          targetIdField: "list_link_id",
-          emptyState: {
-            message: "No linked records yet.",
-          },
-          fields: [
-            { field: "target_type", type: "select", label: "Type", default: "task", options: [["task", "Task"], ["note", "Note"], ["project", "Project"], ["client", "Client"]] },
-            { field: "task_search", type: "search", label: "Search tasks", placeholder: "Search tasks", autocomplete: "off", behavior: "lists.link.task-search" },
-            { field: "task_picker", type: "select", label: "Task", optionsSource: "taskLinkTargets", behavior: "lists.link.task-picker" },
-            { field: "target_id", type: "text", label: "Record ID", required: true, placeholder: "Paste record ID", behavior: "lists.link.raw-record-id" },
-          ],
-          actions: [
-            { id: "add-link", label: "Add Link", role: "primary", behavior: "lists.link.add", requiredPermissions: [LIST_PERMISSIONS.MANAGE_LINKS] },
-            { id: "remove-link", label: "Remove", role: "destructive", behavior: "lists.link.remove", requiredPermissions: [LIST_PERMISSIONS.MANAGE_LINKS] },
-          ],
-        },
         emptyState: {
           title: "Select a list",
           message: "Select a list to review its context.",
@@ -429,13 +424,13 @@ const listsModule = {
             { field: "needed_by_date", type: "date", label: "Needed by", width: "compact" },
             { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users", width: "compact" },
             { field: "purchase_status", type: "select", label: "Status", default: "needed", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]), width: "compact" },
-            { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced" },
-            { field: "url", type: "url", label: "URL", placement: "advanced" },
-            { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced" },
-            { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced" },
-            { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced" },
+            { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced", width: "wide" },
+            { field: "url", type: "url", label: "URL", placement: "advanced", width: "wide" },
+            { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
+            { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
+            { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced", width: "wide" },
             { field: "notes", type: "textarea", label: "Notes", rows: "2", width: "full" },
-            { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true" },
+            { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true", width: "full" },
           ],
           actions: [
             { id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
@@ -467,12 +462,13 @@ const listsModule = {
         {
           id: "list-editor",
           title: "List",
+          size: "wide",
           fields: [
-            { field: "title", type: "text", label: "Title", required: true },
-            { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]) },
-            { field: "client_id", type: "select", label: "Client", optionsSource: "clients" },
-            { field: "project_id", type: "select", label: "Project", optionsSource: "projects" },
-            { field: "description", type: "textarea", label: "Description", rows: "4" },
+            { field: "title", type: "text", label: "Title", required: true, width: "full" },
+            { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]), width: "compact" },
+            { field: "client_id", type: "select", label: "Client", optionsSource: "clients", width: "wide" },
+            { field: "project_id", type: "select", label: "Project", optionsSource: "projects", width: "wide" },
+            { field: "description", type: "textarea", label: "Description", rows: "4", width: "full" },
           ],
           footerActions: [
             { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },

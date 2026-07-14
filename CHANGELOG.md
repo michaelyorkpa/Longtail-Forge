@@ -1,3 +1,58 @@
+## Version 0.33.13.5 - 2026-07-14 18:05 -04:00
+
+- Closed the Lists linked-record branch on one declarative path per purpose: the selected-list detail keeps the shared read-only linked-context list, and Create/Edit List remains the only write path through the shared Linked Context picker modal.
+- Removed the retired detail-side linked-record fallback from Lists browser and descriptor code. The old `linkedRecords` descriptor block, raw record-ID/task-search/task-picker helpers, and the extra task bootstrap read are gone, so Lists no longer ships a dormant second editor path.
+- Removed the dead `.lists-link-form` / `.lists-link-item` styling, including the leftover mobile button selector tied to that retired path, and tightened the focused guardrails/regressions so the old detail-side editor/bootstrap cannot silently return.
+- Docs updated: `docs/lists-module.md`, `docs/linked-context-picker-contract.md`, `docs/declarative-view-surfaces.md`, `docs/view-building-contract.md`, and `docs/notes-module.md` (current-version marker).
+- No docs change needed: the existing Workbench warning note comes from earlier unrelated branch work; this slice does not alter Workbench behavior.
+- Version and roadmap closeout: package metadata advanced to `0.33.13.5`, the completed Lists branch closeout moved to `ROADMAP-ARCHIVE.md`, and the active cursor advanced to `0.33.14.1` (exported field-factory primitive and complete field-type set).
+- Verification: all 12/12 Lists regressions passed. `npm run closeout` passed every hard gate; `npm run check` passed typecheck, 126/126 unit tests, all 345/345 regressions, and ESLint; and the restarted canonical server on port 8001 returned `0.33.13.5` from `/api/app-info`.
+
+## Version 0.33.13.4 - 2026-07-14 17:00 -04:00
+
+- Aligned the Add/Edit Item modal with the same framework modal anatomy now used by Create/Edit List. Both Lists editors use the shared `surface-modal-heading` row with the framework heading action slot instead of a Lists-only heading layout.
+- Moved the item modal's `Details` disclosure onto the shared modal section styling (`surface-modal-group`, `surface-modal-section-heading`, `surface-modal-section-body`) and pushed its advanced fields plus reusable-toggle spacing through descriptor width hints instead of custom item-grid rules.
+- Preserved existing Lists item workflow behavior: validation, catalog suggestions, `Status = Needed`, `Save as reusable item` defaulting on, existing create/update item routes, and the startup-built dialog shell that does not read `state` during dialog construction.
+- Updated the focused descriptor regression to lock the shared modal heading/section anatomy, item-form width hints, and the removal of leftover `.lists-item-form` / `.lists-dialog-heading` layout ownership.
+- Docs updated: `docs/lists-module.md` and `docs/notes-module.md` (current-version marker plus the Lists item-modal guideline note).
+- No docs change needed: the Workbench warning comes from earlier unrelated branch changes already covered elsewhere; this slice does not alter Workbench behavior.
+- Version and roadmap closeout: package metadata advanced to `0.33.13.4`, the completed item-modal slice moved to `ROADMAP-ARCHIVE.md`, and the active cursor advanced to `0.33.13.5` (Guardrails, docs, and closeout).
+- Verification: all 12/12 Lists regressions passed. `npm run closeout` passed every hard gate; the full `npm run check` gate passed typecheck, 126/126 unit tests, all 345/345 regressions, and ESLint; the restarted canonical server on port 8001 returned `0.33.13.4` from `/api/app-info`.
+
+## Version 0.33.13.3 - 2026-07-14 16:11 -04:00
+
+- Moved all linked-record management into the Create/Edit List modal through the shared `view.createLinkedContextPicker(...)` shell. Task, Note, Project, and Business Client targets now come from a Lists-owned permission-filtered target catalog with safe contextual labels; the raw record-ID input is gone.
+- Kept saved link add/remove operations on the existing Lists routes with `lists.manage_links`, active-provider, target-type/module, and readable/writable target validation. Create mode stages selections until the new list exists; edit mode persists immediately; unavailable saved targets remain softly readable and removable.
+- Made `list-editor` a framework-wide modal and rendered its fields through the framework field grid with descriptor width hints. Removed the cramped `.lists-form-grid` and Lists-only modal max-width while preserving Business client/project derivation, Personal/Family behavior, `window.LongtailForge.listsDialog`, and the `lists.add` / `lists.edit` module actions.
+- Expanded Lists UI, workflow, descriptor, service, and API regressions for the shared picker, staged create flow, existing-route persistence, strict target validation, permission-pruned provider/target catalogs, safe labels, wide sizing, and the absence of raw-ID/custom-grid anatomy.
+- Docs updated: `docs/lists-module.md`, `docs/linked-context-picker-contract.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/view-building-contract.md`, `help/modules/lists/linked-records.md`, `help/modules/lists/using-lists.md`, and `docs/notes-module.md` (current-version marker).
+- No docs change needed: the architecture and Workbench suggestions come from earlier already-documented branch changes; this slice does not alter those contracts.
+- Version and roadmap closeout: package metadata advanced to `0.33.13.3`, the completed Edit List modal slice moved to `ROADMAP-ARCHIVE.md`, and the active cursor advanced to `0.33.13.4` (Add/Edit Item modal view-guideline conformance).
+- Verification: all 12/12 Lists regressions passed. `npm run closeout` passed every hard gate; change-aware routing escalated this framework/view/release diff to `npm run check`, which passed typecheck, 126/126 unit tests, all 345/345 regressions, and ESLint; the restarted canonical server on port 8001 returned `0.33.13.3` from `/api/app-info`.
+
+## Version 0.33.13.2 - 2026-07-14 14:48 -04:00
+
+- Added the collapsible `List Details` box at the top of the selected Lists detail. It is open by default and contains the list description, including the `No description.` empty state, followed by linked records.
+- Rendered linked records in the detail through the shared read-only `view.createLinkedContextList(...)` shell using the Lists soft-read linked-record payload. Unavailable or stale targets now show safe fallback labels such as `Unavailable task` instead of visible raw IDs.
+- Removed the inline linked-record add/remove picker from the detail render path and dropped the separate `Linked Records` detail summary panel. Link management remains Lists-owned and is reserved for the Edit List modal slice.
+- Moved `.lists-next-action-facts` into the top-right of the Next box while preserving the rest of the detail order, Source panel behavior, Costs panel, item table, and modal/item workflows.
+- Updated focused Lists regressions to lock the `List Details` panel, read-only shared linked-context list, safe unavailable-label adapter, removed inline detail picker, and descriptor summary-panel shape.
+- Docs updated: `docs/lists-module.md`, `help/modules/lists/using-lists.md`, `docs/notes-module.md` (current-version marker), and `ROADMAP.md`/`ROADMAP-ARCHIVE.md`.
+- No docs change needed: routes, permissions, data model, public API, item/reusable/catalog workflows, and link save behavior are unchanged.
+- Version and roadmap closeout: package metadata advanced to `0.33.13.2`, the completed List Details slice moved to `ROADMAP-ARCHIVE.md`, and the active cursor advanced to `0.33.13.3` (Edit List modal shared Linked Context picker and view-guideline conformance).
+- Verification: all 12/12 Lists regressions passed. `npm run closeout` passed every hard gate; change-aware routing escalated this view/release diff to `npm run check`, which passed typecheck, 126/126 unit tests, all 345/345 regressions, and ESLint; the restarted canonical server on port 8001 returned `0.33.13.2` from `/api/app-info`.
+
+## Version 0.33.13.1 - 2026-07-14 14:29 -04:00
+
+- Moved `lists.workspace` from the stacked layout to the framework `slide-out-sidebar` anatomy. The framework-owned bottom-left filter button, backdrop, drawer, close behavior, and full-width main region now host the Lists workspace without a Lists-only toggle or width rule.
+- Added descriptor and startup-fallback `sidebarPanels` for a collapsed Filters panel plus the List Selector. All nine existing filters, no-initial-selection behavior, selector empty state, and `collapseOnSelect` policy remain on their existing descriptors.
+- Updated the Lists browser adapter to decorate the filter and index panels through stable `data-view-sidebar-panel` drawer hooks and to bind the selected-list detail to `.view-slideout-sidebar-main`, while preserving existing `[data-lists-filters]`, `[data-lists-index-panel]`, list rendering, filter events, and cross-module `lists.add` / `lists.edit` lazy-load behavior.
+- Updated the Lists declarative-readonly and view-builder pilot regressions to lock the shared drawer layout, filter/index panel declarations, drawer hook decoration, and full-width main-region contract.
+- Docs updated: `docs/lists-module.md`, `help/modules/lists/using-lists.md`, `docs/notes-module.md` (current-version marker), and `ROADMAP.md`/`ROADMAP-ARCHIVE.md`.
+- No docs change needed: routes, permissions, data model, public API, item/reusable/catalog workflows, linked-record semantics, and billing/cost behavior are unchanged.
+- Version and roadmap closeout: package metadata advanced to `0.33.13.1`, the completed drawer slice moved to `ROADMAP-ARCHIVE.md`, and the active cursor advanced to `0.33.13.2` (collapsible List Details and read-only linked records).
+- Verification: all 12/12 Lists regressions passed. `npm run closeout` passed every hard gate; change-aware routing escalated this view/release diff to `npm run check`, which passed typecheck, 126/126 unit tests, all 345/345 regressions, and ESLint; the restarted canonical server on port 8001 returned `0.33.13.1` from `/api/app-info`.
+
 ## Version 0.33.12.7 - 2026-07-14 13:07 -04:00
 
 - Moved `reporting.view` into the new framework permission/resource catalog with its existing Super Admin, Workspace Admin, Client Admin, Project Admin, Client User, and Project User defaults. Time Tracking still requires the permission for its report and renderer asset but no longer defines, grants, or owns the permission or `reporting` resource.

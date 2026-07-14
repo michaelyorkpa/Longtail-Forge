@@ -121,6 +121,8 @@ Use `LongtailForge.overlayHost.create({ host })` for small module-owned panels o
 
 Use `LongtailForge.view.showModal()` and `LongtailForge.view.closeModal()` for converted add/edit dialogs that may open stacked secondary dialogs above the parent editor. The framework owns parent/child stack guardrails and safe child closure; the module owns staged state, validation, save payloads, and the secondary dialog body.
 
+For manifest-declared modal forms, set `size: "wide"` when the workflow needs the framework wide shell, and use descriptor field `width` hints (`narrow`, `compact`, `wide`, or `full`) for field placement. Do not replace those contracts with a module-owned modal `max-width` or fixed multi-column form grid.
+
 Use `.surface-main-panel` for main-screen filters, bulk toolbars, settings groups, notification/timer panels, and contextual work panels. Use `.surface-dense-actions` for row-local action clusters instead of reusing modal footer classes. Drawer and slideout shells are available for future side panels and become full-screen overlays on narrow screens.
 
 ## View-Building Helpers

@@ -78,7 +78,7 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "applyActiveTaskFocusTask"),
-  /status: task\?\.status \|\| state\.activeTaskFocus\.status \|\| ""/,
+  /status: nextTask\?\.status \|\| state\.activeTaskFocus\.status \|\| ""/,
   "Task Focus should refresh the selected task status from the returned Tasks payload",
 );
 

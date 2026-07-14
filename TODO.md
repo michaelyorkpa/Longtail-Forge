@@ -17,6 +17,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 Starting a timer should automatically move a task from blocked to In Progress. If the timer is cancelled before being saved, it should move back to blocked. Also, checking off items in the checklist should move the status from blocked to in progress, as well.
 
+When a task is moved from blocked, the blocked reason should be removed as well. Blocked reason should be restored *IF* the timer is cancelled (and that's the reason it was moved from blocked to in progress).
+
 ## Workbench Timers Tweak
 
 In focus selection view, manual timers are, correctly, displayed as work that can be picked back up on. However, they have a broken "Open work" button in the bottom right corner. They also don't display the timer description. That Open Work button should either point at something real, or be removed. Probably the best thing to do would be to open a Timer modal (owned by the Timer module).

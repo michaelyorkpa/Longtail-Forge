@@ -52,7 +52,7 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "candidateModuleAction"),
-  /actionId: "notes\.edit"[\s\S]*recordParam: "noteId"/,
+  /actionId: "notes\.view"[\s\S]*recordParam: "noteId"/,
   "Workbench Inspector should remain the related-note context/open path",
 );
 assert.match(

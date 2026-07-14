@@ -82,8 +82,8 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /params\.set\("sort"/);
   assert.match(listsJs, /\/api\/client-projects/);
   assert.match(listsJs, /\/api\/users/);
-  assert.match(listsJs, /loadTaskLinkTargets/);
-  assert.match(listsJs, /\/api\/tasks\?status=active&sort=updated_desc/);
+  assert.match(listsJs, /loadListEditorLinkTargets/);
+  assert.match(listsJs, /\/api\/lists\/link-targets\?\$\{params\.toString\(\)\}/);
   assert.match(listsJs, /complete-list/);
   assert.match(listsJs, /finalize-list/);
   assert.match(listsJs, /duplicate-list/);
@@ -129,23 +129,16 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /catalog_item_id/);
   assert.match(listsJs, /applySuggestionSelection/);
   assert.match(listsJs, /Save as reusable item/);
-  assert.match(listsJs, /createLinkedRecordsPanel/);
-  assert.match(listsJs, /listsLinkedRecordsSurfaceDescriptor/);
-  assert.match(listsJs, /renderDescriptorLinkedRecordsPanel/);
-  assert.match(listsJs, /linkTargetTypeOptions/);
-  assert.match(listsJs, /syncLinkPickerMode/);
-  assert.match(listsJs, /populateTaskLinkPicker/);
-  assert.match(listsJs, /taskLinkOptionLabel/);
-  assert.match(listsJs, /TASK_STATUS_LABELS/);
-  assert.match(listsJs, /data-list-link-form/);
-  assert.match(listsJs, /listTaskPickerControl/);
-  assert.match(listsJs, /listRawLinkControl/);
-  assert.match(listsJs, /listTaskPicker/);
-  assert.match(listsJs, /Select a task to link/);
+  assert.match(listsJs, /view\.createLinkedContextPicker\(\{/);
+  assert.match(listsJs, /listLinkProviderOptions/);
+  assert.match(listsJs, /LIST_LINK_TARGET_ORDER = \["task", "note", "project", "client"\]/);
+  assert.match(listsJs, /handleListEditorLinkedContextRemove/);
+  assert.match(listsJs, /state\.editorStagedTargets/);
+  assert.match(listsJs, /renderListEditorLinkedItems/);
+  assert.doesNotMatch(functionBlock(listsJs, "createListDialogShell"), /target_id|task_search|task_picker|Paste record ID/);
   assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/links/);
   assert.match(listsJs, /remove-link/);
   assert.match(listsJs, /Linked Records/);
-  assert.match(listsJs, /dataset\.linkAccess/);
   assert.match(listsJs, /Unavailable linked record/);
   assert.match(listsJs, /listDescriptionExcerpt/);
   assert.match(listsJs, /linkedRecordSummary/);
@@ -168,9 +161,10 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /function detailMetaItems/, "Lists detail meta should render as compact labeled spans like Notes");
   assert.match(listsJs, /function shouldShowSourceContext/, "The Source panel should be gated so it is omitted for plain independent lists");
   assert.match(listsJs, /shouldShowSourceContext\(list\) \? createSourceContextPanel\(list\) : null/, "renderDetail should only mount the Source panel when it is meaningful");
-  assert.match(listsJs, /collapsible: true,\s*open: false/, "Lists linked records should be collapsible and collapsed by default");
-  assert.match(listsJs, /icon: "add",\s*iconOnly: true,\s*label: addAction\.label \|\| "Add Link"/, "Add Link should be an icon button");
-  assert.match(listsJs, /behavior: removeAction\.behavior,\s*icon: "delete"/, "Remove link should be an icon button");
+  assert.match(listsJs, /title: "List Details",\s*className: "lists-details-panel",\s*collapsible: true,\s*open: true/, "List Details should be collapsible and open by default");
+  assert.match(listsJs, /size: "wide"/, "The List editor should select the framework wide modal size");
+  assert.match(listsJs, /className: "lists-editor-fields"/, "The List editor should use framework field-grid anatomy");
+  assert.doesNotMatch(styles, /\.lists-form-grid/, "The cramped three-column List editor grid should be removed");
 
   // 0.33.5.18.5.9 Lists item-entry inset refinement.
   assert.match(listsJs, /behavior: "lists\.catalog-suggestions", width: "full"/, "Item field should take its own full-width top row");
@@ -220,9 +214,6 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-next-action-facts/);
   assert.match(styles, /\.lists-source-context/);
   assert.match(styles, /\.lists-checkbox-field/);
-  assert.match(styles, /\.lists-links-panel/);
-  assert.match(styles, /\.lists-link-form/);
-  assert.match(styles, /\.lists-link-item\[data-link-access="unavailable"\]/);
   assert.match(styles, /\.lists-cost-summary/);
   assert.match(styles, /\.lists-item-advanced/);
   assert.match(styles, /\.lists-item-advanced-fields/);
@@ -234,7 +225,6 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-status-badge\.is-active/);
   assert.match(styles, /@media[^{]*\{\s*\.view-split-list-detail\s*\{[\s\S]*grid-template-columns: 1fr/);
   assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-detail-actions[\s\S]*flex-wrap: wrap/);
-  assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-link-form[\s\S]*repeat\(auto-fit, minmax\(180px, 1fr\)\)/);
   assert.match(styles, /\.lists-next-action[\s\S]*background: var\(--color-surface-muted\)/);
   assert.match(styles, /\.lists-source-context,[\s\S]*\.lists-cost-summary[\s\S]*background: var\(--color-surface-muted\)/);
   assert.match(styles, /\.lists-detail-title-row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto/, "Lists detail title row should put the action menu to the right of the title");
@@ -244,13 +234,16 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-items-header\s*\{[\s\S]*justify-content: space-between/, "The Items header should place the Add Item button opposite the title");
   assert.match(styles, /\.lists-item-advanced\s*\{[\s\S]*flex: 1 1 100%/, "The Details disclosure should span its own full-width row");
   assert.doesNotMatch(styles, /\.lists-item-advanced summary\s*\{[^}]*display:\s*(?:grid|flex)/, "The Details summary must keep the native disclosure caret (no display:grid/flex that flexes the marker away)");
-  assert.match(styles, /\.lists-next-action\s*\{[\s\S]*max-width: 520px/, "The Next panel should be roughly half width");
+  assert.match(styles, /\.lists-details-panel\s*\{[\s\S]*gap: 12px/, "The List Details panel should keep compact description and linked-record spacing");
+  assert.match(styles, /\.lists-next-action\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto/, "The Next panel should reserve a top-right column for fact chips");
+  assert.match(styles, /\.lists-next-action-facts\s*\{[\s\S]*justify-content: flex-end;[\s\S]*grid-column: 2;[\s\S]*grid-row: 1 \/ span 2/, "The Next fact chips should sit in the top-right of the Next panel");
   assert.match(styles, /\.lists-items-table td:nth-child\(2\)\s*\{[\s\S]*text-overflow: ellipsis/, "The items table Item column should ellipsis-truncate");
   assert.match(styles, /\.lists-items-table\s*\{[\s\S]*width: auto;[\s\S]*table-layout: auto/, "The items table should be content-sized so columns pack together (no full-width stretch)");
   assert.match(styles, /\.lists-items-table th,\s*\.lists-items-table td\s*\{[\s\S]*padding: 8px 10px/, "The items table cells should use tighter padding");
   assert.match(styles, /\.lists-items-table th:first-child,\s*\.lists-items-table td:first-child\s*\{[\s\S]*width: 1%/, "The Done column should shrink to its checkbox so it sits close to Item");
   assert.match(styles, /\.lists-items\s*\{[\s\S]*overflow: visible/, "The items wrapper should not clip the row action menu");
   assert.match(styles, /\.lists-items-table-wrap\s*\{[\s\S]*overflow: visible/, "The framework table wrapper should not clip the row action menu");
+  assert.doesNotMatch(styles, /\.lists-link-form|\.lists-link-item/, "The retired detail-side linked-record editor styles should stay removed");
   assert.doesNotMatch(listsStyles, /#eff6ff|#f0fdfa|#fff7ed|#bfdbfe|#99f6e4|#fed7aa/);
 }
 
@@ -315,6 +308,13 @@ function flattenNavigation(items = []) {
     item,
     ...(item.items ? flattenNavigation(item.items) : []),
   ]);
+}
+
+function functionBlock(source, functionName) {
+  const start = source.indexOf(`function ${functionName}`);
+  assert.notEqual(start, -1, `${functionName} should exist`);
+  const next = source.indexOf("\nfunction ", start + 1);
+  return source.slice(start, next === -1 ? source.length : next);
 }
 
 async function readWorkspace() {

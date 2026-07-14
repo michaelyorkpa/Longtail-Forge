@@ -518,23 +518,30 @@ function createWorkbenchCardSection({ body = [], cardId, count = null, defaultOp
   return section;
 }
 
-function createWorkbenchSectionSummary({ bodyId = "", count = null, title }) {
+function createWorkbenchSectionSummary({ bodyId = "", count = null, subtitle = null, title }) {
   const attrs = { "aria-expanded": "false" };
 
   if (bodyId) {
     attrs["aria-controls"] = bodyId;
   }
 
+  const titleNode = workbenchViewHelpers.createElement("span", {
+    className: "workbench-section-title",
+    text: title,
+  });
+  // When a subtitle is supplied it stacks under the title inside the summary so it stays visible
+  // even while the section is collapsed (only the summary renders in a closed <details>).
+  const heading = subtitle
+    ? workbenchViewHelpers.createElement("span", {
+      className: "workbench-section-heading",
+      children: [titleNode, subtitle],
+    })
+    : titleNode;
+
   return workbenchViewHelpers.createElement("summary", {
     className: "workbench-section-summary",
     attrs,
-    children: [
-      workbenchViewHelpers.createElement("span", {
-        className: "workbench-section-title",
-        text: title,
-      }),
-      count,
-    ],
+    children: [heading, count],
   });
 }
 
@@ -1516,9 +1523,12 @@ function createTaskFocusChecklistSection(active) {
   const task = active?.task || {};
   const items = taskFocusChecklistItems(task);
   const bodyId = "workbench-task-focus-checklist-body";
-  const count = workbenchViewHelpers.createElement("span", {
-    className: "workbench-section-count",
-    text: formatTaskFocusChecklistProgress(taskFocusChecklistProgress(task, items)),
+  const progress = taskFocusChecklistProgress(task, items);
+  const summaryProgress = workbenchViewHelpers.createElement("span", {
+    className: "workbench-checklist-summary-progress",
+    dataset: { workbenchTaskFocusChecklistSummary: "" },
+    attrs: { title: formatTaskFocusChecklistProgress(progress, { truncate: false }) },
+    text: formatTaskFocusChecklistProgress(progress),
   });
   const details = workbenchViewHelpers.createElement("details", {
     className: ["workbench-section", "surface-main-panel", "workbench-task-checklist-section"],
@@ -1538,7 +1548,7 @@ function createTaskFocusChecklistSection(active) {
   details.append(
     createWorkbenchSectionSummary({
       bodyId,
-      count,
+      subtitle: summaryProgress,
       title: "Checklist",
     }),
     body,
@@ -1753,13 +1763,9 @@ function createTaskFocusChecklistBody(active, items) {
     return [emptyState("Checklist could not be loaded.")];
   }
 
-  const progress = taskFocusChecklistProgress(active?.task, items);
-  const children = [
-    workbenchViewHelpers.createElement("p", {
-      className: "workbench-task-checklist-progress",
-      text: formatTaskFocusChecklistProgress(progress),
-    }),
-  ];
+  // The progress line now lives in the always-visible section summary; the body only carries the
+  // error copy (when present) and the checklist rows.
+  const children = [];
 
   if (active?.checklistError) {
     children.push(workbenchViewHelpers.createElement("p", {
@@ -1833,12 +1839,25 @@ function taskFocusChecklistProgress(task = {}, items = taskFocusChecklistItems(t
   };
 }
 
-function formatTaskFocusChecklistProgress(progress = {}) {
+const TASK_FOCUS_CHECKLIST_NEXT_LABEL_MAX = 20;
+
+function formatTaskFocusChecklistProgress(progress = {}, { truncate = true } = {}) {
   const total = Number(progress?.total_count) || 0;
   const completed = Number(progress?.completed_count) || 0;
-  const nextLabel = safeTaskFocusText(progress?.next_incomplete_item_label, "");
+  const rawNextLabel = safeTaskFocusText(progress?.next_incomplete_item_label, "");
   const base = `${completed} / ${total} complete`;
-  return nextLabel ? `${base}. Next: ${nextLabel}` : base;
+  if (!rawNextLabel) {
+    return base;
+  }
+  const nextLabel = truncate
+    ? truncateTaskFocusChecklistLabel(rawNextLabel, TASK_FOCUS_CHECKLIST_NEXT_LABEL_MAX)
+    : rawNextLabel;
+  return `${base}. Next: ${nextLabel}`;
+}
+
+function truncateTaskFocusChecklistLabel(text, max) {
+  const value = String(text || "");
+  return value.length > max ? `${value.slice(0, max)}…` : value;
 }
 
 function createTaskDetailFields(active) {
@@ -1979,6 +1998,14 @@ async function openCandidate(candidate, trigger = null, options = {}) {
     if (taskId) {
       await enterTaskFocus(candidate, taskId);
       changeFocusButton?.focus?.();
+      return;
+    }
+
+    // Notes and Lists have registered Workbench modal actions, so open them in place instead of
+    // navigating away to their module page.
+    const action = candidateModuleAction(candidate);
+    if (action) {
+      await openModuleActionCandidate(candidate, action, trigger);
       return;
     }
 
@@ -2155,19 +2182,36 @@ function applyActiveTaskFocusTask(task) {
     return;
   }
 
+  const nextTask = task ? preserveTaskFocusChecklistData(task, state.activeTaskFocus.task) : null;
+
   state.activeTaskFocus = {
     ...state.activeTaskFocus,
     checklistError: "",
     checklistMutationItemId: "",
-    contextLabel: taskFocusContextLabel(task || {}, state.activeTaskFocus) || state.activeTaskFocus.contextLabel,
-    dueAt: task?.due_at_utc || task?.due_date || state.activeTaskFocus.dueAt || "",
+    contextLabel: taskFocusContextLabel(nextTask || {}, state.activeTaskFocus) || state.activeTaskFocus.contextLabel,
+    dueAt: nextTask?.due_at_utc || nextTask?.due_date || state.activeTaskFocus.dueAt || "",
     error: "",
     isLoading: false,
-    priority: task?.priority || state.activeTaskFocus.priority || "",
-    status: task?.status || state.activeTaskFocus.status || "",
-    task: task || null,
-    title: safeTaskFocusText(task?.title || state.activeTaskFocus.title, "Focused task"),
+    priority: nextTask?.priority || state.activeTaskFocus.priority || "",
+    status: nextTask?.status || state.activeTaskFocus.status || "",
+    task: nextTask,
+    title: safeTaskFocusText(nextTask?.title || state.activeTaskFocus.title, "Focused task"),
   };
+}
+
+// Some task payloads (e.g. the task timer endpoints) return the raw task row without the
+// enriched `checklistItems`/`checklistProgress` that the task detail endpoint provides. Those
+// mutations never touch the checklist, so carry the existing checklist data forward instead of
+// letting the focused checklist section collapse until the next full refresh.
+function preserveTaskFocusChecklistData(nextTask, existingTask = {}) {
+  const merged = { ...nextTask };
+  if (!Array.isArray(merged.checklistItems) && Array.isArray(existingTask?.checklistItems)) {
+    merged.checklistItems = existingTask.checklistItems;
+  }
+  if (!merged.checklistProgress && existingTask?.checklistProgress) {
+    merged.checklistProgress = existingTask.checklistProgress;
+  }
+  return merged;
 }
 
 function applyTaskFocusChecklistResult(result = {}) {
@@ -2505,7 +2549,7 @@ function candidateTaskId(candidate = {}) {
 function candidateModuleAction(candidate = {}) {
   if (candidate.moduleId === "notes" && candidate.recordType === "note" && candidate.recordId) {
     return {
-      actionId: "notes.edit",
+      actionId: "notes.view",
       moduleId: "notes",
       moduleLabel: "Note",
       recordId: candidate.recordId,

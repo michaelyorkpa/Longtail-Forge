@@ -41,8 +41,8 @@ assert.match(
 const openCandidateBody = functionBody(workbenchScript, "openCandidate");
 assert.match(
   openCandidateBody,
-  /if \(mode === "candidate-primary"\) \{[\s\S]*enterTaskFocus\(candidate, taskId\);[\s\S]*openNonTaskFocusFallback\(candidate\);[\s\S]*if \(taskId\) \{[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\);[\s\S]*const action = candidateModuleAction\(candidate\);[\s\S]*await openModuleActionCandidate\(candidate, action, trigger\);[\s\S]*openCandidateNavigationFallback\(candidate\);/,
-  "Primary candidate actions should enter Task Focus while context opens keep the registered module-action path",
+  /if \(mode === "candidate-primary"\) \{[\s\S]*enterTaskFocus\(candidate, taskId\);[\s\S]*const action = candidateModuleAction\(candidate\);[\s\S]*await openModuleActionCandidate\(candidate, action, trigger\);[\s\S]*openNonTaskFocusFallback\(candidate\);[\s\S]*if \(taskId\) \{[\s\S]*await openTaskCandidate\(candidate, taskId, trigger\);[\s\S]*openCandidateNavigationFallback\(candidate\);/,
+  "Primary candidate actions should enter Task Focus, then open registered module actions (e.g. Notes view) in place before any page fallback",
 );
 assert.doesNotMatch(
   openCandidateBody,

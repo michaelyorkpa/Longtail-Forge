@@ -217,6 +217,21 @@ ORDER BY created_at;
       body_markdown: "Note context for list link",
       title: "Linked List Note",
     }, session);
+    const taskTargets = await listsService.listLinkTargets(session, {
+      q: "Linked List Task",
+      targetType: "task",
+    });
+    assert.deepEqual(taskTargets.providers.map((provider) => provider.targetType), ["client", "note", "project", "task"]);
+    assert.equal(taskTargets.targets[0].targetId, linkedTask.task.task_id);
+    assert.equal(taskTargets.targets[0].displayLabel, "Linked List Task");
+    assert.equal(taskTargets.targets[0].isAvailable, true);
+    assert.ok(!taskTargets.targets[0].displayLabel.includes(linkedTask.task.task_id));
+    const noteTargets = await listsService.listLinkTargets(session, {
+      q: "Linked List Note",
+      targetType: "note",
+    });
+    assert.equal(noteTargets.targets[0].targetId, linkedNote.note.note_id);
+    assert.equal(noteTargets.targets[0].displayLabel, "Linked List Note");
     const taskLink = await listsService.createLink(created.list.list_id, {
       targetId: linkedTask.task.task_id,
       targetType: "task",
@@ -228,6 +243,15 @@ ORDER BY created_at;
       targetType: "note",
     }, session);
     assert.equal(noteLink.link.target.label, "Linked List Note");
+    await assert.rejects(
+      () => listsService.createLink(created.list.list_id, {
+        moduleId: "tasks",
+        targetId: linkedNote.note.note_id,
+        targetType: "note",
+      }, session),
+      /not supported for Lists/,
+      "Strict link creation must reject a module/type mismatch",
+    );
     const linkedRead = await listsService.read(created.list.list_id, session);
     assert.equal(linkedRead.links.length, 2);
     assert.ok(linkedRead.links.every((link) => link.target?.label));
@@ -253,6 +277,8 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     assert.equal(unavailableLinkRead.links[0].targetAccess, "unavailable");
     assert.equal(unavailableLinkRead.list.resumeContext.linkedRecords[0].isAvailable, false);
     assert.equal(unavailableLinkRead.list.resumeContext.linkedRecords[0].label, "");
+    const removedUnavailableLink = await listsService.removeLink(created.list.list_id, noteLink.link.list_link_id, session);
+    assert.ok(removedUnavailableLink.link.removed_at, "A writable list should allow removing an unavailable saved link without exposing its target");
 
     const checked = await listsService.checkItem(created.list.list_id, item.item.list_item_id, session);
     assert.ok(checked.item.checked_at);

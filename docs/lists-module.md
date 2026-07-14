@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.6.15.1. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.13.5. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -34,6 +34,16 @@ Workspace-facing labels adapt by workspace type:
 Business workspaces can associate a list with a client and project. Selecting a project derives the client from the project. Personal and family workspaces hide client controls, keep lists workspace scoped, and allow workspace projects as optional list context.
 
 As of 0.33.6.10b, Lists exposes `LongtailForge.listsDialog.openListEditor()` plus the shared `lists.add` and `lists.edit` module actions. These actions wrap the existing Create/Edit List dialog; they do not create an alternate form. When lazy-loaded outside the Lists page, `public/js/lists.js` creates only the existing list dialog shell, prepares workspace/client/project/user option data, passes the shared host context into the dialog, and signals completion or cancel after the normal Lists save/cancel path runs.
+
+As of 0.33.13.1, `lists.workspace` uses the framework `slide-out-sidebar` layout. The framework-owned bottom-left filter button opens a drawer containing the existing nine filters and the List Selector, while the selected-list detail remains the full-width main surface. `public/js/lists.js` decorates the drawer panels through their stable `data-view-sidebar-panel` hooks and preserves the existing filter bindings, selector empty state, no-initial-selection behavior, collapse-on-select policy, list rendering, and cross-module editor openers.
+
+As of 0.33.13.2, the selected-list detail starts with a framework collapsible `List Details` box. It is open by default and contains the list description, including the `No description.` empty state, followed by a read-only `view.createLinkedContextList(...)` rendering of the list's soft-read linked records. The separate detail-level `Linked Records` summary panel and inline add/remove picker are no longer rendered in the detail; link management remains Lists-owned and moves to the list editor surface in the next modal slice. The `Next` panel keeps its existing workflow message but places `.lists-next-action-facts` in the panel's top-right corner.
+
+As of 0.33.13.3, `list-editor` is a framework `size: "wide"` modal whose List fields use descriptor width hints through `view.renderDescriptorFieldGrid(...)`. Its Linked Records section uses `view.createLinkedContextPicker(...)` with the active Task, Note, Project, and Business-only Client providers returned by `GET /api/lists/link-targets`; the raw record-ID field and bespoke Task-only search/picker are not part of the editor. Create mode stages selected targets until the list exists and then posts them through the normal link route. Edit mode adds and removes immediately through the same Lists-owned link routes. The browser keeps `LongtailForge.listsDialog.openListEditor()` and the `lists.add` / `lists.edit` actions on this single editor path.
+
+As of 0.33.13.4, `.lists-item-dialog` follows that same framework modal guideline set. The item editor uses the shared `surface-modal-heading` row, its `Details` disclosure renders as a shared boxed modal section, and the advanced item fields plus `Save as reusable item` toggle rely on descriptor width hints instead of one-off item-grid CSS. Item save routes, validation, catalog suggestions, default `purchase_status = needed`, default reusable-toggle state, and the startup-built dialog shell stay Lists-owned.
+
+As of 0.33.13.5, `lists.workspace` is closed at one declarative path for linked records. The selected-list detail keeps only the read-only `view.createLinkedContextList(...)` rendering inside `List Details`, and the Create/Edit List modal keeps the only write path through `view.createLinkedContextPicker(...)`. The earlier detail-side `Linked Records` editor descriptor, its task-target bootstrap read, and its raw record-ID/task-search browser helpers are removed rather than kept as dormant fallbacks.
 
 ## Core Records
 
@@ -99,7 +109,9 @@ Readable linked targets return permission-safe summaries with type, ID, label, m
 
 Linked tasks provide execution context without turning list items into task records. Linked notes provide reference context without making notes checklist storage.
 
-The protected Lists workspace uses a picker-based task link flow for task targets. It loads readable active task labels from the Tasks API, writes the selected task ID into the Lists-owned link payload, and keeps raw record ID entry only for non-task target types.
+The protected Lists detail renders linked records read-only through the shared linked-context list shell. Those rows use the Lists linked-record soft-read payload, so readable targets show their safe labels and URLs while stale or inaccessible targets show safe unavailable labels such as `Unavailable task` instead of raw IDs. Link creation and removal stay behind the Lists service routes and, as of 0.33.13.3, are hosted only by the Create/Edit List modal's shared picker.
+
+`GET /api/lists/link-targets` requires `lists.manage_links`, limits provider choices to active permission-filtered Task, Note, Project, and Business-only Client contributions, and returns `linked-context-target.v1` rows with safe labels. Per-record reads are still permission-pruned. Link creation rechecks `MANAGE_LINKS`, requires the target provider to remain active, rejects module/type mismatches, and strictly resolves the target before writing. Saved-row detail reads remain soft, and a user who can manage links on the list may remove a stale or unavailable saved link without first recovering the target label.
 
 ## Resume-Safe Context
 
@@ -124,7 +136,7 @@ Lists declares these framework integration points in `module.js`:
 
 - `permissions`, `requiredPermissions`, `defaultRolePermissions`, and `resourceDefinitions`.
 - `browserApiRoutes`, `protectedViews`, `browserAssets`, navigation, and a module-status setting.
-- `viewSurfaces[0]` with the `lists.workspace` descriptor for the protected workspace shell, filters, selector, detail action strip, item form, item rows, linked-record picker/rows, and create/edit modal anatomy.
+- `viewSurfaces[0]` with the `lists.workspace` descriptor for the protected workspace shell, slide-out filter/selector drawer, full-width detail, detail action strip, item form, item rows, read-only detail links, and the wide create/edit modal anatomy.
 - `auditRecordTypes`, `eventTypes`, and lifecycle event declarations.
 - `taggableTypes` for list tags through the framework tag service.
 - `searchableTypes` using the `lists.records` indexer.
@@ -134,7 +146,7 @@ Lists declares these framework integration points in `module.js`:
 
 Lists declares read-only public API routes for list summaries and list detail reads. Lists write routes, item mutations, reusable-list operations, catalog management, finalization, timer sources, dashboard cards, workbench cards, and notification events are not public API surfaces in the current release.
 
-The Lists descriptor defines framework-owned placement and action metadata. `public/js/lists.js` still owns filtered reads, canonical detail hydration, Business client/project controls, Personal/Family scope behavior, item/link payloads, validation, task-picker binding, and the API calls behind workflow behaviors.
+The Lists descriptor defines framework-owned placement and action metadata. `public/js/lists.js` still owns filtered reads, canonical detail hydration, Business client/project controls, Personal/Family scope behavior, item/link payloads, validation, shared-picker binding, create-mode link staging, and the API calls behind workflow behaviors.
 
 ## Search, Tags, And Files
 
