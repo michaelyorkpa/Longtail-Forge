@@ -88,7 +88,7 @@ async function readClientProjectData(workspaceId) {
     ...normalizeClientProjectData({
     clients: clients.map((client) => ({
       ...client,
-      childScopeIds: descendantClientIdsByClient.get(client.id) || [],
+      childScopeIds: [...(descendantClientIdsByClient.get(client.id) || [])],
       projects: projectsByClientId.get(client.id) || [],
     })),
     }),

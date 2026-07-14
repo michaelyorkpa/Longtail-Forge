@@ -9,6 +9,12 @@ import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
+import {
+  ActiveTimerFinalizeSchema,
+  ActiveTimerSaveSchema,
+  ActiveTimerStatusSchema,
+  parseTimeTrackingEdgePayload,
+} from "./time-tracking.contracts.js";
 
 const MODULE_ID = "time-tracking";
 
@@ -26,8 +32,9 @@ async function listAll(session) {
   };
 }
 
-async function save(timerSlot, payload, session) {
+async function save(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(ActiveTimerSaveSchema, rawPayload);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const timer = normalizeTimerPayload(payload, normalizedTimerSlot, session);
   const [scope, settings] = await Promise.all([
@@ -160,8 +167,9 @@ async function remove(timerSlot, session) {
   return { timer_slot: normalizedTimerSlot, removed: true, timers: await shapeTimerPayloads(session, timers) };
 }
 
-async function updateStatus(timerSlot, payload, session) {
+async function updateStatus(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(ActiveTimerStatusSchema, rawPayload);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const existingTimer = await activeTimersRepository.readBySlot(session.workspace_id, session.user_id, normalizedTimerSlot);
 
@@ -221,8 +229,9 @@ async function removeSourced(source, session) {
   };
 }
 
-async function finalize(timerSlot, payload, session) {
+async function finalize(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(ActiveTimerFinalizeSchema, rawPayload);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const activeTimer = await activeTimersRepository.readBySlot(
     session.workspace_id,
@@ -252,7 +261,7 @@ async function finalize(timerSlot, payload, session) {
     throw new AppError("Project is required before saving time.", 400);
   }
 
-  const result = await timeEntriesService.create(entry, session);
+  const result = await timeEntriesService.createFromActiveTimer(entry, session);
   const shapedTimer = activeTimer ? await shapeTimerPayload(session, activeTimer) : null;
   await activeTimersRepository.remove(session.workspace_id, session.user_id, normalizedTimerSlot);
   const timers = await activeTimersRepository.compactManualTimerSlots(session.workspace_id, session.user_id);
@@ -271,8 +280,9 @@ async function finalize(timerSlot, payload, session) {
   };
 }
 
-async function finalizeSourced(source, payload, session, entryOverrides = {}) {
+async function finalizeSourced(source, rawPayload, session, entryOverrides = {}) {
   await assertModuleWriteEnabled(session, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(ActiveTimerFinalizeSchema, rawPayload);
   const normalizedSource = normalizeSource(source);
   const sourceLookup = {
     sourceModuleId: normalizedSource.source_module_id,
@@ -305,7 +315,7 @@ async function finalizeSourced(source, payload, session, entryOverrides = {}) {
     throw new AppError("Project is required before saving time.", 400);
   }
 
-  const result = await timeEntriesService.create(entry, session);
+  const result = await timeEntriesService.createFromActiveTimer(entry, session);
   const shapedTimer = activeTimer ? await shapeTimerPayload(session, activeTimer) : null;
   await activeTimersRepository.removeBySource(session.workspace_id, session.user_id, sourceLookup);
   if (shapedTimer) {

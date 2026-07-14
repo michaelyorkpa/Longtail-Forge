@@ -13,7 +13,7 @@ const { createSession } = await import("../src/security/sessions.js");
 const { settingsService } = await import("../src/services/settings.service.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
-const { reportingService } = await import("../src/services/reporting.service.js");
+const { timeTrackingBillingService } = await import("../src/modules/time-tracking/time-tracking-billing.service.js");
 const { dashboardService } = await import("../src/services/dashboard.service.js");
 
 try {
@@ -24,7 +24,7 @@ try {
     settings: await measureMedian(() => settingsService.read(session)),
     clientProjects: await measureMedian(() => clientsService.readClientProjects(session)),
     tasks: await measureMedian(() => tasksService.list(session)),
-    reportingBootstrap: await measureMedian(() => reportingService.readReportingBootstrap(session)),
+    reportingBootstrap: await measureMedian(() => timeTrackingBillingService.readReportingBootstrap(session)),
     dashboard: await measureMedian(() => dashboardService.readDashboard(session)),
   };
   const integrity = await querySql("PRAGMA integrity_check;");
@@ -34,7 +34,7 @@ try {
   assert.ok(serviceTimings.settings < 75, `settingsService.read exceeded threshold: ${serviceTimings.settings.toFixed(2)} ms`);
   assert.ok(serviceTimings.clientProjects < 125, `clientsService.readClientProjects exceeded threshold: ${serviceTimings.clientProjects.toFixed(2)} ms`);
   assert.ok(serviceTimings.tasks < 175, `tasksService.list exceeded threshold: ${serviceTimings.tasks.toFixed(2)} ms`);
-  assert.ok(serviceTimings.reportingBootstrap < 175, `reportingService.readReportingBootstrap exceeded threshold: ${serviceTimings.reportingBootstrap.toFixed(2)} ms`);
+  assert.ok(serviceTimings.reportingBootstrap < 175, `timeTrackingBillingService.readReportingBootstrap exceeded threshold: ${serviceTimings.reportingBootstrap.toFixed(2)} ms`);
   assert.ok(serviceTimings.dashboard < 300, `dashboardService.readDashboard exceeded threshold: ${serviceTimings.dashboard.toFixed(2)} ms`);
 
   console.log("Performance regression passed.", JSON.stringify({

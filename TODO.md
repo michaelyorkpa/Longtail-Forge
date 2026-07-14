@@ -13,9 +13,19 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Tasks Status Tweak
+
+Starting a timer should automatically move a task from blocked to In Progress. If the timer is cancelled before being saved, it should move back to blocked. Also, checking off items in the checklist should move the status from blocked to in progress, as well.
+
+## Workbench Timers Tweak
+
+In focus selection view, manual timers are, correctly, displayed as work that can be picked back up on. However, they have a broken "Open work" button in the bottom right corner. They also don't display the timer description. That Open Work button should either point at something real, or be removed. Probably the best thing to do would be to open a Timer modal (owned by the Timer module).
+
+In "Focus Selection" view, Manual timers can be started, paused, saved & ended, and discarded from the "Timers" box. Task timers can only be saved & ended or Discarded. Rather than having buttons for "Start" and "Pause" that are permanently grayed out in this view, it would be better to have an "Open Work" button.
+
 > The Calendar/Dashboard/Tasks tweaks captured here after 0.33.10 shipped were promoted to **ROADMAP.md 0.33.10 follow-up slices 0.33.10.6 - 0.33.10.9** and removed from this file to prevent drift.
 >
-> The remaining Short Term notes are intentionally deferred rather than implementation-ready: the undated-task Wishlist and Workbench algorithm need a deliberate scheduling/settings design; Lists belongs to 0.33.13; Suggested Library waits for a later Notes pass; Testing Goals remain human verification; Knowledge Base belongs to 0.34; Mobile Tweaks wait for a fresh current-surface audit; and Administration/Settings is larger than a cleanup slice. Executable near-term ideas start under the separate `# Near Term Ideas` heading.
+> The remaining Short Term notes are intentionally deferred rather than implementation-ready: the undated-task Wishlist and Workbench algorithm need a deliberate scheduling/settings design; the Lists UI/UX overhaul was promoted to 0.33.13 and removed; Suggested Library waits for a later Notes pass; Testing Goals remain human verification; Knowledge Base belongs to 0.34; Mobile Tweaks wait for a fresh current-surface audit; and Administration/Settings is larger than a cleanup slice. Executable near-term ideas start under the separate `# Near Term Ideas` heading.
 
 ## Wishlist
 
@@ -31,21 +41,9 @@ Blocked items should only show up in "Review blocked work".
 
 The algorithm needs to be adjustable in settings.
 
-> Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, Tasks blocked-state behavior, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.11 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (Lists -> 0.33.13, KB -> 0.34), are human testing goals, or are larger than a quick fix.
+> Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, Tasks blocked-state behavior, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.11 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (KB -> 0.34; the Lists UI/UX overhaul was promoted to 0.33.13 and removed), are human testing goals, or are larger than a quick fix.
 
-## Lists UI/UX Overhaul (Notes for 0.33.13)
-
-Filters needs to be moved to the app-standard filter button in the bottom left corner.
-
-Like notes, the list selector should also be moved to the filters box.
-
-Once a list is selected, the list view should widen the box to be full-width. Chips in the Next box should be put in the top right corner of the box.
-
-Linked Records should be moved into a "List Details" box at the top of the List view. This can become just a list of the linked records. The actual linked records picker can appear in the edit list modal.
-
-The description can also appear in a list details box. This box should start open and be collapsible.
-
-It does not appear that Lists/list modals follow the app's view guidelines. The Edit List modal, in partiuclar. It feels cramped.
+> The Lists UI/UX Overhaul notes were promoted to **ROADMAP.md 0.33.13 - Lists Module UI/UX Overhaul** (slices 0.33.13.1 - 0.33.13.5) and removed from this file to prevent drift. The four scoping decisions were settled during promotion: filters + List Selector move into the standard bottom-left filter drawer (slide-out sidebar), one combined collapsible "List Details" box holds the description plus a read-only linked-records list, all link add/remove moves into the Edit List modal via the shared Linked Context picker, and both Lists modals get a full view-guideline pass.
 
 ## Notes - Suggested Library
 

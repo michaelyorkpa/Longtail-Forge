@@ -1,6 +1,6 @@
 # Declarative View Surfaces
 
-This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.15.
+This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.15. The protected-surface inventory is current through the 0.33.12.7 Reporting host closeout.
 
 Declarative view surfaces are framework-rendered protected surfaces described by module manifest data or by framework-owned descriptor registries for framework-owned pages. They are for common app anatomy: page headers, filters, selector/index panels, split layouts, tables, detail headers, action strips, summary panels, field grids, modal shells, modal footers, item rows, and linked-record panels.
 
@@ -57,7 +57,9 @@ As of 0.33.5.18.14.4, the Projects read page still binds to `/api/projects?inclu
 
 As of 0.33.5.18.14.5, `client-projects.clients` and `client-projects.projects` strict enforcement is active. The framework owns the converted page/read anatomy: minimal hosts, page headers, status/empty/loading/error shells, table-page slide-out filter surface, selector/table wrappers, row-selection checkbox shell, secondary tag rows, icon-only repeated edit controls, related read shells, bulk toolbar shell placement, and descriptor behavior dispatch. Clients/Projects owns tag and Client filter option hydration, selected IDs, allowed bulk controls, route calls, payloads, confirmations, partial-failure messages, dialog bodies, tag pickers, billing/default editors, parent selectors, hierarchy validation, readable labels, query-param openers, refresh hooks, and workspace gating. Strict guardrails fail if inline top filters, standalone Tags table columns, text repeated table actions, protected page anatomy, legacy page table chrome, or static page bulk-dialog shells return. This slice does not change database schema, route payloads, permissions, or workflow behavior.
 
-As of 0.33.5.18.15, the 0.33.5.18 view-conversion branch is closed. Strict fail-on-violation guardrails cover `lists.workspace`, `notes.workspace`, `tasks.workspace`, `files.browse`, `client-projects.clients`, and `client-projects.projects`. Tags management and Developer Example descriptors remain reported descriptor proofs, while Admin/Settings, Reporting, Dashboard, Workbench, pagination/server-side paging, Inspector behavior, and other non-view concerns are deferred to later roadmap lines. The closeout does not add database schema, write payload, permission, public API, or new workflow changes.
+As of 0.33.5.18.15, the 0.33.5.18 view-conversion branch is closed. Strict fail-on-violation guardrails cover `lists.workspace`, `notes.workspace`, `tasks.workspace`, `files.browse`, `client-projects.clients`, and `client-projects.projects`. Tags management and Developer Example descriptors remain reported descriptor proofs. Reporting uses the separate catalog-driven narrow framework host shipped in 0.33.12.6 rather than a `viewSurfaces` descriptor, and 0.33.12.7 closes its strict guardrail inventory. Admin/Settings, pagination/server-side paging, Inspector behavior, and unrelated non-view concerns remain deferred to later roadmap lines. The closeout does not add database schema, write payload, permission, public API, or new workflow changes.
+
+As of 0.33.12.7, the Reporting host is strict. `views/protected/reporting.html` contains one shared-width mount, and `public/js/reporting.js` composes the page through `LongtailForge.view`; direct element creation is limited to the permission-filtered renderer `link` and `script` assets returned by the catalog. Static guardrails reject hard-coded framework page anatomy, Reporting-only layout/footer classes, and Time Tracking report IDs, renderer paths, service imports, or result-shape knowledge in framework Reporting HTML/browser/service code.
 
 A strict declarative surface must:
 
@@ -83,7 +85,7 @@ The module adapter decorates descriptor-rendered nodes with compatibility hooks 
 
 ## Protected View Inventory
 
-The inventory below is current for 0.33.5.18.15 plus the 0.33.6 Dashboard/Workbench host closeout. `strict` means a static guardrail fails on the relevant framework-owned host/surface violations. `reported` means the view is known to the inventory but is not strict-converted in this branch closeout. Files is strict as of 0.33.5.18.12.6 after the strict guardrail inventory was promoted to enforcement. Clients/Projects strict enforcement is active as of 0.33.5.18.14.5 after the filter drawer, secondary tag-row, icon-only table action, and legacy page chrome cleanup, and the 0.33.5.18.15 closeout locks the strict/deferred surface inventory.
+The inventory below is current through the 0.33.12.7 Reporting closeout. `strict` means a static guardrail fails on the relevant framework-owned host/surface violations. `reported` means the view is known to the inventory but is not strict-converted. Files is strict as of 0.33.5.18.12.6 after the strict guardrail inventory was promoted to enforcement. Clients/Projects strict enforcement is active as of 0.33.5.18.14.5 after the filter drawer, secondary tag-row, icon-only table action, and legacy page chrome cleanup. Reporting is strict through its catalog-driven framework host rather than a `viewSurfaces` descriptor.
 
 | Module | View | File | Descriptor Surface | Guardrail |
 | --- | --- | --- | --- | --- |
@@ -100,7 +102,7 @@ The inventory below is current for 0.33.5.18.15 plus the 0.33.6 Dashboard/Workbe
 | Lists | lists | lists.html | lists.workspace | strict |
 | Notes | notes | notes.html | notes.workspace | strict |
 | Notifications | notifications | notifications.html | - | reported |
-| Reporting | reporting | reporting.html | - | reported |
+| Reporting | reporting | reporting.html | framework-built catalog host | strict |
 | Search | search | search.html | - | reported |
 | Tags | tags | tags.html | tags.management | reported |
 | Tasks | tasks | tasks.html | tasks.workspace | strict |

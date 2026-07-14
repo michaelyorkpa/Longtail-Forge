@@ -10,7 +10,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Timer-Timestamp-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { activeTimersService } = await import("../src/modules/time-tracking/active-timers.service.js");
-const { reportingService } = await import("../src/services/reporting.service.js");
+const { timeTrackingBillingService } = await import("../src/modules/time-tracking/time-tracking-billing.service.js");
 
 try {
   await initializeDatabase();
@@ -58,7 +58,7 @@ async function assertPausedTimerFinalizesWithFactTimestamps(session, clientId, p
   assert.notEqual(entry.end_time, falsifiedEnd);
   assert.notEqual(entry.start_time, new Date(new Date(entry.end_time).getTime() - Number(entry.duration_seconds) * 1000).toISOString());
 
-  const report = await reportingService.readProjectSummary(session, {
+  const report = await timeTrackingBillingService.readProjectSummary(session, {
     projectIds: projectId,
     scopeId: clientId,
   });

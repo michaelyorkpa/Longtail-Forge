@@ -1,6 +1,7 @@
 // @ts-check
 import { listTagPropagationResolverIds } from "../../services/tag-propagation-registry.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../linked-context/provider-contract.js";
+import { listFrameworkPermissionIds } from "../permissions/framework-permission-catalog.js";
 
 const ACTIVE_MANIFEST_FIELDS = new Set([
   "id",
@@ -69,6 +70,40 @@ const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
 const DASHBOARD_PLACEMENTS = new Set(["pulse", "attention", "calendar", "today", "main", "activity", "secondary"]);
+const REPORTING_HOST_ASSET_TARGET = "framework:reporting";
+const REPORTING_FILTER_TYPES = new Set([
+  "billing-period",
+  "custom-date-range",
+  "scope",
+  "project-multi-select",
+  "tag",
+  "boolean",
+]);
+const REPORTING_CONTRIBUTION_FIELDS = new Set([
+  "id",
+  "moduleId",
+  "label",
+  "description",
+  "category",
+  "renderer",
+  "runner",
+  "requiredPermissions",
+  "requiredWorkspaceCapabilities",
+  "requiresEnabledModules",
+  "sortOrder",
+  "filters",
+  "browserAssetIds",
+]);
+const REPORTING_FILTER_FIELDS = new Set([
+  "id",
+  "label",
+  "type",
+  "queryKeys",
+  "defaultValue",
+  "required",
+  "visibleWhen",
+]);
+const REPORTING_FILTER_VISIBLE_WHEN_FIELDS = new Set(["filterId", "equals"]);
 const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "stacked", "sidebar-detail", "slide-out-sidebar", "table-page"]);
 const VIEW_FILTER_PLACEMENTS = new Set(["inline", "slide-out-sidebar"]);
 const VIEW_SIDEBAR_PANEL_TYPES = new Set(["filters", "navigation", "index"]);
@@ -202,6 +237,7 @@ const CORE_PERMISSION_IDS = new Set([
   "files.delete",
   "files.manage_quarantine",
   "files.manage_workspace_settings",
+  ...listFrameworkPermissionIds(),
 ]);
 const ATTACHMENT_VISIBILITY_VALUES = new Set(["private", "workspace", "client", "public"]);
 const FILE_CATEGORY_VALUES = new Set(["document", "image", "audio", "video", "archive", "spreadsheet", "presentation", "pdf", "text", "other"]);
@@ -271,6 +307,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateViewSurfaces(moduleDefinition.viewSurfaces, errors);
   validateBrowserAssets(moduleDefinition.browserAssets, moduleDefinition.id, errors);
   validateDashboard(moduleDefinition.dashboard, errors);
+  validateReporting(moduleDefinition.reporting, moduleDefinition.id, errors);
   validateWorkbench(moduleDefinition.workbench, errors);
   validateSettings(moduleDefinition.settings, errors);
   validatePermissions(moduleDefinition.permissions, moduleDefinition.id, errors);
@@ -384,6 +421,10 @@ function validateModuleManifests(moduleDefinitions) {
       allModuleIds,
       allPermissionIds,
       allProtectedViewKeys,
+    }));
+    errors.push(...validateReportingReferences(moduleDefinition, {
+      allModuleIds,
+      allPermissionIds,
     }));
   }
 
@@ -1004,6 +1045,8 @@ function validateLabelDescriptor(object, prefix, errors) {
 }
 
 function validateBrowserAssets(browserAssets, moduleId, errors) {
+  const seenIds = new Set();
+
   optionalArrayOfObjects(browserAssets, "browserAssets", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `browserAssets[${index}]` });
     validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `browserAssets[${index}]` });
@@ -1015,6 +1058,10 @@ function validateBrowserAssets(browserAssets, moduleId, errors) {
     optionalStringArray(item, "views", errors, { prefix: `browserAssets[${index}]` });
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `browserAssets[${index}]` });
     optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `browserAssets[${index}]` });
+    if (typeof item.id === "string" && seenIds.has(item.id)) {
+      errors.push(`browserAssets[${index}].id '${item.id}' is duplicated.`);
+    }
+    seenIds.add(item.id);
   });
 }
 
@@ -1036,6 +1083,165 @@ function validateDashboard(dashboard, errors) {
     optionalNumber(item, "sortOrder", errors, { prefix: `dashboard[${index}]` });
     validateTerminology(item.terminology, `dashboard[${index}].terminology`, errors);
   });
+}
+
+function validateReporting(reporting, moduleId, errors) {
+  const seenIds = new Set();
+
+  optionalArrayOfObjects(reporting, "reporting", errors, (item, index) => {
+    const prefix = `reporting[${index}]`;
+    validateKnownObjectFields(item, REPORTING_CONTRIBUTION_FIELDS, prefix, errors);
+    requireString(item, "id", errors, { prefix, pattern: HELP_ID_PATTERN });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix, pattern: HELP_ID_PATTERN });
+    requireString(item, "label", errors, { prefix });
+    requireString(item, "description", errors, { prefix });
+    requireString(item, "category", errors, { prefix });
+    requireString(item, "renderer", errors, { prefix, pattern: HELP_ID_PATTERN });
+    requireString(item, "runner", errors, { prefix, pattern: HELP_ID_PATTERN });
+    requireStringArrayField(item, "requiredPermissions", errors, { prefix });
+    requireStringArrayField(item, "requiredWorkspaceCapabilities", errors, { prefix });
+    requireStringArrayField(item, "requiresEnabledModules", errors, { prefix });
+    optionalNumber(item, "sortOrder", errors, { prefix });
+    requireStringArray(item, "browserAssetIds", errors, { prefix });
+    validateReportingFilters(item.filters, prefix, errors);
+
+    if (typeof item.id === "string" && seenIds.has(item.id)) {
+      errors.push(`${prefix}.id '${item.id}' is duplicated.`);
+    }
+    seenIds.add(item.id);
+  });
+}
+
+function validateReportingFilters(filters, reportPrefix, errors) {
+  const seenIds = new Set();
+  const seenQueryKeys = new Set();
+
+  requiredArrayOfObjects(filters, `${reportPrefix}.filters`, errors, (filter, index) => {
+    const prefix = `${reportPrefix}.filters[${index}]`;
+    validateKnownObjectFields(filter, REPORTING_FILTER_FIELDS, prefix, errors);
+    requireString(filter, "id", errors, { prefix, pattern: HELP_ID_PATTERN });
+    requireString(filter, "label", errors, { prefix });
+    requireString(filter, "type", errors, { prefix });
+    if (typeof filter.type === "string" && !REPORTING_FILTER_TYPES.has(filter.type)) {
+      errors.push(`${prefix}.type must be one of ${[...REPORTING_FILTER_TYPES].join(", ")}.`);
+    }
+    requireStringArray(filter, "queryKeys", errors, { prefix });
+    const expectedQueryKeyCount = filter.type === "custom-date-range" ? 2 : 1;
+    if (Array.isArray(filter.queryKeys) && filter.queryKeys.length !== expectedQueryKeyCount) {
+      errors.push(`${prefix}.queryKeys must contain exactly ${expectedQueryKeyCount} ${expectedQueryKeyCount === 1 ? "key" : "keys"} for '${filter.type || "unknown"}'.`);
+    }
+    for (const queryKey of filter.queryKeys || []) {
+      if (!/^[A-Za-z][A-Za-z0-9]*$/.test(queryKey)) {
+        errors.push(`${prefix}.queryKeys entry '${queryKey}' must be a safe query parameter name.`);
+      } else if (seenQueryKeys.has(queryKey)) {
+        errors.push(`${prefix}.queryKeys entry '${queryKey}' is duplicated across report filters.`);
+      }
+      seenQueryKeys.add(queryKey);
+    }
+    optionalBoolean(filter, "required", errors, { prefix });
+    validateReportingFilterDefault(filter, prefix, errors);
+
+    if (filter.visibleWhen !== undefined) {
+      if (!isPlainObject(filter.visibleWhen)) {
+        errors.push(`${prefix}.visibleWhen must be an object.`);
+      } else {
+        validateKnownObjectFields(filter.visibleWhen, REPORTING_FILTER_VISIBLE_WHEN_FIELDS, `${prefix}.visibleWhen`, errors);
+        requireString(filter.visibleWhen, "filterId", errors, { prefix: `${prefix}.visibleWhen` });
+        requireString(filter.visibleWhen, "equals", errors, { prefix: `${prefix}.visibleWhen` });
+      }
+    }
+
+    if (typeof filter.id === "string" && seenIds.has(filter.id)) {
+      errors.push(`${prefix}.id '${filter.id}' is duplicated.`);
+    }
+    seenIds.add(filter.id);
+  });
+}
+
+function validateReportingFilterDefault(filter, prefix, errors) {
+  const value = filter.defaultValue;
+  const fieldName = `${prefix}.defaultValue`;
+
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  if (["project-multi-select", "tag"].includes(filter.type)) {
+    if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+      errors.push(`${fieldName} must be a list of strings for '${filter.type}'.`);
+    }
+    return;
+  }
+
+  if (filter.type === "boolean") {
+    if (typeof value !== "boolean") {
+      errors.push(`${fieldName} must be a boolean for 'boolean'.`);
+    }
+    return;
+  }
+
+  if (typeof value !== "string") {
+    errors.push(`${fieldName} must be a string for '${filter.type || "unknown"}'.`);
+    return;
+  }
+
+  if (filter.type === "billing-period" && !["current", "last", "custom"].includes(value)) {
+    errors.push(`${fieldName} must be current, last, or custom for 'billing-period'.`);
+  }
+}
+
+function validateReportingReferences(moduleDefinition, context) {
+  const errors = [];
+  const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
+  const assetsById = new Map((moduleDefinition?.browserAssets || []).map((asset) => [asset?.id, asset]));
+  const reports = Array.isArray(moduleDefinition?.reporting) ? moduleDefinition.reporting : [];
+
+  reports.forEach((report, index) => {
+    const prefix = `reporting[${index}]`;
+
+    if (!report?.requiredPermissions?.includes("reporting.view")) {
+      errors.push(`${moduleLabel}: ${prefix}.requiredPermissions must include framework permission 'reporting.view'.`);
+    }
+
+    for (const permissionId of report?.requiredPermissions || []) {
+      if (!context.allPermissionIds.has(permissionId)) {
+        errors.push(`${moduleLabel}: ${prefix}.requiredPermissions references unknown permission '${permissionId}'.`);
+      }
+    }
+
+    for (const requiredModuleId of report?.requiresEnabledModules || []) {
+      if (!context.allModuleIds.has(requiredModuleId)) {
+        errors.push(`${moduleLabel}: ${prefix}.requiresEnabledModules references unknown module '${requiredModuleId}'.`);
+      }
+    }
+
+    for (const assetId of report?.browserAssetIds || []) {
+      const asset = assetsById.get(assetId);
+      if (!asset) {
+        errors.push(`${moduleLabel}: ${prefix}.browserAssetIds references unknown module browser asset '${assetId}'.`);
+        continue;
+      }
+      if (asset.moduleId !== moduleDefinition.id) {
+        errors.push(`${moduleLabel}: ${prefix}.browserAssetIds asset '${assetId}' must be owned by module '${moduleDefinition.id}'.`);
+      }
+      if (!asset.views?.includes(REPORTING_HOST_ASSET_TARGET)) {
+        errors.push(`${moduleLabel}: ${prefix}.browserAssetIds asset '${assetId}' must declare the '${REPORTING_HOST_ASSET_TARGET}' host target.`);
+      }
+      if (!isSafeLocalBrowserAssetPath(asset.path)) {
+        errors.push(`${moduleLabel}: ${prefix}.browserAssetIds asset '${assetId}' must use a safe local browser path without a query or fragment.`);
+      }
+    }
+
+    const filterIds = new Set((report?.filters || []).map((filter) => filter?.id).filter(Boolean));
+    for (const [filterIndex, filter] of (report?.filters || []).entries()) {
+      const dependencyId = filter?.visibleWhen?.filterId;
+      if (dependencyId && !filterIds.has(dependencyId)) {
+        errors.push(`${moduleLabel}: ${prefix}.filters[${filterIndex}].visibleWhen.filterId references unknown filter '${dependencyId}'.`);
+      }
+    }
+  });
+
+  return errors;
 }
 
 function validateWorkbench(workbench, errors) {
@@ -1725,6 +1931,20 @@ function optionalArrayOfObjects(value, fieldName, errors, validator) {
   });
 }
 
+function requiredArrayOfObjects(value, fieldName, errors, validator) {
+  if (!Array.isArray(value)) {
+    errors.push(`${fieldName} is required and must be an array.`);
+    return;
+  }
+  value.forEach((item, index) => {
+    if (!isPlainObject(item)) {
+      errors.push(`${fieldName}[${index}] must be an object.`);
+      return;
+    }
+    validator(item, index);
+  });
+}
+
 function requireString(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   const name = formatFieldName(fieldName, options.prefix);
@@ -1792,6 +2012,13 @@ function requireStringArray(object, fieldName, errors, options = {}) {
   }
 }
 
+function requireStringArrayField(object, fieldName, errors, options = {}) {
+  const value = object[fieldName];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || item.trim() === "")) {
+    errors.push(`${formatFieldName(fieldName, options.prefix)} is required and must be an array of non-empty strings.`);
+  }
+}
+
 function optionalPlainObject(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value !== undefined && !isPlainObject(value)) {
@@ -1826,6 +2053,14 @@ function validateSafeRelativePath(value, fieldName, errors) {
   if (!normalized || normalized.startsWith("/") || normalized.startsWith("//") || normalized.split("/").includes("..")) {
     errors.push(`${fieldName} must be a safe relative path.`);
   }
+}
+
+function isSafeLocalBrowserAssetPath(value) {
+  const pathName = String(value || "").trim();
+
+  return /^\/[A-Za-z0-9._/-]+$/.test(pathName) &&
+    !pathName.startsWith("//") &&
+    !pathName.split("/").includes("..");
 }
 
 function formatFieldName(fieldName, prefix) {

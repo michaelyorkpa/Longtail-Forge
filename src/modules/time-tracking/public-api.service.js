@@ -7,6 +7,10 @@ import { normalizeTimeEntry } from "../../utils/normalizers.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
+import {
+  PublicApiTimeEntryCreateSchema,
+  parseTimeTrackingEdgePayload,
+} from "./time-tracking.contracts.js";
 
 const MODULE_ID = "time-tracking";
 
@@ -21,8 +25,9 @@ async function listTimeEntries(context, query) {
   return paged(entries.map((entry) => withWorkspaceAlias(entry, context)), query);
 }
 
-async function createTimeEntry(context, payload) {
+async function createTimeEntry(context, rawPayload) {
   await assertModuleWriteEnabled(context, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(PublicApiTimeEntryCreateSchema, rawPayload);
   const [{ client, project }, settings] = await Promise.all([
     resolveProjectRecordScope(context.workspace_id, payload, {
       archivedClientMessage: "Archived clients cannot receive new time entries.",

@@ -74,10 +74,9 @@ const QUICK_ACTION_DEFINITIONS = Object.freeze([
     icon: "list",
     actionType: "fallback-link",
     href: "reporting.html",
-    moduleId: "time-tracking",
-    requiredModules: ["time-tracking"],
+    moduleId: "framework",
     requiredPermissions: ["reporting.view"],
-    requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+    requiredReportingReports: true,
     temporaryFallback: true,
     temporaryLabel: "Temporary fallback: opens Reporting until report creation has a modal.",
   }),
@@ -106,6 +105,7 @@ async function bootstrap(session) {
     permissionHints,
     notificationSummary,
     searchTargets,
+    reportingReports,
   ] = await Promise.all([
     settingsService.readWorkspaceBootstrap(session),
     userWorkspacesRepository.readForUser(session.user_id),
@@ -116,10 +116,11 @@ async function bootstrap(session) {
     readPermissionHints(session),
     readNotificationSummary(session),
     readSearchTargets(session),
+    modulesService.listReportingReports(session.workspace_id, session),
   ]);
   const [navigation, quickActions] = await Promise.all([
-    buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints),
-    readQuickActions(session, workspaceContext, { searchTargets }),
+    buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints, reportingReports),
+    readQuickActions(session, workspaceContext, { reportingReports, searchTargets }),
   ]);
 
   return {
@@ -163,6 +164,9 @@ async function readQuickActions(session, workspaceContext, options = {}) {
     if (action.requiredSearchTargets && normalizeSearchTargetsForQuickActions(options.searchTargets).length === 0) {
       continue;
     }
+    if (action.requiredReportingReports && normalizeReportingReportsForShell(options.reportingReports).length === 0) {
+      continue;
+    }
     if (!quickActionModulesAvailable(action, workspaceContext)) {
       continue;
     }
@@ -181,6 +185,15 @@ async function readQuickActions(session, workspaceContext, options = {}) {
 
 function normalizeSearchTargetsForQuickActions(searchTargets = []) {
   return Array.isArray(searchTargets) ? searchTargets.filter((target) => target?.recordType) : [];
+}
+
+function normalizeReportingReportsForShell(reportingReports = []) {
+  return (Array.isArray(reportingReports) ? reportingReports : [])
+    .filter((report) => report?.moduleId && report?.id)
+    .map((report) => ({
+      ...report,
+      reportKey: report.reportKey || `${report.moduleId}:${report.id}`,
+    }));
 }
 
 function quickActionModulesAvailable(action, workspaceContext) {
@@ -338,7 +351,7 @@ async function readPermissionHints(session) {
   };
 }
 
-async function buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints) {
+async function buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints, reportingReports = []) {
   const capabilities = workspaceContext.workspaceCapabilities || {};
   const workspaceType = workspaceContext.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
@@ -389,7 +402,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     });
   }
 
-  addModuleNavItem(reportingMenu.items, moduleNavByHref.get("reporting.html"));
+  addReportingNavigation(reportingMenu.items, reportingReports);
   if (reportingMenu.items.length > 0) {
     actionsMenu.items.push(reportingMenu);
   }
@@ -472,6 +485,17 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     actionsMenu,
     settingsMenu,
   ].filter((item) => item.href || item.items?.length > 0);
+}
+
+function addReportingNavigation(targetItems, reportingReports = []) {
+  normalizeReportingReportsForShell(reportingReports).forEach((report) => {
+    targetItems.push({
+      id: `report-${String(report.reportKey).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`,
+      label: report.label || "Report",
+      href: `reporting.html?report=${encodeURIComponent(report.reportKey)}`,
+      moduleId: report.moduleId,
+    });
+  });
 }
 
 function addTimeKeepingNavigation(targetItems, moduleNavigation) {

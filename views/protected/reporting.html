@@ -8,86 +8,13 @@
     <link rel="stylesheet" href="css/longtail-forge.css">
   </head>
   <body data-page-title="Reporting">
-    <main class="reporting-page">
-      <h1>Reporting</h1>
-
-      <section class="report-filters" aria-label="Report filters">
-        <label class="report-period-control">
-          Billing Period
-          <select data-report-period>
-            <option value="current">Current billing period</option>
-            <option value="last">Last Billing Period</option>
-            <option value="custom">Custom</option>
-          </select>
-        </label>
-
-        <div class="report-custom-dates" data-report-custom-dates>
-          <label>
-            Start Date
-            <input type="date" data-report-start-date>
-          </label>
-
-          <label>
-            End Date
-            <input type="date" data-report-end-date>
-          </label>
-        </div>
-
-        <label data-report-scope-control>
-          Reporting Scope
-          <select data-report-client>
-            <option value="">Select a reporting scope</option>
-          </select>
-        </label>
-
-        <label>
-          Projects
-          <select data-report-projects multiple disabled></select>
-        </label>
-
-        <label hidden data-report-tag-control>
-          Tags
-          <select data-report-tag-filter>
-            <option value="">All tags</option>
-          </select>
-        </label>
-
-        <label class="inline-option">
-          <input type="checkbox" data-report-include-descendants checked>
-          Include descendants
-        </label>
-      </section>
-
-      <p data-report-status role="status" aria-live="polite"></p>
-
-      <section hidden data-report-extension-panels></section>
-
-      <div class="report-table-wrap" hidden data-report-table-wrap>
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th scope="col">Project</th>
-              <th scope="col">Billing Rate</th>
-              <th scope="col">Total Time</th>
-              <th scope="col">Billable Amount</th>
-            </tr>
-          </thead>
-          <tbody data-report-table-body></tbody>
-          <tfoot>
-            <tr>
-              <th scope="row" colspan="2">Totals</th>
-              <td data-report-total-time></td>
-              <td data-report-total-billable-amount></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </main>
+    <main class="wide-page" data-reporting-host></main>
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/icons.js"></script>
     <script src="js/shared/formatters.js"></script>
     <script src="js/shared/tags.js"></script>
+    <script src="js/shared/view-builder.js"></script>
     <script src="js/reporting.js"></script>
     <script src="js/footer.js"></script>
   </body>

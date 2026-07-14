@@ -1,488 +1,802 @@
-// Reporting renders server-aggregated project/time/billing summaries.
-const reportPeriodSelect = document.querySelector("[data-report-period]");
-const reportCustomDates = document.querySelector("[data-report-custom-dates]");
-const reportStartDateInput = document.querySelector("[data-report-start-date]");
-const reportEndDateInput = document.querySelector("[data-report-end-date]");
-const reportScopeControl = document.querySelector("[data-report-scope-control]");
-const reportClientSelect = document.querySelector("[data-report-client]");
-const reportProjectSelect = document.querySelector("[data-report-projects]");
-const reportTagControl = document.querySelector("[data-report-tag-control]");
-const reportTagFilterSelect = document.querySelector("[data-report-tag-filter]");
-const reportIncludeDescendantsInput = document.querySelector("[data-report-include-descendants]");
-const reportStatus = document.querySelector("[data-report-status]");
-const reportExtensionPanels = document.querySelector("[data-report-extension-panels]");
-const reportTableWrap = document.querySelector("[data-report-table-wrap]");
-const reportTableBody = document.querySelector("[data-report-table-body]");
-const reportTotalTime = document.querySelector("[data-report-total-time]");
-const reportTotalBillableAmount = document.querySelector("[data-report-total-billable-amount]");
-
-let reportBootstrap = {
-  clientFiltersVisible: true,
-  defaultScopeId: "",
-  reportPanels: [],
-  scopes: [],
+// Framework Reporting host. Catalog contributions provide filter metadata,
+// permission-filtered renderer assets, and stable renderer IDs. Module assets
+// register option hydration and result rendering outside the data-only catalog.
+const reportingHost = document.querySelector("[data-reporting-host]");
+const reportingView = window.LongtailForge?.view;
+const reportRenderers = new Map();
+const rendererAssetLoads = new Map();
+const reportingState = {
+  reports: [],
+  selectedReport: null,
+  renderer: null,
+  filterFields: new Map(),
+  selectionGeneration: 0,
+  executionGeneration: 0,
 };
-let reportTagOptions = [];
-const expandedProjectRows = new Set();
-let currentProjectSummary = null;
 
-setDefaultCustomDates();
-updateCustomDateState();
-loadReportData();
+let reportSelector = null;
+let reportSelectorPanel = null;
+let reportFilterPanel = null;
+let reportStatus = null;
+let reportResultsHost = null;
 
-reportPeriodSelect.addEventListener("change", () => {
-  updateCustomDateState();
-  renderReport();
-});
-reportStartDateInput.addEventListener("change", renderReport);
-reportEndDateInput.addEventListener("change", renderReport);
+publishReportingApi();
+buildReportingHost();
+loadReportCatalog();
 
-reportClientSelect.addEventListener("change", () => {
-  renderProjectFilter();
-  renderReport();
-});
+function publishReportingApi() {
+  const namespace = window.LongtailForge = window.LongtailForge || {};
+  namespace.reporting = {
+    ...(namespace.reporting || {}),
+    registerRenderer,
+  };
+}
 
-reportProjectSelect.addEventListener("change", renderReport);
-reportTagFilterSelect?.addEventListener("change", renderReport);
-reportIncludeDescendantsInput?.addEventListener("change", renderReport);
+function registerRenderer(rendererId, registration) {
+  const normalizedId = String(rendererId || "").trim();
+  const normalizedRegistration = typeof registration === "function"
+    ? { render: registration }
+    : registration;
 
-async function loadReportData() {
-  setReportStatus("Loading report data...");
+  if (!normalizedId || !normalizedRegistration || typeof normalizedRegistration.render !== "function") {
+    return;
+  }
+
+  reportRenderers.set(normalizedId, normalizedRegistration);
+}
+
+function buildReportingHost() {
+  if (!reportingHost || !reportingView) {
+    return;
+  }
+
+  const header = reportingView.createPageHeader({
+    title: "Reporting",
+    subtitle: "Run available workspace reports without leaving the current work context.",
+  });
+  reportSelector = reportingView.createElement("select", {
+    attrs: { "aria-label": "Report" },
+    dataset: { reportingSelector: "" },
+  });
+  const selectorField = reportingView.createElement("label", {
+    children: [
+      reportingView.createElement("span", { text: "Report" }),
+      reportSelector,
+    ],
+  });
+  reportSelectorPanel = reportingView.createInfoPanel({
+    ariaLabel: "Report selection",
+    title: "Choose a report",
+    headingLevel: 2,
+  });
+  reportSelectorPanel.appendChild(reportingView.createFieldGrid({
+    surface: false,
+    fields: [selectorField],
+  }));
+  reportFilterPanel = createReportFilterPanel([]);
+  reportFilterPanel.hidden = true;
+  reportStatus = reportingView.createStatusMessage({ hidden: true });
+  reportStatus.dataset.reportingStatus = "";
+  reportResultsHost = reportingView.createListShell({
+    ariaLabel: "Report results",
+    status: false,
+    dataset: { reportingResultsHost: "" },
+  });
+
+  reportingHost.replaceChildren(
+    header,
+    reportSelectorPanel,
+    reportFilterPanel,
+    reportStatus,
+    reportResultsHost,
+  );
+
+  reportSelector.addEventListener("change", () => {
+    selectReport(reportSelector.value);
+  });
+}
+
+async function loadReportCatalog() {
+  if (!reportingHost || !reportingView) {
+    return;
+  }
+
+  setReportingStatus("Loading available reports...");
 
   try {
-    const response = await fetch("/api/reporting/bootstrap", { cache: "no-store" });
-
+    const response = await fetch("/api/reporting/catalog", { cache: "no-store" });
     if (!response.ok) {
-      throw new Error(`Could not load report data: ${response.status}`);
+      throw new Error(`Could not load the report catalog: ${response.status}`);
     }
 
-    reportBootstrap = await response.json();
-    reportTagOptions = await loadTagOptions();
-    renderExtensionPanels();
-    renderClientFilter();
-    renderTagFilter();
-    applyReportQueryParams();
-    renderProjectFilter();
-    await renderReport();
+    const payload = await response.json();
+    reportingState.reports = Array.isArray(payload?.reports) ? payload.reports : [];
+    renderReportSelector();
+
+    if (reportingState.reports.length === 0) {
+      renderEmptyCatalog();
+      return;
+    }
+
+    const query = new URLSearchParams(window.location.search);
+    const requestedReportKey = query.get("report") || query.get("reportKey") || "";
+    const selectedReport = reportingState.reports.find((report) => report.reportKey === requestedReportKey)
+      || reportingState.reports[0];
+    reportSelector.value = selectedReport.reportKey;
+    await selectReport(selectedReport.reportKey, { initial: true });
   } catch (error) {
-    setReportStatus("Report data could not be loaded.");
+    renderReportingError("Reports could not be loaded.");
     console.error(error);
   }
 }
 
-function applyReportQueryParams() {
-  const params = new URLSearchParams(window.location.search);
-  const scopeId = params.get("client") || params.get("scope") || "";
-  const fallbackScopeId = reportBootstrap.defaultScopeId || "";
-  const nextScopeId = reportBootstrap.scopes.some((scope) => scope.id === scopeId)
-    ? scopeId
-    : fallbackScopeId;
-
-  if (nextScopeId) {
-    reportClientSelect.value = nextScopeId;
-  }
+function renderReportSelector() {
+  reportSelector.replaceChildren(...reportingState.reports.map((report) => reportingView.createElement("option", {
+    attrs: { value: report.reportKey },
+    text: report.label || "Report",
+  })));
+  reportSelector.disabled = reportingState.reports.length === 0;
 }
 
-function renderClientFilter() {
-  reportClientSelect.replaceChildren(createOption("", "Select a reporting scope"));
-  reportScopeControl.hidden = reportBootstrap.clientFiltersVisible === false;
-
-  sortScopeTree(reportBootstrap.scopes).forEach((scope) => {
-    const optionLabel = scope.isWorkspaceScope
-      ? workspaceProjectsLabel()
-      : `${treeIndent(getScopeDepth(scope, reportBootstrap.scopes))}${scope.name}`;
-    reportClientSelect.appendChild(createOption(scope.id, optionLabel));
-  });
-
-  if (reportBootstrap.defaultScopeId) {
-    reportClientSelect.value = reportBootstrap.defaultScopeId;
-  }
+function renderEmptyCatalog() {
+  reportingState.selectedReport = null;
+  reportingState.renderer = null;
+  reportFilterPanel.hidden = true;
+  setReportingStatus("");
+  reportResultsHost.replaceChildren(reportingView.createEmptyState({
+    title: "No reports available",
+    message: "No reports are available for this workspace and your current access.",
+  }));
 }
 
-function workspaceProjectsLabel() {
-  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
-}
-
-function renderProjectFilter() {
-  const scope = getSelectedScope();
-  reportProjectSelect.replaceChildren();
-  reportProjectSelect.disabled = !scope;
-
-  if (!scope) {
+async function selectReport(reportKey, options = {}) {
+  const report = reportingState.reports.find((candidate) => candidate.reportKey === reportKey)
+    || reportingState.reports[0];
+  if (!report) {
+    renderEmptyCatalog();
     return;
   }
 
-  sortProjectTree(scope.projects).forEach((project) => {
-    const option = createOption(project.id, `${treeIndent(getProjectDepth(project, scope.projects))}${project.name}`);
-    option.selected = true;
-    reportProjectSelect.appendChild(option);
-  });
-}
-
-async function renderReport() {
-  const scope = getSelectedScope();
-  reportTableBody.innerHTML = "";
-  reportTableWrap.hidden = true;
-
-  if (!scope) {
-    setReportStatus("");
-    return;
-  }
-
-  if (reportPeriodSelect.value === "custom" && !getCustomDateRange()) {
-    setReportStatus("Choose a valid custom start and end date.");
-    return;
-  }
-
-  const selectedProjectIds = getSelectedProjectIds();
-
-  if (selectedProjectIds.length === 0) {
-    setReportStatus("Select at least one project.");
-    return;
-  }
-
-  setReportStatus("Loading report summary...");
+  const generation = ++reportingState.selectionGeneration;
+  reportingState.executionGeneration += 1;
+  reportingState.selectedReport = report;
+  reportingState.renderer = null;
+  reportSelector.value = report.reportKey;
+  renderReportFilters(report.filters || []);
+  reportResultsHost.replaceChildren();
+  setReportingStatus(`Loading ${report.label || "report"}...`);
 
   try {
-    const params = new URLSearchParams({
-      period: reportPeriodSelect.value,
-      scopeId: scope.id,
-      projectIds: selectedProjectIds.join(","),
-      includeDescendants: reportIncludeDescendantsInput?.checked ? "true" : "false",
-    });
-    const selectedTagId = String(reportTagFilterSelect?.value || "").trim();
-
-    if (selectedTagId) {
-      params.set("tagIds", selectedTagId);
+    await loadRendererAssets(report.rendererAssets || []);
+    if (generation !== reportingState.selectionGeneration) {
+      return;
     }
 
-    if (reportPeriodSelect.value === "custom") {
-      params.set("startDate", reportStartDateInput.value);
-      params.set("endDate", reportEndDateInput.value);
+    const renderer = reportRenderers.get(report.renderer);
+    if (!renderer) {
+      renderRendererUnavailable();
+      return;
     }
 
-    const response = await fetch(`/api/reporting/project-summary?${params.toString()}`, { cache: "no-store" });
-
-    if (!response.ok) {
-      throw new Error(`Could not load report summary: ${response.status}`);
+    reportingState.renderer = renderer;
+    const context = createRendererContext();
+    if (typeof renderer.initializeFilters === "function") {
+      await renderer.initializeFilters(context);
+    }
+    if (generation !== reportingState.selectionGeneration) {
+      return;
     }
 
-    renderProjectSummary(await response.json());
+    applyQueryFilterValues(new URLSearchParams(window.location.search));
+    if (typeof renderer.synchronizeFilters === "function") {
+      await renderer.synchronizeFilters(createRendererContext(), null);
+    }
+    updateConditionalFilterVisibility();
+    syncReportingUrl({ replace: true });
+    await executeSelectedReport();
   } catch (error) {
-    setReportStatus("Report summary could not be loaded.");
+    if (generation !== reportingState.selectionGeneration) {
+      return;
+    }
+    renderReportingError("This report could not be prepared.");
     console.error(error);
   }
+
+  if (!options.initial) {
+    reportSelector.focus();
+  }
 }
 
-function renderProjectSummary(summary) {
-  currentProjectSummary = summary;
-  reportTableBody.innerHTML = "";
-
-  if (!summary.rows?.length) {
-    reportTotalTime.textContent = formatHours(0);
-    reportTotalBillableAmount.textContent = formatCurrency(0);
-    reportTableWrap.hidden = true;
-    setReportStatus("No time entries match these filters.");
-    return;
-  }
-
-  summary.rows.forEach((row) => {
-    appendReportRow(row, { depth: 0 });
+function createReportFilterPanel(fields) {
+  const panel = reportingView.createFilterPanel({
+    title: "Filters",
+    ariaLabel: "Report filters",
+    open: true,
+    fields,
   });
-
-  reportTotalTime.textContent = formatHours(summary.totals?.seconds || 0);
-  reportTotalBillableAmount.textContent = formatCurrency(summary.totals?.amount || 0);
-  reportTableWrap.hidden = false;
-  setReportStatus("");
+  panel.dataset.reportingFilterHost = "";
+  panel.addEventListener("change", handleReportFilterChange);
+  return panel;
 }
 
-function appendReportRow(row, options = {}) {
-  const depth = Number(options.depth) || 0;
-  const childRows = Array.isArray(row.childRows) ? row.childRows : [];
-  const rowId = getReportRowId(row);
-  const isExpanded = expandedProjectRows.has(rowId);
-  const tableRow = createReportRow(row, { depth, hasChildren: childRows.length > 0, isExpanded });
+function renderReportFilters(filters) {
+  reportingState.filterFields.clear();
+  const fields = filters.map(createReportFilterField);
+  const nextPanel = createReportFilterPanel(fields);
+  reportFilterPanel.replaceWith(nextPanel);
+  reportFilterPanel = nextPanel;
+  reportFilterPanel.hidden = filters.length === 0;
+}
 
-  reportTableBody.appendChild(tableRow);
-
-  if (!isExpanded) {
-    return;
+function createReportFilterField(filter) {
+  if (filter.type === "custom-date-range") {
+    return createCustomDateRangeField(filter);
+  }
+  if (filter.type === "boolean") {
+    return createBooleanFilterField(filter);
   }
 
-  childRows.forEach((childRow) => {
-    appendReportRow(childRow, { depth: depth + 1 });
+  const select = reportingView.createElement("select", {
+    attrs: filter.type === "project-multi-select" ? { multiple: true } : {},
+    dataset: { reportingFilterControl: filter.id },
+  });
+  if (filter.type === "project-multi-select") {
+    select.disabled = true;
+  }
+  if (filter.type === "billing-period") {
+    select.replaceChildren(
+      createOption("current", "Current billing period"),
+      createOption("last", "Last billing period"),
+      createOption("custom", "Custom"),
+    );
+  }
+
+  const wrapper = reportingView.createElement("label", {
+    dataset: { reportingFilter: filter.id },
+    children: [
+      reportingView.createElement("span", { text: filter.label }),
+      select,
+    ],
+  });
+  reportingState.filterFields.set(filter.id, {
+    controls: new Map([[filter.queryKeys[0], select]]),
+    filter,
+    wrapper,
+  });
+  setFilterValue(filter.id, filter.defaultValue);
+  return wrapper;
+}
+
+function createCustomDateRangeField(filter) {
+  const [startKey, endKey] = filter.queryKeys;
+  const startInput = createDateInput(filter.id, startKey);
+  const endInput = createDateInput(filter.id, endKey);
+  const wrapper = reportingView.createElement("fieldset", {
+    dataset: { reportingFilter: filter.id },
+    children: [
+      reportingView.createElement("legend", { text: filter.label }),
+      reportingView.createFieldGrid({
+        surface: false,
+        fields: [
+          createLabeledControl("Start Date", startInput),
+          createLabeledControl("End Date", endInput),
+        ],
+      }),
+    ],
+  });
+  reportingState.filterFields.set(filter.id, {
+    controls: new Map([[startKey, startInput], [endKey, endInput]]),
+    filter,
+    wrapper,
+  });
+  setDefaultDateRange(startInput, endInput);
+  return wrapper;
+}
+
+function createDateInput(filterId, queryKey) {
+  return reportingView.createElement("input", {
+    attrs: { type: "date" },
+    dataset: {
+      reportingFilterControl: filterId,
+      reportingFilterQueryKey: queryKey,
+    },
   });
 }
 
-function createReportRow(row, options = {}) {
-  const { rate, displaySeconds, billableSeconds, amount } = row;
-  const hasBillableTime = billableSeconds > 0;
-  const tableRow = document.createElement("tr");
-  tableRow.className = options.depth > 0 ? "report-child-row" : "report-parent-row";
-  tableRow.append(
-    createProjectCell(row, options),
-    createTableCell(hasBillableTime ? formatRate(rate) : ""),
-    createTableCell(formatHours(displaySeconds)),
-    createTableCell(hasBillableTime ? formatCurrency(amount) : ""),
-  );
-  tableRow.firstElementChild.scope = "row";
-  return tableRow;
-}
-
-function createProjectCell(row, options = {}) {
-  const cell = document.createElement("th");
-  const projectName = row.project?.name || "";
-  const depth = Number(options.depth) || 0;
-  const rowId = getReportRowId(row);
-  const wrapper = document.createElement("span");
-  wrapper.className = "report-project-cell";
-  wrapper.style.setProperty("--report-project-depth", String(depth));
-
-  if (options.hasChildren) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "report-project-toggle";
-    button.setAttribute("aria-expanded", options.isExpanded ? "true" : "false");
-    button.setAttribute("aria-label", `${options.isExpanded ? "Collapse" : "Expand"} ${projectName}`);
-    button.textContent = options.isExpanded ? "v" : ">";
-    button.addEventListener("click", () => {
-      if (expandedProjectRows.has(rowId)) {
-        expandedProjectRows.delete(rowId);
-      } else {
-        expandedProjectRows.add(rowId);
-      }
-
-      renderProjectSummary(currentProjectSummary);
-    });
-    wrapper.appendChild(button);
-  } else {
-    const spacer = document.createElement("span");
-    spacer.className = "report-project-toggle-spacer";
-    wrapper.appendChild(spacer);
-  }
-
-  const label = document.createElement("span");
-  label.textContent = projectName;
-  wrapper.appendChild(label);
-  cell.appendChild(wrapper);
-  return cell;
-}
-
-function getReportRowId(row) {
-  return `${row.project?.id || row.project?.name || ""}`;
-}
-
-function renderExtensionPanels() {
-  reportExtensionPanels.replaceChildren();
-
-  if (!Array.isArray(reportBootstrap.reportPanels) || reportBootstrap.reportPanels.length === 0) {
-    reportExtensionPanels.hidden = true;
-    return;
-  }
-
-  reportBootstrap.reportPanels.forEach((panel) => {
-    const marker = document.createElement("div");
-    marker.dataset.reportPanel = panel.id;
-    marker.dataset.moduleId = panel.moduleId;
-    reportExtensionPanels.appendChild(marker);
+function createBooleanFilterField(filter) {
+  const input = reportingView.createElement("input", {
+    attrs: { type: "checkbox" },
+    dataset: { reportingFilterControl: filter.id },
   });
-  reportExtensionPanels.hidden = false;
-}
-
-function getSelectedScope() {
-  return reportBootstrap.scopes.find((scope) => scope.id === reportClientSelect.value);
-}
-
-async function loadTagOptions() {
-  return window.LongtailForge?.tags?.loadTags
-    ? window.LongtailForge.tags.loadTags({ status: "active" })
-    : [];
-}
-
-function renderTagFilter() {
-  if (!reportTagFilterSelect || !reportTagControl) {
-    return;
-  }
-
-  reportTagFilterSelect.replaceChildren(
-    tagFilterAllOption(),
-    tagFilterNoTagsOption(),
-  );
-  reportTagOptions.forEach((tag) => {
-    reportTagFilterSelect.appendChild(createOption(tag.tag_id, tag.name));
+  const wrapper = reportingView.createElement("label", {
+    className: "inline-option",
+    dataset: { reportingFilter: filter.id },
+    children: [input, reportingView.createElement("span", { text: filter.label })],
   });
-  reportTagControl.hidden = reportTagOptions.length === 0;
+  reportingState.filterFields.set(filter.id, {
+    controls: new Map([[filter.queryKeys[0], input]]),
+    filter,
+    wrapper,
+  });
+  setFilterValue(filter.id, filter.defaultValue);
+  return wrapper;
 }
 
-function tagFilterAllOption() {
-  return window.LongtailForge?.tags?.allTagsOption?.() || createOption("", "All tags");
+function createLabeledControl(label, control) {
+  return reportingView.createElement("label", {
+    children: [reportingView.createElement("span", { text: label }), control],
+  });
 }
 
-function tagFilterNoTagsOption() {
-  return window.LongtailForge?.tags?.noTagsOption?.() || createOption(window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__", "No Tags");
-}
-
-function getSelectedProjectIds() {
-  return [...reportProjectSelect.selectedOptions].map((option) => option.value);
-}
-
-function getCustomDateRange() {
-  const startDate = parseDateInput(reportStartDateInput.value);
-  const endDate = parseDateInput(reportEndDateInput.value);
-
-  if (!startDate || !endDate || startDate > endDate) {
-    return null;
-  }
-
-  return { start: startDate, end: endDate };
-}
-
-function updateCustomDateState() {
-  const isCustom = reportPeriodSelect.value === "custom";
-  reportCustomDates.hidden = !isCustom;
-  reportStartDateInput.disabled = !isCustom;
-  reportEndDateInput.disabled = !isCustom;
-}
-
-function setDefaultCustomDates() {
-  const today = new Date();
-  reportStartDateInput.value = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
-  reportEndDateInput.value = formatDateInput(today);
-}
-
-function parseDateInput(value) {
-  if (!value) {
-    return null;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function formatDateInput(date) {
-  return window.LongtailForge.formatters.dateInput(date);
-}
-
-function formatRate(rate) {
-  return rate ? `${formatCurrency(rate)}/hr` : "$0.00/hr";
-}
-
-function formatHours(seconds) {
-  return window.LongtailForge.formatters.hours(seconds);
-}
-
-function formatCurrency(amount) {
-  return window.LongtailForge.formatters.currency(amount);
-}
-
-function createOption(value, text) {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = text;
+function createOption(value, label, options = {}) {
+  const option = reportingView.createElement("option", {
+    attrs: { value },
+    text: label,
+  });
+  option.disabled = Boolean(options.disabled);
+  option.selected = Boolean(options.selected);
   return option;
 }
 
-function createTableCell(text, tagName = "td") {
-  const cell = document.createElement(tagName);
-  cell.textContent = text;
-  return cell;
-}
+async function handleReportFilterChange(event) {
+  const control = event.target.closest?.("[data-reporting-filter-control]");
+  if (!control || !reportFilterPanel.contains(control) || !reportingState.renderer) {
+    return;
+  }
 
-function sortProjectTree(projects) {
-  const projectsByParentId = new Map();
-  const sortedProjects = [];
-  const visited = new Set();
-
-  projects.forEach((project) => {
-    const parentId = project.parentProjectId || "";
-    const siblings = projectsByParentId.get(parentId) || [];
-    siblings.push(project);
-    projectsByParentId.set(parentId, siblings);
-  });
-
-  const appendBranch = (parentId) => {
-    const siblings = [...(projectsByParentId.get(parentId) || [])].sort((left, right) =>
-      String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" }),
-    );
-
-    siblings.forEach((project) => {
-      if (visited.has(project.id)) {
-        return;
-      }
-
-      visited.add(project.id);
-      sortedProjects.push(project);
-      appendBranch(project.id);
-    });
-  };
-
-  appendBranch("");
-
-  projects.forEach((project) => {
-    if (!visited.has(project.id)) {
-      visited.add(project.id);
-      sortedProjects.push(project);
-      appendBranch(project.id);
+  const changedFilterId = control.dataset.reportingFilterControl;
+  try {
+    if (typeof reportingState.renderer.synchronizeFilters === "function") {
+      await reportingState.renderer.synchronizeFilters(createRendererContext(), changedFilterId);
     }
+    updateConditionalFilterVisibility();
+    syncReportingUrl({ replace: true });
+    await executeSelectedReport();
+  } catch (error) {
+    renderReportingError("The report filters could not be updated.");
+    console.error(error);
+  }
+}
+
+function createRendererContext() {
+  return {
+    report: reportingState.selectedReport,
+    queryParams: new URLSearchParams(window.location.search),
+    view: reportingView,
+    getFilterControl,
+    getFilterValue,
+    setFilterDisabled,
+    setFilterHidden,
+    setFilterOptions,
+    setFilterValue,
+    refresh: executeSelectedReport,
+  };
+}
+
+function getFilterControl(filterId, queryKey = "") {
+  const field = reportingState.filterFields.get(filterId);
+  if (!field) {
+    return null;
+  }
+  return queryKey ? field.controls.get(queryKey) || null : field.controls.values().next().value || null;
+}
+
+function getFilterValue(filterId) {
+  const field = reportingState.filterFields.get(filterId);
+  if (!field) {
+    return null;
+  }
+
+  if (field.filter.type === "custom-date-range") {
+    return Object.fromEntries([...field.controls].map(([queryKey, control]) => [queryKey, control.value]));
+  }
+  const control = getFilterControl(filterId);
+  if (field.filter.type === "boolean") {
+    return Boolean(control?.checked);
+  }
+  if (control?.multiple) {
+    return [...control.selectedOptions].map((option) => option.value);
+  }
+  if (field.filter.type === "tag") {
+    return control?.value ? [control.value] : [];
+  }
+  return control?.value || "";
+}
+
+function setFilterValue(filterId, value) {
+  const field = reportingState.filterFields.get(filterId);
+  if (!field || value === undefined || value === null) {
+    return;
+  }
+
+  if (field.filter.type === "custom-date-range") {
+    [...field.controls].forEach(([queryKey, control]) => {
+      const nextValue = value?.[queryKey];
+      if (nextValue !== undefined) {
+        control.value = String(nextValue || "");
+      }
+    });
+    return;
+  }
+
+  const control = getFilterControl(filterId);
+  if (field.filter.type === "boolean") {
+    control.checked = parseBoolean(value, Boolean(field.filter.defaultValue));
+    return;
+  }
+  if (control?.multiple) {
+    const values = new Set(normalizeListValue(value));
+    [...control.options].forEach((option) => {
+      option.selected = values.has(option.value);
+    });
+    return;
+  }
+  if (field.filter.type === "tag" && Array.isArray(value)) {
+    setSelectValueWhenAvailable(control, value[0] || "");
+    return;
+  }
+  setSelectValueWhenAvailable(control, String(value || ""));
+}
+
+function setFilterOptions(filterId, options, config = {}) {
+  const control = getFilterControl(filterId);
+  if (!control || control.tagName !== "SELECT") {
+    return;
+  }
+
+  const previousValues = control.multiple
+    ? [...control.selectedOptions].map((option) => option.value)
+    : [control.value];
+  const requestedValues = config.selectedValues !== undefined
+    ? normalizeListValue(config.selectedValues)
+    : config.value !== undefined
+      ? [String(config.value || "")]
+      : previousValues;
+  const optionNodes = [];
+  if (!control.multiple && config.placeholder) {
+    optionNodes.push(createOption("", config.placeholder));
+  }
+  for (const option of Array.isArray(options) ? options : []) {
+    optionNodes.push(createOption(
+      String(option?.value ?? option?.id ?? ""),
+      String(option?.label ?? option?.name ?? ""),
+      option || {},
+    ));
+  }
+  control.replaceChildren(...optionNodes);
+
+  if (control.multiple && config.selectAll && requestedValues.length === 0) {
+    [...control.options].forEach((option) => {
+      option.selected = Boolean(option.value);
+    });
+  } else if (control.multiple) {
+    const selectedValues = new Set(requestedValues);
+    [...control.options].forEach((option) => {
+      option.selected = selectedValues.has(option.value);
+    });
+  } else {
+    setSelectValueWhenAvailable(control, requestedValues[0] || "");
+  }
+}
+
+function setFilterHidden(filterId, hidden) {
+  const field = reportingState.filterFields.get(filterId);
+  if (field) {
+    field.wrapper.hidden = Boolean(hidden);
+    field.wrapper.dataset.reportingAdapterHidden = hidden ? "true" : "false";
+  }
+}
+
+function setFilterDisabled(filterId, disabled) {
+  const field = reportingState.filterFields.get(filterId);
+  if (!field) {
+    return;
+  }
+  field.controls.forEach((control) => {
+    control.disabled = Boolean(disabled);
+    control.dataset.reportingAdapterDisabled = disabled ? "true" : "false";
   });
-
-  return sortedProjects;
 }
 
-function sortScopeTree(scopes) {
-  return [...scopes].sort((left, right) =>
-    getScopeTreeSortKey(left, scopes).localeCompare(getScopeTreeSortKey(right, scopes), undefined, {
-      sensitivity: "base",
-    }),
-  );
+function applyQueryFilterValues(query) {
+  for (const [filterId, field] of reportingState.filterFields) {
+    if (field.filter.type === "custom-date-range") {
+      const values = Object.fromEntries(field.filter.queryKeys
+        .filter((queryKey) => query.has(queryKey))
+        .map((queryKey) => [queryKey, query.get(queryKey)]));
+      setFilterValue(filterId, values);
+      continue;
+    }
+    const queryKey = field.filter.queryKeys[0];
+    if (query.has(queryKey)) {
+      setFilterValue(filterId, query.getAll(queryKey));
+    }
+  }
 }
 
-function getScopeTreeSortKey(scope, scopes) {
-  if (scope.isWorkspaceScope) {
-    return "";
+function updateConditionalFilterVisibility() {
+  for (const field of reportingState.filterFields.values()) {
+    const condition = field.filter.visibleWhen;
+    if (!condition) {
+      continue;
+    }
+
+    const visible = getFilterValue(condition.filterId) === condition.equals;
+    field.wrapper.hidden = !visible;
+    field.controls.forEach((control) => {
+      if (!visible) {
+        control.disabled = true;
+        control.dataset.reportingConditionalDisabled = "true";
+      } else if (control.dataset.reportingConditionalDisabled === "true") {
+        control.disabled = control.dataset.reportingAdapterDisabled === "true";
+        delete control.dataset.reportingConditionalDisabled;
+      }
+    });
+  }
+}
+
+async function executeSelectedReport() {
+  const report = reportingState.selectedReport;
+  const renderer = reportingState.renderer;
+  if (!report || !renderer) {
+    return;
   }
 
-  const names = [];
-  let currentScope = scope;
-  const visited = new Set();
-
-  while (currentScope && !visited.has(currentScope.id)) {
-    visited.add(currentScope.id);
-    names.unshift(currentScope.name || "");
-    currentScope = scopes.find((item) => item.id === currentScope.parentScopeId);
+  const validationMessage = validateReportFilters(report, renderer);
+  if (validationMessage) {
+    reportingState.executionGeneration += 1;
+    reportResultsHost.replaceChildren();
+    setReportingStatus(validationMessage);
+    return;
   }
 
-  return names.join("/");
+  const generation = ++reportingState.executionGeneration;
+  const params = buildExecutionParams(report.filters || []);
+  setReportingStatus(`Loading ${report.label || "report"} results...`);
+  reportResultsHost.replaceChildren();
+
+  try {
+    const response = await fetch(
+      `/api/reporting/reports/${encodeURIComponent(report.reportKey)}/run?${params.toString()}`,
+      { cache: "no-store" },
+    );
+    const payload = await readJsonResponse(response);
+    if (generation !== reportingState.executionGeneration) {
+      return;
+    }
+    if (!response.ok || payload?.status !== "ready") {
+      renderReportingError(payload?.error?.message || "The report could not be run.");
+      return;
+    }
+    if (payload.reportKey !== report.reportKey || payload.renderer !== report.renderer) {
+      renderRendererUnavailable();
+      return;
+    }
+
+    const rendered = await renderer.render(payload.result, createRendererContext());
+    if (generation !== reportingState.executionGeneration) {
+      return;
+    }
+    renderExecutionResult(rendered);
+  } catch (error) {
+    if (generation !== reportingState.executionGeneration) {
+      return;
+    }
+    renderReportingError("The report could not be run.");
+    console.error(error);
+  }
 }
 
-function getScopeDepth(scope, scopes, visited = new Set()) {
-  if (Number.isFinite(Number(scope?.depth))) {
-    return Number(scope.depth);
+function validateReportFilters(report, renderer) {
+  for (const filter of report.filters || []) {
+    if (!filter.required || !filterIsVisible(filter)) {
+      continue;
+    }
+    const value = getFilterValue(filter.id);
+    if (value === "" || value === null || Array.isArray(value) && value.length === 0) {
+      return `Choose ${String(filter.label || "a required filter").toLowerCase()}.`;
+    }
   }
 
-  if (!scope?.parentScopeId || visited.has(scope.id)) {
-    return 0;
+  if (typeof renderer.validateFilters === "function") {
+    return String(renderer.validateFilters(createRendererContext()) || "");
+  }
+  return "";
+}
+
+function buildExecutionParams(filters) {
+  const params = new URLSearchParams();
+  for (const filter of filters) {
+    if (!filterIsVisible(filter)) {
+      continue;
+    }
+    const value = getFilterValue(filter.id);
+    if (filter.type === "custom-date-range") {
+      filter.queryKeys.forEach((queryKey) => {
+        if (value?.[queryKey]) {
+          params.set(queryKey, value[queryKey]);
+        }
+      });
+    } else if (Array.isArray(value)) {
+      if (value.length) {
+        params.set(filter.queryKeys[0], value.join(","));
+      }
+    } else if (filter.type === "boolean") {
+      params.set(filter.queryKeys[0], value ? "true" : "false");
+    } else if (value) {
+      params.set(filter.queryKeys[0], value);
+    }
+  }
+  return params;
+}
+
+function filterIsVisible(filter) {
+  if (!filter.visibleWhen) {
+    return true;
+  }
+  return getFilterValue(filter.visibleWhen.filterId) === filter.visibleWhen.equals;
+}
+
+function renderExecutionResult(rendered) {
+  if (rendered?.state === "empty") {
+    setReportingStatus("");
+    reportResultsHost.replaceChildren(reportingView.createEmptyState({
+      title: rendered.title || "No results",
+      message: rendered.message || "No records match these report filters.",
+    }));
+    return;
   }
 
-  visited.add(scope.id);
-  const parent = scopes.find((item) => item.id === scope.parentScopeId);
-  return parent ? 1 + getScopeDepth(parent, scopes, visited) : 0;
+  const content = rendered?.content || rendered;
+  if (!content || typeof content.nodeType !== "number") {
+    renderReportingError("Report results could not be displayed.");
+    return;
+  }
+  reportResultsHost.replaceChildren(content);
+  setReportingStatus("");
 }
 
-function getProjectDepth(project, projects, visited = new Set()) {
-  if (!project?.parentProjectId || visited.has(project.id)) {
-    return 0;
+function renderRendererUnavailable() {
+  renderReportingError("This report's result view is unavailable.", {
+    title: "Report view unavailable",
+  });
+}
+
+function renderReportingError(message, options = {}) {
+  setReportingStatus(message, { isError: true });
+  reportResultsHost?.replaceChildren(reportingView.createEmptyState({
+    title: options.title || "Report unavailable",
+    message,
+    role: "alert",
+  }));
+}
+
+function setReportingStatus(message, options = {}) {
+  if (!reportStatus) {
+    return;
+  }
+  reportStatus.textContent = message || "";
+  reportStatus.hidden = !message;
+  reportStatus.dataset.viewTone = options.isError ? "error" : "info";
+  reportStatus.setAttribute("role", options.isError ? "alert" : "status");
+}
+
+function syncReportingUrl(options = {}) {
+  const report = reportingState.selectedReport;
+  if (!report || !window.history?.replaceState) {
+    return;
+  }
+  const query = new URLSearchParams(window.location.search);
+  query.delete("reportKey");
+  query.set("report", report.reportKey);
+  for (const filter of report.filters || []) {
+    filter.queryKeys.forEach((queryKey) => query.delete(queryKey));
+  }
+  const executionParams = buildExecutionParams(report.filters || []);
+  executionParams.forEach((value, queryKey) => query.set(queryKey, value));
+  const nextUrl = `${window.location.pathname}${query.toString() ? `?${query.toString()}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", nextUrl);
+  if (!options.replace) {
+    window.dispatchEvent(new window.Event("reporting:url-updated"));
+  }
+}
+
+async function loadRendererAssets(assets) {
+  for (const asset of assets) {
+    await loadRendererAsset(asset);
+  }
+}
+
+function loadRendererAsset(asset) {
+  const path = String(asset?.path || "").trim();
+  const type = String(asset?.type || "").trim();
+  if (!path || !["script", "style"].includes(type)) {
+    return Promise.reject(new Error("The report renderer asset is invalid."));
   }
 
-  visited.add(project.id);
-  const parent = projects.find((item) => item.id === project.parentProjectId);
-  return parent ? 1 + getProjectDepth(parent, projects, visited) : 0;
+  const key = `${type}:${new window.URL(path, document.baseURI).href}`;
+  if (rendererAssetLoads.has(key)) {
+    return rendererAssetLoads.get(key);
+  }
+
+  const promise = new Promise((resolve, reject) => {
+    if (type === "style") {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = path;
+      link.addEventListener("load", resolve, { once: true });
+      link.addEventListener("error", () => reject(new Error("The report renderer style could not be loaded.")), { once: true });
+      document.head.appendChild(link);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = path;
+    script.async = false;
+    script.addEventListener("load", resolve, { once: true });
+    script.addEventListener("error", () => reject(new Error("The report renderer script could not be loaded.")), { once: true });
+    document.body.appendChild(script);
+  });
+  rendererAssetLoads.set(key, promise);
+  return promise;
 }
 
-function treeIndent(depth) {
-  return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
+async function readJsonResponse(response) {
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
 }
 
-function setReportStatus(message) {
-  reportStatus.textContent = message;
+function setDefaultDateRange(startInput, endInput) {
+  const today = new Date();
+  startInput.value = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+  endInput.value = formatDateInput(today);
+}
+
+function formatDateInput(date) {
+  if (window.LongtailForge?.formatters?.dateInput) {
+    return window.LongtailForge.formatters.dateInput(date);
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeListValue(value) {
+  const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
+  return [...new Set(values.flatMap((item) => String(item || "").split(","))
+    .map((item) => item.trim())
+    .filter(Boolean))];
+}
+
+function setSelectValueWhenAvailable(select, value) {
+  if (!select) {
+    return;
+  }
+  const normalizedValue = String(value || "");
+  if ([...select.options].some((option) => option.value === normalizedValue)) {
+    select.value = normalizedValue;
+  }
+}
+
+function parseBoolean(value, fallback = false) {
+  const scalar = Array.isArray(value) ? value[0] : value;
+  if (typeof scalar === "boolean") {
+    return scalar;
+  }
+  const normalized = String(scalar ?? "").trim().toLowerCase();
+  if (["true", "1", "yes"].includes(normalized)) {
+    return true;
+  }
+  if (["false", "0", "no"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
 }

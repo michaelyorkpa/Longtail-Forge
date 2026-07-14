@@ -26,7 +26,7 @@ assert.ok(
 
 // Numeric dotted comparison, including the uneven-segment cases where string
 // comparison gets the order wrong.
-const ordered = ["0.33.5.29.5", "0.33.7.7", "0.33.8", "0.33.12.2", "0.34", "1.0"];
+const ordered = ["0.33.5.29.5", "0.33.7.7", "0.33.8", "0.33.12.8", "0.34", "1.0"];
 for (let index = 1; index < ordered.length; index += 1) {
   assert.ok(
     compareDottedVersions(ordered[index - 1], ordered[index]) < 0,

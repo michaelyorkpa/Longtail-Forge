@@ -174,6 +174,8 @@ Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-2
 
 `POST /api/v1/time-entries` requires `project_id`. `client_id` is optional in version 0.30.3 and later; when the project is linked to a client, the API uses that client automatically. Workspace-level projects can create time entries without a client.
 
+As of 0.33.12.1, public time-entry creates are runtime-validated at the Time Tracking public API service edge. Known fields with the wrong JSON type return the normal 400 error envelope, while unknown and server-managed fields are ignored. This remains a distinct service, response, and audit path from browser time-entry creation.
+
 Version 0.31.6 allows `task_id` on public time-entry create payloads. Finalized task timers also write `task_id` automatically so reporting can filter timer-created time by task.
 
 Version 0.30.15 adds adjacency-list nesting metadata to client and project records. Client payloads may include `parent_client_id`; project payloads may include `parent_project_id`. Parent relationships are single-parent trees, and server validation rejects self-parenting, cross-scope project parents, and descendant cycles.

@@ -7,3 +7,7 @@ After a manual timer is running, you can select an active task from the same Pro
 When a timer is saved, the completed entry keeps the first timer start and final save time as factual timestamps. The saved duration uses accumulated active seconds, so paused time does not inflate billing or reporting totals. Workspace administrators with time-entry edit access can correct workspace entries in scope, and those corrections are audited.
 
 Business workspaces can mark timers and time entries Billable. Personal and Family workspaces do not show that flag; their timers and entries are always treated as non-billable.
+
+Reporting lists the reports available for the current workspace and your access. Choose **Project Time & Billing** when it is available, then filter by billing period, reporting scope, Projects, Tags, and whether descendant Projects are included. Custom billing periods show Start Date and End Date controls. Parent Project rows can expand to show child Projects; the footer totals count each branch once even when child rows are visible.
+
+The Reporting menu lists only reports currently available to you. If Time Tracking is disabled or your access does not allow its report, **Project Time & Billing** is not shown; unavailable report names and controls are not displayed.

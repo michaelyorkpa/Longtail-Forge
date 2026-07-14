@@ -2,260 +2,171 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.12`.
+Active cursor: `0.33.13.1`.
 
-## Version 0.33.12 - Reporting Framework and Time Report Contribution
+## Version 0.33.13 - Lists Module UI/UX Overhaul
 
 Decision:
 
-Reporting is framework-owned report infrastructure, not a normal disable-able first-party workflow module. The framework owns the Reporting page, report catalog, contribution filtering, report execution dispatch, shared filter host, loading/error/empty states, and future saved/export/export scheduling behavior. Individual modules own the actual report definitions, report runners, data queries, domain calculations, result shapes, and record-level permission checks.
+The Lists workspace is a framework-declarative view surface (`lists.workspace` in `src/modules/lists/module.js`), so this overhaul is expressed by moving Lists onto the same framework anatomy Notes already uses — not by hand-building Lists-only page chrome. The framework owns page layout, the slide-out filter/navigation drawer and its bottom-left filter button, collapsible boxes, the shared Linked Context picker/read-list shells, and modal sizing/anatomy. Lists owns its filter/selector data, detail content, linked-record provider queries and save payloads, item workflow, and `.lists-*` content styling.
 
-The first 0.33.12 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
-
-### Dependencies and Framework Baseline
-
-This version builds on the framework surface work completed immediately before it and must not
-reintroduce a hard-coded Reporting page:
-
-- 0.33.5.13 defines shared surface/modal/overlay tokens and common page anatomy expectations.
-- 0.33.5.15 exposes the framework-owned `LongtailForge.view` primitives for page headers,
-  filters, status/empty/error states, tables, action strips, field grids, and modal shells.
-- 0.33.5.16 introduces validated `viewSurfaces`, `LongtailForge.view.renderSurface(...)`,
-  descriptor data binding, `surface.refresh()`, route actions, behavior handlers, minimal protected
-  hosts, and strict guardrails for converted declarative surfaces.
-- 0.33.5.18 extends the descriptor/renderer capability set while converting Notes, Tasks, Files,
-  and Clients/Projects pages. Reporting should consume the finalized 0.33.5.18 view baseline
-  instead of creating Reporting-only anatomy for filters, tables, status messages, or host layout.
-
-Reporting is a framework-owned surface, so it should not create a fake disable-able
-`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.12 must decide
-and document the framework-owned equivalent: either a framework-owned descriptor/config source that
-the same renderer can consume, or a narrow framework host adapter built directly on
-`LongtailForge.view` primitives where the descriptor contract cannot yet model report execution.
-
-### Version 0.33.12.1 - Time Tracking contract schemas and billing unit tests
-
-**Model: GPT-5.5 Extra High** - Third Zod proving ground plus billing-math test coverage, sequenced first because Reporting consumes exactly these seams.
+The current Lists page renders filters and the "List Selector" inline above a full-width detail (`layout: "stacked"`), shows the description as a bare `.lists-description` paragraph, and puts both the linked-records read-list and its add/remove picker (including a raw "paste record ID" box) inline in the detail. The result is cluttered and does not follow the app's view guidelines, especially the cramped Edit List modal. This version reorganizes the page to match Notes and folds link management into the Edit List modal via the shared picker.
 
 Purpose:
 
-Apply the proven Files/Tasks contract pattern to Time Tracking before Reporting builds on it. Time Tracking has the app's only module-owned public API write route (`POST /api/v1/time-entries` behind an API key — genuinely untrusted external input), and its payloads are the riskiest data in the app: timestamps, durations, numerics, and billable flags that feed billing math. `src/modules/time-tracking/time-tracking-billing.service.js` is ~450 lines of pure, untested billing calculation that both this Reporting version and 0.37 Invoicing will sit on.
+Bring the Lists workspace in line with the framework view guidelines and the Notes reference layout: move filtering and list selection into the standard bottom-left filter drawer, give the detail a clean full-width reading layout with a collapsible "List Details" box, and move all link management into a properly sized Edit List modal that uses the shared Linked Context picker.
 
-- [ ] Add Time Tracking-owned runtime schemas (`src/modules/time-tracking/time-tracking.contracts.js`) for selected edge payloads:
-  - [ ] Time-entry create (browser and public API share the service entry).
-  - [ ] Time-entry update.
-  - [ ] Active-timer slot payloads (update, start, pause, finalize) where the routes carry bodies.
-- [ ] Calibrate against reality before choosing strip vs. reject, following the documented Files/Tasks contrast:
-  - [ ] Trace what the browser timer/entry UI and the public API actually send.
-  - [ ] Keep list/context entries liberal for in-process callers; the service keeps its normalizers.
-  - [ ] Keep required-ness with the service where its error copy already exists.
-  - [ ] Validate only edge inputs, not internal service objects.
-- [ ] Add Vitest contract tests (`tests/contracts/time-tracking-contracts.test.mjs`, matched by a `test:time-tracking`-style filter or the existing contracts filter) proving valid payloads pass, wrong-typed timestamps/durations/billable flags fail 400 in the `AppError` envelope, unknown fields are stripped, and the public-API write payload shape is covered.
-- [ ] Add Vitest unit tests for the pure billing functions (`buildBillingScopes`, `summarizeBillingScopesForRange`, `normalizeTimeEntries`, and the per-project/per-scope summaries): representative scope trees, descendant client/project attachment, billable/non-billable partitioning, range boundaries, and rounding behavior.
-- [ ] Mind the thinner regression net: the time-tracking area floor is small, so verify against the Workbench timer regressions and the permission harness in addition to `npm run test:regressions:time-tracking`-equivalent coverage, and add a narrow area command if one is missing.
-- [ ] Do not change billing behavior, timer semantics, or public API response shapes in this slice; it is contracts and tests only.
+Dependencies and baseline:
+
+- Builds on the framework `slide-out-sidebar` layout and `sidebarPanels` (already consumed by `notes.workspace` and Tasks), the collapsible `view.createInfoPanel`, and the shared `view.createLinkedContextPicker` / `view.createLinkedContextList` shells and `linked-context-target.v1` provider contract (`docs/linked-context-picker-contract.md`). Lists already registers a `linkedContextProviders` List-target provider; this version makes Lists a *consumer* of the shared picker for its own linking UI, as Notes already is.
+- Honors the framework/module view-ownership boundary: framework owns layout/anatomy/`.view-*`; Lists owns data/behavior and `.lists-*`.
+- Does not depend on the 0.33.14 field-factory primitive; the Edit List and Item modals use the current descriptor modal-form primitives. Any field type the primitive does not yet cover stays as-is until 0.33.14 folds it in.
+
+Non-goals:
+
+- Do not change the Lists data model, routes, permissions, item/reusable/catalog workflow, or billing/cost math.
+- Do not build Lists-only layout classes where a framework primitive exists; consume `renderDescriptor*` / `view.*` helpers.
+- Do not revive the deprecated `.view-split-list-detail` primitive; Lists moves from `stacked` to `slide-out-sidebar`.
+
+### Version 0.33.13.1 - Filters and List Selector into the bottom-left filter drawer
+
+**Model: High Effort** — Changing the surface `layout` re-hosts filters, the selector, and the detail through a different framework layout branch and must preserve every filter, selection, and decoration hook.
+
+- [ ] Convert the `lists.workspace` descriptor from `layout: "stacked"` to `layout: "slide-out-sidebar"` with a `sidebarPanels` array, mirroring `notes.workspace`:
+  - [ ] a `type: "filters"` panel (title "Filters", collapsed by default, `className: "lists-filters-panel"`) carrying the existing nine filters unchanged,
+  - [ ] a `type: "index"` panel for the "List Selector" (move `indexPanel` into the drawer, preserving `initialSelection`, `collapseOnSelect`, and the empty state).
+- [ ] Let the framework supply the fixed bottom-left filter button (`.view-slideout-sidebar-toggle`, icon `filter`), backdrop, drawer, and full-width `.view-slideout-sidebar-main`; do not add a Lists-owned filter toggle or width CSS.
+- [ ] Update `public/js/lists.js` decoration to read the sidebar filter and index panels from the drawer (as `notes.js` does via its `.notes-index-chrome`/sidebar-panel hooks) instead of the inline stacked regions, keeping the `[data-lists-filters]` / `[data-lists-index-panel]` hooks, filter binding, and list rendering intact.
+- [ ] Confirm the detail area renders full-width once a list is selected, with the selector collapsing into the drawer.
+- [ ] Preserve the cross-module list-dialog entry points and lazy-load behavior (`window.LongtailForge.listsDialog`, `lists.add`/`lists.edit`).
+- [ ] Update `scripts/lists-declarative-readonly-surface-regression.mjs` and `scripts/lists-view-builder-pilot-regression.mjs` for the new layout / `sidebarPanels`.
 
 Acceptance criteria:
 
-- Time Tracking has the same module-owned contract/schema/test pattern as Files and Tasks for its edge payloads, including the public API write route.
-- The pure billing math has fast unit coverage before Reporting consumes it.
-- Valid existing behavior is preserved; existing regressions and the permission harness pass unchanged.
-- Reporting slices below inherit validated seams instead of raw payloads.
+- Lists opens as a clean full-width page; filters and the List Selector live in the bottom-left filter drawer exactly like Notes.
+- All nine filters, selection, `collapseOnSelect`, and empty states behave as before.
 
-### Version 0.33.12.2 - Reporting Architecture and Framework View Baseline
+### Version 0.33.13.2 - Collapsible "List Details" box: description and read-only linked records
 
-- [ ] Review the completed 0.33.5.18 renderer/primitive capabilities before implementing Reporting.
-- [ ] Decide whether the Reporting host should use:
-  - [ ] A framework-owned descriptor/config source consumed by `LongtailForge.view.renderSurface(...)`.
-  - [ ] A narrow framework Reporting host adapter built on `LongtailForge.view` primitives.
-- [ ] Do not create a normal disable-able `src/modules/reporting` workflow module only to satisfy
-      module-owned `viewSurfaces` shape.
-- [ ] Define which Reporting host anatomy is framework-owned:
-  - [ ] Page shell and header.
-  - [ ] Report selector.
-  - [ ] Shared filter host.
-  - [ ] Loading, error, empty, and status states.
-  - [ ] Results host and overflow behavior.
-  - [ ] Report action placement for future export/saved-report actions.
-- [ ] Define module-owned report responsibilities:
-  - [ ] Report definitions.
-  - [ ] Runner IDs.
-  - [ ] Data queries and aggregation.
-  - [ ] Domain calculations.
-  - [ ] Result shape.
-  - [ ] Record-level permission checks.
-- [ ] Update the implementation plan only; do not change runtime behavior in this slice.
+**Model: Medium Effort** — Detail-body reorganization plus a read-only linked-records shell swap; risk is confined to the detail render path.
 
-### Version 0.33.12.3 - Reporting Contribution Contract
+- [ ] Add a single collapsible "List Details" box at the top of the detail (open by default) via the framework collapsible `view.createInfoPanel`, containing, in order:
+  - [ ] the list description (moved out of the bare `.lists-description` paragraph; keep the "No description." empty state),
+  - [ ] a read-only list of linked records rendered through `view.createLinkedContextList(...)`.
+- [ ] Remove the inline linked-records add/remove picker from the detail and drop the separate "Linked Records" `summaryPanel`; the detail no longer hosts link editing (that moves to the Edit List modal in 0.33.13.3).
+- [ ] Render linked rows through the Lists linked-context soft-read path so stale/unavailable targets show safe fallback labels (`Unavailable list`, etc.) without echoing raw ids.
+- [ ] Move the "Next" panel's fact chips (`.lists-next-action-facts`) to the top-right corner of the Next box.
+- [ ] Preserve the rest of the detail body order and the Source/Costs panels; only the description, the linked-records display, and the Next-chip placement change.
+- [ ] Update `scripts/lists-workflow-linked-layout-regression.mjs` and the readonly-surface regression.
 
-- [ ] Keep this roadmap section named "Reporting Framework and Time Report Contribution."
-- [ ] Keep `reporting.html` framework-owned.
-- [ ] Expand the existing module manifest `reporting` field into a validated report contribution contract.
-- [ ] Report contribution fields should include:
-  - [ ] `id`
-  - [ ] `label`
-  - [ ] `description`
-  - [ ] `category`
-  - [ ] `renderer`
-  - [ ] `runner`
-  - [ ] `requiredPermissions`
-  - [ ] `requiredWorkspaceCapabilities`
-  - [ ] `requiresEnabledModules`
-  - [ ] `sortOrder`
-  - [ ] supported filter metadata, such as billing period, custom date range, scope, project, tag, and descendants.
-- [ ] Add `modulesService.listReportingReports(workspaceId, session)` using the same enabled-module, permission, workspace-capability, and required-module filtering pattern used by other module contributions.
-- [ ] Keep contribution validation data-only. Do not place executable functions directly in module manifests.
-- [ ] Keep report contribution filtering separate from report execution so the catalog can be permission-safe without running report code.
-- [ ] Update `docs/module-contract.md` with the finalized reporting contribution shape.
+Acceptance criteria:
 
-### Version 0.33.12.4 - Reporting Framework Catalog Route
+- The detail opens with a "List Details" box (description + linked records) at the top, open and collapsible.
+- Linked records are read-only in the detail; the Next box shows its chips in the top-right corner.
 
-- [ ] Add framework-owned report catalog route:
-  - [ ] `GET /api/reporting/catalog`
-- [ ] Return only reports allowed by enabled modules, workspace capabilities, required modules, and user permissions.
-- [ ] Include report metadata, supported filters, renderer ID, default filter values, and report-specific permission requirements.
-- [ ] Ensure disabled modules do not contribute active catalog reports.
-- [ ] Ensure reports from historically readable disabled modules are only visible when explicitly allowed by contribution and module policy.
-- [ ] Add focused catalog regressions for disabled modules, missing permissions, workspace capability filtering, and required-module filtering.
+### Version 0.33.13.3 - Edit List modal: shared Linked Context picker and view-guideline conformance
 
-### Version 0.33.12.5 - Reporting Runner Registry and Execution Route
+**Model: High Effort** — Adopting the shared picker crosses the linked-context provider, permission, and save-payload boundaries, and the modal must keep working as the cross-module `listsDialog` / `lists.add` / `lists.edit` entry point.
 
-- [ ] Add framework-owned report execution route:
-  - [ ] `GET /api/reporting/reports/:moduleId/:reportId/run`
-  - [ ] or a stable equivalent using a report key.
-- [ ] Add a server-side report runner registry keyed by stable runner IDs.
-- [ ] The framework Reporting service should validate report availability, permissions, enabled modules, workspace capability requirements, and basic filter shape before dispatching.
-- [ ] The module-owned runner should remain responsible for domain-specific data access, calculations, and record-level permission safety.
-- [ ] Normalize execution errors into framework-owned report status/error payloads without exposing implementation details.
-- [ ] Add focused execution regressions for unknown report IDs, missing runners, denied permissions, disabled modules, and invalid filter shape.
+- [ ] Add link management to the Create/Edit List modal (`list-editor`) using `view.createLinkedContextPicker(...)` bound to the Lists-consumable providers (Task, Note, Project, Client), replacing the bespoke `target_type` / `task_search` / `task_picker` / `target_id` picker and the raw "paste record ID" box.
+- [ ] Route add/remove through the existing Lists link add/remove service routes and keep create/update strict target validation and permission checks (`MANAGE_LINKS`); saved-row readback stays on the soft path.
+- [ ] Bring the modal to the view guidelines (`docs/view-building-contract.md`, `docs/ui-layout-guide.md`): select the framework wide modal size, use framework field anatomy / `.view-field-grid` width hints instead of the ad-hoc three-column `.lists-form-grid`, and remove the cramped custom grid.
+- [ ] Preserve `window.LongtailForge.listsDialog.openListEditor()`, the `lists.add` / `lists.edit` module actions, Business client/project derivation, and Personal/Family scope behavior.
+- [ ] Update `scripts/lists-workflow-linked-layout-regression.mjs`, `scripts/lists-items-modals-descriptor-regression.mjs`, and `scripts/lists-ui-workflow-regression.mjs`; add coverage that the picker only permits readable/writable targets.
 
-### Version 0.33.12.6 - Time Tracking Project Time & Billing Contribution
+Acceptance criteria:
 
-- [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
-- [ ] Make removal of framework?module coupling a hard bar for this move, not just a logic relocation: after the migration, `src/services/reporting.service.js` must not directly import `tasksService`, `timeEntriesService`, `clientsService`, or any other specific module service/repo. The framework Reporting service keeps only catalog/dispatch/host responsibilities; all client/project/task/time-entry data access moves behind the module-owned runner registered by ID. Any client/project hierarchy the runner needs must come through a module-owned contract (the Clients/Projects module), not a framework-level import.
-- [ ] Time Tracking should contribute the initial report:
-  - [ ] ID: `project-time-billing`
-  - [ ] Label: `Project Time & Billing`
-  - [ ] Runner: `time-tracking.project-time-billing`
-  - [ ] Renderer: `time-project-billing-table`
-- [ ] Preserve existing useful filters:
-  - [ ] Current billing period
-  - [ ] Last billing period
-  - [ ] Custom date range
-  - [ ] Reporting scope
-  - [ ] Projects
-  - [ ] Tags
-  - [ ] Include descendants
-- [ ] Hide Start Date and End Date unless Billing Period is set to Custom.
-- [ ] Keep Time Tracking responsible for time entry aggregation.
-- [ ] Keep Client/Projects responsible for client/project hierarchy and billing metadata.
-- [ ] Keep framework Reporting responsible only for report hosting and dispatch.
-- [ ] Preserve existing `tagIds` filtering behavior through the Time Tracking-owned runner.
-- [ ] Preserve existing task-linked time entry reporting behavior where already supported.
-- [ ] Add focused Time Tracking report runner regressions before the page-host rewrite depends on it.
+- All linked-record add/remove happens in the Edit List modal through the shared picker; the raw record-ID box is gone.
+- The Create/Edit List modal renders at the framework wide size with framework field anatomy and no longer feels cramped.
 
-### Version 0.33.12.7 - Correct Project and Client Rollup Billing Math
+### Version 0.33.13.4 - Add/Edit Item modal view-guideline conformance
 
-- [ ] Fix descendant rollup calculation so each project/subproject computes its own direct time first.
-- [ ] Apply that project's effective billing rate, billing period, and rounding rules to that project's direct time.
-- [ ] Parent project totals should equal:
-  - [ ] Parent direct rounded total
-  - [ ] plus child project rounded totals
-  - [ ] plus deeper descendant rounded totals
-- [ ] Do not round all descendant time together at the parent level.
-- [ ] Do not apply the parent billing rate to child project time when the child has its own effective rate.
-- [ ] Client totals should aggregate project totals using the same already-rounded project/subproject totals.
-- [ ] Parent clients should add direct client project totals plus child-client totals without losing child billing rules.
-- [ ] Preserve display-only expandable child project rows without double-counting totals.
-- [ ] Add fixture coverage for parent projects, child projects, deeper descendants, parent clients, child clients, mixed rates, and mixed billing periods.
+**Model: Low Effort** — The item entry became a framework modal in 0.33.5.18.5.11; this is an audit-and-align pass, not a rebuild.
 
-### Version 0.33.12.8 - Framework Reporting Host Shell
+- [ ] Audit the Add/Edit Item modal (`.lists-item-dialog`) against `docs/view-building-contract.md` and `docs/ui-layout-guide.md`.
+- [ ] Align its sizing, field anatomy, and the Details disclosure with the guidelines and the reworked Edit List modal; retire any remaining item-modal one-off layout CSS the framework covers.
+- [ ] Preserve item validation, catalog suggestions, defaults (Status = Needed, Save-as-reusable on), and the startup-built-dialog rule (no `state` reads at dialog build time).
+- [ ] Update `scripts/lists-items-modals-descriptor-regression.mjs` if the descriptor changes.
 
-- [ ] Keep one framework-owned `reporting.html` page.
-- [ ] Reduce `views/protected/reporting.html` to a minimal framework host that loads shared view assets,
-      the chosen Reporting host renderer/adapter, and the Reporting browser behavior file.
-- [ ] Convert the hard-coded Time Report UI into a framework Reporting host that loads available report definitions from the catalog.
-- [ ] Render the page shell, header, report selector, status/error/empty states, filter host, and results host through the chosen framework view path.
-- [ ] Do not hand-build framework-owned Reporting anatomy in static HTML or ad-hoc browser DOM when a descriptor field or `LongtailForge.view` primitive exists.
-- [ ] Keep the first host simple: one selected report, one filter area, one status area, and one results area.
-- [ ] Add a focused static regression proving the Reporting page is a minimal framework host.
+Acceptance criteria:
 
-### Version 0.33.12.9 - Reporting Filter Host and Report Selection
+- Both Lists modals follow the same framework modal guidelines; no cramped custom grids remain.
 
-- [ ] Load report definitions from `GET /api/reporting/catalog`.
-- [ ] Select the first available report by default when no valid report is requested.
-- [ ] Render report filters from contribution metadata through the shared filter host:
-  - [ ] Billing period.
-  - [ ] Custom date range.
-  - [ ] Reporting scope.
-  - [ ] Projects.
-  - [ ] Tags.
-  - [ ] Include descendants.
-- [ ] Hide Start Date and End Date unless Billing Period is set to Custom.
-- [ ] Preserve query-parameter deep links where already useful, including selected scope/report where practical.
-- [ ] Ensure filter changes call the framework execution route and refresh the current result without rebuilding the host layout by hand.
-- [ ] Add focused browser/static regressions for report selection, custom date visibility, empty catalog state, and filter refresh behavior.
+### Version 0.33.13.5 - Guardrails, docs, and closeout
 
-### Version 0.33.12.10 - Project Time & Billing Result Renderer
+**Model: Low Effort** — Consolidation, documentation, and the strict-surface guardrail/regression pass.
 
-- [ ] Add a registered report result renderer for `time-project-billing-table`.
-- [ ] The first renderer may remain specific to Project Time & Billing, but it should use framework table/action primitives where they fit.
-- [ ] Preserve hierarchical project display:
-  - [ ] Parent rows can expand/collapse child rows.
-  - [ ] Child rows are display-only rows under their parent.
-  - [ ] Footer totals come from the runner result and are not recomputed from expanded display rows.
-- [ ] Keep Time Tracking responsible for the result shape and billing semantics.
-- [ ] Keep the framework responsible for result-host placement, overflow wrappers, loading/error/empty states, and renderer dispatch.
-- [ ] Add focused regressions for expandable child rows, totals, no-results state, and renderer-not-found recovery.
+- [ ] Keep `lists.workspace` within the strict declarative-surface guardrails: no `view.createModalForm` / `document.createElement("dialog"|"table"|"details")` / one-off layout classes where a `renderDescriptor*` / `view.*` primitive exists; the picker and read-list flow through the shared shells.
+- [ ] Remove now-dead Lists code and CSS (the inline `.lists-link-form` picker, the raw-record-ID control, `.lists-form-grid`, and any retired stacked-layout hooks).
+- [ ] Update docs: `docs/lists-module.md` (new layout, List Details box, picker-in-modal), `docs/linked-context-picker-contract.md` (Lists as a picker consumer), and the Lists row in the declarative-view surface inventory.
+- [ ] Add/refresh the focused Lists regressions and run the affected suite; update `CHANGELOG.md` per slice.
+- [ ] Run `npm run check` and the Lists regression scripts; advance the active cursor.
 
-### Version 0.33.12.11 - Permissions, Navigation, Guardrails, and Closeout
+Acceptance criteria:
 
-- [ ] Decide whether `reporting.view` should become a framework-owned permission instead of being contributed by Time Tracking.
-- [ ] Keep report-specific visibility dependent on both `reporting.view` and the owning module's required permissions.
-- [ ] Keep Reporting navigation framework-owned, with child report entries contributed by modules.
-- [ ] Add strict guardrails for the converted Reporting host:
-  - [ ] Reporting must not ship a non-minimal protected HTML view.
-  - [ ] Reporting must not call `document.createElement` for framework-owned page header, filter host, status, table shell, or action anatomy when the chosen framework view path covers it.
-  - [ ] Reporting must not introduce new one-off layout/footer classes for framework-owned anatomy.
-  - [ ] `src/services/reporting.service.js` (and any framework Reporting host/service code) must not import a specific module service/repo or hardcode a first-party module ID to reach data; all report data access stays behind module-owned runners. Add a grep/regression guardrail asserting this so the coupling that exists today (`reporting.service.js` importing `clientsService`/`tasksService`/`timeEntriesService`) cannot survive or be reintroduced.
-- [ ] Update `docs/declarative-view-surfaces.md` inventory to move Reporting out of "reported" and into the chosen framework-owned Reporting host status.
-- [ ] Update `docs/view-building-contract.md` and `docs/module-contract.md` with the Reporting host/contribution boundary.
-- [ ] Update Help, `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive.
-- [ ] Add regression coverage for:
-  - [ ] Report catalog filters disabled modules.
-  - [ ] Report catalog filters missing permissions.
-  - [ ] Time Tracking report appears when Time Tracking is enabled and permissions allow it.
-  - [ ] Time Tracking report disappears or is blocked when Time Tracking is disabled.
-  - [ ] Custom date fields are hidden unless Custom is selected.
-  - [ ] Project/subproject/client rollups apply rounding at the correct level.
-  - [ ] Reporting no longer uses hard-coded framework-owned page anatomy.
-- [ ] Run focused reporting regressions.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the expected version after implementation.
-
-## Version 0.33.13 - Lists Module UI/UX Overhaul (PLACEHOLDER)
-
-> **Placeholder — requirements not yet captured.** The current Lists module layout is cluttered and confusing on screen, and needs a UI/UX pass before Knowledge Base (0.34) begins. The specific problems, target layout, and acceptance criteria will be filled in later; this section only reserves the slot and records intent so it is not forgotten.
-
-Purpose:
-
-Fix the Lists module's on-screen layout and overall page experience. As of this placeholder the direction is not yet specified beyond "the layout is awful and the page is a confusing mess"; treat everything below as scaffolding to be replaced once the detailed requirements are provided.
-
-Scope (to be defined):
-
-- [ ] Capture the specific layout/UX problems with the current Lists page.
-- [ ] Define the target layout and interaction model.
-- [ ] Decide framework-owned vs. Lists-owned responsibilities, consistent with the view-ownership boundary (framework owns page/anatomy/`.view-*`; Lists owns data/behavior and `.lists-*`).
-- [ ] Reuse existing framework view primitives/anatomy rather than hand-building page structure.
-- [ ] Define acceptance criteria and focused Lists regressions once the redesign is settled.
+- Lists matches the Notes reference layout and the app view guidelines; guardrails and regressions enforce the single declarative path.
+- Docs and changelog reflect the new layout, the List Details box, and the shared-picker adoption.
 
 Sequencing:
 
-- Lands after Reporting (0.33.12), before the Settings de-hardcoding pass (0.33.14) and Self-Hosted Release Packaging (0.33.15), and before Knowledge Base (0.34), at project direction.
-- Requirements must be captured before implementation begins; do not implement from this placeholder.
+- Lands after Reporting (0.33.12), before the view-primitive foundation (0.33.14), the Settings de-hardcoding pass (0.33.15), and Self-Hosted Release Packaging (0.33.16), and before Knowledge Base (0.34), at project direction.
+- Promoted from the TODO "Lists UI/UX Overhaul" notes with four scoping decisions settled: one combined "List Details" box, read-only linking in the detail, adoption of the shared Linked Context picker, and a full view-guideline pass over both Lists modals.
 
-## Version 0.33.14 - Settings De-Hardcoding: Module-Contributed Settings Framework
+## Version 0.33.14 - Framework View Primitives: Editable Form-Field Factory
+
+Purpose:
+
+Promote form-field construction from a private renderer helper into a first-class, exported `LongtailForge.view` primitive with a complete field-type set and an editable, value-bound mode. Today the framework can render fields from metadata — but only inside the renderer's private `renderFieldShell`/`createFieldControl` functions (`public/js/shared/view-renderer.js`), which are not part of the frozen `LongtailForge.view` export (`public/js/shared/view-builder.js`), do not cover toggle/radio/multi-select or `max`/`inputmode`, and are hardwired `disabled: true` for persistent (non-modal) field grids (`renderFieldGridShell`). Settings de-hardcoding (0.33.15), any Lists form controls left for follow-up after 0.33.13, and the narrow Reporting filter adapter permitted in 0.33.12 all need the same capability, so it is extracted once here instead of remaining page-specific raw DOM.
+
+This is a deliberately small, foundational slice sequenced immediately ahead of the Settings work (0.33.15) so Settings consumes a finished primitive rather than inventing settings-only field anatomy. Reporting (0.33.12) lands first on the existing read/filter path and may use a narrow framework adapter for the missing project multi-select and conditional-date behavior; this version must fold any overlapping Reporting field construction into the exported factory without changing report behavior.
+
+Decision:
+
+Field construction is framework-owned view anatomy. The framework owns a single exported field-factory primitive (labels, controls, `.view-*` field anatomy, accessible structure, editable vs. read-only mode). Modules and framework hosts own field metadata (id, label, type, options, default), value meaning, validation, and save payloads — and must not hand-build field DOM when the primitive covers it.
+
+Dependencies and baseline:
+
+- Builds on the framework view baseline (0.33.5.13-0.33.5.18) and the existing renderer field internals; this version exposes and completes them rather than replacing the renderer.
+- Honors the view-ownership boundary (framework owns `.view-*` field anatomy; modules own data/validation/payloads).
+
+Non-goals:
+
+- Do not build settings-specific behavior here (save to `PUT /api/settings`, dependent-setting visibility, retiring `settingsControls`); that stays in Settings (0.33.15).
+- Do not broadly convert existing pages in this version; limit adoption to the shared renderer paths and any temporary Reporting field construction that the new primitive directly replaces.
+- Do not fork modal-form or filter rendering that already works; extend the shared path so there is one field-construction path, not two.
+
+### Version 0.33.14.1 - Exported field-factory primitive and complete field-type set
+
+**Model: High Effort** — This changes a framework-wide renderer seam and must preserve every converted surface while adding the field types needed by Reporting and Settings.
+
+- [ ] Extract field construction into an exported `LongtailForge.view` primitive (for example `createField`/`createFieldControl`) so callers build fields from metadata without passing fully-formed DOM and without reaching into renderer internals.
+- [ ] Complete the field-type set: text, number (with `min`/`max`/`step`/`inputmode`), select, multi-select, boolean/checkbox, toggle/switch, radio group, textarea, date, and time.
+- [ ] Keep the descriptor field schema (`VIEW_FIELD_FIELDS` in `manifest-contract.js`) and the primitive in sync (add `max`, `inputmode`, and the new types).
+- [ ] Route the descriptor renderer (`renderFieldShell` and the modal/filter paths) through the shared primitive so there is one field-construction path, not two.
+- [ ] Route any temporary Reporting project multi-select or conditional-date field construction from 0.33.12 through the new primitive without changing report filters or query payloads.
+- [ ] Add regressions for each field type's rendering and value binding.
+
+Acceptance criteria:
+
+- A caller can construct any supported field from metadata via one exported primitive.
+- Modal, filter, and persistent-grid field rendering all flow through the same primitive.
+
+### Version 0.33.14.2 - Editable field grids, value binding, and guardrails
+
+**Model: High Effort** — Editable binding and collection become a shared framework contract consumed by Settings, so subtle value or disabled-state regressions would spread across surfaces.
+
+- [ ] Add an editable mode to field grids so a persistent (non-modal) grid can render enabled, value-bound controls (today `renderFieldGridShell` forces `disabled: true`).
+- [ ] Add a value-collection helper that reads a grid's live field values into a payload object, generalizing the pattern currently trapped in `settings-controls.js` (`readModuleSettingsPayload`).
+- [ ] Provide a per-field error/message channel the primitive can display, with validation itself owned by the caller.
+- [ ] Add a guardrail/regression that framework-owned field anatomy is not hand-built with raw `document.createElement` when the primitive covers it.
+- [ ] Update `docs/view-building-contract.md` and the view-primitive inventory to document the field factory.
+
+Acceptance criteria:
+
+- A persistent, editable, value-bound field grid renders from metadata with no hand-built DOM, and its values can be collected into a save payload.
+- The field factory is documented and guardrailed as the single field-construction path.
+
+## Version 0.33.15 - Settings De-Hardcoding: Module-Contributed Settings Framework
 
 Purpose:
 
@@ -267,10 +178,12 @@ Decision:
 
 Settings is framework-owned settings-host infrastructure, not a normal disable-able workflow module. The framework owns the settings page shell and anatomy, the settings catalog, contribution filtering, the settings renderer and its `.view-*` anatomy, generic settings storage, the save dispatch, and the declared attachment points. Individual modules own their setting descriptors (id, label, type, options, default, validation), the meaning and allowed values of each setting, per-setting permission requirements, and — only where a setting has side effects — a persistence/apply handler registered by stable ID. A module must never require a framework schema migration or a hardcoded framework branch to add an ordinary setting.
 
+A setting must be able to affect change in two places — the owning module and the framework — through one uniform read accessor plus an optional on-change effect registered by stable ID; each setting declares which of those two targets it affects. And some framework settings and capabilities are protected: they are framework-owned, may be read-only or owner-only, and can never be disabled or overridden by a module contribution — the same guarantee that already makes core modules like Clients/Projects and Users non-disable-able (`canDisable: false`), extended to the settings layer.
+
 Dependencies and baseline:
 
-- Builds on the framework view baseline (0.33.5.13-0.33.5.18): shared surface/modal/field-grid tokens and the `LongtailForge.view` primitives plus the `renderSurface` descriptor renderer. Settings must consume the finalized view baseline rather than inventing settings-only anatomy, and this version closes the specific renderer gaps (editable bound fields, save-payload binding, missing field types, per-field validation, dependent visibility) that the view baseline deferred.
-- Follows the Reporting contribution contract (0.33.12.3-0.33.12.11) as its template and precedent: a validated data-only manifest contribution, a `modulesService.list*Contributions` method reusing the shared four-axis filter, register-by-ID execution kept separate from catalog filtering, and a grep/regression guardrail forbidding framework->module coupling.
+- Builds on the framework view baseline (0.33.5.13-0.33.5.18) and the 0.33.14 editable form-field primitive: the 0.33.14 field factory supplies the exported field construction, the complete field-type set, and the editable value-bound field grid, so Settings consumes a finished primitive rather than inventing settings-only field anatomy. This version adds only the settings-specific layer on top (save binding to `PUT /api/settings`, dependent-setting visibility, and per-setting validation surfacing).
+- Follows the Reporting contribution contract (0.33.12.2-0.33.12.7) as its template and precedent: a validated data-only manifest contribution, a `modulesService.list*Contributions` method reusing the shared four-axis filter, register-by-ID execution kept separate from catalog filtering, permission-filtered module browser-asset delivery into a framework host, and grep/regression guardrails forbidding framework-to-module coupling.
 - Reuses the existing settings seam rather than replacing it: the manifest already has a validated `settings` field (`manifest-contract.js`), the generic contribution filter `listWorkspaceContributions` already applies enabled-module + required-module + workspace-capability + user-permission filtering, and settings already have a data-descriptor-to-behavior-by-ID split (`MODULE_SETTING_HANDLERS`). This version generalizes those; it does not start from scratch.
 - Honors the view-ownership boundary (framework owns page/anatomy/`.view-*`; modules own data/behavior/validation/save payloads and module-prefixed classes).
 
@@ -280,6 +193,9 @@ Key decisions:
 - **Register-by-ID handlers become opt-in, not mandatory.** The common case (store and read a validated value) is handled generically from the descriptor. A registered handler (generalizing `MODULE_SETTING_HANDLERS`) is required only when a setting has side effects (for example enabling/disabling a module, or writing a legacy per-feature table during migration).
 - **"Where it attaches" is a validated placement key**, modeled on the existing dashboard-panel `placement` contribution, resolving to framework-owned attachment points (workspace settings, user settings, a module's own settings page, and new-workspace creation) — replacing today's implicit `[data-module-settings]` / `[data-module-settings-fields]` / `[data-new-workspace-module-settings]` anchors.
 - **Existing framework-owned settings are migrated behind module ownership with backward-compatible reads.** Billing/rounding/fiscal-year and task settings move to their owning modules; the values keep flowing to the billing/reporting/client-projects consumers through a module-owned accessor, not a framework column read, mirroring the reporting.service.js decoupling.
+- **Settings affect change through one read accessor plus optional on-change effects.** Consuming code — module or framework — reads a setting's current value through a single accessor (`settingsService.getValue(...)`); an optional on-change effect registered by stable ID runs when the value changes (invalidate a cache, refresh navigation, revoke sessions). Read access and effects are separate concerns from write/persistence.
+- **Every setting declares a target: module or framework.** Module-target settings affect only the owning module; framework-target settings affect framework behavior and are framework-owned and guarded. A module contribution cannot reach a framework target it does not own.
+- **Protected framework parts are first-class.** Framework/core settings and capabilities can be marked protected (non-disable, read-only, or owner-only) and can never be removed, disabled, or overridden by a module contribution — extending the existing `canDisable: false` guarantee on core modules (Clients/Projects, Users, Tags) to the settings layer.
 - Settings values are validated at the edge by each module (the module owns validation and allowed values); the framework host stays value-agnostic and never special-cases a first-party module or setting id.
 
 Non-goals:
@@ -290,8 +206,9 @@ Non-goals:
 - Do not change the meaning, defaults, or persisted values of any existing setting; this is relocation and de-hardcoding, not a settings redesign.
 - Do not weaken permission, workspace-capability, enabled-module, private/secure-content, or audit guardrails to make settings contributable.
 - Do not leave two parallel settings renderers: the raw-`document.createElement` `settingsControls` path is replaced by framework view primitives / descriptor fields, not kept alongside them.
+- Do not let a module contribution disable, override, read-only-bypass, or otherwise weaken a protected framework setting or capability, or target the framework; protected framework parts stay framework-owned.
 
-### Version 0.33.14.1 - Settings inventory, ownership map, and storage decision
+### Version 0.33.15.1 - Settings inventory, ownership map, and storage decision
 
 Purpose: Catalog every setting and decide, per setting, its owner and target storage before moving anything.
 
@@ -310,31 +227,37 @@ Acceptance criteria:
 - Every setting has a documented owner, current storage, consumers, and target storage.
 - The framework-owned vs module-owned classification is explicit before any migration.
 
-### Version 0.33.14.2 - Generic module-settings storage and persistence registry
+### Version 0.33.15.2 - Generic settings storage, read accessor, and effect registries
 
-Purpose: Let a module setting be stored and read generically, without a framework schema change per setting.
+Purpose: Build the engine by which settings are stored, read, and reacted-to generically — the mechanism that lets a setting affect change in the owning module or the framework — without a framework schema change per setting.
 
 - [ ] Add a generic per-module/per-workspace settings store addressed by (workspace_id, module_id, setting_id) with JSON-encoded, type-validated values, defaulted from the setting descriptor.
-- [ ] Generalize `MODULE_SETTING_HANDLERS` into a settings persistence registry keyed by `"${moduleId}.${settingId}"`, where a registered handler is optional and needed only for settings with side effects or legacy per-feature storage; the default path stores/reads through the generic store.
+- [ ] Add a uniform read accessor (`settingsService.getValue(context, moduleId, settingId)`, plus a framework-target equivalent) so module code and framework code consume a setting's current value the same way, with descriptor defaulting and workspace scoping. This is how settings "affect change" at read time.
+- [ ] Generalize `MODULE_SETTING_HANDLERS` into two registries keyed by `"${moduleId}.${settingId}"`, both opt-in:
+  - [ ] a persistence registry (optional write/apply handler) for settings that need custom storage or side effects; the default path stores/reads through the generic store with no handler.
+  - [ ] an on-change effect registry (optional "react when this changes" hook) run once after a successful save — invalidate a cache, refresh navigation, revoke sessions, re-evaluate a capability. Effects are separate from persistence and never run on a rejected save.
 - [ ] Route reads/writes so a writable contributed setting no longer requires a `workspace_settings` column or a `normalizeSettings` branch.
 - [ ] Keep the existing `PUT /api/settings` save contract and `moduleSettings` payload shape working.
-- [ ] Add regressions: a new module setting persists and reads back with no framework schema edit; an unknown/read-only/wrong-typed setting is rejected; a handler-backed setting still routes through its handler.
+- [ ] Add regressions: a new module setting persists and reads back with no framework schema edit; the read accessor returns the stored value or the descriptor default; an on-change effect fires exactly once after a successful save and never after a rejected one; an unknown/read-only/wrong-typed setting is rejected; a handler-backed setting still routes through its handler.
 
 Acceptance criteria:
 
-- A module can persist a validated functional setting through the generic store with no framework column, normalizer branch, or hardcoded handler.
-- Handler-by-ID remains available for side-effecting settings and legacy tables.
+- A module can persist and read a validated functional setting through the generic store and accessor with no framework column, normalizer branch, or hardcoded handler.
+- Persistence handlers and on-change effects are opt-in, registered by stable ID, and available to both module-target and framework-target settings.
 
-### Version 0.33.14.3 - Settings contribution contract (manifest) and listing method
+### Version 0.33.15.3 - Settings contribution contract (manifest) and listing method
 
 Purpose: Promote the manifest `settings` field into a full, validated contribution that says what the setting is and where it attaches.
 
 - [ ] Extend the manifest settings contribution (validated in `manifest-contract.js`) with:
   - [ ] an attachment/`placement` target validated against a fixed attachment-point set (modeled on dashboard `placement`).
+  - [ ] a `target` of `module` or `framework` declaring what the setting affects (default `module`); framework-target settings bind to the framework read accessor/effects from 0.33.15.2.
+  - [ ] a `protected` / `readOnly` / `ownerOnly` flag for framework-owned or core settings that must not be disabled, overridden, or edited except by the framework or an owner.
   - [ ] the standard filter axes (`requiredPermissions`, `requiredWorkspaceCapabilities`, `requiresEnabledModules`/`requiredModules`).
-  - [ ] an optional handler/runner **string ID** (never a function).
+  - [ ] an optional handler/runner and on-change effect **string ID** (never a function).
   - [ ] the field metadata: `id`, `label`, `type` (boolean/toggle, text, number, select, multi-select, radio, and info for display-only), `options`, `min/max/step`, `default`, `description`, `readOnly`.
 - [ ] Add `validateSettingsContributions(...)` to the manifest validation sequence and to `ACTIVE_MANIFEST_FIELDS`; keep contributions data-only (no functions in manifests — the `hooks` exception does not apply here).
+- [ ] Validate the protected boundary: a module contribution cannot set `target: framework`, mark a setting `protected`, or reuse/override a framework-owned or protected setting id — only framework-registered settings may target the framework or be protected. Reject at manifest-validation time.
 - [ ] Add `modulesService.listSettingsContributions(workspaceId, session)` as a thin wrapper over `listWorkspaceContributions(...)`, inheriting the four filters and terminology resolution for free.
 - [ ] Keep contribution listing separate from value read/write so the catalog is permission-safe without executing setting code.
 - [ ] Update `docs/module-contract.md` with the finalized settings contribution shape.
@@ -344,23 +267,24 @@ Acceptance criteria:
 - A module can declare a setting and its attachment point declaratively, with permission/capability/enabled-module filtering applied by the shared helper.
 - Contribution validation is data-only and documented.
 
-### Version 0.33.14.4 - Framework settings renderer and settings-section primitive
+### Version 0.33.15.4 - Settings renderer: sections, value binding, and validation
 
-Purpose: Close the declarative-renderer gaps so settings render from a descriptor through framework primitives, not raw DOM.
+Purpose: Render settings from a descriptor by consuming the 0.33.14 field-factory primitive, adding only the settings-specific layer the primitive does not own.
 
-- [ ] Add an editable, value-bound settings field grid (today the persistent field grid renders disabled) and a save-payload contract that collects live field values into the `PUT /api/settings` payload (generalizing `readModuleSettingsPayload`).
-- [ ] Add the missing field types/attributes to the renderer: toggle/switch, radio group, multi-select, plus numeric `max` and `inputmode`.
-- [ ] Add a framework settings-section/fieldset primitive so multiple titled editable sections can be rendered (beyond the single read-only info panel and single `itemForm`).
-- [ ] Add per-field validation/error surfacing and dependent-field visibility (`visibleWhen`) for settings that gate other settings (for example a rounding-increment select enabled only when rounding is on).
-- [ ] Replace the raw-`document.createElement` `settingsControls`/`settingsNormalizers` output with framework view primitives / descriptor fields and retire the parallel renderer.
-- [ ] Add regressions for each new field type, save-payload collection, validation surfacing, and dependent visibility.
+- [ ] Consume the 0.33.14 exported field-factory primitive and its editable, value-bound field grid for all settings fields; do not build field DOM in settings code and do not re-implement field types here.
+- [ ] Add the framework settings-section/fieldset host that groups a contribution's fields under a titled section with a save action, built on framework view primitives.
+- [ ] Wire the primitive's value-collection into the `PUT /api/settings` `moduleSettings` save payload.
+- [ ] Add dependent-setting visibility (`visibleWhen`) so a setting can gate another (for example a rounding-increment select shown only when rounding is on).
+- [ ] Surface per-setting validation errors through the primitive's error channel, with each module owning its validation and allowed values.
+- [ ] Retire the raw-`document.createElement` `settingsControls`/`settingsNormalizers` path in favor of the primitive/descriptor.
+- [ ] Add regressions for settings-section rendering, save-payload binding, dependent visibility, and validation surfacing.
 
 Acceptance criteria:
 
-- A settings section with editable, bound, validated fields renders from a descriptor with no hand-built DOM.
+- Settings sections render from a descriptor via the 0.33.14 primitive with no hand-built DOM, and save through `PUT /api/settings`.
 - The parallel raw-DOM settings renderer is gone; settings use framework `.view-*` anatomy.
 
-### Version 0.33.14.5 - Framework settings host, catalog route, and attachment points
+### Version 0.33.15.5 - Framework settings host, catalog route, and attachment points
 
 Purpose: Assemble contributed settings into framework-owned hosts at declared attachment points.
 
@@ -375,7 +299,7 @@ Acceptance criteria:
 - Contributed settings render into the correct framework-owned attachment point, permission-filtered.
 - Settings pages are minimal framework hosts, not hand-built forms.
 
-### Version 0.33.14.6 - Migrate hardcoded module settings and decouple the framework settings service
+### Version 0.33.15.6 - Migrate hardcoded module settings and decouple the framework settings service
 
 Purpose: Move the baked-in module settings to their owning modules and remove module-specific knowledge from framework settings code.
 
@@ -392,7 +316,7 @@ Acceptance criteria:
 - The framework settings service imports no specific module service and hardcodes no module setting id, proven by a guardrail.
 - Migrated settings keep their values and behavior.
 
-### Version 0.33.14.7 - De-hardcode the permission resource catalog
+### Version 0.33.15.7 - De-hardcode the permission resource catalog
 
 Purpose: Render the permission matrix from module-contributed resources instead of a hardcoded list.
 
@@ -405,11 +329,11 @@ Acceptance criteria:
 
 - The permission matrix is built from contributed `resourceDefinitions`, not a framework-hardcoded list.
 
-### Version 0.33.14.8 - Guardrails, docs, and closeout
+### Version 0.33.15.8 - Guardrails, docs, and closeout
 
 Purpose: Lock in the de-hardcoding and document the settings contract.
 
-- [ ] Add guardrails: no new framework-hardcoded setting (settings must come through the contribution contract), settings pages remain minimal hosts, no raw `document.createElement` for framework-owned settings anatomy, and no first-party module/setting id special-casing in the host.
+- [ ] Add guardrails: no new framework-hardcoded setting (settings must come through the contribution contract), settings pages remain minimal hosts, no raw `document.createElement` for framework-owned settings anatomy, no first-party module/setting id special-casing in the host, and a module contribution cannot disable, override, weaken, or target a protected framework setting or capability.
 - [ ] Update `docs/module-contract.md` (settings contribution), `docs/declarative-view-surfaces.md` (move settings surfaces out of "reported" into converted), `docs/settings-control-matrix.md`, and `docs/view-building-contract.md`.
 - [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and the roadmap archive; confirm `/api/app-info` after implementation.
 - [ ] Run `npm run check`, `npm run test:permissions`, and the settings/declarative-surface regressions.
@@ -419,17 +343,17 @@ Acceptance criteria:
 - A new module setting requires only a manifest contribution (plus an optional registered handler for side effects), with no framework edit.
 - Settings surfaces are documented as framework-owned converted hosts, and the release-gate checks pass.
 
-## Version 0.33.15 - Internet-Exposure Security Hardening, Self-Hosted Release Packaging, and Bare-Metal Auto-Upgrade
+## Version 0.33.16 - Internet-Exposure Security Hardening, Self-Hosted Release Packaging, and Bare-Metal Auto-Upgrade
 
 Purpose:
 
-Before this version the app was only safe behind a closed network or an external access gate (for example Cloudflare Access); the immediate driver for 0.33.15 is to harden the authentication and session surface enough for a private internet launch, then give self-hosted installs a clean, runtime-only release artifact and a safe, opt-in in-place updater. Before this slice, "self-hosting" means cloning the whole repo (dev/test tooling and all) and trusting the network perimeter; after it, a self-hoster can expose a hardened app directly on the public internet, run a slim runtime artifact, and upgrade without manually re-pulling and reinstalling.
+Before this version the app was only safe behind a closed network or an external access gate (for example Cloudflare Access); the immediate driver for 0.33.16 is to harden the authentication and session surface enough for a private internet launch, then give self-hosted installs a clean, runtime-only release artifact and a safe, opt-in in-place updater. Before this slice, "self-hosting" means cloning the whole repo (dev/test tooling and all) and trusting the network perimeter; after it, a self-hoster can expose a hardened app directly on the public internet, run a slim runtime artifact, and upgrade without manually re-pulling and reinstalling.
 
 The upgrade target for this version is bare-metal: a single Node process on a host (for example under systemd or a process manager), not a container or orchestrated fleet. Container images and SaaS/managed-fleet upgrades are explicitly out of scope here and deferred to later hosting/SaaS work.
 
 This version has three parts that together make a private internet launch safe:
 
-- Internet-exposure security hardening (lands first, 0.33.15.1-0.33.15.6): trusted reverse-proxy handling, login throttling/rate limiting, session revocation and forced logout, password resets, security event logging, and additional password-hashing hardening, so the app can be exposed to the internet without leaking data or depending on an external access gate.
+- Internet-exposure security hardening (lands first, 0.33.16.1-0.33.16.6): trusted reverse-proxy handling, login throttling/rate limiting, session revocation and forced logout, password resets, security event logging, and additional password-hashing hardening, so the app can be exposed to the internet without leaking data or depending on an external access gate.
 - A packaging boundary that separates runtime code from dev/test tooling so the shipped artifact is slim and does not require ESLint/TypeScript/Vitest/Playwright/the regression suite to run.
 - A bare-metal updater that compares the installed version against the latest GitHub release, surfaces availability, and can download, verify, back up, apply, migrate, restart, and roll back on failure.
 
@@ -440,7 +364,7 @@ Dependencies and sequencing:
 - Builds on the 0.33.6.16 release-gate closeout conductor, so a release artifact can be gated before it is published.
 - Relies on the runtime-vs-dev separation the codebase already maintains (`npm start` stays `node server.js`; TypeScript/Vitest/Playwright are dev-only; Zod stays a runtime dependency because it validates untrusted input). This slice formalizes that separation into a packaging boundary rather than inventing it.
 - Assumes an actual published release channel exists (GitHub Releases for the AGPL core; see the 0.33.6.16.9 licensing/public-release gates). If releases are not yet published, this slice defines the mechanism and the manual-artifact fallback, and the GitHub fetch activates once a public release channel is live.
-- Slotted at 0.33.15 after Reporting (0.33.12), the Lists UI/UX overhaul (0.33.13), and the Settings de-hardcoding pass (0.33.14), at project direction; it is otherwise independent of those branches.
+- Slotted at 0.33.16 after Reporting (0.33.12), the Lists UI/UX overhaul (0.33.13), the view-primitive foundation (0.33.14), and the Settings de-hardcoding pass (0.33.15), at project direction; it is otherwise independent of those branches.
 - Bare-metal only; container and multi-tenant SaaS upgrade orchestration are deferred and cross-referenced to later hosting/SaaS and 0.38.x production-hardening work.
 
 Key decisions:
@@ -470,7 +394,7 @@ Non-goals:
 - Do not add an email/notification transport in this version; the app has none today, so token-based self-service ("forgot password") reset is deferred to a future version and the already-shipped admin reset (Settings -> Workspace -> User Admin) is hardened as the supported recovery path.
 - Do not weaken existing permission, workspace, private/secure-content, or audit guardrails to add these controls.
 
-### Version 0.33.15.1 - Trusted reverse-proxy and secure-edge request handling
+### Version 0.33.16.1 - Trusted reverse-proxy and secure-edge request handling
 
 **Model: High Effort** — Getting proxy trust wrong either lets clients spoof their source IP (defeating throttling, audit, and security logging) or breaks Secure-cookie/HTTPS behavior behind TLS termination; both are security-critical and subtle.
 
@@ -499,21 +423,21 @@ Acceptance criteria:
 - A single shared helper is the only source of client IP, and throttling, audit, and security logging all consume it.
 - Direct internet exposure without a proxy cannot be tricked into trusting forwarded headers.
 
-### Version 0.33.15.2 - Login throttling and authentication rate limiting
+### Version 0.33.16.2 - Login throttling and authentication rate limiting
 
-**Model: High Effort** — Throttling sits directly on the login/auth path; a mistake either locks out real users or leaves brute-forcing open, and it must key on the trusted IP established in 0.33.15.1.
+**Model: High Effort** — Throttling sits directly on the login/auth path; a mistake either locks out real users or leaves brute-forcing open, and it must key on the trusted IP established in 0.33.16.1.
 
 Purpose:
 
-Protect the public login surface from credential brute-forcing and account enumeration once the app is reachable on the internet. `authService.login` currently performs unlimited constant-cost attempts and returns a generic 401 with no per-IP or per-account backoff. This slice adds throttling keyed on the trusted client IP (0.33.15.1) and on the submitted account, without revealing which accounts exist.
+Protect the public login surface from credential brute-forcing and account enumeration once the app is reachable on the internet. `authService.login` currently performs unlimited constant-cost attempts and returns a generic 401 with no per-IP or per-account backoff. This slice adds throttling keyed on the trusted client IP (0.33.16.1) and on the submitted account, without revealing which accounts exist.
 
 - [ ] Add an authentication throttle that tracks recent failed attempts per client IP and per targeted username, with a configurable window, threshold, and lockout/backoff duration.
 - [ ] Apply progressive backoff or temporary lockout after repeated failures, and reset the counter on a successful authentication.
-- [ ] Key throttling on the trusted client IP from the 0.33.15.1 helper, never on raw `X-Forwarded-For`.
+- [ ] Key throttling on the trusted client IP from the 0.33.16.1 helper, never on raw `X-Forwarded-For`.
 - [ ] Keep responses non-enumerating: throttled and invalid-credential responses must not reveal whether the account exists, and timing should stay uniform.
 - [ ] Return a framework `AppError` with the correct status (for example 429) and a "too many attempts, try again later" message consistent with the existing error envelope.
-- [ ] Cover the other credential-checking edges consistently (self-service change-password verification, the reset flow in 0.33.15.4, and any public API key auth surface) so throttling is not trivially bypassed.
-- [ ] Emit a security event on lockout/threshold breach for 0.33.15.5.
+- [ ] Cover the other credential-checking edges consistently (self-service change-password verification, the reset flow in 0.33.16.4, and any public API key auth surface) so throttling is not trivially bypassed.
+- [ ] Emit a security event on lockout/threshold breach for 0.33.16.5.
 - [ ] Make limits configurable and disable-able for trusted internal/offline deployments, with safe internet-facing defaults.
 - [ ] Add focused regressions:
   - [ ] repeated failures from one IP are throttled and then locked out for the window.
@@ -527,7 +451,7 @@ Acceptance criteria:
 - Throttling keys on the trusted client IP and cannot be bypassed by forged headers.
 - Responses never reveal account existence, and lockouts emit a security event.
 
-### Version 0.33.15.3 - Session revocation and forced logout
+### Version 0.33.16.3 - Session revocation and forced logout
 
 **Model: High Effort** — Session lifecycle is the core of "do not leak data"; revocation must be complete and immediate, and it interacts with password change, reset, deactivation, and rehash.
 
@@ -541,13 +465,13 @@ Give owners/admins and the auth flows a reliable way to revoke sessions and forc
   - [ ] revoke all of a user's sessions except the current one.
 - [ ] Force logout on security-relevant events:
   - [ ] on self-service password change (`authService.changePassword`), revoke the user's other sessions,
-  - [ ] on admin password reset (0.33.15.4), revoke all of the target user's sessions,
+  - [ ] on admin password reset (0.33.16.4), revoke all of the target user's sessions,
   - [ ] on user deactivation / status change to inactive, revoke all of that user's sessions,
-  - [ ] on password-hash upgrade/rehash where a deployment requires it (0.33.15.6).
+  - [ ] on password-hash upgrade/rehash where a deployment requires it (0.33.16.6).
 - [ ] Surface an owner/admin action to view and revoke a user's active sessions, gated behind the existing permission/role checks; never expose it to ordinary users or across workspace boundaries.
 - [ ] Optionally let a user list and revoke their own active sessions from user settings.
 - [ ] Ensure a revoked session id is rejected on the very next request through the existing `getRequestSession` path, and that the framework-owned session-expiry modal (0.33.11.6) surfaces the forced logout cleanly rather than a console-only failure.
-- [ ] Emit a security event for each revocation for 0.33.15.5.
+- [ ] Emit a security event for each revocation for 0.33.16.5.
 - [ ] Add focused regressions:
   - [ ] revoking a session rejects its next request.
   - [ ] "log out everywhere" invalidates all of a user's sessions.
@@ -561,7 +485,7 @@ Acceptance criteria:
 - Password change, admin reset, and deactivation force logout of the affected sessions.
 - Revocation is permission-gated, workspace-safe, and emits security events.
 
-### Version 0.33.15.4 - Password reset hardening
+### Version 0.33.16.4 - Password reset hardening
 
 **Model: High Effort** — Password reset is a classic account-takeover vector; the existing admin reset already changes credentials but does not currently invalidate the target's live sessions, so tightening it must be exact about revocation and forced re-login.
 
@@ -570,12 +494,12 @@ Purpose:
 Harden the reset paths that already exist rather than build a new one. Admin-initiated reset is already shipped: Settings -> Workspace -> User Admin exposes a reset action backed by `usersService.resetPassword` ([src/services/users.service.js](src/services/users.service.js)), which is gated behind `users.manage`, generates a new credential with `createGeneratedPassword`, updates the stored hash, surfaces the generated password once to the admin, and audits `user_password_reset`. Self-service `changePassword` (which requires the current password) also exists. The gap for an internet launch is that neither path revokes the target user's other live sessions, forces a re-login, or feeds the security event stream — and there is no self-service recovery for a genuinely locked-out user, because the app has no email/notification transport today.
 
 - [ ] Harden the existing admin reset (`usersService.resetPassword`):
-  - [ ] on reset, revoke all of the target user's sessions (0.33.15.3) so an attacker who holds a live session is kicked out immediately,
+  - [ ] on reset, revoke all of the target user's sessions (0.33.16.3) so an attacker who holds a live session is kicked out immediately,
   - [ ] require a password change on next login for the target where practical, so the one-time generated credential cannot linger as a permanent password,
   - [ ] keep the generated credential surfaced once to the admin and confirm it is never written to logs in plaintext,
-  - [ ] emit a dedicated security event on reset (0.33.15.5) in addition to the existing `user_password_reset` audit record.
-- [ ] Harden self-service `changePassword` to revoke the user's other sessions on success (shared with 0.33.15.3) and emit a security event.
-- [ ] Apply the 0.33.15.2 throttle to reset/change endpoints so they cannot be hammered.
+  - [ ] emit a dedicated security event on reset (0.33.16.5) in addition to the existing `user_password_reset` audit record.
+- [ ] Harden self-service `changePassword` to revoke the user's other sessions on success (shared with 0.33.16.3) and emit a security event.
+- [ ] Apply the 0.33.16.2 throttle to reset/change endpoints so they cannot be hammered.
 - [ ] Confirm the reset flow stays workspace-scoped and permission-safe, and that a reset cannot target a user the admin has no `users.manage` authority over.
 - [ ] Token-based self-service reset is explicitly deferred: the app has no email/notification transport, so a forgot-password email/token flow is out of scope for this version. Record it as a future extension gated on a delivery channel, and — when built — require a single-use, time-limited, hashed-at-rest token delivered out-of-band, a non-enumerating "if an account exists, a reset was sent" response, throttling, and forced logout on redemption. Until then, admin reset is the supported recovery path.
 - [ ] Add focused regressions:
@@ -590,7 +514,7 @@ Acceptance criteria:
 - Admin reset stays permission-gated and workspace-scoped, and the one-time credential is surfaced once and never logged.
 - Token-based self-service reset is documented as deferred until a delivery channel exists, with admin reset as the supported recovery path.
 
-### Version 0.33.15.5 - Security event logging
+### Version 0.33.16.5 - Security event logging
 
 **Model: High Effort** — This is the audit backbone for an internet-exposed install; it must capture the right events without recording secrets and stay permission-safe.
 
@@ -600,12 +524,12 @@ Give an internet-exposed install a clear, queryable record of security-relevant 
 
 - [ ] Define a security-event category (a dedicated record/change type or a severity tag on `auditService`) covering:
   - [ ] failed and successful logins, including the reason class (bad credentials, inactive user, throttled/locked out),
-  - [ ] throttle/lockout triggers (0.33.15.2),
-  - [ ] session revocations and forced logouts (0.33.15.3),
-  - [ ] password change and admin password reset (0.33.15.4),
-  - [ ] password-hash upgrades/rehash (0.33.15.6),
+  - [ ] throttle/lockout triggers (0.33.16.2),
+  - [ ] session revocations and forced logouts (0.33.16.3),
+  - [ ] password change and admin password reset (0.33.16.4),
+  - [ ] password-hash upgrades/rehash (0.33.16.6),
   - [ ] permission-denied / authorization failures on protected routes where practical.
-- [ ] Record actor (or attempted username), trusted client IP (0.33.15.1), timestamp, event type, outcome, and safe metadata; never record passwords, tokens, session ids, or hashes.
+- [ ] Record actor (or attempted username), trusted client IP (0.33.16.1), timestamp, event type, outcome, and safe metadata; never record passwords, tokens, session ids, or hashes.
 - [ ] Add a failed-login audit path so authentication failures are recorded, without leaking account existence in the record's user-facing surfaces.
 - [ ] Surface a security-event view to owners/admins, permission-gated and workspace-scoped, reusing the existing audit query/filtering surface where possible.
 - [ ] Keep security logging resilient: a logging failure must never block or crash the auth path.
@@ -621,7 +545,7 @@ Acceptance criteria:
 - Records carry actor/IP/outcome and never contain secrets.
 - The security view is permission-gated and workspace-safe, and logging never blocks auth.
 
-### Version 0.33.15.6 - Additional password-hashing hardening
+### Version 0.33.16.6 - Additional password-hashing hardening
 
 **Model: High Effort** — Changing the credential-at-rest format risks locking users out or silently weakening hashing; it needs algorithm agility and transparent migration.
 
@@ -633,9 +557,9 @@ Strengthen credential-at-rest and make the hashing scheme upgradeable. `src/secu
 - [ ] Add transparent rehash-on-verify: when a user authenticates and their stored hash uses an outdated algorithm/parameters, re-hash with the current scheme and update the stored value.
 - [ ] Keep `hashPassword`/`verifyPassword` the single choke point, and ensure all callers (`login`, `changePassword`, admin reset, seeding) go through it.
 - [ ] Consider an optional server-side pepper/secret sourced from configuration (never stored with the hash), with clear key-management and rotation notes; keep it optional and off by default to avoid lockout risk.
-- [ ] Preserve constant-time verification (`timingSafeEqual`) and confirm no plaintext or hash is ever logged (ties into 0.33.15.5).
+- [ ] Preserve constant-time verification (`timingSafeEqual`) and confirm no plaintext or hash is ever logged (ties into 0.33.16.5).
 - [ ] Optionally tighten `validatePassword` (length/complexity) for internet exposure without invalidating existing valid credentials.
-- [ ] Coordinate with 0.33.15.3 so a rehash or parameter bump can force re-authentication where a deployment requires it.
+- [ ] Coordinate with 0.33.16.3 so a rehash or parameter bump can force re-authentication where a deployment requires it.
 - [ ] Add focused regressions:
   - [ ] a legacy PBKDF2 hash still verifies.
   - [ ] a legacy hash is transparently upgraded on successful login.
@@ -648,7 +572,7 @@ Acceptance criteria:
 - Existing hashes verify and are transparently upgraded on next login without a mass reset.
 - Hashing stays behind one choke point, constant-time, secret-free in logs, and upgrade-ready.
 
-### Version 0.33.15.7 - Runtime/dev file boundary and release-artifact packaging
+### Version 0.33.16.7 - Runtime/dev file boundary and release-artifact packaging
 
 Purpose:
 
@@ -679,7 +603,7 @@ Acceptance criteria:
 - The artifact boots with `node server.js` and requires no dev/test tooling.
 - A guardrail proves dev/test files and secrets are excluded and runtime files are complete.
 
-### Version 0.33.15.8 - GitHub release check and version comparison
+### Version 0.33.16.8 - GitHub release check and version comparison
 
 Purpose:
 
@@ -709,7 +633,7 @@ Acceptance criteria:
 - Version comparison uses the canonical version source.
 - Update checking is configurable and fails safe.
 
-### Version 0.33.15.9 - Update availability surfacing (admin/about)
+### Version 0.33.16.9 - Update availability surfacing (admin/about)
 
 Purpose:
 
@@ -719,7 +643,7 @@ Show update status to authorized users without nagging everyone.
 - [ ] Show installed version, latest available version, a release-notes link, and last-checked time.
 - [ ] Gate visibility and any upgrade action behind owner/admin permission; never expose it to ordinary users.
 - [ ] Provide a manual "check now" action.
-- [ ] Keep this warning/informational only in this slice; applying the upgrade is 0.33.15.10+.
+- [ ] Keep this warning/informational only in this slice; applying the upgrade is 0.33.16.10+.
 - [ ] Add focused regressions:
 
   - [ ] the update banner/status is visible to owner/admin only.
@@ -731,7 +655,7 @@ Acceptance criteria:
 - Authorized users can see whether an update is available and what it contains.
 - Update status respects permission and workspace boundaries.
 
-### Version 0.33.15.10 - Bare-metal upgrade executor: download, verify, backup, apply, migrate, restart
+### Version 0.33.16.10 - Bare-metal upgrade executor: download, verify, backup, apply, migrate, restart
 
 Purpose:
 
@@ -763,7 +687,7 @@ Acceptance criteria:
 - Migrations run as part of the upgrade.
 - The upgrade never applies an unverified artifact and never applies without a backup.
 
-### Version 0.33.15.11 - Health check, rollback, and manual/air-gapped fallback
+### Version 0.33.16.11 - Health check, rollback, and manual/air-gapped fallback
 
 Purpose:
 
@@ -787,7 +711,7 @@ Acceptance criteria:
 - Upgrades are auditable via recorded history.
 - Air-gapped installs can upgrade from a verified local artifact.
 
-### Version 0.33.15.12 - Config, kill-switch, permissions, and closeout
+### Version 0.33.16.12 - Config, kill-switch, permissions, and closeout
 
 Purpose:
 

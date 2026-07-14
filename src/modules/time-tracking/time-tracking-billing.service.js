@@ -1,4 +1,5 @@
 import { clientsService } from "../client-projects/clients.service.js";
+import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { settingsService } from "../../services/settings.service.js";
 import { timeEntriesService } from "./time-entries.service.js";
@@ -21,13 +22,13 @@ async function readDashboardBillingSummary(session) {
     .filter((scope) => scope.status === "Active");
   const currentMonthRows = summarizeBillingScopesForRange(settings, activeScopes, entries, getMonthRange(new Date()))
     .filter((row) => row.billableSeconds > 0);
-  const currentMonthTotals = currentMonthRows.reduce((summary, row) => ({
+  const currentMonthTotals = filterRollupScopeSummaries(currentMonthRows).reduce((summary, row) => ({
     amount: summary.amount + row.amount,
     seconds: summary.seconds + row.billableSeconds,
   }), { amount: 0, seconds: 0 });
   const chartPoints = getTrailingMonthStarts(12).map((monthStart) => {
     const range = getMonthRange(monthStart);
-    const totals = summarizeBillingScopesForRange(settings, activeScopes, entries, range)
+    const totals = filterRollupScopeSummaries(summarizeBillingScopesForRange(settings, activeScopes, entries, range))
       .reduce((summary, row) => ({
         amount: summary.amount + row.amount,
         seconds: summary.seconds + row.displaySeconds,
@@ -47,10 +48,88 @@ async function readDashboardBillingSummary(session) {
   };
 }
 
+async function readReportingBootstrap(session) {
+  const { settings, scopes, moduleContext } = await readProjectTimeBillingContext(session, {
+    includeModuleContext: true,
+  });
+  const clientFiltersVisible = settings.workspaceType === "business";
+
+  return {
+    workspace: workspaceSummary(session, settings),
+    clientFiltersVisible,
+    defaultScopeId: clientFiltersVisible ? "" : scopes[0]?.id || "",
+    scopes,
+    reportPanels: readModulePanels(moduleContext.modules, "reporting"),
+  };
+}
+
+async function readProjectSummary(session, query = {}) {
+  const { settings, scopes } = await readProjectTimeBillingContext(session);
+  const entries = normalizeTimeEntries((await timeEntriesService.list(session, {
+    tagIds: query.tagIds || query.tag_ids || query.tags,
+  })).entries);
+  const scope = scopes.find((item) => item.id === String(query.scopeId || query.scope_id || "").trim());
+  const includeDescendants = parseIncludeDescendants(query);
+
+  if (!scope) {
+    throw new AppError("Reporting scope not found.", 404);
+  }
+
+  const selectedProjectIds = parseSelectedIds(query.projectIds || query.project_ids);
+  const selectedTaskIds = parseSelectedIds(query.taskIds || query.task_ids || query.taskId || query.task_id);
+  const projects = scope.projects
+    .filter((project) => selectedProjectIds.length === 0 || selectedProjectIds.includes(project.id));
+
+  if (projects.length === 0) {
+    return emptyProjectSummary(scope, selectedTaskIds);
+  }
+
+  const scopeEntries = entries
+    .filter((entry) => matchesScope(entry, scope, { includeDescendants }))
+    .filter((entry) => selectedTaskIds.length === 0 || selectedTaskIds.includes(entry.taskId));
+  const summary = summarizeProjectBillingRows(settings, scope, projects, scopeEntries, query, {
+    includeDescendants,
+  });
+
+  return {
+    scope,
+    taskFilter: selectedTaskIds,
+    ...summary,
+  };
+}
+
+async function runProjectTimeBillingReport({ filters, session }) {
+  return readProjectSummary(session, filters);
+}
+
+async function readProjectTimeBillingContext(session, options = {}) {
+  await permissionsService.assertCanInAnyScope(session, "reporting.view", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  });
+
+  const { modulesService } = await import("../../core/modules/modules.service.js");
+
+  if (!(await modulesService.canWriteModule(session.workspace_id, "time-tracking"))) {
+    throw new AppError("This report is unavailable for this workspace.", 403);
+  }
+
+  const [settings, clientProjectData, moduleContext] = await Promise.all([
+    settingsService.read(session),
+    clientsService.readClientProjects(session),
+    options.includeModuleContext
+      ? modulesService.readWorkspaceModuleContext(session.workspace_id)
+      : Promise.resolve(null),
+  ]);
+  const scopes = buildBillingScopes(clientProjectData, settings, options);
+
+  return { settings, scopes, moduleContext };
+}
+
 function buildBillingScopes(data, settings, options = {}) {
   const includeInactive = Boolean(options.includeInactive);
   const workspaceProjects = Array.isArray(data.workspaceProjects)
-    ? data.workspaceProjects.map((project) => normalizeProject(project, "yes"))
+    ? data.workspaceProjects
     : [];
   const workspaceScope = workspaceProjects.length > 0
       ? [normalizeScope({
@@ -60,12 +139,12 @@ function buildBillingScopes(data, settings, options = {}) {
         billable: "yes",
         isWorkspaceScope: true,
         projects: workspaceProjects,
-      })]
+      }, settings)]
     : [];
   const clientScopes = Array.isArray(data.clients)
     ? data.clients
         .filter((client) => includeInactive || client.status !== "Inactive")
-        .map((client) => normalizeScope(client))
+        .map((client) => normalizeScope(client, settings))
     : [];
 
   if (settings.workspaceType !== "business") {
@@ -89,37 +168,52 @@ function attachDescendantClientProjects(scopes) {
   });
 }
 
-function normalizeScope(client) {
+function normalizeScope(client, settings) {
   const billable = normalizeBillableFlag(client.billable);
+  const billingRate = parseOptionalMoney(client.billing_rate);
+  const billingPeriod = normalizeOptionalBillingPeriod(client.billing_period);
+  const billingRounding = normalizeOptionalBillingRounding(client.billing_rounding);
+  const inheritedBilling = {
+    rate: billingRate ?? parseMoney(settings.defaultBillingRate),
+    period: billingPeriod || normalizeBillingPeriod(settings.billingPeriod),
+    rounding: billingRounding || normalizeBillingRounding(settings.billingRounding),
+  };
 
   return {
     id: String(client.id || "").trim(),
     name: String(client.name || "").trim(),
     status: client.status === "Inactive" ? "Inactive" : "Active",
     billable,
-    billingRate: parseOptionalMoney(client.billing_rate),
-    billingPeriod: normalizeOptionalBillingPeriod(client.billing_period),
-    billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
+    billingRate,
+    billingPeriod,
+    billingRounding,
     isWorkspaceScope: Boolean(client.isWorkspaceScope),
     parentScopeId: String(client.parent_client_id || "").trim(),
     depth: Number.isFinite(Number(client.depth)) ? Number(client.depth) : 0,
     childScopeIds: Array.isArray(client.childScopeIds) ? client.childScopeIds : [],
     projects: decorateProjectDescendants(Array.isArray(client.projects)
-      ? client.projects.map((project) => normalizeProject(project, billable))
+      ? client.projects.map((project) => normalizeProject(project, billable, inheritedBilling))
       : []),
   };
 }
 
-function normalizeProject(project, fallbackBillable = "yes") {
+function normalizeProject(project, fallbackBillable = "yes", inheritedBilling = {}) {
+  const billingRate = parseOptionalMoney(project.billing_rate);
+  const billingPeriod = normalizeOptionalBillingPeriod(project.billing_period);
+  const billingRounding = normalizeOptionalBillingRounding(project.billing_rounding);
+
   return {
     id: String(project.id || "").trim(),
     name: String(project.name || "").trim(),
     parentProjectId: String(project.parent_project_id || "").trim(),
     status: project.status === "Inactive" ? "Inactive" : "Active",
     billable: normalizeBillableFlag(project.billable, fallbackBillable),
-    billingRate: parseOptionalMoney(project.billing_rate),
-    billingPeriod: normalizeOptionalBillingPeriod(project.billing_period),
-    billingRounding: normalizeOptionalBillingRounding(project.billing_rounding),
+    billingRate,
+    billingPeriod,
+    billingRounding,
+    effectiveBillingRate: billingRate ?? inheritedBilling.rate ?? 0,
+    effectiveBillingPeriod: billingPeriod || inheritedBilling.period || normalizeBillingPeriod(null),
+    effectiveBillingRounding: billingRounding || inheritedBilling.rounding || normalizeBillingRounding(null),
   };
 }
 
@@ -146,8 +240,9 @@ function summarizeBillingScopesForRange(settings, scopes, entries, range) {
 function summarizeBillingScopeForRange(settings, scope, entries, range) {
   const scopeEntries = entries.filter((entry) => matchesScope(entry, scope, { includeDescendants: true }));
   const projectSummaries = filterRollupProjects(scope.projects, { includeDescendants: true })
-    .map((project) => summarizeBillingProject(settings, scope, project, scopeEntries, range, {
+    .map((project) => summarizeBillingProjectTree(settings, scope, project, scope.projects, scopeEntries, {
       includeDescendants: true,
+      range,
     }))
     .filter(Boolean);
   const totals = projectSummaries.reduce((summary, projectSummary) => ({
@@ -169,9 +264,80 @@ function summarizeBillingScopeForRange(settings, scope, entries, range) {
   };
 }
 
-function summarizeBillingProject(settings, scope, project, entries, range, options = {}) {
+function summarizeProjectBillingRows(settings, scope, selectedProjects, entries, query = {}, options = {}) {
+  const includeDescendants = Boolean(options.includeDescendants);
+  const rows = filterRollupProjects(selectedProjects, { includeDescendants })
+    .map((project) => summarizeBillingProjectTree(settings, scope, project, scope.projects, entries, {
+      includeDescendants,
+      query,
+      today: options.today,
+    }))
+    .filter(Boolean);
+  const totals = rows.reduce((summary, row) => ({
+    amount: summary.amount + row.amount,
+    seconds: summary.seconds + row.displaySeconds,
+  }), { amount: 0, seconds: 0 });
+
+  return { rows, totals };
+}
+
+function summarizeBillingProjectTree(settings, scope, project, projects, entries, options = {}) {
+  const includeDescendants = Boolean(options.includeDescendants);
+  const range = options.range || readSelectedDateRange(
+    settings,
+    scope,
+    project,
+    options.query,
+    options.today,
+  );
+  const direct = summarizeDirectBillingProject(settings, scope, project, entries, range);
+  const childRows = includeDescendants
+    ? sortProjectTree(projects)
+        .filter((candidate) => candidate.parentProjectId === project.id)
+        .map((childProject) => summarizeBillingProjectTree(
+          settings,
+          scope,
+          childProject,
+          projects,
+          entries,
+          {
+            ...options,
+            depth: Number(options.depth || 0) + 1,
+            preserveEmpty: true,
+          },
+        ))
+    : [];
+  const branch = [direct || emptyProjectRow(settings, scope, project), ...childRows]
+    .reduce((summary, row) => ({
+      amount: summary.amount + row.amount,
+      billableSeconds: summary.billableSeconds + row.billableSeconds,
+      displaySeconds: summary.displaySeconds + row.displaySeconds,
+      rawBillableSeconds: summary.rawBillableSeconds + row.rawBillableSeconds,
+      rawSeconds: summary.rawSeconds + row.rawSeconds,
+    }), {
+      amount: 0,
+      billableSeconds: 0,
+      displaySeconds: 0,
+      rawBillableSeconds: 0,
+      rawSeconds: 0,
+    });
+
+  if (branch.rawSeconds === 0 && !options.preserveEmpty) {
+    return null;
+  }
+
+  return {
+    ...branch,
+    project,
+    rate: getProjectBillingRate(settings, scope, project),
+    childRows,
+    ...(options.depth ? { depth: options.depth } : {}),
+  };
+}
+
+function summarizeDirectBillingProject(settings, scope, project, entries, range) {
   const projectEntries = entries.filter((entry) => (
-    matchesProject(entry, project, options) && isEntryInRange(entry, range)
+    matchesProject(entry, project) && isEntryInRange(entry, range)
   ));
   const rawSeconds = projectEntries.reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
   const rawBillableSeconds = projectEntries
@@ -197,6 +363,84 @@ function summarizeBillingProject(settings, scope, project, entries, range, optio
     rawBillableSeconds,
     rawSeconds,
   };
+}
+
+function emptyProjectRow(settings, scope, project) {
+  return {
+    amount: 0,
+    billableSeconds: 0,
+    displaySeconds: 0,
+    project,
+    rate: getProjectBillingRate(settings, scope, project),
+    rawBillableSeconds: 0,
+    rawSeconds: 0,
+  };
+}
+
+function readSelectedDateRange(settings, scope, project, query = {}, today = new Date()) {
+  if (query.period === "custom") {
+    return getCustomDateRange(query.startDate || query.start_date, query.endDate || query.end_date);
+  }
+
+  return getBillingPeriodRange(
+    getEffectiveProjectBillingPeriod(settings, scope, project),
+    query.period === "last" ? "last" : "current",
+    today,
+  );
+}
+
+function getCustomDateRange(startValue, endValue) {
+  const start = parseDateInput(startValue);
+  const endDate = parseDateInput(endValue);
+
+  if (!start || !endDate || start > endDate) {
+    throw new AppError("Choose a valid custom start and end date.", 400);
+  }
+
+  const end = new Date(endDate);
+  end.setDate(end.getDate() + 1);
+  return { start, end };
+}
+
+function parseDateInput(value) {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : null;
+}
+
+function getBillingPeriodRange(period, mode, today = new Date()) {
+  const normalizedPeriod = normalizeBillingPeriod(period);
+  let start = normalizedPeriod.type === "custom"
+    ? getCurrentCustomPeriodStart(today, normalizedPeriod.startDay)
+    : new Date(today.getFullYear(), today.getMonth(), 1);
+
+  if (mode === "last") {
+    start = addMonths(start, -1);
+  }
+
+  return {
+    start,
+    end: addMonths(start, 1),
+  };
+}
+
+function getCurrentCustomPeriodStart(date, startDay) {
+  const currentMonthStart = new Date(date.getFullYear(), date.getMonth(), startDay);
+
+  return date >= currentMonthStart
+    ? currentMonthStart
+    : new Date(date.getFullYear(), date.getMonth() - 1, startDay);
+}
+
+function addMonths(date, monthCount) {
+  return new Date(date.getFullYear(), date.getMonth() + monthCount, date.getDate());
 }
 
 function getMonthRange(date) {
@@ -280,6 +524,14 @@ function filterRollupProjects(projects, options = {}) {
   return projects.filter((project) => !hasSelectedProjectAncestor(project, projects, selectedIds));
 }
 
+function filterRollupScopeSummaries(summaries) {
+  const includedScopeIds = new Set(summaries.map((summary) => summary.scope.id));
+
+  return summaries.filter((summary) => (
+    !summary.scope.parentScopeId || !includedScopeIds.has(summary.scope.parentScopeId)
+  ));
+}
+
 function hasSelectedProjectAncestor(project, projects, selectedIds) {
   let parentId = project.parentProjectId;
   const visited = new Set();
@@ -322,6 +574,47 @@ function sortScopeTree(scopes) {
   );
 }
 
+function sortProjectTree(projects) {
+  const projectsByParentId = new Map();
+  const sortedProjects = [];
+  const visited = new Set();
+
+  projects.forEach((project) => {
+    const parentId = project.parentProjectId || "";
+    const siblings = projectsByParentId.get(parentId) || [];
+    siblings.push(project);
+    projectsByParentId.set(parentId, siblings);
+  });
+
+  const appendBranch = (parentId) => {
+    const siblings = [...(projectsByParentId.get(parentId) || [])].sort((left, right) =>
+      String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" }),
+    );
+
+    siblings.forEach((project) => {
+      if (visited.has(project.id)) {
+        return;
+      }
+
+      visited.add(project.id);
+      sortedProjects.push(project);
+      appendBranch(project.id);
+    });
+  };
+
+  appendBranch("");
+
+  projects.forEach((project) => {
+    if (!visited.has(project.id)) {
+      visited.add(project.id);
+      sortedProjects.push(project);
+      appendBranch(project.id);
+    }
+  });
+
+  return sortedProjects;
+}
+
 function getScopeTreeSortKey(scope, scopes) {
   if (scope.isWorkspaceScope) {
     return "";
@@ -345,6 +638,27 @@ function normalizeKey(value) {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "");
+}
+
+function parseSelectedIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseIncludeDescendants(query = {}) {
+  const rawValue = query.includeDescendants ?? query.include_descendants;
+
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
+    return true;
+  }
+
+  return rawValue === true || rawValue === "true" || rawValue === "1" || rawValue === 1;
 }
 
 function normalizeBillableFlag(value, fallback = "yes") {
@@ -373,6 +687,16 @@ function parseOptionalMoney(value) {
 function parseMoney(value) {
   const amount = Number(String(value || "").replace(/[^0-9.-]/g, ""));
   return Number.isFinite(amount) ? amount : 0;
+}
+
+function normalizeBillingPeriod(period) {
+  const type = period?.type === "custom" ? "custom" : "calendarMonth";
+  const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
+
+  return {
+    type,
+    startDay: type === "custom" ? startDay : 1,
+  };
 }
 
 function normalizeBillingRounding(rounding) {
@@ -421,7 +745,15 @@ function roundSeconds(seconds, rounding) {
 }
 
 function getProjectBillingRate(settings, scope, project) {
-  return project.billingRate ?? scope.billingRate ?? parseMoney(settings.defaultBillingRate);
+  return project.effectiveBillingRate ?? project.billingRate ?? scope.billingRate ?? parseMoney(settings.defaultBillingRate);
+}
+
+function getEffectiveScopeBillingPeriod(settings, scope) {
+  return scope.billingPeriod || settings.billingPeriod;
+}
+
+function getEffectiveProjectBillingPeriod(settings, scope, project) {
+  return project.effectiveBillingPeriod || project.billingPeriod || getEffectiveScopeBillingPeriod(settings, scope);
 }
 
 function getEffectiveScopeBillingRounding(settings, scope) {
@@ -429,7 +761,7 @@ function getEffectiveScopeBillingRounding(settings, scope) {
 }
 
 function getEffectiveProjectBillingRounding(settings, scope, project) {
-  return project.billingRounding || getEffectiveScopeBillingRounding(settings, scope);
+  return project.effectiveBillingRounding || project.billingRounding || getEffectiveScopeBillingRounding(settings, scope);
 }
 
 function toDashboardBillableRow(row) {
@@ -445,12 +777,47 @@ function toDashboardBillableRow(row) {
   };
 }
 
+function emptyProjectSummary(scope, taskFilter = []) {
+  return {
+    scope,
+    taskFilter,
+    rows: [],
+    totals: { amount: 0, seconds: 0 },
+  };
+}
+
+function readModulePanels(modules, panelGroup) {
+  return modules
+    .filter((moduleDefinition) => moduleDefinition.status === "enabled" || moduleDefinition.historicalReadAccess === true)
+    .flatMap((moduleDefinition) => (
+      Array.isArray(moduleDefinition[panelGroup])
+        ? moduleDefinition[panelGroup].map((panel) => ({
+            ...panel,
+            moduleId: moduleDefinition.id,
+            moduleName: moduleDefinition.displayName || moduleDefinition.name,
+          }))
+        : []
+    ));
+}
+
+function workspaceSummary(session, settings) {
+  return {
+    id: session.workspace_id,
+    name: settings.workspaceName || "Workspace",
+    type: settings.workspaceType,
+  };
+}
+
 export {
   buildBillingScopes,
   normalizeTimeEntries,
   summarizeBillingScopesForRange,
+  summarizeProjectBillingRows,
 };
 
 export const timeTrackingBillingService = {
   readDashboardBillingSummary,
+  readProjectSummary,
+  readReportingBootstrap,
+  runProjectTimeBillingReport,
 };

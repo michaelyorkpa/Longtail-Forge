@@ -17,6 +17,7 @@ const files = {
   dashboardRoutes: readText("src/routes/dashboard.routes.js"),
   dashboardService: readText("src/services/dashboard.service.js"),
   timeTrackingDashboard: readText("public/js/time-tracking-dashboard.js"),
+  timeTrackingReporting: readText("public/js/time-tracking-reporting.js"),
   dashboardView: readText("views/protected/dashboard.html"),
   declarativeViewSurfaces: readText("docs/declarative-view-surfaces.md"),
   moduleContract: readText("docs/module-contract.md"),
@@ -34,6 +35,7 @@ const files = {
   timeTrackingBillingService: readText("src/modules/time-tracking/time-tracking-billing.service.js"),
   timeTrackingDashboardService: readText("src/modules/time-tracking/time-tracking-dashboard.service.js"),
   timeTrackingDashboardRoutes: readText("src/modules/time-tracking/time-tracking-dashboard.routes.js"),
+  timeTrackingReportingRoutes: readText("src/modules/time-tracking/reporting.routes.js"),
   tasksService: readText("src/modules/tasks/tasks.service.js"),
   tasksRoutes: readText("src/modules/tasks/tasks.routes.js"),
   workbench: readText("public/js/workbench.js"),
@@ -197,6 +199,11 @@ assert.doesNotMatch(
   /async function readDashboard|readDashboard,|tasksService|modulesService\.listDashboardPanels/,
   "reporting service must not own dashboard read-model assembly",
 );
+assert.doesNotMatch(
+  files.reportingService,
+  /\.\.\/modules\/|clientsService|timeEntriesService|tasksService|WORKSPACE_SCOPE_ID|project-time-billing|time-tracking/,
+  "framework Reporting must not import, name, or calculate a first-party module report",
+);
 assert.match(
   files.dashboardService,
   /setupWarnings: warnings/,
@@ -268,24 +275,24 @@ assert.match(
   "Time Tracking billing service must own permission-checked dashboard billing aggregation",
 );
 assert.match(
-  files.reportingService,
+  files.timeTrackingBillingService,
   /parentScopeId:\s*String\(client\.parent_client_id/,
   "reporting scopes must preserve parent client IDs for nested reporting scope display",
 );
 assert.match(
-  files.reportingService,
+  files.timeTrackingBillingService,
   /sortScopeTree\(attachDescendantClientProjects\(decorateScopeDepths\(clientScopes\)\)\)/,
   "business reporting scopes must be sorted by client tree instead of flat name order",
 );
 assert.match(
-  files.reportingService,
-  /filterRollupProjects\(projects,\s*\{\s*includeDescendants\s*\}\)/,
+  files.timeTrackingBillingService,
+  /filterRollupProjects\(selectedProjects,\s*\{\s*includeDescendants\s*\}\)/,
   "project summaries must collapse selected child project rows when parent rollups are selected",
 );
 assert.match(
-  files.reportingService,
-  /childRows:\s*includeDescendants[\s\S]*buildProjectChildRows/,
-  "project summary parent rows must carry nested child display rows without adding them to footer totals",
+  files.timeTrackingBillingService,
+  /function summarizeBillingProjectTree[\s\S]*summarizeDirectBillingProject[\s\S]*childRows[\s\S]*summary\.amount \+ row\.amount/,
+  "project summary branches must price direct time before recursively adding display-only child rows once",
 );
 assert.match(
   files.timeTrackingBillingService,
@@ -293,14 +300,24 @@ assert.match(
   "Time Tracking dashboard billing totals must avoid double counting project parent and child rollups",
 );
 assert.match(
-  files.reportingService,
+  files.timeTrackingBillingService,
   /function sortProjectTree\(projects\)[\s\S]*appendBranch\(""\)[\s\S]*return sortedProjects;/,
-  "reporting service project ordering must use parent-before-child tree traversal",
+  "Time Tracking report project ordering must use parent-before-child tree traversal",
 );
 assert.doesNotMatch(
-  files.reportingService,
+  files.timeTrackingBillingService,
   /getProjectTreeSortKey/,
-  "reporting service project ordering must not use path-string sorting that can separate children from parents",
+  "Time Tracking report project ordering must not use path-string sorting that can separate children from parents",
+);
+assert.match(
+  files.timeTrackingReportingRoutes,
+  /\/reporting\/bootstrap[\s\S]*readReportingBootstrap[\s\S]*\/reporting\/project-summary[\s\S]*readProjectSummary/,
+  "retained Reporting compatibility reads must be routed through Time Tracking ownership",
+);
+assert.doesNotMatch(
+  files.reportingRoutes,
+  /\/reporting\/bootstrap|\/reporting\/project-summary/,
+  "framework Reporting routes must keep only catalog and generic execution dispatch",
 );
 assert.match(
   files.workbenchService,
@@ -570,19 +587,19 @@ assert.doesNotMatch(
   "Workbench browser script must not keep all-tasks list markup, rendering, or state",
 );
 assert.match(
-  files.reporting,
+  files.timeTrackingReporting,
   /function sortProjectTree\(projects\)[\s\S]*appendBranch\(""\)[\s\S]*return sortedProjects;/,
-  "reporting project filter must render projects with parent-before-child tree traversal",
+  "Time Tracking report filter adapter must render projects with parent-before-child tree traversal",
 );
 assert.doesNotMatch(
-  files.reporting,
+  files.timeTrackingReporting,
   /getProjectTreeSortKey/,
-  "reporting project filter must not use path-string sorting that can separate children from parents",
+  "Time Tracking report filter adapter must not use path-string sorting that can separate children from parents",
 );
 assert.match(
-  files.reporting,
-  /expandedProjectRows[\s\S]*appendReportRow[\s\S]*childRows/,
-  "reporting table must render expandable nested project child rows",
+  files.timeTrackingReporting,
+  /expandedProjectRows[\s\S]*flattenVisibleRows[\s\S]*childRows/,
+  "Time Tracking report renderer must preserve expandable nested project child rows",
 );
 
 assert.match(
@@ -626,7 +643,7 @@ assert.match(
 );
 assert.match(
   files.moduleContract,
-  /As of 0\.33\.6\.14\.1, Dashboard\/Workbench closeout locks the host boundary[\s\S]*Reporting remains assigned to `0\.33\.11`[\s\S]*Public API plus tag propagation remain assigned to `0\.39\.15`/,
+  /As of 0\.33\.6\.14\.1, Dashboard\/Workbench closeout locks the host boundary[\s\S]*Reporting remains assigned to `0\.33\.12`[\s\S]*Public API plus tag propagation remain assigned to `0\.39\.15`/,
   "Module contract must record the host boundary and deferred framework-coupling follow-ups",
 );
 assert.match(

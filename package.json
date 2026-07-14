@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.11.7",
+  "version": "0.33.12.7",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -16,6 +16,7 @@
     "test:contracts": "vitest run --passWithNoTests contracts",
     "test:files": "vitest run --passWithNoTests files",
     "test:tasks": "vitest run --passWithNoTests tasks",
+    "test:time-tracking": "vitest run --passWithNoTests time-tracking",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "test:e2e:ui": "playwright test --ui",
@@ -28,6 +29,7 @@
     "test:regressions:dashboard": "node scripts/run-regressions.mjs --area dashboard",
     "test:regressions:workbench": "node scripts/run-regressions.mjs --area workbench",
     "test:regressions:tasks": "node scripts/run-regressions.mjs --area tasks",
+    "test:regressions:time-tracking": "node scripts/run-regressions.mjs --area time-tracking",
     "test:regressions:notes": "node scripts/run-regressions.mjs --area notes",
     "test:regressions:files": "node scripts/run-regressions.mjs --area files",
     "test:regressions:database": "node scripts/run-regressions.mjs --area database",

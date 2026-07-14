@@ -38,6 +38,11 @@ import {
   listFrameworkProtectedViews,
   listFrameworkViewSurfaces,
 } from "../view-surfaces/framework-view-surfaces.js";
+import {
+  listFrameworkPermissionEntries,
+  listFrameworkResourceDefinitions,
+  listFrameworkRolePermissionDefaults,
+} from "../permissions/framework-permission-catalog.js";
 import { db } from "../database.js";
 import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
@@ -139,6 +144,27 @@ function listModuleRolePermissionDefaults() {
 
 function listModuleResourceDefinitions() {
   return listRegisteredModuleResourceDefinitions();
+}
+
+function listPermissionEntries() {
+  return [
+    ...listFrameworkPermissionEntries(),
+    ...listModulePermissionEntries(),
+  ];
+}
+
+function listRolePermissionDefaults() {
+  return [
+    ...listFrameworkRolePermissionDefaults(),
+    ...listModuleRolePermissionDefaults(),
+  ];
+}
+
+function listResourceDefinitions() {
+  return [
+    ...listFrameworkResourceDefinitions(),
+    ...listModuleResourceDefinitions(),
+  ];
 }
 
 function listModuleApiScopes() {
@@ -328,6 +354,16 @@ function listModuleBrowserAssets() {
   return listRegisteredModuleBrowserAssets().map(normalizeAssetContribution);
 }
 
+async function listActiveModuleBrowserAssets(workspaceId, session = null, viewTarget = "") {
+  const assets = await listWorkspaceContributions(workspaceId, session, "browserAssets");
+  const normalizedTarget = String(viewTarget || "").trim();
+
+  return assets
+    .filter((asset) => !normalizedTarget || asset.views?.includes(normalizedTarget))
+    .map(normalizeAssetContribution)
+    .sort((left, right) => left.moduleId.localeCompare(right.moduleId) || left.id.localeCompare(right.id));
+}
+
 async function syncModuleRegistry(workspaceId) {
   registerModuleEventHooks();
   const modules = listModules();
@@ -362,8 +398,8 @@ async function syncModuleRegistry(workspaceId) {
 
 async function syncModulePermissionContracts() {
   await permissionsRepository.ensurePermissionContracts(
-    listModulePermissionEntries(),
-    listModuleRolePermissionDefaults(),
+    listPermissionEntries(),
+    listRolePermissionDefaults(),
   );
 }
 
@@ -1048,6 +1084,17 @@ async function listDashboardPanels(workspaceId, session = null) {
   ));
 }
 
+async function listReportingReports(workspaceId, session = null) {
+  const reports = await listWorkspaceContributions(workspaceId, session, "reporting");
+
+  return reports.sort((left, right) => (
+    Number(left.sortOrder) - Number(right.sortOrder) ||
+    String(left.category || "").localeCompare(String(right.category || "")) ||
+    left.label.localeCompare(right.label) ||
+    left.id.localeCompare(right.id)
+  ));
+}
+
 function normalizeDashboardPanel(panel) {
   return {
     ...panel,
@@ -1104,11 +1151,10 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
         resolveContributionTerminology(contribution, workspaceType, fieldName),
       );
 
-      if (!requiredModulesEnabled(normalized, enabledModuleIds)) {
-        continue;
-      }
-
-      if (!requiredCapabilitiesAvailable(normalized, moduleDefinition, availableTools)) {
+      if (!moduleContributionRequirementsAvailable(normalized, moduleDefinition, {
+        availableTools,
+        enabledModuleIds,
+      })) {
         continue;
       }
 
@@ -1121,6 +1167,18 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
   }
 
   return contributions;
+}
+
+function moduleContributionRequirementsAvailable(contribution, moduleDefinition, context = {}) {
+  const enabledModuleIds = context.enabledModuleIds instanceof Set
+    ? context.enabledModuleIds
+    : new Set(context.enabledModuleIds || []);
+  const availableTools = context.availableTools instanceof Set
+    ? context.availableTools
+    : new Set(context.availableTools || []);
+
+  return requiredModulesEnabled(contribution, enabledModuleIds) &&
+    requiredCapabilitiesAvailable(contribution, moduleDefinition, availableTools);
 }
 
 async function listActiveHelpItems(workspaceId, session, items) {
@@ -1403,6 +1461,7 @@ export const modulesService = {
   listEnabledModules,
   listActiveViewSurfaces,
   listDashboardPanels,
+  listReportingReports,
   listAvailableApiScopes,
   listActiveHelpArticles,
   listActiveHelpContributions,
@@ -1418,6 +1477,7 @@ export const modulesService = {
   listHelpSections,
   listModuleMigrationSources,
   listModulePermissionEntries,
+  listPermissionEntries,
   listModuleNavigation,
   listModulePermissions,
   listModuleRouteEntries,
@@ -1430,6 +1490,7 @@ export const modulesService = {
   listActiveLinkedContextProviders,
   listActiveAttachableTypes,
   listActiveSearchableTypes,
+  listActiveModuleBrowserAssets,
   listModuleBrowserAssets,
   listModuleSettings,
   listNotificationEvents,
@@ -1437,6 +1498,8 @@ export const modulesService = {
   listModulePublicViews,
   listModuleResourceDefinitions,
   listModuleRolePermissionDefaults,
+  listResourceDefinitions,
+  listRolePermissionDefaults,
   listNotificationTemplates,
   listSearchableTypes,
   listTagPropagationRules,
@@ -1445,6 +1508,7 @@ export const modulesService = {
   listTimerSources,
   listWorkbenchCards,
   listWorkItemSources,
+  moduleContributionRequirementsAvailable,
   onInternalEvent,
   readEnabledModuleIds,
   resolveProtectedModuleView,

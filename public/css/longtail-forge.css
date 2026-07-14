@@ -684,6 +684,10 @@ details[open] > summary.surface-modal-section-heading::before {
     align-self: flex-end;
 }
 
+.view-filter-panel select[multiple] {
+    min-height: 148px;
+}
+
 .view-search-options {
     position: fixed;
     display: grid;
@@ -3172,6 +3176,13 @@ a.search-result-title:hover {
     background: var(--color-hover);
 }
 
+.view-data-table tfoot th,
+.view-data-table tfoot td {
+    border-top: 2px solid var(--color-border);
+    color: var(--color-text);
+    font-weight: 700;
+}
+
 .tag-filter-control {
     position: relative;
 }
@@ -3499,11 +3510,6 @@ button.danger-button {
 }
 
 /* Dashboard */
-.reporting-page {
-    width: min(94vw, 1120px);
-    text-align: left;
-}
-
 .dashboard-page {
     width: min(94vw, 1120px);
     text-align: left;
@@ -8649,10 +8655,6 @@ button:disabled {
 
     .timer-task-link-control button {
         width: 100%;
-    }
-
-    .reporting-page {
-        width: min(92vw, 520px);
     }
 
     .time-entries-page {

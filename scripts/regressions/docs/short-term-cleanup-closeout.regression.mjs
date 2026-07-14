@@ -24,7 +24,8 @@ assert.match(roadmap, /project history and billing justification without turning
 assert.match(roadmap, /Keep client-facing approval actions out of scope until permissions and client-portal features are ready/);
 
 assert.match(shortTerm, /remaining Short Term notes are intentionally deferred rather than implementation-ready/);
-assert.match(shortTerm, /## Lists UI\/UX Overhaul \(Notes for 0\.33\.13\)/);
+assert.match(shortTerm, /The Lists UI\/UX Overhaul notes were promoted to \*\*ROADMAP\.md 0\.33\.13 - Lists Module UI\/UX Overhaul\*\*/);
+assert.doesNotMatch(shortTerm, /## Lists UI\/UX Overhaul \(Notes for 0\.33\.13\)/);
 assert.match(shortTerm, /## Notes - Suggested Library/);
 assert.match(shortTerm, /## Testing Goals/);
 assert.match(shortTerm, /## Knowledge Base Make Good Smart/);
@@ -48,11 +49,12 @@ assert.doesNotMatch(roadmap, /^## Version 0\.33\.11 - Short-Term Critical Cleanu
 console.log("Short-Term cleanup documentation closeout regression passed.");
 
 function sectionBetween(source, startHeading, endHeading) {
-  const start = source.indexOf(`${startHeading}\n`);
-  const end = source.indexOf(`\n${endHeading}\n`, start + startHeading.length);
+  const normalizedSource = source.replace(/\r\n?/g, "\n");
+  const start = normalizedSource.indexOf(`${startHeading}\n`);
+  const end = normalizedSource.indexOf(`\n${endHeading}\n`, start + startHeading.length);
   assert.notEqual(start, -1, `Missing ${startHeading}`);
   assert.notEqual(end, -1, `Missing ${endHeading}`);
-  return source.slice(start, end);
+  return normalizedSource.slice(start, end);
 }
 
 function escapeRegExp(value) {

@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 340,
+    "discoveredScripts": 345,
     "legacyScripts": 312,
     "releaseGateScripts": 22,
     "areaCounts": {
@@ -11,7 +11,7 @@
       "database": 27,
       "docs": 9,
       "files": 44,
-      "framework": 38,
+      "framework": 42,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -23,21 +23,21 @@
       "search": 12,
       "tags": 12,
       "tasks": 51,
-      "time-tracking": 7,
+      "time-tracking": 8,
       "views": 29,
       "workbench": 27
     },
     "tierCounts": {
-      "focused": 153,
+      "focused": 158,
       "integration": 156,
       "release-gate": 22,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 131,
+      "isolated-database": 134,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 174
+      "static": 176
     }
   },
   "coverageFamilies": [
@@ -2505,6 +2505,72 @@
     },
     {
       "area": "framework",
+      "description": "Proves permission-safe Reporting catalog delivery, stable runner dispatch, basic filter validation, and safe execution errors.",
+      "id": "framework.reporting-catalog-execution",
+      "legacy": false,
+      "path": "scripts/regressions/framework/reporting-catalog-execution.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "catalog",
+        "modules",
+        "permissions",
+        "reporting",
+        "routes"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Locks framework Reporting permission/navigation ownership, minimal host anatomy, and first-party-module-neutral framework code.",
+      "id": "framework.reporting-closeout",
+      "legacy": false,
+      "path": "scripts/regressions/framework/reporting-closeout.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "guardrail",
+        "navigation",
+        "permissions",
+        "reporting",
+        "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the data-only report manifest contract, Reporting asset ownership, and enabled/permission-filtered report listing seam.",
+      "id": "framework.reporting-contribution-contract",
+      "legacy": false,
+      "path": "scripts/regressions/framework/reporting-contribution-contract.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "assets",
+        "modules",
+        "permissions",
+        "reporting"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the minimal catalog-driven Reporting host, metadata filters, allowed renderer loading, and Time Tracking-owned hierarchical result renderer.",
+      "id": "framework.reporting-host",
+      "legacy": false,
+      "path": "scripts/regressions/framework/reporting-host.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "browser",
+        "catalog",
+        "reporting",
+        "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves expired protected-app sessions surface one framework-owned foreground warning above open editors.",
       "id": "framework.session-auth-warning",
       "legacy": false,
@@ -2752,6 +2818,23 @@
         "modal",
         "tasks",
         "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves the module-owned Project Time & Billing runner, recursive mixed-setting rollups, compatibility reads, tag/task behavior, and framework decoupling.",
+      "id": "time-tracking.project-time-billing-runner",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/project-time-billing-runner.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "billing",
+        "modules",
+        "permissions",
+        "reporting",
+        "runner"
       ],
       "tier": "focused"
     },

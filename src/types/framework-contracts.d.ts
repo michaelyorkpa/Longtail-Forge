@@ -38,10 +38,10 @@ export interface ModuleManifest {
   protectedViews?: unknown[];
   publicViews?: unknown[];
   viewSurfaces?: ViewSurfaceDescriptor[];
-  browserAssets?: unknown[];
+  browserAssets?: BrowserAssetContribution[];
   navigation?: NavigationContribution[];
   dashboard?: DashboardContribution[];
-  reporting?: unknown[];
+  reporting?: ReportingContribution[];
   workbench?: WorkbenchContribution[];
   settings?: ModuleSettingDefinition[];
   permissions?: unknown[];
@@ -116,6 +116,16 @@ export interface ModuleSettingDefinition {
   [key: string]: unknown;
 }
 
+export interface BrowserAssetContribution {
+  id: string;
+  moduleId: string;
+  path: string;
+  type: "script" | "style" | (string & {});
+  views?: string[];
+  requiredPermissions?: string[];
+  requiredWorkspaceCapabilities?: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Declarative view surfaces
 // ---------------------------------------------------------------------------
@@ -140,7 +150,7 @@ export interface ViewSurfaceDescriptor {
 }
 
 // ---------------------------------------------------------------------------
-// Dashboard / Workbench contributions
+// Dashboard / Reporting / Workbench contributions
 // ---------------------------------------------------------------------------
 
 export interface DashboardContribution {
@@ -157,6 +167,53 @@ export interface DashboardContribution {
   sortOrder?: number;
   terminology?: TerminologyMap;
 }
+
+export type ReportingFilterType =
+  | "billing-period"
+  | "custom-date-range"
+  | "scope"
+  | "project-multi-select"
+  | "tag"
+  | "boolean";
+
+export interface ReportingFilterContribution {
+  id: string;
+  label: string;
+  type: ReportingFilterType | (string & {});
+  queryKeys: string[];
+  defaultValue?: string | boolean | string[] | null;
+  required?: boolean;
+  visibleWhen?: {
+    filterId: string;
+    equals: string;
+  };
+}
+
+export interface ReportingContribution {
+  id: string;
+  moduleId: string;
+  label: string;
+  description: string;
+  category: string;
+  renderer: string;
+  runner: string;
+  requiredPermissions: string[];
+  requiredWorkspaceCapabilities: string[];
+  requiresEnabledModules: string[];
+  sortOrder?: number;
+  filters: ReportingFilterContribution[];
+  browserAssetIds: string[];
+}
+
+export interface ReportRunnerContext {
+  filters: Record<string, string | boolean | string[]>;
+  report: ReportingContribution;
+  reportKey: string;
+  session: Record<string, unknown>;
+  workspaceId: string;
+}
+
+export type ReportRunner = (context: ReportRunnerContext) => unknown | Promise<unknown>;
 
 export interface WorkbenchContribution {
   id: string;

@@ -1,10 +1,13 @@
 import { timeEntriesRoutes } from "./time-entries.routes.js";
+import { timeTrackingReportingRoutes } from "./reporting.routes.js";
 import { timeTrackingDashboardRoutes } from "./time-tracking-dashboard.routes.js";
 import { timeTrackingPublicApiRoutes } from "./public-api.routes.js";
+import { registerTimeTrackingReportRunners } from "./report-runners.js";
 import { registerTimeTrackingSearchIndexers } from "./search-indexers.js";
 import { appVersion } from "../../core/version.js";
 
 registerTimeTrackingSearchIndexers();
+registerTimeTrackingReportRunners();
 
 const timeTrackingModule = {
   id: "time-tracking",
@@ -26,7 +29,7 @@ const timeTrackingModule = {
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
-  browserApiRoutes: [timeEntriesRoutes, timeTrackingDashboardRoutes],
+  browserApiRoutes: [timeEntriesRoutes, timeTrackingDashboardRoutes, timeTrackingReportingRoutes],
   publicApiRoutes: [timeTrackingPublicApiRoutes],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
   migrationsDir: null,
@@ -36,7 +39,6 @@ const timeTrackingModule = {
   navigation: [
     { label: "Time Keeping", href: "time-tracker.html", parent: "projects.html" },
     { label: "Time Entries", href: "time-entries.html", parent: "time-tracker.html" },
-    { label: "Time Reports", href: "reporting.html", parent: "reporting.html" },
   ],
   protectedViews: [
     {
@@ -104,6 +106,15 @@ const timeTrackingModule = {
       views: ["dashboard"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
     },
+    {
+      id: "time-tracking-reporting-script",
+      moduleId: "time-tracking",
+      path: "/js/time-tracking-reporting.js",
+      type: "script",
+      views: ["framework:reporting"],
+      requiredPermissions: ["reporting.view"],
+      requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+    },
   ],
   dashboard: [
     {
@@ -156,7 +167,63 @@ const timeTrackingModule = {
     },
   ],
   reporting: [
-    { id: "project-time-billing", label: "Project Time & Billing" },
+    {
+      id: "project-time-billing",
+      moduleId: "time-tracking",
+      label: "Project Time & Billing",
+      description: "Review saved time and billable totals by reporting scope and project.",
+      category: "time-and-billing",
+      renderer: "time-project-billing-table",
+      runner: "time-tracking.project-time-billing",
+      requiredPermissions: ["reporting.view"],
+      requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+      requiresEnabledModules: ["time-tracking", "client-projects"],
+      sortOrder: 10,
+      filters: [
+        {
+          id: "billing-period",
+          label: "Billing Period",
+          type: "billing-period",
+          queryKeys: ["period"],
+          defaultValue: "current",
+        },
+        {
+          id: "custom-date-range",
+          label: "Custom Date Range",
+          type: "custom-date-range",
+          queryKeys: ["startDate", "endDate"],
+          visibleWhen: { filterId: "billing-period", equals: "custom" },
+        },
+        {
+          id: "scope",
+          label: "Reporting Scope",
+          type: "scope",
+          queryKeys: ["scopeId"],
+          required: true,
+        },
+        {
+          id: "projects",
+          label: "Projects",
+          type: "project-multi-select",
+          queryKeys: ["projectIds"],
+          defaultValue: [],
+        },
+        {
+          id: "tags",
+          label: "Tags",
+          type: "tag",
+          queryKeys: ["tagIds"],
+        },
+        {
+          id: "include-descendants",
+          label: "Include descendants",
+          type: "boolean",
+          queryKeys: ["includeDescendants"],
+          defaultValue: true,
+        },
+      ],
+      browserAssetIds: ["time-tracking-reporting-script"],
+    },
   ],
   publicApiEndpoints: [
     { method: "GET", path: "/api/v1/time-entries", scope: "time_entries:read" },
@@ -166,7 +233,6 @@ const timeTrackingModule = {
     "time_entries.create",
     "time_entries.edit_own",
     "time_entries.edit_all",
-    "reporting.view",
   ],
   permissions: [
     {
@@ -193,22 +259,14 @@ const timeTrackingModule = {
       resource: "time_entries",
       operation: "update",
     },
-    {
-      id: "reporting.view",
-      moduleId: "time-tracking",
-      label: "View Reporting",
-      description: "View reports in scope.",
-      resource: "reporting",
-      operation: "read",
-    },
   ],
   defaultRolePermissions: [
-    { roleId: "super_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
-    { roleId: "workspace_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
-    { roleId: "client_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
-    { roleId: "project_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
-    { roleId: "client_user", permissions: ["time_entries.create", "time_entries.edit_own", "reporting.view"] },
-    { roleId: "project_user", permissions: ["time_entries.create", "time_entries.edit_own", "reporting.view"] },
+    { roleId: "super_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
+    { roleId: "workspace_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
+    { roleId: "client_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
+    { roleId: "project_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
+    { roleId: "client_user", permissions: ["time_entries.create", "time_entries.edit_own"] },
+    { roleId: "project_user", permissions: ["time_entries.create", "time_entries.edit_own"] },
     { roleId: "client_external_user", permissions: ["time_entries.create", "time_entries.edit_own"] },
   ],
   resourceDefinitions: [
@@ -217,12 +275,6 @@ const timeTrackingModule = {
       moduleId: "time-tracking",
       label: "Time Entries",
       operations: ["read", "create", "update", "delete", "manage"],
-    },
-    {
-      key: "reporting",
-      moduleId: "time-tracking",
-      label: "Reporting",
-      operations: ["read"],
     },
   ],
   auditRecordTypes: [

@@ -7,7 +7,7 @@ const routes = readText("src/routes/tags.routes.js");
 const sharedTags = readText("public/js/shared/tags.js");
 const tagsPage = readText("public/js/tags.js");
 const tasksPage = readText("public/js/tasks.js");
-const reportingPage = readText("public/js/reporting.js");
+const timeTrackingReportingPage = readText("public/js/time-tracking-reporting.js");
 const searchPage = readText("public/js/search.js");
 const timeEntriesPage = readText("public/js/time-entries.js");
 const notesPage = readText("public/js/notes.js");
@@ -38,7 +38,11 @@ assert.doesNotMatch(tagsPage, /scope/i, "Tags management UI must not add tag sco
 assert.match(tasksPage, /tags\?\.mountFilterPicker\?\.\(tagFilter/, "Tasks filter should use the shared picker that includes No Tags support");
 assert.match(sharedTags, /function mountFilterPicker\([\s\S]*NO_TAGS_FILTER_VALUE,[\s\S]*label: "No Tags"/, "Shared tag filter picker should include No Tags support");
 assert.match(tasksPage, /normalizeTagFilterValue/, "Tasks filter should normalize legacy no-tags values");
-assert.match(reportingPage, /tagFilterNoTagsOption/, "Reporting filter should include shared No Tags support");
+assert.match(
+  timeTrackingReportingPage,
+  /noTagsFilterValue\(\)[\s\S]*label: "No Tags"/,
+  "Time Tracking's Reporting filter adapter should include shared No Tags support",
+);
 assert.match(searchPage, /tagFilterNoTagsOption/, "Search filter should include shared No Tags support");
 assert.match(timeEntriesPage, /tagFilterNoTagsOption/, "Time Entries filter should include shared No Tags support");
 assert.match(timeEntriesPage, /entry\.tags \|\| \[\]\)\.length === 0/, "Time Entries No Tags filter should match records without effective tags");

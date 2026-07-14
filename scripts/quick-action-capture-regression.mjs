@@ -21,7 +21,7 @@ function check(name, assertion) {
 
 check("app-shell bootstrap publishes server-gated quick actions", () => {
   assert.match(appShellService, /const QUICK_ACTION_DEFINITIONS = Object\.freeze\(\[/);
-  assert.match(appShellService, /readQuickActions\(session, workspaceContext, \{ searchTargets \}\)/);
+  assert.match(appShellService, /readQuickActions\(session, workspaceContext, \{ reportingReports, searchTargets \}\)/);
   assert.match(appShellService, /quickActions,/);
   assert.match(appShellService, /workspaceContext: \{[\s\S]*quickActions,[\s\S]*viewSurfaces,/);
   assert.match(navigation, /quickActions: shell\.quickActions \|\| shell\.workspaceContext\?\.quickActions \|\| \[\]/);
@@ -35,6 +35,8 @@ check("quick actions are gated by module, capability, permission, and search ava
   assert.match(appShellService, /permissionsService\.canInAnyScope\(session, permissionId/);
   assert.match(appShellService, /requiredSearchTargets/);
   assert.match(appShellService, /normalizeSearchTargetsForQuickActions\(options\.searchTargets\)\.length === 0/);
+  assert.match(appShellService, /requiredReportingReports/);
+  assert.match(appShellService, /normalizeReportingReportsForShell\(options\.reportingReports\)\.length === 0/);
 });
 
 check("first action set routes modal-backed Timer, Task, Note, and List actions through the registry", () => {

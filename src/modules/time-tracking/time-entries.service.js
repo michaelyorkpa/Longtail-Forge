@@ -11,10 +11,23 @@ import { normalizeTimeEntry } from "../../utils/normalizers.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
+import {
+  BrowserTimeEntryCreateSchema,
+  BrowserTimeEntryUpdateSchema,
+  parseTimeTrackingEdgePayload,
+} from "./time-tracking.contracts.js";
 
 const MODULE_ID = "time-tracking";
 
-async function create(entry, session) {
+async function create(rawEntry, session) {
+  const entry = parseTimeTrackingEdgePayload(BrowserTimeEntryCreateSchema, rawEntry);
+  return createFromActiveTimer(entry, session);
+}
+
+// Active timer finalization constructs this object from an already-validated
+// finalize payload plus the authoritative stored timer. It is intentionally
+// not parsed again as an untrusted browser create payload.
+async function createFromActiveTimer(entry, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const [scope, settings] = await Promise.all([
     resolveTimeEntryScope(session.workspace_id, entry),
@@ -80,8 +93,9 @@ async function create(entry, session) {
   };
 }
 
-async function update(payload, entryId, session) {
+async function update(rawPayload, entryId, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(BrowserTimeEntryUpdateSchema, rawPayload);
   const decodedEntryId = decodeURIComponent(entryId || "");
   const previousEntry = await timeEntriesRepository.readById(session.workspace_id, decodedEntryId);
 
@@ -345,6 +359,7 @@ async function syncTimeEntrySearchIndex(workspaceId, entryId, reason) {
 
 export const timeEntriesService = {
   create,
+  createFromActiveTimer,
   list,
   remove,
   update,

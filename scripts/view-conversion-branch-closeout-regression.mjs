@@ -93,7 +93,11 @@ assert.match(changelog, /scripts\/view-conversion-branch-closeout-regression\.mj
 
 assert.match(declarativeGuide, /current `viewSurfaces` authoring contract as of 0\.33\.5\.18\.15/, "Declarative guide should report the closeout version");
 assert.match(declarativeGuide, strictSurfaceRegex("Strict fail-on-violation guardrails cover"), "Declarative guide should record the strict surface set");
-assert.match(declarativeGuide, /Tags management and Developer Example descriptors remain reported descriptor proofs[\s\S]*Admin\/Settings, Reporting, Dashboard, Workbench, pagination\/server-side paging, Inspector behavior/, "Declarative guide should record reported and deferred surfaces");
+assert.match(
+  declarativeGuide,
+  /Tags management and Developer Example descriptors remain reported descriptor proofs[\s\S]*Reporting uses the separate catalog-driven narrow framework host[\s\S]*0\.33\.12\.7 closes its strict guardrail inventory[\s\S]*Admin\/Settings, pagination\/server-side paging, Inspector behavior/,
+  "Declarative guide should record the shipped Reporting host and remaining strict/deferred boundaries",
+);
 assert.match(declarativeGuide, /The closeout does not add database schema, write payload, permission, public API, or new workflow changes/, "Declarative guide should record the no-contract-change boundary");
 
 assert.match(viewContract, /Updated through 0\.33\.5\.18\.15/, "View-building contract should report the closeout version");

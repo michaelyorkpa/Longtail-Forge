@@ -1,643 +1,363 @@
-import { clientsService } from "../modules/client-projects/clients.service.js";
-import { timeEntriesService } from "../modules/time-tracking/time-entries.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
+import { getReportRunner } from "../core/reporting/report-runner-registry.js";
 import { AppError } from "../core/errors.js";
-import { permissionsService } from "../core/permissions.js";
-import { settingsService } from "./settings.service.js";
 
-const WORKSPACE_SCOPE_ID = "__workspace_projects__";
+const REPORTING_ASSET_TARGET = "framework:reporting";
+const REPORT_KEY_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+const MAX_REPORT_FILTER_LIST_ITEMS = 100;
+const MAX_REPORT_FILTER_VALUE_LENGTH = 200;
 
-async function readReportingBootstrap(session) {
-  const { settings, scopes, moduleContext } = await readReportContext(session);
-  const clientFiltersVisible = settings.workspaceType === "business";
+async function readReportCatalog(session) {
+  const entries = await readAllowedReportEntries(session);
 
   return {
-    workspace: workspaceSummary(session, settings),
-    clientFiltersVisible,
-    defaultScopeId: clientFiltersVisible ? "" : scopes[0]?.id || "",
-    scopes,
-    reportPanels: readModulePanels(moduleContext.modules, "reporting"),
+    reports: entries.map((entry) => entry.catalog),
   };
 }
 
-async function readProjectSummary(session, query = {}) {
-  const { settings, scopes } = await readReportContext(session);
-  const entries = normalizeTimeEntries((await timeEntriesService.list(session, {
-    tagIds: query.tagIds || query.tag_ids || query.tags,
-  })).entries);
-  const scope = scopes.find((item) => item.id === String(query.scopeId || query.scope_id || "").trim());
-  const includeDescendants = parseIncludeDescendants(query);
+async function runReport(session, reportKey, query = {}) {
+  const normalizedReportKey = normalizeReportKey(reportKey);
 
-  if (!scope) {
-    throw new AppError("Reporting scope not found.", 404);
-  }
+  try {
+    if (!normalizedReportKey) {
+      throw new ReportExecutionFailure("report_not_found", "Report not found.", 404);
+    }
 
-  const selectedProjectIds = parseSelectedProjectIds(query.projectIds || query.project_ids);
-  const selectedTaskIds = parseSelectedTaskIds(query.taskIds || query.task_ids || query.taskId || query.task_id);
-  const projects = scope.projects
-    .filter((project) => selectedProjectIds.length === 0 || selectedProjectIds.includes(project.id));
+    const entries = await readAllowedReportEntries(session);
+    const entry = entries.find((candidate) => candidate.catalog.reportKey === normalizedReportKey);
 
-  if (projects.length === 0) {
-    return emptyProjectSummary(scope, selectedTaskIds);
-  }
+    if (!entry) {
+      throw new ReportExecutionFailure("report_not_found", "Report not found.", 404);
+    }
 
-  const scopeEntries = entries
-    .filter((entry) => matchesScope(entry, scope, { includeDescendants }))
-    .filter((entry) => selectedTaskIds.length === 0 || selectedTaskIds.includes(entry.taskId));
-  const rows = filterRollupProjects(projects, { includeDescendants })
-    .map((project) => {
-      const row = summarizeProject(
-        settings,
-        scope,
-        project,
-        scopeEntries,
-        readSelectedDateRange(settings, scope, project, query),
-        { includeDescendants },
+    const filters = normalizeReportFilters(entry.report, query);
+    const runner = getReportRunner(entry.report.runner);
+
+    if (!runner) {
+      throw new ReportExecutionFailure(
+        "report_unavailable",
+        "This report is temporarily unavailable.",
+        503,
       );
+    }
 
-      return row
-        ? {
-            ...row,
-            childRows: includeDescendants
-              ? buildProjectChildRows(settings, scope, project, scope.projects, scopeEntries, query)
-              : [],
-          }
-        : null;
-    })
-    .filter(Boolean);
-  const totals = rows.reduce((summary, row) => ({
-    amount: summary.amount + row.amount,
-    seconds: summary.seconds + row.displaySeconds,
-  }), { amount: 0, seconds: 0 });
-
-  return {
-    scope,
-    taskFilter: selectedTaskIds,
-    rows,
-    totals,
-  };
-}
-
-async function readReportContext(session, options = {}) {
-  await permissionsService.assertCanInAnyScope(session, "reporting.view", {
-    workspace_id: session.workspace_id,
-    operation: "read",
-  });
-  const settings = await settingsService.read(session);
-  const moduleContext = await modulesService.readWorkspaceModuleContext(session.workspace_id);
-  const clientProjectData = await clientsService.readClientProjects(session);
-  const scopes = buildReportingScopes(clientProjectData, settings, options);
-
-  return { settings, scopes, moduleContext };
-}
-
-function buildReportingScopes(data, settings, options = {}) {
-  const includeInactive = Boolean(options.includeInactive);
-  const workspaceProjects = Array.isArray(data.workspaceProjects)
-    ? data.workspaceProjects.map((project) => normalizeProject(project, "yes"))
-    : [];
-  const workspaceScope = workspaceProjects.length > 0
-      ? [normalizeScope({
-        id: WORKSPACE_SCOPE_ID,
-        name: settings.workspaceName || "Workspace",
-        status: "Active",
-        billable: "yes",
-        isWorkspaceScope: true,
-        projects: workspaceProjects,
-      })]
-    : [];
-  const clientScopes = Array.isArray(data.clients)
-    ? data.clients
-        .filter((client) => includeInactive || client.status !== "Inactive")
-        .map((client) => normalizeScope(client))
-    : [];
-
-  if (settings.workspaceType !== "business") {
-    return workspaceScope;
-  }
-
-  return [...workspaceScope, ...sortScopeTree(attachDescendantClientProjects(decorateScopeDepths(clientScopes)))];
-}
-
-function attachDescendantClientProjects(scopes) {
-  return scopes.map((scope) => {
-    const descendantProjects = scopes
-      .filter((candidate) => scope.childScopeIds.includes(candidate.id))
-      .flatMap((candidate) => candidate.projects);
-    const projectsById = new Map([...scope.projects, ...descendantProjects].map((project) => [project.id, project]));
+    let result;
+    try {
+      result = await runner({
+        filters,
+        report: entry.report,
+        reportKey: normalizedReportKey,
+        session,
+        workspaceId: session.workspace_id,
+      });
+    } catch (error) {
+      throw normalizeRunnerFailure(error);
+    }
 
     return {
-      ...scope,
-      projects: decorateProjectDescendants([...projectsById.values()]),
+      statusCode: 200,
+      payload: {
+        status: "ready",
+        reportKey: normalizedReportKey,
+        renderer: entry.report.renderer,
+        result: result ?? null,
+      },
     };
+  } catch (error) {
+    const failure = error instanceof ReportExecutionFailure
+      ? error
+      : normalizeRunnerFailure(error);
+
+    return {
+      statusCode: failure.statusCode,
+      payload: {
+        status: "error",
+        reportKey: normalizedReportKey || null,
+        error: {
+          code: failure.code,
+          message: failure.message,
+        },
+      },
+    };
+  }
+}
+
+async function readAllowedReportEntries(session) {
+  const [reports, activeAssets] = await Promise.all([
+    modulesService.listReportingReports(session.workspace_id, session),
+    modulesService.listActiveModuleBrowserAssets(session.workspace_id, session, REPORTING_ASSET_TARGET),
+  ]);
+  const assetsByKey = new Map(activeAssets.map((asset) => [reportAssetKey(asset.moduleId, asset.id), asset]));
+
+  return reports.flatMap((report) => {
+    const rendererAssets = report.browserAssetIds
+      .map((assetId) => assetsByKey.get(reportAssetKey(report.moduleId, assetId)))
+      .filter(Boolean);
+
+    if (rendererAssets.length !== report.browserAssetIds.length) {
+      return [];
+    }
+
+    return [{
+      report,
+      catalog: normalizeCatalogReport(report, rendererAssets),
+    }];
   });
 }
 
-function normalizeScope(client) {
-  const billable = normalizeBillableFlag(client.billable);
+function normalizeCatalogReport(report, rendererAssets) {
+  const filters = report.filters.map(cloneReportFilter);
 
   return {
-    id: String(client.id || "").trim(),
-    name: String(client.name || "").trim(),
-    status: client.status === "Inactive" ? "Inactive" : "Active",
-    billable,
-    billingRate: parseOptionalMoney(client.billing_rate),
-    billingPeriod: normalizeOptionalBillingPeriod(client.billing_period),
-    billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
-    isWorkspaceScope: Boolean(client.isWorkspaceScope),
-    parentScopeId: String(client.parent_client_id || "").trim(),
-    depth: Number.isFinite(Number(client.depth)) ? Number(client.depth) : 0,
-    childScopeIds: Array.isArray(client.childScopeIds) ? client.childScopeIds : [],
-    projects: decorateProjectDescendants(Array.isArray(client.projects)
-      ? client.projects.map((project) => normalizeProject(project, billable))
-      : []),
+    reportKey: `${report.moduleId}:${report.id}`,
+    id: report.id,
+    moduleId: report.moduleId,
+    label: report.label,
+    description: report.description,
+    category: report.category,
+    renderer: report.renderer,
+    sortOrder: report.sortOrder ?? 0,
+    requiredPermissions: [...report.requiredPermissions],
+    requiredWorkspaceCapabilities: [...report.requiredWorkspaceCapabilities],
+    requiresEnabledModules: [...report.requiresEnabledModules],
+    filters,
+    defaultFilters: Object.fromEntries(filters
+      .filter((filter) => Object.hasOwn(filter, "defaultValue"))
+      .map((filter) => [filter.id, cloneJsonValue(filter.defaultValue)])),
+    rendererAssets: rendererAssets.map((asset) => ({
+      id: asset.id,
+      moduleId: asset.moduleId,
+      path: asset.path,
+      type: asset.type,
+    })),
   };
 }
 
-function normalizeProject(project, fallbackBillable = "yes") {
+function cloneReportFilter(filter) {
   return {
-    id: String(project.id || "").trim(),
-    name: String(project.name || "").trim(),
-    parentProjectId: String(project.parent_project_id || "").trim(),
-    status: project.status === "Inactive" ? "Inactive" : "Active",
-    billable: normalizeBillableFlag(project.billable, fallbackBillable),
-    billingRate: parseOptionalMoney(project.billing_rate),
-    billingPeriod: normalizeOptionalBillingPeriod(project.billing_period),
-    billingRounding: normalizeOptionalBillingRounding(project.billing_rounding),
+    ...filter,
+    queryKeys: [...filter.queryKeys],
+    ...(Array.isArray(filter.defaultValue) ? { defaultValue: [...filter.defaultValue] } : {}),
+    ...(filter.visibleWhen ? { visibleWhen: { ...filter.visibleWhen } } : {}),
   };
 }
 
-function normalizeTimeEntries(entries) {
-  return Array.isArray(entries)
-    ? entries.map((entry) => ({
-        clientId: entry.client_id,
-        clientName: entry.client_name,
-        projectId: entry.project_id,
-        projectName: entry.project_name,
-        taskId: entry.task_id,
-        endTime: new Date(entry.end_time),
-        durationSeconds: Number(entry.duration_seconds) || 0,
-        billable: entry.billable === "no" ? "no" : "yes",
-        tags: Array.isArray(entry.tags) ? entry.tags : [],
-      }))
-    : [];
+function cloneJsonValue(value) {
+  return Array.isArray(value) ? [...value] : value;
 }
 
-function summarizeProject(settings, scope, project, entries, range, options = {}) {
-  const projectEntries = entries.filter((entry) => (
-    matchesProject(entry, project, options) && isEntryInRange(entry, range)
-  ));
-  const rawSeconds = projectEntries.reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
-  const rawBillableSeconds = projectEntries
-    .filter((entry) => entry.billable === "yes")
-    .reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
-
-  if (rawSeconds === 0) {
-    return null;
+function normalizeReportFilters(report, query) {
+  if (!query || typeof query !== "object" || Array.isArray(query)) {
+    throw invalidReportFilters("Report filters are invalid.");
   }
 
-  const rounding = getEffectiveProjectBillingRounding(settings, scope, project);
-  const billableSeconds = roundSeconds(rawBillableSeconds, rounding);
-  const displaySeconds = rawBillableSeconds > 0 ? billableSeconds : roundSeconds(rawSeconds, rounding);
-  const rate = getProjectBillingRate(settings, scope, project);
-  const amount = (billableSeconds / 3600) * rate;
+  const allowedQueryKeys = new Set(report.filters.flatMap((filter) => filter.queryKeys));
+  for (const queryKey of Object.keys(query)) {
+    if (!allowedQueryKeys.has(queryKey)) {
+      throw invalidReportFilters("An unsupported report filter was provided.");
+    }
+  }
 
-  return {
-    amount,
-    billableSeconds,
-    displaySeconds,
-    project,
-    rate,
-    rawBillableSeconds,
-    rawSeconds,
-  };
-}
+  const normalizedFilters = {};
 
-function buildProjectChildRows(settings, scope, parentProject, projects, entries, query = {}, depth = 1) {
-  return sortProjectTree(projects)
-    .filter((project) => project.parentProjectId === parentProject.id)
-    .map((project) => {
-      const childRows = buildProjectChildRows(settings, scope, project, projects, entries, query, depth + 1);
-      const row = summarizeProject(
-        settings,
-        scope,
-        project,
-        entries,
-        readSelectedDateRange(settings, scope, project, query),
-        { includeDescendants: true },
+  for (const filter of report.filters) {
+    const visible = reportFilterIsVisible(filter, report.filters, query);
+    const provided = filter.queryKeys.some((queryKey) => query[queryKey] !== undefined);
+
+    if (!visible) {
+      if (provided) {
+        throw invalidReportFilters(`The ${filter.label} filter is not available for the selected options.`);
+      }
+      continue;
+    }
+
+    if (filter.type === "billing-period") {
+      const value = readScalarFilterValue(query, filter.queryKeys[0], filter.defaultValue);
+      if (!["current", "last", "custom"].includes(value)) {
+        throw invalidReportFilters("Billing Period must be current, last, or custom.");
+      }
+      normalizedFilters[filter.queryKeys[0]] = value;
+      continue;
+    }
+
+    if (filter.type === "custom-date-range") {
+      const startDate = readScalarFilterValue(query, filter.queryKeys[0]);
+      const endDate = readScalarFilterValue(query, filter.queryKeys[1]);
+      if (!isIsoDate(startDate) || !isIsoDate(endDate) || startDate > endDate) {
+        throw invalidReportFilters("Choose a valid custom start and end date.");
+      }
+      normalizedFilters[filter.queryKeys[0]] = startDate;
+      normalizedFilters[filter.queryKeys[1]] = endDate;
+      continue;
+    }
+
+    if (filter.type === "project-multi-select" || filter.type === "tag") {
+      normalizedFilters[filter.queryKeys[0]] = readListFilterValue(
+        query,
+        filter.queryKeys[0],
+        filter.defaultValue,
       );
+      continue;
+    }
 
-      return {
-        ...(row || emptyProjectRow(settings, scope, project)),
-        childRows,
-        depth,
-      };
-    })
-}
+    if (filter.type === "boolean") {
+      normalizedFilters[filter.queryKeys[0]] = readBooleanFilterValue(
+        query,
+        filter.queryKeys[0],
+        filter.defaultValue,
+      );
+      continue;
+    }
 
-function emptyProjectRow(settings, scope, project) {
-  return {
-    amount: 0,
-    billableSeconds: 0,
-    displaySeconds: 0,
-    project,
-    rate: getProjectBillingRate(settings, scope, project),
-    rawBillableSeconds: 0,
-    rawSeconds: 0,
-  };
-}
-
-function readSelectedDateRange(settings, scope, project, query = {}) {
-  if (query.period === "custom") {
-    return getCustomDateRange(query.startDate || query.start_date, query.endDate || query.end_date);
+    const value = readScalarFilterValue(query, filter.queryKeys[0], filter.defaultValue);
+    if (filter.required && !value) {
+      throw invalidReportFilters(`${filter.label} is required.`);
+    }
+    if (value) {
+      normalizedFilters[filter.queryKeys[0]] = value;
+    }
   }
 
-  return getBillingPeriodRange(
-    getEffectiveProjectBillingPeriod(settings, scope, project),
-    query.period === "last" ? "last" : "current",
-  );
+  return normalizedFilters;
 }
 
-function getCustomDateRange(startValue, endValue) {
-  const start = parseDateInput(startValue);
-  const endDate = parseDateInput(endValue);
-
-  if (!start || !endDate || start > endDate) {
-    throw new AppError("Choose a valid custom start and end date.", 400);
-  }
-
-  const end = new Date(endDate);
-  end.setDate(end.getDate() + 1);
-  return { start, end };
-}
-
-function parseDateInput(value) {
-  const [year, month, day] = String(value || "").split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return null;
-  }
-
-  return new Date(year, month - 1, day);
-}
-
-function getBillingPeriodRange(period, mode, today = new Date()) {
-  const normalizedPeriod = normalizeBillingPeriod(period);
-  let start = normalizedPeriod.type === "custom"
-    ? getCurrentCustomPeriodStart(today, normalizedPeriod.startDay)
-    : new Date(today.getFullYear(), today.getMonth(), 1);
-
-  if (mode === "last") {
-    start = addMonths(start, -1);
-  }
-
-  return {
-    start,
-    end: addMonths(start, 1),
-  };
-}
-
-function getCurrentCustomPeriodStart(date, startDay) {
-  const currentMonthStart = new Date(date.getFullYear(), date.getMonth(), startDay);
-
-  return date >= currentMonthStart
-    ? currentMonthStart
-    : new Date(date.getFullYear(), date.getMonth() - 1, startDay);
-}
-
-function addMonths(date, monthCount) {
-  return new Date(date.getFullYear(), date.getMonth() + monthCount, date.getDate());
-}
-
-function isEntryInRange(entry, range) {
-  return Boolean(
-    range &&
-    Number.isFinite(entry.endTime.getTime()) &&
-    entry.endTime >= range.start &&
-    entry.endTime < range.end,
-  );
-}
-
-function matchesScope(entry, scope, options = {}) {
-  if (scope.isWorkspaceScope) {
-    return !normalizeKey(entry.clientId) && !normalizeKey(entry.clientName);
-  }
-
-  if (options.includeDescendants && scope.childScopeIds.includes(entry.clientId)) {
+function reportFilterIsVisible(filter, filters, query) {
+  if (!filter.visibleWhen) {
     return true;
   }
 
-  return normalizeKey(entry.clientId) === normalizeKey(scope.id) ||
-    normalizeKey(entry.clientName) === normalizeKey(scope.name);
+  const dependency = filters.find((candidate) => candidate.id === filter.visibleWhen.filterId);
+  if (!dependency) {
+    return false;
+  }
+
+  const dependencyValue = readScalarFilterValue(
+    query,
+    dependency.queryKeys[0],
+    dependency.defaultValue,
+  );
+  return dependencyValue === filter.visibleWhen.equals;
 }
 
-function matchesProject(entry, project, options = {}) {
-  if (options.includeDescendants && project.childProjectIds.includes(entry.projectId)) {
+function readScalarFilterValue(query, queryKey, defaultValue = "") {
+  const rawValue = query[queryKey];
+  const value = rawValue === undefined ? defaultValue : rawValue;
+
+  if (Array.isArray(value) || value !== null && typeof value === "object") {
+    throw invalidReportFilters(`The ${queryKey} filter must be a single value.`);
+  }
+
+  const normalizedValue = String(value ?? "").trim();
+  if (normalizedValue.length > MAX_REPORT_FILTER_VALUE_LENGTH) {
+    throw invalidReportFilters(`The ${queryKey} filter is too long.`);
+  }
+
+  return normalizedValue;
+}
+
+function readListFilterValue(query, queryKey, defaultValue = []) {
+  const rawValue = query[queryKey] === undefined ? defaultValue : query[queryKey];
+  const rawItems = Array.isArray(rawValue) ? rawValue : [rawValue];
+  const items = rawItems.flatMap((item) => {
+    if (item !== null && typeof item === "object") {
+      throw invalidReportFilters(`The ${queryKey} filter must be a list of IDs.`);
+    }
+    return String(item ?? "").split(",");
+  }).map((item) => item.trim()).filter(Boolean);
+  const normalizedItems = [...new Set(items)];
+
+  if (normalizedItems.length > MAX_REPORT_FILTER_LIST_ITEMS) {
+    throw invalidReportFilters(`The ${queryKey} filter has too many values.`);
+  }
+  if (normalizedItems.some((item) => item.length > MAX_REPORT_FILTER_VALUE_LENGTH)) {
+    throw invalidReportFilters(`The ${queryKey} filter contains a value that is too long.`);
+  }
+
+  return normalizedItems;
+}
+
+function readBooleanFilterValue(query, queryKey, defaultValue = false) {
+  const rawValue = query[queryKey] === undefined ? defaultValue : query[queryKey];
+
+  if (typeof rawValue === "boolean") {
+    return rawValue;
+  }
+  if (Array.isArray(rawValue) || rawValue !== null && typeof rawValue === "object") {
+    throw invalidReportFilters(`The ${queryKey} filter must be true or false.`);
+  }
+
+  const normalizedValue = String(rawValue ?? "").trim().toLowerCase();
+  if (["true", "1", "yes"].includes(normalizedValue)) {
     return true;
   }
-
-  return normalizeKey(entry.projectId) === normalizeKey(project.id) ||
-    normalizeKey(entry.projectName) === normalizeKey(project.name);
-}
-
-function decorateProjectDescendants(projects) {
-  const descendantsByProjectId = new Map(projects.map((project) => [project.id, []]));
-
-  projects.forEach((project) => {
-    let parentId = project.parentProjectId;
-
-    while (parentId) {
-      const descendants = descendantsByProjectId.get(parentId);
-      if (!descendants) {
-        break;
-      }
-
-      descendants.push(project.id);
-      parentId = projects.find((candidate) => candidate.id === parentId)?.parentProjectId || "";
-    }
-  });
-
-  return projects.map((project) => ({
-    ...project,
-    childProjectIds: descendantsByProjectId.get(project.id) || [],
-  }));
-}
-
-function filterRollupProjects(projects, options = {}) {
-  if (!options.includeDescendants) {
-    return projects;
+  if (["false", "0", "no"].includes(normalizedValue)) {
+    return false;
   }
 
-  const selectedIds = new Set(projects.map((project) => project.id));
-
-  return projects.filter((project) => !hasSelectedProjectAncestor(project, projects, selectedIds));
+  throw invalidReportFilters(`The ${queryKey} filter must be true or false.`);
 }
 
-function hasSelectedProjectAncestor(project, projects, selectedIds) {
-  let parentId = project.parentProjectId;
-  const visited = new Set();
-
-  while (parentId && !visited.has(parentId)) {
-    visited.add(parentId);
-
-    if (selectedIds.has(parentId)) {
-      return true;
-    }
-
-    parentId = projects.find((candidate) => candidate.id === parentId)?.parentProjectId || "";
+function isIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
   }
 
-  return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-function decorateScopeDepths(scopes) {
-  return scopes.map((scope) => ({
-    ...scope,
-    depth: getScopeDepth(scope, scopes),
-  }));
+function normalizeReportKey(reportKey) {
+  const normalizedReportKey = String(reportKey || "").trim();
+  return REPORT_KEY_PATTERN.test(normalizedReportKey) ? normalizedReportKey : "";
 }
 
-function getScopeDepth(scope, scopes, visited = new Set()) {
-  if (!scope?.parentScopeId || visited.has(scope.id)) {
-    return 0;
+function reportAssetKey(moduleId, assetId) {
+  return `${moduleId}:${assetId}`;
+}
+
+function invalidReportFilters(message) {
+  return new ReportExecutionFailure("invalid_filters", message, 400);
+}
+
+function normalizeRunnerFailure(error) {
+  if (error instanceof ReportExecutionFailure) {
+    return error;
   }
 
-  visited.add(scope.id);
-  const parent = scopes.find((item) => item.id === scope.parentScopeId);
-  return parent ? 1 + getScopeDepth(parent, scopes, visited) : 0;
-}
-
-function sortScopeTree(scopes) {
-  return [...scopes].sort((left, right) =>
-    getScopeTreeSortKey(left, scopes).localeCompare(getScopeTreeSortKey(right, scopes), undefined, {
-      sensitivity: "base",
-    }),
-  );
-}
-
-function sortProjectTree(projects) {
-  const projectsByParentId = new Map();
-  const sortedProjects = [];
-  const visited = new Set();
-
-  projects.forEach((project) => {
-    const parentId = project.parentProjectId || "";
-    const siblings = projectsByParentId.get(parentId) || [];
-    siblings.push(project);
-    projectsByParentId.set(parentId, siblings);
-  });
-
-  const appendBranch = (parentId) => {
-    const siblings = [...(projectsByParentId.get(parentId) || [])].sort((left, right) =>
-      String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" }),
+  if (error instanceof AppError && error.statusCode === 400) {
+    return new ReportExecutionFailure(
+      "report_request_failed",
+      "The report could not be run with those filters.",
+      400,
     );
-
-    siblings.forEach((project) => {
-      if (visited.has(project.id)) {
-        return;
-      }
-
-      visited.add(project.id);
-      sortedProjects.push(project);
-      appendBranch(project.id);
-    });
-  };
-
-  appendBranch("");
-
-  projects.forEach((project) => {
-    if (!visited.has(project.id)) {
-      visited.add(project.id);
-      sortedProjects.push(project);
-      appendBranch(project.id);
-    }
-  });
-
-  return sortedProjects;
-}
-
-function getScopeTreeSortKey(scope, scopes) {
-  if (scope.isWorkspaceScope) {
-    return "";
   }
 
-  const names = [];
-  let currentScope = scope;
-  const visited = new Set();
-
-  while (currentScope && !visited.has(currentScope.id)) {
-    visited.add(currentScope.id);
-    names.unshift(currentScope.name || "");
-    currentScope = scopes.find((item) => item.id === currentScope.parentScopeId);
+  if (error instanceof AppError && [403, 404].includes(error.statusCode)) {
+    return new ReportExecutionFailure(
+      "report_access_denied",
+      "The report could not be run with your current access.",
+      403,
+    );
   }
 
-  return names.join("/");
+  console.error("[reporting] Report runner failed.", error);
+  return new ReportExecutionFailure(
+    "report_execution_failed",
+    "The report could not be run.",
+    500,
+  );
 }
 
-function normalizeKey(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
-}
-
-function parseSelectedProjectIds(value) {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item || "").trim()).filter(Boolean);
+class ReportExecutionFailure extends Error {
+  constructor(code, message, statusCode) {
+    super(message);
+    this.name = "ReportExecutionFailure";
+    this.code = code;
+    this.statusCode = statusCode;
   }
-
-  return String(value || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function parseSelectedTaskIds(value) {
-  return parseSelectedProjectIds(value);
-}
-
-function parseIncludeDescendants(query = {}) {
-  const rawValue = query.includeDescendants ?? query.include_descendants;
-
-  if (rawValue === undefined || rawValue === null || rawValue === "") {
-    return true;
-  }
-
-  return rawValue === true || rawValue === "true" || rawValue === "1" || rawValue === 1;
-}
-
-function normalizeBillableFlag(value, fallback = "yes") {
-  if (value === false || value === "no") {
-    return "no";
-  }
-
-  if (value === true || value === "yes") {
-    return "yes";
-  }
-
-  return fallback === "no" ? "no" : "yes";
-}
-
-function parseOptionalMoney(value) {
-  const text = String(value ?? "").trim();
-
-  if (!text) {
-    return null;
-  }
-
-  const amount = Number(text.replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(amount) ? amount : null;
-}
-
-function parseMoney(value) {
-  const amount = Number(String(value || "").replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(amount) ? amount : 0;
-}
-
-function normalizeBillingPeriod(period) {
-  const type = period?.type === "custom" ? "custom" : "calendarMonth";
-  const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
-
-  return {
-    type,
-    startDay: type === "custom" ? startDay : 1,
-  };
-}
-
-function normalizeOptionalBillingPeriod(period) {
-  if (!period || period.type === "inherit") {
-    return null;
-  }
-
-  return normalizeBillingPeriod(period);
-}
-
-function normalizeBillingRounding(rounding) {
-  const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
-  const increment = increments.includes(rounding?.increment) ? rounding.increment : "nearestQuarterHour";
-
-  return {
-    enabled: Boolean(rounding?.enabled),
-    increment,
-  };
-}
-
-function normalizeOptionalBillingRounding(rounding) {
-  if (!rounding || rounding.type === "inherit") {
-    return null;
-  }
-
-  return normalizeBillingRounding(rounding);
-}
-
-function roundSeconds(seconds, rounding) {
-  const normalizedRounding = normalizeBillingRounding(rounding);
-
-  if (!normalizedRounding.enabled) {
-    return seconds;
-  }
-
-  const incrementSeconds = {
-    nearestHour: 3600,
-    nearestHalfHour: 1800,
-    nearestQuarterHour: 900,
-  }[normalizedRounding.increment];
-
-  return Math.round(seconds / incrementSeconds) * incrementSeconds;
-}
-
-function getProjectBillingRate(settings, scope, project) {
-  return project.billingRate ?? scope.billingRate ?? parseMoney(settings.defaultBillingRate);
-}
-
-function getEffectiveScopeBillingPeriod(settings, scope) {
-  return scope.billingPeriod || settings.billingPeriod;
-}
-
-function getEffectiveProjectBillingPeriod(settings, scope, project) {
-  return project.billingPeriod || getEffectiveScopeBillingPeriod(settings, scope);
-}
-
-function getEffectiveScopeBillingRounding(settings, scope) {
-  return scope.billingRounding || settings.billingRounding;
-}
-
-function getEffectiveProjectBillingRounding(settings, scope, project) {
-  return project.billingRounding || getEffectiveScopeBillingRounding(settings, scope);
-}
-
-function emptyProjectSummary(scope, taskFilter = []) {
-  return {
-    scope,
-    taskFilter,
-    rows: [],
-    totals: { amount: 0, seconds: 0 },
-  };
-}
-
-function readModulePanels(modules, panelGroup) {
-  return modules
-    .filter((moduleDefinition) => moduleDefinition.status === "enabled" || moduleDefinition.historicalReadAccess === true)
-    .flatMap((moduleDefinition) => (
-      Array.isArray(moduleDefinition[panelGroup])
-        ? moduleDefinition[panelGroup].map((panel) => ({
-            ...panel,
-            moduleId: moduleDefinition.id,
-            moduleName: moduleDefinition.displayName || moduleDefinition.name,
-          }))
-        : []
-    ));
-}
-
-function workspaceSummary(session, settings) {
-  return {
-    id: session.workspace_id,
-    name: settings.workspaceName || "Workspace",
-    type: settings.workspaceType,
-  };
 }
 
 export const reportingService = {
-  readProjectSummary,
-  readReportingBootstrap,
+  readReportCatalog,
+  runReport,
 };

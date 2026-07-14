@@ -14,7 +14,7 @@ const { timeEntriesService } = await import("../src/modules/time-tracking/time-e
 const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { searchService } = await import("../src/services/search.service.js");
-const { reportingService } = await import("../src/services/reporting.service.js");
+const { timeTrackingBillingService } = await import("../src/modules/time-tracking/time-tracking-billing.service.js");
 const { tagsRepository } = await import("../src/repositories/tags.repo.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 
@@ -233,7 +233,7 @@ async function assertTimeEntrySnapshotsSearchAndReporting(session, fixtures) {
     "search exact tag filters should match effective propagated task tags",
   );
 
-  const report = await reportingService.readProjectSummary(session, {
+  const report = await timeTrackingBillingService.readProjectSummary(session, {
     includeDescendants: true,
     period: "custom",
     scopeId: fixtures.childClient.id,
@@ -246,7 +246,7 @@ async function assertTimeEntrySnapshotsSearchAndReporting(session, fixtures) {
 }
 
 async function assertNoSemanticSideEffects(session, fixtures) {
-  const unfilteredReport = await reportingService.readProjectSummary(session, {
+  const unfilteredReport = await timeTrackingBillingService.readProjectSummary(session, {
     includeDescendants: true,
     period: "custom",
     scopeId: fixtures.childClient.id,

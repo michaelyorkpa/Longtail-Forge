@@ -9,10 +9,12 @@ process.env.SUPER_ADMIN_PASSWORD = "App-Shell-Navigation-Test-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { appShellService } = await import("../src/services/app-shell.service.js");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
 
 try {
   await initializeDatabase();
   const session = await readProtectedSession();
+  await modulesService.syncModuleRegistry(session.workspace_id);
   await disableFixtureModules(session.workspace_id, ["notes", "lists"]);
   const shell = await appShellService.bootstrap(session);
   const navigation = shell.navigation || [];
@@ -45,8 +47,24 @@ try {
   const reportingMenu = (actionsMenu.items || []).find((item) => item.id === "reporting");
   assert.ok(reportingMenu, "Actions should directly contain a Reporting slide-out");
   assert.equal(reportingMenu.label, "Reporting");
-  assert.equal((reportingMenu.items || []).length, 1, "Reporting slide-out should keep one entry for now");
-  assert.equal(reportingMenu.items[0].href, "reporting.html");
+  assert.equal((reportingMenu.items || []).length, 1, "Reporting should list only catalog-eligible report entries");
+  assert.equal(reportingMenu.items[0].label, "Project Time & Billing");
+  assert.equal(reportingMenu.items[0].href, "reporting.html?report=time-tracking%3Aproject-time-billing");
+  assert.equal(reportingMenu.items[0].moduleId, "time-tracking");
+
+  await disableFixtureModules(session.workspace_id, ["time-tracking"]);
+  const disabledShell = await appShellService.bootstrap(session);
+  const disabledActions = disabledShell.navigation.find((item) => item.id === "actions");
+  assert.equal(
+    (disabledActions?.items || []).some((item) => item.id === "reporting"),
+    false,
+    "Reporting navigation should hide when no catalog-eligible reports remain",
+  );
+  assert.equal(
+    (disabledShell.quickActions || []).some((item) => item.id === "reporting"),
+    false,
+    "Reporting quick action should hide when no catalog-eligible reports remain",
+  );
 
   const settingsMenu = navigation.find((item) => item.id === "settings");
   const workspaceMenu = (settingsMenu?.items || []).find((item) => item.id === "workspace-settings-group");

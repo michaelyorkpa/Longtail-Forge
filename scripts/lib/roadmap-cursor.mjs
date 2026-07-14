@@ -36,7 +36,7 @@ function readActiveRoadmapCursor(options = {}) {
 
 /**
  * Numeric dotted-version comparison. Handles uneven segment counts:
- * 0.33.5.29.5 < 0.33.7.7 < 0.33.8 < 0.33.12.2, and 0.33 === 0.33.0.
+ * 0.33.5.29.5 < 0.33.7.7 < 0.33.8 < 0.33.12.8, and 0.33 === 0.33.0.
  * @param {string} left
  * @param {string} right
  * @returns {number} negative, zero, or positive
