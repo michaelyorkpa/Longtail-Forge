@@ -165,6 +165,7 @@ async function assertChecklistToggleKeepsLifecycleStatus(session, status) {
   const task = (await tasksService.create({
     title: `Checklist ${status} task`,
     status,
+    blocked_reason: status === "blocked" ? "Waiting while checklist state is verified." : "",
   }, session)).task;
   const checklist = await tasksService.addChecklistItem(task.task_id, { label: `Toggle ${status} checklist` }, session);
 

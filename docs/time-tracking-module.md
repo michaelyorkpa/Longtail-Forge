@@ -24,6 +24,10 @@ Framework dependencies:
 - Timezone normalization for persisted UTC timestamps.
 - Workspace settings/bootstrap responses for module status and metadata.
 
+Workspace billing boundary:
+
+As of 0.33.11.5, the Billable flag is available only in Business workspaces. Personal and Family Time Tracker cards, Create Timer dialogs, Time Entry dialogs, and Projects read surfaces omit the control. The browser still sends an explicit safe `no` where a compatibility payload requires the field, and the active-timer, browser time-entry, and public time-entry services independently force writes to `no`. Read models also normalize legacy Personal/Family `yes` values to `no`, so retained database columns cannot affect Time Tracking or billing calculations outside Business workspaces.
+
 Dashboard effort contributions:
 
 As of 0.33.6.13c, Time Tracking contributes compact Dashboard effort cards instead of default billing/report panels. The module declares `active-timers` and `recent-time` Dashboard contributions with Time Tracking workspace capability and enabled-module gates. `active-timers` requires `time_entries.create`, renders through `time-tracking.active-timers`, and links to Workbench without adding timer creation controls. `recent-time` requires `reporting.view`, renders through `time-tracking.recent-time`, and links to Time Entries and Reporting without showing a full table. Both cards hydrate from `/api/time-tracking/dashboard/effort-summary`, which returns safe active/paused timer counts, up to three timer rows, recent saved-time totals, and up to three recent time-entry rows. Business workspaces may include Client/Project context labels; Personal and Family workspaces must not show billable amount, invoice-ready copy, billing charts, Current Month Billables, or Client billing language.
@@ -41,6 +45,10 @@ As of 0.33.6.12k, Task Focus renames the lower timer panel to `Other Active Time
 Create Timer modal:
 
 As of version 0.33.6.12d-2, Time Tracking owns the Create Timer modal registered as `time-tracking.timer.create`. QAC and future framework surfaces open this module action through `LongtailForge.moduleActions` instead of navigating to the Time Tracker page. The modal supports Client, Project, optional Task, Description, and Billable controls; manual timer starts use the existing `/api/active-timers/:timerSlot` route with the next available manual slot, while selected Task timers use `PUT /api/tasks/:taskId/timer` so Tasks keeps task-timer eligibility, status-transition, audit/event/search, and task-worked side effects. After a successful start, the modal completes the host action, returns focus through the module-action host, and notifies the host that timer state changed.
+
+Linking a running manual timer to a task:
+
+As of 0.33.11.3, each Time Tracker manual-timer card can link its currently running, server-persisted timer to an active task in the same selected project. The browser loads the existing Tasks-owned active option payload, keeps the control disabled until the timer is running and persisted, and calls `POST /api/tasks/:taskId/timer/link`; paused timers cannot be converted. Tasks owns task readability, Time Tracking permission, task-timer enablement and eligibility, conflict checks, Open-to-In Progress transition, audit, last-worked, and search side effects. Time Tracking transactionally reclassifies the existing `active_work_timers` row instead of creating a replacement: `active_timer_id`, `created_at`, accumulated duration, current running segment, and running status stay intact while source, Client/Project, description, billable state, and source metadata become Task-owned values. Remaining numeric manual slots compact afterward. Finalizing the converted timer uses the normal Tasks finalize route and writes the selected `task_id` to the saved time entry.
 
 Disabled-module rule:
 

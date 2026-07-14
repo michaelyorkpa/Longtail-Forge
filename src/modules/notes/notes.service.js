@@ -707,6 +707,36 @@ async function readTaskLinkedNotePropagationStructure(session, taskId) {
   };
 }
 
+async function bulkUpdate(payload, session) {
+  await assertNotesWriteEnabled(session);
+  const noteIds = [...new Set(normalizeIdList(payload?.noteIds || payload?.note_ids || []))];
+  if (noteIds.length === 0) {
+    throw new AppError("Select at least one note to update.", 400);
+  }
+  if (noteIds.length > 100) {
+    throw new AppError("Notes bulk editing supports at most 100 notes at a time.", 400);
+  }
+
+  const changes = await normalizeNoteBulkChanges(payload?.changes || payload, session);
+  const notes = [];
+  const errors = [];
+
+  for (const noteId of noteIds) {
+    try {
+      const result = await update(noteId, changes, session);
+      notes.push(result.note);
+    } catch (error) {
+      errors.push({
+        note_id: noteId,
+        message: error.message || "Note could not be updated.",
+        status: error.status || error.statusCode || 500,
+      });
+    }
+  }
+
+  return { notes, errors };
+}
+
 async function replacePropagatedTaskLinkedNotes(session, { taskId, templateId, links = [], sourceTaskId = "" } = {}) {
   if (!(await canManageLinkedNotePropagation(session))) {
     return {
@@ -3024,6 +3054,52 @@ function normalizeIdList(value) {
     .filter(Boolean);
 }
 
+async function normalizeNoteBulkChanges(payload = {}, session) {
+  const hasLibrary = Object.hasOwn(payload, "libraryBucket") || Object.hasOwn(payload, "library_bucket");
+  const hasCollection = Object.hasOwn(payload, "noteCollectionId") || Object.hasOwn(payload, "note_collection_id");
+  const hasNoteKind = Object.hasOwn(payload, "noteType") || Object.hasOwn(payload, "note_type");
+  const hasVisibility = Object.hasOwn(payload, "visibility");
+  let libraryBucket = hasLibrary
+    ? normalizeEnum(payload.libraryBucket ?? payload.library_bucket, LIBRARY_BUCKET_VALUES, "Library bucket")
+    : "";
+  const noteCollectionId = hasCollection
+    ? normalizeOptionalText(payload.noteCollectionId ?? payload.note_collection_id)
+    : "";
+
+  if (noteCollectionId) {
+    const collection = await notesRepository.readCollectionById(session.workspace_id, noteCollectionId);
+    if (!collection || collection.status === "deleted") {
+      throw new AppError("Note collection not found.", 404);
+    }
+    if (libraryBucket && collection.library_bucket !== libraryBucket) {
+      throw new AppError("Note collection must be in the selected Library bucket.", 400);
+    }
+    libraryBucket = collection.library_bucket;
+  }
+
+  const changes = {};
+  if (libraryBucket) {
+    changes.library_bucket = libraryBucket;
+  }
+  if (hasCollection) {
+    changes.note_collection_id = noteCollectionId || null;
+  } else if (hasLibrary) {
+    changes.note_collection_id = null;
+  }
+  if (hasNoteKind) {
+    changes.note_type = normalizeEnum(payload.noteType ?? payload.note_type, NOTE_TYPE_VALUES, "Note Kind");
+  }
+  if (hasVisibility) {
+    changes.visibility = normalizeEnum(payload.visibility, NOTE_VISIBILITY_VALUES, "Note visibility");
+  }
+
+  if (Object.keys(changes).length === 0) {
+    throw new AppError("Choose at least one Notes field to update.", 400);
+  }
+
+  return changes;
+}
+
 function normalizeAndValidateMarkdown(value) {
   try {
     return assertSafeMarkdown(value);
@@ -3746,6 +3822,7 @@ export const notesService = {
   archive,
   archiveCollection,
   assignNoteCollection,
+  bulkUpdate,
   changeLibrary,
   create,
   createCollection,

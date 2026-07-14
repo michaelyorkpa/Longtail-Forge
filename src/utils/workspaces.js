@@ -63,8 +63,13 @@ function getWorkspaceCapabilities(type) {
   };
 }
 
+function workspaceSupportsBillable(type) {
+  return normalizeWorkspaceType(type) === "business";
+}
+
 export {
   DEFAULT_WORKSPACE_TYPE,
   getWorkspaceCapabilities,
   normalizeWorkspaceType,
+  workspaceSupportsBillable,
 };

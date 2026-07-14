@@ -72,6 +72,7 @@ async function createFixtures(session) {
     task_id: `task-view-blocked-${randomUUID()}`,
     title: "Task View blocked active",
     status: "blocked",
+    blocked_reason: "Waiting on task view fixture context.",
     due_date: afterCurrentWeek,
     project_id: project.id,
   });

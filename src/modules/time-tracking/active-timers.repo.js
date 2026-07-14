@@ -145,6 +145,96 @@ LIMIT 1;
   return row ? activeTimerRowToAppValue(row) : null;
 }
 
+async function convertManualToSource(workspaceId, userId, timerSlot, timer) {
+  return db.transaction(async (transaction) => {
+    const existingSource = await transaction.get(selectSql(`
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND source_module_id = :sourceModuleId
+  AND source_type = :sourceType
+  AND source_id = :sourceId
+LIMIT 1;
+`), {
+      sourceId: textParam(timer.source_id),
+      sourceModuleId: textParam(timer.source_module_id),
+      sourceType: textParam(timer.source_type),
+      userId: textParam(userId),
+      workspaceId: textParam(workspaceId),
+    });
+
+    if (existingSource) {
+      return { status: "source_exists", timer: activeTimerRowToAppValue(existingSource) };
+    }
+
+    const manualTimer = await transaction.get(selectSql(`
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND timer_slot = :timerSlot
+  AND source_module_id IS NULL
+  AND source_type = 'manual'
+LIMIT 1;
+`), {
+      timerSlot: textParam(timerSlot),
+      userId: textParam(userId),
+      workspaceId: textParam(workspaceId),
+    });
+
+    if (!manualTimer) {
+      return { status: "not_found", timer: null };
+    }
+
+    const now = new Date().toISOString();
+
+    await transaction.run(`
+UPDATE active_work_timers
+SET timer_slot = :sourceTimerSlot,
+    source_module_id = :sourceModuleId,
+    source_type = :sourceType,
+    source_id = :sourceId,
+    source_label = :sourceLabel,
+    source_url = :sourceUrl,
+    source_metadata_json = :sourceMetadataJson,
+    client_id = :clientId,
+    client_name = :clientName,
+    project_id = :projectId,
+    project_name = :projectName,
+    description = :description,
+    billable = :billable,
+    updated_at = :updatedAt
+WHERE active_timer_id = :activeTimerId
+  AND workspace_id = :workspaceId
+  AND user_id = :userId;
+`, {
+      activeTimerId: textParam(manualTimer.active_timer_id),
+      billable: textParam(timer.billable),
+      clientId: nullableTextParam(timer.client_id),
+      clientName: textParam(timer.client_name),
+      description: textParam(timer.description),
+      projectId: textParam(timer.project_id),
+      projectName: textParam(timer.project_name),
+      sourceId: textParam(timer.source_id),
+      sourceLabel: textParam(timer.source_label),
+      sourceMetadataJson: textParam(normalizeSourceMetadataJson(timer.sourceMetadata)),
+      sourceModuleId: textParam(timer.source_module_id),
+      sourceTimerSlot: textParam(timer.timer_slot),
+      sourceType: textParam(timer.source_type),
+      sourceUrl: textParam(timer.source_url),
+      updatedAt: now,
+      userId: textParam(userId),
+      workspaceId: textParam(workspaceId),
+    });
+
+    const converted = await transaction.get(selectSql(`
+WHERE active_timer_id = :activeTimerId
+LIMIT 1;
+`), {
+      activeTimerId: textParam(manualTimer.active_timer_id),
+    });
+
+    return { status: "converted", timer: activeTimerRowToAppValue(converted) };
+  });
+}
+
 async function upsert(timer) {
   const now = new Date().toISOString();
 
@@ -433,6 +523,7 @@ function isNumericTimerSlot(timerSlot) {
 
 export const activeTimersRepository = {
   compactManualTimerSlots,
+  convertManualToSource,
   hasSource,
   readAll,
   readAllBySource,

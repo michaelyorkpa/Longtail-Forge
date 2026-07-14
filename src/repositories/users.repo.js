@@ -115,6 +115,8 @@ WHERE ${USERS_PHYSICAL_ROW_ID} IN (
   INNER JOIN users AS user_rows
     ON user_rows.user_id = user_workspaces.user_id
   WHERE user_workspaces.workspace_id = :workspaceId
+    AND user_workspaces.status = 'active'
+    AND user_rows.user_status = 'active'
   GROUP BY user_workspaces.user_id
 )
 ORDER BY username;

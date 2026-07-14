@@ -57,6 +57,14 @@ async function assertParentChildBlockingLifecycle(session) {
   assert.equal(relationshipRead.relationships.length, 1);
   assert.equal(relationshipRead.relationships[0].related_task.title, "Child blocker task");
 
+  const listRead = await tasksService.listAll(session, { status: "active", task_view: "all" });
+  const childListRow = listRead.tasks.find((task) => task.task_id === child.task_id);
+  assert.deepEqual(childListRow?.parentTask, {
+    task_id: parent.task_id,
+    title: parent.title,
+    status: "blocked",
+  }, "task list projections should expose one safe readable parent for nesting and navigation");
+
   await tasksService.complete(child.task_id, session);
   const stillBlocked = (await tasksService.read(parent.task_id, session)).task;
   assert.equal(stillBlocked.status, "blocked", "manual blocked reason should be preserved after child completion");

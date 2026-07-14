@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
-import { initializeDatabase, querySql, runSql, sqlText } from "../src/db/index.js";
-import { searchService } from "../src/services/search.service.js";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("search-fts-repair-regression");
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { searchService } = await import("../src/services/search.service.js");
+
+try {
 
 await initializeDatabase();
 
@@ -221,4 +226,8 @@ async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();
   checks += 1;
+}
+} finally {
+  await closeSqlite();
+  await fixture.cleanup();
 }

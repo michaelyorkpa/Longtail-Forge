@@ -3167,8 +3167,25 @@ a.search-result-title:hover {
 }
 
 .tag-picker-suggestion:hover,
-.tag-picker-suggestion:focus-visible {
+.tag-picker-suggestion:focus-visible,
+.tag-picker-suggestion.is-active {
     background: var(--color-hover);
+}
+
+.tag-filter-control {
+    position: relative;
+}
+
+.tag-filter-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    z-index: 120;
+}
+
+.tag-filter-suggestions[hidden] {
+    display: none !important;
 }
 
 .tag-picker-create {
@@ -4360,8 +4377,17 @@ button.danger-button {
     vertical-align: top;
 }
 
+.task-density-row {
+    --task-nesting-depth: 0;
+}
+
 .task-density-cell {
     min-width: 0;
+}
+
+.task-density-row.is-task-child .task-density-cell {
+    padding-left: calc(10px + (var(--task-nesting-depth) * 18px));
+    border-left: 3px solid var(--color-border);
 }
 
 .task-density-title,
@@ -4457,6 +4483,23 @@ button.danger-button {
 
 .task-context-chip.is-blocked {
     color: var(--color-danger);
+}
+
+.task-context-chip.is-parent-link {
+    width: auto;
+    min-height: 24px;
+    padding: 2px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-page-bg);
+    color: var(--color-accent);
+    cursor: pointer;
+}
+
+.task-context-chip.is-parent-link:hover,
+.task-context-chip.is-parent-link:focus-visible {
+    border-color: var(--color-accent);
+    background: var(--color-hover);
 }
 
 .task-attachment-count,
@@ -6037,6 +6080,11 @@ dialog .form-actions {
     margin: 0;
 }
 
+.task-checklist-field[open] {
+    gap: 12px;
+    padding: 14px;
+}
+
 .task-checklist-add-row,
 .task-checklist-item {
     display: grid;
@@ -6056,7 +6104,7 @@ dialog .form-actions {
 
 .task-checklist-list {
     display: grid;
-    gap: 8px;
+    gap: 6px;
 }
 
 .task-reminder-field,
@@ -6307,7 +6355,8 @@ dialog .form-actions {
 .notes-detail-header p,
 .notes-empty-state,
 [data-note-library-suggestion],
-[data-note-form-status] {
+[data-note-form-status],
+[data-note-bulk-form-status] {
     color: var(--color-muted);
 }
 
@@ -6454,9 +6503,29 @@ dialog .form-actions {
     text-align: left;
 }
 
+.notes-index-chrome,
 .notes-list {
     display: grid;
     gap: 6px;
+}
+
+.notes-bulk-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.notes-list-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+}
+
+.notes-list-select {
+    width: 18px;
+    height: 18px;
+    margin: 20px 0 0;
 }
 
 .notes-list-item {
@@ -8058,6 +8127,14 @@ dialog[data-role-permissions-dialog] {
     font-size: 22px;
 }
 
+/* Session/auth warnings are app-shell owned and must remain foreground-visible even when the
+   browser falls back from the native dialog top layer while a module editor is open. */
+.framework-session-warning[open] {
+    position: fixed;
+    inset: 0;
+    z-index: 10020;
+}
+
 .danger-action {
     border-color: var(--color-danger-border);
     background: var(--color-danger-bg);
@@ -8100,6 +8177,18 @@ dialog[data-role-permissions-dialog] {
     gap: 12px;
     width: 100%;
     text-align: left;
+}
+
+.timer-task-link-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+}
+
+.timer-task-link-control button {
+    min-height: 44px;
+    white-space: nowrap;
 }
 
 label {
@@ -8552,6 +8641,14 @@ button:disabled {
 
     .timer-grid {
         grid-template-columns: 1fr;
+    }
+
+    .timer-task-link-control {
+        grid-template-columns: 1fr;
+    }
+
+    .timer-task-link-control button {
+        width: 100%;
     }
 
     .reporting-page {

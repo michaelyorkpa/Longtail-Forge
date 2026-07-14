@@ -19,6 +19,8 @@ This document records the current regression-suite contract through the 0.33.6.1
 | `scripts/run-closeout.mjs` | Runs the six standing maintenance gates through their existing package scripts and exits nonzero only when a hard gate fails. |
 | `scripts/test-support/isolated-regression-retry.mjs` | Applies the isolated-database bucket's one-retry policy while preserving fail-fast scheduling and logical script counts. |
 | `scripts/test-support/regression-bucket-orchestrator.mjs` | Executes selected buckets sequentially in their discovered order and returns immediately after the first bucket failure. |
+| `scripts/test-support/disposable-database.mjs` | Gives direct database-backed regressions a temp-directory database target before runtime/database imports. |
+| `scripts/test-support/canonical-workspace-inventory.mjs` | Fingerprints the canonical workspace and membership inventory before and after the full runner. |
 | `scripts/lib/docs-change-routing.mjs` | Validates the data-only documentation ownership index and maps changed source paths to likely owning documents. |
 | `scripts/suggest-docs-for-changes.mjs` | Prints changed-area documentation suggestions and the warning-only closeout disposition gate. |
 | `scripts/regression-legacy-snapshot.json` | Freezes the 312-script 0.33.6.16.1 legacy path and run-mode set so discovery cannot silently drop or parallelize an existing regression. |
@@ -66,7 +68,7 @@ At completion of 0.33.6.16.13, the suite contains 321 discovered scripts: all 31
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |
-| `static/source regressions` | 160 | parallel | 6 | The 151 legacy read-only/parallel-safe checks plus the discovery, manifest-generation, regression-routing, changed-area auto-run, closeout-conductor, asset-version, documentation-ownership, migration/schema-workflow, and licensing-gate guardrails; these do not receive a runner database fixture. |
+| `static/source regressions` | 160 | parallel | 6 | Read-only/parallel-safe checks only; these do not receive a runner database fixture, and database access from a regression entry point is refused unless the script selected an OS-temp database before importing runtime/database modules. |
 | `default database regressions` | 6 | serial | 1 | Search/database checks whose current ordering and shared-state assumptions remain serial. |
 | `file storage regressions` | 29 | serial | 1 | File storage/scanner checks remain serial until their database, filesystem, port, and process isolation is explicitly proven. |
 | `isolated database regressions` | 126 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
@@ -78,6 +80,14 @@ The runner no longer uses hand-maintained arrays as its source of truth. Discove
 The default full run uses the table order above: 160 cheap static/source checks run first, followed by 6 serial default-database checks, 29 serial file-storage checks, and 126 isolated-database checks with adaptive safe parallelism. The runner executes buckets sequentially and stops after the first failing bucket, so a deterministic static/source failure does not pay for database fixture, filesystem, port, process, or isolated-database work.
 
 This is an explicit ordering guarantee, not a coverage or safety change. The flattened bucket paths must remain exactly equal to the 321 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Future 0.33.7 typecheck/Vitest work may run ahead of this sequence without replacing it.
+
+### Canonical database isolation
+
+As of 0.33.11.4, suite bucket metadata and direct invocation share one database safety rule. A regression entry point whose file name ends in `regression.mjs` may initialize the database only when `LONGTAIL_DATABASE_FILE` resolves beneath the operating-system temp directory. `src/db/regression-database-safety.js` enforces the rule before the database adapter opens. A database-backed direct regression must therefore create its temp fixture and set `LONGTAIL_DATABASE_FILE` / `LONGTAIL_DATA_DIR` before dynamically importing database or runtime modules; a static import is too early because module imports are evaluated before the script body.
+
+The suite continues to give every non-static bucket a per-script fixture through `scripts/test-support/database-fixture.mjs`. Static/source scripts receive no fixture and must remain read-only unless they explicitly create a disposable fixture themselves. The five legacy Search regressions that previously imported the database statically and the static/runtime contract regressions that transitively reach module registration now use `scripts/test-support/disposable-database.mjs`, so suite and direct invocation follow the same rule. Nested static closeout imports may reuse an already configured temp fixture without replacing or closing the parent fixture.
+
+`scripts/run-regressions.mjs` also captures the canonical `data/longtail-forge.db` workspace and membership fingerprint before the first bucket and compares it after cleanup of the regression baseline. Any workspace/membership change fails the run even if every individual assertion passed. `database.workspace-cleanup-isolation` proves the refusal path without creating the requested non-disposable file, runs representative formerly-leaking and already-isolated regressions directly, and verifies the canonical fingerprint stays unchanged.
 
 ### Closeout maintenance conductor
 

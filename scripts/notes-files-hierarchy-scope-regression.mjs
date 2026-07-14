@@ -55,7 +55,7 @@ function assertStaticContract() {
 
   assert.match(
     notesDocs,
-    new RegExp(`current Notes implementation as of ${escapeRegExp("0.33.6.15.1")}`),
+    new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`),
     "Notes docs should report the current implementation version",
   );
   assert.match(

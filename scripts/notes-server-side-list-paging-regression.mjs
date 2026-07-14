@@ -83,7 +83,7 @@ function assertStaticContract() {
   assert.match(notesScript, /function renderNotes\(\)[\s\S]*const pageNotes = state\.notes \|\| \[\]/, "Notes browser should render the server-shaped page directly");
   assert.match(linkedPanelScript, /\/api\/notes\?\$\{params\.toString\(\)\}/, "Linked note picker should use the bounded Notes list query");
   assert.match(notesView, /css\/longtail-forge\.css[\s\S]*js\/notes\.js/, "Notes host should reference list paging assets");
-  assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp("0.33.6.15.1")}`), "Notes docs should report the current implementation version");
+  assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current implementation version");
   assert.match(notesDocs, /As of 0\.33\.5\.20\.3, the protected Notes workspace uses a lightweight server-shaped list read/, "Notes docs should keep the server-side list version on the shipped list-read contract");
   assert.match(regressionSuite, /scripts\/notes-server-side-list-paging-regression\.mjs/, "Regression suite should include Notes server-side paging coverage");
 }

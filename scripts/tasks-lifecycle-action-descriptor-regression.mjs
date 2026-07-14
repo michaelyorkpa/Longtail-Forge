@@ -35,7 +35,7 @@ assert.match(behaviorHandlers, /"tasks\.lifecycle\.complete": \(\{ record \}\) =
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.reopen": \(\{ record \}\) => postTaskAction\(record, "reopen"\)/, "Reopen should dispatch through the Tasks-owned reopen handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.archive": \(\{ record \}\) => postTaskAction\(record, "archive"\)/, "Archive should dispatch through the Tasks-owned archive handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.restore": \(\{ record \}\) => postTaskAction\(record, "restore"\)/, "Restore should dispatch through the Tasks-owned restore handler");
-assert.match(behaviorHandlers, /"tasks\.lifecycle\.block"[\s\S]*updateTaskLifecycleStatus\(record, action\.statusPayload \|\| \{ status: "blocked" \}\)/, "Block should dispatch through the Tasks-owned update route handler");
+assert.match(behaviorHandlers, /"tasks\.lifecycle\.block"[\s\S]*openTaskDialogForBlock\(record, action, trigger\)/, "Block should dispatch through the canonical Tasks editor so a reason can be entered");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.unblock"[\s\S]*updateTaskLifecycleStatus\(record, action\.statusPayload \|\| \{ status: "open", blocked_reason: "" \}\)/, "Unblock should dispatch through the Tasks-owned update route handler");
 
 assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*createTaskLifecycleActionStrip\(task\)/, "Task row utilities should stay module-owned while lifecycle actions move into the framework action strip");
@@ -64,7 +64,8 @@ assert.match(permissionAllow, /permissionId === "tasks\.edit_own"[\s\S]*return i
 assert.match(runLifecycleAction, /if \(action\.confirm && !await confirmTaskLifecycleAction\(action, task\)\)/, "Confirmed lifecycle actions should prompt before dispatch");
 assert.match(runLifecycleAction, /handler\(\{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList/, "Lifecycle handlers should receive the Tasks record and refresh hook");
 assert.match(confirmLifecycleAction, /modal\?\.confirm[\s\S]*danger:\s*confirmOptions\.danger === true \|\| action\.role === "destructive"/, "Destructive lifecycle confirmation should use the framework modal confirm helper");
-assert.match(updateLifecycleStatus, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}`, payload\)[\s\S]*upsertTask\(result\.task\)[\s\S]*await reloadTaskList\(\)/, "Block and unblock should use the existing Tasks update route and refresh the list");
+assert.match(updateLifecycleStatus, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}`, payload\)[\s\S]*upsertTask\(result\.task\)[\s\S]*await reloadTaskList\(\)/, "Direct lifecycle status updates should use the existing Tasks update route and refresh the list");
+assert.match(functionBlock(tasksScript, "openTaskDialogForBlock"), /focusTarget:\s*"blocked_reason"[\s\S]*status:\s*"blocked"/, "Block should open the canonical editor in blocked state focused on Blocked Reason");
 assert.match(postTaskAction, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}\/\$\{action\}`, \{\}\)[\s\S]*await reloadTaskList\(\)/, "POST lifecycle actions should use the existing Tasks lifecycle routes and refresh the list");
 
 assert.doesNotMatch(tasksRoutes, /tasksRoutes\.delete\("\/tasks\/:taskId"\s*,/, "Browser API should not expose a task delete route");

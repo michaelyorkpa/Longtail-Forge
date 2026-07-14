@@ -47,7 +47,7 @@ for (const phrase of [
 }
 
 for (const phrase of [
-  "current Notes implementation as of 0.33.6.15.1",
+  `current Notes implementation as of ${appVersion}`,
   "CommonMark paragraphs",
   "safe underline through the `++text++` token",
   "approved tables and task lists",

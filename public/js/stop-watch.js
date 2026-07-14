@@ -8,11 +8,20 @@ const timerTemplate = (
 
 let clients = [];
 let tagOptions = [];
+let taskOptions = [];
 let timers = [];
 
 const timerPersistence = {
   loaded: false,
 };
+
+function workspaceUsesBillableFlag() {
+  return window.LongtailForge?.workspaceContext?.workspaceType === "business";
+}
+
+function billableValue(input) {
+  return workspaceUsesBillableFlag() && input.checked ? "yes" : "no";
+}
 
 function setTimerCount(timerCount) {
   const nextTimerCount = clampTimerCount(timerCount);
@@ -63,6 +72,7 @@ function appendTimers(nextTimerCount) {
 
     const timer = new StopwatchTimer(root, timerNumber);
     timer.setClients(clients);
+    timer.setTaskOptions(taskOptions);
     timers.push(timer);
   }
 }
@@ -142,7 +152,7 @@ async function loadClientProjectData() {
   }
 }
 
-async function loadActiveTimers() {
+async function loadActiveTimers(options = {}) {
   try {
     const data = await window.LongtailForge.api.getJson("/api/active-timers", {
       cache: "no-store",
@@ -154,6 +164,10 @@ async function loadActiveTimers() {
     }, 1);
 
     setTimerCount(clampTimerCount(maxTimerSlot));
+
+    if (options.resetExisting === true) {
+      timers.forEach((timer) => timer.clearLocalStateForReload());
+    }
 
     activeTimers.forEach((timerData) => {
       const timerSlot = Number.parseInt(timerData.timer_slot, 10);
@@ -170,11 +184,31 @@ async function loadActiveTimers() {
   }
 }
 
+async function loadTaskOptions() {
+  if (!workspaceHasTasks()) {
+    taskOptions = [];
+    timers.forEach((timer) => timer.setTaskOptions(taskOptions));
+    return;
+  }
+
+  try {
+    const data = await window.LongtailForge.api.getJson("/api/tasks?status=active&limit=200", {
+      cache: "no-store",
+    });
+    taskOptions = normalizeTaskOptions(data);
+  } catch {
+    taskOptions = [];
+  }
+
+  timers.forEach((timer) => timer.setTaskOptions(taskOptions));
+}
+
 async function initializeTimeTracker() {
   await window.LongtailForge.workspaceContextReady;
   setTimerCount(1);
   await loadTagOptions();
   await loadClientProjectData();
+  await loadTaskOptions();
   await loadActiveTimers();
 }
 
@@ -194,6 +228,10 @@ class StopwatchTimer {
     this.descriptionInput =
       root.querySelector("[data-stopwatch-description]") ||
       createDescriptionInput(root);
+    const taskLinkControl = ensureTaskLinkControl(root);
+    this.taskSelect = taskLinkControl.select;
+    this.linkTaskButton = taskLinkControl.button;
+    decorateTaskLinkButton(this.linkTaskButton);
     this.tagsContainer =
       root.querySelector("[data-stopwatch-tags]") ||
       createTagsContainer(root);
@@ -226,6 +264,12 @@ class StopwatchTimer {
     this.billableInput =
       root.querySelector("[data-stopwatch-billable]") ||
       createBillableInput(root);
+    this.billableControl = this.billableInput.closest("[data-stopwatch-billable-control]") ||
+      this.billableInput.closest("label");
+    this.billableControl.hidden = !workspaceUsesBillableFlag();
+    if (!workspaceUsesBillableFlag()) {
+      this.billableInput.checked = false;
+    }
     this.statusMessage =
       root.querySelector("[data-stopwatch-status]") ||
       createStatusMessage(root);
@@ -238,6 +282,7 @@ class StopwatchTimer {
     this.activeStartTime = null;
     this.timerId = null;
     this.clients = [];
+    this.taskOptions = [];
     this.isSaving = false;
     this.confirmedClientId = this.clientSelect.value;
     this.confirmedProjectId = this.projectSelect.value;
@@ -252,6 +297,8 @@ class StopwatchTimer {
     this.handleClientChange = this.handleClientChange.bind(this);
     this.handleProjectChange = this.handleProjectChange.bind(this);
     this.persistEditedTimer = this.persistEditedTimer.bind(this);
+    this.linkRunningTimerToTask = this.linkRunningTimerToTask.bind(this);
+    this.handleTaskSelectionChange = this.handleTaskSelectionChange.bind(this);
 
     this.startButton.addEventListener("click", this.startTimeTracker);
     this.pauseButton.addEventListener("click", this.pause);
@@ -261,6 +308,8 @@ class StopwatchTimer {
     this.projectSelect.addEventListener("change", this.handleProjectChange);
     this.descriptionInput.addEventListener("change", this.persistEditedTimer);
     this.billableInput.addEventListener("change", this.persistEditedTimer);
+    this.taskSelect.addEventListener("change", this.handleTaskSelectionChange);
+    this.linkTaskButton.addEventListener("click", this.linkRunningTimerToTask);
 
     this.updateDisplay();
     this.updateButtons();
@@ -278,11 +327,18 @@ class StopwatchTimer {
     this.projectSelect.removeEventListener("change", this.handleProjectChange);
     this.descriptionInput.removeEventListener("change", this.persistEditedTimer);
     this.billableInput.removeEventListener("change", this.persistEditedTimer);
+    this.taskSelect.removeEventListener("change", this.handleTaskSelectionChange);
+    this.linkTaskButton.removeEventListener("click", this.linkRunningTimerToTask);
   }
 
   setClients(clients) {
     this.clients = clients;
     this.populateClientOptions();
+  }
+
+  setTaskOptions(options) {
+    this.taskOptions = Array.isArray(options) ? options : [];
+    this.populateTaskOptions();
   }
 
   disableClientData() {
@@ -348,6 +404,50 @@ class StopwatchTimer {
     }
   }
 
+  handleTaskSelectionChange() {
+    this.updateButtons();
+  }
+
+  async linkRunningTimerToTask() {
+    const task = this.taskOptions.find((option) => option.id === this.taskSelect.value);
+
+    if (!task || !this.timerId || !this.persistedActiveTimerId || this.isSaving) {
+      return;
+    }
+
+    this.isSaving = true;
+    this.updateButtons();
+    this.setStatus("Linking timer to task...");
+
+    try {
+      const result = await window.LongtailForge.api.postJson(
+        `/api/tasks/${encodeURIComponent(task.id)}/timer/link`,
+        { timer_slot: String(this.timerNumber) },
+      );
+
+      window.clearInterval(this.timerId);
+      this.timerId = null;
+      this.persistedActiveTimerId = "";
+      await loadActiveTimers({ resetExisting: true });
+      window.dispatchEvent?.(new window.CustomEvent("longtailforge:timers-changed", {
+        detail: {
+          result,
+          source: "time-tracker-task-link",
+        },
+      }));
+      await window.LongtailForge.modal.alert({
+        title: "Task timer linked",
+        message: `The timer is still running and is now linked to ${task.label || "the selected task"}.`,
+      });
+    } catch (error) {
+      this.setStatus(error.message || "Timer could not be linked to the task.");
+      console.error(error);
+    } finally {
+      this.isSaving = false;
+      this.updateButtons();
+    }
+  }
+
   async resetTimeTracker() {
     if (!await this.confirmTimerReset("Discarding the timer")) {
       return;
@@ -375,7 +475,7 @@ class StopwatchTimer {
       this.populateProjectOptions([]);
       this.descriptionInput.value = "";
       this.tagPicker?.setSelected?.([]);
-      this.billableInput.checked = true;
+      this.billableInput.checked = workspaceUsesBillableFlag();
       this.confirmedClientId = "";
       this.confirmedProjectId = "";
       this.selectWorkspaceScopeClientIfNeeded();
@@ -423,7 +523,7 @@ class StopwatchTimer {
       end_time: endTime.toISOString(),
       duration_seconds: durationSeconds,
       duration_hours: (durationSeconds / 3600).toFixed(4),
-      billable: this.billableInput.checked ? "yes" : "no",
+      billable: billableValue(this.billableInput),
       invoice_status: "unbilled",
       tagIds: this.readTagIds(),
     };
@@ -564,6 +664,22 @@ class StopwatchTimer {
       : "";
     this.projectSelect.disabled = projects.length === 0;
     this.updateBillableDefault();
+    this.populateTaskOptions();
+  }
+
+  populateTaskOptions(taskId = this.taskSelect.value) {
+    const projectId = this.projectSelect.value;
+    const candidates = this.taskOptions.filter((task) => task.project_id === projectId);
+    const placeholder = this.timerId
+      ? (candidates.length > 0 ? "Select a task" : "No active tasks for this project")
+      : "Start timer to link a task";
+
+    this.taskSelect.replaceChildren(createOption("", placeholder));
+    candidates.forEach((task) => {
+      this.taskSelect.appendChild(createOption(task.id, task.optionLabel || task.label));
+    });
+    this.taskSelect.value = candidates.some((task) => task.id === taskId) ? taskId : "";
+    this.taskSelect.disabled = !this.timerId || !this.persistedActiveTimerId || candidates.length === 0 || this.isSaving;
   }
 
   getSelectedClient() {
@@ -602,6 +718,13 @@ class StopwatchTimer {
     this.pauseButton.disabled = !this.timerId || this.isSaving;
     this.stopButton.disabled = !hasSaveableTime || this.isSaving;
     this.resetButton.disabled = !hasElapsedTime || this.isSaving;
+    this.populateTaskOptions();
+    this.linkTaskButton.disabled = (
+      !this.timerId ||
+      !this.persistedActiveTimerId ||
+      !this.taskSelect.value ||
+      this.isSaving
+    );
     this.updateTimerStateLabel();
   }
 
@@ -629,6 +752,11 @@ class StopwatchTimer {
   }
 
   updateBillableDefault() {
+    if (!workspaceUsesBillableFlag()) {
+      this.billableInput.checked = false;
+      return;
+    }
+
     const selectedClient = this.getSelectedClient();
     const selectedProject = this.getSelectedProject(selectedClient);
     const billableSource = selectedProject || selectedClient;
@@ -666,7 +794,7 @@ class StopwatchTimer {
     this.populateProjectOptions(selectedClient ? selectedClient.projects : [], timerData.project_id);
     this.projectSelect.value = timerData.project_id || "";
     this.descriptionInput.value = timerData.description || "";
-    this.billableInput.checked = timerData.billable !== "no";
+    this.billableInput.checked = workspaceUsesBillableFlag() && timerData.billable !== "no";
     this.confirmedClientId = this.clientSelect.value;
     this.confirmedProjectId = this.projectSelect.value;
 
@@ -695,6 +823,28 @@ class StopwatchTimer {
     this.updateButtons();
     this.setStatus("Restored unsaved timer.");
     this.isRestoring = false;
+  }
+
+  clearLocalStateForReload() {
+    window.clearInterval(this.timerId);
+    this.timerId = null;
+    this.elapsedMilliseconds = 0;
+    this.startedAt = 0;
+    this.activeStartTime = null;
+    this.persistedActiveTimerId = "";
+    this.clientSelect.value = "";
+    this.populateProjectOptions([]);
+    this.descriptionInput.value = "";
+    this.billableInput.checked = workspaceUsesBillableFlag();
+    this.tagPicker?.setSelected?.([]);
+    this.confirmedClientId = "";
+    this.confirmedProjectId = "";
+    this.selectWorkspaceScopeClientIfNeeded();
+    const selectedClient = this.getSelectedClient();
+    this.populateProjectOptions(selectedClient ? selectedClient.projects : []);
+    this.setStatus("");
+    this.updateDisplay();
+    this.updateButtons();
   }
 
   findClientIdForProject(projectId) {
@@ -733,7 +883,7 @@ class StopwatchTimer {
       project_id: selectedProject.id,
       project_name: selectedProject.name,
       description: this.descriptionInput.value.trim(),
-      billable: this.billableInput.checked ? "yes" : "no",
+      billable: billableValue(this.billableInput),
       accumulated_elapsed_seconds: elapsedSeconds,
       last_active_start_time: timerStatus === "running" ? now.toISOString() : null,
       timer_status: timerStatus,
@@ -746,6 +896,7 @@ class StopwatchTimer {
       );
       this.persistedActiveTimerId = result?.timer?.active_timer_id || this.persistedActiveTimerId;
       timerPersistence.loaded = true;
+      this.updateButtons();
     } catch (error) {
       this.setStatus("Timer is running locally, but persistence failed.");
       console.error(error);
@@ -904,6 +1055,36 @@ function createDescriptionInput(parent) {
   return input;
 }
 
+function ensureTaskLinkControl(parent) {
+  const existingSelect = parent.querySelector("[data-stopwatch-task]");
+  const existingButton = parent.querySelector("[data-stopwatch-link-task]");
+
+  if (existingSelect && existingButton) {
+    return { button: existingButton, select: existingSelect };
+  }
+
+  const details = getDetailsContainer(parent);
+  const wrapper = document.createElement("div");
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+  const button = document.createElement("button");
+
+  wrapper.className = "timer-task-link-control";
+  label.textContent = "Link running timer to task";
+  select.dataset.stopwatchTask = "";
+  select.disabled = true;
+  select.appendChild(createOption("", "Start timer to link a task"));
+  button.type = "button";
+  button.dataset.stopwatchLinkTask = "";
+  button.disabled = true;
+  button.textContent = "Link Task";
+  label.appendChild(select);
+  wrapper.append(label, button);
+  details.appendChild(wrapper);
+
+  return { button, select };
+}
+
 function createTagsContainer(parent) {
   const details = getDetailsContainer(parent);
   const element = document.createElement("div");
@@ -953,10 +1134,11 @@ function createClearOnResetInput(parent) {
 function createBillableInput(parent) {
   const label = document.createElement("label");
   label.className = "reset-option";
+  label.dataset.stopwatchBillableControl = "";
 
   const input = document.createElement("input");
   input.type = "checkbox";
-  input.checked = true;
+  input.checked = workspaceUsesBillableFlag();
   input.dataset.stopwatchBillable = "";
 
   label.append(
@@ -1027,6 +1209,15 @@ function decorateStopwatchControls({ pauseButton, resetButton, startButton, stop
   icons.decorateButton(resetButton, { icon: "delete", label: "Discard timer", text: "Discard", iconOnly: false, variant: "danger" });
 }
 
+function decorateTaskLinkButton(button) {
+  window.LongtailForge?.icons?.decorateButton?.(button, {
+    icon: "link",
+    iconOnly: false,
+    label: "Link running timer to task",
+    text: "Link Task",
+  });
+}
+
 function sortByName(items) {
   return window.LongtailForge.pageController.sortByName(items);
 }
@@ -1044,6 +1235,25 @@ function workspaceShowsClientTools() {
   const tools = context.workspaceCapabilities?.availableTools || [];
 
   return Array.isArray(tools) && tools.includes("clients_projects");
+}
+
+function workspaceHasTasks() {
+  const enabledModules = window.LongtailForge?.workspaceContext?.enabledModules || [];
+  return !Array.isArray(enabledModules) || enabledModules.length === 0 || enabledModules.includes("tasks");
+}
+
+function normalizeTaskOptions(data) {
+  return Array.isArray(data?.options?.tasks)
+    ? data.options.tasks
+        .filter((task) => task?.id && task?.project_id && task?.status !== "complete" && task?.status !== "archived")
+        .map((task) => ({
+          id: task.id || task.task_id,
+          label: task.label || task.title || "Untitled Task",
+          optionLabel: task.optionLabel || task.displayName || task.label || "Untitled Task",
+          project_id: task.project_id || "",
+          status: task.status || "open",
+        }))
+    : [];
 }
 
 async function loadTagOptions() {

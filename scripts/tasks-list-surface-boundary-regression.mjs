@@ -41,7 +41,7 @@ assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*body:\s*taskBu
 assert.doesNotMatch(mainChrome, /taskTemplateElement|<div class="list-table-wrap"|<table class="list-table task-table"|<p data-task-status/, "Tasks should not hand-build framework-owned main-list shell markup");
 assert.match(mainChrome, /className:\s*\["view-table-wrap", "list-table-wrap"\]/, "Tasks should use the shared table overflow wrapper while preserving compatibility table styling");
 
-assert.match(renderTasks, /taskList\.replaceChildren\(\)[\s\S]*tasks\.forEach\(\(task\) => taskList\.append\(\.\.\.createTaskRow\(task\)\)\)/, "Tasks should still render rows through the module-owned row builder");
+assert.match(renderTasks, /taskList\.replaceChildren\(\)[\s\S]*nestedTaskDisplayRows\(tasks\)[\s\S]*taskNestingDepths\.set\(task, depth\)[\s\S]*createTaskRow\(task\)/, "Tasks should still render parent-before-child rows through the module-owned row builder");
 assert.match(createTaskRow, /row\.classList\.add\("task-density-row"\)/, "Task rows should keep the dense row class");
 assert.match(createTaskRow, /appendTaskMetadata\(metaBand, task\)/, "Task rows should keep task-specific metadata rendering");
 assert.match(createTaskRow, /contentCell\.colSpan = 6/, "Task rows should keep the current dense table span");

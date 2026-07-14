@@ -9,12 +9,17 @@ import { permissionsService } from "../../core/permissions.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { workspaceSupportsBillable } from "../../utils/workspaces.js";
+import { settingsRepository } from "../../repositories/settings.repo.js";
 
 const MODULE_ID = "time-tracking";
 
 async function create(entry, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
-  const scope = await resolveTimeEntryScope(session.workspace_id, entry);
+  const [scope, settings] = await Promise.all([
+    resolveTimeEntryScope(session.workspace_id, entry),
+    settingsRepository.readWorkspaceSettings(session.workspace_id),
+  ]);
 
   await permissionsService.assertCan(session, "time_entries.create", {
     workspace_id: session.workspace_id,
@@ -38,7 +43,9 @@ async function create(entry, session) {
     end_time: normalizeUtcIso(entry.end_time, session.timezone),
     duration_seconds: entry.duration_seconds,
     duration_hours: entry.duration_hours,
-    billable: entry.billable ?? scope.project.billable ?? scope.client?.billable ?? "yes",
+    billable: workspaceSupportsBillable(settings.workspaceType)
+      ? entry.billable ?? scope.project.billable ?? scope.client?.billable ?? "yes"
+      : "no",
     invoice_status: entry.invoice_status || "unbilled",
   });
 
@@ -85,10 +92,13 @@ async function update(payload, entryId, session) {
   const action = resolveTimeEntryEditPermission(session, previousEntry);
   await assertCanCorrectTimeEntry(session, action, previousEntry, previousEntry);
 
-  const scope = await resolveTimeEntryScope(session.workspace_id, {
-    ...previousEntry,
-    ...payload,
-  });
+  const [scope, settings] = await Promise.all([
+    resolveTimeEntryScope(session.workspace_id, {
+      ...previousEntry,
+      ...payload,
+    }),
+    settingsRepository.readWorkspaceSettings(session.workspace_id),
+  ]);
   const nextScopeResource = {
     client_id: scope.client?.id || "",
     project_id: scope.project.id,
@@ -106,6 +116,9 @@ async function update(payload, entryId, session) {
     client_name: scope.client?.name || "",
     project_id: scope.project.id,
     project_name: scope.project.name,
+    billable: workspaceSupportsBillable(settings.workspaceType)
+      ? payload.billable ?? previousEntry.billable ?? scope.project.billable ?? scope.client?.billable ?? "yes"
+      : "no",
   });
 
   await timeEntriesRepository.update(updatedEntry);
@@ -187,7 +200,13 @@ async function remove(entryId, session) {
 }
 
 async function list(session, query = {}) {
-  const entries = await timeEntriesRepository.readAll(session.workspace_id);
+  const [storedEntries, settings] = await Promise.all([
+    timeEntriesRepository.readAll(session.workspace_id),
+    settingsRepository.readWorkspaceSettings(session.workspace_id),
+  ]);
+  const entries = workspaceSupportsBillable(settings.workspaceType)
+    ? storedEntries
+    : storedEntries.map((entry) => ({ ...entry, billable: "no" }));
   const readableEntries = await permissionsService.filterReadableTimeEntries(session, entries);
   const filteredEntries = await tagsService.filterRecordsByTags(
     session,

@@ -19,12 +19,15 @@ import {
   injectAssetVersionBootstrap,
   withAssetVersion,
 } from "../../../src/core/asset-version.js";
-import { modulesService } from "../../../src/core/modules/modules.service.js";
-import { staticService } from "../../../src/services/static.service.js";
+import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 import {
   collectAssetCacheGuardErrors,
   collectRawAssetVersionReferences,
 } from "../../lib/asset-cache-guard.mjs";
+
+const fixture = await createDisposableDatabaseFixture("asset-cache-version-regression");
+const { modulesService } = await import("../../../src/core/modules/modules.service.js");
+const { staticService } = await import("../../../src/services/static.service.js");
 
 const baseline = JSON.parse(await fs.readFile("scripts/asset-cache-legacy-baseline.json", "utf8"));
 const liveFindings = await collectRawAssetVersionReferences();
@@ -127,6 +130,9 @@ assert.doesNotMatch(footerSource, /script\.src = dependency\.src/);
 assert.doesNotMatch(workbenchSource, /script\.src = dependency\.src/);
 
 console.log("Canonical asset cache version and raw-key guard passed.");
+const { closeDatabase } = await import("../../../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();
 
 async function listFiles(rootDir, extension) {
   const files = [];

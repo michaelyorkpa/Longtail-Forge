@@ -2227,7 +2227,7 @@ async function completeFocusedTask() {
   }
 }
 
-async function blockFocusedTask() {
+async function blockFocusedTask(event) {
   const taskId = state.activeTaskFocus?.taskId || "";
 
   if (!taskId) {
@@ -2235,14 +2235,12 @@ async function blockFocusedTask() {
     return;
   }
 
-  setStatus("Blocking task...");
-  try {
-    const result = await api.putJson(`/api/tasks/${encodeURIComponent(taskId)}`, { status: "blocked" });
-    applyActiveTaskFocusTask(result.task || null);
-    renderWorkbench();
-    setStatus("Task blocked.");
-  } catch (error) {
-    setStatus(error.message || "Task was not blocked.", { isError: true });
+  await openTaskCandidate(activeTaskFocusCandidate(), taskId, event?.currentTarget || null, {
+    defaults: { status: "blocked" },
+    focusTarget: "blocked_reason",
+  });
+  if (resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_TASK_FOCUS) {
+    await refreshActiveTaskFocus();
   }
 }
 
@@ -2325,7 +2323,7 @@ function focusActiveFocusQuestion() {
   focusModeList?.querySelector("button")?.focus?.();
 }
 
-async function openTaskCandidate(candidate, taskId, trigger = null) {
+async function openTaskCandidate(candidate, taskId, trigger = null, editorOptions = {}) {
   if (!moduleEnabled("tasks")) {
     setStatus("Tasks are not available in this workspace.", { isError: true });
     return;
@@ -2339,6 +2337,8 @@ async function openTaskCandidate(candidate, taskId, trigger = null) {
         sourceType: "work-candidate",
       },
       candidateId: candidate.candidateId || "",
+      defaults: editorOptions.defaults || {},
+      focusTarget: editorOptions.focusTarget || "",
       recordId: taskId,
       returnFocusTo: trigger || document.activeElement,
       taskId,

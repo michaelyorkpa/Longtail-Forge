@@ -7,7 +7,7 @@ const view = window.LongtailForge?.view;
 const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
   "tasks.lifecycle.complete": ({ record }) => postTaskAction(record, "complete"),
   "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
-  "tasks.lifecycle.block": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "blocked" }),
+  "tasks.lifecycle.block": ({ action, record, trigger }) => openTaskDialogForBlock(record, action, trigger),
   "tasks.lifecycle.unblock": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "open", blocked_reason: "" }),
   "tasks.lifecycle.archive": ({ record }) => postTaskAction(record, "archive"),
   "tasks.lifecycle.restore": ({ record }) => postTaskAction(record, "restore"),
@@ -48,6 +48,8 @@ let state = {
   tagOptions: [],
 };
 let hasLoadedTasks = false;
+let tagFilterController = null;
+const taskNestingDepths = new WeakMap();
 const recurrenceContinuityTrackers = new Map();
 
 buildTasksViewShell();
@@ -74,6 +76,8 @@ const taskPageSummary = document.querySelector("[data-task-page-summary]");
 const bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
 const bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
 const bulkStatusInput = document.querySelector("[data-task-bulk-status]");
+const bulkBlockedReasonControl = document.querySelector("[data-task-bulk-blocked-reason-control]");
+const bulkBlockedReasonInput = document.querySelector("[data-task-bulk-blocked-reason]");
 const bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
 const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
 const bulkDueDateControl = document.querySelector("[data-task-bulk-due-date-control]");
@@ -104,6 +108,7 @@ addTaskButton?.addEventListener("click", () => openTaskDialog());
 taskViewSelector?.addEventListener("change", handleTaskViewChange);
 resetTaskFiltersButton?.addEventListener("click", resetAdvancedTaskFilters);
 bulkStatusInput?.addEventListener("change", updateBulkControls);
+bulkBlockedReasonInput?.addEventListener("input", updateBulkControls);
 bulkPriorityInput?.addEventListener("change", updateBulkControls);
 bulkDueDateInput?.addEventListener("change", updateBulkControls);
 bulkClearDueDateInput?.addEventListener("change", updateBulkControls);
@@ -324,9 +329,15 @@ function createTaskFilterChrome() {
         taskControlLabel("Project", taskSelect({ "data-task-project-filter": "" }, [
           ["all", "All projects", true],
         ])),
-        taskControlLabel("Tag", taskSelect({ "data-task-tag-filter": "" }, [
-          ["all", "All tags", true],
-        ]), {
+        taskControlLabel("Tag", view.createElement("input", {
+          attrs: {
+            type: "text",
+            autocomplete: "off",
+            "data-task-tag-filter": "",
+            placeholder: "Type to search tags",
+          },
+        }), {
+          className: "tag-filter-control",
           attrs: { "data-task-tag-filter-control": "" },
           hidden: true,
         }),
@@ -440,6 +451,17 @@ function taskBulkToolbarControls() {
       ["blocked", "Blocked"],
       ["complete", "Complete"],
     ]), { attrs: { "data-task-bulk-status-control": "" } }),
+    taskControlLabel("Blocked Reason", view.createElement("input", {
+      attrs: {
+        type: "text",
+        maxlength: "1000",
+        "data-task-bulk-blocked-reason": "",
+        placeholder: "Why are these tasks blocked?",
+      },
+    }), {
+      attrs: { "data-task-bulk-blocked-reason-control": "" },
+      hidden: true,
+    }),
     taskControlLabel("Priority", taskSelect({ "data-task-bulk-priority": "" }, [
       ["", "-", true],
       ["low", "Low"],
@@ -686,7 +708,7 @@ function buildTaskQuery(cursor = "") {
   const assigneeValue = assigneeFilter?.value || "all";
   const clientValue = usesClientScope() ? clientFilter?.value ?? "all" : "all";
   const projectValue = projectFilter?.value ?? "all";
-  const tagValue = tagFilter?.value || "all";
+  const tagValue = selectedTaskTagFilterValue();
 
   params.set("task_view", canonicalTaskViewValue(taskView));
   params.set("status", canonicalStatusValue(statusValue));
@@ -847,32 +869,25 @@ function reconcileProjectFilterForClient() {
 
 function populateTagFilter() {
   const tags = state.tagOptions || [];
-  const previousValue = tagFilter?.value || "all";
+  const previousValue = selectedTaskTagFilterValue();
 
   if (!tagFilter || !tagFilterControl) {
     return;
   }
 
   tagFilterControl.hidden = tags.length === 0;
-  replaceOptions(tagFilter, [
-    taskTagFilterAllOption(),
-    taskTagFilterNoTagsOption(),
-    ...tags.map((tag) => option(tag.tag_id, tag.name || tag.slug)),
-  ]);
-  tagFilter.value = previousValue === noTagsFilterValue() || previousValue === "__no_effective_tags__" || tags.some((tag) => tag.tag_id === previousValue) ? normalizeTagFilterValue(previousValue) : "all";
-}
-
-function taskTagFilterAllOption() {
-  return option("all", "All tags");
-}
-
-function taskTagFilterNoTagsOption() {
-  const shared = window.LongtailForge?.tags?.noTagsOption?.();
-  if (shared) {
-    return shared;
+  const nextValue = previousValue === noTagsFilterValue() || tags.some((tag) => tag.tag_id === previousValue)
+    ? normalizeTagFilterValue(previousValue)
+    : "all";
+  if (!tagFilterController) {
+    tagFilterController = window.LongtailForge?.tags?.mountFilterPicker?.(tagFilter, {
+      tags,
+      value: nextValue,
+    }) || null;
+  } else {
+    tagFilterController.setTags(tags);
+    tagFilterController.setValue(nextValue);
   }
-
-  return option(noTagsFilterValue(), "No Tags");
 }
 
 function noTagsFilterValue() {
@@ -881,6 +896,11 @@ function noTagsFilterValue() {
 
 function normalizeTagFilterValue(value) {
   return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
+}
+
+function selectedTaskTagFilterValue() {
+  return tagFilterController?.readValue?.()
+    || normalizeTagFilterValue(tagFilter?.dataset?.tagFilterValue || "all");
 }
 
 function renderBulkAssigneeOptions() {
@@ -949,7 +969,10 @@ function renderTasks() {
     return;
   }
 
-  tasks.forEach((task) => taskList.append(...createTaskRow(task)));
+  nestedTaskDisplayRows(tasks).forEach(({ task, depth }) => {
+    taskNestingDepths.set(task, depth);
+    taskList.append(...createTaskRow(task));
+  });
   updateSelectionControls(tasks);
   renderTaskPagination();
 }
@@ -1004,6 +1027,7 @@ function emptyTaskMessage() {
 }
 
 function createTaskRow(task) {
+  const nestingDepth = taskNestingDepths.get(task) || 0;
   const row = document.createElement("tr");
   const selectCell = document.createElement("td");
   const contentCell = document.createElement("td");
@@ -1015,7 +1039,10 @@ function createTaskRow(task) {
   const actionsBand = document.createElement("div");
 
   row.dataset.taskStatus = task.status || "open";
+  row.dataset.taskNestingDepth = String(nestingDepth);
   row.classList.add("task-density-row");
+  row.classList.toggle("is-task-child", nestingDepth > 0);
+  row.style.setProperty("--task-nesting-depth", String(Math.min(nestingDepth, 6)));
   row.classList.toggle("is-task-complete", task.status === "complete");
   row.classList.toggle("is-task-archived", task.status === "archived");
 
@@ -1059,6 +1086,42 @@ function createTaskRow(task) {
   contentCell.append(titleBand, metaBand, actionsBand);
   row.append(selectCell, contentCell);
   return [row];
+}
+
+function nestedTaskDisplayRows(tasks = []) {
+  const taskById = new Map(tasks.map((task) => [task.task_id, task]));
+  const childrenByParentId = new Map();
+
+  tasks.forEach((task) => {
+    const parentTaskId = task.parentTask?.task_id || task.parent_task?.task_id || task.parent_task_id || "";
+    if (!parentTaskId || !taskById.has(parentTaskId) || parentTaskId === task.task_id) {
+      return;
+    }
+    const children = childrenByParentId.get(parentTaskId) || [];
+    children.push(task);
+    childrenByParentId.set(parentTaskId, children);
+  });
+
+  const nested = [];
+  const appended = new Set();
+  const appendBranch = (task, depth, path = new Set()) => {
+    if (!task?.task_id || appended.has(task.task_id) || path.has(task.task_id)) {
+      return;
+    }
+    appended.add(task.task_id);
+    nested.push({ task, depth });
+    const nextPath = new Set(path).add(task.task_id);
+    (childrenByParentId.get(task.task_id) || []).forEach((child) => appendBranch(child, depth + 1, nextPath));
+  };
+
+  tasks.forEach((task) => {
+    const parentTaskId = task.parentTask?.task_id || task.parent_task?.task_id || task.parent_task_id || "";
+    if (!parentTaskId || !taskById.has(parentTaskId)) {
+      appendBranch(task, 0);
+    }
+  });
+  tasks.forEach((task) => appendBranch(task, 0));
+  return nested;
 }
 
 function createActions(task) {
@@ -1398,7 +1461,7 @@ function taskLifecycleActionButton(action, task) {
     role: action.role,
     action: action.behavior || action.id,
     disabled: Boolean(disabledReason),
-    onClick: () => runTaskLifecycleAction(action, task),
+    onClick: (event) => runTaskLifecycleAction(action, task, event?.currentTarget || null),
   };
   const button = typeof view?.createActionButton === "function"
     ? view.createActionButton(options)
@@ -1472,7 +1535,7 @@ function isOwnTask(task) {
   ));
 }
 
-async function runTaskLifecycleAction(action, task) {
+async function runTaskLifecycleAction(action, task, trigger = null) {
   const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
   if (!handler) {
     setStatus(`Missing task lifecycle behavior: ${action.behavior}`, { isError: true });
@@ -1487,6 +1550,7 @@ async function runTaskLifecycleAction(action, task) {
     api,
     record: task,
     refresh: reloadTaskList,
+    trigger,
     workspaceContext: window.LongtailForge?.workspaceContext || {},
   });
 }
@@ -1508,15 +1572,25 @@ async function runTaskWorkflowAction(action, task, trigger = null) {
   });
 }
 
-function openTaskDialogForWorkflow(task, action, trigger = null) {
+function openTaskDialogForWorkflow(task, action, trigger = null, defaults = {}) {
   if (!task?.task_id) {
     setStatus("Task action is unavailable.", { isError: true });
     return null;
   }
 
   return openTaskDialog(task, {
+    defaults,
     focusTarget: action.focusTarget || "",
     returnFocusTo: trigger || document.activeElement,
+  });
+}
+
+function openTaskDialogForBlock(task, action = {}, trigger = null) {
+  return openTaskDialogForWorkflow(task, {
+    ...action,
+    focusTarget: "blocked_reason",
+  }, trigger, {
+    status: "blocked",
   });
 }
 
@@ -1614,6 +1688,8 @@ function appendTaskMetadata(container, task) {
 function appendTaskContext(container, task) {
   const chips = [];
 
+  appendParentTaskChip(container, task);
+
   if (task.next_action) {
     chips.push({ label: "Next", value: task.next_action, className: "is-next" });
   }
@@ -1648,6 +1724,29 @@ function appendTaskContext(container, task) {
       })
     : taskContextSummaryFallback(chips);
   container.appendChild(summary);
+}
+
+function appendParentTaskChip(container, task) {
+  const parentTask = task.parentTask || task.parent_task || null;
+  const parentTaskId = parentTask?.task_id || task.parent_task_id || "";
+  const parentTitle = String(parentTask?.title || task.parent_task_title || "").trim();
+
+  if (!parentTaskId || !parentTitle) {
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "task-context-chip is-parent-link";
+  button.textContent = `Child of: ${truncateTaskName(parentTitle)}`;
+  button.title = `Open parent task: ${parentTitle}`;
+  button.addEventListener("click", () => openTaskDialogById(parentTaskId, button));
+  container.appendChild(button);
+}
+
+function truncateTaskName(value, maxLength = 42) {
+  const text = String(value || "").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
 }
 
 function taskContextBadge(chip) {
@@ -1945,6 +2044,19 @@ function openTaskDialog(task = null, options = {}) {
   }, options.hostContext || null);
 }
 
+function openTaskDialogById(taskId, returnFocusTo = null) {
+  if (!taskId) {
+    return null;
+  }
+  state.editingTaskId = taskId;
+  configureTaskDialog();
+  return window.LongtailForge.tasksDialog.openTaskEditor({
+    mode: "edit",
+    returnFocusTo: returnFocusTo || document.activeElement,
+    taskId,
+  });
+}
+
 function configureTaskDialog() {
   window.LongtailForge.tasksDialog?.configure?.({
     currentUserId: currentUserId(),
@@ -2067,7 +2179,16 @@ function updateBulkControls() {
   updateBulkToolbarSummary(selectedCount);
   updateBulkLifecycleOptions(taskIds);
   const hasSelectedAction = selectedBulkActions(taskIds).length > 0;
+  const blockedStatusSelected = bulkStatusInput?.value === "blocked";
+  const hasBlockedReason = Boolean(bulkBlockedReasonInput?.value.trim());
   bulkStatusControl?.removeAttribute("hidden");
+  if (bulkBlockedReasonControl) {
+    bulkBlockedReasonControl.hidden = !blockedStatusSelected;
+  }
+  if (bulkBlockedReasonInput) {
+    bulkBlockedReasonInput.required = blockedStatusSelected;
+    bulkBlockedReasonInput.setAttribute("aria-invalid", blockedStatusSelected && !hasBlockedReason ? "true" : "false");
+  }
   bulkPriorityControl?.removeAttribute("hidden");
   bulkDueDateControl?.removeAttribute("hidden");
   bulkDueTimeControl?.removeAttribute("hidden");
@@ -2079,7 +2200,7 @@ function updateBulkControls() {
   }
 
   if (bulkApplyButton) {
-    bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction;
+    bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction || (blockedStatusSelected && !hasBlockedReason);
     bulkApplyButton.textContent = `Apply to ${selectedCount}`;
   }
 
@@ -2105,6 +2226,7 @@ function selectedBulkActions(taskIds) {
   const actions = [];
   const lifecycleAction = bulkLifecycleInput?.value || "";
   const status = bulkStatusInput?.value || "";
+  const blockedReason = bulkBlockedReasonInput?.value.trim() || "";
   const priority = bulkPriorityInput?.value || "";
   const dueDate = bulkDueDateInput?.value || "";
   const shouldClearDueDate = Boolean(bulkClearDueDateInput?.checked);
@@ -2119,7 +2241,12 @@ function selectedBulkActions(taskIds) {
   }
 
   if (status) {
-    actions.push({ action: "status", task_ids: taskIds, status });
+    actions.push({
+      action: "status",
+      task_ids: taskIds,
+      status,
+      blocked_reason: status === "blocked" ? blockedReason : "",
+    });
   }
 
   if (priority) {
@@ -2306,6 +2433,14 @@ function resetBulkInputs() {
   if (bulkStatusInput) {
     bulkStatusInput.value = "";
   }
+  if (bulkBlockedReasonInput) {
+    bulkBlockedReasonInput.value = "";
+    bulkBlockedReasonInput.required = false;
+    bulkBlockedReasonInput.removeAttribute("aria-invalid");
+  }
+  if (bulkBlockedReasonControl) {
+    bulkBlockedReasonControl.hidden = true;
+  }
   if (bulkPriorityInput) {
     bulkPriorityInput.value = "";
   }
@@ -2417,7 +2552,7 @@ function resetAdvancedFilterControlsForTaskView(taskView) {
   setSelectValue(assigneeFilter, "all");
   setSelectValue(clientFilter, "all");
   setSelectValue(projectFilter, "all");
-  setSelectValue(tagFilter, "all");
+  tagFilterController?.setValue?.("all");
 }
 
 function preserveCompatibleAdvancedFiltersForTaskView(taskView) {

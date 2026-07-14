@@ -3,18 +3,22 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { appVersion } from "../src/core/version.js";
-import { createApp } from "../src/core/app.js";
 import {
   loadVersionLiteralAllowlist,
   scanEntriesForCurrentVersion,
   scanWorkspaceForCurrentVersion,
 } from "./test-support/version-literal-guardrail.mjs";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
 const root = process.cwd();
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
 const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
 const allowlist = await loadVersionLiteralAllowlist(root);
+const fixture = await createDisposableDatabaseFixture("version-literal-guardrail-regression");
+const { createApp } = await import("../src/core/app.js");
+const { closeDatabase } = await import("../src/db/provider.js");
 
+try {
 assert.equal(appVersion, packageJson.version, "the runtime helper should match package metadata");
 assert.equal(packageLock.version, packageJson.version, "the lock root should match package metadata");
 assert.equal(packageLock.packages[""].version, packageJson.version, "the lock package entry should match package metadata");
@@ -57,6 +61,10 @@ try {
 }
 
 console.log("Version literal guardrail regression passed.");
+} finally {
+  await closeDatabase();
+  await fixture.cleanup();
+}
 
 function listen(app) {
   return new Promise((resolve, reject) => {

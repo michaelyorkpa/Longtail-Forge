@@ -74,6 +74,10 @@
     } else {
       updateBillableDefault();
     }
+    fields.billableControl.hidden = !workspaceUsesBillableFlag();
+    if (!workspaceUsesBillableFlag()) {
+      fields.billable.value = "no";
+    }
     setStatus("");
     fields.save.disabled = false;
 
@@ -108,6 +112,7 @@
     form = dialog.querySelector("[data-time-tracking-timer-dialog-form]");
     fields = {
       billable: dialog.querySelector("[data-time-tracking-timer-dialog-billable]"),
+      billableControl: dialog.querySelector("[data-time-tracking-timer-dialog-billable-control]"),
       cancel: dialog.querySelector("[data-time-tracking-timer-dialog-cancel]"),
       client: dialog.querySelector("[data-time-tracking-timer-dialog-client]"),
       description: dialog.querySelector("[data-time-tracking-timer-dialog-description]"),
@@ -241,7 +246,7 @@
     return api.putJson(`/api/tasks/${encodeURIComponent(task.id)}/timer`, {
       active_task_timer_id: "",
       accumulated_elapsed_seconds: 0,
-      billable: fields.billable.value,
+      billable: workspaceBillableValue(),
       description: fields.description.value.trim(),
       last_active_start_time: now,
       timer_status: "running",
@@ -257,7 +262,7 @@
     return api.putJson(`/api/active-timers/${encodeURIComponent(timerSlot)}`, {
       active_timer_id: "",
       accumulated_elapsed_seconds: 0,
-      billable: fields.billable.value,
+      billable: workspaceBillableValue(),
       client_id: client?.isWorkspaceScope ? "" : client?.id || "",
       client_name: client?.isWorkspaceScope ? "" : client?.name || "",
       description: fields.description.value.trim(),
@@ -307,6 +312,11 @@
   }
 
   function updateBillableDefault() {
+    if (!workspaceUsesBillableFlag()) {
+      fields.billable.value = "no";
+      return;
+    }
+
     const client = getClient(fields.client.value);
     const project = getProject(fields.client.value, fields.project.value);
     const billableSource = project || client;
@@ -364,6 +374,14 @@
     return Array.isArray(tools) && tools.includes("clients_projects");
   }
 
+  function workspaceUsesBillableFlag() {
+    return namespace.workspaceContext?.workspaceType === "business";
+  }
+
+  function workspaceBillableValue() {
+    return workspaceUsesBillableFlag() && fields.billable.value === "yes" ? "yes" : "no";
+  }
+
   function createOption(value, text) {
     return pageController.createOption(value, text);
   }
@@ -389,7 +407,7 @@
           <label data-client-workspace-control>Client<select data-time-tracking-timer-dialog-client required></select></label>
           <label>Project<select data-time-tracking-timer-dialog-project required disabled></select></label>
           <label>Task<select data-time-tracking-timer-dialog-task><option value="">No task</option></select></label>
-          <label>Billable<select data-time-tracking-timer-dialog-billable><option value="yes">Yes</option><option value="no">No</option></select></label>
+          <label data-time-tracking-timer-dialog-billable-control>Billable<select data-time-tracking-timer-dialog-billable><option value="yes">Yes</option><option value="no">No</option></select></label>
           <label class="entry-description">Description<textarea rows="4" data-time-tracking-timer-dialog-description placeholder="What are you working on?"></textarea></label>
           <p data-time-tracking-timer-dialog-status role="status" aria-live="polite"></p>
           <div class="form-actions entry-actions"><button type="button" data-time-tracking-timer-dialog-cancel>Cancel</button><button type="submit" data-time-tracking-timer-dialog-save>Start Timer</button></div>

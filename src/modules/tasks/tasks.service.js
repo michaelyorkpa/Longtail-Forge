@@ -39,6 +39,7 @@ import { searchIndexSyncService } from "../../services/search-index-sync.service
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 
 const TASKS_MODULE_ID = "tasks";
 const STATUSES = new Set(["open", "in_progress", "blocked", "complete", "archived"]);
@@ -175,7 +176,7 @@ async function filterAndShapeTaskListCandidates({ candidates, offset, query, res
     "task",
     await tagsService.filterRecordsByTags(session, "task", readableTasks, query.tagIds || query.tag_ids || query.tags),
   );
-  const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks);
+  const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks, session);
 
   return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, {
     ...(query || {}),
@@ -1397,7 +1398,10 @@ async function applyBulkAction(taskId, action, payload, session) {
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
 
   if (action === "status") {
-    return update(taskId, { status: payload.status }, session);
+    return update(taskId, {
+      status: payload.status,
+      blocked_reason: payload.blocked_reason || payload.blockedReason || "",
+    }, session);
   }
 
   if (action === "priority") {
@@ -1458,7 +1462,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
   const title = String(valueOrFallback(payload, "title", fallback.title) || "").trim();
   const status = normalizeStatus(valueOrFallback(payload, "status", fallback.status));
   const priority = normalizePriority(valueOrFallback(payload, "priority", fallback.priority));
-  const billable = normalizeBillableFlag(billableSource);
+  const billable = scope.billableAllowed ? normalizeBillableFlag(billableSource) : "no";
   const dueDate = normalizeDueDate(valueOrFallback(payload, "due_date", fallback.due_date));
   const dueTime = normalizeDueTime(valueOrFallback(payload, "due_time", fallback.due_time));
   const dueTimezone = dueDate
@@ -1466,6 +1470,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     : "";
   const recurrenceTemplateId = String(valueOrFallback(payload, "recurrence_template_id", fallback.recurrence_template_id) || "").trim();
   const recurrenceInstanceDate = normalizeDueDate(valueOrFallback(payload, "recurrence_instance_date", fallback.recurrence_instance_date));
+  const blockedReason = normalizeTaskContextText(valueOrFallback(payload, "blocked_reason", fallback.blocked_reason));
 
   if (!title) {
     throw new AppError("Task title is required.", 400);
@@ -1473,6 +1478,10 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
 
   if (dueTime && !dueDate) {
     throw new AppError("A due time requires a due date.", 400);
+  }
+
+  if (status === "blocked" && !blockedReason) {
+    throw new AppError("Blocked Reason is required when a task is Blocked.", 400);
   }
 
   const now = new Date().toISOString();
@@ -1486,7 +1495,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     title,
     description: String(valueOrFallback(payload, "description", fallback.description) || "").trim(),
     next_action: normalizeTaskContextText(valueOrFallback(payload, "next_action", fallback.next_action)),
-    blocked_reason: normalizeTaskContextText(valueOrFallback(payload, "blocked_reason", fallback.blocked_reason)),
+    blocked_reason: blockedReason,
     resume_note: normalizeTaskContextText(
       Object.hasOwn(payload || {}, "handoff_note")
         ? payload.handoff_note
@@ -1523,6 +1532,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
 
 async function resolveTaskScope({ session, clientId, projectId }) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+  const billableAllowed = workspaceSupportsBillable(settings.workspaceType);
   const normalizedProjectId = String(projectId || "").trim();
   const rawClientId = String(clientId || "").trim();
   const requestedClientId = settings.workspaceType === "business" ? rawClientId : "";
@@ -1549,7 +1559,8 @@ async function resolveTaskScope({ session, clientId, projectId }) {
     return {
       projectId: project.id,
       clientId: project.client_id || "",
-      billable: normalizeBillableFlag(project.billable),
+      billable: billableAllowed ? normalizeBillableFlag(project.billable) : "no",
+      billableAllowed,
     };
   }
 
@@ -1568,13 +1579,15 @@ async function resolveTaskScope({ session, clientId, projectId }) {
       projectId: "",
       clientId: client.id,
       billable: normalizeBillableFlag(client.billable),
+      billableAllowed,
     };
   }
 
   return {
     projectId: "",
     clientId: "",
-    billable: "yes",
+    billable: billableAllowed ? "yes" : "no",
+    billableAllowed,
   };
 }
 
@@ -2246,15 +2259,16 @@ async function attachReminderDetailsToTask(task) {
   };
 }
 
-async function attachTaskListProjectionDetails(tasks) {
+async function attachTaskListProjectionDetails(tasks, session) {
   if (!Array.isArray(tasks) || tasks.length === 0) {
     return [];
   }
 
   const batch = createVisibleRecordBatch(tasks, { idField: "task_id" });
-  const [checklistProgressByTaskId, relationshipSummaryByTaskId] = await Promise.all([
+  const [checklistProgressByTaskId, relationshipSummaryByTaskId, primaryParentByTaskId] = await Promise.all([
     taskChecklistsRepository.readProgressForTasks(tasks[0].workspace_id, batch.ids),
     taskRelationshipsRepository.relationshipSummariesForTasks(tasks[0].workspace_id, batch.ids),
+    readPrimaryParentByTaskId(session, tasks),
   ]);
 
   return Promise.all(tasks.map(async (task) => {
@@ -2263,6 +2277,7 @@ async function attachTaskListProjectionDetails(tasks) {
     const taskWithListDetails = {
       ...task,
       checklistProgress,
+      parentTask: primaryParentByTaskId.get(task.task_id) || null,
       relationshipSummary,
       completionMetrics: taskCompletionMetrics(task),
       reminderDetails: await taskRemindersService.readTaskReminderDetails(task),
@@ -2294,6 +2309,32 @@ async function attachTaskDetails(task) {
     resumeContext: taskResumeContext({ ...taskWithReminders, checklistProgress, relationshipSummary }),
     recurrenceDetails: await taskRecurrenceService.readTaskRecurrenceDetails(taskWithReminders),
   };
+}
+
+async function readPrimaryParentByTaskId(session, tasks = []) {
+  const taskIds = tasks.map((task) => task.task_id).filter(Boolean);
+  const relationships = await taskRelationshipsRepository.readParentsForTasks(session.workspace_id, taskIds);
+  const parentByTaskId = new Map();
+
+  for (const relationship of relationships) {
+    if (parentByTaskId.has(relationship.child_task_id) || !relationship.parent_title) {
+      continue;
+    }
+    const readable = await canReadTask(session, {
+      workspace_id: relationship.workspace_id,
+      client_id: relationship.parent_client_id,
+      project_id: relationship.parent_project_id,
+    });
+    if (readable) {
+      parentByTaskId.set(relationship.child_task_id, {
+        task_id: relationship.parent_task_id,
+        title: relationship.parent_title,
+        status: relationship.parent_status || "open",
+      });
+    }
+  }
+
+  return parentByTaskId;
 }
 
 async function readTaskCompletionContinuity(task) {

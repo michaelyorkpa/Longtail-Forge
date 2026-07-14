@@ -2,6 +2,7 @@ import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
 
 const builder = readText("public/js/shared/view-builder.js");
@@ -13,6 +14,7 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
+const fixture = await createDisposableDatabaseFixture("clients-projects-framework-read-anatomy-regression");
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
 
@@ -144,6 +146,9 @@ assert.deepEqual(projectActionCalls, [
 ], "Projects page and row actions should dispatch module-owned behavior handlers with safe record context");
 
 console.log("Clients/Projects framework-rendered read anatomy regression passed.");
+const { closeDatabase } = await import("../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();
 
 function clientRecord(overrides = {}) {
   return {

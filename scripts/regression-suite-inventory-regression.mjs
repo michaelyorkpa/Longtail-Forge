@@ -81,11 +81,11 @@ assert.ok(
   "inventory contract guardrail should be registered",
 );
 assert.equal(legacySnapshot.scripts.length, 312, "legacy migration snapshot should preserve the inventory baseline");
-assert.equal(REGRESSION_ENTRIES.length, 333, "auto-discovery should add twenty-one metadata guardrails to the legacy baseline");
+assert.equal(REGRESSION_ENTRIES.length, 340, "auto-discovery should add twenty-eight metadata guardrails to the legacy baseline");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [170, 6, 29, 128],
-  "auto-discovery must preserve legacy bucket counts and add twenty-one metadata guardrails",
+  [174, 6, 29, 131],
+  "auto-discovery must preserve legacy bucket counts and add twenty-eight metadata guardrails",
 );
 assert.match(suite, /discoverRegressionEntries/);
 assert.match(suite, /createRegressionSuite/);

@@ -72,7 +72,7 @@ async function assertRelatedContextReadModel(session, fixtures) {
   assert.equal(groupCounts["linked-notes"], 1);
   assert.equal(groupCounts["task-files"], 1);
   assert.equal(groupCounts["linked-lists"], 1);
-  assert.equal(groupCounts["same-project-tasks"], 6);
+  assert.equal(groupCounts["same-project-tasks"], 7);
   assert.equal(groupCounts["shared-direct-tags"], 3);
   const sameProjectGroup = result.groups.find((group) => group.id === "same-project-tasks");
   assert.deepEqual(
@@ -83,9 +83,9 @@ async function assertRelatedContextReadModel(session, fixtures) {
       "Tomorrow newer same project task",
       "Tomorrow older same project task",
       "Same project shared task",
-      "No due same project task",
+      "Child project related task",
     ],
-    "same-project tasks should prioritize overdue/today, then nearest future due dates, then no-due tasks",
+    "same-project tasks should include child-project work and prioritize overdue/today, then nearest future due dates before the six-item display cap",
   );
   assert.equal(reasonByTitle.get("Linked context note"), "linked_note", "linked notes should outrank shared direct tags");
   assert.equal(reasonByTitle.get("Linked procurement list"), "linked_list", "linked lists should outrank shared direct tags");
@@ -162,6 +162,10 @@ async function createRelatedContextFixtures(session) {
   const client = (await clientsService.createClient({ name: "Related Context Client" }, session)).client;
   const project = (await clientsService.createProject(client.id, { name: "Related Context Project" }, session)).project;
   const otherProject = (await clientsService.createProject(client.id, { name: "Related Context Other Project" }, session)).project;
+  const childProject = (await clientsService.createProject(client.id, {
+    name: "Related Context Child Project",
+    parent_project_id: project.id,
+  }, session)).project;
   const selectedTask = (await tasksService.create({
     title: "Focused related context task",
     project_id: project.id,
@@ -231,6 +235,12 @@ async function createRelatedContextFixtures(session) {
     project_id: project.id,
   }, session)).task;
   await tagsService.assign(session, { tagId: tag.tag_id, targetId: sameProjectTask.task_id, targetType: "task" });
+
+  const _childProjectTask = (await tasksService.create({
+    title: "Child project related task",
+    due_date: addDaysKey(today, 3),
+    project_id: childProject.id,
+  }, session)).task;
 
   const _noDueTask = (await tasksService.create({
     title: "No due same project task",

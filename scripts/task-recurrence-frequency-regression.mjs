@@ -24,6 +24,7 @@ try {
   await assertWeekendRecurrenceSkipsWeekdays(session);
   await assertDailyRecurrenceRemainsSevenDays(session);
   await assertFutureEditDoesNotPersistInstanceStatus(session);
+  await assertBlockedReasonStaysOnOneOccurrence(session);
   await assertTaskViewDialogIncludesFrequencyOptions();
 
   console.log("Task recurrence frequency regression passed.");
@@ -146,6 +147,35 @@ async function assertFutureEditDoesNotPersistInstanceStatus(session) {
 
   const createdTask = await completeAndRunRecurrence(task, session, "2026-06-17");
   assert.equal(createdTask.status, "open", "Next recurring task instances should be created open.");
+}
+
+async function assertBlockedReasonStaysOnOneOccurrence(session) {
+  const task = (await tasksService.create({
+    title: "Blocked recurring occurrence",
+    due_date: "2026-06-18",
+    recurrence: {
+      enabled: true,
+      frequency: "DAILY",
+      interval: 1,
+      endDate: "2026-06-30",
+    },
+  }, session)).task;
+
+  await assert.rejects(
+    () => tasksService.update(task.task_id, { status: "blocked" }, session),
+    /Blocked Reason is required/i,
+    "blocked task writes must require a reason at the service boundary",
+  );
+
+  const blocked = (await tasksService.update(task.task_id, {
+    status: "blocked",
+    blocked_reason: "Waiting on the occurrence-specific approval.",
+  }, session)).task;
+  assert.equal(blocked.blocked_reason, "Waiting on the occurrence-specific approval.");
+
+  const createdTask = await completeAndRunRecurrence(task, session, "2026-06-19");
+  assert.equal(createdTask.status, "open", "new recurring occurrences should remain open");
+  assert.equal(createdTask.blocked_reason, "", "a blocked reason must not propagate to a future occurrence");
 }
 
 async function assertTaskViewDialogIncludesFrequencyOptions() {

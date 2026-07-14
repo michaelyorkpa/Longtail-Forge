@@ -8,6 +8,10 @@ import {
 } from "./test-support/regression-runner-scheduler.mjs";
 import { runIsolatedItemsWithRetry } from "./test-support/isolated-regression-retry.mjs";
 import { runRegressionBucketsFailFast } from "./test-support/regression-bucket-orchestrator.mjs";
+import {
+  assertCanonicalWorkspaceInventoryUnchanged,
+  captureCanonicalWorkspaceInventory,
+} from "./test-support/canonical-workspace-inventory.mjs";
 import { filterRegressionBuckets, parseRegressionCliArgs } from "./lib/regression-runner-options.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
@@ -17,6 +21,7 @@ const DEFAULT_REPEAT_COUNT = 1;
 const MAX_REGRESSION_REPEAT_COUNT = 5;
 
 const totalStart = performance.now();
+const canonicalWorkspaceInventoryBefore = captureCanonicalWorkspaceInventory();
 const completedResults = [];
 let regressionBaseline = null;
 let regressionBaselinePromise = null;
@@ -83,6 +88,17 @@ try {
 } finally {
   await writeTimingReport(completedResults);
   await cleanupRegressionBaseline();
+  const canonicalWorkspaceInventoryAfter = captureCanonicalWorkspaceInventory();
+
+  try {
+    assertCanonicalWorkspaceInventoryUnchanged(
+      canonicalWorkspaceInventoryBefore,
+      canonicalWorkspaceInventoryAfter,
+    );
+  } catch (error) {
+    console.error(error?.message || error);
+    process.exitCode = 1;
+  }
 }
 
 async function runBucket(bucket, runContext) {

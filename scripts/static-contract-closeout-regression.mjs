@@ -1,3 +1,5 @@
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
 const staticCloseoutModules = [
   ["runtime/database foundation", "./runtime-database-foundation-closeout-regression.mjs"],
   ["database agnostic contract", "./database-agnostic-contract-closeout-regression.mjs"],
@@ -15,8 +17,16 @@ const staticCloseoutModules = [
   ["file storage/scanner runtime", "./file-storage-scanner-runtime-closeout-regression.mjs"],
 ];
 
+const fixture = await createDisposableDatabaseFixture("static-contract-closeout-regression");
+
+try {
 for (const [, modulePath] of staticCloseoutModules) {
   await import(modulePath);
 }
 
 console.log(`Static contract closeout regression passed ${staticCloseoutModules.length} imported closeout modules.`);
+} finally {
+  const { closeDatabase } = await import("../src/db/provider.js");
+  await closeDatabase();
+  await fixture.cleanup();
+}

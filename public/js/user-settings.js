@@ -440,12 +440,12 @@ function createWorkspaceRemovalRow(workspace) {
   ].filter(Boolean).join(" - ");
 
   button.type = "button";
-  button.textContent = isCurrentWorkspace ? "Current Workspace" : "Remove";
+  button.textContent = isCurrentWorkspace ? "Current Workspace" : "Leave";
   button.disabled = isCurrentWorkspace || isLastActiveWorkspace;
   button.addEventListener("click", () => removeWorkspaceMembership(workspace.workspaceId));
 
   if (isLastActiveWorkspace && !isCurrentWorkspace) {
-    button.textContent = "Last Workspace";
+    button.textContent = "Only Active Workspace";
   }
 
   details.append(name, meta);
@@ -475,16 +475,16 @@ async function removeWorkspaceMembership(workspaceId) {
     return;
   }
 
-  setUserSettingsStatus(`Removing ${workspace.workspaceName || "workspace"}...`);
+  setUserSettingsStatus(`Leaving ${workspace.workspaceName || "workspace"}...`);
 
   try {
     const body = await window.LongtailForge.api.deleteJson(`/api/user/workspaces/${encodeURIComponent(workspaceId)}`);
 
     applyWorkspaceAccess(body);
     renderWorkspaceRemovalList();
-    setUserSettingsStatus("Workspace removed.", false, { type: "success", clearAfter: 1600 });
+    setUserSettingsStatus("Workspace membership removed.", false, { type: "success", clearAfter: 1600 });
   } catch (error) {
-    handleApiError(error, "Workspace was not removed.");
+    handleApiError(error, "Workspace membership was not removed.");
   }
 }
 

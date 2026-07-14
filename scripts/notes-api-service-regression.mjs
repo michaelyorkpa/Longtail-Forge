@@ -26,6 +26,7 @@ try {
   const limitedSession = await createClientUserSession(workspace.workspace_id);
 
   await assertNoteLifecycle(adminSession);
+  await assertNoteBulkEditing(adminSession, limitedSession);
   await assertNoteKindCleanup(adminSession);
   await assertLinkedRecordPickerReadModel(adminSession);
   await assertNotesTagAndTargetIntegrations(adminSession);
@@ -298,6 +299,87 @@ async function assertNoteLifecycle(session) {
 
   const deleteResult = await notesService.softDelete(noteId, session);
   assert.equal(deleteResult.note.status, NOTE_STATUSES.DELETED);
+}
+
+async function assertNoteBulkEditing(session, limitedSession) {
+  const suffix = randomUUID().slice(0, 8);
+  const collection = (await notesService.createCollection({
+    title: `Bulk Active Work ${suffix}`,
+    libraryBucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+  }, session)).collection;
+  const referenceCollection = (await notesService.createCollection({
+    title: `Bulk Reference ${suffix}`,
+    libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
+  }, session)).collection;
+  const first = (await notesService.create({
+    title: `Bulk note one ${suffix}`,
+    body_markdown: "First bulk note body.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
+    note_type: NOTE_TYPES.GENERAL,
+    visibility: NOTE_VISIBILITIES.INTERNAL,
+  }, session)).note;
+  const second = (await notesService.create({
+    title: `Bulk note two ${suffix}`,
+    body_markdown: "Second bulk note body.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
+    note_type: NOTE_TYPES.GENERAL,
+    visibility: NOTE_VISIBILITIES.INTERNAL,
+  }, session)).note;
+
+  const updated = await notesService.bulkUpdate({
+    noteIds: [first.note_id, second.note_id],
+    changes: {
+      noteCollectionId: collection.note_library_collection_id,
+      noteType: NOTE_TYPES.DECISION,
+      visibility: NOTE_VISIBILITIES.WORKSPACE,
+    },
+  }, session);
+  assert.equal(updated.notes.length, 2, "bulk editing should update every readable selected note");
+  assert.equal(updated.errors.length, 0, "valid bulk edits should not report per-note errors");
+  updated.notes.forEach((note) => {
+    assert.equal(note.library_bucket, NOTE_LIBRARY_BUCKETS.ACTIVE_WORK, "choosing a collection should move notes into its Library bucket");
+    assert.equal(note.note_collection_id, collection.note_library_collection_id);
+    assert.equal(note.note_type, NOTE_TYPES.DECISION);
+    assert.equal(note.visibility, NOTE_VISIBILITIES.WORKSPACE);
+  });
+
+  const movedLibrary = await notesService.bulkUpdate({
+    note_ids: [first.note_id, second.note_id],
+    changes: { library_bucket: NOTE_LIBRARY_BUCKETS.REFERENCE },
+  }, session);
+  movedLibrary.notes.forEach((note) => {
+    assert.equal(note.library_bucket, NOTE_LIBRARY_BUCKETS.REFERENCE);
+    assert.equal(note.note_collection_id, null, "changing Library without choosing a Collection should move notes to Uncategorized");
+  });
+
+  const partial = await notesService.bulkUpdate({
+    noteIds: [first.note_id, `missing-note-${suffix}`],
+    changes: { noteType: NOTE_TYPES.LOG },
+  }, session);
+  assert.equal(partial.notes.length, 1, "a readable note should still update when another selected id is unavailable");
+  assert.equal(partial.errors.length, 1, "unavailable selected ids should return permission-safe per-note errors");
+
+  const denied = await notesService.bulkUpdate({
+    noteIds: [second.note_id],
+    changes: { visibility: NOTE_VISIBILITIES.PRIVATE },
+  }, limitedSession);
+  assert.equal(denied.notes.length, 0, "bulk editing must not bypass Notes update permission");
+  assert.equal(denied.errors.length, 1, "permission failures should be reported without changing the note");
+
+  await assertRejectsWithMessage(
+    () => notesService.bulkUpdate({ noteIds: [first.note_id], changes: {} }, session),
+    /Choose at least one Notes field/,
+  );
+  await assertRejectsWithMessage(
+    () => notesService.bulkUpdate({
+      noteIds: [first.note_id],
+      changes: {
+        libraryBucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+        noteCollectionId: referenceCollection.note_library_collection_id,
+      },
+    }, session),
+    /selected Library bucket/,
+  );
 }
 
 async function assertNotesTagAndTargetIntegrations(session) {

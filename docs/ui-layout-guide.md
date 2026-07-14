@@ -32,6 +32,7 @@ The framework CSS (`public/css/longtail-forge.css`) owns the shared responsive f
 
 ## Current Modal Conventions
 
+- Session-expiry warnings are authenticated-app-shell behavior, not module status copy. A same-origin protected API `401` opens one blocking framework `alertdialog` in the native dialog top layer, including when a module editor is already open; concurrent failures reuse that warning, the editor remains in place beneath it, and the focused `Sign in` action returns the user to login. Do not hide this condition in the console or a page status region, and do not label ordinary `403` permission failures as expired sessions.
 - Keep compact workflow modals scannable: title and summary context near the top, related fields grouped together, and low-frequency details collapsed when they are empty.
 - Put save, cancel, copy/share, tags, files, and notification actions in the modal heading or footer where the current workflow expects them. Preserve accessible labels and titles on icon-only controls.
 - Use adaptive visible text in modal footers: dense task-style footers may keep recognizable icon-only controls, while wider, destructive, unusual, or ambiguous actions should show icon plus short visible text where space allows.

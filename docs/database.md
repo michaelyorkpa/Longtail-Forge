@@ -10,6 +10,18 @@ As of version 0.33.5.19.9, runtime database configuration is documented in [runt
 
 As of version 0.33.5.20.1, `scripts/seed-scale.mjs` can seed a disposable SQLite database with repeatable small-office scale data. The script requires explicit `--profile`, `--provider sqlite`, and `--database` arguments, refuses normal/non-disposable database paths, marks completed seed runs in `scale_seed_runs`, and verifies expected counts, permission sanity, search sanity, and app startup sanity. Scale-seeded workspaces keep audit logging enabled with a 365-day retention window so the seeded Audit Log rows remain available for bounded-list testing. It is a developer scale-testing tool, not a migration, import path, or production data generator.
 
+As of version 0.33.11.4, `npm run db:cleanup-workspaces -- --database <sqlite-file>` is the dry-run-first, current-install maintenance command for the operator-approved leaked-workspace cleanup. It resolves `York Family`, `York-Lasher`, and `Raymond Tec` by unique exact name and resolves `Personal [michaelyork@raymondtec.com]` by its actual Personal-workspace membership, so duplicate raw `Personal` rows are never treated as interchangeable. The dry-run reports every removal workspace, orphan workspace scope, affected fixture user, membership, and nonzero workspace-table count without writing.
+
+Apply is deliberately more explicit:
+
+```sh
+npm run db:cleanup-workspaces -- --apply --database ./data/longtail-forge.db --backup ./data/backups/workspace-cleanup-<timestamp>.db
+```
+
+The backup path must be new and different from the source. The command creates an online SQLite backup, verifies its integrity and pre-cleanup workspace/membership fingerprint, then performs all scoped deletion and fixture-user cleanup inside one `BEGIN IMMEDIATE` transaction with deferred foreign keys. It commits only if exactly four retained workspaces remain, their workspace-owned data/membership/role/settings/ownership fingerprint is unchanged, and both `PRAGMA integrity_check` and `PRAGMA foreign_key_check` are clean; otherwise it rolls back. Pre-existing foreign-key violations in retained or unscoped data block apply and are reported for explicit operator review.
+
+The one authorized retained-data exception uses `--repair-dangling-retained-role-assignments`. It may remove only reported `user_role_assignments` rows in retained workspaces whose user row no longer exists; every other retained or unscoped violation still blocks apply. The expected retained-data fingerprint excludes only those listed assignments, the deletion count must match the dry-run candidates, and the repair remains inside the same backed-up transaction. This command is not startup maintenance, a schema migration, a product delete route, or a general workspace-name allowlist.
+
 As of version 0.33.5.20.5, the bounded-query branch covers normal Tasks list reads, normal Notes list reads, visible-row enrichment batching, and high-volume framework/admin reads for Audit Log, Notifications, Search results, and Files browse. These routes use explicit maximum page sizes, stable ordering, permission-shaped rows, and pagination metadata. This is still SQLite-first work and does not add PostgreSQL.
 
 As of version 0.33.5.20.6, `scripts/sqlite-small-office-performance.mjs` provides a repeatable seeded SQLite route timing pass for App shell bootstrap, Tasks list/detail, Notes list/detail, Files browse, Search, Notifications, and Workbench bootstrap. The script records local development hardware sanity targets for the `sqlite-small-office-50` scale profile and can smoke `dev-demo`, but it is not a hosted SaaS load test, concurrency benchmark, SLA, or replacement for service-owned bounded query contracts.

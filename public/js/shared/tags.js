@@ -3,6 +3,7 @@
   const DEFAULT_TAG_COLOR = "#64748b";
   const NO_TAGS_FILTER_VALUE = "__no_tags__";
   const mountedPickers = new Set();
+  let tagSuggestionId = 0;
 
   async function loadTags(options = {}) {
     const params = new URLSearchParams({
@@ -101,6 +102,7 @@
     }
 
     const state = {
+      activeSuggestionIndex: -1,
       allTags: normalizeTagList(Array.isArray(options.tags) ? options.tags : await loadTags()),
       busy: false,
       selectedTags: [],
@@ -139,6 +141,8 @@
     suggestions.className = "tag-picker-suggestions";
     suggestions.dataset.tagPickerSuggestions = "";
     suggestions.hidden = true;
+    suggestions.setAttribute("role", "listbox");
+    input.setAttribute("aria-expanded", "false");
     status.className = "tag-picker-status";
     status.setAttribute("aria-live", "polite");
     status.dataset.tagPickerStatus = "";
@@ -164,6 +168,7 @@
       if (existing) {
         addSelectedTag(state, existing);
         input.value = "";
+        state.activeSuggestionIndex = -1;
         setStatus(status, "");
         sync();
         return;
@@ -183,6 +188,7 @@
         if (tag) {
           addSelectedTag(state, tag);
           input.value = "";
+          state.activeSuggestionIndex = -1;
           setStatus(status, `Added ${tag.name || tag.slug}`);
         }
       } catch (error) {
@@ -195,13 +201,27 @@
       }
     }
 
-    input.addEventListener("input", sync);
+    input.addEventListener("input", () => {
+      state.activeSuggestionIndex = -1;
+      sync();
+    });
     input.addEventListener("keydown", async (event) => {
+      if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        moveTagSuggestionSelection(input, suggestions, state, event.key === "ArrowDown" ? 1 : -1);
+        return;
+      }
+
       if (event.key !== "Enter" && event.key !== ",") {
         return;
       }
 
       event.preventDefault();
+      const activeSuggestion = suggestions.querySelector('[aria-selected="true"]');
+      if (activeSuggestion) {
+        activeSuggestion.click();
+        return;
+      }
       await addByText(input.value);
     });
 
@@ -221,6 +241,7 @@
       if (tag) {
         addSelectedTag(state, tag);
         input.value = "";
+        state.activeSuggestionIndex = -1;
         setStatus(status, "");
         sync();
         input.focus();
@@ -344,14 +365,23 @@
       buttons.push(createCreateSuggestionButton(value));
     }
 
+    if (state.activeSuggestionIndex >= buttons.length) {
+      state.activeSuggestionIndex = buttons.length - 1;
+    }
     container.replaceChildren(...buttons);
     container.hidden = buttons.length === 0;
+    const pickerInput = container.previousElementSibling;
+    pickerInput?.setAttribute("aria-expanded", buttons.length > 0 ? "true" : "false");
+    syncTagSuggestionSelection(container, state);
   }
 
   function createSuggestionButton(tag) {
     const button = document.createElement("button");
+    button.id = `tag-picker-suggestion-${++tagSuggestionId}`;
     button.type = "button";
     button.className = "tag-picker-suggestion";
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", "false");
     button.dataset.tagPickerSuggestion = tag.tag_id;
     button.append(createTagChip(tag));
     return button;
@@ -359,11 +389,247 @@
 
   function createCreateSuggestionButton(name) {
     const button = document.createElement("button");
+    button.id = `tag-picker-suggestion-${++tagSuggestionId}`;
     button.type = "button";
     button.className = "tag-picker-suggestion tag-picker-create";
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", "false");
     button.dataset.tagPickerSuggestion = "create";
     button.textContent = `Create "${name}"`;
     return button;
+  }
+
+  function moveTagSuggestionSelection(input, container, state, direction) {
+    const buttons = [...container.querySelectorAll("[data-tag-picker-suggestion]")];
+    if (buttons.length === 0) {
+      state.activeSuggestionIndex = -1;
+      input.removeAttribute("aria-activedescendant");
+      return;
+    }
+
+    const currentIndex = Number.isInteger(state.activeSuggestionIndex) ? state.activeSuggestionIndex : -1;
+    state.activeSuggestionIndex = direction > 0
+      ? (currentIndex + 1 + buttons.length) % buttons.length
+      : (currentIndex <= 0 ? buttons.length - 1 : currentIndex - 1);
+    syncTagSuggestionSelection(container, state, input);
+  }
+
+  function syncTagSuggestionSelection(container, state, input = container.previousElementSibling) {
+    const buttons = [...container.querySelectorAll("[data-tag-picker-suggestion]")];
+    buttons.forEach((button, index) => {
+      const selected = index === state.activeSuggestionIndex;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-selected", selected ? "true" : "false");
+      if (selected) {
+        input?.setAttribute("aria-activedescendant", button.id);
+        button.scrollIntoView?.({ block: "nearest" });
+      }
+    });
+    if (!buttons.some((button) => button.getAttribute("aria-selected") === "true")) {
+      input?.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function mountFilterPicker(input, options = {}) {
+    if (!input) {
+      return null;
+    }
+
+    input._tagFilterPickerCleanup?.();
+    const state = {
+      activeSuggestionIndex: -1,
+      allTags: normalizeTagList(options.tags || []),
+      value: normalizeFilterValue(options.value),
+    };
+    const suggestions = document.createElement("div");
+    suggestions.className = "tag-picker-suggestions tag-filter-suggestions";
+    suggestions.dataset.tagFilterSuggestions = "";
+    suggestions.hidden = true;
+    suggestions.setAttribute("role", "listbox");
+    input.parentElement?.appendChild(suggestions);
+    input.autocomplete = "off";
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false");
+
+    function choices() {
+      return [
+        { value: "all", label: "All tags", keywords: "all any" },
+        { value: NO_TAGS_FILTER_VALUE, label: "No Tags", keywords: "none untagged" },
+        ...state.allTags.map((tag) => ({
+          value: tag.tag_id,
+          label: tag.name || tag.slug || "Tag",
+          keywords: `${tag.slug || ""} ${tag.description || ""}`,
+          tag,
+        })),
+      ];
+    }
+
+    function selectedChoice() {
+      return choices().find((choice) => choice.value === state.value) || choices()[0];
+    }
+
+    function writeSelectedChoice() {
+      const choice = selectedChoice();
+      state.value = choice.value;
+      input.value = choice.label;
+      input.dataset.tagFilterValue = choice.value;
+      input.dataset.tagFilterLabel = choice.label;
+    }
+
+    function renderFilterSuggestions() {
+      const query = String(input.value || "").trim().toLowerCase();
+      const matches = choices()
+        .filter((choice) => !query || `${choice.label} ${choice.keywords || ""}`.toLowerCase().includes(query))
+        .slice(0, 10);
+      const buttons = matches.map((choice) => {
+        const button = document.createElement("button");
+        button.id = `tag-filter-suggestion-${++tagSuggestionId}`;
+        button.type = "button";
+        button.className = "tag-picker-suggestion";
+        button.dataset.tagFilterSuggestion = choice.value;
+        button.setAttribute("role", "option");
+        button.setAttribute("aria-selected", "false");
+        if (choice.tag) {
+          button.append(createTagChip(choice.tag));
+        } else {
+          button.textContent = choice.label;
+        }
+        return button;
+      });
+      if (state.activeSuggestionIndex >= buttons.length) {
+        state.activeSuggestionIndex = buttons.length - 1;
+      }
+      suggestions.replaceChildren(...buttons);
+      suggestions.hidden = buttons.length === 0;
+      input.setAttribute("aria-expanded", buttons.length > 0 ? "true" : "false");
+      syncFilterSuggestionSelection();
+    }
+
+    function syncFilterSuggestionSelection() {
+      const buttons = [...suggestions.querySelectorAll("[data-tag-filter-suggestion]")];
+      buttons.forEach((button, index) => {
+        const selected = index === state.activeSuggestionIndex;
+        button.classList.toggle("is-active", selected);
+        button.setAttribute("aria-selected", selected ? "true" : "false");
+        if (selected) {
+          input.setAttribute("aria-activedescendant", button.id);
+          button.scrollIntoView?.({ block: "nearest" });
+        }
+      });
+      if (!buttons.some((button) => button.getAttribute("aria-selected") === "true")) {
+        input.removeAttribute("aria-activedescendant");
+      }
+    }
+
+    function choose(value, { notify = true } = {}) {
+      state.value = normalizeFilterValue(value);
+      state.activeSuggestionIndex = -1;
+      writeSelectedChoice();
+      suggestions.hidden = true;
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+      if (notify) {
+        input.dispatchEvent(new input.ownerDocument.defaultView.Event("change", { bubbles: true }));
+      }
+    }
+
+    function handleInput() {
+      state.activeSuggestionIndex = -1;
+      renderFilterSuggestions();
+    }
+
+    function handleFocus() {
+      input.select?.();
+      renderFilterSuggestions();
+    }
+
+    function handleBlur() {
+      global.setTimeout(() => {
+        if (!suggestions.contains(document.activeElement)) {
+          writeSelectedChoice();
+          suggestions.hidden = true;
+          input.setAttribute("aria-expanded", "false");
+        }
+      }, 120);
+    }
+
+    function handleKeydown(event) {
+      const buttons = [...suggestions.querySelectorAll("[data-tag-filter-suggestion]")];
+      if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        if (suggestions.hidden) {
+          renderFilterSuggestions();
+        }
+        const count = buttons.length || suggestions.querySelectorAll("[data-tag-filter-suggestion]").length;
+        if (count > 0) {
+          state.activeSuggestionIndex = event.key === "ArrowDown"
+            ? (state.activeSuggestionIndex + 1 + count) % count
+            : (state.activeSuggestionIndex <= 0 ? count - 1 : state.activeSuggestionIndex - 1);
+          syncFilterSuggestionSelection();
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        writeSelectedChoice();
+        suggestions.hidden = true;
+        input.setAttribute("aria-expanded", "false");
+        return;
+      }
+      if (event.key === "Enter") {
+        const active = suggestions.querySelector('[data-tag-filter-suggestion][aria-selected="true"]')
+          || suggestions.querySelector("[data-tag-filter-suggestion]");
+        if (active) {
+          event.preventDefault();
+          choose(active.dataset.tagFilterSuggestion);
+        }
+      }
+    }
+
+    function handleSuggestionClick(event) {
+      const button = event.target.closest("[data-tag-filter-suggestion]");
+      if (button) {
+        choose(button.dataset.tagFilterSuggestion);
+        input.focus();
+      }
+    }
+
+    input.addEventListener("input", handleInput);
+    input.addEventListener("focus", handleFocus);
+    input.addEventListener("blur", handleBlur);
+    input.addEventListener("keydown", handleKeydown);
+    const handleSuggestionMouseDown = (event) => event.preventDefault();
+    suggestions.addEventListener("mousedown", handleSuggestionMouseDown);
+    suggestions.addEventListener("click", handleSuggestionClick);
+    writeSelectedChoice();
+
+    const controller = {
+      readValue: () => state.value,
+      setTags: (tags = []) => {
+        state.allTags = normalizeTagList(tags);
+        if (!choices().some((choice) => choice.value === state.value)) {
+          state.value = "all";
+        }
+        writeSelectedChoice();
+      },
+      setValue: (value, setOptions = {}) => choose(value, { notify: setOptions.notify === true }),
+      destroy: () => input._tagFilterPickerCleanup?.(),
+    };
+    input._tagFilterPickerCleanup = () => {
+      input.removeEventListener("input", handleInput);
+      input.removeEventListener("focus", handleFocus);
+      input.removeEventListener("blur", handleBlur);
+      input.removeEventListener("keydown", handleKeydown);
+      suggestions.removeEventListener("mousedown", handleSuggestionMouseDown);
+      suggestions.removeEventListener("click", handleSuggestionClick);
+      suggestions.remove();
+      delete input._tagFilterPickerCleanup;
+    };
+    return controller;
+  }
+
+  function normalizeFilterValue(value) {
+    const normalized = String(value || "").trim();
+    return normalized === "__no_effective_tags__" ? NO_TAGS_FILTER_VALUE : normalized || "all";
   }
 
   function emptySelectedTagHint() {
@@ -548,6 +814,7 @@
     createTag,
     createFilterOption,
     loadTags,
+    mountFilterPicker,
     mountPicker,
     noTagsOption,
     readTagIds,

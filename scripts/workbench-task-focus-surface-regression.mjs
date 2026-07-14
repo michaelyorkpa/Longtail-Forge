@@ -77,8 +77,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "blockFocusedTask"),
-  /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`, \{ status: "blocked" \}\)[\s\S]*applyActiveTaskFocusTask\(result\.task \|\| null\);[\s\S]*renderWorkbench\(\);/,
-  "Task Focus Block should use the existing Tasks update route and refresh the focused task in place",
+  /openTaskCandidate\(activeTaskFocusCandidate\(\), taskId,[\s\S]*defaults: \{ status: "blocked" \},[\s\S]*focusTarget: "blocked_reason"[\s\S]*refreshActiveTaskFocus\(\)/,
+  "Task Focus Block should open the canonical Tasks editor in blocked state focused on Blocked Reason",
 );
 
 assert.match(

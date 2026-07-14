@@ -47,7 +47,7 @@ assert.match(selectedBulkActions, /tagIds/, "Tag add/remove/replace payloads sho
 assert.match(tasksRoutesSource, /tasksRoutes\.post\("\/tasks\/bulk"[\s\S]*tasksService\.bulkUpdate/, "Bulk route should remain Tasks-service-owned");
 assert.match(tasksServiceSource, /async function bulkUpdate\(payload, session\)[\s\S]*assertModuleWriteEnabled\(session, TASKS_MODULE_ID\)/, "Tasks service should own module write checks for bulk updates");
 assert.match(tasksServiceSource, /tagsService\.bulkAssign\(session,[\s\S]*targetType:\s*"task"/, "Task tag bulk updates should use the Tags-owned bulk assignment contract");
-assert.match(tasksServiceSource, /if \(action === "status"\)[\s\S]*return update\(taskId, \{ status: payload\.status \}/, "Status bulk action should be service-owned");
+assert.match(tasksServiceSource, /if \(action === "status"\)[\s\S]*return update\(taskId, \{[\s\S]*status: payload\.status,[\s\S]*blocked_reason: payload\.blocked_reason/, "Status bulk action and its blocked reason should be service-owned");
 assert.match(tasksServiceSource, /if \(action === "priority"\)[\s\S]*return update\(taskId, \{ priority: payload\.priority \}/, "Priority bulk action should be service-owned");
 assert.match(tasksServiceSource, /if \(action === "assignee_replace"\)[\s\S]*assignee_ids: normalizeAssigneeIds/, "Assignee replacement should be service-owned");
 assert.match(regressionSuite, /scripts\/tasks-bulk-nondestructive-toolbar-regression\.mjs/, "Regression suite should include the non-destructive bulk toolbar regression");

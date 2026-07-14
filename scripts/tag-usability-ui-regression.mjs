@@ -35,7 +35,8 @@ assert.match(tagsPage, /direct_usage_count/, "Tags management UI should display 
 assert.match(tagsPage, /propagated_usage_count/, "Tags management UI should display propagated usage counts");
 assert.doesNotMatch(tagsPage, /scope/i, "Tags management UI must not add tag scope controls");
 
-assert.match(tasksPage, /taskTagFilterNoTagsOption/, "Tasks filter should include shared No Tags support");
+assert.match(tasksPage, /tags\?\.mountFilterPicker\?\.\(tagFilter/, "Tasks filter should use the shared picker that includes No Tags support");
+assert.match(sharedTags, /function mountFilterPicker\([\s\S]*NO_TAGS_FILTER_VALUE,[\s\S]*label: "No Tags"/, "Shared tag filter picker should include No Tags support");
 assert.match(tasksPage, /normalizeTagFilterValue/, "Tasks filter should normalize legacy no-tags values");
 assert.match(reportingPage, /tagFilterNoTagsOption/, "Reporting filter should include shared No Tags support");
 assert.match(searchPage, /tagFilterNoTagsOption/, "Search filter should include shared No Tags support");

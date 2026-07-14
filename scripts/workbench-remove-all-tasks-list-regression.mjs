@@ -70,7 +70,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /async function openTaskCandidate\(candidate, taskId, trigger = null\)[\s\S]*moduleActions\.open\("tasks\.edit"/,
+  /async function openTaskCandidate\(candidate, taskId, trigger = null, editorOptions = \{\}\)[\s\S]*moduleActions\.open\("tasks\.edit"/,
   "Task candidates should still open through the registered in-place Tasks editor",
 );
 

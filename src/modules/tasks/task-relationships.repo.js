@@ -164,6 +164,25 @@ ORDER BY parent_tasks.status, parent_tasks.due_date, parent_tasks.title;
   return rows.map(relationshipRowToAppValue);
 }
 
+async function readParentsForTasks(workspaceId, childTaskIds) {
+  const uniqueTaskIds = [...new Set((childTaskIds || []).map((taskId) => String(taskId || "").trim()).filter(Boolean))];
+  if (uniqueTaskIds.length === 0) {
+    return [];
+  }
+
+  const rows = await db.query(relationshipSelectSql(`
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.child_task_id IN (:taskIds)
+  AND task_relationships.removed_at IS NULL
+ORDER BY task_relationships.child_task_id, task_relationships.created_at, task_relationships.task_relationship_id;
+`), {
+    taskIds: uniqueTaskIds,
+    workspaceId: textParam(workspaceId),
+  });
+
+  return rows.map(relationshipRowToAppValue);
+}
+
 async function readBlockingChildren(workspaceId, parentTaskId) {
   const rows = await db.query(relationshipSelectSql(`
 WHERE task_relationships.workspace_id = :workspaceId
@@ -384,6 +403,7 @@ export const taskRelationshipsRepository = {
   readChildren,
   readForTask,
   readParents,
+  readParentsForTasks,
   relationshipSummariesForTasks,
   relationshipSummary,
   remove,

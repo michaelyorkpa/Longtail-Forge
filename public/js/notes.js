@@ -48,6 +48,7 @@ const DEFAULT_LINK_TARGET_TYPE = "project";
 const LINK_TARGET_TYPE_ORDER = ["project", "task", "note", "list", "client", "user"];
 const LINK_CLIENT_CONTEXT_ALL = "all";
 const LINK_CLIENT_CONTEXT_WORKSPACE = "workspace";
+const NOTE_BULK_COLLECTION_UNCATEGORIZED = "__uncategorized";
 const OPEN_EXTERNAL_LINKS_STORAGE_KEY = "lf_open_external_links_new_tab";
 const NOTE_WORKFLOW_HANDLERS = {
   "notes.workflow.edit": (note) => openEditor(note),
@@ -71,6 +72,7 @@ let state = {
   activeBucket: "all",
   availableTags: [],
   attachmentController: null,
+  bulkCollections: [],
   collectionDialogMode: "create",
   collectionEditingId: "",
   collections: [],
@@ -98,6 +100,7 @@ let state = {
   previewRequestId: 0,
   settingsLoaded: false,
   selectedNote: null,
+  selectedNoteIds: new Set(),
   selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
   filesDialogNoteId: "",
   tagPicker: null,
@@ -179,6 +182,19 @@ const preview = document.querySelector("[data-note-preview]");
 const formStatus = document.querySelector("[data-note-form-status]");
 const cancelButton = document.querySelector("[data-note-cancel]");
 const saveButton = document.querySelector("[data-note-save]");
+const saveCloseButton = document.querySelector("[data-note-save-close]");
+const bulkToolbar = document.querySelector("[data-note-bulk-toolbar]");
+const bulkEditButton = document.querySelector("[data-note-bulk-edit]");
+const bulkClearButton = document.querySelector("[data-note-bulk-clear]");
+const bulkDialog = document.querySelector("[data-note-bulk-dialog]");
+const bulkForm = document.querySelector("[data-note-bulk-form]");
+const bulkCancelButton = document.querySelector("[data-note-bulk-cancel]");
+const bulkApplyButton = document.querySelector("[data-note-bulk-apply]");
+const bulkLibraryInput = document.querySelector("[data-note-bulk-library]");
+const bulkCollectionInput = document.querySelector("[data-note-bulk-collection]");
+const bulkTypeInput = document.querySelector("[data-note-bulk-type]");
+const bulkVisibilityInput = document.querySelector("[data-note-bulk-visibility]");
+const bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
 const collectionDialog = document.querySelector("[data-note-collection-dialog]");
 const collectionForm = document.querySelector("[data-note-collection-form]");
 const collectionDialogTitle = document.querySelector("[data-note-collection-dialog-title]");
@@ -222,8 +238,14 @@ nextButton?.addEventListener("click", (event) => {
   void loadNextNotesPage();
 });
 form?.addEventListener("submit", saveNote);
+saveCloseButton?.addEventListener("click", saveAndCloseNote);
 notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
 cancelButton?.addEventListener("click", cancelEditor);
+bulkEditButton?.addEventListener("click", openBulkEditor);
+bulkClearButton?.addEventListener("click", clearBulkSelection);
+bulkForm?.addEventListener("submit", applyBulkEdit);
+bulkCancelButton?.addEventListener("click", closeBulkEditor);
+bulkLibraryInput?.addEventListener("change", populateBulkCollectionOptions);
 collectionForm?.addEventListener("submit", saveCollection);
 collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
 collectionCancelButton?.addEventListener("click", closeCollectionDialog);
@@ -325,6 +347,7 @@ function buildNotesViewShell() {
     createNoteDialogShell(),
     createNoteTagsDialogShell(),
     createNoteFilesDialogShell(),
+    createNoteBulkDialogShell(),
     createCollectionDialogShell(),
     createCollectionActionsDialogShell(),
   );
@@ -758,7 +781,22 @@ function fallbackNotesViewSurfaceDescriptor() {
         ],
         footerActions: [
           { id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
+          { id: "save-close-note", label: "Save & Close", role: "secondary", behavior: "notes.editor.save-close" },
           { id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
+        ],
+      },
+      {
+        id: "note-bulk-editor",
+        title: "Bulk Edit Notes",
+        fields: [
+          { id: "note-bulk-library", field: "library", type: "select", label: "Library", options: [["", "No change"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
+          { id: "note-bulk-collection", field: "collection", type: "select", label: "Collection", options: [["", "No change"], ["__uncategorized", "Uncategorized"]] },
+          { id: "note-bulk-kind", field: "noteType", type: "select", label: "Note Kind", options: [["", "No change"], ["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
+          { id: "note-bulk-visibility", field: "visibility", type: "select", label: "Visibility", options: [["", "No change"], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]] },
+        ],
+        footerActions: [
+          { id: "cancel-note-bulk", label: "Cancel", role: "secondary", behavior: "notes.bulk.cancel" },
+          { id: "apply-note-bulk", label: "Apply Changes", role: "primary", behavior: "notes.bulk.apply" },
         ],
       },
       {
@@ -926,9 +964,37 @@ function createNotesListChrome() {
   const wrap = view.createElement("div", { className: "notes-index-chrome" });
   const list = view.createElement("div", { className: "notes-list" });
   list.dataset.notesList = "";
-  wrap.appendChild(list);
+  wrap.append(createNotesBulkToolbar(), list);
 
   return wrap;
+}
+
+function createNotesBulkToolbar() {
+  if (typeof view?.createBulkActionToolbar !== "function") {
+    throw new Error("Notes bulk editing requires LongtailForge.view.createBulkActionToolbar.");
+  }
+
+  const edit = view.createActionButton({
+    label: "Edit selected notes",
+    role: "primary",
+  });
+  edit.dataset.noteBulkEdit = "";
+  edit.disabled = true;
+  const clear = view.createActionButton({
+    label: "Clear selection",
+    role: "secondary",
+  });
+  clear.dataset.noteBulkClear = "";
+  clear.disabled = true;
+
+  return view.createBulkActionToolbar({
+    label: "Bulk Edit",
+    selectedCount: state.selectedNoteIds.size,
+    className: "notes-bulk-toolbar",
+    bodyClassName: "notes-bulk-toolbar-actions",
+    attrs: { "data-note-bulk-toolbar": "" },
+    body: [edit, clear],
+  });
 }
 
 function createNotesListSortControl() {
@@ -995,6 +1061,10 @@ function notesOptionElement(value, label) {
 
 function notesEditorModalDescriptor() {
   return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-editor") || {};
+}
+
+function notesBulkEditorModalDescriptor() {
+  return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-bulk-editor") || {};
 }
 
 function notesCollectionModalDescriptor() {
@@ -1155,6 +1225,18 @@ function createNoteDialogShell() {
     type: "submit",
   });
   save.dataset.noteSave = "";
+  const saveClose = view.createActionButton({
+    action: "save-close-note",
+    className: "surface-modal-footer-action",
+    icon: "save",
+    iconOnly: false,
+    label: modal.footerActions?.find((action) => action.id === "save-close-note")?.label || "Save & Close",
+    role: "secondary",
+    text: "Save & Close",
+    title: "Save and close note",
+    type: "button",
+  });
+  saveClose.dataset.noteSaveClose = "";
 
   // Tags and Files live behind footer utility buttons (Tasks-modal pattern) and open stacked child dialogs.
   const tagsToggle = view.createActionButton({
@@ -1200,7 +1282,7 @@ function createNoteDialogShell() {
     formClassName: "notes-editor-form",
     size: "wide",
     fields: [],
-    actions: [cancel, save],
+    actions: [cancel, saveClose, save],
     utilityActions: [tagsToggle, filesToggle, copyLink],
   });
   dialog.dataset.noteDialog = "";
@@ -1262,6 +1344,50 @@ function createNoteDialogShell() {
   [heading, titleField, detailsGroup, secureWarning, contextPanel, markdownEditor, formStatus].forEach((node) => {
     form.insertBefore(node, footer);
   });
+  return dialog;
+}
+
+function createNoteBulkDialogShell() {
+  const modal = notesBulkEditorModalDescriptor();
+  const cancel = view.createActionButton({
+    action: "cancel-note-bulk",
+    className: "surface-modal-footer-action",
+    icon: "close",
+    iconOnly: true,
+    label: "Cancel",
+    role: "secondary",
+    title: "Cancel",
+  });
+  cancel.dataset.noteBulkCancel = "";
+  const apply = view.createActionButton({
+    action: "apply-note-bulk",
+    className: "surface-modal-footer-action",
+    label: "Apply Changes",
+    role: "primary",
+    text: "Apply Changes",
+    title: "Apply changes to selected notes",
+    type: "submit",
+  });
+  apply.dataset.noteBulkApply = "";
+
+  const dialog = view.renderDescriptorModalForm(modal, {
+    title: modal.title || "Bulk Edit Notes",
+    className: "notes-bulk-dialog",
+    formClassName: "notes-bulk-form",
+    size: "medium",
+    actions: [cancel, apply],
+  });
+  dialog.dataset.noteBulkDialog = "";
+  dialog.viewParts.form.dataset.noteBulkForm = "";
+  dialog.viewParts.body.classList.add("notes-form-grid", "notes-bulk-grid");
+  dialog.viewParts.form.querySelector('[data-view-input="library"]').dataset.noteBulkLibrary = "";
+  dialog.viewParts.form.querySelector('[data-view-input="collection"]').dataset.noteBulkCollection = "";
+  dialog.viewParts.form.querySelector('[data-view-input="noteType"]').dataset.noteBulkType = "";
+  dialog.viewParts.form.querySelector('[data-view-input="visibility"]').dataset.noteBulkVisibility = "";
+  const status = view.createStatusMessage({ attrs: { "aria-live": "polite" } });
+  status.dataset.noteBulkFormStatus = "";
+  const footer = dialog.viewParts.footer;
+  dialog.viewParts.form.insertBefore(status, footer);
   return dialog;
 }
 
@@ -1395,6 +1521,7 @@ async function loadNotes(cursor = state.notesCurrentCursor || "") {
   state.notesPagination = result.pagination || null;
   state.notesCurrentCursor = cursor || "";
   state.notesNextCursor = result.pagination?.nextCursor || "";
+  syncNoteSelectionToVisibleNotes();
 }
 
 async function reloadNotesFromStart() {
@@ -1536,6 +1663,7 @@ async function selectBucket(bucket) {
   state.notesCurrentCursor = "";
   state.notesNextCursor = "";
   state.selectedNote = null;
+  state.selectedNoteIds.clear();
   state.selectedCollectionId = "";
   setStatus("Loading notes...");
 
@@ -1565,6 +1693,7 @@ function renderNotes() {
   }
 
   notesList.replaceChildren(...pageNotes.map(noteListItem));
+  syncNotesBulkToolbar();
 }
 
 function renderCollections() {
@@ -1690,12 +1819,23 @@ function populateCollectionFilter() {
 }
 
 function noteListItem(note) {
+  const row = document.createElement("div");
+  const selection = document.createElement("input");
   const button = document.createElement("button");
   const heading = document.createElement("span");
   const title = document.createElement("strong");
   const meta = document.createElement("span");
   const footer = document.createElement("span");
   const chipStrip = tagChips(note.tags || [], { limit: 1, showOverflow: true });
+
+  row.className = "notes-list-row";
+  selection.type = "checkbox";
+  selection.className = "notes-list-select";
+  selection.checked = state.selectedNoteIds.has(note.note_id);
+  selection.disabled = note.status === "archived";
+  selection.setAttribute("aria-label", `Select ${note.title || "Untitled note"} for bulk editing`);
+  selection.title = selection.disabled ? "Restore archived notes before editing." : "Select note for bulk editing";
+  selection.addEventListener("change", () => toggleBulkNoteSelection(note.note_id, selection.checked));
 
   button.type = "button";
   button.className = "notes-list-item";
@@ -1728,7 +1868,195 @@ function noteListItem(note) {
   ].filter(Boolean).join(" - ");
 
   button.append(heading, chipStrip, footer);
-  return button;
+  row.append(selection, button);
+  return row;
+}
+
+function toggleBulkNoteSelection(noteId, selected) {
+  if (selected) {
+    state.selectedNoteIds.add(noteId);
+  } else {
+    state.selectedNoteIds.delete(noteId);
+  }
+  syncNotesBulkToolbar();
+}
+
+function syncNoteSelectionToVisibleNotes() {
+  const visibleEditableIds = new Set((state.notes || [])
+    .filter((note) => note.status !== "archived")
+    .map((note) => note.note_id));
+  state.selectedNoteIds = new Set([...state.selectedNoteIds].filter((noteId) => visibleEditableIds.has(noteId)));
+}
+
+function clearBulkSelection() {
+  state.selectedNoteIds.clear();
+  notesList?.querySelectorAll(".notes-list-select").forEach((input) => {
+    input.checked = false;
+  });
+  syncNotesBulkToolbar();
+}
+
+function syncNotesBulkToolbar() {
+  const selectedCount = state.selectedNoteIds.size;
+  if (bulkToolbar && selectedCount > 0) {
+    bulkToolbar.open = true;
+  }
+  const count = bulkToolbar?.viewParts?.count || bulkToolbar?.querySelector("[data-view-bulk-selection-count]");
+  if (count) {
+    count.textContent = `${selectedCount} selected`;
+    count.hidden = selectedCount === 0;
+  }
+  if (bulkEditButton) {
+    bulkEditButton.disabled = selectedCount === 0;
+  }
+  if (bulkClearButton) {
+    bulkClearButton.disabled = selectedCount === 0;
+  }
+}
+
+async function openBulkEditor() {
+  if (!bulkDialog || state.selectedNoteIds.size === 0) {
+    return;
+  }
+
+  setStatus("Loading bulk editor...");
+  try {
+    const result = await api.getJson("/api/notes/collections", { cache: "no-store" });
+    state.bulkCollections = normalizeCollections(result.collections || []);
+    bulkLibraryInput.value = "";
+    bulkTypeInput.value = "";
+    populateBulkVisibilityOptions();
+    populateBulkCollectionOptions();
+    setBulkFormStatus(`${state.selectedNoteIds.size} notes selected.`);
+    bulkApplyButton.disabled = false;
+    view.showModal(bulkDialog, { trigger: bulkEditButton });
+    bulkLibraryInput.focus();
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Notes bulk editor could not be opened.", true);
+  }
+}
+
+function closeBulkEditor() {
+  view.closeModal(bulkDialog);
+}
+
+function populateBulkCollectionOptions() {
+  if (!bulkCollectionInput) {
+    return;
+  }
+
+  const selectedLibrary = bulkLibraryInput?.value || "";
+  const previousValue = bulkCollectionInput.value || "";
+  const collections = state.bulkCollections
+    .filter((collection) => !selectedLibrary || collection.library_bucket === selectedLibrary)
+    .map((collection) => [
+      collection.note_library_collection_id,
+      selectedLibrary
+        ? collection.path_cache || collection.title || "Collection"
+        : `${libraryLabel(collection.library_bucket)}: ${collection.path_cache || collection.title || "Collection"}`,
+    ]);
+  const options = [
+    ["", "No change"],
+    [NOTE_BULK_COLLECTION_UNCATEGORIZED, "Uncategorized"],
+    ...collections,
+  ];
+  bulkCollectionInput.replaceChildren(...options.map(([value, label]) => notesOptionElement(value, label)));
+  bulkCollectionInput.value = options.some(([value]) => value === previousValue) ? previousValue : "";
+}
+
+function populateBulkVisibilityOptions() {
+  if (!bulkVisibilityInput) {
+    return;
+  }
+  bulkVisibilityInput.replaceChildren(
+    notesOptionElement("", "No change"),
+    ...workspaceVisibilityOptions().map(([value, label]) => notesOptionElement(value, label)),
+  );
+  bulkVisibilityInput.value = "";
+}
+
+async function applyBulkEdit(event) {
+  event.preventDefault();
+  if (state.selectedNoteIds.size === 0) {
+    setBulkFormStatus("Select at least one note to update.", true);
+    return;
+  }
+
+  const changes = readBulkNoteChanges();
+  if (Object.keys(changes).length === 0) {
+    setBulkFormStatus("Choose at least one field to update.", true);
+    return;
+  }
+
+  bulkApplyButton.disabled = true;
+  setBulkFormStatus("Updating notes...");
+  try {
+    const result = await api.postJson("/api/notes/bulk", {
+      noteIds: [...state.selectedNoteIds],
+      changes,
+    });
+    const updatedNotes = result.notes || [];
+    const errors = result.errors || [];
+    state.selectedNoteIds = new Set(errors.map((error) => error.note_id).filter(Boolean));
+    if (isNotesWorkspaceSurface) {
+      await Promise.all([loadCollections(), loadNotes()]);
+      renderCollections();
+      renderNotes();
+      await refreshSelectedNoteAfterBulk(updatedNotes);
+    }
+
+    if (updatedNotes.length > 0) {
+      closeBulkEditor();
+      setStatus(errors.length > 0
+        ? `Updated ${updatedNotes.length} notes; ${errors.length} could not be updated.`
+        : `Updated ${updatedNotes.length} notes.`);
+      return;
+    }
+
+    setBulkFormStatus(errors[0]?.message || "Selected notes could not be updated.", true);
+    bulkApplyButton.disabled = false;
+  } catch (error) {
+    setBulkFormStatus(error.message || "Selected notes could not be updated.", true);
+    bulkApplyButton.disabled = false;
+  }
+}
+
+function readBulkNoteChanges() {
+  const changes = {};
+  if (bulkLibraryInput?.value) {
+    changes.libraryBucket = bulkLibraryInput.value;
+  }
+  if (bulkCollectionInput?.value === NOTE_BULK_COLLECTION_UNCATEGORIZED) {
+    changes.noteCollectionId = null;
+  } else if (bulkCollectionInput?.value) {
+    changes.noteCollectionId = bulkCollectionInput.value;
+  }
+  if (bulkTypeInput?.value) {
+    changes.noteType = bulkTypeInput.value;
+  }
+  if (bulkVisibilityInput?.value) {
+    changes.visibility = bulkVisibilityInput.value;
+  }
+  return changes;
+}
+
+async function refreshSelectedNoteAfterBulk(updatedNotes = []) {
+  const selectedId = state.selectedNote?.note_id || "";
+  if (!selectedId || !updatedNotes.some((note) => note.note_id === selectedId)) {
+    return;
+  }
+  const result = await api.getJson(`/api/notes/${encodeURIComponent(selectedId)}`, { cache: "no-store" });
+  state.selectedNote = result.note;
+  renderDetail(result.note);
+}
+
+function setBulkFormStatus(message, isError = false) {
+  if (!bulkFormStatus) {
+    return;
+  }
+  bulkFormStatus.textContent = message;
+  bulkFormStatus.classList.toggle("error-text", isError);
 }
 
 async function selectNote(noteId) {
@@ -1868,6 +2196,7 @@ async function openEditor(note = null, options = {}) {
   updatePreviewLayoutState(false);
   formStatus.textContent = "";
   saveButton.disabled = false;
+  saveCloseButton.disabled = false;
   if (copyLinkButton) {
     copyLinkButton.hidden = !note?.note_id;
     copyLinkButton.disabled = !note?.note_id;
@@ -2125,7 +2454,26 @@ function setEditorFormStatus(message, isError = false) {
 
 async function saveNote(event) {
   event.preventDefault();
+  const wasCreating = !state.editingNoteId;
+  try {
+    await saveNoteForm({ closeOnSuccess: !wasCreating });
+  } catch {
+    // saveNoteForm reports validation and route errors through the modal status.
+  }
+}
+
+async function saveAndCloseNote(event) {
+  event?.preventDefault();
+  try {
+    await saveNoteForm({ closeOnSuccess: true });
+  } catch {
+    // saveNoteForm reports validation and route errors through the modal status.
+  }
+}
+
+async function saveNoteForm({ closeOnSuccess = true } = {}) {
   saveButton.disabled = true;
+  saveCloseButton.disabled = true;
   setEditorFormStatus("Saving note...");
   const wasEditing = Boolean(state.editingNoteId);
 
@@ -2142,20 +2490,63 @@ async function saveNote(event) {
     if (typeof state.editorHostContext?.refresh === "function") {
       await state.editorHostContext.refresh(result);
     }
-    completeNoteEditorHostContext({
-      actionId: wasEditing ? "notes.edit" : "notes.add",
-      recordId: result.note?.note_id || "",
-      title: result.note?.title || payload.title || "",
-    });
-    closeEditor({ returnValue: "complete" });
-    if (isNotesWorkspaceSurface) {
-      await selectNote(result.note.note_id);
+    if (!wasEditing) {
+      await transitionCreatedNoteToEdit(result.note);
     }
-    setEditorFormStatus("");
+    if (isNotesWorkspaceSurface) {
+      state.selectedNote = result.note;
+      renderNotes();
+      renderDetail(result.note);
+      updateUrl(result.note.note_id);
+    }
+    if (closeOnSuccess) {
+      completeNoteEditorHostContext({
+        actionId: wasEditing ? "notes.edit" : "notes.add",
+        recordId: result.note?.note_id || "",
+        title: result.note?.title || payload.title || "",
+      });
+      closeEditor({ returnValue: "complete" });
+      if (isNotesWorkspaceSurface) {
+        await selectNote(result.note.note_id);
+      }
+      setEditorFormStatus("");
+      return result;
+    }
+    if (!wasEditing) {
+      setEditorFormStatus("Note saved. Continue editing or choose Save & Close.");
+    } else {
+      setEditorFormStatus("Note saved.");
+    }
+    saveButton.disabled = false;
+    saveCloseButton.disabled = false;
+    return result;
   } catch (error) {
     setEditorFormStatus(safeNoteErrorMessage(error, "Note could not be saved."), true);
     saveButton.disabled = false;
+    saveCloseButton.disabled = false;
+    throw error;
   }
+}
+
+async function transitionCreatedNoteToEdit(note) {
+  if (!note?.note_id) {
+    return;
+  }
+
+  state.editingNoteId = note.note_id;
+  state.editorNote = note;
+  state.editorContextSummaries = note.linked_context || state.editorContextSummaries;
+  state.editorStagedTargets = [];
+  dialogTitle.textContent = "Edit Note";
+  securityInput.disabled = true;
+  if (copyLinkButton) {
+    copyLinkButton.hidden = false;
+    copyLinkButton.disabled = false;
+  }
+  await writeNoteNotificationFollowFields(note);
+  await mountTagEditor(note);
+  mountNoteEditorFiles(note);
+  renderEditorContextSelection();
 }
 
 function readEditorPayload() {
@@ -3561,6 +3952,7 @@ function renderEmptyList(message) {
   empty.className = "notes-empty-state";
   empty.textContent = message;
   notesList.replaceChildren(empty);
+  syncNotesBulkToolbar();
 }
 
 async function openNoteFromUrl() {

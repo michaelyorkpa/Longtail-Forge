@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
-import { validateModuleManifest } from "../src/core/modules/manifest-contract.js";
+const fixture = await createDisposableDatabaseFixture("view-shared-capabilities-regression");
+const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -142,6 +144,9 @@ await missingSurface.refresh();
 assert.match(missingSurface.textContent, /Missing view behavior handler: not\.registered/, "Missing mount behaviors should fail visibly");
 
 console.log("View shared capabilities regression passed.");
+const { closeDatabase } = await import("../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();
 
 function capabilityDescriptor() {
   return {

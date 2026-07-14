@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
-import {
+const fixture = await createDisposableDatabaseFixture("view-descriptor-reference-regression");
+const {
   validateModuleManifests,
-} from "../src/core/modules/manifest-contract.js";
+} = await import("../src/core/modules/manifest-contract.js");
 
 assert.doesNotThrow(
   () => validateModuleManifests([
@@ -154,6 +156,9 @@ assert.throws(
 );
 
 console.log("View descriptor reference regression passed.");
+const { closeDatabase } = await import("../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();
 
 function createModule(overrides = {}) {
   return {

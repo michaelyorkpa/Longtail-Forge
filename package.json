@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.10.9",
+  "version": "0.33.11.7",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -45,6 +45,7 @@
     "db:migration:create": "node scripts/create-migration.mjs",
     "db:schema:refresh": "node scripts/schema-snapshot.mjs --refresh",
     "db:schema:check": "node scripts/schema-snapshot.mjs --check",
+    "db:cleanup-workspaces": "node scripts/cleanup-development-workspaces.mjs",
     "regressions:manifest": "node scripts/generate-regression-manifest.mjs",
     "regressions:manifest:check": "node scripts/generate-regression-manifest.mjs --check",
     "lint": "eslint . --cache --cache-strategy content --cache-location .eslintcache",

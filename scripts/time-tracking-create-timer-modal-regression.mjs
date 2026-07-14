@@ -72,7 +72,7 @@ assert.match(timerDialog, /data-time-tracking-timer-dialog-client/, "Create Time
 assert.match(timerDialog, /data-time-tracking-timer-dialog-project/, "Create Timer modal should include Project");
 assert.match(timerDialog, /data-time-tracking-timer-dialog-task/, "Create Timer modal should include optional Task");
 assert.match(timerDialog, /data-time-tracking-timer-dialog-description/, "Create Timer modal should include Description");
-assert.match(timerDialog, /data-time-tracking-timer-dialog-billable/, "Create Timer modal should include Billable");
+assert.match(timerDialog, /data-time-tracking-timer-dialog-billable-control[\s\S]*data-time-tracking-timer-dialog-billable/, "Create Timer modal should keep Billable inside a workspace-aware control");
 assert.match(timerDialog, /Start Timer/, "Create Timer modal should expose a Start Timer action");
 
 assert.match(
@@ -93,8 +93,8 @@ assert.match(
 
 assert.match(
   timerDialog,
-  /function updateBillableDefault\(\)[\s\S]*const billableSource = project \|\| client;[\s\S]*fields\.billable\.value = billableSource\?\.billable === "no" \? "no" : "yes";/,
-  "Manual timer billable default should inherit from selected Project or Client",
+  /function updateBillableDefault\(\)[\s\S]*!workspaceUsesBillableFlag\(\)[\s\S]*fields\.billable\.value = "no"[\s\S]*const billableSource = project \|\| client;[\s\S]*fields\.billable\.value = billableSource\?\.billable === "no" \? "no" : "yes";/,
+  "Manual timer billable default should be disabled outside Business and otherwise inherit from the selected Project or Client",
 );
 assert.match(
   timerDialog,
@@ -103,8 +103,8 @@ assert.match(
 );
 assert.match(
   timerDialog,
-  /function startManualTimer\(\{ client, project \}\)[\s\S]*nextManualTimerSlot\(\)[\s\S]*api\.putJson\(`\/api\/active-timers\/\$\{encodeURIComponent\(timerSlot\)\}`[\s\S]*billable: fields\.billable\.value[\s\S]*description: fields\.description\.value\.trim\(\)[\s\S]*timer_status: "running"/,
-  "Manual timers should start through the existing active-timer route with inherited billable and description",
+  /function startManualTimer\(\{ client, project \}\)[\s\S]*nextManualTimerSlot\(\)[\s\S]*api\.putJson\(`\/api\/active-timers\/\$\{encodeURIComponent\(timerSlot\)\}`[\s\S]*billable: workspaceBillableValue\(\)[\s\S]*description: fields\.description\.value\.trim\(\)[\s\S]*timer_status: "running"/,
+  "Manual timers should start through the existing active-timer route with workspace-safe billable and description",
 );
 assert.match(
   timerDialog,

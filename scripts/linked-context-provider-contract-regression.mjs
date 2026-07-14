@@ -3,13 +3,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { modulesService } from "../src/core/modules/modules.service.js";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 import {
   LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
   LINKED_CONTEXT_TARGET_RESPONSE_FIELDS,
   assertLinkedContextTargetContract,
   validateLinkedContextTarget,
 } from "../src/core/linked-context/provider-contract.js";
+
+const fixture = await createDisposableDatabaseFixture("linked-context-provider-contract-regression");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
@@ -130,3 +133,6 @@ assert.ok(
 );
 
 console.log("Linked Context provider contract regression passed.");
+const { closeDatabase } = await import("../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();

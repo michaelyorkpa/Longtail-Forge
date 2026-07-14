@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { internalEventBus } from "../src/core/events/event-bus.js";
-import { validateModuleManifest } from "../src/core/modules/manifest-contract.js";
-import { modulesService } from "../src/core/modules/modules.service.js";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("event-bus-regression");
+const { internalEventBus } = await import("../src/core/events/event-bus.js");
+const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
+const { closeDatabase } = await import("../src/db/provider.js");
 
 let checks = 0;
+
+try {
 
 function check(name, assertion) {
   assertion();
@@ -130,3 +136,7 @@ check("registry exposes Tasks event types", () => {
 
 internalEventBus.reset();
 console.log(`Event bus regression passed ${checks} checks.`);
+} finally {
+  await closeDatabase();
+  await fixture.cleanup();
+}

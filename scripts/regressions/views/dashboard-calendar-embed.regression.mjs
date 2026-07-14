@@ -11,7 +11,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { modulesService } from "../../../src/core/modules/modules.service.js";
+import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("dashboard-calendar-embed-regression");
+const { modulesService } = await import("../../../src/core/modules/modules.service.js");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -163,6 +166,9 @@ assert.ok(
 checks += 5;
 
 console.log(`Dashboard calendar embed guardrail passed ${checks} checks.`);
+const { closeDatabase } = await import("../../../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();
 
 async function readText(relativePath) {
   return fs.readFile(path.join(root, relativePath), "utf8");

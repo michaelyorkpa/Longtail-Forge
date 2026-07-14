@@ -40,7 +40,7 @@ assert.match(tasksScript, /function createTaskBulkToolbarChrome\(\)[\s\S]*view\.
 
 const renderTasks = functionBlock(tasksScript, "renderTasks");
 assert.match(renderTasks, /taskList\.replaceChildren\(\)/, "Existing list rows should still render into the task list body");
-assert.match(renderTasks, /tasks\.forEach\(\(task\) => taskList\.append\(\.\.\.createTaskRow\(task\)\)\)/, "Task rows should still come from the Tasks-owned row builder");
+assert.match(renderTasks, /nestedTaskDisplayRows\(tasks\)[\s\S]*taskNestingDepths\.set\(task, depth\)[\s\S]*createTaskRow\(task\)/, "Task rows should still come from the Tasks-owned row builder in parent-before-child display order");
 
 const createTaskRow = functionBlock(tasksScript, "createTaskRow");
 assert.match(createTaskRow, /row\.classList\.add\("task-density-row"\)/, "Task rows should keep the dense row class");

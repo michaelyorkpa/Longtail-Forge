@@ -51,6 +51,16 @@
                 placeholder="What are you working on?"
               >
             </label>
+
+            <div class="timer-task-link-control">
+              <label>
+                Link running timer to task
+                <select data-stopwatch-task disabled>
+                  <option value="">Start timer to link a task</option>
+                </select>
+              </label>
+              <button type="button" data-stopwatch-link-task disabled>Link Task</button>
+            </div>
           </div>
 
           <div data-stopwatch-tags></div>
@@ -66,7 +76,7 @@
             <input type="checkbox" data-stopwatch-clear-on-reset>
             Clear Info when Stopped/Discarded
           </label>
-          <label class="reset-option">
+          <label class="reset-option" data-stopwatch-billable-control>
             <input type="checkbox" data-stopwatch-billable checked>
             Billable?
           </label>

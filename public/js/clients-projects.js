@@ -166,7 +166,27 @@ function clientProjectsViewSurfaceDescriptor() {
 
   const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
   const surface = surfaces.find((candidate) => candidate.id === surfaceId && candidate.moduleId === "client-projects") || null;
-  return isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
+  const filteredSurface = isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
+  return withoutUnsupportedBillingFields(filteredSurface);
+}
+
+function withoutUnsupportedBillingFields(surface) {
+  const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
+  if (!surface || workspaceType === "business") {
+    return surface;
+  }
+
+  return {
+    ...surface,
+    indexPanel: surface.indexPanel ? {
+      ...surface.indexPanel,
+      itemMetaFields: (surface.indexPanel.itemMetaFields || []).filter((field) => field !== "billingDisplay"),
+    } : surface.indexPanel,
+    table: surface.table ? {
+      ...surface.table,
+      columns: (surface.table.columns || []).filter((column) => !["client-billable", "project-billable"].includes(column.id)),
+    } : surface.table,
+  };
 }
 
 function withInitialProjectClientFilter(surface) {

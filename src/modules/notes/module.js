@@ -365,7 +365,22 @@ const notesModule = {
           ],
           footerActions: [
             { id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
+            { id: "save-close-note", label: "Save & Close", role: "secondary", behavior: "notes.editor.save-close" },
             { id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
+          ],
+        },
+        {
+          id: "note-bulk-editor",
+          title: "Bulk Edit Notes",
+          fields: [
+            { id: "note-bulk-library", field: "library", type: "select", label: "Library", options: [["", "No change"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
+            { id: "note-bulk-collection", field: "collection", type: "select", label: "Collection", options: [["", "No change"], ["__uncategorized", "Uncategorized"]] },
+            { id: "note-bulk-kind", field: "noteType", type: "select", label: "Note Kind", options: [["", "No change"], ["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
+            { id: "note-bulk-visibility", field: "visibility", type: "select", label: "Visibility", options: [["", "No change"], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]] },
+          ],
+          footerActions: [
+            { id: "cancel-note-bulk", label: "Cancel", role: "secondary", behavior: "notes.bulk.cancel" },
+            { id: "apply-note-bulk", label: "Apply Changes", role: "primary", behavior: "notes.bulk.apply" },
           ],
         },
         {

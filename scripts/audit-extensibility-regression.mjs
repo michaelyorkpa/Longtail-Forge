@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { summarizeActivityEvent, summarizeEventContext, summarizeNotificationEvent } from "../src/core/events/event-summaries.js";
-import { modulesService } from "../src/core/modules/modules.service.js";
-import { auditService } from "../src/services/audit.service.js";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("audit-extensibility-regression");
+const { summarizeActivityEvent, summarizeEventContext, summarizeNotificationEvent } = await import("../src/core/events/event-summaries.js");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
+const { auditService } = await import("../src/services/audit.service.js");
+const { closeDatabase } = await import("../src/db/provider.js");
 
 let checks = 0;
+
+try {
 
 function check(name, assertion) {
   assertion();
@@ -141,3 +147,7 @@ check("event summaries expose reusable resume-safe changed context", () => {
 });
 
 console.log(`Audit extensibility regression passed ${checks} checks.`);
+} finally {
+  await closeDatabase();
+  await fixture.cleanup();
+}

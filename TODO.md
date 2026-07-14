@@ -14,6 +14,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 # Short Term
 
 > The Calendar/Dashboard/Tasks tweaks captured here after 0.33.10 shipped were promoted to **ROADMAP.md 0.33.10 follow-up slices 0.33.10.6 - 0.33.10.9** and removed from this file to prevent drift.
+>
+> The remaining Short Term notes are intentionally deferred rather than implementation-ready: the undated-task Wishlist and Workbench algorithm need a deliberate scheduling/settings design; Lists belongs to 0.33.13; Suggested Library waits for a later Notes pass; Testing Goals remain human verification; Knowledge Base belongs to 0.34; Mobile Tweaks wait for a fresh current-surface audit; and Administration/Settings is larger than a cleanup slice. Executable near-term ideas start under the separate `# Near Term Ideas` heading.
 
 ## Wishlist
 
@@ -85,7 +87,11 @@ This section is to define a series of human testing goals for different sections
 - Many modules aren't exposing admin/settings properly
   - Perform an audit and figure out what settings are missing and how to get them where they need to be
 
-## Near Term Ideas
+## Mobile Tweaks
+
+Deferred to a future mobile-polish roadmap pass. Re-audit the current rendered surfaces after the completed modal, view-conversion, and responsive-foundation work; do not revive layout requests written against retired page anatomy.
+
+# Near Term Ideas
 
 ## User controls
 

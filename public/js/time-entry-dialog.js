@@ -102,6 +102,10 @@
     }
 
     fields.duration.hidden = !isEdit;
+    fields.billableControl.hidden = !workspaceUsesBillableFlag();
+    if (!workspaceUsesBillableFlag()) {
+      fields.billable.value = "no";
+    }
     fields.save.textContent = isEdit ? "Save Changes" : "Save Entry";
     setStatus("");
 
@@ -132,6 +136,7 @@
     form = dialog.querySelector("[data-time-entry-dialog-form]");
     fields = {
       billable: dialog.querySelector("[data-time-entry-dialog-billable]"),
+      billableControl: dialog.querySelector("[data-time-entry-dialog-billable-control]"),
       cancel: dialog.querySelector("[data-time-entry-dialog-cancel]"),
       client: dialog.querySelector("[data-time-entry-dialog-client]"),
       date: dialog.querySelector("[data-time-entry-dialog-date]"),
@@ -236,7 +241,7 @@
     }
 
     const payload = {
-      billable: fields.billable.value,
+      billable: workspaceBillableValue(),
       client_id: client.isWorkspaceScope ? "" : client.id,
       client_name: client.isWorkspaceScope ? "" : client.name,
       description: fields.description.value.trim(),
@@ -365,6 +370,11 @@
   }
 
   function updateBillableDefault() {
+    if (!workspaceUsesBillableFlag()) {
+      fields.billable.value = "no";
+      return;
+    }
+
     if (selectedEntry?.billable) {
       return;
     }
@@ -495,6 +505,14 @@
     return Array.isArray(tools) && tools.includes("clients_projects");
   }
 
+  function workspaceUsesBillableFlag() {
+    return namespace.workspaceContext?.workspaceType === "business";
+  }
+
+  function workspaceBillableValue() {
+    return workspaceUsesBillableFlag() && fields.billable.value === "yes" ? "yes" : "no";
+  }
+
   function setStatus(message, options = {}) {
     if (fields.status) {
       fields.status.textContent = message || "";
@@ -526,7 +544,7 @@
             <label>Seconds<input type="number" min="0" max="59" step="1" inputmode="numeric" data-time-entry-dialog-duration-seconds required></label>
           </fieldset>
           <label class="entry-description">Description<textarea rows="4" data-time-entry-dialog-description></textarea></label>
-          <label>Billable<select data-time-entry-dialog-billable><option value="yes">Yes</option><option value="no">No</option></select></label>
+          <label data-time-entry-dialog-billable-control>Billable<select data-time-entry-dialog-billable><option value="yes">Yes</option><option value="no">No</option></select></label>
           <label>Invoice Status<select data-time-entry-dialog-invoice-status><option value="unbilled">Unbilled</option><option value="billed">Billed</option><option value="paid">Paid</option></select></label>
           <div data-time-entry-dialog-tags></div>
           <p data-time-entry-dialog-status role="status" aria-live="polite"></p>

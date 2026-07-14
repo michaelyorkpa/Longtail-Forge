@@ -53,6 +53,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Tasks | Workspace-only, client-linked, and project-linked tasks are available. Project-linked tasks inherit project client context. | Workspace-only and project-linked tasks are available. Direct client task scopes are blocked server-side with 403. |
 | Reporting | Client filters and workspace-project scopes are available according to readable scope. | Project reporting uses workspace-project scopes only. |
 | Time entries | May attach to a client project or workspace project. | Attach to workspace projects; client fields are empty. |
+| Billable state | Billable defaults and per-record flags are available. | Billable controls are omitted; Tasks, timers, and time entries are treated as non-billable even if a legacy row still stores `yes`. |
+| Workspace people | Active users with active workspace memberships appear in administration and assignable-person options. | Same active-user and active-membership rule. |
 
 ## Task Rules
 
@@ -60,7 +62,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - Client-linked tasks require a Business workspace.
 - Project-linked tasks inherit the selected project's client context when one exists.
 - A task cannot specify a client that conflicts with its selected project.
-- Assignees must be active workspace users with `tasks.view` in the selected workspace, client, or project scope.
+- Assignees must have both an active user state and an active membership in the workspace, plus `tasks.view` in the selected workspace, client, or project scope.
 - 0.31.x assignments target concrete users only; the join table leaves room for future role/team assignment.
 - 0.31.x task lifecycle is `open`, `in_progress`, `blocked`, `complete`, and `archived`.
 - Task removal is soft archive/restore; true deletion is not exposed.
@@ -77,7 +79,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 
 | Surface | Method | Path | Required Permission or Scope | Resource Scope | Enforcement |
 | --- | --- | --- | --- | --- | --- |
-| Browser | GET | /api/users | users.manage | workspace | Workspace-level only |
+| Browser | GET | /api/users | users.manage | workspace | Workspace-level only; returns active users with active current-workspace memberships |
 | Browser | GET | /api/workspaces | users.manage | workspace | Workspace-level only |
 | Browser | POST | /api/users | users.manage | workspace | Workspace-level only |
 | Browser | PUT/DELETE | /api/users/:userId/* | users.manage | workspace | Workspace-level only |
@@ -157,6 +159,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - Personal workspace client denial and `/api/client-projects` client omission
 - scoped role assignment by Client Administrator and Project Administrator
 - user lifecycle permissions remaining Workspace Administrator-only
+- inactive users and inactive workspace memberships omitted from workspace administration and task assignment options
+- Personal/Family Billable controls omitted and server/API reads and writes coerced to non-billable
 - scoped time-entry create/edit/delete/list visibility, including scoped admin visibility into team entries
 - task creation, scoped listing, project-client inheritance, assignment eligibility, completion, archive/restore, recurrence generation, calendar payload filtering, Dashboard task summaries, bulk route permission reuse, reminder-default saves, module-disabled write denial, and Personal/Family direct-client denial
 - task timer gating, unified active timer storage, Workbench bootstrap/status actions, mutual exclusion with normal timers, completion blocking, finalization into time entries, and disabled Task Timers behavior

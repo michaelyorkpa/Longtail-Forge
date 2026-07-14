@@ -15,6 +15,12 @@ notesRoutes.post("/notes", asyncRoute(async (request, response) => {
   response.status(201).json(result);
 }));
 
+notesRoutes.post("/notes/bulk", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notesService.bulkUpdate(payload, request.session);
+  response.status(200).json(result);
+}));
+
 notesRoutes.get("/notes/library", asyncRoute(async (request, response) => {
   const result = await notesService.listLibrary(request.session);
   response.status(200).json(result);

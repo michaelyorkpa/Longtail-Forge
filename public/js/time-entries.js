@@ -415,12 +415,6 @@ function populateUserOptions() {
     usersById.set(user.userId, user.username || user.userId);
   });
 
-  timeEntries.forEach((entry) => {
-    if (entry.userId && !usersById.has(entry.userId)) {
-      usersById.set(entry.userId, entry.userId);
-    }
-  });
-
   filterUsersSelect.replaceChildren();
 
   [...usersById.entries()]

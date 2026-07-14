@@ -3,8 +3,12 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateModuleManifest } from "../src/core/modules/manifest-contract.js";
-import { modulesService } from "../src/core/modules/modules.service.js";
+import { appVersion } from "../src/core/version.js";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("dashboard-workbench-regression");
+const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
 
 const files = {
   app: readText("src/core/app.js"),
@@ -537,7 +541,7 @@ assert.match(
 );
 assert.match(
   files.workbench,
-  /function openTaskCandidate\(candidate, taskId, trigger = null\)[\s\S]*moduleActions\.open\("tasks\.edit"/,
+  /function openTaskCandidate\(candidate, taskId, trigger = null, editorOptions = \{\}\)[\s\S]*moduleActions\.open\("tasks\.edit"/,
   "Workbench should retain the explicit context-open path to the canonical Task edit action",
 );
 assert.match(
@@ -652,11 +656,14 @@ assert.match(
 );
 assert.match(
   files.notesModuleDoc,
-  /current Notes implementation as of 0\.33\.6\.15\.1[\s\S]*Task Focus linked notes open the Notes-owned read modal before editing[\s\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route/,
+  new RegExp(`current Notes implementation as of ${appVersion.replaceAll(".", "\\.")}[\\s\\S]*Task Focus linked notes open the Notes-owned read modal before editing[\\s\\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route`),
   "Notes docs must record the Task Focus read-first and Dashboard-deferred boundaries",
 );
 
 console.log("Dashboard and Workbench regression passed.");
+const { closeDatabase } = await import("../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");

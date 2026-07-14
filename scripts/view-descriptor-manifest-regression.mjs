@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
-import {
+const fixture = await createDisposableDatabaseFixture("view-descriptor-manifest-regression");
+const {
   ACTIVE_MANIFEST_FIELDS,
   validateModuleManifest,
-} from "../src/core/modules/manifest-contract.js";
+} = await import("../src/core/modules/manifest-contract.js");
 
 assert.equal(ACTIVE_MANIFEST_FIELDS.has("viewSurfaces"), true, "viewSurfaces should be an active manifest field");
 
@@ -286,6 +288,9 @@ assert.match(
 );
 
 console.log("View descriptor manifest regression passed.");
+const { closeDatabase } = await import("../src/db/provider.js");
+await closeDatabase();
+await fixture.cleanup();
 
 function createModule(overrides = {}) {
   return {

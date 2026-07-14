@@ -5,22 +5,33 @@ import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { workspaceSupportsBillable } from "../../utils/workspaces.js";
+import { settingsRepository } from "../../repositories/settings.repo.js";
 
 const MODULE_ID = "time-tracking";
 
 async function listTimeEntries(context, query) {
-  const entries = await timeEntriesRepository.readAll(context.workspace_id);
+  const [storedEntries, settings] = await Promise.all([
+    timeEntriesRepository.readAll(context.workspace_id),
+    settingsRepository.readWorkspaceSettings(context.workspace_id),
+  ]);
+  const entries = workspaceSupportsBillable(settings.workspaceType)
+    ? storedEntries
+    : storedEntries.map((entry) => ({ ...entry, billable: "no" }));
   return paged(entries.map((entry) => withWorkspaceAlias(entry, context)), query);
 }
 
 async function createTimeEntry(context, payload) {
   await assertModuleWriteEnabled(context, MODULE_ID);
-  const { client, project } = await resolveProjectRecordScope(context.workspace_id, payload, {
-    archivedClientMessage: "Archived clients cannot receive new time entries.",
-    archivedProjectMessage: "Archived projects cannot receive new time entries.",
-    clientNotFoundMessage: "Client was not found.",
-    projectNotFoundMessage: "Project was not found.",
-  });
+  const [{ client, project }, settings] = await Promise.all([
+    resolveProjectRecordScope(context.workspace_id, payload, {
+      archivedClientMessage: "Archived clients cannot receive new time entries.",
+      archivedProjectMessage: "Archived projects cannot receive new time entries.",
+      clientNotFoundMessage: "Client was not found.",
+      projectNotFoundMessage: "Project was not found.",
+    }),
+    settingsRepository.readWorkspaceSettings(context.workspace_id),
+  ]);
 
   const entryId = payload.entry_id || randomUUID();
   const entry = normalizeTimeEntry({
@@ -37,7 +48,9 @@ async function createTimeEntry(context, payload) {
     end_time: normalizeUtcIso(payload.end_time, context.timezone),
     duration_seconds: payload.duration_seconds,
     duration_hours: payload.duration_hours,
-    billable: payload.billable ?? project.billable ?? client?.billable ?? "yes",
+    billable: workspaceSupportsBillable(settings.workspaceType)
+      ? payload.billable ?? project.billable ?? client?.billable ?? "yes"
+      : "no",
     invoice_status: payload.invoice_status || "unbilled",
   });
 

@@ -1,19 +1,24 @@
 import assert from "node:assert/strict";
-import { validateModuleManifest } from "../src/core/modules/manifest-contract.js";
-import { modulesService } from "../src/core/modules/modules.service.js";
-import { listSearchBackendAdapters } from "../src/core/search/adapters/registry.js";
-import { clearSqliteSearchAdapterCapabilityCacheForTests } from "../src/core/search/adapters/sqlite-search-adapter.js";
-import {
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("search-contract-regression");
+const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
+const { modulesService } = await import("../src/core/modules/modules.service.js");
+const { listSearchBackendAdapters } = await import("../src/core/search/adapters/registry.js");
+const { clearSqliteSearchAdapterCapabilityCacheForTests } = await import("../src/core/search/adapters/sqlite-search-adapter.js");
+const {
   clearSearchIndexersForTests,
   getSearchIndexer,
   hasSearchIndexer,
   registerSearchIndexer,
-} from "../src/core/search/indexer-registry.js";
-import { initializeDatabase, querySql, runSql, sqlText } from "../src/db/index.js";
-import { registerClientProjectsSearchIndexers } from "../src/modules/client-projects/search-indexers.js";
-import { registerTasksSearchIndexers } from "../src/modules/tasks/search-indexers.js";
-import { registerTimeTrackingSearchIndexers } from "../src/modules/time-tracking/search-indexers.js";
-import { searchService } from "../src/services/search.service.js";
+} = await import("../src/core/search/indexer-registry.js");
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { registerClientProjectsSearchIndexers } = await import("../src/modules/client-projects/search-indexers.js");
+const { registerTasksSearchIndexers } = await import("../src/modules/tasks/search-indexers.js");
+const { registerTimeTrackingSearchIndexers } = await import("../src/modules/time-tracking/search-indexers.js");
+const { searchService } = await import("../src/services/search.service.js");
+
+try {
 
 await initializeDatabase();
 
@@ -1220,4 +1225,8 @@ async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();
   checks += 1;
+}
+} finally {
+  await closeSqlite();
+  await fixture.cleanup();
 }

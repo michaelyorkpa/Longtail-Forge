@@ -7,6 +7,8 @@ import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { workspaceSupportsBillable } from "../../utils/workspaces.js";
+import { settingsRepository } from "../../repositories/settings.repo.js";
 
 const MODULE_ID = "time-tracking";
 
@@ -28,12 +30,18 @@ async function save(timerSlot, payload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const timer = normalizeTimerPayload(payload, normalizedTimerSlot, session);
-  const scope = await resolveTimerScope(session.workspace_id, timer);
+  const [scope, settings] = await Promise.all([
+    resolveTimerScope(session.workspace_id, timer),
+    settingsRepository.readWorkspaceSettings(session.workspace_id),
+  ]);
   timer.client_id = scope.client?.id || "";
   timer.client_name = scope.client?.name || "";
   timer.project_id = scope.project.id;
   timer.project_name = scope.project.name;
-  timer.billable = (payload?.billable ?? scope.project.billable ?? scope.client?.billable) === "no" ? "no" : "yes";
+  timer.billable = normalizeWorkspaceBillable(
+    settings.workspaceType,
+    payload?.billable ?? scope.project.billable ?? scope.client?.billable,
+  );
 
   await assertCanUseProjectTimer(session, timer, "save");
 
@@ -58,6 +66,8 @@ async function saveSourced(source, payload, session) {
     source_url: normalizedSource.source_url,
     sourceMetadata: payload?.sourceMetadata || payload?.source_metadata || {},
   };
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+  timer.billable = normalizeWorkspaceBillable(settings.workspaceType, timer.billable);
 
   const savedTimer = await activeTimersRepository.upsert(timer);
   const shapedTimer = await shapeTimerPayload(session, savedTimer);
@@ -65,6 +75,73 @@ async function saveSourced(source, payload, session) {
 
   return {
     timer: shapedTimer,
+  };
+}
+
+async function convertManualToSourced(timerSlot, source, payload, session) {
+  await assertModuleWriteEnabled(session, MODULE_ID);
+  const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
+  const normalizedSource = normalizeSource(source);
+  const existingTimer = await activeTimersRepository.readBySlot(
+    session.workspace_id,
+    session.user_id,
+    normalizedTimerSlot,
+  );
+
+  if (!existingTimer || existingTimer.source_module_id || existingTimer.source_type !== "manual") {
+    throw new AppError("Running manual timer not found.", 404);
+  }
+
+  if (existingTimer.timer_status !== "running") {
+    throw new AppError("Only a running manual timer can be linked to a task.", 400);
+  }
+
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+
+  const convertedTimer = {
+    ...existingTimer,
+    billable: normalizeWorkspaceBillable(settings.workspaceType, payload?.billable),
+    client_id: stringOrEmpty(payload?.client_id),
+    client_name: stringOrEmpty(payload?.client_name),
+    description: stringOrEmpty(payload?.description),
+    project_id: stringOrEmpty(payload?.project_id),
+    project_name: stringOrEmpty(payload?.project_name),
+    source_id: normalizedSource.source_id,
+    source_label: normalizedSource.source_label,
+    source_module_id: normalizedSource.source_module_id,
+    source_type: normalizedSource.source_type,
+    source_url: normalizedSource.source_url,
+    sourceMetadata: payload?.sourceMetadata || payload?.source_metadata || {},
+    timer_slot: `source:${normalizedSource.source_module_id}:${normalizedSource.source_type}:${normalizedSource.source_id}`,
+  };
+
+  if (!convertedTimer.project_id) {
+    throw new AppError("Project is required before linking a timer.", 400);
+  }
+
+  await assertCanUseProjectTimer(session, convertedTimer, "link_source");
+  const converted = await activeTimersRepository.convertManualToSource(
+    session.workspace_id,
+    session.user_id,
+    normalizedTimerSlot,
+    convertedTimer,
+  );
+
+  if (converted.status === "source_exists") {
+    throw new AppError("The selected task already has an active timer.", 409);
+  }
+
+  if (converted.status !== "converted" || !converted.timer) {
+    throw new AppError("Running manual timer not found.", 404);
+  }
+
+  const shapedTimer = await shapeTimerPayload(session, converted.timer);
+  const timers = await activeTimersRepository.compactManualTimerSlots(session.workspace_id, session.user_id);
+  await emitTimerLifecycleEvent(timerStatusForEvent(shapedTimer), session, shapedTimer);
+
+  return {
+    timer: shapedTimer,
+    timers: await shapeTimerPayloads(session, timers),
   };
 }
 
@@ -98,10 +175,12 @@ async function updateStatus(timerSlot, payload, session) {
     0,
     Number.parseInt(payload?.accumulated_elapsed_seconds ?? existingTimer.accumulated_elapsed_seconds, 10) || 0,
   );
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
   const savedTimer = await activeTimersRepository.upsert({
       ...existingTimer,
       accumulated_elapsed_seconds: accumulatedElapsedSeconds,
+      billable: normalizeWorkspaceBillable(settings.workspaceType, existingTimer.billable),
       last_active_start_time: timerStatus === "running"
         ? normalizeIsoDate(payload?.last_active_start_time || new Date().toISOString())
         : null,
@@ -246,10 +325,14 @@ async function finalizeSourced(source, payload, session, entryOverrides = {}) {
 }
 
 async function shapeTimerPayloads(session, timers = []) {
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const shaped = [];
 
   for (const timer of timers) {
-    shaped.push(await shapeTimerPayload(session, timer));
+    shaped.push(await shapeTimerPayload(session, {
+      ...timer,
+      billable: normalizeWorkspaceBillable(settings.workspaceType, timer.billable),
+    }));
   }
 
   return shaped;
@@ -484,7 +567,16 @@ function stringOrEmpty(value) {
   return String(value || "").trim();
 }
 
+function normalizeWorkspaceBillable(workspaceType, value) {
+  if (!workspaceSupportsBillable(workspaceType)) {
+    return "no";
+  }
+
+  return value === "no" || value === false ? "no" : "yes";
+}
+
 export const activeTimersService = {
+  convertManualToSourced,
   finalize,
   finalizeSourced,
   list,

@@ -2,125 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.11`.
-
-## Version 0.33.11 - Short-Term Critical Cleanup Sweep
-
-Purpose:
-
-Knock out the backlog of small, concrete UI/UX and behavior fixes that accumulated in the `TODO.md` Short Term section, before they slip any further. These are individually minor but collectively degrade day-to-day usability. Each item below is promoted verbatim-in-intent from `TODO.md` Short Term and should be a small, self-contained change.
-
-This is a cleanup/polish sweep, not a feature version. Items are grouped by area so they can be picked off independently; none should turn into a large refactor. If any item turns out to be larger than a quick fix, split it into its own slice rather than expanding this one.
-
-Items intentionally left in `TODO.md` (not part of this sweep): the Lists UI/UX notes (they belong to 0.33.13), the Suggested-Library revisit (deferred), the human Testing Goals checklist, the Knowledge Base "make it smart" idea (belongs to 0.34), the Mobile Tweaks (deferred to mobile polish), and the broader Administration/Settings audit (larger than a quick fix).
-
-### Version 0.33.11.1 - Tasks quick fixes
-
-**Model: High Effort** — Tasks behavior spans recurrence, lifecycle validation, hierarchy, modal focus, and shared input interactions, so subtle regressions need careful coverage.
-
-- [ ] Workbench: when a parent task is selected, include child project tasks in the completable set, not just tasks directly on the parent — report all tasks within the parent project.
-- [ ] Checklists: tighten the spacing in the checklist dialog (currently a little cramped).
-- [ ] Checklists: pressing Enter should record a new checklist item / save changes to the current item, not close the modal without saving.
-- [ ] Tags filter (Sorting & Filters): replace the tags dropdown with a type-to-search box with suggestions, matching how tags are entered elsewhere.
-- [ ] Tag input generally: allow starting to type a tag and then pressing the down arrow to select from the suggestions (no mouse required).
-- [ ] Parent/Child - Parent Task picker: for new tasks, do not list completed/archived tasks as candidate parents (keep the existing client/project filtering).
-- [ ] Parent/Child - inheritance: child tasks inherit the parent's Due Date, Due Time, Priority, Client (if not already selected), and Project (if not already selected).
-- [ ] Parent/Child - linkage indicator: show a clickable "Child of: {{truncatedTaskName}}" chip on line-item displays so the link is visible beyond the Parent Task dropdown.
-- [ ] Parent/Child - nested display: in list views (e.g. Actions -> Tasks), nest child tasks under their parent, the way Clients and Projects nest.
-- [ ] Modal behavior: on the create modal, Save should convert the dialog into the edit dialog (keeping it open) rather than closing and losing the just-captured task; add a "Save & Close" for the write-it-down-and-go case.
-- [ ] Workspace project narrowing: adding a task with the {{workspaceName}} context should narrow the project list to that workspace's projects (workspace projects with no client).
-- [ ] Recurrence template isolation: a recurring occurrence may be moved into Blocked status and must use its own occurrence-specific Blocked Reason, but the recurrence template must never store that reason or propagate it to later occurrences. Newly generated occurrences start without an inherited Blocked Reason.
-- [ ] Block action: clicking "Block" must open the canonical edit modal for the selected task and focus the "Blocked Reason" field.
-  - [ ] Require Blocked Reason whenever a task is saved in Blocked status; enforce the rule through Tasks-owned validation rather than only the browser control.
-
-Acceptance criteria:
-
-- Each Tasks fix is implemented and covered by focused Tasks regressions where it has testable behavior.
-- A recurring occurrence can be blocked with its own required Blocked Reason; that reason never enters the recurrence template or carries into another occurrence.
-- Block opens the correct task in the canonical editor with Blocked Reason focused, and a task cannot be saved in Blocked status without a reason.
-- No fix expands into a broad Tasks rewrite.
-
-### Version 0.33.11.2 - Notes quick fixes
-
-- [ ] Bulk editing: add a Notes bulk-edit modal that can set Library, Collection, Note Kind, and Visibility across selected notes.
-- [ ] Modal behavior parity: extend the Tasks Save -> convert-to-edit / "Save & Close" behavior to the Notes create modal.
-
-Acceptance criteria:
-
-- Notes bulk edit updates the listed fields across a selection, respecting permission/workspace scope.
-- Notes create-modal save behavior matches the Tasks pattern.
-
-### Version 0.33.11.3 - Timers quick fixes
-
-- [ ] Context linking after start: allow linking a running timer to a task after it has been started, converting it from a Manual timer to a Task Timer.
-
-Acceptance criteria:
-
-- A running manual timer can be linked to a task mid-run and becomes a task timer, with correct attribution.
-
-### Version 0.33.11.4 - Remove leaked development workspaces and harden regression database isolation
-
-**Model: High Effort** — This is destructive, dependency-aware database cleanup plus regression-harness hardening; a subtle mistake could delete retained workspace data or allow fixtures to leak again.
-
-Purpose:
-
-Remove coding/test-only workspace fixtures from the current canonical database, then make every database-writing regression safe whether it runs through the suite or directly. This is an operator-approved cleanup for the current installation, not a product-level workspace-name allowlist and not a normal startup migration.
-
-- [ ] Add a dedicated maintenance command with a read-only dry-run mode that inventories every workspace proposed for retention or removal, including dependent membership and record counts.
-  - [ ] Resolve and retain exactly these four user-confirmed workspaces in the current installation:
-    - [ ] `York Family`
-    - [ ] `York-Lasher`
-    - [ ] `Personal [michaelyork@raymondtec.com]`
-    - [ ] `Raymond Tec`
-  - [ ] Resolve the displayed `Personal [michaelyork@raymondtec.com]` workspace to its actual workspace and membership identifiers before cleanup; duplicate raw `Personal` rows must never be treated as interchangeable or deleted by name alone.
-  - [ ] Report every development/regression workspace and its dependent-row impact before applying any deletion.
-- [ ] Require an explicit apply flag, a verified pre-cleanup database backup, and one transaction with rollback-on-failure before deleting any unapproved workspace, membership, or dependent record.
-- [ ] Remove all other coding/test-only workspaces from the current installation without changing records, memberships, roles, settings, or ownership inside the four retained workspaces.
-- [ ] Audit every regression and developer utility that creates workspace or membership rows:
-  - [ ] Both suite-run and direct invocation must select a disposable database before importing database/runtime modules.
-  - [ ] A database-writing test must refuse to run against the canonical `data/longtail-forge.db` or another non-disposable configured path.
-  - [ ] Add a guardrail proving the full regression gate and representative direct script runs leave the canonical workspace inventory unchanged.
-- [ ] After cleanup, verify `PRAGMA integrity_check`, `PRAGMA foreign_key_check`, retained workspace ownership/membership access, and the user-visible workspace list.
-
-Acceptance criteria:
-
-- The current installation shows only `York Family`, `York-Lasher`, `Personal [michaelyork@raymondtec.com]`, and `Raymond Tec` as workspaces.
-- No data or access belonging to those four retained workspaces is removed or reassigned.
-- Database-writing regressions and developer utilities cannot create fixture workspaces in the canonical database, whether invoked through the suite or directly.
-- The cleanup is dry-run-first, backed up, transactional, idempotent on rerun, and leaves SQLite integrity and foreign-key checks clean.
-
-### Version 0.33.11.5 - Workspace and permission cleanups
-
-- [ ] Inactive users: users inactive in a workspace must not appear in assignable-people pickers, and should not appear in the workspace at all.
-- [ ] Personal/Family workspaces: deprecate the Billable flag everywhere on the front end; it may remain in the database only so long as it can never be used on Personal or Family workspaces.
-- [ ] Remove Workspace wording: review the User Settings "Remove Workspace" flow copy now that it removes the signed-in user's membership rather than deleting the workspace record.
-
-Acceptance criteria:
-
-- Inactive users are absent from assignable pickers and workspace views.
-- The Billable flag is not surfaced in the front end for Personal/Family workspaces.
-- The Remove Workspace copy accurately describes membership removal.
-
-### Version 0.33.11.6 - Framework-owned session/auth warnings
-
-- [ ] Session-expiry and similar warnings (e.g. "Requires Login") must be framework-owned in-app modals, not console messages or notices hidden behind an open modal on the main window. A session that expires mid-edit should surface a clear, foreground framework modal.
-
-Acceptance criteria:
-
-- Auth/session warnings render as framework-owned app modals that are visible even when another modal is open, not console-only or hidden.
-
-### Version 0.33.11.7 - Misc cleanup and closeout
-
-- [ ] Restore the client change-requests documentation that was lost from the repo docs, back into the project-management tools section.
-- [ ] Sweep `TODO.md` Short Term: confirm every item promoted here has been removed from `TODO.md` to prevent drift, and that remaining Short Term items are intentionally deferred.
-- [ ] Update `CHANGELOG.md`, package metadata, and roadmap bookkeeping.
-- [ ] Run relevant narrow regressions plus `npm run check`; verify `/api/app-info` after restart.
-
-Acceptance criteria:
-
-- The client change-requests docs are restored.
-- Promoted items are removed from `TODO.md`; only intentionally-deferred items remain in Short Term.
-- Release-gate checks pass.
+Active cursor: `0.33.12`.
 
 ## Version 0.33.12 - Reporting Framework and Time Report Contribution
 
@@ -370,33 +252,202 @@ Scope (to be defined):
 
 Sequencing:
 
-- Lands after Reporting (0.33.12), before Self-Hosted Release Packaging (0.33.14), and before Knowledge Base (0.34), at project direction.
+- Lands after Reporting (0.33.12), before the Settings de-hardcoding pass (0.33.14) and Self-Hosted Release Packaging (0.33.15), and before Knowledge Base (0.34), at project direction.
 - Requirements must be captured before implementation begins; do not implement from this placeholder.
 
-## Version 0.33.14 - Self-Hosted Release Packaging and Bare-Metal Auto-Upgrade
+## Version 0.33.14 - Settings De-Hardcoding: Module-Contributed Settings Framework
 
 Purpose:
 
-Give self-hosted installs a clean, runtime-only release artifact and a safe, opt-in mechanism that checks GitHub for a newer published release and can apply it in place. This is the first packaging/distribution slice: before it, "self-hosting" means cloning the whole repo (dev/test tooling and all); after it, a self-hoster runs a slim runtime artifact and can upgrade without manually re-pulling and reinstalling.
+Turn settings from a hand-built framework island into a framework-owned settings host that renders settings **contributed** by modules. Today "settings" is four disconnected mechanisms with no shared registry — the columnar `workspace_settings` table (framework), the `app_settings` key/value table, per-user columns on `users`, and per-feature tables (`file_workspace_settings`, `task_reminder_offsets`, `notification_*`) — and the settings UI reuses **none** of the framework's declarative view system. Module-conceptual settings (billing rate, billing period, rounding, fiscal year, task timers, task reminder defaults, file policy/storage) are baked into framework-owned code, and adding a single functional module setting today requires editing the framework in three places: a `MODULE_SETTING_HANDLERS` entry in `settings.service.js`, a dedicated `workspace_settings` column, and a branch in `normalizeSettings`. This version establishes the pattern the product needs going forward: a module (eventually a third-party plugin) exposes a setting declaratively and says where it attaches, and the framework stores, permission-filters, renders, and saves it with no framework code change.
+
+This is the settings analog of the Reporting framework work (0.33.12): the same "framework owns the host and dispatch; modules own the definitions, data, and record-level safety" boundary, applied to settings instead of reports. It is also the "broader Administration/Settings audit" that 0.33.11 explicitly deferred as larger than a quick fix.
+
+Decision:
+
+Settings is framework-owned settings-host infrastructure, not a normal disable-able workflow module. The framework owns the settings page shell and anatomy, the settings catalog, contribution filtering, the settings renderer and its `.view-*` anatomy, generic settings storage, the save dispatch, and the declared attachment points. Individual modules own their setting descriptors (id, label, type, options, default, validation), the meaning and allowed values of each setting, per-setting permission requirements, and — only where a setting has side effects — a persistence/apply handler registered by stable ID. A module must never require a framework schema migration or a hardcoded framework branch to add an ordinary setting.
+
+Dependencies and baseline:
+
+- Builds on the framework view baseline (0.33.5.13-0.33.5.18): shared surface/modal/field-grid tokens and the `LongtailForge.view` primitives plus the `renderSurface` descriptor renderer. Settings must consume the finalized view baseline rather than inventing settings-only anatomy, and this version closes the specific renderer gaps (editable bound fields, save-payload binding, missing field types, per-field validation, dependent visibility) that the view baseline deferred.
+- Follows the Reporting contribution contract (0.33.12.3-0.33.12.11) as its template and precedent: a validated data-only manifest contribution, a `modulesService.list*Contributions` method reusing the shared four-axis filter, register-by-ID execution kept separate from catalog filtering, and a grep/regression guardrail forbidding framework->module coupling.
+- Reuses the existing settings seam rather than replacing it: the manifest already has a validated `settings` field (`manifest-contract.js`), the generic contribution filter `listWorkspaceContributions` already applies enabled-module + required-module + workspace-capability + user-permission filtering, and settings already have a data-descriptor-to-behavior-by-ID split (`MODULE_SETTING_HANDLERS`). This version generalizes those; it does not start from scratch.
+- Honors the view-ownership boundary (framework owns page/anatomy/`.view-*`; modules own data/behavior/validation/save payloads and module-prefixed classes).
+
+Key decisions:
+
+- **Generic module-settings storage is the linchpin.** Add a generic per-module/per-workspace settings store (addressed by workspace + module + setting id, JSON-valued) so a contributed setting persists without a dedicated `workspace_settings` column or a `normalizeSettings` branch. Column-per-setting storage is what makes settings hard to un-hardcode; the generic store removes that.
+- **Register-by-ID handlers become opt-in, not mandatory.** The common case (store and read a validated value) is handled generically from the descriptor. A registered handler (generalizing `MODULE_SETTING_HANDLERS`) is required only when a setting has side effects (for example enabling/disabling a module, or writing a legacy per-feature table during migration).
+- **"Where it attaches" is a validated placement key**, modeled on the existing dashboard-panel `placement` contribution, resolving to framework-owned attachment points (workspace settings, user settings, a module's own settings page, and new-workspace creation) — replacing today's implicit `[data-module-settings]` / `[data-module-settings-fields]` / `[data-new-workspace-module-settings]` anchors.
+- **Existing framework-owned settings are migrated behind module ownership with backward-compatible reads.** Billing/rounding/fiscal-year and task settings move to their owning modules; the values keep flowing to the billing/reporting/client-projects consumers through a module-owned accessor, not a framework column read, mirroring the reporting.service.js decoupling.
+- Settings values are validated at the edge by each module (the module owns validation and allowed values); the framework host stays value-agnostic and never special-cases a first-party module or setting id.
+
+Non-goals:
+
+- Do not build a third-party plugin loader or filesystem module discovery in this version; the contract is designed so a future plugin can use it, but modules remain the statically-registered first-party set.
+- Do not convert framework operational readouts (runtime diagnostics, jobs observability) into contributed settings; those stay framework-owned.
+- Do not migrate genuinely install-level config (session/cookie TTLs, sqlite/worker tuning) out of `config.js` into per-workspace settings.
+- Do not change the meaning, defaults, or persisted values of any existing setting; this is relocation and de-hardcoding, not a settings redesign.
+- Do not weaken permission, workspace-capability, enabled-module, private/secure-content, or audit guardrails to make settings contributable.
+- Do not leave two parallel settings renderers: the raw-`document.createElement` `settingsControls` path is replaced by framework view primitives / descriptor fields, not kept alongside them.
+
+### Version 0.33.14.1 - Settings inventory, ownership map, and storage decision
+
+Purpose: Catalog every setting and decide, per setting, its owner and target storage before moving anything.
+
+- [ ] Inventory every setting across all four mechanisms: framework `workspace_settings` columns, `app_settings` key/values, per-user `users` columns, and per-feature tables (`file_workspace_settings`, `task_reminder_offsets`, `notification_*`).
+- [ ] Classify each setting as framework-owned (workspace identity, audit, ops, install policy) or module-owned-by-concept:
+  - [ ] billing rate, billing period, rounding, fiscal year -> time-tracking / client-projects.
+  - [ ] task timers, reminder defaults -> tasks.
+  - [ ] file type policy, storage limits -> files.
+  - [ ] secure-notes key policy -> notes.
+- [ ] Record each setting's current definition/normalizer, storage location, read consumers, and write path so migration preserves behavior.
+- [ ] Decide the target storage per setting: generic module-settings store, a retained per-feature table (behind a registered handler), per-user, or app-level.
+- [ ] Produce a `docs/settings-ownership.md` map used by the later slices; do not change runtime behavior in this slice.
+
+Acceptance criteria:
+
+- Every setting has a documented owner, current storage, consumers, and target storage.
+- The framework-owned vs module-owned classification is explicit before any migration.
+
+### Version 0.33.14.2 - Generic module-settings storage and persistence registry
+
+Purpose: Let a module setting be stored and read generically, without a framework schema change per setting.
+
+- [ ] Add a generic per-module/per-workspace settings store addressed by (workspace_id, module_id, setting_id) with JSON-encoded, type-validated values, defaulted from the setting descriptor.
+- [ ] Generalize `MODULE_SETTING_HANDLERS` into a settings persistence registry keyed by `"${moduleId}.${settingId}"`, where a registered handler is optional and needed only for settings with side effects or legacy per-feature storage; the default path stores/reads through the generic store.
+- [ ] Route reads/writes so a writable contributed setting no longer requires a `workspace_settings` column or a `normalizeSettings` branch.
+- [ ] Keep the existing `PUT /api/settings` save contract and `moduleSettings` payload shape working.
+- [ ] Add regressions: a new module setting persists and reads back with no framework schema edit; an unknown/read-only/wrong-typed setting is rejected; a handler-backed setting still routes through its handler.
+
+Acceptance criteria:
+
+- A module can persist a validated functional setting through the generic store with no framework column, normalizer branch, or hardcoded handler.
+- Handler-by-ID remains available for side-effecting settings and legacy tables.
+
+### Version 0.33.14.3 - Settings contribution contract (manifest) and listing method
+
+Purpose: Promote the manifest `settings` field into a full, validated contribution that says what the setting is and where it attaches.
+
+- [ ] Extend the manifest settings contribution (validated in `manifest-contract.js`) with:
+  - [ ] an attachment/`placement` target validated against a fixed attachment-point set (modeled on dashboard `placement`).
+  - [ ] the standard filter axes (`requiredPermissions`, `requiredWorkspaceCapabilities`, `requiresEnabledModules`/`requiredModules`).
+  - [ ] an optional handler/runner **string ID** (never a function).
+  - [ ] the field metadata: `id`, `label`, `type` (boolean/toggle, text, number, select, multi-select, radio, and info for display-only), `options`, `min/max/step`, `default`, `description`, `readOnly`.
+- [ ] Add `validateSettingsContributions(...)` to the manifest validation sequence and to `ACTIVE_MANIFEST_FIELDS`; keep contributions data-only (no functions in manifests — the `hooks` exception does not apply here).
+- [ ] Add `modulesService.listSettingsContributions(workspaceId, session)` as a thin wrapper over `listWorkspaceContributions(...)`, inheriting the four filters and terminology resolution for free.
+- [ ] Keep contribution listing separate from value read/write so the catalog is permission-safe without executing setting code.
+- [ ] Update `docs/module-contract.md` with the finalized settings contribution shape.
+
+Acceptance criteria:
+
+- A module can declare a setting and its attachment point declaratively, with permission/capability/enabled-module filtering applied by the shared helper.
+- Contribution validation is data-only and documented.
+
+### Version 0.33.14.4 - Framework settings renderer and settings-section primitive
+
+Purpose: Close the declarative-renderer gaps so settings render from a descriptor through framework primitives, not raw DOM.
+
+- [ ] Add an editable, value-bound settings field grid (today the persistent field grid renders disabled) and a save-payload contract that collects live field values into the `PUT /api/settings` payload (generalizing `readModuleSettingsPayload`).
+- [ ] Add the missing field types/attributes to the renderer: toggle/switch, radio group, multi-select, plus numeric `max` and `inputmode`.
+- [ ] Add a framework settings-section/fieldset primitive so multiple titled editable sections can be rendered (beyond the single read-only info panel and single `itemForm`).
+- [ ] Add per-field validation/error surfacing and dependent-field visibility (`visibleWhen`) for settings that gate other settings (for example a rounding-increment select enabled only when rounding is on).
+- [ ] Replace the raw-`document.createElement` `settingsControls`/`settingsNormalizers` output with framework view primitives / descriptor fields and retire the parallel renderer.
+- [ ] Add regressions for each new field type, save-payload collection, validation surfacing, and dependent visibility.
+
+Acceptance criteria:
+
+- A settings section with editable, bound, validated fields renders from a descriptor with no hand-built DOM.
+- The parallel raw-DOM settings renderer is gone; settings use framework `.view-*` anatomy.
+
+### Version 0.33.14.5 - Framework settings host, catalog route, and attachment points
+
+Purpose: Assemble contributed settings into framework-owned hosts at declared attachment points.
+
+- [ ] Add a framework settings catalog route (for example `GET /api/settings/catalog`) returning the permission/capability/enabled-filtered settings contributions grouped by attachment point, with field metadata and default values (mirroring the reporting catalog route).
+- [ ] Define the framework-owned attachment points and replace the implicit `[data-module-settings]` (workspace), `[data-module-settings-fields]` (module page), and `[data-new-workspace-module-settings]` (new workspace) anchors with declared placement targets.
+- [ ] Reduce the settings protected views (`workspace-settings.html`, `user-settings.html`, module settings pages) to minimal framework hosts that load the settings renderer and place contributed sections by attachment point.
+- [ ] Keep framework-owned settings (workspace identity, audit, ops) rendered through the same host path.
+- [ ] Add static/browser regressions proving the settings pages are minimal hosts and that contributed sections appear only where permitted.
+
+Acceptance criteria:
+
+- Contributed settings render into the correct framework-owned attachment point, permission-filtered.
+- Settings pages are minimal framework hosts, not hand-built forms.
+
+### Version 0.33.14.6 - Migrate hardcoded module settings and decouple the framework settings service
+
+Purpose: Move the baked-in module settings to their owning modules and remove module-specific knowledge from framework settings code.
+
+- [ ] Migrate billing rate, billing period, billing rounding, and fiscal year to time-tracking / client-projects settings contributions; keep the values flowing to the billing/reporting/client-projects consumers through a module-owned accessor rather than a framework `workspace_settings` column read.
+- [ ] Migrate `taskTimersEnabled` and task reminder defaults to the tasks module, removing the `settings.service.js` import of the tasks reminders service and the tasks-specific bridging/stripping.
+- [ ] Migrate file type policy and storage limits to files-owned settings contributions; evaluate secure-notes key policy and storage/scanner config for workspace-configurable settings vs install-level config.
+- [ ] Remove module-specific branches from `normalizeSettings` and the hardcoded name lists (`publicSettingsPayload`, `rejectLegacyModuleSettingAliases`) as their settings move to the contract.
+- [ ] Add a grep/regression guardrail asserting `src/services/settings.service.js` and `src/utils/normalizers.js` do not import a specific module service or hardcode a module setting id (mirroring the reporting.service.js decoupling guardrail).
+- [ ] Preserve every migrated setting's meaning, default, and stored value; add backward-compatible read shims where a consumer still expects the old shape until it is updated.
+
+Acceptance criteria:
+
+- No module-conceptual setting remains defined, normalized, or stored in framework settings code.
+- The framework settings service imports no specific module service and hardcodes no module setting id, proven by a guardrail.
+- Migrated settings keep their values and behavior.
+
+### Version 0.33.14.7 - De-hardcode the permission resource catalog
+
+Purpose: Render the permission matrix from module-contributed resources instead of a hardcoded list.
+
+- [ ] Replace the hardcoded `PERMISSION_RESOURCES` array in `public/js/user-admin.js` with the module-contributed `resourceDefinitions` already provided by modules, filtered by enabled modules and permissions.
+- [ ] Ensure adding or disabling a module changes the permission matrix without editing framework user-admin code.
+- [ ] Keep record-level permission checks and role-assignment behavior unchanged.
+- [ ] Add regressions: the matrix reflects contributed resources, and a disabled module's resources drop out.
+
+Acceptance criteria:
+
+- The permission matrix is built from contributed `resourceDefinitions`, not a framework-hardcoded list.
+
+### Version 0.33.14.8 - Guardrails, docs, and closeout
+
+Purpose: Lock in the de-hardcoding and document the settings contract.
+
+- [ ] Add guardrails: no new framework-hardcoded setting (settings must come through the contribution contract), settings pages remain minimal hosts, no raw `document.createElement` for framework-owned settings anatomy, and no first-party module/setting id special-casing in the host.
+- [ ] Update `docs/module-contract.md` (settings contribution), `docs/declarative-view-surfaces.md` (move settings surfaces out of "reported" into converted), `docs/settings-control-matrix.md`, and `docs/view-building-contract.md`.
+- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and the roadmap archive; confirm `/api/app-info` after implementation.
+- [ ] Run `npm run check`, `npm run test:permissions`, and the settings/declarative-surface regressions.
+
+Acceptance criteria:
+
+- A new module setting requires only a manifest contribution (plus an optional registered handler for side effects), with no framework edit.
+- Settings surfaces are documented as framework-owned converted hosts, and the release-gate checks pass.
+
+## Version 0.33.15 - Internet-Exposure Security Hardening, Self-Hosted Release Packaging, and Bare-Metal Auto-Upgrade
+
+Purpose:
+
+Before this version the app was only safe behind a closed network or an external access gate (for example Cloudflare Access); the immediate driver for 0.33.15 is to harden the authentication and session surface enough for a private internet launch, then give self-hosted installs a clean, runtime-only release artifact and a safe, opt-in in-place updater. Before this slice, "self-hosting" means cloning the whole repo (dev/test tooling and all) and trusting the network perimeter; after it, a self-hoster can expose a hardened app directly on the public internet, run a slim runtime artifact, and upgrade without manually re-pulling and reinstalling.
 
 The upgrade target for this version is bare-metal: a single Node process on a host (for example under systemd or a process manager), not a container or orchestrated fleet. Container images and SaaS/managed-fleet upgrades are explicitly out of scope here and deferred to later hosting/SaaS work.
 
-This version has two halves that must land together to be useful:
+This version has three parts that together make a private internet launch safe:
 
+- Internet-exposure security hardening (lands first, 0.33.15.1-0.33.15.6): trusted reverse-proxy handling, login throttling/rate limiting, session revocation and forced logout, password resets, security event logging, and additional password-hashing hardening, so the app can be exposed to the internet without leaking data or depending on an external access gate.
 - A packaging boundary that separates runtime code from dev/test tooling so the shipped artifact is slim and does not require ESLint/TypeScript/Vitest/Playwright/the regression suite to run.
 - A bare-metal updater that compares the installed version against the latest GitHub release, surfaces availability, and can download, verify, back up, apply, migrate, restart, and roll back on failure.
 
 Dependencies and sequencing:
 
+- The security-hardening half builds on the existing auth/session/audit primitives (`src/security/passwords.js`, `src/security/sessions.js`, `src/services/auth.service.js`, `src/services/audit.service.js`) and the framework-owned session-expiry modal from 0.33.11.6; it hardens and extends them rather than replacing the session/cookie auth model.
 - Builds on 0.33.6.15 canonical app-version source-of-truth, which the updater uses to compare installed vs. latest.
 - Builds on the 0.33.6.16 release-gate closeout conductor, so a release artifact can be gated before it is published.
 - Relies on the runtime-vs-dev separation the codebase already maintains (`npm start` stays `node server.js`; TypeScript/Vitest/Playwright are dev-only; Zod stays a runtime dependency because it validates untrusted input). This slice formalizes that separation into a packaging boundary rather than inventing it.
 - Assumes an actual published release channel exists (GitHub Releases for the AGPL core; see the 0.33.6.16.9 licensing/public-release gates). If releases are not yet published, this slice defines the mechanism and the manual-artifact fallback, and the GitHub fetch activates once a public release channel is live.
-- Slotted at 0.33.14 after Reporting (0.33.12) and the Lists UI/UX overhaul (0.33.13), at project direction; it is otherwise independent of both branches.
+- Slotted at 0.33.15 after Reporting (0.33.12), the Lists UI/UX overhaul (0.33.13), and the Settings de-hardcoding pass (0.33.14), at project direction; it is otherwise independent of those branches.
 - Bare-metal only; container and multi-tenant SaaS upgrade orchestration are deferred and cross-referenced to later hosting/SaaS and 0.38.x production-hardening work.
 
 Key decisions:
 
+- Internet-exposure security hardening lands first and is a precondition for a private internet launch: the app must be safe to expose directly, with no reliance on an external access gate or a closed network, before the packaging/updater work matters.
+- Client IP, protocol, and host are trusted from proxy headers only behind a configured trusted proxy; every IP-keyed control (login throttling, audit, security logging) consumes one shared trusted-client-IP helper rather than reading `X-Forwarded-For` ad hoc.
+- Auth hardening extends the existing session/audit/password primitives rather than replacing them, and stays configurable so trusted internal/offline installs can relax internet-facing defaults.
 - Release source is GitHub Releases of the repository; the updater compares the canonical installed app version against the latest release tag.
 - The release artifact is a packaged, runtime-only tarball plus a checksum (with room to add a signature later); the updater verifies the checksum before applying anything.
 - Upgrades are owner/admin-gated, opt-in, and never destructive-by-default: the updater always backs up the current code and database before applying, and rolls back automatically if a post-upgrade health check fails.
@@ -414,8 +465,190 @@ Non-goals:
 - Do not strip Zod or other runtime validation as if it were test tooling.
 - Do not weaken permission, workspace, private/secure-content, storage-key, or migration guardrails to make upgrades possible.
 - Do not build a full update-server/CDN; GitHub Releases plus manual upload is the surface for this version.
+- Do not replace the existing session/cookie auth model with a new token/OAuth/SSO/passwordless system in this version; the security work is hardening, not a re-architecture.
+- Do not build a full WAF, IDS, or external SIEM integration; security event logging is the in-app audit stream, not a third-party pipeline.
+- Do not add an email/notification transport in this version; the app has none today, so token-based self-service ("forgot password") reset is deferred to a future version and the already-shipped admin reset (Settings -> Workspace -> User Admin) is hardened as the supported recovery path.
+- Do not weaken existing permission, workspace, private/secure-content, or audit guardrails to add these controls.
 
-### Version 0.33.14.1 - Runtime/dev file boundary and release-artifact packaging
+### Version 0.33.15.1 - Trusted reverse-proxy and secure-edge request handling
+
+**Model: High Effort** — Getting proxy trust wrong either lets clients spoof their source IP (defeating throttling, audit, and security logging) or breaks Secure-cookie/HTTPS behavior behind TLS termination; both are security-critical and subtle.
+
+Purpose:
+
+Make the app safe to run behind a trusted reverse proxy on the public internet so that client IP, protocol, and host are derived from proxy headers only when the immediate peer is a configured trusted proxy, and never from arbitrary client-supplied headers. Today `readRequestIpAddress` in `src/routes/auth.routes.js` takes the first `X-Forwarded-For` value unconditionally, so a direct client can forge it; every downstream control that keys on IP (throttling, audit, security logging) inherits that spoofability.
+
+- [ ] Add explicit trusted-proxy configuration (for example `config.security.trustedProxies`): a list/CIDR set of proxy addresses or a hop count, plus an off-by-default "direct exposure / no proxy" mode.
+- [ ] Configure the framework's proxy trust (Express `trust proxy`) from that config instead of leaving it at the default, so `request.ip`, `request.protocol`, and `request.hostname` reflect the real client only when the peer is trusted.
+- [ ] Replace the ad-hoc `X-Forwarded-For` parsing with a single shared request-context helper that:
+  - [ ] returns the framework-resolved client IP when a trusted proxy is configured,
+  - [ ] falls back to the socket peer address when no proxy is trusted,
+  - [ ] never honors `X-Forwarded-*` from an untrusted peer.
+- [ ] Route every IP consumer (login context, audit `ipAddress`, session `ip_address`, and the throttling/security-logging slices below) through that one helper.
+- [ ] Honor `X-Forwarded-Proto` for Secure-cookie and HTTPS assumptions only behind a trusted proxy, and ensure session/theme cookies are marked `Secure` when the effective protocol is HTTPS.
+- [ ] Document the reference deployment (single Node process behind one TLS-terminating reverse proxy) and the exact headers the proxy must set and strip.
+- [ ] Add focused regressions:
+  - [ ] a forged `X-Forwarded-For` from an untrusted peer is ignored (resolved IP is the socket peer).
+  - [ ] a forwarded IP from a configured trusted proxy is honored.
+  - [ ] direct-exposure mode never trusts forwarded headers.
+  - [ ] Secure cookies are set when the effective protocol is HTTPS behind the proxy.
+
+Acceptance criteria:
+
+- Client IP, protocol, and host are trusted from proxy headers only when the peer is a configured trusted proxy; otherwise the socket peer is used.
+- A single shared helper is the only source of client IP, and throttling, audit, and security logging all consume it.
+- Direct internet exposure without a proxy cannot be tricked into trusting forwarded headers.
+
+### Version 0.33.15.2 - Login throttling and authentication rate limiting
+
+**Model: High Effort** — Throttling sits directly on the login/auth path; a mistake either locks out real users or leaves brute-forcing open, and it must key on the trusted IP established in 0.33.15.1.
+
+Purpose:
+
+Protect the public login surface from credential brute-forcing and account enumeration once the app is reachable on the internet. `authService.login` currently performs unlimited constant-cost attempts and returns a generic 401 with no per-IP or per-account backoff. This slice adds throttling keyed on the trusted client IP (0.33.15.1) and on the submitted account, without revealing which accounts exist.
+
+- [ ] Add an authentication throttle that tracks recent failed attempts per client IP and per targeted username, with a configurable window, threshold, and lockout/backoff duration.
+- [ ] Apply progressive backoff or temporary lockout after repeated failures, and reset the counter on a successful authentication.
+- [ ] Key throttling on the trusted client IP from the 0.33.15.1 helper, never on raw `X-Forwarded-For`.
+- [ ] Keep responses non-enumerating: throttled and invalid-credential responses must not reveal whether the account exists, and timing should stay uniform.
+- [ ] Return a framework `AppError` with the correct status (for example 429) and a "too many attempts, try again later" message consistent with the existing error envelope.
+- [ ] Cover the other credential-checking edges consistently (self-service change-password verification, the reset flow in 0.33.15.4, and any public API key auth surface) so throttling is not trivially bypassed.
+- [ ] Emit a security event on lockout/threshold breach for 0.33.15.5.
+- [ ] Make limits configurable and disable-able for trusted internal/offline deployments, with safe internet-facing defaults.
+- [ ] Add focused regressions:
+  - [ ] repeated failures from one IP are throttled and then locked out for the window.
+  - [ ] repeated failures against one username are throttled across IPs.
+  - [ ] a successful login resets the counter.
+  - [ ] throttled and invalid responses are indistinguishable with respect to account existence.
+
+Acceptance criteria:
+
+- Repeated failed logins are throttled/locked out per IP and per account with configurable, internet-safe defaults.
+- Throttling keys on the trusted client IP and cannot be bypassed by forged headers.
+- Responses never reveal account existence, and lockouts emit a security event.
+
+### Version 0.33.15.3 - Session revocation and forced logout
+
+**Model: High Effort** — Session lifecycle is the core of "do not leak data"; revocation must be complete and immediate, and it interacts with password change, reset, deactivation, and rehash.
+
+Purpose:
+
+Give owners/admins and the auth flows a reliable way to revoke sessions and force logout, so a compromised or stale session can be killed immediately. Sessions live in the `sessions` table via `sessionsRepository` and are only removed today on explicit logout or lazy expiry; changing a password or deactivating a user does not currently invalidate that user's other live sessions.
+
+- [ ] Add session-revocation service/repository methods:
+  - [ ] revoke a single session by id,
+  - [ ] revoke all sessions for a user ("log out everywhere"),
+  - [ ] revoke all of a user's sessions except the current one.
+- [ ] Force logout on security-relevant events:
+  - [ ] on self-service password change (`authService.changePassword`), revoke the user's other sessions,
+  - [ ] on admin password reset (0.33.15.4), revoke all of the target user's sessions,
+  - [ ] on user deactivation / status change to inactive, revoke all of that user's sessions,
+  - [ ] on password-hash upgrade/rehash where a deployment requires it (0.33.15.6).
+- [ ] Surface an owner/admin action to view and revoke a user's active sessions, gated behind the existing permission/role checks; never expose it to ordinary users or across workspace boundaries.
+- [ ] Optionally let a user list and revoke their own active sessions from user settings.
+- [ ] Ensure a revoked session id is rejected on the very next request through the existing `getRequestSession` path, and that the framework-owned session-expiry modal (0.33.11.6) surfaces the forced logout cleanly rather than a console-only failure.
+- [ ] Emit a security event for each revocation for 0.33.15.5.
+- [ ] Add focused regressions:
+  - [ ] revoking a session rejects its next request.
+  - [ ] "log out everywhere" invalidates all of a user's sessions.
+  - [ ] changing or resetting a password invalidates other sessions.
+  - [ ] deactivating a user invalidates their sessions.
+  - [ ] revocation respects permission and workspace boundaries.
+
+Acceptance criteria:
+
+- Individual and bulk session revocation exist and take effect on the next request.
+- Password change, admin reset, and deactivation force logout of the affected sessions.
+- Revocation is permission-gated, workspace-safe, and emits security events.
+
+### Version 0.33.15.4 - Password reset hardening
+
+**Model: High Effort** — Password reset is a classic account-takeover vector; the existing admin reset already changes credentials but does not currently invalidate the target's live sessions, so tightening it must be exact about revocation and forced re-login.
+
+Purpose:
+
+Harden the reset paths that already exist rather than build a new one. Admin-initiated reset is already shipped: Settings -> Workspace -> User Admin exposes a reset action backed by `usersService.resetPassword` ([src/services/users.service.js](src/services/users.service.js)), which is gated behind `users.manage`, generates a new credential with `createGeneratedPassword`, updates the stored hash, surfaces the generated password once to the admin, and audits `user_password_reset`. Self-service `changePassword` (which requires the current password) also exists. The gap for an internet launch is that neither path revokes the target user's other live sessions, forces a re-login, or feeds the security event stream — and there is no self-service recovery for a genuinely locked-out user, because the app has no email/notification transport today.
+
+- [ ] Harden the existing admin reset (`usersService.resetPassword`):
+  - [ ] on reset, revoke all of the target user's sessions (0.33.15.3) so an attacker who holds a live session is kicked out immediately,
+  - [ ] require a password change on next login for the target where practical, so the one-time generated credential cannot linger as a permanent password,
+  - [ ] keep the generated credential surfaced once to the admin and confirm it is never written to logs in plaintext,
+  - [ ] emit a dedicated security event on reset (0.33.15.5) in addition to the existing `user_password_reset` audit record.
+- [ ] Harden self-service `changePassword` to revoke the user's other sessions on success (shared with 0.33.15.3) and emit a security event.
+- [ ] Apply the 0.33.15.2 throttle to reset/change endpoints so they cannot be hammered.
+- [ ] Confirm the reset flow stays workspace-scoped and permission-safe, and that a reset cannot target a user the admin has no `users.manage` authority over.
+- [ ] Token-based self-service reset is explicitly deferred: the app has no email/notification transport, so a forgot-password email/token flow is out of scope for this version. Record it as a future extension gated on a delivery channel, and — when built — require a single-use, time-limited, hashed-at-rest token delivered out-of-band, a non-enumerating "if an account exists, a reset was sent" response, throttling, and forced logout on redemption. Until then, admin reset is the supported recovery path.
+- [ ] Add focused regressions:
+  - [ ] admin reset sets a new credential, revokes the target's sessions, and stays `users.manage`-gated and workspace-scoped.
+  - [ ] a reset/self-change forces logout of the affected sessions on the next request.
+  - [ ] the generated credential is never present in logs.
+  - [ ] reset/change endpoints are throttled and emit security events.
+
+Acceptance criteria:
+
+- The existing admin reset and self-service change both revoke the affected user's other sessions and emit security events.
+- Admin reset stays permission-gated and workspace-scoped, and the one-time credential is surfaced once and never logged.
+- Token-based self-service reset is documented as deferred until a delivery channel exists, with admin reset as the supported recovery path.
+
+### Version 0.33.15.5 - Security event logging
+
+**Model: High Effort** — This is the audit backbone for an internet-exposed install; it must capture the right events without recording secrets and stay permission-safe.
+
+Purpose:
+
+Give an internet-exposed install a clear, queryable record of security-relevant events. `auditService.record` already logs successful login/logout and password change with actor, IP, and metadata, but failed logins never reach it (login throws before the audit call), and there is no consolidated security view. This slice formalizes a security event stream on top of the existing audit primitives and ensures the earlier slices feed it.
+
+- [ ] Define a security-event category (a dedicated record/change type or a severity tag on `auditService`) covering:
+  - [ ] failed and successful logins, including the reason class (bad credentials, inactive user, throttled/locked out),
+  - [ ] throttle/lockout triggers (0.33.15.2),
+  - [ ] session revocations and forced logouts (0.33.15.3),
+  - [ ] password change and admin password reset (0.33.15.4),
+  - [ ] password-hash upgrades/rehash (0.33.15.6),
+  - [ ] permission-denied / authorization failures on protected routes where practical.
+- [ ] Record actor (or attempted username), trusted client IP (0.33.15.1), timestamp, event type, outcome, and safe metadata; never record passwords, tokens, session ids, or hashes.
+- [ ] Add a failed-login audit path so authentication failures are recorded, without leaking account existence in the record's user-facing surfaces.
+- [ ] Surface a security-event view to owners/admins, permission-gated and workspace-scoped, reusing the existing audit query/filtering surface where possible.
+- [ ] Keep security logging resilient: a logging failure must never block or crash the auth path.
+- [ ] Add focused regressions:
+  - [ ] a failed login produces a security event with no secret material.
+  - [ ] lockout, revocation, and reset events are recorded.
+  - [ ] the security view is owner/admin-only and workspace-scoped.
+  - [ ] logging failures do not break authentication.
+
+Acceptance criteria:
+
+- Security-relevant auth/session/reset events are recorded via a consolidated security event stream.
+- Records carry actor/IP/outcome and never contain secrets.
+- The security view is permission-gated and workspace-safe, and logging never blocks auth.
+
+### Version 0.33.15.6 - Additional password-hashing hardening
+
+**Model: High Effort** — Changing the credential-at-rest format risks locking users out or silently weakening hashing; it needs algorithm agility and transparent migration.
+
+Purpose:
+
+Strengthen credential-at-rest and make the hashing scheme upgradeable. `src/security/passwords.js` uses PBKDF2-HMAC-SHA256 at 310000 iterations with a tagged format (`pbkdf2_sha256$iterations$salt$hash`), which already supports algorithm agility. This slice raises the work factor and/or moves to a memory-hard algorithm and migrates existing hashes transparently on next login, without forcing a mass reset.
+
+- [ ] Review and raise the hashing cost, or adopt a memory-hard algorithm (for example scrypt or argon2id) behind the existing tagged-format seam, keeping `verifyPassword` able to read legacy `pbkdf2_sha256$...` hashes.
+- [ ] Add transparent rehash-on-verify: when a user authenticates and their stored hash uses an outdated algorithm/parameters, re-hash with the current scheme and update the stored value.
+- [ ] Keep `hashPassword`/`verifyPassword` the single choke point, and ensure all callers (`login`, `changePassword`, admin reset, seeding) go through it.
+- [ ] Consider an optional server-side pepper/secret sourced from configuration (never stored with the hash), with clear key-management and rotation notes; keep it optional and off by default to avoid lockout risk.
+- [ ] Preserve constant-time verification (`timingSafeEqual`) and confirm no plaintext or hash is ever logged (ties into 0.33.15.5).
+- [ ] Optionally tighten `validatePassword` (length/complexity) for internet exposure without invalidating existing valid credentials.
+- [ ] Coordinate with 0.33.15.3 so a rehash or parameter bump can force re-authentication where a deployment requires it.
+- [ ] Add focused regressions:
+  - [ ] a legacy PBKDF2 hash still verifies.
+  - [ ] a legacy hash is transparently upgraded on successful login.
+  - [ ] a newly created, changed, or reset password uses the hardened scheme.
+  - [ ] verification stays constant-time and never logs secrets.
+
+Acceptance criteria:
+
+- New and changed passwords use a hardened, current hashing scheme with a raised work factor.
+- Existing hashes verify and are transparently upgraded on next login without a mass reset.
+- Hashing stays behind one choke point, constant-time, secret-free in logs, and upgrade-ready.
+
+### Version 0.33.15.7 - Runtime/dev file boundary and release-artifact packaging
 
 Purpose:
 
@@ -446,7 +679,7 @@ Acceptance criteria:
 - The artifact boots with `node server.js` and requires no dev/test tooling.
 - A guardrail proves dev/test files and secrets are excluded and runtime files are complete.
 
-### Version 0.33.14.2 - GitHub release check and version comparison
+### Version 0.33.15.8 - GitHub release check and version comparison
 
 Purpose:
 
@@ -476,7 +709,7 @@ Acceptance criteria:
 - Version comparison uses the canonical version source.
 - Update checking is configurable and fails safe.
 
-### Version 0.33.14.3 - Update availability surfacing (admin/about)
+### Version 0.33.15.9 - Update availability surfacing (admin/about)
 
 Purpose:
 
@@ -486,7 +719,7 @@ Show update status to authorized users without nagging everyone.
 - [ ] Show installed version, latest available version, a release-notes link, and last-checked time.
 - [ ] Gate visibility and any upgrade action behind owner/admin permission; never expose it to ordinary users.
 - [ ] Provide a manual "check now" action.
-- [ ] Keep this warning/informational only in this slice; applying the upgrade is 0.33.14.4+.
+- [ ] Keep this warning/informational only in this slice; applying the upgrade is 0.33.15.10+.
 - [ ] Add focused regressions:
 
   - [ ] the update banner/status is visible to owner/admin only.
@@ -498,7 +731,7 @@ Acceptance criteria:
 - Authorized users can see whether an update is available and what it contains.
 - Update status respects permission and workspace boundaries.
 
-### Version 0.33.14.4 - Bare-metal upgrade executor: download, verify, backup, apply, migrate, restart
+### Version 0.33.15.10 - Bare-metal upgrade executor: download, verify, backup, apply, migrate, restart
 
 Purpose:
 
@@ -530,7 +763,7 @@ Acceptance criteria:
 - Migrations run as part of the upgrade.
 - The upgrade never applies an unverified artifact and never applies without a backup.
 
-### Version 0.33.14.5 - Health check, rollback, and manual/air-gapped fallback
+### Version 0.33.15.11 - Health check, rollback, and manual/air-gapped fallback
 
 Purpose:
 
@@ -554,7 +787,7 @@ Acceptance criteria:
 - Upgrades are auditable via recorded history.
 - Air-gapped installs can upgrade from a verified local artifact.
 
-### Version 0.33.14.6 - Config, kill-switch, permissions, and closeout
+### Version 0.33.15.12 - Config, kill-switch, permissions, and closeout
 
 Purpose:
 
@@ -1690,12 +1923,15 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
   - [ ] Views should be user-specific first
   - [ ] Workspace-share views can come later
 
-- [ ] Client approvals/change requests
+- [ ] Client approvals and change requests
   - [ ] Add lightweight approval records
+    - [ ] Track `requested_by`, `approved_by`, `approved_at`, status, and notes
+    - [ ] Link approvals to clients, projects, milestones, tasks, notes, tickets, or files where appropriate
   - [ ] Add change request records
-  - [ ] Link approvals/change requests to clients, projects, milestones, tasks, notes, or tickets
-  - [ ] Track requested_by, approved_by, approved_at, status, and notes
-  - [ ] Consider client-facing approvals only after permissions/client portal features exist
+    - [ ] Track request details, status, requester, approver, and related records
+    - [ ] Link change requests to Client/Project scope
+    - [ ] Make the feature useful for project history and billing justification without turning it into a contract-management system
+  - [ ] Keep client-facing approval actions out of scope until permissions and client-portal features are ready
 
 - [ ] Timeline/Gannt-style view
 

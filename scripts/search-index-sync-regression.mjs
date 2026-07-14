@@ -2,16 +2,21 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { clearSearchIndexersForTests, registerSearchIndexer } from "../src/core/search/indexer-registry.js";
-import { initializeDatabase, querySql, runSql, sqlText } from "../src/db/index.js";
-import {
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("search-index-sync-regression");
+const { clearSearchIndexersForTests, registerSearchIndexer } = await import("../src/core/search/indexer-registry.js");
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const {
   registerSearchIndexJobHandlers,
-} from "../src/services/search-index-jobs.service.js";
-import { searchIndexSyncService } from "../src/services/search-index-sync.service.js";
-import {
+} = await import("../src/services/search-index-jobs.service.js");
+const { searchIndexSyncService } = await import("../src/services/search-index-sync.service.js");
+const {
   resetJobWorkerStatusForTests,
   runJobWorkerOnce,
-} from "../src/core/jobs/index.js";
+} = await import("../src/core/jobs/index.js");
+
+try {
 
 await initializeDatabase();
 
@@ -264,4 +269,8 @@ function collectFiles(directory) {
       const filePath = join(directory, entry);
       return statSync(filePath).isDirectory() ? collectFiles(filePath) : [filePath];
     });
+}
+} finally {
+  await closeSqlite();
+  await fixture.cleanup();
 }

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
 const root = process.cwd();
 const packageJson = JSON.parse(readText("package.json"));
@@ -18,8 +19,11 @@ const usersService = readText("src/services/users.service.js");
 const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
+const fixture = await createDisposableDatabaseFixture("runtime-configuration-contract-regression");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
+const { closeDatabase } = await import("../src/db/provider.js");
 
+try {
 assert.equal(packageJson.version, appVersion, "package.json should report the runtime configuration slice version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the runtime configuration slice version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the runtime configuration slice version");
@@ -252,6 +256,10 @@ assertConfigFails({ WORKSPACE_TYPE_LIMIT: "personal" }, /WORKSPACE_TYPE_LIMIT mu
 assert.match(regressionSuite, /scripts\/runtime-configuration-contract-regression\.mjs/, "regression suite should include the runtime configuration contract regression");
 
 console.log("Runtime configuration contract regression passed.");
+} finally {
+  await closeDatabase();
+  await fixture.cleanup();
+}
 
 function readConfig(overrides = {}) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `

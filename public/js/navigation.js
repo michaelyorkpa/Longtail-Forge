@@ -4,6 +4,7 @@ const WORKSPACE_CONTEXT_STORAGE_KEY = "lf_workspace_context";
 const THEME_STORAGE_KEY = "lf_theme";
 const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
 const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
+const SESSION_LOGIN_PATH = "/login.html";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
   { label: "Workbench", href: "workbench.html" },
@@ -47,6 +48,7 @@ const globalSearchTarget = siteHeader.querySelector("[data-global-search-target]
 const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
 let systemThemeModeQuery = null;
 let systemThemeModeListenerAttached = false;
+let sessionAuthWarningPromise = null;
 
 applyCachedWorkspaceContext();
 
@@ -188,7 +190,115 @@ siteHeader.addEventListener("toggle", (event) => {
 window.LongtailForge = window.LongtailForge || {};
 window.LongtailForge.getWorkspaceProjectsLabel = getWorkspaceProjectsLabel;
 window.LongtailForge.refreshNotifications = refreshNotificationCount;
+window.LongtailForge.sessionAuthWarnings = {
+  show: showSessionAuthWarning,
+};
+installSessionAuthWarningGuard();
 window.LongtailForge.workspaceContextReady = loadAppShellBootstrap();
+
+function installSessionAuthWarningGuard() {
+  if (typeof window.fetch !== "function" || window.fetch.__longtailSessionAuthGuard) {
+    return;
+  }
+
+  const originalFetch = window.fetch.bind(window);
+  const guardedFetch = async (...args) => {
+    const response = await originalFetch(...args);
+
+    if (response?.status === 401 && isAppApiRequest(args[0])) {
+      await showSessionAuthWarning();
+    }
+
+    return response;
+  };
+
+  Object.defineProperty(guardedFetch, "__longtailSessionAuthGuard", {
+    value: true,
+  });
+  window.fetch = guardedFetch;
+}
+
+function isAppApiRequest(input) {
+  const requestUrl = typeof input === "string" ? input : input?.url;
+
+  if (!requestUrl) {
+    return false;
+  }
+
+  try {
+    const url = new window.URL(requestUrl, window.location.href);
+    return url.origin === window.location.origin && url.pathname.startsWith("/api/");
+  } catch {
+    return false;
+  }
+}
+
+function showSessionAuthWarning() {
+  if (sessionAuthWarningPromise) {
+    return sessionAuthWarningPromise;
+  }
+
+  sessionAuthWarningPromise = new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    const form = document.createElement("form");
+    const heading = document.createElement("h2");
+    const message = document.createElement("p");
+    const actions = document.createElement("div");
+    const loginButton = document.createElement("button");
+    const headingId = "framework-session-warning-title";
+    const descriptionId = "framework-session-warning-description";
+
+    dialog.className = "app-dialog framework-session-warning";
+    dialog.dataset.frameworkSessionWarning = "";
+    dialog.setAttribute("role", "alertdialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", headingId);
+    dialog.setAttribute("aria-describedby", descriptionId);
+
+    form.className = "app-dialog-form";
+    heading.id = headingId;
+    heading.textContent = "Session expired";
+    message.id = descriptionId;
+    message.textContent = "Your session has expired. Sign in again to continue. Any unsaved changes on this screen have not been saved.";
+    actions.className = "form-actions";
+    loginButton.type = "button";
+    loginButton.textContent = "Sign in";
+
+    actions.appendChild(loginButton);
+    form.append(heading, message, actions);
+    dialog.appendChild(form);
+    document.body.appendChild(dialog);
+
+    const finish = () => {
+      dialog.remove();
+      sessionAuthWarningPromise = null;
+      resolve();
+    };
+
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+    });
+    dialog.addEventListener("close", finish, { once: true });
+    loginButton.addEventListener("click", () => {
+      window.location.replace(SESSION_LOGIN_PATH);
+      if (typeof dialog.close === "function") {
+        dialog.close("login");
+      } else {
+        dialog.removeAttribute("open");
+        finish();
+      }
+    });
+
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+    loginButton.focus();
+  });
+
+  return sessionAuthWarningPromise;
+}
 
 function buildSiteHeader() {
   // Build the header at runtime so page HTML can stay focused on page-specific content.

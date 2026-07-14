@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { modulesService } from "../src/core/modules/modules.service.js";
 import { FILE_LIFECYCLE_EVENTS } from "../src/core/files/file-lifecycle.js";
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("module-file-closeout-regression", { reuseExisting: true });
+const { modulesService } = await import("../src/core/modules/modules.service.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -136,3 +139,8 @@ function relative(filePath) {
 }
 
 console.log(`Module/file closeout regression passed ${checks} checks.`);
+if (fixture.ownsFixture) {
+  const { closeDatabase } = await import("../src/db/provider.js");
+  await closeDatabase();
+  await fixture.cleanup();
+}

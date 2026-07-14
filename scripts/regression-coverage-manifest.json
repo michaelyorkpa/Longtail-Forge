@@ -3,41 +3,41 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 333,
+    "discoveredScripts": 340,
     "legacyScripts": 312,
-    "releaseGateScripts": 21,
+    "releaseGateScripts": 22,
     "areaCounts": {
       "dashboard": 1,
-      "database": 26,
-      "docs": 8,
+      "database": 27,
+      "docs": 9,
       "files": 44,
-      "framework": 37,
+      "framework": 38,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
-      "notes": 35,
+      "notes": 36,
       "notifications": 3,
-      "permissions": 3,
+      "permissions": 4,
       "public-api": 3,
       "release": 17,
       "search": 12,
       "tags": 12,
-      "tasks": 50,
-      "time-tracking": 6,
+      "tasks": 51,
+      "time-tracking": 7,
       "views": 29,
       "workbench": 27
     },
     "tierCounts": {
-      "focused": 149,
-      "integration": 154,
-      "release-gate": 21,
+      "focused": 153,
+      "integration": 156,
+      "release-gate": 22,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 128,
+      "isolated-database": 131,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 170
+      "static": 174
     }
   },
   "coverageFamilies": [
@@ -48,6 +48,7 @@
       ],
       "minimumActiveScripts": 9,
       "activeRegressionIds": [
+        "docs.short-term-cleanup-closeout",
         "legacy.async.recurrence.response.closeout",
         "legacy.better.sqlite3.driver.closeout",
         "legacy.client.project.hierarchy.branch.closeout",
@@ -2427,6 +2428,22 @@
       "tier": "release-gate"
     },
     {
+      "area": "database",
+      "description": "Protects dry-run-first workspace cleanup, retained-data preservation, and direct/full-suite regression database isolation.",
+      "id": "database.workspace-cleanup-isolation",
+      "legacy": false,
+      "path": "scripts/regressions/database/workspace-cleanup-isolation.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "maintenance",
+        "regressions",
+        "sqlite",
+        "workspaces"
+      ],
+      "tier": "release-gate"
+    },
+    {
       "area": "docs",
       "description": "Proves changed source areas suggest owning documentation while the closeout gate remains explicit and warning-only.",
       "id": "docs.ownership-routing",
@@ -2440,6 +2457,21 @@
         "routing"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "docs",
+      "description": "Protects the recovered client change-request plan and the deferred-only TODO Short Term boundary after the 0.33.11 closeout.",
+      "id": "docs.short-term-cleanup-closeout",
+      "legacy": false,
+      "path": "scripts/regressions/docs/short-term-cleanup-closeout.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "roadmap",
+        "todo"
+      ],
+      "tier": "focused"
     },
     {
       "area": "framework",
@@ -2473,6 +2505,21 @@
     },
     {
       "area": "framework",
+      "description": "Proves expired protected-app sessions surface one framework-owned foreground warning above open editors.",
+      "id": "framework.session-auth-warning",
+      "legacy": false,
+      "path": "scripts/regressions/framework/session-auth-warning.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "authentication",
+        "modal",
+        "session"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves the high-value framework seams stay @ts-check opted-in against the shared contract types, without ts-nocheck/ts-ignore escapes or runtime .ts imports.",
       "id": "framework.typecheck-seams",
       "legacy": false,
@@ -2499,6 +2546,40 @@
         "release"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "notes",
+      "description": "Pins the current Notes quick-fix contracts for permission-safe metadata bulk editing and create-save continuity with an explicit Save and Close path.",
+      "id": "notes.notes-critical-quick-fixes",
+      "legacy": false,
+      "path": "scripts/regressions/notes/notes-critical-quick-fixes.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "bulk-edit",
+        "collections",
+        "modal",
+        "notes",
+        "permissions",
+        "selection"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Proves inactive workspace members stay out of people surfaces and Personal/Family work cannot use the Billable flag.",
+      "id": "permissions.workspace-membership-billable",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/workspace-membership-billable.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "time-tracking",
+        "users",
+        "workspaces"
+      ],
+      "tier": "integration"
     },
     {
       "area": "release",
@@ -2640,6 +2721,25 @@
     },
     {
       "area": "tasks",
+      "description": "Pins the current Tasks quick-fix contracts for checklist keys and spacing, searchable tag controls, parent-child creation and list anatomy, create-save continuity, workspace project narrowing, and reason-required Block flows.",
+      "id": "tasks.task-critical-quick-fixes",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-critical-quick-fixes.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "blocked-reason",
+        "checklist",
+        "modal",
+        "parent-child",
+        "tags",
+        "tasks",
+        "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
       "description": "Pins the task editor's icon-only Open in Workbench handoff: placed immediately left of the notification bell, edit-mode only, accessible icon-only anatomy, and navigation through the canonical workbench.html?taskId= deep-link contract.",
       "id": "tasks.task-editor-workbench-handoff",
       "legacy": false,
@@ -2654,6 +2754,22 @@
         "workbench"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves a running manual timer can become a permission-safe Task Timer without losing elapsed-time identity or final time-entry attribution.",
+      "id": "time-tracking.timer-task-linking",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/timer-task-linking.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "permissions",
+        "tasks",
+        "timers"
+      ],
+      "tier": "integration"
     },
     {
       "area": "views",

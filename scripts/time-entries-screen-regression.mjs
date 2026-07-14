@@ -86,8 +86,9 @@ check("bulk tag layout keeps the selection column compact", () => {
   assert.match(stylesheet, /\.time-entries-page \.report-table th:nth-child\(2\)/);
 });
 
-check("dialog helper preserves tag and billable payload ownership", () => {
-  assert.match(timeEntryDialogScript, /billable: fields\.billable\.value/);
+check("dialog helper preserves tag ownership and workspace-safe billable payloads", () => {
+  assert.match(timeEntryDialogScript, /billable: workspaceBillableValue\(\)/);
+  assert.match(timeEntryDialogScript, /function workspaceUsesBillableFlag\(\)[\s\S]*workspaceType === "business"/);
   assert.match(timeEntryDialogScript, /tagIds: tagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/);
   assert.match(timeEntryDialogScript, /updateBillableDefault/);
   assert.match(timeEntryDialogScript, /data-time-entry-dialog-status/);

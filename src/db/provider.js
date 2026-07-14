@@ -1,11 +1,14 @@
 import { config } from "../config.js";
 import { createSqliteAdapter } from "./adapters/sqlite-adapter.js";
+import { assertRegressionDatabaseTarget } from "./regression-database-safety.js";
 import {
   sqlInteger,
   sqlNullableInteger,
   sqlNullableText,
   sqlText,
 } from "./sql-literals.js";
+
+assertRegressionDatabaseTarget(config.databaseFile);
 
 const db = createDatabaseAdapter(config.databaseProvider);
 const databaseDialect = db.dialect;

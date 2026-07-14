@@ -53,7 +53,7 @@ assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon pl
 assert.match(tasksDocs, /Task modal notification following is owned by the heading bell/, "Tasks docs should align heading action placement");
 assert.match(tasksDocs, /Task editor is the Tasks reference implementation for the finalized converted-modal action standard/, "Tasks docs should identify the reference modal standard");
 
-assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp("0.33.6.15.1")}`), "Notes docs should report the current module handoff version");
+assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current module handoff version");
 assert.match(notesDocs, new RegExp(`As of ${escapeRegExp(modalStandardVersion)}[\\s\\S]*Notes editor is the Notes reference implementation`), "Notes docs should keep the historical modal contract version");
 assert.match(notesDocs, /`Tags`, `Files`, and saved-note `Copy Link`/, "Notes docs should document the shipped Copy Link footer utility");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should align utility action placement");
@@ -72,7 +72,7 @@ assert.match(taskDialog, /function createTaskFilesDialog\(\)[\s\S]*view\.createM
 assert.match(taskDialog, /showTaskModal\(tagsDialog, \{ parent: dialog, trigger: fields\.tagToggle \}\)/, "Task Tags should open as a stacked child dialog");
 assert.match(taskDialog, /showTaskModal\(filesDialog, \{ parent: dialog, trigger: fields\.fileToggle \}\)/, "Task Files should open as a stacked child dialog");
 
-assert.match(notesJs, /view\.renderDescriptorModalForm\(modal, \{[\s\S]*actions: \[cancel, save\][\s\S]*utilityActions: \[tagsToggle, filesToggle, copyLink\]/, "Note editor should feed utility and commit actions into the framework modal footer");
+assert.match(notesJs, /view\.renderDescriptorModalForm\(modal, \{[\s\S]*actions: \[cancel, saveClose, save\][\s\S]*utilityActions: \[tagsToggle, filesToggle, copyLink\]/, "Note editor should feed utility and commit actions into the framework modal footer");
 assert.match(notesJs, /createNoteTagsDialogShell[\s\S]*view\.createModal\([\s\S]*title: "Tags"/, "Notes should keep Tags in a stacked child dialog");
 assert.match(notesJs, /createNoteFilesDialogShell[\s\S]*view\.createModal\([\s\S]*title: "Files"/, "Notes should keep Files in a stacked child dialog");
 assert.match(notesJs, /action: "follow-note-notifications"[\s\S]*icon: "bell"[\s\S]*iconOnly: true/, "Notes heading action should be the saved-note follow bell");

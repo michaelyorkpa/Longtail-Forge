@@ -6,4 +6,4 @@ Client edit actions live in the edit modal footer. Save Client saves the active 
 
 Client and project records are archived by setting them inactive instead of deleting them. Historical time entries and related records keep their stable IDs.
 
-Project settings can include billing defaults and task defaults. New records may inherit defaults when created, but saved records keep their own stored values.
+Business project settings can include billing defaults and task defaults. Personal and Family projects omit the Billable flag and use project-only work context. New records may inherit available defaults when created, but saved records keep their own stored values.

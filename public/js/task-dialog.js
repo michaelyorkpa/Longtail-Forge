@@ -134,6 +134,10 @@
       assign: "assignees",
       assignee: "assignees",
       assignees: "assignees",
+      block: "blocked_reason",
+      blocked: "blocked_reason",
+      blocked_reason: "blocked_reason",
+      blockedreason: "blocked_reason",
       due: "due_date",
       due_date: "due_date",
       duedate: "due_date",
@@ -226,7 +230,7 @@
     // surface for every authenticated user, so no extra reachability gate.
     fields.workbenchOpen.hidden = !currentTaskId;
     fields.titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || defaults.title || "";
-    fields.status.value = isDuplicate ? "open" : task?.status || statusDefault || "open";
+    fields.status.value = isDuplicate ? "open" : statusDefault || task?.status || "open";
     fields.priority.value = task?.priority || priorityDefault || "normal";
     const selectedClientId = task ? task.client_id || "" : defaults.clientId || defaults.client_id || "";
     const selectedProjectId = task?.project_id || defaults.projectId || defaults.project_id || "";
@@ -240,7 +244,7 @@
     fields.dueDate.value = task?.due_date || defaults.dueDate || defaults.due_date || "";
     fields.dueTime.value = task?.due_time || defaults.dueTime || defaults.due_time || "";
     fields.nextAction.value = task?.next_action || defaults.nextAction || defaults.next_action || "";
-    fields.blockedReason.value = task?.blocked_reason || defaults.blockedReason || defaults.blocked_reason || "";
+    fields.blockedReason.value = defaults.blockedReason || defaults.blocked_reason || task?.blocked_reason || "";
     fields.resumeNote.value = task?.resume_note || defaults.resumeNote || defaults.resume_note || "";
     fields.description.value = task?.description || defaults.description || "";
     fields.taskDetailsPanel.open = !task || isDuplicate;
@@ -345,6 +349,7 @@
       nextAction: dialog.querySelector("[data-task-next-action]"),
       resumeNote: dialog.querySelector("[data-task-resume-note]"),
       save: dialog.querySelector("[data-save-task]"),
+      saveClose: dialog.querySelector("[data-save-close-task]"),
       timerDisplay: dialog.querySelector("[data-task-timer-display]"),
       timerField: dialog.querySelector("[data-task-timer-field]"),
       timerFinalize: dialog.querySelector("[data-task-timer-finalize]"),
@@ -387,6 +392,7 @@
       applySelectedProjectTaskDefaults();
       refreshParentTaskOptions();
     });
+    fields.parentTask?.addEventListener("change", applySelectedParentTaskInheritance);
     fields.status?.addEventListener("change", updateBlockedReasonState);
     fields.status?.addEventListener("change", writeTaskMetadataRibbon);
     fields.status?.addEventListener("change", updateCompleteTaskActionState);
@@ -398,14 +404,17 @@
     fields.reminderOverride?.addEventListener("change", updateReminderOverrideState);
     fields.recurring?.addEventListener("change", updateRecurrenceState);
     fields.checklistAdd?.addEventListener("click", addChecklistItem);
+    fields.checklistInput?.addEventListener("keydown", handleChecklistInputKeydown);
     fields.checklistList?.addEventListener("click", handleChecklistClick);
     fields.checklistList?.addEventListener("change", handleChecklistChange);
+    fields.checklistList?.addEventListener("keydown", handleChecklistListKeydown);
     fields.recurrenceDetails?.addEventListener("click", openRecurrenceDialog);
     fields.timerStart?.addEventListener("click", () => saveTaskTimer("running"));
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
     fields.complete?.addEventListener("click", saveAndCompleteTask);
+    fields.saveClose?.addEventListener("click", saveAndCloseTask);
     fields.tagToggle?.addEventListener("click", openTaskTagsDialog);
     fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
     fields.notificationToggle?.addEventListener("click", toggleTaskNotificationFollow);
@@ -433,6 +442,7 @@
     icons.decorateButton(fields.complete, { icon: "complete", label: "Complete task", text: "Complete", title: "Complete task", iconOnly: false });
     icons.decorateButton(fields.cancel, { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
     icons.decorateButton(fields.save, { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
+    icons.decorateButton(fields.saveClose, { icon: "save", label: "Save and close task", text: "Save & Close", title: "Save and close task", iconOnly: false });
   }
 
   function bindRecurrenceDialogEvents() {
@@ -473,7 +483,7 @@
 
     replaceOptions(fields.client, hasClientScope
       ? [
-        option("", "No client"),
+        option("", workspaceProjectsLabel()),
         ...(options.clients || []).map((client) => option(client.id, optionLabel(client))),
       ]
       : [option("", "No client")]);
@@ -487,7 +497,7 @@
   function populateProjectInput(selectedProjectId = "", sourceTask = currentTask, { allowFallback = false } = {}) {
     const selectedClientId = usesClientScope() ? fields.client?.value || "" : "";
     const projects = (context?.options?.projects || []).filter((project) =>
-      !selectedClientId || (project.client_id || "") === selectedClientId,
+      !usesClientScope() || (project.client_id || "") === selectedClientId,
     );
     const projectOptions = [
       option("", "No project"),
@@ -552,6 +562,14 @@
     return (context?.options?.projects || []).find((project) => project.id === projectId) || null;
   }
 
+  function workspaceProjectsLabel() {
+    if (typeof namespace.getWorkspaceProjectsLabel === "function") {
+      return namespace.getWorkspaceProjectsLabel();
+    }
+    const workspaceName = String(namespace.workspaceContext?.workspaceName || "").trim() || "Workspace";
+    return `${workspaceName} Projects`;
+  }
+
   function applySelectedProjectTaskDefaults() {
     if (currentTaskId) {
       return;
@@ -567,6 +585,16 @@
 
   async function saveTask(event) {
     event.preventDefault();
+    const wasCreating = !currentTaskId;
+    try {
+      await saveTaskForm({ closeOnSuccess: !wasCreating });
+    } catch {
+      // saveTaskForm reports validation and route errors through the modal status.
+    }
+  }
+
+  async function saveAndCloseTask(event) {
+    event?.preventDefault();
     try {
       await saveTaskForm({ closeOnSuccess: true });
     } catch {
@@ -600,6 +628,9 @@
       currentTaskId = result.task?.task_id || "";
       rememberTaskInContext(currentTask);
       updateCompleteTaskActionState();
+      if (!wasEditing) {
+        await transitionCreatedTaskToEdit(result.task);
+      }
       await notifyTaskEditorSaved(result);
       if (closeOnSuccess) {
         const completedBySave = wasEditing && editingTask?.status !== "complete" && result.task?.status === "complete";
@@ -617,11 +648,33 @@
           setStatus("");
         }
       }
+      if (!closeOnSuccess && !wasEditing) {
+        setStatus("Task saved. Continue editing or choose Save & Close.");
+      }
       return result;
     } catch (error) {
       setStatus(error.message || "Task was not saved.", { isError: true });
       throw error;
     }
+  }
+
+  async function transitionCreatedTaskToEdit(task) {
+    if (!task?.task_id) {
+      return;
+    }
+
+    fields.title.textContent = "Edit Task";
+    fields.copyLink.hidden = false;
+    fields.workbenchOpen.hidden = false;
+    currentTaskEditorRequest = currentTaskEditorRequest
+      ? { ...currentTaskEditorRequest, mode: "edit", task, taskId: task.task_id }
+      : currentTaskEditorRequest;
+    writeTaskMetadataRibbon(task);
+    writeChecklistFields(task);
+    writeTaskTimerFields(task);
+    mountTaskFileAttachments(task);
+    mountTaskNotesPanel(task);
+    await writeTaskNotificationFollowFields(task);
   }
 
   async function saveAndCompleteTask(event) {
@@ -745,9 +798,36 @@
 
     return (context?.tasks || [])
       .filter((task) => task?.task_id && task.task_id !== taskId)
+      .filter((task) => taskId || !["complete", "archived"].includes(task.status))
       .filter((task) => !selectedClientId || !task.client_id || task.client_id === selectedClientId)
       .filter((task) => !selectedProjectId || !task.project_id || task.project_id === selectedProjectId)
       .sort((left, right) => String(left.title || "").localeCompare(String(right.title || "")));
+  }
+
+  function applySelectedParentTaskInheritance() {
+    const parentTaskId = fields.parentTask?.value || "";
+    const parentTask = (context?.tasks || []).find((task) => task.task_id === parentTaskId);
+
+    if (!parentTask) {
+      return;
+    }
+
+    fields.dueDate.value = parentTask.due_date || "";
+    fields.dueTime.value = parentTask.due_time || "";
+    fields.priority.value = taskDefaultPriorities().includes(parentTask.priority) ? parentTask.priority : "normal";
+
+    if (usesClientScope() && !fields.client.value && parentTask.client_id) {
+      ensureClientOption(parentTask.client_id, parentTask);
+      fields.client.value = parentTask.client_id;
+      populateProjectInput(fields.project.value);
+    }
+
+    if (!fields.project.value && parentTask.project_id) {
+      populateProjectInput(parentTask.project_id, parentTask, { allowFallback: true });
+      syncClientFromSelectedProject();
+    } else {
+      writeTaskMetadataRibbon();
+    }
   }
 
   async function syncParentTaskRelationship(taskId) {
@@ -1268,6 +1348,31 @@
     } catch (error) {
       setStatus(error.message || "Checklist item was not added.", { isError: true });
     }
+  }
+
+  async function handleChecklistInputKeydown(event) {
+    if (event.key !== "Enter" || event.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    await addChecklistItem();
+  }
+
+  async function handleChecklistListKeydown(event) {
+    const input = event.target.closest("[data-task-checklist-label]");
+    if (!input || event.key !== "Enter" || event.isComposing) {
+      return;
+    }
+
+    const row = input.closest("[data-task-checklist-item]");
+    const itemId = row?.dataset.taskChecklistItem || "";
+    if (!row || !itemId) {
+      return;
+    }
+
+    event.preventDefault();
+    await saveChecklistItemLabel(row, itemId);
   }
 
   async function handleChecklistChange(event) {
@@ -1858,6 +1963,7 @@
     const focusTarget = normalizeTaskEditorFocusTarget(target);
     const targetMap = {
       assignees: fields.assignees,
+      blocked_reason: fields.blockedReason,
       due_date: fields.dueDate,
       due_time: fields.dueTime,
       recurrence: fields.recurring || fields.recurrenceDetails,
@@ -1865,6 +1971,7 @@
     };
     const panelMap = {
       assignees: fields.taskDetailsPanel,
+      blocked_reason: fields.taskDetailsPanel,
       due_date: fields.taskDetailsPanel,
       due_time: fields.taskDetailsPanel,
       recurrence: fields.recurrenceField,
@@ -1895,6 +2002,7 @@
     const isBlocked = fields.status?.value === "blocked";
     fields.blockedReasonField.hidden = !isBlocked;
     fields.blockedReason.disabled = !isBlocked;
+    fields.blockedReason.required = isBlocked;
 
     if (isBlocked && !fields.blockedReason.value.trim() && document.activeElement === fields.status) {
       fields.blockedReason.focus();
@@ -2237,6 +2345,7 @@
       footerActions: [
         { id: "complete", label: "Complete", icon: "complete", role: "primary" },
         { id: "cancel", label: "Cancel", role: "secondary" },
+        { id: "save-close", label: "Save & Close", icon: "save", role: "secondary" },
         { id: "save", label: "Save task", role: "primary" },
       ],
     };
@@ -2288,6 +2397,8 @@
       } else if (action.id === "complete") {
         button.dataset.completeTask = "";
         button.hidden = true;
+      } else if (action.id === "save-close") {
+        button.dataset.saveCloseTask = "";
       } else if (action.id === "save") {
         button.dataset.saveTask = "";
       }

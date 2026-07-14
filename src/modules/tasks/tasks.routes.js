@@ -153,6 +153,12 @@ tasksRoutes.put("/tasks/:taskId/timer", asyncRoute(async (request, response) => 
   response.status(200).json(result);
 }));
 
+tasksRoutes.post("/tasks/:taskId/timer/link", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await taskTimersService.linkManualTimer(request.params.taskId, payload, request.session);
+  response.status(200).json(result);
+}));
+
 tasksRoutes.post("/tasks/:taskId/timer/finalize", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await taskTimersService.finalize(request.params.taskId, payload, request.session);

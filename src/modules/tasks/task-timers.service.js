@@ -54,6 +54,89 @@ async function save(taskId, payload, session) {
   };
 }
 
+async function linkManualTimer(taskId, payload, session) {
+  const task = await readEligibleTask(taskId, session);
+  await assertTaskTimersEnabled(session);
+  await assertCanUseTaskTimer(session, task);
+  const timerSlot = String(payload?.timer_slot || payload?.timerSlot || "").trim();
+
+  if (!timerSlot) {
+    throw new AppError("Timer slot is required.", 400);
+  }
+
+  const existingTaskTimer = await taskTimersRepository.readByTask(
+    session.workspace_id,
+    session.user_id,
+    task.task_id,
+  );
+
+  if (existingTaskTimer) {
+    throw new AppError("The selected task already has an active timer.", 409);
+  }
+
+  const transition = await transitionTaskToInProgressForTimerStart(task, null, session);
+  let result;
+
+  try {
+    result = await activeTimersService.convertManualToSourced(timerSlot, taskTimerSource(task), {
+      billable: task.billable === "no" ? "no" : "yes",
+      client_id: task.client_id,
+      client_name: task.client_name,
+      description: task.title,
+      project_id: task.project_id,
+      project_name: task.project_name,
+      sourceMetadata: {
+        linkedFromManualTimerSlot: timerSlot,
+        taskTimerStatusTransition: transition,
+      },
+    }, session);
+  } catch (error) {
+    if (transition.movedTaskFromOpen === true) {
+      const transitionedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
+      await revertTaskTimerStartTransition(transitionedTask || task, {
+        sourceMetadata: { taskTimerStatusTransition: transition },
+      }, session);
+    }
+    throw error;
+  }
+
+  await auditService.record({
+    session,
+    action: "task_timer_linked",
+    changeType: "update",
+    recordType: "task",
+    recordId: task.task_id,
+    recordLabel: task.title,
+    recordUrl: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+    previousValue: {
+      source_type: "manual",
+      timer_slot: timerSlot,
+    },
+    newValue: {
+      active_timer_id: result.timer.active_timer_id,
+      source_type: "task",
+      task_id: task.task_id,
+      timer_status: result.timer.timer_status,
+    },
+    metadata: {
+      client_id: task.client_id,
+      project_id: task.project_id,
+      source: "manual_timer_link",
+      task_id: task.task_id,
+    },
+  });
+  await markTaskWorked(session, task.task_id, "task_timer_linked");
+  const updatedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
+
+  return {
+    linked: true,
+    manual_timers: result.timers,
+    previous_timer_slot: timerSlot,
+    task: updatedTask || task,
+    timer: taskTimerFromUnified(result.timer, updatedTask || task),
+  };
+}
+
 async function remove(taskId, session) {
   await assertTaskTimersEnabled(session);
   const task = await readTaskOrThrow(taskId, session);
@@ -324,6 +407,7 @@ function taskTimerFromUnified(timer, task) {
 export const taskTimersService = {
   finalize,
   hasActiveTaskTimers,
+  linkManualTimer,
   list,
   remove,
   save,
