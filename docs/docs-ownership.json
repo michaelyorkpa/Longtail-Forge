@@ -224,10 +224,15 @@
       "id": "database",
       "label": "Database",
       "sourcePatterns": [
+        "^docs/backup-restore\\.md$",
+        "^scripts/(?:backup|backup-restore-drill)\\.mjs$",
+        "^scripts/lib/backup-archive\\.mjs$",
+        "^scripts/regressions/database/backup-restore-foundation\\.regression\\.mjs$",
         "^src/core/database\\.js$",
         "^src/db/"
       ],
       "docs": [
+        "docs/backup-restore.md",
         "docs/database-parameter-binding-audit.md",
         "docs/database.md",
         "docs/sqlite-small-office-mode.md"
@@ -312,11 +317,30 @@
       ]
     },
     {
+      "id": "development-demo-data",
+      "label": "Development and sanitized demo data",
+      "sourcePatterns": [
+        "^docs/development-and-demo-data\\.md$",
+        "^docs/marketing/screenshot-and-demo-data-plan\\.md$",
+        "^scripts/development-data\\.mjs$",
+        "^scripts/lib/development-data-safety\\.mjs$",
+        "^scripts/regressions/database/development-data-seed\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/development-and-demo-data.md",
+        "docs/marketing/screenshot-and-demo-data-plan.md"
+      ]
+    },
+    {
       "id": "release-process",
       "label": "Release process",
       "sourcePatterns": [
+        "^(?:\\.dockerignore|Dockerfile|compose\\.yaml)$",
+        "^docs/backup-restore\\.md$",
         "^docs/docs-ownership\\.(?:json|md)$",
-        "^scripts/(?:bump-version|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-(?:changed-regressions|closeout|regressions)|suggest-regressions|version-literal)",
+        "^docs/(?:compose\\.env\\.example|longtail-forge\\.service\\.example|preview-deployment\\.md)$",
+        "^scripts/(?:backup|backup-restore-drill|bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|container-deployment-smoke|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-(?:changed-regressions|closeout|regressions)|runtime-artifact-smoke|suggest-regressions|version-literal)",
+        "^scripts/lib/backup-archive\\.mjs$",
         "^scripts/lib/(?:changed-regression-runner|closeout-gates|regression-change-routing)\\.mjs$",
         "^scripts/test-support/(?:isolated-regression-retry|regression-bucket-orchestrator|regression-runner-scheduler)\\.mjs$",
         "^scripts/(?:lib/docs-change-routing|suggest-docs-for-changes)\\.mjs$",
@@ -325,10 +349,13 @@
         "^src/routes/app-info\\.routes\\.js$"
       ],
       "docs": [
+        "docs/backup-restore.md",
         "docs/docs-ownership.json",
         "docs/docs-ownership.md",
+        "docs/preview-deployment.md",
         "docs/regression-suite-performance.md",
         "docs/regression-suite.md",
+        "docs/runtime-artifact.md",
         "docs/versioning.md"
       ]
     }

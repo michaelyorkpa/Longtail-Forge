@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 362,
+  "minimumActiveScripts": 366,
   "minimumAreaScripts": {
     "dashboard": 1,
-    "database": 27,
+    "database": 29,
     "docs": 9,
     "files": 44,
     "framework": 57,
@@ -14,7 +14,7 @@
     "notifications": 3,
     "permissions": 5,
     "public-api": 3,
-    "release": 17,
+    "release": 19,
     "search": 12,
     "tags": 12,
     "tasks": 51,
@@ -22,7 +22,7 @@
     "views": 30,
     "workbench": 27
   },
-  "minimumReleaseGateScripts": 24,
+  "minimumReleaseGateScripts": 28,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -32,6 +32,8 @@
     "legacy.regression.suite.inventory",
     "licensing.public-release-gates",
     "database.migration-schema-workflow",
+    "database.backup-restore-foundation",
+    "database.development-data-seed",
     "database.workspace-cleanup-isolation",
     "docs.ownership-routing",
     "framework.asset-cache-version",
@@ -45,7 +47,9 @@
     "framework.module-import-boundaries",
     "framework.typecheck-seams",
     "release.roadmap-cursor-floor",
-    "release.playwright-dev-only-boundary"
+    "release.playwright-dev-only-boundary",
+    "release.runtime-artifact-boundary",
+    "release.preview-deployment-boundary"
   ],
   "protectedAreas": [
     "dashboard",

@@ -47,7 +47,7 @@ For a suspected compromise, credential exposure, private-data disclosure, or act
 5. **Communicate privately.** Notify affected preview participants promptly with confirmed facts, required actions, data-impact scope, and the next update time. Avoid unsupported certainty. Coordinate disclosure with a private vulnerability reporter.
 6. **Review.** Record the timeline, root cause, controls that worked or failed, follow-up owners, and completion evidence. Update this procedure and the pre-invitation checklist when the incident exposes a gap.
 
-If tested restore capability is not yet available, do not claim recovery readiness and do not begin the preview. Backup/restore implementation, protected backup storage, restoration validation, retention, access, and incident-recovery proof are owned by ROADMAP 0.33.17.
+The tested baseline recovery capability and its limits are defined in [Baseline Backup and Restore](backup-restore.md). Do not claim recovery readiness unless the exact deployment has a recently inspected off-host archive, separately protected Secure Notes key recovery where required, recorded retention/access ownership, and a successful representative restore drill.
 
 ## Manual security review before invitations
 

@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 362,
+    "discoveredScripts": 366,
     "legacyScripts": 312,
-    "releaseGateScripts": 24,
+    "releaseGateScripts": 28,
     "areaCounts": {
       "dashboard": 1,
-      "database": 27,
+      "database": 29,
       "docs": 9,
       "files": 44,
       "framework": 57,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 5,
       "public-api": 3,
-      "release": 17,
+      "release": 19,
       "search": 12,
       "tags": 12,
       "tasks": 51,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 171,
       "integration": 158,
-      "release-gate": 24,
+      "release-gate": 28,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 144,
+      "isolated-database": 146,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 183
+      "static": 185
     }
   },
   "coverageFamilies": [
@@ -2414,6 +2414,41 @@
     },
     {
       "area": "database",
+      "description": "Proves the versioned SQLite plus Files backup format, Secure Notes prerequisite, destructive restore safeguards, and disposable restore drill.",
+      "id": "database.backup-restore-foundation",
+      "legacy": false,
+      "path": "scripts/regressions/database/backup-restore-foundation.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "backup",
+        "files",
+        "restore",
+        "security",
+        "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves deterministic rich development/demo data, safe reset ownership, disabled persona logins, and production/live target refusal.",
+      "id": "database.development-data-seed",
+      "legacy": false,
+      "path": "scripts/regressions/database/development-data-seed.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "demo",
+        "development",
+        "files",
+        "permissions",
+        "seed",
+        "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
       "description": "Proves deterministic migration creation and generated final-schema drift detection without changing the SQLite runtime contract.",
       "id": "database.migration-schema-workflow",
       "legacy": false,
@@ -2965,6 +3000,23 @@
     },
     {
       "area": "release",
+      "description": "Proves Docker and bare-metal preview deployment stay artifact-based, persistent, non-root, health-checked, and rollback-ready.",
+      "id": "release.preview-deployment-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/release/preview-deployment-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "bare-metal",
+        "container",
+        "deployment",
+        "docker",
+        "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
       "description": "Proves metadata-driven regression discovery preserves the legacy suite and safe execution modes.",
       "id": "release.regression-discovery-runner",
       "legacy": false,
@@ -3020,6 +3072,22 @@
         "closeout",
         "release",
         "roadmap"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the versioned runtime artifact includes only the bootable runtime boundary and a checksum.",
+      "id": "release.runtime-artifact-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/release/runtime-artifact-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "artifact",
+        "packaging",
+        "release",
+        "runtime"
       ],
       "tier": "release-gate"
     },

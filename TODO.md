@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Settings -> Workspace -> Workspace Settings
+
+A workspace type cannot be changed once created.
+
 ## Workbench URL Annoyance
 
 When I open a task from anywhere other than the workbench "Focus Task" button, it puts the ?taskID= in the URL. That's fine and not a problem. However, if I click change focus and then select another task, the ?taskID for the original task remains in the URL. That needs to be cleared either when the user navigates to a different view/task or immediately after it loads.

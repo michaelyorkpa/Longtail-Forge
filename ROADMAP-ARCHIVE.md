@@ -1,5 +1,60 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.17.4 - Seeded development database and sanitized demo workspace
+
+Completed 0.33.17.4 out of sequence at the operator's direction. The live roadmap remains at 0.33.17.2 until its Docker-engine acceptance proof is available.
+
+**Model: High Effort** — Deterministic data generation touches permissions and many product states and must never target live data.
+
+- [x] Kept automated test fixtures, scale/performance seed profiles, the deterministic developer database, and the separately marked sanitized demo/preview database as distinct contracts; normal startup never seeds either development profile.
+- [x] Added `dev:data:seed`, `dev:data:reset`, `demo:data:seed`, and `demo:data:reset` with exact marked-directory ownership, contained database/Files paths, development-environment enforcement, production/live/customer path refusal, completed-seed markers, and matching destructive confirmations.
+- [x] Used deterministic fictional scenarios and stable semantic fingerprints without committing generated databases or Files data, merging into existing targets, using real personal/client/customer/financial data, or storing/printing a shared operator password.
+- [x] Seeded Business, Personal, and Family workspaces; disabled fake personas and meaningful roles; clients/projects; rich task, checklist, reminder, recurrence, resume, timer/time, Notes, Lists, Files, notification, Search, Dashboard, Focus Selection, and Task Focus inputs; and safe entry-point metadata.
+- [x] Seeded no Secure Note, plaintext secure payload, wrapped key, or Secure Notes master key. Only the normal first-install operator can log in with the unique environment-supplied password; invited users still require individual accounts through the real Users workflow.
+- [x] Kept the builder explicit instead of inventing a generalized module seed registry; future Tickets, Knowledge Base, and Creator Studio builders may extend the scenario only after a second real module establishes a shared extension need.
+- [x] Added `database.development-data-seed` release-gate coverage for reproducibility across unique operator passwords, both runtime profiles, rich state counts, disabled persona login data, harmless Files bytes, Secure Notes absence, SQLite integrity, target refusal, and owned reset behavior.
+
+The owning developer contract is [docs/development-and-demo-data.md](docs/development-and-demo-data.md); the screenshot consumer and refresh workflow remains in [docs/marketing/screenshot-and-demo-data-plan.md](docs/marketing/screenshot-and-demo-data-plan.md).
+
+Acceptance criteria:
+
+- A developer can reproducibly seed and safely reset rich fake product data, while production-like targets, real data, shared preview credentials, and secret key material remain protected.
+
+## Version 0.33.17.3 - Baseline backup and restore
+
+Completed 0.33.17.3 out of sequence at the operator's direction. The live roadmap remains at 0.33.17.2 until its Docker-engine acceptance proof is available.
+
+**Model: High Effort** — A backup is only valid when database, files, encryption prerequisites, compatibility, and destructive restore behavior are proven together.
+
+- [x] Defined the versioned `longtail-forge-instance-backup` format with a consolidated SQLite database, local Files objects, application/migration/provider identity, UTC creation metadata, safe configuration classifications, explicit inclusion/exclusion inventory, internal SHA-256 inventory, and required outer archive sidecar.
+- [x] Excluded the Secure Notes master key and every runtime secret; encrypted Notes or revisions require a separately protected, non-empty, owner-only operator key backup outside live data, ordinary backups, and public paths.
+- [x] Made inspection report encrypted-content archives as not fully restorable without that separate key prerequisite, and made destructive restore refuse them.
+- [x] Added shipped CLI commands for create, inspect, controlled export, and destructive restore; no web-admin download route exists, archives are restrictive and never overwritten or automatically deleted, and retention/cleanup remains explicit operator policy.
+- [x] Added operator JSONL and forced workspace security audit events for supported create/export/restore activity; validation rejects unsupported format/provider/version, unsafe/traversal/duplicate/link/special entries, unexpected files, checksum corruption, migration/database mismatch, missing Files objects, and Secure Notes inventory drift.
+- [x] Required stopped-app confirmation, the exact destructive phrase, and an automatically created/verified pre-restore archive; database/WAL/SHM and Files state stage, promote, and roll back together, with post-start readiness, version, schema, login, Files, and Secure Notes verification documented.
+- [x] Added `npm run backup:drill` plus the `database.backup-restore-foundation` release gate. The drill creates representative database, Files, and encrypted-note state; backs it up; mutates it; restores and boots the original state; verifies readiness/version/integrity; and proves incompatible plus internally corrupted archives are rejected before destructive replacement.
+
+Acceptance criteria:
+
+- A disposable installation is backed up and restored consistently with database, Files, and required encryption recovery represented; maliciously corrupted and incompatible archives are rejected without changing the destination.
+
+## Version 0.33.17.1 - Runtime-only packaging boundary
+
+Completed 0.33.17.1. The live roadmap continues with 0.33.17.2.
+
+**Model: Medium Effort** — The artifact boundary is well specified, but omissions must be proven in a clean environment.
+
+- [x] Defined an explicit runtime allowlist while keeping `npm start` as `node server.js` and adding only the same-artifact `npm run start:worker` entrypoint for the existing separate worker.
+- [x] Preserved all six runtime dependencies and pruned development dependency declarations and lock entries; excluded tests, regression/release tooling, development fixtures/source artwork, local secrets, caches, live data, process state, and unrelated planning/history documents.
+- [x] Added `npm run artifact:build` to produce `dist/longtail-forge-<version>.tgz`, an adjacent SHA-256 checksum, and an embedded machine-readable `RUNTIME-ARTIFACT.json` inventory from a disposable allowlisted staging directory.
+- [x] Added `npm run artifact:smoke` to extract the artifact into a clean disposable installation, run `npm ci --omit=dev`, prove the development-only packages are absent, boot the unchanged server entrypoint, and verify `/api/app-info` plus `/readyz`.
+- [x] Documented the runtime inventory, excluded categories, checksum/build workflow, settled install/start commands, worker command, and the boundary between this artifact and later Docker, backup/restore, upgrade, and deployment work.
+- [x] Added the `release.runtime-artifact-boundary` release gate; the discovered regression inventory advances to 363, the Release area floor to 18, and the release-gate floor to 25.
+
+Acceptance criteria:
+
+- A checksummed, versioned, secret-free runtime artifact boots cleanly without repository-only development dependencies.
+
 ## Version 0.33.16 - Internet-Exposure Security Hardening
 
 Completed 0.33.16. The live roadmap continues with 0.33.17.1.

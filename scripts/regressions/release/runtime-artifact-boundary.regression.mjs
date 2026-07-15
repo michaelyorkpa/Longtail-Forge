@@ -1,0 +1,106 @@
+export const regressionMeta = Object.freeze({
+  id: "release.runtime-artifact-boundary",
+  area: "release",
+  tier: "release-gate",
+  tags: ["artifact", "packaging", "release", "runtime"],
+  description: "Proves the versioned runtime artifact includes only the bootable runtime boundary and a checksum.",
+  runMode: "static",
+});
+
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import {
+  EXCLUDED_CATEGORIES,
+  RUNTIME_PATHS,
+  buildRuntimeArtifact,
+  createRuntimeLock,
+  createRuntimePackage,
+} from "../../build-runtime-artifact.mjs";
+
+const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
+const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
+const runtimePackage = createRuntimePackage(packageJson);
+const runtimeLock = createRuntimeLock(packageLock);
+
+assert.equal(packageJson.scripts.start, "node server.js");
+assert.equal(runtimePackage.scripts.start, "node server.js");
+assert.equal(runtimePackage.scripts["backup:create"], "node scripts/backup.mjs create");
+assert.equal(runtimePackage.scripts["backup:restore"], "node scripts/backup.mjs restore");
+assert.equal(runtimePackage.devDependencies, undefined);
+assert.deepEqual(runtimePackage.dependencies, packageJson.dependencies);
+assert.equal(runtimeLock.packages[""].devDependencies, undefined);
+assert.ok(Object.values(runtimeLock.packages).every((entry) => entry.dev !== true));
+assert.ok(RUNTIME_PATHS.includes("src"));
+assert.ok(RUNTIME_PATHS.includes("public/js"));
+assert.ok(RUNTIME_PATHS.includes("views"));
+assert.ok(RUNTIME_PATHS.includes("help"));
+assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("secrets")));
+assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("roadmaps")));
+
+const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-artifact-regression-"));
+try {
+  const result = await buildRuntimeArtifact({ outputDir });
+  const fileSet = new Set(result.files);
+  for (const requiredPath of [
+    "RUNTIME-ARTIFACT.json",
+    "npm-shrinkwrap.json",
+    "package.json",
+    "server.js",
+    "worker.js",
+    "src/core/app.js",
+    "src/db/schema/current.sql",
+    "help/toc.md",
+    "views/public/index.html",
+    "public/js/navigation.js",
+    "scripts/backup.mjs",
+    "scripts/lib/backup-archive.mjs",
+    "docs/backup-restore.md",
+    "docs/runtime-artifact.md",
+  ]) {
+    assert.ok(fileSet.has(requiredPath), `${requiredPath} should be packaged`);
+  }
+
+  for (const forbiddenPrefix of [
+    ".env",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "DECISIONS.md",
+    "ROADMAP.md",
+    "ROADMAP-ARCHIVE.md",
+    "TODO.md",
+    "data/",
+    "logs/",
+    "scripts/backup-restore-drill.mjs",
+    "scripts/run-regressions.mjs",
+    "scripts/regressions/",
+    "tests/",
+    "playwright.config.js",
+    "tsconfig.json",
+    "vitest.config.mjs",
+    "public/assets/logo-concepts.png",
+    "public/assets/longtail-forge-icon.xcf",
+  ]) {
+    const forbiddenMatch = forbiddenPrefix.endsWith("/")
+      ? (filePath) => filePath.startsWith(forbiddenPrefix)
+      : (filePath) => filePath === forbiddenPrefix;
+    assert.ok(
+      !result.files.some(forbiddenMatch),
+      `${forbiddenPrefix} should be excluded from the runtime artifact`,
+    );
+  }
+
+  assert.match(path.basename(result.artifactPath), new RegExp(`${escapeRegExp(packageJson.version)}\\.tgz$`));
+  const checksumText = await fs.readFile(result.checksumPath, "utf8");
+  assert.equal(checksumText, `${result.checksum}  ${path.basename(result.artifactPath)}\n`);
+  assert.match(result.checksum, /^[a-f0-9]{64}$/);
+} finally {
+  await fs.rm(outputDir, { recursive: true, force: true });
+}
+
+console.log("Runtime artifact boundary regression passed.");
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

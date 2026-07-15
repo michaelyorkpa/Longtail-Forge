@@ -2,7 +2,7 @@
 
 This is the one supported Longtail Forge private-internet-preview topology for the 0.33.16 security closeout. Caddy is the only supported public edge. It uses one Caddy 2 process as the public TLS edge and one Longtail Forge Node process bound to loopback. SQLite, local Files storage, and either the inline worker or one same-host worker remain inside the same installation boundary.
 
-This document is an operational-security contract, not packaging automation. Reproducible artifacts, Docker, tested backup/restore, CI, and release operations remain 0.33.17 prerequisites. Do not send friends-and-family invitations until those prerequisites and the manual review in [Operational Security](operational-security.md#manual-security-review-before-invitations) pass.
+This document is the public-edge operational-security contract. The reproducible runtime artifact plus Docker and bare-metal application paths are defined in [Docker and Bare-Metal Preview Deployment](preview-deployment.md), and the tested whole-instance recovery path is in [Baseline Backup and Restore](backup-restore.md). Docker acceptance, CI, release operations, and the manual review in [Operational Security](operational-security.md#manual-security-review-before-invitations) remain prerequisites; do not send friends-and-family invitations until they pass.
 
 ## Supported topology
 
@@ -112,16 +112,16 @@ The repeatable local form of this review is `node scripts/reference-caddy-securi
 
 ## Manual upgrade and rollback
 
-Until 0.33.17 produces a reproducible runtime artifact, upgrades are maintainer-operated staged source deployments only:
+The exact Docker and bare-metal upgrade procedures are defined in [Docker and Bare-Metal Preview Deployment](preview-deployment.md), and the backup/restore commands they consume are defined in [Baseline Backup and Restore](backup-restore.md). Upgrades remain maintainer-operated and invitations remain blocked on the other preview gates:
 
 1. Pause invitations and changes, review the exact candidate commit and changelog, complete the manual security checklist, and take the tested complete backup required by 0.33.17. If tested backup/restore is unavailable, stop; the preview is not upgrade-ready.
-2. Keep the currently running tree untouched. Stage the candidate in a separate non-public directory, materialize the protected environment outside the tree, run `npm ci --omit=dev`, and run the release gates in the reviewed source checkout before promotion. Do not `git pull` over the live tree.
+2. Keep the currently running installation untouched. Verify and extract the checksummed versioned runtime artifact into a separate non-public directory, materialize the protected environment outside the tree, run `npm ci --omit=dev`, and run the release gates in the reviewed source checkout before promotion. Do not `git pull` over the live installation.
 3. Stop public traffic at Caddy, then stop the app and separate worker. Preserve logs and confirm the backup completed before allowing startup migrations.
 4. Point the service definition at the staged candidate, start the app/worker, require direct and proxied readiness, then test login, session, workspace access, Files access, and one representative workflow before returning traffic.
 5. If verification fails, remove public traffic and stop the candidate. Application rollback may point at the prior staged tree only when its schema compatibility with already-applied forward migrations is proven. Otherwise restore the complete known-good backup into an isolated path, validate integrity/readiness, then deliberately promote it. Never mix an old database with new Files data or reverse applied migrations by hand.
 6. Record candidate/prior versions, backup identity, migrations, commands, checks, decision, operator, timestamps, and any recovery action in the private operational record.
 
-0.33.17 will replace this source-operated boundary with versioned artifacts, backup/restore tooling, and exercised release/rollback procedures. There is no in-app updater or automatic rollback.
+The remaining 0.33.17 slices add demo data and release operations around the artifact, deployment, and recovery boundaries. There is no in-app updater or automatic rollback.
 
 ## Emergency containment and access revocation
 
@@ -136,7 +136,7 @@ For suspected active exploitation, first remove public traffic at Caddy while pr
 - HSTS begins with the bounded 300-second rollout; preload and long-lived promotion require the documented observation process. CSP retains the reviewed same-origin style compatibility allowance.
 - TOTP, passkeys, SSO, risk scoring, device history, PostgreSQL, S3-backed Files, worker fleets, WAF/IDS integration, and automatic updates/rollback are not part of this release.
 - Health and readiness are intentionally public and binary. They are not authentication, deep diagnostics, monitoring history, or proof that every workflow is correct.
-- Packaging, public-release CI, tested backup/restore, sanitized demo data, and final invitation readiness remain 0.33.17 work. Until those gates pass, this reference closeout does not authorize invitations.
+- Public-release CI, Docker acceptance, sanitized demo data, and final invitation readiness remain 0.33.17 work. Until those gates pass, this reference closeout does not authorize invitations.
 
 ## Reference sources
 

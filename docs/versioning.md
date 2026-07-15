@@ -35,7 +35,10 @@ After the helper runs:
    The conductor aggregates these maintenance gates and reports warning-only documentation/licensing results without replacing their existing policy. Each underlying package script remains independently runnable.
 
 4. Run the normal release verification, including the separate full `npm run check` regression and lint gate.
-5. Restart the app and verify `/api/app-info` reports the intended version and served HTML uses the same value for local JavaScript/CSS URLs.
+5. Build the checksummed runtime artifact with `npm run artifact:build`. For a release candidate, run `npm run artifact:smoke` to prove a clean `npm ci --omit=dev` install and boot without development dependencies; see [Runtime Artifact](runtime-artifact.md).
+6. For a deployable preview candidate, exercise the staged bare-metal and container paths against the retained prior artifact with `npm run bare-metal:smoke -- --previous-artifact <path>` and `npm run container:smoke -- --previous-artifact <path> --pull`. Both must prove persistence, readiness/version reporting, backup-first replacement, and restored rollback; a missing Docker engine is a failed prerequisite. See [Docker and Bare-Metal Preview Deployment](preview-deployment.md).
+7. Run `npm run backup:drill` after any material database, Files, Secure Notes encryption, archive, or restore change. A preview candidate also needs a protected real-install backup inspected through the shipped CLI and a recorded representative restore; see [Baseline Backup and Restore](backup-restore.md).
+8. Restart the app and verify `/api/app-info` reports the intended version and served HTML uses the same value for local JavaScript/CSS URLs.
 
 ## Literal Guardrail
 

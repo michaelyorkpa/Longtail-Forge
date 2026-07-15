@@ -4,6 +4,8 @@
 # Dependencies
 node_modules/
 .eslintcache
+dist/
+backups/
 
 # Local runtime data
 data/*

@@ -79,9 +79,11 @@ Do not run SQLite small-office mode with:
 
 ## Backups
 
-Backups should preserve the database and local runtime data together. Include the SQLite database file and any active SQLite sidecar files, such as WAL or shared-memory files, or use a SQLite-aware backup method. Also include the configured data directory and local file-storage root when attachments are stored locally. The local file-storage root defaults to `<data-dir>/files` through `LONGTAIL_LOCAL_STORAGE_ROOT`.
+Use the stopped-app whole-instance CLI in [Baseline Backup and Restore](backup-restore.md). It uses SQLite's backup API to produce one consolidated integrity-checked database, includes the configured local Files root, records migration/provider metadata and checksums, and requires separate Secure Notes key recovery when encrypted records exist. Raw database-only copies, live Files-directory copies, or unverified volume snapshots are not the supported complete backup format.
 
-For the safest filesystem backup, stop the app first or take a storage snapshot that is consistent across the database and local runtime data. Always test restore into a separate install before relying on a backup plan.
+The archive contains one consolidated database file rather than copying live WAL or shared-memory sidecars. During destructive replacement, the restore command moves the current database file plus any WAL/SHM sidecars aside as one rollback set before promoting the consolidated restored database.
+
+Keep the archive and sidecar outside the live data tree on protected local/off-host storage. Test the exact archive through the disposable restore drill and a representative isolated installation before relying on it for upgrade or incident recovery.
 
 ## File Storage Providers
 

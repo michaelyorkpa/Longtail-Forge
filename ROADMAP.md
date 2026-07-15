@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.17.1`.
+Active cursor: `0.33.17.2`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
@@ -27,19 +27,6 @@ Non-goals:
 
 - No hosted/SaaS deployment automation, PostgreSQL service profile before PostgreSQL exists, automatic customer-instance deployment, enterprise certification, or automatic updater.
 
-### Version 0.33.17.1 - Runtime-only packaging boundary
-
-**Model: Medium Effort** — The artifact boundary is well specified, but omissions must be proven in a clean environment.
-
-- [ ] Define runtime versus development/test files while keeping `npm start` as `node server.js` unless the runtime contract changes deliberately.
-- [ ] Keep runtime validation dependencies; exclude tests, regression tooling, development fixtures, local secrets, caches, live data, and unrelated planning documents.
-- [ ] Produce a versioned runtime artifact and checksum, boot it in a clean environment, and prove it does not import development-only dependencies.
-- [ ] Document the artifact inventory and the settled runtime install command.
-
-Acceptance criteria:
-
-- A checksummed, versioned, secret-free runtime artifact boots cleanly without repository-only development dependencies.
-
 ### Version 0.33.17.2 - Docker and manual bare-metal preview paths
 
 **Model: High Effort** — Packaging must preserve SQLite durability, least privilege, health reporting, and recoverable manual upgrades.
@@ -53,39 +40,6 @@ Acceptance criteria:
 Acceptance criteria:
 
 - A clean Docker deployment and the documented bare-metal path both persist data, report health/readiness, and complete a manual backup-first upgrade and rollback exercise.
-
-### Version 0.33.17.3 - Baseline backup and restore, moved from 0.38.4
-
-**Model: High Effort** — A backup is only valid when database, files, encryption prerequisites, compatibility, and destructive restore behavior are proven together.
-
-- [ ] Define a versioned backup format containing the SQLite database or provider-appropriate dump, local uploaded/attached files, application version, schema/migration version, UTC timestamp, safe configuration inventory, storage-provider restore metadata, manifest, checksums, and an explicit inclusion/exclusion list.
-- [ ] Do not silently place the Secure Notes master key in an ordinary plaintext archive. Require a separately protected operator key backup or separately encrypted operator-secret bundle.
-- [ ] Warn and refuse to describe a backup as fully restorable when encrypted note data exists but its key-recovery prerequisite is absent.
-- [ ] Prefer a CLI/operator path first. Keep archives outside public/static downloads with restrictive permissions and predictable cleanup; any later web-admin download must be super-admin-only, audited, non-cacheable, one-time or short-lived, and never available to an ordinary workspace administrator.
-- [ ] Audit backup creation, download, and restore. Validate archive type, manifest, checksums, version compatibility, expected paths, traversal attempts, and unexpected files before restore.
-- [ ] Require a stopped app or maintenance mode, a pre-restore backup, and explicit destructive confirmation; restore database and files consistently, verify `/readyz`, application version, and schema, and document failed-restore rollback.
-- [ ] Perform an automated or scripted backup-to-restore drill in a disposable environment; “backup created” alone is not acceptance.
-
-Acceptance criteria:
-
-- A disposable installation can be backed up and restored consistently, including files and required encryption prerequisites, with malicious or incompatible archives rejected safely.
-
-### Version 0.33.17.4 - Seeded development database and sanitized demo workspace
-
-**Model: High Effort** — Deterministic data generation touches permissions and many product states and must never target live data.
-
-- [ ] Keep automated test fixtures, a deterministic developer seed database, and a sanitized demo/preview workspace as three distinct contracts.
-- [ ] Add convention-aligned development seed/reset commands that refuse apparent production/live databases and require an explicitly development-marked environment/data directory.
-- [ ] Use deterministic fake data only; do not commit a generated live database, seed normal installs, use real client/family/financial/customer data, or create a shared production password.
-- [ ] Seed development-only users across Business, Personal, and supported Family workspaces; meaningful roles; clients/projects; due, overdue, upcoming, blocked, recurring, completed, and undated tasks; checklists; next actions; resume context; work-resume state; active/paused/completed timers; manual time; Notes collections/links/tags/revisions/safe Markdown; reusable/active/finalized/partial Lists; harmless tiny Files fixtures; notifications/reminders; Search; Dashboard; and Workbench Focus Selection/Task Focus states.
-- [ ] Commit no Secure Notes plaintext or key material. Give invited users individual accounts through the real workflow.
-- [ ] Allow future Tickets, Knowledge Base, and Creator Studio seed builders to add their scenarios, but do not create a generalized seed registry until at least two real modules need the same extension contract under the Two-Module Rule.
-
-The marketing screenshot and demo-data inventory that consumes this seed contract (safe fake scenarios, capture list, naming, and refresh process) is in [docs/marketing/screenshot-and-demo-data-plan.md](docs/marketing/screenshot-and-demo-data-plan.md).
-
-Acceptance criteria:
-
-- A developer can reproducibly seed and safely reset rich fake product data, while production-like targets, real data, shared preview credentials, and secret key material remain protected.
 
 ### Version 0.33.17.5 - Branch Topology, GitHub Actions, Releases, and Solo-Maintainer Workflow
 

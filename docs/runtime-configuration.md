@@ -10,6 +10,14 @@ Process environment values win over `.env` values. This lets shells, service man
 
 As of 0.33.16.12, the supported private-internet posture is also closed around the single-proxy Caddy operator path in [Reference Internet Deployment](internet-deployment.md); that runbook owns DNS/TLS, ports, listener and filesystem permissions, forwarding behavior, logging, backup location, upgrade/emergency procedures, live proxy proof, and known limitations.
 
+As of 0.33.17.1, the supported runtime can be installed from the checksummed allowlisted tarball described in [Runtime Artifact](runtime-artifact.md). The artifact carries this configuration contract and `.env.example`, but never a real `.env`, secret, database, uploaded file, log, cache, or other installation state. Operators still supply the environment separately and install the pruned runtime dependency graph with `npm ci --omit=dev`.
+
+As of 0.33.17.2, [Docker and Bare-Metal Preview Deployment](preview-deployment.md) owns the supported Compose and staged-release installation shapes. Compose variables such as image tag, loopback host port, volume name, network range, and backup directory configure orchestration; they do not become application settings. Runtime secrets and application variables still come from a protected external environment file, while the container fixes database and Files paths to its one local persistent data volume.
+
+As of 0.33.17.3, [Baseline Backup and Restore](backup-restore.md) owns the safe configuration inventory recorded in recovery archives. It records only provider and operating-mode classifications needed for restore review; it never copies `.env`, secrets, endpoints, credentials, the Secure Notes master key, or raw protected paths into the archive.
+
+As of 0.33.17.4, [Development and Demo Data](development-and-demo-data.md) owns the local seed/reset environment boundary. Those commands require `LONGTAIL_ENV=development`, an explicitly marked and contained data directory, and a unique `SUPER_ADMIN_PASSWORD`; they refuse production/live/customer targets, clear Secure Notes key variables, and never change the production runtime contract or seed a normal startup.
+
 ## Current Active Settings
 
 ### App

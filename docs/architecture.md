@@ -116,7 +116,7 @@ Framework/core includes:
 * Timezone normalization helpers
 * Error handling
 * Database migration runner
-* Backup/restore foundation planned for private-preview readiness in 0.33.17
+* Baseline checksummed SQLite/local-Files backup and destructive restore CLI, with separate Secure Notes key recovery and a disposable restore drill
 * Setup/install foundation later
 
 These systems are not optional workflow features. They are the foundation other features depend on.

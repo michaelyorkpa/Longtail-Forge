@@ -1,0 +1,64 @@
+name: longtail-forge
+
+services:
+  longtail-forge:
+    image: ${LONGTAIL_IMAGE:-longtail-forge:local}
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - path: ${LONGTAIL_ENV_FILE:-.env}
+        required: true
+    environment:
+      LONGTAIL_ENV: ${LONGTAIL_ENV:-production}
+      HOST: 0.0.0.0
+      PORT: 8001
+      LONGTAIL_DATA_DIR: /var/lib/longtail-forge
+      LONGTAIL_DATABASE_FILE: /var/lib/longtail-forge/longtail-forge.db
+      LONGTAIL_LOCAL_STORAGE_ROOT: /var/lib/longtail-forge/files
+      TRUST_PROXY: ${LONGTAIL_DOCKER_TRUST_PROXY:-172.30.17.1/32}
+      LONGTAIL_FILE_SCANNER: ${LONGTAIL_FILE_SCANNER:-clamd}
+      LONGTAIL_CLAMD_HOST: ${LONGTAIL_CLAMD_HOST:-host.docker.internal}
+      LONGTAIL_CLAMD_PORT: ${LONGTAIL_CLAMD_PORT:-3310}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 127.0.0.1:${LONGTAIL_HOST_PORT:-8001}:8001
+    volumes:
+      - longtail-data:/var/lib/longtail-forge
+      - type: bind
+        source: ${LONGTAIL_BACKUP_DIR:-./backups}
+        target: /var/backups/longtail-forge
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=0700,uid=10001,gid=10001
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - require('node:http').get('http://127.0.0.1:8001/readyz',r=>{r.resume();process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
+    stop_grace_period: 30s
+    networks:
+      preview-internal:
+
+volumes:
+  longtail-data:
+    name: ${LONGTAIL_DATA_VOLUME:-longtail-forge-data}
+
+networks:
+  preview-internal:
+    name: ${LONGTAIL_DOCKER_NETWORK:-longtail-forge-preview}
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${LONGTAIL_DOCKER_SUBNET:-172.30.17.0/24}
+          gateway: ${LONGTAIL_DOCKER_GATEWAY:-172.30.17.1}

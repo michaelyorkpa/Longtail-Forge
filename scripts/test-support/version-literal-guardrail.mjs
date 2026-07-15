@@ -7,6 +7,7 @@ const EXCLUDED_DIRECTORIES = new Set([
   ".git",
   "coverage",
   "data",
+  "dist",
   "logs",
   "node_modules",
 ]);
@@ -99,7 +100,7 @@ async function walkDirectory(rootDir, relativeDir, entries) {
       }
       continue;
     }
-    if (!entry.isFile() || EXCLUDED_FILES.has(entry.name)) {
+    if (!entry.isFile() || EXCLUDED_FILES.has(entry.name) || entry.name.startsWith(".node-server")) {
       continue;
     }
 

@@ -10,9 +10,9 @@ This plan coordinates marketing screenshots and demo recordings with the **seede
 
 ## Coordination with the seeded dev database (0.33.17.4)
 
-The roadmap seed builder (when it lands) is expected to seed Business/Personal/Family workspaces with roles, clients/projects, a full spread of task states (due, overdue, upcoming, blocked, recurring, completed, undated), checklists, next actions, resume context, work-resume state, active/paused/completed timers, manual time, Notes (collections/links/tags/revisions/safe Markdown), reusable/active/finalized/partial Lists, tiny harmless Files fixtures, notifications/reminders, Search, Dashboard, and Workbench Focus Selection / Task Focus states.
+The shipped `sanitized-demo` profile seeds Business/Personal/Family workspaces with roles, clients/projects, a full spread of task states (due, overdue, upcoming, blocked, recurring, completed, undated), checklists, next actions, resume context, work-resume state, active/paused/completed timers, manual time, Notes (collections/links/tags/revisions/safe Markdown), reusable/active/finalized/partial Lists, tiny harmless Files fixtures, notifications/reminders, Search, Dashboard, and Workbench Focus Selection / Task Focus inputs.
 
-Until that seed builder ships, screenshots can be produced by **manually** entering the same safe fake data described below. When the seed builder ships, prefer it for reproducibility. Marketing must not commit a generated live database to the repo.
+Set a unique local `SUPER_ADMIN_PASSWORD`, run `npm run demo:data:seed`, and point the development server at `data/sanitized-demo` as documented in [Development and Demo Data](../development-and-demo-data.md). Use `npm run demo:data:reset` before rebuilding the capture data. The generated database, Files objects, operator credential, and any capture-time session remain local runtime material and must not be committed or reused for invited users.
 
 ## Data scenarios
 
@@ -99,7 +99,7 @@ Keep the surface slugs identical to the inventory IDs above.
 ## Refresh process after UI changes
 
 1. When a captured surface changes materially (a view conversion, a modal/layout change, a version bump that alters the shot), flag the affected inventory IDs.
-2. Re-seed the demo/preview workspace (manually or via the seed builder once it exists) to the current safe scenario.
+2. Run `npm run demo:data:reset`, then `npm run demo:data:seed` to restore the deterministic safe scenario.
 3. Re-capture the flagged IDs at both desktop and mobile viewports.
 4. Update filenames with the new version/date and update the manifest.
 5. Update any marketing/site references to point at the new files.
