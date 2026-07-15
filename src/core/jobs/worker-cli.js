@@ -17,13 +17,17 @@ import { jobsService } from "../../services/jobs.service.js";
 import { notificationsService } from "../../services/notifications.service.js";
 import { registerSearchIndexJobHandlers } from "../../services/search-index-jobs.service.js";
 import { queueTaskRecurrenceSweepJobs, queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../../modules/tasks/task-jobs.service.js";
+import { assertRuntimeDataPathsReady } from "../runtime-readiness.js";
+import { operationalLogger } from "../operational-logger.js";
 
 let workerLock = null;
 let shuttingDown = false;
 
 async function startWorkerProcess(options = {}) {
   const logger = options.logger || console;
-  logRuntimeConfigWarnings(logger.warn?.bind(logger) || console.warn);
+  logRuntimeConfigWarnings(config.environment === "production"
+    ? () => operationalLogger.warn("runtime.configuration.unsafe_override")
+    : (logger.warn?.bind(logger) || console.warn));
 
   if (config.worker.mode === "disabled") {
     logger.log("[job-worker] mode=disabled state=disabled");
@@ -34,7 +38,9 @@ async function startWorkerProcess(options = {}) {
     throw new Error("node worker.js requires LONGTAIL_WORKER_MODE=separate. Use inline mode from the app server, or disabled mode for troubleshooting.");
   }
 
+  await assertRuntimeDataPathsReady();
   await filesService.assertConfiguredFileStorageProviderReady();
+  await filesService.assertConfiguredFileScannerReady();
   workerLock = await acquireWorkerProcessLock();
   logger.log(`[job-worker] acquired_lock=${workerLock.lockPath}`);
 
@@ -61,6 +67,7 @@ async function startWorkerProcess(options = {}) {
     mode: "separate",
     workerId: config.worker.id,
   });
+  await workerLock.markReady();
   logger.log(formatJobWorkerStatus());
   registerShutdownHandlers(logger);
 

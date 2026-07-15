@@ -1,4 +1,31 @@
-import { pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
+import { argon2, pbkdf2, randomBytes, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+const deriveArgon2 = promisify(argon2);
+const derivePbkdf2 = promisify(pbkdf2);
+
+const CURRENT_PASSWORD_HASH_POLICY = Object.freeze({
+  algorithm: "argon2id",
+  version: 19,
+  memory: 65_536,
+  passes: 3,
+  parallelism: 1,
+  saltLength: 16,
+  tagLength: 32,
+});
+const DUMMY_PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=1$NBqTO46AQgNS53F_RFgmSA$Du7-QMwD76ISJkDuAIDpD4AGeFRtmqMWnbKv_NtJGco";
+const ARGON2_LIMITS = Object.freeze({
+  maximumMemory: 262_144,
+  maximumParallelism: 8,
+  maximumPasses: 10,
+  minimumMemory: 7_168,
+  minimumParallelism: 1,
+  minimumPasses: 1,
+});
+const PBKDF2_LIMITS = Object.freeze({
+  maximumIterations: 2_000_000,
+  minimumIterations: 10_000,
+});
 
 function createGeneratedPassword() {
   return `Aa1!${randomBytes(18).toString("base64url")}`;
@@ -31,40 +58,174 @@ function validatePassword(password, username) {
   return { valid: errors.length === 0, errors };
 }
 
-function hashPassword(password) {
-  const salt = randomBytes(16).toString("base64url");
-  const iterations = 310000;
-  const digest = "sha256";
-  const keyLength = 32;
-  const hash = pbkdf2Sync(password, salt, iterations, keyLength, digest).toString("base64url");
+async function hashPassword(password) {
+  const policy = CURRENT_PASSWORD_HASH_POLICY;
+  const salt = randomBytes(policy.saltLength);
+  const hash = Buffer.from(await deriveArgon2(policy.algorithm, {
+    memory: policy.memory,
+    message: String(password),
+    nonce: salt,
+    parallelism: policy.parallelism,
+    passes: policy.passes,
+    tagLength: policy.tagLength,
+  }));
 
-  return `pbkdf2_${digest}$${iterations}$${salt}$${hash}`;
+  return `$${policy.algorithm}$v=${policy.version}$m=${policy.memory},t=${policy.passes},p=${policy.parallelism}$${salt.toString("base64url")}$${hash.toString("base64url")}`;
 }
 
-function verifyPassword(password, storedPassword) {
-  const [algorithm, iterationsText, salt, storedHash] = String(storedPassword || "").split("$");
-  const digest = algorithm === "pbkdf2_sha256" ? "sha256" : "";
+async function verifyPassword(password, storedPassword) {
+  const parsed = parsePasswordHash(storedPassword);
+
+  if (!parsed) {
+    return passwordVerificationResult(false, "unknown");
+  }
+
+  if (parsed.algorithm === "argon2id") {
+    const hash = Buffer.from(await deriveArgon2(parsed.algorithm, {
+      memory: parsed.memory,
+      message: String(password),
+      nonce: parsed.salt,
+      parallelism: parsed.parallelism,
+      passes: parsed.passes,
+      tagLength: parsed.hash.length,
+    }));
+    const matches = timingSafeEqualBuffers(hash, parsed.hash);
+    const needsRehash = matches && !usesCurrentPolicy(parsed);
+
+    return passwordVerificationResult(
+      matches,
+      parsed.algorithm,
+      needsRehash,
+      needsRehash ? "parameters_outdated" : null,
+    );
+  }
+
+  const hash = await derivePbkdf2(
+    String(password),
+    parsed.salt,
+    parsed.iterations,
+    parsed.hash.length,
+    "sha256",
+  );
+  const matches = timingSafeEqualBuffers(hash, parsed.hash);
+
+  return passwordVerificationResult(
+    matches,
+    parsed.algorithm,
+    matches,
+    matches ? "legacy_algorithm" : null,
+  );
+}
+
+function parsePasswordHash(storedPassword) {
+  const stored = String(storedPassword || "");
+
+  if (stored.startsWith("$argon2id$")) {
+    return parseArgon2Hash(stored);
+  }
+
+  if (stored.startsWith("pbkdf2_sha256$")) {
+    return parsePbkdf2Hash(stored);
+  }
+
+  return null;
+}
+
+function parseArgon2Hash(stored) {
+  const [empty, algorithm, versionText, parametersText, saltText, hashText, ...extra] = stored.split("$");
+  const parameterMatch = /^m=(\d+),t=(\d+),p=(\d+)$/.exec(parametersText || "");
+  const version = Number.parseInt(String(versionText || "").replace(/^v=/, ""), 10);
+  const memory = Number.parseInt(parameterMatch?.[1], 10);
+  const passes = Number.parseInt(parameterMatch?.[2], 10);
+  const parallelism = Number.parseInt(parameterMatch?.[3], 10);
+  const salt = decodeBase64Url(saltText);
+  const hash = decodeBase64Url(hashText);
+
+  if (
+    empty !== "" ||
+    algorithm !== "argon2id" ||
+    versionText !== `v=${version}` ||
+    version !== 19 ||
+    extra.length > 0 ||
+    !parameterMatch ||
+    !integerInRange(memory, ARGON2_LIMITS.minimumMemory, ARGON2_LIMITS.maximumMemory) ||
+    !integerInRange(passes, ARGON2_LIMITS.minimumPasses, ARGON2_LIMITS.maximumPasses) ||
+    !integerInRange(parallelism, ARGON2_LIMITS.minimumParallelism, ARGON2_LIMITS.maximumParallelism) ||
+    !bufferLengthInRange(salt, 8, 64) ||
+    !bufferLengthInRange(hash, 16, 64)
+  ) {
+    return null;
+  }
+
+  return { algorithm, hash, memory, parallelism, passes, salt, version };
+}
+
+function parsePbkdf2Hash(stored) {
+  const [algorithm, iterationsText, saltText, hashText, ...extra] = stored.split("$");
   const iterations = Number.parseInt(iterationsText, 10);
+  const salt = decodeBase64Url(saltText);
+  const hash = decodeBase64Url(hashText);
 
-  if (!digest || !Number.isFinite(iterations) || !salt || !storedHash) {
-    return false;
+  if (
+    algorithm !== "pbkdf2_sha256" ||
+    iterationsText !== String(iterations) ||
+    extra.length > 0 ||
+    !integerInRange(iterations, PBKDF2_LIMITS.minimumIterations, PBKDF2_LIMITS.maximumIterations) ||
+    !bufferLengthInRange(salt, 8, 128) ||
+    !bufferLengthInRange(hash, 16, 64)
+  ) {
+    return null;
   }
 
-  const keyLength = Math.max(32, Buffer.from(storedHash, "base64url").length);
-  const hash = pbkdf2Sync(password, salt, iterations, keyLength, digest).toString("base64url");
-
-  return timingSafeEqualText(hash, storedHash);
+  return { algorithm, hash, iterations, salt: saltText };
 }
 
-function timingSafeEqualText(left, right) {
-  const leftBuffer = Buffer.from(String(left));
-  const rightBuffer = Buffer.from(String(right));
+function usesCurrentPolicy(parsed) {
+  const policy = CURRENT_PASSWORD_HASH_POLICY;
+  return parsed.algorithm === policy.algorithm &&
+    parsed.version === policy.version &&
+    parsed.memory === policy.memory &&
+    parsed.passes === policy.passes &&
+    parsed.parallelism === policy.parallelism &&
+    parsed.salt.length === policy.saltLength &&
+    parsed.hash.length === policy.tagLength;
+}
 
-  if (leftBuffer.length !== rightBuffer.length) {
-    return false;
+function passwordVerificationResult(matches, algorithm, needsRehash = false, rehashReason = null) {
+  return Object.freeze({ algorithm, matches, needsRehash, rehashReason });
+}
+
+function decodeBase64Url(value) {
+  const text = String(value || "");
+
+  if (!/^[A-Za-z0-9_-]+$/.test(text)) {
+    return null;
   }
 
-  return timingSafeEqual(leftBuffer, rightBuffer);
+  const buffer = Buffer.from(text, "base64url");
+  return buffer.toString("base64url") === text ? buffer : null;
 }
 
-export { createGeneratedPassword, hashPassword, validatePassword, verifyPassword };
+function integerInRange(value, minimum, maximum) {
+  return Number.isSafeInteger(value) && value >= minimum && value <= maximum;
+}
+
+function bufferLengthInRange(buffer, minimum, maximum) {
+  return Buffer.isBuffer(buffer) && buffer.length >= minimum && buffer.length <= maximum;
+}
+
+function timingSafeEqualBuffers(left, right) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+export {
+  CURRENT_PASSWORD_HASH_POLICY,
+  DUMMY_PASSWORD_HASH,
+  createGeneratedPassword,
+  hashPassword,
+  validatePassword,
+  verifyPassword,
+};

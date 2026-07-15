@@ -446,7 +446,7 @@ async function seedUsers({ transaction, hashPassword, profile, seedContext }) {
     display_name: seedContext.superAdmin.display_name || "Scale Seed Super Admin",
   }];
   const rows = [];
-  const hashedPassword = hashPassword(DEFAULT_SEED_PASSWORD);
+  const hashedPassword = await hashPassword(DEFAULT_SEED_PASSWORD);
 
   for (let index = 1; index < profile.users; index += 1) {
     const oneBased = index + 1;

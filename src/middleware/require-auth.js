@@ -18,7 +18,45 @@ async function requireAuth(request, response, next) {
   }
 
   request.session = session;
+  if (session.password_change_required && enforceRequiredPasswordChange(request, response)) {
+    return;
+  }
   next();
+}
+
+function enforceRequiredPasswordChange(request, response) {
+  const pathname = request.path;
+
+  if (request.method === "PUT" && pathname === "/api/user/password") {
+    return false;
+  }
+
+  if (request.method === "GET" && isLoginAssetPath(pathname)) {
+    return false;
+  }
+
+  if (pathname.startsWith("/api/")) {
+    sendJson(response, 403, {
+      code: "PASSWORD_CHANGE_REQUIRED",
+      error: "Change your password before continuing.",
+    });
+    return true;
+  }
+
+  if (request.method === "GET") {
+    response.writeHead(302, {
+      Location: "/login.html?passwordChangeRequired=1",
+      "Cache-Control": "no-store",
+    });
+    response.end();
+    return true;
+  }
+
+  sendJson(response, 403, {
+    code: "PASSWORD_CHANGE_REQUIRED",
+    error: "Change your password before continuing.",
+  });
+  return true;
 }
 
 async function handleUnauthenticatedRequest(request, response, pathname) {

@@ -1,9 +1,12 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { clearInterval, setInterval } from "node:timers";
 import { config } from "../../config.js";
 
 const WORKER_LOCK_FILE = ".longtail-forge-worker.lock";
+const MIN_HEARTBEAT_INTERVAL_MS = 5_000;
+const MAX_HEARTBEAT_INTERVAL_MS = 30_000;
 
 async function acquireWorkerProcessLock() {
   const lockPath = getWorkerProcessLockPath();
@@ -17,6 +20,7 @@ async function acquireWorkerProcessLock() {
       acquiredAt: new Date().toISOString(),
       hostname: os.hostname(),
       pid: process.pid,
+      ready: false,
       workerId: config.worker.id,
     }, null, 2));
   } catch (error) {
@@ -36,18 +40,70 @@ async function acquireWorkerProcessLock() {
 
   await handle.close();
   let released = false;
+  const heartbeatIntervalMs = resolveWorkerHeartbeatIntervalMs();
+  let heartbeatTimer = null;
 
   return {
+    heartbeatIntervalMs,
     lockPath,
+    async markReady() {
+      if (released || heartbeatTimer) {
+        return;
+      }
+
+      await fs.writeFile(lockPath, JSON.stringify({
+        hostname: os.hostname(),
+        pid: process.pid,
+        ready: true,
+        readyAt: new Date().toISOString(),
+        workerId: config.worker.id,
+      }, null, 2));
+      heartbeatTimer = setInterval(() => {
+        const now = new Date();
+        void fs.utimes(lockPath, now, now).catch(() => {});
+      }, heartbeatIntervalMs);
+      heartbeatTimer.unref();
+    },
     async release() {
       if (released) {
         return;
       }
 
       released = true;
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+      }
       await fs.rm(lockPath, { force: true });
     },
   };
+}
+
+async function readSeparateWorkerReadiness(options = {}) {
+  const lockPath = options.lockPath || getWorkerProcessLockPath();
+  const nowMs = Number.isFinite(options.nowMs) ? options.nowMs : Date.now();
+  const staleAfterMs = options.staleAfterMs || resolveWorkerHeartbeatStaleAfterMs();
+
+  try {
+    const heartbeat = JSON.parse(await fs.readFile(lockPath, "utf8"));
+    if (heartbeat?.ready !== true) {
+      return false;
+    }
+    const stats = await fs.stat(lockPath);
+    return stats.isFile() && nowMs - stats.mtimeMs <= staleAfterMs;
+  } catch {
+    return false;
+  }
+}
+
+function resolveWorkerHeartbeatIntervalMs() {
+  return Math.min(
+    MAX_HEARTBEAT_INTERVAL_MS,
+    Math.max(MIN_HEARTBEAT_INTERVAL_MS, config.worker.pollIntervalMs),
+  );
+}
+
+function resolveWorkerHeartbeatStaleAfterMs() {
+  return resolveWorkerHeartbeatIntervalMs() * 3;
 }
 
 function getWorkerProcessLockPath() {
@@ -57,4 +113,6 @@ function getWorkerProcessLockPath() {
 export {
   acquireWorkerProcessLock,
   getWorkerProcessLockPath,
+  readSeparateWorkerReadiness,
+  resolveWorkerHeartbeatStaleAfterMs,
 };

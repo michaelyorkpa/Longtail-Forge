@@ -1,6 +1,7 @@
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { auditService } from "./audit.service.js";
+import { securityEventsService } from "../security/security-events.js";
 import { permissionsService } from "./permissions.service.js";
 import {
   FRAMEWORK_SETTING_NAMESPACE,
@@ -162,6 +163,24 @@ async function save(payload, session) {
   }
 
   await auditService.cleanupExpired(session.workspace_id, data.audit.retentionDays);
+
+  if (auditSettingChanged) {
+    await securityEventsService.record({
+      actorUserId: session.user_id,
+      actorUserName: session.username,
+      eventType: "security.configuration.audit_updated",
+      ipAddress: session.ip_address,
+      metadata: {
+        logging_enabled: data.audit.loggingEnabled,
+        retention_days: data.audit.retentionDays,
+      },
+      outcome: "success",
+      reasonClass: "security_configuration_changed",
+      recordId: session.workspace_id,
+      session,
+      workspaceId: session.workspace_id,
+    });
+  }
 
   return {
     data: await readInternal(session),

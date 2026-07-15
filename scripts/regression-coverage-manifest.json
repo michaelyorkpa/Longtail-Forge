@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 350,
+    "discoveredScripts": 362,
     "legacyScripts": 312,
-    "releaseGateScripts": 23,
+    "releaseGateScripts": 24,
     "areaCounts": {
       "dashboard": 1,
       "database": 27,
       "docs": 9,
       "files": 44,
-      "framework": 45,
+      "framework": 57,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -28,16 +28,16 @@
       "workbench": 27
     },
     "tierCounts": {
-      "focused": 162,
-      "integration": 156,
-      "release-gate": 23,
+      "focused": 171,
+      "integration": 158,
+      "release-gate": 24,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 137,
+      "isolated-database": 144,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 178
+      "static": 183
     }
   },
   "coverageFamilies": [
@@ -2491,6 +2491,54 @@
     },
     {
       "area": "framework",
+      "description": "Proves login and password-sensitive throttling is trusted-IP keyed, account-aware, non-enumerating, configurable, and event emitting.",
+      "id": "framework.authentication-throttle",
+      "legacy": false,
+      "path": "scripts/regressions/framework/authentication-throttle.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "security",
+        "throttling"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the centralized browser header policy, compatible CSP inventory, trusted-HTTPS HSTS retention, and private-response cache boundary.",
+      "id": "framework.browser-security-headers",
+      "legacy": false,
+      "path": "scripts/regressions/framework/browser-security-headers.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "browser",
+        "cache",
+        "csp",
+        "headers",
+        "security"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves browser mutations share one origin, token, and content-type boundary while bearer API calls remain independent.",
+      "id": "framework.csrf-protection",
+      "legacy": false,
+      "path": "scripts/regressions/framework/csrf-protection.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "authentication",
+        "browser",
+        "csrf",
+        "security"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves generic workspace/module settings persistence, scoped accessors, opt-in persistence handlers, and post-save effects.",
       "id": "framework.generic-settings-engine",
       "legacy": false,
@@ -2516,6 +2564,88 @@
         "framework",
         "imports",
         "modules"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves secret-free JSON production logs, server-generated request correlation, minimal health/readiness responses, and fail-closed readiness checks.",
+      "id": "framework.operational-security-basics",
+      "legacy": false,
+      "path": "scripts/regressions/framework/operational-security-basics.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "health",
+        "logging",
+        "production",
+        "security",
+        "startup"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves new Argon2id hashes, bounded constant-time verification, legacy PBKDF2 login upgrades, safe rehash events, and centralized async credential writes.",
+      "id": "framework.password-hashing-modernization",
+      "legacy": false,
+      "path": "scripts/regressions/framework/password-hashing-modernization.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "passwords",
+        "security"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves admin reset forces a restricted next-login password change, remains scoped and throttled, emits safe events, and never logs generated credentials.",
+      "id": "framework.password-reset-hardening",
+      "legacy": false,
+      "path": "scripts/regressions/framework/password-reset-hardening.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "passwords",
+        "permissions",
+        "security"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves production startup rejects unsafe credential, transport, scanner, data-path, logging, and diagnostic combinations unless a narrow override is explicit.",
+      "id": "framework.production-configuration-hardening",
+      "legacy": false,
+      "path": "scripts/regressions/framework/production-configuration-hardening.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "configuration",
+        "files",
+        "production",
+        "security",
+        "startup"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the supported private-preview Caddy topology, operator controls, known limits, and executable TLS proxy smoke contract stay aligned.",
+      "id": "framework.reference-internet-deployment",
+      "legacy": false,
+      "path": "scripts/regressions/framework/reference-internet-deployment.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "authentication",
+        "deployment",
+        "proxy",
+        "security",
+        "tls"
       ],
       "tier": "release-gate"
     },
@@ -2587,6 +2717,23 @@
     },
     {
       "area": "framework",
+      "description": "Proves consolidated security-event persistence, safe failed-login records, admin-only workspace views, retention, and non-blocking auth logging.",
+      "id": "framework.security-event-logging",
+      "legacy": false,
+      "path": "scripts/regressions/framework/security-event-logging.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "audit",
+        "authentication",
+        "permissions",
+        "security",
+        "workspace-isolation"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves expired protected-app sessions surface one framework-owned foreground warning above open editors.",
       "id": "framework.session-auth-warning",
       "legacy": false,
@@ -2597,6 +2744,22 @@
         "authentication",
         "modal",
         "session"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves immediate single/bulk revocation, password and deactivation forced logout, safe admin references, workspace boundaries, and security events.",
+      "id": "framework.session-revocation",
+      "legacy": false,
+      "path": "scripts/regressions/framework/session-revocation.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "permissions",
+        "security",
+        "sessions"
       ],
       "tier": "focused"
     },
@@ -2627,6 +2790,37 @@
         "modules",
         "permissions",
         "settings"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves production public URL policy, cookie attributes, trusted effective HTTPS, and HSTS gating fail closed at direct and proxy edges.",
+      "id": "framework.tls-cookie-posture",
+      "legacy": false,
+      "path": "scripts/regressions/framework/tls-cookie-posture.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "cookies",
+        "hsts",
+        "security",
+        "tls"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves trusted proxy request context rejects forged forwarding headers and secures cookies behind trusted TLS termination.",
+      "id": "framework.trusted-proxy-request-context",
+      "legacy": false,
+      "path": "scripts/regressions/framework/trusted-proxy-request-context.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "authentication",
+        "cookies",
+        "security"
       ],
       "tier": "focused"
     },

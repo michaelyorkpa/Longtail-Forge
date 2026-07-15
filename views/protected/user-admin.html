@@ -92,6 +92,16 @@
             <ul class="workspace-membership-list" data-workspace-membership-list></ul>
           </fieldset>
 
+          <fieldset class="settings-fieldset user-session-editor" data-user-session-panel>
+            <legend>Active Sessions</legend>
+            <p class="muted-text">Review and revoke this user&apos;s sessions connected to the current workspace. Session credentials are never displayed.</p>
+            <div class="form-actions user-session-actions">
+              <button type="button" data-refresh-user-sessions>Refresh Sessions</button>
+              <button type="button" class="danger-button" data-revoke-user-sessions>Log Out Workspace Sessions</button>
+            </div>
+            <ul class="user-session-list" data-user-session-list></ul>
+          </fieldset>
+
           <fieldset class="settings-fieldset role-assignment-editor">
             <legend>Role Assignments</legend>
 

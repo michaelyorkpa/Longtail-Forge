@@ -7,8 +7,16 @@ import { workspacesRepository } from "../repositories/workspaces.repo.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { config } from "../config.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
+import {
+  AUTHENTICATION_THROTTLE_MESSAGE,
+  authenticationThrottle,
+  emitAuthenticationThrottleLockout,
+} from "../security/auth-throttle.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
+import { sessionsService } from "./sessions.service.js";
+import { emitPasswordResetSecurityEvent } from "../security/password-events.js";
+import { securityEventsService } from "../security/security-events.js";
 import { AppError } from "../utils/app-error.js";
 import {
   getWorkspaceCapabilities,
@@ -87,7 +95,7 @@ async function create(payload, session) {
       altEmail: normalizeOptionalEmail(payload.altEmail),
       timezone: normalizeTimezone(payload.timezone),
     },
-    hashPassword(initialPassword),
+    await hashPassword(initialPassword),
   );
   const membership = await userWorkspacesRepository.upsert({
     userId: user.user_id,
@@ -133,13 +141,13 @@ async function create(payload, session) {
   };
 }
 
-async function action({ payload = {}, session, userId, action: userAction }) {
+async function action({ payload = {}, session, userId, action: userAction, context = {} }) {
   if (!userId || !userAction) {
     throw new AppError("User action was not found.", 404);
   }
 
   if (userAction === "reset-password") {
-    return resetPassword(session, userId);
+    return resetPassword(session, userId, context);
   }
 
   if (userAction === "update") {
@@ -147,7 +155,7 @@ async function action({ payload = {}, session, userId, action: userAction }) {
   }
 
   if (userAction === "deactivate") {
-    return deactivate(session, userId);
+    return deactivate(session, userId, context);
   }
 
   if (userAction === "reactivate") {
@@ -220,12 +228,24 @@ async function update(payload, session, userId) {
   };
 }
 
-async function resetPassword(session, userId) {
+async function resetPassword(session, userId, context = {}) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
   const user = await usersRepository.readById(session.workspace_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
+  }
+
+  const throttleContext = {
+    actorUserId: session.user_id,
+    ipAddress: context.ipAddress || session.ip_address,
+    scope: "admin-password-reset",
+    username: user.username,
+    workspaceId: session.workspace_id,
+  };
+
+  if (authenticationThrottle.check(throttleContext).blocked) {
+    throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
   }
 
   const initialPassword = createGeneratedPassword();
@@ -235,7 +255,16 @@ async function resetPassword(session, userId) {
     throw new AppError("Generated password did not meet password requirements.", 500);
   }
 
-  await usersRepository.updatePassword(session.workspace_id, userId, hashPassword(initialPassword));
+  await usersRepository.updatePassword(session.workspace_id, userId, await hashPassword(initialPassword), {
+    passwordChangeRequired: true,
+  });
+  const revocation = await sessionsService.revokeAllForUser({
+    actorSession: session,
+    currentSessionId: context.currentSessionId,
+    reason: "password_reset",
+    targetUser: user,
+    workspaceId: session.workspace_id,
+  });
   await auditService.record({
     session,
     action: "user_password_reset",
@@ -249,17 +278,29 @@ async function resetPassword(session, userId) {
     metadata: {
       reset_user_id: userId,
       reset_username: user.username,
+      revoked_sessions: revocation.revokedCount,
+      password_change_required: true,
     },
   });
+  await emitPasswordResetSecurityEvent({
+    revokedSessionCount: revocation.revokedCount,
+    session,
+    targetUser: user,
+  });
+  const throttleResult = authenticationThrottle.recordSensitiveAction(throttleContext);
+  await emitAuthenticationThrottleLockout(throttleContext, throttleResult);
 
   return {
-    user: userRowToAppValue(user),
+    user: {
+      ...userRowToAppValue(user),
+      passwordChangeRequired: true,
+    },
     users: await readUsersWithMemberships(session),
     initialPassword,
   };
 }
 
-async function deactivate(session, userId) {
+async function deactivate(session, userId, context = {}) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
   const user = await usersRepository.readById(session.workspace_id, userId);
 
@@ -279,6 +320,13 @@ async function deactivate(session, userId) {
   });
 
   await usersRepository.updateStatus(session.workspace_id, userId, "inactive");
+  const revocation = await sessionsService.revokeAllForUser({
+    actorSession: session,
+    currentSessionId: context.currentSessionId,
+    reason: "user_deactivated",
+    targetUser: user,
+    workspaceId: session.workspace_id,
+  });
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
   const nextMembership = await userWorkspacesRepository.updateStatus(userId, session.workspace_id, "inactive");
   const updatedUser = {
@@ -299,7 +347,23 @@ async function deactivate(session, userId) {
     metadata: {
       old_status: user.user_status,
       new_status: "inactive",
+      revoked_sessions: revocation.revokedCount,
     },
+  });
+  await securityEventsService.record({
+    actorUserId: session.user_id,
+    actorUserName: session.username,
+    eventType: "security.user.deactivated",
+    ipAddress: session.ip_address,
+    metadata: {
+      revoked_session_count: revocation.revokedCount,
+      target_user_id: userId,
+    },
+    outcome: "success",
+    reasonClass: "user_deactivated",
+    recordId: userId,
+    session,
+    workspaceId: session.workspace_id,
   });
   await recordWorkspaceMembershipChange({
     session,

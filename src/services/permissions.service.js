@@ -120,6 +120,7 @@ async function assertCan(session, action, resource = {}) {
     return;
   }
 
+  await recordAuthorizationDenied(session, action, resource);
   throw new AppError("You do not have permission to perform that action.", 403);
 }
 
@@ -128,7 +129,27 @@ async function assertCanInAnyScope(session, action, resource = {}) {
     return;
   }
 
+  await recordAuthorizationDenied(session, action, resource);
   throw new AppError("You do not have permission to perform that action.", 403);
+}
+
+async function recordAuthorizationDenied(session, action, resource) {
+  const { securityEventsService } = await import("../security/security-events.js");
+  await securityEventsService.record({
+    actorUserId: session?.user_id,
+    actorUserName: session?.username,
+    eventType: "security.authorization.denied",
+    ipAddress: session?.ip_address,
+    metadata: {
+      operation: resource?.operation,
+      permission: action,
+      resource_type: actionToResourceKey(action),
+    },
+    outcome: "denied",
+    reasonClass: "missing_permission",
+    session,
+    workspaceId: session?.workspace_id,
+  });
 }
 
 async function canInAnyScope(session, action, resource = {}) {

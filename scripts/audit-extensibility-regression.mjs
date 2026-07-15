@@ -34,6 +34,7 @@ check("audit service keeps common change types framework-owned", () => {
     "login",
     "logout",
     "restore",
+    "security",
     "settings_change",
     "update",
   ]);

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
-import { normalizeThemeAutoSource, normalizeThemeMode, normalizeTimezone } from "../utils/normalizers.js";
+import { normalizeBooleanPreference, normalizeTimezone } from "../utils/normalizers.js";
 
 async function createSession(user) {
   const sessionId = randomBytes(32).toString("base64url");
@@ -68,6 +68,7 @@ async function getRequestSession(request) {
     username: session.username,
     timezone: normalizeTimezone(session.timezone),
     ip_address: session.ip_address || "",
+    password_change_required: normalizeBooleanPreference(session.password_change_required),
   };
 }
 
@@ -100,85 +101,7 @@ function parseCookieHeader(cookieHeader) {
     }, {});
 }
 
-function buildSessionCookie(sessionId, maxAgeSeconds) {
-  return buildCookie(config.cookies.sessionName, sessionId, {
-    httpOnly: config.cookies.httpOnly,
-    maxAgeSeconds,
-    sameSite: config.cookies.sameSite,
-    secure: config.cookies.secure,
-  });
-}
-
-function buildExpiredSessionCookie() {
-  return buildCookie(config.cookies.sessionName, "", {
-    httpOnly: config.cookies.httpOnly,
-    maxAgeSeconds: 0,
-    sameSite: config.cookies.sameSite,
-    secure: config.cookies.secure,
-  });
-}
-
-function buildThemeCookie(themeMode) {
-  return buildCookie(config.cookies.themeName, normalizeThemeMode(themeMode), {
-    maxAgeSeconds: config.cookies.maxAgeSeconds,
-    sameSite: config.cookies.sameSite,
-    secure: config.cookies.secure,
-  });
-}
-
-function buildThemeAutoSourceCookie(themeAutoSource) {
-  return buildCookie(config.cookies.themeAutoSourceName, normalizeThemeAutoSource(themeAutoSource), {
-    maxAgeSeconds: config.cookies.maxAgeSeconds,
-    sameSite: config.cookies.sameSite,
-    secure: config.cookies.secure,
-  });
-}
-
-function buildExpiredThemeCookie() {
-  return buildCookie(config.cookies.themeName, "", {
-    maxAgeSeconds: 0,
-    sameSite: config.cookies.sameSite,
-    secure: config.cookies.secure,
-  });
-}
-
-function buildExpiredThemeAutoSourceCookie() {
-  return buildCookie(config.cookies.themeAutoSourceName, "", {
-    maxAgeSeconds: 0,
-    sameSite: config.cookies.sameSite,
-    secure: config.cookies.secure,
-  });
-}
-
-function buildCookie(name, value, options = {}) {
-  const segments = [
-    `${name}=${encodeURIComponent(value)}`,
-    `Max-Age=${options.maxAgeSeconds}`,
-    "Path=/",
-  ];
-
-  if (options.httpOnly) {
-    segments.push("HttpOnly");
-  }
-
-  if (options.sameSite) {
-    segments.push(`SameSite=${options.sameSite}`);
-  }
-
-  if (options.secure) {
-    segments.push("Secure");
-  }
-
-  return segments.join("; ");
-}
-
 export {
-  buildExpiredThemeAutoSourceCookie,
-  buildExpiredSessionCookie,
-  buildExpiredThemeCookie,
-  buildSessionCookie,
-  buildThemeAutoSourceCookie,
-  buildThemeCookie,
   createSession,
   deleteSession,
   deleteRequestSession,

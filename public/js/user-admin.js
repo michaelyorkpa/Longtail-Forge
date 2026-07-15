@@ -18,6 +18,9 @@ const cancelEditUserButton = document.querySelector("[data-cancel-edit-user]");
 const resetEditUserPasswordButton = document.querySelector("[data-reset-edit-user-password]");
 const saveEditUserButton = document.querySelector("[data-save-edit-user]");
 const workspaceMembershipList = document.querySelector("[data-workspace-membership-list]");
+const userSessionList = document.querySelector("[data-user-session-list]");
+const refreshUserSessionsButton = document.querySelector("[data-refresh-user-sessions]");
+const revokeUserSessionsButton = document.querySelector("[data-revoke-user-sessions]");
 const roleAssignmentRoleSelect = document.querySelector("[data-role-assignment-role]");
 const roleAssignmentScopeSelect = document.querySelector("[data-role-assignment-scope]");
 const addRoleAssignmentButton = document.querySelector("[data-add-role-assignment]");
@@ -39,6 +42,7 @@ let pendingRoleAssignments = [];
 let draftPermissionOverrides = createDefaultPermissionOverrides();
 let editingPermissionTarget = null;
 let openedUserFromQuery = false;
+let managedUserSessions = [];
 
 loadUsers();
 
@@ -87,6 +91,20 @@ resetEditUserPasswordButton.addEventListener("click", async () => {
 
   if (user) {
     await resetUserPassword(user);
+  }
+});
+
+refreshUserSessionsButton.addEventListener("click", async () => {
+  const user = getEditingUser();
+  if (user) {
+    await loadUserSessions(user);
+  }
+});
+
+revokeUserSessionsButton.addEventListener("click", async () => {
+  const user = getEditingUser();
+  if (user) {
+    await revokeAllUserSessions(user);
   }
 });
 
@@ -254,6 +272,7 @@ function createActionsCell(user) {
   actions.className = "table-actions";
   actions.append(
     createUserActionButton("Edit User", () => openEditUserDialog(user)),
+    createUserActionButton("Manage Sessions", () => openEditUserDialog(user, { focusSessions: true })),
     createUserActionButton("Reset Password", () => resetUserPassword(user)),
     createUserActionButton(
       user.userStatus === "inactive" ? "Reactivate User" : "Deactivate User",
@@ -287,7 +306,7 @@ function createUserActionButton(label, onClick, disabled = false, className = ""
   return button;
 }
 
-async function openEditUserDialog(user) {
+async function openEditUserDialog(user, options = {}) {
   editUserIdInput.value = user.user_id;
   editUserUsernameInput.value = user.username;
   editUserDisplayNameInput.value = user.displayName || user.username;
@@ -298,13 +317,17 @@ async function openEditUserDialog(user) {
   draftPermissionOverrides = createDefaultPermissionOverrides();
   renderPendingRoleAssignments();
   editUserDialog.showModal();
-  editUserUsernameInput.focus();
+  renderManagedUserSessions([]);
+  (options.focusSessions ? refreshUserSessionsButton : editUserUsernameInput).focus();
 
   try {
-    const body = await window.LongtailForge.api.getJson(
-      `/api/users/${encodeURIComponent(user.user_id)}/role-assignments`,
-      { cache: "no-store" },
-    );
+    const [body] = await Promise.all([
+      window.LongtailForge.api.getJson(
+        `/api/users/${encodeURIComponent(user.user_id)}/role-assignments`,
+        { cache: "no-store" },
+      ),
+      loadUserSessions(user),
+    ]);
 
     pendingRoleAssignments = body.assignments || [];
     renderPendingRoleAssignments();
@@ -320,6 +343,124 @@ function closeEditUserDialog() {
 
   editUserForm.reset();
   renderWorkspaceMemberships([], null);
+  renderManagedUserSessions([]);
+}
+
+async function loadUserSessions(user) {
+  refreshUserSessionsButton.disabled = true;
+  userSessionList.replaceChildren(createSessionStatusItem("Loading active sessions..."));
+
+  try {
+    const body = await window.LongtailForge.api.getJson(
+      `/api/users/${encodeURIComponent(user.user_id)}/sessions`,
+      { cache: "no-store" },
+    );
+    renderManagedUserSessions(body.sessions || []);
+  } catch (error) {
+    if (error.status === 401) {
+      return;
+    }
+    renderManagedUserSessions([]);
+    setUserAdminStatus(error.message || "Active sessions could not be loaded.", true);
+  } finally {
+    refreshUserSessionsButton.disabled = false;
+  }
+}
+
+function renderManagedUserSessions(nextSessions) {
+  managedUserSessions = Array.isArray(nextSessions) ? nextSessions : [];
+  userSessionList.replaceChildren();
+  revokeUserSessionsButton.disabled = managedUserSessions.length === 0;
+
+  if (!managedUserSessions.length) {
+    userSessionList.appendChild(createSessionStatusItem("No active sessions are connected to this workspace."));
+    return;
+  }
+
+  managedUserSessions.forEach((session) => {
+    const item = document.createElement("li");
+    const detail = document.createElement("span");
+    const revokeButton = document.createElement("button");
+    const currentLabel = session.isCurrent ? "Current session. " : "";
+    const ipLabel = session.ipAddress || "IP unavailable";
+
+    detail.textContent = `${currentLabel}Started ${formatSessionDate(session.createdAt)}; expires ${formatSessionDate(session.expiresAt)}; ${ipLabel}.`;
+    revokeButton.type = "button";
+    revokeButton.className = "danger-button";
+    revokeButton.textContent = "Revoke";
+    revokeButton.addEventListener("click", () => revokeUserSession(getEditingUser(), session));
+    item.append(detail, revokeButton);
+    userSessionList.appendChild(item);
+  });
+}
+
+async function revokeUserSession(user, session) {
+  if (!user || !session?.sessionReference) {
+    return;
+  }
+
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Revoke session?",
+    message: session.isCurrent
+      ? "Revoke your current session? You will need to sign in again."
+      : `Revoke this active session for ${user.username}?`,
+    confirmLabel: "Revoke Session",
+    cancelLabel: "Cancel",
+    danger: true,
+  });
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await window.LongtailForge.api.deleteJson(
+      `/api/users/${encodeURIComponent(user.user_id)}/sessions/${encodeURIComponent(session.sessionReference)}`,
+    );
+    setUserAdminStatus("Session revoked.");
+    await loadUserSessions(user);
+  } catch (error) {
+    if (error.status === 401) {
+      return;
+    }
+    setUserAdminStatus(error.message || "Session could not be revoked.", true);
+  }
+}
+
+async function revokeAllUserSessions(user) {
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Log out workspace sessions?",
+    message: `Log out every ${user.username} session connected to this workspace?`,
+    confirmLabel: "Log Out Sessions",
+    cancelLabel: "Cancel",
+    danger: true,
+  });
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const body = await window.LongtailForge.api.deleteJson(
+      `/api/users/${encodeURIComponent(user.user_id)}/sessions`,
+    );
+    setUserAdminStatus(`Revoked ${body.revokedCount || 0} session${body.revokedCount === 1 ? "" : "s"}.`);
+    await loadUserSessions(user);
+  } catch (error) {
+    if (error.status === 401) {
+      return;
+    }
+    setUserAdminStatus(error.message || "Sessions could not be revoked.", true);
+  }
+}
+
+function createSessionStatusItem(message) {
+  const item = document.createElement("li");
+  item.textContent = message;
+  return item;
+}
+
+function formatSessionDate(value) {
+  const date = new Date(value || "");
+  return Number.isNaN(date.getTime()) ? "unknown" : date.toLocaleString();
 }
 
 function getEditingUser() {

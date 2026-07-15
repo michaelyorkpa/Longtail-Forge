@@ -321,6 +321,41 @@ async function assertConfiguredFileStorageProviderReady() {
   };
 }
 
+async function assertConfiguredFileScannerReady(options = {}) {
+  const required = options.required ?? (
+    config.environment === "production" && config.security?.allowUnscannedUploads !== true
+  );
+  const scannerMode = options.scannerMode
+    ? normalizeFileScannerMode(options.scannerMode)
+    : normalizeFileScannerMode(config.scanner?.mode || "none");
+  const adapter = getFileScannerAdapter(scannerMode);
+
+  if (!required) {
+    return { scannerMode, status: "not_required" };
+  }
+
+  let health;
+  try {
+    health = await adapter.health();
+  } catch {
+    throw new Error(fileScannerStartupError(scannerMode));
+  }
+
+  if (health?.ok !== true && health?.available !== true) {
+    throw new Error(fileScannerStartupError(scannerMode));
+  }
+
+  return {
+    scannerMode,
+    status: sanitizeStorageProviderStatus(health?.status || "ok"),
+  };
+}
+
+function fileScannerStartupError(scannerMode) {
+  const safeMode = FILE_SCANNER_MODES.has(scannerMode) ? scannerMode : "unavailable";
+  return `File scanner '${safeMode}' is not available at startup. Production uploads require a healthy clamd or clamscan scanner.`;
+}
+
 function storageProviderStartupError(providerId, status) {
   const safeProviderId = String(providerId || "local").trim() || "local";
   const safeStatus = sanitizeStorageProviderStatus(status || "unavailable");
@@ -4359,6 +4394,7 @@ async function recordFileAudit(session, event = {}) {
 }
 
 export const filesService = {
+  assertConfiguredFileScannerReady,
   assertConfiguredFileStorageProviderReady,
   attachExistingFile,
   assertCanUseAttachableTarget,

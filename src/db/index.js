@@ -656,7 +656,7 @@ VALUES (
 `, {
       activeWorkspaceId: workspaceId,
       displayName: DEFAULT_SUPER_ADMIN_DISPLAY_NAME,
-      password: hashPassword(passwordSetup.password),
+      password: await hashPassword(passwordSetup.password),
       timezone: DEFAULT_TIMEZONE,
       userId,
       username: DEFAULT_SUPER_ADMIN_USERNAME,

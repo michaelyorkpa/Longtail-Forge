@@ -485,6 +485,20 @@ async function readAppliedVersions() {
   return new Set(rows.map((row) => row.version));
 }
 
+async function readMigrationReadiness() {
+  if (!(await tableExists(MIGRATIONS_TABLE))) {
+    return false;
+  }
+
+  await validateBaselineChecksum();
+  const migrations = await readMigrationFiles();
+  await validateAppliedMigrationChecksums(migrations);
+  const appliedVersions = await readAppliedVersions();
+
+  return appliedVersions.has(BASELINE_VERSION)
+    && migrations.every((migration) => appliedVersions.has(migration.version));
+}
+
 async function backfillMissingChecksums(migrations) {
   const migrationByVersion = new Map(
     migrations.map((migration) => [migration.version, migration]),
@@ -818,4 +832,4 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export { runMigrations };
+export { readMigrationReadiness, runMigrations };

@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
+import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { appVersion } from "./core/version.js";
 
@@ -19,6 +20,10 @@ const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000;
 const DEFAULT_WORKSPACE_INSTALL_MODE = "self_hosted";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 12;
 const DEFAULT_SESSION_COOKIE_SAMESITE = "Lax";
+const DEFAULT_PRODUCTION_HSTS_MAX_AGE_SECONDS = 300;
+const DEFAULT_AUTH_THROTTLE_WINDOW_SECONDS = 15 * 60;
+const DEFAULT_AUTH_THROTTLE_FAILURE_LIMIT = 5;
+const DEFAULT_AUTH_THROTTLE_LOCKOUT_SECONDS = 15 * 60;
 const DEFAULT_SECURE_NOTES_KEY_VERSION = "v1";
 const DEFAULT_STORAGE_PROVIDER = "local";
 const DEFAULT_FILE_SCANNER = "none";
@@ -40,6 +45,18 @@ const WORKSPACE_INSTALL_MODES = new Set(["self_hosted", "saas"]);
 const WORKSPACE_TYPE_LIMITS = new Set(["", "business"]);
 const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
 const WORKER_MODES = new Set(["inline", "separate", "disabled"]);
+const LOG_LEVELS = new Set(["trace", "debug", "info", "warn", "error"]);
+const PRODUCTION_FILE_SCANNERS = new Set(["clamd", "clamscan"]);
+const UNSAFE_SECRET_VALUES = new Set([
+  "admin",
+  "changeme",
+  "change-me",
+  "default",
+  "example",
+  "longtailforge",
+  "password",
+  "superadmin",
+]);
 
 function toDisplayName(packageName) {
   return String(packageName)
@@ -51,13 +68,61 @@ function toDisplayName(packageName) {
 
 function createConfig(env = process.env) {
   const environment = readEnum(env, "LONGTAIL_ENV", DEFAULT_ENVIRONMENT, ENVIRONMENTS);
+  const publicUrl = readPublicUrl(env);
+  const publicUrlProtocol = publicUrl ? new URL(publicUrl).protocol : "";
+  const publicDir = path.join(root, "public");
+  const viewsDir = path.join(root, "views");
   const dataDir = resolveRuntimePath(readText(env, "LONGTAIL_DATA_DIR", DEFAULT_DATA_DIR));
   const databaseFile = resolveRuntimePath(
     readText(env, "LONGTAIL_DATABASE_FILE", path.join(dataDir, DEFAULT_DATABASE_FILE_NAME)),
   );
+  const localStorageRoot = resolveRuntimePath(
+    readText(env, "LONGTAIL_LOCAL_STORAGE_ROOT", path.join(dataDir, "files")),
+  );
   const sqliteForeignKeys = readBoolean(env, "LONGTAIL_SQLITE_FOREIGN_KEYS", DEFAULT_SQLITE_FOREIGN_KEYS);
   const sessionCookieSecure = readBoolean(env, "LONGTAIL_SESSION_COOKIE_SECURE", false);
   const sessionCookieSameSite = readSessionSameSite(env);
+  const trustedProxies = readTrustedProxies(env);
+  const allowInsecurePublicUrl = readBoolean(env, "LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL", false);
+  const allowUnscannedUploads = readBoolean(env, "LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS", false);
+  const allowDisabledAuthenticationThrottle = readBoolean(
+    env,
+    "LONGTAIL_UNSAFE_ALLOW_DISABLED_AUTH_THROTTLE",
+    false,
+  );
+  const allowHstsRollback = readBoolean(env, "LONGTAIL_UNSAFE_ALLOW_HSTS_ROLLBACK", false);
+  const allowDebugLogging = readBoolean(env, "LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING", false);
+  const hstsConfigured = hasEnvText(env, "LONGTAIL_HSTS_MAX_AGE_SECONDS");
+  const hstsMaxAgeSeconds = readInteger(
+    env,
+    "LONGTAIL_HSTS_MAX_AGE_SECONDS",
+    environment === "production" ? DEFAULT_PRODUCTION_HSTS_MAX_AGE_SECONDS : 0,
+    { min: 0, max: 60 * 60 * 24 * 365 * 2 },
+  );
+  const authenticationThrottleEnabled = readBoolean(env, "LONGTAIL_AUTH_THROTTLE_ENABLED", true);
+  const authenticationThrottleWindowSeconds = readInteger(
+    env,
+    "LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS",
+    DEFAULT_AUTH_THROTTLE_WINDOW_SECONDS,
+    { min: 1, max: 60 * 60 * 24 },
+  );
+  const authenticationThrottleFailureLimit = readInteger(
+    env,
+    "LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT",
+    DEFAULT_AUTH_THROTTLE_FAILURE_LIMIT,
+    { min: 1, max: 1000 },
+  );
+  const authenticationThrottleLockoutSeconds = readInteger(
+    env,
+    "LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS",
+    DEFAULT_AUTH_THROTTLE_LOCKOUT_SECONDS,
+    { min: 1, max: 60 * 60 * 24 * 7 },
+  );
+  const bootstrapPassword = readRuntimeSecret("SUPER_ADMIN_PASSWORD", env);
+  const secureNotesMasterKey = readRuntimeSecret("LONGTAIL_SECURE_NOTES_MASTER_KEY", env)
+    || readRuntimeSecret("SECURE_NOTES_MASTER_KEY", env);
+  const scannerMode = readEnum(env, "LONGTAIL_FILE_SCANNER", DEFAULT_FILE_SCANNER, FILE_SCANNER_MODES);
+  const logLevel = readEnum(env, "LONGTAIL_LOG_LEVEL", DEFAULT_LOG_LEVEL, LOG_LEVELS);
   const runtimeWarnings = [];
 
   if (!sqliteForeignKeys) {
@@ -68,24 +133,77 @@ function createConfig(env = process.env) {
     throw new Error("LONGTAIL_SESSION_COOKIE_SECURE must be true when LONGTAIL_SESSION_COOKIE_SAMESITE is None.");
   }
 
-  if (environment === "production" && !readText(env, "SUPER_ADMIN_PASSWORD", "")) {
-    throw new Error("SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production.");
+  assertPathIsNotPublic(dataDir, "LONGTAIL_DATA_DIR", publicDir);
+  assertPathIsNotPublic(databaseFile, "LONGTAIL_DATABASE_FILE", publicDir);
+  assertPathIsNotPublic(localStorageRoot, "LONGTAIL_LOCAL_STORAGE_ROOT", publicDir);
+
+  if (environment === "production") {
+    assertProductionSecret(bootstrapPassword, "SUPER_ADMIN_PASSWORD", 16);
+    assertProductionSecret(secureNotesMasterKey, "LONGTAIL_SECURE_NOTES_MASTER_KEY", 32);
+
+    if (!publicUrl) {
+      throw new Error("LONGTAIL_PUBLIC_URL is required when LONGTAIL_ENV=production.");
+    }
   }
 
-  if (environment === "production" && !readText(env, "LONGTAIL_PUBLIC_URL", "")) {
-    runtimeWarnings.push("LONGTAIL_PUBLIC_URL should be set when LONGTAIL_ENV=production.");
+  if (environment === "production" && publicUrlProtocol === "http:" && !allowInsecurePublicUrl) {
+    throw new Error("LONGTAIL_PUBLIC_URL must use https in production. Set LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL=true only for an explicitly accepted unsafe development deployment.");
+  }
+
+  if (environment === "production" && publicUrlProtocol === "http:" && allowInsecurePublicUrl) {
+    runtimeWarnings.push("UNSAFE OVERRIDE ACTIVE: production LONGTAIL_PUBLIC_URL uses HTTP and browser sessions are not protected by TLS.");
+  }
+
+  if (environment === "production" && publicUrlProtocol === "https:" && !trustedProxies.length) {
+    throw new Error("TRUST_PROXY must list the TLS reverse proxy when LONGTAIL_PUBLIC_URL uses https in production.");
+  }
+
+  if (environment === "production" && publicUrlProtocol === "https:" && !sessionCookieSecure) {
+    throw new Error("LONGTAIL_SESSION_COOKIE_SECURE must be true for a production HTTPS deployment.");
+  }
+
+  if (environment === "production" && hstsConfigured && hstsMaxAgeSeconds === 0 && !allowHstsRollback) {
+    throw new Error("LONGTAIL_HSTS_MAX_AGE_SECONDS=0 requires LONGTAIL_UNSAFE_ALLOW_HSTS_ROLLBACK=true in production.");
+  }
+
+  if (environment === "production" && hstsConfigured && hstsMaxAgeSeconds === 0 && allowHstsRollback) {
+    runtimeWarnings.push("UNSAFE OVERRIDE ACTIVE: HSTS rollback mode is active; secure responses send max-age=0.");
+  }
+
+  if (environment === "production" && !authenticationThrottleEnabled && !allowDisabledAuthenticationThrottle) {
+    throw new Error("Disabling authentication throttling in production requires LONGTAIL_UNSAFE_ALLOW_DISABLED_AUTH_THROTTLE=true.");
+  }
+
+  if (environment === "production" && !authenticationThrottleEnabled && allowDisabledAuthenticationThrottle) {
+    runtimeWarnings.push("UNSAFE OVERRIDE ACTIVE: authentication throttling is disabled in production.");
+  }
+
+  if (environment === "production" && !PRODUCTION_FILE_SCANNERS.has(scannerMode) && !allowUnscannedUploads) {
+    throw new Error("LONGTAIL_FILE_SCANNER must be clamd or clamscan in production. Set LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=true only for an explicitly accepted deployment without upload scanning.");
+  }
+
+  if (environment === "production" && !PRODUCTION_FILE_SCANNERS.has(scannerMode) && allowUnscannedUploads) {
+    runtimeWarnings.push(`UNSAFE OVERRIDE ACTIVE: production uploads use the '${scannerMode}' scanner mode and are not malware-scanned.`);
+  }
+
+  if (environment === "production" && ["trace", "debug"].includes(logLevel) && !allowDebugLogging) {
+    throw new Error("LONGTAIL_LOG_LEVEL trace/debug requires LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING=true in production.");
+  }
+
+  if (environment === "production" && ["trace", "debug"].includes(logLevel) && allowDebugLogging) {
+    runtimeWarnings.push(`UNSAFE OVERRIDE ACTIVE: production logging is set to '${logLevel}'.`);
   }
 
   return {
     appName: toDisplayName(packageJson.name),
     appVersion,
     environment,
-    publicUrl: readText(env, "LONGTAIL_PUBLIC_URL", ""),
+    publicUrl,
     host: readText(env, "HOST", DEFAULT_HOST),
     port: readInteger(env, "PORT", DEFAULT_PORT, { min: 1, max: 65535 }),
     root,
-    publicDir: path.join(root, "public"),
-    viewsDir: path.join(root, "views"),
+    publicDir,
+    viewsDir,
     dataDir,
     logsDir: path.join(root, "logs"),
     logDir: path.join(root, "logs"),
@@ -114,13 +232,16 @@ function createConfig(env = process.env) {
       initialWorkspaceName: readText(env, "LONGTAIL_INITIAL_WORKSPACE_NAME", DEFAULT_INITIAL_WORKSPACE_NAME),
       superAdminUsername: readText(env, "SUPER_ADMIN_USERNAME", DEFAULT_SUPER_ADMIN_USERNAME),
       superAdminDisplayName: readText(env, "SUPER_ADMIN_DISPLAY_NAME", DEFAULT_SUPER_ADMIN_DISPLAY_NAME),
-      superAdminPassword: readText(env, "SUPER_ADMIN_PASSWORD", ""),
+      superAdminPassword: bootstrapPassword,
     },
     cookies: {
+      csrfName: "lf_csrf",
       sessionName: "longtail_forge_session",
       themeName: "lf_theme",
       themeAutoSourceName: "lf_theme_auto_source",
       httpOnly: true,
+      domain: "",
+      path: "/",
       secure: sessionCookieSecure,
       sameSite: sessionCookieSameSite,
       maxAgeSeconds: readInteger(env, "LONGTAIL_SESSION_TTL_SECONDS", DEFAULT_SESSION_TTL_SECONDS, {
@@ -128,13 +249,31 @@ function createConfig(env = process.env) {
         max: 60 * 60 * 24 * 30,
       }),
     },
+    security: {
+      allowInsecurePublicUrl,
+      allowUnscannedUploads,
+      allowDebugLogging,
+      allowDisabledAuthenticationThrottle,
+      allowHstsRollback,
+      authenticationThrottle: {
+        enabled: authenticationThrottleEnabled,
+        failureLimit: authenticationThrottleFailureLimit,
+        lockoutSeconds: authenticationThrottleLockoutSeconds,
+        windowSeconds: authenticationThrottleWindowSeconds,
+      },
+      hsts: {
+        enabled: environment === "production" || hstsConfigured,
+        maxAgeSeconds: hstsMaxAgeSeconds,
+      },
+      trustedProxies,
+    },
     secureNotes: {
       keyVersion: readText(env, "LONGTAIL_SECURE_NOTES_KEY_VERSION", DEFAULT_SECURE_NOTES_KEY_VERSION),
-      masterKeyConfigured: Boolean(readRuntimeSecret("LONGTAIL_SECURE_NOTES_MASTER_KEY", env) || readRuntimeSecret("SECURE_NOTES_MASTER_KEY", env)),
+      masterKeyConfigured: Boolean(secureNotesMasterKey),
     },
     storage: {
       provider: readText(env, "LONGTAIL_STORAGE_PROVIDER", DEFAULT_STORAGE_PROVIDER),
-      localRoot: resolveRuntimePath(readText(env, "LONGTAIL_LOCAL_STORAGE_ROOT", path.join(dataDir, "files"))),
+      localRoot: localStorageRoot,
       s3: {
         accessKeyId: readRuntimeSecret("LONGTAIL_S3_ACCESS_KEY_ID", env),
         bucket: readText(env, "LONGTAIL_S3_BUCKET", ""),
@@ -144,7 +283,7 @@ function createConfig(env = process.env) {
       },
     },
     scanner: {
-      mode: readEnum(env, "LONGTAIL_FILE_SCANNER", DEFAULT_FILE_SCANNER, FILE_SCANNER_MODES),
+      mode: scannerMode,
       clamdHost: readText(env, "LONGTAIL_CLAMD_HOST", ""),
       clamdPort: readText(env, "LONGTAIL_CLAMD_PORT", ""),
       clamscanPath: readText(env, "LONGTAIL_CLAMSCAN_PATH", ""),
@@ -179,7 +318,7 @@ function createConfig(env = process.env) {
         },
       ),
     },
-    logLevel: readText(env, "LONGTAIL_LOG_LEVEL", DEFAULT_LOG_LEVEL),
+    logLevel,
     runtimeWarnings,
     envOverrides: {
       workspaceInstallMode: hasEnvText(env, "WORKSPACE_INSTALL_MODE")
@@ -190,6 +329,23 @@ function createConfig(env = process.env) {
         : "",
     },
   };
+}
+
+function assertProductionSecret(secret, key, minimumLength) {
+  if (!secret) {
+    throw new Error(`${key} is required when LONGTAIL_ENV=production.`);
+  }
+
+  if (secret.length < minimumLength || UNSAFE_SECRET_VALUES.has(secret.toLowerCase())) {
+    throw new Error(`${key} must be a non-default secret of at least ${minimumLength} characters in production.`);
+  }
+}
+
+function assertPathIsNotPublic(runtimePath, key, publicDir) {
+  const relative = path.relative(publicDir, runtimePath);
+  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
+    throw new Error(`${key} must not resolve inside the public static directory.`);
+  }
 }
 
 function readText(env, key, fallback) {
@@ -272,6 +428,71 @@ function readSessionSameSite(env) {
   }
 
   return normalized;
+}
+
+function readTrustedProxies(env) {
+  const raw = String(env.TRUST_PROXY ?? "").trim();
+
+  if (!raw || ["0", "false", "no", "off"].includes(raw.toLowerCase())) {
+    return [];
+  }
+
+  if (["1", "true", "yes", "on"].includes(raw.toLowerCase())) {
+    throw new Error("TRUST_PROXY must list explicit proxy IP addresses or CIDR ranges; blanket trust is not allowed.");
+  }
+
+  const entries = raw.split(",").map((entry) => entry.trim()).filter(Boolean);
+
+  if (!entries.length || entries.some((entry) => !isIpOrCidr(entry))) {
+    throw new Error("TRUST_PROXY must be false or a comma-separated list of proxy IP addresses or CIDR ranges.");
+  }
+
+  return entries;
+}
+
+function readPublicUrl(env) {
+  const value = readText(env, "LONGTAIL_PUBLIC_URL", "");
+
+  if (!value) {
+    return "";
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("LONGTAIL_PUBLIC_URL must be an absolute http or https URL.");
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname) {
+    throw new Error("LONGTAIL_PUBLIC_URL must be an absolute http or https URL.");
+  }
+
+  if (parsed.username || parsed.password) {
+    throw new Error("LONGTAIL_PUBLIC_URL must not include credentials.");
+  }
+
+  return value;
+}
+
+function isIpOrCidr(value) {
+  const [address, prefix, ...extra] = String(value).split("/");
+  const family = net.isIP(address);
+
+  if (!family || extra.length) {
+    return false;
+  }
+
+  if (prefix === undefined) {
+    return true;
+  }
+
+  if (!/^\d+$/.test(prefix)) {
+    return false;
+  }
+
+  const bits = Number(prefix);
+  return bits >= 0 && bits <= (family === 4 ? 32 : 128);
 }
 
 function readSqliteJournalMode(env) {

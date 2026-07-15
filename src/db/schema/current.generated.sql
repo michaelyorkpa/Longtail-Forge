@@ -960,7 +960,7 @@ CREATE TABLE users (
   theme_mode TEXT NOT NULL DEFAULT 'light',
   user_status TEXT NOT NULL DEFAULT 'active',
   protected_user TEXT NOT NULL DEFAULT 'no',
-  active_workspace_id TEXT, open_external_links_new_tab INTEGER NOT NULL DEFAULT 0 CHECK (open_external_links_new_tab IN (0, 1)), theme_auto_source TEXT NOT NULL DEFAULT 'system' CHECK (theme_auto_source IN ('system')),
+  active_workspace_id TEXT, open_external_links_new_tab INTEGER NOT NULL DEFAULT 0 CHECK (open_external_links_new_tab IN (0, 1)), theme_auto_source TEXT NOT NULL DEFAULT 'system' CHECK (theme_auto_source IN ('system')), password_change_required INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (home_workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (active_workspace_id) REFERENCES workspaces(workspace_id)
 );

@@ -28,4 +28,30 @@ auditRoutes.get("/audit-logs/export.csv", asyncRoute(async (request, response) =
   response.end(csv);
 }));
 
+auditRoutes.get("/security-events", asyncRoute(async (request, response) => {
+  await assertCanViewSecurityEvents(request.session);
+  const result = await auditService.listSecurityEvents(request.session, request.query);
+  response.status(200).json(result);
+}));
+
+auditRoutes.get("/security-events/export.csv", asyncRoute(async (request, response) => {
+  await assertCanViewSecurityEvents(request.session);
+  const csv = await auditService.exportSecurityEventsCsv(request.session, request.query);
+
+  response.writeHead(200, {
+    "Content-Disposition": "attachment; filename=\"longtail-forge-security-events.csv\"",
+    "Content-Type": "text/csv; charset=utf-8",
+  });
+  response.end(csv);
+}));
+
+async function assertCanViewSecurityEvents(session) {
+  const resource = {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  };
+  await permissionsService.assertCan(session, "audit_logs.view", resource);
+  await permissionsService.assertCan(session, "workspace_settings.manage", resource);
+}
+
 export { auditRoutes };

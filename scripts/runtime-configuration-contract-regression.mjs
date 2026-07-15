@@ -15,6 +15,9 @@ const roadmap = readText("ROADMAP.md");
 const configSource = readText("src/config.js");
 const appInfoRoutesSource = readText("src/routes/app-info.routes.js");
 const sessionsSource = readText("src/security/sessions.js");
+const cookiesSource = readText("src/security/cookies.js");
+const transportSecuritySource = readText("src/core/transport-security.js");
+const authenticationThrottleSource = readText("src/security/auth-throttle.js");
 const usersService = readText("src/services/users.service.js");
 const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
@@ -46,6 +49,7 @@ for (const heading of [
   "# Future PostgreSQL",
   "# Initial bootstrap",
   "# Sessions / cookies",
+  "# Authentication throttling",
   "# Secure notes",
   "# File storage",
   "# File scanning",
@@ -58,8 +62,11 @@ for (const heading of [
 for (const key of [
   "LONGTAIL_ENV=development",
   "LONGTAIL_PUBLIC_URL=http://localhost:8001",
+  "LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL=false",
+  "LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING=false",
   "HOST=0.0.0.0",
   "PORT=8001",
+  "TRUST_PROXY=false",
   "LONGTAIL_DATA_DIR=./data",
   "LONGTAIL_DATABASE_PROVIDER=sqlite",
   "LONGTAIL_DATABASE_FILE=./data/longtail-forge.db",
@@ -73,12 +80,19 @@ for (const key of [
   "LONGTAIL_SESSION_COOKIE_SECURE=false",
   "LONGTAIL_SESSION_COOKIE_SAMESITE=Lax",
   "LONGTAIL_SESSION_TTL_SECONDS=43200",
+  "LONGTAIL_AUTH_THROTTLE_ENABLED=true",
+  "LONGTAIL_UNSAFE_ALLOW_DISABLED_AUTH_THROTTLE=false",
+  "LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS=900",
+  "LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT=5",
+  "LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS=900",
   "# LONGTAIL_SECURE_NOTES_MASTER_KEY=",
   "# SECURE_NOTES_MASTER_KEY=",
   "LONGTAIL_SECURE_NOTES_KEY_VERSION=v1",
   "LONGTAIL_STORAGE_PROVIDER=local",
   "LONGTAIL_LOCAL_STORAGE_ROOT=./data/files",
   "LONGTAIL_FILE_SCANNER=none",
+  "LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=false",
+  "LONGTAIL_UNSAFE_ALLOW_HSTS_ROLLBACK=false",
   "LONGTAIL_WORKER_MODE=inline",
   "LONGTAIL_WORKER_ID=default",
   "LONGTAIL_JOB_POLL_INTERVAL_MS=5000",
@@ -98,6 +112,7 @@ for (const futureKey of [
   "# LONGTAIL_CLAMD_HOST=127.0.0.1",
   "# LONGTAIL_CLAMD_PORT=3310",
   "# LONGTAIL_CLAMSCAN_PATH=",
+  "# LONGTAIL_HSTS_MAX_AGE_SECONDS=300",
 ]) {
   assert.match(envExample, new RegExp(`^${escapeRegExp(futureKey)}$`, "m"), `.env.example should reserve ${futureKey}`);
 }
@@ -127,11 +142,22 @@ assert.match(configSource, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS/, "config should rea
 assert.match(configSource, /LONGTAIL_WORKER_MODE[\s\S]*WORKER_MODES/, "config should validate active worker modes");
 assert.match(configSource, /LONGTAIL_FILE_SCANNER[\s\S]*FILE_SCANNER_MODES/, "config should validate active file scanner modes");
 assert.doesNotMatch(configSource, /DEFAULT_SQLITE_COMMAND|sqliteCommand|SQLITE_COMMAND/, "config should ignore the retired SQLITE_COMMAND setting");
-assert.match(configSource, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/, "config should fail clearly when production bootstrap password is missing");
+assert.match(configSource, /assertProductionSecret\(bootstrapPassword, "SUPER_ADMIN_PASSWORD", 16\)/, "config should fail clearly when the production bootstrap password is missing or weak");
 assert.match(configSource, /LONGTAIL_INITIAL_WORKSPACE_NAME/, "config should read the initial workspace name from runtime config");
 assert.match(configSource, /SUPER_ADMIN_DISPLAY_NAME/, "config should read the initial super-admin display name from runtime config");
 assert.match(sessionsSource, /config\.cookies\.maxAgeSeconds/, "session TTL should read from runtime config");
-assert.match(sessionsSource, /config\.cookies\.secure/, "session cookies should read secure mode from runtime config");
+assert.match(cookiesSource, /config\.cookies\.secure/, "session cookies should read secure mode from runtime config");
+assert.match(cookiesSource, /config\.cookies\.domain[\s\S]*config\.cookies\.path/, "cookies should read explicit host-only/root-path policy from config");
+assert.match(transportSecuritySource, /requestContext\.isSecure[\s\S]*Strict-Transport-Security/, "HSTS should require the trusted effective HTTPS context");
+assert.match(configSource, /trustedProxies[\s\S]*function readTrustedProxies[\s\S]*TRUST_PROXY/, "config should expose explicit trusted proxy entries");
+assert.match(configSource, /LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL/, "config should expose the explicit unsafe HTTP override");
+assert.match(configSource, /LONGTAIL_HSTS_MAX_AGE_SECONDS/, "config should expose bounded HSTS rollout configuration");
+assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_ENABLED/, "config should expose authentication throttle enablement");
+assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS/, "config should expose the authentication failure window");
+assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT/, "config should expose the authentication failure threshold");
+assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS/, "config should expose the authentication lockout duration");
+assert.match(authenticationThrottleSource, /security\.authentication_throttle\.lockout/, "the throttle should emit a stable security event");
+assert.match(authenticationThrottleSource, /scope}:ip:[\s\S]*scope}:account:/, "the throttle should own both trusted-IP and account dimensions");
 assert.match(usersService, /config\.envOverrides\.workspaceInstallMode/, "workspace creation should preserve env override precedence through config");
 assert.match(usersService, /config\.envOverrides\.workspaceTypeLimit/, "workspace type limit should preserve env override precedence through config");
 assert.match(secureCrypto, /readRuntimeSecret\("LONGTAIL_SECURE_NOTES_MASTER_KEY"\)/, "secure notes should read the preferred runtime secret name through config helpers");
@@ -148,6 +174,16 @@ assert.equal(defaults.port, 8001);
 assert.equal(defaults.cookieSecure, false);
 assert.equal(defaults.cookieSameSite, "Lax");
 assert.equal(defaults.cookieTtl, 43200);
+assert.equal(defaults.cookieDomain, "");
+assert.equal(defaults.cookiePath, "/");
+assert.equal(defaults.hstsEnabled, false);
+assert.equal(defaults.hstsMaxAgeSeconds, 0);
+assert.equal(defaults.authThrottleEnabled, true);
+assert.equal(defaults.authThrottleWindowSeconds, 900);
+assert.equal(defaults.authThrottleFailureLimit, 5);
+assert.equal(defaults.authThrottleLockoutSeconds, 900);
+assert.equal(defaults.publicUrl, "");
+assert.deepEqual(defaults.trustedProxies, []);
 assert.equal(defaults.initialWorkspaceName, "Longtail Forge Workspace");
 assert.equal(defaults.superAdminDisplayName, "Super Admin");
 assert.equal(defaults.workspaceInstallMode, "self_hosted");
@@ -174,6 +210,13 @@ const custom = readConfig({
   LONGTAIL_SESSION_COOKIE_SECURE: "true",
   LONGTAIL_SESSION_COOKIE_SAMESITE: "None",
   LONGTAIL_SESSION_TTL_SECONDS: "600",
+  LONGTAIL_HSTS_MAX_AGE_SECONDS: "600",
+  LONGTAIL_AUTH_THROTTLE_ENABLED: "false",
+  LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS: "120",
+  LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT: "7",
+  LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS: "300",
+  LONGTAIL_PUBLIC_URL: "http://localhost:8015",
+  TRUST_PROXY: "127.0.0.1/32,::1/128",
   WORKSPACE_INSTALL_MODE: "saas",
   WORKSPACE_TYPE_LIMIT: "business",
   LONGTAIL_SECURE_NOTES_KEY_VERSION: "v9",
@@ -197,6 +240,14 @@ assert.equal(custom.sqliteBusyTimeoutMs, 2500);
 assert.equal(custom.cookieSecure, true);
 assert.equal(custom.cookieSameSite, "None");
 assert.equal(custom.cookieTtl, 600);
+assert.equal(custom.hstsEnabled, true);
+assert.equal(custom.hstsMaxAgeSeconds, 600);
+assert.equal(custom.authThrottleEnabled, false);
+assert.equal(custom.authThrottleWindowSeconds, 120);
+assert.equal(custom.authThrottleFailureLimit, 7);
+assert.equal(custom.authThrottleLockoutSeconds, 300);
+assert.equal(custom.publicUrl, "http://localhost:8015");
+assert.deepEqual(custom.trustedProxies, ["127.0.0.1/32", "::1/128"]);
 assert.equal(custom.initialWorkspaceName, "Custom Workspace");
 assert.equal(custom.superAdminDisplayName, "Custom Admin");
 assert.equal(custom.workspaceInstallMode, "saas");
@@ -213,11 +264,36 @@ assert.ok(custom.dataDir.endsWith(`${path.sep}custom-data`), "relative data dir 
 assert.ok(custom.databaseFile.endsWith(`${path.sep}custom-data${path.sep}custom.db`), "relative database file should resolve from the app root");
 assert.ok(custom.localStorageRoot.endsWith(`${path.sep}custom-data${path.sep}files`), "relative local storage root should resolve from the app root");
 
-const production = readConfig({
+const safeProductionEnv = {
   LONGTAIL_ENV: "production",
+  LONGTAIL_FILE_SCANNER: "clamscan",
+  LONGTAIL_PUBLIC_URL: "https://forge.example.test",
+  LONGTAIL_SECURE_NOTES_MASTER_KEY: "Production-Secure-Notes-Master-Key-123!",
+  LONGTAIL_SESSION_COOKIE_SECURE: "true",
   SUPER_ADMIN_PASSWORD: "Production-Test-Password-123!",
+  TRUST_PROXY: "127.0.0.1/32",
+};
+const production = readConfig(safeProductionEnv);
+assert.deepEqual(production.runtimeWarnings, []);
+assert.equal(production.hstsEnabled, true);
+assert.equal(production.hstsMaxAgeSeconds, 300);
+assert.equal(production.authThrottleEnabled, true);
+
+const productionThrottleDisabled = readConfig({
+  ...safeProductionEnv,
+  LONGTAIL_AUTH_THROTTLE_ENABLED: "false",
+  LONGTAIL_UNSAFE_ALLOW_DISABLED_AUTH_THROTTLE: "true",
 });
-assert.deepEqual(production.runtimeWarnings, ["LONGTAIL_PUBLIC_URL should be set when LONGTAIL_ENV=production."]);
+assert.ok(
+  productionThrottleDisabled.runtimeWarnings.includes("UNSAFE OVERRIDE ACTIVE: authentication throttling is disabled in production."),
+  "production should warn unmistakably when authentication throttling is disabled",
+);
+
+const productionHttps = readConfig({
+  ...safeProductionEnv,
+});
+assert.equal(productionHttps.publicUrl, "https://forge.example.test");
+assert.deepEqual(productionHttps.runtimeWarnings, []);
 
 const legacySqliteCommand = readConfig({
   SQLITE_COMMAND: "sqlite3-command-should-be-ignored",
@@ -246,6 +322,34 @@ assertConfigFails({ LONGTAIL_JOB_COMPLETED_RETENTION_DAYS: "0" }, /LONGTAIL_JOB_
 assertConfigFails({ LONGTAIL_JOB_DEAD_RETENTION_DAYS: "3651" }, /LONGTAIL_JOB_DEAD_RETENTION_DAYS must be at most 3650/);
 assertConfigFails({ LONGTAIL_FILE_SCANNER: "mystery" }, /LONGTAIL_FILE_SCANNER must be none or noop or clamd or clamscan/);
 assertConfigFails({ LONGTAIL_ENV: "production" }, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/);
+assertConfigFails({ TRUST_PROXY: "true" }, /blanket trust is not allowed/);
+assertConfigFails({ TRUST_PROXY: "proxy.internal" }, /IP addresses or CIDR ranges/);
+assertConfigFails({ LONGTAIL_PUBLIC_URL: "forge.example.test" }, /absolute http or https URL/);
+assertConfigFails({ LONGTAIL_PUBLIC_URL: "https://user:secret@forge.example.test" }, /must not include credentials/);
+assertConfigFails({ LONGTAIL_HSTS_MAX_AGE_SECONDS: "-1" }, /must be at least 0/);
+assertConfigFails({ LONGTAIL_HSTS_MAX_AGE_SECONDS: "63072001" }, /must be at most 63072000/);
+assertConfigFails({ LONGTAIL_AUTH_THROTTLE_ENABLED: "maybe" }, /must be true or false/);
+assertConfigFails({ LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS: "0" }, /must be at least 1/);
+assertConfigFails({ LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS: "86401" }, /must be at most 86400/);
+assertConfigFails({ LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT: "0" }, /must be at least 1/);
+assertConfigFails({ LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT: "1001" }, /must be at most 1000/);
+assertConfigFails({ LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS: "0" }, /must be at least 1/);
+assertConfigFails({ LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS: "604801" }, /must be at most 604800/);
+assertConfigFails({
+  LONGTAIL_ENV: "production",
+  LONGTAIL_PUBLIC_URL: "http://forge.example.test",
+  LONGTAIL_SECURE_NOTES_MASTER_KEY: "Production-Secure-Notes-Master-Key-123!",
+  SUPER_ADMIN_PASSWORD: "Production-Test-Password-123!",
+  LONGTAIL_FILE_SCANNER: "clamscan",
+}, /must use https in production/);
+assertConfigFails({
+  LONGTAIL_ENV: "production",
+  LONGTAIL_PUBLIC_URL: "https://forge.example.test",
+  LONGTAIL_SECURE_NOTES_MASTER_KEY: "Production-Secure-Notes-Master-Key-123!",
+  LONGTAIL_SESSION_COOKIE_SECURE: "true",
+  SUPER_ADMIN_PASSWORD: "Production-Test-Password-123!",
+  LONGTAIL_FILE_SCANNER: "clamscan",
+}, /TRUST_PROXY must list the TLS reverse proxy/);
 assertConfigFails({
   LONGTAIL_SESSION_COOKIE_SAMESITE: "None",
   LONGTAIL_SESSION_COOKIE_SECURE: "false",
@@ -269,6 +373,7 @@ function readConfig(overrides = {}) {
       databaseFile: config.databaseFile,
       databaseProvider: config.databaseProvider,
       environment: config.environment,
+      publicUrl: config.publicUrl,
       host: config.host,
       localStorageRoot: config.storage.localRoot,
       initialWorkspaceName: config.bootstrap.initialWorkspaceName,
@@ -282,8 +387,17 @@ function readConfig(overrides = {}) {
       storageProvider: config.storage.provider,
       superAdminDisplayName: config.bootstrap.superAdminDisplayName,
       cookieSameSite: config.cookies.sameSite,
+      cookieDomain: config.cookies.domain,
+      cookiePath: config.cookies.path,
       cookieSecure: config.cookies.secure,
       cookieTtl: config.cookies.maxAgeSeconds,
+      hstsEnabled: config.security.hsts.enabled,
+      hstsMaxAgeSeconds: config.security.hsts.maxAgeSeconds,
+      authThrottleEnabled: config.security.authenticationThrottle.enabled,
+      authThrottleWindowSeconds: config.security.authenticationThrottle.windowSeconds,
+      authThrottleFailureLimit: config.security.authenticationThrottle.failureLimit,
+      authThrottleLockoutSeconds: config.security.authenticationThrottle.lockoutSeconds,
+      trustedProxies: config.security.trustedProxies,
       workerMode: config.worker.mode,
       workerId: config.worker.id,
       workerCompletedRetentionDays: config.worker.completedRetentionDays,

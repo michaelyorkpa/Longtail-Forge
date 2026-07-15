@@ -50,6 +50,7 @@ const {
 const {
   acquireWorkerProcessLock,
   getWorkerProcessLockPath,
+  readSeparateWorkerReadiness,
 } = await import("../src/core/jobs/worker-process-lock.js");
 
 let workspaceId = "";
@@ -136,11 +137,14 @@ async function assertWorkerProcessLock() {
   const firstLock = await acquireWorkerProcessLock();
   assert.equal(firstLock.lockPath, lockPath);
   assert.equal(existsSync(lockPath), true, "worker lock file should be created");
+  assert.equal(await readSeparateWorkerReadiness(), false, "an acquired but not initialized worker lock should not report ready");
   await assert.rejects(
     () => acquireWorkerProcessLock(),
     /at most one local worker process/,
     "a second local SQLite worker should be rejected",
   );
+  await firstLock.markReady();
+  assert.equal(await readSeparateWorkerReadiness(), true, "a ready worker should publish a fresh heartbeat");
   await firstLock.release();
   assert.equal(existsSync(lockPath), false, "worker lock file should be released");
 }

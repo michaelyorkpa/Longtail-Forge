@@ -18,6 +18,7 @@ const USER_SELECT_COLUMNS = `
   alt_email,
   timezone,
   password,
+  password_change_required,
   theme_mode,
   theme_auto_source,
   open_external_links_new_tab,
@@ -187,13 +188,19 @@ VALUES (
   };
 }
 
-async function updatePassword(workspaceId, userId, passwordHash) {
+async function updatePassword(workspaceId, userId, passwordHash, options = {}) {
   await db.run(`
 UPDATE users
-SET password = :passwordHash
+SET password = :passwordHash,
+    password_change_required = :passwordChangeRequired
 WHERE user_id = :userId
   AND ${USER_BELONGS_TO_WORKSPACE_SQL};
-`, { passwordHash, userId, workspaceId });
+`, {
+    passwordChangeRequired: options.passwordChangeRequired ? 1 : 0,
+    passwordHash,
+    userId,
+    workspaceId,
+  });
 }
 
 async function updateProfile(workspaceId, userId, profile) {

@@ -148,8 +148,9 @@ async function runNotificationApiTests(api, fixtures) {
     assert.match(String(page.body), /data-notification-script-fallback/);
     assert.match(String(page.body), /data-notification-preference-script-fallback/);
     assert.ok(String(page.body).includes(`/js/notifications.js?v=${appVersion}`));
+    assert.ok(String(page.body).includes(`/js/notification-load-guard.js?v=${appVersion}`));
     assert.doesNotMatch(String(page.body), /src="js\/notifications\.js/);
-    assert.match(String(page.body), /notificationsPageReady/);
+    assert.doesNotMatch(String(page.body), /<script(?![^>]*\bsrc=)[^>]*>/i);
   });
 
   const unreadList = await api.get("/api/notifications?status=unread", { cookie: fixtures.sessions.projectUser });

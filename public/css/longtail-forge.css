@@ -8090,7 +8090,8 @@ dialog[data-role-permissions-dialog] {
 }
 
 .role-assignment-list,
-.workspace-membership-list {
+.workspace-membership-list,
+.user-session-list {
     display: grid;
     gap: 8px;
     max-height: 292px;
@@ -8101,7 +8102,8 @@ dialog[data-role-permissions-dialog] {
 }
 
 .role-assignment-list li,
-.workspace-membership-list li {
+.workspace-membership-list li,
+.user-session-list li {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -8110,6 +8112,17 @@ dialog[data-role-permissions-dialog] {
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
+}
+
+.user-session-list li {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+}
+
+.user-session-actions {
+    justify-content: flex-start;
 }
 
 .workspace-membership-list li {

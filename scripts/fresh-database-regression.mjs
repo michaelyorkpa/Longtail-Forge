@@ -70,6 +70,11 @@ ORDER BY version;
       module_id: "core",
       name: "migrate_module_settings_ownership",
     },
+    {
+      version: "072",
+      module_id: "core",
+      name: "require_password_change",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 

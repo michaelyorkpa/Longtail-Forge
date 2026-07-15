@@ -23,6 +23,7 @@ const CHANGE_TYPES = new Set([
   "login",
   "logout",
   "settings_change",
+  "security",
 ]);
 
 const RECORD_TYPES = new Set([
@@ -38,6 +39,7 @@ const RECORD_TYPES = new Set([
   "module_setting",
   "user_role_assignment",
   "api_key",
+  "security_event",
 ]);
 
 async function record(event) {
@@ -120,12 +122,15 @@ async function list(session, filters = {}, options = {}) {
     ...normalizedFilters,
     limit: pagination.limit,
     offset: pagination.offset,
+    securityEvents: options.securityOnly ? "only" : "exclude",
   };
   const canFilterWorkspaces = await permissionsService.isSuperAdmin(session);
   const [auditLogs, total, filterOptions, workspaceOptions, projectOptions, clientOptions] = await Promise.all([
     auditLogsRepository.searchForScope(workspaceScope, repositoryFilters),
     auditLogsRepository.countSearchForScope(workspaceScope, repositoryFilters),
-    auditLogsRepository.readFilterOptionsForScope(workspaceScope),
+    auditLogsRepository.readFilterOptionsForScope(workspaceScope, {
+      securityEvents: repositoryFilters.securityEvents,
+    }),
     canFilterWorkspaces ? readAuditWorkspaceOptions() : Promise.resolve([]),
     readProjectOptionsForScope(workspaceScope),
     readClientOptionsForScope(workspaceScope),
@@ -149,8 +154,23 @@ async function list(session, filters = {}, options = {}) {
   };
 }
 
+async function listSecurityEvents(session, filters = {}, options = {}) {
+  return list(session, filters, {
+    ...options,
+    securityOnly: true,
+  });
+}
+
 async function exportCsv(session, filters = {}) {
-  const result = await list(session, {
+  return exportCsvForList(list, session, filters);
+}
+
+async function exportSecurityEventsCsv(session, filters = {}) {
+  return exportCsvForList(listSecurityEvents, session, filters);
+}
+
+async function exportCsvForList(listFunction, session, filters) {
+  const result = await listFunction(session, {
     ...filters,
     limit: 1000,
   }, {
@@ -371,8 +391,10 @@ function stringifyNullableJson(value) {
 export const auditService = {
   cleanupExpired,
   exportCsv,
+  exportSecurityEventsCsv,
   listAuditChangeTypes,
   listAuditRecordTypes,
   list,
+  listSecurityEvents,
   record,
 };

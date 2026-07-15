@@ -167,8 +167,8 @@ async function readFilterOptions(workspaceId) {
   return readFilterOptionsForScope(createWorkspaceScope(workspaceId));
 }
 
-async function readFilterOptionsForScope(workspaceScope) {
-  const { clauses, params } = buildSearchClauses(workspaceScope, {});
+async function readFilterOptionsForScope(workspaceScope, filters = {}) {
+  const { clauses, params } = buildSearchClauses(workspaceScope, filters);
   const [users, recordTypes, changeTypes] = await Promise.all([
     db.query(`
 SELECT actor_user_id, actor_user_name
@@ -222,6 +222,12 @@ function buildSearchClauses(workspaceScope, filters = {}) {
   const visibility = createWorkspaceVisibilityClause(workspaceScope);
   const clauses = [visibility.sql];
   const params = { ...visibility.params };
+
+  if (filters.securityEvents === "only") {
+    clauses.push("record_type = 'security_event'");
+  } else if (filters.securityEvents === "exclude") {
+    clauses.push("record_type != 'security_event'");
+  }
 
   if (filters.dateFrom) {
     clauses.push("created_at >= :dateFrom");

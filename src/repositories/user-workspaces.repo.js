@@ -69,6 +69,22 @@ ORDER BY name;
 `);
 }
 
+async function readInstallSecurityWorkspace() {
+  return db.get(`
+SELECT
+  workspaces.workspace_id,
+  workspaces.name AS workspace_name
+FROM workspaces
+LEFT JOIN users AS owner
+  ON owner.user_id = workspaces.owner_user_id
+ORDER BY
+  CASE WHEN owner.protected_user = 'yes' THEN 0 ELSE 1 END,
+  workspaces.created_at,
+  workspaces.workspace_id
+LIMIT 1;
+`);
+}
+
 async function countActiveForWorkspace(workspaceId) {
   const row = await db.get(`
 SELECT COUNT(1) AS count
@@ -128,6 +144,7 @@ function normalizeStatus(status) {
 
 export const userWorkspacesRepository = {
   readAllWorkspaces,
+  readInstallSecurityWorkspace,
   readActiveForUser,
   readByUserAndWorkspace,
   readForUser,

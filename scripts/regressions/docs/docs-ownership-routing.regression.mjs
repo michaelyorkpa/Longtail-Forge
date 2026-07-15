@@ -35,7 +35,9 @@ assert.deepEqual(
     "tags",
     "time-tracking",
     "settings",
+    "runtime-security",
     "permissions",
+    "security-audit",
     "database",
     "module-contracts",
     "view-building",
@@ -65,6 +67,11 @@ const tasksWithDocs = suggestDocsForPaths([
 assert.deepEqual(tasksWithDocs.changedOwningDocs, ["docs/tasks-module.md"]);
 assert.deepEqual(tasksWithDocs.warnings, []);
 
+const securityAudit = suggestDocsForPaths(["src/security/security-events.js"], { index: rawIndex });
+assert.deepEqual(securityAudit.matchedAreas.map((area) => area.id), ["security-audit"]);
+assert.ok(securityAudit.docs.includes("docs/runtime-configuration.md"));
+assert.ok(securityAudit.docs.includes("docs/longtail_forge_permissions_matrix.md"));
+
 const workbench = suggestDocsForPaths(["public/js/workbench.js"], { index: rawIndex });
 assert.deepEqual(workbench.matchedAreas.map((area) => area.id), ["workbench"]);
 assert.deepEqual(workbench.docs, ["docs/ui-layout-guide.md", "docs/workflow-context-contract.md"]);
@@ -72,6 +79,57 @@ assert.deepEqual(workbench.docs, ["docs/ui-layout-guide.md", "docs/workflow-cont
 const settings = suggestDocsForPaths(["src/services/settings.service.js"], { index: rawIndex });
 assert.deepEqual(settings.matchedAreas.map((area) => area.id), ["settings"]);
 assert.deepEqual(settings.docs, ["docs/settings-control-matrix.md", "docs/settings-ownership.md"]);
+
+const runtimeSecurity = suggestDocsForPaths([
+  "public/js/theme-init.js",
+  "src/core/csrf-protection.js",
+  "src/core/request-context.js",
+  "src/security/auth-throttle.js",
+], { index: rawIndex });
+assert.deepEqual(runtimeSecurity.matchedAreas.map((area) => area.id), ["runtime-security"]);
+assert.deepEqual(runtimeSecurity.docs, [
+  "SECURITY.md",
+  "docs/internet-deployment.md",
+  "docs/operational-security.md",
+  "docs/runtime-configuration.md",
+]);
+
+const operationalSecurity = suggestDocsForPaths([
+  "SECURITY.md",
+  "server.js",
+  "src/core/operational-logger.js",
+  "src/routes/operational-health.routes.js",
+  "src/services/operational-readiness.service.js",
+], { index: rawIndex });
+assert.deepEqual(operationalSecurity.matchedAreas.map((area) => area.id), ["runtime-security"]);
+assert.ok(operationalSecurity.docs.includes("SECURITY.md"));
+assert.ok(operationalSecurity.docs.includes("docs/operational-security.md"));
+
+const referenceDeployment = suggestDocsForPaths([
+  "docs/Caddyfile.private-preview.example",
+  "scripts/reference-caddy-security-smoke.mjs",
+], { index: rawIndex });
+assert.deepEqual(referenceDeployment.matchedAreas.map((area) => area.id), ["runtime-security"]);
+assert.ok(referenceDeployment.docs.includes("docs/internet-deployment.md"));
+
+const sessionSecurity = suggestDocsForPaths(["src/services/sessions.service.js"], { index: rawIndex });
+assert.deepEqual(sessionSecurity.matchedAreas.map((area) => area.id), ["runtime-security", "permissions"]);
+assert.ok(sessionSecurity.docs.includes("docs/runtime-configuration.md"));
+assert.ok(sessionSecurity.docs.includes("help/framework/users-roles-and-permissions.md"));
+
+const passwordResetSecurity = suggestDocsForPaths([
+  "public/js/login.js",
+  "src/middleware/require-auth.js",
+  "src/security/password-events.js",
+  "views/public/login.html",
+], { index: rawIndex });
+assert.deepEqual(passwordResetSecurity.matchedAreas.map((area) => area.id), ["runtime-security", "permissions"]);
+assert.ok(passwordResetSecurity.docs.includes("docs/runtime-configuration.md"));
+assert.ok(passwordResetSecurity.docs.includes("help/framework/users-roles-and-permissions.md"));
+
+const notificationLoadGuard = suggestDocsForPaths(["public/js/notification-load-guard.js"], { index: rawIndex });
+assert.deepEqual(notificationLoadGuard.matchedAreas.map((area) => area.id), ["notifications", "runtime-security"]);
+assert.ok(notificationLoadGuard.docs.includes("docs/runtime-configuration.md"));
 
 const settingsOwnership = readFileSync("docs/settings-ownership.md", "utf8");
 for (const requiredMechanism of [

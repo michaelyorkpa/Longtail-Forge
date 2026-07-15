@@ -1,4 +1,5 @@
 const auditFilterForm = document.querySelector("[data-audit-filters]");
+const auditViewSelect = document.querySelector("[data-audit-view-filter]");
 const dateFromInput = document.querySelector("[data-audit-date-from]");
 const dateToInput = document.querySelector("[data-audit-date-to]");
 const userFilterSelect = document.querySelector("[data-audit-user-filter]");
@@ -40,11 +41,16 @@ resetButton.addEventListener("click", () => {
 });
 
 exportFilteredButton.addEventListener("click", () => {
-  window.location.href = `/api/audit-logs/export.csv?${buildFilterParams().toString()}`;
+  window.location.href = `${getAuditEndpoint()}/export.csv?${buildFilterParams().toString()}`;
 });
 
 exportAllButton.addEventListener("click", () => {
-  window.location.href = "/api/audit-logs/export.csv";
+  window.location.href = `${getAuditEndpoint()}/export.csv`;
+});
+
+auditViewSelect.addEventListener("change", () => {
+  currentPage = 1;
+  loadAuditLogs();
 });
 
 pageSizeSelect.addEventListener("change", () => {
@@ -84,7 +90,7 @@ async function loadAuditLogs() {
   setStatus("Loading audit log...");
 
   try {
-    const result = await window.LongtailForge.api.getJson(`/api/audit-logs?${buildPageParams().toString()}`, {
+    const result = await window.LongtailForge.api.getJson(`${getAuditEndpoint()}?${buildPageParams().toString()}`, {
       cache: "no-store",
     });
     auditLogs = Array.isArray(result.auditLogs) ? result.auditLogs.map(normalizeAuditLog) : [];
@@ -100,7 +106,9 @@ async function loadAuditLogs() {
     populateFilterOptions(result.filterOptions, result.workspaceId);
     renderAuditLogs();
   } catch (error) {
-    setStatus("Audit log could not be loaded.");
+    setStatus(auditViewSelect.value === "security"
+      ? "Security events are available only to workspace administrators."
+      : "Audit log could not be loaded.");
     console.error(error);
   }
 }
@@ -108,7 +116,14 @@ async function loadAuditLogs() {
 async function initializeAuditLog() {
   await window.LongtailForge.timezones.loadSessionTimezone();
   await window.LongtailForge.workspaceContextReady;
+  if (new URLSearchParams(window.location.search).get("view") === "security") {
+    auditViewSelect.value = "security";
+  }
   await loadAuditLogs();
+}
+
+function getAuditEndpoint() {
+  return auditViewSelect.value === "security" ? "/api/security-events" : "/api/audit-logs";
 }
 
 function populateFilterOptions(filterOptions = {}, selectedWorkspaceId = "") {
@@ -142,7 +157,9 @@ function renderAuditLogs() {
     const cell = document.createElement("td");
 
     cell.colSpan = 7;
-    cell.textContent = "No audit log entries match these filters.";
+    cell.textContent = auditViewSelect.value === "security"
+      ? "No security events match these filters."
+      : "No audit log entries match these filters.";
     row.appendChild(cell);
     auditLogBody.appendChild(row);
     setStatus("");
@@ -304,7 +321,8 @@ function updateStatus() {
   const start = (currentPage - 1) * pageSize + 1;
   const end = Math.min(start + auditLogs.length - 1, totalAuditLogs);
 
-  setStatus(`Showing ${start}-${end} of ${totalAuditLogs} audit log entries.`);
+  const entryLabel = auditViewSelect.value === "security" ? "security events" : "audit log entries";
+  setStatus(`Showing ${start}-${end} of ${totalAuditLogs} ${entryLabel}.`);
 }
 
 function getTotalPages() {

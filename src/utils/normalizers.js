@@ -115,6 +115,7 @@ function userRowToAppValue(row) {
     themeMode: normalizeThemeMode(row.theme_mode),
     themeAutoSource: normalizeThemeAutoSource(row.theme_auto_source),
     openExternalLinksNewTab: normalizeBooleanPreference(row.open_external_links_new_tab),
+    passwordChangeRequired: normalizeBooleanPreference(row.password_change_required),
     userStatus: normalizeUserStatus(row.user_status),
     protectedUser: normalizeProtectedUserFlag(row.protected_user),
   };

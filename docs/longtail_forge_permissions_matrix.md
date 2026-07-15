@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-06-05 for version 0.32.3
+Updated: 2026-07-15 for version 0.33.16.8
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -126,6 +126,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | GET | /api/dashboard | authenticated user plus contribution permission filters | workspace/module contributions | Returns framework Dashboard pulse, layout, safe warnings, and permission-filtered contribution metadata |
 | Browser | GET | /api/tasks/dashboard-summary | tasks.view | self/task/project/client | Module-owned Dashboard data route, filtered by readable task scope |
 | Browser | GET | /api/audit-logs* | audit_logs.view | workspace | Enforced |
+| Browser | GET | /api/security-events* | audit_logs.view plus workspace_settings.manage | workspace | Owner/Workspace Administrator surface; workspace-filtered, with all-workspace reads limited to Super Admin |
 | Browser | GET | /api/users/permission-resources | users.manage plus contributed resource visibility permissions | workspace | Returns enabled-module and permission-filtered matrix resources only |
 | Public API | GET | /api/v1/clients* | clients:read plus Business workspace | API key workspace | Enforced |
 | Public API | GET | /api/v1/projects* | projects:read | API key workspace | Enforced |

@@ -123,6 +123,10 @@ These systems are not optional workflow features. They are the foundation other 
 
 The current database startup contract is documented in [database.md](database.md). New installs use the 0.33.5.18.6.5.4 consolidated fresh-start baseline instead of replaying the historical migration chain. Compatible existing local databases are adopted to that marker in place, and future migrations still run after the baseline.
 
+### Security Event Audit Boundary
+
+As of 0.33.16.8, security events remain framework-owned and use `audit_logs` as the one canonical persistence concern rather than adding a parallel security-log table. `security_event`/`security` entries are forced independently of ordinary audit enablement, share workspace retention and query infrastructure, and are excluded from the ordinary audit read surface. The security-only query requires both audit-read and workspace-settings administration authority. Producers pass only stable classifications and allowlisted safe metadata through `src/security/security-events.js`; prior/new payloads, record URLs, secrets, credentials, and session identifiers are not part of this contract. Event persistence is deliberately best-effort so an audit outage cannot become an authentication outage. This is an intrinsically framework-wide security exception to the Two-Module Rule.
+
 ---
 
 ## What Belongs in First-Party Modules

@@ -1,5 +1,281 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.16 - Internet-Exposure Security Hardening
+
+Completed 0.33.16. The live roadmap continues with 0.33.17.1.
+
+Purpose:
+
+Establish the **minimum supported private internet preview posture** for Longtail Forge on its own domain or subdomain behind one documented TLS reverse proxy. The Node process binds to loopback or a protected private interface; the proxy is the public edge; and the Longtail Forge login page is the authentication gate. Cloudflare Access, HTTP Basic Authentication, a VPN, or another external gate may be added by an operator, but the supported posture must not rely on a second password screen.
+
+This is friends-and-family/private-preview hardening, not enterprise certification and not a promise that any internet deployment is perfectly safe. Packaging, Docker, backup/restore, CI, and release operations follow in 0.33.17. The former in-app self-updater is explicitly removed from this branch and deferred for re-evaluation at 0.39.12.
+
+Dependencies and sequencing:
+
+- Builds on the existing auth/session/audit primitives (`src/security/passwords.js`, `src/security/sessions.js`, `src/services/auth.service.js`, `src/services/audit.service.js`) and the framework-owned session-expiry modal from 0.33.11.6; harden them rather than replace cookie/session authentication.
+- Uses the active runtime-configuration contract in `.env.example` and `docs/runtime-configuration.md`; unsupported unsafe production combinations must fail startup or require an unmistakable explicit override.
+- Security controls here are intrinsically framework-wide exceptions to the Two-Module Rule.
+- Backup/restore security and incident recovery depend on the baseline implementation in 0.33.17; PostgreSQL, shared hosted SaaS, TOTP, passkeys, risk scoring, and richer device history remain later work.
+
+Key decisions:
+
+- Internet-exposure hardening lands before private-preview packaging and invitations. The app must not rely on an external access gate, but it remains behind a real trusted TLS reverse proxy rather than exposing the Node listener directly.
+- Client IP, protocol, and host are trusted from proxy headers only behind a configured trusted proxy; every IP-keyed control (login throttling, audit, security logging) consumes one shared trusted-client-IP helper rather than reading `X-Forwarded-For` ad hoc.
+- Cookie, CSRF, browser-header, throttling, session-revocation, password, logging, and production-config controls are centralized and tested at the framework boundary.
+- Security logs are structured and safe; health/readiness output is useful to operators without exposing secrets or internal paths.
+- One Caddy reference deployment is the supported proof path before several equally official variants are offered.
+
+Non-goals:
+
+- Do not package or deploy the app in this branch; that is 0.33.17.
+- Do not add GitHub release checking, update-available UI, artifact download, checksum application, self-replacement, in-app migration/restart orchestration, automatic rollback, air-gapped in-app upload, or updater configuration/kill switches. Those ideas are deferred to 0.39.12 for evidence-based re-evaluation.
+- Do not claim external penetration testing, enterprise certification, compliance, or perfect internet safety unless independently completed and documented.
+- Do not replace the existing session/cookie auth model with a new token/OAuth/SSO/passwordless system in this version; the security work is hardening, not a re-architecture.
+- Do not build a full WAF, IDS, or external SIEM integration; security event logging is the in-app audit stream, not a third-party pipeline.
+- Do not add an email/notification transport in this version; the app has none today, so token-based self-service ("forgot password") reset is deferred to a future version and the already-shipped admin reset (Settings -> Workspace -> User Admin) is hardened as the supported recovery path.
+- Do not weaken existing permission, workspace, private/secure-content, or audit guardrails to add these controls.
+
+## Version 0.33.16.12 - Reference internet deployment and security closeout
+
+Completed 0.33.16.12. The live roadmap continues with 0.33.17.1.
+
+**Model: High Effort** — The first supported internet topology must prove that application controls and reverse-proxy behavior agree in a real deployment.
+
+- [x] Selected Caddy 2 as the one supported public edge and added a checked-in Caddyfile plus authoritative private-internet deployment runbook; alternative proxy and multi-proxy/CDN chains remain unsupported until explicitly designed and tested.
+- [x] Documented DNS, automatic public TLS, public TCP 80/443, loopback-only Node binding, Caddy's default replacement of untrusted forwarding headers, environment/secrets and data-volume permissions, production log handling, protected backup location, staged manual upgrades, health/readiness, and emergency session/API-key/account revocation.
+- [x] Fixed the supported posture at one SQLite application server for roughly 50 total users and typical active use around 5-15 concurrent users, explicitly excluding hosted SaaS, enterprise, multi-node, and high-availability claims.
+- [x] Added a disposable production-configured TLS proxy harness that validates and runs Caddy, rejects forged forwarded IP/protocol/host values, exercises CSRF-protected login and the authenticated session, proves secure cookies and browser headers, checks health/readiness, and correlates the public request ID to secret-free JSON logs.
+- [x] Added the `framework.reference-internet-deployment` release gate tying the operator runbook, checked-in Caddyfile, executable proxy proof, security/operations docs, known limits, and invitation block together; the discovered regression inventory advances to 362, the Framework floor to 57, and the release-gate floor to 24.
+- [x] Ran focused auth/session/security, permissions, workspace-isolation, CSRF, security-header, trusted-peer/forged-header, password compatibility, and end-to-end login/session proof, followed by the full release gate and canonical runtime verification.
+- [x] Published the explicit limitations: no external penetration test, certification, compliance audit, perfect-safety guarantee, hosted-SaaS/enterprise topology, tested backup/restore, or invitation authorization.
+
+Acceptance criteria:
+
+- The minimum supported private internet preview posture is documented and exercised through the reference proxy.
+- Security closeout proves the focused and full gates, workspace boundaries, and known limitations without relying on a second authentication gate.
+
+## Version 0.33.16.11 - Operational security basics
+
+Completed 0.33.16.11. The live roadmap continues with 0.33.16.12.
+
+**Model: High Effort** — Production observability, health reporting, and security-response contracts cross authentication, runtime, and deployment boundaries.
+
+- [x] Added newline-delimited structured JSON production logging with severity filtering, stable events, a strict safe-field allowlist, and a console bridge that never copies arbitrary legacy console arguments.
+- [x] Added server-generated per-request correlation IDs to the shared request context, returned them on every response as `X-Request-ID`, and used the same IDs in production request-completion records without logging URLs, queries, bodies, headers, credentials, sessions, private content, paths, or raw errors.
+- [x] Added public no-store `/healthz` process liveness and `/readyz` traffic readiness with minimal binary payloads; readiness requires safe database runtime state, a current checksum-valid migration set, and a live configured worker.
+- [x] Extended the existing SQLite separate-worker lock with an explicit post-startup ready marker and heartbeat so initializing, absent, stopped, and stale workers fail readiness; inline readiness consumes the existing runner state and disabled mode remains not ready.
+- [x] Documented dependency-update automation, npm vulnerability audit, dependency review, CodeQL, secret scanning, push protection, alert triage, and the explicit limit that clean scans do not prove security.
+- [x] Added `SECURITY.md` with the repository's private GitHub advisory path and added the minimum private-preview containment, evidence, recovery, communication, and review procedure to `docs/operational-security.md`.
+- [x] Cross-referenced 0.33.17 backup/restore security and blocked friends-and-family invitations on a dated manual review against the exact candidate, tested restore, security gates, operational probes/logging, scan dispositions, and incident readiness.
+- [x] Added focused integration coverage for JSON log shape/redaction, safe legacy console bridging, request-ID generation/propagation, minimal health responses, readiness failures, worker heartbeat state, current migrations, private reporting, scan limitations, incident response, and preview gating.
+
+Acceptance criteria:
+
+- Operators can collect correlated production logs, distinguish health from readiness, report vulnerabilities privately, and follow a minimum incident-response checklist without receiving secrets from health or log output.
+
+## Version 0.33.16.10 - Production configuration that fails closed
+
+Completed 0.33.16.10. The live roadmap continues with 0.33.16.11.
+
+**Model: High Effort** — Startup policy governs credentials, secrets, encrypted data, uploads, and response disclosure; an unsafe default can compromise the whole installation.
+
+- [x] Made `LONGTAIL_ENV=production` fail closed around an absolute public URL, the trusted HTTPS proxy boundary, forced `Secure` cookies, strong non-default bootstrap and Secure Notes secrets, enabled authentication throttling, non-debug logging, and production scanner selection.
+- [x] Added narrowly named, default-off unsafe overrides for HTTP, HSTS rollback, disabled authentication throttling, trace/debug logging, and unscanned uploads; each accepted production exception emits an unmistakable redacted warning instead of silently weakening posture.
+- [x] Kept development/test defaults usable while production refuses missing or weak credentials and Secure Notes keys, preventing a public process from presenting generated bootstrap access or misleading encrypted-note readiness.
+- [x] Added app and separate-worker readiness checks for data/database/local-storage directory access and scanner health before listening or polling; public-static path placement is rejected, and POSIX production directories require owner-only mode.
+- [x] Preserved exact same-origin/CSRF browser mutation policy, bounded Files JSON/multipart/per-file uploads, and generic unknown-error envelopes that never return stack traces or raw exception internals regardless of production debug override.
+- [x] Documented the session/CSRF secret model, bootstrap and Secure Notes rotation/recovery expectations, Windows/POSIX data permissions, CORS posture, request/upload limits, scanner deployment behavior, and the supported fail-closed public-preview matrix.
+- [x] Added `framework.production-configuration-hardening` integration coverage for safe production/development matrices, every rejected combination, explicit unsafe overrides, public-path rejection, data-directory readiness, scanner readiness, startup wiring, upload bounds, same-origin policy, generic error responses, and redacted diagnostics; the discovered regression inventory advances to 360.
+
+Acceptance criteria:
+
+- A public-preview production process cannot start silently with default credentials, missing required secrets, insecure public URL/cookies, misleading Secure Notes readiness, unsafe upload posture, or debug disclosure.
+
+## Version 0.33.16.9 - Password hashing modernization
+
+Completed 0.33.16.9. The live roadmap continues with 0.33.16.10.
+
+**Model: High Effort** — Changing the credential-at-rest format risks locking users out or silently weakening hashing; it needs algorithm agility and transparent migration.
+
+- [x] Selected Node 24.7+'s asynchronous built-in Argon2id after benchmarking the reference host and evaluating dependency, Docker/bare-metal, CPU, memory, and denial-of-service constraints; no third-party native package was added.
+- [x] Set the current self-describing PHC policy to Argon2id v19 with 64 MiB memory, three passes, one lane, a random 16-byte salt, and a 32-byte tag; bounded parsers reject unsafe stored parameters before invoking a KDF.
+- [x] Kept asynchronous legacy `pbkdf2_sha256` verification and accepted older bounded Argon2id parameters, returning explicit algorithm/upgrade metadata from the single verification boundary.
+- [x] Added successful-login transparent rehash to the current scheme while preserving `password_change_required` and existing sessions, so no mass reset or representation-only forced logout is required.
+- [x] Emitted the registered `security.password.rehashed` event with only previous/current algorithm classifications and the safe migration reason; corrected the security metadata sanitizer so the explicitly allowlisted `rehash_reason` is retained without weakening secret-field rejection.
+- [x] Routed bootstrap, login upgrade, user creation, self-service change, administrator reset, and scale seeding through the centralized asynchronous `hashPassword`/`verifyPassword` boundary and updated the missing-account dummy hash to the current cost.
+- [x] Preserved `timingSafeEqual`, kept password/hash/token/session material out of events and audits, left the existing new-password validation policy intact, and deliberately did not introduce a pepper without a governed secret backup/rotation/recovery policy.
+- [x] Added `framework.password-hashing-modernization` coverage for current and outdated Argon2id, bounded parameters, legacy PBKDF2 login and rewrite, safe event persistence, session continuity, constant-time comparison ownership, and asynchronous caller centralization; extended reset-hardening coverage to assert new/changed/reset Argon2id hashes.
+
+Acceptance criteria:
+
+- New and changed credentials use the current memory-hard Argon2id policy; legacy credentials verify and upgrade on successful login; and the single asynchronous password boundary remains bounded, constant-time at comparison, secret-free, and parameter-version upgrade-ready.
+
+## Version 0.33.16.8 - Security event logging and retention
+
+Completed 0.33.16.8. The live roadmap continues with 0.33.16.9.
+
+**Model: High Effort** — This is the audit backbone for an internet-exposed install; it must capture the right events without recording secrets and stay permission-safe.
+
+- [x] Added the dedicated `security_event` record type and `security` change type on the existing audit store, with forced persistence independent of ordinary audit enablement and the existing configurable workspace retention policy.
+- [x] Added one resilient security recorder with stable event/outcome/reason classification, trusted IP and actor/attempted-username context, strict safe-metadata allowlisting, no prior/new payloads or record URLs/IDs, and generic non-blocking failure diagnostics.
+- [x] Persisted successful and failed login, logout, throttle lockout, session revocation, password reset/change, user deactivation, audit-security configuration change, and important permission-denial events; registered the forward `security.password.rehashed` integration seam for 0.33.16.9.
+- [x] Kept login responses non-enumerating while routing unattributed attempts deterministically to the protected install owner's workspace, without introducing a global or parallel log store.
+- [x] Excluded security events from ordinary audit reads and added workspace-scoped `/api/security-events` list/export routes requiring both `audit_logs.view` and `workspace_settings.manage`.
+- [x] Reused the Audit Log page/filter/pagination/detail surface through an explicit Audit activity/Security events view selector and retained CSV export behavior per selected view.
+- [x] Added `framework.security-event-logging` coverage for failed-login secret absence, lockout/revocation/reset persistence, ordinary-audit separation, admin-only access, workspace isolation, retention, and authentication continuity through simulated audit failure.
+
+Acceptance criteria:
+
+- Security-relevant authentication/session/password events persist through one consolidated, retained audit-backed stream with safe actor/IP/outcome context; the security view is administrator-only and workspace-safe; and logging failure cannot block authentication.
+
+## Version 0.33.16.7 - Password reset hardening
+
+Completed 0.33.16.7. The live roadmap continues with 0.33.16.8.
+
+**Model: High Effort** — Password reset is a classic account-takeover vector; generated credentials and the restricted session that accepts them must remain exact, scoped, throttled, and secret-safe.
+
+- [x] Added forward migration `072_require_password_change.sql`, preserving existing users with `password_change_required=0`; administrator reset stores only the new password hash, sets the flag, and returns the generated credential only in that successful response.
+- [x] Joined the live user flag into request-session reads so required-change state applies immediately without copying credential lifecycle state into session rows.
+- [x] Restricted required-change sessions to the public login/CSRF/session/logout surfaces and `PUT /api/user/password`; protected APIs return the stable `PASSWORD_CHANGE_REQUIRED` envelope, protected pages return to the login password-change form, and workspace switching is blocked.
+- [x] Added the focused login-screen temporary-password workflow. Successful current-password-verified change clears the flag, preserves the current session, revokes every other session, and restores normal access immediately.
+- [x] Preserved `users.manage`, active-workspace target scoping, immediate all-session reset revocation, and the existing shared throttle for administrator reset and current-password verification.
+- [x] Emitted safe `security.password.reset` and `security.password.changed` internal events with outcome/lifecycle counts but no password, hash, token, or session ID.
+- [x] Kept forgot-password/token recovery deferred until a delivery channel exists and documented the required future single-use, time-limited, hashed-at-rest, non-enumerating, throttled, forced-logout contract.
+- [x] Added `framework.password-reset-hardening` integration coverage for permission/workspace isolation, reset revocation, forced-change restriction and completion, throttling, safe events, and raw database/audit/event/console secret absence.
+
+Acceptance criteria:
+
+- Reset and self-change revoke the intended session set and emit safe events; reset remains permission/workspace scoped; the generated credential is one-response-only and never logged; and token recovery remains explicitly deferred.
+
+## Version 0.33.16.6 - Session revocation and forced logout
+
+Completed 0.33.16.6. The live roadmap continues with 0.33.16.7.
+
+**Model: High Effort** — Session lifecycle is the core of "do not leak data"; revocation must be complete and immediate, and it interacts with password change, reset, deactivation, and rehash.
+
+- [x] Added provider-boundary session repository/service operations for one session, every user session, every session except the current one, and current-workspace-associated sessions.
+- [x] Kept browser-visible session handles one-way and process-scoped, never returned the raw bearer credential, pruned expired rows, and limited User Admin reads/revocations to `users.manage` targets in the active workspace.
+- [x] Added User Admin session review, individual revoke, and workspace-session logout actions with confirmation; the existing framework 401/session-expiry dialog remains the single forced-login recovery surface.
+- [x] Revoked other sessions after successful self-service password change and revoked every target session after administrator reset or account deactivation. Password-hash-upgrade reauthentication remains owned by 0.33.16.9; the optional self-service session screen was intentionally not added.
+- [x] Emitted one safe `security.session.revoked` internal event per removed session and one forced audit operation record without session IDs, tokens, passwords, hashes, or other bearer material.
+- [x] Added `framework.session-revocation` integration coverage for immediate rejection, individual/workspace/all/all-except behavior, password change/reset/deactivation, permission and workspace isolation, safe references, event/audit cardinality, and reuse of the framework session-expiry UI.
+
+Acceptance criteria:
+
+- Individual and bulk session revocation take effect on the next request; password change, reset, and deactivation invalidate the intended session set; and management remains permission-gated, workspace-safe, auditable, and secret-safe.
+
+## Version 0.33.16.5 - Browser security headers and CSP rollout
+
+Completed 0.33.16.5. The live roadmap continues with 0.33.16.6.
+
+**Model: High Effort** — CSP and cache/header policy can either leave browser attack surface open or silently break the current inline/global frontend if enforced without an inventory.
+
+- [x] Inventoried current browser sources: same-origin classic scripts and styles, one server-injected critical theme style, bounded DOM style mutations, same-origin dynamic scripts, and local/data/blob preview media; no external code hosts, eval, workers, or required frames are shipped.
+- [x] Moved the final executable inline Notifications guard into a versioned same-origin asset and enforced a CSP with same-origin scripts, no inline handlers, no objects/frames, same-origin forms/connections, explicit preview media sources, and only the documented temporary inline-style allowance.
+- [x] Added `frame-ancestors 'none'`, compatible `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a deny-by-default Permissions Policy for unused sensitive browser capabilities.
+- [x] Retained the trusted-effective-HTTPS HSTS boundary from 0.33.16.2 and applied `Cache-Control: no-store` to root, HTML, and API responses while leaving versioned static assets cacheable.
+- [x] Documented the current CSP source inventory, the temporary style exception owned by the 0.33.18 modernization direction, and the exact report-only observation and rendered-smoke sequence required before enforcing future CSP tightening.
+- [x] Added focused header regressions across direct HTTP, forged forwarding headers, trusted proxy HTTPS/HSTS, private-response caching, CSP source compatibility, template inline-script/event-handler inventory, and attachment-specific CSP sandbox override.
+- [x] Proved the complete header set and compatible login asset response on the canonical live server. The in-app rendered-browser surface was unavailable (`agent.browsers.list()` returned no browsers), so the established source, HTTP, focused-regression, and full-suite proof paths were used and the unavailable rendered interaction was recorded rather than silently substituted.
+
+Acceptance criteria:
+
+- The browser-header policy is explicit, tested, and deployable without silently breaking current rendered behavior; CSP has a documented report-only-to-enforcement path.
+
+## Version 0.33.16.4 - CSRF and state-changing browser request protection
+
+Completed 0.33.16.4. The live roadmap continues with 0.33.16.5.
+
+**Model: High Effort** — Central cookie-authenticated write protection touches every browser mutation and must preserve legitimate same-origin workflows without route-by-route drift.
+
+- [x] Centralized all state-changing browser API requests behind one framework CSRF and content-type middleware mounted before public login/logout and authenticated routes.
+- [x] Required an exact trusted-effective request or configured-public origin when `Origin` is present, with an exact-origin `Referer` fallback only when `Origin` is absent.
+- [x] Added a signed, process-scoped double-submit token for browser requests without origin headers, issued through `GET /api/csrf-token` and attached by the early shared `fetch` wrapper.
+- [x] Kept `SameSite` as defense in depth while requiring origin or token proof, and rejected malformed/cross-origin requests even when they supplied a valid token.
+- [x] Allowed `application/json`, bodyless actions, and multipart only on the two Files upload routes; unsupported mutation content types now fail with `415` before route logic.
+- [x] Kept bearer-authenticated `/api/v1` calls outside the cookie-CSRF boundary while preserving their existing API-key and scope checks.
+- [x] Added focused regressions for same-origin `Origin` and constrained `Referer` acceptance, cross-origin rejection, missing/partial/forged tokens, forged forwarding headers, multipart exceptions, and unsupported content types.
+
+Acceptance criteria:
+
+- Cookie-authenticated mutations pass through one documented CSRF boundary; unsupported cross-origin and content-type combinations fail closed.
+
+## Version 0.33.16.3 - Login and sensitive-endpoint throttling
+
+Completed 0.33.16.3. The live roadmap continues with 0.33.16.4.
+
+**Model: High Effort** — Throttling sits directly on the login/auth path; a mistake either locks out real users or leaves brute-forcing open, and it must key on the trusted IP established in 0.33.16.1.
+
+Purpose:
+
+Protect the public login surface from credential brute-forcing and account enumeration once the app is reachable on the internet. This slice adds one framework throttle keyed independently on the trusted client IP and submitted account, keeps password-verification cost and response copy non-enumerating, and applies separate scopes to other password-sensitive actions.
+
+- [x] Added a bounded process-local authentication throttle with configurable rolling window, failure threshold, and temporary lockout duration; defaults are enabled, five attempts, a 15-minute window, and a 15-minute lockout.
+- [x] Tracked login failures independently per trusted effective client IP and normalized submitted username, so rotating accounts cannot bypass the IP bucket and rotating IPs cannot bypass the account bucket.
+- [x] Reset both login buckets after a successful authentication below the threshold; an active lockout continues to return the generic framework `429` envelope until it expires.
+- [x] Removed the inactive-account response distinction and made missing users take one valid dummy password-hash verification, keeping unknown, inactive, and wrong-password responses aligned without skipping the constant-cost path.
+- [x] Routed login, current-password verification, and administrator reset through the shared trusted-IP throttle; self-password failures lock their own scope, while successful admin resets are bounded and later reset attempts lock out after the configured threshold.
+- [x] Emitted `security.authentication_throttle.lockout` once per threshold crossing with safe scope, attempted username, trusted client IP, and triggered dimensions, without passwords, hashes, session IDs, or tokens.
+- [x] Kept throttling disable-able for deliberately trusted offline/internal installs and added an unmistakable production warning when disabled.
+- [x] Assessed adjacent public surfaces: the current public API uses 192-bit random hashed API keys rather than user-chosen credentials, and no public-intake credential route is shipped; future token/intake surfaces must make their own explicit abuse-limit decision.
+- [x] Added focused deterministic and live-route regressions for per-IP lockout, cross-IP account lockout, counter reset, expiry, disablement, forged forwarded headers, non-enumerating responses, current-password checks, administrator resets, and secret-free security events.
+
+Acceptance criteria:
+
+- Repeated failed logins are throttled/locked out per IP and per account with configurable, internet-safe defaults.
+- Throttling keys on the trusted client IP and cannot be bypassed by forged headers.
+- Responses never reveal account existence, and lockouts emit a security event.
+
+## Version 0.33.16.2 - TLS and cookie posture
+
+Completed 0.33.16.2. The live roadmap continues with 0.33.16.3.
+
+**Model: High Effort** — Public URL, proxy protocol resolution, and cookie attributes are one authentication boundary; unsafe combinations can silently leak sessions.
+
+- [x] Made HTTPS the supported public-internet posture and kept Secure-cookie behavior on the trusted effective protocol established in 0.33.16.1.
+- [x] Kept session cookies `HttpOnly`; documented the deliberate `SameSite=Lax` default, `Path=/`, host-only/no-`Domain` policy, and the intentionally browser-readable theme cookies.
+- [x] Made a declared production HTTP public URL fail startup unless `LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL=true` is explicitly set; the override emits an unmistakable unsafe warning.
+- [x] Required a configured trusted TLS reverse proxy when production declares an HTTPS public URL, preventing a silently inconsistent protocol/cookie boundary.
+- [x] Enabled HSTS only for trusted effective HTTPS, with a conservative production `max-age=300`, bounded configuration, no `includeSubDomains`/`preload`, a `max-age=0` rollback path, and staged rollout/rollback guidance.
+- [x] Added focused regressions for direct HTTP, trusted forwarded HTTPS, forged/untrusted forwarded protocol, cookie attributes, invalid/unsafe production public URLs, Secure-cookie behavior, HSTS gating, and HSTS rollback.
+- [x] Reconciled the future browser-security-header slice to retain the HSTS boundary established here rather than adding a second implementation.
+
+Acceptance criteria:
+
+- Public-preview production configuration cannot silently run with insecure public URL/cookie assumptions.
+- Cookie and HSTS decisions use one trusted effective-protocol source and are covered at direct-peer and proxy edges.
+
+## Version 0.33.16.1 - Trusted reverse-proxy and secure-edge request handling
+
+Completed 0.33.16.1. The live roadmap continues with 0.33.16.2.
+
+**Model: High Effort** — Getting proxy trust wrong either lets clients spoof their source IP (defeating throttling, audit, and security logging) or breaks Secure-cookie/HTTPS behavior behind TLS termination; both are security-critical and subtle.
+
+Purpose:
+
+Make the app safe to run behind a trusted reverse proxy on the public internet so that client IP, protocol, and host are derived from proxy headers only when the immediate peer is a configured trusted proxy, and never from arbitrary client-supplied headers. Before this slice, `readRequestIpAddress` in `src/routes/auth.routes.js` took the first `X-Forwarded-For` value unconditionally, so a direct client could forge it; every downstream control keyed on IP inherited that spoofability.
+
+- [x] Added explicit trusted-proxy configuration at `config.security.trustedProxies`: a validated IP/CIDR list plus an off-by-default direct/no-proxy mode.
+- [x] Configured Express `trust proxy` from that allowlist so `request.ip`, `request.protocol`, and `request.hostname` reflect forwarded values only when the immediate peer is trusted.
+- [x] Replaced ad-hoc `X-Forwarded-For` parsing with one shared request-context helper that:
+  - [x] returns the framework-resolved client IP when a trusted proxy is configured,
+  - [x] falls back to the socket peer address when no proxy is trusted,
+  - [x] never honors `X-Forwarded-*` from an untrusted peer.
+- [x] Routed login context, audit `ipAddress`, and session `ip_address` through that helper; later throttling/security-logging slices inherit the same context boundary.
+- [x] Honored `X-Forwarded-Proto` for cookie HTTPS assumptions only behind a trusted proxy, and marked session/theme cookies `Secure` when the effective protocol is HTTPS.
+- [x] Documented the supported single-Node-process, single-Caddy TLS-termination reference deployment and the required forwarding-header behavior.
+- [x] Added focused regressions proving:
+  - [x] a forged `X-Forwarded-For` from an untrusted peer is ignored and the socket peer wins,
+  - [x] a forwarded IP from a configured trusted proxy is honored,
+  - [x] direct-exposure mode never trusts forwarded headers,
+  - [x] Secure cookies are set when the effective protocol is HTTPS behind the proxy.
+
+Acceptance criteria:
+
+- Client IP, protocol, and host are trusted from proxy headers only when the peer is a configured trusted proxy; otherwise the socket peer is used.
+- A single shared helper is the only source of client IP, and current/future IP consumers use that boundary.
+- Direct internet exposure without a proxy cannot be tricked into trusting forwarded headers.
+
 ## Version 0.33.15 - Settings De-Hardcoding: Module-Contributed Settings Framework
 
 Completed 0.33.15. The live roadmap continues with 0.33.16.1.

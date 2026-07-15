@@ -6,12 +6,12 @@ Longtail Forge treats file scanning as Files-owned runtime infrastructure. The a
 
 | Mode | Use | Result |
 | --- | --- | --- |
-| `none` | Default disabled-scanning mode for local installs that have accepted that risk. | `file.scan` does not read file bytes and marks pending files `available` with `scan_status = not_required`. |
+| `none` | Default disabled-scanning mode for development/local installs that have accepted that risk. Production requires the explicit unscanned-upload override. | `file.scan` does not read file bytes and marks pending files `available` with `scan_status = not_required`. |
 | `noop` | Explicit pass-through mode for development or accepted self-hosted troubleshooting only. | `file.scan` marks files `available` with `scan_status = passed` without an external scanner. |
 | `clamscan` | ClamAV command-line executable. Useful when a local CLI install is easier than a daemon. | Clean files pass; infected, unavailable, or timed-out scans quarantine the file for review. |
 | `clamd` | ClamAV daemon over TCP. Useful for service-style installs and separate workers. | Clean files pass; infected, unavailable, malformed, or timed-out scans quarantine the file for review. |
 
-`LONGTAIL_FILE_SCANNER` must be one of `none`, `noop`, `clamscan`, or `clamd`. Unix-socket scanning is deferred in this branch; there is no active `LONGTAIL_CLAMD_SOCKET` setting.
+`LONGTAIL_FILE_SCANNER` must be one of `none`, `noop`, `clamscan`, or `clamd`. Production requires `clamscan` or `clamd`, and both the app and separate worker require its startup health probe to succeed before serving or polling. `LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=true` is the narrowly scoped escape hatch for an explicitly accepted production deployment without malware scanning; it emits an unsafe-override warning and is not supported for an internet preview. Unix-socket scanning is deferred in this branch; there is no active `LONGTAIL_CLAMD_SOCKET` setting.
 
 ## Linux Service Setup
 
@@ -87,4 +87,4 @@ Unavailable scanners do not silently pass files and do not delete stored bytes.
 - Quarantined files stay unavailable for normal download and preview until an authorized review path restores them.
 - Scanner diagnostics report safe status and warning copy without exposing executable paths, hostnames, ports, sockets, raw scanner output, storage keys, protected paths, signed URLs, or raw environment values.
 
-`none` is different from scanner-unavailable ClamAV modes: `none` is an explicit disabled-scanning configuration and completes pending scan jobs as `not_required`/`available`. Use it only when the install deliberately accepts disabled scanning.
+`none` is different from scanner-unavailable ClamAV modes: `none` is an explicit disabled-scanning configuration and completes pending scan jobs as `not_required`/`available`. Use it only when the install deliberately accepts disabled scanning. In production it fails configuration validation unless `LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=true`; a configured but unavailable `clamd`/`clamscan` fails readiness before the app listens or the worker polls.

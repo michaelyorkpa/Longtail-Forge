@@ -178,12 +178,17 @@ ORDER BY version;
       module_id: "core",
       name: "migrate_module_settings_ownership",
     },
+    {
+      version: "072",
+      module_id: "core",
+      name: "require_password_change",
+    },
   ]);
 }
 
 async function assertExistingUserPreserved() {
   const rows = await querySql(`
-SELECT username, display_name, user_status
+SELECT username, display_name, user_status, password_change_required
 FROM users
 WHERE user_id = 'baseline-adoption-user';
 `);
@@ -191,6 +196,7 @@ WHERE user_id = 'baseline-adoption-user';
   assert.deepEqual(rows[0], {
     username: "baseline-adoption@example.test",
     display_name: "Baseline Adoption User",
+    password_change_required: 0,
     user_status: "active",
   });
 }

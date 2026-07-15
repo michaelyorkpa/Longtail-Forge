@@ -711,13 +711,6 @@
       "signature": "719325ec2347207e72b163e7a8d574a0157d5bb8ebc90b33502eb142935decbf"
     },
     {
-      "id": "dynamic-sql-template.740eae3a79ac619e",
-      "file": "src/repositories/users.repo.js",
-      "kind": "dynamic-sql-template",
-      "operation": "db.run",
-      "signature": "740eae3a79ac619e8e9d73578ca5d104ec002f2208c6d52daeee0f70fd654638"
-    },
-    {
       "id": "dynamic-sql-template.9a48ce394ca0af41",
       "file": "src/repositories/users.repo.js",
       "kind": "dynamic-sql-template",
@@ -737,6 +730,13 @@
       "kind": "dynamic-sql-template",
       "operation": "db.get",
       "signature": "cf43b95b4b4126a4924ad8e88d5a5fba1668aab4a1e561e39d4a539e7ffbd632"
+    },
+    {
+      "id": "dynamic-sql-template.d03dde42813ab925",
+      "file": "src/repositories/users.repo.js",
+      "kind": "dynamic-sql-template",
+      "operation": "db.run",
+      "signature": "d03dde42813ab9257dcef991c6ac5c8df384abb6090ffadd5ab0c533ef5a3882"
     },
     {
       "id": "dynamic-sql-template.d69926160d53c78f",

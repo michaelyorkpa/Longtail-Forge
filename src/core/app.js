@@ -15,6 +15,7 @@ import { helpRoutes } from "../routes/help.routes.js";
 import { jobsRoutes } from "../routes/jobs.routes.js";
 import { publicApiRoutes } from "../routes/public-api.routes.js";
 import { notificationsRoutes } from "../routes/notifications.routes.js";
+import { operationalHealthRoutes } from "../routes/operational-health.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
 import { reportingRoutes } from "../routes/reporting.routes.js";
 import { runtimeDiagnosticsRoutes } from "../routes/runtime-diagnostics.routes.js";
@@ -37,6 +38,12 @@ import {
 } from "../services/search-index-jobs.service.js";
 import { queueTaskRecurrenceSweepJobs, queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../modules/tasks/task-jobs.service.js";
 import { registerInitialResumeStateProducerEventHandlers } from "../services/work-resume-state-initial-producers.js";
+import { attachRequestContext, configureTrustedProxy } from "./request-context.js";
+import { createTransportSecurityMiddleware } from "./transport-security.js";
+import { createCsrfProtectionMiddleware } from "./csrf-protection.js";
+import { securityEventsService } from "../security/security-events.js";
+import { assertRuntimeDataPathsReady } from "./runtime-readiness.js";
+import { createRequestLoggingMiddleware, operationalLogger } from "./operational-logger.js";
 
 function createApp() {
   const app = express();
@@ -46,9 +53,16 @@ function createApp() {
   registerFutureImportJobHandlers();
   notificationsService.registerEventHandlers();
   registerInitialResumeStateProducerEventHandlers();
+  securityEventsService.registerEventHandlers();
 
   app.disable("x-powered-by");
+  configureTrustedProxy(app, config.security.trustedProxies);
+  app.use(attachRequestContext);
+  app.use(createRequestLoggingMiddleware());
+  app.use(createTransportSecurityMiddleware());
   app.use(cookieParser());
+  app.use(createCsrfProtectionMiddleware());
+  app.use(operationalHealthRoutes);
   app.use(express.static(config.publicDir));
   app.use("/api", appInfoRoutes);
   app.use("/api", authRoutes);
@@ -104,10 +118,18 @@ function createApp() {
 
 async function startServer() {
   try {
-    logRuntimeConfigWarnings();
+    logRuntimeConfigWarnings(config.environment === "production"
+      ? () => operationalLogger.warn("runtime.configuration.unsafe_override")
+      : console.warn);
+    await assertRuntimeDataPathsReady();
     await filesService.assertConfiguredFileStorageProviderReady();
+    await filesService.assertConfiguredFileScannerReady();
     const databaseHealth = await initializeDatabase();
-    console.log(formatDatabaseHealth(databaseHealth));
+    if (config.environment === "production") {
+      operationalLogger.info("database.ready", { component: databaseHealth.provider });
+    } else {
+      console.log(formatDatabaseHealth(databaseHealth));
+    }
     queueStartupJobRetentionPrune();
     queueStartupSearchIndexRebuildIfEmpty();
     queueStartupTaskReminderSweep();
@@ -115,15 +137,23 @@ async function startServer() {
     const app = createApp();
 
     const server = app.listen(config.port, config.host, () => {
-      console.log(
-        `Longtail Forge running at http://${config.host}:${config.port}/index.html`,
-      );
+      if (config.environment === "production") {
+        operationalLogger.info("application.listening", { component: "http" });
+      } else {
+        console.log(
+          `Longtail Forge running at http://${config.host}:${config.port}/index.html`,
+        );
+      }
       startConfiguredInlineWorker();
     });
     registerGracefulShutdown(server);
   } catch (error) {
-    console.error("Longtail Forge could not be started.");
-    console.error(error.message || error);
+    if (config.environment === "production") {
+      operationalLogger.error("application.startup.failed", { errorType: error?.name || "Error" });
+    } else {
+      console.error("Longtail Forge could not be started.");
+      console.error(error.message || error);
+    }
     process.exitCode = 1;
   }
 }

@@ -1,0 +1,12 @@
+{
+	# Keep Caddy's administration endpoint local. A service manager may use it
+	# for validated reloads; never publish port 2019.
+	admin 127.0.0.1:2019
+}
+
+{$LONGTAIL_PUBLIC_HOST} {
+	# The Node listener is loopback-only and never receives public traffic.
+	# Keep Caddy's default X-Forwarded-* behavior. It ignores incoming values
+	# from an untrusted direct client and derives the values supplied upstream.
+	reverse_proxy 127.0.0.1:8001
+}

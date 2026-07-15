@@ -2,11 +2,13 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.6.15.1, this contract records active runtime settings plus future reserved settings. The supported app runtime baseline is Node 24 LTS through the root package `engines.node` range `>=24 <25`, and the native SQLite dependency is pinned to `better-sqlite3@12.11.1` for the Node 24 ABI. Worker settings, job retention settings, local Files upload storage-provider selection, local storage provider diagnostics, the local storage streaming write contract, single-file multipart uploads, streamed multipart batch uploads, the attachment-helper streamed batch path, streamed upload error hardening, workspace/per-user Files quota enforcement, streamed signature validation, download/preview metadata pre-checks, malformed batch file-part failure handling, storage adapter contract cleanup, scanner mode resolution, safe scanner health diagnostics, the optional `clamscan` executable scanner adapter, the optional `clamd` TCP scanner adapter, S3-compatible adapter scaffolding, the mocked S3 object-operation proof, safe S3 diagnostics, and the signed URL boundary plan are now documented; PostgreSQL, trusted hosted-proxy behavior, Unix-socket scanning, direct-transfer behavior, provider-specific S3 client rollout, and actual signed URL routes remain reserved until their roadmap slices wire behavior. The 0.33.16 roadmap now owns trusted-proxy, public-URL/HTTPS, cookie, fail-closed production, and health/readiness activation, but this document must continue labeling those settings as reserved until implementation lands. ClamAV setup guidance for Linux, Windows, and macOS is documented in [file-scanner-setup.md](file-scanner-setup.md). The 0.33.5.24 Node runtime branch changes the developer/runtime baseline and native-driver install contract; it does not add active runtime environment variables.
+As of 0.33.16.11, this contract includes fail-closed production validation, structured secret-free production output, server-generated request correlation, public liveness/readiness probes, active explicit trusted-proxy configuration, proxy-aware request context, production public-URL enforcement, the fixed cookie scope policy, trusted-effective-HTTPS HSTS gating, production scanner and data-path readiness probes, process-local login/password-sensitive throttling with internet-safe defaults, immediate session revocation, enforced post-reset password change, Argon2id password hashing with transparent legacy migration, consolidated security-event logging and retention, one framework browser-mutation boundary for origin, CSRF token, and content-type enforcement, and one enforced browser security-header policy with a documented CSP rollout path. The supported app runtime baseline is Node 24.7+ within the Node 24 line through the root package `engines.node` range `>=24.7 <25`; Node 24.7 is the minimum because it introduced the built-in Argon2id API. The native SQLite dependency is pinned to `better-sqlite3@12.11.1` for the Node 24 ABI. Worker settings, job retention settings, local Files upload storage-provider selection, local storage provider diagnostics, the local storage streaming write contract, single-file multipart uploads, streamed multipart batch uploads, the attachment-helper streamed batch path, streamed upload error hardening, workspace/per-user Files quota enforcement, streamed signature validation, download/preview metadata pre-checks, malformed batch file-part failure handling, storage adapter contract cleanup, scanner mode resolution, safe scanner health diagnostics, the optional `clamscan` executable scanner adapter, the optional `clamd` TCP scanner adapter, S3-compatible adapter scaffolding, the mocked S3 object-operation proof, safe S3 diagnostics, and the signed URL boundary plan are now documented; PostgreSQL, Unix-socket scanning, direct-transfer behavior, provider-specific S3 client rollout, and actual signed URL routes remain reserved until their roadmap slices wire behavior. ClamAV setup guidance for Linux, Windows, and macOS is documented in [file-scanner-setup.md](file-scanner-setup.md). The 0.33.5.24 Node runtime branch changes the developer/runtime baseline and native-driver install contract; it does not add active runtime environment variables.
 
 Storage Provider and Scanner Runtime branch is complete as of 0.33.5.22.15, with a 0.33.5.25.1 cleanup that makes S3 storage explicitly deferred scaffolding, a 0.33.5.25.2 cleanup that makes Files workspace/per-user storage quotas active, a 0.33.5.25.3 cleanup that hardens streamed validation plus download/preview metadata pre-checks, and a 0.33.5.25.4 cleanup that closes the branch with per-file malformed batch failures and an adapter contract matching wired storage behavior. The live local storage/scanner keys are `LONGTAIL_STORAGE_PROVIDER`, `LONGTAIL_LOCAL_STORAGE_ROOT`, `LONGTAIL_FILE_SCANNER`, `LONGTAIL_CLAMD_HOST`, `LONGTAIL_CLAMD_PORT`, and `LONGTAIL_CLAMSCAN_PATH`; the reserved S3 keys are `LONGTAIL_S3_BUCKET`, `LONGTAIL_S3_REGION`, `LONGTAIL_S3_ENDPOINT`, `LONGTAIL_S3_ACCESS_KEY_ID`, and `LONGTAIL_S3_SECRET_ACCESS_KEY`. `LONGTAIL_CLAMD_SOCKET` is not active, no runtime key enables direct/presigned S3 upload or download routes, and no provider-specific S3 SDK/client setting exists yet. PostgreSQL settings remain reserved for the 0.40.0 database extraction layer; 0.33.5.23 is SQL parameter-binding migration and does not make PostgreSQL settings live.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
+
+As of 0.33.16.12, the supported private-internet posture is also closed around the single-proxy Caddy operator path in [Reference Internet Deployment](internet-deployment.md); that runbook owns DNS/TLS, ports, listener and filesystem permissions, forwarding behavior, logging, backup location, upgrade/emergency procedures, live proxy proof, and known limitations.
 
 ## Current Active Settings
 
@@ -14,10 +16,118 @@ Process environment values win over `.env` values. This lets shells, service man
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `LONGTAIL_ENV` | `development` | Must be `development`, `test`, or `production`. Production mode requires `SUPER_ADMIN_PASSWORD`. |
-| `LONGTAIL_PUBLIC_URL` | empty | Recommended in production for future absolute URL and hosted deployment work. |
+| `LONGTAIL_ENV` | `development` | Must be `development`, `test`, or `production`. Production activates the fail-closed policy below. |
+| `LONGTAIL_PUBLIC_URL` | empty | Absolute HTTP/HTTPS public URL. It is required in production; production HTTPS requires the configured trusted TLS reverse proxy. A declared production HTTP URL fails startup unless the explicit unsafe override below is true. |
+| `LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL` | `false` | Unmistakable development-only escape hatch for an explicitly accepted production HTTP deployment. When enabled with a production HTTP URL, startup emits an unsafe-override warning. Do not use for an internet preview. |
+| `LONGTAIL_LOG_LEVEL` | `info` | Must be `trace`, `debug`, `info`, `warn`, or `error`. Production rejects `trace`/`debug` unless the explicit override below is true. |
+| `LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING` | `false` | Narrow production override for temporary trace/debug logging. Startup emits an unsafe-override warning; browser errors remain generic even when enabled. |
 | `HOST` | `0.0.0.0` | Express listen host. |
 | `PORT` | `8001` | Express listen port. Must be an integer from 1 through 65535. |
+
+### Trusted Reverse Proxy
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `TRUST_PROXY` | `false` | `false` is direct/local mode and ignores every `X-Forwarded-*` header. To enable proxy trust, provide a comma-separated allowlist of the immediate proxy peer IP addresses or CIDR ranges, such as `127.0.0.1/32,::1/128`. Blanket `true` is rejected. |
+
+Longtail Forge configures Express `trust proxy` from this allowlist before creating the shared request context. The resolved client IP, effective protocol, and effective hostname honor `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` only when the socket peer matches an allowlisted proxy. Otherwise the client IP is the socket peer, the protocol is the direct connection protocol, and the hostname comes from `Host`. Login session storage and audit context use the resolved client IP. Session, theme, and theme auto-source cookies gain `Secure` whenever the trusted effective protocol is HTTPS, even when `LONGTAIL_SESSION_COOKIE_SECURE=false`; setting that variable to `true` still forces `Secure` for every request.
+
+#### Supported single-proxy Caddy reference
+
+The supported proof topology is one Node process reachable only on loopback behind one TLS-terminating Caddy process. Use environment values equivalent to:
+
+```dotenv
+LONGTAIL_PUBLIC_URL=https://forge.example.com
+LONGTAIL_ENV=production
+HOST=127.0.0.1
+PORT=8001
+TRUST_PROXY=127.0.0.1/32
+LONGTAIL_SESSION_COOKIE_SECURE=true
+LONGTAIL_HSTS_MAX_AGE_SECONDS=300
+LONGTAIL_FILE_SCANNER=clamd
+# Supply strong deployment secrets from the service manager or secret store:
+# SUPER_ADMIN_PASSWORD=...
+# LONGTAIL_SECURE_NOTES_MASTER_KEY=...
+```
+
+Use this minimal Caddyfile, replacing the example hostname:
+
+```caddyfile
+forge.example.com {
+    reverse_proxy 127.0.0.1:8001
+}
+```
+
+Caddy must be the only public edge in this reference topology. Its reverse proxy replaces or augments `X-Forwarded-For`, sets `X-Forwarded-Proto` and `X-Forwarded-Host`, and ignores client-supplied values for those headers by default. Do not add a CDN or another proxy without explicitly listing the real immediate peer and reviewing the full proxy chain. Do not expose port 8001 publicly: firewall it or keep it loopback-only. If Longtail Forge is run directly for local/private HTTP use, keep `TRUST_PROXY=false`; forwarded headers are then deliberately ignored.
+
+The authoritative operator path is [Reference Internet Deployment](internet-deployment.md), including the checked-in Caddyfile, DNS/port and permission requirements, manual upgrade and emergency procedures, repeatable TLS proxy smoke, and known limitations. Keep this variable summary aligned with that single supported topology rather than creating another equally official proxy variant here.
+
+### Authentication Throttling
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `LONGTAIL_AUTH_THROTTLE_ENABLED` | `true` | Enables the shared login and password-sensitive throttle. Production rejects `false` unless the explicit override below is true. |
+| `LONGTAIL_UNSAFE_ALLOW_DISABLED_AUTH_THROTTLE` | `false` | Narrow production override for a deliberately trusted offline/internal deployment. Startup emits an unsafe-override warning. Do not use for an internet preview. |
+| `LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS` | `900` | Rolling failure window, from 1 through 86400 seconds. |
+| `LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT` | `5` | Failed-verification or bounded sensitive-action threshold, from 1 through 1000. Crossing the threshold starts the temporary lockout. |
+| `LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS` | `900` | Temporary lockout duration, from 1 through 604800 seconds. |
+
+Login failures are tracked independently by the trusted effective client IP and normalized submitted username. Either bucket can block an attempt, so rotating usernames does not bypass the IP limit and rotating client IPs does not bypass the targeted-account limit. Direct/untrusted requests use the socket peer established by the shared request context; raw or forged `X-Forwarded-For` values never create throttle keys. In the supported one-server SQLite/private-preview topology the counters are bounded, process-local memory and reset on an intentional app restart; future multi-web-node hosting must replace this store with a shared atomic backend before claiming equivalent protection.
+
+The fifth failed login under the defaults returns `429` with `Too many attempts. Try again later.` and locks the affected IP and/or account bucket for 15 minutes. Unknown, inactive, and wrong-password accounts all receive the same invalid-credential response before lockout, and every login attempt still performs one password-hash verification so the missing-account path does not become a cheap existence signal. A successful login below the threshold resets that login IP and account state.
+
+The same framework throttle owns separate scopes for current-password verification and administrator password reset. Failed current-password checks lock out further password-change verification after the threshold. Successful admin reset actions are bounded: the threshold action completes, emits the lockout event, and later reset attempts are rejected until expiry. Future reset-token redemption and other session-less credential/token surfaces must use the same trusted-IP boundary when they are implemented. Each threshold crossing emits `security.authentication_throttle.lockout` with the safe scope, attempted username, trusted client IP, and triggered dimensions; passwords, password hashes, session IDs, and tokens are never included.
+
+The existing public API uses 192-bit random API keys stored by SHA-256 hash lookup, not user-chosen credentials, so password-guess throttling is not applied to API-key authentication in this slice. There is no shipped public-intake credential route. Any future tokenized feed, public intake, or lower-entropy secret surface must make an explicit abuse-limit decision rather than assuming this login policy applies automatically.
+
+### Password Hashing And Transparent Migration
+
+All credential creation and verification goes through the asynchronous `hashPassword`/`verifyPassword` boundary in `src/security/passwords.js`. New bootstrap, created-user, changed, reset, and scale-seed credentials use Node's built-in Argon2id with a random 16-byte salt, a 32-byte tag, 64 MiB of memory (`m=65536` KiB), three passes, and one lane. The stored PHC string is self-describing (`$argon2id$v=19$m=65536,t=3,p=1$...`) so a future policy can verify older parameter sets and mark them for another upgrade. The selected profile averaged about 171 ms on the reference development host, below the one-second operational ceiling while remaining materially memory-hard. The asynchronous runtime API avoids blocking the JavaScript event loop; Node's worker-pool concurrency and the existing trusted-IP/account throttle bound ordinary public-login pressure, and the parser rejects unsafe stored memory/pass/lane values before invoking the KDF.
+
+Legacy `pbkdf2_sha256$iterations$salt$hash` credentials remain readable through asynchronous PBKDF2 verification. After a successful login, an old algorithm or old accepted Argon2id parameter set is immediately replaced with the current Argon2id representation before the session is returned. This representation-only upgrade preserves `password_change_required`, does not revoke sessions, and emits `security.password.rehashed` with only the previous/current algorithm classifications and `legacy_algorithm` or `parameters_outdated` reason. Unknown-account login attempts verify against a fixed current-policy dummy hash so the missing-account path is not a cheap hash-format signal. Derived-byte comparison uses `timingSafeEqual`; passwords, hashes, tokens, cookies, and session identifiers never enter the rehash event or audit payload.
+
+No pepper is configured. Introducing one would make an external secret part of every login and would require a documented backup, availability, compromise rotation, and forced-reset recovery policy; 0.33.16.9 deliberately avoids creating that undocumented lockout dependency. The existing new-password validation policy is unchanged, so previously valid credentials are not invalidated and no mass reset is required.
+
+### Security Event Audit Stream
+
+Security-relevant activity uses the existing `audit_logs` store with the dedicated `record_type = security_event` and `change_type = security` category. It covers successful and failed login, logout, throttle lockout, session revocation, password reset/change/rehash, user deactivation, audit-retention/logging changes, and permission denials. Every entry carries a stable event type, outcome, reason class, trusted client IP when available, actor or normalized attempted username, timestamp, and a strict allowlist of safe metadata. Security entries never store previous/new payloads, record URLs, passwords, hashes, tokens, cookies, authorization values, or session identifiers.
+
+Security events are forced even when ordinary App Audit Logging is disabled and follow the workspace Audit Retention Days setting. Workspace-specific events remain in their workspace. A login attempt that cannot be attributed to an existing account is assigned to the protected install owner's workspace so it is retained without creating a global or parallel logging store. The ordinary `/api/audit-logs` read excludes this category; `/api/security-events` and its CSV export require both `audit_logs.view` and `workspace_settings.manage`, retain the existing workspace filter rules, and are available through the Audit Log page's Security events view. Any persistence failure is reduced to a generic server warning and cannot reject an otherwise valid login.
+
+### Operational Logging And Probes
+
+Production stdout/stderr is newline-delimited JSON with `timestamp`, `level`, and a stable `event`. HTTP completion records add only server-generated `requestId`, method, status code, and duration; the matching `X-Request-ID` response header supports correlation. Client request IDs are ignored. The allowlist omits paths, queries, bodies, headers, credentials, sessions, private content, internal paths, and raw error messages/stacks. Development remains human-readable. See [operational-security.md](operational-security.md) for collection guidance and the complete incident/security-review contract.
+
+Unauthenticated `GET /healthz` returns only `200 {"status":"ok"}` for process liveness. `GET /readyz` returns only `200 {"status":"ready"}` or `503 {"status":"not_ready"}` after checking database runtime safety, current checksum-valid migrations, and configured worker liveness. A separate SQLite worker updates the existing single-worker lock heartbeat; stale/missing heartbeat and disabled-worker mode are not ready. Both probes are `no-store`, receive `X-Request-ID`, and never reveal the failed component, version, path, worker ID, exception, or secret.
+
+### Browser Mutation And CSRF Boundary
+
+Every state-changing browser API request (`POST`, `PUT`, `PATCH`, or `DELETE` under `/api`) passes through one framework middleware before public login/logout routes, authenticated module routes, or body parsers can handle it. The bearer-authenticated `/api/v1` public API is intentionally outside this cookie-CSRF boundary and retains its own API-key authentication and scope checks.
+
+When an `Origin` header is present, its parsed origin must exactly match either the trusted effective request origin or the configured `LONGTAIL_PUBLIC_URL` origin. A malformed or cross-origin value fails with `403`, even if a valid token is also supplied. Only when `Origin` is absent may an absolute `Referer` act as a constrained fallback, and its origin must pass the same exact comparison. The effective request origin uses the shared trusted-proxy request context; forged `X-Forwarded-Host` or `X-Forwarded-Proto` values from a direct or untrusted peer cannot extend the allowlist.
+
+If both browser-controlled origin headers are absent, browser-like requests must provide the signed double-submit token from `GET /api/csrf-token`: the browser-readable `lf_csrf` cookie and `X-CSRF-Token` header must match and verify. The early shared browser bootstrap wraps same-origin `fetch` mutations and adds this proof without changing caller payloads; it fetches a fresh token when the cookie is absent. Tokens are process-scoped and may be refreshed after a restart. Origin-less non-browser clients remain compatible because CSRF is a browser cookie-confusion defense, but any supplied token pair is still validated and an invalid or partial pair fails closed. `SameSite` remains defense in depth and never substitutes for this boundary.
+
+JSON mutation bodies must use `application/json`. Bodyless actions such as logout and action-only `POST`/`DELETE` routes may omit `Content-Type`. `multipart/form-data` is allowed only on `/api/files/upload` and `/api/files/upload/batch`; form-encoded, text, and multipart bodies on other browser API routes fail with `415` before route logic runs. This preserves legitimate Files uploads without creating route-by-route content-type exceptions.
+
+### Browser Security Headers And CSP
+
+The framework transport-security middleware applies the following policy to public, authenticated, API, asset, redirect, and error responses:
+
+- `Content-Security-Policy` defaults all content to same-origin, limits scripts to same-origin external files, rejects inline event handlers, blocks plugins/objects and child frames, prevents framing with `frame-ancestors 'none'`, restricts forms and connections to same-origin, and allows only the inventoried `data:`/`blob:` image, font, and media preview sources.
+- `X-Frame-Options: DENY` supplies compatible anti-framing behavior for clients that do not enforce CSP `frame-ancestors`.
+- `X-Content-Type-Options: nosniff` prevents content-type guessing.
+- `Referrer-Policy: strict-origin-when-cross-origin` retains full same-origin navigation context while limiting cross-origin requests to the public origin.
+- `Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()` disables browser capabilities the product does not use.
+- The existing trusted-effective-HTTPS HSTS policy remains independent and unchanged: HSTS appears only when the request context is HTTPS behind the configured trusted proxy.
+
+The executable-script inventory is now entirely same-origin external classic scripts. The former inline Notifications load guard moved to `/js/notification-load-guard.js`; templates contain no executable inline scripts or inline event handlers, and CSP does not grant `script-src 'unsafe-inline'`, external hosts, `eval`, workers, or frames. Dynamic script loaders used by existing framework/module contributions remain restricted to same-origin paths by `script-src 'self'`.
+
+The current browser still requires inline style compatibility. Protected HTML receives one server-injected critical first-paint theme block, and current browser adapters set bounded style properties for theme state, popover/overlay positioning, nesting depth, and color swatches. Therefore the enforced policy deliberately retains `style-src 'self' 'unsafe-inline'`; it is not a script exception and must not be broadened to external style hosts. The 0.33.18 ES-module/browser modernization work owns reducing these remaining style mutations and the injected critical-style exception.
+
+Any CSP tightening follows an explicit report-only-to-enforcement sequence: deploy the exact candidate policy as `Content-Security-Policy-Report-Only` in the reference environment, run login plus authenticated Dashboard/Notifications and file-preview journeys, review browser violation output for required first-party behavior, remove code violations or add only the narrow documented source, then promote that unchanged candidate to `Content-Security-Policy` and repeat the rendered smoke. Do not enforce removal of the inline-style allowance before the current inventory is migrated and proven. The currently shipped policy is already enforced because the inline executable script was removed and the remaining style exception is explicit and compatible.
+
+All `/api/*`, root, and HTML responses default to `Cache-Control: no-store`, covering login, authenticated/private API data, protected HTML, redirects, and error bodies. Versioned same-origin CSS/JavaScript assets retain normal browser caching. Attachment preview/download responses may replace the general CSP with their existing stricter `sandbox` policy while retaining the shared `nosniff` and other response hardening.
 
 ### Data
 
@@ -40,7 +150,7 @@ Process environment values win over `.env` values. This lets shells, service man
 | `LONGTAIL_SQLITE_JOURNAL_MODE` | `wal` | Journal mode applied during SQLite startup. WAL is the default for small-office installs; set a different valid SQLite mode only when the deployment filesystem requires it. |
 | `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` | `5000` | SQLite busy timeout in milliseconds. The helper applies it to the active SQLite connection and verifies `PRAGMA busy_timeout` during startup health checks. |
 
-SQLite startup applies `PRAGMA foreign_keys = ON`, applies the configured `PRAGMA journal_mode`, configures the SQLite busy timeout, verifies the database file path is writable, and emits a safe admin health line with provider, database file path, writable state, foreign-key state, journal mode, and busy timeout. The health output does not include secrets, secure-note key material, storage keys, signed URLs, scanner internals, or protected file paths.
+SQLite startup applies `PRAGMA foreign_keys = ON`, applies the configured `PRAGMA journal_mode`, configures the SQLite busy timeout, and verifies the database file path is writable. Development may emit its detailed local startup health line; production emits only a structured database-ready classification without a path or database internals. Protected Runtime Diagnostics retains its existing safe location labels for authorized administrators. Public health/readiness output does not include database details, secrets, secure-note key material, storage keys, signed URLs, scanner internals, or protected file paths.
 
 SQLite migrations and schema repairs use a local lock file beside `LONGTAIL_DATABASE_FILE` so only one startup or maintenance process owns migration work at a time. This is startup behavior, not a runtime-editable setting.
 
@@ -53,25 +163,45 @@ As of 0.33.5.21.0.6, `SQLITE_COMMAND` is a legacy ignored setting. Normal databa
 | `LONGTAIL_INITIAL_WORKSPACE_NAME` | `Longtail Forge Workspace` | Name used only when creating the first fresh-start workspace. Existing workspaces are not renamed. |
 | `SUPER_ADMIN_USERNAME` | `support@longtailforge.local` | Username for the initial protected super-admin account. |
 | `SUPER_ADMIN_DISPLAY_NAME` | `Super Admin` | Display name for the initial protected super-admin account. Existing users are not renamed except during first-user/bootstrap repair paths. |
-| `SUPER_ADMIN_PASSWORD` | empty | Optional in development. Required when `LONGTAIL_ENV=production`. If omitted outside production, the app keeps the existing generated-password behavior for first launch. |
+| `SUPER_ADMIN_PASSWORD` | empty | Optional in development. Production requires a non-default value of at least 16 characters and never generates a reusable default credential. If omitted outside production, the app keeps the existing generated-password behavior for first launch. |
+
+The bootstrap password is used only by fresh-start/repair bootstrap logic and is never logged. Production operators should source it from a deployment secret store, replace the account password through the normal product workflow after first launch, and rotate the deployment value deliberately; changing the environment value does not silently replace an existing account password.
 
 ### Sessions And Cookies
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `LONGTAIL_SESSION_COOKIE_SECURE` | `false` | Adds the `Secure` cookie attribute when true. |
+| `LONGTAIL_SESSION_COOKIE_SECURE` | `false` | Adds the `Secure` cookie attribute when true. It must be true for production HTTPS so an accidentally exposed direct HTTP path cannot issue a non-secure session cookie. |
 | `LONGTAIL_SESSION_COOKIE_SAMESITE` | `Lax` | Must be `Lax`, `Strict`, or `None`. `None` requires secure cookies. |
 | `LONGTAIL_SESSION_TTL_SECONDS` | `43200` | Session, theme, and theme auto-source cookie lifetime. Must be between 300 seconds and 30 days. |
+| `LONGTAIL_HSTS_MAX_AGE_SECONDS` | `300` in production; disabled when unset elsewhere | HSTS lifetime from 0 through 63072000 seconds. Production sends HSTS over trusted effective HTTPS by default with a conservative five-minute rollout; explicit `0` requires the rollback override. |
+| `LONGTAIL_UNSAFE_ALLOW_HSTS_ROLLBACK` | `false` | Narrow production override required with `LONGTAIL_HSTS_MAX_AGE_SECONDS=0`; startup emits an unsafe-override warning. |
+
+The session cookie is always `HttpOnly`, `SameSite=Lax` by default, scoped to `Path=/`, and host-only because Longtail Forge does not set a `Domain` attribute. Theme, theme auto-source, and CSRF cookies use the same `SameSite`, root path, host-only, lifetime, and effective-HTTPS `Secure` policy, but intentionally are not `HttpOnly`: the first-paint script reads theme state and the shared browser mutation wrapper reads the CSRF token. `SameSite=None` remains an explicit opt-in and requires `LONGTAIL_SESSION_COOKIE_SECURE=true`; proxy-derived HTTPS alone does not make that cross-site cookie mode implicit.
+
+There is no reusable configured session-signing secret: login creates a 256-bit random opaque session credential backed by the authoritative `sessions` table, and the CSRF HMAC key is generated from process randomness at boot. Session rotation is therefore revocation—individual, user-wide, or password/deactivation-driven—not replacement of a shared signing key. Restarting rotates the process-local CSRF key; browsers fetch a new CSRF token through the existing bootstrap path.
+
+Session revocation deletes the authoritative database row, so the existing request-session lookup rejects that bearer credential on its next request. A successful self-service password change revokes every other session while preserving the request that performed the change; administrator password reset and account deactivation revoke every session for the target user. Owners and administrators with `users.manage` can review and revoke only sessions associated with the active workspace in User Admin. Browser responses contain process-scoped one-way references plus safe creation, expiry, current-session, and IP context; raw session IDs are never returned. Each removed session emits a safe internal `security.session.revoked` event, and each revocation operation creates a forced audit record without session IDs, tokens, passwords, or hashes. A revoked current browser session reaches the existing framework session-expiry dialog on its next API request.
+
+Administrator password reset also persists `users.password_change_required=1`. The generated credential is returned only in that successful reset response and is stored only as a password hash. A target can sign in with it, but the resulting session may access only session/logout/CSRF state, the public login assets, and `PUT /api/user/password`; other protected API calls return `403` with `PASSWORD_CHANGE_REQUIRED`, protected page requests return to the login password-change surface, and workspace switching is blocked. A successful current-password-verified change clears the flag, preserves that request's session, revokes the user's other sessions, and immediately restores normal access. Reset and change emit safe `security.password.reset` and `security.password.changed` internal events without credentials, hashes, session IDs, or tokens.
+
+There is no forgot-password or reset-token route because Longtail Forge has no email/notification delivery transport for out-of-band recovery. Administrator reset remains the supported recovery path. Any future self-service recovery must add a delivery channel first and use a single-use, time-limited, hashed-at-rest token, a non-enumerating response, the shared trusted-IP throttle, and forced logout on redemption.
+
+### HSTS Rollout And Rollback
+
+HSTS uses the same trusted effective protocol as Secure-cookie decisions. Longtail Forge emits `Strict-Transport-Security` only when the request is HTTPS after the configured trusted-proxy boundary; direct HTTP, forged `X-Forwarded-Proto`, and headers from an untrusted peer never enable it. The policy is deliberately limited to `max-age`: it does not assert `includeSubDomains` or `preload`, because this private-preview slice does not own every sibling hostname and cannot safely make a preload commitment.
+
+Production starts with a conservative `max-age=300`. Verify the public URL, certificate renewal, proxy trust, redirects, login, logout, and recovery access before raising it in stages (for example one day, then longer). To roll back, set both `LONGTAIL_HSTS_MAX_AGE_SECONDS=0` and `LONGTAIL_UNSAFE_ALLOW_HSTS_ROLLBACK=true`, then continue serving trusted HTTPS long enough for affected browsers to receive `max-age=0`; removing the header or turning off HTTPS first does not clear a browser's cached HSTS state. Do not submit the domain for browser preload in this supported posture.
 
 ### Secure Notes
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `LONGTAIL_SECURE_NOTES_MASTER_KEY` | empty | Preferred server-side secure-note key name. |
+| `LONGTAIL_SECURE_NOTES_MASTER_KEY` | empty | Preferred server-side secure-note key name. Production requires at least 32 non-default characters. |
 | `SECURE_NOTES_MASTER_KEY` | empty | Backward-compatible secure-note key name. |
 | `LONGTAIL_SECURE_NOTES_KEY_VERSION` | `v1` | Stored on secure notes and revisions for future rotation planning. |
 
-Secure-note keys are runtime secrets. They must not be committed, logged, or exposed through normal UI or diagnostics.
+Secure-note keys are runtime secrets. They must not be committed, logged, or exposed through normal UI or diagnostics. Development/test keep the existing fail-closed feature health (`not_configured`) when the key is absent; production refuses startup instead of presenting a partially ready Secure Notes deployment. Back up the key outside the database before storing secure notes. `LONGTAIL_SECURE_NOTES_KEY_VERSION` records envelope version metadata but does not rotate or recover key material by itself.
 
 ### Workspace Creation
 
@@ -123,28 +253,37 @@ As of 0.33.5.25.4, `POST /api/files/upload/batch` treats malformed individual fi
 
 File scanner mode selection is active for `none`, `noop`, `clamd`, and `clamscan`: `none` is the default disabled-scanning mode and resolves queued `file.scan` jobs to `status = available` plus `scan_status = not_required`; `noop` is an explicit pass-through scanner for development or accepted self-hosted use and resolves to `scan_status = passed`; `clamscan` is an optional executable scanner adapter that uses `LONGTAIL_CLAMSCAN_PATH` when set or the `clamscan` command on `PATH`, probes scanner health with `--version`, streams file bytes through stdin, treats clean scans as `passed`, and quarantines infected, unavailable, or timed-out scans without auto-deleting stored files; `clamd` is an optional TCP scanner adapter that uses `LONGTAIL_CLAMD_HOST` when set or `127.0.0.1`, uses `LONGTAIL_CLAMD_PORT` when set or `3310`, probes health with `PING`, streams file bytes through `INSTREAM`, treats clean scans as `passed`, and quarantines infected, unavailable, or timed-out scans without auto-deleting stored files. Safe scanner health diagnostics are active: `none` reports disabled, `noop` reports pass-through, and unavailable scanner modes report unavailable health without exposing hostnames, ports, executable paths, scanner output, sockets, storage keys, protected paths, signed URLs, or raw environment values. The `clamscan` and `clamd` adapters return safe scanner metadata only; the `clamd` TCP scanner adapter works without exposing hostnames or ports in diagnostics or UI payloads. Unix-socket scanning is explicitly deferred; there is no `LONGTAIL_CLAMD_SOCKET` setting in this branch. Existing files continue to read through their stored `files.storage_provider` value, so the setting affects new writes only.
 
+Production requires `clamd` or `clamscan` unless `LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=true`; app and separate-worker startup also call scanner `health()` before accepting requests or polling jobs. An unavailable production scanner therefore blocks startup instead of leaving public uploads in a misleading posture. The unsafe override emits an unmistakable redacted warning and is not the supported internet-preview posture.
+
 | Group | Variables | Future owner |
 | --- | --- | --- |
 | PostgreSQL | `DATABASE_URL`, `LONGTAIL_DATABASE_POOL_MIN`, `LONGTAIL_DATABASE_POOL_MAX`, `LONGTAIL_DATABASE_SSL` | 0.40.0 database extraction layer. 0.33.5.23 is SQL parameter-binding migration and does not make PostgreSQL settings live. |
 | File storage | `LONGTAIL_STORAGE_PROVIDER`, `LONGTAIL_LOCAL_STORAGE_ROOT`, `LONGTAIL_S3_BUCKET`, `LONGTAIL_S3_REGION`, `LONGTAIL_S3_ENDPOINT`, `LONGTAIL_S3_ACCESS_KEY_ID`, `LONGTAIL_S3_SECRET_ACCESS_KEY` | 0.33.5.22 storage provider runtime plus the 0.33.5.25.1 S3 cleanup. `LONGTAIL_STORAGE_PROVIDER=local` is the default and only bootable storage provider for new Files upload writes and diagnostics in this release. `LONGTAIL_LOCAL_STORAGE_ROOT` sets the local provider root and is shown in diagnostics only as a safe app-root/data-root relative or redacted label. `LONGTAIL_STORAGE_PROVIDER=s3` is reserved scaffolding and fails app/worker startup until a provider-specific client is wired. The local provider supports buffered `save()` writes, streamed `saveStream()` writes, single-file multipart uploads, streamed multipart batch uploads through the shared attachment helper, and partial-file cleanup for failed local streamed writes where practical. The S3 adapter keeps mocked object-operation proof coverage for `putObject`/`getObject`/`headObject`/`deleteObject`/`health`, but provider-specific client rollout and actual signed URL/direct-transfer behavior remain later slices. Normal diagnostics and browser payloads must not expose buckets, endpoints, credential values, storage keys, protected paths, or signed URLs. |
-| File scanning | `LONGTAIL_FILE_SCANNER`, `LONGTAIL_CLAMD_HOST`, `LONGTAIL_CLAMD_PORT`, `LONGTAIL_CLAMSCAN_PATH` | 0.33.5.22 scanner runtime. Live settings: `LONGTAIL_FILE_SCANNER` must be `none`, `noop`, `clamd`, or `clamscan`; `LONGTAIL_CLAMSCAN_PATH` optionally points `clamscan` at the ClamAV CLI; `LONGTAIL_CLAMD_HOST` and `LONGTAIL_CLAMD_PORT` optionally point `clamd` at a TCP daemon and default internally to `127.0.0.1:3310` when blank. `none` is disabled scanning and marks queued `file.scan` jobs `not_required`/`available`; `noop` is an explicit pass-through scanner. Runtime Diagnostics exposes safe scanner mode/status and disabled/pass-through/unavailable warnings without exposing hostnames, ports, executable paths, raw scanner output, sockets, storage keys, protected paths, or raw environment values. Deferred setting: Unix-socket scanning is not wired and no `LONGTAIL_CLAMD_SOCKET` key is active in this branch. See [file-scanner-setup.md](file-scanner-setup.md) for ClamAV setup. |
-| Logging | `LONGTAIL_LOG_LEVEL` | Later diagnostics and runtime readout work. |
-| Proxy trust | `TRUST_PROXY` | Later hosted deployment/security hardening. |
+| File scanning | `LONGTAIL_FILE_SCANNER`, `LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS`, `LONGTAIL_CLAMD_HOST`, `LONGTAIL_CLAMD_PORT`, `LONGTAIL_CLAMSCAN_PATH` | Live settings: `LONGTAIL_FILE_SCANNER` selects `none`, `noop`, `clamd`, or `clamscan`; production requires healthy `clamd`/`clamscan` unless the explicit unsafe override is true. `LONGTAIL_CLAMSCAN_PATH` optionally selects the CLI; `LONGTAIL_CLAMD_HOST` and `LONGTAIL_CLAMD_PORT` select the TCP daemon and default internally to `127.0.0.1:3310`. Runtime Diagnostics exposes safe mode/status without endpoints or internals. Deferred setting: Unix-socket scanning is not wired and no `LONGTAIL_CLAMD_SOCKET` key is active. See [file-scanner-setup.md](file-scanner-setup.md). |
+| Logging | `LONGTAIL_LOG_LEVEL` | Active validated server logging level; production trace/debug requires the explicit unsafe override documented above. |
 
-Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, hosted proxy behavior, Unix-socket scanning, direct-transfer behavior, provider-specific S3 client rollout, actual signed URL routes, or runtime settings editing.
+Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, Unix-socket scanning, direct-transfer behavior, provider-specific S3 client rollout, actual signed URL routes, or runtime settings editing.
 
 ## Startup Validation
+
+Production (`LONGTAIL_ENV=production`) is an explicit fail-closed posture. A safe public-preview process requires a strong bootstrap password, a strong external Secure Notes master key, an absolute HTTPS public URL, an explicit immediate-proxy allowlist, forced `Secure` cookies, an enabled authentication throttle, non-debug logging, and a configured healthy `clamd` or `clamscan` scanner. Unsafe exceptions use narrowly named `LONGTAIL_UNSAFE_ALLOW_*` variables and emit unmistakable redacted warnings; they are not the supported internet-preview posture.
+
+Before the app listens or a separate worker polls, startup creates/checks the configured data directory, database parent, and local Files root, verifies that they are directories readable and writable by the service account, and—on POSIX production hosts—requires owner-only mode `0700`. Windows does not expose equivalent owner/group/other mode semantics through Node, so the service account must be granted access and broad inherited ACLs must be removed with Windows administration tools. `LONGTAIL_DATA_DIR`, `LONGTAIL_DATABASE_FILE`, and `LONGTAIL_LOCAL_STORAGE_ROOT` are rejected if they resolve inside the public static directory. Readiness errors name only the setting and safe status; they do not print protected paths or secret values.
+
+Browser APIs do not enable cross-origin credential sharing. State-changing browser requests enforce exact same-origin `Origin`/`Referer` checks plus the CSRF token boundary. Files JSON/base64 compatibility bodies are capped at 8 MiB, multipart batches are capped at 50 files and 20 fields with 64 KiB fields, and the Files service applies the attachable type's per-file size limit (5 MiB by default) while streaming. Unknown server exceptions return only `Internal server error` for browser and public API envelopes; stack traces and raw exception messages stay server-side even if the temporary debug-log override is active.
 
 Startup fails clearly when active settings are invalid:
 
 - `LONGTAIL_ENV` must be `development`, `test`, or `production`.
+- `LONGTAIL_PUBLIC_URL`, when set, must be an absolute HTTP/HTTPS URL without embedded credentials. It is required in production. Production HTTP fails unless `LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL=true`; production HTTPS requires an explicit `TRUST_PROXY` list and `LONGTAIL_SESSION_COOKIE_SECURE=true`.
 - `PORT` must be an integer from 1 through 65535.
+- `TRUST_PROXY` must be `false` or a comma-separated list of explicit IP addresses/CIDR ranges. Blanket `true`, hostnames, malformed addresses, and invalid CIDR prefixes fail startup.
 - `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`.
 - `LONGTAIL_STORAGE_PROVIDER` defaults to `local`; selecting `s3` fails app and worker startup until a provider-specific client rollout is deliberately wired.
 - `LONGTAIL_SQLITE_FOREIGN_KEYS` must be `on`.
 - `LONGTAIL_SQLITE_JOURNAL_MODE` must be `delete`, `truncate`, `persist`, `memory`, `wal`, or `off`.
 - `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` must be an integer from 0 through 3600000.
-- `LONGTAIL_FILE_SCANNER` must be `none`, `noop`, `clamd`, or `clamscan`.
+- `LONGTAIL_FILE_SCANNER` must be `none`, `noop`, `clamd`, or `clamscan`. Production requires `clamd` or `clamscan` and successful startup health unless `LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=true`.
 - `LONGTAIL_WORKER_MODE` must be `inline`, `separate`, or `disabled`.
 - `LONGTAIL_JOB_POLL_INTERVAL_MS` must be an integer from 1000 through 3600000.
 - `LONGTAIL_JOB_LOCK_TTL_SECONDS` must be an integer from 30 through 86400.
@@ -153,13 +292,20 @@ Startup fails clearly when active settings are invalid:
 - `LONGTAIL_SESSION_COOKIE_SAMESITE` must be `Lax`, `Strict`, or `None`.
 - `LONGTAIL_SESSION_COOKIE_SECURE` must be true when SameSite is `None`.
 - `LONGTAIL_SESSION_TTL_SECONDS` must be between 300 seconds and 30 days.
+- `LONGTAIL_HSTS_MAX_AGE_SECONDS` must be between 0 and 63072000 seconds. It defaults to 300 in production and is disabled when unset in development/test. Production `0` requires `LONGTAIL_UNSAFE_ALLOW_HSTS_ROLLBACK=true`.
+- `LONGTAIL_AUTH_THROTTLE_ENABLED` must be true or false. Production `false` requires `LONGTAIL_UNSAFE_ALLOW_DISABLED_AUTH_THROTTLE=true`.
+- `LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS` must be between 1 and 86400 seconds.
+- `LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT` must be between 1 and 1000.
+- `LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS` must be between 1 and 604800 seconds.
 - `WORKSPACE_INSTALL_MODE` must be `self_hosted` or `saas`.
 - `WORKSPACE_TYPE_LIMIT` must be empty or `business`.
-- `SUPER_ADMIN_PASSWORD` is required when `LONGTAIL_ENV=production`.
+- `SUPER_ADMIN_PASSWORD` is required and must be at least 16 non-default characters when `LONGTAIL_ENV=production`.
+- `LONGTAIL_SECURE_NOTES_MASTER_KEY` (or the legacy alias) is required and must be at least 32 non-default characters in production.
+- `LONGTAIL_LOG_LEVEL` must be `trace`, `debug`, `info`, `warn`, or `error`. Production `trace`/`debug` requires `LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING=true`.
 
 The local `.env` loader accepts blank lines, full-line comments, `KEY=VALUE` entries, optional `export KEY=VALUE` entries, unquoted values with trailing comments, and basic single- or double-quoted values. Malformed lines fail clearly before app config is created.
 
-Startup may warn without failing when optional but recommended production settings are absent. In 0.33.5.19.9, production mode warns when `LONGTAIL_PUBLIC_URL` is missing.
+Startup warnings are reserved for explicit unsafe overrides, not missing production requirements. Active production overrides for HTTP, unscanned uploads, HSTS rollback, disabled authentication throttling, or trace/debug logging emit `UNSAFE OVERRIDE ACTIVE` warnings without echoing secret values, configured paths, scanner endpoints, or raw environment values.
 
 ## Runtime Diagnostics
 
@@ -187,7 +333,7 @@ Admins can inspect queue health through the Workspace Settings Jobs panel, Runti
 
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries, 0.33.5.21.7.4 adds configurable completed/dead-letter job retention pruning, 0.33.5.21.7.5 adds safe Workspace Settings job observability, 0.33.5.21.7.6 proves separate-worker end-to-end processing for the current durable handlers, 0.33.5.21.7.7 closes the recurring-task completion response contract around queued worker handoff, 0.33.5.21.8 delivers task due reminders to the in-app notification surface, and the completed 0.33.5.22 storage/scanner runtime branch closes configured local Files storage-provider writes, safe local diagnostics, streamed local writes, multipart uploads, attachment-helper streamed uploads, scanner mode resolution, optional `clamscan` and `clamd` adapters, S3-compatible adapter scaffolding, mocked S3 object-operation proof, safe S3 diagnostics, and the signed URL exception boundary without adding signed URL routes. The 0.33.5.25.1 cleanup makes S3 selection fail during app and worker startup until a provider-specific client is wired. This branch still does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.16.1 trusted-edge slice activates an explicit proxy IP/CIDR allowlist, framework request context, and trusted-effective-HTTPS cookie behavior without implementing the later public-URL, HSTS, or fail-closed production slices. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries, 0.33.5.21.7.4 adds configurable completed/dead-letter job retention pruning, 0.33.5.21.7.5 adds safe Workspace Settings job observability, 0.33.5.21.7.6 proves separate-worker end-to-end processing for the current durable handlers, 0.33.5.21.7.7 closes the recurring-task completion response contract around queued worker handoff, 0.33.5.21.8 delivers task due reminders to the in-app notification surface, and the completed 0.33.5.22 storage/scanner runtime branch closes configured local Files storage-provider writes, safe local diagnostics, streamed local writes, multipart uploads, attachment-helper streamed uploads, scanner mode resolution, optional `clamscan` and `clamd` adapters, S3-compatible adapter scaffolding, mocked S3 object-operation proof, safe S3 diagnostics, and the signed URL exception boundary without adding signed URL routes. The 0.33.5.25.1 cleanup makes S3 selection fail during app and worker startup until a provider-specific client is wired. This branch still does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.

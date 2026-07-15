@@ -1,0 +1,138 @@
+export const regressionMeta = Object.freeze({
+  id: "framework.trusted-proxy-request-context",
+  area: "framework",
+  tier: "focused",
+  tags: ["authentication", "cookies", "security"],
+  description: "Proves trusted proxy request context rejects forged forwarding headers and secures cookies behind trusted TLS termination.",
+  runMode: "static",
+});
+
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import http from "node:http";
+import express from "express";
+import { createConfig } from "../../../src/config.js";
+import {
+  attachRequestContext,
+  configureTrustedProxy,
+  getRequestContext,
+} from "../../../src/core/request-context.js";
+import {
+  buildSessionCookie,
+  buildThemeAutoSourceCookie,
+  buildThemeCookie,
+} from "../../../src/security/cookies.js";
+
+const directConfig = createConfig({ TRUST_PROXY: "false" });
+assert.deepEqual(directConfig.security.trustedProxies, [], "proxy trust should be off by default/direct mode");
+
+const proxyConfig = createConfig({ TRUST_PROXY: "127.0.0.1/32, ::1/128" });
+assert.deepEqual(
+  proxyConfig.security.trustedProxies,
+  ["127.0.0.1/32", "::1/128"],
+  "explicit proxy IP/CIDR entries should be normalized into framework config",
+);
+assert.throws(
+  () => createConfig({ TRUST_PROXY: "true" }),
+  /blanket trust is not allowed/,
+  "blanket proxy trust should fail closed",
+);
+assert.throws(
+  () => createConfig({ TRUST_PROXY: "proxy.internal" }),
+  /IP addresses or CIDR ranges/,
+  "proxy hostnames should not create a drift-prone trust boundary",
+);
+assert.throws(
+  () => createConfig({ TRUST_PROXY: "10.0.0.0/33" }),
+  /IP addresses or CIDR ranges/,
+  "invalid proxy CIDR ranges should fail closed",
+);
+
+const forwardedHeaders = {
+  "x-forwarded-for": "203.0.113.7",
+  "x-forwarded-host": "forge.example.test",
+  "x-forwarded-proto": "https",
+};
+
+const direct = await probeRequest([], forwardedHeaders);
+assert.equal(direct.body.ipAddress, "127.0.0.1", "direct mode should use the socket peer IP");
+assert.equal(direct.body.protocol, "http", "direct mode should ignore forged forwarded protocol");
+assert.equal(direct.body.hostname, "127.0.0.1", "direct mode should ignore forged forwarded host");
+assert.ok(direct.cookies.every((cookie) => !cookie.includes("; Secure")), "direct HTTP cookies should not claim Secure");
+
+const untrusted = await probeRequest(["10.0.0.0/8"], forwardedHeaders);
+assert.equal(untrusted.body.ipAddress, "127.0.0.1", "an untrusted peer should not control the resolved client IP");
+assert.equal(untrusted.body.protocol, "http", "an untrusted peer should not control effective protocol");
+assert.equal(untrusted.body.hostname, "127.0.0.1", "an untrusted peer should not control effective host");
+
+const trusted = await probeRequest(["127.0.0.1/32"], forwardedHeaders);
+assert.equal(trusted.body.ipAddress, "203.0.113.7", "a configured trusted proxy should supply the client IP");
+assert.equal(trusted.body.protocol, "https", "a configured trusted proxy should supply effective HTTPS");
+assert.equal(trusted.body.hostname, "forge.example.test", "a configured trusted proxy should supply the public host");
+assert.ok(trusted.cookies.length === 3, "the probe should issue session and theme cookies");
+assert.ok(trusted.cookies.every((cookie) => cookie.includes("; Secure")), "effective HTTPS should secure every session/theme cookie");
+
+const sourceFiles = (await fs.readdir("src", { recursive: true }))
+  .filter((filePath) => filePath.endsWith(".js"));
+for (const filePath of sourceFiles) {
+  const relativePath = `src/${filePath.replaceAll("\\", "/")}`;
+  const source = await fs.readFile(relativePath, "utf8");
+
+  if (relativePath !== "src/core/request-context.js") {
+    assert.doesNotMatch(source, /\b(?:request|req)\.ip\b/, `${relativePath} should consume the shared request context instead of request.ip`);
+    assert.doesNotMatch(source, /x-forwarded-(?:for|host|proto)/i, `${relativePath} should not parse forwarding headers directly`);
+  }
+}
+
+console.log("Trusted proxy request context regression passed.");
+
+async function probeRequest(trustedProxies, headers) {
+  const app = express();
+  configureTrustedProxy(app, trustedProxies);
+  app.use(attachRequestContext);
+  app.get("/probe", (request, response) => {
+    const context = getRequestContext(request);
+    response.setHeader("Set-Cookie", [
+      buildSessionCookie("probe-session", 300, request),
+      buildThemeCookie("system", request),
+      buildThemeAutoSourceCookie("system", request),
+    ]);
+    response.json(context);
+  });
+
+  const server = await new Promise((resolve) => {
+    const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
+  });
+
+  try {
+    const address = server.address();
+    return await sendRequest(address.port, headers);
+  } finally {
+    await new Promise((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
+  }
+}
+
+function sendRequest(port, headers) {
+  return new Promise((resolve, reject) => {
+    const request = http.request({
+      headers,
+      host: "127.0.0.1",
+      method: "GET",
+      path: "/probe",
+      port,
+    }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => {
+        resolve({
+          body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
+          cookies: response.headers["set-cookie"] || [],
+        });
+      });
+    });
+    request.on("error", reject);
+    request.end();
+  });
+}

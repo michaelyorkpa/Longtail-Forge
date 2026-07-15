@@ -10,8 +10,17 @@
   <body data-page-title="Audit Log">
     <main class="audit-log-page">
       <h1>Audit Log</h1>
+      <p>Review workspace audit activity or switch to the administrator-only security event stream.</p>
 
       <form class="audit-log-filters" data-audit-filters>
+        <label>
+          View
+          <select data-audit-view-filter>
+            <option value="audit">Audit activity</option>
+            <option value="security">Security events</option>
+          </select>
+        </label>
+
         <label>
           From
           <input type="date" data-audit-date-from>

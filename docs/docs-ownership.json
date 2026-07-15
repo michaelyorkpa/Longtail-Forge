@@ -160,18 +160,64 @@
       ]
     },
     {
+      "id": "runtime-security",
+      "label": "Runtime and trusted-edge security",
+      "sourcePatterns": [
+        "^\\.env\\.example$",
+        "^src/config\\.js$",
+        "^public/js/(?:login|notification-load-guard|theme-init)\\.js$",
+        "^views/public/login\\.html$",
+        "^(?:server|worker)\\.js$",
+        "^src/core/(?:app|csrf-protection|operational-logger|request-context|transport-security)\\.js$",
+        "^src/core/jobs/worker-process-lock\\.js$",
+        "^src/middleware/require-auth\\.js$",
+        "^src/routes/(?:auth|operational-health|users)\\.routes\\.js$",
+        "^src/security/(?:auth-throttle|cookies|password-events|sessions)\\.js$",
+        "^src/(?:repositories|services)/sessions(?:[./-]|$)",
+        "^src/services/operational-readiness\\.service\\.js$",
+        "^scripts/reference-caddy-security-smoke\\.mjs$",
+        "^docs/(?:Caddyfile\\.private-preview\\.example|internet-deployment\\.md)$",
+        "^SECURITY\\.md$"
+      ],
+      "docs": [
+        "SECURITY.md",
+        "docs/internet-deployment.md",
+        "docs/operational-security.md",
+        "docs/runtime-configuration.md"
+      ]
+    },
+    {
       "id": "permissions",
       "label": "Permissions",
       "sourcePatterns": [
         "^src/(?:repositories|routes|services)/permissions?(?:[./-]|$)",
         "^src/(?:repositories|routes|services)/(?:sessions?|users?|workspaces?|user-workspaces)(?:[./-]|$)",
-        "^src/middleware/(?:auth|permissions?)(?:[./-]|$)"
+        "^src/middleware/(?:auth|require-auth|permissions?)(?:[./-]|$)"
       ],
       "docs": [
         "docs/longtail_forge_permissions_matrix.md",
         "docs/settings-control-matrix.md",
         "help/framework/users-roles-and-permissions.md",
         "help/framework/workspaces-and-switching.md"
+      ]
+    },
+    {
+      "id": "security-audit",
+      "label": "Security event audit stream",
+      "sourcePatterns": [
+        "^public/js/audit-log\\.js$",
+        "^views/protected/audit-log\\.html$",
+        "^src/repositories/audit-logs\\.repo\\.js$",
+        "^src/routes/audit\\.routes\\.js$",
+        "^src/security/security-events\\.js$",
+        "^src/services/audit\\.service\\.js$",
+        "^scripts/regressions/framework/security-event-logging\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/longtail_forge_permissions_matrix.md",
+        "docs/runtime-configuration.md",
+        "help/framework/users-roles-and-permissions.md"
       ]
     },
     {

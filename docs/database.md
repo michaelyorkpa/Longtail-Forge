@@ -378,6 +378,8 @@ The old incremental migration files were consolidated into `current.sql` and rem
 
 The generated final SQLite schema verification snapshot lives at `src/db/schema/current.generated.sql`. It is derived by applying the manually maintained fresh-start baseline plus every ordered core/module migration to a disposable in-memory SQLite database, then serializing the resulting `sqlite_schema`. It contains schema only, not seed data, and must not be edited by hand.
 
+Migration `072_require_password_change.sql` adds the non-null integer `users.password_change_required` flag with default `0`, preserving existing users as unrestricted. Administrator password reset is the only current operation that sets it to `1`; a successful current-password-verified password change returns it to `0`. Request-session lookup joins this live user value instead of copying it into the session row, so reset and completion take effect for every surviving/current request without a session-schema migration.
+
 Refresh or verify it with:
 
 ```sh

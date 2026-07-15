@@ -74,7 +74,7 @@ Calendar remains planned at 0.36. Hosted SaaS and PostgreSQL remain later work. 
 
 ## Current Release and Readiness Status
 
-- The current package version is reported by `/api/app-info`. The active roadmap cursor is **0.33.16.1** (trusted reverse-proxy and secure-edge request handling), followed by the remaining internet-exposure security hardening and reproducible preview packaging with tested backup/restore and CI.
+- The current package version is reported by `/api/app-info`. The active roadmap cursor is **0.33.17.1** (runtime-only packaging boundary), beginning reproducible preview packaging with tested backup/restore and CI still required before invitations.
 - Longtail Forge is in active development and currently used privately. It runs as a self-hosted app; a limited friends-and-family private internet preview is planned once security-hardening (roadmap 0.33.16) and preview-readiness work (roadmap 0.33.17, including tested backup/restore) are complete.
 - Until that work ships, treat internet use as a **private/technical preview**, not a production deployment. Supported scale is small-office (SQLite for roughly 50 total users and about 5–15 concurrent on one server); PostgreSQL is required before shared hosted or larger use.
 - Longtail Forge makes no security, uptime, backup, or compliance guarantees, and Secure Notes are encrypted at rest but are not zero-knowledge (see [docs/architecture.md](docs/architecture.md)).
@@ -88,6 +88,9 @@ Product positioning, audience, demo, preview, and launch planning live in the [m
 - [docs/architecture.md](docs/architecture.md): framework/module architecture direction
 - [docs/versioning.md](docs/versioning.md): application/asset-version sources, bump command, guardrails, and release workflow
 - [docs/docs-ownership.md](docs/docs-ownership.md): changed-area documentation suggestions and closeout note convention
+- [docs/internet-deployment.md](docs/internet-deployment.md): supported Caddy private-internet topology, operator procedure, live proxy proof, and known limitations
+- [docs/operational-security.md](docs/operational-security.md): production logs, health/readiness, scanning plan, incident response, and pre-invitation review
+- [SECURITY.md](SECURITY.md): private vulnerability-reporting policy
 - [docs/module-contract.md](docs/module-contract.md): current module definition contract
 - [docs/notes-module.md](docs/notes-module.md): Notes module developer guide
 - [docs/time-tracking-module.md](docs/time-tracking-module.md): Time Tracking module boundary
@@ -103,7 +106,7 @@ Product positioning, audience, demo, preview, and launch planning live in the [m
 
 ### Requirements
 
-- Node.js 24.x, matching the root package `engines.node` range `>=24 <25`
+- Node.js 24.7 or newer within the Node 24 line, matching the root package `engines.node` range `>=24.7 <25`; Node 24.7 introduced the built-in Argon2id API used for password hashing
 - npm
 - Python and a C++ toolchain, such as Visual Studio Build Tools on Windows, only if npm cannot use a prebuilt `better-sqlite3` binary
 
