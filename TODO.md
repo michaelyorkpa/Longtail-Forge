@@ -21,13 +21,13 @@ When a task is moved from blocked, the blocked reason should be removed as well.
 
 ## Workbench Timers Tweak
 
-In focus selection view, manual timers are, correctly, displayed as work that can be picked back up on. However, they have a broken "Open work" button in the bottom right corner. They also don't display the timer description. That Open Work button should either point at something real, or be removed. Probably the best thing to do would be to open a Timer modal (owned by the Timer module).
+Current code now displays the timer description/source label and gives manual and task timer cards state-appropriate lifecycle controls. Those stale portions of this note are resolved and removed.
 
-In "Focus Selection" view, Manual timers can be started, paused, saved & ended, and discarded from the "Timers" box. Task timers can only be saved & ended or Discarded. Rather than having buttons for "Start" and "Pause" that are permanently grayed out in this view, it would be better to have an "Open Work" button.
+The remaining issue is the Focus Selection recommendation action for a manual timer: "Open work" falls back to the generic Time Tracking page rather than opening timer-owned context. Revisit whether Time Tracking should expose a stable modal/opener contract or whether the recommendation should use clearer resume/navigation wording. Do not add a Workbench-owned timer editor.
 
 > The Calendar/Dashboard/Tasks tweaks captured here after 0.33.10 shipped were promoted to **ROADMAP.md 0.33.10 follow-up slices 0.33.10.6 - 0.33.10.9** and removed from this file to prevent drift.
 >
-> The remaining Short Term notes are intentionally deferred rather than implementation-ready: the undated-task Wishlist and Workbench algorithm need a deliberate scheduling/settings design; the Lists UI/UX overhaul was promoted to 0.33.13 and removed; Suggested Library waits for a later Notes pass; Testing Goals remain human verification; Knowledge Base belongs to 0.34; Mobile Tweaks wait for a fresh current-surface audit; and Administration/Settings is larger than a cleanup slice. Executable near-term ideas start under the separate `# Near Term Ideas` heading.
+> The remaining Short Term notes are intentionally deferred rather than implementation-ready: the undated-task Wishlist and Workbench algorithm need a deliberate scheduling/settings design; the Lists UI/UX overhaul was promoted to 0.33.13 and removed; Suggested Library waits for a later Notes pass; Testing Goals remain human verification; Knowledge Base belongs to 0.35; Mobile Tweaks wait for a fresh current-surface audit; and Administration/Settings is larger than a cleanup slice. Executable near-term ideas start under the separate `# Near Term Ideas` heading.
 
 ## Wishlist
 
@@ -43,7 +43,7 @@ Blocked items should only show up in "Review blocked work".
 
 The algorithm needs to be adjustable in settings.
 
-> Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, Tasks blocked-state behavior, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.11 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (KB -> 0.34; the Lists UI/UX overhaul was promoted to 0.33.13 and removed), are human testing goals, or are larger than a quick fix.
+> Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, Tasks blocked-state behavior, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.11 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (KB -> 0.35; the Lists UI/UX overhaul was promoted to 0.33.13 and removed), are human testing goals, or are larger than a quick fix.
 
 > The Lists UI/UX Overhaul notes were promoted to **ROADMAP.md 0.33.13 - Lists Module UI/UX Overhaul** (slices 0.33.13.1 - 0.33.13.5) and removed from this file to prevent drift. The four scoping decisions were settled during promotion: filters + List Selector move into the standard bottom-left filter drawer (slide-out sidebar), one combined collapsible "List Details" box holds the description plus a read-only linked-records list, all link add/remove moves into the Edit List modal via the shared Linked Context picker, and both Lists modals get a full view-guideline pass.
 
@@ -166,19 +166,6 @@ settled, the framework-contract-type list was expanded to cover all cross-module
 since 0.32.10 (module manifest + view-descriptor system, work/Workbench/resume, search, notifications, tags,
 files, permissions, public API, jobs, database seam, and per-module record shapes), and Reporting moved to
 0.33.9 to make room (the tentative advanced-search overhaul reference shifted to 0.33.10).
-
-## Regression / Test Tooling — deferred from 0.33.6.16
-
-These were considered during the 0.33.6.16 pre-TypeScript maintenance cleanup and intentionally deferred rather than implemented in that branch. They are not yet assigned to a version.
-
-- Suite-time budget / timing-report consumption
-  - The regression runner already emits a timing report (`LTF_REGRESSION_TIMING_JSON`), but nothing consumes it.
-  - Add a small step that reads it and reports total vs. last run plus the slowest N scripts, so silent suite-time creep is visible before it becomes a problem.
-  - Best timed for **0.33.8 (Playwright)**, right before rendered browser specs start adding real wall-clock weight. Deferring keeps 0.33.6.16 focused on clerical churn rather than perf tooling.
-
-- Affected-tests dependency graph (finer than changed-area routing)
-  - 0.33.6.16.10 adds a changed-area auto-run that reuses the existing route-rule suggester; it deliberately does not build a real dependency/affected-test engine.
-  - Revisit only **after 0.33.7 (Vitest)** provides finer-grained units to key off of. Building a bespoke graph now, over the coarse static regression scripts, would be premature.
 
 ## Search Capability Expansion
 

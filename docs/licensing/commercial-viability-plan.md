@@ -12,12 +12,15 @@ AGPL public core + protected official brand + private commercial/hosted layer + 
 
 This structure lets the project build trust through an open self-hosted core while keeping the highest-leverage commercial infrastructure outside the public repo.
 
+Non-binding pricing and packaging thinking that supports these lanes is kept separately in [`../marketing/pricing-and-packaging-hypotheses.md`](../marketing/pricing-and-packaging-hypotheses.md). Those hypotheses do not set prices or alter the commercial model here; the committed Support Tickets, Knowledge Base, and Creator Studio modules remain first-party public-core modules when completed and are not repackaged as paid add-ons.
+
 ## What Must Stay Public
 
 The public core should include the usable self-hosted application:
 
 - workspace/account basics for self-hosted users;
 - core modules;
+- committed first-party public-core modules, including Support Tickets, Knowledge Base, and Creator Studio when completed;
 - database adapters needed for supported self-hosting;
 - migrations and baseline schema;
 - public API foundations included in the core;
@@ -44,7 +47,7 @@ The following should remain outside the public AGPL core unless there is a delib
 - hosted-only analytics and usage metering;
 - customer lifecycle automation;
 - paid marketplace or first-party commercial plugin infrastructure;
-- first-party commercial modules.
+- separately designated first-party commercial modules or plugins, excluding the committed Support Tickets, Knowledge Base, and Creator Studio public-core modules.
 
 ## Release Lanes
 
@@ -54,7 +57,7 @@ Purpose: build credibility, adoption, trust, feedback, and proof that the app is
 
 Must have before public release:
 
-- stable install/update flow;
+- tested manual Docker and bare-metal install/upgrade/rollback flow; an in-app updater is not required for the initial release lane;
 - clear SQLite/Postgres support statement;
 - backup/restore documentation;
 - admin/bootstrap documentation;

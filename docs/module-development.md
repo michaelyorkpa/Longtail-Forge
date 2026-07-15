@@ -12,6 +12,29 @@ Required fields include `id`, `name`, `displayName`, `description`, `category`, 
 
 Use `enabledByDefault: false` for examples or optional features that should not appear in new workspaces automatically. Use `canDisable: false` only for framework-core modules.
 
+### Planned Concern-Based Manifest Source Composition
+
+The current runtime and development contract is still one validated module object, and existing large modules still keep that definition in `module.js`. The 0.33.18 roadmap plans to pilot a source-organization pattern on at least two large first-party modules. After that pattern is proven, a difficult-to-review module may compose substantial concerns from repository-conventional equivalents of:
+
+```text
+module.js
+module.manifest.js
+module.permissions.js
+module.views.js
+module.dashboard.js
+module.workbench.js
+module.events.js
+module.notifications.js
+module.api.js
+module.settings.js
+```
+
+Use only files that own substantial content; do not generate empty boilerplate for small modules. `module.js` remains the single composition/export point consumed by the static registry. The composed definition must pass the same startup validation and preserve module IDs, contribution IDs, permissions, routes, registration order, and runtime behavior. This is source organization, not plugin discovery or a loader redesign. Support Tickets, Knowledge Base, and Creator Studio should use the proven pattern rather than beginning as giant files.
+
+Before adding a framework primitive, manifest field, registry, contribution type, or generalized service, apply the Two-Module Rule: name two real first-party consumers with materially similar behavior and contract requirements. Do not invent a second consumer or generalize appearance alone. Keep a one-module requirement inside that module until the shared contract is understood. Intrinsically framework-wide authentication, security, permissions, workspace isolation, deployment, database, and app-shell work is an explicit documented exception.
+
+The planned browser direction is gradual native ES modules, not a framework rewrite. A newly built module should follow the settled entry-point/import convention once 0.33.18 proves it, avoid new `window`/script-order dependencies, keep module-specific behavior and CSS module-owned, and use the temporary compatibility bridge only where an existing host requires it. Until that slice lands, do not claim the convention is already implemented.
+
 ## Register Routes
 
 Browser/session routes go in `browserApiRoutes` and are mounted under `/api` after authentication. The framework wraps optional module browser routes with write protection so disabled modules cannot receive normal writes.

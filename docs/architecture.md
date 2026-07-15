@@ -2,7 +2,7 @@
 
 Longtail Forge started as a time tracker and is growing into a small-project operations hub for freelancers, small agencies, self-hosted teams, and eventually personal/family workspaces.
 
-The long-term architecture goal is for Longtail Forge to behave like a framework with bundled first-party modules, rather than a single tightly-coupled app where every feature is hard-coded into the frontend, backend, and database.
+The long-term architecture goal is for Longtail Forge to behave like a product supported by a framework with bundled first-party modules, rather than a single tightly-coupled app where every feature is hard-coded into the frontend, backend, and database. The framework serves the Longtail Forge product; it is not being generalized for its own sake. Support Tickets, Knowledge Base, and Creator Studio are committed first-party public-core modules when completed, not market-gated external products.
 
 This document explains the intended architecture direction so future development stays consistent.
 
@@ -21,6 +21,12 @@ Modules = workflow tools that plug into the framework.
 The framework should provide shared services such as users, workspaces, authentication, permissions, navigation, module lifecycle, tags, search, notifications, audit logging, settings, events/hooks, and APIs.
 
 Modules should provide business/workflow functionality such as tasks, time tracking, notes, support tickets, calendars, in-app messaging, invoicing, and reporting expansions.
+
+### Two-Module Rule
+
+Do not add a framework primitive, manifest field, registry, contribution type, generalized service, or framework-owned abstraction for one module's unusual requirement. A generalized facility normally needs two real first-party consumers with materially similar behavior and contracts; a hypothetical consumer or appearance-only similarity does not qualify. Keep single-module needs module-owned until the common contract is understood.
+
+Intrinsically framework-wide requirements such as authentication, sessions, security, permissions, workspace isolation, deployment, database abstraction, and app-shell behavior are explicit exceptions. Apply the rule prospectively rather than destructively rewriting older abstractions. At closeout, name the two consumers or document the framework-wide exception. The planned 0.33.14 editable-field primitive qualifies through the current renderer, Reporting, and Settings.
 
 ---
 
@@ -42,6 +48,12 @@ Current first-party modules include:
 These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, searchable type declarations, attachable file target declarations, framework-owned file API routing, and Help Center contribution declarations.
 
 The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services and module surfaces declared in the roadmap while keeping first-party modules on the same manifest rails future modules will use.
+
+Large first-party module definitions currently remain single `module.js` files. The settled future source-organization direction is to compose one unchanged, startup-validated module definition from concern files only when several concerns are substantial. Exact filenames should follow repository conventions and may cover permissions, views, Dashboard, Workbench, events, notifications, API, or Settings. This is not implemented yet, does not change the validated runtime shape, IDs, contribution order, or registry, and must be piloted on at least two large modules before becoming standard. Small modules should not receive empty boilerplate files.
+
+The current browser still relies substantially on ordered classic scripts and `LongtailForge`/`window` globals. During 0.3x, frontend modularization will move gradually to native browser ES modules: one explicit entry point per converted major page, a temporary compatibility bridge for existing globals, and no new script-order dependencies. Dashboard and Workbench are the first candidates when materially changed. This is not a React/Vue/Svelte/Angular migration or renderer rewrite. Module-specific behavior and CSS remain module-owned; framework hosts consume contribution contracts. Loading, missing imports, accessibility, keyboard/responsive behavior, CSP compatibility, and asset versioning require regression coverage.
+
+Database startup currently combines migration, bootstrap, repair, recurring maintenance, and readiness responsibilities across broad startup files. The planned 0.33.18 cleanup first classifies each action as every-boot coordination, first-install bootstrap, versioned migration/repair, recurring lightweight check, explicit admin/CLI work, background work, or health/readiness assertion. Only then should ownership split, with preserved transactions, idempotency, ordering, fresh-install behavior, failure behavior, SQLite/PostgreSQL neutrality, structured phase logs, and timings. This direction is planned, not a claim that the current startup path is already separated.
 
 Longtail Forge should prefer:
 
@@ -104,7 +116,7 @@ Framework/core includes:
 * Timezone normalization helpers
 * Error handling
 * Database migration runner
-* Backup/restore foundation later
+* Backup/restore foundation planned for private-preview readiness in 0.33.17
 * Setup/install foundation later
 
 These systems are not optional workflow features. They are the foundation other features depend on.
@@ -126,6 +138,7 @@ Examples:
 * Time Tracking
 * Notes/Knowledge Base
 * Support Tickets
+* Creator Studio
 * Calendars
 * In-app Messaging
 * Invoicing

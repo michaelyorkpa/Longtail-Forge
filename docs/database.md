@@ -12,6 +12,8 @@ As of version 0.33.5.20.1, `scripts/seed-scale.mjs` can seed a disposable SQLite
 
 As of version 0.33.11.4, `npm run db:cleanup-workspaces -- --database <sqlite-file>` is the dry-run-first, current-install maintenance command for the operator-approved leaked-workspace cleanup. It resolves `York Family`, `York-Lasher`, and `Raymond Tec` by unique exact name and resolves `Personal [michaelyork@raymondtec.com]` by its actual Personal-workspace membership, so duplicate raw `Personal` rows are never treated as interchangeable. The dry-run reports every removal workspace, orphan workspace scope, affected fixture user, membership, and nonzero workspace-table count without writing.
 
+The current startup path still coordinates migration, first-install/bootstrap, compatibility repair, recurring maintenance, and readiness work across broad database startup files. Roadmap 0.33.18 plans a behavior-preserving classification and ownership split with structured phase timings. It must preserve transaction safety, idempotency, fresh-install adoption, migration order, failures, and provider-neutral seams; this document does not claim that separation has already shipped or move PostgreSQL implementation into the cleanup.
+
 Apply is deliberately more explicit:
 
 ```sh

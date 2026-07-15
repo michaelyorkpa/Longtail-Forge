@@ -2,6 +2,12 @@
 
 This document records the current regression-suite contract through the 0.33.6.16.14 pre-TypeScript maintenance closeout. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes narrow area commands plus conservative changed-file suggestions while preserving every 0.33.6.16.1 legacy script and its execution/isolation mode through a checked-in migration snapshot.
 
+## Planned Streamlining Reviews
+
+The suite has not been broadly consolidated by the current roadmap rewrite. Planned checkpoints at 0.33.18, Support Tickets closeout, Knowledge Base closeout, Creator Studio closeout, 0.39.9, the pre-PostgreSQL/API decoupling checkpoint, and the PostgreSQL dual-backend matrix will consume the existing `LTF_REGRESSION_TIMING_JSON` output, report the slowest tests, and establish/review suite-time budgets.
+
+At each checkpoint, review duplicate coverage, implementation-detail assertions, obsolete historical checks, and overly broad setup. Prefer fixture, isolation, selection, and setup improvements before removing coverage. Pure functions, schema validation, and stable contracts may move toward Vitest, but permissions, workspace isolation, database/migration behavior, file safety, and integration behavior remain strongly covered, while critical rendered journeys and accessibility remain in Playwright. A slow test is not obsolete. Retirement requires demonstrated replacement coverage and evidence recorded through the current manifest/ratchet process, and the full release gate remains until equivalence is proven.
+
 ## Current Entry Points
 
 | Entry point | Current responsibility |

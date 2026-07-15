@@ -12,6 +12,8 @@ This page is the repo-level licensing hub. It summarizes the intended license st
 | Documentation prose | Creative Commons Attribution 4.0 International (`CC BY 4.0`) | Applies to documentation prose unless a document says otherwise. See [`documentation-license.md`](licensing/documentation-license.md). |
 | Plugin SDKs and integration examples | Apache License 2.0 (`Apache-2.0`) | Applies only to SDK/API/example directories or files expressly marked Apache-2.0. See [`plugin-sdk-license.md`](licensing/plugin-sdk-license.md). |
 | Official hosted services, managed deployment tooling, cloud operations code, billing code, and first-party commercial plugins | Proprietary / all rights reserved unless separately licensed | These may be developed in private repositories or distributed under separate commercial terms. See [`commercial-licensing.md`](licensing/commercial-licensing.md). |
+
+Support Tickets, Knowledge Base, and Creator Studio are committed first-party modules in the public Longtail Forge core when completed. The private commercial/hosted boundary does not reclassify those roadmap modules as proprietary plugins; it covers separately designated commercial additions and managed operations.
 | Longtail Forge name, logos, marks, trade dress, icons, and official branding | Trademark rights reserved | No trademark license is granted by the software license. See [`trademark-policy.md`](licensing/trademark-policy.md). |
 | Third-party contributions | Not accepted for non-trivial code until a CLA process is active | See [`contributor-policy.md`](licensing/contributor-policy.md) and [`contributor-license-agreement.md`](licensing/contributor-license-agreement.md). |
 

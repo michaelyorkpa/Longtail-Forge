@@ -10,6 +10,10 @@ The module registry validates every registered module before exposing route, mig
 
 Unknown arbitrary manifest fields are rejected. Future extension data should wait for a deliberate extension namespace instead of being added ad hoc.
 
+The runtime contract remains one composed module definition per registered module. The current large first-party modules still define that object in a single `module.js`; the roadmap plans a source-organization pilot, not a new runtime shape. After that pilot, a large module may import substantial concern definitions from convention-aligned files for permissions, views, Dashboard, Workbench, events, notifications, API, or Settings and compose the same validated object. Preserve IDs, ordering, routes, permissions, and behavior, and do not create empty files for small modules.
+
+New manifest fields, registries, contribution types, and generalized module facilities follow the Two-Module Rule: normally identify two real first-party consumers with materially similar behavior and contract needs. A hypothetical consumer or shared appearance is insufficient. Keep a one-module requirement module-owned until the common contract is understood. Intrinsically framework-wide authentication, security, permission, workspace, deployment, database, and app-shell needs are explicit documented exceptions. Apply this prospectively and name the two consumers or exception at closeout.
+
 ## Registry Service
 
 `src/core/modules/registry.js` remains the static first-party registration list. It does not perform filesystem discovery and does not load third-party modules yet.

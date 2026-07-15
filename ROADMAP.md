@@ -4,6 +4,39 @@ This file is the detailed per-version forward plan for Longtail Forge. README.md
 
 Active cursor: `0.33.14.1`.
 
+## Roadmap-Wide Architecture Rules
+
+### Product-first framework direction
+
+Longtail Forge is a product first. Its framework exists to support the Longtail Forge application and its official first-party modules, not to become a generic framework for its own sake. Support Tickets, Knowledge Base, and Creator Studio are committed first-party product modules that will ship in the public Longtail Forge core when completed. They may be disableable per workspace where appropriate, but they are not contingent on customer requests, preorders, outside funding, or a market-validation gate.
+
+### Two-Module Rule
+
+- Do not add a framework primitive, manifest field, registry, contribution type, generalized service, or framework-owned abstraction merely because one module has one unusual requirement.
+- A generalized framework facility should normally have at least two concrete first-party consumers with materially similar behavioral and contract requirements. Do not invent a hypothetical or fake second consumer.
+- A one-module requirement remains module-owned until the common contract is understood. Shared appearance alone is not sufficient when behavior and ownership are not also meaningfully shared.
+- Authentication, sessions, security, permissions, workspace isolation, deployment, database abstraction, and app-shell behavior are legitimate exceptions because they are intrinsically framework-wide. Any other exception must be explicit in the owning roadmap decision and architecture documentation.
+- Apply this rule prospectively. It does not require destructive rewrites of sound abstractions that predate it.
+- At closeout of a new generalized primitive, name its two real consumers or document the framework-wide exception.
+
+The 0.33.14 editable field primitive already satisfies this rule: the current descriptor renderer paths, Reporting, and Settings have overlapping metadata-to-control, value-binding, accessible-field-anatomy, and validation-message needs. The rule narrows that primitive to those real consumers; it does not cancel 0.33.14 or authorize a broad conversion of unrelated pages.
+
+### Gradual modernization rules
+
+- Large first-party module definitions may be composed from concern-focused source files while continuing to export one validated module definition to the registry. This is source organization, not a plugin-loader redesign; small modules do not need empty boilerplate files.
+- Browser modernization in the 0.3x branch uses native ES modules and explicit page entry points gradually. Do not rewrite the frontend in React, Vue, Svelte, Angular, or another framework, replace the renderer wholesale, or add new implicit script-order dependencies.
+- Test streamlining means measuring and relocating equivalent coverage deliberately, never deleting a test merely because it is slow. Permission, workspace-isolation, database, migration, file-safety, integration, rendered critical-journey, and accessibility coverage remain strong.
+
+## Roadmap Reordering Record
+
+| Previous location | Revised location | Record |
+| --- | --- | --- |
+| 0.33.16 packaging and in-app/bare-metal auto-updater work | 0.33.17 packaging/release operations; updater evaluation at 0.39.12 | Security remains in 0.33.16; supported initial upgrades are manual Docker or bare-metal operations. |
+| 0.38.4 baseline Backup and Restore | 0.33.17 private-preview/release readiness | Baseline verified backup/restore moves forward; 0.38.4 retains advanced automation only. |
+| 0.34.1-0.34.4 Knowledge Base | 0.35.1-0.35.4 Knowledge Base | Detailed Notes-first reviewed-publication contract is preserved after Tickets. |
+| 0.35.0-0.35.6 Support Tickets | 0.34.0-0.34.6 Support Tickets | Tickets land first as a committed first-party workflow module. |
+| Deferred test timing and affected-test notes in TODO | 0.33.18 and repeated closeout checkpoints | Timing consumption and evidence-based consolidation become versioned roadmap work. |
+
 ## Version 0.33.13 - Lists Module UI/UX Overhaul
 
 Decision:
@@ -32,7 +65,7 @@ Non-goals:
 
 Purpose:
 
-Promote form-field construction from a private renderer helper into a first-class, exported `LongtailForge.view` primitive with a complete field-type set and an editable, value-bound mode. Today the framework can render fields from metadata — but only inside the renderer's private `renderFieldShell`/`createFieldControl` functions (`public/js/shared/view-renderer.js`), which are not part of the frozen `LongtailForge.view` export (`public/js/shared/view-builder.js`), do not cover toggle/radio/multi-select or `max`/`inputmode`, and are hardwired `disabled: true` for persistent (non-modal) field grids (`renderFieldGridShell`). Settings de-hardcoding (0.33.15), any Lists form controls left for follow-up after 0.33.13, and the narrow Reporting filter adapter permitted in 0.33.12 all need the same capability, so it is extracted once here instead of remaining page-specific raw DOM.
+Promote form-field construction from a private renderer helper into a first-class, exported `LongtailForge.view` primitive with the field types and editable value-binding required by its three real consumers: current descriptor-renderer paths, Reporting, and Settings. Today the framework can render fields from metadata — but only inside the renderer's private `renderFieldShell`/`createFieldControl` functions (`public/js/shared/view-renderer.js`), which are not part of the frozen `LongtailForge.view` export (`public/js/shared/view-builder.js`), do not cover current Reporting/Settings needs such as toggle/radio/multi-select or `max`/`inputmode`, and are hardwired `disabled: true` for persistent (non-modal) field grids (`renderFieldGridShell`). This satisfies the Two-Module Rule without turning the slice into a generic form-builder program.
 
 This is a deliberately small, foundational slice sequenced immediately ahead of the Settings work (0.33.15) so Settings consumes a finished primitive rather than inventing settings-only field anatomy. Reporting (0.33.12) lands first on the existing read/filter path and may use a narrow framework adapter for the missing project multi-select and conditional-date behavior; this version must fold any overlapping Reporting field construction into the exported factory without changing report behavior.
 
@@ -50,17 +83,18 @@ Non-goals:
 - Do not build settings-specific behavior here (save to `PUT /api/settings`, dependent-setting visibility, retiring `settingsControls`); that stays in Settings (0.33.15).
 - Do not broadly convert existing pages in this version; limit adoption to the shared renderer paths and any temporary Reporting field construction that the new primitive directly replaces.
 - Do not fork modal-form or filter rendering that already works; extend the shared path so there is one field-construction path, not two.
+- Do not add field types, schema keys, validation machinery, or layout modes without a current renderer, Reporting, or Settings consumer.
 
 ### Version 0.33.14.1 - Exported field-factory primitive and complete field-type set
 
 **Model: High Effort** — This changes a framework-wide renderer seam and must preserve every converted surface while adding the field types needed by Reporting and Settings.
 
 - [ ] Extract field construction into an exported `LongtailForge.view` primitive (for example `createField`/`createFieldControl`) so callers build fields from metadata without passing fully-formed DOM and without reaching into renderer internals.
-- [ ] Complete the field-type set: text, number (with `min`/`max`/`step`/`inputmode`), select, multi-select, boolean/checkbox, toggle/switch, radio group, textarea, date, and time.
+- [ ] Complete the field types required by the three named consumers: text, number (with `min`/`max`/`step`/`inputmode`), select, multi-select, boolean/checkbox, toggle/switch, radio group, textarea, date, and time. Add no extra type without a concrete current consumer.
 - [ ] Keep the descriptor field schema (`VIEW_FIELD_FIELDS` in `manifest-contract.js`) and the primitive in sync (add `max`, `inputmode`, and the new types).
 - [ ] Route the descriptor renderer (`renderFieldShell` and the modal/filter paths) through the shared primitive so there is one field-construction path, not two.
 - [ ] Route any temporary Reporting project multi-select or conditional-date field construction from 0.33.12 through the new primitive without changing report filters or query payloads.
-- [ ] Add regressions for each field type's rendering and value binding.
+- [ ] Add contract-focused regressions for supported metadata, accessible labels/control state, value binding, and collection. Avoid pinning incidental DOM-construction order or private helper structure.
 
 Acceptance criteria:
 
@@ -81,6 +115,7 @@ Acceptance criteria:
 
 - A persistent, editable, value-bound field grid renders from metadata with no hand-built DOM, and its values can be collected into a save payload.
 - The field factory is documented and guardrailed as the single field-construction path.
+- Closeout names the current renderer, Reporting, and Settings as the primitive's real consumers and records any framework-wide exception explicitly.
 
 ## Version 0.33.15 - Settings De-Hardcoding: Module-Contributed Settings Framework
 
@@ -123,6 +158,8 @@ Non-goals:
 - Do not weaken permission, workspace-capability, enabled-module, private/secure-content, or audit guardrails to make settings contributable.
 - Do not leave two parallel settings renderers: the raw-`document.createElement` `settingsControls` path is replaced by framework view primitives / descriptor fields, not kept alongside them.
 - Do not let a module contribution disable, override, read-only-bypass, or otherwise weaken a protected framework setting or capability, or target the framework; protected framework parts stay framework-owned.
+- Do not add a generalized settings facility solely for one module's unusual configuration. Keep a single-module effect module-owned unless a second real consumer exists or the setting is intrinsically framework-wide.
+- Keep this branch bounded to Settings de-hardcoding; do not absorb the 0.33.16 security work or 0.33.17 preview/release work.
 
 ### Version 0.33.15.1 - Settings inventory, ownership map, and storage decision
 
@@ -250,6 +287,7 @@ Acceptance criteria:
 Purpose: Lock in the de-hardcoding and document the settings contract.
 
 - [ ] Add guardrails: no new framework-hardcoded setting (settings must come through the contribution contract), settings pages remain minimal hosts, no raw `document.createElement` for framework-owned settings anatomy, no first-party module/setting id special-casing in the host, and a module contribution cannot disable, override, weaken, or target a protected framework setting or capability.
+- [ ] Inventory every generalized Settings facility at closeout and name the real modules/settings that consume it; document an intrinsically framework-wide exception explicitly instead of inventing a second consumer.
 - [ ] Update `docs/module-contract.md` (settings contribution), `docs/declarative-view-surfaces.md` (move settings surfaces out of "reported" into converted), `docs/settings-control-matrix.md`, and `docs/view-building-contract.md`.
 - [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and the roadmap archive; confirm `/api/app-info` after implementation.
 - [ ] Run `npm run check`, `npm run test:permissions`, and the settings/declarative-surface regressions.
@@ -259,52 +297,34 @@ Acceptance criteria:
 - A new module setting requires only a manifest contribution (plus an optional registered handler for side effects), with no framework edit.
 - Settings surfaces are documented as framework-owned converted hosts, and the release-gate checks pass.
 
-## Version 0.33.16 - Internet-Exposure Security Hardening, Self-Hosted Release Packaging, and Bare-Metal Auto-Upgrade
+## Version 0.33.16 - Internet-Exposure Security Hardening
 
 Purpose:
 
-Before this version the app was only safe behind a closed network or an external access gate (for example Cloudflare Access); the immediate driver for 0.33.16 is to harden the authentication and session surface enough for a private internet launch, then give self-hosted installs a clean, runtime-only release artifact and a safe, opt-in in-place updater. Before this slice, "self-hosting" means cloning the whole repo (dev/test tooling and all) and trusting the network perimeter; after it, a self-hoster can expose a hardened app directly on the public internet, run a slim runtime artifact, and upgrade without manually re-pulling and reinstalling.
+Establish the **minimum supported private internet preview posture** for Longtail Forge on its own domain or subdomain behind one documented TLS reverse proxy. The Node process binds to loopback or a protected private interface; the proxy is the public edge; and the Longtail Forge login page is the authentication gate. Cloudflare Access, HTTP Basic Authentication, a VPN, or another external gate may be added by an operator, but the supported posture must not rely on a second password screen.
 
-The upgrade target for this version is bare-metal: a single Node process on a host (for example under systemd or a process manager), not a container or orchestrated fleet. Container images and SaaS/managed-fleet upgrades are explicitly out of scope here and deferred to later hosting/SaaS work.
-
-This version has three parts that together make a private internet launch safe:
-
-- Internet-exposure security hardening (lands first, 0.33.16.1-0.33.16.6): trusted reverse-proxy handling, login throttling/rate limiting, session revocation and forced logout, password resets, security event logging, and additional password-hashing hardening, so the app can be exposed to the internet without leaking data or depending on an external access gate.
-- A packaging boundary that separates runtime code from dev/test tooling so the shipped artifact is slim and does not require ESLint/TypeScript/Vitest/Playwright/the regression suite to run.
-- A bare-metal updater that compares the installed version against the latest GitHub release, surfaces availability, and can download, verify, back up, apply, migrate, restart, and roll back on failure.
+This is friends-and-family/private-preview hardening, not enterprise certification and not a promise that any internet deployment is perfectly safe. Packaging, Docker, backup/restore, CI, and release operations follow in 0.33.17. The former in-app self-updater is explicitly removed from this branch and deferred for re-evaluation at 0.39.12.
 
 Dependencies and sequencing:
 
-- The security-hardening half builds on the existing auth/session/audit primitives (`src/security/passwords.js`, `src/security/sessions.js`, `src/services/auth.service.js`, `src/services/audit.service.js`) and the framework-owned session-expiry modal from 0.33.11.6; it hardens and extends them rather than replacing the session/cookie auth model.
-- Builds on 0.33.6.15 canonical app-version source-of-truth, which the updater uses to compare installed vs. latest.
-- Builds on the 0.33.6.16 release-gate closeout conductor, so a release artifact can be gated before it is published.
-- Relies on the runtime-vs-dev separation the codebase already maintains (`npm start` stays `node server.js`; TypeScript/Vitest/Playwright are dev-only; Zod stays a runtime dependency because it validates untrusted input). This slice formalizes that separation into a packaging boundary rather than inventing it.
-- Assumes an actual published release channel exists (GitHub Releases for the AGPL core; see the 0.33.6.16.9 licensing/public-release gates). If releases are not yet published, this slice defines the mechanism and the manual-artifact fallback, and the GitHub fetch activates once a public release channel is live.
-- Slotted at 0.33.16 after Reporting (0.33.12), the Lists UI/UX overhaul (0.33.13), the view-primitive foundation (0.33.14), and the Settings de-hardcoding pass (0.33.15), at project direction; it is otherwise independent of those branches.
-- Bare-metal only; container and multi-tenant SaaS upgrade orchestration are deferred and cross-referenced to later hosting/SaaS and 0.38.x production-hardening work.
+- Builds on the existing auth/session/audit primitives (`src/security/passwords.js`, `src/security/sessions.js`, `src/services/auth.service.js`, `src/services/audit.service.js`) and the framework-owned session-expiry modal from 0.33.11.6; harden them rather than replace cookie/session authentication.
+- Uses the active runtime-configuration contract in `.env.example` and `docs/runtime-configuration.md`; unsupported unsafe production combinations must fail startup or require an unmistakable explicit override.
+- Security controls here are intrinsically framework-wide exceptions to the Two-Module Rule.
+- Backup/restore security and incident recovery depend on the baseline implementation in 0.33.17; PostgreSQL, shared hosted SaaS, TOTP, passkeys, risk scoring, and richer device history remain later work.
 
 Key decisions:
 
-- Internet-exposure security hardening lands first and is a precondition for a private internet launch: the app must be safe to expose directly, with no reliance on an external access gate or a closed network, before the packaging/updater work matters.
+- Internet-exposure hardening lands before private-preview packaging and invitations. The app must not rely on an external access gate, but it remains behind a real trusted TLS reverse proxy rather than exposing the Node listener directly.
 - Client IP, protocol, and host are trusted from proxy headers only behind a configured trusted proxy; every IP-keyed control (login throttling, audit, security logging) consumes one shared trusted-client-IP helper rather than reading `X-Forwarded-For` ad hoc.
-- Auth hardening extends the existing session/audit/password primitives rather than replacing them, and stays configurable so trusted internal/offline installs can relax internet-facing defaults.
-- Release source is GitHub Releases of the repository; the updater compares the canonical installed app version against the latest release tag.
-- The release artifact is a packaged, runtime-only tarball plus a checksum (with room to add a signature later); the updater verifies the checksum before applying anything.
-- Upgrades are owner/admin-gated, opt-in, and never destructive-by-default: the updater always backs up the current code and database before applying, and rolls back automatically if a post-upgrade health check fails.
-- The app can stage an update and request a restart; the actual process restart is owned by the host supervisor (systemd/process manager), not by the app force-killing itself unmanaged.
-- An air-gapped/manual fallback lets an admin upload a verified artifact instead of fetching from GitHub.
-- Self-hosted installs only: hosted/SaaS deployments manage their own pipeline and must be able to disable the in-app updater entirely.
+- Cookie, CSRF, browser-header, throttling, session-revocation, password, logging, and production-config controls are centralized and tested at the framework boundary.
+- Security logs are structured and safe; health/readiness output is useful to operators without exposing secrets or internal paths.
+- One Caddy or Nginx reference deployment becomes the supported proof path before several equally official variants are offered.
 
 Non-goals:
 
-- Do not add container/Docker/Kubernetes image auto-upgrade in this version; bare-metal single-host only.
-- Do not build multi-tenant/fleet upgrade orchestration.
-- Do not change `npm start`.
-- Do not auto-apply an upgrade without explicit opt-in and a completed backup.
-- Do not ship dev/test tooling, dev fixtures, `.env` files, or secrets in the release artifact.
-- Do not strip Zod or other runtime validation as if it were test tooling.
-- Do not weaken permission, workspace, private/secure-content, storage-key, or migration guardrails to make upgrades possible.
-- Do not build a full update-server/CDN; GitHub Releases plus manual upload is the surface for this version.
+- Do not package or deploy the app in this branch; that is 0.33.17.
+- Do not add GitHub release checking, update-available UI, artifact download, checksum application, self-replacement, in-app migration/restart orchestration, automatic rollback, air-gapped in-app upload, or updater configuration/kill switches. Those ideas are deferred to 0.39.12 for evidence-based re-evaluation.
+- Do not claim external penetration testing, enterprise certification, compliance, or perfect internet safety unless independently completed and documented.
 - Do not replace the existing session/cookie auth model with a new token/OAuth/SSO/passwordless system in this version; the security work is hardening, not a re-architecture.
 - Do not build a full WAF, IDS, or external SIEM integration; security event logging is the in-app audit stream, not a third-party pipeline.
 - Do not add an email/notification transport in this version; the app has none today, so token-based self-service ("forgot password") reset is deferred to a future version and the already-shipped admin reset (Settings -> Workspace -> User Admin) is hardened as the supported recovery path.
@@ -339,7 +359,22 @@ Acceptance criteria:
 - A single shared helper is the only source of client IP, and throttling, audit, and security logging all consume it.
 - Direct internet exposure without a proxy cannot be tricked into trusting forwarded headers.
 
-### Version 0.33.16.2 - Login throttling and authentication rate limiting
+### Version 0.33.16.2 - TLS and cookie posture
+
+**Model: High Effort** — Public URL, proxy protocol resolution, and cookie attributes are one authentication boundary; unsafe combinations can silently leak sessions.
+
+- [ ] Make HTTPS the expected supported public-internet posture and derive Secure-cookie behavior from the trusted effective protocol established in 0.33.16.1.
+- [ ] Keep session cookies `HttpOnly`; choose and document a deliberate `SameSite` policy plus explicit path/domain behavior.
+- [ ] If production declares an HTTP public URL, fail startup unless an unmistakable unsafe-development override is set; do not silently assume the proxy will correct an insecure application declaration.
+- [ ] Enable HSTS only after HTTPS and trusted proxy resolution are verified consistently; document rollout and rollback considerations.
+- [ ] Add regressions for direct HTTP, trusted forwarded HTTPS, forged forwarded protocol, cookie attributes, unsafe production URL rejection, and HSTS gating.
+
+Acceptance criteria:
+
+- Public-preview production configuration cannot silently run with insecure public URL/cookie assumptions.
+- Cookie and HSTS decisions use one trusted effective-protocol source and are covered at direct-peer and proxy edges.
+
+### Version 0.33.16.3 - Login and sensitive-endpoint throttling
 
 **Model: High Effort** — Throttling sits directly on the login/auth path; a mistake either locks out real users or leaves brute-forcing open, and it must key on the trusted IP established in 0.33.16.1.
 
@@ -352,8 +387,8 @@ Protect the public login surface from credential brute-forcing and account enume
 - [ ] Key throttling on the trusted client IP from the 0.33.16.1 helper, never on raw `X-Forwarded-For`.
 - [ ] Keep responses non-enumerating: throttled and invalid-credential responses must not reveal whether the account exists, and timing should stay uniform.
 - [ ] Return a framework `AppError` with the correct status (for example 429) and a "too many attempts, try again later" message consistent with the existing error envelope.
-- [ ] Cover the other credential-checking edges consistently (self-service change-password verification, the reset flow in 0.33.16.4, and any public API key auth surface) so throttling is not trivially bypassed.
-- [ ] Emit a security event on lockout/threshold breach for 0.33.16.5.
+- [ ] Cover self-service password verification/change, admin reset, any future reset-token redemption, and other credential-checking endpoints consistently; assess API-key and public-intake limits where those surfaces exist.
+- [ ] Emit a security event on lockout/threshold breach without logging credentials.
 - [ ] Make limits configurable and disable-able for trusted internal/offline deployments, with safe internet-facing defaults.
 - [ ] Add focused regressions:
   - [ ] repeated failures from one IP are throttled and then locked out for the window.
@@ -367,7 +402,35 @@ Acceptance criteria:
 - Throttling keys on the trusted client IP and cannot be bypassed by forged headers.
 - Responses never reveal account existence, and lockouts emit a security event.
 
-### Version 0.33.16.3 - Session revocation and forced logout
+### Version 0.33.16.4 - CSRF and state-changing browser request protection
+
+**Model: High Effort** — Central cookie-authenticated write protection touches every browser mutation and must preserve legitimate same-origin workflows without route-by-route drift.
+
+- [ ] Define and centralize the CSRF policy for cookie-authenticated browser requests.
+- [ ] Validate `Origin` on state-changing requests where appropriate; define a constrained `Referer` fallback rather than treating it as an unconditional substitute.
+- [ ] Add CSRF tokens for flows where origin enforcement alone is insufficient. `SameSite` cookies are defense in depth, not the whole strategy.
+- [ ] Reject unsupported content types on JSON/state-changing API routes and protect login-sensitive, logout, and other state-change behavior consistently.
+- [ ] Add regressions for accepted same-origin writes, rejected cross-origin writes, missing/invalid required tokens, forged headers, and unsupported content types.
+
+Acceptance criteria:
+
+- Cookie-authenticated mutations pass through one documented CSRF boundary; unsupported cross-origin and content-type combinations fail closed.
+
+### Version 0.33.16.5 - Browser security headers and CSP rollout
+
+**Model: High Effort** — CSP and cache/header policy can either leave browser attack surface open or silently break the current inline/global frontend if enforced without an inventory.
+
+- [ ] Inventory current inline script/style and asset-loading requirements, then define Content-Security-Policy in report-only mode where a migration period is required and schedule enforcement explicitly.
+- [ ] Define `frame-ancestors` and compatible anti-framing behavior, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and `Permissions-Policy`.
+- [ ] Add HSTS only after 0.33.16.2 verifies consistent HTTPS, and set safe non-cache behavior for authenticated/private responses where necessary.
+- [ ] Keep the policy compatible with the current app; use the 0.33.18 ES-module direction to reduce future CSP exceptions rather than shipping a CSP that breaks the UI.
+- [ ] Add header regressions plus a rendered smoke through the reference proxy proving critical login and authenticated journeys still load.
+
+Acceptance criteria:
+
+- The browser-header policy is explicit, tested, and deployable without silently breaking current rendered behavior; CSP has a documented report-only-to-enforcement path.
+
+### Version 0.33.16.6 - Session revocation and forced logout
 
 **Model: High Effort** — Session lifecycle is the core of "do not leak data"; revocation must be complete and immediate, and it interacts with password change, reset, deactivation, and rehash.
 
@@ -381,13 +444,13 @@ Give owners/admins and the auth flows a reliable way to revoke sessions and forc
   - [ ] revoke all of a user's sessions except the current one.
 - [ ] Force logout on security-relevant events:
   - [ ] on self-service password change (`authService.changePassword`), revoke the user's other sessions,
-  - [ ] on admin password reset (0.33.16.4), revoke all of the target user's sessions,
+  - [ ] on admin password reset (0.33.16.7), revoke all of the target user's sessions,
   - [ ] on user deactivation / status change to inactive, revoke all of that user's sessions,
-  - [ ] on password-hash upgrade/rehash where a deployment requires it (0.33.16.6).
+  - [ ] on password-hash upgrade/rehash where a deployment requires it (0.33.16.9).
 - [ ] Surface an owner/admin action to view and revoke a user's active sessions, gated behind the existing permission/role checks; never expose it to ordinary users or across workspace boundaries.
 - [ ] Optionally let a user list and revoke their own active sessions from user settings.
 - [ ] Ensure a revoked session id is rejected on the very next request through the existing `getRequestSession` path, and that the framework-owned session-expiry modal (0.33.11.6) surfaces the forced logout cleanly rather than a console-only failure.
-- [ ] Emit a security event for each revocation for 0.33.16.5.
+- [ ] Emit a security event for each revocation for 0.33.16.8.
 - [ ] Add focused regressions:
   - [ ] revoking a session rejects its next request.
   - [ ] "log out everywhere" invalidates all of a user's sessions.
@@ -401,7 +464,7 @@ Acceptance criteria:
 - Password change, admin reset, and deactivation force logout of the affected sessions.
 - Revocation is permission-gated, workspace-safe, and emits security events.
 
-### Version 0.33.16.4 - Password reset hardening
+### Version 0.33.16.7 - Password reset hardening
 
 **Model: High Effort** — Password reset is a classic account-takeover vector; the existing admin reset already changes credentials but does not currently invalidate the target's live sessions, so tightening it must be exact about revocation and forced re-login.
 
@@ -410,12 +473,12 @@ Purpose:
 Harden the reset paths that already exist rather than build a new one. Admin-initiated reset is already shipped: Settings -> Workspace -> User Admin exposes a reset action backed by `usersService.resetPassword` ([src/services/users.service.js](src/services/users.service.js)), which is gated behind `users.manage`, generates a new credential with `createGeneratedPassword`, updates the stored hash, surfaces the generated password once to the admin, and audits `user_password_reset`. Self-service `changePassword` (which requires the current password) also exists. The gap for an internet launch is that neither path revokes the target user's other live sessions, forces a re-login, or feeds the security event stream — and there is no self-service recovery for a genuinely locked-out user, because the app has no email/notification transport today.
 
 - [ ] Harden the existing admin reset (`usersService.resetPassword`):
-  - [ ] on reset, revoke all of the target user's sessions (0.33.16.3) so an attacker who holds a live session is kicked out immediately,
+  - [ ] on reset, revoke all of the target user's sessions (0.33.16.6) so an attacker who holds a live session is kicked out immediately,
   - [ ] require a password change on next login for the target where practical, so the one-time generated credential cannot linger as a permanent password,
   - [ ] keep the generated credential surfaced once to the admin and confirm it is never written to logs in plaintext,
-  - [ ] emit a dedicated security event on reset (0.33.16.5) in addition to the existing `user_password_reset` audit record.
-- [ ] Harden self-service `changePassword` to revoke the user's other sessions on success (shared with 0.33.16.3) and emit a security event.
-- [ ] Apply the 0.33.16.2 throttle to reset/change endpoints so they cannot be hammered.
+  - [ ] emit a dedicated security event on reset (0.33.16.8) in addition to the existing `user_password_reset` audit record.
+- [ ] Harden self-service `changePassword` to revoke the user's other sessions on success (shared with 0.33.16.6) and emit a security event.
+- [ ] Apply the 0.33.16.3 throttle to reset/change endpoints so they cannot be hammered.
 - [ ] Confirm the reset flow stays workspace-scoped and permission-safe, and that a reset cannot target a user the admin has no `users.manage` authority over.
 - [ ] Token-based self-service reset is explicitly deferred: the app has no email/notification transport, so a forgot-password email/token flow is out of scope for this version. Record it as a future extension gated on a delivery channel, and — when built — require a single-use, time-limited, hashed-at-rest token delivered out-of-band, a non-enumerating "if an account exists, a reset was sent" response, throttling, and forced logout on redemption. Until then, admin reset is the supported recovery path.
 - [ ] Add focused regressions:
@@ -430,7 +493,7 @@ Acceptance criteria:
 - Admin reset stays permission-gated and workspace-scoped, and the one-time credential is surfaced once and never logged.
 - Token-based self-service reset is documented as deferred until a delivery channel exists, with admin reset as the supported recovery path.
 
-### Version 0.33.16.5 - Security event logging
+### Version 0.33.16.8 - Security event logging and retention
 
 **Model: High Effort** — This is the audit backbone for an internet-exposed install; it must capture the right events without recording secrets and stay permission-safe.
 
@@ -440,15 +503,17 @@ Give an internet-exposed install a clear, queryable record of security-relevant 
 
 - [ ] Define a security-event category (a dedicated record/change type or a severity tag on `auditService`) covering:
   - [ ] failed and successful logins, including the reason class (bad credentials, inactive user, throttled/locked out),
-  - [ ] throttle/lockout triggers (0.33.16.2),
-  - [ ] session revocations and forced logouts (0.33.16.3),
-  - [ ] password change and admin password reset (0.33.16.4),
-  - [ ] password-hash upgrades/rehash (0.33.16.6),
+  - [ ] throttle/lockout triggers (0.33.16.3),
+  - [ ] session revocations and forced logouts (0.33.16.6),
+  - [ ] password change and admin password reset (0.33.16.7),
+  - [ ] password-hash upgrades/rehash (0.33.16.9),
   - [ ] permission-denied / authorization failures on protected routes where practical.
 - [ ] Record actor (or attempted username), trusted client IP (0.33.16.1), timestamp, event type, outcome, and safe metadata; never record passwords, tokens, session ids, or hashes.
 - [ ] Add a failed-login audit path so authentication failures are recorded, without leaking account existence in the record's user-facing surfaces.
 - [ ] Surface a security-event view to owners/admins, permission-gated and workspace-scoped, reusing the existing audit query/filtering surface where possible.
 - [ ] Keep security logging resilient: a logging failure must never block or crash the auth path.
+- [ ] Define configurable retention, restrict the security view to appropriately authorized users, and preserve workspace scope for workspace-specific events.
+- [ ] Include successful login, user deactivation, security-sensitive configuration changes, and important authorization failures where practical.
 - [ ] Add focused regressions:
   - [ ] a failed login produces a security event with no secret material.
   - [ ] lockout, revocation, and reset events are recorded.
@@ -461,7 +526,7 @@ Acceptance criteria:
 - Records carry actor/IP/outcome and never contain secrets.
 - The security view is permission-gated and workspace-safe, and logging never blocks auth.
 
-### Version 0.33.16.6 - Additional password-hashing hardening
+### Version 0.33.16.9 - Password hashing modernization
 
 **Model: High Effort** — Changing the credential-at-rest format risks locking users out or silently weakening hashing; it needs algorithm agility and transparent migration.
 
@@ -469,13 +534,13 @@ Purpose:
 
 Strengthen credential-at-rest and make the hashing scheme upgradeable. `src/security/passwords.js` uses PBKDF2-HMAC-SHA256 at 310000 iterations with a tagged format (`pbkdf2_sha256$iterations$salt$hash`), which already supports algorithm agility. This slice raises the work factor and/or moves to a memory-hard algorithm and migrates existing hashes transparently on next login, without forcing a mass reset.
 
-- [ ] Review and raise the hashing cost, or adopt a memory-hard algorithm (for example scrypt or argon2id) behind the existing tagged-format seam, keeping `verifyPassword` able to read legacy `pbkdf2_sha256$...` hashes.
+- [ ] Prefer an asynchronous memory-hard algorithm such as Argon2id or scrypt after evaluating Node 24, native/package, Docker, bare-metal, CPU, memory, and denial-of-service constraints; keep `verifyPassword` able to read legacy tagged `pbkdf2_sha256$...` hashes.
 - [ ] Add transparent rehash-on-verify: when a user authenticates and their stored hash uses an outdated algorithm/parameters, re-hash with the current scheme and update the stored value.
 - [ ] Keep `hashPassword`/`verifyPassword` the single choke point, and ensure all callers (`login`, `changePassword`, admin reset, seeding) go through it.
-- [ ] Consider an optional server-side pepper/secret sourced from configuration (never stored with the hash), with clear key-management and rotation notes; keep it optional and off by default to avoid lockout risk.
-- [ ] Preserve constant-time verification (`timingSafeEqual`) and confirm no plaintext or hash is ever logged (ties into 0.33.16.5).
+- [ ] Permit an optional server-side pepper only with documented backup, rotation, and recovery policy; do not add one casually or make it an undocumented lockout dependency.
+- [ ] Preserve constant-time verification (`timingSafeEqual`) and confirm no plaintext or hash is ever logged (ties into 0.33.16.8).
 - [ ] Optionally tighten `validatePassword` (length/complexity) for internet exposure without invalidating existing valid credentials.
-- [ ] Coordinate with 0.33.16.3 so a rehash or parameter bump can force re-authentication where a deployment requires it.
+- [ ] Store algorithm and parameter-version information and coordinate with 0.33.16.6 when a deployment deliberately requires re-authentication.
 - [ ] Add focused regressions:
   - [ ] a legacy PBKDF2 hash still verifies.
   - [ ] a legacy hash is transparently upgraded on successful login.
@@ -488,299 +553,275 @@ Acceptance criteria:
 - Existing hashes verify and are transparently upgraded on next login without a mass reset.
 - Hashing stays behind one choke point, constant-time, secret-free in logs, and upgrade-ready.
 
-### Version 0.33.16.7 - Runtime/dev file boundary and release-artifact packaging
+### Version 0.33.16.10 - Production configuration that fails closed
 
-Purpose:
+**Model: High Effort** — Startup policy governs credentials, secrets, encrypted data, uploads, and response disclosure; an unsafe default can compromise the whole installation.
 
-Formalize which files are runtime vs. dev/test and produce a slim, runtime-only release artifact.
-
-- [ ] Define the runtime file boundary explicitly:
-
-  - [ ] runtime: `server.js`, `src/`, `public/`, database migrations/schema, runtime dependencies, canonical version/asset-version sources.
-  - [ ] excluded: `scripts/` regression tooling, tests, ESLint/tsconfig/Vitest/Playwright configs, dev fixtures, roadmap/dev docs, `devDependencies`.
-- [ ] Choose and implement the boundary mechanism:
-
-  - [ ] a `package.json` `files` allowlist and/or `.npmignore`, so a packed artifact contains only runtime paths.
-  - [ ] install with `npm ci --omit=dev` on the target.
-- [ ] Add a package/release script that produces a runtime-only artifact (tarball) plus a checksum.
-- [ ] Keep `npm start` as `node server.js` on the packaged artifact.
-- [ ] Keep Zod and other runtime dependencies in the artifact; do not treat them as dev tooling.
-- [ ] Add a guardrail/regression proving:
-
-  - [ ] the packaged artifact excludes `scripts/`/regression/test/dev-config paths.
-  - [ ] the packaged artifact includes every runtime path required to boot.
-  - [ ] a booted artifact does not import any dev/test package.
-  - [ ] no `.env`/secret/dev fixture is present in the artifact.
-- [ ] Add self-hosted install/upgrade docs describing the slim artifact and `--omit=dev`.
+- [ ] Review and harden public URL, HTTPS expectation, secure-cookie mode, trusted proxies, session-secret quality/rotation expectations, bootstrap credentials, Secure Notes key readiness, upload/scanner posture, data-directory permissions, debug mode, error-detail exposure, CORS where applicable, and request/upload limits.
+- [ ] Production must not silently generate or expose a reusable default super-admin credential.
+- [ ] Secure Notes must not appear safely usable when its external master key is missing.
+- [ ] Public/client uploads fail closed, remain disabled, or emit an unmistakable deployment-blocking warning when required scanning/quarantine safeguards are unavailable.
+- [ ] Browser responses never receive debug stack traces or sensitive internals. Unsupported unsafe combinations fail startup or require an explicit narrowly named override.
+- [ ] Add a configuration matrix regression covering safe defaults, each rejected combination, explicit development overrides, and redacted diagnostics.
 
 Acceptance criteria:
 
-- A packaged release artifact contains runtime code and runtime dependencies only.
-- The artifact boots with `node server.js` and requires no dev/test tooling.
-- A guardrail proves dev/test files and secrets are excluded and runtime files are complete.
+- A public-preview production process cannot start silently with default credentials, missing required secrets, insecure public URL/cookies, misleading Secure Notes readiness, unsafe upload posture, or debug disclosure.
 
-### Version 0.33.16.8 - GitHub release check and version comparison
+### Version 0.33.16.11 - Operational security basics
 
-Purpose:
+**Model: High Effort** — Production observability, health reporting, and security-response contracts cross authentication, runtime, and deployment boundaries.
 
-Let a self-hosted install discover whether a newer published release exists.
-
-- [ ] Add an update-check service that queries the GitHub Releases API for the latest release of the configured repository.
-- [ ] Compare the latest release tag against the canonical installed app version (0.33.6.15 source of truth).
-- [ ] Support a configured update channel:
-
-  - [ ] repository/owner.
-  - [ ] stable vs. prerelease inclusion.
-  - [ ] check interval and manual "check now".
-  - [ ] optional token for authenticated/rate-limited access.
-- [ ] Handle failure gracefully: network errors, rate limits, no releases, or malformed tags never crash the app or block normal use.
-- [ ] Cache the last check result and timestamp.
-- [ ] Do not fetch or apply anything in this slice beyond release metadata.
-- [ ] Add focused regressions:
-
-  - [ ] a newer release is detected as available.
-  - [ ] an equal/older release is reported as up to date.
-  - [ ] a prerelease is excluded unless opted in.
-  - [ ] network/rate-limit/malformed responses fail safe.
+- [ ] Add structured JSON production logging and per-request correlation/request IDs without exposing secrets or private content.
+- [ ] Add `/healthz` for process/basic health and `/readyz` for database, migration, and worker readiness; keep both outputs minimal and secret-free.
+- [ ] Plan and document dependency-update automation, dependency vulnerability scanning, code scanning, and secret-scanning/push-protection guidance without claiming that a scan proves security.
+- [ ] Add `SECURITY.md` with a private vulnerability-reporting path and document a minimum private-preview incident-response procedure.
+- [ ] Cross-reference backup/restore security in 0.33.17 and require a manual security review/checklist before friends-and-family invitations.
+- [ ] Add focused checks for JSON log shape/redaction, request-ID propagation, safe health responses, readiness failure, and security-reporting documentation.
 
 Acceptance criteria:
 
-- The app can determine whether a newer GitHub release exists without affecting normal operation.
-- Version comparison uses the canonical version source.
-- Update checking is configurable and fails safe.
+- Operators can collect correlated production logs, distinguish health from readiness, report vulnerabilities privately, and follow a minimum incident-response checklist without receiving secrets from health or log output.
 
-### Version 0.33.16.9 - Update availability surfacing (admin/about)
+### Version 0.33.16.12 - Reference internet deployment and security closeout
 
-Purpose:
+**Model: High Effort** — The first supported internet topology must prove that application controls and reverse-proxy behavior agree in a real deployment.
 
-Show update status to authorized users without nagging everyone.
-
-- [ ] Surface update availability in an owner/admin-visible location (about/app-info and/or admin settings).
-- [ ] Show installed version, latest available version, a release-notes link, and last-checked time.
-- [ ] Gate visibility and any upgrade action behind owner/admin permission; never expose it to ordinary users.
-- [ ] Provide a manual "check now" action.
-- [ ] Keep this warning/informational only in this slice; applying the upgrade is 0.33.16.10+.
-- [ ] Add focused regressions:
-
-  - [ ] the update banner/status is visible to owner/admin only.
-  - [ ] correct installed vs. latest values are shown.
-  - [ ] no exposure to non-admin users or other workspaces.
+- [ ] Select and document one tested Caddy or Nginx reference path before presenting alternatives as equally supported.
+- [ ] Document DNS, TLS termination, Node binding to loopback or a protected private interface, required public ports, inbound proxy-header stripping/setting, environment/secrets permissions, database/data-volume permissions, log handling, backup location, manual upgrade procedure, health/readiness checks, and emergency session revocation/account disablement.
+- [ ] State the supported private-preview scale: SQLite, one application server, roughly 50 total users, and typical active use around 5-15 concurrent users; do not imply hosted-SaaS or enterprise scale.
+- [ ] Run focused auth/session/security, permission, workspace-isolation, CSRF, security-header, trusted-peer, forged-header, password compatibility, and end-to-end login/session regressions.
+- [ ] Run the full `npm run check` gate and a manual review through the reference TLS reverse proxy.
+- [ ] Publish known limitations and never claim external penetration testing, certification, or perfect internet safety unless that work actually occurred.
 
 Acceptance criteria:
 
-- Authorized users can see whether an update is available and what it contains.
-- Update status respects permission and workspace boundaries.
+- The minimum supported private internet preview posture is documented and exercised through the reference proxy.
+- Security closeout proves the focused and full gates, workspace boundaries, and known limitations without relying on a second authentication gate.
 
-### Version 0.33.16.10 - Bare-metal upgrade executor: download, verify, backup, apply, migrate, restart
+## Version 0.33.17 - Friends-and-Family Internet Preview, Packaging, Backup/Restore, CI, and Release Operations
 
-Purpose:
-
-Apply an update safely on a single-host bare-metal install.
-
-- [ ] Download the release artifact and its checksum from the selected release.
-- [ ] Verify the checksum (and signature if present) before touching the install; abort on mismatch.
-- [ ] Back up before applying:
-
-  - [ ] the current code/artifact.
-  - [ ] the database file(s).
-  - [ ] a recorded restore point with the pre-upgrade version.
-- [ ] Apply the new artifact into the install location.
-- [ ] Install runtime dependencies with `npm ci --omit=dev`.
-- [ ] Run database migrations using the existing migration runner.
-- [ ] Request a supervised restart (systemd/process manager) rather than force-killing the app; document the supervisor expectation.
-- [ ] Make each step idempotent/resumable where practical and log progress.
-- [ ] Require explicit opt-in/confirmation before any destructive step; a completed backup is a precondition to apply.
-- [ ] Add focused regressions/tests (dry-run/mocked where a full restart is impractical):
-
-  - [ ] a checksum mismatch aborts before any change.
-  - [ ] a backup is created before apply.
-  - [ ] migrations run after apply.
-  - [ ] a missing backup blocks apply.
-
-Acceptance criteria:
-
-- An authorized admin can apply a verified update on bare metal with an automatic pre-upgrade backup.
-- Migrations run as part of the upgrade.
-- The upgrade never applies an unverified artifact and never applies without a backup.
-
-### Version 0.33.16.11 - Health check, rollback, and manual/air-gapped fallback
+**Model: High Effort** — This branch joins deployment, restore integrity, release artifacts, CI, and operational documentation into the minimum reproducible private-preview path.
 
 Purpose:
 
-Guarantee a failed upgrade cannot leave the install broken, and support offline installs.
-
-- [ ] After restart, run a post-upgrade health check (boot, database connectivity, `/api/app-info` reflects the new version).
-- [ ] On health-check failure, roll back automatically to the backed-up code and database and restore the previous version.
-- [ ] Record upgrade history and outcomes (from/to version, timestamp, success/rollback).
-- [ ] Add a manual/air-gapped fallback: upload a verified artifact and run the same verify/backup/apply/migrate/health-check/rollback path without GitHub access.
-- [ ] Ensure rollback restores the database backup consistently with the code rollback.
-- [ ] Add focused regressions/tests:
-
-  - [ ] a failed health check triggers rollback to the prior version and database.
-  - [ ] a successful upgrade records history and reports the new version.
-  - [ ] the manual artifact path enforces the same verification and backup rules.
-  - [ ] rollback restores a bootable prior state.
-
-Acceptance criteria:
-
-- A failed upgrade automatically restores the prior working install and database.
-- Upgrades are auditable via recorded history.
-- Air-gapped installs can upgrade from a verified local artifact.
-
-### Version 0.33.16.12 - Config, kill-switch, permissions, and closeout
-
-Purpose:
-
-Make the updater safe to ship, configurable, and disable-able, and close out the packaging/upgrade version.
-
-- [ ] Add configuration for: enable/disable the updater, channel (stable/prerelease), check interval, repository, optional token, and auto-check vs. manual-only.
-- [ ] Add a hard kill-switch so hosted/SaaS or locked-down deployments can disable in-app updates entirely.
-- [ ] Restrict all update configuration and actions to owner/admin.
-- [ ] Confirm the updater is inert on hosted/SaaS deployments that manage their own pipeline.
-- [ ] Confirm `npm start` is unchanged and the runtime artifact carries no dev/test tooling.
-- [ ] Confirm no permission/workspace/private-content/storage-key/migration guardrail was weakened to enable upgrades.
-- [ ] Update self-hosted install/upgrade/backup docs and the changelog; verify `/api/app-info` after a simulated upgrade.
-- [ ] Run final verification, including a full backup -> apply -> migrate -> health-check -> rollback dry run.
-
-Acceptance criteria:
-
-- The in-app updater is opt-in, permission-gated, configurable, and fully disable-able.
-- Bare-metal self-hosted installs can check for, apply, and safely roll back GitHub releases with automatic backups.
-- The release artifact is runtime-only, and `npm start` remains `node server.js`.
-- Container/fleet/SaaS upgrade orchestration remains explicitly deferred.
-
-## Version 0.34 - Knowledge Base Module
-
-## Knowledge Base Direction Adjustment
+Prepare a limited, explicitly labeled friends-and-family internet preview targeted for July 31, 2026 if and only if 0.33.16 security hardening, tested backup/restore, and deployment readiness are complete. The date is a target, not permission to skip controls or make unsupported uptime, security, backup, or compliance promises. SQLite remains supported for this one-server preview at roughly 50 total users and typical active use around 5-15 concurrent users; PostgreSQL remains required before shared hosted SaaS or larger production claims.
 
 Decision:
-Knowledge Base is the reviewed, read-only knowledge layer generated from Notes first. Notes remain the working authoring records. Knowledge Base entries may still be written directly, but the default workflow is note-sourced: normal internal/workspace/client-visible notes become KB review candidates automatically, then reviewers approve and publish safe read-only KB snapshots.
 
-### Add to 0.34.1 - Knowledge Base Module Contract, Publishing Model, and Notes Relationship
+- Docker is the primary reproducible preview/self-hosted path; a documented manual bare-metal path remains supported where practical.
+- Initial upgrades are manual. There is no in-app self-modifying updater in this branch.
+- Baseline Backup and Restore moves intentionally from former 0.38.4 into 0.33.17; 0.38.4 retains only advanced automation.
+- Essential installation, operation, onboarding, backup, upgrade, and security-limitation documentation moves forward from 0.39.9.
 
-* [ ] Define Knowledge Base as the reviewed consumption layer for Notes-backed knowledge.
+The non-technical preview execution plan (participant profile, invitation copy, onboarding, five-minute first-use path, known-limitations and privacy templates, feedback, and closeout) is maintained in [docs/marketing/friends-and-family-preview.md](docs/marketing/friends-and-family-preview.md); the overall staging from private preview through hosted SaaS is in [docs/marketing/launch-plan.md](docs/marketing/launch-plan.md). Those plans consume this branch's readiness; they do not set its scope.
 
-  * [ ] Notes are the working/source records.
-  * [ ] KB articles are reviewed read-only article records or publication snapshots.
-  * [ ] Normal note creation/update can automatically create or update a KB review candidate.
-  * [ ] Automatic KB candidate creation does not mean automatic publishing.
-  * [ ] Publishing remains explicit, permission-protected, audited, and snapshot-based.
-  * [ ] KB may support directly authored articles, but direct authoring is secondary to note-sourced workflow.
+Non-goals:
 
-* [ ] Add KB candidate/source behavior.
+- No hosted/SaaS deployment automation, PostgreSQL service profile before PostgreSQL exists, automatic customer-instance deployment, enterprise certification, or automatic updater.
 
-  * [ ] Add `source_mode` values:
+### Version 0.33.17.1 - Runtime-only packaging boundary
 
-    * [ ] `note_sourced`
-    * [ ] `manual`
-    * [ ] `imported`
-  * [ ] Add `source_sync_state` or equivalent metadata:
+**Model: Medium Effort** — The artifact boundary is well specified, but omissions must be proven in a clean environment.
 
-    * [ ] `current`
-    * [ ] `source_updated`
-    * [ ] `manual_override`
-    * [ ] `detached`
-  * [ ] Add `source_note_id` convenience field only if it simplifies the common one-note article case; keep `kb_article_sources` as the canonical many-source table.
-  * [ ] Add `source_note_revision_id` or use `kb_article_sources.source_revision_id` to preserve the note revision that seeded the reviewed article.
-  * [ ] Add `last_source_synced_at`.
-  * [ ] Add `last_reviewed_at`.
-  * [ ] Add `review_due_at` optional for future maintenance workflows.
+- [ ] Define runtime versus development/test files while keeping `npm start` as `node server.js` unless the runtime contract changes deliberately.
+- [ ] Keep runtime validation dependencies; exclude tests, regression tooling, development fixtures, local secrets, caches, live data, and unrelated planning documents.
+- [ ] Produce a versioned runtime artifact and checksum, boot it in a clean environment, and prove it does not import development-only dependencies.
+- [ ] Document the artifact inventory and the settled runtime install command.
 
-* [ ] Define automatic candidate rules.
+Acceptance criteria:
 
-  * [ ] Normal `internal` notes create internal KB candidates.
-  * [ ] Normal `workspace` notes create workspace KB candidates.
-  * [ ] Normal `client_visible` notes may create client-visible KB candidates only after client-visible KB permissions and file safety are enabled.
-  * [ ] `private` notes do not create KB candidates by default.
-  * [ ] `secure` notes must never create KB candidates.
-  * [ ] Deleted notes should not create KB candidates.
-  * [ ] Archived notes may remain as KB sources, but should not automatically update pending candidates unless explicitly configured.
+- A checksummed, versioned, secret-free runtime artifact boots cleanly without repository-only development dependencies.
 
-* [ ] Define KB statuses for note-sourced workflow.
+### Version 0.33.17.2 - Docker and manual bare-metal preview paths
 
-  * [ ] `draft`
-  * [ ] `in_review`
-  * [ ] `approved`
-  * [ ] `published`
-  * [ ] `rejected`
-  * [ ] `archived`
-  * [ ] `deleted`
-  * [ ] Manually created articles start as `draft`.
-  * [ ] Automatically note-sourced articles start as `in_review`.
-  * [ ] Updating a source note marks the KB candidate/publication as `source_updated` or creates a new review revision, but does not silently mutate the published snapshot.
-  * [ ] Rejected candidates remain linked to the source note for history unless deleted by a permitted user.
+**Model: High Effort** — Packaging must preserve SQLite durability, least privilege, health reporting, and recoverable manual upgrades.
 
-### Add to 0.34.2 - Knowledge Base Browser API, Editorial Workflow, and Internal UI MVP
+- [ ] Add a Dockerfile and Docker Compose definition with persistent database/data/file volumes, environment-file handling, health checks, non-root runtime where practical, explicit host/port exposure, restart policy, backup paths, and SQLite-safe volume guidance.
+- [ ] Do not add a PostgreSQL service profile until PostgreSQL is implemented. Add clean-build, clean-install, and clean-boot tests.
+- [ ] Document the first supported Docker upgrade: verify backup, obtain new version, stop, replace image/artifact, start and run normal migrations, verify `/readyz` and app version, and manually restore the pre-upgrade backup if verification fails.
+- [ ] Retain a manual bare-metal path using the versioned artifact, checksum verification, the settled `npm ci --omit=dev`-style runtime install command, a supervisor example, stop/backup/replace/start/verify, and manual rollback.
+- [ ] Keep the Node process behind the 0.33.16 reference TLS proxy; do not expose it directly in the supported topology.
 
-* [ ] Add automatic note-to-KB candidate service methods.
+Acceptance criteria:
 
-  * [ ] Create or update candidate from note.
-  * [ ] Queue note for KB review.
-  * [ ] Read KB candidate by source note.
-  * [ ] List KB candidates needing review.
-  * [ ] Mark source update pending review.
-  * [ ] Detach KB article from source note where permitted.
-  * [ ] Reject KB candidate with reason.
-  * [ ] Approve KB candidate.
-  * [ ] Publish approved KB article snapshot.
+- A clean Docker deployment and the documented bare-metal path both persist data, report health/readiness, and complete a manual backup-first upgrade and rollback exercise.
 
-* [ ] Add Notes lifecycle hook integration.
+### Version 0.33.17.3 - Baseline backup and restore, moved from 0.38.4
 
-  * [ ] On normal note created, create KB candidate if workspace KB candidate policy allows it.
-  * [ ] On normal note updated, mark linked KB candidate/publication as source-updated.
-  * [ ] On note archived, preserve existing KB linkage but stop automatic updates unless configured.
-  * [ ] On note deleted, hide or mark linked KB candidate as source unavailable.
-  * [ ] Do not process secure notes.
-  * [ ] Do not process private notes unless a future explicit rule allows it.
+**Model: High Effort** — A backup is only valid when database, files, encryption prerequisites, compatibility, and destructive restore behavior are proven together.
 
-* [ ] Add KB review queue UI.
+- [ ] Define a versioned backup format containing the SQLite database or provider-appropriate dump, local uploaded/attached files, application version, schema/migration version, UTC timestamp, safe configuration inventory, storage-provider restore metadata, manifest, checksums, and an explicit inclusion/exclusion list.
+- [ ] Do not silently place the Secure Notes master key in an ordinary plaintext archive. Require a separately protected operator key backup or separately encrypted operator-secret bundle.
+- [ ] Warn and refuse to describe a backup as fully restorable when encrypted note data exists but its key-recovery prerequisite is absent.
+- [ ] Prefer a CLI/operator path first. Keep archives outside public/static downloads with restrictive permissions and predictable cleanup; any later web-admin download must be super-admin-only, audited, non-cacheable, one-time or short-lived, and never available to an ordinary workspace administrator.
+- [ ] Audit backup creation, download, and restore. Validate archive type, manifest, checksums, version compatibility, expected paths, traversal attempts, and unexpected files before restore.
+- [ ] Require a stopped app or maintenance mode, a pre-restore backup, and explicit destructive confirmation; restore database and files consistently, verify `/readyz`, application version, and schema, and document failed-restore rollback.
+- [ ] Perform an automated or scripted backup-to-restore drill in a disposable environment; “backup created” alone is not acceptance.
 
-  * [ ] Show candidates grouped by source visibility:
+Acceptance criteria:
 
-    * [ ] Internal
-    * [ ] Workspace
-    * [ ] Client-visible when enabled
-  * [ ] Show source note title, source collection path, source updated date, proposed article title, visibility, review status, and whether the source changed since last review.
-  * [ ] Allow reviewers to approve, reject, edit article draft, publish, or detach.
-  * [ ] Make it obvious when a published KB article is behind its source note.
+- A disposable installation can be backed up and restored consistently, including files and required encryption prerequisites, with malicious or incompatible archives rejected safely.
 
-### Add to 0.34.3 - Knowledge Base Search, Tags, Attachments, Static Pages, and Permission Boundaries
+### Version 0.33.17.4 - Seeded development database and sanitized demo workspace
 
-* [ ] Add KB article chrome/window-dressing generation.
+**Model: High Effort** — Deterministic data generation touches permissions and many product states and must never target live data.
 
-  * [ ] Generate safe table of contents.
-  * [ ] Generate "What links here."
-  * [ ] Generate related articles from article links, source notes, shared tags, shared collections, and wiki-style links.
-  * [ ] Show source-note linkage only to users who can access the source note.
-  * [ ] Show source update/review status only to internal users with review/history permission.
-  * [ ] Hide internal source data from client-visible/public outputs.
-  * [ ] Backlink lists must be permission-filtered and must not leak inaccessible article titles, note titles, files, or counts.
+- [ ] Keep automated test fixtures, a deterministic developer seed database, and a sanitized demo/preview workspace as three distinct contracts.
+- [ ] Add convention-aligned development seed/reset commands that refuse apparent production/live databases and require an explicitly development-marked environment/data directory.
+- [ ] Use deterministic fake data only; do not commit a generated live database, seed normal installs, use real client/family/financial/customer data, or create a shared production password.
+- [ ] Seed development-only users across Business, Personal, and supported Family workspaces; meaningful roles; clients/projects; due, overdue, upcoming, blocked, recurring, completed, and undated tasks; checklists; next actions; resume context; work-resume state; active/paused/completed timers; manual time; Notes collections/links/tags/revisions/safe Markdown; reusable/active/finalized/partial Lists; harmless tiny Files fixtures; notifications/reminders; Search; Dashboard; and Workbench Focus Selection/Task Focus states.
+- [ ] Commit no Secure Notes plaintext or key material. Give invited users individual accounts through the real workflow.
+- [ ] Allow future Tickets, Knowledge Base, and Creator Studio seed builders to add their scenarios, but do not create a generalized seed registry until at least two real modules need the same extension contract under the Two-Module Rule.
 
-* [ ] Add KB link index support.
+The marketing screenshot and demo-data inventory that consumes this seed contract (safe fake scenarios, capture list, naming, and refresh process) is in [docs/marketing/screenshot-and-demo-data-plan.md](docs/marketing/screenshot-and-demo-data-plan.md).
 
-  * [ ] Track article-to-article links detected from Markdown/wiki-style links.
-  * [ ] Track note-to-article references where useful.
-  * [ ] Track source note-to-article relationships through `kb_article_sources`.
-  * [ ] Rebuild link indexes when article Markdown, note wiki links, slugs, or source links change.
-  * [ ] Broken links should be allowed but clearly labeled for reviewers.
+Acceptance criteria:
 
-### Add to 0.34.4 - Knowledge Base Settings, Documentation, and Closeout
+- A developer can reproducibly seed and safely reset rich fake product data, while production-like targets, real data, shared preview credentials, and secret key material remain protected.
 
-* [ ] Add KB automation settings.
+### Version 0.33.17.5 - GitHub Actions, releases, and solo-maintainer workflow
 
-  * [ ] Configure note-to-KB candidate behavior:
+**Model: High Effort** — CI and release automation become repository gates and must avoid redundant cost or accidental deployment.
 
-    * [ ] Disabled
-    * [ ] Manual only
-    * [ ] Auto-create internal/workspace candidates
-    * [ ] Auto-create client-visible candidates when supported
-  * [ ] Configure default candidate status for note-sourced entries.
-  * [ ] Configure whether review is always required before publishing.
-  * [ ] Configure whether source note updates reopen review.
-  * [ ] Configure whether archived notes can continue feeding KB candidates.
-  * [ ] Settings must not bypass permissions, secure-note restrictions, private-note restrictions, file safety, or publication review.
+- [ ] Add clearly named pull-request/push jobs under `.github/workflows` using the supported Node major, clean checkout, `npm ci`, typecheck, Vitest/unit tests, ESLint, regression selection/full gates as appropriate, migration/schema checks, and documentation/closeout checks without redundantly running the enormous suite in multiple jobs.
+- [ ] Add Playwright browser installation plus critical smoke and accessibility checks; document whether these run per PR, on main/nightly, or by manual dispatch and why.
+- [ ] Plan and configure Dependabot/current GitHub dependency updates, CodeQL or equivalent code scanning, dependency review where supported, and secret-scanning/push-protection guidance without treating scan success as proof of security.
+- [ ] Add an initially manual or manually dispatched release workflow that runs gates, builds runtime and supported Docker assets, produces checksums/version metadata, and attaches/publishes appropriate release assets; never deploy a private or customer instance automatically.
+- [ ] Document a solo-maintainer ruleset: protected known-good `main`, short-lived branches, pull requests, required passing checks, resolved conversations, and no force-push/deletion. Do not require a second-human approval until contributors exist.
+- [ ] Deliver `docs/development/github-workflow.md` in ordinary language covering main, branches, commits, pushes, pull requests, Actions, required checks, protection, tags, Releases, example commands and practical VS Code/GitHub UI flows, failed-CI recovery, merge/delete, hotfixes, and version/changelog release flow.
+- [ ] Deliver or complete `docs/releasing.md`, `docs/self-hosting.md`, `docs/backup-and-restore.md`, and `docs/upgrading.md` as part of the relevant slices.
 
-## Version 0.35.0 - Support Tickets Framework Contract
+Acceptance criteria:
+
+- A solo maintainer can use a protected PR-to-main flow, understand and recover from CI, and manually publish verified artifacts without needing another human approval or triggering deployment.
+
+### Version 0.33.17.6 - Private-preview documentation and readiness
+
+**Model: Medium Effort** — This is a precise documentation and operational-readiness closeout after the underlying controls exist.
+
+- [ ] Publish installation/deployment, reverse-proxy/TLS, first-login/bootstrap, account creation, backup/restore, manual upgrade, known/security limitations, Secure Notes key, file scanning/upload, bug reporting, emergency shutdown/revocation, and feedback guidance.
+- [ ] Label the program “private preview”; document the supported scale and avoid unsupported uptime, security, backup, or compliance promises.
+- [ ] Require a tested restore, reference-proxy deployment review, unique invited accounts, feedback path, and operator readiness checklist before invitations.
+- [ ] Keep 0.39.9 as comprehensive 0.3x documentation/stabilization, not the first time essential operator and user documentation exists.
+
+Acceptance criteria:
+
+- An invited user and operator can understand the preview’s setup, safe operation, limits, recovery, account flow, and feedback path before access is granted.
+
+### Version 0.33.17.7 - Preview release closeout
+
+**Model: High Effort** — Release readiness must combine packaging, restore, CI, security, and live deployment evidence.
+
+- [ ] Run packaging/clean-boot checks, Docker and bare-metal upgrade/rollback exercises, the disposable restore drill, security and permission gates, `npm run closeout`, affected/full regression routing, and the full release gate.
+- [ ] Verify `/healthz`, `/readyz`, and `/api/app-info` through the reference proxy and publish checksums, known limitations, and the completed readiness checklist.
+- [ ] Do not invite users until all 0.33.16 and 0.33.17 acceptance criteria are met; move the target instead of weakening a gate.
+
+Acceptance criteria:
+
+- The private preview has reproducible artifacts, proven restore, supported manual upgrades, passing CI/release gates, complete essential documentation, and no unsupported claims.
+
+## Version 0.33.18 - Post-Preview Maintainability and Architecture Cleanup
+
+**Model: High Effort** — This branch reorganizes startup, manifests, frontend loading, and test ownership while preserving runtime behavior.
+
+Purpose:
+
+Reduce the most visible maintainability strain after preview readiness and settle patterns that Support Tickets can consume without coupling Tickets to unrelated framework invention.
+
+### Version 0.33.18.1 - Startup maintenance classification and split
+
+**Model: High Effort** — Startup ordering, repair idempotency, transactions, and provider neutrality carry data-integrity risk.
+
+- [ ] Inventory every action currently coordinated through `src/db/index.js`, `src/db/migrations.js`, module synchronization, bootstrap, legacy repair, settings/workspace defaults, and worker readiness.
+- [ ] Classify each action as every-boot coordination, one-time migration/versioned repair, first-install bootstrap, recurring lightweight check, explicit admin/CLI maintenance job, background job, or health/readiness assertion.
+- [ ] Establish understandable startup coordination, migration execution, bootstrap, versioned repair, recurring-check, explicit-maintenance, readiness/schema-verification, and timing/logging ownership based on the real inventory; do not merely split one large file arbitrarily.
+- [ ] Remove repeated full-table startup repair only when migration or explicit maintenance ownership is proven. Preserve transaction safety, idempotency, fresh installs, migration order, failure behavior, SQLite behavior, and provider-neutral seams.
+- [ ] Add structured phase timings and focused order/failure tests. Do not mix PostgreSQL implementation into this cleanup unless a genuine provider-neutral seam requires adjustment.
+
+Acceptance criteria:
+
+- Every startup action has explicit lifecycle ownership, slow phases are visible, and tests prove order and failure behavior without changing fresh-install or current SQLite semantics.
+
+### Version 0.33.18.2 - Digestible module-manifest composition pilot
+
+**Model: High Effort** — High-volume source movement can silently alter contribution IDs, ordering, permissions, or startup validation.
+
+- [ ] Keep one composed module definition exported to the registry and passing the same startup validator.
+- [ ] Pilot concern-based source composition on at least two already-large first-party modules, using repository-conventional equivalents of `module.manifest.js`, `module.permissions.js`, `module.views.js`, `module.dashboard.js`, `module.workbench.js`, `module.events.js`, `module.notifications.js`, `module.api.js`, and `module.settings.js` only where each concern is substantial.
+- [ ] Preserve module/contribution IDs, permissions, routes, runtime behavior, and registration order. Do not create empty boilerplate files for small modules or redesign the plugin loader.
+- [ ] Document review thresholds and a complete example. Support Tickets, Knowledge Base, and Creator Studio use the proven composition pattern from their first implementation.
+
+Acceptance criteria:
+
+- Two large modules are easier to review while their composed manifests validate and behave identically; the pattern is documented without becoming mandatory boilerplate.
+
+### Version 0.33.18.3 - First native browser ES-module conversion wave
+
+**Model: High Effort** — Dashboard/Workbench loading, accessibility, and module-host boundaries are highly coupled and user-visible.
+
+- [ ] Establish one explicit ES-module entry point per converted page and import conventions; select Dashboard, Workbench, or both from measured coupling/risk while they are materially changed.
+- [ ] Preserve a temporary compatibility bridge for existing `LongtailForge`/`window` globals and prohibit new script-order global dependencies.
+- [ ] Keep module-specific browser behavior and styling module-owned; framework hosts must consume contribution contracts instead of hard-coding module renderers.
+- [ ] Split shared CSS source by framework anatomy and module ownership where useful while preserving practical release delivery, cache/versioning, CSP compatibility, accessibility, keyboard, responsive, and rendered behavior.
+- [ ] Add entry-point loading, missing-import, behavior, accessibility, and keyboard regressions. Do not adopt a frontend framework or replace the renderer wholesale during 0.3x.
+
+Acceptance criteria:
+
+- The first strained surface loads through explicit imports with no new global-order dependency and no behavioral or accessibility regression.
+
+### Version 0.33.18.4 - First formal test-suite streamlining review
+
+**Model: High Effort** — Coverage retirement and suite budgeting require evidence across unit, integration, permission, database, and browser layers.
+
+- [ ] Consume the regression runner timing output, report the slowest tests, and establish/review a suite-time budget.
+- [ ] Identify duplicate coverage, obsolete historical checks, implementation-detail assertions, and overly broad setup; prefer fixture, isolation, selection, and setup improvements before deletion.
+- [ ] Move pure functions, schema validation, and stable contract behavior toward Vitest where practical while retaining strong permission, workspace-isolation, database, migration, file-safety, and integration coverage and Playwright critical journeys/accessibility.
+- [ ] Do not retire a regression because it is slow. Identify and demonstrate replacement coverage and record retirement evidence through the existing manifest/ratchet process.
+- [ ] Keep the full release gate until replacement coverage is proven equivalent and update `docs/regression-suite.md` with the resulting policy and budget.
+
+Acceptance criteria:
+
+- The suite has a measured budget and evidence-backed consolidation plan; any retirement is traceable to equivalent coverage and no high-risk contract is weakened.
+
+### Version 0.33.18.5 - Maintainability closeout
+
+**Model: High Effort** — Closeout must prove source reorganization did not change runtime contracts.
+
+- [ ] Update architecture, module-development, frontend, startup/database, and testing documentation to match the implemented boundaries.
+- [ ] Name the two real consumers for every new generalized primitive or document the framework-wide exception.
+- [ ] Run manifest/startup/loading focused tests, `npm run closeout`, affected regression routing, and the full release gates; compare runtime manifests and critical behavior before/after reorganization.
+
+Acceptance criteria:
+
+- Documentation matches the settled structures, the Two-Module Rule is evidenced, and no runtime behavior changed accidentally.
+
+## Version 0.34 - Support Tickets Module
+
+**Model: High Effort** — Tickets is a committed cross-module workflow with schema, permission, client-visibility, Files, API, and public-intake risk.
+
+Purpose:
+
+Ship Support Tickets as an official first-party Longtail Forge workflow module for the owner and invited users, not as a speculative vertical or market-gated product.
+
+Decision:
+
+- Tickets ships in the public core when complete and may be disableable per workspace where appropriate.
+- Tickets integrates through existing contracts with Notes, Tasks, Time Tracking, Files, Search, Tags, Notifications, Workbench, and Reporting where appropriate, with a clean reviewed path into the later Knowledge Base module.
+- Ticket ledger entries remain distinct from security audit records; internal notes remain distinct from client-visible replies.
+- The module starts with the proven composed-manifest source pattern and native ES-module entry convention settled in 0.33.18.
+
+Dependencies:
+
+- 0.33.16 security hardening, 0.33.17 preview operations/seed foundations, and 0.33.18 manifest/frontend/testing conventions.
+
+Non-goals:
+
+- No email help desk, omnichannel support suite, automatic Knowledge Base publishing, or weakening of client/workspace/permission boundaries.
+
+## Version 0.34.0 - Support Tickets Framework Contract
+
+**Model: High Effort** — The ticket contract establishes schema, visibility, permissions, and contribution boundaries used by every later ticket slice.
 
 * [ ] Add Support Tickets as a first-party workflow module.
 
@@ -790,6 +831,8 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Do not hard-code ticket behavior into framework-owned app shell, search, notification, file, or permission services.
   * [ ] Support Tickets should be disableable per workspace where appropriate.
   * [ ] Disabled ticket module should block new ticket writes while preserving historical reads if `historicalReadAccess` is enabled.
+  * [ ] Compose the module source by substantial concern using the settled 0.33.18 pattern while exporting one validated runtime manifest; do not create empty boilerplate files.
+  * [ ] Use the settled native ES-module browser entry pattern without adding new implicit global script-order dependencies.
 
 * [ ] Define ticket terminology by workspace type.
 
@@ -962,7 +1005,9 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Event payloads should include workspace, actor, ticket ID, client/project IDs where applicable, safe previous/new values, source, and metadata.
   * [ ] Event payloads should leave room for future automations and integrations.
 
-## Version 0.35.1 - Ticket Browser API and Services
+## Version 0.34.1 - Ticket Browser API and Services
+
+**Model: High Effort** — Service and route work must preserve ledger visibility, workspace isolation, and client-safe projections.
 
 * [ ] Add ticket service methods.
 
@@ -1024,7 +1069,9 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Ensure keys do not collide inside a workspace.
   * [ ] Keep database IDs separate from user-facing ticket keys.
 
-## Version 0.35.2 - Ticket UI MVP
+## Version 0.34.2 - Ticket UI MVP
+
+**Model: High Effort** — The internal UI must make visibility distinctions obvious while preserving accessible, permission-safe behavior.
 
 * [ ] Add Tickets navigation and protected views.
 
@@ -1068,9 +1115,11 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Add permission-safe service methods for client-visible ticket reads.
   * [ ] Add UI/API distinction between internal users and external/client users.
   * [ ] Client/external users should not see internal notes, internal-only status details, raw audit records, or private metadata.
-  * [ ] Client-facing ticket pages can be minimal in 0.33.x but the permission model must be real.
+  * [ ] Client-facing ticket pages can be minimal in 0.34.x but the permission model must be real.
 
-## Version 0.35.3 - Ticket Integration Hooks
+## Version 0.34.3 - Ticket Integration Hooks
+
+**Model: High Effort** — Tickets touches many modules, but each integration must use registered contracts rather than direct coupling.
 
 * [ ] Register tickets as searchable records.
 
@@ -1118,14 +1167,22 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Finalized time entries should preserve ticket metadata.
   * [ ] Do not create a separate ticket timer engine.
 
+* [ ] Add Notes, Reporting, and future Knowledge Base integration seams.
+
+  * [ ] Allow permitted internal users to link or create working Notes without making Notes content client-visible implicitly.
+  * [ ] Expose permission-safe ticket reporting dimensions through Reporting contracts rather than direct table reads.
+  * [ ] Leave explicit stable hooks for a later resolved-ticket or selected-entry Knowledge Base review candidate, article linking, and resolution-time suggestions; never auto-publish ticket content.
+
 * [ ] Add manual task creation hook.
 
   * [ ] If Tasks is enabled, permitted users can create a task from a ticket.
   * [ ] The created task should link back to the source ticket.
-  * [ ] This should be manual in 0.33.x.
+  * [ ] This should be manual in 0.34.x.
   * [ ] Automatic task creation rules should wait for the automation/rules framework in 0.4x.
 
-## Version 0.35.4 - Client Ticket Portal MVP
+## Version 0.34.4 - Client Ticket Portal MVP
+
+**Model: High Effort** — The client portal is an internet-facing permission boundary between internal and client-visible ticket content.
 
 * [ ] Add minimal client/external ticket creation surface.
 
@@ -1159,7 +1216,9 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Client-visible replies are visible to the right client users and internal users.
   * [ ] Internal users with proper permission can see both internal and client-visible ledger entries.
 
-## Version 0.35.5 - Ticket Public API Groundwork
+## Version 0.34.5 - Ticket Public API Groundwork
+
+**Model: High Effort** — Public API scopes and intake validation create durable external contracts and abuse boundaries.
 
 * [ ] Add ticket API scopes.
 
@@ -1186,7 +1245,7 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Store source application/plugin identifier where available.
   * [ ] Store safe request metadata.
   * [ ] Leave room for future webhook signatures, replay protection, and per-plugin rate limits.
-  * [ ] Avoid building WordPress/Shopify plugins in 0.33.x.
+  * [ ] Avoid building WordPress/Shopify plugins in 0.34.x.
 
 * [ ] Add API regression tests.
 
@@ -1198,7 +1257,9 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Public API cannot create internal notes unless explicitly using an internal/admin scope.
   * [ ] Public API cannot read internal ledger entries.
 
-## Version 0.35.6 - Ticket Regression, Polish, and Closeout
+## Version 0.34.6 - Ticket Regression, Polish, and Closeout
+
+**Model: High Effort** — Closeout must prove isolation, public/client visibility, integrations, seed coverage, and replacement-test evidence together.
 
 * [ ] Add complete ticket regression coverage.
 
@@ -1235,6 +1296,15 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Document public API limitations.
   * [ ] Document future plugin and automation hooks.
   * [ ] Document that ticket ledger is not the same as audit log.
+  * [ ] Produce current user, admin, and developer documentation at closeout rather than deferring it to 0.39.9.
+
+* [ ] Add deterministic development-seed scenarios for internal and client-visible tickets, assignments, replies, internal notes, timers, tasks, Files, and permission boundaries through the 0.33.17 seed contract.
+
+* [ ] Run a formal test-suite streamlining review.
+
+  * [ ] Consume timing output, report the slowest ticket tests, and review the suite-time budget.
+  * [ ] Retire nothing without demonstrated replacement coverage and recorded manifest/ratchet evidence.
+  * [ ] Preserve strong workspace, permission, client/internal visibility, API, Files, and integration coverage even when pure contract checks move to Vitest.
 
 * [ ] Release bookkeeping.
 
@@ -1244,6 +1314,168 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Run `npm run check`.
   * [ ] Run `npm run test:permissions`.
   * [ ] Run ticket-specific regression scripts.
+
+## Version 0.35 - Knowledge Base Module
+
+**Model: High Effort** — Knowledge Base introduces reviewed publication snapshots, permission-filtered sources, and client/public visibility boundaries.
+
+## Knowledge Base Direction Adjustment
+
+Decision:
+Knowledge Base is the reviewed, read-only knowledge layer generated from Notes first. Notes remain the working authoring records. Knowledge Base entries may still be written directly, but the default workflow is note-sourced: normal internal/workspace/client-visible notes become KB review candidates automatically, then reviewers approve and publish safe read-only KB snapshots.
+
+- Knowledge Base is an official first-party public-core module, may be disableable per workspace, and is not market- or funding-gated.
+- It uses the 0.33.18 composed-manifest and native ES-module patterns from its first implementation.
+- Because Tickets now lands first, the contract must leave reviewed, permission-safe paths to convert a resolved ticket or selected ticket entries into a KB review candidate, link a KB article to a ticket, and suggest KB material during resolution.
+- Ticket integration must not weaken the Notes-first source model, bypass review, expose internal entries, or publish automatically.
+
+### Version 0.35.1 - Knowledge Base Module Contract, Publishing Model, and Notes Relationship
+
+**Model: High Effort** — The contract governs source revisions, publication immutability, secure-note exclusion, and future ticket linkage.
+
+* [ ] Define Knowledge Base as the reviewed consumption layer for Notes-backed knowledge.
+
+  * [ ] Notes are the working/source records.
+  * [ ] KB articles are reviewed read-only article records or publication snapshots.
+  * [ ] Normal note creation/update can automatically create or update a KB review candidate.
+  * [ ] Automatic KB candidate creation does not mean automatic publishing.
+  * [ ] Publishing remains explicit, permission-protected, audited, and snapshot-based.
+  * [ ] KB may support directly authored articles, but direct authoring is secondary to note-sourced workflow.
+
+* [ ] Add KB candidate/source behavior.
+
+  * [ ] Add `source_mode` values:
+
+    * [ ] `note_sourced`
+    * [ ] `manual`
+    * [ ] `imported`
+  * [ ] Add `source_sync_state` or equivalent metadata:
+
+    * [ ] `current`
+    * [ ] `source_updated`
+    * [ ] `manual_override`
+    * [ ] `detached`
+  * [ ] Add `source_note_id` convenience field only if it simplifies the common one-note article case; keep `kb_article_sources` as the canonical many-source table.
+  * [ ] Add `source_note_revision_id` or use `kb_article_sources.source_revision_id` to preserve the note revision that seeded the reviewed article.
+  * [ ] Add `last_source_synced_at`.
+  * [ ] Add `last_reviewed_at`.
+  * [ ] Add `review_due_at` optional for future maintenance workflows.
+
+* [ ] Define automatic candidate rules.
+
+  * [ ] Normal `internal` notes create internal KB candidates.
+  * [ ] Normal `workspace` notes create workspace KB candidates.
+  * [ ] Normal `client_visible` notes may create client-visible KB candidates only after client-visible KB permissions and file safety are enabled.
+  * [ ] `private` notes do not create KB candidates by default.
+  * [ ] `secure` notes must never create KB candidates.
+  * [ ] Deleted notes should not create KB candidates.
+  * [ ] Archived notes may remain as KB sources, but should not automatically update pending candidates unless explicitly configured.
+
+* [ ] Define KB statuses for note-sourced workflow.
+
+  * [ ] `draft`
+  * [ ] `in_review`
+  * [ ] `approved`
+  * [ ] `published`
+  * [ ] `rejected`
+  * [ ] `archived`
+  * [ ] `deleted`
+  * [ ] Manually created articles start as `draft`.
+  * [ ] Automatically note-sourced articles start as `in_review`.
+  * [ ] Updating a source note marks the KB candidate/publication as `source_updated` or creates a new review revision, but does not silently mutate the published snapshot.
+  * [ ] Rejected candidates remain linked to the source note for history unless deleted by a permitted user.
+
+* [ ] Define future ticket-to-KB relationships without automatic publication.
+
+  * [ ] A resolved ticket or selected permitted entries may seed a review candidate explicitly.
+  * [ ] A ticket may link to an accessible KB article, and resolution workflows may suggest accessible articles.
+  * [ ] Internal ticket entries, client-visible entries, and attachment visibility remain distinct and permission-filtered.
+  * [ ] Notes remain the principal working-authoring source; ticket-derived material enters the same reviewed snapshot pipeline.
+
+### Version 0.35.2 - Knowledge Base Browser API, Editorial Workflow, and Internal UI MVP
+
+**Model: High Effort** — Editorial services and UI must make source drift visible without silently mutating published content.
+
+* [ ] Add automatic note-to-KB candidate service methods.
+
+  * [ ] Create or update candidate from note.
+  * [ ] Queue note for KB review.
+  * [ ] Read KB candidate by source note.
+  * [ ] List KB candidates needing review.
+  * [ ] Mark source update pending review.
+  * [ ] Detach KB article from source note where permitted.
+  * [ ] Reject KB candidate with reason.
+  * [ ] Approve KB candidate.
+  * [ ] Publish approved KB article snapshot.
+
+* [ ] Add Notes lifecycle hook integration.
+
+  * [ ] On normal note created, create KB candidate if workspace KB candidate policy allows it.
+  * [ ] On normal note updated, mark linked KB candidate/publication as source-updated.
+  * [ ] On note archived, preserve existing KB linkage but stop automatic updates unless configured.
+  * [ ] On note deleted, hide or mark linked KB candidate as source unavailable.
+  * [ ] Do not process secure notes.
+  * [ ] Do not process private notes unless a future explicit rule allows it.
+
+* [ ] Add KB review queue UI.
+
+  * [ ] Show candidates grouped by source visibility:
+
+    * [ ] Internal
+    * [ ] Workspace
+    * [ ] Client-visible when enabled
+  * [ ] Show source note title, source collection path, source updated date, proposed article title, visibility, review status, and whether the source changed since last review.
+  * [ ] Allow reviewers to approve, reject, edit article draft, publish, or detach.
+  * [ ] Make it obvious when a published KB article is behind its source note.
+
+### Version 0.35.3 - Knowledge Base Search, Tags, Attachments, Static Pages, and Permission Boundaries
+
+**Model: High Effort** — Search, backlinks, Files, and publication views can leak inaccessible source information if projections are wrong.
+
+* [ ] Add KB article chrome/window-dressing generation.
+
+  * [ ] Generate safe table of contents.
+  * [ ] Generate "What links here."
+  * [ ] Generate related articles from article links, source notes, shared tags, shared collections, and wiki-style links.
+  * [ ] Show source-note linkage only to users who can access the source note.
+  * [ ] Show source update/review status only to internal users with review/history permission.
+  * [ ] Hide internal source data from client-visible/public outputs.
+  * [ ] Backlink lists must be permission-filtered and must not leak inaccessible article titles, note titles, files, or counts.
+
+* [ ] Add KB link index support.
+
+  * [ ] Track article-to-article links detected from Markdown/wiki-style links.
+  * [ ] Track note-to-article references where useful.
+  * [ ] Track source note-to-article relationships through `kb_article_sources`.
+  * [ ] Rebuild link indexes when article Markdown, note wiki links, slugs, or source links change.
+  * [ ] Broken links should be allowed but clearly labeled for reviewers.
+
+### Version 0.35.4 - Knowledge Base Settings, Documentation, and Closeout
+
+**Model: High Effort** — Closeout must prove settings cannot bypass review/security and that seeded, documented, measured coverage is complete.
+
+* [ ] Add KB automation settings.
+
+  * [ ] Configure note-to-KB candidate behavior:
+
+    * [ ] Disabled
+    * [ ] Manual only
+    * [ ] Auto-create internal/workspace candidates
+    * [ ] Auto-create client-visible candidates when supported
+  * [ ] Configure default candidate status for note-sourced entries.
+  * [ ] Configure whether review is always required before publishing.
+  * [ ] Configure whether source note updates reopen review.
+  * [ ] Configure whether archived notes can continue feeding KB candidates.
+  * [ ] Settings must not bypass permissions, secure-note restrictions, private-note restrictions, file safety, or publication review.
+
+* [ ] Add deterministic seeded examples covering source Notes, source-updated review, approved/published snapshots, rejected candidates, permission-filtered backlinks, and safe ticket-linked review candidates.
+* [ ] Produce current user, admin, and developer documentation at closeout, including Notes-first authoring, review/publication, source drift, secure/private exclusions, and ticket-link limits.
+* [ ] Run a formal test-suite streamlining review using timing output and the suite budget; retire no regression without demonstrated replacement coverage and manifest/ratchet evidence.
+* [ ] Preserve strong secure/private-note, permission, workspace, publication-snapshot, backlink, Files, ticket-link, and browser accessibility coverage.
+
+Acceptance criteria:
+
+- Knowledge Base ships as a reviewed Notes-first module with immutable publication snapshots, safe optional ticket linkage, deterministic seed coverage, current documentation, and evidence-backed tests.
 
 ## Version 0.36.0 - Calendars and Calendar Views
 
@@ -1285,7 +1517,9 @@ Do not expose raw audit records, raw event payloads, private module records, or 
 - [ ] Expanded reporting
 - [ ] Invoicing
 
-## Version 0.38.0 - User Account Security Upgrades and Database/Settings File Backup/Restore
+## Version 0.38.0 - Advanced User Account Security
+
+This branch builds on the minimum private-preview controls from 0.33.16. It does not re-plan trusted proxies, baseline throttling, password modernization, session revocation, forced logout, password reset, or baseline security-event logging.
 
 ### Two Factor Authentication (TOTP) (2FA)
 
@@ -1297,15 +1531,17 @@ Do not expose raw audit records, raw event payloads, private module records, or 
 
 - [ ] Passkeys
 
-### Version 0.38.2 - User Sessions
+### Version 0.38.2 - Richer Device and Session History
 
-- [ ] Sessions should expire after 1 day
-- [ ] Super Admins should have ability to log users out
-- [ ] Workspace admins should have ability to log users out
+- [ ] Build on 0.33.16 session review/revocation with recognizable device, browser, location approximation, creation, last-used, and risk context.
+- [ ] Review absolute and idle expiration policies using measured private-preview behavior; do not weaken next-request revocation.
+- [ ] Add suspicious-session highlighting and user/admin history views without exposing raw session secrets or crossing workspace/admin scope.
 
-## Version 0.38.3 - Login Security Monitoring and Risk Scoring
+## Version 0.38.3 - Advanced Login Monitoring and Risk Scoring
 
-- [ ] Add `user_login_events` table:
+Extend the structured baseline security-event stream from 0.33.16 with login-specific enrichment, analytics, risk scoring, and suspicious-login notification. Do not introduce a second competing event log for events already captured by the baseline.
+
+- [ ] Add a `user_login_events` projection/table only where advanced login analytics cannot use the baseline stream directly:
   - [ ] `login_event_id`
   - [ ] `user_id`
   - [ ] `occurred_at`
@@ -1324,7 +1560,7 @@ Do not expose raw audit records, raw event payloads, private module records, or 
   - [ ] `risk_reason`
   - [ ] `session_id_hash`
   - [ ] `metadata_json`
-- [ ] Log authentication events:
+- [ ] Enrich baseline authentication events for advanced monitoring:
   - [ ] Successful login.
   - [ ] Failed login.
   - [ ] Password reset requested.
@@ -1364,45 +1600,33 @@ Do not expose raw audit records, raw event payloads, private module records, or 
   - [ ] Define retention period for login events.
   - [ ] Restrict access to login security logs.
 
-## Version 0.38.x - Security, Sessions, Login Monitoring, and Production Hardening
+## Version 0.38.x - Advanced Security, Sessions, and Hosted Hardening
 
 Add dependency note:
 
 This branch depends on the runtime configuration contract from 0.33.5.19. Security-sensitive settings must be validated through `.env`/runtime config before public hosted SaaS launch.
 
-Additional required hardening before hosted SaaS:
+Additional hosted/advanced work:
 
-- [ ] Production secure cookies.
-- [ ] Trusted proxy configuration.
-  - [ ] Wire the already-reserved `TRUST_PROXY` env var into `src/config.js` and `app.set('trust proxy', ...)`; it is documented in `.env.example`/`docs/runtime-configuration.md` but currently unread.
-- [ ] Login throttling/rate limiting.
-- [ ] Async password hashing/verification.
-- [ ] Session revocation.
-- [ ] Admin-forced logout.
-- [ ] Password reset.
-- [ ] Security event logging.
-- [ ] Backup/restore testing.
-- [ ] Runtime secret documentation.
+- [ ] TOTP/2FA, passkeys, richer device/session history, risk scoring, suspicious-login notifications, advanced retention/security analytics, and hosted incident-response requirements.
+- [ ] Re-evaluate parameters and controls with real preview evidence while preserving the 0.33.16 baseline.
+- [ ] Keep hosted provisioning, secret rotation, fleet policy, and managed operations private deployment concerns.
 
-### Version 0.38.4 - Backup and Restore
+### Version 0.38.4 - Advanced Backup Automation and Retention
 
-Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
+**Model: High Effort** — Automated retention and remote/encrypted destinations extend the proven 0.33.17 restore contract and can destroy recovery history if implemented incorrectly.
 
-- [ ] Create backup function to grab and zip:
-  - [ ] Database dump/database file
-  - [ ] App meta data file to include app version and datetime stamp of backup
-  - [ ] Setup files (can be blank for now)
-- [ ] Add backup to user interface for Super Admins in Settings menu
-  - Label should be "App Backup"
-  - Should only be visible if user is Super Admin (utilize session auth variables to keep from adding/hiding the option)
-  - [ ] "Perform backup" button
-    - this should then provide a link to the downloadable zip file
-    - download should be a temporary file on the server in a "downloads" directory
-    - backup should have checksum
-    - backup shouldn't delete temporary file until checksum is confirmed
-  - [ ] "Perform restore" button
-    - this should only accept zip files
-    - this should verify files, checksum, etc. before installing/overwriting current data
+Baseline backup and restore moved intentionally to 0.33.17 and must not be implemented again here. This later phase may add only genuinely advanced capabilities:
+
+- [ ] Scheduling and retention policies with protected minimum recovery points.
+- [ ] Remote destinations and separately encrypted managed backups.
+- [ ] Hosted backup orchestration and richer super-admin automation.
+- [ ] Point-in-time recovery where the active provider supports it.
+- [ ] Restore drills, retention deletion audit, and provider-specific recovery objectives built on the versioned 0.33.17 backup format.
+
+Acceptance criteria:
+
+- Advanced automation extends rather than competes with the baseline format, and scheduling/retention cannot silently delete the last valid recovery path.
 
 ### Version 0.38.8 - MCP Server for AI Task access
 
@@ -1468,6 +1692,23 @@ Non-goals:
 
 ### Version 0.39.0 - Creator Studio / Content Studio Module
 
+**Model: High Effort** — Creator Studio is a committed multi-workflow first-party module spanning records, Files, Tasks, Notes, Calendar, permissions, and specialized work surfaces.
+
+Purpose:
+
+Ship an official first-party public-core module for the owner; YouTube creators; TikTok, Shorts, and Reels creators; bloggers and newsletter publishers; podcast/content workflows where appropriate; aspiring and working authors; businesses managing their own content; and agencies managing content for clients. It is not an external plugin or market-validation experiment and may be disabled for workspaces that do not need it.
+
+Reference workflows:
+
+1. Creator/video: Idea -> research/Notes -> script/draft -> filming/editing Tasks -> assets -> scheduled publication -> derivative Shorts/TikTok/social/newsletter items -> performance Notes.
+2. Author: Book/story idea -> research/world/character Notes -> outline -> chapter or section drafts -> revision Tasks -> supporting assets -> submission/publication planning.
+
+Decision:
+
+- Use content-type-aware terminology and views; do not force authors into video-oriented language.
+- Use the settled composed-manifest source pattern and native ES-module frontend entry points from the first implementation.
+- Preserve module ownership for Ideas, Drafts, Campaigns/series, Channels, Assets, Repurposing, editorial planning, assignments/reviews, and creator-specific Workbench behavior while integrating through Tasks, Notes, Files, Search, Tags, Notifications, and Calendar contracts.
+
 - [ ] Core records:
   - [ ] Content ideas.
   - [ ] Content drafts.
@@ -1517,11 +1758,13 @@ Non-goals:
   - [ ] Client/project-linked content respects existing permissions.
   - [ ] External clients may be allowed to review/comment only if explicitly enabled.
 
-- [ ] Treat Creator Studio as an optional first-party module.
+- [ ] Treat Creator Studio as a committed, disableable first-party public-core module.
   - [ ] The module should ship with Longtail Forge but be disabled by default for workspaces that do not need it.
   - [ ] It should follow the same module manifest, permissions, navigation, search, tags, notification, file, task, notes, and calendar contracts as every other first-party module.
-  - [ ] Do not build it as a separate third-party plugin project yet.
+  - [ ] Do not build it as a separate third-party plugin project.
   - [ ] Use it as a real-world test case for whether Longtail Forge modules can compose shared framework services cleanly.
+  - [ ] Compose substantial manifest concerns through the proven 0.33.18 pattern while exporting one validated module definition.
+  - [ ] Load module browser behavior through native ES-module entry points without new script-order globals.
 
 - [ ] Reuse existing first-party modules where appropriate.
   - [ ] Content ideas may start as Creator Studio records but should be linkable to notes and lists.
@@ -1540,15 +1783,29 @@ Non-goals:
   - [ ] It should optionally filter by client/project/brand/channel/campaign.
   - [ ] It should be disabled cleanly when the Creator Studio module is disabled.
 
-- [ ] Define workbench areas as a framework concept.
+- [ ] Define workbench areas as a framework concept only if the Two-Module Rule is satisfied by real materially similar consumers; otherwise keep Creator-specific workbench behavior module-owned.
   - [ ] Basic workbench for general first-party modules such as timers, tasks, notes, and lists.
   - [ ] Focused workbench for one client/project at a time.
   - [ ] Creator Studio workbench for content planning, drafting, assets, campaigns, repurposing, and editorial calendar work.
   - [ ] Future modules may declare their own workbench areas through the module manifest.
 
+- [ ] Add deterministic safe seed scenarios for both the creator/video and author workflows, including assignments/reviews and representative Notes, Tasks, Files, channels, assets, derivatives, and publication planning.
+- [ ] Produce current user, admin, and developer documentation at closeout, including content-type-aware terminology, workspace disablement, permissions, manifest/browser ownership, and both reference workflows.
+- [ ] Run a formal test-suite streamlining review at closeout using timing output and the suite budget; retire no regression without demonstrated replacement coverage and manifest/ratchet evidence.
+
+Acceptance criteria:
+
+- Creator Studio supports creator and author workflows without terminology distortion, uses proven module/frontend patterns, remains workspace-disableable, and closes with safe seeds, current documentation, and evidence-backed coverage.
+
 ## Version 0.39.9 - User Documentation and 0.3x Stabilization Checkpoint
 
-- [ ] Create user-facing documentation for the completed 0.3x feature set.
+**Model: Medium Effort** — This is a comprehensive consolidation and gap-closure checkpoint over already documented shipped behavior.
+
+Purpose:
+
+Review, consolidate, and verify the complete 0.3x documentation and stabilization story. Essential installation, preview operation, backup, upgrade, onboarding, and security-limit documentation already ships in 0.33.17; this is not the first documentation pass.
+
+- [ ] Review and consolidate user-facing documentation for the completed 0.3x feature set.
   - [ ] Getting started.
   - [ ] Workspace types and workspace switching.
   - [ ] Users, roles, and permissions.
@@ -1559,9 +1816,9 @@ Non-goals:
   - [ ] Tags.
   - [ ] Search.
   - [ ] Files/attachments if completed in 0.32.x.
-  - [ ] Support tickets if completed in 0.33.x.
-  - [ ] Notes and knowledge base foundations if completed in 0.34.x.
-  - [ ] Calendar basics if completed in 0.35.x.
+  - [ ] Support Tickets if completed in 0.34.x.
+  - [ ] Notes and Knowledge Base if completed in 0.35.x.
+  - [ ] Calendar basics if completed in 0.36.x.
   - [ ] Shopping/procurement lists if completed in 0.39.x.
   - [ ] Creator/content studio if completed in 0.39.x.
 - [ ] Create admin-facing documentation for workspace/module setup.
@@ -1578,6 +1835,8 @@ Non-goals:
   - [ ] File attachable declarations.
   - [ ] Workbench card/area declarations.
 - [ ] Update `docs/architecture.md` to reflect the completed 0.3x architecture.
+- [ ] Close documentation gaps, refresh screenshots, audit terminology, verify cross-document links/claims, and reconcile current feature, operator, user, admin, and developer documentation.
+- [ ] Run the 0.3x test-suite streamlining review: consume timing output, report slowest tests, review the budget, identify evidence-backed consolidation, and preserve permissions, workspace isolation, database/migration, Files, integration, and critical Playwright/accessibility coverage.
 - [ ] Verify `ROADMAP.md`, `TODO.md`, `DECISIONS.md`, `CHANGELOG.md`, and package versions are consistent.
 
 - [x] Wipe existing DB migrations and create a new DB baseline  -  Completed in 0.33.5.18.6.5.4.
@@ -1592,11 +1851,29 @@ Non-goals:
 
 - [ ] Audit all event hooks by module and make a list for review and modification.
 
+## Version 0.39.12 - Self-Hosted Update Assistant Re-evaluation
+
+**Model: High Effort** — Any updater that can replace application code and migrate or roll back a database is a high-risk deployment subsystem.
+
+Purpose:
+
+Re-evaluate update assistance only after at least two real release/upgrade/restore cycles have used the manual Docker and bare-metal paths from 0.33.17. Do not implement an in-app updater merely because an earlier roadmap specified one.
+
+- [ ] Review real operator friction and decide whether users need passive update notifications, a CLI update helper, a Docker-oriented helper, an in-app updater, signed artifacts, and/or automatic rollback.
+- [ ] Treat manual Docker and bare-metal upgrades as the supported initial paths until evidence justifies a safer alternative.
+- [ ] Build any future implementation on proven artifact, checksum/signing, backup, restore, release, health/readiness, migration, restart, and rollback contracts.
+- [ ] Require explicit threat modeling, permissions, failure-state tests, air-gapped behavior if needed, and a kill switch before authorizing self-modifying behavior.
+- [ ] Keep hosted/SaaS deployment and fleet orchestration as a separate private operations concern.
+
+Acceptance criteria:
+
+- The decision records two real upgrade/restore cycles and selects the smallest evidence-supported assistant, including a documented decision to build nothing if manual operations remain sufficient.
+
 ## Version 0.39.15 - Public API and integration-surface decoupling (backend-agnostic, pre-Postgres)
 
 Purpose:
 
-Decouple the public/integration-facing surfaces from both specific module internals and from any assumption about the storage backend, **before** the 0.40.0 PostgreSQL adapter and dual-backend work begins. This is deliberately ordered ahead of 0.40.0: the public API is the contract external integrations, the MCP connector (0.38.8), the ticket public API (0.35.5), and the future 0.70.0 integrations all depend on, and it must not care whether SQLite or PostgreSQL is running underneath, nor reach around module boundaries to assemble its responses. Doing this decoupling while the backend is still single-provider means the public API contract is proven stable *before* a second backend can perturb it.
+Decouple the public/integration-facing surfaces from both specific module internals and from any assumption about the storage backend, **before** the 0.40.0 PostgreSQL adapter and dual-backend work begins. This is deliberately ordered ahead of 0.40.0: the public API is the contract external integrations, the MCP connector (0.38.8), the ticket public API (0.34.5), and the future 0.70.0 integrations all depend on, and it must not care whether SQLite or PostgreSQL is running underneath, nor reach around module boundaries to assemble its responses. Doing this decoupling while the backend is still single-provider means the public API contract is proven stable *before* a second backend can perturb it.
 
 Entry contract and grounding (re-verify at implementation time ? code will have drifted):
 
@@ -1634,9 +1911,10 @@ Acceptance criteria:
 
 ### Version 0.39.15.3 - Integration-surface backend-agnostic assertion and closeout
 
-- [ ] Confirm the public API, MCP read connector groundwork (0.38.8), and ticket public API (0.35.5) surfaces contain no direct dependency on a storage backend, raw dialect, or a specific module's storage internals; anything remaining routes through framework foundations, module contracts, or the provider-neutral seams.
+- [ ] Confirm the public API, MCP read connector groundwork (0.38.8), and ticket public API (0.34.5) surfaces contain no direct dependency on a storage backend, raw dialect, or a specific module's storage internals; anything remaining routes through framework foundations, module contracts, or the provider-neutral seams.
 - [ ] Extend the 0.33.6.12 framework-coupling guardrail (or add a companion) so the public/integration surfaces cannot reintroduce a direct module-repo import or a hardcoded module ID for data access, and remove `public-api.service.js`/`tag-propagation-registry.js` from the deferred-coupling allowlist.
 - [ ] Update `docs/public-api.md`, `docs/module-contract.md`, and `DECISIONS.md` to record that integration-facing surfaces are module-contract- and backend-agnostic, and cross-reference this as a prerequisite the 0.40.0 dual-backend work relies on.
+- [ ] Run a pre-PostgreSQL test-streamlining and dual-backend planning checkpoint: consume timing output, identify reusable API contract coverage for both providers, and retire nothing that weakens public API shapes, scopes, permissions, or integration boundaries.
 - [ ] Run `npm run check` and `npm run test:permissions`, and verify `/api/app-info` after restart.
 
 Acceptance criteria:
@@ -1803,6 +2081,7 @@ Grounding (re-verify at implementation time - code will have drifted):
 - [ ] **PostgreSQL migration runner and advisory locking** - per-provider DDL/introspection selection in the migration runner; advisory-lock equivalent of the file-based lock (which stays SQLite/single-host); keep the `runMigrations` app-facing entry stable.
 - [ ] **PostgreSQL schema baseline and checksum** - a PostgreSQL-compatible schema baseline/translation (`src/db/schema/current.sql` is SQLite DDL today), verified from an empty PG database, with checksum validation; docs for the SQLite self-hosted path vs the PostgreSQL SaaS path, migration ownership, and backups.
 - [ ] **Dual-backend repository contract tests** - a runner that executes repository contract tests against SQLite and (opt-in via `DATABASE_URL`, Docker or local Postgres) PostgreSQL; prioritize sessions, workspaces, permissions, tasks, notes, files metadata, search index, notifications; prove `db.transaction(...)` pins one connection for the whole callback on PG and that no path uses top-level `db.*` inside a transaction.
+- [ ] **Dual-backend test-matrix streamlining review** - consume per-provider timing output, report the slowest setup/tests, establish a dual-backend suite budget, share provider-neutral fixtures/contracts where equivalent, and retain provider-specific migration, transaction, search, permission, workspace, and failure coverage. Do not retire SQLite or PostgreSQL coverage merely because the matrix is expensive.
 - [ ] **SaaS seed and load smoke test** - a Postgres seed profile for many workspaces + basic load-smoke scripts covering login/session, app shell, tasks, notes, files, search, notifications, and the job worker; record baseline performance numbers and document what is and is not proven.
 - [ ] **Closeout** - record decisions in `DECISIONS.md` (advisory-lock strategy, FTS `tsvector` boundary, intentional provider-specific paths), update runtime-configuration docs so `LONGTAIL_DATABASE_PROVIDER`/`DATABASE_URL`/pool/TLS keys are marked live vs. reserved accurately, add the dual-backend/portability regressions to the suite, and verify `/api/runtime-diagnostics` reports the configured provider/health on both backends.
 
@@ -1838,13 +2117,12 @@ Grounding (re-verify at implementation time - code will have drifted):
 
 ## Version 0.50.0 - Production, Packaging, and Self-Hosting
 
-- [ ] Move to a demo production environment
+- [ ] Expand from the limited 0.33.17 private preview to a broader public self-hosted release only after measured upgrade, restore, security, and support evidence.
 - [ ] Make PostgreSQL the preferred production database for this release (the SQLite/PostgreSQL adapter, dialect, and dual-backend work is built earlier in 0.40.0 - Database extraction layer; SQLite stays the lightweight self-hosted default)
-- [ ] Add file attachment abilities to notes/tasks/support tickets
-- [ ] Docker Compose
+- [ ] Harden and document the proven 0.33.17 Docker Compose and manual deployment paths rather than creating a second packaging contract.
 - [ ] Setup wizard
-- [ ] Admin docs
-- [ ] Add production cookie flags
+- [ ] Consolidated public-release admin/operator docs
+- [ ] Re-verify the 0.33.16 production cookie, trusted-proxy, CSRF, security-header, and fail-closed configuration posture at broader-release scale.
 - [ ] Self-hosted release
 - [ ] Expand project management tools
 
@@ -1921,8 +2199,8 @@ Auto-routing communications/messaging
 
 #### eCommerce Plugins
 
-- [ ] Knowledge Base plugin
-- [ ] Support ticket plugin
+- [ ] Knowledge Base publishing/search connector for the first-party Knowledge Base module
+- [ ] Support ticket intake connector for the first-party Support Tickets module
   - Would include notes plugin for Shopify Admin
 - [ ] Automated task creation from:
   - Front-end support tickets

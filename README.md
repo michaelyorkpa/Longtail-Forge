@@ -1,14 +1,21 @@
 # Longtail Forge
 
+**Pick up the work without rebuilding the context.**
+
 Plan the project. Track the work. Preserve the knowledge.
 
-Longtail Forge started as a simple time tracker and is growing into a small-project operations hub for freelancers, small agencies, self-hosted teams, and eventually personal/family workspaces.
+Longtail Forge is a self-hosted work hub for freelancers, small service teams, and self-hosted users. It connects projects, tasks, notes, files, lists, and time so work that gets interrupted, spread across several clients, or hard to resume after a context switch stays easy to pick back up. It started as a simple time tracker and is growing into a small-project operations hub, with support-desk and content-publishing modules on the roadmap.
+
+<!-- Screenshot placeholder: Workbench Task Focus (Workbench-first). See docs/marketing/screenshot-and-demo-data-plan.md. -->
+<!-- ![Longtail Forge Workbench](docs/marketing/assets/ltf__workbench-task-focus.png) -->
 
 ## Table of Contents
 
 - [Longtail Forge: Product Philosophy](#longtail-forge-product-philosophy)
 - [Current State](#current-state)
 - [How the Core Modules Work Together](#how-the-core-modules-work-together)
+- [Committed Roadmap Modules](#committed-roadmap-modules)
+- [Current Release and Readiness Status](#current-release-and-readiness-status)
 - [Documentation](#documentation)
 - [Getting Started](#getting-started)
 - [Development Checks](#development-checks)
@@ -36,11 +43,12 @@ Longtail Forge currently includes:
 - Framework-owned browser search across indexed Tasks, Time Entries, Clients, Projects, and Help articles
 - Framework-owned Help Center with baseline product help and module-declared Help contributions
 - First-party Notes with Library buckets, collections, Markdown, links, revisions, tags, files, search, Help, and secure-note encryption-at-rest boundaries
+- First-party Lists with reusable operational lists, catalog suggestions, linked records, progress/resume context, tags, files, search, and Help
 - Billable/non-billable reporting, dashboard summaries, audit logging, API keys, and public API foundations
 - Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, framework-owned search, file attachment, and Help Center foundations, and developer example coverage
 - A fresh-start database baseline for new installs, a persistent SQLite adapter for local performance, and regression checks for permissions, accessibility, module sanity, migrations, legacy cleanup, and database performance
 
-The near-term roadmap continues expanding framework services and module surfaces that can be shared by current and future modules: support tickets, calendars, broader reporting, richer project tools, and UI consistency passes.
+Dashboard and Workbench are the two daily surfaces, and they play different roles: **Dashboard tells you what is happening; Workbench helps you begin.** Dashboard is orientation — workspace pulse, today/upcoming context, and useful summaries. Workbench is momentum — focus selection, Task Focus, connected context, timers, next actions, and resume notes for handing work off to your future self.
 
 ## How the Core Modules Work Together
 
@@ -50,9 +58,28 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 - **Tasks** are commitments and outcomes. A good task should make the next action, ownership, status, due date, project context, reminders, files, notes, and time history easy to find.
 - **Lists** are operational checklists, shopping/procurement lists, packing lists, supply lists, parts lists, and reusable repeatable workflows. Lists should help users execute known steps without turning into Notes, Tasks, Files, bookmarks, inventory, purchasing, or ERP.
 - **Notes** are working memory and reference context. Notes should collect details, decisions, research, links, and reusable knowledge around clients, projects, tasks, tickets, and other records.
-- **Knowledge Base** is the curated publishing layer for reviewed knowledge. Notes can feed KB review workflows, but KB should remain separate from active working notes.
+- **Knowledge Base** will be the curated publishing layer for reviewed knowledge. Notes can feed its future review workflow, but Knowledge Base remains separate from active working notes and is not shipped yet.
 - **Files** are supporting artifacts attached to records. Files should preserve source material where work happens instead of becoming a separate place users have to search first.
 - **Search, tags, reminders, notifications, and Help** are recovery systems. They should help users find, resume, understand, and complete work without making the app feel noisy or punitive.
+
+## Committed Roadmap Modules
+
+These are committed first-party public-core modules. They are **planned, not shipped yet**, and should not be treated as available today:
+
+- **Support Tickets (planned, roadmap 0.34)** — move internal and client requests through resolution while preserving internal notes and client-visible replies, turning ticket work into tasks, tracking time, and feeding Knowledge Base.
+- **Knowledge Base (planned, roadmap 0.35)** — a curated, reviewed publishing layer for durable reference material. Notes can feed its future review workflow.
+- **Creator Studio (planned, roadmap 0.39)** — move content ideas through research, drafting, production, publishing, and repurposing, for both creators and authors.
+
+Calendar remains planned at 0.36. Hosted SaaS and PostgreSQL remain later work. See [ROADMAP.md](ROADMAP.md) for the detailed forward plan.
+
+## Current Release and Readiness Status
+
+- Current version: **0.33.13.5**. The active roadmap cursor is **0.33.14.1** (a narrow shared editable-field primitive), followed by contributed Settings cleanup, internet-exposure security hardening, and reproducible preview packaging with tested backup/restore and CI.
+- Longtail Forge is in active development and currently used privately. It runs as a self-hosted app; a limited friends-and-family private internet preview is planned once security-hardening (roadmap 0.33.16) and preview-readiness work (roadmap 0.33.17, including tested backup/restore) are complete.
+- Until that work ships, treat internet use as a **private/technical preview**, not a production deployment. Supported scale is small-office (SQLite for roughly 50 total users and about 5–15 concurrent on one server); PostgreSQL is required before shared hosted or larger use.
+- Longtail Forge makes no security, uptime, backup, or compliance guarantees, and Secure Notes are encrypted at rest but are not zero-knowledge (see [docs/architecture.md](docs/architecture.md)).
+
+Product positioning, audience, demo, preview, and launch planning live in the [marketing documentation hub](docs/marketing/README.md).
 
 ## Documentation
 
@@ -69,6 +96,7 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 - [docs/longtail_forge_permissions_matrix.md](docs/longtail_forge_permissions_matrix.md): role and permission matrix
 - [docs/storage-rename-plan.md](docs/storage-rename-plan.md): workspace storage rename plan
 - [docs/product-notes.md](docs/product-notes.md): product notes and planning context
+- [docs/marketing/README.md](docs/marketing/README.md): product-marketing hub — positioning, audiences, demos, preview/launch plans, and the claims-and-proof register
 - [docs/licensing.md](docs/licensing.md): licensing notes
 
 ## Getting Started
