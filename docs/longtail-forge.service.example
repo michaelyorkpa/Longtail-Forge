@@ -9,6 +9,7 @@ User=longtail-forge
 Group=longtail-forge
 WorkingDirectory=/opt/longtail-forge/current
 EnvironmentFile=/etc/longtail-forge/longtail-forge.env
+EnvironmentFile=-/etc/longtail-forge/release.env
 Environment=NODE_ENV=production
 Environment=LONGTAIL_DATA_DIR=/var/lib/longtail-forge
 Environment=LONGTAIL_DATABASE_FILE=/var/lib/longtail-forge/longtail-forge.db

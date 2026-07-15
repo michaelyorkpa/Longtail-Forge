@@ -4,6 +4,8 @@ This is the supported application deployment contract for the limited one-server
 
 This document does not authorize invitations. The tested baseline backup/restore is defined in [Baseline Backup and Restore](backup-restore.md); the Docker-engine acceptance proof, remaining release gates, and manual security review are still required.
 
+Repository promotion, immutable GitHub artifacts, and the maintained manual preview handoff are defined in [GitHub Workflow](development/github-workflow.md). That handoff uses a low-privilege SSH account with pinned host keys and passwordless sudo access to one reviewed root-owned helper, rather than a root SSH login or a general-purpose self-hosted runner. The helper preserves this document's stop, backup, stage, start, verify, and restore boundary. Its GitHub Environments start disabled until isolated hosts, credentials, URLs, data, and recovery materials exist and a real deployment/rollback exercise passes.
+
 ## Shared boundary
 
 - One Node application server, one local SQLite database, local Files storage, and either the inline worker or one same-host separate worker.

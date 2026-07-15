@@ -53,6 +53,10 @@ assert.deepEqual(
   ["npm run test:regressions:release"],
 );
 assert.deepEqual(
+  suggestRegressionsForPaths([".github/workflows/promotion.yml", "scripts/release/deploy-via-ssh.mjs"]).commands,
+  ["npm run test:regressions:release"],
+);
+assert.deepEqual(
   suggestRegressionsForPaths(["unmapped/example.txt"]).commands,
   ["npm run test:regressions"],
   "unmapped changes should fall back to the whole regression runner rather than guessing narrowly",

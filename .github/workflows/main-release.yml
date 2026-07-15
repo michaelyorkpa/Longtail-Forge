@@ -1,0 +1,37 @@
+name: Main release artifact
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-artifact:
+    name: Revalidate immutable main artifact
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run closeout
+      - run: npm run artifact:build
+      - id: artifact
+        run: |
+          echo "path=dist/longtail-forge-$(node -p "require('./package.json').version").tgz" >> "$GITHUB_OUTPUT"
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$GITHUB_SHA" --channel main --output dist/release-metadata.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: main-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            ${{ steps.artifact.outputs.path }}.sha256
+            dist/release-metadata.json

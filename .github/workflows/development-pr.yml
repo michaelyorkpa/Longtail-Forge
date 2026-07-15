@@ -1,0 +1,59 @@
+name: Development pull request
+
+on:
+  pull_request:
+    branches: [nightly]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: development-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  development-gate:
+    name: Development gate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the proposed revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Use the supported Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Static, unit, schema, and documentation gates
+        run: |
+          npm run typecheck
+          npm run test:unit
+          npm run db:schema:check
+          npm run docs:check
+          npm run lint
+      - name: Run regressions selected from the pull-request diff
+        env:
+          LTF_REGRESSION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: npm run test:regressions:changed
+
+  browser-smoke:
+    name: Browser smoke and accessibility
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

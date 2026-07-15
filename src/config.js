@@ -123,6 +123,8 @@ function createConfig(env = process.env) {
     || readRuntimeSecret("SECURE_NOTES_MASTER_KEY", env);
   const scannerMode = readEnum(env, "LONGTAIL_FILE_SCANNER", DEFAULT_FILE_SCANNER, FILE_SCANNER_MODES);
   const logLevel = readEnum(env, "LONGTAIL_LOG_LEVEL", DEFAULT_LOG_LEVEL, LOG_LEVELS);
+  const releaseCommit = readOptionalHex(env, "LONGTAIL_RELEASE_COMMIT", 40);
+  const releaseArtifactSha256 = readOptionalHex(env, "LONGTAIL_RELEASE_ARTIFACT_SHA256", 64);
   const runtimeWarnings = [];
 
   if (!sqliteForeignKeys) {
@@ -197,6 +199,10 @@ function createConfig(env = process.env) {
   return {
     appName: toDisplayName(packageJson.name),
     appVersion,
+    release: {
+      commitSha: releaseCommit,
+      artifactSha256: releaseArtifactSha256,
+    },
     environment,
     publicUrl,
     host: readText(env, "HOST", DEFAULT_HOST),
@@ -339,6 +345,14 @@ function assertProductionSecret(secret, key, minimumLength) {
   if (secret.length < minimumLength || UNSAFE_SECRET_VALUES.has(secret.toLowerCase())) {
     throw new Error(`${key} must be a non-default secret of at least ${minimumLength} characters in production.`);
   }
+}
+
+function readOptionalHex(env, key, length) {
+  const value = readText(env, key, "").toLowerCase();
+  if (value && !new RegExp(`^[a-f0-9]{${length}}$`).test(value)) {
+    throw new Error(`${key} must be empty or exactly ${length} hexadecimal characters.`);
+  }
+  return value;
 }
 
 function assertPathIsNotPublic(runtimePath, key, publicDir) {
