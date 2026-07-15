@@ -40,10 +40,7 @@ const requiredSupportFiles = [
   "scripts/test-support/source-scan.mjs",
 ];
 const forbiddenLocalDocs = [
-  ["DECISIONS", "md"],
-  ["ROADMAP-ARCHIVE", "md"],
   ["CODEREVIEW", "md"],
-  ["AGENTS", "md"],
   ["0.33.5.18", "md"],
   ["ui-upgrade", "md"],
   ["security-patches", "md"],

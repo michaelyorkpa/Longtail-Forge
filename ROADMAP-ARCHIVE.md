@@ -1,0 +1,10816 @@
+﻿# Longtail Forge Roadmap Archive
+
+## Version 0.33.13.5 - Guardrails, docs, and closeout
+
+Completed 0.33.13.5. The live roadmap continues with 0.33.14.1.
+
+**Model: Low Effort** — Consolidation, documentation, and the strict-surface guardrail/regression pass.
+
+- [x] Kept `lists.workspace` within the strict declarative-surface guardrails: the detail stays on the shared read-only linked-context list, the modal stays on the shared picker writer, and the retired detail-side linked-record editor/bootstrap path did not return.
+- [x] Removed now-dead Lists code and CSS: the retired detail-side `linkedRecords` descriptor, raw-record-ID/task-search/task-picker helpers, extra task bootstrap read, `.lists-link-form`, `.lists-link-item`, and the leftover mobile selector tied to that path.
+- [x] Updated docs: `docs/lists-module.md`, `docs/linked-context-picker-contract.md`, `docs/declarative-view-surfaces.md`, `docs/view-building-contract.md`, and `docs/notes-module.md` (current-version marker).
+- [x] Refreshed the focused Lists/view guardrails and regressions for the single declarative linked-record path and the removal of the retired detail-side editor anatomy.
+- [x] Ran the closeout checks, updated `CHANGELOG.md`, and advanced the active cursor.
+
+Acceptance criteria:
+
+- Lists matches the Notes reference layout and the app view guidelines; guardrails and regressions enforce the single declarative path.
+- Docs and changelog reflect the new layout, the List Details box, and the shared-picker adoption.
+
+## Version 0.33.13.4 - Add/Edit Item modal view-guideline conformance
+
+Completed 0.33.13.4. The live roadmap continues with 0.33.13.5.
+
+**Model: Low Effort** — The item entry became a framework modal in 0.33.5.18.5.11; this is an audit-and-align pass, not a rebuild.
+
+- [x] Audited the Add/Edit Item modal (`.lists-item-dialog`) against `docs/view-building-contract.md` and `docs/ui-layout-guide.md`.
+- [x] Aligned its sizing, heading/field anatomy, and the Details disclosure with the guidelines and the reworked Edit List modal; retired the remaining item-modal one-off layout CSS the framework already covers.
+- [x] Preserved item validation, catalog suggestions, defaults (Status = Needed, Save-as-reusable on), and the startup-built-dialog rule (no `state` reads at dialog build time).
+- [x] Updated `scripts/lists-items-modals-descriptor-regression.mjs` for the shared heading/section anatomy and descriptor width hints.
+
+Acceptance criteria:
+
+- Both Lists modals follow the same framework modal guidelines; no cramped custom grids remain.
+
+## Version 0.33.13.3 - Edit List modal: shared Linked Context picker and view-guideline conformance
+
+Completed 0.33.13.3. The live roadmap continues with 0.33.13.4.
+
+**Model: High Effort** — Adopting the shared picker crosses the linked-context provider, permission, and save-payload boundaries, and the modal must keep working as the cross-module `listsDialog` / `lists.add` / `lists.edit` entry point.
+
+- [x] Added link management to the Create/Edit List modal (`list-editor`) through `view.createLinkedContextPicker(...)` for readable/writable Task, Note, Project, and Business Client targets, replacing the bespoke task/raw-record-ID picker.
+- [x] Routed saved add/remove operations through the existing Lists link routes with `MANAGE_LINKS`, active-provider, type/module, and target-access validation; create mode stages links until the list exists, while saved-row readback and stale-link removal retain the soft path.
+- [x] Selected the framework wide modal size and rendered the list fields through framework `.view-field-grid` anatomy and descriptor width hints, removing the cramped `.lists-form-grid` and Lists-only modal width.
+- [x] Preserved `window.LongtailForge.listsDialog.openListEditor()`, the `lists.add` / `lists.edit` module actions, Business client/project derivation, and Personal/Family behavior.
+- [x] Updated the focused Lists workflow, modal-descriptor, UI, service, and API regressions, including permission-pruned readable/writable target coverage and safe labels without visible raw IDs.
+
+Acceptance criteria:
+
+- All linked-record add/remove happens in the Edit List modal through the shared picker; the raw record-ID box is gone.
+- The Create/Edit List modal renders at the framework wide size with framework field anatomy and no longer feels cramped.
+
+## Version 0.33.13.2 - Collapsible "List Details" box: description and read-only linked records
+
+Completed 0.33.13.2. The live roadmap continues with 0.33.13.3.
+
+**Model: Medium Effort** — Detail-body reorganization plus a read-only linked-records shell swap; risk is confined to the detail render path.
+
+- [x] Added a single collapsible "List Details" box at the top of the detail (open by default) via the framework collapsible `view.createInfoPanel`, containing, in order:
+  - [x] the list description (moved out of the bare `.lists-description` paragraph; keep the "No description." empty state),
+  - [x] a read-only list of linked records rendered through `view.createLinkedContextList(...)`.
+- [x] Removed the inline linked-records add/remove picker from the detail and dropped the separate "Linked Records" `summaryPanel`; the detail no longer hosts link editing (that moves to the Edit List modal in 0.33.13.3).
+- [x] Rendered linked rows through the Lists linked-context soft-read path so stale/unavailable targets show safe fallback labels (`Unavailable task`, etc.) without echoing raw ids.
+- [x] Moved the "Next" panel's fact chips (`.lists-next-action-facts`) to the top-right corner of the Next box.
+- [x] Preserved the rest of the detail body order and the Source/Costs panels; only the description, the linked-records display, and the Next-chip placement changed.
+- [x] Updated `scripts/lists-workflow-linked-layout-regression.mjs` and the readonly-surface regression.
+
+Acceptance criteria:
+
+- The detail opens with a "List Details" box (description + linked records) at the top, open and collapsible.
+- Linked records are read-only in the detail; the Next box shows its chips in the top-right corner.
+
+## Version 0.33.13.1 - Filters and List Selector into the bottom-left filter drawer
+
+Completed 0.33.13.1. The live roadmap continues with 0.33.13.2.
+
+**Model: High Effort** — Changing the surface `layout` re-hosts filters, the selector, and the detail through a different framework layout branch and must preserve every filter, selection, and decoration hook.
+
+- [x] Converted the `lists.workspace` descriptor from `layout: "stacked"` to `layout: "slide-out-sidebar"` with a `sidebarPanels` array mirroring the Notes anatomy.
+  - [x] Added a collapsed `type: "filters"` panel titled "Filters" with `className: "lists-filters-panel"` and all nine existing filters unchanged.
+  - [x] Added a `type: "index"` panel titled "List Selector" while preserving `initialSelection`, `collapseOnSelect`, and the empty state.
+- [x] Kept the fixed bottom-left filter button, filter icon, backdrop, drawer, and full-width main region framework-owned without Lists-only toggle or width CSS.
+- [x] Updated `public/js/lists.js` decoration to resolve the filter and index panels through stable drawer hooks while preserving `[data-lists-filters]`, `[data-lists-index-panel]`, filter binding, and list rendering.
+- [x] Kept selected-list detail on the full-width drawer main region and retained selector collapse after selection.
+- [x] Preserved the cross-module list-dialog entry points and lazy-load behavior (`window.LongtailForge.listsDialog`, `lists.add`/`lists.edit`).
+- [x] Updated `scripts/lists-declarative-readonly-surface-regression.mjs` and `scripts/lists-view-builder-pilot-regression.mjs` for the new layout and sidebar panels.
+
+Acceptance criteria:
+
+- Lists opens as a clean full-width page; filters and the List Selector live in the bottom-left filter drawer exactly like Notes.
+- All nine filters, selection, `collapseOnSelect`, and empty states behave as before.
+
+## Version 0.33.13 - Lists Module UI/UX Overhaul
+
+Decision:
+
+The Lists workspace is a framework-declarative view surface (`lists.workspace` in `src/modules/lists/module.js`), so this overhaul is expressed by moving Lists onto the same framework anatomy Notes already uses — not by hand-building Lists-only page chrome. The framework owns page layout, the slide-out filter/navigation drawer and its bottom-left filter button, collapsible boxes, the shared Linked Context picker/read-list shells, and modal sizing/anatomy. Lists owns its filter/selector data, detail content, linked-record provider queries and save payloads, item workflow, and `.lists-*` content styling.
+
+Before this branch, Lists rendered filters and the "List Selector" inline above the detail through `layout: "stacked"`. As of 0.33.13.1, both controls live in the framework slide-out drawer and the selected-list detail owns the full-width main surface. As of 0.33.13.2, the detail opens with a collapsible List Details box that contains the description and read-only linked records through the shared linked-context list shell. As of 0.33.13.3, Create/Edit List owns all link management through the shared Linked Context picker in a framework-wide modal, with permission-filtered readable/writable targets and no raw record-ID entry. As of 0.33.13.4, the Add/Edit Item modal follows the same framework modal heading, section, and width-hint guidelines without the leftover one-off item-grid layout CSS. As of 0.33.13.5, Lists is closed on one declarative linked-record path per purpose, the retired detail-side linked-record editor/bootstrap/CSS are gone, and the branch is complete.
+
+Purpose:
+
+Bring the Lists workspace in line with the framework view guidelines and the Notes reference layout: move filtering and list selection into the standard bottom-left filter drawer, give the detail a clean full-width reading layout with a collapsible "List Details" box, and move all link management into a properly sized Edit List modal that uses the shared Linked Context picker.
+
+Dependencies and baseline:
+
+- Builds on the framework `slide-out-sidebar` layout and `sidebarPanels` (already consumed by `notes.workspace` and Tasks), the collapsible `view.createInfoPanel`, and the shared `view.createLinkedContextPicker` / `view.createLinkedContextList` shells and `linked-context-target.v1` provider contract (`docs/linked-context-picker-contract.md`). Lists already registers a `linkedContextProviders` List-target provider; this version makes Lists a *consumer* of the shared picker for its own linking UI, as Notes already is.
+- Honors the framework/module view-ownership boundary: framework owns layout/anatomy/`.view-*`; Lists owns data/behavior and `.lists-*`.
+- Does not depend on the 0.33.14 field-factory primitive; the Edit List and Item modals use the current descriptor modal-form primitives. Any field type the primitive does not yet cover stays as-is until 0.33.14 folds it in.
+
+Non-goals:
+
+- Do not change the Lists data model, routes, permissions, item/reusable/catalog workflow, or billing/cost math.
+- Do not build Lists-only layout classes where a framework primitive exists; consume `renderDescriptor*` / `view.*` helpers.
+- Do not revive the deprecated `.view-split-list-detail` primitive; Lists moves from `stacked` to `slide-out-sidebar`.
+
+## Version 0.33.12.7 - Permissions, navigation, guardrails, and closeout
+
+Completed 0.33.12.7. The live roadmap continues with 0.33.13.1.
+
+**Model: High Effort** — Permission ownership moves from Time Tracking to the framework and the closeout locks security, module-disable, asset-delivery, and no-coupling guarantees.
+
+- [x] Moved `reporting.view`, the `reporting` resource, and the existing eligible role defaults into the framework permission catalog; removed their definition/grants from the disable-able Time Tracking manifest while keeping the report and renderer asset permission requirements.
+- [x] Kept report visibility dependent on `reporting.view` plus each owning contribution's module, capability, dependency, permission, and renderer-asset requirements.
+- [x] Made Reporting navigation framework-owned and derived its child deep links plus quick-action availability from catalog-eligible reports; empty catalogs hide shell entry points and direct page visits show the calm no-reports state without leaking names.
+- [x] Kept the Reporting protected HTML to one shared-width mount, removed the one-off `.reporting-page` layout class, and locked framework anatomy to `LongtailForge.view`.
+- [x] Restricted direct `document.createElement` calls in the Reporting host to catalog-approved renderer `link`/`script` loading and rejected one-off framework layout/footer anatomy.
+- [x] Locked framework Reporting HTML/browser/service code against Time Tracking report IDs, renderer paths, module service/repository imports, billing fields, and module result-shape knowledge.
+- [x] Updated the declarative inventory to mark the separate catalog-driven Reporting host strict, documented the permission/navigation/host ownership boundary, and refreshed current Help.
+- [x] Expanded Reporting contribution and app-shell coverage for framework permission/resource ownership, preserved role defaults, permission denial, module disablement, historical-read asset removal, eligible report delivery, conditional custom dates, hierarchy totals, and catalog-driven navigation.
+- [x] Added `framework.reporting-closeout`, advanced the discovered regression inventory to 345 scripts and the protected Framework floor to 42, and completed the branch closeout checks.
+
+Acceptance criteria:
+
+- Reporting permission and navigation ownership remain available independently of any disable-able report-contributing module.
+- Disabled or unauthorized reports and renderer assets do not appear in the catalog, shell navigation, quick actions, or framework host.
+- Framework Reporting code remains minimal, shared-anatomy-driven, and first-party-module-neutral while Time Tracking keeps its report behavior and calculations.
+
+## Version 0.33.12.6 - Framework Reporting host, filters, and result renderer
+
+Completed 0.33.12.6. The live roadmap continues with 0.33.12.7.
+
+**Model: High Effort** — This is one browser-surface conversion, but permission-filtered module asset loading and renderer dispatch make subtle leakage or coupling errors high-risk.
+
+- [x] Reduced `views/protected/reporting.html` to one minimal framework-owned `data-reporting-host` mount with shared view assets and no static report controls, result table, report ID, or module renderer asset.
+- [x] Converted `public/js/reporting.js` into the narrow framework adapter: it builds the page header, report selector, shared filter/status/empty/error/result hosts, allowed-asset loader, execution dispatch, and query-state synchronization through `LongtailForge.view`.
+- [x] Loaded report definitions from `GET /api/reporting/catalog`, selected a requested eligible report or the first available entry, and loaded only the selected entry's permission-filtered renderer assets.
+- [x] Rendered billing period, conditional custom dates, reporting scope, project multi-select, tags, and include-descendants controls from contribution metadata; filter changes synchronize dependent module options and rerun the namespaced framework execution route without rebuilding the page shell.
+- [x] Preserved selected-report/filter deep links, including legacy Time Tracking `client`/`scope` inputs, while omitting conditional custom dates outside Custom billing periods.
+- [x] Added `LongtailForge.reporting.registerRenderer(rendererId, adapter)` and registered Time Tracking's `time-project-billing-table` from its dynamically loaded module asset rather than hard-coding it into the framework host.
+- [x] Kept Time Tracking responsible for readable scope/project/tag option hydration, parent-before-child project ordering, Project Time & Billing validation, hierarchy expansion, and result interpretation.
+- [x] Rendered Project Time & Billing through shared data-table/action primitives with expandable parent rows, display-only child rows, a no-results response, and footer values taken directly from runner-provided root totals.
+- [x] Added `framework.reporting-host`, advanced the discovered regression inventory to 344 and the protected Framework floor to 41, and covered the minimal host, metadata filters, report fallback/deep links, selected allowed assets, generic execution, empty catalog, missing renderer recovery, expandable rows, no-result state, and runner totals.
+
+Acceptance criteria:
+
+- Reporting is a minimal framework host whose selected report, filters, runner call, renderer asset, and result renderer all come from the allowed catalog contribution.
+- The framework host contains no Time Tracking report ID, renderer asset path, billing calculation, or module-specific result shaping.
+- The existing Project Time & Billing workflow remains usable, including query parameters, conditional dates, tags, project selection, descendants, expandable rows, and totals.
+
+## Version 0.33.12.5 - Correct Project and Client rollup billing math
+
+Completed 0.33.12.5. The live roadmap continues with 0.33.12.6.
+
+**Model: High Effort** — Mixed hierarchy rates, periods, and rounding are invoice-sensitive data-integrity behavior and require recursive fixture coverage.
+
+- [x] Changed Project Time & Billing to calculate each project’s direct entries with that project’s own effective period, rounding, and rate before recursively adding already-calculated immediate child branches.
+- [x] Preserved current/last/custom range semantics while allowing different projects in one branch to use different effective current/last billing periods.
+- [x] Kept nested `childRows` as display-only branch summaries and made report footers add root rows only, so every direct-time leaf is counted exactly once.
+- [x] Preserved child-client billing ownership by carrying each project’s effective owning-client defaults through the Clients/Projects provider response.
+- [x] Fixed the Clients/Projects provider to serialize computed descendant-client IDs from its internal `Set` into the documented `childScopeIds` array, restoring parent-client descendant rollups without duplicating hierarchy queries in Time Tracking.
+- [x] Made dashboard-wide billing totals reduce only top-level readable scopes because parent-client summaries already include their readable descendants.
+- [x] Expanded fast billing coverage to 19 tests with three-generation project trees, mixed rates, mixed periods, mixed rounding, and parent/child client defaults.
+- [x] Expanded `time-tracking.project-time-billing-runner` with real parent/child/grandchild projects and a child-client project, proving runner totals, inherited child-client pricing, nested display rows, and root-only footer totals against the canonical database-backed path.
+
+Acceptance criteria:
+
+- Each project's direct time is rounded and priced with that project's effective billing settings before recursive aggregation.
+- Client and project footer totals count each direct-time leaf exactly once.
+- Mixed-rate, mixed-period, and mixed-rounding hierarchies are covered by fast unit tests and focused report-runner regressions.
+
+## Version 0.33.12.4 - Time Tracking Project Time & Billing contribution and service decoupling
+
+Completed 0.33.12.4. The live roadmap continues with 0.33.12.5.
+
+**Model: High Effort** — This removes current framework-to-module coupling, consolidates duplicate billing code, and preserves report behavior across module and permission boundaries.
+
+- [x] Moved the Project Time & Billing query, scope shaping, period selection, hierarchy display rows, and result assembly into the Time Tracking-owned `time-tracking-billing.service.js`.
+- [x] Consolidated the retained dashboard/compatibility calculations and the production report runner on that one Time Tracking calculation layer without creating another billing helper copy.
+- [x] Registered `time-tracking.project-time-billing` during module startup through a data-free lazy resolver that avoids module-registry initialization cycles.
+- [x] Reduced framework Reporting routes/service to permission-filtered catalog delivery, basic filter normalization, stable runner dispatch, and safe envelopes with no first-party module imports, report IDs, or module IDs.
+- [x] Moved `/api/reporting/bootstrap` and `/api/reporting/project-summary` compatibility handlers into a Time Tracking-owned router while preserving the current pre-conversion page contract.
+- [x] Declared `client-projects` as an explicit report dependency and consumed readable hierarchy/billing metadata through the Clients/Projects-owned `clientsService.readClientProjects(session)` service contract.
+- [x] Preserved current/last/custom periods, scope/project/tag/descendant filters, task-linked time entries, custom-date visibility metadata, existing response meaning, and permission/module-disable safety.
+- [x] Added `time-tracking.project-time-billing-runner`, advanced the regression inventory to 343 scripts and the protected Time Tracking floor to 8, and covered production registration, compatibility parity, tag filtering, task-linked entries, dependency declaration, disabled execution, and framework decoupling.
+
+Acceptance criteria:
+
+- The framework Reporting service imports no specific module service/repository and hardcodes no first-party report or module ID.
+- Time Tracking owns one canonical billing calculation path and a registered Project Time & Billing runner.
+- Existing filters, tag behavior, task-linked time entries, response meaning, and permission safety are preserved before the rollup correction.
+
+## Version 0.33.12.3 - Reporting catalog, runner registry, and execution routes
+
+Completed 0.33.12.3. The live roadmap continues with 0.33.12.4.
+
+**Model: High Effort** — Catalog filtering and execution dispatch cross the permission, module-enable, runtime-validation, and error-shaping boundaries and must land as one coherent server contract.
+
+- [x] Added framework-owned `GET /api/reporting/catalog`, returning only enabled, dependency/capability/permission-eligible reports under stable `<moduleId>:<reportId>` keys with renderer/filter/default/requirement metadata and permission-filtered same-module renderer assets.
+- [x] Kept catalog reads data-only: listing does not resolve or execute server runners, does not expose runner IDs, and omits reports whose required renderer assets are unavailable to the session.
+- [x] Added `GET /api/reporting/reports/:reportKey/run` plus the stable-ID registry in `src/core/reporting/report-runner-registry.js`.
+- [x] Re-resolved catalog eligibility on every execution request and normalized supported scalar, list, boolean, billing-period, conditional custom-date, and required-scope query shapes before dispatch.
+- [x] Returned framework-owned ready/error envelopes for successful results, unknown/ineligible reports, invalid filters, missing runners, module-owned access errors, and unexpected failures without exposing runner IDs, hidden labels, database details, stack traces, or module error strings.
+- [x] Tightened report filter declarations so query keys are required, safe, unique, and type-cardinality checked; defaults match the filter type; billing-period defaults are constrained; and Reporting renderer assets use safe local paths without manual queries/fragments.
+- [x] Kept the existing page and `/api/reporting/project-summary` live while deliberately leaving `time-tracking.project-time-billing` unregistered until 0.33.12.4 moves the canonical implementation into Time Tracking ownership.
+- [x] Added `framework.reporting-catalog-execution`, advanced the regression inventory to 342 scripts and the protected Framework floor to 40, and covered catalog/no-execution behavior, registry dispatch, filter normalization, permission/module/capability/dependency filtering, safe error shaping, disabled historical-read modules, and re-enablement.
+
+Acceptance criteria:
+
+- Catalog listing never executes report code and exposes only allowed report/asset metadata.
+- Execution dispatches only a catalog-eligible report through its registered runner and returns a safe framework envelope.
+- Framework server code remains module-agnostic.
+
+## Version 0.33.12.2 - Reporting architecture, contribution contract, and framework view baseline
+
+Completed 0.33.12.2. The live roadmap continues with 0.33.12.3.
+
+**Model: High Effort** — This is the governing framework/module contract for report metadata, server runners, browser renderer delivery, permissions, and the framework-owned host.
+
+- [x] Selected a narrow framework Reporting host adapter built on `LongtailForge.view` primitives because conditional report filters, execution, renderer dispatch, and permission-filtered browser assets do not fit the record-oriented `viewSurfaces` descriptor without report-specific escape hatches.
+- [x] Kept Reporting and `reporting.html` framework-owned without creating a disable-able `src/modules/reporting` workflow module or converting the existing browser host ahead of 0.33.12.6.
+- [x] Recorded framework-owned anatomy and module-owned behavior in `DECISIONS.md`, `docs/view-building-contract.md`, `docs/module-contract.md`, `docs/module-development.md`, and `docs/time-tracking-module.md`.
+- [x] Expanded the module manifest `reporting` field into a validated, typed, data-only contribution contract with required report identity, labels, category, renderer/runner IDs, explicit permission/capability/module requirements, sort metadata, validated filters, and same-module browser asset IDs.
+- [x] Added the explicit `framework:reporting` browser-asset target and cross-manifest validation for permission, enabled-module, filter dependency, asset existence, asset ownership, and Reporting host-target references.
+- [x] Added `modulesService.listReportingReports(workspaceId, session)` through the shared enabled-module, required-module, workspace-capability, and permission filter pipeline. Historical record readability does not keep a disabled module's executable report active.
+- [x] Declared Time Tracking's initial `project-time-billing` metadata, filter set, future runner/renderer IDs, and Reporting-targeted module asset without moving current report execution, calculations, or browser behavior out of their later slices.
+- [x] Added `framework.reporting-contribution-contract`, advanced the regression inventory to 341 scripts and the protected Framework floor to 39, and proved strict shape/reference validation plus allowed, unauthorized, disabled, and re-enabled catalog listing behavior.
+
+Acceptance criteria:
+
+- Reporting has one documented framework-host/module-contribution boundary and no fake workflow module.
+- Reporting manifests, runner IDs, renderer IDs, renderer assets, permissions, capabilities, and module dependencies are validated and data-only.
+- A module can declare a report and its renderer asset without hard-coding that module into framework HTML or framework Reporting browser code.
+
+## Version 0.33.12.1 - Time Tracking contract schemas and billing unit tests
+
+Completed 0.33.12.1. The live roadmap continues with 0.33.12.2.
+
+**Model: High Effort** — This establishes runtime validation on two distinct write paths and pins billing inputs without freezing the known descendant-rollup defect.
+
+Purpose:
+
+Apply the proven Files/Tasks contract pattern to Time Tracking before Reporting builds on it. Time Tracking has the app's only module-owned public API write route (`POST /api/v1/time-entries` behind an API key — genuinely untrusted external input), and its payloads are the riskiest data in the app: timestamps, durations, numerics, and billable flags that feed billing math. The browser path (`timeEntriesService`) and public API path (`timeTrackingPublicApiService`) remain intentionally separate service entries with different response/audit behavior; they share schema definitions and parsing policy where their inputs overlap rather than collapsing into one service.
+
+- [x] Added Time Tracking-owned runtime schemas (`src/modules/time-tracking/time-tracking.contracts.js`) for browser time-entry create/update, public API time-entry create, and active-timer save/status/finalize payloads.
+- [x] Traced the browser entry/timer and public API write shapes, kept numeric duration compatibility and service-owned required messages, stripped unknown/server-managed fields, and parsed at each real untrusted service edge.
+- [x] Preserved the distinct browser/public API response and audit paths and avoided re-parsing the trusted time entry assembled from a validated timer finalization body plus the stored timer.
+- [x] Added `tests/contracts/time-tracking-contracts.test.mjs` for valid payloads, wrong-type 400 errors, unknown-field stripping, and distinct browser/public API shapes.
+- [x] Added pure billing tests for normalization, leaf/direct-project summaries, billable partitioning, range boundaries, rounding, and hierarchy decoration without encoding the known mixed-rate descendant rollup as desired behavior.
+- [x] Added `npm run test:time-tracking` and `npm run test:regressions:time-tracking`.
+- [x] Verified the narrow Time Tracking and Workbench regression areas plus the permission harness without changing billing behavior, timer semantics, or public API response shapes.
+
+Acceptance criteria:
+
+- Time Tracking has the same module-owned contract/schema/test pattern as Files and Tasks for its edge payloads, including both distinct time-entry write services and the public API route.
+- The pure billing math has fast unit coverage before Reporting consumes it.
+- Valid existing behavior and the browser/public-API response and audit boundaries are preserved; existing regressions and the permission harness pass unchanged.
+- Reporting slices below inherit validated seams instead of raw payloads.
+
+## Version 0.33.11.7 - Misc cleanup and closeout
+
+Completed 0.33.11.7 and the 0.33.11 Short-Term Critical Cleanup Sweep. The live roadmap continues with 0.33.12.
+
+**Model: Medium Effort** — This is a docs/bookkeeping branch closeout with one focused documentation-history recovery and the standard release gates.
+
+- [x] Restore the client change-requests documentation that was lost from the repo docs, back into the project-management tools section.
+- [x] Sweep `TODO.md` Short Term: confirm every item promoted here has been removed from `TODO.md` to prevent drift, and that remaining Short Term items are intentionally deferred.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap bookkeeping.
+- [x] Run relevant narrow regressions plus `npm run check`; verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- The client change-requests docs are restored.
+- Promoted items are removed from `TODO.md`; only intentionally-deferred items remain in Short Term.
+- Release-gate checks pass.
+
+## Version 0.33.11.6 - Framework-owned session/auth warnings
+
+Completed 0.33.11.6. The live roadmap continues with 0.33.11.7.
+
+**Model: Medium Effort** — This is a contained authenticated-shell behavior change with no route, permission, schema, or module-workflow change.
+
+- [x] Session-expiry and similar warnings (e.g. "Requires Login") must be framework-owned in-app modals, not console messages or notices hidden behind an open modal on the main window. A session that expires mid-edit should surface a clear, foreground framework modal.
+
+Acceptance criteria:
+
+- Auth/session warnings render as framework-owned app modals that are visible even when another modal is open, not console-only or hidden.
+
+## Version 0.33.11.5 - Workspace and permission cleanups
+
+Completed 0.33.11.5. The live roadmap continues with 0.33.11.6.
+
+**Model: High Effort** — Active-membership visibility and cross-module billing coercion carry permission and data-integrity implications across shared people, Tasks, Projects, and Time Tracking boundaries.
+
+- [x] Inactive users: users inactive in a workspace must not appear in assignable-people pickers, and should not appear in the workspace at all.
+- [x] Personal/Family workspaces: deprecate the Billable flag everywhere on the front end; it may remain in the database only so long as it can never be used on Personal or Family workspaces.
+- [x] Remove Workspace wording: review the User Settings "Remove Workspace" flow copy now that it removes the signed-in user's membership rather than deleting the workspace record.
+
+Acceptance criteria:
+
+- Inactive users are absent from assignable pickers and workspace views.
+- The Billable flag is not surfaced in the front end for Personal/Family workspaces.
+- The Remove Workspace copy accurately describes membership removal.
+
+## Version 0.33.11.4 - Remove leaked development workspaces and harden regression database isolation
+
+Completed 0.33.11.4. The live roadmap continues with 0.33.11.5.
+
+**Model: High Effort** — This is destructive, dependency-aware database cleanup plus regression-harness hardening; a subtle mistake could delete retained workspace data or allow fixtures to leak again.
+
+Purpose:
+
+Remove coding/test-only workspace fixtures from the current canonical database, then make every database-writing regression safe whether it runs through the suite or directly. This is an operator-approved cleanup for the current installation, not a product-level workspace-name allowlist and not a normal startup migration.
+
+- [x] Add a dedicated maintenance command with a read-only dry-run mode that inventories every workspace proposed for retention or removal, including dependent membership and record counts.
+  - [x] Resolve and retain exactly these four user-confirmed workspaces in the current installation:
+    - [x] `York Family`
+    - [x] `York-Lasher`
+    - [x] `Personal [michaelyork@raymondtec.com]`
+    - [x] `Raymond Tec`
+  - [x] Resolve the displayed `Personal [michaelyork@raymondtec.com]` workspace to its actual workspace and membership identifiers before cleanup; duplicate raw `Personal` rows must never be treated as interchangeable or deleted by name alone.
+  - [x] Report every development/regression workspace and its dependent-row impact before applying any deletion.
+- [x] Require an explicit apply flag, a verified pre-cleanup database backup, and one transaction with rollback-on-failure before deleting any unapproved workspace, membership, or dependent record.
+- [x] Remove all other coding/test-only workspaces from the current installation without changing records, memberships, roles, settings, or ownership inside the four retained workspaces. The operator separately authorized removal of three reported dangling retained-workspace role assignments whose user row no longer existed; the narrow repair ran inside the same verified backup and transaction.
+- [x] Audit every regression and developer utility that creates workspace or membership rows:
+  - [x] Both suite-run and direct invocation must select a disposable database before importing database/runtime modules.
+  - [x] A database-writing test must refuse to run against the canonical `data/longtail-forge.db` or another non-disposable configured path.
+  - [x] Add a guardrail proving the full regression gate and representative direct script runs leave the canonical workspace inventory unchanged.
+- [x] After cleanup, verify `PRAGMA integrity_check`, `PRAGMA foreign_key_check`, retained workspace ownership/membership access, and the user-visible workspace list.
+
+Acceptance criteria:
+
+- The current installation shows only `York Family`, `York-Lasher`, `Personal [michaelyork@raymondtec.com]`, and `Raymond Tec` as workspaces.
+- No data or access belonging to those four retained workspaces is removed or reassigned, apart from the three explicitly authorized dangling assignments that referenced a nonexistent user.
+- Database-writing regressions and developer utilities cannot create fixture workspaces in the canonical database, whether invoked through the suite or directly.
+- The cleanup is dry-run-first, backed up, transactional, idempotent on rerun, and leaves SQLite integrity and foreign-key checks clean.
+
+## Version 0.33.11.3 - Timers quick fixes
+
+Completed 0.33.11.3. The live roadmap continues with 0.33.11.4.
+
+**Model: High Effort** — Converting a live timer changes source identity, permissions, task lifecycle side effects, and final time-entry attribution without losing elapsed-time facts.
+
+- [x] Context linking after start: allow linking a running timer to a task after it has been started, converting it from a Manual timer to a Task Timer.
+
+Acceptance criteria:
+
+- A running manual timer can be linked to a task mid-run and becomes a task timer, with correct attribution.
+
+## Version 0.33.11.2 - Notes quick fixes
+
+Completed 0.33.11.2. The live roadmap continues with 0.33.11.3.
+
+**Model: High Effort** — Multi-record metadata changes carry permission and data-integrity implications, so each selected note must retain canonical Notes validation and lifecycle behavior.
+
+- [x] Bulk editing: add a Notes bulk-edit modal that can set Library, Collection, Note Kind, and Visibility across selected notes.
+- [x] Modal behavior parity: extend the Tasks Save -> convert-to-edit / "Save & Close" behavior to the Notes create modal.
+
+Acceptance criteria:
+
+- Notes bulk edit updates the listed fields across a selection, respecting permission/workspace scope.
+- Notes create-modal save behavior matches the Tasks pattern.
+
+## Version 0.33.11.1 - Tasks quick fixes
+
+Completed 0.33.11.1. The live roadmap continues with 0.33.11.2.
+
+**Model: High Effort** — Tasks behavior spans recurrence, lifecycle validation, hierarchy, modal focus, and shared input interactions, so subtle regressions need careful coverage.
+
+- [x] Workbench: when a parent task is selected, include child project tasks in the completable set, not just tasks directly on the parent — report all tasks within the parent project.
+- [x] Checklists: tighten the spacing in the checklist dialog (currently a little cramped).
+- [x] Checklists: pressing Enter should record a new checklist item / save changes to the current item, not close the modal without saving.
+- [x] Tags filter (Sorting & Filters): replace the tags dropdown with a type-to-search box with suggestions, matching how tags are entered elsewhere.
+- [x] Tag input generally: allow starting to type a tag and then pressing the down arrow to select from the suggestions (no mouse required).
+- [x] Parent/Child - Parent Task picker: for new tasks, do not list completed/archived tasks as candidate parents (keep the existing client/project filtering).
+- [x] Parent/Child - inheritance: child tasks inherit the parent's Due Date, Due Time, Priority, Client (if not already selected), and Project (if not already selected).
+- [x] Parent/Child - linkage indicator: show a clickable "Child of: {{truncatedTaskName}}" chip on line-item displays so the link is visible beyond the Parent Task dropdown.
+- [x] Parent/Child - nested display: in list views (e.g. Actions -> Tasks), nest child tasks under their parent, the way Clients and Projects nest.
+- [x] Modal behavior: on the create modal, Save should convert the dialog into the edit dialog (keeping it open) rather than closing and losing the just-captured task; add a "Save & Close" for the write-it-down-and-go case.
+- [x] Workspace project narrowing: adding a task with the {{workspaceName}} context should narrow the project list to that workspace's projects (workspace projects with no client).
+- [x] Recurrence template isolation: a recurring occurrence may be moved into Blocked status and must use its own occurrence-specific Blocked Reason, but the recurrence template must never store that reason or propagate it to later occurrences. Newly generated occurrences start without an inherited Blocked Reason.
+- [x] Block action: clicking "Block" must open the canonical edit modal for the selected task and focus the "Blocked Reason" field.
+  - [x] Require Blocked Reason whenever a task is saved in Blocked status; enforce the rule through Tasks-owned validation rather than only the browser control.
+
+Acceptance criteria:
+
+- Each Tasks fix is implemented and covered by focused Tasks regressions where it has testable behavior.
+- A recurring occurrence can be blocked with its own required Blocked Reason; that reason never enters the recurrence template or carries into another occurrence.
+- Block opens the correct task in the canonical editor with Blocked Reason focused, and a task cannot be saved in Blocked status without a reason.
+- No fix expands into a broad Tasks rewrite.
+
+## Version 0.33.10 - Calendar/Dashboard/Tasks Tweaks (follow-up slices)
+
+Completed 0.33.10.6 through 0.33.10.9. The live roadmap continues with 0.33.11.
+
+Purpose:
+
+Interaction and layout tweaks captured after using the shipped 0.33.10 Task Calendar work. The archived 0.33.10 branch (Task Calendar Views, slices 0.33.10.1 through 0.33.10.5) is complete; these follow-up slices continue its numbering because they refine the same surfaces (Dashboard, Workbench, the Tasks modal, and the Calendar entry points) and should land before the 0.33.11 cleanup sweep begins.
+
+Scope decisions:
+
+- The calendar stays read-only. Nothing here adds calendar events, iCal, or external sync (still owned by 0.36.0 / 0.70.x).
+- Workbench gains a real task-focus deep-link contract, because two of these tweaks (dashboard per-task buttons and the task-modal button) need to land the user directly in Task Focus for a specific task. The deep link must be permission-safe: an unknown, unreadable, or cross-workspace task falls back to normal Focus Selection with a status message — never an error page and never a leak that the task exists.
+- Icon-only buttons follow the existing conventions: shared icon set (`public/js/shared/icons.js`), an `aria-label`, and standard focus affordances; no new one-off icon systems.
+
+### Version 0.33.10.6 - Dashboard layout: persistent status box and embedded calendar
+
+- [x] Remove the always-visible message box at the top of the Dashboard (above Workspace Pulse): the `dashboard-status` element must be genuinely hidden when it carries no message (verify no ancestor CSS display rule defeats the `hidden` attribute — same bug class as the `.calendar-status[hidden]` fix) while still announcing real load/error messages when they occur.
+- [x] Embed the calendar on the Dashboard below the "Workspace Pulse" and "Needs Attention" sections:
+  - [x] Reuse the framework Calendar render path from the Calendar host (extract/share from `public/js/calendar.js`); do not duplicate month-grid/week logic inside `dashboard.js`.
+  - [x] Keep the data source the existing bounded, permission-aware `GET /api/tasks/calendar` window; no load-everything query.
+  - [x] Decide the embedded default view (suggestion: month, matching the Calendar page default) and include a "full calendar" affordance linking to `calendar.html`.
+  - [x] Entries open the same task-editor behavior as the Calendar page.
+  - [x] Hide the section cleanly when the Tasks module is disabled or the user lacks `tasks.view` (match the Calendar navigation gating).
+  - [x] Stay within the canonical responsive breakpoints; no new one-off breakpoints.
+- [x] Add focused regressions: dashboard status hidden-by-default anatomy, embedded calendar section presence and ordering below Workspace Pulse / Needs Attention, shared (non-duplicated) calendar render path, and permission/module gating.
+- [x] Follow-up tweaks folded in at operator request during verification: suppress Dashboard panel titles that merely repeat their region heading (keep an `aria-label`); add a today-anchored Month/Week/Day segmented view switch to the embedded calendar; and remove the Dashboard `reporting` region outright — the Client/Project reporting-shortcuts relic panel, its browser renderer, its dedicated data route and service read, the `reporting` placement across all allowlists, and the dead CSS (the Reporting page itself is unaffected).
+
+Acceptance criteria:
+
+- The Dashboard no longer shows an empty, persistent message box.
+- A read-only calendar renders below Workspace Pulse and Needs Attention, sharing the Calendar host's render path and bounded data contract, and disappears for users who cannot see the Calendar surface.
+
+### Version 0.33.10.7 - Workbench Task Focus deep link and dashboard Open Workbench buttons
+
+- [x] Define a Workbench task-focus deep-link contract (for example `workbench.html?taskId=<id>` or an equivalent query parameter) handled by `public/js/workbench.js` on load:
+  - [x] A readable task enters Task Focus for that task directly, through the same path as the existing `enterTaskFocus` flow.
+  - [x] An unknown, unreadable, or other-workspace task falls back to Focus Selection with a friendly status message; no error page and no information leak about whether the task exists.
+  - [x] The deep link respects the module-enabled and permission gating Workbench already applies.
+- [x] Point the Dashboard's per-task "Open Workbench" buttons at the deep link so they open the Task Focus view with that task selected. The generic Workspace Pulse "Open Workbench" primary action keeps its current generic target.
+- [x] Add focused regressions: deep-link parse and fallback behavior, dashboard per-task button hrefs carry the task, and the fallback never leaks cross-workspace task existence.
+
+Acceptance criteria:
+
+- A Dashboard task's "Open Workbench" button lands directly in Task Focus for that task.
+- A bad or unauthorized deep link degrades safely to normal Focus Selection.
+
+### Version 0.33.10.8 - Task edit modal "Open in Workbench" icon button
+
+- [x] Add an icon-only "Open in Workbench" button to the task edit modal header, immediately to the left of the notification bell:
+  - [x] Icon-only with an `aria-label`/tooltip ("Open in Workbench"); use a forge/focus-themed icon (hammer or anvil) added to the shared icon set.
+  - [x] Navigates via the 0.33.10.7 deep link to Task Focus for the open task.
+  - [x] Only rendered when the deep link can work: the task is persisted (edit mode, not the create dialog) and the user can reach Workbench (an unconditional framework surface for authenticated users, so edit-mode is the gate).
+  - [x] This completes the Calendar flow: calendar entry -> task modal -> straight into Workbench with the task being looked at.
+- [x] Add focused regressions: button placement (left of the bell), icon-only accessibility (aria-label present, no visible text), edit-mode-only visibility, and deep-link target correctness.
+- [x] Root fixes surfaced by the rendered probe and operator testing: `.action-button[hidden]` now truly hides (the inline-flex display rule was ghost-painting hidden modal utility toggles), and the Workbench/Calendar/Dashboard hosts load `js/shared/notification-subscriptions.js` so the task editor's notification bell works there instead of ghost-painting dead — with a generalized guardrail sweep pairing the subscription helper with every task-dialog host.
+- [x] Operator-reported Recommended Next Action fixes: the card meta prefers resolved client/project names so identically-titled tasks are distinguishable; title/meta/reason copy is id-safe (`looksLikeRawId` now rejects embedded identifiers, not just whole-string ids); and the server event summaries never use `record_id` as a label, so a label-less timer pause summarizes — and persists in resume-state snapshots — as "Timer Paused." instead of "Timer Paused for <uuid>."
+
+Acceptance criteria:
+
+- From any surface that opens the task edit modal (including Calendar entries), one click moves into Workbench Task Focus for that task.
+- The button is invisible on the create dialog and for users who cannot reach Workbench.
+
+### Version 0.33.10.9 - Workbench calendar icon button and closeout
+
+- [x] Replace the Workbench focus panel's "See this week on the calendar" text link with an icon-only calendar button in the top-right of the "What should we focus on?" box, aligned the way the notification bell is aligned in the Tasks modals:
+  - [x] Calendar icon from the shared icon set; the `aria-label` preserves the "See this week on the calendar" meaning; target stays `calendar.html?view=week`.
+  - [x] Keep the existing visibility gating (hidden when the navigation tree lacks the Calendar entry) — plus the root `.button-link[hidden]` rule so the gated hidden state cannot ghost-paint.
+- [x] Update the guardrail regressions that pin the current link anatomy (the Calendar host regression's Workbench link-only pin, and any Workbench anatomy pins that reference `workbench-calendar-link`).
+- [x] Closeout for the follow-up slices: `npm run docs:suggest` plus owning-doc updates, `CHANGELOG.md` and `DECISIONS.md` entries, roadmap checkbox ticks, archive these slices and advance the cursor to `0.33.11`, `npm run closeout`, full `npm run check`, `npm run test:permissions` (the deep link is permission-adjacent), and restart plus `/api/app-info` verification.
+
+Acceptance criteria:
+
+- The focus panel offers the week calendar as a top-right icon-only button instead of an inline text link, with unchanged gating and accessibility.
+- All four tweak slices are archived, gates are green, and the live roadmap continues with 0.33.11.
+
+## Version 0.33.10 - Task Calendar Views (lean, read-only)
+
+Completed 0.33.10.1 through 0.33.10.5. The live roadmap continues with 0.33.11.
+
+Purpose:
+
+Give the Dashboard/Workbench work a calendar companion: a read-only calendar that visualizes existing task due dates and the reminder schedule shipped in 0.33.5.21.8. This is intentionally lean. User-created calendar events, iCal/shared-calendar display, and external Google/Outlook sync stay at 0.36.0 (Calendars and Calendar Views) and the 0.70.x integrations work; this slice must not build them.
+
+Scope decision:
+
+- Read-only. No calendar event record type, no event creation, no iCal, and no external calendar sync in this slice.
+- Framework-owned Calendar host built on the finalized 0.33.5.18 view baseline and the bounded-query pattern from 0.33.5.20, not a bespoke Calendar-only layout.
+- Data comes from the existing task calendar-window path (`GET /api/tasks/calendar` -> `tasksService.calendarWindow` -> `tasksRepository.readDueBetween`), which is already workspace- and permission-aware and date-range bounded (`canReadTask` filtering, `taskCalendarRow` shape). Extend it only where needed; do not replace it with a load-everything query.
+
+### Version 0.33.10.1 - Task calendar data contract
+
+- [x] Confirm/extend `tasksService.calendarWindow` (`src/modules/tasks/tasks.service.js`) to return everything a month/week/day render needs: task id, title, due date, due time/`due_at_utc`, status, priority, client/project context, assignee summary, and a task URL/link.
+- [x] Include reminder markers from the 0.33.5.21 reminder schedule (the `reminder_at_utc` occurrences from `taskRemindersService`) so the calendar can show when reminders fire, not only the due date.
+- [x] Keep the range bounded (reuse the existing start/end window and the 0.33.5.20 bounded-query pattern via `readDueBetween`); clamp or reject overly wide ranges instead of loading all tasks.
+- [x] Keep results permission- and workspace-aware (already enforced by `canReadTask` in `calendarWindow`); archived/complete and disabled-module handling must match the rest of Tasks.
+
+### Version 0.33.10.2 - Framework Calendar host and month/week/day views
+
+- [x] Add a framework-owned Calendar surface (protected page + browser behavior) built on `LongtailForge.view` primitives and the 0.33.5.18 anatomy, not hand-built layout/CSS.
+- [x] Render read-only month, week, and day views of task due dates (year view can defer to 0.36.0).
+- [x] Show each task as a calendar entry with its title and a priority/status affordance, plus a reminder indicator on days a reminder fires; clicking an entry opens the existing task editor/detail (reuse the task modal) rather than an inline editor.
+- [x] Handle empty/loading/error states through the framework view states, not ad-hoc DOM.
+
+### Version 0.33.10.3 - Filters, navigation, and Workbench hook
+
+- [x] Add client (business workspace only) and project filters, mirroring the filter behavior used by Tasks and the Reporting host.
+- [x] Add period navigation (previous/next/today) and view switching (month/week/day) that re-query the bounded window.
+- [x] Add framework navigation for the Calendar surface, permission- and module-aware.
+- [x] Provide a lightweight entry point from Workbench/Dashboard (e.g. a "this week" affordance or link) so the calendar reinforces the "what's due next / work this week" focus modes; keep Workbench framework-owned and do not duplicate calendar logic there.
+
+### Version 0.33.10.4 - Guardrails, docs, and closeout
+
+- [x] Do not introduce a calendar event record type, iCal parsing, or external calendar sync in this slice; cross-reference 0.36.0 as the owner of events/iCal and the 0.70.x work as the owner of Google/Outlook sync.
+- [x] Add guardrails so the Calendar host does not hand-build framework-owned page/header/filter/status anatomy when a view primitive already covers it.
+- [x] Add focused regressions: bounded-range enforcement, permission/workspace scoping (no cross-workspace or unreadable tasks leak), reminder-marker correctness, and disabled-module behavior.
+- [x] Update `docs/declarative-view-surfaces.md` and the view/module contract docs with the Calendar host status.
+- [x] Update the changelog and verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- A read-only task calendar (month/week/day) shows task due dates and reminder markers, filtered by client/project, consuming the existing bounded, permission-aware task calendar-window path.
+- Calendar entries link back to their task; the surface reuses framework view anatomy and adds no event/iCal/external-sync behavior (those remain at 0.36.0 / 0.70.x).
+- The calendar is reachable from Workbench/Dashboard and reinforces the "what's due / this week" focus without duplicating calendar logic.
+
+### Version 0.33.10.5 - Retire inert raw asset cache keys
+
+**Model: High Effort** — high-volume mechanical regression edits where a botched regex change would silently weaken a guardrail, not conceptually hard.
+
+Purpose: served and runtime-injected asset URLs are version-stamped from the canonical app version, so the `?v=N` literals in legacy views and dynamic loaders are inert. They persist only because ~92 regression scripts (~238 occurrences) pin them, which forced the frozen `scripts/asset-cache-legacy-baseline.json` and (in 0.33.10.2) collided with the asset-cache release gate when `shared-icons-regression.mjs` demanded a raw key on every protected view. Removing the keys makes the bare-reference convention self-enforcing: once no source file contains a raw key, any regression that pins `?v=N` fails immediately against real files.
+
+- [x] Strip inert `?v=` keys from all legacy `views/protected/*.html` / `views/public/*.html` script and stylesheet references and from the `public/js/footer.js` / `public/js/workbench.js` dynamic-loader string literals (the runtime asset-version bootstrap rewrites injected URLs, so these are equally inert).
+- [x] Update the regression scripts that pin `?v=` literals to version-agnostic assertions, preserving each script's real intent — especially load-order assertions (e.g. builder before renderer before adapter), which keep their ordering checks and only drop the version pins. Do not delete or weaken any assertion beyond removing the version literal.
+- [x] Shrink `scripts/asset-cache-legacy-baseline.json` to empty as files drop their keys (the asset-cache guard already fails on stale baseline entries, so the cleanup ratchets and the baseline can never regrow).
+- [x] Verify the full regression suite and rendered smoke pass, and confirm served HTML still stamps `?v=<appVersion>` on every local asset reference after restart.
+
+Acceptance criteria:
+
+- No `views/**` or `public/js/**` source file contains a raw `.css?v=` / `.js?v=` literal, and the legacy baseline is empty.
+- Every touched regression still asserts its original contract (helper presence, load order) without version literals, and the asset-cache release gate still bites on a seeded raw key.
+
+## Version 0.33.9 - Mobile Polish (rendered against the 0.33.8 smoke harness)
+
+Completed 0.33.9.1 through 0.33.9.6. The live roadmap continues with 0.33.10.
+
+Purpose:
+
+Make Longtail Forge load and look good on a phone. With the 0.33.8 Playwright smoke providing a real rendered signal, this version does the actual responsive polish across the framework-owned app shell and the highest-traffic surfaces, adds automated WCAG checks to that rendered harness, then extends the smoke suite so mobile and accessibility quality stay green going forward.
+
+Do the foundation first, then polish per surface. A single global "make everything mobile" sweep is unsafe on an 8k-line framework CSS with static-only guardrails; a foundation slice plus bounded per-surface slices, each verified in a real browser, is not.
+
+Dependencies and sequencing:
+
+- Lands after 0.33.8 (Playwright smoke) and uses `npm run test:e2e` as its acceptance gate.
+- Stays within existing guardrails: the framework owns layout/anatomy and `.view-*`; modules own data/behavior. Do not rename or restructure the DOM anatomy that the static regressions assert; add responsive behavior on top of it.
+- Centralizes responsive rules in the framework CSS (`public/css/longtail-forge.css`, ~8k lines, currently ~13 media queries) rather than scattering per-module overrides.
+
+Key decisions:
+
+- Establish shared breakpoint tokens/util classes once in the framework CSS; surfaces consume them instead of inventing per-page breakpoints.
+- Ensure a correct viewport meta tag and mobile-safe base typography/tap targets app-wide before per-surface tweaks.
+- Preserve the existing graceful narrow-layout hide/collapse behavior (e.g. the Workbench Inspector) unless a slice intentionally designs a drawer.
+- Every surface touched must pass the 0.33.8 overflow + console smoke at the mobile viewport before its slice closes.
+- Use `@axe-core/playwright` as dev/test tooling inside the existing rendered harness; automated accessibility scans complement rather than replace keyboard, focus, screen-reader, zoom/reflow, and other manual WCAG assessment.
+
+Non-goals:
+
+- Do not restructure framework-owned anatomy or `.view-*` hooks the static regressions pin.
+- Do not build a separate mobile app, separate mobile templates, or a parallel mobile CSS file.
+- Do not add horizontal-scrolling data tables; wrap/stack or provide contained overflow instead.
+- Do not claim WCAG conformance from a clean automated axe scan alone.
+
+### Version 0.33.9.1 - Mobile foundation: viewport, breakpoints, base type and tap targets
+
+**Model: GPT-5.5 Extra High** - Framework CSS foundation that every later surface consumes.
+
+- [x] Confirm/add a correct `<meta name="viewport" content="width=device-width, initial-scale=1">` in the framework app shell for all protected views.
+- [x] Add shared breakpoint tokens/util classes to `public/css/longtail-forge.css` (a small, documented set of breakpoints) as the single source of responsive truth.
+- [x] Set mobile-safe base typography, line-height, spacing, and minimum tap-target sizing at the shell level.
+- [x] Ensure the base page/container never forces horizontal scroll at the mobile viewport (no fixed min-widths, safe `overflow-x`, images/media constrained to `max-width: 100%`).
+- [x] Do not change framework-owned anatomy class names or `.view-*` hooks; add responsive rules on top of existing anatomy.
+- [x] Extend the 0.33.8 smoke: app-shell has no horizontal overflow and no console errors at the mobile viewport.
+
+Acceptance criteria:
+
+- Shared breakpoints/tokens exist and are documented.
+- The app shell has a correct viewport meta and no base horizontal overflow on mobile.
+- Static regressions remain green (no anatomy renamed).
+
+### Version 0.33.9.2 - Mobile navigation drawer
+
+**Model: GPT-5.4** - Framework-owned mobile navigation.
+
+- [x] Convert the primary navigation into a mobile-friendly drawer/menu below the mobile breakpoint, using the existing framework nav anatomy/hooks.
+- [x] Provide an accessible toggle (open/close), overlay/escape/close affordances, focus management, and body-scroll handling while open.
+- [x] Preserve full desktop navigation above the breakpoint unchanged.
+- [x] Extend the 0.33.8 smoke: mobile nav opens and closes, and focus returns safely.
+
+Acceptance criteria:
+
+- Mobile nav opens/closes via the smoke spec at the mobile viewport.
+- Desktop navigation is unchanged.
+- Keyboard/focus behavior is safe.
+
+### Version 0.33.9.3 - Per-surface responsive polish (Dashboard, Workbench, and primary list/modal surfaces)
+
+**Model: Claude Fable 5** - Bounded, mechanical per-surface CSS/layout polish on top of the foundation, verified by the rendered smoke. This is the safe home for a Fable pass: the foundation and a rendered pass/fail signal already exist, and scope is one surface at a time - not a blind global sweep.
+
+- [x] Dashboard: stack panels cleanly in the specified order on mobile, compact cards, no horizontal overflow, long labels wrap/truncate safely (consume the existing 0.33.6.13g responsive intent).
+- [x] Workbench: focus box, filters, task-focus sections, and Inspector reflow/stack or collapse safely on mobile with no horizontal overflow; preserve existing collapse/hide behavior.
+- [x] Primary list and modal surfaces (Tasks, Notes, Files, Lists, Linked Context picker): tables wrap/stack or use contained overflow, modals fit the mobile viewport, controls remain reachable and tappable.
+- [x] Keep all changes CSS/layout-level on top of existing anatomy; route any behavior changes through existing framework/module hooks, not new anatomy.
+- [x] Extend the 0.33.8 smoke per surface: Dashboard and Workbench (already covered) plus at least one list and one modal assert no horizontal overflow and no console errors at the mobile viewport.
+
+Acceptance criteria:
+
+- Dashboard and Workbench pass mobile overflow + console smoke.
+- At least one list surface and one modal pass mobile overflow smoke.
+- No framework-owned anatomy was renamed; static regressions stay green.
+
+### Version 0.33.9.4 - Automated WCAG accessibility checks in Playwright
+
+**Model: GPT-5.5 Extra High** - A dev-only accessibility gate spans shared shell anatomy, authenticated dynamic states, desktop/mobile rendering, and exception policy where a weak baseline could silently hide real regressions.
+
+Purpose:
+
+Add automated accessibility testing to the rendered Playwright harness while keeping it entirely outside the production runtime. Use axe to catch automatically detectable WCAG failures early, then preserve the repository's existing manual accessibility contracts for behavior that automation cannot judge.
+
+- [x] Add `@axe-core/playwright` to `devDependencies` only:
+  - [x] Do not add it to production `dependencies`, import it from `src/`, `server.js`, or `public/`, or change `npm start`.
+  - [x] Extend the existing Playwright dev-only boundary guardrail so moving axe/Playwright accessibility code into runtime paths fails the static suite.
+- [x] Add a focused `test:a11y` package script that runs the accessibility specs through the existing Playwright configuration, authenticated storage state, managed test server, isolated database, and named desktop/mobile projects.
+  - [x] Keep `test:a11y` browser-dependent and separate from `npm run check`, matching the existing `test:e2e` contract.
+  - [x] Keep the accessibility specs under `tests/e2e/` so the full `npm run test:e2e` gate also exercises them.
+- [x] Add a shared axe fixture/helper for consistent configuration and reporting:
+  - [x] Gate automatically detectable WCAG A/AA rules using `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, and `wcag22aa` tags.
+  - [x] Attach structured axe results to Playwright output on failure so the rule, affected target, impact, and help URL are available without reproducing the run manually.
+  - [x] Start with no blanket excludes or disabled rules. Any temporary known-issue baseline must fingerprint the exact rule/target, document why it is safe to defer, and fail when new targets appear; do not exclude a whole shared shell or modal subtree.
+- [x] Scan meaningful rendered states rather than only initial page loads:
+  - [x] App shell, Dashboard, and Workbench at desktop and mobile viewports.
+  - [x] At least one primary list surface and one canonical modal at desktop and mobile viewports.
+  - [x] Open mobile navigation, filter/drawer state, modal state, validation/error state, and stacked child-dialog state before scanning those otherwise-hidden controls.
+  - [x] Wait for each surface/state to finish rendering before analysis; axe must inspect the same stable state a user can interact with.
+- [x] Add focused non-axe Playwright assertions where WCAG behavior is interaction-dependent: keyboard reachability, visible focus, Escape/close behavior, modal focus containment/return, mobile-drawer focus return, and no keyboard trap on the covered states.
+- [x] Document the boundary in `docs/accessibility.md` and `docs/e2e-testing.md`: automated scans catch only part of WCAG, so manual keyboard, screen-reader, zoom/reflow, text-spacing, motion, labeling-in-context, and inclusive usability assessment remain required.
+
+Non-goals:
+
+- Do not install a second browser runner, crawler, production accessibility SDK, or parallel test server when the existing Playwright harness can own the checks.
+- Do not treat a zero-violation axe result as WCAG certification or replace manual assistive-technology review.
+- Do not suppress broad categories of failures merely to establish a green first run.
+
+Acceptance criteria:
+
+- `@axe-core/playwright` is dev-only, production boot remains unchanged, and the static boundary guard fails on runtime imports or dependency drift.
+- `npm run test:a11y` and the full `npm run test:e2e` exercise WCAG A/AA scans across the named desktop/mobile projects and representative visible interaction states.
+- New automatically detectable violations fail with actionable rule/target evidence; any accepted legacy issue is narrowly fingerprinted and cannot hide new violations.
+- Keyboard/focus checks and the documented manual-assessment list make clear what axe does not prove.
+
+### Version 0.33.9.5 - Mobile and accessibility guardrails, docs, and closeout
+
+**Model: GPT-5.5 Extra High** - Lock the mobile and automated-accessibility quality gates in and document their ongoing boundaries.
+
+- [x] Ensure the extended Playwright smoke covers app-shell, Dashboard, Workbench, one list, and one modal at the mobile viewport (overflow + console + accessibility) plus mobile nav open/close and its visible-state axe scan.
+- [x] Confirm the version-guardrail ceremony and register any new `scripts/` guardrails with the suite/coverage manifest.
+- [x] Update docs: responsive/mobile conventions (breakpoints, viewport, drawer, no-horizontal-table rule), accessibility automation/manual-review boundaries, and the mobile/accessibility smoke as ongoing gates in the relevant `docs/` UI/view contracts.
+- [x] Update `CHANGELOG.md`, package metadata, `DECISIONS.md`, documentation ownership, and roadmap archive bookkeeping.
+- [x] Manual smoke on a real phone or emulated device for the primary surfaces, including keyboard navigation, visible focus, focus return, zoom/reflow, and a brief screen-reader pass on the shared shell and one representative modal workflow. (Emulated Pixel 7 walk, 320px reflow, and 640px zoom-equivalence performed with screenshots reviewed; keyboard/focus/focus-return are automated in `a11y-keyboard.spec.mjs`; the real-device screen-reader pass is explicitly recorded with the operator as owner — see the 0.33.9.5 changelog entry.)
+- [x] Run `npm run check` (static suite green).
+- [x] Run `npm run test:a11y` (automated WCAG gate green).
+- [x] Run `npm run test:e2e` (mobile, console, overflow, navigation, and accessibility smoke green).
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- The app loads and looks good on a phone across the primary surfaces.
+- The mobile and accessibility smoke suites are green and guard against new rendered regressions without claiming full WCAG conformance.
+- Static regressions remain green; no anatomy was renamed and no production runtime dependency was added to achieve mobile/accessibility coverage.
+- Manual keyboard/focus/screen-reader findings are resolved or explicitly recorded with an owner; automated axe results are not used as a substitute for that review.
+
+### Version 0.33.9.6 - Recurring-task completion continuity and checklist repair
+
+**Model: GPT-5.5 Extra High** - Recurrence completion crosses Tasks and Workbench behavior, durable jobs, checklist-series integrity, and a narrowly verified live-data repair.
+
+Purpose:
+
+Make recurring-task completion visibly continuous and prevent an empty recurrence template from silently dropping an occurrence's checklist structure. A completed recurring occurrence may leave the Workbench immediately while its replacement is created asynchronously, but the user must be able to see that the series continued and recover the next scheduled occurrence without guessing whether the task was deleted.
+
+Observed evidence from the affected workspace:
+
+- `Check and Update Relevant SEMA Brands` and `Update Shipping` both completed on 2026-07-09, their `task.recurrence` jobs completed on the first attempt, and each series produced an open 2026-07-16 occurrence.
+- Workbench refreshes before the asynchronous recurrence worker creates the next occurrence, then deliberately suppresses passive recurring-created candidates until they are within roughly one day of due. That combination makes a healthy recurring series look as though it disappeared.
+- The current SEMA occurrence and its recurrence template have five active checklist items. `Update Shipping` has no template checklist structure and no checklist on the current occurrence even though its 2026-06-25 occurrence had four items; the historical series predates checklist-template propagation and was never backfilled.
+
+Product rules:
+
+- Keep recurrence generation asynchronous and durable. Do not recreate the next task inline, expose job IDs/dedupe keys/payloads, or weaken the existing periodic stalled-series sweep.
+- Keep passive far-future recurring occurrences out of normal Workbench recommendation ranking, but do not make series continuity invisible: completion feedback must expose a quiet, safe `Next scheduled` state and a route to the next occurrence once it exists.
+- When a recurring occurrence is completed and its active recurrence template has no active checklist structure, seed the template from that occurrence's active checklist labels/order before generating the next occurrence. Never copy checked/completed state into future work, and do not overwrite an established non-empty template unless the user explicitly chose `All Future`.
+
+- [x] Harden the canonical recurrence-aware completion service used by every completion entry point:
+  - [x] Preserve the dedicated Workbench, Tasks row, Task editor, and protected/public API completion routes, and keep generic/bulk transitions to `complete` on the same recurrence-queue contract.
+  - [x] Return safe recurrence-continuity metadata needed by browser consumers, including the computed next scheduled date or an ended-series state, without returning worker internals.
+  - [x] Distinguish `task completed, next occurrence queued` from a recurrence-queue failure after the task row was already completed; do not report the entire completion as failed when only the follow-up handoff needs recovery.
+- [x] Add a bounded post-completion continuity read/refresh:
+  - [x] Workbench and Tasks surfaces show `Next scheduled <date>` while generation is pending and replace it with a safe link/open action when the next occurrence becomes available.
+  - [x] Do not promote a far-future passive occurrence into Recommended Next Action solely because it was created; preserve the existing overdue/near-due candidate behavior.
+  - [x] A delayed worker, refresh, navigation away/back, or periodic recurrence sweep must converge on the same visible next-occurrence state without duplicate tasks.
+- [x] Prevent checklist loss at the empty-template boundary:
+  - [x] Before queuing the next occurrence, seed an empty active recurrence checklist template from the completing occurrence's active checklist label/order structure when that occurrence has items.
+  - [x] Keep future checklist items unchecked, preserve an existing non-empty template, and keep `All Future` as the explicit way to replace established checklist structure across a series.
+  - [x] Keep the completion behavior identical regardless of whether completion came from Workbench, the Tasks row, the Task editor, bulk status, or an API client.
+- [x] Repair the two verified local series without embedding workspace-, client-, title-, or record-ID-specific behavior in the product runtime:
+  - [x] Re-read the live rows immediately before repair; keep both active series and their next open occurrences intact rather than reopening already completed history.
+  - [x] Confirm the SEMA template/current occurrence still carry the expected five active checklist items and make no duplicate repair if already healthy.
+  - [x] Restore the four historical `Update Shipping` checklist labels/order to its active recurrence template and current open occurrence as unchecked items, using an idempotent bounded repair with backup/transaction/integrity verification.
+- [x] Add focused regressions covering every completion surface, delayed worker completion, queue failure after task completion, safe next-date/next-link feedback, recurrence-sweep recovery, deduplication, empty-template checklist seeding, established-template preservation, unchecked generated items, and ended recurrences.
+- [x] Update the Tasks/Workbench contracts, Help only if visible shipped behavior changes, `CHANGELOG.md`, package metadata, and roadmap/archive bookkeeping; run the normal closeout, full check, permission checks, SQLite integrity check, rendered Workbench smoke, restart, and `/api/app-info` verification.
+
+Non-goals:
+
+- Do not make future recurring tasks permanent Recommended Next Action noise before they are startable.
+- Do not make checklist checked state recur, rewrite completed historical occurrences, or infer checklist templates globally from arbitrary old task rows.
+- Do not replace the durable worker with synchronous recurrence creation or expose background-job internals in browser/API payloads.
+
+Acceptance criteria:
+
+- Completing a recurring task from any shipped completion surface produces one next occurrence or an explicit ended-series result, and the user can see the next scheduled date/occurrence without treating its absence from ranking as deletion.
+- Worker delay or handoff failure is accurately reported and recoverable through the existing sweep without duplicate recurrence instances.
+- An empty recurrence checklist template no longer causes a completing occurrence's active checklist structure to vanish from the next task; future items start unchecked and established templates remain unchanged unless `All Future` is chosen.
+- The affected SEMA series remains healthy, and the four-item `Update Shipping` checklist is restored to its active template/current occurrence with database integrity preserved.
+
+## Version 0.33.6.16 - Release workflow, regression-suite, and maintenance-gate cleanup before TypeScript
+
+Completed 0.33.6.16.1 through 0.33.6.16.14. The live roadmap continues with 0.33.7.
+
+**Model: GPT-5.5 Extra High** - Pre-TypeScript maintenance cleanup to reduce Codex/Claude clerical churn.
+
+Purpose:
+
+Remove recurring release-process and regression-suite friction before the TypeScript/Zod/Vitest foundation lands in 0.33.7.
+
+This version is about making future slices cheaper to implement. It should reduce the amount of time Codex/Claude spends manually wiring regression scripts, updating coverage manifests, bumping cache keys, reconciling scanner/audit counts, guessing which docs need updates, and performing release-gate bookkeeping.
+
+This is a maintenance/workflow cleanup branch, not a product-feature branch.
+
+Sequencing:
+
+* Lands after 0.33.6.15 app-version source-of-truth cleanup.
+* Lands before 0.33.7 TypeScript/Zod/Vitest so the TypeScript slice inherits cleaner versioning, regression routing, docs ownership, asset cache-busting, audit baselines, and database migration/schema workflows.
+* Lands before 0.33.8 Playwright so browser/mobile tests are added onto a cleaner regression runner instead of becoming another manually wired test island.
+* Lands before 0.33.9 mobile polish so mobile work can use clear narrow commands and stable asset/test conventions.
+
+Intra-branch dependencies and suggested order:
+
+* 0.33.6.16.1 (inventory/convention) is a prerequisite for the rest; do it first.
+* 0.33.6.16.2 (discovery + metadata runner) is the backbone; 0.33.6.16.3 (manifest generation) and 0.33.6.16.4 (narrow commands) depend on it, so keep 16.2 -> 16.3 -> 16.4 in order.
+* 0.33.6.16.5 (asset cache-bust), 0.33.6.16.6 (parameter-binding baseline), 0.33.6.16.7 (docs ownership), 0.33.6.16.8 (migration/schema), and 0.33.6.16.9 (licensing gate) are largely independent of the runner work and of each other; they can ship in any order (or in parallel) once 0.33.6.16.1 is done.
+* 0.33.6.16.2 and 0.33.6.16.3 are the highest-blast-radius slices because they touch the runner and coverage ratchet the whole suite trusts; treat them as the risky core and verify against a full-suite run before and after. If time-constrained, 16.2/16.3/16.4 plus 16.5 deliver most of the churn savings; 16.7 and 16.9 are the safest to defer.
+* 0.33.6.16.10 (changed-area auto-run), 0.33.6.16.11 (isolated-DB flake handling), 0.33.6.16.12 (fast-fail bucket ordering), and 0.33.6.16.13 (closeout conductor) are loop-speed/reliability additions layered on the runner and gate work above: 16.10 and 16.13 build on the suggester and gate scripts from 16.4-16.9, while 16.11 and 16.12 touch the runner internals from 16.2. They are largely independent of each other and can ship in any order once their prerequisites exist.
+* 0.33.6.16.14 (closeout) is last and depends on all of the above.
+
+Core goals:
+
+* Make regression scripts discoverable by convention instead of manually wired everywhere.
+* Make regression coverage manifest/ratchet upkeep generated or semi-generated instead of hand-maintained.
+* Add narrow regression commands by area/tier/tag so agents do not default to the full suite for every small change.
+* Centralize asset cache-busting so UI/static changes do not require manual cache-key edits.
+* Convert the parameter-binding audit into a baseline-driven scanner that reports only new violations.
+* Add a docs ownership index so doc updates are intentional instead of scattered guesswork.
+* Add migration/schema helper workflow so database changes do not require hand-maintained schema drift.
+* Clarify licensing/public-release gates so licensing docs do not become a recurring release-blocking mystery.
+* Add a changed-area auto-run command so agents run the right narrow checks in one step instead of reading a suggestion and re-running it by hand.
+* Auto-retry the known-flaky isolated-database bucket so transient failures stop costing investigation turns, while genuine failures still fail fast.
+* Order regression buckets cheap-first so common static mistakes fail in seconds instead of after the slow stateful buckets finish.
+* Add a single closeout conductor command that runs the existing release-gate checks together and reports one consolidated status.
+
+Non-goals:
+
+* Do not introduce TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, or another runtime in this version.
+* Do not rewrite existing regression behavior.
+* Do not delete existing regression coverage.
+* Do not weaken permission, workspace, module-enabled, private/secure-content, storage-key, no-raw-ID, migration, or app-info release checks.
+* Do not move product roadmap work into this slice.
+* Do not change `npm start`.
+* Do not change user-facing product behavior except where asset cache-busting/runtime metadata is surfaced through existing app-info/legal/about paths.
+* Do not treat historical roadmap/changelog/docs labels as current version pins; 0.33.6.15 owns that boundary.
+
+### Version 0.33.6.16.1 - Regression-suite inventory and discovery convention
+
+**Model: GPT-5.5 Extra High** - Planning/inventory slice for regression-suite cleanup.
+
+Purpose:
+
+Inventory the current custom regression suite and define the convention that later 0.33.6.16 slices will implement. This slice should not rewrite the runner yet.
+
+* [x] Inventory the current regression runner entry points:
+
+  * [x] `scripts/run-regressions.mjs`
+  * [x] `scripts/regression-suite.mjs`
+  * [x] `scripts/regression-coverage-ratchet.mjs`
+  * [x] `scripts/regression-clean-clone-contract.mjs`
+  * [x] `scripts/regression-coverage-manifest.json`
+  * [x] `package.json` scripts that invoke regressions.
+* [x] Inventory current regression categories by path/name:
+
+  * [x] Workbench.
+  * [x] Dashboard.
+  * [x] Files.
+  * [x] Tasks.
+  * [x] Notes.
+  * [x] Lists.
+  * [x] Search.
+  * [x] Notifications.
+  * [x] Tags.
+  * [x] Public API.
+  * [x] Permissions.
+  * [x] Database/migrations.
+  * [x] View builder / declarative views.
+  * [x] Module contracts.
+  * [x] Background jobs / worker runner.
+  * [x] App-info/version/release gates.
+  * [x] Licensing/public-release gates, if any.
+* [x] Define a regression file convention for future discovery.
+
+  * Preferred final shape:
+
+    * `scripts/regressions/<area>/<name>.regression.mjs`
+  * Transitional support:
+
+    * Existing `scripts/*-regression.mjs` files continue to run until migrated.
+* [x] Define required metadata for discovered regressions:
+
+  * [x] `id`
+  * [x] `area`
+  * [x] `tier`
+  * [x] `tags`
+  * [x] `description`
+  * [x] `runMode` or equivalent parallel/serial safety flag, only if needed by the existing runner.
+* [x] Define canonical area names:
+
+  * [x] `framework`
+  * [x] `views`
+  * [x] `dashboard`
+  * [x] `workbench`
+  * [x] `tasks`
+  * [x] `notes`
+  * [x] `lists`
+  * [x] `files`
+  * [x] `search`
+  * [x] `notifications`
+  * [x] `tags`
+  * [x] `time-tracking`
+  * [x] `database`
+  * [x] `permissions`
+  * [x] `jobs`
+  * [x] `public-api`
+  * [x] `release`
+  * [x] `docs`
+  * [x] `licensing`
+* [x] Define canonical tiers:
+
+  * [x] `unit-like`
+  * [x] `focused`
+  * [x] `integration`
+  * [x] `release-gate`
+  * [x] `slow`
+* [x] Document the intended future behavior:
+
+  * [x] Agents add a regression script with metadata.
+  * [x] The runner discovers it.
+  * [x] The coverage index/manifest is generated or validated from metadata.
+  * [x] Agents do not manually edit multiple suite files for every new regression.
+
+Acceptance criteria:
+
+* The current regression suite shape is documented.
+* The future discovery convention is documented.
+* Required metadata fields are defined.
+* Existing regressions continue unchanged in this slice.
+* No regression is removed, disabled, or silently skipped.
+
+### Version 0.33.6.16.2 - Regression metadata and auto-discovery runner
+
+**Model: GPT-5.5 Extra High** - Custom regression runner cleanup without changing regression semantics.
+
+Purpose:
+
+Teach the regression runner to discover regression scripts by convention and metadata so future slices do not require manual suite wiring.
+
+* [x] Add a small regression metadata helper, for example:
+
+  * [x] Selected `scripts/lib/regression-metadata.mjs`.
+  * Alternative not used: `scripts/regressions/registry.mjs`.
+* [x] Support metadata exported by regression scripts, for example:
+
+  * [x] `export const regressionMeta = { ... }`
+  * [x] Keep the exact API simple and documented.
+* [x] Add discovery for:
+
+  * [x] New convention path: `scripts/regressions/**/*.regression.mjs`
+  * [x] Existing transitional path: `scripts/*-regression.mjs`
+* [x] Ensure discovered scripts are sorted deterministically.
+* [x] Preserve existing serial/parallel behavior.
+
+  * [x] If the current runner has safe parallel buckets, preserve them.
+  * [x] Regressions that touch shared files, global temp state, database files, ports, or process state must remain serial unless explicitly marked safe.
+* [x] Add runner options:
+
+  * [x] `--area <area>`
+  * [x] `--tag <tag>`
+  * [x] `--tier <tier>`
+  * [x] `--list`
+  * [x] `--dry-run`
+* [x] Keep `npm run check` behavior intact unless 0.33.6.16.4 changes the command wiring explicitly.
+* [x] Add focused regressions proving:
+
+  * [x] New convention files are discovered.
+  * [x] Existing legacy `scripts/*-regression.mjs` files are still discovered.
+  * [x] Metadata is validated.
+  * [x] Missing/invalid metadata fails with a useful error for new-style regressions.
+  * [x] Ordering is deterministic.
+  * [x] Area/tag/tier filters include the right scripts and exclude unrelated scripts.
+  * [x] Serial-only regressions are not accidentally parallelized.
+  * [x] The set of scripts discovered by the new runner exactly equals (or is a superset of) the set the current runner runs today - captured as a checked-in snapshot - so no regression is silently dropped during the discovery migration.
+* [x] Document how to add a new regression with metadata.
+
+Acceptance criteria:
+
+* New regression scripts can be added by convention without manually editing the central suite.
+* Existing regression scripts still run.
+* The runner supports list/dry-run/area/tag/tier filtering.
+* Parallelization safety is preserved.
+* `npm run check` still runs the full intended regression coverage.
+* No script that runs today is dropped by the new discovery, proven by the snapshot-equality check.
+
+### Version 0.33.6.16.3 - Regression coverage manifest generation and ratchet cleanup
+
+**Model: GPT-5.5 Extra High** - Reduce manual coverage-manifest upkeep while preserving the coverage ratchet.
+
+Purpose:
+
+Stop making Codex/Claude manually update the regression coverage manifest every time a regression is added, renamed, or moved.
+
+* [x] Review the current `scripts/regression-coverage-manifest.json` contract and how `scripts/regression-coverage-ratchet.mjs` consumes it.
+* [x] Decide whether the manifest becomes:
+
+  * Alternative not selected: fully generated from regression metadata with no human policy file.
+  * [x] Selected: semi-generated with a checked-in generated file and explicit legacy exceptions.
+* [x] Prefer metadata as the source of truth for:
+
+  * [x] regression ID
+  * [x] area
+  * [x] tier
+  * [x] tags
+  * [x] protected contract/feature
+  * [x] release-gate status
+* [x] Add a manifest generation/check command, for example:
+
+  * [x] `npm run regressions:manifest`
+  * [x] `npm run regressions:manifest:check`
+* [x] Update the ratchet so it validates discovered regression metadata rather than relying on hand-maintained duplicate lists.
+* [x] Preserve any existing ratchet behavior that prevents coverage from being deleted or weakened.
+* [x] Add an explicit exception mechanism for:
+
+  * [x] intentionally retired regressions
+  * [x] merged/consolidated regressions
+  * [x] legacy scripts awaiting migration
+* [x] Add focused regressions proving:
+
+  * [x] Manifest generation is deterministic.
+  * [x] Missing metadata is detected.
+  * [x] Duplicate regression IDs fail.
+  * [x] Removing a covered area without an explicit retirement entry fails.
+  * [x] Legacy exceptions are honored.
+  * [x] No existing coverage is silently dropped.
+* [x] Update docs so agents know:
+
+  * [x] Add metadata to the regression script.
+  * [x] Run the manifest check/generator.
+  * [x] Do not manually hand-edit the generated coverage manifest; record explicit retirement/exception entries only in the policy file.
+
+Acceptance criteria:
+
+* Regression coverage manifest upkeep is generated or semi-generated from regression metadata.
+* The coverage ratchet still prevents accidental coverage loss.
+* Agents no longer need to manually wire every new regression in multiple places.
+* Existing release-gate coverage remains intact.
+
+### Version 0.33.6.16.4 - Narrow regression commands and changed-area routing
+
+**Model: GPT-5.5 Extra High** - Fast regression routing before TypeScript/Vitest/Playwright arrive.
+
+Purpose:
+
+Give Codex/Claude fast, narrow commands for common work areas so they do not default to the full regression suite for every small change.
+
+* [x] Add package scripts for narrow regression areas:
+
+  * [x] `test:regressions`
+  * [x] `test:regressions:list`
+  * [x] `test:regressions:framework`
+  * [x] `test:regressions:views`
+  * [x] `test:regressions:dashboard`
+  * [x] `test:regressions:workbench`
+  * [x] `test:regressions:tasks`
+  * [x] `test:regressions:notes`
+  * [x] `test:regressions:files`
+  * [x] `test:regressions:database`
+  * [x] `test:regressions:permissions`
+  * [x] `test:regressions:release`
+* [x] Add a changed-area helper, for example:
+
+  * [x] `scripts/suggest-regressions-for-changes.mjs`
+* [x] The helper should inspect changed files and suggest likely regression commands.
+
+  * [x] It may use git diff against the working tree/current branch.
+  * [x] It should be conservative: suggest more checks rather than fewer when shared files change.
+* [x] Add route rules for common paths:
+
+  * [x] `src/modules/tasks/**` -> tasks regressions.
+  * [x] `src/modules/files/**` and file UI scripts -> files regressions.
+  * [x] `public/js/workbench.js`, Workbench routes/services/docs -> workbench regressions.
+  * [x] `public/js/shared/view-builder.js`, view renderer/core view files -> view/framework regressions.
+  * [x] `src/db/**`, migrations, repositories -> database regressions.
+  * [x] permissions/session/workspace/membership files -> permissions regressions.
+  * [x] package/version/app-info/release docs -> release regressions.
+* [x] Keep `npm run check` as the full release gate.
+* [x] Add agent/developer docs:
+
+  * [x] One-module change: run the narrow area command first.
+  * [x] Shared framework change: run framework/view commands plus relevant module commands.
+  * [x] DB change: run database command plus affected module commands.
+  * [x] Release closeout: run full `npm run check`.
+* [x] Add focused regressions proving:
+
+  * [x] Area scripts call the regression runner with the right filters.
+  * [x] Changed-area helper suggests expected commands for representative path sets.
+  * [x] Shared/framework changes produce conservative suggestions.
+  * [x] Full `npm run check` remains the release gate.
+
+Acceptance criteria:
+
+* Agents have clear narrow regression commands before 0.33.7 TypeScript/Vitest.
+* Changed-file routing suggests the right focused checks.
+* Full release verification remains available and unchanged in purpose.
+* The new command structure reduces unnecessary full-suite runs during focused feature work.
+
+### Version 0.33.6.16.5 - Asset cache-bust source-of-truth
+
+**Model: GPT-5.5 Extra High** - Centralize UI asset versioning so cache-key updates stop becoming release-churn.
+
+Purpose:
+
+Stop manually bumping scattered cache keys or asset query strings during UI/static slices.
+
+This complements 0.33.6.15 but is not the same thing. 0.33.6.15 centralizes the current app version. This slice centralizes asset cache-busting.
+
+* [x] Inventory all script/style asset cache-bust patterns:
+
+  * [x] Static HTML query strings.
+  * [x] Shared app-shell includes.
+  * [x] Navigation/footer injected assets.
+  * [x] Module-declared assets.
+  * [x] Any tests that pin asset query strings or cache-bust values.
+* [x] Define one asset version/cache-bust source.
+
+  * [x] Prefer deriving from the current app version helper when acceptable.
+  * Alternative not selected: an independently bumped asset version; `src/core/asset-version.js` instead derives from the app version.
+* [x] Route shared script/style URL generation through one helper where practical.
+* [x] Update static/protected pages and app-shell includes so asset URLs receive cache-bust values consistently.
+* [x] Remove scattered manually maintained cache-bust literals where safe.
+* [x] Preserve existing browser behavior and asset loading order.
+* [x] Add guardrails:
+
+  * [x] New raw `?v=...` or `?cache=...` asset literals outside approved helper/source files should fail unless explicitly allowed.
+  * [x] Historical docs/changelog examples should not be flagged.
+* [x] Add focused regressions proving:
+
+  * [x] Shared app-shell assets include the canonical cache-bust value.
+  * [x] Module assets receive consistent cache-bust behavior.
+  * [x] Manual cache-bust literals outside allowlisted files are caught.
+  * [x] Existing pages still load required scripts/styles.
+  * [x] No product behavior changes.
+* [x] Update docs to explain:
+
+  * [x] Do not manually bump cache keys.
+  * [x] Use the asset helper/source.
+  * [x] App version and asset version relationship.
+
+Acceptance criteria:
+
+* Asset cache-busting has one source-of-truth path.
+* UI/static slices no longer require scattered manual cache-key edits.
+* Guardrails prevent new scattered asset version literals.
+* Existing pages and module assets continue loading correctly.
+
+### Version 0.33.6.16.6 - Parameter-binding audit baseline cleanup
+
+**Model: GPT-5.5 Extra High** - Turn parameter-binding audit upkeep into a scanner/baseline workflow.
+
+Purpose:
+
+Stop making Codex/Claude repeatedly reconcile raw parameter-binding counts during unrelated database work.
+
+This slice keeps the safety goal but changes the workflow: the scanner should report new violations against a known baseline rather than forcing broad count reconciliation every time.
+
+* [x] Inventory current parameter-binding audit scripts and docs:
+
+  * [x] audit scanner
+  * [x] audit regression
+  * [x] database parameter-binding audit docs
+  * [x] known exception lists, if any
+* [x] Define a baseline file, for example:
+
+  * [x] `scripts/baselines/parameter-binding-baseline.json`
+  * Alternative not selected: `docs/generated/parameter-binding-baseline.json`.
+* [x] The baseline should track known legacy findings by stable location/signature.
+* [x] The scanner should report:
+
+  * [x] total scanned sites
+  * [x] safe bound sites
+  * [x] known baseline exceptions
+  * [x] new violations
+  * [x] resolved legacy findings, if useful
+* [x] The regression should fail on new violations.
+* [x] The regression should not fail merely because total scanned count changes due to unrelated safe code movement, unless a new unsafe pattern appears.
+* [x] Add a baseline update command for dedicated cleanup slices only, for example:
+
+  * [x] `npm run audit:params`
+  * [x] `npm run audit:params:update-baseline`
+  * [x] `npm run audit:params:check`
+* [x] Document the rule:
+
+  * [x] Do not update the baseline in unrelated feature work.
+  * [x] If a feature introduces a new query site, it must use the safe binding helper.
+  * [x] If a legacy unsafe site is fixed, the baseline may shrink in a dedicated cleanup or as part of that fix.
+* [x] Add focused regressions proving:
+
+  * [x] New unsafe query patterns fail.
+  * [x] Known baseline exceptions are reported but do not fail.
+  * [x] Safe new bound query sites pass.
+  * [x] Count-only drift does not force manual doc edits.
+  * [x] Baseline updates are deterministic.
+* [x] Update database docs to point to the scanner/baseline workflow.
+
+Acceptance criteria:
+
+* Parameter-binding safety remains enforced.
+* New unsafe query sites fail fast.
+* Known legacy findings are baseline-managed.
+* Agents no longer have to manually reconcile broad scanned/bound counts during unrelated feature work.
+
+### Version 0.33.6.16.7 - Documentation ownership index and docs-change gate
+
+**Model: GPT-5.5 Extra High** - Make docs updates intentional rather than scattered release ritual.
+
+Purpose:
+
+Reduce time spent guessing which docs must be updated for every implementation slice.
+
+This slice does not reduce documentation quality. It makes documentation ownership explicit so Codex/Claude can update the right docs and explicitly skip irrelevant docs.
+
+* [x] Add a docs ownership index, for example:
+
+  * [x] `docs/docs-ownership.json`
+  * Not selected: `docs/maintenance/docs-ownership.json`
+* [x] Map source areas to likely docs:
+
+  * [x] Workbench.
+  * [x] Dashboard.
+  * [x] Tasks.
+  * [x] Notes.
+  * [x] Lists.
+  * [x] Files.
+  * [x] Search.
+  * [x] Notifications.
+  * [x] Tags.
+  * [x] Time Tracking.
+  * [x] Permissions.
+  * [x] Database.
+  * [x] Module contracts.
+  * [x] View-building/declarative surfaces.
+  * [x] Public API.
+  * [x] Licensing.
+  * [x] Release process.
+* [x] Add a docs suggestion helper, for example:
+
+  * [x] `scripts/suggest-docs-for-changes.mjs`
+* [x] The helper should inspect changed files and list likely docs to review.
+* [x] Add a docs-change note convention:
+
+  * [x] Docs updated: list paths.
+  * [x] No docs change needed: short reason.
+* [x] Add a lightweight guardrail for release closeout:
+
+  * [x] If source files in a mapped area changed and no likely docs changed, print a warning or require an explicit no-doc-change note.
+  * [x] Keep this as warning-only at first unless the project decides to hard-fail later.
+* [x] Add focused regressions proving:
+
+  * [x] Changed tasks files suggest Tasks docs.
+  * [x] Changed Workbench files suggest UI/view/workbench docs.
+  * [x] Changed database/migration files suggest database docs.
+  * [x] Changed licensing docs suggest licensing docs/index.
+  * [x] Unmapped files do not produce noisy false positives.
+* [x] Update agent/development docs:
+
+  * [x] Use docs suggestion helper during closeout.
+  * [x] Do not update five docs by reflex.
+  * [x] Do update docs that own the changed contract.
+
+Acceptance criteria:
+
+* The repo has an explicit docs ownership index.
+* Agents can ask the repo which docs are likely affected.
+* Docs updates become targeted and intentional.
+* Release closeout still preserves documentation quality.
+
+### Version 0.33.6.16.8 - Database migration and schema helper workflow
+
+**Model: GPT-5.5 Extra High** - Prepare database workflow for upcoming TypeScript and later Postgres/database abstraction work.
+
+Purpose:
+
+Reduce hand-maintained migration/schema drift before the TypeScript and database abstraction work get heavier.
+
+This slice does not change the database engine or add Postgres. It improves the workflow around migrations and schema snapshots.
+
+* [x] Inventory current migration/schema workflow:
+
+  * [x] migration file naming
+  * [x] migration runner behavior
+  * [x] `src/db/schema/current.sql`
+  * [x] fresh database regression
+  * [x] migration compatibility regression
+  * [x] SQLite performance/seed regressions
+* [x] Add a migration creation helper, for example:
+
+  * [x] `npm run db:migration:create -- <name>`
+* [x] The helper should:
+
+  * [x] choose the next migration number
+  * [x] create a correctly named migration file
+  * [x] include a minimal safe template
+  * [x] avoid duplicate numbers
+* [x] Add a schema refresh/check workflow, for example:
+
+  * [x] `npm run db:schema:refresh`
+  * [x] `npm run db:schema:check`
+* [x] Decide and document whether `src/db/schema/current.sql` is:
+
+  * Not selected: generated from migrations.
+  * [x] manually maintained but verified against a generated schema.
+* [x] Prefer generated-or-verified schema over hand-edited schema drift.
+
+  * Recommended default: keep `current.sql` manually maintained but verified against a generated schema (lighter than full generation); move to fully generating it from migrations only if drift keeps recurring.
+* [x] Add a guardrail:
+
+  * [x] If migrations change, schema check must prove `current.sql` is current.
+  * [x] If schema changes without a migration, fail unless explicitly allowed for docs/test-only work.
+* [x] Add focused regressions proving:
+
+  * [x] migration creation helper produces deterministic next names
+  * [x] duplicate migration numbers fail
+  * [x] schema refresh/check detects drift
+  * [x] fresh database still builds from migrations
+  * [x] migration compatibility regression still runs
+* [x] Update database docs with the new workflow.
+
+Acceptance criteria:
+
+* Database migration creation is scripted.
+* Schema snapshot refresh/check is scripted.
+* `current.sql` drift is detected.
+* Future database changes require less manual bookkeeping.
+* No database engine change occurs in this slice.
+
+### Version 0.33.6.16.9 - Licensing and public-release gate clarification
+
+**Model: GPT-5.5 Extra High** - Clarify licensing/public-release gates so they do not become recurring mystery work.
+
+Purpose:
+
+Clarify that the licensing docs are not a routine per-slice cleanup burden. Separate current licensing state from future gates for public contributors, public release, app legal notices, and third-party notices.
+
+This slice is not a legal rewrite. It is a repo-process clarification.
+
+* [x] Review the current licensing hub, licensing directory index, root README license section, package metadata license value, root `LICENSE`, and trademark notice.
+* [x] Confirm the current state is documented:
+
+  * [x] Longtail Forge Core uses `AGPL-3.0-only`.
+  * [x] Commercial licensing / hosted SaaS / private deployment tooling may be separate.
+  * [x] Trademark policy is linked.
+  * [x] Licensing policy docs are discoverable from README and `docs/licensing.md`.
+* [x] Clarify future gates in one place:
+
+  * [x] Contribution gate.
+  * [x] Public release legal/about screen.
+  * [x] Third-party notices.
+  * [x] PR template / CLA requirement before accepting outside contributions.
+  * [x] Private repo boundary for SaaS billing, tenant provisioning, hosted backups, production monitoring, customer admin tooling, managed deployment automation, paid plugins, and commercial license templates.
+* [x] Add a lightweight licensing gate check, warning-only unless the project decides otherwise:
+
+  * [x] Before public release, warn if `THIRD_PARTY_NOTICES.md` does not exist.
+  * [x] Before public contribution acceptance, warn if `CONTRIBUTING.md` / PR template / CLA process is not present.
+  * [x] Do not block normal private development slices on contribution/public-release gates.
+* [x] Add or update docs so agents understand:
+
+  * [x] Do not keep rewriting licensing docs during unrelated slices.
+  * [x] Do not add public-contributor language until outside contributions are actually being accepted.
+  * [x] Do not put private SaaS/commercial templates in the public repo.
+  * [x] Licensing docs are updated only for legal/policy changes, dependency notice changes, release-publication gates, or contributor-process gates.
+* [x] Add focused regressions or static checks proving:
+
+  * [x] README license still says `AGPL-3.0-only`.
+  * [x] `package.json` license remains `AGPL-3.0-only`.
+  * [x] Root `LICENSE` exists.
+  * [x] docs licensing hub and index links resolve.
+  * [x] Trademark policy link is still reachable.
+  * [x] Public-release/contribution gate warnings do not fail ordinary development.
+
+Acceptance criteria:
+
+* Licensing status is clear and not treated as broken.
+* Future contributor/public-release gates are explicit.
+* Ordinary feature slices do not keep revisiting licensing docs unnecessarily.
+* No legal/policy rewrite occurs unless intentionally requested.
+
+### Version 0.33.6.16.10 - Changed-area regression auto-run command
+
+**Model: GPT-5.5 Extra High** - Close the suggest->run gap in changed-area regression routing.
+
+Purpose:
+
+0.33.6.16.4 added `scripts/suggest-regressions-for-changes.mjs` and the narrow `test:regressions:<area>` scripts, but the router only prints advice; an agent still has to read the suggestion and then choose and run commands. Add one command that inspects the working tree and runs the narrow buckets the suggester selects, so the most common focused-change action is a single step instead of two.
+
+This reuses the existing suggester's route rules and the existing narrow area scripts. It deliberately does not introduce a dependency-graph/affected-test engine; that finer routing is deferred until Vitest exists in 0.33.7 (tracked in `TODO.md`).
+
+* [x] Add a package script: `test:regressions:changed`.
+* [x] The command should:
+
+  * [x] reuse `scripts/suggest-regressions-for-changes.mjs` route rules as the single source of routing truth (do not fork the rules)
+  * [x] resolve changed files on the same basis the suggester uses (working tree / current branch)
+  * [x] run the selected narrow area buckets through the existing runner filters
+  * [x] escalate to full `npm run check` when shared/framework/db/release paths change, matching the suggester's conservative behavior
+  * [x] print which areas it selected, and why, before running
+* [x] Be conservative: when routing is ambiguous or shared files changed, run more coverage, never less.
+* [x] Keep `npm run check` as the full release gate; this command never replaces closeout verification.
+* [x] Do not report false success: an empty change set says no regressions ran and exits cleanly; an unmatched non-empty set uses the documented full-registry fallback.
+* [x] Add focused regressions proving:
+
+  * [x] a representative one-module change runs only that module's buckets
+  * [x] a shared/framework/db change escalates to full/framework coverage
+  * [x] the command and the suggester agree on routing for the same change set
+  * [x] an empty change set does not report a passing full run; an unmatched non-empty set reports and runs the conservative fallback
+
+Acceptance criteria:
+
+* Agents can run the correct narrow regressions for the current diff with one command.
+* Routing stays consistent with the existing changed-area suggester.
+* Shared/framework changes still escalate to full coverage.
+* Full `npm run check` remains the release gate.
+
+### Version 0.33.6.16.11 - Isolated-database bucket flake handling
+
+**Model: GPT-5.5 Extra High** - Stop transient isolated-DB failures from costing investigation turns.
+
+Purpose:
+
+The isolated-database regression bucket flakes transiently even though it already runs with adaptive parallelism and is safest standalone/serial. When it flakes, an agent sees a red suite and burns a whole turn investigating a non-bug. Encode the known-flaky handling into the runner so a transient failure becomes a reported non-event instead of a manual rediscovery every time.
+
+* [x] Add a scoped, bounded auto-retry for the isolated-database bucket only:
+
+  * [x] retry only the failed isolated-DB script(s) once, never the whole suite
+  * [x] on retry, run the affected script(s) serially with fresh fixture namespaces to remove the known contention source
+  * [x] a script that passes on retry is reported as flaky-recovered, not silently green
+* [x] Do not auto-retry other buckets; a genuine logic failure must still fail fast.
+* [x] Never auto-retry static/source bucket failures (those are deterministic).
+* [x] Surface flaky recoveries in the run summary and the timing report so repeated flakiness stays visible instead of hidden.
+* [x] Keep `LTF_REGRESSION_REPEAT` behavior intact for deliberate flake hunting.
+* [x] Document the rule: transient isolated-DB flakes are auto-retried once and reported; do not "fix" a green-on-retry script by chasing a phantom bug, but do investigate scripts that fail every retry or flake repeatedly.
+* [x] Add focused regressions proving:
+
+  * [x] a script that fails once then passes is reported as recovered and the suite passes
+  * [x] a script that fails every attempt still fails the suite
+  * [x] non-isolated buckets are not auto-retried
+  * [x] retry runs the script serially / with reduced parallelism
+
+Acceptance criteria:
+
+* Known transient isolated-DB flakes no longer fail the suite on a single bad run.
+* Genuine, repeatable failures still fail fast.
+* Flaky recoveries are visible, not silently swallowed.
+* Agents stop spending turns investigating phantom isolated-DB failures.
+
+### Version 0.33.6.16.12 - Fast-fail regression bucket ordering
+
+**Model: GPT-5.5 Extra High** - Order buckets cheap-first so common static mistakes fail in seconds.
+
+Purpose:
+
+The most common agent regression failure is a static/source assertion (a renamed literal, a missing string). If the slow database/file-storage buckets run first, that failure only surfaces after the expensive buckets finish. Order the default full run so the cheap static/source bucket runs before the slow stateful buckets, giving the fastest possible failure on the most common mistake. This is available now and complements the 0.33.7.1 typecheck/Vitest fast-fail ordering that will later sit ahead of it.
+
+* [x] Confirm the current bucket execution order and per-bucket cost.
+* [x] Order the default full run cheap-first:
+
+  * [x] static/source bucket first
+  * [x] then stateful database / file-storage / isolated buckets
+* [x] Preserve existing parallelism/serial safety within each bucket; ordering must not reduce coverage or change which scripts run.
+* [x] Keep the behavior that a failing bucket stops the run, so a fast static failure short-circuits the slow buckets.
+* [x] Do not change narrow area-command behavior or the set of discovered scripts.
+* [x] Add a focused regression proving:
+
+  * [x] the static/source bucket is scheduled before the stateful buckets in a default full run
+  * [x] the same scripts still run (ordering-only change, snapshot-equal to before)
+  * [x] a seeded static failure short-circuits before the slow buckets execute
+
+Acceptance criteria:
+
+* A default full run fails fast on static/source mistakes.
+* No script is added or dropped by the reordering.
+* Parallel/serial safety is preserved.
+* Ordering complements the later 0.33.7 typecheck/Vitest fast-fail without conflicting with it.
+
+### Version 0.33.6.16.13 - Release-gate closeout conductor command
+
+**Model: GPT-5.5 Extra High** - One command that runs the existing release-gate checks together.
+
+Purpose:
+
+0.33.6.16 added several independent gate checks (`version:guard`, `regressions:manifest:check`, `db:schema:check`, `audit:params:check`, `docs:check`, `licensing:gates`). Closeout currently walks them by hand, so agents keep re-deriving which helpers to run at the end of a slice. Add a single conductor command that runs them together and prints one pass/fail board, removing the end-of-slice "which checks do I run again?" churn.
+
+* [x] Add a package script, for example `npm run closeout`.
+* [x] The command should run, at minimum:
+
+  * [x] `version:guard`
+  * [x] `regressions:manifest:check`
+  * [x] `db:schema:check`
+  * [x] `audit:params:check`
+  * [x] `docs:check`
+  * [x] `licensing:gates`
+* [x] Run all checks and aggregate results into one green/red summary rather than stopping at the first failure, so a single run surfaces every outstanding gate.
+* [x] Exit non-zero if any hard gate fails.
+* [x] Keep each individual script independently runnable; the conductor only orchestrates.
+* [x] Warning-only gates (for example docs, licensing) stay warning-only; the conductor reports them without hard-failing unless the project already hard-fails them.
+* [x] Document the relationship: this is a convenience aggregator of existing gates, not a replacement for the full `npm run check` regression gate.
+* [x] Add a focused regression proving:
+
+  * [x] the conductor invokes each expected gate
+  * [x] a single failing hard gate makes the conductor exit non-zero
+  * [x] warning-only gates do not hard-fail the conductor
+  * [x] the summary lists every gate's status
+
+Acceptance criteria:
+
+* One command runs the slice-closeout gate checks and reports a consolidated status.
+* Individual gate scripts remain independently runnable.
+* The conductor complements, and does not replace, the full `npm run check` release gate.
+* Agents stop re-deriving the closeout gate list each slice.
+
+### Version 0.33.6.16.14 - Pre-TypeScript maintenance closeout
+
+**Model: GPT-5.5 Extra High** - Prove the maintenance cleanup reduces future agent churn without weakening gates.
+
+Purpose:
+
+Close out the release workflow/regression maintenance cleanup and confirm the repo is ready for 0.33.7 TypeScript/Zod/Vitest.
+
+* [x] Confirm 0.33.6.15 app-version source-of-truth still works.
+* [x] Confirm regression auto-discovery works.
+* [x] Confirm legacy regression scripts still run.
+* [x] Confirm regression coverage manifest/ratchet still protects coverage.
+* [x] Confirm narrow regression commands exist and are documented.
+* [x] Confirm changed-area regression suggestions work.
+* [x] Confirm the changed-area auto-run command (0.33.6.16.10) runs the right narrow buckets and escalates shared/framework changes to full coverage.
+* [x] Confirm isolated-DB flake handling (0.33.6.16.11) recovers a transient failure, still fails on a repeatable failure, and reports recoveries visibly.
+* [x] Confirm fast-fail bucket ordering (0.33.6.16.12) schedules the static/source bucket before the slow stateful buckets without changing the discovered script set.
+* [x] Confirm the closeout conductor command (0.33.6.16.13) runs every expected gate and exits non-zero on a hard-gate failure.
+* [x] Confirm asset cache-bust source-of-truth works and scattered manual cache keys are guarded.
+* [x] Confirm parameter-binding audit baseline reports new unsafe sites without requiring unrelated count reconciliation.
+* [x] Confirm docs ownership helper suggests relevant docs without requiring broad doc churn.
+* [x] Confirm database migration/schema helpers work.
+* [x] Confirm licensing/public-release gates are documented as future/process gates, not routine slice blockers.
+* [x] Confirm `npm start` is unchanged.
+* [x] Confirm `npm run check` still represents the full release gate.
+* [x] Confirm no TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, or second runtime was introduced.
+* [x] Update agent/development docs with the new recommended order:
+
+  * [x] Run the changed-area auto-run command for focused changes.
+  * [x] Run narrow regression command(s) first when working a single area by hand.
+  * [x] Run full `npm run check` for shared framework/release closeout.
+  * [x] Run the closeout conductor command at slice end to confirm the release-gate checks.
+  * [x] Update docs only when the docs ownership helper or changed contract warrants it.
+* [x] Update `CHANGELOG.md`, package metadata, and roadmap bookkeeping.
+* [x] Run final verification:
+
+  * [x] `npm run check`
+  * [x] `npm run test:permissions`
+  * [x] the changed-area auto-run command against a representative diff
+  * [x] the closeout conductor command
+  * [x] narrow regression commands for at least Workbench, Files, Tasks, Database, Release, and Docs
+  * [x] version/app-info verification after restart
+
+Acceptance criteria:
+
+* The repo has cleaner release/version/regression/docs/database/licensing maintenance workflows before TypeScript starts.
+* Agents can add regressions with less manual wiring.
+* Agents can run narrower checks for focused changes, in one step, with fast static failure and auto-retried known flakes.
+* Release-gate coverage is preserved and runnable as one closeout conductor command.
+* The repo is ready for 0.33.7 TypeScript/Zod/Vitest without dragging the old maintenance clutter into that slice.
+
+
+## Version 0.33.6.15 - App version source-of-truth and version-bump cleanup
+
+Completed 0.33.6.15.1 through 0.33.6.15.4. The live roadmap continues with 0.33.6.16.
+
+**Model: GPT-5.5 Extra High** - Mechanical versioning cleanup to reduce release/update blast radius before TypeScript/Zod/Vitest lands.
+
+Purpose:
+
+Reduce the amount of manual version-string churn during every release slice by separating the current app version from historical roadmap/changelog labels and regression documentation.
+
+This is a source-of-truth cleanup, not a product feature. It should make future version bumps smaller, safer, and easier for Codex/Claude to perform without accidentally rewriting historical slice labels such as `0.33.6.13a` / `0.33.6.14a` or “As of…” documentation assertions.
+
+Current problem:
+
+* The current app version is pinned in multiple runtime, metadata, and regression locations.
+* Some version strings are true current-version assertions.
+* Some version strings are historical roadmap/changelog/docs labels that must never be rewritten during a version bump.
+* Codex/Claude currently has to distinguish those manually during broad replacements, which creates unnecessary blast radius and slows regression/update work.
+
+Scope:
+
+* Current app-version reporting.
+* Package metadata.
+* `/api/app-info` version reporting.
+* Version assertion regressions.
+* Version bump/update workflow.
+* Guardrails preventing accidental current-version literals outside approved source-of-truth files.
+
+Non-goals:
+
+* Do not rewrite historical roadmap, changelog, archive, or docs slice labels.
+* Do not rewrite “As of 0.x.x” historical documentation assertions unless a human explicitly asks for that specific documentation update.
+* Do not change product behavior.
+* Do not introduce TypeScript, Zod, Vitest, Playwright, or any new testing framework in this slice.
+* Do not change `npm start`.
+* Do not weaken the existing release ceremony or app-info verification.
+
+Feasibility and required sequence:
+
+This slice can be done in one pass, but only if the steps are ordered correctly. Today the current app-version literal lives in ~200 files per bump: `package.json` + `package-lock.json`, 5 module manifests (`src/modules/*/module.js` `version:`) and `src/db/adapters/sqlite-dialect-seams.js` (`contractVersion:`), plus ~190 regression scripts that each hardcode `const appVersion = "<literal>"` before asserting that `package.json` / `package-lock.json` / module source match it. That regression pattern is uniform, so the bulk conversion is mechanical and low-risk - but the new anti-literal guardrail must be added LAST, after every consumer already derives the version, or it will fail the suite the moment it is introduced. The guardrail must also distinguish a live current-version pin from a historical label, because regressions legitimately embed historical strings (for example an `as of 0.33.6.12n` documentation assertion) that must never be rewritten during a bump.
+
+Decisions to make first:
+
+* Canonical source mechanism: keep `package.json` as the single current-version source, and have the runtime helper (`src/core/version.js`) read and re-export it (fs read / import assertion); regression scripts read `package.json.version` through the same helper or a tiny shared reader. Avoid a second hand-maintained version constant that can drift from `package.json`.
+* `contractVersion` in `src/db/adapters/sqlite-dialect-seams.js`: decide whether it is the app version (route it through the helper) or an independent contract version that only currently coincides with it (leave it alone and exclude it from the app-version guardrail). Default to independent unless a human confirms it should track the app version.
+
+### Version 0.33.6.15.1 - Canonical version source and runtime consumers (no guardrail yet)
+
+**Model: GPT-5.5 Extra High** - Establish the source of truth and move runtime consumers onto it.
+
+* [x] Establish one canonical current app-version source: `package.json` remains the metadata source.
+* [x] Add a runtime helper (`src/core/version.js` or `src/services/app-version.service.js`) that reads/exports the current app version from the approved source; runtime code calls the helper instead of duplicating the literal.
+* [x] Route `/api/app-info` version reporting through the helper.
+* [x] Convert the 5 module manifests (`src/modules/*/module.js` `version:`) to derive the version from the helper instead of a hardcoded literal.
+* [x] Resolve the `contractVersion` decision for `sqlite-dialect-seams.js` per "Decisions to make first"; only route it through the helper if it is intended to track the app version.
+* [x] Update the module-version regressions in lockstep so module version is asserted against the helper/runtime value rather than a hardcoded source-string regex.
+* [x] Do NOT add the anti-literal guardrail in this sub-slice.
+
+Acceptance criteria:
+
+* `/api/app-info` and all module manifests report the version with no hardcoded current-version literal in those runtime files.
+* `npm run check` stays green.
+
+### Version 0.33.6.15.2 - Regression source-of-truth conversion (bulk, mechanical)
+
+**Model: GPT-5.5 Extra High** - Remove the ~190 duplicated `const appVersion` literals in one mechanical pass.
+
+* [x] Replace the uniform `const appVersion = "<literal>";` across the regression scripts with a read from the canonical source (shared reader or inline `package.json` read); the scripts already read `package.json` / `package-lock.json` and assert equality, so this is a mechanical transform.
+* [x] Verify the full suite stays green after the conversion; the equality assertions now compare the source to itself and to the runtime consumers converted in 0.33.6.15.1.
+* [x] Leave historical-label assertions untouched (for example `as of 0.33.6.12n` documentation checks); they are documentation assertions, not current-version pins.
+
+Acceptance criteria:
+
+* No regression script hardcodes the current app-version literal for its own `appVersion`.
+* `npm run check` stays green.
+
+### Version 0.33.6.15.3 - Version-bump helper
+
+**Model: GPT-5.5 Extra High** - One command to bump, no repo-wide find/replace.
+
+* [x] Add a version bump helper (`scripts/bump-version.mjs`) that updates only the approved current-version source(s) plus `package.json` / `package-lock.json`.
+* [x] It must not bulk-rewrite roadmap/changelog/archive history; it prints a short follow-up release-ceremony checklist instead of silently touching docs.
+* [x] Add a package script: `version:bump` (or `version:set`).
+
+Acceptance criteria:
+
+* A bump updates only the approved current-version files and leaves history untouched.
+* `npm run check` stays green after a bump.
+
+### Version 0.33.6.15.4 - Anti-literal guardrail, allowlist, docs, and closeout (added LAST)
+
+**Model: GPT-5.5 Extra High** - Lock the boundary only after every literal is already gone.
+
+* [x] Add an allowlist for current-version literals, limited to `package.json`, `package-lock.json`, the version helper/source file (only if it intentionally mirrors the package version), and any narrowly approved release metadata files.
+* [x] Keep historical labels allowed in `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `CHANGELOG.md`, `docs/**`, and archived release/history documentation.
+* [x] Add a regression/guardrail that fails if the current app-version literal appears outside the allowlist. It must not flag historical roadmap/changelog/docs labels, and must distinguish a live current-version assertion from a historical slice label. Register it with the suite/coverage manifest.
+* [x] Add focused regressions proving: `/api/app-info` reports the current package/app version; the helper returns the value expected by package metadata; the current-version literal does not appear in unapproved runtime/regression files; historical version labels are ignored by the guardrail; and the bump helper does not rewrite historical roadmap/changelog labels.
+* [x] Update developer/agent docs with the new version-bump workflow: use the bump helper, do not broad find/replace for release bumps, preserve historical roadmap/changelog/archive labels, and verify `/api/app-info` after restart. Record the source-of-truth decision in `DECISIONS.md`.
+* [x] Update `CHANGELOG.md` and roadmap bookkeeping for this slice through normal release ceremony.
+
+Acceptance criteria:
+
+* The guardrail passes now (because 0.33.6.15.1-0.33.6.15.2 removed the stray literals) and fails if a current-version literal is reintroduced outside the allowlist.
+* Historical roadmap/changelog/docs labels are preserved and ignored by the guardrail.
+
+Suggested version-bump workflow after this slice:
+
+1. Run the version bump helper with the new app version.
+2. Review only the approved current-version files it changed.
+3. Run the focused version guardrail.
+4. Run the normal release verification.
+5. Update changelog/roadmap history manually as historical documentation, not as app-version pins.
+
+Acceptance criteria:
+
+* The current app version has one canonical source-of-truth path.
+* Runtime app-info/version reporting uses that source instead of duplicated literals.
+* Current-version assertions are centralized or derived from the helper/source.
+* A guardrail prevents the current app-version literal from spreading into unrelated runtime/regression files.
+* Historical roadmap/changelog/docs labels are preserved and not treated as current app-version pins.
+* A version bump helper exists and avoids broad repository find/replace.
+* Future version bumps should have a much smaller blast radius before 0.33.7+ TypeScript/Zod/Vitest work lands.
+
+## Version 0.33.6.14a - Linked Context picker: client-scoped project selection
+
+Completed 0.33.6.14a. The live roadmap continues with 0.33.6.15.
+
+**Model: GPT-5.5 Extra High** - Client-context selection for the shared Linked Context picker, applying the 0.33.6.14 scoping standard.
+
+Promoted from user request. Consumed the shared hierarchy resolver and scoping conventions established in `0.33.6.14.1`, and applied them to the shared Linked Context picker (`createLinkedContextPicker` in `public/js/shared/view-builder.js`, wired in `public/js/notes.js`, contract `docs/linked-context-picker-contract.md`).
+
+- [x] Add a client-context selector to the Linked Context picker on BUSINESS workspaces only, defaulting to "All Clients": with "All Clients" selected the picker shows all projects/records across clients (unchanged breadth).
+- [x] Include a "{{workspaceName}}" entry in the client selector (e.g. "Raymond Tec") that scopes the results to client-less workspace projects (projects with no client) - the workspace-projects bucket, presented as if it were a client.
+- [x] List the real clients after "All Clients" and "{{workspaceName}}", and scope the project/record list to the chosen client; apply the 0.33.6.14 parent-includes-descendants rule so a parent client includes its sub-clients' projects, with single drill-down preserved.
+- [x] Label rule: under "All Clients", project rows keep the "{{projectName}} - {{clientName}}" suffix so same-named projects across clients stay distinguishable; once a specific client OR the "{{workspaceName}}" entry is selected, drop the suffix and show just the project name (the client context is now explicit).
+- [x] PERSONAL/FAMILY workspaces must never show a client selector, a "{{workspaceName}}"-as-client entry, or any `- clientName` label anywhere in this picker - no client concept leaks into non-business scope.
+- [x] Keep the shared shell data-agnostic: the picker shell must not fetch or own client/project data (its regression forbids `fetch`/storage in the shell); the caller (`notes.js`) supplies the client options and scoped records, and the shell only renders the client select and reflects the selection. Preserve permission/workspace boundaries and the no-raw-ID label rules from the picker contract.
+- [x] Update `docs/linked-context-picker-contract.md` for the new client-context control and its business-only gating, and add regressions for: All-Clients default breadth + suffix, "{{workspaceName}}" scoping to client-less projects + suffix dropped, specific-client scoping + suffix dropped + descendant inclusion, and Personal/Family showing no client control or labels.
+
+Acceptance criteria:
+
+- On business workspaces the Linked Context picker offers a client selector (All Clients default, "{{workspaceName}}" for workspace projects, then clients with parent-includes-descendants scoping); the `- client` suffix shows only under All Clients and drops once a specific client/workspace is picked; Personal/Family never surface any client selector or label; and the shared shell stays data-agnostic.
+
+## Version 0.33.6.14 - App-wide hierarchical client/project scoping standard (archived completed branch through 0.33.6.14.3)
+
+Completed 0.33.6.14.1 through 0.33.6.14.3 (the shared permission-aware hierarchy scope resolver plus direct-filter adoption across Workbench, Tasks, Notes, Files, Lists, and Search). The live roadmap continues with 0.33.6.14a.
+
+**Model: GPT-5.5 Extra High** - Cross-cutting scope-resolution work that spanned multiple query architectures and one existing reporting exception.
+
+Scope decision:
+
+Promoted from TODO.md (Recommended Next Action Interface & Algorithm, hierarchy note). This branch closed by applying one shared scope standard across the existing direct client/project filter seams while explicitly leaving Reporting on its own includeDescendants rollup model.
+
+Branch rules:
+
+- [x] Establish one app-wide standard for direct client/project filters: selecting a PARENT includes readable descendant sub-clients/sub-projects, while selecting a leaf still drills down to that single client/project.
+- [x] Provide one shared, permission-aware scope resolver (parent -> readable descendant ID set) built from the existing parent_client_id / parent_project_id hierarchy in client-projects; do not fork descendant expansion per module.
+- [x] Preserve workspace boundaries and workspace-type gating (client scope hidden on Personal/Family); the standard must not leak cross-workspace or unreadable descendants.
+- [x] Keep Reporting out of this branch's default-behavior change. Reporting already exposes explicit descendant rollups through its own includeDescendants semantics; do not silently replace or broaden that behavior here.
+- [x] Close the branch only after the direct client/project filter surfaces that exist today are explicitly covered: Workbench, Tasks, Notes, Files, Lists, and Search.
+
+### Version 0.33.6.14.1 - Shared hierarchy scope resolver plus Tasks/Workbench adoption
+
+**Model: GPT-5.5 Extra High** - Shared resolver plus the first live consumer family, including the Workbench exact-match contract it was already sequenced behind.
+
+- [x] Extract a shared, permission-aware client/project hierarchy scope resolver from the existing client-projects hierarchy data/helpers so consumers can ask for the readable descendant client/project ID set of a selected parent without duplicating tree walking.
+- [x] Define the resolver contract carefully for Business versus Personal/Family workspaces, workspace-project scope, explicit blank/all filters, and leaf drill-down so downstream modules consume one canonical shape instead of ad hoc arrays.
+- [x] Apply the resolver to the Workbench focus filters and the Tasks list/query path together, since both currently rely on Tasks-owned exact-match client/project filtering and the Workbench docs already defer this exact follow-up.
+- [x] Update the Tasks repository/service filtering path and canonical post-filter checks so parent selection includes descendant task rows without leaking unreadable or cross-workspace records.
+- [x] Update the Workbench contract/docs to replace the current exact-match-only note with the shared descendant-aware standard once the behavior lands.
+- [x] Add focused regressions proving: parent client/project selection includes descendants in Tasks and Workbench, leaf drill-down still works, unreadable descendants are excluded, and Personal/Family still do not surface client scope.
+
+Acceptance criteria:
+
+- Workbench and Tasks consume one shared permission-aware hierarchy resolver, parent selection includes readable descendants, leaf drill-down still works, and no unreadable or cross-workspace rows leak.
+
+### Version 0.33.6.14.2 - Notes and Files adoption
+
+**Model: GPT-5.5 Extra High** - Two more permission-shaped list/browse surfaces adopting the shared resolver without redefining scope semantics again.
+
+- [x] Apply the shared hierarchy resolver to the Notes list/query path so parent client/project filters include readable descendant notes while preserving existing secure/private shaping and current collection/tag behavior.
+- [x] Apply the same resolver to Files browse and attachment-context filter reads so parent client/project filters include readable descendant attachments without changing Files-owned visibility, recovery, File Context, or Preview behavior.
+- [x] Keep consumer code thin: Notes and Files should consume the shared resolver/expanded scope shape rather than reimplement descendant walking in their own services or browser code.
+- [x] Update the relevant Notes/Files developer docs only for the shipped filter behavior change.
+- [x] Add focused regressions proving descendant inclusion, leaf drill-down preservation, and unreadable-descendant exclusion for Notes and Files.
+
+Acceptance criteria:
+
+- Notes and Files adopt the same shared descendant-aware client/project scope behavior as Tasks/Workbench, without changing their existing permission or workflow boundaries.
+
+### Version 0.33.6.14.3 - Lists and Search adoption plus branch closeout
+
+**Model: GPT-5.5 Extra High** - Finished the remaining direct filter surfaces and locked the app-wide rule in docs/regressions.
+
+- [x] Apply the shared hierarchy resolver to Lists filtering so parent client/project selection includes readable descendant lists while preserving current archive/status/reusable/tag/linked-target semantics.
+- [x] Apply the same resolver to Search route filtering so client/project-scoped search requests include descendant matches through the shared rule rather than exact-match-only filtering.
+- [x] Update the relevant docs/ scoping/contract docs to record parent-includes-descendants as the default for direct client/project filters on Workbench, Tasks, Notes, Files, Lists, and Search.
+- [x] Add branch-level regressions proving the behavior is consistent across at least Tasks, Notes, Files, Workbench, Lists, and Search, and that unreadable descendants remain excluded.
+- [x] Update CHANGELOG.md and roadmap bookkeeping for this branch through normal release ceremony.
+
+Acceptance criteria:
+
+- The shared permission-aware hierarchy resolver is the shipped default for direct client/project filters across Workbench, Tasks, Notes, Files, Lists, and Search; Reporting keeps its separate explicit descendant-rollup control; and no unreadable or cross-workspace records leak.
+## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center (archived completed branch through 0.33.6.13z)
+
+Completed 0.33.6.1 through 0.33.6.13z (Dashboard and Workbench formalization: the guided Workbench, normalized work-candidate/focus-mode model, Quick Action Capture drawer, Workbench Inspector, the Workbench view-state and Task Focus arc, and the Dashboard host conversion). The live roadmap continues with 0.33.6.14.
+
+Purpose:
+
+Turn the already-existing Dashboard and Workbench surfaces into framework-owned hosts that render module *contributions* instead of hardcoded Tasks/Time-Tracking behavior. Dashboard becomes the workspace overview/orientation surface; Workbench becomes the active work/resumption/focus surface driven by a single normalized work-candidate model, focus modes, the existing resume-state service, a floating Quick Action Capture (QAC) drawer, and a Workbench Inspector.
+
+This is a formalization and de-hardcoding pass, not greenfield. Dashboard, Workbench, and the resume-state service already exist; several contribution contracts already exist. The work is finishing/converting them, adding the net-new contracts, and reconciling the QAC/Inspector direction from `TODO.md`.
+
+Dependencies and framework baseline:
+
+- 0.33.5.9 shipped the framework-owned resume-state service and `/api/work-resume`.
+- 0.33.5.15/0.33.5.16/0.33.5.18 provide the `LongtailForge.view` primitives, validated `viewSurfaces`/`renderSurface(...)`, minimal protected hosts, and the finalized view baseline. Dashboard/Workbench hosts must consume this baseline rather than hand-building framework-owned anatomy (mirrors the Reporting host rule in 0.33.11).
+
+Current wiring (grounding for this branch):
+
+- Contribution contracts already half-exist. The module manifest already validates `dashboard` and `workbench` contributions (plus `timerSources`/`workItemSources`) in `src/core/modules/manifest-contract.js:1019-1047`, and `modulesService` already exposes `listDashboardPanels`, `listWorkbenchCards`, `listTimerSources`, `listWorkItemSources` (`src/core/modules/modules.service.js:997-1023`), all filtered through the shared `listWorkspaceContributions(workspaceId, session, fieldName)` path (enabled-module + `requiredPermissions` + `requiredWorkspaceCapabilities` + `requiresEnabledModules`). The **net-new** contracts are focus modes and a candidate source; a resume-snippet producer contract already exists (below).
+- Workbench service de-hardcoding is complete as of 0.33.6.5: `src/services/workbench.service.js` now reads module state, Workbench cards, timer/work-item sources, and normalized work candidates without importing first-party module services. Remaining Workbench work in this branch is the guided host/UI conversion, resume/focus presentation, QAC, and Inspector.
+- Dashboard is hand-built static HTML, not a framework host: `views/protected/dashboard.html` hardcodes the client/billing panels inline and exposes only a hidden `data-dashboard-extension-panels` stub for contributions. Converting it to a minimal host is in scope for this version.
+- Resume state is fully built and safe by construction. `GET /api/work-resume` + `POST /api/work-resume/:id/dismiss` (`src/routes/work-resume.routes.js`) return a rich normalized item (`title`, `contextLabel`, `nextAction`, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, `resumeRankHint`, `lastActionLabel`, `metadata`, `mode`). It is fed by an event-driven producer registry (`src/services/work-resume-state-producers.js`) with a strict field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `encrypt`, `storage.key`, `scanner`, ...). This producer payload is the basis for the shared work-candidate shape below.
+- Global chrome is injected per protected page via the shared `navigation.js` + `footer.js` includes (see `views/protected/dashboard.html`); the QAC floating drawer hooks into that app-shell include so it appears on all protected screens.
+
+Sizing rule for this branch:
+
+- Each sub-slice below should have one primary blast radius and should be completable in a single focused implementation session.
+- Each implementation sub-slice follows the normal release ceremony: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
+- Do not combine adjacent slices just because the same helper file is already open. In particular, the candidate model (0.33.6.2) is split from its ranking/sources (0.33.6.3), and the Dashboard host conversion (0.33.6.8) is split from moving Time-Tracking's panels into contributions (0.33.6.9).
+
+Key decisions for this branch:
+
+- QAC is a floating bottom-right drawer available on all protected pages, NOT a permanent right-side rail (reconciling `TODO.md` against the earlier rail wording). Record this in `DECISIONS.md`.
+- The Workbench Inspector is a persistent right panel on wide Workbench layouts showing permission-safe related record titles/context and opening existing preview/record modals in-place via stacked-modal behavior, not an embedded viewer pane. It is a distinct surface from QAC and must not steal the same screen space.
+- Next-action candidates and resume state share ONE normalized work-candidate shape derived from the existing resume-producer payload; there is no second parallel candidate contract. The candidate model inherits the producer allowlist/forbidden-field safety so candidates can never leak body/secure/storage-key content.
+
+### Version 0.33.6.1 - Surface contracts and scope (plan only)
+
+**Model: GPT-5.4** - Planning/docs-only contract baseline with no runtime behavior changes.
+
+- [x] Define Dashboard as the workspace overview/orientation surface and Workbench as the active work/resumption/focus surface, and keep them separate.
+- [x] Confirm and document the already-existing contribution contracts (`dashboard`, `workbench`, `timerSources`, `workItemSources`) and the resume-state producer registry, so later slices extend rather than reinvent them.
+- [x] Name the net-new contracts this branch adds: a focus-mode contract/registry (0.33.6.4) and a normalized work-candidate source (0.33.6.2-0.33.6.3).
+- [x] Enumerate the hardcoded Task/Time assumptions to remove (`src/services/workbench.service.js` direct `tasksService`/`activeTimersService` calls and its hardcoded `modules: { tasks, timeTracking }` bootstrap return shape; the inline panels in `views/protected/dashboard.html`; and the first-party module IDs baked into the framework registry service itself ? `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants, the `readModuleSettingValue` `taskTimersEnabled` special-case, and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` in `src/core/modules/modules.service.js`) and assign each to its owning slice. These compat flags cannot be retired until the Dashboard/Workbench/settings browser code that reads them is de-hardcoded in this branch, which is why they land here rather than in the earlier 0.33.5.27 database-conversion waves.
+- [x] Preserve, as a standing requirement for every slice, permission checks, module enabled/disabled checks, workspace boundaries, and private/secure/deleted-record handling.
+- [x] Update the implementation plan only; do not change runtime behavior in this slice.
+
+Acceptance criteria:
+
+- The Dashboard/Workbench boundary, the existing vs. net-new contracts, and the de-hardcoding targets are documented, with each target assigned to a later slice.
+
+### Version 0.33.6.2 - Normalized work-candidate contract and service
+
+**Model: GPT-5.5 Extra High** - Shared cross-module candidate contract work on top of existing framework and resume-state seams.
+
+- [x] Promote the resume-producer payload shape (`src/services/work-resume-state-producers.js`) into a single normalized work-candidate shape reused by both next-action ranking and resume state: `moduleId`, `recordType`, `recordId`, `title`, `contextLabel`, `reason`, primary-action descriptor, `sourceUrl`, `priority`, `dueAt`, `blockedReason`, and a rank hint.
+- [x] Reuse the existing seams rather than adding a new manifest axis: the framework-owned candidate service assembles candidates from resume-state rows plus live signals (e.g. running/paused timers) behind one shape, building on the existing resume-state producer payload plus the already-shipped `timerSources`/`workItemSources` contracts.
+- [x] Inherit the producer safety rules verbatim: the same field allowlist and forbidden-field patterns (`body`, `html`, `attachment`, `secure`, `storage.key`, `scanner`, ...) so a candidate can never carry body text, secure content, storage keys, or raw IDs in labels.
+- [x] Every candidate must expose a reason string, a primary action, a safe context label, and a source URL; labels follow the `docs/workflow-context-contract.md` no-raw-ID rule.
+- [x] Add regressions proving the shape is stable and that forbidden fields are stripped even if a source tries to supply them.
+
+Acceptance criteria:
+
+- One normalized, safe-by-construction work-candidate shape backs both next-action and resume behavior, with no second parallel contract.
+
+### Version 0.33.6.3 - Deterministic ranking and module candidate sources
+
+**Model: GPT-5.5 Extra High** - Cross-module ranking and source integration with deterministic behavior and safety filtering.
+
+- [x] Add deterministic candidate ranking: running timers, paused timers, overdue assigned work, due today, blocked/stale work, recently touched work, due this week.
+- [x] Tasks contributes task candidates and Time Tracking contributes running/paused timer candidates through the shared contract and the existing contribution seams; Lists, Notes (Active Work), and future Tickets contribute when their integrations are ready. Do not add a new candidate-source manifest field.
+- [x] Reuse the existing resume-state producer registry where a candidate is event-driven; add only a thin pull-style candidate source where live state (e.g. active/paused timers) is not captured by producers.
+- [x] Keep ranking a pure function of candidate fields (no hidden per-module ordering) so the "one recommended next action" is deterministic and testable.
+- [x] Add regressions for ranking order across mixed candidate types and for disabled-module/permission filtering of sources.
+
+Acceptance criteria:
+
+- Candidates from multiple modules rank deterministically into a single ordered list, permission- and module-aware.
+
+### Version 0.33.6.4 - Focus-mode contract and resolver
+
+**Model: GPT-5.5 Extra High** - Framework-owned focus registry with workspace-aware context resolution and later UI curation.
+
+- [x] Add a focus-mode contract/registry (following the `listWorkspaceContributions` pattern) with the full canonical mode set: Start my day, Pick up where I left off, What's due next, Work this week, Review blocked work, In progress, Project focus, and Client focus (Business workspaces only).
+- [x] Each focus mode resolves to a normalized focus context (scope, client/project, status/date filters) passed to the candidate sources from 0.33.6.3.
+- [x] Focus modes are user-friendly labels over deterministic filters, not separate hardcoded pages. This slice owns the full canonical registry even if later Workbench UI surfaces only a curated subset at first.
+- [x] Client focus must be hidden outside Business workspaces; Personal/Family must not surface client scope or labels.
+- [x] Add regressions for mode-to-context resolution and workspace-type gating.
+
+Acceptance criteria:
+
+- A canonical focus-mode set resolves to normalized focus contexts that drive the candidate sources, with correct workspace-type gating.
+
+### Version 0.33.6.5 - De-hardcode the Workbench service
+
+**Model: GPT-5.5 Extra High** - Framework/service decoupling that removes first-party module names from generic decisions.
+
+- [x] Remove the direct `tasksService`/`activeTimersService` imports and hardcoded `tasks`/`time-tracking` branches from `src/services/workbench.service.js`; drive timers and work items purely through the contribution registry and the candidate service. The `TASKS_MODULE_ID`/`TIME_TRACKING_MODULE_ID` constants and the hardcoded `modules: { tasks, timeTracking }` bootstrap return shape must both be gone; if the browser still needs a module-state map, build it generically from enabled-module state keyed by module ID.
+- [x] Also de-hardcode the framework registry service itself: remove the `taskTimersEnabled` special-case in `readModuleSettingValue` and the `tasksEnabled`/`timeTrackingEnabled` compat-flag injection in `decorateWorkspaceSettings` (`src/core/modules/modules.service.js`), retiring those deprecated top-level flags now that the settings/Workbench/browser-shell code consuming them is being converted in this branch. `src/core/modules/` must not name specific first-party module IDs to make generic contribution/settings decisions.
+- [x] Keep the existing Workbench bootstrap response shape working for the browser during the transition (adapt internals without breaking the page contract).
+- [x] Preserve enabled/disabled-module handling, permission checks, and workspace boundaries already enforced in `bootstrap`.
+- [x] Update the framework/browser consumers and regressions that still expect the deprecated top-level flags (for example `navigation.js` and the current permission regression assertions), so the retirement is complete rather than Workbench-only.
+- [x] Add regressions proving Workbench renders the same live data with Tasks/Time enabled and degrades cleanly when either is disabled, without importing them directly, and that no first-party module ID remains hardcoded in `workbench.service.js` or the `modules.service.js` settings/decoration paths.
+
+Acceptance criteria:
+
+- Workbench data comes entirely from contributions and the candidate service, with no hardcoded module imports and no behavior regression, and the framework registry service (`modules.service.js`) no longer names specific first-party modules to make generic settings/contribution decisions.
+
+### Version 0.33.6.6 - Guided Workbench UI
+
+**Model: GPT-5.5 Extra High** - Framework-owned Workbench host conversion plus guided next-action UX on top of the candidate model.
+
+- [x] Replace the hardcoded `views/protected/workbench.html` host with a minimal framework-owned `LongtailForge.view` Workbench host; in this branch, the guided host is the new Workbench host rather than a layer added on top of the old static page.
+- [x] Add a question-led Workbench entry that presents a curated initial subset of the 0.33.6.4 canonical focus modes as friendly questions ("Pick up where I left off", "Start with what's due", "Work this week", "Review blocked work", "Focus on a project") over the deterministic filters.
+- [x] Show one recommended next action (top-ranked candidate) before showing longer lists.
+- [x] Keep secondary lists available but visually subordinate; do not turn Workbench into another full module index.
+- [x] Add empty states that suggest a useful next step instead of dead ends.
+- [x] Build on `LongtailForge.view` primitives and framework view states; do not hand-build framework-owned anatomy.
+- [x] Add focused browser/static regressions for focus selection, recommended-action rendering, and empty states.
+
+Acceptance criteria:
+
+- Workbench opens through a minimal framework-owned host as a guided, focus-led surface that highlights one recommended action first and keeps secondary work subordinate.
+
+### Version 0.33.6.6a - Recommended-action candidate cycling and overflow
+
+**Model: GPT-5.5 Extra High** - Guided-UX refinement of the shipped recommended-action panel over the existing candidate ranking.
+
+Promoted from `TODO.md` (Recommended Next Action Interface & Algorithm). Follow-up to the shipped 0.33.6.6 guided host; belongs before 0.33.6.7.
+
+- [x] Add a "not this one" affordance to the "Start here" recommended-action panel: right-aligned, icon-only left/right arrows aligned with the "Start here" heading that cycle through the top 3-5 ranked candidates for the active focus (from the 0.33.6.3 deterministic ranking) without leaving the Workbench.
+- [x] Keep everything beyond the top 3-5 in the existing "More in this focus" list; the arrows only re-fill the single recommended slot and must not reorder or duplicate the secondary list.
+- [x] Preserve the one-recommended-action emphasis (a single card visible at a time) and framework view states; extend the existing `workbench-recommended-panel` DOM in `public/js/workbench.js` rather than hand-building framework-owned anatomy.
+- [x] Preserve the permission/workspace/enabled-module scoping already applied to candidates; cycling never surfaces a candidate the ranking would not.
+- [x] Add focused browser/static regressions for arrow presence and right-alignment, cycling bounds across the 3-5 window, and overflow remaining in "More in this focus".
+
+Acceptance criteria:
+
+- The recommended-action panel lets the user cycle the top 3-5 candidates via right-aligned icon-only arrows, with all further candidates staying in the subordinate "More in this focus" list.
+
+### Version 0.33.6.6b - Workbench host status and intro-copy cleanup
+
+**Model: GPT-5.4** - Mechanical host-shell cleanup routing status through existing framework view states.
+
+Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [x] Remove the frequently-empty status box at the top of the Workbench page and the static "Choose a focus, then start one useful next action." line beneath the Workbench heading.
+- [x] Relocate the transient status messages that previously rendered in that box (loading/updating/error/empty-context) into the space formerly occupied by the intro line, using framework view status states rather than an ad-hoc box.
+- [x] Do not hand-build framework-owned header/status anatomy; use `LongtailForge.view` status primitives.
+- [x] Add a focused static/browser regression proving the deprecated box and intro line are gone and that status messages render in the relocated slot.
+
+Acceptance criteria:
+
+- The empty status box and static intro line are removed, and Workbench status messaging renders through framework view states in the former intro location.
+
+### Version 0.33.6.6c - In-place record editing from Workbench
+
+**Model: GPT-5.5 Extra High** - Stacked-modal wiring of the shipped Workbench actions to the canonical record openers.
+
+Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [x] Change the Workbench "Open Work" action so it opens the existing Edit Task modal in place via stacked-modal behavior instead of navigating to the task list page.
+- [x] Reuse the canonical task opener (the shared `LongtailForge.moduleActions` / task dialog path) rather than a Workbench-specific editor; return focus to the triggering control on close and refresh the affected candidate/list in place.
+- [x] Where a candidate's record type has no in-place modal yet, keep an explicitly temporary navigation fallback (consistent with the QAC temporary-fallback rule) rather than a silent dead end.
+- [x] Preserve permission checks, workspace boundaries, and disabled-module handling on open.
+- [x] Add regressions proving "Open Work" dispatches the in-place editor for tasks and returns focus without leaving the Workbench.
+
+Acceptance criteria:
+
+- "Open Work" opens the record's editor in place via stacked-modal behavior and refreshes Workbench state, instead of navigating away.
+
+### Version 0.33.6.6d - Focus-mode candidate scope and ordering corrections
+
+**Model: GPT-5.5 Extra High** - Deterministic ranking/focus-context corrections behind the shipped focus modes.
+
+Promoted from `TODO.md`. Corrects candidate/focus behavior surfaced by the 0.33.6.6 focus modes; belongs before 0.33.6.7. Blast radius is the 0.33.6.3 ranking and 0.33.6.4 focus resolver, not new UI.
+
+- [x] "What's due next" / "Start with what's due" must order by due datetime - oldest overdue first, then the next upcoming due task - not by alphabetized client/project order. Fix in the deterministic ranking/focus context (0.33.6.3/0.33.6.4), keeping ranking a pure function of candidate fields.
+- [x] "Work this week" must recommend the next-due task (not an arbitrary single task) and load the full in-scope list into "More in this focus", not a single entry.
+- [x] "Review blocked work" must resolve to genuinely blocked candidates only; when nothing is blocked it shows the focus empty state (0.33.6.6 empty-state contract) instead of falling back to unrelated tasks.
+- [x] Keep all three as deterministic filters over the shared candidate contract; do not add per-mode hardcoded ordering or a second candidate source.
+- [x] Preserve permission/workspace/enabled-module and archived/complete handling in every focus context.
+- [x] Add regressions for due-datetime ordering (overdue-before-upcoming), work-this-week next-due plus full-list population, and blocked-focus emptiness when no blocked work exists.
+
+Acceptance criteria:
+
+- The due, this-week, and blocked focus modes resolve to correctly scoped and ordered candidates (datetime-ordered due work, next-due plus full list for the week, genuinely-blocked-only for blocked), with correct empty states.
+
+### Version 0.33.6.6e - Split Workbench client and project focus filters
+
+**Model: GPT-5.5 Extra High** - Focus-filter UI split feeding the existing focus-context resolver.
+
+Promoted from `TODO.md`. Follow-up to 0.33.6.6; belongs before 0.33.6.7. First consumer of the app-wide scoping standard in 0.33.6.14.
+
+- [x] Replace the single combined client/project dropdown in the "What should we focus on?" box with two separate filters - a client filter (Business workspaces only) and a project filter - and make them active for ALL focus modes, not only Project focus.
+- [x] Mirror the two-filter behavior used elsewhere in Tasks so scoping is consistent; keep client scope hidden on Personal/Family workspaces.
+- [x] Consume the hierarchical (parent-includes-descendants) scoping standard from 0.33.6.14 so selecting a parent client/project includes its sub-clients/sub-projects; if 0.33.6.14 has not landed, scope to the exact client/project and cross-reference 0.33.6.14 as the follow-up that generalizes it.
+- [x] Preserve permission/workspace boundaries and the focus-context contract; the split filters feed the same focus-context resolver (0.33.6.4).
+- [x] Add regressions for the two-filter split, all-focus-mode applicability, workspace-type gating of the client filter, and (once 0.33.6.14 lands) parent-includes-descendants scoping.
+
+Acceptance criteria:
+
+- The Workbench focus box exposes separate client and project filters that apply to every focus mode, are workspace-type aware, and use exact client/project scoping until 0.33.6.14 generalizes parent/child descendant inclusion.
+
+### Version 0.33.6.6f - Collapsible Workbench sections: default state and caret affordance
+
+**Model: GPT-5.5 Extra High** - Default-state logic and accessible collapse affordance over the shipped Workbench sections.
+
+Promoted from user request. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [x] Start the "More in this focus" secondary-candidate section collapsed by default: `createSecondaryCandidateSection()` in `public/js/workbench.js` currently forces its `<details>` open (`section.open = true`) - flip the default to collapsed while keeping the section available.
+- [x] Make the Timers section (`createTimerSection()`) default-collapsed ONLY when there are no active/paused timers, and default-open when there is at least one; key the initial open state off the loaded timer state (`state.timers.length`) and re-evaluate when timer data loads/changes so it auto-opens if a timer becomes active during the session (respect an explicit user toggle within the session rather than fighting it).
+- [x] Add a clear, consistent caret/chevron affordance on collapsible section headers so users can see a section is collapsible and whether it is collapsed or expanded (surface the native `<details>`/`<summary>` disclosure marker or a styled chevron that rotates on toggle). Keep it accessible: real `<summary>` semantics / `aria-expanded`, keyboard-toggleable, visible focus.
+- [x] Preserve each section's existing content, counts, and behavior; only the default open state and the affordance change. Build on `LongtailForge.view` primitives and existing section markup rather than hand-rolling new anatomy.
+- [x] Add focused browser/static regressions for: "More in this focus" defaulting collapsed, Timers open-state keyed to active-timer presence (open with timers, collapsed without), and the caret affordance present and reflecting collapsed/expanded state.
+
+Acceptance criteria:
+
+- "More in this focus" starts collapsed, Timers starts open only when active/paused timers exist, and every collapsible Workbench section shows an accessible caret affordance indicating its collapsed/expanded state.
+
+### Version 0.33.6.6g - Remove the all-tasks list from the Workbench
+
+**Model: GPT-5.4** - Focused removal of the non-curated task list and its dead data plumbing.
+
+Promoted from user request. Follow-up to 0.33.6.6; belongs before 0.33.6.7.
+
+- [x] Remove the full Tasks list from the Workbench: delete `createTaskSection()` and its `workbench-task-list` region in `public/js/workbench.js` so the Workbench no longer renders an all-tasks index. The Workbench stays a focused surface (recommended action + "More in this focus" curated candidates), reinforcing the 0.33.6.6 rule that it is not another full module index.
+- [x] Remove the now-dead task-list data plumbing that fed only that list (the `taskItems` fetch/merge/render path), while keeping `taskOptions` and the work-candidate paths that the recommended action and secondary candidates still need.
+- [x] Preserve permission/enabled-module handling for the surfaces that remain; removing the list must not affect candidate ranking or focus behavior.
+- [x] Add regressions proving the Workbench renders no all-tasks list and that the recommended action + secondary candidate surfaces still render.
+
+Acceptance criteria:
+
+- The Workbench no longer renders an all-tasks list; only the focused recommended-action and curated "More in this focus" surfaces remain, with no dead task-list plumbing left behind.
+
+### Version 0.33.6.6h - Shorten recommendation cycle-button labels
+
+**Model: GPT-5.4** - Copy-only correction to the shipped recommended-action cycle buttons.
+
+Promoted from user request. Follow-up correction to the already-shipped 0.33.6.6a arrows; belongs before 0.33.6.7.
+
+- [x] Shorten the two cycle-button labels on the recommended-action arrows: the shipped verbose text "Show previous recommendation" and "Not this one, show another recommendation" (`public/js/workbench.js`) become concise "Previous" and "Next" respectively.
+- [x] On the icon-only arrows these serve as the accessible name / tooltip (`aria-label`/`title`); if any visible text remains it is just "Previous"/"Next", not a sentence.
+- [x] Update any regression that pins the old button labels.
+
+Acceptance criteria:
+
+- The recommended-action cycle buttons read "Previous"/"Next" (as visible text and/or accessible name), with no verbose sentence labels remaining.
+
+### Version 0.33.6.7 - Resume "Pick up where I left off" UI
+
+**Model: GPT-5.5 Extra High** - Resume-state integration with deterministic fallback behavior and safe dismissal handling.
+
+- [x] Wire the "Pick up where I left off" focus to `GET /api/work-resume` first, falling back to the lower-ranked recently-touched-work candidate bucket from 0.33.6.3 only when no active resume rows exist. Close the current wiring gap: the mode's declared `resumeStrategy: { primary: "work-resume", ... }` in `src/services/work-focus-modes.service.js` is inert (no server or client code reads it), so today the mode only runs the recently-touched branch via `/api/workbench/focus-candidates` and never consults `/api/work-resume`. This slice must actually execute that strategy.
+- [x] Do not build a new framework activity feed in this slice; the fallback is weaker ranking over existing candidate sources, not a second recovery surface.
+- [x] Show one recommended resume candidate first; keep secondary candidates subordinate.
+- [x] (Promoted from `TODO.md`) Account for active timers as the strongest resume signal. Running/paused timer state already produces resume-state rows (the `initial.time-tracking-timers` producer), so consulting `/api/work-resume` first restores them; but the recently-touched fallback currently classifies timers into the `running_timer`/`paused_timer` buckets and drops them (`matchesRankBucketFilters`/`rankBucket` in `src/services/work-candidate.service.js`), so the fallback must include the timer buckets (or otherwise not discard running/paused timer candidates for this mode).
+- [x] (Promoted from `TODO.md`) Rank resume candidates with an explicit precedence - running timer, then paused timer, then task with a resume note, then In Progress task, with task priority as the tiebreaker - applied consistently across both the recommended slot and the "More in this focus" list.
+- [x] (Promoted from `TODO.md`) Exclude recurring-task instances whose only recent signal is "Task Created" from the resume recommendation unless they are within ~24 hours of their due date; recurring instances have definitive due dates and should not surface just for being recently created. Fold this rule into the 0.33.6.3 recently-touched-work bucket so the resume fallback inherits it rather than special-casing it in the UI.
+- [x] Allow users to dismiss stale resume candidates via `POST /api/work-resume/:id/dismiss`.
+- [x] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries (already enforced by the producer allowlist).
+- [x] Add regressions for resume-first ordering, timer-precedence ordering (running > paused > resume-note > In Progress > priority), running/paused timers surviving the recently-touched fallback, recurring-instance exclusion outside the ~24h due window, recent-work fallback, dismiss behavior, and safe handling of stale/unavailable targets.
+
+Acceptance criteria:
+
+- The resume focus consumes the existing resume-state service (executing its `resumeStrategy`, not just the recently-touched fallback), surfaces running/paused timers ahead of resume-note and In Progress work, recommends one candidate first, supports dismissal, and never exposes unsafe content.
+
+### Version 0.33.6.8 - Dashboard host conversion
+
+**Model: GPT-5.5 Extra High** - Framework-owned Dashboard host conversion while preserving contribution gating and existing overview panels.
+
+- [x] Convert `views/protected/dashboard.html` into a minimal framework host that renders contributed dashboard panels via `modulesService.listDashboardPanels` and registered panel renderers, using `LongtailForge.view` primitives for shell/header/status/empty/error states.
+- [x] Keep the existing panels working through the host during the conversion (no visual/data regression), retiring the hidden `data-dashboard-extension-panels` stub.
+- [x] Do not hand-build framework-owned Dashboard anatomy in static HTML or ad-hoc DOM when a view primitive or descriptor field covers it.
+- [x] Add a focused static regression proving the Dashboard page is a minimal framework host.
+
+Acceptance criteria:
+
+- Dashboard renders module-contributed panels through a framework host rather than hardcoded static markup, with existing panels preserved.
+
+### Version 0.33.6.9 - Move Time-Tracking dashboard panels into contributions
+
+**Model: GPT-5.5 Extra High** - Time-Tracking-owned dashboard contribution extraction with shared billing-calculation reuse.
+
+- [x] Narrow this slice to the Time-Tracking-owned billing panels only: move the current-month billables table and the hours-and-billables chart out of `dashboard.html` and into Time-Tracking-owned `dashboard` contributions with their own renderers and data routes.
+- [x] Task summary remains the Tasks-owned contribution already covered by the host contract; it is not part of this extraction slice.
+- [x] Keep the reporting hub / client-project count launch panel as a framework-hosted interim panel in 0.33.6.x; it does not move into Time Tracking here and instead converts to a Reporting-owned dashboard contribution in 0.33.11.
+- [x] Keep Time Tracking responsible for the billing/time data and calculations; extract the billing/time aggregation into a shared Time-Tracking calculation service that 0.33.11's project time/billing work can reuse, while the framework remains responsible only for panel hosting, placement, and status/empty/error states.
+- [x] Ensure the panels disappear cleanly when Time Tracking is disabled or the user lacks the required permissions, via the existing contribution filtering.
+- [x] Add regressions proving the panels appear only when Time Tracking is enabled and permitted, and that no hardcoded Task/Time assumptions remain in the Dashboard host.
+
+Acceptance criteria:
+
+- The Dashboard billing panels are Time-Tracking contributions gated by enabled-module and permission checks, with no remaining hardcoded Time-Tracking billing markup in the host and no accidental reassignment of the reporting hub.
+
+### Version 0.33.6.10a - Quick Action Capture drawer shell
+
+**Model: GPT-5.5 Extra High** - Framework-owned shared app-shell drawer behavior across every protected page.
+
+Decision:
+
+QAC is app-shell utility behavior, not a Workbench focus mode. It provides low-distraction access to common capture and recovery tools without navigating away from the current work surface: reduce focus/workflow interruption, keep productivity focused, and allow quick idea/thought capture without derailing the work train. QAC is a floating bottom-right drawer (not a permanent rail).
+
+- [x] Add a floating, drawer-style QAC control anchored bottom-right, available on ALL protected screens via the shared app-shell include (`navigation.js`/`footer.js`), quiet until the user opens it.
+  - [x] Use an icon that communicates action/capture rather than words that consume screen real estate (evaluate a "runner"/lightning-style glyph against the existing icon registry at build time).
+  - [x] On wide screens the drawer may show icon + small text; on narrow screens it collapses to icon-only.
+- [x] Drawer actions are contributed by enabled modules or mapped from registered module actions, and the shell owns contributed-action gating, quiet-until-opened behavior, focus return, and explicit temporary page fallbacks.
+- [x] Ship the framework-owned first action set with explicit temporary behavior where a modal does not exist yet:
+  - [x] Timer - temporary fallback to `time-tracker.html` until the future 2-timer modal exists (see deferred follow-ups in 0.33.6.12).
+  - [x] Task - dispatches through the existing registered Task action path.
+  - [x] Note - explicit temporary fallback to `notes.html` until the shared action registry opener lands in 0.33.6.10b.
+  - [x] List - explicit temporary fallback to `lists.html` until the shared action registry opener lands in 0.33.6.10b.
+  - [x] File - explicit temporary fallback to `files.html` until the shared action registry opener lands in 0.33.6.10b.
+  - [x] Reporting - temporary fallback to `reporting.html` until the future report-creation modal exists.
+  - [x] Search - temporary fallback to `search.html` until the future advanced-search modal exists.
+- [x] Actions open modals without changing the current page, receive safe current-page context when available, and return focus to the triggering control when closed.
+- [x] If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback; temporary navigation fallbacks must be removed once the modal action exists.
+- [x] Do not use badges, alerts, or recommendation behavior in the drawer; notifications and Workbench own those concerns.
+- [x] Add regressions for drawer presence on protected pages, contributed-action gating, focus return, quiet-until-opened behavior, and temporary-fallback labeling.
+
+Acceptance criteria:
+
+- A quiet floating QAC drawer is available on all protected pages, opens contributed capture actions as modals (with explicit temporary page fallbacks), preserves focus, and adds no badge/alert noise.
+
+### Version 0.33.6.10b - First-party opener rollout for QAC
+
+**Model: GPT-5.4** - Mechanical registry rollout that wraps existing module-owned openers without inventing new forms.
+
+- [x] Register the missing first-party Notes, Lists, and Files modal openers through the shared `LongtailForge.moduleActions` registry so QAC dispatches them the same way it dispatches Tasks, Time Entries, Projects, and Clients.
+- [x] Wrap each module's existing canonical opener; do not build new forms or alternate editor flows.
+- [x] Preserve module-owned permissions, payloads, refresh hooks, and focus-return behavior while routing opens through the shared framework action path.
+- [x] Add regressions proving the new action registrations exist, dispatch through the canonical module-owned opener, and do not duplicate existing page-specific open logic.
+
+Implementation note: Notes and Lists now dispatch QAC create actions through their canonical add/edit modal wrappers. Files registers the existing attachment-scoped File Context and File Preview openers (`files.edit`, `files.preview`) for framework dispatch; generic File capture remains an explicit page fallback until a target-aware upload opener exists, because this slice must not invent a new Files form.
+
+Acceptance criteria:
+
+- Notes, Lists, and Files expose canonical shared action registrations that QAC and future framework surfaces can dispatch without inventing new module forms.
+
+### Version 0.33.6.11 - Workbench Inspector panel
+
+**Model: GPT-5.5 Extra High** - Permission-safe cross-module context rail work without introducing a new embedded viewer host.
+
+- [x] Add a persistent Inspector panel on wide Workbench layouts (subordinate to the main surface) that stays out of the QAC drawer's space.
+- [x] Show permission-safe related record titles/context when idle; clicking a related title opens the existing preview or record modal in place via stacked-modal behavior (reuse existing preview/linked-context infrastructure rather than a new viewer host).
+- [x] Do not build an embedded preview pane inside the Inspector in this slice; a true embedded viewer would be a separate future slice.
+- [x] Keep the Inspector permission-safe and workspace-aware, and apply the no-raw-ID/`docs/workflow-context-contract.md` label rules; non-Workbench screens remain centered unless they explicitly opt into Inspector behavior.
+- [x] Degrade gracefully on narrow screens (collapse/hide) and when there is no related context.
+- [x] Add regressions for related-title rendering, stacked-modal open behavior, permission scoping, and narrow-screen behavior.
+
+Acceptance criteria:
+
+- The Workbench Inspector shows permission-safe related titles/context on wide layouts, opens existing preview/record modals without competing with the QAC drawer, and does not introduce an embedded viewer pane or leak unsafe content.
+
+### Version 0.33.6.11b - Remove the Quick Notes section from the Workbench
+
+**Model: GPT-5.4** - Focused removal of the Quick Notes section now that its replacements exist.
+
+Promoted from user request. Placed here (after QAC 0.33.6.10a and the Inspector 0.33.6.11) because it depends on those replacements; originally drafted as a 0.33.6.6 follow-up but moved to run after its dependencies.
+
+- [x] Remove the Quick Notes section from the Workbench: delete `createQuickNotesSection()` and its data/behavior in `public/js/workbench.js`. The Workbench stays a focused surface; quick capture is now owned by the Quick Action Capture drawer (0.33.6.10a) and related record context by the Workbench Inspector (0.33.6.11), so this section is redundant.
+- [x] Confirm no capture/context gap remains: the QAC Note action and the Inspector cover what Quick Notes provided before removing it.
+- [x] Preserve permission/enabled-module handling for the surfaces that remain.
+- [x] Add a regression proving the Workbench renders no Quick Notes section.
+
+Acceptance criteria:
+
+- The Workbench no longer renders a Quick Notes section, with quick capture handled by QAC (0.33.6.10a) and related context by the Inspector (0.33.6.11), and no capture/context gap introduced.
+
+## Workbench View-State Direction
+
+As of 0.33.6.12a, Workbench has two explicit view states: Focus Selection and Task Focus.
+
+Focus Selection is for choosing work. It shows focus-mode questions, filters, one recommended next action, and a right-side candidate overflow panel for other work matching the selected focus.
+
+Task Focus is for working one selected task. It hides Focus Selection controls and shows a mostly read-only task work surface with explicit task actions, checklist execution, task-linked timer controls, and a right-side task-context Inspector.
+
+The Workbench Inspector is state-specific. In Focus Selection it replaces the old "More in this focus" main-column section. In Task Focus it shows context around the selected task: linked notes, task files, linked lists, same-project tasks, and direct shared-tag records, all permission-shaped and opened through existing module actions or explicit safe fallbacks.
+
+Task candidate primary actions enter Task Focus by default. Editing remains explicit through the Edit action and canonical Task editor opener. Workbench does not hide work through candidate dismissal; blocked/stale work is represented through task status and focus selection.
+
+### Version 0.33.6.12a - Workbench view-state split: Focus Selection and Task Focus
+
+**Model: GPT-5.5 Extra High** ? Workbench UX/state architecture correction with framework-owned surface behavior, task action dispatch, and candidate/list behavior changes.
+
+Purpose:
+
+Split the Workbench into two explicit view states:
+
+- **Focus Selection**: the user chooses a focus mode, reviews the recommended next action, and can scan more candidates without committing to one.
+- **Task Focus**: the user has selected one task as the active work target, so the page stops showing competing tasks and instead shows the focused task, its checklist, timer controls, and related context.
+
+This is a Workbench-specific view-state correction, not a new module and not a new focus-mode registry entry. The existing focus-mode contract still chooses the candidate set; the new Workbench view state controls whether the user is choosing work or actively focusing on one task.
+
+- [x] Add an explicit Workbench browser state value such as `focus-selection` / `task-focus`, with `focus-selection` as the default.
+- [x] Preserve the current focus-mode controls, client filter, project filter, recommended candidate panel, and candidate ranking while in `focus-selection`.
+- [x] Change all Workbench candidate primary actions currently labeled/opening as "Open work" so they enter `task-focus` for task candidates instead of opening the Task edit modal.
+- [x] Keep non-task candidates on an explicit temporary fallback path until their owning module has a Task Focus-equivalent target view, and label that fallback clearly in code/tests rather than silently opening an editor.
+- [x] Remove the `Dismiss` action from recommended and secondary/resume candidates. Workbench should not hide work from the user through dismissal; blocked work is represented by task status, and alternate work is chosen through focus selection.
+- [x] Add a persistent header action labeled `Change Focus` in the upper-right action slot, replacing the current `Time Tracker` link. The button exists in both Workbench states, is disabled/quiet in `focus-selection`, and is enabled in `task-focus`.
+- [x] When `Change Focus` is activated from `task-focus`, clear the active task focus selection and return to `focus-selection` without changing the current focus mode/client/project filters.
+- [x] Preserve browser focus return and keyboard behavior when entering and leaving `task-focus`.
+- [x] Do not navigate away from the Workbench when selecting a task for focus.
+- [x] Add focused regressions proving:
+  - Workbench has explicit Focus Selection and Task Focus states.
+  - Candidate primary action enters Task Focus instead of opening `tasks.edit`.
+  - `Dismiss` no longer appears on recommended/resume candidate cards.
+  - `Change Focus` replaces the `Time Tracker` header action, is disabled in Focus Selection, and exits Task Focus when enabled.
+  - Existing focus mode/client/project filters remain intact after returning to Focus Selection.
+
+Acceptance criteria:
+
+- Workbench has a clear two-state model: Focus Selection for choosing work, Task Focus for working one task. Selecting a task no longer opens the edit modal by default, and stale work is not hidden through dismissal.
+
+### Version 0.33.6.12b - Focus Selection cleanup: Inspector owns More in this focus
+
+**Model: GPT-5.4** ? Focused Workbench presentation cleanup after the view-state split, with no service, permission, or architecture change.
+
+Purpose:
+
+Reduce visual competition in Focus Selection by moving the "More in this focus" candidate list into the right-side Inspector surface and removing the duplicate collapsible "More in this focus" section from the main Workbench column.
+
+In Focus Selection, the right panel is a candidate browsing surface. In Task Focus, the right panel becomes true task-context inspection.
+
+- [x] In `focus-selection`, retitle/re-purpose the current right Inspector panel as the surface for "More in this focus" candidates.
+  - Heading: `More in this focus`.
+  - Helper copy: `Other work matching the selected focus. Choose one to focus it.`
+- [x] Remove the main-column `More in this focus` collapsible section entirely.
+- [x] Keep the right-side candidate panel bounded and scrollable so it can show a useful list without stretching the whole page.
+- [x] Keep the recommended-action panel in the main column showing one candidate at a time.
+- [x] Change `RECOMMENDED_CANDIDATE_LIMIT` from `1` to `5`, so the Previous/Next controls cycle through the top five ranked candidates.
+- [x] Ensure candidates in the top-five recommendation cycle are not duplicated in the right-side "More in this focus" Inspector list unless the product decision is to show the full ranked set with a clear "currently recommended" marker. Prefer no duplication for calmness.
+- [x] Preserve the existing right-panel count badge, but make it count the actual non-recommended overflow candidates shown in the panel.
+- [x] Remove any stale regression expectation that recommendations are limited to one candidate window.
+- [x] Add focused regressions proving:
+  - `RECOMMENDED_CANDIDATE_LIMIT = 5`.
+  - Previous/Next cycle through up to five candidates.
+  - Main-column `More in this focus` no longer renders.
+  - Focus Selection right panel renders overflow candidates.
+  - The right panel scrolls/bounds long candidate lists.
+  - The selected/recommended candidate is not duplicated in the overflow panel unless explicitly marked as current.
+
+Acceptance criteria:
+
+- Focus Selection shows one recommended task in the main column, lets the user cycle the top five recommendations, and moves all other in-focus candidates into the right-side panel instead of showing another task list in the main column.
+
+### Version 0.33.6.12c-1 - Task Focus main surface: read-only task work view and task actions
+
+**Model: GPT-5.5 Extra High** ? Task Focus introduces task lifecycle actions from a new Workbench view state, requiring careful permission/status/regression handling.
+
+Purpose:
+
+When a task is selected, Workbench should become a focused execution surface for that task rather than an editor or another task list. The main column should hide Focus Selection controls and render a mostly read-only task view with only the execution actions needed while working.
+
+Task Focus main-surface order after this slice:
+
+1. Task action strip.
+2. Task summary / selected task heading.
+3. Task details, collapsed by default.
+4. Checklist, handled in 0.33.6.12c-2.
+5. Timers, handled in 0.33.6.12d-1.
+
+- [x] In `task-focus`, hide the Focus Selection controls:
+  - "What should we focus on?"
+  - Recommended Next Action
+  - Focus Selection candidate overflow / right-panel candidate list behavior from 0.33.6.12b
+- [x] Render a selected-task heading/summary so the user can immediately tell what task is being focused without opening the edit modal.
+- [x] Add a top task action strip with icon-only actions, right-justified near the left edge of the Inspector column with a slight margin.
+  - Edit: opens the existing canonical Task edit modal.
+  - Complete: completes the task through the existing task lifecycle route/service, then returns to Focus Selection.
+  - Block: moves the task to blocked status through the existing task lifecycle route/service and leaves the user in Task Focus unless service behavior requires a refresh fallback.
+- [x] Use existing Tasks-owned lifecycle routes/actions; do not invent a Workbench-only task status mutation path.
+- [x] Render Task Details as a read-only collapsible section, collapsed by default.
+  - Include safe task metadata already exposed to Workbench/task detail reads: title, status, due date/time, priority, assignees, client/project context, blocked reason when present, and description/details if the user can read them.
+  - Do not expose raw IDs or hidden/private labels.
+- [x] Leave checklist execution out of this slice except for any stable mount point needed by 0.33.6.12c-2.
+- [x] Add focused regressions proving:
+  - Task Focus hides Focus Selection panels.
+  - Task action strip renders icon-only Edit, Complete, and Block actions with accessible labels/titles.
+  - Edit opens the canonical Task edit modal.
+  - Complete calls the existing lifecycle path and returns to Focus Selection.
+  - Block calls the existing lifecycle path and refreshes the focused task state.
+  - Task Details is read-only and collapsed by default.
+
+Acceptance criteria:
+
+- Task Focus gives the user a calm, mostly read-only task work surface with explicit Edit, Complete, and Block actions, without opening the Task editor by default or reintroducing Focus Selection panels.
+
+### Version 0.33.6.12c-2 - Task Focus checklist execution
+
+**Model: GPT-5.5 Extra High** ? Checklist mutation from Workbench must preserve Tasks-owned permission checks, progress side effects, audit/event/search behavior, and the canonical editor boundary.
+
+Purpose:
+
+Add checklist execution to the Task Focus main surface from 0.33.6.12c-1 without turning Workbench into a second Task editor.
+
+- [x] Render Checklist as a prominent Task Focus section in the main column.
+  - If the task has checklist items, the Checklist section is open by default.
+  - If the task has no checklist items, the Checklist section is collapsed by default and shows: `Edit task to add checklist items.`
+  - Checklist items can be checked/unchecked inside Task Focus.
+  - Task Focus must not add, remove, rename, or reorder checklist items; those remain in the Task edit modal.
+- [x] Use existing Tasks-owned checklist routes/services for check/uncheck behavior; do not invent a Workbench-only checklist mutation path.
+- [x] Preserve Tasks-owned checklist progress side effects, audit/event/search/notification behavior, and permission checks.
+- [x] Keep the Task Focus shell/actions from 0.33.6.12c-1 intact while adding the checklist section.
+- [x] Add focused regressions proving:
+  - Checklist is open by default when populated.
+  - Checklist is collapsed with the required empty message when empty.
+  - Task Focus only supports checklist check/uncheck, not add/remove/rename/reorder.
+  - Checklist changes dispatch through the existing Tasks-owned mutation path and refresh the focused task state.
+  - Checklist permission failures are safely surfaced without leaking hidden task data.
+
+Acceptance criteria:
+
+- Task Focus supports inline checklist execution for the focused task while all checklist structure editing remains in the canonical Task editor.
+
+### Version 0.33.6.12d-1 - Workbench timers by view state and task-linked timer surface
+
+**Model: GPT-5.5 Extra High** ? Workbench timer behavior touches task-linked timer context, elapsed-time controls, and state-specific surface rules.
+
+Purpose:
+
+Cleanly separate timer behavior by Workbench view state and give Task Focus a task-linked timer surface. QAC and the Time Tracking Create Timer modal are handled separately in 0.33.6.12d-2.
+
+Focus Selection timer rule:
+
+- Focus Selection only shows active/paused timers.
+- Focus Selection does not show a timer creation form because QAC owns quick capture/create actions.
+
+Task Focus timer rule:
+
+- Task Focus shows a task-linked timer box at the bottom of the main column.
+- The timer box is open by default, collapsible, and uses the same caret affordance as other Workbench collapsible sections.
+- The top of the box should visually align with the existing Task Timer box in the Task edit modal.
+- Active/paused timers appear below the task timer controls and support Start/Pause/Save/Reset behavior consistent with the old Workbench timer model.
+
+- [x] In Focus Selection, remove the manual timer creation row from the Workbench Timers section.
+- [x] In Focus Selection, keep the Timers section focused on active/paused timers only.
+  - If no timers exist, keep the existing empty state: `No active or paused timers.`
+  - Keep the section collapsible with the existing caret behavior.
+- [x] In Task Focus, render a task-linked timer section at the bottom of the main column.
+  - Open by default.
+  - Collapsible with visible caret.
+  - Use selected task context automatically; do not require the user to reselect Client/Project/Task.
+  - Show controls matching the Task edit modal timer model as closely as practical.
+- [x] In Task Focus, list active/paused timers below the task-linked timer controls.
+  - Start/Pause/Save/Reset behavior should reuse existing Time Tracking/Tasks timer services and preserve permissions, audit/event/search behavior, and elapsed-time calculations.
+- [x] Keep QAC Timer on its current explicit fallback until 0.33.6.12d-2 replaces it with the Time Tracking-owned modal.
+- [x] Add focused regressions proving:
+  - Focus Selection no longer renders the manual timer creation row.
+  - Focus Selection Timers renders only active/paused timers and the no-timers empty state.
+  - Task Focus renders a default-open, collapsible timer section with caret.
+  - Task Focus timer controls are task-linked and do not require reselecting the task.
+  - Active/paused timer controls still support Start/Pause/Save/Reset behavior.
+  - QAC Timer fallback behavior is unchanged in this slice.
+
+Acceptance criteria:
+
+- Timer creation moves out of the Focus Selection Workbench section, while Task Focus gets a task-linked timer surface suited to actively working the selected task.
+
+### Version 0.33.6.12d-2 - Time Tracking Create Timer modal for QAC and shared dispatch
+
+**Model: GPT-5.5 Extra High** ? Crosses Time Tracking, QAC, and shared module-action dispatch while preserving timer creation rules, billable inheritance, focus return, and host refresh behavior.
+
+Purpose:
+
+Add a Time Tracking-owned Create Timer modal so users can start timers through QAC and future framework surfaces without navigating away from the current page.
+
+Time Tracking modal rule:
+
+- Time Tracking owns a new Create Timer modal and registers it as a shared module action.
+- QAC Timer opens that modal instead of navigating to `time-tracker.html`.
+
+- [x] Build a Time Tracking-owned Create Timer modal.
+  - Register a module action such as `time-tracking.timer.create`.
+  - Modal should support quickly creating/starting a timer with Client, Project, optional Task, Description, and Billable behavior consistent with existing timer rules.
+  - Billable inheritance should match the existing Time Tracking/Task timer behavior.
+  - The modal must be usable from QAC and future Workbench surfaces through `LongtailForge.moduleActions`.
+  - The modal must return focus to the trigger and notify the host to refresh timer state after save/start.
+- [x] Update the QAC Timer action to open the new Time Tracking Create Timer modal.
+- [x] Remove the previous QAC Timer temporary page fallback once the modal is registered and covered.
+- [x] Add focused regressions proving:
+  - Time Tracking registers a Create Timer module action.
+  - QAC Timer dispatches the Create Timer modal instead of navigating to Time Tracker.
+  - The modal supports Client, Project, optional Task, Description, and Billable behavior consistent with existing timer rules.
+  - Focus return and host timer refresh occur after modal close/save/start.
+
+Acceptance criteria:
+
+- QAC Timer uses a Time Tracking-owned Create Timer modal through the shared module-action registry, with the temporary Time Tracker page fallback removed.
+
+### Version 0.33.6.12e-1 - Task Focus related-context service and ranking algorithm
+
+**Model: GPT-5.5 Extra High** ? Cross-module, permission-shaped context aggregation around a focused task with Files/Notes/Lists/Tags integration risk.
+
+Purpose:
+
+Build the permission-shaped related-context read model that Task Focus Inspector will consume in 0.33.6.12e-2. This slice is about selected-task context aggregation and ranking, not Inspector presentation.
+
+Context ordering algorithm:
+
+1. Linked context Notes directly linked to the task.
+2. Files attached to the task.
+3. Lists linked to the task.
+4. Other active tasks in the same project.
+5. Tasks, Notes, Files, and Lists sharing the same direct tags as the task.
+
+Refinements:
+
+- Direct task links outrank shared project.
+- Shared project outranks shared tags.
+- Direct tags mean manually/directly assigned tags, not propagated/effective/system tags, unless a later roadmap slice explicitly changes that.
+- Deduplicate records that match through multiple reasons and keep the strongest reason.
+- Bound each group to a calm display count with "View more" or equivalent future-safe affordance only if an existing module route/modal can handle it safely.
+- Do not expose body text, secure note bodies, protected file data, storage keys, scanner internals, raw IDs, or unreadable labels.
+
+- [x] Add a Workbench Task Focus related-context service path that returns a permission-shaped read model for one selected task.
+  - Prefer provider/service integration over Workbench directly querying other modules' tables.
+  - Use existing Notes linked-context providers/helpers where available.
+  - Use Files service/attachment read models for task attachments.
+  - Use Lists linked-record service/provider behavior for lists linked to the task.
+  - Use Tasks service/repository paths for same-project task context.
+  - Use Tags service/provider paths for direct shared-tag context.
+- [x] Shape each related item with:
+  - module ID / source label
+  - record type
+  - safe readable title
+  - short safe context/reason label
+  - existing module action ID or explicit fallback URL
+  - badges/chips where safe
+- [x] Keep this service independent from focus-mode candidate overflow; it must resolve context from the selected task.
+- [x] Add focused regressions proving:
+  - The related-context service uses selected-task context, not focus-mode candidate overflow.
+  - Related items are ordered by linked notes, task files, linked lists, same-project tasks, then direct shared tags.
+  - Items are deduplicated with strongest reason preserved.
+  - Unreadable/private/secure/file-storage-sensitive content is excluded or safely labeled.
+  - Direct tags are used for shared-tag matching, not propagated/effective/system tags.
+  - Related item action descriptors are existing module actions or explicit safe fallbacks.
+
+Acceptance criteria:
+
+- Task Focus has a permission-shaped selected-task related-context read model for notes, files, lists, related project work, and direct shared-tag records without leaking unsafe content or depending on generic focus-mode candidates.
+
+### Version 0.33.6.12e-2 - Task Focus Inspector related-context UI and action dispatch
+
+**Model: GPT-5.5 Extra High** ? Task Focus Inspector UI consumes cross-module context and dispatches existing module actions without becoming an embedded viewer or leaking unsafe labels.
+
+Purpose:
+
+Make the Inspector mean what it was originally intended to mean in Task Focus: context around the current working task, not a list of unrelated candidates from the selected work mode.
+
+In Task Focus, the Inspector becomes a collapsible, scrollable related-context panel for the selected task, backed by the read model from 0.33.6.12e-1.
+
+- [x] In Task Focus, keep the Inspector visible on wide layouts but make it collapsible.
+  - Default open.
+  - Visible caret.
+  - Scrollable list body.
+  - Collapsed state should preserve layout without stealing focus.
+- [x] In narrow layouts, preserve the current graceful hide/collapse behavior unless a later mobile-specific slice designs a drawer.
+- [x] Render related items from the selected-task related-context read model, not from focus-mode candidate overflow.
+- [x] Clicking a related item opens the existing module preview/edit modal when one exists.
+  - Notes: existing note editor/preview path as available.
+  - Files: existing File Preview or File Context modal, depending on whether the item represents previewable content or attachment context.
+  - Lists: existing list editor/detail opener if registered.
+  - Tasks: existing task editor only when explicitly choosing Edit/Open from context, not as the primary Task Focus selection behavior.
+- [x] Do not build an embedded preview pane inside the Inspector.
+- [x] Add focused regressions proving:
+  - Inspector is collapsible with a caret, default-open in Task Focus, scrollable, and hidden/collapsed safely on narrow screens.
+  - Inspector rows render the service-provided safe titles, source labels, reason labels, and badges/chips.
+  - Task Focus Inspector uses selected-task related context rather than Focus Selection overflow candidates.
+  - Related items dispatch existing module actions or explicit safe fallbacks.
+  - No embedded Inspector preview pane is introduced.
+
+Acceptance criteria:
+
+- In Task Focus, the Inspector renders selected-task context from the related-context service, stays collapsible and responsive, dispatches existing module actions or safe fallbacks, and does not become an embedded viewer.
+
+### Version 0.33.6.12f - Resume candidate correction: second-most-recent updated task boost
+
+**Model: GPT-5.5 Extra High** ? Ranking behavior correction touching resume/candidate ordering and deterministic focus behavior.
+
+Purpose:
+
+Adjust "Pick up where I left off" so it better handles interruption recovery.
+
+When the user chooses "Pick up where I left off," the first visible candidate should be the **second-most-recently updated active task** the user can read, because the most recently updated task is often the interruption itself. After that boosted task, the existing resume/candidate list should continue in its normal order, deduplicated.
+
+- [x] For the `pick-up-where-left-off` focus, compute a second-most-recently updated visible task candidate.
+  - Exclude completed and archived tasks.
+  - Respect workspace scope, readable task permissions, enabled-module state, private/secure boundaries, and current client/project filters.
+  - Use task `updated_at` / canonical task update timestamp, not browser-local ordering.
+  - If fewer than two eligible recently updated tasks exist, do not fabricate a boost; fall back to the existing resume/candidate ordering.
+- [x] Prepend the second-most-recent updated task to the `pick-up-where-left-off` candidate list.
+- [x] Deduplicate the boosted task if it already appears elsewhere in the list.
+- [x] Preserve the existing resume-first strategy for active resume rows and active timers unless this boost is explicitly being applied to the task list after those higher-priority resume signals.
+  - Preferred ordering: running timer / paused timer resume rows remain strongest; then second-most-recent updated task; then the rest of the resume/candidate list.
+- [x] Keep candidate ranking deterministic and testable.
+- [x] Add focused regressions proving:
+  - The second-most-recent updated readable active task is boosted for Pick up where I left off.
+  - The most recently updated task is not the boost target when at least two eligible tasks exist.
+  - Completed/archived/unreadable/disabled-module tasks are excluded.
+  - Client/project filters are respected.
+  - The boosted task is deduplicated from the remaining list.
+  - Running/paused timer resume precedence remains intact.
+
+Acceptance criteria:
+
+- "Pick up where I left off" intentionally helps recover the prior work thread after an interruption by boosting the second-most-recent updated eligible task without breaking resume/timer precedence or permission safety.
+
+### Version 0.33.6.12g - Workbench view-state isolation: hide opposite-state panels
+
+**Model: GPT-5.4** ? Single Workbench presentation/state correction with no service, permission, or schema change.
+
+Purpose:
+
+Correct Workbench state isolation so each view state renders only its own surface. When a task is selected, the Focus Selection panels must be completely out of view until the user activates `Change Focus`. When Workbench is in Focus Selection, Task Focus-only boxes, disabled task action buttons, selected-task shells, and task timer placeholders must be completely out of view.
+
+- [x] In `task-focus`, completely hide/remove from visible layout:
+  - `What should we focus on?`
+  - Focus-mode question cards.
+  - Client/Project focus filters.
+  - `Recommended Next Action`.
+  - Focus Selection recommendation cycling controls.
+- [x] In `focus-selection`, completely hide/remove from visible layout:
+  - Task Focus action strip/box.
+  - Disabled Edit/Complete/Block/Pause-style task action buttons.
+  - Selected-task summary placeholders.
+  - Task Details / Checklist / Task Timer shells.
+  - Any empty wrapper card reserved only for Task Focus.
+- [x] Ensure hidden opposite-state panels do not leave blank space, scroll height, visible headings, tab stops, or screen-reader confusion.
+- [x] Keep `Change Focus` as the only way back to Focus Selection from Task Focus.
+- [x] When `Change Focus` returns to Focus Selection, clear the active Task Focus UI state enough that no Task Focus box remains visible, while restoring the previously selected focus mode and Client/Project filters without mutating them.
+- [x] Preserve reload/refresh behavior: if the implementation persists Task Focus across refresh, Focus Selection panels must still stay hidden until `Change Focus`; if it intentionally falls back to Focus Selection, document and test that behavior explicitly.
+- [x] Add focused regressions proving:
+  - Task Focus does not render visible Focus Selection controls or Recommended Next Action.
+  - Task Focus has no focusable controls from the hidden Focus Selection panels.
+  - Focus Selection does not render the Task Focus action box, disabled task buttons, selected-task summary, or task timer shells.
+  - Focus Selection has no focusable controls from hidden Task Focus panels.
+  - `Change Focus` restores Focus Selection panels and keeps focus mode/client/project filter state intact.
+  - Focus Selection continues to render its panels normally.
+
+Acceptance criteria:
+
+- Task Focus shows only the selected task work surface and task-context Inspector, while Focus Selection shows only focus choice/recommendation/candidate-overflow surfaces. Neither state leaks boxes, controls, tab stops, or empty placeholders from the other state.
+
+### Version 0.33.6.12h - Task Focus Inspector same-project due-date ordering
+
+**Model: GPT-5.4** ? Narrow selected-task related-context ordering correction with existing permission-shaped read models.
+
+Purpose:
+
+Sort the Task Focus Inspector's same-project task group so nearer due dates are prioritized. The Inspector is already showing the correct related tasks; this slice corrects their order.
+
+- [x] In Task Focus related context, sort the `Same project tasks` group by due date proximity:
+  - Overdue and due-today tasks first.
+  - Then future due dates from nearest to farthest.
+  - Tasks with no due date after dated tasks.
+- [x] Keep ordering deterministic within equal due-date buckets.
+  - Use existing task priority/status/update/title tie-breakers where they already exist.
+  - Do not rely on browser insertion order.
+- [x] Preserve the selected-task related-context group ordering from 0.33.6.12e-1; this slice only changes ordering inside the same-project task group unless a bug requires a tightly documented adjustment.
+- [x] Preserve permission pruning, enabled-module checks, workspace scope, private/secure boundaries, and safe labels.
+- [x] Add focused regressions proving:
+  - Same-project tasks in Task Focus Inspector are ordered by nearest due date.
+  - No-due-date tasks appear after dated same-project tasks.
+  - Ties are deterministic.
+  - Unreadable/completed/archived/disabled-module tasks do not leak into the group.
+  - Other related-context groups keep their intended precedence.
+
+Acceptance criteria:
+
+- Task Focus Inspector still shows selected-task related context, but same-project tasks are ordered by useful due-date proximity instead of arbitrary or stale ordering.
+
+### Version 0.33.6.12i - Task Focus summary metadata cleanup and chips
+
+**Model: GPT-5.4** ? Contained Workbench Task Focus presentation correction using existing task read-model fields.
+
+Purpose:
+
+Clean up the selected-task summary in Task Focus so Client/Project context appears once and the task metadata chips live in the expected summary row.
+
+- [x] Remove duplicated Client/Project context from the Task Focus summary card.
+  - The selected task's Client/Project path should appear once in the Task Focus summary region.
+  - Do not duplicate the same Client/Project line immediately below itself.
+- [x] Add/restore the Task Focus summary chip row for the usual task metadata:
+  - Status.
+  - Priority.
+  - Due date/time where present.
+  - Tags where present and safe to show.
+  - Other existing safe task chips already used by the Tasks surface when available.
+- [x] Keep chip labels safe and readable; do not expose raw IDs, hidden client/project labels, inaccessible tags, or private/secure data.
+- [x] Keep the read-only `Task Details` section available for expanded detail, but avoid using it as the only place where summary-level status/priority/due/tags can be seen.
+- [x] Preserve Task Focus action strip layout, checklist section, timer section, and Inspector layout.
+- [x] Add focused regressions proving:
+  - Task Focus summary renders Client/Project context once.
+  - Status, priority, due date/time, and safe tags render as chips in the summary row.
+  - No raw IDs or hidden labels appear in the chip row.
+  - Task Details remains read-only and does not regress action/checklist/timer behavior.
+
+Acceptance criteria:
+
+- Task Focus summary is compact and non-redundant: Client/Project context appears once, and status/priority/due/tags are visible as chips in the selected-task summary row.
+
+### Version 0.33.6.12j - Recurring checklist propagation through All Future Tasks
+
+**Model: GPT-5.5 Extra High** ? Tasks recurrence/checklist mutation correctness touches canonical editor payloads, recurrence series updates, future instance generation, audit/search/event side effects, and data integrity.
+
+Purpose:
+
+Ensure checklist structure changes made on a recurring task are wired into recurrence updates when the user chooses `All Future Tasks`.
+
+Observed correction:
+
+- A completed recurring task occurrence can have checklist items, while later generated occurrences in the same series show `0 / 0 complete`. If the checklist was saved to `All Future Tasks`, future occurrences should inherit the checklist structure.
+
+Product rule:
+
+- `All Future Tasks` applies checklist **structure** to the recurrence series and eligible future occurrences.
+- Future generated occurrences inherit checklist item text/order from the recurrence series.
+- Checklist completion state does not carry forward as completed work; future occurrences should start with the copied checklist items unchecked unless an existing future occurrence already has its own preserved progress.
+
+- [x] Audit the canonical Task editor save path for recurring tasks and confirm whether checklist changes are included in the `All Future Tasks` update payload.
+- [x] Wire checklist item structure into the recurrence-series update path used by the `All Future Tasks` button.
+  - Include item text, order, and active/deleted state needed to reproduce the checklist.
+  - Do not copy completed/check-state as completed future work.
+- [x] Ensure newly generated future recurrence instances inherit the saved checklist structure.
+- [x] Ensure already-generated eligible future instances in the same series receive the checklist structure when `All Future Tasks` is applied.
+  - Do not alter past instances.
+  - Do not alter completed/archived instances unless the existing recurrence-update contract already explicitly includes them and tests prove the behavior is intended.
+  - Preserve existing per-instance checklist progress where a future occurrence already has progress that can be safely matched.
+- [x] Preserve Tasks-owned permissions, validation, audit/event/search/notification side effects, and recurrence update semantics.
+- [x] Keep checklist structure editing in the canonical Task editor; Task Focus continues to execute checklist check/uncheck only.
+- [x] Update Tasks documentation to record the `All Future Tasks` checklist-structure propagation rule and occurrence-specific checklist completion state.
+- [x] Add focused regressions proving:
+  - Editing a recurring task checklist and choosing `All Future Tasks` updates the recurrence series checklist structure.
+  - Future generated instances inherit checklist items.
+  - Already-generated eligible future instances receive the checklist items.
+  - Copied checklist items start unchecked on new future occurrences.
+  - Past/completed/archived instances are not unexpectedly rewritten.
+  - Per-instance checklist progress is preserved where safe.
+  - Task Focus shows the propagated checklist for a future recurring occurrence.
+
+Acceptance criteria:
+
+- A checklist saved to `All Future Tasks` on a recurring task appears on future occurrences of that recurring task, with structure propagated through recurrence and future task generation while completion state remains occurrence-specific.
+
+### Version 0.33.6.12k - Task Focus timer de-duplication and Other Active Timers
+
+**Model: GPT-5.5 Extra High** ? Timer-state/rendering correction touches task-linked timers, active/paused timer filtering, elapsed-time display, and Workbench/Time Tracking behavior.
+
+Purpose:
+
+Clean up Task Focus timer behavior so the focused task's timer has one visible representation and the secondary timer panel only shows other active work.
+
+Current correction:
+
+- Starting the Task Focus timer can create a second timer card below the task timer controls.
+- That duplicate card can drift from the live task timer display.
+- The lower timer panel can also show the focused task's active/paused timer, even though the user is already inside that task.
+
+Product rule:
+
+- In Task Focus, the selected task's timer appears only in the Task Timer section for the focused task.
+- The lower timer panel is renamed `Other Active Timers` and shows only running/paused timers for other tasks or manual timers.
+
+- [x] In Task Focus, remove/filter the focused task's running/paused timer from any lower timer list or card below the task-linked timer controls.
+- [x] Do not render a duplicate timer card for the focused task after starting, pausing, saving, or resetting the task-linked timer.
+- [x] Ensure the Task Timer section's live counter updates immediately after Start and continues updating while running without waiting for Pause or a full refresh.
+- [x] Rename the Task Focus lower timer panel heading from `Timers` to `Other Active Timers`.
+- [x] In `Other Active Timers`, show only active/paused timers that are not tied to the focused task.
+  - Other task timers remain eligible.
+  - Manual timers remain eligible.
+  - The focused task's active/paused timer is always excluded from this panel.
+- [x] If no other active/paused timers exist, show `No other active or paused timers.`
+- [x] Preserve Focus Selection timer behavior from 0.33.6.12d-1; outside Task Focus, the general timer list can continue to show all active/paused timers because there is no currently focused task to exclude.
+- [x] Reuse existing Task/Time Tracking timer services and preserve permissions, elapsed-time calculations, audit/event/search behavior, and focus return.
+- [x] Add focused regressions proving:
+  - Starting a Task Focus timer does not create a duplicate focused-task timer card.
+  - The focused task's running/paused timer is excluded from `Other Active Timers`.
+  - Other task timers and manual timers still appear in `Other Active Timers`.
+  - The Task Timer live counter updates while running.
+  - The lower panel heading is `Other Active Timers`.
+  - The empty state reads `No other active or paused timers.`
+  - Focus Selection timer behavior is unchanged.
+
+Acceptance criteria:
+
+- Task Focus has exactly one visible representation of the focused task's timer. The lower timer panel is labeled `Other Active Timers`, excludes the focused task's timer, and only shows other running/paused task or manual timers.
+
+### Version 0.33.6.12l - Task Focus checklist-driven status transitions
+
+**Model: GPT-5.5 Extra High** ? Task lifecycle transitions touch checklist mutation routes, status side effects, audit/events/search, and Task Focus read refresh behavior.
+
+Purpose:
+
+Make Task Focus checklist execution update task status in the way the work surface implies: checking work means the task has started; clearing all checked work returns the task to not-started.
+
+Product rule:
+
+- Checking any checklist item on an `Open` task moves the task to `In Progress`.
+- Unchecking all checklist items on an `In Progress` task moves the task back to `Open`.
+- The transition is Tasks-owned and should apply through the existing checklist check/uncheck service path, not as browser-only state in Workbench.
+
+- [x] On checklist `check`, transition eligible `Open` tasks to `In Progress` after the checked state is saved.
+- [x] On checklist `uncheck`, transition eligible `In Progress` tasks to `Open` only when no checklist items remain checked.
+- [x] Do not reopen or rewrite `Complete`, `Archived`, or `Blocked` tasks through checklist toggles.
+- [x] Preserve existing checklist mutation behavior: progress counts, refreshed task payloads, audit records, internal events, search updates, notifications, and permission/module/workspace checks.
+- [x] Ensure Task Focus refreshes the summary chip/status text immediately after the checklist mutation response.
+- [x] Keep checklist structure editing in the canonical Task editor; Task Focus remains check/uncheck only.
+- [x] Add focused regressions proving:
+  - Checking the first/any checklist item on an `Open` task returns an `In Progress` task payload.
+  - Unchecking the last checked checklist item on an `In Progress` task returns an `Open` task payload.
+  - Unchecking one of several checked items keeps the task `In Progress`.
+  - Completed, archived, and blocked tasks are not status-mutated by checklist toggles.
+  - Task Focus displays the refreshed status without requiring a full page reload.
+
+Acceptance criteria:
+
+- Task Focus checklist progress and task status stay aligned: started checklist work marks the task `In Progress`, and clearing all checklist work returns eligible in-progress tasks to `Open`, without overriding stronger lifecycle states or bypassing Tasks-owned side effects.
+
+### Version 0.33.6.12m - Task Focus linked-note view modal and edit handoff
+
+**Model: GPT-5.5 Extra High** ? Linked note viewing can expose note body content, Markdown rendering, private/secure-note boundaries, modal stacking, and cross-module action behavior.
+
+Purpose:
+
+Make linked notes in the Task Focus Inspector readable first. A linked note title should open a rendered Markdown view, with editing available as an explicit secondary action.
+
+Product rule:
+
+- Clicking a linked note in Task Focus opens a note view/read modal, not the edit modal.
+- The view modal renders Markdown so the note remains readable as reference context.
+- The view modal includes an `Edit` action that closes the view and opens the canonical Notes edit modal for the same note.
+
+- [x] Update Task Focus Inspector linked-note actions to prefer a Notes-owned view/read modal or module action instead of `notes.edit`.
+- [x] If a reusable Notes view modal/action does not already exist, add the smallest Notes-owned view modal needed for linked-context consumption.
+- [x] Render Markdown through the existing Notes/Markdown rendering path; do not show raw Markdown as the primary read surface.
+- [x] Include an explicit `Edit` button/action in the view modal that closes the view modal and opens the existing Notes edit modal with normal focus return and refresh hooks.
+- [x] Preserve Notes permissions, private-note behavior, secure-note behavior, body visibility rules, stale/deleted target handling, and no-raw-ID labels.
+- [x] Keep Task Focus free of embedded preview panes; this is a modal handoff, not an inline Inspector reader.
+- [x] Add focused regressions proving:
+  - Task Focus linked-note clicks open the view/read modal path, not the edit path.
+  - Markdown-rendered note content is visible in the view modal for readable notes.
+  - The view modal `Edit` action opens the canonical edit modal for the same note.
+  - Private/secure/unreadable/stale linked notes do not leak body content or raw IDs.
+
+Acceptance criteria:
+
+- Linked notes in Task Focus behave like readable reference context by default, preserving Markdown formatting, while a clear Edit action still reaches the canonical Notes editor when editing is intentional.
+
+### Version 0.33.6.12n - Recurring linked-note propagation through All Future Tasks
+
+**Model: GPT-5.5 Extra High** ? Recurrence propagation touches Tasks recurrence templates, linked Notes/Linked Context persistence, generated future instances, and data-integrity boundaries.
+
+Purpose:
+
+Make linked notes useful on recurring work by ensuring note links saved to a recurring task can carry forward through `All Future Tasks`, instead of requiring the same note to be re-linked every week.
+
+Scope:
+
+- This slice is about linked Notes on recurring Tasks.
+- Do not generalize every Linked Context target type unless the existing storage contract already makes that safer than a Notes-only implementation.
+- Do not copy note body content into recurrence templates or tasks; propagate only the relationship/link metadata needed to reconnect future task instances to the same readable note.
+
+- [x] First prove the current behavior with a recurrence fixture: add a linked note to one occurrence, save with `All Future Tasks`, inspect existing future occurrences and newly generated recurrence instances.
+- [x] If linked notes already propagate correctly, add regressions/docs that lock that behavior and update the user-facing/developer contracts.
+- [x] If linked notes do not propagate, store the active linked-note relationship structure needed by the recurrence template when `All Future Tasks` is selected.
+- [x] Apply saved linked-note structure to eligible future active occurrences in the same recurring series.
+- [x] Copy saved linked-note structure into newly generated recurrence instances.
+- [x] Do not rewrite past occurrences, completed occurrences, archived occurrences, or unrelated tasks.
+- [x] Preserve occurrence-specific task state, checklist completion state, timer state, audit/event/search behavior, permissions, and Notes visibility rules.
+- [x] Decide and document how removals behave: removing a linked note and saving `All Future Tasks` should remove that propagated link from eligible future occurrences only, without deleting the note itself.
+- [x] Add focused regressions proving:
+  - A linked note saved with `All Future Tasks` appears on eligible future recurring occurrences.
+  - Newly generated recurrence instances inherit the saved linked note.
+  - Removing a linked note with `All Future Tasks` removes it from eligible future occurrences without touching the note record.
+  - Past/completed/archived occurrences are not unexpectedly rewritten.
+  - Task Focus Inspector shows the propagated linked note on a future recurring occurrence.
+
+Acceptance criteria:
+
+- A linked note saved to a recurring task with `All Future Tasks` remains linked on future occurrences and newly generated instances, while note bodies, occurrence-specific state, and ineligible historical/completed/archived tasks remain untouched.
+
+### Version 0.33.6.12o - Workbench overdue inclusion across focus modes
+
+**Model: GPT-5.5 Extra High** - Cross-mode Workbench candidate eligibility/ranking correction where hidden overdue work would silently weaken recovery recommendations.
+
+Purpose:
+
+Make overdue work visible and first-priority anywhere a Workbench focus mode is meant to recover due, project-scoped, or urgent active task work. Overdue tasks should not be excluded by due-window lower bounds or source gaps; they should push due-today, upcoming, and no-due work downward inside the relevant mode.
+
+Scope:
+
+- Workbench Focus Selection candidate eligibility and ordering for task-derived candidates.
+- Server-side focus/source read models, recommended-action ordering, and Inspector overflow ordering.
+- Existing client/project filters, permissions, module enablement, recurring-created suppression, and task lifecycle exclusions.
+- Do not change Task Focus execution surfaces, task status semantics, canonical Tasks list views, Dashboard behavior, or recurrence generation behavior in this slice.
+
+- [x] Audit every user-facing Workbench focus mode and every task-candidate source path that can include due dates:
+  - `Start with what's due` / `whats-due-next`.
+  - `Work this week`.
+  - `Focus on a project`.
+  - `Pick up where I left off`, including resume fallback behavior and the second-most-recent task boost.
+  - `Review blocked work`, including blocked tasks that are also overdue.
+  - The default Focus Selection bootstrap candidate list, if it can feed recommendations before a focus mode reload completes.
+- [x] Fix the due-focused modes so overdue active tasks are included first:
+  - `Start with what's due` includes readable active overdue tasks before due-today and upcoming due work.
+  - `Work this week` includes readable active overdue tasks before due-today and current-week work, instead of using a lower-bound date filter that hides overdue work.
+  - Future-dated work outside the selected due window remains excluded unless another mode explicitly allows it.
+- [x] Fix `Focus on a project` so overdue active tasks inside the selected project are eligible and ranked before due-today, upcoming, stale/recent, and no-due project work.
+- [x] Preserve explicit Client and Project filter boundaries: overdue work from other clients/projects must not leak into scoped modes, and parent/child hierarchy behavior remains whatever the current exact-match filter contract allows until the later hierarchy standard lands.
+- [x] Review whether focus modes that promise due/project work need a Tasks-owned active-task candidate source in addition to resume-state rows and live timers, so overdue tasks are not hidden merely because they lack a recent resume-state signal.
+- [x] Keep `Pick up where I left off` resume-first behavior intact: running/paused timers and stronger resume rows stay ahead of fallback due work, but overdue task fallback candidates and the second-most-recent task boost must not be filtered out when they are inside the current Client/Project scope.
+- [x] Keep `Review blocked work` semantically blocked-only: blocked overdue tasks rank before less urgent blocked work, but non-blocked overdue tasks stay in due/project modes instead of being recast as blocked work.
+- [x] Ensure the Focus Selection recommended-action top-five window and right-side Inspector overflow are derived from the same ordered candidate list, so overdue items are not visible in one surface but hidden or reordered in the other.
+- [x] Preserve recurrence passive-created suppression except where the task is overdue or inside the existing near-due window; an overdue recurring occurrence should be recoverable rather than hidden as passive generated noise.
+- [x] Add focused regressions with fixture coverage for overdue, due-today, current-week, future-out-of-window, no-due, blocked-overdue, blocked-not-overdue, different-client, different-project, completed, archived, unreadable, disabled-module, and passive recurring-created tasks.
+- [x] Update the existing Workbench focus-mode regression expectations that currently assert overdue tasks are absent from `Work this week`.
+- [x] Add or update static/docs regressions proving the Workbench contract states:
+  - Due-focused modes include overdue work first.
+  - Project focus does not hide overdue project tasks.
+  - Focus Selection recommendation cycling and Inspector overflow share one canonical overdue-aware order.
+  - Browser code renders the service-owned candidate order instead of rebuilding overdue logic.
+- [x] Update `docs/module-contract.md`, `docs/view-building-contract.md`, `docs/ui-surface-contract.md`, and `docs/tasks-module.md` only for the behavior actually changed.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping as part of the implementation closeout.
+- [x] Run the focused Workbench focus-mode regressions, relevant Workbench UI/static regressions, `npm run check`, and `/api/app-info` verification after restart.
+
+Acceptance criteria:
+
+- Workbench no longer hides overdue active tasks from due-focused or project-focused recommendations. Overdue tasks appear first in every relevant Focus Selection recommendation and Inspector overflow list while permissions, Client/Project scope, blocked-only semantics, recurrence suppression, and Task Focus boundaries remain intact.
+
+Slice-sizing note:
+
+- `0.33.6.13` is intentionally compressed to four implementation slices plus closeout.
+- The earlier split between Dashboard attention and the Tasks Dashboard card added ceremony without real isolation value; they now land together.
+- The earlier split between module-overview/activity work and the final Dashboard polish likewise added a second ceremony pass over the same surface; polish now closes with the final guardrail/docs sweep.
+
+### Version 0.33.6.13a - Dashboard foundation: product contract, placement, service boundary, and Workspace Pulse
+
+**Model: GPT-5.5 Extra High** ? This slice establishes the full framework-owned Dashboard foundation in one pass so later panel work lands on the final host/data contract instead of a temporary intermediary.
+
+Purpose:
+
+Turn the remaining Dashboard placeholder into an explicit product and implementation contract, with the final framework-owned host boundary and top-level Workspace Pulse in place before module panel reshaping begins.
+
+Dashboard becomes the workspace pulse/orientation surface:
+
+1. Is anything on fire?
+2. What changed recently?
+3. What areas of this workspace need attention?
+4. Where should I go next?
+
+Boundary:
+
+- Dashboard summarizes state, pressure, and direction.
+- Workbench owns active work, focus selection, Task Focus, next actions, resumable work, active timers, and recovery.
+- Reporting owns detailed time, billing, charts, and financial analysis.
+- Module pages own full lists, record management, and detailed workflows.
+- QAC owns quick capture.
+
+Surface rule:
+
+Dashboard surface = summary, pressure, and direction.
+
+Dashboard may show:
+
+- Counts.
+- Reasons.
+- Safe short labels.
+- Up to 3-5 rows when a short list is useful.
+- One obvious drilldown/action per panel.
+- Empty states that tell the user where useful work will appear.
+
+Dashboard must not show:
+
+- Full task lists.
+- Full report tables.
+- Full charts as default content.
+- Inline editors.
+- Full module indexes.
+- Billing tables/charts as default panels.
+- Browser-rebuilt permission, ranking, or workspace-scope logic.
+- Raw IDs, hidden labels, secure/private content, storage keys, scanner data, audit payload JSON, protected paths, or signed URLs.
+
+Drilldown rule:
+
+- Do the work -> Workbench.
+- See the full list -> owning module page with filter/query when supported.
+- Analyze time/money -> Reporting.
+- Inspect one thing -> existing owning-module read/preview/modal action when already safe.
+- Configure/fix setup -> Settings/Admin.
+- Capture something -> QAC.
+
+Implementation scope:
+
+- [x] Add or formalize a Dashboard contribution placement field, such as:
+  - `pulse`
+  - `attention`
+  - `today`
+  - `main`
+  - `activity`
+  - `secondary`
+  - `reporting`
+- [x] Default existing/legacy Dashboard contributions to `main` when no placement is declared.
+- [x] Update the manifest validator to reject unknown placement values.
+- [x] Update `public/js/dashboard.js` so placement is driven by contribution metadata, not hardcoded contribution IDs.
+- [x] Remove the `project-summary` special-case for deciding panel placement.
+- [x] Add framework-owned Dashboard regions:
+  - Workspace Pulse.
+  - Needs Attention.
+  - Today / Upcoming.
+  - Module Overview.
+  - Recent Activity.
+  - Secondary / Reporting shortcuts.
+- [x] Move Dashboard read-model ownership out of `reporting.service.js` into a framework-owned Dashboard service/route module while keeping `/api/dashboard` stable.
+  - A thin compatibility wrapper is acceptable if moving route ownership all at once is risky.
+- [x] Dashboard service may assemble:
+  - Workspace summary.
+  - Workspace type.
+  - Active Dashboard contribution metadata.
+  - Framework-owned layout/placement metadata.
+  - Safe high-level signal counts where they already come through framework or contribution seams.
+- [x] Dashboard service must not directly import first-party module services/repos to make generic decisions.
+- [x] Module-specific data must hydrate through module-owned `dataRoute` endpoints or registered contribution seams.
+- [x] If any direct coupling remains temporarily, document it in `0.33.6.13z` with file/function, reason, retained coverage owner, and follow-up version.
+
+Workspace Pulse:
+
+- [x] Add a top full-width Workspace Pulse strip.
+- [x] Show workspace name.
+- [x] Show a compact signal line, such as:
+  - Overdue count.
+  - Due-soon count.
+  - Blocked count.
+  - Active/paused timer count.
+  - Recent activity count if safely available.
+  - Setup/system warning count if present.
+- [x] One primary action: `Open Workbench`.
+- [x] Secondary signal links may point to:
+  - Workbench focus modes.
+  - Filtered module page.
+  - Reporting.
+  - Settings/Admin for setup issues.
+- [x] Keep copy calm and practical.
+- [x] Do not include full task rows, full timer rows, full activity rows, or billable tables in the pulse strip.
+
+Setup / Admin warnings:
+
+- [x] Add a conditional warnings area that appears only when needed.
+- [x] Eligible warnings may include:
+  - Module enabled but missing setup data.
+  - Integration/storage/scanner/job/runtime warnings already available through safe diagnostics.
+  - Search indexing/job failure counts if safe and already available.
+  - Time Tracking active timer warnings when they can be safely summarized.
+- [x] Do not expose:
+  - Secrets.
+  - Raw runtime values.
+  - Job payload JSON.
+  - Storage paths/keys.
+  - Scanner internals.
+  - Raw IDs.
+- [x] Hide the warning region completely when there are no warnings.
+
+Workspace-type gating:
+
+- Business workspaces may show Client-aware labels only where current permissions and safe labels allow.
+- Personal/Family workspaces must not show:
+  - Client filter/radio controls.
+  - Client reporting language.
+  - Billable amount.
+  - Invoice-ready amount.
+  - Billing chart.
+  - Current Month Billables.
+  - Client-only labels.
+
+Regressions:
+
+- [x] Dashboard protected HTML remains a minimal host.
+- [x] Dashboard host renders framework-owned regions through shared view primitives.
+- [x] Dashboard contribution placement accepts only known placement values.
+- [x] Existing contributions without placement default to `main`.
+- [x] Browser Dashboard placement no longer special-cases `project-summary`.
+- [x] `/api/dashboard` remains stable.
+- [x] Dashboard read-model is framework-owned or routed through a documented thin wrapper.
+- [x] Dashboard service does not import first-party module services/repos for generic Dashboard decisions outside an allowlist.
+- [x] Workspace Pulse renders with safe summary signals.
+- [x] Workspace Pulse has exactly one primary Workbench action.
+- [x] Setup/admin warnings appear only when safe warning data exists.
+- [x] Setup/admin warning payloads do not expose raw job payloads, scanner internals, storage paths/keys, secrets, or raw IDs.
+- [x] Dashboard still hides disabled/unpermitted contributions through existing contribution filtering.
+- [x] Dashboard empty state appears when no panels are available.
+- [x] Personal/Family pulse does not show Client/billable/billing language.
+- [x] Business pulse respects permission-shaped labels.
+- [x] Disabled/unpermitted modules do not contribute pulse signals.
+
+Docs:
+
+- [x] Update `docs/module-contract.md`.
+- [x] Update `docs/view-building-contract.md`.
+- [x] Update `docs/ui-surface-contract.md`.
+- [x] Update `docs/declarative-view-surfaces.md`.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping as normal.
+
+Verification:
+
+- [x] Run focused Dashboard host/contribution regressions.
+- [x] Run Dashboard service/route regressions.
+- [x] Run manifest-contract regressions.
+- [x] Run relevant static guardrails.
+- [x] Run permission regressions if route/module visibility changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
+
+Acceptance criteria:
+
+- Dashboard has a documented product contract and contribution placement contract.
+- Dashboard layout regions are framework-owned and contribution-driven.
+- Dashboard has a framework-owned read-model boundary and a calm Workspace Pulse that summarizes workspace state without becoming a task list, report, or editor surface.
+- Safe setup/admin warnings appear only when needed and do not leak sensitive/internal data.
+- Existing Dashboard panels can still render through default placement.
+- No framework/browser Dashboard placement logic depends on first-party panel IDs.
+
+### Version 0.33.6.13b - Dashboard attention surfaces and Tasks pressure card
+
+**Model: GPT-5.5 Extra High** ? Urgent/near-term attention and the Tasks Dashboard reshaping share one task-pressure contract, one dedupe story, and one set of Workbench-facing drilldowns, so they should land together.
+
+Purpose:
+
+Replace the noisy task/report visibility on Dashboard with one urgent attention surface, one calmer near-term horizon surface, and one Tasks-owned pressure card that all reinforce the same Dashboard/Workbench boundary.
+
+Product rule:
+
+- Dashboard can show what needs attention.
+- Workbench is where the user focuses and works.
+- Tasks remains list-first.
+- Dashboard should point to Workbench or module pages; it should not become a second Workbench candidate list or a full task index.
+
+Needs Attention:
+
+- [x] Add a first main Dashboard panel titled `Needs Attention`.
+- [x] Aggregate urgent signals into one deduped list.
+- [x] Initial eligible sources:
+  - Overdue active tasks.
+  - Blocked active tasks.
+  - Due-soon active tasks.
+  - Running/paused timers needing visibility.
+  - Safe module-owned attention contributions where already available.
+- [x] Future-ready sources, but do not invent their full modules in this slice:
+  - Tickets waiting on the user.
+  - KB articles needing review.
+  - Creator Studio missed schedule/drafts ready.
+  - Lists/files/integrations needing attention.
+- [x] Deduplicate rows by module ID + record type + record ID.
+- [x] Show at most five rows.
+- [x] Each row should include:
+  - Safe title.
+  - Module/source label.
+  - Reason badge.
+  - Safe context label when available.
+  - One drilldown action.
+- [x] Drilldown actions should prefer:
+  - `Focus in Workbench` for task-like work.
+  - `Open Workbench` with focus mode/context when specific Task Focus routing is not available.
+  - `View` or owning module page for non-task records.
+- [x] Do not open the Task edit modal by default from Dashboard attention rows.
+
+Today / Upcoming:
+
+- [x] Add a compact horizon card.
+- [x] Include due-today and due-this-week active work where safely available.
+- [x] Include scheduled future module signals later when their modules exist.
+- [x] Show top 3-5 rows only.
+- [x] Keep urgency distinct:
+  - Overdue/blocked belongs in Needs Attention.
+  - Today/upcoming belongs in horizon.
+- [x] Drilldowns go to Workbench focus, filtered Tasks, or owning module page.
+
+Tasks pressure card:
+
+- [x] Replace the current three-column Tasks Dashboard panel with a compact Tasks-owned card.
+- [x] Show task pressure metrics:
+  - Overdue.
+  - Due soon.
+  - Blocked.
+  - Assigned to me.
+- [x] Show a short deduped list only if useful:
+  - Top 3-5 task attention rows.
+  - Safe title.
+  - Reason badge.
+  - Safe context.
+  - Due date/time when relevant.
+  - One drilldown.
+- [x] Do not show separate full lists for Overdue, Due Soon, and Assigned to Me.
+- [x] Avoid duplicate display of the same task.
+- [x] Drilldowns:
+  - `Open Workbench` or `Focus in Workbench` for active task work.
+  - `View Tasks` for full filtered list.
+  - Task edit remains explicit and should not be the default Dashboard action.
+- [x] Use the Tasks-owned service/read model for row shaping and permission checks.
+- [x] Keep browser rendering thin.
+
+Ordering and safety:
+
+- [x] Server/module-owned order is authoritative.
+- [x] Browser code renders returned order.
+- [x] Browser must not rebuild due/priority/workspace/permission logic.
+- [x] Overdue and blocked work must not be hidden from Needs Attention because it lacks a recent resume-state row.
+- [x] Candidate reuse is allowed if it comes from safe framework work-candidate seams.
+- [x] If a more specific Dashboard attention service is needed, keep it framework-owned and fed by existing contribution/provider seams.
+- [x] Rows must be body-free.
+- [x] Secure/private/unreadable rows must be omitted or represented by a safe unavailable state.
+- [x] No raw IDs as visible labels.
+- [x] No attachment internals.
+- [x] No storage keys.
+- [x] No scanner data.
+- [x] No audit payload JSON.
+
+Workspace-type gating:
+
+- [x] Business workspaces may show readable Client/Project context.
+- [x] Personal/Family workspaces show Project/workspace context only.
+- [x] No Client-only labels in Personal/Family.
+
+Regressions:
+
+- [x] Needs Attention renders up to five deduped rows.
+- [x] Repeated task signals render once.
+- [x] Overdue, blocked, due-soon, and active/paused timer signals are shaped safely.
+- [x] Needs Attention rows point to Workbench/module drilldowns, not default Task edit.
+- [x] Today / Upcoming renders due-today/week rows separately from overdue/blocked pressure.
+- [x] Old three-column Tasks Dashboard lists no longer render.
+- [x] Task pressure metrics render.
+- [x] Deduped task attention rows render at the configured cap.
+- [x] A task that is overdue and assigned to the user appears once.
+- [x] Task rows use safe labels and no raw IDs.
+- [x] Dashboard task action points to Workbench/module drilldown, not default edit modal.
+- [x] Personal/Family rows never show Client labels.
+- [x] Business rows show Client labels only when safely readable.
+- [x] Disabled/unpermitted modules contribute no attention/upcoming rows.
+- [x] Tasks card disappears when Tasks is disabled or the user lacks `tasks.view`.
+- [x] Browser renders server-owned order and does not rebuild task priority, scope, or permission logic.
+- [x] Unsafe content patterns are absent from row payloads and DOM.
+
+Docs:
+
+- [x] Update Dashboard/Workbench boundary docs.
+- [x] Update `docs/ui-surface-contract.md` for Dashboard attention/horizon panels.
+- [x] Update `docs/module-contract.md` if attention-style contribution metadata or the Tasks Dashboard contribution shape changes.
+- [x] Update `docs/tasks-module.md`.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping.
+
+Verification:
+
+- [x] Run Dashboard attention/upcoming regressions.
+- [x] Run Tasks Dashboard regressions.
+- [x] Run Workbench candidate/focus regressions if work-candidate seams are reused. No work-candidate seam reuse was added in this slice.
+- [x] Run Workbench regressions if task drilldowns use Workbench focus/Task Focus routes. Dashboard uses the existing `Open Workbench` handoff, not a new Task Focus route.
+- [x] Run permission regressions if visibility/route guards changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
+
+Acceptance criteria:
+
+- Dashboard shows one deduped Needs Attention panel, one calm Today / Upcoming panel, and one compact Tasks pressure card.
+- The user can quickly see urgent and near-term task pressure without seeing full task lists or duplicated task columns.
+- Dashboard points to Workbench/module drilldowns without becoming the execution surface.
+
+### Version 0.33.6.13c - Time Tracking dashboard cards and Reporting boundary cleanup
+
+**Model: GPT-5.5 Extra High** ? Time Tracking Dashboard changes affect module contributions, Reporting boundaries, workspace-type gating, and financial/billing visibility, but remain one primary blast radius.
+
+Purpose:
+
+Remove detailed billables from the default Dashboard and replace them with compact active/recent time visibility that matches the Dashboard pulse model.
+
+Product rule:
+
+- Time Tracking records effort and supports active work.
+- Reporting owns detailed time/billing analysis.
+- Dashboard may show active/recent time signals.
+- Dashboard should not show full billing tables/charts by default.
+
+Implementation:
+
+- [x] Remove the default Dashboard rendering of:
+  - `Current Month Billables`.
+  - `Hours & Billables by Month`.
+- [x] Keep detailed billable tables/charts in Reporting.
+- [x] Update Time Tracking dashboard contributions:
+  - Retire or hide `current-month-billables` from default Dashboard placement.
+  - Retire or hide `hours-billables-chart` from default Dashboard placement.
+  - Implement the existing reserved `active-timers` contribution as a compact Dashboard card.
+  - Implement the existing reserved `recent-time` contribution as a compact Dashboard card.
+- [x] Active Timers card:
+  - Shows active/paused timer count.
+  - Shows top 1-3 active/paused timers only if useful.
+  - Links to Workbench or opens existing Time Tracking timer behavior where safe.
+  - No timer creation form; QAC owns quick timer capture.
+- [x] Recent Time card:
+  - Shows recent saved time summary.
+  - Links to Time Entries or Reporting as appropriate.
+  - Does not show a full table.
+- [x] Business Pulse: deferred to `0.33.11`; this slice adds no default billing shortcut.
+  - If a compact Business-only Reporting shortcut is trivial and safe, it may show as a secondary/reporting shortcut.
+  - It must not be a full billables table/chart.
+  - It must be hidden for Personal/Family.
+  - If it requires meaningful Reporting redesign, defer it to `0.33.11`.
+- [x] Personal/Family:
+  - No billable amount.
+  - No invoice-ready copy.
+  - No billing chart.
+  - No Current Month Billables.
+  - No Client billing language.
+
+Regressions:
+
+- [x] Current Month Billables no longer renders on default Dashboard.
+- [x] Hours & Billables chart no longer renders on default Dashboard.
+- [x] Detailed billing routes/reports still work in Reporting.
+- [x] Active Timers Dashboard card renders when Time Tracking is enabled/permitted.
+- [x] Recent Time Dashboard card renders when Time Tracking is enabled/permitted.
+- [x] Time Tracking cards disappear when Time Tracking is disabled or permission/capability checks fail.
+- [x] Personal/Family Dashboard has no billable/billing/invoice language.
+- [x] QAC Timer capture behavior remains unchanged.
+- [x] Workbench timer behavior remains unchanged.
+- [x] Reporting navigation remains available where appropriate.
+
+Docs:
+
+- [x] Update `docs/time-tracking-module.md`.
+- [x] Update `docs/module-contract.md` for Time Tracking Dashboard contribution behavior if needed.
+- [x] Update Dashboard/Reporting boundary docs.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping.
+
+Verification:
+
+- [x] Run Time Tracking Dashboard regressions.
+- [x] Run Reporting regressions touched by billables movement.
+- [x] Run QAC Timer regressions.
+- [x] Run Workbench timer regressions.
+- [x] Run permission regressions if route/contribution visibility changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
+
+Acceptance criteria:
+
+- Dashboard no longer behaves like a billing/report page.
+- Time Tracking contributes compact active/recent effort cards.
+- Detailed billable analysis remains available through Reporting.
+- Personal/Family workspaces do not leak billing concepts.
+
+### Version 0.33.6.13d - Module overview grid, Recent Activity region, and sparse-workspace readiness
+
+**Model: GPT-5.5 Extra High** ? This slice creates the general module overview and safe activity pattern that makes Dashboard viable across enabled-module mixes without inventing future modules or unsafe event feeds.
+
+Purpose:
+
+Make Dashboard useful for module-specific and future module-limited workspaces such as KB-only, Tickets-only, Creator Studio-only, Personal, Family, and Business workspaces.
+
+Product rule:
+
+- Dashboard should work even when a workspace has only a subset of modules enabled.
+- Module cards summarize; they do not become full module indexes.
+- Recent Activity should catch the user up only if it can be done safely.
+
+Module Overview Grid:
+
+- [x] Add a Module Overview grid below Pulse/Attention/Horizon.
+- [x] Enabled modules can contribute compact overview cards.
+- [x] Disabled/unpermitted modules are hidden.
+- [x] Each card should show:
+  - Module title.
+  - 2-3 safe metrics.
+  - Optional one latest/suggested row.
+  - One primary link.
+- [x] Initial first-party cards:
+  - Tasks: pressure metrics and link to Tasks/Workbench render through the compact Tasks pressure overview card.
+  - Time Tracking: active/recent time cards now live in the Module Overview grid.
+  - Notes: deferred because no existing safe body-free overview route/read model was added in this slice.
+  - Lists: deferred because no existing safe summary overview route/read model was added in this slice.
+  - Files: deferred because no existing safe summary overview route/read model was added in this slice.
+- [x] Future module cards remain documented expectations only:
+  - Knowledge Base: drafts/stale/review-needed articles.
+  - Tickets: new/waiting/high-priority/stale tickets.
+  - Creator Studio: drafts/scheduled/missed schedule/ideas ready.
+- [x] Do not implement future modules in this slice.
+- [x] Do not add speculative schema for future modules.
+
+Recent Activity region:
+
+- [x] Add the Recent Activity Dashboard region now.
+- [x] Existing event/audit/notification seams were not safe enough for body-free, raw-ID-free rows without new infrastructure, so no activity rows ship in this slice.
+- [x] Render a quiet empty/deferred state because safe Recent Activity rows cannot be produced inside this slice.
+- [x] Do not build a new global activity-feed framework from scratch in this slice.
+- [x] Activity rows must never expose:
+  - Audit payload JSON.
+  - Raw IDs.
+  - Secure/private note bodies.
+  - Hidden labels.
+  - Storage keys/paths.
+  - Scanner internals.
+  - Protected filesystem data.
+  - Job payload JSON.
+- [x] Activity examples remain deferred until safe rows exist:
+  - Task completed.
+  - Note updated.
+  - File attached.
+  - List finalized/completed.
+  - Timer saved.
+  - KB/Ticket/Creator Studio events later.
+
+Empty/sparse workspaces:
+
+- [x] Dashboard should feel intentional when little data exists.
+- [x] Empty states should explain what will appear and link to useful starting points.
+- [x] Do not show a wall of disabled/empty module panels.
+- [x] A KB-only or Tickets-only future workspace should not require Dashboard redesign.
+
+Regressions:
+
+- [x] Module Overview grid renders only enabled/permitted module cards.
+- [x] Disabled modules do not leave empty card shells.
+- [x] Module cards show compact metrics only, not full module lists.
+- [x] Notes card, Lists card, and Files card either render safe summaries or are omitted/deferred safely.
+- [x] Future module placeholders do not render as fake live cards.
+- [x] Recent Activity region renders safe rows only when safe source data exists.
+- [x] Recent Activity hides or shows a quiet empty state when no safe source exists.
+- [x] Activity rows do not expose raw IDs, payload JSON, secure/private content, storage/scanner internals, or hidden labels.
+- [x] Sparse Dashboard empty states are useful and not noisy.
+- [x] Personal/Family module cards do not leak Client/billing concepts.
+
+Docs:
+
+- [x] Update `docs/module-contract.md` for module overview card expectations if needed.
+- [x] Update `docs/ui-surface-contract.md` for compact module overview cards.
+- [x] Update module docs for any module card actually implemented.
+- [x] Record richer activity digest as deferred if only the region/empty state ships.
+- [x] Update `CHANGELOG.md`, package metadata, and roadmap archive bookkeeping.
+
+Verification:
+
+- [x] Run Dashboard module-card regressions.
+- [x] Run relevant module card route regressions.
+- [x] Run activity safety/static regressions.
+- [x] Run permission regressions if activity/card visibility changed.
+- [x] Run `npm run check`.
+- [x] Restart and verify `/api/app-info`.
+
+Acceptance criteria:
+
+- Dashboard has a compact Module Overview grid that works for enabled modules without becoming a module index.
+- Recent Activity has a safe region and either safe rows or an explicitly quiet deferred/empty state.
+- Future KB/Tickets/Creator Studio module cards can plug into Dashboard without reworking the page.
+
+### Version 0.33.6.13z - Dashboard polish, guardrails, docs, decisions, and closeout
+
+**Model: GPT-5.5 Extra High** ? Closeout updates governing decisions, docs, static guardrails, coupling allowlists, and verification across Dashboard, Workbench, QAC, Tasks, Time Tracking, Notes, permissions, and app-info.
+
+Purpose:
+
+Close the Dashboard/Workbench formalization branch only after the Workbench Task Focus model and Dashboard Pulse redesign have landed, and lock the final product/architecture boundaries so future slices do not drift back into noisy dashboard/report/workbench hybrids.
+
+Proviso:
+
+Do not close this branch until `0.33.6.13a` through `0.33.6.13d` are implemented, documented, regressed, and verified.
+
+Final polish scope:
+
+- [x] CSS/layout refinement.
+- [x] Responsive behavior.
+- [x] Empty/loading/error state copy.
+- [x] Workspace-type copy audit.
+- [x] Drilldown label audit.
+- [x] Final Dashboard manual smoke checks before closeout.
+- [x] No new workflow behavior unless a regression reveals a small bug in the shipped Dashboard slices.
+
+Layout and copy rules:
+
+- [x] Pulse is first and visually distinct without becoming a hero billboard.
+- [x] Needs Attention comes before lower-priority panels.
+- [x] Today / Upcoming remains visually calmer than Needs Attention.
+- [x] Module Overview grid uses compact cards.
+- [x] Recent Activity is visually secondary.
+- [x] Reporting/Business shortcuts are secondary and never dominate the page.
+- [x] Setup/admin warnings appear only when needed and are visually clear but not noisy.
+- [x] Mobile/narrow layouts stack cleanly:
+  - Pulse.
+  - Needs Attention.
+  - Today / Upcoming.
+  - Module cards.
+  - Activity.
+  - Secondary/reporting shortcuts.
+- [x] Cards should not create horizontal scrolling at normal desktop widths.
+- [x] Long task/client/project/module labels truncate or wrap safely without raw IDs.
+- [x] Use calm, practical language.
+- [x] Avoid `billing` and `client` language outside Business workspaces.
+- [x] Avoid medical/diagnostic/neurodivergence-specific UI language.
+- [x] Avoid `empty because broken` vibes.
+- [x] Empty states should tell the user what will show here and where to start.
+
+Drilldown audit:
+
+- [x] Pulse primary action -> Workbench.
+- [x] Needs Attention active-work rows -> Workbench/focus.
+- [x] Module card primary actions -> owning module page or Workbench when action-oriented.
+- [x] Reporting links -> Reporting.
+- [x] Settings/admin warnings -> Settings/Admin.
+- [x] QAC remains capture; Dashboard does not add capture forms.
+
+Record branch decisions in `DECISIONS.md`:
+
+- [x] Dashboard is the workspace pulse/orientation surface.
+- [x] Dashboard answers:
+  - Is anything on fire?
+  - What changed recently?
+  - What areas need attention?
+  - Where should I go next?
+- [x] Dashboard summarizes state; it does not become the main place users complete detailed work.
+- [x] Dashboard surface rule:
+  - Summary.
+  - Pressure.
+  - Direction.
+  - Short safe lists only when useful.
+  - No full tables, full charts, full editors, full reports, or full module indexes.
+- [x] Dashboard default layout is:
+  - Workspace Pulse.
+  - Needs Attention.
+  - Today / Upcoming.
+  - Module Overview.
+  - Recent Activity when safely available.
+  - Secondary/reporting/setup shortcuts only where relevant.
+- [x] Dashboard panels are contribution-driven and placed by a validated placement/region contract, not by hardcoded panel IDs.
+- [x] Needs Attention rows are deduped, permission-shaped, body-free, raw-ID-free, and capped.
+- [x] Recent Activity is safe-summary-only and may remain a quiet/deferred region until richer event/activity infrastructure is deliberately expanded.
+- [x] Admin/setup warnings appear only when there is safe warning data.
+- [x] Workbench is the live work surface: Focus Selection and Task Focus.
+- [x] Focus Selection is for choosing work.
+- [x] Task Focus is for working one selected task.
+- [x] Dashboard may link to Workbench focus modes or Task Focus, but it does not recreate Workbench recommendation lists as full Dashboard task lists.
+- [x] Reporting owns detailed time/billing analysis.
+- [x] Time Tracking Dashboard content is compact active/recent time visibility by default, not current-month billable tables/charts.
+- [x] A compact Business Pulse/reporting shortcut may exist only as a secondary Dashboard surface; detailed billable tables/charts remain Reporting-owned.
+- [x] Personal and Family workspaces must not show Client/billable/invoice/billing Dashboard language.
+- [x] The right-side Workbench panel has state-specific meaning:
+  - Focus Selection: `More in this focus` candidate overflow.
+  - Task Focus: task-related work context.
+- [x] Workbench candidate primary actions enter Task Focus for task candidates instead of opening the edit modal.
+- [x] Task editing remains available through explicit Edit actions and canonical module-action openers.
+- [x] Task Focus hides Focus Selection panels and Recommended Next Action until `Change Focus` is pressed.
+- [x] Task Focus summary context is non-duplicative and uses safe metadata chips for status, priority, due dates, tags, and other existing task metadata.
+- [x] Task Focus Inspector same-project task context prioritizes nearer due dates.
+- [x] Recurring-task checklist structure is propagated through `All Future Tasks` recurrence updates while checklist completion state remains occurrence-specific.
+- [x] Task Focus checklist toggles keep task status aligned with visible work: checked checklist work moves eligible Open tasks to In Progress, and clearing all checked work returns eligible In Progress tasks to Open.
+- [x] Task Focus linked notes open as rendered Markdown view/read modals first, with an explicit Edit handoff to the canonical Notes editor.
+- [x] Recurring-task linked notes saved through `All Future Tasks` propagate relationship metadata to eligible future occurrences and newly generated instances without copying note bodies.
+- [x] QAC owns quick capture and opens the Time Tracking Create Timer modal for Timer capture.
+
+Update `AGENTS.md` only if needed to reflect short active guidance:
+
+- [x] Dashboard is overview/pulse.
+- [x] Workbench is live action/recovery.
+- [x] Reporting is detailed analysis.
+- [x] QAC is quick capture.
+- [x] Do not implement TODO scratchpad items unless promoted into `ROADMAP.md`.
+- [x] Do not turn Dashboard into the primary work surface, report page, or module index.
+
+Current `AGENTS.md` already carries the short active Dashboard, Workbench, and TODO-promotion guidance, so no AGENTS edit was needed for this closeout.
+
+Update docs:
+
+- [x] `docs/declarative-view-surfaces.md`
+  - Dashboard host status.
+  - Dashboard region placement.
+  - Workbench Focus Selection vs Task Focus status.
+  - Dashboard/Workbench/Reporting/QAC boundary.
+- [x] `docs/module-contract.md`
+  - Dashboard contribution placement/region field.
+  - Dashboard contribution ownership.
+  - Module-owned panel data routes/renderers.
+  - Contribution filtering by module, permissions, capabilities, workspace type.
+- [x] `docs/view-building-contract.md`
+  - Dashboard region layout ownership.
+  - Framework-owned panel/status/empty/error anatomy.
+  - Workbench state-specific layout boundary.
+- [x] `docs/ui-surface-contract.md`
+  - Dashboard surface rule: summary, pressure, direction.
+  - Dashboard must not render full task indexes, full report tables/charts, editors, or browser-owned permission/ranking logic.
+- [x] `docs/tasks-module.md`
+  - Task Dashboard card boundary.
+  - Workbench Task Focus checklist/status behavior.
+  - Recurring checklist and linked-note propagation boundaries.
+- [x] `docs/time-tracking-module.md`
+  - Dashboard active/recent time cards.
+  - Detailed billables live in Reporting, not default Dashboard panels.
+  - QAC Time Tracking Create Timer modal.
+  - Task-linked timer behavior.
+- [x] `docs/notes-module.md`
+  - Task Focus linked-note view/read modal and Edit handoff.
+  - Recurring linked-note relationship propagation without copying note bodies.
+- [x] Any module docs touched by Module Overview cards.
+
+Add/update static guardrails:
+
+Dashboard guardrails:
+
+- [x] Dashboard protected host remains minimal.
+- [x] Dashboard browser host must use shared view primitives for framework-owned page/header/status/empty/error/panel anatomy.
+- [x] Dashboard region placement must not hardcode first-party panel IDs such as `project-summary`.
+- [x] Dashboard must not render:
+  - Current Month Billables default table.
+  - Hours & Billables default chart.
+  - Full task lists.
+  - Full report tables/charts.
+  - Inline editors/forms.
+  - Browser-rebuilt task ranking or permission logic.
+- [x] Dashboard Personal/Family surfaces must not show Client/billable/invoice/billing language.
+- [x] Dashboard module cards must disappear when the module is disabled or permission/capability checks fail.
+- [x] Dashboard activity rows must not expose unsafe content, raw audit payloads, raw IDs, storage internals, scanner data, secure/private body content, or hidden labels.
+- [x] Dashboard warning rows must not expose secrets, raw runtime values, job payload JSON, storage internals, or scanner internals.
+- [x] Dashboard empty/sparse states must remain useful.
+
+Workbench guardrails:
+
+- [x] Workbench must not reintroduce:
+  - A main-column `More in this focus` task list.
+  - A Focus Selection manual timer creation row.
+  - A default `Open work` opens edit modal path for task candidates.
+  - A `Dismiss` action on recommended/resume candidates.
+  - Visible Focus Selection panels or Recommended Next Action while in Task Focus.
+  - Duplicated Client/Project context in the Task Focus summary.
+  - A Task Focus Inspector sourced from generic focus-mode candidates instead of selected-task context.
+  - Same-project Inspector tasks sorted without due-date proximity.
+  - An embedded Inspector preview pane.
+- [x] Workbench Task Focus must keep editing explicit through Edit actions and canonical module-action openers.
+- [x] Workbench Task Focus checklist execution must stay check/uncheck only; checklist structure editing remains in the Task editor.
+- [x] Workbench Task Focus linked Note reads must use the Notes-owned view/read modal first, with explicit Edit handoff.
+
+Framework coupling guardrails:
+
+- [x] Add/update a framework-coupling guardrail so `src/core/**` and framework aggregation services under `src/services/**` do not import specific first-party module services/repos or hardcode first-party module IDs for generic decisions outside a documented allowlist.
+- [x] Record still-coupled framework services deferred to later branches:
+  - Reporting remains deferred to `0.33.11`.
+  - Public API and tag propagation remain deferred to `0.39.15`.
+- [x] Any temporary Dashboard direct coupling left by `0.33.6.13a` through `0.33.6.13d` must be documented with:
+  - File/function.
+  - Why it remains.
+  - Retained coverage owner.
+  - Follow-up version.
+
+Deferred follow-up inventory:
+
+- Richer Dashboard Recent Activity digest if `0.33.6.13d` only adds the safe region/empty state.
+- Compact Business Pulse/reporting shortcut if it is deferred to Reporting `0.33.11`.
+- Advanced-search modal + search-result display modal, including routing main-ribbon search results through it if that remains the direction.
+- Report-creation modal, cross-referenced to `0.37.5`.
+- Any remaining Files target-aware upload modal if still needed after QAC/File behavior is reviewed.
+- Future KB/Tickets/Creator Studio Dashboard module cards.
+
+Verification:
+
+- [x] Run focused Dashboard regressions.
+- [x] Run Dashboard host/static guardrail regressions.
+- [x] Run Dashboard contribution/manifest regressions.
+- [x] Run Dashboard/Workbench regression set.
+- [x] Run QAC regressions.
+- [x] Run Time Tracking timer/dashboard regressions.
+- [x] Run Tasks recurrence/checklist/dashboard regressions.
+- [x] Run Notes linked-note modal regressions.
+- [x] Run permission regressions if contribution filtering, workspace-type gating, route guards, or safe visibility changed.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Restart and verify `/api/app-info` reports the expected version.
+- [x] Manually verify:
+  - Business Dashboard.
+  - Personal/Family Dashboard.
+  - Sparse/no-data Dashboard.
+  - Tasks enabled/disabled.
+  - Time Tracking enabled/disabled.
+  - Reporting permission present/missing.
+  - Workbench Focus Selection.
+  - Workbench Task Focus.
+  - QAC Timer capture.
+  - Dashboard responsive/narrow layout.
+
+Closeout bookkeeping:
+
+- [x] Update `CHANGELOG.md`.
+- [x] Update `package.json` and `package-lock.json` when the version changes.
+- [x] Archive completed roadmap sections according to the roadmap bookkeeping rule.
+- [x] Do not add a top-level `## Archived Roadmap History` section to `ROADMAP.md`.
+
+Archive bookkeeping note: `0.33.6` remains the active roadmap family for `0.33.6.14+`, so this completed Dashboard/Workbench branch stays checked in place and shipped history is recorded in `CHANGELOG.md` without adding a top-level archived-history block.
+
+Acceptance criteria:
+
+- Dashboard/Workbench closeout occurs only after the Dashboard Pulse redesign and Workbench Task Focus model are both landed.
+- Current governing decisions and docs clearly separate Dashboard, Workbench, Reporting, QAC, module pages, and module-owned panel behavior.
+- Guardrails prevent Dashboard from regressing into full task lists, billing reports, hardcoded panel placement, unsafe activity feeds, warning leaks, browser-owned permission/ranking logic, or primary-work-surface behavior.
+- Guardrails prevent Workbench from regressing into distracting Focus Selection lists during Task Focus or edit-modal-first task execution.
+- The verification gate covers Dashboard, Workbench, QAC, Tasks, Time Tracking, Notes, permissions, `npm run check`, `npm run test:permissions`, and app-info version reporting.
+
+## Version 0.33.5.29 - Regression and check-suite performance and consolidation pass (archived completed branch through 0.33.5.29.7)
+
+Completed 0.33.5.29.1 through 0.33.5.29.7 from the regression and check-suite performance branch. The live roadmap continues with 0.33.6.
+
+Purpose:
+
+Make the standard regression/check ceremony materially faster and less flaky after the 0.33.5.27 database-conversion and 0.33.5.28 parameter-binding gap-closeout branches, without reducing coverage.
+
+Completed outcome:
+
+- 0.33.5.29.1 measured the post-conversion baseline and recorded the full suite inventory, slow tail, overlap map, and ordered target list in `docs/regression-suite-performance.md`.
+- 0.33.5.29.2 introduced `scripts/test-support/source-scan.mjs` so the three whole-`src` database guardrails share one scan/parsing path while adjacent narrower database-contract checks stay explicitly separate.
+- 0.33.5.29.3 auto-tuned the isolated database bucket from available Node worker parallelism while preserving the `LTF_ISOLATED_REGRESSION_PARALLELISM` and `LTF_REGRESSION_PARALLELISM` override contract, bucket order, fail-fast behavior, and per-script timing output.
+- 0.33.5.29.4 added the coverage-preservation ratchet and retirement manifest so future suite reductions require explicit rationale, retained coverage ownership, and verification.
+- 0.33.5.29.5 consolidated the static historical closeout assertion family into `scripts/static-contract-closeout-regression.mjs` while leaving the seven database-backed closeout scripts independently registered.
+- 0.33.5.29.6 fixed the isolated-bucket baseline migration-lock race by sharing one in-flight baseline preparation promise and namespacing repeated bucket fixture paths by bucket/pass, then retired the standalone/serial isolated-bucket workaround after the documented stress command passed.
+- 0.33.5.29.7 kept the same gate semantics while adding content-based ESLint caching to `npm run check` and `npm run lint`, documented the runner model and tuning knobs, retained `npm run test:permissions` as its own focused harness, and completed the branch closeout ceremony.
+- The branch closed with 282 live registered regression scripts guarded by the retirement manifest, 8 registered closeout owners, deterministic isolated-bucket parallel runs, and a standard gate that is faster than the 0.33.5.29.1 baseline while preserving coverage.
+
+## Version 0.33.5.28 - Parameter-binding gap closeout (archived completed branch through 0.33.5.28.2)
+
+Completed 0.33.5.28.1 through 0.33.5.28.2 from the parameter-binding gap closeout branch. The live roadmap continues with 0.33.5.29.
+
+Purpose:
+
+Close the latent gaps a post-branch review surfaced in the completed 0.33.5.26 parameter-binding work (array-expansion binding and the bulk `VALUES (...)` helper). These were originally pre-emptive hardening items for the then-future 0.33.5.27 conversion waves; they are recorded here rather than folded silently into those waves so the burndown ratchet stays honest.
+
+Completed outcome:
+
+- 0.33.5.28.1 added the bulk `VALUES` placeholder ceiling guard and documented the current `search_index` safety boundary.
+- 0.33.5.28.2 added the documentation-only variable-length `NOT IN (:ids)` empty-list guardrail after confirming the conversion waves introduced no runtime `NOT IN (:boundArray)` sites.
+- The runtime audit inventory remains unchanged at 0 runtime literal-helper invocations, 0 direct interpolated SQL operation sites, 385 existing bound operation sites, and 429 runtime DB operation calls.
+
+Status re-verified after 0.33.5.27 completion (package `0.33.5.27.33`, branch archived; audit burndown at **0 interpolated / 0 literal-helper** sites):
+
+- **0.33.5.28.1 is still necessary and is not obsolete.** The whole 0.33.5.27 branch - including the 0.33.5.27.25 search-adapter/rebuild wave that this item flagged as the likely first batched caller - landed **without adding the ceiling guard**. `createBulkValuesBindings()` in `src/db/parameter-bindings.js` still had no placeholder-budget/chunking guard at recheck time, and `sqlite-search-adapter.js` `upsertDocuments()` genuinely accepted an array and emitted a **single multi-row** `INSERT ... VALUES ... ON CONFLICT` statement. The reason it had not blown up was that the rebuild path (`services/search-index-rebuild.service.js`) still called `searchService.indexSearchDocument(document)` **one document per statement** in a loop.
+- **0.33.5.28.2's primary rationale had expired; it was downgraded to a doc note.** Its purpose was to stop the conversion waves from mechanically inverting `NOT IN` semantics. Those waves completed and introduced **zero** `NOT IN (:boundArray)` runtime sites (existing `NOT IN` sites still use literal value lists), so the conversion risk window closed and what remained was future-proofing for new modules.
+
+Resolved during the review (no action left):
+
+- The audit ratchet had briefly gone red because `scripts/parameter-binding-audit-regression.mjs` still asserted the superseded coarse 0.33.5.27 wave numbering (`.3` Tasks, `.5` Lists, `.9` startup/migration) after 0.33.5.27.1 renumbered the audit doc to the expanded per-repository scheme. This was reconciled during the 0.33.5.27.2 work - the assertion now matches the expanded table (`.8` Tasks, `.16` Lists, `.29`/`.30` startup/migration) and all three parameter-binding regressions pass.
+
+Entry contract and grounding:
+
+- 0.33.5.26 was archived to `ROADMAP-ARCHIVE.md` as complete (0.33.5.26.1 through 0.33.5.26.4). The array-expansion and bulk `VALUES` helpers live in `src/db/parameter-bindings.js`, the bulk helper is wired into `src/core/search/adapters/sqlite-search-adapter.js` `upsertDocuments`, and the ratchet is enforced by `scripts/parameter-binding-audit-regression.mjs` / `scripts/parameter-binding-layer-regression.mjs` (both in `scripts/regression-suite.mjs`).
+
+Sizing decision:
+
+- Keep 0.33.5.28 as two one-session slices. 0.33.5.28.1 is one runtime/helper session because there is one production helper, one production caller, one docs contract, and one existing regression home. 0.33.5.28.2 is one docs-only guardrail session because no current runtime site uses `NOT IN (:boundArray)`.
+- For 0.33.5.28.1, prefer an explicit helper-side placeholder-budget rejection over chunking. There is no current batched search rebuild/import caller that needs chunking semantics, so rejecting oversized row/column groups keeps the blast radius in `src/db/parameter-bindings.js`, docs, and focused regressions. Add adapter-level chunking later only when a real bulk caller is introduced and can define retry, partial-failure, and FTS-sync behavior.
+
+### Version 0.33.5.28.1 - Guard the bulk `VALUES` helper against the SQLite bound-parameter ceiling
+
+- [x] Note the latent regression the review found: converting the canonical `search_index` upsert from joined literal `VALUES` to `createBulkValuesBindings()` bound params (0.33.5.26.2) introduced a per-statement bound-parameter ceiling (`SQLITE_MAX_VARIABLE_NUMBER`) that the literal path never had. With ~20 columns per row, a single upsert statement caps near ~1,600 rows before the driver rejects it.
+- [x] Confirm current safety and document it: as re-verified after 0.33.5.27, the only caller path is still `searchService.indexSearchDocument` -> `upsertDocuments([document])`, i.e. one row per statement (the rebuild service loops per document), so the ceiling cannot be hit yet. But `upsertDocuments()` now accepts an array and emits a single multi-row statement, and the helper is advertised for "dynamic bulk row groups," so a future batched caller (a batched rebuild, a bulk importer) could pass a large array and fail at runtime.
+- [x] Add a guard before a bulk caller relies on it: make `createBulkValuesBindings()` reject a row/column count that would exceed a documented safe placeholder budget with a clear error, and document the ceiling in `docs/database.md` next to the 0.33.5.26.2 helper contract. Do not add chunking in this slice; save that for a future real batched caller.
+- [x] Add a focused regression for the large-batch boundary (chunking or explicit rejection), so the search conversion wave cannot reintroduce an unbounded single-statement bulk upsert.
+
+Acceptance criteria:
+
+- The bulk `VALUES` helper has a documented, tested bound-parameter ceiling (chunked or explicitly rejected), so batched callers cannot silently exceed the SQLite variable limit that the pre-conversion literal path avoided.
+
+### Version 0.33.5.28.2 - Empty-list `NOT IN` converter guardrail (minor, downgraded to doc-only)
+
+- [x] Downgrade note (post-0.33.5.27): the conversion waves this item was meant to protect are complete and introduced **no** `NOT IN (:boundArray)` runtime sites, so the original conversion-wave rationale has expired. This slice reduces to a single documentation guardrail for future module authors and can close on the doc note alone; no code change is required.
+- [x] The array-expansion empty-list convention (`IN (:ids)` with `[]` expands to `IN (NULL)` -> no rows) is safe and correct for `IN`, but is silently inverted for `NOT IN`: `x NOT IN (NULL)` matches zero rows where an empty exclusion set should match all rows. `docs/database.md` already delegates non-`IN` empty-list meaning to caller code, and no current runtime site uses `NOT IN (:boundArray)` (existing `NOT IN` sites use literal value lists), so this is pre-emptive.
+- [x] Add a short converter checklist item (audit doc / `docs/database.md`) reminding the high-traffic conversion waves that a variable-length `NOT IN (:ids)` needs an explicit empty-array branch, so a mechanical conversion cannot invert exclusion semantics.
+- [x] Add a focused regression asserting the documented `NOT IN` empty-list handling and proving the runtime source still has no variable-bound `NOT IN (:ids)` site.
+
+Acceptance criteria:
+
+- A documented `NOT IN` empty-list guardrail exists for future module authors (the conversion waves it originally protected are complete and introduced no such site), so this slice closes on the doc/checklist note alone.
+
+## Version 0.33.5.27 - Database extraction contract: finish the conversion and make the app agnostic-by-contract (archived completed branch through 0.33.5.27.33)
+
+Completed 0.33.5.27.1 through 0.33.5.27.33 from the database extraction contract branch. The live roadmap continues with 0.33.5.28.
+
+Purpose:
+
+Pull the *contract and completion* portion of database-agnosticism forward from 0.40.0 so the app stops accumulating database rework. This version finishes moving the whole app off value interpolation onto bound params, funnels the remaining SQLite-specific dialect through provider-neutral seams instead of scattering it at call sites, and — critically — adds enforcement so every future module (Knowledge Base in 0.34, Support Tickets in 0.35, and everything after) is built against the agnostic contract from day one and never needs re-conversion. Doing this before those modules exist is the whole point: converting ~233 known sites now is cheaper than converting them plus the hundreds of new calls those modules would otherwise add on the legacy interpolation path.
+
+Key decision (record in `DECISIONS.md`):
+
+- This version makes the app **agnostic by contract and enforced**, not agnostic-proven. It deliberately does NOT build a working second backend. The live PostgreSQL adapter, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof remain at **0.40.0**. The effect is that 0.40.0 shrinks from an app-wide rewrite to an adapter-implement-and-prove step behind the seams established here. Agnosticism is only *proven* when a second backend runs the suite at 0.40.0; until then the guarantee is "no call site hardcodes a dialect a future adapter cannot satisfy."
+- If the team instead wants a live PostgreSQL backend pulled forward into this version, that is a materially larger scope and should be decided explicitly here rather than assumed.
+
+Entry contract and grounding:
+
+- 0.33.5.23 built the named-to-positional binding layer (`src/db/parameter-bindings.js`) and converted the auth/workspace/permission core. 0.33.5.26 adds the `IN (...)` array-expansion helper, records the dynamic bulk `VALUES (...)` contract, and refreshes the burndown tracking those later waves depend on. This version consumes the recorded burndown (233 interpolated operation sites across ~20 files) and the audit's prioritized wave order in `docs/database-parameter-binding-audit.md`.
+- Dialect-sensitive operations to abstract behind seams (from the audit's 0.40.0 handoff, all currently SQLite-only): `INSERT OR IGNORE` upserts, `COLLATE NOCASE` comparisons, `PRAGMA` usage, FTS5 full-text search, JSON functions/operators, boolean-as-0/1 storage, `julianday(...)`/time math, `rowid`, and the four durable-job `RETURNING` statements.
+- Prerequisite ordering: 0.33.5.26.1 (array expansion) should land before the high-traffic conversion waves here, since those repos rely on variable-length `IN (...)` lists. 0.33.5.26.2 (bulk `VALUES`) should land before the search adapter conversion wave, or explicitly mark that path as deferred compatibility work.
+
+Sizing rule for this branch:
+
+- Each sub-slice below has one primary blast radius and should be completable in a single focused session. If implementation proves a listed sub-slice larger than expected, split it before coding rather than carrying a multi-session partial. Do not merge repository conversion work with the seam or enforcement work it depends on.
+
+### Version 0.33.5.27.1 - Portability contract and dialect seam decisions (plan only)
+
+- [x] Define the single agnostic data-access contract that all new and converted code must use: named bound params through `db.query/get/run` and `db.transaction`; no `sqlText()/sqlInteger()/sqlNullableText()/sqlNullableInteger()` interpolation; and no raw SQLite-only dialect at call sites.
+- [x] For each dialect-sensitive operation (upsert, case-insensitive compare, boolean storage, timestamp/interval math, full-text search, JSON access, `RETURNING`, `rowid`/identity), decide the seam: a provider-neutral helper, a capability flag, or a provider-adapter method. Record the chosen seam per operation.
+- [x] Confirm the compatibility allowlist that may legitimately stay on interpolation: no-parameter multi-statement startup/migration paths only (`src/db/index.js`, `src/db/migrations.js`), and document that nothing else may.
+- [x] Do not change runtime behavior in this slice; keep SQLite identical. Record decisions in `DECISIONS.md` and `docs/database.md`, and reconcile scope with the 0.40.0 database-extraction section.
+
+Acceptance criteria:
+
+- The agnostic contract, the per-operation dialect seams, and the narrow interpolation allowlist are documented, with each remaining repository assigned to a conversion wave below.
+
+### Version 0.33.5.27.2 - Dialect seam scaffold and SQLite proof harness
+
+- [x] Add the provider-neutral seam surface in the adapter/core database layer for the operations decided in 0.33.5.27.1, without converting high-traffic repositories yet.
+- [x] Keep the first pass focused on stable helper names, adapter method boundaries, exported test hooks where needed, and SQLite-backed proof fixtures.
+- [x] Add a focused regression proving the seam surface lowers to the current SQLite helper path and does not change existing query behavior.
+
+Acceptance criteria:
+
+- The seam API locations are real, documented in code/docs where needed, and ready for per-operation implementation without converting application repositories in this slice.
+
+### Version 0.33.5.27.3 - Upsert/conflict and identity/RETURNING seams
+
+- [x] Implement the provider-neutral upsert/conflict helper or adapter method, with SQLite lowering to the current `INSERT ... ON CONFLICT` / `INSERT OR IGNORE` shapes.
+- [x] Implement the returned-row/last-insert identity seam and review the existing durable-job `RETURNING` statements against that seam.
+- [x] Decide the durable-job `RETURNING` outcome explicitly (these four statements in `core/jobs/job-queue.js`, `core/jobs/job-runner.js`, and `services/jobs.service.js` are `Already bound` in the audit inventory, so no conversion wave touches them): either convert them to the identity/RETURNING seam here, or record them as a sanctioned raw-dialect exception. Whichever is chosen must be reflected in the 0.33.5.27.32 dialect-guardrail allowlist so that guardrail does not fail on or silently exempt them.
+- [x] Convert one low-risk proof path for each helper and add focused SQLite regressions.
+
+Acceptance criteria:
+
+- Conflict writes and returned identity reads have provider-neutral seams, with SQLite behavior unchanged and the existing durable-job `RETURNING` paths explicitly resolved (converted to the seam or recorded as a sanctioned exception that 0.33.5.27.32 allowlists).
+
+### Version 0.33.5.27.4 - Case-insensitive comparison and ordering seams
+
+- [x] Implement provider-neutral helpers for case-insensitive equality, search pattern matching, and ordering where current call sites rely on `COLLATE NOCASE`, `LOWER(...) LIKE`, or local LIKE escaping.
+- [x] Convert one proof read/filter path and keep identifiers, operators, and sort clauses static or allowlisted.
+- [x] Add focused regressions for case-insensitive match/order behavior on SQLite.
+
+Acceptance criteria:
+
+- Converted code can express case-insensitive comparisons and ordering without raw SQLite collation syntax at the application call site.
+
+### Version 0.33.5.27.5 - Boolean and timestamp/interval seams
+
+- [x] Implement adapter-owned logical boolean normalization and row-mapping helpers so converted repositories bind/read booleans without owning SQLite `0`/`1` storage rules.
+- [x] Implement the provider date/time helper or adapter method needed to replace raw `julianday(...)`/interval arithmetic in converted application repositories.
+- [x] Convert one small proof path and add focused regressions for boolean round-trip and timestamp/interval behavior.
+
+Acceptance criteria:
+
+- Boolean storage and timestamp/interval math have provider-neutral SQLite-backed seams that converted repositories can use without embedding raw SQLite behavior.
+
+### Version 0.33.5.27.6 - Search/FTS seam extraction
+
+- [x] Move backend search syntax ownership into the framework search adapter/service seam so application code does not emit raw FTS5 SQL.
+- [x] Keep canonical `search_index` rows as the source of truth and preserve indexed LIKE fallback behavior when FTS5 is unavailable.
+- [x] Add focused search regressions for FTS query lowering, fallback query lowering, and repair/read behavior.
+
+Acceptance criteria:
+
+- Search callers use a backend-neutral search seam, while SQLite FTS5 and fallback SQL remain isolated inside the search adapter boundary.
+
+### Version 0.33.5.27.7 - PRAGMA, rowid, and introspection seam boundaries
+
+- [x] Move or document provider-owned entry points for PRAGMA/introspection and physical identity (`rowid`) usage before startup and migration paths are reviewed.
+- [x] Confirm no module or application repository owns raw PRAGMA/rowid calls; any remaining legitimate use must be startup, migration, health, repair, or adapter-owned.
+- [x] Add a focused regression or audit assertion covering the provider-only boundary.
+
+Acceptance criteria:
+
+- PRAGMA/introspection and `rowid` usage are isolated to provider/startup/migration/repair ownership before repository conversion waves continue.
+
+### Version 0.33.5.27.8 - Conversion wave: Tasks primary repository
+
+- [x] Convert `tasks/tasks.repo` to named bound params and the dialect seams.
+- [x] Preserve task list/detail reads, saved-view filters, assignee filters, due/reminder candidate reads, and `last_worked_at` updates exactly.
+- [x] Update the burndown ratchet and extend focused Tasks regressions before moving on.
+
+Acceptance criteria:
+
+- `tasks/tasks.repo` is fully converted with identical SQLite task read/write behavior.
+
+### Version 0.33.5.27.9 - Conversion wave: Task checklist repository
+
+- [x] Convert `tasks/task-checklists.repo` to named bound params and the dialect seams.
+- [x] Preserve checklist read/progress, create/update/reorder, soft-delete, and next-sort-order behavior exactly.
+- [x] Update the burndown ratchet and extend checklist-focused Tasks regressions before moving on.
+
+Acceptance criteria:
+
+- Task checklist persistence is fully converted with checklist display/edit behavior unchanged on SQLite.
+
+### Version 0.33.5.27.10 - Conversion wave: Task relationships repository
+
+- [x] Convert `tasks/task-relationships.repo` to named bound params and the dialect seams.
+- [x] Preserve parent/child reads, blocking summaries, cycle/path checks, and relationship lifecycle behavior exactly.
+- [x] Update the burndown ratchet and extend relationship-focused Tasks regressions before moving on.
+
+Acceptance criteria:
+
+- Task relationship persistence is fully converted with blocking and relationship summaries unchanged on SQLite.
+
+### Version 0.33.5.27.11 - Conversion wave: Task recurrence and reminders
+
+- [x] Convert `tasks/task-recurrence.repo` and `tasks/task-reminders.repo` to named bound params and the dialect seams.
+- [x] Preserve recurrence template reads/writes, template assignees, reminder offsets, and durable reminder/recurrence job semantics exactly.
+- [x] Update the burndown ratchet and extend recurrence/reminder regressions before moving on.
+
+Acceptance criteria:
+
+- Task recurrence and reminder persistence is fully converted without changing queued worker handoff or reminder delivery semantics.
+
+### Version 0.33.5.27.12 - Conversion wave: Active timers
+
+- [x] Convert `time-tracking/active-timers.repo` to named bound params and the dialect seams.
+- [x] Preserve active timer reads, slot/source behavior, pause/remove flows, and manual slot compaction exactly.
+- [x] Update the burndown ratchet and extend timer-focused regressions before moving on.
+
+Acceptance criteria:
+
+- Active timer persistence is fully converted with timer behavior unchanged on SQLite.
+
+### Version 0.33.5.27.13 - Conversion wave: Time entries
+
+- [x] Convert `time-tracking/time-entries.repo` to named bound params and the dialect seams.
+- [x] Preserve entry reads, create/update/remove, project-scope updates, and reporting-facing read behavior exactly.
+- [x] Update the burndown ratchet and extend Time Tracking regressions before moving on.
+
+Acceptance criteria:
+
+- Time entry persistence is fully converted with entry and report input behavior unchanged on SQLite.
+
+### Version 0.33.5.27.14 - Conversion wave: Notes records and filters
+
+- [x] Convert the note record list/read/filter paths in `notes/notes.repo` to named bound params and the dialect seams.
+- [x] Preserve secure/private placeholders, note kind/status filters, context filters, collection filters, owner filters, search filters, ordering, and paging exactly.
+- [x] Update the burndown ratchet and extend Notes read/filter regressions before moving on.
+
+Acceptance criteria:
+
+- Notes record reads and filters are fully converted with secure/private/read-model behavior unchanged on SQLite.
+
+### Version 0.33.5.27.15 - Conversion wave: Notes writes, revisions, links, and collections
+
+- [x] Convert the remaining `notes/notes.repo` write, revision, linked-record, collection, and count paths to named bound params and the dialect seams.
+- [x] Preserve revision numbering, link lifecycle, collection nesting/counts, and plaintext secure-placeholder checks exactly.
+- [x] Update the burndown ratchet and extend Notes mutation/collection regressions before moving on.
+
+Acceptance criteria:
+
+- `notes/notes.repo` is fully converted with secure note, revision, link, and collection behavior unchanged on SQLite.
+
+### Version 0.33.5.27.16 - Conversion wave: Lists records and items
+
+- [x] Convert list record and list item read/write paths in `lists/lists.repo` to named bound params and the dialect seams.
+- [x] Preserve list execution, item progress, item ordering, item create/update/delete behavior, and service-owned read shaping exactly.
+- [x] Update the burndown ratchet and extend Lists record/item regressions before moving on.
+
+Acceptance criteria:
+
+- Lists records and items are converted with operational execution behavior unchanged on SQLite.
+
+### Version 0.33.5.27.17 - Conversion wave: Lists catalog and linked records
+
+- [x] Convert the remaining `lists/lists.repo` catalog, catalog-usage, linked-record/source-list, and batch read paths to named bound params and the dialect seams.
+- [x] Preserve catalog suggestions, linked-record/source-list context, tag decoration inputs, and modal/editor behavior exactly.
+- [x] Because the 0.33.5.27.16/0.33.5.27.17 split is by functional area rather than a pure "everything else" catch-all, close this slice against the ratchet, not just the named path list: confirm `lists/lists.repo` reaches zero remaining literal-helper/direct-interpolation sites so no path falls between the two Lists waves.
+- [x] Update the burndown ratchet and extend Lists catalog/link regressions before moving on.
+
+Acceptance criteria:
+
+- `lists/lists.repo` is fully converted with catalog and linked-record behavior unchanged on SQLite, and the audit ratchet shows the repository at zero remaining interpolated sites.
+
+### Version 0.33.5.27.18 - Conversion wave: Files browse and attachment reads
+
+- [x] Convert Files browse, attachment list, visible attachment page, attachment count, preview access, download/read, and attachment-by-id reads in `services/files.service` to named bound params and the dialect seams.
+- [x] Preserve compact browse/recovery listing, scan/download/preview gates, permission-shaped visibility, and unsupported download-only behavior exactly.
+- [x] Coordinate with storage follow-ups so this slice does not change storage adapters, scanner adapters, streamed upload behavior, or lifecycle semantics.
+- [x] Update the burndown ratchet and extend Files browse/preview/download regressions before moving on.
+
+Acceptance criteria:
+
+- Files browse/read metadata paths are converted while storage, preview, download, and attachment visibility behavior stays unchanged.
+
+### Version 0.33.5.27.19 - Conversion wave: Files context and attachable targets
+
+- [x] Convert File Context update reads/writes, attachable-target option reads, readable target label/context reads, duplicate-context checks, and safe target lookup SQL in `services/files.service` to named bound params and the dialect seams.
+- [x] Preserve attachment-scoped File Context behavior, Client/Project/Target selector ordering, readable labels, safe unavailable states, and no-raw-ID label rules exactly.
+- [x] Update the burndown ratchet and extend File Context/target-option regressions before moving on.
+
+Acceptance criteria:
+
+- Files attachment context and target-option SQL is converted without adding inline metadata, preview, rename, replacement, storage move, hard purge, or Inspector behavior.
+
+### Version 0.33.5.27.20 - Conversion wave: Files lifecycle, settings, quota, and accounting
+
+- [x] Convert the remaining `services/files.service` lifecycle writes, report/quarantine/review paths, workspace file settings, storage accounting, quota reads, and file record create/update paths to named bound params and the dialect seams.
+- [x] Preserve upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, and scan state transitions exactly.
+- [x] Update the burndown ratchet and extend Files lifecycle/quota regressions before moving on.
+
+Acceptance criteria:
+
+- `services/files.service` database access is fully converted with all storage, scan, preview, download, quarantine, attachment, quota, and lifecycle behavior unchanged.
+
+### Version 0.33.5.27.21 - Conversion wave: Notifications inbox and lifecycle
+
+- [x] Convert notification create, list/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths in `notifications.repo` to named bound params and the dialect seams.
+- [x] Preserve in-app notification display, unread counts, filtering, lifecycle, and archive behavior exactly.
+- [x] Update the burndown ratchet and extend notification inbox/lifecycle regressions before moving on.
+
+Acceptance criteria:
+
+- Notification inbox and lifecycle persistence is converted with user-visible notification behavior unchanged on SQLite.
+
+### Version 0.33.5.27.22 - Conversion wave: Notification preferences and subscriptions
+
+- [x] Convert notification user preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications.repo` to named bound params and the dialect seams.
+- [x] Preserve per-user preferences, workspace defaults, follow/unfollow behavior, and notification fan-out inputs exactly.
+- [x] Update the burndown ratchet and extend preference/subscription regressions before moving on.
+
+Acceptance criteria:
+
+- `notifications.repo` is fully converted with preference and subscription behavior unchanged on SQLite.
+
+### Version 0.33.5.27.23 - Conversion wave: Tags repository
+
+- [x] Convert `tags.repo` to named bound params and the dialect seams.
+- [x] Preserve tag create/update/archive, tag list/read, assignments, suppressions, propagation-context reads, and tag filter behavior exactly.
+- [x] Update the burndown ratchet and extend tag regressions before moving on.
+
+Acceptance criteria:
+
+- `tags.repo` is fully converted with tag assignment and suppression behavior unchanged on SQLite.
+
+### Version 0.33.5.27.24 - Conversion wave: Tag propagation and tags service
+
+- [x] Convert `services/tag-propagation-registry` and `services/tags.service` to named bound params and the dialect seams.
+- [x] Preserve Client/Project/Task/Note propagation targets, resolver behavior, and service-owned tag read shaping exactly.
+- [x] Update the burndown ratchet and extend propagation-focused tag regressions before moving on.
+
+Acceptance criteria:
+
+- Tag propagation and service helper SQL is fully converted without changing propagated-tag behavior.
+
+### Version 0.33.5.27.25 - Conversion wave: Search adapter and rebuild service
+
+- [x] Convert `core/search/adapters/sqlite-search-adapter`, `core/search/tag-text`, and `services/search-index-rebuild.service` to named bound params and the search/dialect seams.
+- [x] Keep FTS5 maintenance, indexed LIKE fallback, repair/rebuild behavior, canonical `search_index` writes, and permission-safe search request shaping unchanged.
+- [x] Update the burndown ratchet and extend search indexing/rebuild regressions before moving on.
+
+Acceptance criteria:
+
+- Search persistence and rebuild SQL is fully converted, with raw FTS5 isolated inside the provider-owned search adapter seam.
+
+### Version 0.33.5.27.26 - Conversion wave: Work resume state
+
+- [x] Convert `services/work-resume-state.service` and `services/work-resume-state-initial-producers` to named bound params and the dialect seams.
+- [x] Preserve resume state upsert, dismiss, list ranking, read checks, source removal, initial producer behavior, and Workbench-facing read models exactly.
+- [x] Update the burndown ratchet and extend work-resume regressions before moving on.
+
+Acceptance criteria:
+
+- Work resume state SQL is fully converted with resume/recovery behavior unchanged on SQLite.
+
+### Version 0.33.5.27.27 - Conversion wave: Clients and Projects repositories
+
+- [x] Convert `client-projects/clients.repo` and `client-projects/projects.repo` to named bound params and the dialect seams.
+- [x] Preserve hierarchy-aware reads, create/update/archive, Business-only Client behavior, billing/task-default rows, project ordering, and readable label shaping exactly.
+- [x] Update the burndown ratchet and extend Clients/Projects regressions before moving on.
+
+Acceptance criteria:
+
+- Clients and Projects repositories are fully converted with hierarchy, billing, and module behavior unchanged on SQLite.
+
+### Version 0.33.5.27.28 - Conversion wave: Framework and admin low-count repositories
+
+- [x] Convert `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, `services/help.service`, and any other remaining low-count application repository from the audit inventory to named bound params and the dialect seams.
+- [x] Preserve module registry sync/status, audit search/retention, API key reads/writes/scopes, Help workspace visibility, and admin/security behavior exactly.
+- [x] Update the burndown ratchet and focused regressions before moving on.
+
+Acceptance criteria:
+
+- All remaining application repositories are on bound params and seams; only startup/migration compatibility paths remain interpolated.
+
+### Version 0.33.5.27.29 - Startup maintenance compatibility path
+
+- [x] Review `src/db/index.js` startup maintenance SQL against the seam decisions and the no-parameter multi-statement compatibility allowlist.
+- [x] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining `src/db/index.js` statements as sanctioned startup compatibility with recorded rationale.
+- [x] Account for dialect-sensitive startup statements such as `INSERT OR IGNORE`, `julianday(...)`, PRAGMAs, and repair/list rebuild work.
+- [x] Update the burndown ratchet to reflect the final startup allowlist.
+
+Acceptance criteria:
+
+- `src/db/index.js` is either converted where practical or documented as a sanctioned startup-only compatibility path, with dialect-sensitive statements accounted for.
+
+### Version 0.33.5.27.30 - Migration compatibility path
+
+- [x] Review `src/db/migrations.js` and active migration SQL handling against the seam decisions and the no-parameter multi-statement compatibility allowlist.
+- [x] Convert paths that can safely move onto supported adapter helpers in one session; otherwise formally confirm the remaining migration statements as sanctioned migration compatibility with recorded rationale.
+- [x] Account for dialect-sensitive migration statements such as PRAGMAs, `rowid`, schema introspection, checksum validation, and baseline repair.
+- [x] Update the burndown ratchet to reflect the final migration allowlist.
+
+Acceptance criteria:
+
+- `src/db/migrations.js` is either converted where practical or documented as a sanctioned migration-only compatibility path, with dialect-sensitive statements accounted for.
+
+### Version 0.33.5.27.31 - Interpolation enforcement guardrail
+
+- [x] Add a lint/regression guardrail that fails the suite if runtime SQL uses `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` outside the sanctioned startup/migration allowlist.
+- [x] Drive the audit ratchet target to zero interpolated operation sites for application repositories, allowlist excepted.
+- [x] Add regressions proving the guardrail rejects a reintroduced interpolation call outside the allowlist.
+
+Acceptance criteria:
+
+- New application database code cannot merge on the legacy interpolation path, and the application-repository burndown is enforced at zero.
+
+### Version 0.33.5.27.32 - Dialect enforcement guardrail
+
+- [x] Extend the enforcement guardrail so new or changed runtime SQL cannot hardcode a dialect-ism that has a seam (`INSERT OR IGNORE`, `COLLATE NOCASE`, `julianday(...)`, raw FTS5, JSON operators, PRAGMAs, `rowid`, `RETURNING`, etc.) outside the provider adapter/startup/migration allowlist.
+- [x] Critically, run the dialect guardrail as a **whole-tree sweep, not a diff-only check**, and re-audit every repository the parameter-binding ratchet already marks `Converted`/`Already bound` for raw dialect-isms that have a seam. The binding ratchet and dialect-seam adoption are *separate axes*: a repo can be "Converted" for parameter binding while still emitting raw SQLite dialect (confirmed example at time of writing: `src/repositories/permissions.repo.js` still uses raw `INSERT OR IGNORE` despite being marked `Converted`). Convert every such remaining site to the established seam so no repo can read "done" while still emitting a dialect-ism a future adapter cannot satisfy.
+- [x] Add a distinct dialect-adoption axis to the audit/burndown (separate from the parameter-binding counts) so the ratchet tracks and enforces raw-dialect-at-application-call-sites to zero, and a converted repo that reintroduces a raw seam-backed dialect-ism fails the suite.
+- [x] Reconcile the guardrail with the 0.33.5.27.3 durable-job `RETURNING` decision: those `core/jobs`/`services/jobs.service` statements were converted to the provider returning seam, so confirm no raw `RETURNING` remains outside provider/test allowlists instead of adding durable-job exceptions.
+- [x] Add regressions proving the guardrail rejects raw dialect use outside sanctioned provider-owned paths.
+- [x] Document the dialect guardrail in `docs/module-contract.md` and `docs/database.md` so future modules start from the agnostic contract.
+
+Acceptance criteria:
+
+- New database code cannot merge with raw dialect-isms outside provider-owned or sanctioned compatibility paths, and the whole-tree sweep has driven raw seam-backed dialect at application call sites to an enforced zero across all repositories — including those already marked converted for parameter binding — so `0.40.0` inherits no hidden raw-dialect call sites.
+
+### Version 0.33.5.27.33 - Docs, decisions, 0.40.0 reconciliation, and closeout
+
+- [x] Update `DECISIONS.md`, `docs/database.md`, `docs/database-parameter-binding-audit.md`, and the module/view contract docs to describe the finished agnostic contract, the seams, and the enforcement rules for new modules.
+- [x] Reconcile the 0.40.0 database-extraction section: 0.40.0 now implements the actual PostgreSQL adapter behind the seams, provider gating, the migration runner, dual-backend contract tests, and the SaaS seed/load proof -- not an app-wide SQL rewrite.
+- [x] Run `npm run check` and `npm run test:permissions`; confirm the burndown ratchet is at the enforced target and `PRAGMA integrity_check` is `ok`; verify `/api/app-info` after restart.
+- [x] Complete the standing per-slice version/`CHANGELOG.md`/package metadata ceremony and archive the completed branch.
+
+Acceptance criteria:
+
+- The whole app is on bound params and provider-neutral seams, new database code is enforced onto the agnostic contract, docs/decisions are captured, and 0.40.0 is reduced to implementing and proving a second backend rather than rewriting call sites.
+
+## Version 0.33.5.26 - Parameter-binding gap review (archived completed branch through 0.33.5.26.4)
+
+Completed 0.33.5.26.1 through 0.33.5.26.4 from the parameter-binding gap review branch. The live roadmap continues with 0.33.5.27.
+
+Purpose:
+
+Capture the verified gaps from a post-branch review of the 0.33.5.23 SQL parameter-binding migration so the deferred module conversion waves (Tasks, Notes, Lists, Files, Notifications, Tags, Time Tracking, client/project repositories) do not inherit hidden problems. The 0.33.5.23 branch was intentionally scoped to the auth/workspace/permission core and it delivered that scope correctly; this section records what remains and the tooling/tracking gaps that will otherwise compound with every future wave.
+
+What the review confirmed as solid (no action needed):
+
+- The six converted core repositories (`users`, `workspaces`, `user-workspaces`, `permissions`, `settings`, `app-settings`) contain zero residual interpolation-helper calls, and `settings.repo.js saveWorkspaceSettings` binds cleanly (each `transaction.run` uses its own correctly-scoped param object; an earlier "shared superset params" concern did not reproduce against the working tree).
+- The binding layer is applied on every path: `src/db/adapters/sqlite-adapter.js` routes `query`/`get`/`run` and the transaction client through `prepareDatabaseBindings`, and `src/db/provider.js` now routes the legacy `querySql`/`getSql`/`runSql` helpers through the same layer, so even unconverted interpolated call sites still get the in-transaction guard.
+- No untracked raw value interpolation exists: every raw `${...}` reaching SQL is either one of the four tracked `sql*` helpers or a constant identifier (column/table name), so there is no injection blind spot and no interpolation the burndown fails to see.
+- The remaining work is recorded: `docs/database-parameter-binding-audit.md` holds a per-owner inventory, a prioritized wave order, and an explicit 0.40.0 handoff, and `scripts/parameter-binding-audit-regression.mjs` is a live-scan ratchet asserting exact totals (1,499 helper invocations / 233 interpolated sites / 92 bound sites / 408 operation calls after the 0.33.5.25.2 Files quota read) plus per-group counts, so a converted repository cannot silently regress.
+
+Sizing result:
+
+- Each sub-slice below has one primary blast radius and should be completable in a single focused session. The original array-expansion slice mixed `IN (...)` list binding with the search adapter bulk `VALUES (...)` decision, so those are split before implementation starts.
+
+### Version 0.33.5.26.1 - Array-expansion binding for variable-length IN-lists
+
+- [x] Add array/list expansion support to the binding layer (`src/db/parameter-bindings.js`) so a named param bound to an array expands to the correct number of driver placeholders — e.g. `db.query("... WHERE id IN (:ids)", { ids: [...] })` emits `IN (?, ?, ?)` on SQLite and `$n` sequences for a future provider.
+- [x] This is a prerequisite for the high-traffic waves, not an optional nicety: the current layer handles only fixed named/positional params, while the unconverted modules interpolate variable-length lists that cannot be mechanically converted without it. Confirmed sites include `src/modules/lists/lists.repo.js:284`, `src/modules/notes/notes.repo.js:954`, `src/services/files.service.js:2935` and `:2950`, `src/repositories/audit-logs.repo.js:270` and `:278` (one built list reused across two clauses), `src/core/modules/modules.service.js:584`, `src/db/index.js:219`, and `src/db/migrations.js:586`.
+- [x] Decide and document how a single logical list reused in multiple clauses (as in `audit-logs.repo.js`) binds under positional drivers (duplicate the values, or support named reuse), so later waves have one pattern.
+- [x] Handle the empty-array case explicitly (an empty `IN ()` is a SQL error) with a documented, safe convention.
+- [x] Keep this slice to the binding helper, documentation, and focused coverage; do not convert the high-traffic module repositories here.
+- [x] Add focused regressions for single-element, multi-element, reused-list, and empty-array expansion on SQLite before any module wave depends on it.
+
+Acceptance criteria:
+
+- The binding layer expands array-valued named params into correct placeholder sequences, empty and reused-list cases are defined, and the Tasks/Notes/Lists/Files waves can convert their `IN (...)` sites without reinventing expansion per module.
+
+### Version 0.33.5.26.2 - Bulk VALUES binding decision for dynamic row groups
+
+- [x] Decide whether the binding layer should support dynamic bulk `VALUES (...)` row-group construction now, or whether those paths stay on the documented compatibility path until the 0.33.5.27 search/dialect seam work.
+- [x] Use the SQLite search adapter upsert path (`src/core/search/adapters/sqlite-search-adapter.js`) as the concrete proof case, because it currently builds per-document `VALUES (...)` statements from joined literal values.
+- [x] If bulk row binding is supported now, add a small provider-neutral helper/shape that builds row placeholder groups plus params without teaching each repository its own pattern.
+- [x] Because bulk row binding is supported now, record the helper contract in `docs/database.md` and `docs/database-parameter-binding-audit.md`, and pin a regression so later conversion waves do not mistake array expansion for bulk row support.
+- [x] Add focused coverage for the chosen path: either a successful bound bulk-row proof, or a regression that the search adapter remains intentionally listed as deferred compatibility work.
+
+Acceptance criteria:
+
+- Dynamic bulk `VALUES (...)` construction has an explicit, documented contract before repository conversion waves begin, and later waves know whether to use a shared helper or leave those paths to the search/dialect seam work.
+
+### Version 0.33.5.26.3 - Make the audit inventory a single source of truth
+
+- [x] Update `docs/database-parameter-binding-audit.md` so the main per-owner inventory table reflects current reality instead of the frozen 0.33.5.23.1 snapshot: the six converted repositories still appear in the master table with their pre-conversion counts while a separate sub-table lists them as `0`, which reads as contradictory to anyone scanning "what is left."
+- [x] Choose one canonical presentation — update the master table in place each wave, or annotate converted rows as done with a completion marker — and stop appending a new per-wave sub-table that diverges from the master.
+- [x] Clarify that `sessions.repo` was an already-bound pilot before this branch rather than something the 0.33.5.23.3 wave converted, so the "converted core" list is accurate.
+- [x] Keep the recorded totals and the ratchet regression in agreement with the corrected table.
+
+Acceptance criteria:
+
+- A reader can look at one inventory table and see exactly which repositories remain interpolated and which are converted, with no contradictory counts.
+
+### Version 0.33.5.26.4 - Per-wave ratchet update checklist
+
+- [x] Document, next to the audit doc or in `docs/database.md`, the exact set of artifacts each future conversion wave must update in lockstep so the exact-equality ratchet stays correct rather than being weakened when it goes red: the hardcoded totals and `expectedTopGroups` in `scripts/parameter-binding-audit-regression.mjs`, the audit inventory table, and the recorded burndown in `CHANGELOG.md`.
+- [x] Note the standing rule (already in `DECISIONS.md`) that new or touched single-statement queries must use named params, so a wave cannot both convert a repo and leave the ratchet asserting the old count.
+- [x] Add the checklist as a short, referenceable heading so a later engineer picking up a single module wave does not have to reverse-engineer the ceremony.
+
+Acceptance criteria:
+
+- Each future conversion wave has a documented, minimal update checklist that keeps the burndown ratchet green and honest, so the migration can proceed module by module without silent gaps.
+
+## Version 0.33.5.25 - Storage branch cleanup (archived completed branch through 0.33.5.25.4)
+
+Completed 0.33.5.25.1 through 0.33.5.25.4 from the storage branch cleanup. The live roadmap continues with 0.33.5.26.
+
+Purpose:
+
+Close the gaps left by the 0.33.5.22 storage/upload branch. The buffered/local path shipped production-ready, but two scope items were only partially delivered -- a selectable S3 provider that cannot function, and workspace/per-user storage quotas that are persisted but never enforced -- plus a few robustness gaps in the streamed-upload and download paths. This slice resolves or explicitly defers each, so the storage contract matches what is actually wired.
+
+Grounding for this branch:
+
+- `src/services/files.service.js` registers the `s3` provider via `createS3FileStorageAdapter(config.storage.s3)`, but `config.storage.s3` (`src/config.js`) carries no client, no AWS SDK/minio dependency exists in `package.json`, and `registerFileStorageAdapter('s3', ...)` is never called with a real client. Every S3 operation throws `AppError("S3 file storage client is not configured.", 500)`, and `resolveConfiguredFileStorageProvider()` resolves the broken adapter without failing fast at startup -- so selecting `s3` turns every upload/download into a request-time 500.
+- `internal_storage_limit_bytes` / `per_user_storage_limit_bytes` are written and read into settings/accounting shapes only; no upload path (`prepareUpload`, `prepareStreamedUpload`, `uploadAndAttach`) compares them against actual usage. The only live cap is the hard 5 MB per-file `DEFAULT_MAX_FILE_SIZE_BYTES`, so configured caps are a no-op.
+- `prepareStreamedUpload` fully writes the object to storage before content-type validation, then deletes on mismatch; on the S3 path that cleanup delete is swallowed (`.catch(() => {})`), risking orphaned objects. The buffered path validates before writing.
+- The download/preview routes pipe `adapter.read()` straight to the response without a `metadata()` existence pre-check, so storage/DB drift yields an aborted 200 instead of a clean 404. The pre-check method exists but is unused.
+- Some adapter surface is dead: local `quarantine()`/`resolveStoragePath()` and both adapters' `metadata()` are never invoked, and `quarantineFile` only flips DB status without relocating the object.
+
+Sizing rule for this branch:
+
+- Each sub-slice below has one primary blast radius and follows the normal release ceremony: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
+
+### Version 0.33.5.25.1 - Resolve the S3 provider state and fail fast on misconfiguration
+
+- [x] Decide S3's status: either (a) deliver a real S3 client (add the SDK dependency and wire `registerFileStorageAdapter('s3', ...)` with the configured credentials/endpoint through the existing adapter contract), or (b) keep S3 as explicitly deferred scaffolding.
+- [x] Either way, make provider selection fail fast at startup: if `config.storage.provider` selects a provider whose adapter cannot function (no client), refuse to boot with a clear error instead of 500ing every upload/download at request time.
+- [x] If deferring S3, mark it as not-yet-functional in config/docs so an operator cannot silently select it.
+- [x] Add a regression proving a misconfigured/unavailable provider is rejected at startup, not per request.
+
+Acceptance criteria:
+
+- A selectable storage provider either works or fails fast at boot; S3's status is explicit and a request-time 500 storm is no longer possible.
+
+### Version 0.33.5.25.2 - Enforce workspace and per-user storage quotas
+
+- [x] Read `internal_storage_limit_bytes` / `per_user_storage_limit_bytes` in the upload paths and reject over-quota uploads with a clear error before persisting.
+- [x] Enforce for both the buffered (`prepareUpload`) and streamed (`prepareStreamedUpload`) paths; for streaming, stop and clean up the partial write when the quota would be exceeded, mirroring the existing size-limit handling.
+- [x] Treat NULL limits as unlimited, preserving current behavior when no cap is configured.
+- [x] Add regressions for at-limit, over-limit, and unlimited (NULL) cases at both workspace and per-user scope.
+
+Acceptance criteria:
+
+- Configured storage caps are enforced on upload at both workspace and per-user scope, with the streamed path cleaning up partial writes on rejection.
+
+### Version 0.33.5.25.3 - Harden streamed-upload validation and download existence checks
+
+- [x] For streamed uploads, avoid persisting an object that fails content-type validation where practical (validate the sampled header before commit), and ensure the mismatch-cleanup delete is awaited/logged rather than swallowed so a failed-type object cannot orphan (especially on S3).
+- [x] For download/preview, use the existing `metadata()` pre-check before streaming so a missing/rotated storage object returns a clean 404 instead of an aborted 200.
+- [x] Add regressions for a wrong-type streamed upload (no orphan left behind) and a download of a missing storage object (clean 404).
+
+Acceptance criteria:
+
+- Streamed uploads do not leave orphaned objects on type mismatch, and downloads of missing objects return a clean 404.
+
+### Version 0.33.5.25.4 - Batch-failure consistency, dead adapter surface, and closeout
+
+- [x] Make the multipart batch route record a single malformed file as a per-file failure instead of rejecting the whole batch, consistent with its per-file failure model.
+- [x] Resolve the unused adapter surface: either wire `quarantine()`/`metadata()` where intended (noting `quarantineFile` currently only flips DB status and never relocates the object) or remove the dead methods so the adapter contract matches what is wired.
+- [x] Run the file/upload regressions, `npm run check`, and `npm run test:permissions`; complete the version/`CHANGELOG.md` ceremony and verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- Batch uploads fail per-file, the storage adapter contract matches what is actually wired, and the branch closes with the standard ceremony.
+
+## Version 0.33.5.24 - Node 24 LTS Upgrade (archived completed branch through 0.33.5.24.4)
+
+Completed 0.33.5.24.1 through 0.33.5.24.4 from the Node 24 LTS upgrade branch. The live roadmap continues with 0.33.5.25.
+
+
+Purpose:
+
+Move the dev/runtime baseline off end-of-life Node 20 onto Node 24 LTS, rebuild the native `better-sqlite3` driver for the new ABI, and pin the repo's supported-Node contract. This is a runtime/toolchain upgrade, not an app-code change: an audit of the app source found no APIs removed or deprecated through Node 24 (no `new Buffer(...)`, `crypto.createCipher`, legacy `url.parse`, `punycode`, or `process.binding`). The one native dependency (`better-sqlite3`) already declares Node 24 in its engine range, so the risk is entirely mechanical -- the native-module ABI rebuild, prebuild/toolchain availability, the npm 10 -> 11 jump, and a version-pinned smoke test. Note that the end-of-life concern is the Node **runtime** major, not npm; upgrading npm alone would neither address the EOL runtime nor rebuild the native module.
+
+Grounding for this branch:
+
+- The dev machine is currently Node 20.13.1 / npm 10.8.1 with the native module built for ABI 115. Node 24 LTS is ABI 137 and bundles npm 11.x. Running the existing (ABI 115) `node_modules` under Node 24 fails at startup with a module-version mismatch until the driver is rebuilt.
+- `better-sqlite3@12.11.1` declares engines `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; its install step is `prebuild-install || node-gyp rebuild --release` -- it fetches a prebuilt binary for the active ABI and silently compiles from source if none matches (needs Python 3 + Visual Studio Build Tools on Windows). Longtail Forge's own app runtime contract remains Node `>=24 <25`.
+- Before 0.33.5.24.3, `scripts/better-sqlite3-install-smoke.mjs` hard-asserted the driver was **exactly** `12.11.1` while `package.json` allowed `^12.11.1`, so a clean install could resolve a newer 12.x and break those equality assertions. 0.33.5.24.3 pins the dependency exactly and keeps the smoke test aligned with that pin.
+- Before 0.33.5.24.2, `package.json` had no `engines` field, and the `README.md` requirement line still read "Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release."
+- `src/db/adapters/sqlite-adapter.js` relies on `AsyncLocalStorage` for transaction-context detection; Node 24 enables `AsyncContextFrame` for ALS by default (a behavior change to confirm via the transaction/isolated-DB regressions, not something to fix).
+
+Sizing rule for this branch:
+
+- Each sub-slice below has one primary blast radius and should be completable in a single focused session, following the normal release ceremony where a version changes.
+
+### Version 0.33.5.24.1 - Install Node 24 and rebuild the native driver
+
+- [x] Install Node 24 LTS on the dev machine and confirm the bundled npm 11.x.
+- [x] Confirm the Windows compile fallback is available (Python 3 + Visual Studio Build Tools C++ workload) in case no `better-sqlite3` prebuilt binary exists for the Node 24 ABI.
+- [x] Reinstall dependencies from clean (`node_modules` removed) so `better-sqlite3` is rebuilt/re-fetched for ABI 137; do not run against the Node 20 (ABI 115) build.
+- [x] Run `npm run test:sqlite-driver` and confirm the driver loads and the FTS5/RETURNING smoke passes on Node 24.
+
+Acceptance criteria:
+
+- Node 24 + npm 11 are installed, the native driver is rebuilt for the new ABI, and the driver smoke passes on Node 24.
+
+### Version 0.33.5.24.2 - Pin the supported-Node contract
+
+- [x] Add an `engines.node` field to `package.json` (root + `packages[""]`) declaring the supported Node range with a Node 24 floor, so the repo records its runtime contract (this is the concrete form of "add Node 24 as a dependency in the repo").
+- [x] Update the `README.md` Node requirement line from "Node.js 20.x..." to the Node 24 baseline.
+- [x] Record the runtime baseline change in `DECISIONS.md`: Node 20 EOL -> Node 24 LTS, and that the breaking action is the runtime major/ABI rather than npm.
+
+Acceptance criteria:
+
+- The repo declares Node 24 as its supported runtime, and the docs/decision record match.
+
+### Version 0.33.5.24.3 - Reconcile the version-pinned driver smoke test and lockfile
+
+- [x] Resolve the smoke-test pin mismatch: either pin `better-sqlite3` to an exact `12.11.1` in `package.json`, or relax the smoke test's exact-version and exact-engines-string assertions to a range check. Keep the two consistent so a clean install cannot leave `npm run check` red.
+- [x] Regenerate `package-lock.json` (root + `packages[""]`) under npm 11 as its own isolated committed step so the lockfile churn is separated from logic changes.
+- [x] Confirm `lockfileVersion` stays 3 and no dependency resolutions changed unexpectedly.
+
+Acceptance criteria:
+
+- The `better-sqlite3` pin and the driver smoke test agree, and the npm 11 lockfile regeneration is an isolated, reviewed commit.
+
+### Version 0.33.5.24.4 - Full-suite check and closeout
+
+- [x] Run `npm run check` and `npm run test:permissions` on Node 24 (re-running any transiently-flaky isolated-DB regressions standalone to confirm), paying attention to the transaction/isolated-DB regressions given the Node 24 `AsyncLocalStorage`/`AsyncContextFrame` behavior change.
+- [x] For any failure: fix it here if small, or open a follow-up ROADMAP slice to correct it.
+- [x] Bump `package.json`/`package-lock.json` version + add a dated `CHANGELOG.md` entry, and verify `/api/app-info` reports the expected version after restart on Node 24.
+
+Acceptance criteria:
+
+- The full suite passes on Node 24 (or any remaining failures are captured as follow-up slices), and the version/changelog ceremony is complete.
+
+## Version 0.33.5.23 - SQL Parameter-Binding Migration (archived completed branch through 0.33.5.23.4)
+
+Completed 0.33.5.23.1 through 0.33.5.23.4 from the SQL parameter-binding migration branch. The live roadmap continues with 0.33.5.24.
+
+Purpose:
+
+Migrate app SQL off value interpolation onto the existing, already-forwarded bound-`params` channel. This is a provider-neutral hardening step: it removes inlined value interpolation, keeps the `db.query(sql, params)` contract stable, and de-risks future PostgreSQL/database-extraction work in 0.40.0 without committing to it now.
+
+Entry contract from 0.33.5.19: consume the parameterized-query conventions and the `src/db/provider.js` adapter boundary while keeping SQLite defaults intact.
+
+Branch grounding:
+
+- The app-facing helpers `querySql/getSql/runSql` already forward a `params` argument to `db.query`, but most app SQL interpolated values through `sqlText()/sqlInteger()/sqlNullableText()` from `src/db/sql-literals.js`.
+- SQLite already accepts `params` on `query/get/run`, so the conversion is verifiable end-to-end on SQLite alone.
+- PostgreSQL adapter work, dialect compatibility helpers, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof remain deferred to 0.40.0.
+
+### Version 0.33.5.23.4 - Docs, decisions, regression wiring, and closeout
+
+- [x] Confirm the branch decision in `DECISIONS.md`: the parameter-binding/interpolation-helper migration from 0.33.5.23.2 is the active decision.
+- [x] Confirm the standing per-slice version ceremony was followed for each landed slice: `package.json` + `package-lock.json` (root + `packages[""]`), version-pinned regression scripts where applicable, and dated `CHANGELOG.md` entries.
+- [x] Run `npm run check` and `npm run test:permissions`, and add the parameter-binding regressions from 0.33.5.23.1-0.33.5.23.3 to the suite.
+- [x] Confirm the remaining-interpolation burndown is recorded so the 0.40.0 database-extraction work can pick up any deferred call sites.
+- [x] Archive the completed 0.33.5.23 branch according to the current roadmap bookkeeping rule.
+
+Acceptance criteria:
+
+- [x] App SQL is on the bound-`params` channel for converted wave paths, the remaining burndown is recorded, the decision and docs are captured, and SQLite behavior is unchanged.
+
+### Version 0.33.5.23.1 - Parameter-binding audit (inventory and plan only)
+
+- [x] Produce a documented, plan-only audit; do not change runtime behavior in this slice. See `docs/database-parameter-binding-audit.md`.
+- [x] Quantify parameter binding per repository: the 0.33.5.23.1 runtime scan found 1,680 helper invocations across 262 direct interpolated SQL operation sites, plus 49 existing direct bound-`params` operation sites.
+- [x] Order the repositories by interpolation count and risk to produce a prioritized conversion burndown.
+- [x] Record confirmed non-issues for scope clarity: no SQLite JSON SQL functions and no top-level `LIMIT`/`OFFSET` inside `UPDATE`/`DELETE` exist today. `RETURNING` exists in four durable-job statements and is recorded for the 0.40.0 dialect portability audit rather than treated as a non-issue.
+- [x] Output: a per-repository parameter-binding plan that slices 0.33.5.23.2-0.33.5.23.3 consume. SQLite-vs-PostgreSQL dialect portability (`INSERT OR IGNORE`, `COLLATE NOCASE`, PRAGMA, FTS5, JSON, boolean storage, `julianday(...)`, `rowid`, and the corrected `RETURNING` inventory) and the read-modify-write serialization inventory are out of scope here and live with the PostgreSQL work in 0.40.0.
+
+Acceptance criteria:
+
+- [x] The parameter-binding conversion is quantified and grouped into a documented, prioritized plan without any runtime change.
+
+### Version 0.33.5.23.2 - Named/positional parameter binding layer
+
+- [x] Add a named-to-positional (`:name` -> `$n`) parameter translation layer at the adapter boundary so the app-facing `db.query(sql, params)` contract stays stable and is ready for a second provider later without reworking call sites. `src/db/parameter-bindings.js` now emits `$n` for future providers and positional `?` bindings for SQLite.
+- [x] Keep SQLite working through the same layer, so there is one binding path. `src/db/adapters/sqlite-adapter.js` now routes query/get/run and transaction-client operations through the shared binding layer before the `better-sqlite3` helper.
+- [x] Decide and document the migration path for the `sqlText()/sqlInteger()/sqlNullableText()` interpolation helpers (`src/db/sql-literals.js`): they are deprecated compatibility escape hatches for unconverted literal SQL and no-parameter multi-statement startup/migration paths, not param-emitting shims.
+- [x] Do not mass-convert call sites in this slice; land only the layer plus a small proof conversion. The proof conversion is `src/core/search/tag-text.js`, reducing the live burndown to 1,677 helper invocations, 261 direct interpolated operation sites, and 50 existing bound operation sites.
+- [x] Add focused regressions proving named params translate correctly, escaping/edge cases are safe, and SQLite behavior is unchanged. See `scripts/parameter-binding-layer-regression.mjs`.
+
+Acceptance criteria:
+
+- [x] One binding layer keeps `db.query(sql, params)` stable and is ready for staged call-site conversion.
+
+### Version 0.33.5.23.3 - Parameter-binding conversion waves
+
+- [x] Convert interpolated SQL to bound `params` in prioritized per-repository/per-module waves, each wave sized to a single session. The first conversion wave covered the auth/workspace/permission core: `users.repo`, `workspaces.repo`, `user-workspaces.repo`, `permissions.repo`, `settings.repo`, and `app-settings.repo`.
+- [x] Order waves by the audit's per-repository counts and risk. `sessions.repo` was already bound, the 0.33.5.23.2 proof converted `core/search/tag-text`, and this slice converted the remaining auth/workspace/permission/settings core before the larger Tasks, Notes, Files, and Notifications waves.
+- [x] For each wave, keep behavior identical on SQLite and add/extend regressions before moving on. Added `scripts/parameter-binding-conversion-wave-regression.mjs` for SQL-like values across converted repositories, and kept the parameterized-query pilot and permission/workspace regression coverage on the converted paths.
+- [x] Track remaining interpolation sites so the conversion has a visible burndown and no silent "mostly done" gaps. Current scanner burndown after this wave: 1,499 helper invocations, 233 direct interpolated SQL operation sites, 91 existing bound operation sites, and 407 total runtime DB operation calls seen by the scanner.
+
+Acceptance criteria:
+
+- [x] Value interpolation is replaced by bound parameters in prioritized waves, each independently verified on SQLite.
+
+## Version 0.33.5.22 - Storage Provider and Scanner Runtime (archived completed branch through 0.33.5.22.15)
+
+Completed 0.33.5.22.1 through 0.33.5.22.15 from the storage/scanner runtime branch. The live roadmap continues with 0.33.5.23.
+
+### Version 0.33.5.22.15 - Branch docs, regression wiring, and closeout
+
+- [x] Confirm the branch decisions in `DECISIONS.md`: storage-provider selection ownership, the multipart/streaming dependency choice from 0.33.5.22.3, the `none` vs `noop` scanner distinction and `none`-mode pending-file disposition from 0.33.5.22.7, scanner-unavailable behavior from 0.33.5.22.11, and the presigned-URL exception from 0.33.5.22.14.
+- [x] Add/collect the storage and scanner docs the sub-slices produce (local storage mode, streamed upload transition, per-OS scanner setup, "scanner unavailable" behavior, optional S3 config) into the docs set, and note in the runtime-configuration docs which `LONGTAIL_STORAGE_*`/`LONGTAIL_*SCAN*`/`LONGTAIL_CLAMD_*` keys are now live vs. still inert.
+- [x] Confirm the standing per-slice version ceremony was followed for each landed slice: `package.json` + `package-lock.json` (root + `packages[""]`), version-pinned regression scripts where applicable, and dated `CHANGELOG.md` entries.
+- [x] Run `npm run check` and `npm run test:permissions` (re-running any transiently-flaky isolated-DB regressions standalone to confirm), and add the storage/scanner regressions from 0.33.5.22.1-0.33.5.22.14 to the suite.
+- [x] Verify `/api/runtime-diagnostics` reports the configured storage provider + scanner mode/availability and `/api/app-info` reports the expected version after restart.
+- [x] Archive or hand off the completed 0.33.5.22 branch according to the current roadmap bookkeeping rule.
+
+Acceptance criteria:
+
+- Storage/scanner behavior, decisions, and docs are recorded, the regression suite covers the new provider/scanner paths, diagnostics reflect the live configuration, and the roadmap is ready to move to 0.33.5.23.
+
+### Version 0.33.5.22.1 - Storage provider resolver and local write path
+
+- [x] Add a service-owned configured storage provider resolver that reads `config.storage.provider`.
+- [x] Route the upload write path through the configured provider: replace the hardcoded `getFileStorageAdapter("local")` and `storageProvider: "local"` in `src/services/files.service.js` with the resolved provider ID, keeping the stored `files.storage_provider` per-row so existing local files still read back correctly.
+- [x] Fail fast on an unknown configured provider at resolution time (reuse the existing `getFileStorageAdapter` "provider is not configured" 500 path at `files.service.js:139-141`) rather than silently falling back to `local`.
+- [x] Keep `local` as default for SQLite/self-hosted mode.
+- [x] Do not change download, preview, File Context, attachment-panel, scanner, diagnostics UI, S3, or streaming-upload behavior in this slice.
+- [x] Add regressions proving:
+  - [x] Local storage remains default.
+  - [x] A configured `local` provider is stored on new upload rows.
+  - [x] Unknown provider fails clearly (surfaced as an error, not a silent local fallback).
+  - [x] Existing local rows still read through their stored `files.storage_provider`.
+
+Acceptance criteria:
+
+- Storage provider selection is centralized for new writes, existing local files still read through per-row provider metadata, and unknown configured providers fail loudly.
+
+### Version 0.33.5.22.2 - Storage diagnostics and local storage docs
+
+- [x] Add provider health checks: call the adapter `health()` method (already implemented for local at `local-storage-adapter.js:20-23`) from the diagnostics path and normalize the result into a safe availability status without leaking the absolute root path.
+- [x] Extend the existing admin diagnostics (do not add a new surface): the `storage` block returned by `runtimeDiagnosticsService.read` (`runtime-diagnostics.service.js:43-45`) and its "Storage Provider" row in `public/js/workspace-settings.js:240` should expose:
+  - [x] Provider ID.
+  - [x] Availability status from the provider `health()` check.
+  - [x] Local root path as a safe/redacted label, reusing the existing `safeDataDirectoryLocation`/redaction helpers in `runtime-diagnostics.service.js:121-141` so the raw filesystem path is not exposed.
+- [x] Add local storage docs and update runtime-configuration docs so `LONGTAIL_STORAGE_PROVIDER=local` and `LONGTAIL_LOCAL_STORAGE_ROOT` are marked live rather than merely reserved.
+- [x] Add regressions proving:
+  - [x] Runtime diagnostics reports safe storage provider health.
+  - [x] The Workspace Settings readout renders provider status without a new admin surface.
+  - [x] File routes and diagnostics do not expose storage keys, protected paths, raw local roots, or signed URLs.
+
+Acceptance criteria:
+
+- Admin diagnostics can show the configured local storage provider and safe availability status without exposing filesystem internals.
+
+### Version 0.33.5.22.3 - Streaming write contract and multipart decision
+
+- [x] Prepare file uploads to move away from JSON-body file payloads by settling the transport and storage-write contracts first.
+- [x] Decide the multipart mechanism explicitly: no multipart parser exists today (uploads are base64-in-JSON via the hand-rolled `readJsonBody` in `src/utils/http.js`, capped at 8 MB JSON / 5 MB decoded file), so this slice adds either a streaming multipart dependency or a hand-rolled parser. Record the dependency decision in `DECISIONS.md`.
+- [x] Extend the storage adapter write contract for streaming: `save()` takes a fully-buffered `Buffer` today (`local-storage-adapter.js:41-48`), so a streamed HTTP body still buffers end-to-end unless `save()` gains a stream/`pipeline`-based path. Add a streaming save variant (or accept a `Readable`) so local writes go body -> disk without a full in-memory buffer, and keep the buffered signature working for existing callers.
+- [x] Keep the existing base64 JSON routes and browser helper unchanged in this slice.
+- [x] Add focused adapter-level regressions proving:
+  - [x] Buffered `save()` callers still work.
+  - [x] A streamed local save writes through the same storage-key safety rules.
+  - [x] Stream errors clean up partial local writes where practical.
+
+Acceptance criteria:
+
+- The storage adapter contract can accept streamed bytes without breaking existing upload callers.
+
+### Version 0.33.5.22.4 - Multipart upload route and Files lifecycle
+
+- [x] Add the first streamed/multipart upload route for local/self-hosted mode without removing `POST /api/files`.
+- [x] Parse one uploaded file plus attachment metadata through the selected multipart mechanism from 0.33.5.22.3.
+- [x] Add upload size enforcement at the streamed route boundary.
+- [x] Keep the post-write pipeline identical for the streamed route: it must still create the file record, `queueFileScanJob` (`files.service.js:197`), and `attachFile` so uploaded files land `pending`/scan-`pending` exactly as the base64 path does (per 0.33.5.21.7.1). Streaming changes only how bytes reach the storage adapter, not the lifecycle.
+- [x] Preserve permission checks, target validation, audit/lifecycle behavior, scan/download/preview availability gates, and per-row `files.storage_provider`.
+- [x] Add regressions proving:
+  - [x] Successful streamed upload creates and attaches a pending file.
+  - [x] Oversized streamed upload is rejected before storing a usable file.
+  - [x] Failed parsing/storage does not leave an attached orphan.
+
+Acceptance criteria:
+
+- A single streamed upload can land through the normal Files lifecycle without changing the existing JSON upload contract.
+
+### Version 0.33.5.22.5 - Streamed batch upload and attachment helper migration
+
+- [x] Add streamed/multipart batch upload support with per-file result reporting.
+- [x] Update the shared attachment helper to prefer the streamed batch route while preserving the current upload UI, dropzone, save-first behavior, host refresh callbacks, and upload-result messages.
+- [x] Preserve existing route compatibility for the base64 JSON route during the transition window.
+- [x] Add regressions for:
+  - [x] Successful multi-file upload.
+  - [x] Partial batch failure.
+  - [x] Browser helper result rendering for pending-review uploads.
+  - [x] Host refresh/event callbacks after streamed batch completion.
+
+Acceptance criteria:
+
+- Attachment-panel uploads no longer require base64 JSON for the normal browser path, and partial failures remain visible and recoverable.
+
+### Version 0.33.5.22.6 - Upload compatibility and error hardening
+
+- [x] Define the transition window: how long the base64 JSON route (`POST /api/files` / `POST /api/files/batch`) and the new streamed routes coexist, and when the shared attachment helper's base64 path is retired.
+- [x] Harden cancellation/error behavior for streamed uploads: aborted client requests, parser errors, storage stream errors, and oversized payloads should not leave active file records, attachments, or usable partial files.
+- [x] Keep unsupported files download-only and preserve all scan/download/preview availability rules.
+- [x] Add regressions for:
+  - [x] Upload cancellation/error cleanup.
+  - [x] Legacy base64 route compatibility while the route remains supported.
+  - [x] Size-limit copy and failure response shape stay useful.
+
+Acceptance criteria:
+
+- Streamed upload failure modes are bounded, legacy compatibility is explicit, and the base64 route has a documented retirement path.
+
+### Version 0.33.5.22.7 - Scanner mode resolver and none/noop policy
+
+- [x] Formalize scanner modes:
+  - [x] `none`
+  - [x] `noop`
+  - [x] `clamd`
+  - [x] `clamscan`
+- [x] Define the `none` vs `noop` distinction precisely (e.g. `none` = do not scan / mark available; `noop` = pass-through adapter for tests), since only `noop` exists today (`src/core/files/scanner-adapter.js`) while config defaults to `none`.
+- [x] Resolve the scanner adapter from `config.scanner.mode` instead of hardcoding: replace the module-level `let scannerAdapter = createNoopFileScannerAdapter()` (`src/services/files.service.js:92`) with a config-driven selection so `none`/`noop`/`clamd`/`clamscan` map to the right adapter.
+- [x] Keep `scanFile` as the service-owned scanner call site; if adapters need file bytes, pass a service-owned safe scan context instead of exposing storage paths, keys, or scanner internals outside the service boundary.
+- [x] Cross-reference 0.33.5.21.7.1: `file.scan` now owns upload scan execution, uploaded files stay pending/unavailable until the worker completes the job, and this slice should make scanner adapter configuration the single owner of any future pending scan -> available/quarantine transition changes.
+- [x] Reuse the existing quarantine/review lifecycle (`files.manage_quarantine`, the `Mark Reviewed` restore path) rather than introducing new scan states.
+- [x] Decide the `none`-mode disposition for pending files explicitly: since `file.scan` leaves files `pending`/unavailable until a result lands, `none` must still drive files to a terminal available state (e.g. resolve to `scan_status = not_required`/`available`) so uploads are not stuck unavailable forever when scanning is off. Keep this transition owned here, per the cross-reference above.
+- [x] Keep no-op scanner only for development or explicitly accepted self-hosted mode.
+- [x] Add regressions proving:
+  - [x] `none` mode does not leave uploaded files stuck pending forever.
+  - [x] `noop` mode remains an explicit pass-through mode.
+  - [x] Unknown scanner modes fail clearly instead of silently falling back.
+  - [x] Scanner execution does not bypass Files permissions, download gates, or preview gates.
+
+Acceptance criteria:
+
+- Scanner mode selection is configuration-owned, disabled scanning has a deliberate terminal disposition, and `noop` is no longer the hidden default.
+
+### Version 0.33.5.22.8 - Scanner health diagnostics and disabled warning
+
+- [x] Grow the scanner adapter contract to support health/availability: `registerFileScannerAdapter` requires only `scan()` today (`files.service.js:127`) and the noop adapter exposes no `health()`. Add an optional `health()`/availability method to the contract and give each built-in adapter one, so diagnostics has something safe to call.
+- [x] Add scanner health checks by calling the adapter `health()` from the diagnostics path.
+- [x] Add admin warning when scanner is disabled by extending the existing diagnostics surface: the `scanner` block in `runtimeDiagnosticsService.read` (`runtime-diagnostics.service.js:46-48`) and its "Scanner Mode" row (`public/js/workspace-settings.js:241`) should surface mode + availability and a visible warning when mode is `none`/`noop`, alongside the existing `configurationWarnings` channel.
+- [x] Do not expose scanner internals, executable paths, hostnames, ports, sockets, raw environment values, storage keys, protected paths, or signed URLs.
+- [x] Add regressions proving:
+  - [x] Scanner disabled state is visible in runtime diagnostics and Workspace Settings.
+  - [x] Scanner availability status is safe and redacted.
+  - [x] Existing runtime diagnostics redaction checks still cover scanner-sensitive values.
+
+Acceptance criteria:
+
+- Admin diagnostics clearly show scanner mode and safe availability without leaking scanner configuration internals.
+
+### Version 0.33.5.22.9 - `clamscan` executable scanner adapter
+
+- [x] Add `clamscan` executable adapter.
+- [x] Support the configured executable path from `config.scanner.clamscanPath` (`src/config.js:141`) while keeping the path out of diagnostics/UI payloads.
+- [x] Implement the adapter `health()` method added to the scanner contract in 0.33.5.22.8 by probing `clamscan --version`.
+- [x] Add timeout and failure behavior for the executable path.
+- [x] Add safe scanner metadata.
+- [x] Do not auto-delete suspicious files.
+- [x] Quarantine suspicious files and require review.
+- [x] Add regressions using mocked executable responses:
+  - [x] Clean.
+  - [x] Infected.
+  - [x] Scanner unavailable.
+  - [x] Timeout.
+
+Acceptance criteria:
+
+- `clamscan` is available as an optional executable scanner adapter without making ClamAV a hard dependency.
+
+### Version 0.33.5.22.10 - `clamd` scanner adapter
+
+- [x] Add `clamd` adapter.
+- [x] Support configured host/port from `config.scanner.clamdHost` and `config.scanner.clamdPort` (`src/config.js:139-140`).
+- [x] Decide socket support for this branch: config currently exposes **no** unix-socket key; add a `LONGTAIL_CLAMD_SOCKET` config key with documented host/port precedence if socket support is in scope, otherwise explicitly defer socket support.
+- [x] Implement the adapter `health()` method added to the scanner contract in 0.33.5.22.8 by probing clamd `PING`/socket reachability.
+- [x] Add stream scanning, timeout behavior, and scanner-unavailable failure behavior through the service-owned scanner context.
+- [x] Add safe scanner metadata.
+- [x] Do not auto-delete suspicious files.
+- [x] Quarantine suspicious files and require review.
+- [x] Add regressions using mocked clamd responses:
+  - [x] Clean.
+  - [x] Infected.
+  - [x] Scanner unavailable.
+  - [x] Timeout.
+
+Acceptance criteria:
+
+- `clamd` is available as an optional runtime scanner adapter for service deployments without requiring Linux-only assumptions.
+
+
+### Version 0.33.5.22.11 - Scanner setup docs and ClamAV closeout
+
+- [x] Add docs:
+  - [x] Linux service setup.
+  - [x] Windows executable path setup.
+  - [x] macOS/Homebrew setup if practical.
+  - [x] What happens when scanner is unavailable.
+- [x] Update runtime-configuration docs so `LONGTAIL_FILE_SCANNER`, `LONGTAIL_CLAMD_HOST`, `LONGTAIL_CLAMD_PORT`, `LONGTAIL_CLAMSCAN_PATH`, and any new socket key are marked live vs. deferred accurately.
+- [x] Record scanner decisions in `DECISIONS.md`: `none` vs `noop`, `none`-mode pending-file disposition, scanner-unavailable behavior, and no automatic deletion of suspicious files.
+- [x] Run the scanner-focused regressions from 0.33.5.22.7 through 0.33.5.22.10 and add them to the suite.
+
+Acceptance criteria:
+
+- Scanner behavior is OS-agnostic at the app level, ClamAV setup is documented, and scanner decisions are recorded.
+
+### Version 0.33.5.22.12 - S3 configuration and provider registration
+
+- [x] Add S3-compatible provider config keys (bucket/region/endpoint/credentials) to `config.storage` in `src/config.js` and `.env.example`.
+- [x] Keep secrets out of diagnostics, browser payloads, docs examples, and committed files.
+- [x] Register the S3 provider under a new key via `registerFileStorageAdapter` (do not overload `local`).
+- [x] Support provider configuration through `.env`/runtime config.
+- [x] Do not require S3 for SQLite/self-hosted installs.
+- [x] Decide and record the S3 dependency/client strategy before implementing object operations.
+- [x] If object operations are not implemented in this slice, the registered provider must fail with safe "not implemented/configured" errors rather than partial writes.
+- [x] Add regressions proving:
+  - [x] Local storage remains the default when S3 config is absent.
+  - [x] S3 can be selected only through the explicit provider key.
+  - [x] Missing required S3 config fails clearly when the provider is selected.
+
+Acceptance criteria:
+
+- The S3 provider can be selected explicitly through runtime configuration, while self-hosted local storage remains unchanged.
+
+### Version 0.33.5.22.13 - S3 object operation proof
+
+- [x] Add S3-compatible storage adapter behind the provider contract: implement the same `save/saveStream/read/metadata/delete/health` methods `registerFileStorageAdapter` enforces (`files.service.js:116`), returning a `Readable` from `read()` so the existing download/preview stream paths (`files.service.js:609`/`:660`) work unchanged, and adopting the streaming `saveStream()` path from 0.33.5.22.3 if it has landed.
+- [x] Add safe provider health checks.
+- [x] Keep uploads, downloads, previews, deletes, and metadata reads behind the existing Files service permission/lifecycle boundaries.
+- [x] Add regressions with mocked S3 provider/client calls proving:
+  - [x] Save records a storage key without exposing provider internals.
+  - [x] Read returns a `Readable` for existing download/preview paths.
+  - [x] Metadata and delete work through the provider contract.
+  - [x] Health failures surface safely.
+
+Acceptance criteria:
+
+- Hosted SaaS has a mocked, contract-tested path to object storage without changing self-hosted local storage behavior.
+
+### Version 0.33.5.22.14 - S3 diagnostics and signed-URL boundary
+
+- [x] Extend runtime diagnostics for the S3 provider with safe availability only; do not expose bucket names, credentials, raw endpoints when sensitive, storage keys, signed URLs, or provider internals.
+- [x] Write the direct/presigned upload/download plan; keep implementation out of scope unless a single permission-checked proof route is explicitly chosen and covered by regressions in this slice.
+- [x] Treat any presigned upload/download URL as a deliberate, documented exception to the standing "no signed URLs unless designed for that route" guardrail, with per-object permission checks and expiry recorded in `DECISIONS.md`.
+- [x] Keep all downloads permission-checked through LTF routes or signed URL rules.
+- [x] Update storage docs with optional S3 config, local-vs-S3 deployment guidance, and the signed-URL boundary.
+- [x] Add regressions proving:
+  - [x] S3 diagnostics stay redacted.
+  - [x] Normal Files payloads do not expose signed URLs.
+  - [x] Any signed URL proof is route-designed, permission-checked, and expiring.
+
+Acceptance criteria:
+
+- S3 diagnostics and any signed-URL exception are explicit, safe, and documented.
+
+## Version 0.33.5.21 - Durable Jobs and Outbox Foundation
+
+Purpose:
+
+Add a SQLite-compatible background job/outbox system that works simply in self-hosted mode and can evolve into a separate worker model for hosted SaaS.
+
+Decision:
+
+Jobs are Node-side work stored in database tables. SQL stores job state; Node workers perform the work.
+
+SQLite mode may run jobs inline or through at most one local worker process attached to the same local install.
+PostgreSQL/SaaS mode should run one or more separate worker processes and may scale into a worker fleet.
+
+Entry contract from 0.33.5.19: use the provider-neutral transaction helper for atomic job/outbox writes and consume the reserved worker runtime config names without requiring a separate worker in SQLite mode.
+
+### Version 0.33.5.21.0 - In-process SQLite driver (better-sqlite3)
+
+Decision (recorded in `DECISIONS.md`): replace the `sqlite3` CLI shell-out with the in-process `better-sqlite3` driver behind the existing `src/db/provider.js` adapter before durable jobs, streamed uploads, and the PostgreSQL adapter build on it. `better-sqlite3` was chosen over `node:sqlite` for its stable API, bundled/consistent SQLite version across installs (guaranteed FTS5 and `RETURNING`), and no experimental-flag or Node-floor requirement, accepting a native/compiled dependency as the tradeoff. Revisit `node:sqlite` once it is no longer experimental.
+
+Historical scope note: before 0.33.5.21.0.2, the only code that touched the `sqlite3` CLI was `src/db/sqlite.js` (`spawn(config.sqliteCommand, ...)`), so the swap was contained but not small. The in-scope database-mechanism files are `src/db/sqlite.js`, `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, `src/db/index.js`, and `src/db/migrations.js`. Repositories and module services should not change, because the `db.query/get/run/transaction/health/capabilities` contract stays stable.
+
+Reslice evaluation: as originally written, 0.33.5.21.0 bundled dependency/native install risk, a database driver swap, parameter semantics, transaction behavior, migration script routing, diagnostics, docs, and full verification into one oversized slice. Split it into the sub-slices below so each pass has one main blast radius and can be closed independently before durable job schema/worker work begins.
+
+#### Version 0.33.5.21.0.1 - better-sqlite3 dependency and install readiness
+
+- [x] Add `better-sqlite3` to `package.json` and update `package-lock.json`.
+- [x] Verify the selected release installs on the current Windows development Node runtime and record the minimum supported Node version implied by that release.
+- [x] Add a small install/runtime smoke check that opens a disposable database and proves the bundled SQLite has FTS5 and `RETURNING`.
+- [x] Document the native dependency fallback for developers/operators who compile from source, including Python plus a C++ toolchain / Visual Studio Build Tools on Windows.
+
+Acceptance criteria:
+
+- [x] `npm install` has captured the native dependency in the lockfile.
+- [x] A disposable smoke check proves `better-sqlite3` can load and expose the SQLite features the app depends on.
+- [x] No application database behavior changes yet; the `sqlite3` CLI helper may still be active until 0.33.5.21.0.2.
+
+#### Version 0.33.5.21.0.2 - In-process SQLite helper core
+
+- [x] Replace the `src/db/sqlite.js` spawn/marker/idle-close implementation with one long-lived `better-sqlite3` connection to `config.databaseFile`.
+- [x] Keep the existing exported helper names (`querySql`, `runSql`, `closeSqlite`, `initializeSqliteRuntime`, health helpers, and SQL literal exports) so `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, and `src/db/index.js` continue to load without caller changes.
+- [x] Route already-interpolated string SQL through the driver with `prepare().all()` for single read statements and `exec()` for multi-statement scripts.
+- [x] Apply startup PRAGMAs through the driver: foreign keys on, configured journal mode/WAL, and busy timeout.
+- [x] Preserve database-file writability checks, last-health caching, and `formatSqliteHealth()` output shape.
+
+Acceptance criteria:
+
+- Normal app startup, fresh database creation, baseline adoption, and existing string-SQL regressions run through `better-sqlite3` without shelling out to the `sqlite3` CLI.
+- `sqlText`/`sqlInteger`/`sqlNullableText`/`sqlNullableInteger` remain the compatibility path for existing interpolated statements.
+- Health output still reports provider, database file, writable state, foreign-key state, journal mode, and busy timeout.
+
+#### Version 0.33.5.21.0.3 - Driver-native parameter binding and value coercion
+
+- [x] Move adapter parameter handling away from `expandSqlParameters()` literal inlining and bind named parameters through `better-sqlite3`.
+- [x] Preserve the async app-facing adapter API for `db.query`, `db.get`, and `db.run` so `src/core/database.js` and callers do not change.
+- [x] Normalize driver-bound values to match the old literal path where needed: booleans to `0/1`, `Date` values to ISO strings, and `undefined` to `null`.
+- [x] Reject missing, unknown, or invalid named parameters clearly.
+- [x] Keep no-parameter and multi-statement compatibility paths for the unconverted SQL that already uses `sqlText` and related helpers.
+
+Acceptance criteria:
+
+- Parameterized single-statement adapter calls use real driver bindings instead of interpolated SQL literals.
+- Existing pilot parameterized repositories and existing compatibility string-SQL callers both pass.
+- Focused regression coverage proves boolean, `Date`, `undefined`/`null`, missing-parameter, and unknown-parameter behavior.
+
+#### Version 0.33.5.21.0.4 - Transaction and migration fidelity
+
+- [x] Preserve `db.transaction(callback)` semantics, including the transaction client shape and the existing "use the transaction client inside a transaction" guard.
+- [x] Retire the global adapter `operationChain` only after the in-process synchronous call path is stable.
+- [x] Ensure migration, baseline, and repair scripts that already embed `BEGIN ... COMMIT` are routed through the multi-statement `exec()` path instead of being wrapped in a second transaction.
+- [x] Preserve the migration lock, baseline checksum validation, future migration checksum validation, and schema-repair flows.
+- [x] Verify rollback behavior and nested-transaction rejection through the existing transaction helper regression.
+
+Acceptance criteria:
+
+- Fresh baseline, existing database adoption, legacy repair paths, future migration application, and transaction helper regressions keep their current behavior.
+- No nested transaction is opened around migration scripts that already contain their own transaction block.
+- `db.transaction(callback)` remains available and provider-neutral for job/outbox work.
+
+#### Version 0.33.5.21.0.5 - Result fidelity, diagnostics, and SQLite-mode worker decision
+
+- [x] Verify returned row shapes and column/alias keys match current expectations with native driver result rows.
+- [x] Confirm value types remain safe for current callers, especially booleans stored as `0/1`, `null`, `Buffer`, and large integers; decide and document whether `safeIntegers` is unnecessary for the current TEXT-key schema.
+- [x] Update the SQLite capability label from `adapter: "sqlite-process"` to `adapter: "better-sqlite3"` while preserving the rest of the capability shape.
+- [x] Preserve `/api/runtime-diagnostics` database health fields and redaction behavior.
+- [x] Resolve the SQLite worker-mode boundary before 0.33.5.21.2: document whether SQLite small-office mode supports inline only or one app process plus one local worker process, and keep the "no multiple app servers / no worker fleet" rule explicit.
+
+Acceptance criteria:
+
+- Adapter contract and runtime diagnostics regressions pass with the new `better-sqlite3` capability label.
+- FTS5 search still works through `MATCH`/`bm25()`.
+- The SQLite worker-mode boundary is reconciled across `DECISIONS.md`, `docs/sqlite-small-office-mode.md`, and the future worker slices.
+
+#### Version 0.33.5.21.0.6 - CLI retirement docs and driver-swap closeout
+
+- [x] Remove or mark `SQLITE_COMMAND` as legacy/ignored in active runtime configuration now that normal operation no longer shells out to `sqlite3`.
+- [x] Update `.env.example`, `docs/runtime-configuration.md`, `docs/database.md`, and any self-hosting/setup docs that still instruct operators to install the `sqlite3` CLI.
+- [x] Update `CHANGELOG.md`, version metadata, and roadmap bookkeeping for the completed driver swap.
+- [x] Run `npm run check`, `npm run test:permissions`, `PRAGMA integrity_check`, and a targeted FTS5 search spot-check after the full swap.
+- [x] Restart the local app server if needed and verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- All database access runs through the in-process `better-sqlite3` driver behind the existing adapter contract, with no `sqlite3` CLI shell-out in normal operation.
+- Docs and runtime configuration no longer present the CLI as an active dependency.
+- Full verification passes and the branch is safe to use as the entry point for 0.33.5.21.1 job/outbox schema and 0.33.5.21.2 worker runner work.
+
+Notes for the implementer (already checked, no re-investigation needed):
+
+- The `sqlite3` CLI is only used in `src/db/sqlite.js`; no `scripts/*` shell out to it, so nothing outside the database layer needs changing for the CLI removal.
+- No repository or service inspects database error text (stderr strings such as "UNIQUE constraint"), so moving to `better-sqlite3` `SqliteError` objects does not silently break error handling. Add `SqliteError.code` handling only where a typed error branch is deliberately wanted.
+
+Gate: do not start 0.33.5.21.2 worker runner work until this driver swap is complete.
+
+### Version 0.33.5.21.1 - Job/outbox schema
+
+- [x] Add job/outbox tables compatible with SQLite:
+  - [x] `job_id`
+  - [x] `workspace_id`
+  - [x] `job_type`
+  - [x] `dedupe_key`
+  - [x] `payload_json`
+  - [x] `status`
+  - [x] `priority`
+  - [x] `available_at`
+  - [x] `attempt_count`
+  - [x] `max_attempts`
+  - [x] `locked_at`
+  - [x] `locked_by`
+  - [x] `last_error`
+  - [x] `created_at`
+  - [x] `updated_at`
+  - [x] `completed_at`
+  - [x] `dead_at`
+- [x] Add indexes for pending work by status/available time.
+- [x] Add dedupe behavior where appropriate.
+- [x] Add docs explaining:
+  - [x] Pending.
+  - [x] Running/locked.
+  - [x] Completed.
+  - [x] Failed/retry.
+  - [x] Dead-letter.
+- [x] Ship job/outbox tables as a new versioned core migration under `src/db/migrations/` (checksum-validated), not as an edit to the frozen `current.sql` baseline.
+
+Acceptance criteria:
+
+- [x] SQLite can store durable background work.
+- [x] The schema is portable to PostgreSQL later.
+
+### Version 0.33.5.21.2 - Worker runner v1
+
+- [x] Add a Node worker runner.
+- [x] Support modes:
+  - [x] `inline` for simple SQLite self-hosting.
+  - [x] `separate` for `node worker.js`.
+  - [x] `disabled` for tests/admin troubleshooting.
+- [x] Worker should:
+  - [x] Poll for available jobs.
+  - [x] Claim one or more jobs.
+  - [x] Run registered job handlers.
+  - [x] Mark jobs complete.
+  - [x] Retry failed jobs with backoff.
+  - [x] Move exhausted jobs to dead-letter state.
+- [x] Add worker health/status output.
+- [x] Add graceful shutdown.
+- [x] Define exactly what triggers `inline` mode execution (in-process poll timer vs post-response drain) and document that in-process polling shares the SQLite serial queue with request handling.
+- [x] Define how time-scheduled jobs (`available_at` in the future) are woken in inline mode, since SQLite mode has no always-on external scheduler.
+- [x] Define migration/startup ownership for worker processes: a `separate` worker must verify schema readiness and must not independently run migrations or contend for the migration lock.
+- [x] Implement the 0.33.5.21.0.5 SQLite boundary for `separate` worker mode: at most one local worker process attached to the same SQLite install, no extra app server, no worker fleet, and no independent migration ownership.
+
+Acceptance criteria:
+
+- [x] SQLite installs can run jobs without extra infrastructure.
+- [x] Future SaaS can run workers separately from web processes.
+
+### Version 0.33.5.21.3 - Job claiming, locking, retry, and dead-letter behavior
+
+- [x] Implement safe job claiming.
+  - [x] Define the SQLite-safe claim strategy explicitly: SQLite has no `FOR UPDATE SKIP LOCKED`, so claiming is an atomic conditional `UPDATE ... WHERE job_id = (SELECT ... LIMIT n)` run inside `db.transaction(...)`, then a read-back of claimed rows.
+  - [x] Use `RETURNING` for the claim read-back: the bundled `better-sqlite3` SQLite supports it (verified by the 0.33.5.21.0.1 install smoke check), so no claim-then-reselect fallback is required; `RETURNING` is simply new to this codebase and needs coverage.
+- [x] Add lock timeout handling.
+- [x] Add retry backoff.
+- [x] Add max-attempt handling.
+- [x] Add dead-letter state.
+- [x] Add admin-readable job failure summaries.
+- [x] Add a minimal permission-checked admin readout for pending/running/dead-letter job counts and recent failures, reusing the bounded-pagination envelope from 0.33.5.20.5. A dead-letter state with no visibility is not acceptable.
+- [x] Add regression coverage:
+  - [x] Failed job retries.
+  - [x] Exhausted job becomes dead.
+  - [x] Locked job is not claimed twice.
+  - [x] Expired lock can be reclaimed.
+
+Acceptance criteria:
+
+- [x] A failed notification/indexing/scanning job does not block the system forever.
+
+### Version 0.33.5.21.4 - Move search indexing to jobs
+
+- [x] Add job type for search indexing.
+- [x] Queue search-index jobs from create/update/archive/restore flows.
+- [x] Preserve immediate user-facing save behavior.
+- [x] Add synchronous fallback for tests or SQLite inline mode if needed.
+- [x] Remove full app-wide search rebuild from normal web startup or gate it behind explicit maintenance mode.
+- [x] Add admin/manual search rebuild job.
+- [x] Define the empty-index transition: fresh installs and restored databases currently rely on the startup rebuild (`src/core/app.js` `scheduleStartupSearchIndexRebuild`); once it is removed, provide an explicit rebuild-on-empty or documented post-restore rebuild path so search is not silently empty.
+- [x] Add regressions proving:
+  - [x] Record writes queue search jobs.
+  - [x] Worker updates search index.
+  - [x] Failed indexing jobs retry.
+  - [x] Startup does not launch duplicate full-app rebuilds in normal mode.
+
+Acceptance criteria:
+
+- [x] Search indexing becomes durable background work.
+
+### Version 0.33.5.21.5 - Move notification fan-out to jobs
+
+- [x] Add job type for notification event processing.
+- [x] Store notification-producing events in the outbox.
+- [x] Worker resolves recipients and creates notification records.
+- [x] Preserve permission checks.
+- [x] Preserve module-enabled checks.
+- [x] Add regressions proving:
+  - [x] Notification jobs are queued.
+  - [x] Recipients are resolved by worker.
+  - [x] Disabled modules do not create new notifications.
+  - [x] Failed fan-out jobs retry safely.
+
+Acceptance criteria:
+
+- [x] Notifications no longer depend only on in-process event handlers.
+
+### Version 0.33.5.21.6 - Move reminders, recurrence, and file scanning to jobs
+
+- [x] Add job handlers for:
+  - [x] Task reminders.
+  - [x] Recurrence generation.
+  - [x] File scanning.
+  - [x] Future imports.
+- [x] Keep SQLite inline mode simple.
+- [x] Ensure jobs are idempotent where practical.
+- [x] Note that task reminders have no delivery mechanism today (only offset policy + read-time computation in `src/modules/tasks/task-reminders.service.js`); this slice introduces scheduled reminder firing, not a migration of existing background work.
+- [x] Preserve per-user/workspace timezone correctness for fired reminders and account for web/worker clock skew when reminders run in a separate worker.
+- [x] Add admin docs for worker mode.
+- [x] Add regressions for each job type.
+
+Acceptance criteria:
+
+- [x] Time-sensitive and slow work has a durable background path.
+
+### Version 0.33.5.21.7 - Durable jobs hardening and follow-ups
+
+Purpose:
+
+Close the residual gaps surfaced while landing 0.33.5.21.1 through 0.33.5.21.6 so the durable jobs foundation is safe for real scanners, larger reminder volumes, long-running installs, and separate-worker operation. This branch is hardening and follow-through; it does not add new job types.
+
+### Version 0.33.5.21.7.1 - File scan request-path handoff
+
+Purpose:
+
+Make `file.scan` the real scanning execution path before scanner adapters ship.
+
+- [x] Remove the unconditional inline `scanFile(session, file)` in the upload path (`src/services/files.service.js`) so scanning runs through the enqueued `file.scan` job. As written, the inline scan moves the file off `pending`, so `handleFileScanJob` always short-circuits on `file_not_pending_scan` and the durable path is never exercised.
+- [x] Keep uploaded files in a clear `pending`/unavailable state until the scan job completes; if immediate availability is wanted for SQLite inline mode, run the scan job synchronously through the job handler path rather than scanning unconditionally in the web request.
+- [x] Ensure `separate` worker mode owns scanning: the web process must not scan inline when a worker is configured.
+- [x] Add/clarify Files UI handling for pending-scan files (uploaded, not yet available) and a fallback when the worker is delayed or down.
+- [x] Update Files/job docs and add focused regressions proving uploads enqueue scan work, pending files stay unavailable, the worker completes scanning, and scanner internals/storage paths remain hidden.
+
+Acceptance criteria:
+
+- [x] File scanning runs through the durable job path and no longer blocks the upload request, so real scanner adapters in 0.33.5.22 can be slow or hang without failing uploads.
+- [x] The browser and API expose a safe pending-scan state without adding file rename, replacement, hard-purge, storage-key, scanner-internal, or inline preview behavior.
+
+### Version 0.33.5.21.7.2 - Reminder scheduling backfill and horizon
+
+Purpose:
+
+Make reminder coverage explicit for existing and future tasks without accumulating unbounded far-future queued rows.
+
+- [x] Document the reminder scheduling model: reminder jobs are pre-enqueued with a future `available_at` when a task is created, updated, reopened, or restored.
+- [x] Add a backfill or periodic "enqueue due reminders" sweep so existing due-dated tasks are covered even if they have not been touched since the durable reminder producer shipped.
+- [x] Add a bounded scheduling horizon so only reminders due within the configured or documented window are queued, then topped up by the sweep.
+- [x] Preserve per-user/workspace timezone correctness and the existing web/worker clock-skew tolerance.
+- [x] Add focused regressions for pre-existing tasks, horizon top-up behavior, disabled/archived/completed task skips, and duplicate enqueue suppression.
+
+Acceptance criteria:
+
+- [x] Existing eligible tasks can receive reminders without manual edits.
+- [x] Far-future or many-offset tasks do not create an unbounded number of long-lived queued rows.
+
+### Version 0.33.5.21.7.3 - Job idempotency and at-least-once audit
+
+Purpose:
+
+Confirm every registered handler is safe under retry, lock reclaim, and at-least-once delivery.
+
+- [x] Harden reminder firing so a job retry does not re-emit `task.due_soon` and double-notify; record fired state with completion or verify durable notification dedupe covers the retry path.
+- [x] Review search index, notification fan-out, task reminder, task recurrence, file scan, and `import.future` handlers for stale payload, duplicate delivery, and retry behavior.
+- [x] Add or tighten regressions for the highest-risk duplicate paths, especially reminder retries and reclaimed running jobs.
+- [x] Capture the idempotency contract in developer docs so future job handlers know to re-read current state and skip stale work.
+
+Acceptance criteria:
+
+- Registered durable job handlers are documented and tested as safe for normal at-least-once worker behavior.
+- Reminder retry paths cannot double-notify a user for the same reminder firing.
+
+### Version 0.33.5.21.7.4 - Job retention and pruning
+
+Purpose:
+
+Prevent the framework-owned `jobs` table from growing without bound on long-running installs.
+
+- [x] Add a retention/pruning policy for old `completed` and `dead` jobs so history remains bounded while active pending/running/failed work is preserved.
+- [x] Make the retention window configurable through runtime configuration with safe defaults and validation.
+- [x] Prune through framework-owned maintenance behavior, such as a maintenance job or startup sweep, not ad hoc route deletes.
+- [x] Keep active dedupe semantics intact: completed and dead-letter history must not block replacement jobs, and pruning must not remove active rows.
+- [x] Update docs and regressions for retention defaults, configured windows, active-row preservation, and long-running-install safety.
+
+Acceptance criteria:
+
+- Completed and dead-letter job history is bounded by a clear retention policy.
+- Pruning is framework-owned, repeatable, and safe for SQLite inline or one-local-worker mode.
+
+### Version 0.33.5.21.7.5 - Admin job observability
+
+Purpose:
+
+Move durable-job health from route-only diagnostics into the admin experience.
+
+- [x] Ensure pending/running/failed/dead-letter counts and recent failures are visible in an admin surface, not only the `/api/jobs/status` route, reusing the bounded-pagination envelope from 0.33.5.20.5.
+- [x] Include worker health/status in Runtime Diagnostics without exposing job payload JSON, dedupe keys, scanner internals, storage paths, or raw environment values.
+- [x] Preserve `workspace_settings.manage` authorization and the existing safe diagnostics redaction contract.
+- [x] Add focused browser/service regressions for the admin readout, authorization, pagination envelope, and sensitive-field redaction.
+
+Acceptance criteria:
+
+- Admins can inspect queue health and recent failures from the app UI.
+- Job observability remains read-only and safe to expose to workspace settings managers.
+
+### Version 0.33.5.21.7.6 - Separate-worker end-to-end validation
+
+Purpose:
+
+Prove the shipped worker CLI can process the durable-job foundation outside the web process.
+
+- [x] Add a regression that runs the `separate` worker (`src/core/jobs/worker-cli.js`) against queued jobs end to end, proving it registers all handlers and processes reminder, recurrence, file-scan, notification, and search-index jobs.
+- [x] Verify the 0.33.5.21.0.5 SQLite boundary: one local worker, schema-readiness check, no independent migration ownership, and no worker fleet sharing one SQLite file.
+- [x] Confirm `disabled`, `inline`, and `separate` modes leave understandable diagnostics and do not process jobs from the wrong process.
+- [x] Update worker docs only for behavior proved by the regression.
+
+Acceptance criteria:
+
+- Separate-worker mode has a repeatable end-to-end regression covering all current durable job handlers.
+- SQLite mode continues to allow at most one local worker and keeps migration ownership with app startup or maintenance, not the worker.
+
+### Version 0.33.5.21.7.7 - Async recurrence response closeout
+
+Purpose:
+
+Make the asynchronous recurrence contract fully absorbed by service, API, and browser consumers before the durable-jobs branch closes.
+
+- [x] Verify all consumers of `tasks.service.complete()` handle `createdTask` now being `null` because the next recurring instance is created asynchronously by the worker.
+- [x] Check browser completion flows, public API completion responses, audit/event/search side effects, and tests for assumptions that a next recurring instance exists synchronously.
+- [x] Decide whether to surface a small "next instance queued" affordance, and document the decision in the Tasks contract if behavior changes.
+- [x] Complete the durable-jobs branch closeout only after the 0.33.5.21.7 child slices are done: docs, changelog, roadmap/archive bookkeeping, version pins, targeted regressions, full `npm run check`, permission checks if touched, SQLite integrity check if database behavior changed, and `/api/app-info` verification after restart.
+
+Acceptance criteria:
+
+- Recurring-task completion responses and UI behavior match the asynchronous worker contract.
+- The 0.33.5.21 durable-jobs branch closes with no new job type introduced and with file scanning, reminder coverage, job-table growth, retry idempotency, admin observability, and separate-worker operation validated.
+
+### Version 0.33.5.21.7.8 - Task checklist UI: "+" add button (and checklist-item display regression guard)
+
+Purpose:
+
+Small Tasks-editor checklist refinements, grouped with the durable-jobs follow-ups only for convenience. Convert the checklist "Add" button to a `+` icon and lock in the checklist-item display regression that was just fixed so it cannot silently return.
+
+- [x] Convert the checklist "Add" button to a `+` icon:
+  - [x] The button is built by `taskEditorButton(view, "Add", { "data-task-checklist-add": "" })` in `public/js/task-dialog.js` (the checklist add row, ~line 2134). Render it as an icon button using the app-wide icon system (`public/js/shared/icons.js` `createIconButton`, or the `view.createActionButton` `icon`/`iconOnly` bridge), matching how the Files/Notes action buttons are iconized.
+  - [x] Use a `plus`/`add` glyph; if the icon registry (`public/js/shared/icons.js`) does not already contain one, add a Lucide-style `plus` entry (see existing entries like `complete`, `close`, `save`).
+  - [x] Keep an accessible label (title/`aria-label` "Add checklist item") since the button becomes icon-only, and preserve the existing `data-task-checklist-add` hook and disabled/enabled behavior (`fields.checklistAdd.disabled = !canUseChecklist`).
+  - [x] Confirm the input + icon button still line up in the `task-checklist-add-row` layout (`public/css/longtail-forge.css`).
+- [x] Convert the per-item checklist action buttons (Save / Up / Down / Remove) to icon buttons:
+  - [x] These are built by `checklistActionButton(action, text, label)` in `public/js/task-dialog.js` (~line 1717), called for `save`/`up`/`down`/`delete` in `checklistItemRow` (~line 1706-1709). Render each as an icon button via the app-wide icon system (`public/js/shared/icons.js`), preserving the existing `data-task-checklist-action` values and the up/down `disabled` edge logic (`up.disabled = index === 0`, `down.disabled = index >= totalItems - 1`).
+  - [x] Icon mapping: Save -> a disk/save glyph (existing `save` in the registry); Up -> an up arrow or upward caret (`chevron-up`); Down -> a downward caret (`chevron-down`); Remove -> a trash can (existing `delete`). Add any missing Lucide-style glyphs (`chevron-up`/`chevron-down`) to the registry.
+  - [x] Make the Remove (trash) icon red, using a destructive/danger button variant/class (do not hardcode a hex; reuse the existing danger token used elsewhere for destructive actions).
+  - [x] Give every icon button a hover tooltip and accessible name: a `title` attribute plus `aria-label` (reuse the descriptive labels already passed to `checklistActionButton`, e.g. "Save checklist item", "Move checklist item up", "Move checklist item down", "Remove checklist item"). This applies to every icon-only button in this slice, including the `+` add button.
+  - [x] Confirm row layout/alignment still holds with icon buttons (`.task-checklist-item` in `public/css/longtail-forge.css`), including disabled-state styling for Up/Down.
+- [x] Regression guard for checklist-item display (fixed in this pass): the task editor renders item rows from `task.checklistItems`, but the tasks **list** row serializer (`taskSummaryRow`, `src/modules/tasks/tasks.service.js`) only carries `checklistProgress`, not the item array. When the editor was opened from a list row, no task detail was fetched, so items never rendered even though the "N/M complete" summary did. The fix ensures the single-task detail (`GET /api/tasks/:taskId` -> `attachTaskDetails`, which includes `checklistItems`) is fetched and preferred over the passed list row in `openTaskEditor` (`public/js/task-dialog.js`).
+  - [x] Add a regression proving that opening the task editor for a task with checklist items renders all item rows (not just the progress summary), covering the open-from-list-row path specifically.
+
+Acceptance criteria:
+
+- The checklist add control is a `+` icon button with an accessible label, consistent with the app's icon system, and still adds items.
+- The per-item Save / Up / Down / Remove controls are icon buttons (disk / up caret / down caret / trash), with the trash rendered in the destructive/danger color, each carrying a hover tooltip and accessible name, and the Up/Down disabled edges preserved.
+- Opening the task editor for a task that has checklist items always displays those item rows, guarded by a regression.
+
+### Version 0.33.5.21.8 - Deliver task due reminders to the notification surface
+
+Purpose:
+
+Task due reminders must produce in-app notifications through the existing notification surface, on the reminder schedule set for the task. This has never worked for the user. With 0.33.5.21.6 firing, 0.33.5.21.5 notification jobs, and 0.33.5.21.7.2/0.33.5.21.7.3 covering when reminders enqueue and how retries stay idempotent, the remaining gap is recipient delivery: who a fired reminder actually notifies. Email and calendar delivery remain future work; this slice is the in-app notification surface only.
+
+Root cause (confirmed):
+
+- Reminder firing (`handleTaskReminderJob` emitting `task.due_soon`) only arrived in 0.33.5.21.6; before it, `src/modules/tasks/module.js` described `task.due_soon` as a "Reserved notification event," so no shipped version ever fired a reminder.
+- The `task.due_soon` notification event uses `recipientMode: "assignees"` (`src/modules/tasks/module.js`), and `resolveRecipients` (`src/services/notifications.service.js`) only adds assignee user IDs for that mode. A task with no assignee (or not assigned to the current user) resolves to zero recipients and produces no notification. The reminder job runs as a system actor (empty `actor_user_id`), so actor suppression is not the cause.
+
+- [x] Confirm the end-to-end reminder delivery path (0.33.5.21.6 firing + 0.33.5.21.5 notification jobs):
+  - [x] A task with a due date and reminder offsets enqueues `task.reminder` jobs at each `reminder_at_utc`.
+  - [x] The reminder job fires at its scheduled time and emits `task.due_soon`.
+  - [x] Notification fan-out creates an in-app notification record that appears in the notifications surface and unread count.
+- [x] Fix reminder recipient scope so reminders reach the responsible user.
+  - [x] Deliver task due reminders to the task's assignee(s) and to the task owner/creator when there is no assignee, so solo/personal/family-workspace tasks notify the user who set the schedule.
+  - [x] Prefer passing explicit reminder recipients from the reminder job (which already reads the full task) instead of relying only on the `assignees` recipient hint.
+  - [x] Preserve existing assignee and task-follower delivery and existing system-actor handling.
+  - [x] Respect per-user notification preferences (`task.due_soon` is `defaultEnabled: true`, `high` priority) and workspace module-enabled checks.
+  - [x] Do not notify for archived or completed tasks (already guarded when the job fires).
+- [x] Make the reminder notification useful.
+  - [x] Title/body should reference the task and how soon it is due (from the offset), link to the task, and use the declared `high` priority.
+- [x] Verification.
+  - [x] Add an end-to-end regression: near-future due date + reminder offsets -> reminder job -> `task.due_soon` -> notification record visible to the right user; cover assigned, unassigned/self-owned, and followed tasks.
+  - [x] Manually verify against a real reminder schedule: set reminders on a task and confirm a notification appears at the scheduled time in the notifications surface.
+- [x] Cross-reference: 0.33.5.21.7.2 covers when reminder jobs enqueue and 0.33.5.21.7.3 covers safe retries; this slice covers who a fired reminder notifies and that it reaches the notification surface.
+
+Acceptance criteria:
+
+- Setting a reminder schedule on a task reliably produces an in-app notification at each scheduled reminder time for the assignee(s) and, when unassigned, the task owner/creator.
+- Reminder notifications appear in the existing notification surface and unread count, respect notification preferences and module-enabled checks, and link to the task.
+- Regression coverage proves reminder-to-notification delivery for assigned, unassigned/self-owned, and followed tasks.
+## Version 0.33.5.20 - Bounded Queries and Small-Office Scale Data
+
+Purpose:
+
+Move high-volume list surfaces away from load-everything-then-filter-in-JavaScript behavior. Preserve the current user experience while making SQLite small-office mode and future PostgreSQL SaaS mode more predictable under larger datasets.
+
+Entry contract from 0.33.5.19: consume provider-neutral database health/capability information and any safe query-diagnostic hooks from the runtime/database foundation without requiring PostgreSQL.
+
+### Version 0.33.5.20.1 - Scale seed framework
+
+- [x] Add `scripts/seed-scale.mjs`.
+- [x] Add seed profiles:
+  - [x] `dev-demo`
+  - [x] `sqlite-small-office-50`
+  - [x] `sqlite-heavy-workspace`
+  - [x] `future-saas-postgres-mixed`
+- [x] Ensure seed scripts require an explicit database path/provider.
+- [x] Refuse to run against a database that is not clearly marked as disposable or test-only.
+- [x] Generate realistic data:
+  - [x] Workspaces.
+  - [x] Users.
+  - [x] Role assignments.
+  - [x] Clients.
+  - [x] Projects.
+  - [x] Tasks.
+  - [x] Notes.
+  - [x] Lists/list items.
+  - [x] Tags.
+  - [x] Notifications.
+  - [x] Audit logs.
+  - [x] File metadata.
+- [x] Add verification:
+  - [x] Expected counts.
+  - [x] Permission sanity.
+  - [x] Search sanity.
+  - [x] App startup sanity.
+
+SQLite small-office seed target:
+
+- 1 workspace.
+- 50 users.
+- 25-100 clients.
+- 250-1,000 projects.
+- 10,000-50,000 tasks.
+- 10,000-25,000 notes.
+- 25,000-100,000 time entries.
+- 5,000-20,000 list items.
+- 2,000-10,000 file metadata rows.
+- 100,000+ audit rows.
+
+Acceptance criteria:
+
+- A developer can seed a disposable SQLite database and test realistic small-office load.
+
+### Version 0.33.5.20.2 - Tasks server-side filtering and paging
+
+- [x] Replace full-workspace task list reads for normal list views with bounded server-side queries.
+- [x] Move task view filters into SQL where practical:
+  - [x] My Tasks.
+  - [x] All.
+  - [x] Unassigned.
+  - [x] Overdue.
+  - [x] Due Today.
+  - [x] Due This Week.
+  - [x] Completed.
+  - [x] Archived.
+- [x] Add page/cursor support.
+- [x] Add maximum page size.
+- [x] Keep permission checks authoritative.
+- [x] Add list projection separate from full task detail read.
+- [x] Add regressions proving:
+  - [x] Task views return correct rows.
+  - [x] Paging is stable.
+  - [x] Permissions still apply.
+  - [x] Large seeded task sets do not require loading the entire workspace task table.
+
+Acceptance criteria:
+
+- Tasks list behavior is unchanged for users.
+- Server no longer loads all workspace tasks for normal list views.
+
+### Version 0.33.5.20.3 - Notes list projection and server-side paging
+
+- [x] Add a lightweight Notes list endpoint/projection.
+- [x] Do not return full note body HTML in normal list responses.
+- [x] Add server-side paging/cursor support.
+- [x] Add server-side filters for:
+  - [x] Status.
+  - [x] Library bucket.
+  - [x] Collection.
+  - [x] Owner.
+  - [x] Visibility.
+  - [x] Security mode.
+  - [x] Updated since.
+- [x] Keep full body rendering on note detail/read endpoints.
+- [x] Preserve secure-note access behavior.
+- [x] Add regressions proving:
+  - [x] Notes list is lightweight.
+  - [x] Detail read still returns full safe rendered body where allowed.
+  - [x] Secure notes do not leak body content.
+  - [x] Paging and collection filters behave correctly.
+
+Acceptance criteria:
+
+- Notes list browsing scales better in SQLite and future PostgreSQL.
+- Note reading/editing UX remains unchanged.
+
+### Version 0.33.5.20.4 - Batched list enrichment
+
+- [x] Add shared helper/service pattern for batching related list metadata by visible record IDs.
+- [x] Batch where practical:
+  - [x] Tags for visible tasks/notes/lists through the existing multi-record tag service path; Files tags remain deferred because Files is not a taggable record type.
+  - [x] File counts stay out of this slice until a visible list-row file-count field exists.
+  - [x] Linked-note/linked-record counts and rows use existing Tasks/Notes batching and new Lists linked-record batching where visible.
+  - [x] Checklist/list progress uses existing Tasks checklist batching and new Lists item-progress batching.
+  - [x] Assignee labels remain batched through the Tasks repository list read.
+  - [x] Notification/subscription state remains on shipped module/modal surfaces; no new list-row field was introduced.
+- [x] Avoid one-query-per-row list enrichment.
+- [x] Add query-count regressions or instrumentation for representative list surfaces.
+- [x] Preserve module ownership:
+  - [x] Modules own meaning.
+  - [x] Framework may own batching helper shape.
+
+Acceptance criteria:
+
+- List pages enrich visible rows with a small, bounded number of queries.
+- Large workspaces do not produce query explosions.
+
+### Version 0.33.5.20.5 - High-volume admin lists
+
+- [x] Add bounded paging/filtering to high-volume framework/admin surfaces:
+  - [x] Audit log.
+  - [x] Notifications.
+  - [x] Search results.
+  - [x] Files browse.
+- [x] Ensure each endpoint has:
+  - [x] Maximum page size.
+  - [x] Stable sort.
+  - [x] Permission filtering.
+  - [x] Clear empty/loading/error states.
+- [x] Add regressions using scale seed data.
+
+Acceptance criteria:
+
+- Admin/history surfaces remain usable with large SQLite small-office datasets.
+
+### Version 0.33.5.20.6 - SQLite small-office performance pass
+
+- [x] Add a repeatable SQLite small-office performance script.
+- [x] Test representative routes:
+  - [x] App shell bootstrap.
+  - [x] Tasks list.
+  - [x] Task detail.
+  - [x] Notes list.
+  - [x] Note detail.
+  - [x] Files browse.
+  - [x] Search.
+  - [x] Notifications.
+  - [x] Workbench.
+- [x] Record timing targets for local development hardware.
+- [x] Add performance notes to SQLite small-office docs.
+- [x] Document expected limits honestly.
+
+Acceptance criteria:
+
+- SQLite support target is validated with seeded data.
+- Regressions or docs make it clear when behavior exceeds SQLite small-office assumptions.
+
+## Version 0.33.5.19 - Runtime Configuration and SQLite Small-Office Foundation
+
+Purpose:
+
+Establish Longtail Forge's runtime configuration contract, keep SQLite first-class for self-hosted/small-office installs, and prepare the database layer for future PostgreSQL support without forcing PostgreSQL on self-hosted users.
+
+SQLite support target:
+
+- Single app server.
+- Local or attached storage.
+- Roughly 50 total users.
+- Typical active usage of 5-15 concurrent users.
+- No horizontal app scaling expectation.
+- No external database setup required.
+- Suitable for small offices, solo operators, families, and self-hosted teams.
+
+PostgreSQL support target:
+
+- Hosted SaaS.
+- Multiple app/web instances.
+- Durable workers.
+- Larger multi-workspace datasets.
+- High concurrency.
+- Managed backups and operational monitoring.
+
+Decision:
+
+SQLite remains a first-class supported backend. PostgreSQL is required for hosted SaaS scale, but SQLite must remain viable and pleasant for self-hosted installs.
+
+Do not remove SQLite.
+Do not require PostgreSQL for small-office self-hosting.
+Do not pretend SQLite mode supports horizontal scaling.
+
+Branch boundaries and future handoffs:
+
+- [x] Keep this branch infrastructure-only. User-facing workflow behavior should not change except for clearer startup failures, safe admin diagnostics, and documentation.
+- [x] Keep SQLite as the default and only implemented database provider in this branch.
+- [x] Do not implement PostgreSQL, bounded list/query rewrites, durable jobs/outbox processing, storage-provider swaps, scanner adapters, or hosted-SaaS deployment behavior in 0.33.5.19.
+- [x] Leave explicit handoff notes for the next branches:
+  - [x] 0.33.5.20 bounded queries should consume database health/capability information and any safe query-diagnostic hooks without depending on PostgreSQL.
+  - [x] 0.33.5.21 jobs/outbox should consume the transaction helper and worker runtime config names without requiring a separate worker in SQLite mode.
+  - [x] 0.33.5.22 storage/scanner work should consume documented storage/scanner config keys without this branch changing Files storage behavior.
+  - [x] 0.33.5.23 PostgreSQL work should consume the database provider config, adapter contract, health/capability shape, and documented migration-lock strategy.
+- [x] Avoid whole-repo database rewrites. Adapter, parameter, and transaction slices should use explicit pilots and guardrail inventories, then defer broad conversion to later portability work.
+
+### Version 0.33.5.19.1 - Runtime configuration inventory, contract, and `.env.example`
+
+- [x] Inventory current `process.env` usage before changing runtime behavior.
+- [x] Add `.env.example`.
+- [x] Ensure `.env` is ignored and never committed.
+- [x] Add `docs/runtime-configuration.md`.
+- [x] Define startup/runtime configuration groups:
+  - [x] App identity and environment.
+  - [x] Host/port/public URL.
+  - [x] Data directory.
+  - [x] Database provider.
+  - [x] SQLite settings.
+  - [x] Future PostgreSQL settings.
+  - [x] Initial super-admin bootstrap.
+  - [x] Session/cookie settings.
+  - [x] Secure-note encryption settings.
+  - [x] File storage provider settings.
+  - [x] File scanner settings.
+  - [x] Worker/job settings.
+  - [x] Logging/diagnostics settings.
+- [x] Preserve compatibility with existing environment variables where practical:
+  - `HOST`
+  - `PORT`
+  - `LONGTAIL_DATA_DIR`
+  - `LONGTAIL_DATABASE_FILE`
+  - `SQLITE_COMMAND`
+  - `WORKSPACE_INSTALL_MODE`
+  - `WORKSPACE_TYPE_LIMIT`
+  - `SUPER_ADMIN_USERNAME`
+  - `SUPER_ADMIN_PASSWORD`
+  - `LONGTAIL_SECURE_NOTES_MASTER_KEY`
+  - `SECURE_NOTES_MASTER_KEY`
+  - `LONGTAIL_SECURE_NOTES_KEY_VERSION`
+- [x] Add config normalization for currently consumed runtime values only.
+- [x] Add startup validation for required variables that the current app actively consumes.
+- [x] Add safe startup warnings for optional but recommended variables.
+- [x] Add tests proving missing or invalid current startup settings fail clearly.
+- [x] Document future-only keys without wiring future PostgreSQL, storage, scanner, or worker behavior yet.
+
+Suggested initial `.env.example` groups:
+
+```env
+# App
+LONGTAIL_ENV=development
+LONGTAIL_PUBLIC_URL=http://localhost:8001
+HOST=0.0.0.0
+PORT=8001
+TRUST_PROXY=false
+
+# Data
+LONGTAIL_DATA_DIR=./data
+
+# Database
+LONGTAIL_DATABASE_PROVIDER=sqlite
+
+# SQLite
+LONGTAIL_DATABASE_FILE=./data/longtail-forge.db
+SQLITE_COMMAND=sqlite3
+LONGTAIL_SQLITE_FOREIGN_KEYS=on
+LONGTAIL_SQLITE_JOURNAL_MODE=wal
+LONGTAIL_SQLITE_BUSY_TIMEOUT_MS=5000
+
+# Future PostgreSQL
+# DATABASE_URL=
+# LONGTAIL_DATABASE_POOL_MIN=1
+# LONGTAIL_DATABASE_POOL_MAX=10
+# LONGTAIL_DATABASE_SSL=false
+
+# Initial bootstrap
+SUPER_ADMIN_USERNAME=support@longtailforge.local
+SUPER_ADMIN_PASSWORD=
+
+# Sessions / cookies
+LONGTAIL_SESSION_COOKIE_SECURE=false
+LONGTAIL_SESSION_COOKIE_SAMESITE=Lax
+LONGTAIL_SESSION_TTL_SECONDS=43200
+
+# Secure notes
+# LONGTAIL_SECURE_NOTES_MASTER_KEY=
+# SECURE_NOTES_MASTER_KEY=
+LONGTAIL_SECURE_NOTES_KEY_VERSION=v1
+
+# File storage
+LONGTAIL_STORAGE_PROVIDER=local
+LONGTAIL_LOCAL_STORAGE_ROOT=./data/files
+
+# File scanning
+LONGTAIL_FILE_SCANNER=none
+# LONGTAIL_CLAMD_HOST=127.0.0.1
+# LONGTAIL_CLAMD_PORT=3310
+# LONGTAIL_CLAMSCAN_PATH=
+
+# Jobs / workers
+LONGTAIL_WORKER_MODE=inline
+LONGTAIL_WORKER_ID=default
+LONGTAIL_JOB_POLL_INTERVAL_MS=5000
+LONGTAIL_JOB_LOCK_TTL_SECONDS=300
+
+# Logging
+LONGTAIL_LOG_LEVEL=info
+
+```
+
+This one is important because the current config already reads several values from `process.env`, but there is not yet a formal `.env.example` or startup contract. Current config pulls things like `HOST`, `PORT`, `LONGTAIL_DATA_DIR`, `LONGTAIL_DATABASE_FILE`, `SQLITE_COMMAND`, `WORKSPACE_INSTALL_MODE`, and `WORKSPACE_TYPE_LIMIT`. 
+
+Slice boundary:
+
+- [x] This slice may centralize and validate current runtime config.
+- [x] This slice must not change database provider behavior beyond documenting and normalizing provider selection.
+- [x] This slice must not change Files storage, scanner behavior, job execution, or PostgreSQL behavior.
+
+---
+
+### Version 0.33.5.19.1.1 - Local `.env` loading and environment precedence
+
+- [x] Load a local `.env` file during app startup when present.
+- [x] Keep real `.env` ignored and never committed.
+- [x] Preserve OS/process environment precedence over `.env` values.
+- [x] Keep `.env.example` as the documented template only.
+- [x] Do not require `.env` for development startup.
+- [x] Do not load `.env` from browser code or expose config values.
+- [x] Add regression coverage proving:
+  - [x] Missing `.env` does not fail startup.
+  - [x] `.env` values are consumed before `src/config.js` is created.
+  - [x] Existing process env values win over `.env`.
+  - [x] Comments/blank lines/basic quoted values parse safely.
+
+---
+
+### Version 0.33.5.19.1.2 - Local `.env` materialization and remaining config hardcode audit
+
+- [x] Create a local ignored `.env` for this checkout from `.env.example`.
+- [x] Keep `.env` untracked and document that it is machine-local runtime state.
+- [x] Verify the app reads the local `.env` on startup.
+- [x] Audit remaining install/runtime defaults that still live in app code.
+- [x] Move true install-specific fresh-start defaults into runtime config:
+  - [x] Initial workspace name.
+  - [x] Super-admin display name.
+- [x] Keep app-owned constants in code when they are not install configuration.
+- [x] Add regression/docs coverage for newly promoted config values.
+
+---
+
+### Version 0.33.5.19.2 - SQLite connection hardening
+
+- [x] Enable SQLite foreign-key enforcement for every SQLite connection/process:
+  - [x] `PRAGMA foreign_keys = ON`.
+- [x] Add SQLite startup health checks:
+  - [x] Foreign keys enabled.
+  - [x] Journal mode.
+  - [x] Busy timeout.
+  - [x] Database file path.
+  - [x] Database file writable.
+- [x] Evaluate and enable WAL mode by default for SQLite self-hosted installs unless incompatible:
+  - [x] `PRAGMA journal_mode = WAL`.
+- [x] Keep or configure busy timeout behavior.
+- [x] Read SQLite defaults from the runtime configuration contract introduced in 0.33.5.19.1.
+- [x] Add SQLite health output that is safe for admins but does not leak secrets.
+- [x] Add regression coverage proving:
+  - [x] Foreign-key enforcement is enabled.
+  - [x] Invalid orphan records are rejected.
+  - [x] SQLite startup fails clearly when the database path is invalid.
+  - [x] SQLite mode remains the default provider when no database provider is set.
+
+Acceptance criteria:
+
+- SQLite mode is safer without changing user-facing behavior.
+- Small-office SQLite installs get stricter data integrity by default.
+- SQLite hardening stays inside the existing SQLite provider/helper boundary until the adapter slice.
+
+### Version 0.33.5.19.3 - Provider-neutral database adapter contract v1
+
+- [x] Create a provider-neutral database module or adapter layer that becomes the preferred import path for app code.
+- [x] Keep SQLite as the only implemented provider in this slice.
+- [x] Define the v1 database API for current string-SQL compatibility:
+  - [x] `db.query(sql, params)`
+  - [x] `db.get(sql, params)`
+  - [x] `db.run(sql, params)`
+  - [x] `db.close()`
+  - [x] `db.health()`
+  - [x] `db.capabilities`
+- [x] Reserve `db.transaction(callback)` for 0.33.5.19.5 and expose transaction capability metadata without converting workflows here.
+- [x] Parameter arguments may be accepted by the API shape in this slice, but 0.33.5.19.4 is the slice that proves repository use of bound parameters.
+- [x] Move SQLite-specific process handling behind the SQLite adapter.
+- [x] Keep existing repository behavior working.
+- [x] Preserve `querySql` / `runSql` compatibility temporarily if needed, but mark them as legacy compatibility helpers.
+- [x] Add a guardrail inventory for direct SQLite imports.
+- [x] Add documentation explaining:
+  - [x] SQLite is the default self-hosted backend.
+  - [x] PostgreSQL will plug into the same adapter later.
+  - [x] Repositories should not import `src/db/sqlite.js` directly.
+- [x] Add regressions proving:
+  - [x] Existing app startup still works on SQLite.
+  - [x] Existing migrations still run on SQLite.
+  - [x] Existing modules can query through the provider-neutral database module.
+  - [x] Unsupported `LONGTAIL_DATABASE_PROVIDER` values fail clearly.
+
+Acceptance criteria:
+
+- The database layer has a real provider-facing boundary.
+- SQLite behavior is preserved.
+- Future PostgreSQL work can target the adapter instead of rewriting every module.
+- This slice does not convert every repository; it creates the boundary and inventories the remaining direct imports.
+
+### Version 0.33.5.19.4 - Parameterized query pilot
+
+- [x] Promote database-adapter parameter binding from API shape to exercised implementation.
+- [x] Convert a small but representative set of repositories to parameterized queries:
+  - [x] Sessions.
+  - [x] Workspaces.
+  - [x] One Tasks read path.
+  - [x] One Notes read path.
+- [x] Keep legacy `sqlText` / `sqlInteger` style helpers available for unconverted code until broader portability work.
+- [x] Add docs for query style:
+  - [x] No new string interpolation for user-supplied values.
+  - [x] Use parameters for values.
+  - [x] Keep table/column names static or validated.
+- [x] Add lint/static guardrails where practical.
+- [x] Add regression coverage for:
+  - [x] Quotes in user data.
+  - [x] Special characters in IDs/titles.
+  - [x] Attempts to inject SQL-like strings as values.
+
+Acceptance criteria:
+
+- New repository work has a clear safe query style.
+- Existing string-SQL helpers remain only as compatibility escape hatches until broader migration.
+- Broad repository conversion is deferred to future query/portability slices.
+
+### Version 0.33.5.19.5 - Explicit transaction helper
+
+- [x] Add provider-neutral `db.transaction(callback)` support.
+- [x] SQLite implementation should:
+  - [x] Begin transaction.
+  - [x] Commit on success.
+  - [x] Roll back on thrown error.
+  - [x] Prevent nested transaction confusion or document nested behavior.
+- [x] Convert one or two existing multi-step workflows to the helper:
+  - [x] Task assignee replacement.
+  - [x] One file attach/create workflow or one note create/link workflow.
+- [x] Remove raw `BEGIN` / `COMMIT` / `ROLLBACK` strings only from the selected pilot workflows.
+- [x] Add regression coverage proving:
+  - [x] Successful transaction commits all changes.
+  - [x] Failed transaction rolls back all changes.
+  - [x] Partial records are not left behind.
+
+Acceptance criteria:
+
+- Multi-step writes have a provider-neutral transaction path.
+- Future outbox/job writes can be committed with the source record atomically.
+- The slice proves the transaction contract without attempting to rewrite every existing raw transaction.
+
+### Version 0.33.5.19.6 - Migration locking and startup ownership
+
+- [x] Add migration lock strategy for SQLite.
+- [x] Document future PostgreSQL migration lock strategy.
+- [x] Ensure only one app/startup process can run migrations or schema repairs at a time.
+- [x] Separate normal app startup from one-time maintenance where practical.
+- [x] Add startup behavior docs:
+  - [x] Self-hosted single-process mode.
+  - [x] Future SaaS multi-instance mode.
+  - [x] Which process runs migrations.
+  - [x] Which process runs workers.
+- [x] Keep this slice focused on migration/startup ownership; do not implement the 0.33.5.21 worker runner or move search indexing to jobs yet.
+- [x] Add regression coverage proving:
+  - [x] Migration lock is acquired before migrations.
+  - [x] A second migration attempt fails or waits clearly.
+  - [x] Startup failure messages are actionable.
+
+Acceptance criteria:
+
+- SQLite remains simple.
+- Future multi-process deployment is not blocked by unsafe startup migrations.
+
+### Version 0.33.5.19.7 - Runtime diagnostics service and protected admin route
+
+- [x] Add a safe runtime diagnostics read model.
+- [x] Add a protected admin/browser route for diagnostics, requiring `workspace_settings.manage`.
+- [x] Include safe diagnostics:
+  - [x] App version.
+  - [x] Runtime environment.
+  - [x] Database provider.
+  - [x] Database health status.
+  - [x] SQLite journal mode.
+  - [x] SQLite foreign-key status.
+  - [x] SQLite busy timeout.
+  - [x] Safe database file location, redacted or data-root-relative where needed.
+  - [x] Safe data directory location, redacted or app-root-relative where needed.
+  - [x] Storage provider.
+  - [x] Scanner mode.
+  - [x] Worker mode.
+  - [x] Configuration warnings.
+- [x] Do not expose secrets, storage keys, signed URLs, protected file paths, scanner internals, or raw secure-note key material.
+- [x] Add regression coverage for permission checks and safe redaction.
+
+Acceptance criteria:
+
+- Admins can inspect the app's runtime mode through a permission-checked route.
+- Runtime diagnostics reuse the config and database health contracts created earlier in this branch.
+
+### Version 0.33.5.19.8 - SQLite small-office documentation and admin readout
+
+- [x] Add `docs/sqlite-small-office-mode.md`.
+- [x] Document supported SQLite deployment assumptions:
+  - [x] One app process/server.
+  - [x] Local or attached disk.
+  - [x] No shared SQLite database across multiple app servers.
+  - [x] Backup expectations.
+  - [x] Optional scanner expectations.
+  - [x] Recommended memory/disk guidance.
+- [x] Add a compact admin-readable diagnostics readout using the route from 0.33.5.19.7 on the existing Workspace Settings or admin settings surface rather than a new dashboard.
+- [x] Include:
+  - [x] Database provider.
+  - [x] SQLite journal mode.
+  - [x] Foreign keys enabled.
+  - [x] Safe database file location, redacted or data-root-relative where needed.
+  - [x] Safe data directory location, redacted or app-root-relative where needed.
+  - [x] Storage provider.
+  - [x] Scanner mode.
+- [x] Add warning copy for configurations outside SQLite support bounds.
+
+Acceptance criteria:
+
+- SQLite is explicitly documented as supported small-office mode.
+- The app can explain its runtime mode to admins.
+- The readout remains diagnostic only; it does not add runtime configuration editing.
+
+### Version 0.33.5.19.9 - Runtime/database foundation closeout and future handoff
+
+- [x] Update `CHANGELOG.md`.
+- [x] Update `DECISIONS.md` with the final runtime/database boundary.
+- [x] Update `docs/database.md` and `docs/architecture.md` only for behavior that actually shipped.
+- [x] Confirm 0.33.5.20, 0.33.5.21, 0.33.5.22, and 0.33.5.23 still have the expected handoffs from this branch.
+- [x] Bump `package.json` and `package-lock.json`.
+- [x] Archive completed roadmap sections according to the roadmap bookkeeping rule.
+- [x] Run full regression suite.
+- [x] Run SQLite integrity check.
+- [x] Verify `/api/app-info` reports the expected version after restart.
+
+Acceptance criteria:
+
+- Runtime configuration, SQLite hardening, database adapter, parameter pilot, transaction pilot, migration locking, and diagnostics are documented and verified together.
+- Future bounded-query, jobs/outbox, storage/scanner, and PostgreSQL branches have clear entry contracts.
+
+## View Conversion Branch Closeout (0.33.5.18.15)
+
+### Version 0.33.5.18.15 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
+
+- [x] Treat this as the closeout slice for the 0.33.5.18 view-conversion branch, not as a new
+      conversion pass. No new routes, schema, permissions, payload shapes, background jobs,
+      Inspector/detail-dashboard behavior, or new module workflows were added.
+- [x] Confirm fail-on-violation declarative guardrails are enforced on every strict converted surface:
+  - [x] `lists.workspace` (pre-existing strict baseline).
+  - [x] `notes.workspace`.
+  - [x] `tasks.workspace`.
+  - [x] `files.browse`.
+  - [x] `client-projects.clients`.
+  - [x] `client-projects.projects`.
+- [x] Confirm descriptor/reporting-only surfaces remain explicitly reported rather than silently
+      promoted to strict enforcement unless a roadmap slice converts them:
+  - [x] Tags management and Developer Example descriptor proofs.
+  - [x] Admin/Settings surfaces.
+  - [x] Reporting (0.33.6).
+  - [x] Dashboard and Workbench (0.33.7).
+- [x] Strict declarative guardrails fail if a strict surface reintroduces non-minimal protected HTML
+      views or hand-built framework-owned page headers, tables, filter panels, split layouts, index
+      lists, dialog shells, action strips, bulk-toolbar shells, modal footer anatomy, covered
+      `document.createElement` paths, or one-off framework-owned layout/footer/filter/table/modal
+      classes.
+- [x] Re-audit and document framework-owned anatomy versus module-owned escape hatches for each strict
+      surface:
+  - [x] Lists keeps operational execution meaning, item behavior, save payloads, and record labels
+        module-owned.
+  - [x] Notes keeps selected-note/detail behavior, secure/private restrictions, note list behavior,
+        links, files, tags, preview/editing, and saved-context rules module-owned.
+  - [x] Tasks keeps task row behavior, lifecycle/workflow actions, recurrence, checklist, timer,
+        relationship, bulk semantics, payloads, validation, and dialogs module-owned.
+  - [x] Files keeps route-backed file reads, uploads, availability, File Context, Preview, lifecycle
+        actions, recovery states, confirmations, and permissions Files-owned.
+  - [x] Clients/Projects keeps hierarchy rules, service-owned Project ordering, typed tag filter
+        resolution to canonical tag IDs, Business-only Client behavior, payloads, permissions,
+        dialogs, related-row shaping, bulk semantics, query openers, and refresh hooks
+        Clients/Projects-owned.
+- [x] Preserve and document the intentional 0.33.5.18 UI/read-model outcomes already accepted:
+  - [x] slide-out filters on converted read surfaces.
+  - [x] secondary-row tag display instead of standalone Tags columns on Clients/Projects.
+  - [x] icon-only repeated row actions with accessible labels.
+  - [x] Notes-style searchable tag filter behavior on Clients/Projects, with service-side tag text
+        resolution.
+  - [x] workspace-first, then Client-grouped, then parent-before-child Project ordering owned by
+        the Clients/Projects service.
+- [x] Confirm no database schema, write payload, permission, public API, or new workflow changes were
+      introduced by the conversion closeout beyond the accepted read/UI behavior above.
+- [x] Update the current docs together so they describe the same converted-surface boundary:
+  - [x] `docs/view-building-contract.md` inventory snapshot.
+  - [x] `docs/declarative-view-surfaces.md` authoring guide and protected-view inventory.
+  - [x] `docs/module-contract.md`.
+  - [x] `docs/ui-surface-contract.md`.
+  - [x] `docs/module-development.md`.
+  - [x] relevant strict guardrail inventories, especially `docs/files-strict-guardrail-inventory.md`,
+        `docs/tasks-strict-guardrail-inventory.md`, and
+        `docs/clients-projects-strict-guardrail-inventory.md`.
+- [x] Update DECISIONS.md with the final 0.33.5.18 converted-surface list, deferred-surface list,
+      framework/module ownership boundary, and the accepted Clients/Projects read/UI outcomes.
+- [x] Add `scripts/view-conversion-branch-closeout-regression.mjs` as a clean-clone-safe branch
+      closeout regression covering strict surface inventory, reported/deferred surfaces, minimal
+      protected hosts, cache-busted script ordering, no reintroduced hand-built framework anatomy,
+      docs/changelog/package alignment, and the no-schema/no-permission/no-new-workflow closeout
+      boundary without depending on ignored local archive files.
+- [x] Update CHANGELOG.md.
+- [x] Update package metadata and current module metadata to 0.33.5.18.15.
+- [x] Archive the completed 0.33.5.18.15 slice and leave the active roadmap ready for 0.33.5.19.
+- [x] Run targeted closeout checks before the full suite:
+  - [x] `node scripts/view-conversion-branch-closeout-regression.mjs`.
+  - [x] `node scripts/view-descriptor-declarative-guardrails.mjs`.
+  - [x] `node scripts/view-builder-converted-surface-guardrails.mjs`.
+  - [x] relevant per-surface closeout/strict guardrail regressions for Lists, Notes, Tasks, Files,
+        and Clients/Projects.
+  - [x] `node scripts/check-js.mjs` and `node scripts/module-sanity-check.mjs`.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Run SQLite `PRAGMA integrity_check`.
+- [x] Run `git diff --check` and treat CRLF-only warnings as non-blocking if the command exits 0.
+- [x] Restart the local server if needed and verify `/api/app-info` reports 0.33.5.18.15.
+- [x] Record whether authenticated live-browser smoke was run or intentionally skipped.
+- [x] Defer Admin/Settings view conversion, Reporting conversion, Dashboard/Workbench conversion,
+      Inspector behavior, pagination/server-side paging, and any non-view concerns to their own later
+      roadmap lines.
+
+## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
+
+### Version 0.33.5.18.14.5 - Clients/Projects Strict Guardrails and Cleanup
+
+- [x] Reduce the page portions of `public/js/clients-projects.js` to descriptor mounting, data
+      bindings, registered behavior handlers, and documented escape hatches.
+- [x] Move Clients and Projects filters out of the inline top `Filters` panel and into the same
+      left-side floating filter button / slide-out filter surface pattern used by Tasks and Notes.
+- [x] Remove the standalone Tags column from Clients and Projects tables; render tag chips as a
+      secondary row under the record context columns (Client/status/billing on Clients and
+      Project/Client/status/billing on Projects) while leaving tag values and assignment semantics
+      Clients/Projects-owned.
+- [x] Convert dense Clients/Projects action-column controls, including Edit Client and Edit Project,
+      to shared icon-only controls with accessible labels/titles; no repeated table action should
+      render as a text button.
+- [x] Expand fail-on-violation declarative guardrails to `client-projects.clients` and
+      `client-projects.projects`.
+- [x] Guardrails must fail if Clients/Projects reintroduces protected-page anatomy, page/filter/table
+      chrome, bulk-toolbar shell markup, static dialog shells, or one-off framework-owned layout/footer
+      classes outside descriptors/shared helpers.
+- [x] Guardrails must fail if the converted Clients/Projects pages keep the inline top filter panel,
+      standalone Tags table columns, or text-based repeated row/action-column buttons.
+- [x] Guardrails must continue allowing documented module-owned editor field fragments, billing/task
+      default editors, tag picker integration, parent selectors, route calls, payload builders,
+      confirmation wording, refresh hooks, and query-param opener behavior.
+- [x] Update the Clients/Projects inventory doc to mark strict enforcement active.
+- [x] Add a focused closeout regression for the converted Clients and Projects pages before the
+      cross-surface 0.33.5.18.15 closeout.
+- [x] Confirm no database schema, route payload, permission, or workflow changes were introduced by the
+      conversion.
+
+### Version 0.33.5.18.14.4 - Clients/Projects Hierarchy Interactions and Reparent Safety
+
+- [x] Keep hierarchy mutation rules in Clients/Projects services and existing planner/validation
+      helpers, not in the framework renderer.
+- [x] Update Projects read/settings ordering so workspace-level Projects sort first, then
+      Client-backed Projects group by readable Client hierarchy (parent before child) and Project
+      hierarchy (parent before child), with alphabetical ordering only as the secondary sort inside
+      each group.
+- [x] Keep canonical Projects ordering server/service-owned; browser code may request and render the
+      ordered read model but must not become the source of truth for Client/Project hierarchy sorting.
+- [x] Express move/reparent entry points as descriptor actions or registered behaviors that open the
+      existing Client/Project editors or submit existing validated payloads.
+- [x] Preserve cycle prevention, same-workspace checks, readable parent options, archived-parent
+      behavior, Business-only Client rules, workspace-level Project behavior, and Project Client
+      derivation.
+- [x] Do not add drag/drop hierarchy editing unless a later roadmap slice explicitly adds it.
+- [x] Add regressions proving reparent/move behavior remains service-validated and the converted page
+      does not become the hierarchy source of truth.
+
+### Version 0.33.5.18.14.3 - Clients/Projects Bulk Controls and Selection Behavior
+
+- [x] Move Client and Project bulk-control chrome into the shared bulk-toolbar shell or a descriptor
+      region using that shell.
+- [x] Keep selected IDs, allowed bulk actions, Project Client reassignment options, billing/status
+      payloads, confirmations, route calls, partial failure messaging, refresh behavior, and audit/search
+      side effects Clients/Projects-owned.
+- [x] Preserve Business-only Client reassignment; Personal and Family workspaces must not expose Client
+      bulk controls or submit Client IDs.
+- [x] Reuse existing granular routes unless a future roadmap slice explicitly adds service-owned bulk
+      endpoints with permission, audit, search, and partial-result contracts.
+- [x] Add regressions proving bulk controls no longer hand-build framework-owned toolbar/table chrome
+      and still preserve workspace gating.
+
+### Version 0.33.5.18.14.2 - Clients/Projects Related Tables and Detail Regions
+
+- [x] Move related Project rows on Client reads and related Client/Project context rows on Project
+      reads into framework-owned table/list/region shells.
+- [x] Keep the Clients/Projects adapter responsible for related-row data shaping, readable labels,
+      Project Client context, billing/task-default summary values, and allowed row actions.
+- [x] Keep save, archive, parent/reparent, billing, tags, task defaults, reminders, audit, search, and
+      permission behavior on existing module route/service paths.
+- [x] Do not introduce a persistent Inspector-style detail pane or a new dashboard on either page.
+- [x] Add regressions proving related tables render through shared anatomy while row actions continue
+      through module-owned behavior handlers.
+
+### Version 0.33.5.18.14.1 - Clients/Projects Remaining Action and Dialog Behavior Registration
+
+- [x] Normalize any remaining module-owned action/dialog behavior registrations beyond the
+      0.33.5.18.13.3 read-page Add/Edit handlers.
+- [x] Route any remaining descriptor action placement through the framework while keeping the dialog
+      openers, field bodies, validation, save payloads, tag pickers, billing editors, parent selectors,
+      and refresh callbacks in `public/js/clients-projects.js` and Clients/Projects services.
+- [x] Keep the 0.33.5.15.4 converted modal shell/footer standard; do not reintroduce static
+      `<dialog>` markup or one-off modal footer/action classes.
+- [x] Preserve module action host-context callbacks for Workbench/search/module-triggered Add/Edit
+      flows.
+- [x] Add regressions proving remaining descriptor/registered actions call the canonical dialog API
+      and do not duplicate Client/Project forms.
+
+### Version 0.33.5.18.13.1 - Clients/Projects Descriptor Readiness and Guardrail Inventory
+
+- [x] Inventory `clients.html`, `projects.html`, `public/js/clients-projects.js`, the
+      `client-projects` module manifest, `/api/clients`, `/api/projects`, and `/api/client-projects`.
+- [x] Add `docs/clients-projects-strict-guardrail-inventory.md` before strict enforcement, mapping:
+  - [x] Framework-owned page/header/filter/sidebar/table/index/bulk/action/status shells.
+  - [x] Clients/Projects-owned data shaping, hierarchy rules, billing/task-default editors, tag
+        assignment, route calls, query-param openers, permissions, and save payloads.
+- [x] Add only the descriptor/renderer support needed by both Clients and Projects page reads:
+  - [x] Display-only hierarchy metadata for flattened tree rows, such as depth/path/parent fields,
+        without adding drag/drop or move semantics.
+  - [x] Dynamic filter option mounting or option-source hydration for module-owned Client options,
+        without making the framework own Client records.
+  - [x] Table cell display hooks or documented region escape hatches for module-owned readable labels
+        and Tag chip rendering, without letting the module build table chrome by hand.
+- [x] Update descriptor validation and renderer regressions for those shared capabilities.
+- [x] Do not convert the Clients/Projects protected HTML hosts in this slice.
+- [x] Do not change Clients/Projects routes, write payloads, permissions, schema, or workflow behavior.
+
+### Version 0.33.5.18.13.2 - Clients/Projects Read Descriptors and Minimal Hosts
+
+- [x] Add separate `viewSurfaces` descriptors for `client-projects.clients` and
+      `client-projects.projects`; do not model them as one combined page surface.
+- [x] Reduce `views/protected/clients.html` and `views/protected/projects.html` to minimal descriptor
+      hosts that load `view-builder.js`, `view-renderer.js`, and the Clients/Projects adapter in that
+      order.
+- [x] Bind the Clients descriptor to the canonical `/api/clients` list route with server-owned
+      status/tag filtering, permission pruning, hierarchy ordering, and depth metadata.
+- [x] Bind the Projects descriptor to the canonical `/api/projects` list route with server-owned
+      status/client/tag filtering, permission pruning, hierarchy ordering, workspace-project handling,
+      and depth metadata.
+- [x] Keep `/api/client-projects` available for existing dialog and cross-module option workflows; do
+      not make it the new page-list source of truth if `/api/clients` or `/api/projects` can express
+      the page read.
+- [x] Define descriptor `fieldBindings` for readable names, hierarchy display, status, Client context
+      where visible, billing display fields, and tag display inputs.
+- [x] Preserve the already-converted Add/Edit Client and Add/Edit Project dialog openers; no dialog
+      body redesign belongs in this slice.
+- [x] Add regressions proving both protected hosts are minimal, both descriptors are delivered through
+      bootstrap only when the module/view is available, and the read path preserves Business-only
+      Client gating plus Personal/Family project-only behavior.
+
+### Version 0.33.5.18.13.3 - Clients/Projects Framework-Rendered Read Anatomy
+
+- [x] Move page headers, status placement, filters, empty/loading/error states, list/table wrappers,
+      hierarchy display, and row action placement for both pages into descriptors or shared
+      `LongtailForge.view` renderer paths.
+- [x] Keep Clients/Projects-owned browser code responsible for selecting safe row labels, tag display
+      values, billing display values, and Project Client labels before they enter framework-owned
+      anatomy.
+- [x] Keep Business workspaces showing Client-aware surfaces and Client filters; keep Personal and
+      Family workspaces project-only with Client filters/rows hidden or unavailable.
+- [x] Preserve `?client=`, `?project=`, `?addClient=true`, and `?addProject=true` entry behavior by
+      dispatching to existing module-owned openers after descriptor render.
+- [x] Keep page Add/Edit buttons as descriptor actions or registered behaviors that call the existing
+      Clients/Projects dialog API.
+- [x] Add regressions proving hierarchy indentation/order, status/client filters, readable tag display,
+      page actions, and query-param openers still work without protected-page HTML anatomy.
+
+## Files (0.33.5.18.11 - 0.33.5.18.12)
+
+### Version 0.33.5.18.11 - Files Browse Surface and Read Controls
+
+#### Version 0.33.5.18.11.1 - Files descriptor and minimal protected host
+
+- [x] Add a `viewSurfaces` descriptor for the Files browse read path.
+- [x] Reduce `views/protected/files.html` to a minimal framework host element that loads the shared
+      view builder/renderer plus the Files adapter.
+- [x] Keep the existing navigation, app-shell, module availability, and `files.view` permission gates.
+- [x] Keep upload, attachment management, and row mutations on the existing imperative path until their
+      dedicated slices.
+- [x] Add regressions proving the Files protected host is minimal and the descriptor is delivered only
+      when the Files surface is available to the current workspace/user.
+
+#### Version 0.33.5.18.11.2 - Files filter sidebar and readable scope controls
+
+- [x] Move Files browse filters into the descriptor using the slide-out sidebar pattern when the full
+      filter set is visible.
+- [x] Preserve the current filter meanings for module, target type, target ID, client, project,
+      filename, and status while moving framework-owned label/control placement out of static HTML.
+- [x] Replace normal Client/Project/target filter display with readable labels or safe picker/select
+      controls where a provider exists; keep raw IDs out of normal browse UI except explicit advanced
+      troubleshooting inputs.
+- [x] Keep Client filters Business-workspace-only and ensure Personal/Family workspaces cannot see or
+      submit Client filter controls from the converted UI.
+- [x] Add regressions proving filter changes refetch through the Files route, sidebar open/close follows
+      the Notes/Tasks slide-out contract, and non-Business workspaces hide Client controls.
+
+#### Version 0.33.5.18.11.3 - Files read endpoint, field bindings, and list shell
+
+- [x] Define the normalized Files browse read endpoint and descriptor `fieldBindings`, reusing the
+      existing permission-checked attachment list route or a thin normalized wrapper over it.
+- [x] Move the browse table/list/card shell, status mount, empty state, loading state, and error state
+      into descriptor-rendered or shared-helper anatomy.
+- [x] Keep Files responsible for attachment row shaping, readable filename/display name, module label,
+      target label, client/project labels, attachment timestamp, file size, status, scan status, and
+      deleted/quarantined/pending fallbacks.
+- [x] Render the file cell as a compact row label with a safe file-type icon before the filename and
+      a truncated filename that reveals the full value on hover/focus without exposing storage paths.
+- [x] Truncate target, Client, and Project labels in normal browse rows with hover/focus reveal so long
+      work-context names do not push actions or timestamps off screen.
+- [x] Present the existing Download and Delete row actions as icon-only controls with accessible labels
+      and titles, while preserving the current Files-owned routes, confirmation, permission checks, and
+      delete/restore availability rules.
+- [x] Ensure normal browse rows never fall back to raw UUIDs when a safe readable label is available.
+- [x] Add regressions proving the browse list renders from descriptor data without querying storage,
+      search, tags, or attachment tables directly in browser code.
+- [x] Add regressions proving filename, target, Client, and Project truncation/reveal behavior plus
+      icon-only Download/Delete controls keep the row readable at the captured browse-table width.
+
+#### Version 0.33.5.18.11.4 - Files detail, preview, and summary read anatomy
+
+- [x] Add a framework-owned detail/preview shell for the selected file or selected attachment row.
+- [x] Render metadata through shared badge/detail rows: status, scan status, module/target, client,
+      project, size, uploaded/attached timestamps, uploader when available, and safe delete/quarantine
+      hints.
+- [x] Keep actual preview/download availability Files-owned and route-backed; the descriptor must not
+      infer downloadability from browser-only status checks.
+- [x] Add summary/status panels for current filters, result count, unavailable/deleted states, and
+      permission-safe scan/quarantine messaging.
+- [x] Add regressions proving detail metadata is readable, permission-safe, and does not expose storage
+      paths, scanner internals, or raw protected IDs in normal UI.
+
+## Tasks (0.33.5.18.7 - 0.33.5.18.10)
+
+Decision:
+
+Tasks should adopt the framework-owned slide-out action sidebar pattern proven by Notes, but Tasks should not copy the Notes information architecture exactly.
+
+For Tasks, the task list is the primary work surface. The task list must remain in the main content panel. The slide-out sidebar is for choosing a task view, sorting, and filtering only.
+
+Framework owns:
+
+- Page shell.
+- Slide-out filter sidebar shell.
+- Filter/funnel trigger placement and behavior.
+- Sidebar open/close state, backdrop/outside click, Escape handling, focus return, ARIA state, reduced-motion handling, scroll containment, and responsive behavior.
+- Filter preset selector shell.
+- Collapsible Sorting and Filters section shell.
+- Main task-list surface shell.
+- Bulk-action toolbar shell.
+- Modal shell/form/footer anatomy.
+- Shared field-grid, action, empty/loading/error, and dense-control anatomy.
+
+Tasks owns:
+
+- Canonical task query behavior.
+- Task statuses and lifecycle rules.
+- Assignment rules.
+- Due-date logic.
+- Priority, tags, project/client context, recurrence, blocking/relationships, checklist, timer, and resume/next-action meaning.
+- Task list row data and existing task list presentation.
+- Save payloads, validation, permissions, routes, and workflow behavior.
+
+Guardrails:
+
+- Do not move the task list into the sidebar.
+- Do not redesign the task list rows unless needed for framework/module separation.
+- Do not create a second task editor for Workbench, Quick Action Center, or future system calls.
+- The Tasks add/edit modal should become the canonical task editor invoked by Tasks, Workbench, and future Quick Action Center flows.
+- Follow the newer Notes patterns first. Use Lists patterns only where still valid, because Lists is expected to receive a larger rewrite soon.
+- Client controls must remain Business-workspace-only wherever task context editing appears.
+- Personal/Family workspaces must not show Client UI.
+
+Sizing note:
+
+This docs-only evaluation keeps 0.33.5.18.7 as the read-only shell/sidebar/list proof, then splits the
+larger generated Tasks slices so one implementation pass does not have to move framework ownership,
+preserve bulk workflows, standardize the canonical task modal, and lock strict guardrails at the same
+time. Bulk behavior, specialized modal fragments, workflow actions, relationships, and strict
+guardrail enforcement are intentionally separated below.
+
+### Version 0.33.5.18.10 - Tasks Workflow Actions, Detail/Relationship Cleanup, and Strict Guardrails
+
+This is the closeout phase that finishes the Tasks conversion after the sidebar, list shell, bulk toolbar, and canonical modal are stable.
+
+### Version 0.33.5.18.10.8 - Cross-Module Modal Action Standardization
+
+This corrective branch is inserted before Files because Tasks and Notes are now the two converted modal
+proof surfaces. Their modal shell/footer anatomy is already framework-owned, but their action styles
+and heading controls have drifted. Standardizing the converted modal contract here keeps Files and
+Clients/Projects from inheriting two competing patterns.
+
+Framework owns:
+
+- Modal shell, heading row, footer shell, footer utility group, footer commit group, sticky footer
+  behavior, action button primitive styling, dense/compact button sizing, focus return, Escape/backdrop
+  modal stack behavior, stacked child-dialog behavior for utility pickers, and accessible default
+  structure.
+- The visual standard for converted modal action placement:
+  - Footer utility actions such as Tags, Files, and Copy Link should use icon plus short visible text
+    unless a deliberately dense surface opts into icon-only controls with explicit accessible labels.
+  - Footer commit actions should follow the compact Tasks pattern for Cancel and Save: recognizable
+    icon buttons with accessible labels, titles, native button types, and consistent primary/secondary
+    roles.
+  - The modal heading action slot should hold one contextual record-level utility such as a Follow
+    Notifications bell, not a duplicate Close button when the footer already has Cancel/Close.
+
+Modules own:
+
+- Which buttons appear, when they are enabled, their labels/icons, API calls, save payloads, validation,
+  permission checks, record URLs, notification event meaning, and any picker/upload bodies opened by
+  footer utility actions.
+- Tasks remains the source of truth for task save/cancel/copy/follow/tags/files/notes behavior.
+- Notes remains the source of truth for note save/cancel/copy/follow/tags/files/linked-context,
+  revision, secure-note, Library, visibility, and notification producer behavior.
+
+Guardrails:
+
+- Do not add a Notes follow bell that only changes subscription state without Notes producing meaningful
+  note notifications.
+- Do not move Tags, Files, Copy Link, or Follow behavior into the generic modal helper.
+- Do not render Tags or Files picker/upload panels inline in the parent add/edit modal body once a
+  converted module has footer utility actions; use stacked child dialogs like Notes.
+- Do not create another module-specific modal footer class when `.surface-modal-footer`,
+  `.surface-modal-footer-utilities`, `.surface-modal-footer-commit`, and
+  `.surface-modal-footer-action` can express the anatomy.
+- Do not regress the Tasks modal heading bell, save/cancel controls, footer focus return, tag picker,
+  file attachment helper, or copy-link behavior.
+- Do not make secure-note files available while secure attachments remain out of scope.
+
+#### Version 0.33.5.18.10.8.5 - Modal standardization closeout
+
+- [x] Update `docs/ui-surface-contract.md`, `docs/view-building-contract.md`, `docs/tasks-module.md`,
+      and `docs/notes-module.md` with the shipped modal action standard.
+- [x] Update `DECISIONS.md` with the finalized cross-module modal action ownership decision.
+- [x] Update CHANGELOG and package metadata.
+- [x] Ensure strict converted-surface guardrails protect the standardized modal footer/heading pattern.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Notes modal regressions.
+  - [x] Tasks modal regressions.
+  - [x] Notification regressions.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Tasks and Notes share the same converted modal action standard.
+- The framework/module modal ownership boundary is documented and regression-covered.
+- Files can begin after this branch without inheriting conflicting modal footer patterns.
+
+---
+
+#### Version 0.33.5.18.9.2 - Canonical Task editor open API/behavior
+
+- [x] Create or formalize one browser entry point for opening the Task editor.
+- [x] The canonical opener should support:
+  - [x] Create new task.
+  - [x] Edit existing task.
+  - [x] Create task with defaults.
+  - [x] Create task with context from another surface.
+  - [x] Return focus to caller.
+  - [x] Optional callback/refresh after save.
+- [x] Supported calling surfaces:
+  - [x] Tasks page.
+  - [x] Workbench.
+  - [x] Future Quick Action Center.
+  - [x] Future module actions that need to create a task from context.
+- [x] Do not duplicate task form markup in Workbench or QAC.
+- [x] Workbench should call the same canonical editor behavior when it needs a task add/edit flow.
+- [x] Future QAC should call the same canonical editor behavior.
+- [x] Add regressions proving:
+  - [x] Tasks page can open create/edit through the canonical opener.
+  - [x] Workbench can call the same opener without duplicating modal markup.
+  - [x] Defaults/context can be passed into the modal.
+  - [x] Focus returns to the calling control after close.
+  - [x] After save, caller refresh hooks can run.
+
+Acceptance criteria:
+
+- There is one Task editor.
+- Other surfaces call it; they do not rebuild it.
+
+#### Version 0.33.5.18.9.1 - Framework-rendered Task modal shell
+
+- [x] Convert the task create/edit dialog to descriptor-declared modal/form/footer anatomy.
+- [x] Use the same modal patterns established by Notes and current Lists:
+  - [x] Framework-owned modal shell.
+  - [x] Framework-owned footer/action placement.
+  - [x] Framework-owned field grid.
+  - [x] Collapsible sections where appropriate.
+  - [x] Utility buttons where appropriate.
+- [x] Keep Tasks-owned logic in Tasks files:
+  - [x] Save payload creation.
+  - [x] Validation.
+  - [x] Workspace-type behavior.
+  - [x] Client/project visibility.
+  - [x] Assignment behavior.
+  - [x] Due-date behavior.
+  - [x] Status/priority behavior.
+  - [x] Recurrence/checklist/timer-specific meaning.
+- [x] Preserve existing task create/edit routes and payloads.
+- [x] Keep recurrence, checklist, timer, tags, files, notes, and other specialized task fragments on their existing task-owned paths until their dedicated preservation slices.
+- [x] Add regressions proving:
+  - [x] Add Task modal uses framework modal shell.
+  - [x] Edit Task modal uses framework modal shell.
+  - [x] Footer buttons follow Notes/Lists placement.
+  - [x] Existing create/edit save behavior still works.
+  - [x] Personal/Family modal hides Client controls.
+
+Acceptance criteria:
+
+- Task add/edit modal visually and structurally matches the newer modal system.
+- Task business logic stays module-owned.
+
+### Version 0.33.5.18.8 - Tasks Bulk Actions and Main List Surface Cleanup
+
+This slice keeps the task list as the main panel and introduces the framework-owned bulk-action toolbar shell.
+
+#### Version 0.33.5.18.8.4 - Task list surface framework/module separation
+
+- [x] Continue reducing `public/js/tasks.js` to data binding and behavior handlers.
+- [x] Remove hand-built framework-owned task page anatomy where shared helpers now exist.
+- [x] Preserve task list row content and appearance.
+- [x] Keep any genuinely task-specific row fragments as Tasks-owned escape hatches.
+- [x] Add guardrail inventory, but do not yet fail strict guardrails for all Tasks code until 0.33.5.18.10.
+- [x] Add regressions proving:
+  - [x] Tasks uses framework page/status/filter/sidebar/list-shell/bulk-toolbar primitives.
+  - [x] Task-specific row rendering remains module-owned.
+  - [x] No duplicated filter sidebar shell exists in Tasks code.
+
+Acceptance criteria:
+
+- Tasks follows the Notes-style framework/module boundary without forcing a task row redesign.
+
+#### Version 0.33.5.18.8.3 - Bulk lifecycle and destructive behavior wiring
+
+- [x] Wire existing lifecycle/destructive bulk behavior into the framework toolbar where currently implemented.
+- [x] Preserve existing lifecycle/destructive operations, where currently implemented:
+  - [x] Archive.
+  - [x] Restore.
+  - [x] Delete/soft-delete is not shipped for Tasks, so no new delete control was added.
+- [x] Do not introduce a new permanent-delete workflow if Tasks does not already ship one.
+- [x] Keep all permission checks service/API-owned.
+- [x] Toolbar buttons are display hints only; backend routes remain authoritative.
+- [x] Preserve existing confirmation prompts for destructive operations.
+- [x] Add regressions proving:
+  - [x] Archive/restore/delete controls only appear where supported.
+  - [x] Destructive actions still confirm.
+  - [x] Lifecycle/destructive bulk permissions are respected.
+  - [x] Bulk lifecycle/destructive actions refresh the task list without rebuilding the whole page by hand.
+
+Acceptance criteria:
+
+- Bulk lifecycle behavior is preserved without expanding the Tasks deletion model.
+- Framework owns placement; Tasks owns lifecycle meaning.
+
+#### Version 0.33.5.18.8.2 - Non-destructive bulk action behavior wiring
+
+- [x] Wire existing non-destructive bulk action behavior into the framework toolbar.
+- [x] Preserve existing non-destructive bulk operations, where currently implemented:
+  - [x] Assign/reassign.
+  - [x] Change status.
+  - [x] Change priority.
+  - [x] Change due date.
+  - [x] Change due time.
+  - [x] Add/remove/replace tags.
+- [x] Leave archive, restore, delete, and soft-delete lifecycle/destructive behavior for 0.33.5.18.8.3.
+- [x] Keep all permission checks service/API-owned.
+- [x] Toolbar buttons are display hints only; backend routes remain authoritative.
+- [x] Add regressions proving:
+  - [x] Bulk action buttons dispatch to Tasks-owned behavior handlers.
+  - [x] Bulk action permissions are respected.
+  - [x] Due date/time clearing still works.
+  - [x] Tag add/remove/replace still works.
+  - [x] Bulk actions refresh the task list without rebuilding the whole page by hand.
+
+Acceptance criteria:
+
+- Non-destructive bulk behavior is preserved.
+- Framework owns placement; Tasks owns meaning.
+
+#### Version 0.33.5.18.8.1 - Collapsed bulk-action toolbar shell
+
+- [x] Add a framework-rendered bulk-action toolbar at the top of the main task list panel.
+- [x] Toolbar must be collapsed by default.
+- [x] Toolbar should show a compact summary when collapsed, such as:
+  - [x] `Bulk actions`
+  - [x] Selected count if tasks are selected.
+- [x] Toolbar expands when:
+  - [x] User opens it manually.
+  - [x] Optional: one or more tasks are selected, if this matches current behavior.
+- [x] Bulk toolbar placement:
+  - [x] Above the task list.
+  - [x] Inside the main panel.
+  - [x] Not inside the filter sidebar.
+- [x] Framework owns toolbar anatomy and collapse behavior.
+- [x] Tasks owns selected task state and bulk action handlers.
+- [x] Add regressions proving:
+  - [x] Bulk toolbar appears above the task list.
+  - [x] Bulk toolbar starts collapsed.
+  - [x] Bulk toolbar is not in the sidebar.
+  - [x] Selection count displays when applicable.
+  - [x] Expanding/collapsing does not reload or reorder the task list.
+
+Acceptance criteria:
+
+- Bulk actions are available but do not dominate the page.
+- The main task list remains visually primary.
+
+#### Version 0.33.5.18.7.4 - Tasks read-only list binding and no-visual-redesign pass
+
+- [x] Bind the current task list data into the descriptor-backed surface.
+- [x] Preserve existing task list appearance unless a framework-owned wrapper is required.
+- [x] Do not redesign task rows in this slice.
+- [x] Preserve existing list density, row controls, due-date display, status display, assignee display, and task row actions where currently available.
+- [x] Move only framework-owned shell/layout anatomy out of `public/js/tasks.js`.
+- [x] Keep task row data shaping and workflow handlers in Tasks-owned code.
+- [x] Add regressions proving:
+  - [x] Existing task list rows still render.
+  - [x] Existing row-level actions still appear.
+  - [x] Existing filters still affect the visible task list.
+  - [x] Task list remains the main panel.
+  - [x] No task list rows render in the sidebar.
+
+Acceptance criteria:
+
+- The task list looks essentially the same.
+- Framework owns the surrounding shell.
+- Tasks owns row meaning and behavior.
+
+#### Version 0.33.5.18.7.3 - Task view selector query contract
+
+Define the query behavior for the top dropdown.
+
+- [x] Implement task view selector query mapping in Tasks-owned code, not framework code.
+- [x] Framework owns the selector UI; Tasks owns what each option means.
+- [x] Suggested query definitions:
+  - [x] `My Tasks`: active/open tasks assigned to the current user.
+  - [x] `All`: active/open tasks regardless of assignee.
+  - [x] `Unassigned`: active/open tasks with no assignee.
+  - [x] `Overdue`: active/open tasks with due date before the current workspace/user-local date.
+  - [x] `Due Today`: active/open tasks due on the current workspace/user-local date.
+  - [x] `Due This Week`: active/open tasks due from today through the end of the current week.
+  - [x] `Completed`: completed tasks.
+  - [x] `Archived`: archived tasks.
+- [x] Ensure `Completed` and `Archived` do not leak into the normal active/open views unless intentionally selected.
+- [x] Advanced filters should narrow the selected task view, not silently replace it.
+- [x] Add a clear/reset behavior:
+  - [x] Reset advanced filters without changing the selected task view.
+  - [x] Changing the selected task view should preserve only safe compatible advanced filters.
+- [x] Add regressions proving:
+  - [x] Each task view produces the expected canonical query.
+  - [x] Due-date views use workspace/user-local date logic.
+  - [x] Advanced filters combine predictably with the selected view.
+  - [x] Completed and Archived are intentionally scoped.
+  - [x] Personal/Family queries never include client-only UI assumptions.
+
+Acceptance criteria:
+
+- The task view selector works as a first-class Tasks query control.
+- The framework does not hard-code task status/due-date meaning.
+- The selected view and advanced filters combine predictably.
+
+#### Version 0.33.5.18.6.10.7 - Notes List slide-out behavior
+
+- [x] Replace the old persistent-sidebar Notes List auto-collapse rules with slide-out drawer rules.
+- [x] Default state:
+  - [x] The drawer starts closed on page load/navigation so the main Notes content remains central.
+  - [x] If no note is selected, the blank detail state remains visible in the main box and the funnel trigger is the way to open Filters/Library/Notes List.
+  - [x] Main detail screens anchor near the top of the viewport/content area on load and after note selection instead of appearing vertically centered in the available page space.
+  - [x] When the drawer opens, Filters starts collapsed, Library starts open, and Notes List remains available for browsing.
+- [x] Open/close behavior:
+  - [x] The funnel trigger toggles the drawer.
+  - [x] The funnel trigger sits near the lower-left edge of the viewport, just above the footer when the footer is visible or just above the bottom of the viewport when it is not.
+  - [x] The funnel trigger's left inset stays near the screen-left gutter instead of floating into the centered content/footer text column.
+  - [x] The footer remains anchored to the bottom of short pages while the funnel trigger lifts above only the visible footer height.
+  - [x] Filtering, Library selection, sorting, and pagination keep the drawer open.
+  - [x] Selecting a note from the Notes List updates the central detail view and closes the drawer so the selected content is primary.
+  - [x] Escape, outside click/backdrop, and the funnel trigger close the drawer without changing the selected note.
+- [x] Polish the Notes drawer navigation layout:
+  - [x] Filters are collapsed by default inside the drawer.
+  - [x] Library is open by default inside the drawer.
+  - [x] Library and Collection controls render on separate lines, not as a cramped two-column row.
+  - [x] Collection actions sit beside the Collection dropdown and open in a modal instead of expanding the drawer with an inline dropdown.
+  - [x] The Collection actions modal keeps New collection available even with no collection selected, while edit/archive/delete remain disabled until a manageable collection is selected.
+  - [x] New collection and Edit collection open after the actions modal closes so the collection editor does not inherit the action modal as a parent and flash closed.
+  - [x] Library/Collection controls do not create a horizontal scrollbar in the drawer.
+- [x] Preserve existing Notes List behavior:
+  - [x] Selection state.
+  - [x] Pagination.
+  - [x] Sort dropdown.
+  - [x] Default sort order.
+  - [x] Empty, loading, and unavailable states.
+  - [x] Compact list metadata remains readable in the drawer.
+  - [x] Tag chips never overlap note metadata in the drawer list.
+  - [x] Drawer list rows show at most one visible tag chip per note, with a compact overflow indicator if additional tags exist.
+- [x] Preserve useful in-session state where reasonable, but do not let stale stored split-sidebar state reopen or resize the drawer unexpectedly.
+- [x] Ensure Notes List pagination/sort controls remain visible when the drawer is open and hidden when closed.
+- [x] Ensure Notes List content never overlaps the central detail in a way that makes the detail unreadable or causes layout shift.
+- [x] Add focused regression coverage:
+  - [x] Drawer default closed.
+  - [x] Funnel trigger opens/closes the drawer.
+  - [x] Filtering/Library/sorting/pagination keep the drawer open.
+  - [x] Selecting a note closes the drawer and updates central detail.
+  - [x] Escape and outside click close the drawer without changing selection.
+  - [x] Pagination and sorting controls remain usable inside the drawer.
+  - [x] Narrow screens preserve the same open/close contract.
+  - [x] Main detail panels are top-anchored.
+  - [x] Funnel trigger position is lower-left, screen-gutter aligned, and footer-aware.
+  - [x] Filters start collapsed while Library starts open.
+  - [x] Library and Collection controls stack on separate lines.
+  - [x] Collection actions use a modal, with New collection always reachable and manage actions selection-gated.
+  - [x] Collection action modal handoffs keep the create/edit collection editor open.
+  - [x] Notes List rows avoid tag/metadata overlap with the one-visible-chip rule.
+
+Acceptance criteria:
+
+- Notes List browsing happens inside the slide-out drawer.
+- Selecting a note returns the user to the central content view.
+- Pagination and sorting remain usable in the drawer.
+- Main detail screens start at the top of the content area rather than floating in the vertical middle.
+- The funnel trigger sits near the screen-left lower viewport/footer edge with consistent gutter spacing and does not overlap the footer.
+- Filters start collapsed, Library starts open, and Library/Collection controls are stacked cleanly.
+- Collection actions do not create drawer scroll and keep New collection reachable without selecting a collection.
+- Notes List rows remain readable without tag chips overlapping metadata.
+- Notes becomes the first template for later action/workflow surfaces using the slide-out sidebar pattern.
+
+## Version 0.33.5.14 - UI Stabilization and Workspace Scope Corrections
+
+### Design and Clarification Questions
+
+- [x] Confirm whether Personal and Family List creation should hide the scope/client selector entirely and silently use workspace scope, including the historical note that the dialog currently shows only a workspace option.
+  - Confirmed.
+  - In Personal and Family workspaces, hide the Client/scope selector entirely.
+  - Do not show a disabled or single-option "Workspace" client selector.
+  - The UI should not use the word "Client" in Personal/Family list creation.
+  - Silently create the list at workspace scope.
+  - Use empty/null `client_id` for workspace-scoped lists unless the existing service contract requires a specific workspace-scope sentinel.
+  - Business workspaces should keep normal client/project controls.
+  - Personal/Family project selectors should use workspace projects directly and should not depend on client filtering.
+
+- [x] Confirm whether the Lists linked-task control should reuse the existing Notes-style linked-record picker pattern, a Tasks-specific picker, or a shared framework picker if one already exists by implementation time.
+  - Use a picker-based workflow; do not keep raw UUID entry as the normal user path.
+  - For 0.33.5.14, reuse the existing Notes-style linked-record picker pattern because it already represents the right product behavior: permission-shaped results, human labels, safe URLs, and context hints.
+  - If a shared framework picker already exists by implementation time, use that instead.
+  - Do not build a large new picker framework inside 0.33.5.14.
+  - If Tasks does not already expose a safe picker/search endpoint suitable for Lists, add the smallest Tasks-owned lookup route needed to return readable task labels, IDs, URLs, and project/client context.
+  - Lists should consume the picker result and save the link through Lists-owned link routes; Tasks should remain responsible for task visibility and task labels.
+
+- [x] Confirm the responsive breakpoint for the Lists constrained layout: should the emergency layout trigger at 1366px laptop width and below, or only below a narrower tablet/mobile breakpoint?
+  - Trigger the emergency constrained layout at 1366px wide and below.
+  - The bug is visible on 1366px laptop screens, so waiting until tablet/mobile widths is too late.
+  - Prefer container-query behavior if practical, but a viewport media query at `max-width: 1366px` is acceptable for this stabilization pass.
+  - Additional narrower mobile refinements are fine, but the main list/detail/index overflow fix must apply at 1366px and below.
+
+- [x] Confirm whether "Lists should be full-screen width once selected" means the selected list detail should use the full content width on constrained screens after the selector collapses, or also on desktop.
+  - This applies to constrained screens only.
+  - On desktop/wide layouts, keep the split list/detail workspace if it fits cleanly.
+  - At 1366px and below, move the list selector/index above the detail panel.
+  - Once a list is selected and the selector/index collapses, the selected list detail should use the full available content width.
+  - "Full-screen width" means full available app content width, not a modal takeover and not browser viewport takeover.
+
+- [x] Confirm whether Notes client/project tag inheritance belongs in this stabilization release as a visible correctness bug, or should be split into a Notes-owned follow-up after the UI scope fixes.
+  - Keep it in 0.33.5.14, but keep it narrow.
+  - Treat this as a visible correctness bug: notes linked to client/project context should receive the expected inherited client/project tags consistently.
+  - Do not turn this into a broader tagging redesign.
+  - Do not make inherited tags drive workflow status, billing, visibility, permissions, Library bucket placement, or Knowledge Base behavior.
+  - Use the existing framework tag/inheritance/propagation path where possible.
+  - Add focused service/API/UI regressions proving client/project-linked Notes inherit expected tags without changing access rules.
+  - If implementation reveals that this requires a larger tag architecture change, stop at a failing/skip-documented regression and split the broader fix into a Notes/tagging follow-up.
+
+- [x] Confirm whether Notes and Lists public API key options should appear only when matching public API routes and permissions are already implemented, or whether this release should also add any missing public API scope plumbing needed to make those options truthful.
+  - API key options must be truthful.
+  - Do not show placeholder Notes or Lists API scopes unless matching public API routes, scope declarations, permissions, and tests exist.
+  - For this release, add the missing public API scope plumbing needed to make the visible options truthful.
+  - Start with the smallest useful public API surface.
+  - Read scopes may ship before write scopes if write routes are not ready.
+  - Only show `notes:*` or `lists:*` scopes that are actually backed by implemented public API routes.
+  - If a route/scope cannot be implemented safely in 0.33.5.14, leave that option hidden and add an explicit follow-up item rather than exposing a nonfunctional API key option.
+  - Personal and Family workspaces should still hide Business-only API key controls.
+
+Decision:
+
+Keep this release focused on visible breakages, responsive layout failures, dark-mode violations, and workspace-scope correctness. Do not attempt the full framework-owned view builder conversion in this version. 0.33.5.14 should stabilize the current surfaces so the app is usable before the larger framework view-building pass begins.
+
+### Version 0.33.5.14.1 - Help Center Navigation and Article Boundary Fixes
+
+- [x] Fix Help Center TOC nesting so article links display under the correct parent headings.
+- [x] Make TOC groups collapsible.
+- [x] All top-level groups except "Longtail Forge" should start collapsed.
+- [x] Preserve the existing default article behavior.
+- [x] Fix article content overflow so headings, paragraphs, tables, code blocks, links, and long strings do not break out of the article container.
+- [x] Add focused regression coverage for nested TOC rendering, collapsed default state, and article boundary behavior.
+
+### Version 0.33.5.14.2 - Personal and Family Workspace Scope Corrections
+
+- [x] Ensure Client/Public API access does not appear in Personal or Family workspaces.
+- [x] Ensure Files does not surface Client as an attachment point in Personal or Family workspaces.
+- [x] Ensure Files displays human-readable names instead of UUIDs for Family workspace attachment context.
+- [x] Ensure Create List does not show Client controls in Personal or Family workspaces.
+- [x] In Personal and Family workspaces, Lists should automatically use workspace scope where a Business workspace would use client scope.
+- [x] Ensure project selectors in Lists use workspace projects in Personal and Family workspaces instead of depending on client filtering.
+- [x] Add regressions proving Business workspace client controls still work, while Personal/Family client controls are hidden or unavailable.
+
+### Version 0.33.5.14.3 - Lists Emergency Responsive and Dark Mode Pass
+
+- [x] Fix Actions -> Procurement/Shopping Lists overflow at 1366px wide screens.
+- [x] Convert the list detail action area to a wrapping or overflow-safe action strip.
+- [x] Ensure Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list actions cannot overflow the detail panel.
+- [x] Fix item entry layout so fields do not run off-screen.
+- [x] Ensure item action buttons wrap, collapse, or use compact controls on constrained screens.
+- [x] Fix Next, Source, Cost, and related summary panels so they use existing surface tokens and respect dark mode.
+- [x] Move the list selector/index above the selected list detail and directly below filters on constrained screens.
+- [x] Ensure the list selector/index matches the filter width on constrained screens.
+- [x] Make the list selector/index collapsible.
+- [x] The list selector/index should start open.
+- [x] Once a list is selected, the selector/index should collapse on constrained screens.
+- [x] Ensure the selected list detail can use the full available content width once the selector/index collapses on constrained screens.
+- [x] Replace linked task UUID entry with a picker-based workflow consistent with the existing Notes linked-record picker pattern or the confirmed shared picker direction.
+- [x] Add focused static or DOM regressions for overflow-safe Lists actions and dark-mode token usage.
+
+### Version 0.33.5.14.4 - Notes Tag Inheritance and API Key Scope Visibility Corrections
+
+- [x] Ensure Notes inherit client/project tags consistently when linked to client/project context.
+- [x] Add focused service/API/UI regressions proving Notes tag inheritance works without turning tags into workflow status, visibility, permissions, or billing behavior.
+- [x] Ensure Notes API scopes appear in API key settings when the Notes module is enabled and the workspace type supports API keys.
+- [x] Ensure Lists API scopes appear in API key settings when the Lists module is enabled and the workspace type supports API keys.
+- [x] Ensure Personal and Family workspaces still do not show Business-only API key controls.
+- [x] Add permission/API scope regressions for Notes and Lists scope visibility.
+
+### Version 0.33.5.14.5 - Closeout
+
+- [x] Update CHANGELOG.md.
+- [x] Update ROADMAP.md completion checkboxes.
+- [x] Update package metadata to the implemented version.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the expected version.
+
+---
+
+### Version 0.33.5.18.6.8 - Shared Markdown editor and display cleanup
+
+Decision:
+
+Markdown display and editor improvements should be made through the shared Markdown renderer/editor helper so every module using the approved contract benefits consistently.
+
+Split into four sub-slices because rendered line-break semantics, toolbar UI, preview placement, and underline renderer/sanitizer support are different risk profiles.
+
+#### Version 0.33.5.18.6.8.4 - Safe underline Markdown contract
+
+- [x] Add underline button only through an explicit safe Markdown contract.
+  - [x] Visual label may be `U`.
+  - [x] Accessible label must be `Underline`.
+  - [x] Do not insert arbitrary unsafe raw HTML.
+  - [x] If underline requires Markdown renderer support, update the framework Markdown contract and sanitizer deliberately.
+  - [x] Safe implementation options:
+    - [ ] Allow sanitized `<u>` with no attributes, or
+    - [x] Add a dedicated safe underline token handled by the Markdown adapter.
+- [x] Add regression coverage:
+  - [x] Underline insertion/rendering/sanitization if implemented.
+  - [x] Underline cannot inject unsafe HTML, attributes, event handlers, or scripts.
+
+Implementation notes:
+
+- The shared Markdown renderer now recognizes the dedicated `++underlined text++` safe underline token and emits generated plain `<u>` output for that token only.
+- Raw HTML remains disabled. Source underline tags, source-provided attributes, event handlers, and script payloads are escaped/rejected instead of becoming an allowlist.
+- The Add/Edit Note toolbar exposes a compact `U` control with accessible label/tooltip `Underline`, backed by the existing Notes editor helper command path.
+- `markdown-renderer-service-regression.mjs`, `markdown-platform-contract-regression.mjs`, and `notes-preview-editor-regression.mjs` cover safe underline rendering, toolbar insertion, plain-text extraction, cache keys, docs, and unsafe raw underline payloads.
+
+Acceptance criteria:
+
+- Underline exists only through a safe Markdown contract.
+- Underline rendering is documented and sanitized.
+- Unsafe underline payloads are rejected or stripped.
+
+---
+
+#### Version 0.33.5.18.6.10.6 - Notes slide-out sidebar adoption
+
+- [x] Move Notes from the split-column `sidebar-detail` implementation to the framework slide-out sidebar contract.
+- [x] Place everything currently built into the split sidebar inside the slide-out panel:
+  - [x] Filters.
+  - [x] Library.
+  - [x] Notes List.
+  - [x] Notes List sort control.
+  - [x] Notes List pagination controls.
+- [x] Keep the selected note detail and blank selected-note state in the central primary content box.
+- [x] Ensure the Create Note action remains in the Notes header/action area, not inside the slide-out sidebar.
+- [x] Preserve existing Notes-owned behavior:
+  - [x] Library bucket filtering.
+  - [x] Collection filtering.
+  - [x] Archive handling.
+  - [x] Current filters/search/tag/owner/context behavior.
+  - [x] Blank detail state when no note is selected.
+  - [x] Selected note detail rendering.
+  - [x] Linked Context and Primary Context display.
+- [x] Remove or bypass Notes-specific assumptions that depend on a persistent left column.
+- [x] Add focused Notes regressions covering:
+  - [x] Notes descriptor consumes the slide-out sidebar contract.
+  - [x] Filters, Library, and Notes List mount inside the drawer.
+  - [x] Sort and pagination remain in the Notes List footer inside the drawer.
+  - [x] Selected note detail remains in the central primary content box.
+  - [x] Opening the drawer does not squeeze the detail content.
+  - [x] Existing Notes filtering, Library, archive, selection, and detail behavior still work.
+
+Acceptance criteria:
+
+- Notes no longer shows the split left column as its desktop default.
+- The funnel-triggered slide-out sidebar contains the full Notes control/navigation stack.
+- The central Notes detail area keeps the main visual focus and available width.
+
+---
+
+#### Version 0.33.5.18.6.10.5 - Framework slide-out sidebar shell
+
+- [x] Add a framework-owned `slide-out-sidebar` layout or equivalent descriptor contract that supersedes the split-column `sidebar-detail` direction for action/workflow surfaces.
+- [x] Reuse the ordered sidebar panel contract where possible so existing Filters, Library/navigation, Notes List/index, panel body, and panel footer mounts do not need to be reinvented.
+- [x] Render the main/primary content in the normal centered content box without allocating a permanent desktop grid column for the sidebar.
+- [x] Add a left-edge toggle affordance near the action surface:
+  - [x] Use the shared icon-button pattern.
+  - [x] Use a funnel/filter icon.
+  - [x] Provide accessible label, tooltip/title text, pressed/expanded state, and focus styling.
+- [x] Render the slide-out panel from the left side of the viewport/app shell:
+  - [x] Closed state keeps the panel off-canvas.
+  - [x] Open state slides the panel into view above the page content.
+  - [x] The panel must not squeeze, resize, or re-center the main content/detail box.
+  - [x] The panel width is stable and scroll-safe.
+  - [x] The panel has a safe z-index relative to the app header, dialogs, notifications, and detail cards.
+- [x] Add framework-owned open/close behavior:
+  - [x] Toggle button opens and closes the drawer.
+  - [x] Escape closes the drawer.
+  - [x] Backdrop or outside click closes the drawer where appropriate.
+  - [x] Focus moves into the drawer on open and returns to the trigger on close.
+  - [x] Reduced-motion users get a non-animated state change.
+  - [x] Body/page scroll behavior stays controlled while the drawer is open.
+- [x] Keep narrow-screen behavior usable without falling back to the retired split layout.
+- [x] Add focused framework regressions for descriptor validation, trigger rendering, open/close state, accessibility attributes, focus return, Escape/outside close, panel overflow, and central-content non-squeezing.
+
+Acceptance criteria:
+
+- A framework-rendered slide-out sidebar can host ordered action panels.
+- The funnel trigger opens/closes the drawer from the left side.
+- Main content remains central and is not converted into a desktop split.
+- The shell is accessible, keyboard-operable, and ready for Notes adoption.
+
+---
+
+#### Version 0.33.5.18.6.10.4 - Slide-out sidebar correction and implementation plan
+
+- [x] Record the corrected target behavior:
+  - [x] The intended sidebar is a slide-out/off-canvas panel from the left side of the screen.
+  - [x] The sidebar is not a persistent split column inside the Notes main card.
+  - [x] The main Notes content/detail view remains central and inside the primary content box.
+  - [x] The drawer trigger uses a funnel/filter icon, similar to a spreadsheet filter/sort affordance.
+- [x] Treat the 0.33.5.18.6.10.1 through 0.33.5.18.6.10.3 `sidebar-detail` work as an intermediate framework proof that must be superseded for Notes before closeout.
+- [x] Preserve the useful work from the split implementation:
+  - [x] Ordered panel contract for Filters, Library, and Notes List.
+  - [x] Notes-owned panel content and behavior mounts.
+  - [x] Notes List footer slot for sort and pagination controls.
+  - [x] Framework/module ownership separation.
+- [x] Replace the old 0.33.5.18.6.10.4 Notes List auto-collapse slice with smaller slide-out slices:
+  - [x] 0.33.5.18.6.10.5 implements the reusable framework slide-out sidebar shell.
+  - [x] 0.33.5.18.6.10.6 moves Notes onto the slide-out sidebar.
+  - [x] 0.33.5.18.6.10.7 reworks Notes List open/close behavior inside the slide-out model.
+- [x] Update 0.33.5.18.6.11 so closeout validates slide-out sidebar behavior, docs, and regressions instead of the old split-sidebar anatomy.
+
+Acceptance criteria:
+
+- The roadmap no longer presents the persistent split sidebar as the desired Notes/future-action layout.
+- The slide-out sidebar has a framework slice, a Notes adoption slice, and a Notes List behavior slice.
+- The implementation path preserves central content while moving Filters, Library, and Notes List into the drawer.
+- The closeout scope explicitly validates the slide-out behavior and documents the corrected pattern.
+
+---
+
+#### Version 0.33.5.18.6.10.3 - Notes sidebar-detail adoption
+
+Status note: this completed the intermediate persistent split-sidebar implementation. 0.33.5.18.6.10.4 supersedes this anatomy before closeout; do not treat the acceptance criteria below as the final Notes sidebar target.
+
+- [x] Change the Notes workspace descriptor from `layout: "stacked"` to `layout: "sidebar-detail"`.
+- [x] Place these Notes-owned panels in the left sidebar:
+  - [x] Filters.
+  - [x] Library.
+  - [x] Notes List.
+- [x] Place selected note detail in the primary/detail region.
+- [x] Preserve existing Notes-owned behavior:
+  - [x] Library bucket filtering.
+  - [x] Collection filtering.
+  - [x] Archive handling.
+  - [x] Current filters/search/tag/owner/context behavior.
+  - [x] Blank detail state when no note is selected.
+  - [x] Selected note detail rendering.
+  - [x] Linked Context and Primary Context display.
+- [x] Filters panel default:
+  - [x] Open by default in the desktop sidebar layout.
+- [x] Library panel default:
+  - [x] Open by default in the desktop sidebar layout.
+- [x] Ensure selected note detail starts near the top of the primary/detail region and uses the available horizontal space.
+- [x] Add focused regression coverage:
+  - [x] Notes descriptor uses `sidebar-detail`.
+  - [x] Filters, Library, and Notes List mount in the sidebar.
+  - [x] Detail renders in the primary/detail region.
+  - [x] Filters default open.
+  - [x] Library default open.
+  - [x] Existing Notes filters, Library, selection, archive handling, and detail behavior still work.
+- [x] Defer Notes List auto-collapse/default-state changes to 0.33.5.18.6.10.4.
+
+Historical acceptance criteria, superseded by 0.33.5.18.6.10.4:
+
+- Notes has a standard left-sidebar/primary-detail layout on desktop.
+- Filters and Library start open in the sidebar.
+- The selected note remains the primary work surface.
+- Mobile/narrow layouts remain usable through the framework fallback.
+
+---
+
+#### Version 0.33.5.18.6.10.2 - Framework sidebar panel contract
+
+- [x] Add a reusable ordered sidebar-panel contract to the descriptor/renderer path.
+- [x] Support the sidebar panel types needed by Notes without making them Notes-specific:
+  - [x] Filter/control panels.
+  - [x] Library/navigation panels.
+  - [x] Record index/list panels.
+- [x] Reuse existing framework primitives where they fit, including filter panels and collapsible index panels.
+- [x] Support per-panel framework anatomy:
+  - [x] Stable heading/summary treatment.
+  - [x] Optional collapsible behavior.
+  - [x] Initial open/closed state.
+  - [x] Scroll-safe body region.
+  - [x] Stable footer/action area when a panel needs controls such as sort or pagination.
+- [x] Keep panel content, queries, records, labels, and module-specific state decisions module-owned.
+- [x] Add renderer/contract validation for sidebar panel descriptors.
+- [x] Add focused regression coverage proving:
+  - [x] Sidebar panels render in descriptor order.
+  - [x] Sidebar panels stack vertically inside `sidebar-detail`.
+  - [x] Collapsible panels expose accessible summary/focus behavior.
+  - [x] Panel footers do not overlap panel body content.
+- [x] Do not convert Notes in this slice.
+
+Acceptance criteria:
+
+- `sidebar-detail` can host multiple ordered sidebar panels without module-specific layout code.
+- The framework owns the sidebar panel shell, but modules still own panel content and behavior.
+- Future action surfaces can reuse the same sidebar-panel contract.
+
+---
+
+#### Version 0.33.5.18.6.10.1 - Framework `sidebar-detail` layout primitive
+
+- [x] Add a framework-owned `sidebar-detail` layout option to the view renderer.
+- [x] Layout anatomy:
+  - [x] Page header remains full-width above the workspace body.
+  - [x] Workspace body becomes a left-sidebar plus primary-detail grid on desktop/wide screens.
+  - [x] Left column is the sidebar/control/navigation column.
+  - [x] Center/primary column is the selected-record detail region.
+- [x] Suggested desktop sizing:
+  - [x] Sidebar min width around `300px`.
+  - [x] Sidebar preferred width around `340px-380px`.
+  - [x] Primary/detail column uses `minmax(0, 1fr)`.
+- [x] Sidebar should have safe vertical scrolling without trapping the whole page awkwardly.
+- [x] Primary/detail region should keep full available width and not inherit the old narrow split-layout behavior.
+- [x] Responsive behavior:
+  - [x] At medium/narrow breakpoints, fall back to the existing stacked layout pattern.
+  - [x] Do not create horizontal overflow.
+  - [x] Do not force a sidebar on mobile.
+- [x] Do not revive `split-list-detail` as an active descriptor layout.
+- [x] Keep deprecated split compatibility shims only as compatibility shims.
+- [x] Add renderer/contract validation for the new layout value.
+- [x] Add CSS using framework surface tokens only.
+- [x] Add focused regression coverage proving:
+  - [x] `sidebar-detail` renders sidebar and primary/detail regions.
+  - [x] Primary/detail region receives selected-record content.
+  - [x] Narrow screens fall back safely.
+  - [x] No old `split-list-detail` layout path is reactivated.
+- [x] Do not add Notes-specific behavior or module-specific panel state in this slice.
+
+Acceptance criteria:
+
+- Framework supports a reusable desktop left-sidebar/primary-detail layout.
+- The layout is responsive and safe on narrower screens.
+- The implementation is reusable by Tasks, Tickets, Notes, Lists, Files, Clients/Projects, and future action surfaces.
+- No Notes-specific layout rules live in framework code.
+
+---
+
+### Version 0.33.5.18.6.9 - Shared Markdown editor preview layout
+
+Split into two sub-slices so the shared editor layout can land before modal-specific stress coverage.
+
+#### Version 0.33.5.18.6.9.1 - Shared Markdown editor preview layout
+
+- [x] Update shared Markdown editor preview behavior.
+- [x] Preview off:
+  - [x] Body editor shows the textarea full-width.
+  - [x] Toolbar remains full-width above the textarea.
+- [x] Preview on:
+  - [x] Body section becomes a two-column editor/preview layout on sufficiently wide screens.
+  - [x] Textarea shrinks to the left column.
+  - [x] Preview renders in the right column.
+  - [x] Toolbar remains full-width above both columns.
+- [x] Markdown rendering:
+  - [x] Preview must continue to use the same approved Markdown contract as saved rendering.
+  - [x] Do not reintroduce ad-hoc client-only rendering.
+- [x] Add regression coverage:
+  - [x] Preview off full-width editor.
+  - [x] Preview on two-column desktop layout.
+  - [x] Toolbar remains full-width.
+
+Implementation notes:
+
+- The Add/Edit Note Markdown editor shell now toggles an `is-preview-visible` layout state without moving or reparenting toolbar/editor/preview markup.
+- Preview off keeps the Body field in a one-column full-width editor body.
+- Preview on uses the existing server-backed `POST /api/notes/preview` path and places Body and Preview in side-by-side columns at wide desktop widths while keeping the toolbar full-width above both columns.
+- `notes-preview-editor-regression.mjs` covers the preview-off one-column body, preview-on desktop two-column body, toolbar placement, cache keys, and the shared Markdown rendering contract.
+
+Acceptance criteria:
+
+- Preview no longer simply opens downward as a cramped inline block on desktop.
+- Preview toggling creates a usable two-column body editor/preview layout on wide screens.
+- Toolbar remains stable above the editor/preview area.
+- Preview uses the shared Markdown renderer contract.
+
+#### Version 0.33.5.18.6.9.2 - Markdown preview responsive and modal behavior
+
+- [x] Responsive behavior:
+  - [x] On narrow screens, stack textarea and preview vertically.
+  - [x] Do not create horizontal overflow.
+  - [x] Preserve mobile usability.
+- [x] Preview height behavior:
+  - [x] Preview should grow with content more naturally.
+  - [x] Avoid the current cramped preview box that cuts off content too aggressively.
+  - [x] If height must be capped inside a modal, use a sensible scroll region that does not break the sticky footer.
+- [x] Modal behavior:
+  - [x] Preview layout must not break the framework modal scroll/footer fixes.
+  - [x] Preview must not create content under the sticky footer.
+  - [x] Preview must not shift footer buttons horizontally.
+- [x] Add regression coverage:
+  - [x] Preview on stacked mobile layout.
+  - [x] Preview content grows/scrolls safely.
+  - [x] Modal footer remains pinned and clean.
+
+Implementation notes:
+
+- The responsive contract now explicitly keeps Preview-on narrow screens in a one-column Body/Preview stack and enables the side-by-side layout only at the desktop breakpoint.
+- The Preview panel grows until a modal-safe cap, then owns its own scroll region so long drafts, tables, and code blocks do not widen the modal or push content under the sticky footer.
+- The Notes editor form keeps horizontal overflow contained while leaving framework-owned `.view-modal-form > .surface-modal-footer` sticky positioning untouched.
+- `notes-preview-editor-regression.mjs` covers mobile stacking, Preview-owned overflow, wide table/code containment, and the absence of Notes-specific sticky footer overrides.
+
+Acceptance criteria:
+
+- Preview remains usable on narrow screens.
+- Preview content grows/scrolls safely.
+- Modal scrolling/footer remains correct.
+
+### Version 0.33.5.18.6.8.3 - Markdown toolbar stable placement
+
+- [x] Ensure toolbar layout remains full-width above the Body editor.
+  - [x] Toolbar must not move into preview columns.
+  - [x] Toolbar must not change position when Preview is toggled.
+- [x] Keep Preview as a toolbar action with an accessible label/tooltip.
+- [x] Add regression coverage:
+  - [x] Preview toggle preserves toolbar layout.
+  - [x] Toolbar remains full-width above the editor/preview area.
+
+Implementation notes:
+
+- Add/Edit Note now wraps the toolbar, Body field, and Preview in a stable `notes-markdown-editor` shell.
+- The toolbar is the full-width first row above the editor/preview body, and Preview toggling remains visibility-only.
+- `notes-preview-editor-regression.mjs` verifies the shell structure, full-width toolbar CSS, and that `togglePreview()` does not move toolbar/editor markup.
+
+Acceptance criteria:
+
+- Toolbar stays full-width and stable when Preview toggles.
+- Preview remains reachable through the shared toolbar control.
+
+### Version 0.33.5.18.6.8.1 - Markdown soft line break display parity
+
+Current issue:
+
+The Note view display collapses single line endings inside a note body even when the editor preserves those single-newline breaks. Example manual smoke note: `ca3ee346-a528-405a-ad88-ab9a9d6bfecc` (`Factory Power Converter`) currently renders lines such as `12v side`, `Fuse 1 is lights`, `Fuse 2 is Heater`, and `Fuse 3 is Pump` as one visual paragraph instead of separate visible lines.
+
+Desired behavior:
+
+- [x] Decide the Markdown contract for user-authored Notes single newlines:
+  - [x] Prefer rendering Markdown soft line breaks as visible line breaks in Notes read display and Notes preview when that matches editor intent.
+  - [x] Preserve saved Markdown exactly; do not rewrite existing note bodies to add trailing spaces, `<br>`, or blank lines.
+  - [x] If the shared framework renderer change would unintentionally alter Help or future Knowledge Base article layout, introduce an explicit renderer mode for user-authored note bodies instead of changing repo-authored documentation behavior silently. - Added explicit framework render modes; Notes opts into `user-authored`, while default/Help-style document rendering stays unchanged.
+- [x] Ensure Notes read display and Notes preview use the same line-break behavior. - Both saved reads and preview flow through the Notes Markdown adapter in user-authored mode.
+- [x] Preserve normal blank-line paragraph behavior.
+- [x] Do not permit raw HTML or unsafe break-related markup as part of this fix.
+- [x] Add regression coverage:
+  - [x] A note body with single newlines renders visible line breaks in View Note.
+  - [x] The same body renders the same line breaks in Preview.
+  - [x] Saved Markdown remains unchanged.
+  - [x] Paragraphs separated by blank lines still render as paragraphs.
+  - [x] Automated regression creates its own fixture; the real note `ca3ee346-a528-405a-ad88-ab9a9d6bfecc` is only a manual smoke reference.
+
+Acceptance criteria:
+
+- Single newlines authored in Notes are visible in View Note and Preview according to the approved Markdown contract.
+- Saved note bodies are not rewritten.
+- Help/KB-style repo-authored Markdown behavior is either intentionally unchanged or explicitly documented if the shared contract changes.
+
+### Version 0.33.5.18.6.8.2 - Markdown toolbar compact buttons and list commands
+
+- [x] Update the shared Markdown editor toolbar.
+- [x] Existing `List` button should be renamed visually to one of:
+  - [x] Bullet-list icon
+- [x] Add an ordered list button.
+  - [x] Visual label may be `1.`
+  - [x] Accessible label must be `Ordered list`.
+- [x] Convert toolbar buttons to smaller/icon-style buttons:
+  - [x] Bold: `B`
+  - [x] Italic: `I`
+  - [x] Heading: `H`
+  - [x] Unordered list: bullet icon
+  - [x] Ordered list: `1.`
+  - [x] Link: chain icon
+  - [x] Wiki: Wikipedia/Wikimedia-style globe icon or compact `Wiki` icon if no approved icon exists
+  - [x] Preview: eye icon preferred; magnifier acceptable
+- [x] Keep accessible labels/tooltips for every icon button.
+- [x] Do not add a new external icon dependency unless the project already has an approved icon path.
+- [x] Add regression coverage:
+  - [x] Ordered list insertion.
+  - [x] Unordered list insertion.
+  - [x] Existing keyboard indentation/list-continuation behavior still works.
+
+Implementation notes:
+
+- Add/Edit Note now builds the toolbar from compact action descriptors. Unordered list, Checklist, Link, and Preview use shared local icons; Ordered list keeps the compact visible `1.` label with the accessible `Ordered list` name.
+- The local shared icon helper gained `list`, `list-checks`, `link`, and `eye` icons without adding an external dependency.
+- `notes-preview-editor-regression.mjs` now verifies unordered/ordered toolbar command insertion and keeps the existing Tab/Enter list-continuation checks.
+
+Acceptance criteria:
+
+- Ordered list button exists.
+- Existing `List` button is no longer generically labeled `List`.
+- Toolbar buttons are compact and accessible.
+- Existing list indentation/list-continuation behavior still works.
+
+### Version 0.33.5.18.6.7.1 - Modal-stack guardrails and utility labels
+
+- [x] Rename Add/Edit Note footer utility buttons:
+  - [x] `Note tags` -> `Tags`
+  - [x] `Note files` -> `Files`
+  - [x] Keep the existing icons.
+- [x] Add shared modal-stack guardrails:
+  - [x] Secondary modals must not break the underlying Add/Edit Note state.
+  - [x] Closing secondary modal returns to the note editor.
+  - [x] Saving/closing the note editor should prevent or safely close open secondary modals.
+  - [x] Escape key and backdrop behavior must not accidentally close both modals unless explicitly intended.
+- [x] Add framework/modal regression coverage for stacked secondary modal behavior.
+
+Acceptance criteria:
+
+- Button labels are simply `Tags` and `Files`.
+- Icons are preserved.
+- Secondary modal behavior is guarded before Tags/Files migrate.
+
+### Version 0.33.5.18.6.7.2 - Tags stacked modal
+
+- [x] Tags button behavior:
+  - [x] Open a stacked modal/dialog above the Add/Edit Note modal.
+  - [x] Do not expand an inline box below the Body field.
+  - [x] Preserve note editor state while the Tags modal is open.
+  - [x] Closing the Tags modal returns focus to the Tags button or sensible editor focus.
+  - [x] Unsaved note: tag changes may be staged locally and saved with the note.
+  - [x] Existing note: tag changes may persist immediately if the existing tag service supports that safely.
+- [x] Add regression coverage:
+  - [x] Tags opens as stacked modal, not inline panel.
+  - [x] Editor state is preserved while Tags is open.
+  - [x] Tags state persists correctly for unsaved/saved notes.
+
+Acceptance criteria:
+
+- Tags no longer opens an inline panel below Body.
+- Tags opens as a stacked modal.
+- Tags changes follow safe unsaved/saved-note behavior.
+
+## Version 0.33.5.12 - UI Clean up Pass
+
+### Questions and Design Clarifications
+
+- [x] Confirm whether Settings -> Workspace -> Clients should add a single Parent/Top-Level quick filter first, or a broader hierarchy filter set such as All, Top-Level Only, Children Only, and Has Children.
+  - Do the broader hierarchy filter set, please, and be sure to put that into the client module, don't hard code it into the interface.
+- [x] Confirm whether the child-client tag fix should remove only direct/manual tags from the child while leaving propagated parent tags visible as context, or whether the client edit modal needs a per-record suppression control for hiding inherited parent tags on that child.
+  - Just skip this and leave it alone. I'll just remove the tags from the parent and apply at the child level, that makes more sense.
+- [x] Confirm the task bulk-edit warning copy for mixed due dates, due times, and tags. The warning should be an in-app confirmation before applying a bulk overwrite, add, remove, or clear action.
+  - Correct. I don't want someone to accidentally overwrite anything that they didn't mean to.
+- [x] Confirm whether task due date and due time bulk edits should be one combined Due Date + Time action or separate actions, with both fields clearable to NULL.
+  - They should be separately settable/clearable.
+- [x] Confirm whether the task modal field that needs more room should open a temporary popover inside the active modal, or whether that interaction should wait for the broader framework UI standardization slice.
+  - That can wait for the broader UI slice.
+- [x] Confirm whether all modal footer buttons should become icon-only, or icon plus short visible text for primary actions where clarity matters.
+  - Short visible text is acceptable if it's a small font; don't forget titles for accessibility compliance.
+- [x] Confirm whether the tiny Tags and Files modals should be standardized framework overlays nested inside the current modal, or task-specific popovers for this first pass.
+  - Tags and Files modals should be standardized framework overlays, owned by their respective modules.
+
+### Accepted Planning Constraints
+
+- Keep 0.33.5.12 focused on UI cleanup and behavior repair, not a broad module redesign.
+- Preserve module ownership. Client hierarchy, client tag save behavior, and client/project filtering stay Client/Projects-owned; task bulk editing and task dialog layout stay Tasks-owned; shared modal and surface style rules belong to the framework.
+- Prefer compact, context-preserving modal changes that keep the user inside the current workflow.
+- Warning states should be in-app, recoverable, and specific about what will change.
+- Tags remain classification metadata. UI cleanup must not turn tags into permissions, status, billing logic, or visibility rules.
+
+### Version 0.33.5.12.1 - Client List and Client Edit Modal Cleanup
+
+- [x] Move the `Save Client` and `Edit Projects` actions into the actual client edit modal footer.
+- [x] Preserve the existing close/cancel behavior and focus return when footer actions move.
+
+### Version 0.33.5.12.2 - Task Bulk Edit Due Date, Due Time, and Tags
+
+- [x] Extend Projects -> Tasks bulk edit to support due date and due time changes.
+- [x] Allow bulk due date to be set or cleared to NULL.
+- [x] Allow bulk due time to be optional and clearable to NULL.
+- [x] Extend bulk edit to support tag add and tag remove actions.
+- [x] Reuse the Tags-owned assignment/removal contract so direct/manual tag changes preserve propagated and system tag assignments.
+- [x] Show an in-app warning when selected tasks have mixed due dates, due times, or tags before applying a bulk overwrite, add, remove, or clear action.
+- [x] Keep partial failure behavior explicit by task so inaccessible or invalid targets do not silently fail.
+- [x] Add or update task bulk-edit regressions for mixed-value warnings, NULL due date/time saves, tag add/remove behavior, and permission-shaped partial failures.
+
+### Version 0.33.5.12.3 - Task Modal Compact Layout and Metadata Ribbon
+
+- [x] Tighten overall white space between fields in the Add/Edit Task modal.
+- [x] Add a compact, full-modal-width metadata chip ribbon between the task title field and the main modal heading area.
+- [x] Include Status, Priority, Client, Project, Due Date, Due Time when applicable, and other confirmed summary fields in the chip ribbon.
+- [x] Move task notifications to a single bell icon aligned to the right across from the Add/Edit Task heading.
+- [x] Keep notification settings accessible from that bell without consuming the current large block of modal real estate.
+- [x] Show Time to Completion only when the task is complete.
+- [x] Move Time to Completion into the chip ribbon or immediately below the heading/notification row.
+- [x] Abbreviate Time to Completion as `TTC:` and display `days:hours:minutes:seconds`, for example `TTC: 4:3:15:30`.
+- [x] Preserve accessible labels and keyboard access for chip and icon controls.
+- [x] Add or update task dialog regressions for modal rendering, completed-only TTC display, notification bell behavior, and responsive layout.
+
+### Version 0.33.5.12.4 - Task Modal Two-Column Field Reflow
+
+- [x] Maximize the visual efficiency of the current two-column Add/Edit Task modal layout.
+- [x] Keep Title full width across both columns.
+- [x] Add a collapsible two-column `Task Details` box.
+- [x] Start `Task Details` open for Add Task and collapsed for Edit Task.
+- [x] Include Parent Task across both columns inside `Task Details`.
+- [x] Put Status, Client, and Due Date in column 1, in that order.
+- [x] Put Priority, Project, and Due Time in column 2, in that order.
+- [x] Put Resume Note and Next Action below the two-column box in two columns.
+- [x] Move back to a single-column, full-modal-width layout for the remaining sections.
+- [x] Show Blocked Reason full width only when Status is `Blocked`.
+- [x] Keep Checklist collapsible and open by default.
+- [x] Keep Assignees collapsible and open by default.
+- [x] Keep Recurrence collapsible and closed by default.
+- [x] Keep Reminders collapsible and closed by default.
+- [x] Move Tags and Task Files to footer buttons with recognizable icons and clear labels/tooltips.
+- [x] Defer any full-width temporary popover behavior for cramped fields until confirmed in the design questions.
+
+### Version 0.33.5.12.4.1 - Tight Follow Up
+
+- [x] "Notifications Settings" needs to just be the bell. It shows words.
+- [x] TTC Chip should only appear once task is marked completed.
+- [x] Make Next Action and Resume Note Textareas the same height; 2 lines
+- [x] Make blocked reason textarea 1 line tall
+- [x] The following fields should start collapsed:
+  - [x] Checklist, unless there's checklist items
+  - [x] Assignees
+- [x] Task Tags and Task Files don't need boxes in the Add/Edit modal because there's now separate buttons in the footer
+- [x] Get rid of the words in the tags and files buttons. Icons only.
+- [x] Replace the "Copy Link", "Cancel", and "Save Task" buttons with an icon
+- [x] Tags button in footer does nothing. File button in footer does nothing.
+
+### Version 0.33.5.12.5 - Framework Surface and Modal Style Standardization Plan
+
+- [x] Create the framework-wide UI standardization plan for main screens, modals, drawers, slideouts, internal boxes, headings, dividers, and action footers.
+  - [x] Build this as 0.33.5.13.x.
+  - [x] Standardize modal internal headings so task Checklist, Assignees, Recurrence, and Reminders use the same visual language.
+  - [x] Standardize internal box surfaces so Notifications, task timer, Checklist, Assignees, Recurrence, and Reminders use framework theme tokens rather than one-off dark, square, light, or rounded treatments.
+  - [x] Standardize horizontal divider rules so dividers appear only at the top of the option being toggled.
+  - [x] Decide the shared footer action pattern for Save, Close, Cancel, and related modal actions.
+  - [x] Define the shared pattern for taggable work items to open a small Tags overlay from a footer/action button.
+  - [x] Define the shared pattern for file-attachable work items to open a small Files overlay from a footer/action button.
+  - [x] Keep this as a standardization plan unless the implementation slice explicitly includes code changes.
+
+### Version 0.33.5.12.6 - UI Cleanup Closeout
+
+- [x] Update Help and developer docs only where user-facing modal or bulk-edit behavior changed.
+- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the actual implementation/closeout pass.
+- [x] Run focused client/project and task regressions.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the expected version after implementation.
+
+## Version 0.33.5.10 - Help Center Re-work
+
+### Questions and Design Clarifications
+
+- [x] Confirm the editable Help source root should be `help/` at the repo root, with framework articles under `help/framework/` and first-party module articles under `help/modules/<module-id>/`.
+- [x] Confirm `help/toc.md` should own the left navigation order, nesting, collapsible groups, and default first article instead of deriving the visible order only from manifest `sortOrder` values.
+- [x] Confirm whether `toc.md` links should point to article Markdown files directly, for example `- [Getting Started](framework/getting-started.md)`, while headings without links act as collapsible navigation groups.
+- [x] Confirm the first non-empty line of `help/toc.md` should identify the default opening article by link or article path. If omitted or invalid, Help should fall back to Help Center, then Getting Started, then the first readable article.
+- [x] Confirm Markdown support should stay intentionally simple in this pass: headings, paragraphs, lists, links, inline code, code fences, emphasis, and tables if the existing Markdown helper can support them safely.
+- [x] Confirm Help content remains repo-authored product/module documentation only. In-app editing, rich authoring, version history, workspace-authored articles, and publishing workflows remain future Knowledge Base or later Help work.
+- [x] Confirm Help search should index the Markdown-derived article text and re-index when Help search rebuilds run, without adding live file watching in this pass.
+
+### Accepted Planning Constraints
+
+- Make Help Center content easy to edit by moving article bodies out of JavaScript and into Markdown files.
+- Keep the backend change small and framework-owned: the Help service should read Markdown files, preserve the existing protected `/api/help` routes, and preserve the current manifest contribution boundary where practical.
+- Keep framework, first-party module, and future third-party module ownership clear. Modules may still declare Help metadata, but article body content should be file-backed.
+- Search must read the Markdown-backed Help content through the Help service and index the current article text during Help search indexing/rebuilds.
+- Help Center remains current-state product guidance. Roadmap promises stay in `ROADMAP.md`, and workspace-authored knowledge remains reserved for the future Knowledge Base module.
+
+Use these decisions for 0.33.5.10:
+
+1. Confirmed: the editable Help source root should be `help/` at the repo root.
+
+   Use:
+   - `help/framework/` for framework-owned Help articles.
+   - `help/modules/<module-id>/` for first-party module Help articles.
+
+   Keep this content repo-authored and version-controlled. This is product documentation, not workspace data.
+
+2. Confirmed: `help/toc.md` should own the visible left navigation order, nesting, collapsible groups, and default first article.
+
+   Manifest `sortOrder` values should remain useful as metadata/fallback ordering, but the visible Help navigation should come from `help/toc.md` when present and valid.
+
+   This keeps Help authoring predictable and avoids forcing navigation structure to emerge from scattered module manifests.
+
+3. Confirmed: `toc.md` article links should point directly to article Markdown files.
+
+   Example:
+
+   ```md
+   # Longtail Forge
+   - [Help Center](framework/help-center.md)
+   - [Getting Started](framework/getting-started.md)
+
+   # Modules
+   ## Tasks
+   - [Tasks Basics](modules/tasks/tasks-basics.md)
+
+4. Confirmed with clarification: `help/toc.md` should be able to identify the default opening article, but use an explicit first-line directive instead of treating any first non-empty line as the default.
+
+   Preferred format:
+
+   ```md
+   default: framework/help-center.md
+
+   # Longtail Forge
+   - [Help Center](framework/help-center.md)
+   - [Getting Started](framework/getting-started.md)
+   ```
+
+   Also acceptable:
+
+   ```md
+   default: framework/getting-started.md
+   ```
+
+   If the default directive is omitted, invalid, unreadable, disabled by module state, or not visible to the current user, Help should fall back in this order:
+
+   1. Help Center
+   2. Getting Started
+   3. First readable active article from the ToC
+   4. First readable active article from fallback discovery
+
+   Do not let default article selection leak hidden disabled-module or permission-denied articles.
+
+5. Confirmed: Markdown support should stay intentionally simple in this pass.
+
+   Support:
+   - Headings
+   - Paragraphs
+   - Ordered and unordered lists
+   - Links
+   - Inline code
+   - Code fences
+   - Emphasis
+   - Tables only if the existing Markdown helper can render them safely without expanding scope
+
+   Do not add raw HTML support, embedded scripts, iframes, custom components, Mermaid diagrams, wiki-linking, comments, callouts, image upload handling, rich embeds, or a WYSIWYG editor in this pass.
+
+   Render Markdown through a safe allowlist. Article output should remain browser-safe.
+
+6. Confirmed: Help content remains repo-authored product/module documentation only.
+
+   Do not add:
+   - In-app Help editing
+   - Rich authoring
+   - Version history UI
+   - Workspace-authored Help articles
+   - Client-authored Help articles
+   - Approval/publishing workflows
+   - Knowledge Base-style article storage
+
+   Help is the product manual. Knowledge Base is the future workspace/client knowledge system. Keep those boundaries separate.
+
+7. Confirmed: Help search should index Markdown-derived article text.
+
+   Search rebuilds should re-read the current Markdown-backed Help content through the Help service. Do not add live file watching in this pass.
+
+   Keep:
+   - `record_type = help_article`
+   - `source = Help`
+   - Existing framework/module ownership metadata
+   - Existing permission-shaped Help search behavior
+   - Disabled-module hiding/cleanup behavior
+
+   Rebuild-time indexing is enough for 0.33.5.10. Live watching can be reconsidered later if Help authoring becomes more dynamic.
+
+### Version 0.33.5.10.1 - Help Markdown Source Layout
+
+- [x] Add a repo-owned `help/` content directory.
+- [x] Add `help/toc.md` as the editable Help navigation source.
+- [x] Add `help/framework/` for framework-owned Help articles.
+- [x] Add `help/modules/<module-id>/` directories for first-party module Help articles.
+- [x] Convert existing framework Help article bodies from `src/services/help.service.js` into Markdown files.
+- [x] Convert existing first-party module Help article bodies from module manifest JavaScript into Markdown files.
+- [x] Keep article IDs, slugs, source labels, ownership metadata, and current Help URLs stable during the conversion.
+
+### Version 0.33.5.10.2 - Help Content Loader and Metadata Contract
+
+- [x] Add a small framework Help content loader for safe repo-relative Markdown reads.
+- [x] Preserve existing Help contribution validation for IDs, slugs, ownership, section references, permissions, workspace capabilities, and required modules.
+- [x] Allow framework and module Help article declarations to point to Markdown content paths instead of inline `body` strings.
+- [x] Reject unsafe paths, missing files, unsupported extensions, duplicate article paths, and content outside the Help root.
+- [x] Keep disabled-module Help hidden from active Help discovery.
+- [x] Keep Help separate from Knowledge Base and avoid adding user-authored Help storage.
+
+### Version 0.33.5.10.3 - ToC-Driven Navigation
+
+- [x] Parse `help/toc.md` into a browser-safe navigation tree.
+- [x] Treat headings as collapsible groups that map to Help directory structure.
+- [x] Support nested headings as nested collapsible groups.
+- [x] Support linked headings or list items as article targets.
+- [x] Use the first configured/default article from `toc.md` as the initial Help Center article.
+- [x] Preserve a fallback section for readable active articles that are valid but missing from `toc.md`.
+- [x] Update `public/js/help.js` and Help page markup/styles only as much as needed to render nested collapsible navigation cleanly.
+
+### Version 0.33.5.10.4 - Markdown Rendering and Article API Shape
+
+- [x] Render Markdown-backed article bodies safely in the Help Center.
+- [x] Keep article detail payloads browser-safe and permission-shaped.
+- [x] Preserve source metadata so framework, first-party module, and future third-party module articles are visibly distinct where useful.
+- [x] Keep the current `help.html?article=<slug-or-id>` routing behavior.
+- [x] Add or update Help regressions for default article selection, nested ToC rendering, disabled-module hiding, and article route stability.
+
+### Version 0.33.5.10.5 - Help Search Re-indexing
+
+- [x] Update Help search indexing so indexed Help documents use Markdown-derived article text.
+- [x] Ensure Help search rebuilds re-read Markdown files instead of stale inline JavaScript bodies.
+- [x] Keep `record_type = help_article`, `source = Help`, and framework/module ownership metadata stable.
+- [x] Preserve disabled-module cleanup and permission-safe Help result shaping.
+- [x] Update search rebuild/lifecycle regressions for Markdown-backed Help article counts and content.
+
+### Version 0.33.5.10.6 - Help Content Pass and Closeout
+
+- [x] Add or revise Help Center and Getting Started Markdown articles.
+- [x] Help Center should explain what framework, first-party modules, and third-party modules are.
+- [x] Getting Started should explain the key Longtail Forge concepts, how they are linked, and what makes the product context-preserving.
+- [x] Review framework Help articles for current behavior only.
+- [x] Review Time Tracking, Tasks, Lists, Notes, Files, Tags, Search, Notifications, Settings, and module Help coverage where articles already exist.
+- [x] Update developer docs for the Markdown Help contribution workflow.
+- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
+
+### Potential Help Directory Structure
+
+```text
+help/
+  toc.md
+  framework/
+    help-center.md
+    getting-started.md
+    workspaces-and-switching.md
+    users-roles-and-permissions.md
+    clients-and-projects.md
+    notifications.md
+    search.md
+    tags.md
+    files-and-attachments.md
+    settings-and-user-preferences.md
+    modules-and-optional-features.md
+  modules/
+    time-tracking/
+      time-tracking-basics.md
+      time-entries-editing.md
+      manual-time-entries.md
+    tasks/
+      tasks-basics.md
+      task-recurrence.md
+      resume-context.md
+    notes/
+      using-notes.md
+      notes-library.md
+      active-work.md
+      ongoing-area.md
+      reference-library.md
+      archive.md
+      notes-collections.md
+      markdown.md
+      note-linking.md
+      note-revisions.md
+      secure-notes.md
+      notes-files-and-search.md
+    lists/
+      using-lists.md
+      items-and-statuses.md
+      reusable-workflows.md
+```
+
+## Version 0.33.5.8 - Notes Cleanup
+
+### Planning Boundaries
+
+- `note_type` should become a content-kind signal, not a linked-record context or permission signal.
+- Keep the database column name `note_type` for compatibility. UI copy should call it "Note Kind".
+- Use linked context columns and `note_links` for explicit workspace/client/project/task/user/ticket association. Ticket remains reserved until the Tickets module exists.
+- Preserve legacy `note_type` values in existing rows and render them safely, but stop offering `client`, `project`, `task`, `ticket`, and `user` as new choices. Current saved rows exist, but none use the deprecated linked-context values.
+- Notes owns the linked-record picker and embedded linked-note helper. Tasks, Client/Projects, Lists, Files, and future Tickets should consume Notes-owned helper/routes instead of rebuilding Notes visibility or lookup rules.
+- Linking records should improve context and recovery only. Links must not grant note access, target-record access, Library bucket membership, collection membership, KB publication, tag assignment, or visibility changes by themselves.
+- Notes may provide supporting context to future resume-state surfaces, but framework-owned resume state remains deferred to 0.33.5.9 and Workbench feed behavior remains deferred to 0.33.7.
+- Task-created notes should default Note Kind to `log`.
+- Linking a note to a task should auto-set project/client context where permission-safe.
+- Manual Library bucket choices stay untouched when linked context changes.
+- Task list linked-note counts should appear as clickable metadata badges that open the task detail dialog's Notes panel.
+- Linked-note panels must not hint that inaccessible private/secure notes exist.
+- When Notes is disabled, permitted historical linked notes appear inline read-only while create/link/unlink actions are disabled.
+
+### Version 0.33.5.8.1 - Note Kind Cleanup
+
+- [x] Reframe `note_type` as content kind, not linked-record context.
+- [x] Keep `note_type` as the database/API field name for compatibility.
+- [x] Change the user-facing label to "Note Kind".
+- [x] Keep initial content-kind values small:
+  - [x] `general`
+  - [x] `meeting`
+  - [x] `research`
+  - [x] `decision`
+  - [x] `procedure`
+  - [x] `reference`
+  - [x] `idea`
+  - [x] `log`
+- [x] Stop offering `client`, `project`, `task`, `ticket`, and `user` as new Note Kind choices.
+- [x] Preserve legacy values in existing records and display them safely.
+- [x] Verify existing seeded/user rows do not use the deprecated linked-context kinds before tightening new-entry options.
+- [x] Keep linked-record association in context columns and `note_links`, not in `note_type`.
+- [x] Add regression coverage that `note_type` does not control permissions, visibility, Library bucket, collection membership, or KB publication.
+
+### Version 0.33.5.8.2 - Linked Record Picker
+
+- [x] Replace raw linked-context ID entry in Notes with a permission-safe record picker.
+  - [x] Users can search/select supported link targets instead of pasting IDs.
+  - [x] Supported initial targets are Workspace, Client, Project, Task, and User.
+  - [x] Ticket remains reserved until the Tickets module exists.
+  - [x] Picker results respect workspace, module state, target read permissions, and record visibility.
+  - [x] Picker results show human labels, not only UUIDs.
+  - [x] Selecting a task may infer project/client context where safe.
+  - [x] Linking a note to a task suggests the Active Work Library bucket unless the user manually overrides the bucket.
+  - [x] Linking a note to a client, project, or user suggests Ongoing Areas unless the user manually overrides the bucket.
+  - [x] Linking behavior does not grant note access or target-record access by itself.
+- [x] Replace raw linked context values in Note detail with human-readable links.
+  - [x] Client name instead of client ID.
+  - [x] Project name instead of project ID.
+  - [x] Task title instead of task ID.
+  - [x] User display name/email where allowed.
+  - [x] Fall back to safe ID display only when the target label cannot be read.
+- [x] Add linked-record navigation from Note detail.
+  - [x] Client/project/task/user links open the appropriate record view where available.
+  - [x] Missing or inaccessible records show a safe unavailable state.
+
+### Version 0.33.5.8.3 - Notes Linked-Record Helper
+
+- [x] Add a reusable Notes linked-record panel/helper owned by the Notes module and mounted by other modules where appropriate.
+- [x] Accept inputs:
+  - [x] `targetType`
+  - [x] `targetId`
+  - [x] `clientId` optional
+  - [x] `projectId` optional
+  - [x] `readonly` optional
+- [x] List notes linked by direct context columns and flexible `note_links` rows.
+- [x] Support:
+  - [x] View linked notes.
+  - [x] Create note for current record.
+  - [x] Link existing note.
+  - [x] Unlink note where permitted.
+  - [x] Show note visibility/security/status badges.
+  - [x] Hide private, secure, or inaccessible notes without leaking counts or titles.
+- [x] Use `/api/notes/for-target` or a successor route rather than duplicating note lookup logic inside Tasks, Clients, Projects, Lists, Files, or future Tickets.
+- [x] Keep archived notes read-only from embedded panels.
+- [x] Preserve historical reads where allowed when the Notes module is disabled, but block new note/link writes.
+
+### Version 0.33.5.8.4 - Task Notes Panel
+
+- [x] Add a Notes panel to the Task detail dialog.
+  - [x] Show notes linked to the current task.
+  - [x] Show a clear empty state: "No notes linked to this task."
+  - [x] Allow permitted users to create a note from the task.
+  - [x] Allow permitted users to link an existing note to the task.
+  - [x] Allow permitted users to unlink a note from the task.
+  - [x] Do not show the panel for unsaved tasks except for a "Save the task before adding notes" state.
+- [x] New task-created notes should:
+  - [x] Link to the task through `task_id` and/or `note_links`.
+  - [x] Set `project_id` and `client_id` from the task where available.
+  - [x] Default Library bucket to Active Work.
+  - [x] Default Note Kind to `log`, not `task`.
+  - [x] Default visibility to `internal` unless the user chooses otherwise.
+- [x] Add linked-note indicators to task list rows/cards after the current task-list UI cleanup.
+  - [x] Show a compact note count where permitted.
+  - [x] Do not leak inaccessible note counts.
+  - [x] Clicking the count opens the task detail dialog and focuses the Notes panel.
+
+### Version 0.33.5.8.5 - Notes Resume Context Hooks and Closeout
+
+- [x] Notes should provide supporting context for future resume state.
+  - [x] Active Work notes linked to tasks/projects/lists may appear as supporting context.
+  - [x] Recently edited Active Work notes may be eligible for "Pick up where I left off."
+  - [x] Normal notes should not become primary next-action candidates unless explicitly marked as Active Work or linked to active work.
+  - [x] Secure/private notes must not expose body previews, excerpts, or hidden counts in Workbench/resume contexts.
+  - [x] Linked-note panels should provide safe note count, title, status, visibility/security badges, and source URL where permitted.
+- [x] Keep global resume-state storage, ranking, dismissal, Workbench feed behavior, and framework-owned resume APIs deferred to the 0.33.5.9/0.33.7 roadmap line.
+- [x] Update current-state Notes developer docs and Help after the shipped behavior exists.
+- [x] Verification:
+  - [x] Notes target picker only returns records the user can read.
+  - [x] Task-linked notes appear in the task Notes panel when linked through `task_id`.
+  - [x] Task-linked notes appear in the task Notes panel when linked through `note_links`.
+  - [x] Creating a note from a task sets task/project/client context safely.
+  - [x] Private notes do not appear to unauthorized users in linked-note panels.
+  - [x] Secure note bodies and previews do not appear in linked-note panels.
+  - [x] Linked-note counts do not leak inaccessible notes.
+  - [x] Archived notes are read-only from embedded panels.
+  - [x] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
+
+## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
+
+### Answered Design Decisions
+
+- Search record type cleanup: Help should appear as one visible framework-owned `Help` record type everywhere. Internal Help content types may still exist as hidden metadata, but Search filters and result labels should only show one `Help` option.
+- Urgent notification alerts: urgent notifications should not open interruptive in-app alert modals by default in 0.33.5.6. Ship bell priority behavior first, then add modal alerts later as a user/workspace preference.
+- Notification priority grouping: High notifications should bypass grouping in the bell dropdown only. On the All Notifications page, grouping preferences should still apply, with High/Urgent items sorted above normal/low items within their group.
+- Notification grouping preferences: the first pass should support per-user grouping preferences only under Settings -> User. Workspace defaults plus per-user overrides should be deferred.
+- Bulk tag rollout order: Time Entries should ship first because the table and checkbox selection pattern are the clearest bulk-edit surface. Build the Tags-owned bulk assignment/removal contract so Tasks can reuse it next.
+- Workbench task tag chips: show up to 2 direct/manual task tags inline, then collapse additional tags into `+N`. Propagated/context tags should not appear inline by default; they can appear in a tooltip, expanded row, or task detail view later.
+
+### Planning Boundaries
+
+- Keep Notifications as directed attention items, not the source of truth for resume state.
+- Keep activity/resume summaries as recovery context that future Workbench and resume-state surfaces can consume.
+- Keep Audit as the admin/security truth.
+- Keep Tags as framework-level classification metadata. Bulk tag workflows should be Tags-owned and hooked into modules through framework/module contracts, not hard-coded per page.
+
+### Implementation Sub-Versions
+
+#### Version 0.33.5.6.1 - Search Record Type Cleanup
+
+- [x] Fix duplicate Help record types in Search filters and record-type display.
+  - [x] Ensure Help appears once in user-facing record-type lists.
+  - [x] Preserve any internal Help content distinctions needed by the Help/Search indexing contracts.
+  - [x] Verify Search filters, search result labels, and disabled-module behavior do not expose duplicate Help choices.
+
+#### Version 0.33.5.6.2 - Notification Actor Suppression and Changed Context
+
+- [x] Stop notifying users about their own normal record actions.
+  - [x] Creators of records do not need `{{recordType}} created` notifications for their own action.
+  - [x] Modifiers of records do not need `{{recordType}} updated` notifications for their own action.
+  - [x] Preserve notifications for other affected users where the event is still relevant.
+- [x] Add human-formatted changed context to record update notifications.
+  - [x] Notifications should display a safe truncated example of the change where useful.
+  - [x] Cover examples such as description added, task updated, and similar event-derived summaries.
+  - [x] Avoid raw audit JSON or unsafe internal event payloads in user-facing notification text.
+- [x] Verification.
+  - [x] Verify actor suppression for create and update events.
+  - [x] Verify other recipients still receive relevant notifications.
+  - [x] Verify changed-context snippets are permission-safe and human-readable.
+
+#### Version 0.33.5.6.3 - Notification Priority and Bell Dropdown QoL
+
+- [x] Implement priority behavior in the notification bell.
+  - [x] "Urgent" priority notifications turn the bell icon red and do not trigger an interruptive in-app alert modal by default.
+  - [x] "High" priority notifications turn the bell icon red and are not grouped.
+  - [x] "Normal" priority notifications are grouped and increment the number on the bell icon.
+  - [x] "Low" priority notifications are grouped and do not increase the number on the bell icon.
+- [x] Use icon actions from `notifications.html` in the notification bell dropdown instead of full text buttons where context is clear.
+  - [x] Add hover titles/tooltips for icon actions.
+  - [x] Preserve accessible labels for screen readers.
+- [x] Move "Read all" and "Dismiss all" text actions to the bottom of the notification bell dropdown.
+  - [x] Match the "View all" font size.
+  - [x] Keep destructive or bulk actions visually distinct enough to avoid accidental clicks.
+- [x] Verification.
+  - [x] Verify bell color, counts, grouping, and dropdown action placement for urgent, high, normal, and low notifications.
+  - [x] Verify keyboard and hover/title behavior for dropdown icon actions.
+
+#### Version 0.33.5.6.4 - All Notifications Page and Preferences QoL
+
+- [x] Clean up `notifications.html` notification row chips and actions.
+  - [x] Align the Notification Type chip to the right, immediately left of the Unread/Read/Dismissed chip.
+  - [x] Fix the floating Notification Type chip placement so it stays anchored beside the status chip.
+  - [x] Add hover titles/tooltips to Read and Dismiss icon buttons.
+- [x] Move disabled modules to the bottom of notification preferences automatically.
+  - [x] Do not hard-code module order in the preferences UI.
+  - [x] The notification module provides the preference list view/model used by Settings -> User.
+- [x] Add user-adjustable notification grouping preferences under Settings -> User.
+  - [x] Workspace notifications can be grouped by Client for Business workspaces and Project by default.
+  - [x] Workspace notifications can be grouped by notification type, such as Updated or Created.
+  - [x] Workspace notifications can be grouped by record type.
+- [x] Verification.
+  - [x] Verify notification chip alignment at desktop and mobile widths.
+  - [x] Verify disabled-module preferences sort to the bottom without hard-coded module IDs.
+  - [x] Verify grouping preferences persist and affect notification grouping without leaking inaccessible context.
+
+#### Version 0.33.5.6.5 - Tag Refresh and No Tags Filters
+
+- [x] Refresh tag options after creating a new client tag without requiring a page refresh or navigation change.
+  - [x] Newly created client tags appear in the relevant tag picker immediately after save.
+  - [x] Preserve direct/manual and propagated tag semantics.
+- [x] Add a "No Tags" option anywhere there is a Tag filter.
+  - [x] Place "No Tags" directly below the "All tags" option.
+  - [x] Use the existing Tags-owned no-tags filter semantics rather than inventing page-specific filter behavior.
+- [x] Verification.
+  - [x] Verify newly created client tags appear immediately in client/project tag controls.
+  - [x] Verify "No Tags" filters work across current tag-filtered views without changing permission behavior.
+
+#### Version 0.33.5.6.6 - Bulk Tag Assignment Workflows
+
+- [x] Add Tags-owned bulk assign/remove support for Projects -> Time Keeping -> Time Entries.
+  - [x] Add checkboxes in a tight leftmost column for the time-entry display.
+  - [x] Use a compact bulk tag application control similar to the existing tag-entry box.
+  - [x] Preserve propagated/system tags while applying direct/manual bulk tag changes.
+- [x] Add Tags-owned bulk assign/remove support for Projects -> Tasks.
+  - [x] Reuse the same Tags-owned bulk assignment contract where possible.
+  - [x] Keep task selection, permission checks, and partial errors clear.
+- [x] Defer Projects -> Notes bulk tag assignment until the Notes cleanup line or a later Tags integration pass unless explicitly pulled forward.
+- [x] Verification.
+  - [x] Verify bulk tag add, remove, and partial failure behavior for Time Entries and Tasks.
+  - [x] Verify inaccessible records are skipped or rejected without leaking labels.
+  - [x] Verify bulk tagging does not remove propagated/system assignments.
+
+#### Version 0.33.5.6.7 - Workbench Tag Chips and Resume-Safe Summary Cleanup
+
+- [x] Add tight tag chips between task title and task metadata on Workbench.
+  - [x] Keep the row compact.
+  - [x] Respect the clarification above for direct versus propagated/context tag display.
+  - [x] Avoid pushing primary task actions out of reach.
+- [x] Update event/notification summary helpers so user-facing changed context can be reused by activity feed and future resume state.
+  - [x] Summaries are human-readable.
+  - [x] Summaries are permission-safe.
+  - [x] Summaries avoid raw audit JSON.
+  - [x] Summaries include safe record labels, record type, module ID, action type, actor where allowed, and changed field labels where useful.
+- [x] Verification.
+  - [x] Verify Workbench task rows remain compact with and without tags.
+  - [x] Verify summary helpers can serve notifications and future activity/resume surfaces without making Notifications the source of truth.
+  - [x] Verify audit remains the admin/security truth and is not replaced by notification summaries.
+
+## Version 0.33.5.4 - Files and Time Tracking QoL Updates
+
+### Answered Design Decisions
+
+- File deletion lifecycle: use staged deletion. Normal delete is soft delete/restore. Hard delete/purge is a separate admin-level action after a grace period. Default purge policy should allow admins to purge after 7 days and automatic purge after 30 days. Purge removes protected bytes, clears unsafe storage references, preserves audit/history rows, and emits sanitized lifecycle events. Immediate hard delete should not be the normal user flow.
+- File deletion ownership: file owners may delete files they own where they still have access to the attachment target. Workspace admins may delete any workspace file they can access. Workspace admin delete still goes through soft delete first. Hard purge requires explicit admin/manage permission and must be audited.
+- File retention: deleted file rows remain as historical attachment/audit references after protected bytes are purged. Retain minimal metadata needed for history, attachment panels, audit, storage accounting, and lifecycle events. Do not retain protected storage paths, signed URLs, scanner internals, or anything that would allow removed bytes to be recovered. Attachment panels should show a safe unavailable/deleted state rather than breaking linked-record history.
+- Multi-file upload conflict handling: successful files should still attach even if one or more files fail validation/scanning. Return per-file success/failure results and show quiet, recoverable per-file errors in the UI. Do not roll back the entire batch unless the shared target/permission check fails before any file-specific processing begins.
+- File type controls: support both allow-list and block-list internally, but ship with a safe default mode. The default policy should be a broad allow-list of common safe business/document/image types plus a block-list of clearly risky executable/script/archive edge cases. Enforce server-side in the Files service, not only in browser validation. Browser validation can provide early feedback, but the backend is authoritative. Keep advanced MIME/pattern controls admin-only and avoid making first-pass settings too fiddly.
+- Storage accounting: in 0.33.5.4, internal protected-file bytes count against internal storage. External files should be tracked separately as external metadata/link records. If an integration can report bytes, store that as `external_reported_bytes`, but do not mix it into protected internal storage totals. External provider usage should be informational until a future quota policy explicitly decides how external storage affects limits.
+- Time entry admin correction scope: workspace admins should be able to perform normal corrections to workspace time entries, including tags, without Super Admin fallback. Do not make admin edits fully indistinguishable from owner edits. Sensitive correction fields should require admin correction permission and an audit reason when practical. Suggested sensitive fields: user/worker, billable status, billed/invoiced/locked state, rate/client/project changes if those affect reporting or billing. Normal fields like description, tags, task/project correction, and start/end/duration fixes can be allowed to workspace admins, but all admin corrections should be audited.
+- Timer timestamp semantics: finalized entries should preserve first start and final end as factual timestamps. Duration should store accumulated active seconds only. Paused time should not inflate duration. Reporting totals must use stored duration, not end minus start. UI can display "Started at", "Ended at", and "Active duration". This prevents timers from falsifying start/end time while still producing accurate billing/reporting totals.
+
+### Implementation Sub-Versions
+
+#### Version 0.33.5.4.1 - Files Deletion and Upload QoL
+
+- [x] Add a Files-owned delete workflow for files and attachments.
+  - [x] Respect workspace, module, attachable-target, and file permissions before exposing delete actions.
+  - [x] Decide and document whether deletion is soft delete, hard delete, or staged delete/restore.
+  - [x] Preserve audit and lifecycle-event metadata without exposing protected storage paths.
+- [x] Add multiple file upload support.
+  - [x] Allow users to choose more than one file in Files-owned upload controls.
+  - [x] Return per-file success and failure results instead of hiding partial upload outcomes.
+  - [x] Keep scanner, storage, permission, attachment, audit, and lifecycle behavior centralized in Files-owned services.
+- [x] Add drag-and-drop upload support.
+  - [x] Support drag-and-drop in the Files module and reusable attachment surfaces where appropriate.
+  - [x] Keep keyboard/file-picker upload available.
+  - [x] Show quiet, recoverable validation states for rejected files.
+- [x] Verification.
+  - [x] Verify delete permissions for owner, workspace admin, and inaccessible records.
+  - [x] Verify multi-upload and drag-and-drop partial failures.
+  - [x] Verify attachment counts and linked-record panels remain permission-safe after deletion.
+
+#### Version 0.33.5.4.2 - File Storage Accounting Foundation
+
+- [x] Introduce workspace/user file storage accounting for future limits.
+  - [x] Track internal protected-file storage by workspace and uploader/user.
+  - [x] Keep accounting separate from visibility permissions; storage totals must not leak inaccessible file labels or paths.
+  - [x] Update accounting when files are uploaded, deleted, or restored, with a refresh contract future replace/purge flows can call.
+- [x] Add external file storage and availability accounting fields/contracts.
+  - [x] Track external storage separately from internal protected-file bytes.
+  - [x] Preserve provider/source availability status for future integrations.
+  - [x] Do not require any external file-sharing integration in this slice.
+- [x] Keep storage limits enforcement deferred unless explicitly enabled by later settings.
+  - [x] Provide service-level read models future Settings, admin reports, and notifications can consume.
+  - [x] Avoid blocking uploads by quota until the workspace limit policy exists.
+- [x] Verification.
+  - [x] Verify internal storage totals update after upload/delete lifecycle actions.
+  - [x] Verify external accounting can exist without an integration provider.
+  - [x] Verify inaccessible file metadata does not leak through storage summaries.
+
+#### Version 0.33.5.4.3 - Workspace Files Settings and File Type Controls
+
+- [x] Add Settings -> Workspace -> Files.
+  - [x] Create the workspace-level Files settings surface if it does not already exist.
+  - [x] Keep settings framework-owned where they are storage/security policy and Files-owned where they are file workflow behavior.
+  - [x] Show current workspace file policy without requiring users to inspect environment/config files.
+- [x] Add workspace-wide file type controls.
+  - [x] Support configured file type allow/block behavior based on the clarification decision above.
+  - [x] Enforce file type policy in Files-owned upload services, not only in browser validation.
+  - [x] Return clear per-file rejection reasons for multi-upload and drag-and-drop flows.
+- [x] Prepare storage-limit controls without enforcing unfinished quota policy.
+  - [x] Display available storage accounting read models from 0.33.5.4.2.
+  - [x] Reserve fields for future per-user/workspace limits where the policy is not implemented yet.
+- [x] Verification.
+  - [x] Verify workspace admins can view and update Files settings.
+  - [x] Verify file type policy blocks disallowed uploads across Files module and attachment surfaces.
+  - [x] Verify disabled/inaccessible settings do not expose protected file metadata.
+
+#### Version 0.33.5.4.4 - Time Entry Workspace Admin Editing
+
+- [x] Fix workspace-admin edit access for time entries within the workspace.
+  - [x] Workspace admins must be able to edit workspace-scoped time entries according to the app's workspace administration model.
+  - [x] Include tag edits on time entries; admins should not need Super Admin access for normal workspace corrections.
+  - [x] Reproduce and cover the reported entry `81c61ec4-ebe4-45c2-a35d-b03e88b45bb9` if it still exists in local/dev data.
+- [x] Keep time-entry permission boundaries module-owned.
+  - [x] Do not bypass Time Tracking service permissions from browser code.
+  - [x] Ensure cross-workspace entries remain inaccessible.
+  - [x] Preserve audit/search/tag lifecycle behavior for admin corrections.
+- [x] Improve blocked/error feedback where the modal can hide the underlying page error.
+  - [x] Surface permission and save errors inside the active dialog or form.
+  - [x] Keep error text useful without exposing internal permission implementation details.
+- [x] Verification.
+  - [x] Verify owner, workspace admin, non-admin member, and Super Admin edit behavior.
+  - [x] Verify admin tag edits preserve manual/propagated tag semantics.
+  - [x] Verify reporting and time-entry lists reflect admin corrections.
+
+#### Version 0.33.5.4.5 - Timer Timestamp Integrity and Duration Model
+
+- [x] Preserve exact timer start/end timestamps when finalizing active timers.
+  - [x] Start/end timestamps are informational facts.
+  - [x] Duration is stored separately and should not rewrite the start/end facts.
+  - [x] Finalized entries should show exactly when the timer was started and ended, plus the total duration the timer was running during that period.
+- [x] Review timer finalization math.
+  - [x] Confirm timers are not adjusting start or end time based on total duration.
+  - [x] Confirm paused/resumed timers store accumulated active duration without falsifying start/end facts.
+  - [x] Preserve timezone-aware display behavior while keeping stored timestamps consistent with the existing UTC standard.
+- [x] Verification.
+  - [x] Verify active, paused, resumed, finalized, and discarded timer flows.
+  - [x] Verify manual time-entry edits do not inherit timer-only timestamp behavior incorrectly.
+  - [x] Verify reporting totals still use stored duration rather than recalculating from display timestamps.
+
+#### Version 0.33.5.4.6 - Timer Resume Metadata and Lifecycle Events
+
+- [x] Ensure active/paused timer payloads expose resume-safe source metadata.
+  - [x] Source module ID.
+  - [x] Source type.
+  - [x] Source record ID.
+  - [x] Source label.
+  - [x] Source URL.
+  - [x] Client/project context.
+  - [x] Timer status.
+  - [x] Last active start time.
+  - [x] Accumulated elapsed seconds.
+- [x] Emit or preserve safe timer lifecycle metadata for future resume state.
+  - [x] Timer started.
+  - [x] Timer paused.
+  - [x] Timer finalized.
+  - [x] Timer discarded.
+  - [x] Do not expose inaccessible source-record details.
+- [x] Keep resume metadata producer-only in this slice.
+  - [x] Do not build the Workbench resume feed here.
+  - [x] Do not create framework-owned resume-state storage beyond safe event/payload metadata needed by 0.33.5.9.
+  - [x] Document the payload contract for future Dashboard, Workbench, Search, Notifications, and reporting consumers.
+- [x] Verification.
+  - [x] Verify active/paused timer API payloads include safe source context.
+  - [x] Verify lifecycle events exclude inaccessible source labels and unsafe internal details.
+  - [x] Verify timer metadata works for task-linked, project-linked, and unlinked timers where those flows exist.
+
+#### Version 0.33.5.4.7 - Files and Time Tracking QoL Closeout
+
+- [x] Run permissions, module-contract, and regression checks for all 0.33.5.4 slices.
+  - [x] Files delete/upload/settings behavior is permission-safe.
+  - [x] Storage accounting does not leak inaccessible records.
+  - [x] Workspace-admin time entry edits work without Super Admin fallback.
+  - [x] Timer timestamps, duration, resume metadata, and lifecycle events remain consistent.
+- [x] Update user-facing Help/docs for current behavior only.
+  - [x] Document file deletion/upload/settings behavior that actually shipped.
+  - [x] Document time-entry admin correction behavior.
+  - [x] Document timer start/end/duration semantics without promising future Workbench resume UI.
+- [x] Update release bookkeeping.
+  - [x] Update `CHANGELOG.md`, `DECISIONS.md`, package metadata, and app-info version when the implementation slices ship.
+  - [x] Move completed roadmap content to `ROADMAP-ARCHIVE.md` according to the existing release process.
+
+## Version 0.33.5.0 - Task Module QoL Updates
+
+### Implementation Sub-Versions
+
+Use these sub-versions as the implementation order for the Tasks quality-of-life pass. The detailed checklist below remains the source backlog; each sub-version owns the relevant checklist items and should be closed out with package version, changelog, decisions, and verification when implemented.
+
+#### Version 0.33.5.0.1 - Task Context and Resume-Safe Fields
+
+Goal:
+Tasks should expose enough human-written context to explain what the user can do next, why a task is blocked, and where work paused without requiring Dashboard, Workbench, notifications, search, or future resume state to infer meaning from title/status/due date alone.
+
+- [x] Add and persist optional `next_action`, `blocked_reason`, and `resume_note` task fields.
+- [x] Show these fields in the task detail dialog with compact, plain-language labels.
+- [x] Prompt for `blocked_reason` when moving a task to `blocked`, without making it a hard requirement unless implementation stays simple.
+- [x] Keep `resume_note` human-written and separate from description; do not auto-generate it.
+- [x] Include these fields in permission-safe task API reads and task summaries where the user can read the task.
+- [x] Include safe task context in search/resume-safe payloads where appropriate without adding framework-owned resume storage.
+- [x] Add focused create/update/read regressions proving the fields survive normal task workflows and do not leak inaccessible linked context.
+
+#### Version 0.33.5.0.2 - Task Activity and Completion Metrics
+
+Goal:
+Tasks should expose normalized activity and completion metadata so later Dashboard, reporting, Workbench, notifications, and resume-state consumers can rank or summarize work without depending on browser-local timestamps.
+
+- [x] Expose a normalized `last_worked_at` value for tasks, stored or derived by the task service.
+- [x] Update or derive activity from task edits, status changes, checklist activity, timer interactions, linked notes, and file attachment events where those hooks already exist or can be safely introduced.
+- [x] Keep future Workbench ranking out of this pass; only expose the task-owned activity signal.
+- [x] Display "Time to completion" for completed and archived tasks in the task detail modal, calculated from created date/time to completed date/time.
+- [x] Shape the completion duration so the future reporting module can reuse it for efficiency reporting.
+- [x] Add regressions for completed/archived readability and for inactive tasks not becoming active resume candidates by default.
+
+#### Version 0.33.5.0.3 - Recurrence Frequency QoL
+
+Goal:
+Task recurrence should support common weekday/weekend planning without forcing users to manually recreate predictable work patterns.
+
+- [x] Add `Weekdays` and `Weekends` frequency options below `Daily`.
+- [x] Define `Weekdays` as Monday, Tuesday, Wednesday, Thursday, and Friday.
+- [x] Define `Weekends` as Saturday and Sunday.
+- [x] Preserve `Daily` as seven days a week.
+- [x] Update recurrence creation/update/read behavior and focused recurrence regressions.
+
+#### Version 0.33.5.0.4 - Lightweight Task Checklists
+
+Goal:
+Task checklists should make task progress visible and resumable while staying lightweight aids inside a task, not separate subtasks, dependencies, schedules, or Workbench records.
+
+- [x] Add module-owned lightweight checklist storage and service behavior.
+- [x] Allow permitted users to add, edit, reorder, check, uncheck, and delete checklist items.
+- [x] Display checklist progress in task detail, including total count, completed count, and next incomplete item label where permitted.
+- [x] Include checklist progress in task summary/resume-safe payloads without making checklist items independently taggable, assignable, timed, or searchable records.
+- [x] Add focused checklist regressions for permissions, ordering, completion state, progress summaries, and private/inaccessible context boundaries.
+
+#### Version 0.33.5.0.5 - Parent/Child Task Planning and Blocking Rules
+
+Goal:
+Parent/child task relationships should support visible blocking work without turning checklist items into subtasks or making project scheduling/dependency management broader than Tasks can safely own in this pass.
+
+- [x] Add parent/child task relationships.
+- [x] Prevent circular references.
+- [x] Enforce workspace boundaries.
+- [x] In business workspaces, require parent and child tasks to remain within the same client when both have client context.
+- [x] Defer configurable same-project/same-client relationship policy unless implementation review shows a simple workspace setting is necessary before launch.
+- [x] Allow child tasks to be marked as blocking.
+- [x] Prevent or recover parent `in_progress` transitions while blocking child tasks remain incomplete.
+- [x] Move parent tasks to or keep them in `blocked` when incomplete blocking child tasks require it, while preserving a useful `blocked_reason` where available.
+- [x] Add focused regressions for circular-reference prevention, client/workspace boundaries, blocking state transitions, and blocked-reason preservation.
+
+#### Version 0.33.5.0.6 - Task List Density and Recovery UI
+
+Goal:
+Projects -> Tasks should become easier to scan and resume from without becoming a dashboard or hiding the next useful task action.
+
+- [x] Convert task list rows to a compact three-row layout.
+- [x] Row one: task name with tight tag chips below.
+- [x] Row two: very tight metadata, with harder Scope/Assignee truncation on mobile.
+- [x] Row three: right-aligned actions.
+- [x] Keep existing icon buttons where clear.
+- [x] Change "Follow Notifications" to a bell icon.
+- [x] Avoid horizontal rules/borders inside the three-row listing so rows stay dense.
+- [x] Surface `next_action`, blocked state, checklist progress, and resume note indicators only where they improve scanning without overcrowding the row.
+- [x] Add focused responsive/UI regressions for dense rows, mobile truncation, action availability, and resume-context visibility.
+
+#### Version 0.33.5.0.7 - Task QoL Verification and Resume-Hook Closeout
+
+Goal:
+Close the Tasks QoL line by proving Tasks expose useful, permission-safe state for future framework resume consumers while leaving the global resume-state service, ranking, dismissal, API, and Workbench feed to the framework-owned resume-state release.
+
+- [x] Verify task reads, summaries, search payloads, events, and hooks expose only permission-safe task context.
+- [x] Verify completed, archived, deleted, private, or inaccessible tasks do not become active resume candidates by default. Tasks do not expose a shipped task delete workflow; archive/restore remains the inactive-history path.
+- [x] Verify task lifecycle events include safe source/activity/progress metadata needed by future resume-state producers.
+- [x] Verify blocked and interrupted task states offer useful recovery actions instead of dead ends.
+- [x] Update Help and developer/module docs for current Tasks behavior without documenting future promises as shipped behavior.
+- [x] Run focused Tasks service/API/UI regressions.
+- [x] Run permission regressions covering task summaries, checklists, parent/child links, and resume-safe payloads.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the completed Tasks QoL closeout version.
+- [x] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process. No older completed top-level roadmap section is ahead of 0.33.5.0, so 0.33.5.0 remains the most recently completed active section.
+
+### Detailed Requirements Backlog
+
+#### Task Next Action and Resume Metadata
+
+Decision:
+Tasks should carry enough plain-language context for Dashboard, Workbench, notifications, search, and future resume state to explain what the user can do next without guessing from title/status/due date alone.
+
+- [x] Add optional `next_action` field to tasks.
+  - [x] Keep it short and plain-language.
+  - [x] Example: "Send draft invoice to CTU."
+  - [x] Show it in the task detail dialog.
+  - [x] Include it in task API responses where the user can read the task.
+  - [x] Include it in task search/resume-safe payloads where appropriate.
+
+- [x] Add optional `blocked_reason` field to tasks.
+  - [x] Show when task status is `blocked`.
+  - [x] Prompt for it when moving a task to `blocked`, but do not hard-require it in the first pass unless implementation is simple.
+  - [x] Include it in safe task summaries for Workbench and notifications.
+
+- [x] Add optional `resume_note` or `handoff_note` field to tasks.
+  - [x] This is the human-written "where I left off" field.
+  - [x] Example: "Waiting on CTU to confirm PO number; invoice draft is otherwise ready."
+  - [x] Keep it separate from the full task description.
+  - [x] Include it in task detail and permission-safe task reads.
+  - [x] Do not auto-generate this in 0.33.5.0.
+
+- [x] Add task activity timestamps useful for resume ranking.
+  - [x] `last_worked_at` may be stored or derived, but the service should expose a normalized value.
+  - [x] Timer start/pause/finalize, task edits, status changes, linked notes, and file attachments update/derive it now; checklist activity remains reserved for the checklist slice.
+  - [x] Do not make Workbench ranking depend on browser-local timestamps.
+
+- [x] Update task checklist payloads to expose progress.
+  - [x] Total checklist item count.
+  - [x] Completed checklist item count.
+  - [x] Next incomplete checklist item label where permitted.
+  - [x] Do not make checklist items full Workbench records.
+
+- [x] Add task service/API regression coverage.
+  - [x] `next_action`, `blocked_reason`, and `resume_note` survive create/update/read.
+  - [x] Blocked tasks can safely expose blocked reason.
+  - [x] Completed/archived tasks remain readable without becoming active resume candidates by default.
+  - [x] Private/inaccessible linked context is not leaked through task summary payloads.
+
+#### Task Metadata Update
+
+- [x] Inside the task details (Edit Task Modal), completed and archived tasks should display "Time to completion" which is calculated from created date/time and completed date/time
+  - [x] This number should be usable by reporting module for efficiency numbers
+
+#### Recurrence Update
+
+- [x] Add Weekdays and Weekends to Frequency options, below Daily
+  - Weekdays means Monday, Tuesday, Wednesday, Thursday, Friday
+  - Weekends means Saturday, Sunday
+  - Daily means 7 days a week
+
+#### Task Checklists
+
+Decision: Task checklists are lightweight completion aids inside a task. Full subtasks are separate task records and should be deferred until the Tasks module needs parent-child task planning, dependencies, or nested assignment workflows.
+
+- [x] Add lightweight checklist support to Tasks.
+  - [x] Checklist items belong to a single task.
+  - [x] Checklist items are not full subtasks.
+  - [x] Checklist items should support:
+    - [x] Checklist item ID
+    - [x] Workspace ID
+    - [x] Task ID
+    - [x] Label/title
+    - [x] Checked/completed state
+    - [x] Completed at
+    - [x] Completed by user ID
+    - [x] Sort order
+    - [x] Created at
+    - [x] Updated at
+  - [x] Allow permitted users to add, edit, reorder, check, uncheck, and delete checklist items.
+  - [x] Display checklist progress on the task detail view.
+    - [x] Example: `3 / 7 complete`
+  - [x] Optionally show checklist progress on task cards/list rows after the task UI is cleaned up.
+  - [x] Do not make checklist items separately taggable in the first pass.
+  - [x] Do not make checklist items separately assignable in the first pass.
+  - [x] Do not attach timers directly to checklist items in the first pass.
+  - [x] Do not treat checklist items as dependencies or project schedule records.
+
+#### Parent/Child Tasks
+
+- [x] Add parent/child task relationships
+  - [x] Prevent circular references
+  - [x] Parent tasks can be part of different projects, but, within Business workspaces, must be part of the same client
+    - Should this be an adjustable setting within the workspace? Should you only be allowed to pull from the same project/client for parent tasks? I can see this being a useful setting, but I'm open to ideas.
+  - [x] Child tasks can be markable as "blocking"
+    - [x] If a child is marked as blocking, and incomplete, it sets the status of parent tasks to "blocked" until the child task is completed
+      - [x] Before moving parent tasks to In Progress, logic should check that no other blocking child tasks are incomplete
+
+#### Task UI
+
+In Projects -> Tasks, the task list isn't optimized for efficient viewing.
+- [x] Create a three row listing for each task
+  - [x] Row one is the task name with tag chips below (Kept tight)
+  - [x] Row two is the rest of the meta data (Very Tight)
+    - [x] Truncate Scope/Assignees harder on mobile
+  - [x] Row three is the buttons, right aligned
+    - The icon buttons are great, except for the "Follow Notifications" button, this should be a bell
+  - [x] No horizontal rules/borders for these 3 rows, to keep it as tight as possible
+
+## Version 0.33.5.2 - Client/Projects Fixes, Listing/View Ownership and Availability Refinement
+
+Shared implementation contract:
+0.33.5.2 moves repeated sorting, filtering, option-building, count, and permission-safe read-model logic into the module that owns the records. Browser code may cache, render, and pass user-selected query parameters, but it should not be the canonical source for which records are visible, how hierarchy is shaped, how picker labels are indented, how "No Tags" is interpreted, or how reusable suggestions are ranked.
+
+- Permission and workspace/module-availability checks must happen before sorting, shaping, counting, or returning labels.
+- Modules should expose stable query helpers and browser/API payloads that other surfaces can reuse.
+- Framework-owned services may coordinate cross-module contracts, but they should not hard-code module-specific record rules.
+- Public API payloads may reuse the same underlying query helpers, but must keep stable external contracts, API-key scopes, pagination, and no browser-only fields.
+- No AI ranking is included in this line. All ordering must be deterministic and explainable.
+- No open implementation questions are expected for this line; each slice below should be implemented by following the owning-module boundary.
+
+### Version 0.33.5.2.0 - Client/Projects Fixes
+
+Goal:
+Squash focused Client/Projects regressions before the broader canonical list/view ownership work begins. This pass should repair real user-facing data preservation and inheritance bugs without redesigning Client/Projects list payloads, picker ordering, or public API contracts.
+
+Out of scope:
+- Do not introduce the canonical client/project list payload contract from 0.33.5.2.1.
+- Do not redesign Client Settings, Project Settings, tag propagation, or billing settings UI beyond what is needed to fix the listed bugs.
+- Do not change tag semantics; tags remain classification metadata and must not drive billing behavior.
+
+#### Project billing inheritance from Project Settings
+
+- [x] Reproduce the Project Settings add-project path:
+  - [x] Open Projects -> Project Settings -> Add Project.
+  - [x] Select a billable business client with configured billing rate, billing period, rounding mode, and rounding increment.
+  - [x] Save a new project without manually overriding billing fields.
+  - [x] Confirm the created project currently fails to inherit expected client billing defaults.
+- [x] Fix project creation from Projects -> Project Settings -> Add Project so client-linked business projects inherit client billing settings when no explicit project override is provided.
+- [x] Preserve existing rules for workspace-level projects and personal/family workspaces:
+  - [x] Workspace-level projects should keep workspace/default project billing behavior.
+  - [x] Personal and family workspace projects remain non-billable by design while preserving rounding behavior where applicable.
+- [x] Ensure inherited billing values are visible after save in Project Settings, project detail reads, and time-entry/timer billing calculations that already consume project billing settings.
+- [x] Add focused regression coverage for project creation through the Project Settings path, including client-linked inheritance and non-client/workspace-level behavior.
+
+#### Client billing saves must preserve tags
+
+- [x] Reproduce the client tag loss path:
+  - [x] Go to Settings -> Workspace -> Clients.
+  - [x] Use Add Client to create a client with one or more direct/manual tags.
+  - [x] Edit the client billing settings, such as turning billing off and enabling rounding.
+  - [x] Save the client.
+  - [x] Confirm the client tags are currently removed after the billing-only save.
+- [x] Fix client billing/settings save behavior so updating billing fields preserves all existing client tag assignments.
+- [x] Preserve both direct/manual and propagated tag assignments when client billing settings are saved.
+- [x] Ensure re-saving client identity/status/contact/billing fields does not treat omitted tag picker payloads as an instruction to clear tags.
+- [x] Keep explicit tag edits through the client edit modal working normally, including adding/removing direct/manual tags through the intended tag picker flow.
+- [x] Add focused regression coverage proving client billing saves preserve tags and explicit client tag edits still update tags correctly.
+
+#### Verification and closeout
+
+- [x] Run focused Client/Projects service/API tests for project billing inheritance and client billing-save tag preservation.
+- [x] Run focused browser/UI regression coverage for Settings -> Workspace -> Clients and Projects -> Project Settings -> Add Project where available. Browser payload behavior is covered by `scripts/check-js.mjs` and the focused service/API regression because no browser automation surface was available in this pass.
+- [x] Run tag permission/assignment regressions if the fix touches shared tag assignment helpers.
+- [x] Run billing-related time-entry or timer regressions if the project inheritance fix changes billing source selection. The fix keeps inherited project billing fields unset and does not change downstream billing source selection logic.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions` if the touched code changes tag reads/writes, project/client visibility, or permission-sensitive payloads.
+- [x] Update `DECISIONS.md` if implementation clarifies a lasting Client/Projects, billing inheritance, or tag-preservation rule.
+- [x] Add the completed bug fixes to the current `CHANGELOG.md` version entry when implemented.
+
+### Version 0.33.5.2.1 - Canonical client and project list payloads
+
+Goal:
+Make `client-projects` the canonical owner for client/project filtering, hierarchy shaping, display-label metadata, and ordering so every UI surface, picker, embedded panel, and public API read can reuse one permission-safe contract.
+
+Out of scope:
+- Do not redesign Projects or Clients page layout in this slice.
+- Do not add unrelated API-key scopes; public API scope cleanup is tracked in 0.33.5.2.9 and later 0.33.5.3.x.
+- Do not move tag semantics into Client/Projects. Tags remain framework classification metadata consumed through the Tags contract.
+
+- [x] Add module-owned client/project query helpers in `client-projects`.
+  - [x] Filter by workspace and readable scope before sorting or shaping.
+  - [x] Return stable IDs, parent IDs, status, display names, depth/path metadata where useful, and optional tag metadata only when requested.
+  - [x] Keep orphan/cycle-safe behavior deterministic and non-crashing.
+  - [x] Support business, personal, and family workspace differences without browser-specific branches becoming canonical.
+- [x] Add canonical client list behavior.
+  - [x] Default filter: `status=Active`.
+  - [x] Explicit filters: `status=Active|Inactive|All`.
+  - [x] `shape=flat&scope=top_level`: top-level clients only, alphabetical by display name.
+  - [x] `shape=tree`: top-level clients alphabetical, with child clients nested below each parent alphabetically.
+  - [x] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_client_id`, and safe display-label metadata.
+- [x] Add canonical project list behavior.
+  - [x] Default filters: `status=Active` and `client=All`.
+  - [x] Explicit filters: `status=Active|Inactive|Completed|All`.
+  - [x] Explicit client scopes: `client=All|<client_id>|workspace`.
+  - [x] `shape=flat`: alphabetical project list, optionally filtered by client/workspace scope.
+  - [x] `shape=tree`: parent projects alphabetical, with child projects nested below each parent alphabetically.
+  - [x] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_project_id`, `client_id`, and safe display-label metadata.
+  - [x] Support workspace-level projects in personal/family workspaces and business workspaces where `client_id` is empty.
+- [x] Enhance existing browser and public API contracts where practical.
+  - [x] Prefer `/api/clients`, `/api/projects`, `/api/client-projects`, `/api/v1/clients`, and `/api/v1/projects` enhancements over a separate sorting endpoint unless a dedicated options route is clearly simpler.
+  - [x] Keep public API responses stable, paginated where needed, API-key scoped, and free of browser-only fields.
+  - [x] Move existing page-local client/project sorting helpers toward rendering-only use once canonical payloads are available.
+- [x] Add regression coverage.
+  - [x] Active defaults.
+  - [x] Inactive/all client filters.
+  - [x] Inactive/completed/all project filters.
+  - [x] Top-level-only client/project views.
+  - [x] Nested tree views.
+  - [x] Flattened picker labels and depth values.
+  - [x] Permission filtering before shaping.
+  - [x] Orphan/cycle-safe behavior.
+  - [x] Public API pagination.
+  - [x] Workspace-type differences between business, personal, and family workspaces.
+
+### Version 0.33.5.2.1.1 - Main Navigation Actions Rename and Reporting Placement
+
+Goal:
+Apply the Short Term -> Main Navigation Update by making the top-level project-adjacent work menu read as "Actions" across current user-facing navigation/docs and moving Reporting under Actions.
+
+Implementation interpretation:
+- The original TODO line that mentioned "Projects" for Reporting placement was a typo; Reporting belongs directly under Actions.
+- The former top-level Projects menu becomes the top-level Actions menu.
+- There is no Projects submenu under Actions.
+- Reporting remains a slide-out menu with a single Reporting entry for now, but that slide-out lives directly under Actions instead of being top-level.
+- Clients remains under Settings -> Workspace and does not move into the Actions menu.
+
+- [x] Update the roadmap from the TODO Short Term -> Main Navigation Update.
+- [x] Rename the app-shell top-level Projects menu to Actions.
+- [x] Keep existing project-adjacent entries under Actions:
+  - [x] Time Keeping.
+  - [x] Tasks.
+  - [x] Notes.
+  - [x] Lists when enabled.
+  - [x] Files.
+  - [x] Project Settings.
+  - [x] Reporting.
+- [x] Move Project Settings directly under Actions.
+- [x] Move Reporting directly under Actions.
+- [x] Keep Reporting as a slide-out submenu with one Reporting entry for now.
+- [x] Preserve Clients under Settings -> Workspace.
+- [x] Add focused regression coverage for the app-shell navigation shape.
+- [x] Run focused navigation/app-shell regressions.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Update `CHANGELOG.md`, `DECISIONS.md`, package metadata, and TODO cleanup.
+
+### Version 0.33.5.2.2 - Canonical Task Query and Work Item Summary Payloads
+
+Goal:
+Move task filtering/sorting used by Tasks, Dashboard, Workbench, and future resume-state producers into Tasks-owned service/query helpers, then expose a normalized task work-item summary payload that other surfaces can consume without reconstructing task context in browser code.
+
+Out of scope:
+- Do not add global `work_resume_state` storage, ranking, dismissal, or Workbench feed behavior here.
+- Do not add AI ranking.
+- Do not make Dashboard or Workbench the canonical owner of task filtering.
+
+- [x] Add a Tasks-owned canonical query helper for task list/work-item reads.
+  - [x] Enforce workspace, module, task read permission, private/inaccessible context, and readable client/project boundaries before sorting/shaping.
+  - [x] Preserve existing Tasks API behavior while adding reusable query options.
+  - [x] Keep browser-local sorting as a display fallback only until callers are migrated.
+- [x] Support canonical task filters.
+  - [x] Assigned to current user.
+  - [x] Unassigned.
+  - [x] Due today.
+  - [x] Next due.
+  - [x] Due this week.
+  - [x] Overdue.
+  - [x] In progress.
+  - [x] Blocked.
+  - [x] Has running/paused timer.
+  - [x] Recently updated/worked.
+  - [x] Project.
+  - [x] Client for business workspaces.
+  - [x] Tags and No Tags through the Tags contract where supported.
+  - [x] Archived/completed/history filters only when explicitly requested.
+- [x] Support deterministic task sorts.
+  - [x] Due date/time.
+  - [x] Priority.
+  - [x] Status.
+  - [x] Last worked.
+  - [x] Recently updated.
+  - [x] Project/client context.
+  - [x] Stable fallback by title or created date so pagination and repeated reads do not drift.
+- [x] Add normalized task work-item summary payload for Tasks list, Dashboard summaries, Workbench, and future resume-state consumers.
+  - [x] Include `source_module_id`, `source_type`, `source_id`, `source_label`, and `source_url`.
+  - [x] Include `title`, `description_excerpt`, `status`, `priority`, `due_date`, `due_time`, and normalized `due_at`.
+  - [x] Include readable `client_id`, `client_name`, `project_id`, and `project_name`.
+  - [x] Include `assignee_ids` and `assigned_to_current_user`.
+  - [x] Include `next_action`, `blocked_reason`, and `resume_note` using the current task field name; do not introduce a separate `handoff_note` storage field.
+  - [x] Include `checklist_progress`, `timer_status`, `elapsed_seconds`, `last_worked_at`, and `updated_at`.
+  - [x] Mark completed, archived, deleted, private, or inaccessible tasks as inactive/non-candidates where summary payloads expose resume-safe metadata.
+- [x] Add regression coverage.
+  - [x] Permission filtering before task shaping.
+  - [x] Private/inaccessible task context is not leaked.
+  - [x] Each filter and sort mode returns deterministic results.
+  - [x] Work-item summary payload includes current 0.33.5 task context fields.
+  - [x] Dashboard/Workbench callers can consume the canonical payload without adding their own task-query rules.
+
+### Version 0.33.5.2.3 - Task list filtering/sorting/options
+
+Goal:
+Update the protected Projects -> Tasks list to consume the canonical Tasks query/options contract from 0.33.5.2.2 so the browser controls query intent but no longer owns canonical task filtering, option visibility, or multi-mode sorting.
+
+Out of scope:
+- Do not redesign the dense task row layout from 0.33.5.0.6.
+- Do not add new task fields beyond consuming the canonical payload from 0.33.5.2.2.
+- Do not add Workbench-specific ranking.
+
+- [x] Replace browser-owned task filtering with canonical task query parameters.
+  - [x] Status filter.
+  - [x] Client filter for business workspaces.
+  - [x] Project filter, including workspace-level projects.
+  - [x] Assignee/quick filter states such as My Tasks, All, Unassigned, and active recovery views.
+  - [x] Tag and No Tags filter through the Tags contract.
+- [x] Replace browser-owned multi-mode sorting with canonical sort parameters.
+  - [x] Due date/time.
+  - [x] Priority.
+  - [x] Status.
+  - [x] Last worked/recently updated.
+  - [x] Project/client context.
+- [x] Update task options payload consumption.
+  - [x] Read visible client/project/user/tag filter options from service-owned options payloads.
+  - [x] Reuse the canonical Client/Projects option payload from 0.33.5.2.1 for client/project labels and hierarchy where available; full picker-option migration remains in 0.33.5.2.4.
+  - [x] Keep inactive/archived choices out of active defaults unless explicitly requested.
+- [x] Preserve task-list UX behavior.
+  - [x] Keep the explicit All quick filter in the expected position.
+  - [x] Keep dense row metadata and action availability intact.
+  - [x] Keep empty states recovery-oriented and specific to the selected filter.
+- [x] Add regression coverage.
+  - [x] Browser sends query/sort intent instead of re-filtering canonical results.
+  - [x] Task filter options respect permissions and workspace type.
+  - [x] Mobile/dense task rows still render correctly after payload changes.
+  - [x] No Tags behavior matches effective-tag semantics.
+
+### Version 0.33.5.2.4 - Task/client/project picker options
+
+Goal:
+Make task, timer, note-link, list-link, file-attachment, and other record pickers consume module-owned option payloads instead of rebuilding active client/project/user/task option lists in each browser file.
+
+Out of scope:
+- Do not create a framework-owned universal picker database.
+- Do not change tag picker semantics; Tags remains the owner of tag options and No Tags behavior.
+- Do not expose unreadable record labels through convenience option endpoints.
+
+- [x] Update `tasksService.readOptions` to reuse the canonical Client/Projects option payload from 0.33.5.2.1.
+  - [x] Preserve active client/project defaults.
+  - [x] Preserve workspace-level projects.
+  - [x] Preserve personal/family workspace behavior where clients are unavailable.
+  - [x] Return depth/label metadata so browser code does not own indentation.
+- [x] Add or normalize task option payloads where other modules need task pickers.
+  - [x] Active task options by default.
+  - [x] Explicit include-completed/include-archived flags where historical linking is allowed.
+  - [x] Permission filtering before labels are returned.
+  - [x] Client/project context metadata when readable.
+- [x] Update browser consumers gradually.
+  - [x] Task dialogs.
+  - [x] Time Tracker and Time Entries task selectors do not currently expose task pickers in this pass; the service-owned task option payload is available for those selectors when they are introduced.
+  - [x] Notes linked-record panels keep their existing raw task ID field until the later linked-record picker pass; the service-owned task option payload is available for that migration.
+  - [x] Lists linked-record selectors do not currently expose task picker options in this pass; the service-owned task option payload is available for that migration.
+  - [x] Files attachment target selectors are text-filter based in this pass; the service-owned task option payload is available for a future target picker.
+- [x] Add regression coverage.
+  - [x] Picker labels and indentation come from service payloads.
+  - [x] Inactive/archived records do not leak into active pickers.
+  - [x] Permission-filtered records are absent rather than relabeled.
+  - [x] Workspace type differences are preserved.
+
+### Version 0.33.5.2.5 - Notes linked-record panels and collection trees
+
+Goal:
+Keep Notes-owned linked-record panels and collection trees canonical inside the Notes module so Tasks, Clients, Projects, Lists, Files, Tickets, and future modules do not duplicate note lookup, collection ordering, or permission checks.
+
+Out of scope:
+- Do not turn Notes into workflow status, task dependencies, or Knowledge Base publication state.
+- Do not let consuming modules query Notes tables directly for panel data.
+- Do not change secure/private note access semantics beyond preserving them in the read model.
+
+- [x] Harden `/api/notes/for-target` as the canonical linked-note panel read.
+  - [x] Filter by note access policy before counts, labels, excerpts, or links are returned.
+  - [x] Support deterministic sort modes such as pinned/recent/updated/title where useful.
+  - [x] Include safe target metadata and source URLs without leaking inaccessible linked-record labels.
+  - [x] Return empty states that help users add or recover notes without implying future KB behavior.
+- [x] Harden `/api/notes/collections` as the canonical collection tree read.
+  - [x] Preserve bucket-first collection ordering.
+  - [x] Preserve `All Libraries`, `All collections`, and `Uncategorized` defaults.
+  - [x] Keep collapsed revision behavior and avoid lone `Original` display regressions.
+  - [x] Filter secure/private collection content through Notes access policy before counts are shown.
+- [x] Update reusable Notes panels to consume Notes-owned payloads.
+  - [x] Tasks note panels consume the Notes-owned payload contract when linked-note panels are introduced; no separate task-local note query is added in this pass.
+  - [x] Client/project note panels consume the Notes-owned payload contract when linked-note panels are introduced; no Client/Projects-owned note lookup is added in this pass.
+  - [x] Lists note panels consume the Notes-owned payload contract when linked-note panels are introduced; no Lists-owned note lookup is added in this pass.
+  - [x] Future ticket panels should consume the same Notes-owned payload contract when Tickets arrive.
+- [x] Add regression coverage.
+  - [x] Notes access policy is enforced before linked-note panel shaping.
+  - [x] Collection tree ordering and defaults remain stable.
+  - [x] Secure/private notes do not leak through counts, labels, excerpts, or linked panels.
+
+### Version 0.33.5.2.6 - Files attachment lists/counts
+
+Goal:
+Keep attachment list, count, sorting, filtering, and pagination behavior inside the framework-owned Files service while modules own only the business meaning and placement of their file attachments.
+
+Out of scope:
+- Do not add file deletion, multi-upload, drag-and-drop upload, or storage quotas here; those belong to the later Files QoL section.
+- Do not expose protected storage paths, raw scanner details, or unsafe URLs.
+- Do not make individual modules query file tables directly for counts.
+
+- [x] Formalize canonical attachment list/count reads.
+  - [x] Target module/type/id reads must re-check target access before returning attachment labels or counts.
+  - [x] Counts must be permission-safe and must not reveal inaccessible attachments.
+  - [x] Attachment list sorting should be service-owned, with deterministic defaults such as newest first.
+  - [x] Pagination/filtering should be accepted at the Files service/API boundary where list sizes can grow.
+- [x] Update module attachment panels to consume Files-owned payloads.
+  - [x] Tasks attachments.
+  - [x] Notes attachments.
+  - [x] Lists attachments consume Files-owned payloads when list attachment panels are introduced; no Lists-owned attachment query is added in this pass.
+  - [x] Client/project attachments if present consume Files-owned payloads through the framework endpoint; no Client/Projects-owned attachment query is added in this pass.
+  - [x] Future Tickets and Knowledge Base attachments should consume the same Files-owned payload contract when those modules arrive.
+- [x] Preserve file lifecycle boundaries.
+  - [x] Modules may subscribe to safe file lifecycle events.
+  - [x] File service remains responsible for storage, access, downloads, scanner results, and shared UI behavior.
+- [x] Add regression coverage.
+  - [x] Attachment counts are permission-safe.
+  - [x] Attachment list pagination/sorting is deterministic.
+  - [x] Inaccessible target records do not reveal file labels or counts.
+  - [x] Lifecycle event payloads remain sanitized.
+
+### Version 0.33.5.2.7 - Lists module index filters/sorts and item suggestions
+
+Goal:
+Move Lists index filters, sorts, progress summaries, reusable-list views, linked-record context, and item catalog suggestions into Lists-owned service/API behavior so the browser UI renders a canonical list work surface rather than becoming the source of truth.
+
+Out of scope:
+- Do not turn Lists into Notes, Tasks, inventory, purchasing, accounting, vendor management, manufacturing, or ERP.
+- Do not introduce automatic catalog learning unless a later Lists slice explicitly promotes it.
+- Do not make list items independently taggable, assignable, timed, or searchable beyond the existing Lists contract.
+
+- [x] Add/verify Lists-owned index query behavior.
+  - [x] Default active list view.
+  - [x] Status filters for active/completed/finalized/archived/deleted where supported.
+  - [x] Type filters for shopping/procurement/packing/supplies/parts/checklist/bill of materials.
+  - [x] Reusable-list filter/view.
+  - [x] Client/project filters for business workspaces.
+  - [x] Linked-record filters where the Lists link contract supports them.
+  - [x] Tag and No Tags filters through the Tags contract.
+- [x] Add deterministic Lists sort behavior.
+  - [x] Updated/recent activity.
+  - [x] Needed-by date.
+  - [x] Progress/incomplete count where useful.
+  - [x] Name/type/status fallback ordering.
+  - [x] Source/reusable context ordering where useful.
+- [x] Keep item catalog suggestions service-owned.
+  - [x] Rank by workspace scope, matching project/client/list type context, usage count, last-used recency, and item name.
+  - [x] Preserve permission checks before suggestion labels or source context are returned.
+  - [x] Preserve snapshot behavior when catalog suggestions are copied into list items.
+- [x] Update Lists browser UI to consume canonical query/suggestion payloads.
+  - [x] Browser sends filter/sort intent.
+  - [x] Browser does not own reusable-list/source ranking.
+  - [x] Empty states remain workflow-oriented and recovery-friendly.
+- [x] Add regression coverage.
+  - [x] Lists filters and sorts are service/API-owned.
+  - [x] Catalog suggestion ranking is deterministic.
+  - [x] Permission filtering happens before list labels, linked context, tags, or suggestions are returned.
+
+### Version 0.33.5.2.8 - Tags filters and bulk tag assignment
+
+Goal:
+Make tag filter semantics and bulk tag assignment a Tags-owned/framework-hooked contract so modules can opt into taggable records without hard-coding No Tags filters or bulk assignment behavior per module.
+
+Out of scope:
+- Do not add tag scopes.
+- Do not make tags drive permissions, visibility, billing status, workflow status, archive state, or report totals.
+- Do not force every module to expose bulk tag UI in this slice; the contract should allow safe adoption by module.
+
+- [x] Formalize shared tag filter semantics.
+  - [x] Simple No Tags means no effective tags.
+  - [x] Preserve the reserved direct-only sentinel for future advanced UI without exposing broad advanced controls here.
+  - [x] Tag filters should use the Tags service/effective-tag contract rather than module-local string matching.
+  - [x] Modules should pass tag filter intent to their owning query helpers.
+- [x] Add a safe bulk tag assignment contract.
+  - [x] Bulk assignment operates on direct/manual assignments unless an explicit future workflow says otherwise.
+  - [x] Propagated and system assignments must be preserved.
+  - [x] Per-record permission checks happen before mutation.
+  - [x] Partial success/failure reporting identifies skipped records without leaking inaccessible labels.
+  - [x] Bulk remove must not delete parent assignments or propagated/system tags.
+- [x] Wire first consumers where the UI already needs the pattern.
+  - [x] Tasks filters and bulk tag assignment.
+  - [x] Clients/Projects filters and bulk tag assignment where appropriate.
+  - [x] Lists filters and bulk tag assignment where Lists taggable contracts are active.
+  - [x] Time Entries/Reporting filters continue to use stored/effective tag semantics already defined for finalized entries.
+- [x] Add regression coverage.
+  - [x] No Tags filters use effective-tag semantics.
+  - [x] Bulk tag assignment preserves propagated/system assignments.
+  - [x] Per-record permissions are enforced before mutation.
+  - [x] Tags remain classification metadata only.
+
+### Version 0.33.5.2.9 - API Key cleanup
+
+Goal:
+Audit public API key scopes against framework and first-party module capabilities, then document the missing scope work for 0.33.5.3.x without trying to complete the full public API expansion inside 0.33.5.2.
+
+Out of scope:
+- Do not implement the full missing API-key scope set in this slice unless it remains a tiny documentation correction.
+- Do not expose new public API routes without a dedicated implementation/version slice.
+- Do not bypass module permissions; API keys must map through stable module/framework permission contracts.
+
+- [x] Audit current API key scopes visible to Workspace Admin and Super Admin users.
+  - [x] Confirm existing scopes: `clients:read`, `projects:read`, `tasks:read`, `tasks:write`, `time_entries:read`, and `time_entries:write`.
+  - [x] Confirm missing write scopes for clients/projects if still absent.
+  - [x] Confirm missing public scopes for files, search, notes, lists, tags, notifications, Help/read-only discovery, and any other active first-party modules.
+  - [x] Compare UI-visible scopes with seeded/default API-key scope definitions.
+- [x] Map desired scopes to owning contracts.
+  - [x] Framework-owned scopes such as files, search, notifications, Help, and settings/discovery.
+  - [x] Module-owned scopes such as notes, lists, tasks, client-projects, time-tracking, and tags.
+  - [x] Read/write/admin/manage distinctions where the module permission model supports them.
+  - [x] Explicitly identify scopes that should remain internal-only for now.
+- [x] Add a 0.33.5.3.x roadmap plan for API key scope repair.
+  - [x] Scope registration/source-of-truth update.
+  - [x] UI display/update behavior for new scopes.
+  - [x] Public API route coverage or explicit route deferrals.
+  - [x] Permission regression coverage for API-key-scoped reads/writes.
+  - [x] Documentation updates to `docs/public-api.md`.
+- [x] Add audit/regression checklist for the future implementation.
+  - [x] Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
+  - [x] API-key reads/writes enforce the same module boundaries as browser/session permissions.
+  - [x] Missing modules are either intentionally absent and documented or available through scopes.
+
+### Version 0.33.5.3 - API key scope repair
+
+Goal:
+Repair the API key scope catalog and public API route plan so framework and first-party module capabilities are either intentionally exposed through permission-safe public API scopes or explicitly documented as internal-only.
+
+Out of scope:
+- Do not add public routes without matching API key scope checks, module permission checks, docs, and regressions.
+- Do not make API key scopes bypass browser/session module boundaries.
+- Do not expose admin-only internals such as audit logs, permission administration, module enablement, search index repair, raw file storage, scanner/quarantine details, secure-note internals, or notification delivery internals unless a future dedicated version explicitly changes that boundary.
+
+- [x] Scope registration and source-of-truth repair.
+  - [x] Add missing module-owned scope declarations where public route coverage is intended.
+  - [x] Add framework-owned scope declarations for files, search, notifications, Help, and discovery only where public routes are intentionally supported.
+  - [x] Preserve disabled-module filtering in the API key UI for module-owned scopes.
+  - [x] Keep internal-only surfaces out of the visible scope catalog.
+- [x] UI display/update behavior for new scopes.
+  - [x] Group scopes by owner/module so large catalogs remain readable.
+  - [x] Show read/write/manage distinctions without implying unavailable public routes.
+  - [x] Verify Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
+- [x] Public API route coverage or explicit route deferrals.
+  - [x] Add `clients:write` and `projects:write` only with dedicated client/project public write routes.
+  - [x] Add Files public routes only after target access, file lifecycle, scanner metadata, and download safety are mapped.
+  - [x] Add Search public routes only with permission-pruned result shaping.
+  - [x] Add Notes, Lists, Tags, Notifications, and Help public routes only through their owning service contracts.
+  - [x] Document any first-party module that remains intentionally absent from public API coverage.
+- [x] Permission regression coverage for API-key-scoped reads and writes.
+  - [x] API-key reads/writes enforce the same module boundaries as browser/session permissions.
+  - [x] Disabled optional modules hide new key scopes and block writes.
+  - [x] Inaccessible records do not leak labels, counts, file metadata, search snippets, note excerpts, list item labels, or tag labels.
+  - [x] Public API errors keep the versioned envelope and do not expose internal implementation details.
+- [x] Documentation updates to `docs/public-api.md`.
+  - [x] Keep the current scope catalog, route coverage, deferred scopes, and internal-only surfaces current with implementation.
+  - [x] Add examples for each newly exposed route family.
+  - [x] Update changelog and decisions whenever a scope changes public integration behavior.
+
+## Version 0.33.3.4 - Import Planning, Verification, Bookkeeping, and Roadmap Archive
+
+* [x] Add migration/import planning notes.
+
+  * [x] Leave room for a future OneNote import workflow.
+  * [x] Map imported notebooks, section groups, sections, pages, and subpages into Notes metadata and collection structures.
+  * [x] Preserve source paths for troubleshooting.
+  * [x] Suggest Library buckets during import where possible.
+  * [x] Do not grant access based on import source.
+  * [x] Do not assume imported notes are safe to make client-visible.
+  * [x] Do not import secure/private source material into normal notes without a deliberate user choice.
+
+* [x] Run verification.
+
+  * [x] Run focused Notes API tests.
+  * [x] Run focused Notes UI tests.
+  * [x] Run focused Notes Library and collection tests.
+  * [x] Run focused Notes search tests.
+  * [x] Run focused Notes tag tests.
+  * [x] Run focused Notes file attachment tests.
+  * [x] Run focused Notes revision tests.
+  * [x] Run focused secure note tests if secure notes are included.
+  * [x] Run focused Library permission tests.
+  * [x] Run focused archived note read-only tests.
+  * [x] Run `npm run check`.
+  * [x] Run `npm run test:permissions`.
+  * [x] Run SQLite integrity check after Notes migrations, Library changes, and revision tests.
+
+* [x] Release bookkeeping.
+
+  * [x] Record Notes and Notes Library decisions in `DECISIONS.md`.
+  * [x] Update `CHANGELOG.md`.
+  * [x] Bump `package.json` and `package-lock.json`.
+  * [x] Verify `/api/app-info` reports the completed Notes version.
+  * [x] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
+
+## Version 0.33.1.1 - Notes Service, Browser API, and Access Enforcement
+
+Implementation shape:
+
+* Build the server-side workflow foundation first.
+* Keep this pass UI-light: API smoke coverage is enough, with protected views deferred to 0.33.1.2.
+* All routes must use the same Library-aware access policy introduced in 0.33.0.3.
+
+* [x] Add note service methods.
+
+  * [x] Create note.
+  * [x] Read one note.
+  * [x] List notes.
+  * [x] Update note.
+  * [x] Archive note.
+  * [x] Restore note.
+  * [x] Soft-delete note where allowed.
+  * [x] List note revisions.
+  * [x] Read note revision.
+  * [x] Restore note revision.
+  * [x] Link note to a target record.
+  * [x] Remove note link.
+  * [x] List notes for target record.
+  * [x] List notes by Library bucket.
+  * [x] List archived notes by original Library bucket.
+  * [x] Derive suggested Library bucket from linked context.
+  * [x] Apply manual Library bucket override.
+  * [x] Validate note access.
+  * [x] Validate note edit access.
+  * [x] Validate Library-aware note access.
+  * [x] Generate safe Markdown excerpt.
+  * [x] Generate search indexing payload for later search registration.
+  * [x] Emit safe lifecycle events.
+
+* [x] Add browser API routes.
+
+  * [x] `GET /api/notes`
+  * [x] `POST /api/notes`
+  * [x] `GET /api/notes/library`
+  * [x] `GET /api/notes/library/:libraryBucket`
+  * [x] `GET /api/notes/archive`
+  * [x] `GET /api/notes/:noteId`
+  * [x] `PUT /api/notes/:noteId`
+  * [x] `POST /api/notes/:noteId/library`
+  * [x] `POST /api/notes/:noteId/archive`
+  * [x] `POST /api/notes/:noteId/restore`
+  * [x] `POST /api/notes/:noteId/delete`
+  * [x] `GET /api/notes/:noteId/revisions`
+  * [x] `GET /api/notes/:noteId/revisions/:revisionId`
+  * [x] `POST /api/notes/:noteId/revisions/:revisionId/restore`
+  * [x] `GET /api/notes/:noteId/links`
+  * [x] `POST /api/notes/:noteId/links`
+  * [x] `POST /api/notes/:noteId/links/:noteLinkId/remove`
+  * [x] `GET /api/notes/for-target`
+  * [x] Keep public/client note APIs deferred until explicit visibility and public-safe file behavior are stable.
+
+* [x] Enforce note API permissions.
+
+  * [x] Every route must validate active workspace.
+  * [x] Every read must validate note Library bucket, note visibility, security mode, note permissions, and linked-record access where applicable.
+  * [x] Every write must validate Notes module state.
+  * [x] Users cannot create notes for records they cannot access.
+  * [x] Users cannot link notes to records they cannot access.
+  * [x] Users cannot assign a Library bucket that conflicts with access rules without elevated permission.
+  * [x] Users cannot read private notes unless they own them or have elevated permission.
+  * [x] Users cannot read secure notes unless they have secure-note access.
+  * [x] Users cannot expose notes as client-visible without explicit permission.
+  * [x] Users cannot restore revisions unless they can edit the note and view history.
+  * [x] Archived notes are read-only by default unless restored.
+  * [x] Disabled module state blocks new writes.
+  * [x] Search, tag, file, Library, and revision APIs must use the same access rules as note reads.
+
+* [x] Add 0.33.1.1 regressions.
+
+  * [x] Users can create, update, archive, restore, delete where allowed, and read notes according to permissions.
+  * [x] Library bucket suggestions match linked context.
+  * [x] Manual Library bucket overrides are preserved.
+  * [x] Private notes are hidden from unauthorized users.
+  * [x] Linked record access is enforced.
+  * [x] Revision restore creates a new revision.
+  * [x] Disabled Notes module blocks new writes.
+  * [x] Run `npm run check`.
+  * [x] Run `npm run test:permissions`.
+  * [x] Run SQLite integrity check after note service/API tests.
+  * [x] Bump the app and Notes module versions to `0.33.1.1`.
+
+## Version 0.33.0.3 - Notes Permissions, Access Contract, Audit, Events, Indexes, and Import Readiness
+
+Implementation shape:
+
+* Finish the backend contract needed before Notes becomes user-facing.
+* Keep Library buckets, visibility, tags, and security mode from becoming permission shortcuts.
+* Add regressions that prove Notes can consume framework services without hard-coding note behavior into framework-owned services.
+
+* [x] Add note permissions.
+
+  * [x] `notes.view`
+  * [x] `notes.view_all`
+  * [x] `notes.view_private`
+  * [x] `notes.create`
+  * [x] `notes.update`
+  * [x] `notes.archive`
+  * [x] `notes.restore`
+  * [x] `notes.delete`
+  * [x] `notes.view_history`
+  * [x] `notes.restore_revision`
+  * [x] `notes.manage_links`
+  * [x] `notes.manage_library`
+  * [x] `notes.manage_settings`
+  * [x] Add context-sensitive access checks for linked client/project/task/ticket/user records.
+  * [x] Add Library bucket scope checks for Active Work, Ongoing Areas, and Reference Library.
+  * [x] Private notes require owner access or elevated permission.
+  * [x] Client-visible notes require explicit permission before users can expose note content to authorized external/client users.
+  * [x] Note visibility and edit access must respect roles and permissions.
+  * [x] Leave hooks for future change requests.
+  * [x] Do not allow users to infer the existence of hidden/private/secure notes through search, tag counts, Library counts, attachment counts, or linked-record summaries.
+
+* [x] Add Library-aware access behavior.
+
+  * [x] Active Work notes should use project/task/ticket/project-context access checks.
+  * [x] Active Work notes should be visible to Project Users and above when visibility and permissions allow.
+  * [x] Ongoing Areas notes should use client-level access checks.
+  * [x] Ongoing Areas notes should be visible to Client Users and above when visibility and permissions allow.
+  * [x] Reference Library notes should use workspace-level access checks.
+  * [x] Reference Library notes should be visible to workspace users when visibility and permissions allow.
+  * [x] Archived notes should remain viewable/searchable by users who would otherwise have access, but should be read-only by default.
+  * [x] Client-visible notes should require client/project scope and explicit client-visible permission.
+  * [x] Private notes should ignore broad Library visibility and remain owner/elevated access only.
+  * [x] Secure notes should require secure-note permissions in addition to normal note access.
+  * [x] Library bucket should help automate default access checks, but should never bypass visibility, security mode, ownership, or explicit permissions.
+
+* [x] Add note resource definition.
+
+  * [x] Resource key: `notes`.
+  * [x] Supported operations:
+
+    * [x] `read`
+    * [x] `create`
+    * [x] `update`
+    * [x] `archive`
+    * [x] `restore`
+    * [x] `delete`
+    * [x] `manage`
+    * [x] `view_history`
+    * [x] `restore_revision`
+    * [x] `manage_library`
+
+* [x] Add note audit record types.
+
+  * [x] `note`
+  * [x] `note_revision`
+  * [x] `note_link`
+  * [x] `note_library`
+  * [x] Audit note creation, updates, archive/restore, soft delete, Library bucket changes, visibility changes, security mode changes, link changes, revision restores, attachment links, and secure-note access events where appropriate.
+  * [x] Audit records should remain admin/security records and should not be shown as the normal note changelog.
+  * [x] Audit records should not expose secure note body content.
+
+* [x] Add note lifecycle events.
+
+  * [x] `note.created`
+  * [x] `note.updated`
+  * [x] `note.revision_created`
+  * [x] `note.library_changed`
+  * [x] `note.archived`
+  * [x] `note.restored`
+  * [x] `note.deleted`
+  * [x] `note.linked`
+  * [x] `note.unlinked`
+  * [x] `note.visibility_changed`
+  * [x] `note.security_mode_changed`
+  * [x] `note.attachment_added`
+  * [x] `note.attachment_removed`
+  * [x] Event payloads should include workspace ID, actor user ID, note ID, safe title/excerpt metadata, Library bucket, visibility, security mode where safe, linked record context where safe, previous/new values where safe, and timestamps.
+  * [x] Event payloads should not include raw secure note content, encrypted payloads, decrypted plaintext, unsafe Markdown, secrets, private attachment details, or hidden linked-record details.
+  * [x] Event payloads should leave room for future notifications, Workbench activity, dashboard activity, Library activity summaries, and automations.
+
+* [x] Add note indexes.
+
+  * [x] Workspace + note ID.
+  * [x] Workspace + Library bucket.
+  * [x] Workspace + Library bucket + status.
+  * [x] Workspace + Library bucket + visibility.
+  * [x] Workspace + status.
+  * [x] Workspace + visibility.
+  * [x] Workspace + security mode.
+  * [x] Workspace + owner user ID.
+  * [x] Workspace + created by user ID.
+  * [x] Workspace + updated at.
+  * [x] Workspace + client ID.
+  * [x] Workspace + project ID.
+  * [x] Workspace + task ID.
+  * [x] Workspace + ticket ID.
+  * [x] Workspace + linked user ID.
+  * [x] Workspace + slug where slugs are enabled.
+  * [x] Note links by workspace + module ID + target type + target ID.
+  * [x] Note revisions by workspace + note ID + revision number.
+  * [x] Note revisions by workspace + note ID + Library bucket where useful.
+
+* [x] Add OneNote/import-friendly metadata groundwork.
+
+  * [x] Leave room for imported note metadata.
+  * [x] Suggested metadata:
+
+    * [x] `import_source`
+    * [x] `import_source_id`
+    * [x] `import_source_path`
+    * [x] `imported_at`
+    * [x] `import_batch_id`
+    * [x] `original_notebook`
+    * [x] `original_section_group`
+    * [x] `original_section`
+    * [x] `original_page_id`
+  * [x] Imported notes should be mapped into Library buckets where possible.
+  * [x] Imported notebooks/sections should be preserved as metadata or future collections.
+  * [x] Import metadata should not grant access.
+  * [x] Import metadata should not be shown to unauthorized users.
+
+* [x] Add focused contract regressions.
+
+  * [x] Notes cannot cross workspace boundaries.
+  * [x] Notes cannot link to records from another workspace.
+  * [x] Library bucket is derived or suggested correctly from linked context.
+  * [x] Manual Library bucket overrides are preserved.
+  * [x] Active Work notes require project/task/ticket/project-context access where applicable.
+  * [x] Ongoing Areas notes require client-context access where applicable.
+  * [x] Reference Library notes require workspace-level access where applicable.
+  * [x] Archived notes are read-only by default.
+  * [x] Archived notes preserve their original Library bucket.
+  * [x] Private notes are hidden from users without owner/elevated access.
+  * [x] Client-visible notes cannot be created from unsafe cross-client Reference Library notes.
+  * [x] Secure notes are not normal indexed records.
+  * [x] Disabled Notes module blocks new writes.
+  * [x] Historical reads follow module lifecycle policy.
+  * [x] Note revisions are created for meaningful content, Library bucket, visibility, and security mode changes.
+  * [x] Note changelog does not expose raw audit JSON.
+  * [x] Unsafe Markdown is rejected or rendered safely.
+  * [x] Tags do not control note Library bucket, visibility, or security mode.
+  * [x] Library bucket does not bypass permissions.
+  * [x] Note lifecycle events emit safe payloads.
+
+## Version 0.33.0.2 - Notes Markdown, Editor Hooks, Wiki Links, and Revision Foundation
+
+Implementation shape:
+
+* Establish Markdown as the durable note content format.
+* Add revision history and note changelog foundations before the browser UI depends on them.
+* Keep future WYSIWYG and wiki-link behavior behind clear contracts without overbuilding the first editor.
+
+* [x] Add Markdown content foundation.
+
+  * [x] Store note body as Markdown.
+  * [x] Add safe Markdown parsing/rendering helper.
+  * [x] Strip or reject unsafe HTML.
+  * [x] Normalize Markdown before saving where practical.
+  * [x] Generate safe excerpts/snippets server-side.
+  * [x] Support headings, bold, italic, links, blockquotes, code blocks, unordered lists, ordered lists, and checklists.
+  * [x] Do not support arbitrary scriptable embeds.
+  * [x] Do not trust browser-rendered Markdown output.
+  * [x] Add rendering tests for unsafe input.
+
+* [x] Add future editor hooks.
+
+  * [x] First implementation may use a plain Markdown textarea.
+
+  * [x] Leave a clean browser helper boundary for a future toolbar/editor.
+
+  * [x] Future editor should emit valid Markdown.
+
+  * [x] Future editor should support common controls:
+
+    * [x] Bold
+    * [x] Italic
+    * [x] Headings
+    * [x] Links
+    * [x] Checklists
+    * [x] Unordered lists
+    * [x] Ordered lists
+    * [x] Code blocks
+    * [x] Blockquotes
+
+  * [x] Do not store proprietary editor JSON as the canonical note body unless a later migration strategy is explicitly designed.
+
+  * [x] Keep editor behavior replaceable without changing the note storage model.
+
+* [x] Add wiki-style linking groundwork.
+
+  * [x] Reserve syntax support for wiki-style links such as `[[Note Title]]` or `[[note-slug|Display Text]]`.
+  * [x] Do not require full wiki-link autocomplete in the first pass.
+  * [x] Store detected wiki links as metadata or `note_links` records where practical.
+  * [x] Broken wiki links should render safely.
+  * [x] Renaming a note should not break stable note IDs.
+  * [x] Slugs should be display/routing helpers, not primary keys.
+  * [x] Do not auto-create notes from wiki links until the UX is deliberate.
+  * [x] Wiki-style links should respect Library bucket, visibility, security mode, and permissions.
+  * [x] Users should not be able to discover private or secure notes through wiki-link autocomplete unless they can access those notes.
+
+* [x] Add persistent note revision support.
+
+  * [x] Add `note_revisions` table.
+
+  * [x] Suggested fields:
+
+    * [x] `note_revision_id`
+    * [x] `workspace_id`
+    * [x] `note_id`
+    * [x] `revision_number`
+    * [x] `title`
+    * [x] `body_markdown`
+    * [x] `body_excerpt`
+    * [x] `note_type`
+    * [x] `library_bucket`
+    * [x] `status`
+    * [x] `visibility`
+    * [x] `security_mode`
+    * [x] `changed_by_user_id`
+    * [x] `change_summary`
+    * [x] `change_reason`
+    * [x] `created_at`
+    * [x] `metadata_json`
+
+  * [x] Create a revision when meaningful note content changes.
+
+  * [x] Create a revision when title changes.
+
+  * [x] Create a revision when Library bucket changes.
+
+  * [x] Create a revision when visibility changes.
+
+  * [x] Create a revision when security mode changes.
+
+  * [x] Avoid creating noisy revisions for only `updated_at` changes.
+
+  * [x] Preserve previous body content for restore/diff workflows.
+
+  * [x] Preserve previous Library bucket values for restore/diff workflows.
+
+  * [x] Note revision history should be permission-protected.
+
+  * [x] Revisions should not replace audit logging.
+
+  * [x] Revision bodies for normal notes may be searchable only through the current note unless version search is deliberately added later.
+
+  * [x] Secure note revisions must follow the secure note encryption rules and must not leak plaintext into normal revision tables or search indexes.
+
+* [x] Add note changelog display model.
+
+  * [x] Changelogs should show user-friendly change history.
+
+  * [x] Changelogs should include:
+
+    * [x] Revision number
+    * [x] Changed by
+    * [x] Changed at
+    * [x] Change summary where provided
+    * [x] Title changed indicator
+    * [x] Body changed indicator
+    * [x] Library bucket changed indicator
+    * [x] Visibility changed indicator where safe
+    * [x] Security mode changed indicator where safe
+    * [x] Link changes where useful
+    * [x] Attachment changes where useful
+
+  * [x] Changelogs should not expose raw audit JSON.
+
+  * [x] Changelogs should not expose encrypted secure-note body content unless the viewer can decrypt the secure note.
+
+  * [x] Changelogs should be readable by users with note history permissions.
+
+  * [x] Changelogs should not reveal hidden linked records to unauthorized users.
+
+## Version 0.33.5.18.1 - Descriptor Capability Gaps and Shared Renderer/Primitive Extensions
+
+Before converting any surface, inventory what the current descriptor/renderer cannot yet express
+across the four target surfaces and add only the capabilities needed by two or more of them, so
+individual surface conversions do not each reinvent shared anatomy. Surface-unique needs stay as
+documented escape-hatch behaviors rather than new descriptor fields.
+
+- [x] Inventory descriptor/renderer gaps against Notes, Tasks, Files, and Clients/Projects pages,
+      classifying each as either a shared descriptor capability or a per-surface escape-hatch pattern:
+  - [x] Inline/editable item rows (Tasks checklists, Lists-style item entry parity).  -  Shared: built as rich `itemRows` (chips/meta/row actions).
+  - [x] Multi-select plus a bulk-action toolbar (Tasks, Files).  -  Deferred to the first surface that needs it (Tasks).
+  - [x] Reorder/drag affordance for ordered collections.  -  Per-surface escape-hatch behavior.
+  - [x] Sectioned or tabbed detail panels (Tasks detail, Notes linked context).  -  Covered by mount regions.
+  - [x] Hierarchy/tree index rendering (Clients/Projects parent/child).  -  Deferred to the first surface that needs it.
+  - [x] File upload control with progress and the framework file routes (Files, attachment panels).  -  Escape-hatch behavior mounted in a region.
+  - [x] Tag picker behavior hook (Notes, Tasks, Files, Clients/Projects).  -  Escape-hatch behavior mounted in a region.
+  - [x] Live Markdown preview region bound to the 0.33.5.17 service (Notes).  -  Escape-hatch behavior mounted in a region.
+  - [x] Revision/history list panel (Notes; reusable later).  -  Escape-hatch behavior mounted in a region.
+  - [x] "Load more"/pagination affordance for large collections.  -  Deferred to the first surface that needs it.
+  - [x] Per-row dense action overflow on narrow widths.  -  Owned by existing `surface-dense-actions` wrapping.
+  - [x] Filter controls that drive a normalized read endpoint without per-module DOM.  -  Shared: built as filter->refetch query binding.
+- [x] For each shared gap, extend the descriptor schema and renderer minimally, keeping the renderer
+      on the existing `LongtailForge.view` primitives as its engine.  -  Built the three minimal enablers (filter->refetch, mount regions, rich item rows); other capabilities deferred or routed through the escape hatch per the decision in DECISIONS.md.
+- [x] Add manifest-contract validation in `src/core/modules/manifest-contract.js` for any new
+      descriptor fields (reject unknown keys, missing required fields, bad references).
+- [x] Document each per-surface escape-hatch pattern as a registered behavior contract rather than a
+      descriptor field, so module-specific interactions stay in module browser files.
+- [x] Add renderer/primitive regressions with small fixtures for every new shared capability. Do not
+      convert any real surface in this slice.
+- [x] Update the developer guide and `docs/view-building-contract.md` with the new shared capabilities
+      and the escape-hatch boundary.
+
+---
+
+## Version 0.33.5.18.2 - Stacked List/Detail Layout, Collapsible Filters, Scrollable Index
+
+This framework layout slice was inserted before resuming the surface conversions so Notes and every
+later surface adopt the corrected layout rather than building on the retired split-list-detail view.
+It also resolves the detail action-strip overflow seen in the split layout's narrow detail track.
+Narrative: 0.33.5.18.1 framework capabilities, 0.33.5.18.2 framework layout, 0.33.5.18.3+ surfaces.
+
+- [x] Add a framework `stacked` view layout: collapsible filters on top, a height-capped scrollable
+      index panel (~5 rows, inset scroll region), then a full-width detail panel below.
+- [x] Make the framework filter panel collapsible (`createFilterPanel` renders a `<details>`),
+      collapsed by default on rendered surfaces.
+- [x] Retire `split-list-detail` as a selectable layout (manifest enum, renderer branch, descriptors);
+      keep the `createSplitListDetail` primitive and `.view-split-list-detail` CSS as deprecated
+      compatibility shims annotated `@deprecated`.
+- [x] Switch the Lists and Notes descriptors (and the Lists fallback) to `layout: "stacked"`, and
+      point the Lists adapter decoration at the stacked DOM (`.view-stacked` / `.view-stacked-detail`).
+- [x] Add regression coverage for the stacked layout, collapsible filter panel, and scrollable index;
+      update affected layout assertions; bump asset cache-busts and version/app metadata.
+- [x] Run `npm run check` and `npm run test:permissions`.
+
+---
+
+## Notes (0.33.5.18.3 - 0.33.5.18.5)
+
+Framework owns: page shell, library filter panel, collection selector/index, split list/detail,
+note detail header/metadata/badges, action strips, summary/linked-context panels, modal shell/form,
+field grid, empty/loading/error states, rendered Markdown container styling.
+
+Notes owns: note body storage and revisions; `All Libraries`, `All collections`, `Uncategorized`, and
+manual Library bucket semantics; private/secure/internal/workspace/client-visible visibility rules;
+wiki-style link detection and note relationships; linked context for workspace/project/task/user and
+Business-only client targets; tags; save payloads; permissions. Markdown rendering, preview, and
+plain-text extraction come from the 0.33.5.17 shared service.
+
+### Version 0.33.5.18.3 - Notes Declarative Read-Only Surface Proof
+
+- [x] Add a `viewSurfaces` descriptor for the Notes protected workspace read path on the Notes manifest.
+- [x] Reduce `views/protected/notes.html` to a minimal framework host element the renderer fills.  -  `notes.html` is now `<main data-notes-host>` plus the two static dialogs (deferred to 0.33.5.18.4).
+- [x] Move library filters, the collection selector/index, the split list/detail workspace, the note
+      detail header, metadata/badge rows, and the read-only rendered note body into the descriptor.  -  Per the chosen "framework shell + module-mounted chrome" approach: the framework descriptor owns the page header, filters panel, stacked layout, collapsible panels, and detail container; Notes-specific chrome mounts as a separate Library panel (`createNotesLibraryPanel`/`createNotesLibraryChrome`) and Notes list panel (`createNotesListChrome`) through `decorateNotesDeclarativeSurface`. Follow-up layout polish keeps Filters collapsed, Library and Notes List open with native disclosure markers, blank detail on first load, summary-line pagination through the framework collapsible-index action slot, compact no-excerpt list stubs with two visible tags plus ellipsis overflow, and Library/Notes auto-collapse after note selection.
+- [x] Render the note body through the 0.33.5.17 Markdown service; do not reintroduce ad-hoc rendering.  -  Detail body continues to render the server's `body_html` (produced by the 0.33.5.17 Markdown service); no ad-hoc rendering added.
+- [x] Define the normalized Notes read endpoint and `fieldBindings`; reuse existing routes/payloads
+      where possible and only add additive normalized reads if needed.  -  Reuses `/api/notes` with `note_id`/`title` bindings; no new routes.
+- [x] Preserve all Notes routes, response payloads, permissions, visibility rules, library/collection
+      bucket semantics, wiki-link display, and workspace scope behavior.  -  Read/filter/detail logic and secure-note rules remain in `notes.js`.
+- [x] Keep note creation/editing, modals, revisions, and linked-record management on the existing
+      imperative path until later slices.  -  The editor and collection dialogs stay static/imperative (0.33.5.18.4).
+- [x] Add regressions proving the read-only Notes surface renders from the descriptor with correct
+      visibility filtering and Markdown rendering.
+
+### Version 0.33.5.18.4 - Notes Editor, Modals, Field Behaviors, and Live Preview
+
+- [x] Convert the note create/edit modal shell to descriptor-declared modal/form/footer anatomy.  -  The
+      Notes manifest descriptor now declares a `modals` block (`note-editor`, `note-collection`) with
+      fields and `footerActions`; `createNoteDialogShell`/`createCollectionDialogShell` build both
+      dialogs through the framework `view.createModalForm` primitive (dialog/form/title/footer), and
+      the two static `<dialog>` elements were removed from `views/protected/notes.html`.
+- [x] Bind the live Markdown preview to the same 0.33.5.17 contract as saved rendering so preview and
+      saved output cannot diverge and sanitization is not bypassed.  -  Preview keeps POSTing to
+      `/api/notes/preview` (the 0.33.5.17 Markdown service); no ad-hoc client rendering reintroduced.
+- [x] Express editor field behaviors (visibility selector, library/collection assignment, tags,
+      linked-record targets) as descriptor fields plus registered behaviors.  -  Field set and select
+      options are sourced from the descriptor `modals` block (`modalFieldOptions`); footer actions
+      declare their behavior ids. Save/validation/secure-rule wiring stays module-owned in `notes.js`.
+- [x] Keep Notes responsible for body storage, revision creation, validation, save payloads,
+      secure/private rules, and permissions.  -  Unchanged; all storage/save/secure logic remains in
+      `notes.js`/`notes.service.js`.
+- [x] Reduce `public/js/notes.js` editor/modal code to data bindings plus registered behaviors.  -  The
+      modal anatomy (dialog/form/title/footer) is now framework-built; `notes.js` builds only the
+      module-specific body sections (selects, secure warning, linked-context picker, toolbar, preview)
+      and retains the imperative bindings.
+- [x] Add regressions for descriptor-rendered note editor, live preview parity, revisions, and
+      secure-note handling.  -  `notes-ui-workflow`, `notes-declarative-readonly-surface`, and
+      `notes-preview-editor` regressions now assert the framework-built dialog shells and that no
+      static dialog markup remains.
+
+### Version 0.33.5.18.5 - Notes Workflow Actions, Linked Context, and Layout Cleanup
+
+Split into three focused sub-slices so each ships green and reviewable.
+
+#### Version 0.33.5.18.5.1 - Notes Workflow Actions + Declarative Action Strip
+
+- [x] Express the Notes detail workflow actions (edit, archive, restore) as a declarative
+      `detail.actionStrip` in the `notes.workspace` descriptor with `behavior` ids
+      (`notes.workflow.edit/archive/restore`) and `requiredPermissions`.  -  Added `detail.actionStrip`
+      to the manifest descriptor and the `notes.js` fallback, and registered the workflow behaviors.
+- [x] Render the detail action strip via `view.renderDescriptorActionStrip` (replacing the hand-built
+      `<details>` actions menu) and dispatch clicks through the registered behaviors, applying
+      edit/archive/restore visibility by note status. Keep archive/restore service logic in Notes.
+
+#### Version 0.33.5.18.5.2 - Notes Linked Context and Linked Records
+
+- [x] Move the linked-records panel and linked-record rows into descriptor/renderer-supported anatomy
+      (`detail.linkedRecords` + `view.renderDescriptorLinkedRecordsPanel`) while keeping linkage
+      permission checks and service logic in Notes files.  -  The `notes.workspace` descriptor declares
+      `detail.linkedRecords` (fields + `add-link`/`remove-link` actions carrying `notes.link.*`
+      behavior ids and `NOTE_PERMISSIONS.MANAGE_LINKS`); `renderLinksPanel` now builds the panel via
+      `view.renderDescriptorLinkedRecordsPanel` and rows via `linkRecordNodes`/`view.createElement`.
+      Add/remove service routes (`/api/notes/:id/links`, `.../remove`) and target-scope logic stay in
+      Notes. (The read-only linked-context metadata list  -  Client/Project/Task/User dt/dd  -  is folded
+      into the 0.33.5.18.5.3 anatomy cleanup.)
+
+#### Version 0.33.5.18.5.3 - Notes Anatomy Cleanup and Strict Guardrails
+
+- [x] Reduce `public/js/notes.js` to data bindings and behavior handlers with no hand-built
+      framework-owned anatomy (swap `createModalForm` -> `renderDescriptorModalForm`, remove raw
+      `document.createElement` of structural tags including the read-only linked-context dt/dd list,
+      etc.).  -  The note/collection dialogs now build through `view.renderDescriptorModalForm` (the
+      renderer forwards the `size: "wide"` editor hint); the two `<details>` disclosures (collections
+      menu, revisions) and the detail header/body/tags/breadcrumb/context dt-dd list now use
+      `view.createElement`. notes.js no longer calls `createModalForm` or any
+      `document.createElement("dialog"|"table"|"details")`.
+- [x] Expand fail-on-violation declarative guardrails to the Notes surface.  -  `notes.workspace` is now
+      in `strictDeclarativeSurfaceIds`; `view-descriptor-declarative-guardrails` enforces a Notes block
+      (forbids the low-level framework primitives + `document.createElement` of dialog/table/details,
+      requires `renderDescriptorActionMenu`/`renderDescriptorLinkedRecordsPanel`/`renderDescriptorModalForm`).
+      `createCollapsibleIndexPanel` is an allowed, documented exception for the secondary Library nav panel.
+- [x] Add regressions proving Notes no longer creates framework-owned anatomy by hand.  -  The strict
+      guardrail + new `notes-ui-workflow` markers assert the modal-helper swap, no
+      dialog/table/details, and the framework-built disclosures and context list.
+
+#### Version 0.33.5.18.5.4 - Framework Modal Scroll/Footer Fix
+
+Framework-wide modal fix (affects Notes, Lists, Clients/Projects, Tasks). Regression from the
+0.33.5.18.4 sticky-footer work. (User screenshots pending for exact repro.)
+
+- [x] Fix the layout shift when a modal grows tall enough to show a vertical scrollbar.  -  Added
+      `scrollbar-gutter: stable` to the modal scroll regions (`.view-modal-body`/`.view-modal-form`) so
+      toggling the vertical scrollbar no longer reflows the modal content width.
+- [x] Fix the gap that opens below the pinned footer when the modal body scrolls.  -  Root cause was the
+      sticky form footer's `margin-bottom: -20px` combined with the form's 20px bottom padding, which
+      pushed the visible footer ~20px above the sticky stop so scrolled content (the Body textarea)
+      showed beneath it. Fixed by dropping the form's bottom padding (`.view-modal-form { padding-bottom:
+      0 }`) and removing the footer's negative bottom margin (`12px -20px 0`); the footer's own bottom
+      padding supplies the inset. The body-variant footer (`createModal`) was already flex-pinned.
+- [x] Verify the fix across all framework modals.  -  Fix is in shared CSS; bumped cache-busts on every
+      framework-modal page (`notes.html` css?v=30, `lists.html` css?v=24, `clients.html`/`projects.html`
+      css?v=8) so notes editor/collection, lists editor, and client/project modals all pick it up.
+      (Visual confirmation at small viewport heights still pending user review.)
+- [x] Add a regression asserting the framework modal scroll/footer CSS contract; bump the affected asset
+      cache-busts.  -  `modal-footer-contract-regression` now asserts the gutter reservation, the
+      form's dropped bottom padding, and the flush (non-negative-margin) sticky footer.
+
+#### Version 0.33.5.18.5.5 - Notes Add/Edit Modal Refinement
+
+- [x] Group the note "Details" fields (Library, Collection, Note Kind, Visibility, Security) into a
+      collapsible section  -  default open in the Add modal, default closed in the Edit modal.  -  Built as a
+      module-owned `<details class="notes-detail-group">` via `view.createElement` (the sanctioned
+      builder under strict mode); `openEditor` sets `detailsGroup.open = !note`. (A dedicated framework
+      field-group primitive remains an optional future refinement.)
+- [x] Move Tags to a footer utility button (matching the Tasks modal pattern) rather than an inline
+      section.  -  Extended the framework footer (`createModalFooter`/`createModalForm`/
+      `renderDescriptorModalForm`) to accept `utilityActions`, rendered in a
+      `surface-modal-footer-utilities` group; the Tags button toggles a hidden tag panel (the picker
+      still mounts via `window.LongtailForge.tags.mountPicker`).
+- [x] Restore the file-attach affordance in the Edit note modal (a footer button).  -  Added a Files
+      footer utility button toggling a hidden file panel; `mountNoteEditorFiles` mounts
+      `window.LongtailForge.fileAttachments` (saved/non-secure notes; Add shows the "save first"
+      message), hidden for secure notes.
+- [x] Keep note storage, validation, save payloads, secure rules, and revisions module-owned; add
+      regression markers for the collapsible group, footer Tags button, and footer file button.  -  All
+      save/secure logic unchanged; `notes-ui-workflow` markers cover the collapsible group, the footer
+      utility actions, the toggle/mount helpers, and the framework footer utility-group support.
+
+#### Version 0.33.5.18.5.6 - Notes Navigation Standardization
+
+- [x] Standardize the "Library" and "Notes List" panel headings to match the "Filters" heading.  -  The
+      gap was the Filters heading: `.view-filter-panel-title` was plain weight while the collapsible-index
+      summaries were bold. Made `.view-filter-panel-title` bold/clickable (framework CSS), so all
+      action-page disclosure headings (Filters, Library, Notes List) read consistently.
+- [x] Simplify the Library panel: drop the bucket-tab buttons in favor of the Library + Collection
+      dropdowns; add "Archive" to the Library dropdown; bring the dropdowns inline with the New Collection
+      icon button as one tight row.  -  `createNotesLibraryChrome` now renders a single
+      `.notes-collection-picker-row` (Library dropdown  -  Collection dropdown  -  collection actions  -  New
+      Collection); the Library dropdown gained an "Archive" option and is the sole bucket selector
+      (`selectBucket`/`renderCollections` handle "archive"); the legacy bucket tabs + `updateBucketTabs`
+      were removed.
+- [x] Move the Notes List pagination to the bottom-right of the Notes List box, keeping it hidden when
+      collapsed.  -  Added a framework `.view-collapsible-index-footer` slot; pagination mounts there
+      (below the scrollable body) and hides natively when the `<details>` panel collapses.
+- [x] Add regression markers for the standardized headings, simplified Library row, and pagination
+      placement.  -  `notes-declarative-readonly-surface`/`notes-ui-workflow` updated (footer slot, one-row
+      picker, Archive option, retired bucket tabs, bold Filters heading).
+
+#### Version 0.33.5.18.5.7 - Notes Detail Metadata and Panels
+
+- [x] Make the detail metadata row carry ALL metadata: size Created/Updated/Owner into the same
+      chip/meta format; drop the duplicated linked-record context; render Owner as the display name.  - 
+      `detailMetaItems` now includes Ticket/Created/Updated/Owner (Owner = `owner_display_name`, resolved
+      server-side in `attachNoteIntegrations` via `resolveNoteOwnerLabel`, falling back to the id); the
+      `notes-context-list` dl (Client/Project/Task/User  -  already in Linked Records) was removed.
+- [x] Make the Linked Records panel collapsible and collapsed by default; render Remove/Add Link as icon
+      buttons.  -  Added a `collapsible`/`open` mode to the framework `createInfoPanel` (and
+      `renderDescriptorLinkedRecordsPanel`); Notes renders it collapsed; Add Link uses the `add` icon and
+      Remove uses the `delete` icon.
+- [x] Make the Files panel collapsible and collapsed by default; remove the redundant outer box.  -  The
+      Files panel is now a collapsible `<details class="notes-files-panel">` with no outer section box
+      (the file-attachments component supplies its own surface).
+- [x] Fix the Revisions panel border (and inner revision listing borders) to use the light border token
+      in dark mode.  -  `.notes-detail-section` and `.notes-revision-item` now use `var(--color-border)`
+      instead of the near-invisible-in-dark `var(--color-border-subtle)`.
+- [x] Add regression markers for the metadata consolidation, owner display-name, and collapsible
+      Linked/Files panels.  -  `notes-ui-workflow` asserts the meta-row Owner/Created/Updated, the removed
+      dl, the collapsed Linked Records, the icon Add/Remove, the collapsible Files panel, and the
+      server-side `owner_display_name` resolution.
+
+#### Version 0.33.5.18.5.8 - Lists Main Page Refinement
+
+Lists is already strict/declarative; this is UI/layout refinement that reuses the Notes patterns above.
+
+- [x] Reorganize the Lists detail (it is very long and poorly organized) and shrink the metadata line
+      (e.g. "active - procurement") to match the compact Notes meta format.  -  `renderDetail` now builds a
+      Notes-style header (`createListDetailHeader`: title row + rule + compact `detailMetaItems` labeled
+      spans) and a clear body order: header -> description -> Next -> Source -> Linked Records -> item form ->
+      items table -> Costs.
+- [x] Put the Lists detail action buttons behind a 3-dot overflow menu, reusing the framework
+      `view.createDetailActionMenu` / `renderDescriptorActionMenu` primitive added for Notes.  - 
+      `createListActionStrip` now returns `view.renderDescriptorActionMenu(detailActionButtons(...))`;
+      `renderDescriptorActionStrip` is retired for Lists (guardrails updated to require the menu).
+- [x] Fix the items list/table overlapping the detail action buttons.  -  Collapsing the wide inline action
+      row into the "..." menu in the title row removes the overlap; the items table stays full-width below
+      in the stacked detail.
+- [x] Tighten the "Next" panel: roughly half width, with fewer/stacked chips instead of a long chip run.  - 
+      `.lists-next-action` is `max-width: 520px`; `stateFacts` is trimmed to progress / next-needed /
+      assignment (context + source chips dropped, since they live in the meta line / Source panel).
+- [x] Investigate the "Source" panel  -  if it only repeats the "Independent list" chip, deprecate the
+      section.  -  `shouldShowSourceContext` gates it; it renders only with real provenance/usage context
+      (duplicated-from, reusable source/template, finalized, BOM) and is omitted for plain independent lists.
+- [x] Move the Costs panel below the items table.  -  `costSummary` is now the last child appended in
+      `renderDetail`, beneath the items table it totals.
+- [x] Make Lists linked records follow the Notes linked-records model (collapsible, collapsed by default,
+      icon Add/Remove) from 0.33.5.18.5.7.  -  `createLinkedRecordsPanel` passes `collapsible: true,
+      open: false`; Add Link is the `add` icon button and Remove is the `delete` icon button.
+
+#### Version 0.33.5.18.5.9 - Lists Items Inset Refinement
+
+- [x] Rework the item-entry inset (it is messy): Item field larger and on the top line; Qty and Unit
+      side-by-side and narrower.  -  Item uses the new `full` width hint (own top row); Qty/Unit use `narrow`.
+- [x] Put Needed, Assigned, and Status narrower and side-by-side with Qty/Unit; default the purchase
+      status to "needed" (not "cancelled").  -  Needed by/Assigned/Status use the new `compact` width hint;
+      the `purchase_status` descriptor field has `default: "needed"` applied via `applySelectDefault`.
+- [x] "Needed" should be "Needed by"  -  `needed_by_date` entry label is now "Needed by".
+- [x] Default "Save as reusable item" to on.  -  `checkboxField` honors the descriptor `default: "true"` as
+      checked-by-default (`defaultChecked`, so it survives `form.reset()`); submit value stays `"true"`.
+- [x] Put Details on the third line, opening as one long row; move Notes to the bottom; right-justify the
+      "Add Item" button.  -  `.lists-item-advanced` is a full-width row whose fields flow via `.view-field-grid`;
+      Notes left the disclosure to become a full-width field; the Add Item button is `margin-left: auto`.
+- [x] Honor the framework field-grid/width hints so the inset wraps cleanly; keep item validation, catalog,
+      and save logic module-owned.  -  Layout is purely width-hint driven (`full`/`narrow`/`compact`); the
+      item routes, catalog suggestion/save, and validation are unchanged.
+
+#### Version 0.33.5.18.5.10 - Lists Items Table (Display) Refinement
+
+The read-only items *table* that lists existing items on the Lists detail page (`listsItemRowsDescriptor`
+columns + `createItemRow` + `.lists-items-table`). This is distinct from .18.5.9, which reworks the item
+*entry* inset form  -  here we only tune which columns show and how wide they are. Column widths are
+module-owned `.lists-items-table` styling (with framework width hints where they apply); item data,
+validation, catalog, and save logic stay module-owned.
+
+- [x] Widen the Item column and truncate long names: cap the displayed `item_name` to ~20 characters with
+      an ellipsis (keep the full name in the cell `title`), and give the Item column the freed width.  - 
+      `truncateItemName` caps at 20 + ellipsis with the full name in `itemCell.title`; Item (col 2) has no
+      fixed width so it absorbs the leftover, with `text-overflow: ellipsis` as a backstop.
+- [x] Remove the per-row metadata sub-line from the table (`itemTitle`'s sibling `.lists-row-meta` =
+      `itemDetailSummary`  -  vendor / "Has URL" / est. & actual cost / tracking / notes).  -  Removed the
+      row-meta node, the dead `itemDetailSummary`/`findUser` helpers, and the `.lists-row-meta` CSS.
+- [x] Make the Qty column very narrow (it holds a small number + unit).  -  Qty column is 64px.
+- [x] Add a dedicated Cost column to the items table, surfacing `estimated_cost`/`actual_cost` (formatted)
+      instead of burying cost in the removed row-meta line.  -  New Cost column via `applyItemCostCell`
+      (actual-or-estimated, with an `Estimated ...  -  Actual ...` tooltip), 84px wide.
+- [x] Rename the "Needed" column heading to "Needed By" and constrain the column to date width only.  - 
+      Heading is "Needed By"; the column is 116px (date width).
+- [x] Make the Status column narrower.  -  Status column is 104px.
+- [x] Remove the Assigned column from the items table view.  -  Dropped from the descriptor columns and
+      `createItemRow` (assignment stays editable in the item entry form per .18.5.9).
+
+#### Version 0.33.5.18.5.11 - Lists Add/Edit Item Modal
+
+Convert the (now well-laid-out) inline item-entry form into a framework-rendered modal, matching the app's
+other add/edit modals  -  framework renders the shell, the module provides the data.
+
+- [x] Render the add/edit item form as a framework modal via `view.renderDescriptorModalForm` from the
+      `detail.itemForm` descriptor (wide size), built once at startup and repopulated per open
+      (`createItemDialogShell` + `openItemDialog`), mirroring the create/edit list modal.
+- [x] Replace the inline `lists-item-entry` form with an Items header + Add Item button
+      (`createItemsHeader`, `data-list-action="add-item"`); the row Edit action opens the same modal
+      pre-filled. Item create/edit/save routes, catalog suggestions, and validation stay module-owned.
+
+---
+
+## Version 0.33.5.18.6 - Final Notes UI, Context Picker, and Markdown Editor Standardization
+
+This release finalizes Notes as the template surface before the remaining workflow surfaces are cleaned up. Notes should establish the standard add/edit/view patterns for Primary Context, Linked Context, modal utility actions, safe target labels, and shared Markdown editor behavior.
+
+This section intentionally focuses on Notes and shared framework pieces required by Notes. Lists-specific add/edit cleanup will follow in the next roadmap section after screenshots/instructions are provided.
+
+Planning note:
+
+- 0.33.5.18.6.1, 0.33.5.18.6.2, and 0.33.5.18.6.3 are scoped to one implementation pass each.
+- 0.33.5.18.6.4 through 0.33.5.18.6.9 were split into sub-slices because each originally combined multiple state models, shared framework contracts, provider implementations, or renderer/sanitizer changes.
+- The split keeps Notes work first, shared contracts explicit, and closeout verification last.
+
+Decision:
+
+Notes keeps its current backend model:
+
+- Direct nullable context fields on the note row, such as `client_id` and `project_id`, represent **Primary Context**.
+- Link rows, such as `note_links`, represent **Linked Context**.
+- Primary Context and Linked Context are related, but they are not the same thing.
+- Primary Context may be shown inside Linked Context UI as a non-removable reference, but it must be edited through the Note Details / Primary Context controls.
+- Linked Context rows may be added or removed through the Linked Context panel when permissions allow.
+- Client and Project are nullable.
+- Client must not appear in Personal or Family workspace UI.
+- Personal/Family workspaces may still use nullable Project context.
+- UUIDs must not appear in normal user-facing UI except Audit Logs.
+
+Frontend terminology:
+
+- Use **Linked Context** everywhere in normal UI.
+- Do not use **Linked Records** in user-facing UI.
+- Backend table names, route names, and internal identifiers do not need to be renamed in this release.
+
+---
+
+### Version 0.33.5.18.6.1 - Notes UI terminology and context guardrails
+
+- [x] Add or update a docs/contract file for workflow record context terminology.
+  - [x] User-facing term: **Primary Context**.
+  - [x] User-facing term: **Linked Context**.
+  - [x] Avoid **Linked Records** in frontend copy unless referring to developer/internal implementation.
+- [x] Add or update Notes developer docs:
+  - [x] Direct `notes.client_id` and `notes.project_id` are Primary Context.
+  - [x] `note_links` rows are Linked Context.
+  - [x] Primary Context is used by framework-facing behavior such as permissions, tags, search, files, filters, public API shaping, and future resume context.
+  - [x] Linked Context is flexible related-record context and should not replace Primary Context.
+- [x] Add UI guardrails:
+  - [x] Normal app UI must not display raw UUIDs.
+  - [x] Audit Logs may display raw UUIDs.
+  - [x] If a linked/primary target cannot be resolved to a readable label, show a safe fallback label such as:
+    - `Unavailable client`
+    - `Unavailable project`
+    - `Unavailable task`
+    - `Unavailable note`
+    - `Unavailable list`
+    - `Unavailable linked context`
+  - [x] Do not expose the raw target ID in the fallback label.
+- [x] Rename visible Notes frontend copy:
+  - [x] `Linked Records` -> `Linked Context`
+  - [x] `Add Link` may remain acceptable if the surrounding section is clearly Linked Context.
+  - [x] Prefer `Use Target` or `Add Context` for new shared picker actions where sensible.
+- [x] Keep backend identifiers stable in this pass unless a later migration explicitly requires renaming.
+
+Acceptance criteria:
+
+- Notes view/create/edit UI consistently says Linked Context.
+- No normal Notes UI displays raw UUIDs.
+- Docs clearly define Primary Context vs Linked Context.
+- Personal/Family workspace UI never shows Client context.
+
+---
+
+### Version 0.33.5.18.6.2 - Add Primary Context controls to Add/Edit Note details
+
+- [x] Add a **Primary Context** subsection inside the existing collapsible **Note Details** section of the Add/Edit Note modal.
+- [x] Bind the controls to the note row's direct nullable context fields:
+  - [x] `client_id`
+  - [x] `project_id`
+- [x] Business workspace behavior:
+  - [x] Show Client select.
+  - [x] Show Project select.
+  - [x] Both fields must allow blank/null.
+  - [x] Selecting a client without a project sets `client_id` and clears/keeps `project_id` null.
+  - [x] Selecting a project with a client derives `client_id` from the selected project.
+  - [x] Selecting a workspace-level project sets `project_id` and leaves `client_id` null.
+  - [x] Clearing both saves null/empty Primary Context.
+- [x] Personal/Family workspace behavior:
+  - [x] Do not show Client.
+  - [x] Show Project select only.
+  - [x] Project must allow blank/null.
+  - [x] Save `client_id` as null/empty.
+- [x] Project labels in the Primary Context project select should be concise and readable.
+  - [x] Business client project: `Project Name - Client Name`
+  - [x] Business workspace project: `Project Name - Workspace Name`
+  - [x] Personal/Family project: `Project Name`
+  - [x] No raw UUID.
+  - [x] No redundant `Project:` prefix.
+  - [x] No status suffix unless explicitly needed elsewhere.
+- [x] Client labels should be only the client name.
+  - [x] No `Client:` prefix.
+  - [x] No `- Client`.
+  - [x] No status suffix.
+- [x] Add regression coverage for:
+  - [x] Business note with no Primary Context.
+  - [x] Business note with client-only Primary Context.
+  - [x] Business note with project-derived Primary Context.
+  - [x] Business note with workspace project Primary Context.
+  - [x] Personal/Family note with project-only Primary Context.
+  - [x] Clearing Primary Context.
+
+Acceptance criteria:
+
+- Users can create and edit a note's Primary Context directly.
+- Primary Context is no longer hidden or only indirectly produced by task-created notes.
+- Client is never visible in Personal/Family workspaces.
+- Client and Project remain nullable.
+- No Primary Context select or summary displays UUIDs.
+
+---
+
+### Version 0.33.5.18.6.3 - Correct task-created note context behavior and display
+
+Current issue:
+
+Notes created from a task may receive client/project/task context in the database, but the edit dialog shows the primary client/project/task context as UUID text and does not clearly distinguish Primary Context from the linked task.
+
+Desired behavior:
+
+- [x] When creating a note from a task:
+  - [x] Assign the task's readable/available client/project as note Primary Context.
+  - [x] Assign the task itself as Linked Context.
+  - [x] Do not display task ID as part of a raw Primary Context text line.
+- [x] In Add/Edit Note:
+  - [x] Primary client/project appears in Note Details > Primary Context.
+  - [x] The source task appears as a normal removable Linked Context row when permissions allow.
+  - [x] Removing the task link does not remove Primary Context.
+  - [x] Editing Primary Context does not remove unrelated Linked Context.
+- [x] In View Note:
+  - [x] Primary Context, where displayed, uses readable labels.
+  - [x] The linked task appears in the Linked Context panel like other links.
+- [x] Remove UUID display from task-created note edit flows.
+- [x] Add regression coverage for a task-created note:
+  - [x] Primary Context shows readable client/project labels.
+  - [x] Linked Context shows readable task label.
+  - [x] No UUIDs appear.
+  - [x] Removing the task link preserves Primary Context.
+
+Acceptance criteria:
+
+- Notes created from tasks have clear Primary Context and clear Linked Context.
+- The task link is displayed like a normal linked context item.
+- Users do not see raw IDs in task-created note add/edit/view workflows.
+
+---
+
+### Version 0.33.5.18.6.4 - Redesign Add/Edit Note Linked Context panel and Notes List controls
+
+Split into four sub-slices so the saved-note API behavior, unsaved draft behavior, visual panel redesign, and Notes List sort control can each ship green.
+
+#### Version 0.33.5.18.6.4.1 - Add/Edit Linked Context visual model and Primary Context row
+
+- [x] Update the Add/Edit Note Linked Context section to match the cleaner View Note linked context pattern.
+- [x] The Add/Edit Linked Context section should contain:
+  - [x] A non-removable Primary Context display row/card.
+  - [x] Existing Linked Context rows/cards.
+  - [x] Target / Search / Record / `+ Use Target` add controls.
+- [x] Primary Context display row/card:
+  - [x] Clearly label it as `Primary Context`.
+  - [x] Show readable labels only.
+  - [x] If no Primary Context exists, show:
+    - `No primary context selected.`
+  - [x] Do not show a Remove button on the Primary Context row/card.
+  - [x] Include a small hint:
+    - `Edit in Note Details`
+- [x] Linked Context rows/cards:
+  - [x] Show readable target label.
+  - [x] Show useful secondary context where appropriate.
+  - [x] Show Remove button when permissions allow.
+  - [x] Use an icon + `Remove` label or equivalent accessible icon button.
+  - [x] Do not display UUIDs.
+- [x] Add regression coverage proving Primary Context is visible but not removable in the Add/Edit Linked Context section.
+
+Acceptance criteria:
+
+- Add/Edit Note Linked Context visually matches the View Note linked context model.
+- Primary Context is visible but not removable from the Linked Context section.
+- No UUIDs appear in the redesigned panel.
+
+#### Version 0.33.5.18.6.4.2 - Existing-note Linked Context add/remove refresh
+
+- [x] Existing saved note behavior:
+  - [x] Adding Linked Context persists immediately through the API.
+  - [x] Removing Linked Context persists immediately through the API.
+  - [x] The user does not need to close/reopen the editor.
+  - [x] The user does not need to save the whole note to see the linked context row update.
+- [x] Preserve service-layer permission enforcement.
+  - [x] UI controls are display hints only.
+  - [x] Backend must still reject unauthorized link add/remove operations.
+- [x] Add regression coverage:
+  - [x] Existing note add linked context immediate update.
+  - [x] Existing note remove linked context immediate update.
+  - [x] No UUID display in updated rows.
+
+Acceptance criteria:
+
+- Saved notes can add/remove Linked Context without leaving the dialog.
+- The Add/Edit panel refreshes after each link mutation.
+- Service-layer permissions remain authoritative.
+
+#### Version 0.33.5.18.6.4.3 - Unsaved-note staged Linked Context
+
+- [x] New unsaved note behavior:
+  - [x] Adding Linked Context stages the link in local draft state.
+  - [x] Removing staged Linked Context removes it from local draft state.
+  - [x] Staged links persist when the note is saved.
+  - [x] Staged links keep readable labels while the note remains unsaved.
+- [x] Preserve Primary Context separately from staged Linked Context.
+- [x] Add regression coverage:
+  - [x] Unsaved note staged linked context.
+  - [x] Removing a staged link before save.
+  - [x] Saved note receives staged links.
+  - [x] No UUID display.
+
+Acceptance criteria:
+
+- Unsaved notes can stage links before saving.
+- Staged links are visible, removable, and persisted on save.
+- Primary Context remains distinct from staged Linked Context.
+
+#### Version 0.33.5.18.6.4.4 - Notes List sorting control
+
+- [x] Add a Notes List sort dropdown below the inset, scrollable Notes List body.
+  - [x] Place the sort control on the bottom-left of the Notes List panel footer.
+  - [x] Preserve pagination/action controls on the bottom-right where applicable.
+  - [x] Keep the sort control hidden when the Notes List panel is collapsed.
+- [x] Sort the currently visible Notes List result set only.
+  - [x] Respect the current workspace, Library, Collection, filters, search, and archive scope.
+  - [x] Do not mutate note records, collection membership, or saved note metadata when sorting.
+  - [x] Use a deterministic tie-breaker such as title, then note id, when primary sort values match.
+- [x] Required sort options:
+  - [x] `Alphabetical (A-Z)`
+  - [x] `Alphabetical (Z-A)`
+  - [x] `Date Created (Newest First)`
+  - [x] `Date Created (Oldest First)`
+  - [x] `Date Updated (Newest First)` [Default]
+  - [x] `Date Updated (Oldest First)`
+  - [x] `Library / Collection, then Date Updated`
+  - [x] `Note Kind, then Date Updated`
+  - [x] `Primary Context, then Date Updated`
+- [x] Add regression coverage:
+  - [x] Default sort is Date Updated newest first.
+  - [x] Alphabetical A-Z and Z-A apply to visible note titles.
+  - [x] Created/updated ascending and descending order work with stable tie-breaks.
+  - [x] Sorting preserves the active Library/Collection/filter/search scope.
+  - [x] Sort dropdown placement stays below the scrollable Notes List body and does not overlap pagination.
+
+Acceptance criteria:
+
+- Users can reorder the Notes List without changing filters or navigating away.
+- Default ordering is Date Updated newest first.
+- The sort control is a compact dropdown in the Notes List footer, bottom-left below the scrollable list.
+
+---
+
+### Version 0.33.5.18.6.5 - Shared Linked Context picker contract
+
+Decision:
+
+The Target / Search / Record / `+ Use Target` pattern should become a shared framework-owned Linked Context picker shell. The framework owns the UI anatomy. Source modules own the provider data, filtering, sorting, permission-safe labels, and target summaries.
+
+Split into three sub-slices so the contract, framework shell, and Notes adoption do not land in one large pass.
+
+#### Version 0.33.5.18.6.5.1 - Linked Context picker provider contract
+
+- [x] Create or formalize a shared Linked Context picker contract.  -  Added the `linked-context-target.v1`
+      provider response contract and validation helpers in `src/core/linked-context/provider-contract.js`.
+- [x] Source modules should expose link target providers.
+  - [x] The framework must not hard-code how Projects, Tasks, Notes, Lists, Clients, or future modules sort and label their own records.  -  Provider descriptors live in module manifests; provider docs and regressions state source modules own filtering, sorting, labels, summaries, URLs, and context hints.
+  - [x] The framework may standardize the provider response shape.  -  The framework validates the normalized contract fields while leaving provider-owned query/sort/label behavior to source modules.
+- [x] Provider response shape should include normalized fields such as:
+  - [x] `moduleId`
+  - [x] `targetType`
+  - [x] `targetId`
+  - [x] `displayLabel`
+  - [x] `secondaryLabel`
+  - [x] `sortKey`
+  - [x] `sourceUrl`
+  - [x] `clientId`
+  - [x] `projectId`
+  - [x] `workspaceId`
+  - [x] `isAvailable`
+  - [x] Optional `primaryContextHints`
+- [x] Add contract documentation:
+  - [x] Source module provider responsibilities.
+  - [x] Required fields.
+  - [x] Sorting responsibility.
+  - [x] Label safety rules.
+  - [x] No UUID UI rule.
+
+Acceptance criteria:
+
+- The shared provider response contract is documented and regression-covered.
+- The framework contract says providers own sorting and label construction.
+- Provider labels must be safe for direct UI rendering without raw UUIDs.
+
+#### Version 0.33.5.18.6.5.2 - Framework Linked Context picker shell
+
+- [x] Build or formalize the shared picker UI shell.  -  Added `LongtailForge.view.createLinkedContextPicker()` as the framework-owned Target/Search/Record/Use Target shell.
+- [x] The shared picker UI shell should support:
+  - [x] Target select.
+  - [x] Search input.
+  - [x] Record dropdown.
+  - [x] `+ Use Target` action.
+  - [x] Existing linked context row rendering.
+  - [x] Remove action rendering.
+  - [x] Empty state rendering.
+  - [x] Permission-disabled/read-only state rendering.
+- [x] The picker must render provider-supplied labels rather than constructing strings like:
+  - `Project: Name - Client - Active`
+  - `Client: Name - Client - Active`
+  - `Task: Name - Active`
+- [x] Add framework shared-component regression coverage for the shell and provider-label rendering.  -  Added `linked-context-picker-shell-regression.mjs` plus shared view-helper exposure coverage.
+
+Acceptance criteria:
+
+- [x] The framework owns reusable picker anatomy.
+- [x] The shell can be reused by Lists, Tasks, Files, Clients/Projects, and future modules.
+- [x] The shell does not construct module-specific labels or sorting.
+
+#### Version 0.33.5.18.6.5.3 - Notes adoption of shared Linked Context picker
+
+- [x] Migrate Add/Edit Note Linked Context controls to the shared picker shell.  -  Add/Edit Notes now mount `LongtailForge.view.createLinkedContextPicker()` and bind the existing Notes target/search/record/use-target hooks through `viewParts`.
+- [x] Hide/deprecate `Workspace` as a normal selectable target in Add/Edit Note Linked Context unless a later workflow explicitly needs it.
+  - [x] Backend support may remain if currently needed.  -  The service still recognizes workspace links for legacy/backend paths.
+  - [x] Do not default the Add/Edit Note picker to Workspace when the user is trying to link useful context.  -  The normal picker default is Project.
+- [x] Notes Linked Context supported target types:
+  - [x] Client, Business workspaces only.
+  - [x] Project.
+  - [x] Task.
+  - [x] Note.
+  - [x] List.
+  - [x] User only if the current Notes link model intentionally continues to support user links.  -  User remains available behind existing user-read rules.
+- [x] Personal/Family workspace behavior:
+  - [x] Do not show Client target.
+  - [x] Do not show client labels in project/task display strings.
+- [x] Business workspace behavior:
+  - [x] Client target appears only if user can read clients.
+  - [x] Workspace-level projects are supported.
+  - [x] Workspace-level project/task labels use workspace name where client name would otherwise appear.
+- [x] Linked Context is read-only for Primary Context.
+  - [x] Linked Context picker/select/staged/saved-link flows do not create, update, delete, infer, or recover direct `client_id` / `project_id` Primary Context.
+  - [x] Primary Context can be displayed as a non-removable reference row, but direct Primary Context is authored only through Note Details or explicit service payload fields.
+- [x] Task-created Note creation remains a Notes-owned explicit create workflow.
+  - [x] Creating a note from a task pre-fills direct Primary Context controls from the task's readable client/project before save.
+  - [x] The task itself is still staged as removable Linked Context and does not own Primary Context.
+  - [x] Task-created notes saved during the broken prefill window are repaired only when they match the task-created defaults and a single task link created with the note.
+- [x] Saved-note Edit dialogs hydrate from the authoritative no-store Notes API payload before modal fields are populated.
+  - [x] The first Edit modal open uses the same current Primary Context that the Notes view page is already displaying.
+  - [x] Current saved client/project selections remain selected even when the first provider result page does not include that client/project option.
+  - [x] Direct hydrated `client_id` / `project_id` values are passed into option loading before browser select controls can drop values whose options are not mounted yet.
+- [x] Add Notes UI regression coverage for the shared picker adoption.  -  Extended Notes UI and linked-context picker regressions for shared shell hooks, hidden Workspace picker options, Note/List targets, label safety, and shared row hint rendering.
+
+Acceptance criteria:
+
+- [x] Add/Edit Note uses the shared Linked Context picker shell.
+- [x] Notes target choices match workspace type and permission rules.
+- [x] No picker option displays raw UUIDs or redundant type/status strings.
+- [x] Linked Context never mutates Primary Context.
+- [x] View-page Primary Context and first-open Edit modal Primary Context stay in sync.
+- [x] Notes created from task context carry the task client/project as direct Primary Context and the task as Linked Context.
+
+---
+
+### Version 0.33.5.18.6.5.4 - Check, regression, and database efficiency implementation
+
+- [x] Consolidate the database to a fresh current SQLite baseline.
+  - [x] Replace historical migration replay with `src/db/schema/current.sql` as the fresh-start schema source.
+  - [x] Record a single baseline row in `schema_migrations` as `0.33.5.18.6.5.4 / core / current_fresh_start_database`.
+  - [x] Remove the historical core/module migration files from the tracked source tree.
+  - [x] Keep future post-baseline migrations possible through the existing runner.
+  - [x] Adopt compatible current-schema pre-baseline local databases in place by replacing historical migration rows with the consolidated baseline marker while preserving existing users and data.
+  - [x] Fail incompatible pre-baseline local databases with a clear backup/restore message instead of silently attempting a partial upgrade.
+- [x] Make regressions faster without weakening coverage.
+  - [x] Add a runner-prepared baseline database fixture and copy it into per-script temp DB/data directories.
+  - [x] Move default/search and file-storage regression buckets off the real local database path.
+  - [x] Add `LONGTAIL_DATA_DIR` support so file-storage checks isolate their files.
+  - [x] Keep `fresh-database-regression.mjs` on true empty-database startup.
+  - [x] Add `baseline-adoption-regression.mjs` to guard adoption of compatible existing local databases without deleting users.
+  - [x] Update migration-era regressions to assert the fresh baseline contract and current schema.
+- [x] Reduce static/source check overhead.
+  - [x] Parallelize `scripts/check-js.mjs` with bounded concurrency.
+  - [x] Expand syntax checking to `.js` and `.mjs`.
+  - [x] Keep the syntax check in the standard suite.
+- [x] Improve API regression stability under parallel execution.
+  - [x] Normalize local test server base URLs to `127.0.0.1:${port}` where scripts already bind to loopback.
+- [x] Update release bookkeeping and docs.
+  - [x] Update database, architecture, and module-contract documentation for the consolidated baseline.
+  - [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and the ignored `C-R-DB-EFFICIENCY.md` results.
+  - [x] Preserve the old local dev database as `data/longtail-forge.pre-0.33.5.18.6.5.4.db` before restarting the local app on the new baseline.
+  - [x] Restore that preserved local dev database as the active database after discovering the fresh restart displaced existing local users.
+
+Efficiency result:
+
+- `npm run check` improved from about 138.6s wall time to 63.6s wall time on this machine.
+- The regression runner improved from 134.67s to 56.91s.
+- The isolated DB bucket's total script time dropped from 338.84s to 125.52s.
+
+Verification:
+
+- [x] `node scripts/fresh-database-regression.mjs`
+- [x] `node scripts/baseline-adoption-regression.mjs`
+- [x] `node scripts/legacy-cleanup-regression.mjs`
+- [x] `node scripts/regression-runner-regression.mjs`
+- [x] `node scripts/check-js.mjs`
+- [x] `npm run check`
+  - [x] Corrective reruns passed 142/142 regression scripts plus ESLint; runner time held around 74-76s.
+- [x] `npm run test:permissions`
+  - [x] Corrective rerun passed 236 permission checks.
+- [x] `sqlite3 data/longtail-forge.db "PRAGMA integrity_check;"`
+- [x] Active restored DB has 9 users and the single `0.33.5.18.6.5.4 / core / current_fresh_start_database` baseline marker.
+- [x] Login succeeds for restored `support@longtailforge.local`.
+- [x] `/api/app-info` reports `0.33.5.18.6.5.4`.
+
+---
+
+### Version 0.33.5.18.6.6 - Linked Context target label and sort rules
+
+Implement provider-owned display and sorting rules.
+
+Split by provider family so each pass can update one display/sort contract and its regressions.
+
+#### Version 0.33.5.18.6.6.1 - Client and Project target labels/sorting
+
+Client target:
+
+- [x] Display label:
+  - `Client Name`
+- [x] Do not show:
+  - `Client:`
+  - `- Client`
+  - status
+  - UUID
+- [x] Sort by Clients/Projects-owned hierarchy order:
+  - [x] Top-level clients alphabetically.
+  - [x] Child clients under their parent alphabetically.
+  - [x] Preserve Clients/Projects-owned child indentation in picker display labels.
+
+Project target:
+
+- [x] Do not show:
+  - `Project:`
+  - status
+  - UUID
+- [x] Business workspace display:
+  - [x] Client project: `Project Name - Client Name`
+  - [x] Workspace-level project: `Project Name - Workspace Name`
+- [x] Business workspace sorting:
+  - [x] Workspace-level projects first.
+  - [x] Then sort by client/workspace display name.
+  - [x] Then sort by project name.
+- [x] Personal/Family workspace display:
+  - [x] `Project Name`
+- [x] Personal/Family sorting:
+  - [x] Sort by project name.
+- [x] Add provider and picker regression coverage for Client/Project options.
+
+Acceptance criteria:
+
+- Client and Project dropdown options are concise.
+- Project dropdown sorts by workspace/client grouping, then project.
+- Client/Project options do not include redundant type prefixes, redundant status suffixes, or UUIDs.
+
+#### Version 0.33.5.18.6.6.2 - Task target labels/sorting
+
+Task target:
+
+- [x] Do not show:
+  - `Task:`
+  - status
+  - UUID
+- [x] Truncate long task titles for dropdown display.
+  - [x] Use approximately 20 characters for the task title portion.
+  - [x] Preserve the full title in `title`, tooltip, or accessible label if possible.
+- [x] Business workspace display:
+  - [x] Client project task: `Task title... - Client Name | Project Name`
+  - [x] Workspace project task: `Task title... - Workspace Name | Project Name`
+  - [x] No project: `Task title...`
+- [x] Personal/Family workspace display:
+  - [x] With project: `Task title... - Project Name`
+  - [x] No project: `Task title...`
+- [x] Sort tasks by provider-defined usefulness.
+  - [x] Prefer active/readable tasks.
+  - [x] Then sort by client/workspace, project, task title where applicable.
+- [x] Add provider and picker regression coverage for Task options.
+
+Acceptance criteria:
+
+- Task dropdown uses truncated task names plus readable context.
+- Task options do not include redundant target type prefixes, redundant status suffixes, or UUIDs.
+- Task sorting is provider-owned and deterministic.
+
+#### Version 0.33.5.18.6.6.3 - Note and List Linked Context targets
+
+Note target:
+
+- [x] Add Note as a selectable Linked Context target.
+- [x] Display label:
+  - [x] `Note title... - Client Name | Project Name` in Business client-project contexts.
+  - [x] `Note title... - Workspace Name | Project Name` in Business workspace-project contexts.
+  - [x] `Note title... - Project Name` in Personal/Family project contexts.
+  - [x] `Note title...` when no readable Primary Context exists.
+- [x] Truncate the picker title portion to approximately 20 characters while preserving the full title in provider metadata and linked rows.
+- [x] Secondary label uses readable Primary Context when present, with Library bucket or collection as the no-context fallback.
+- [x] Do not show secure/private/inaccessible note labels to unauthorized users.
+- [x] Do not show UUIDs.
+
+List target:
+
+- [x] Add List as a selectable Linked Context target.
+- [x] Display label:
+  - [x] `List title... - Client Name | Project Name` in Business client-project contexts.
+  - [x] `List title... - Workspace Name | Project Name` in Business workspace-project contexts.
+  - [x] `List title... - Project Name` in Personal/Family project contexts.
+  - [x] `List title...` when no readable Primary Context exists.
+- [x] Truncate the picker title portion to approximately 20 characters while preserving the full title in provider metadata and linked rows.
+- [x] Secondary label uses readable Primary Context when present, with list type as the no-context fallback.
+- [x] Do not show UUIDs.
+- [x] Add provider and picker regression coverage for Note/List options.
+
+Acceptance criteria:
+
+- Note and List can be selected as Linked Context targets.
+- Note/List options are permission-safe, use compact title-plus-context display labels, and do not expose UUIDs.
+- Existing linked context rows render full Note/List titles safely with readable Primary Context secondary text where available.
+
+#### Version 0.33.5.18.6.6.4 - Unavailable target fallback labels
+
+Unavailable targets:
+
+- [x] Existing links whose target cannot be resolved/read should show safe placeholders:
+  - [x] `Unavailable linked context`
+  - [x] `Unavailable client`
+  - [x] `Unavailable project`
+  - [x] `Unavailable task`
+  - [x] `Unavailable note`
+  - [x] `Unavailable list`
+- [x] Do not expose raw target IDs.
+- [x] Apply fallback behavior consistently to picker options, existing linked context rows, and Primary Context display where applicable.
+- [x] Add regression coverage for unresolved/unreadable targets.
+
+Acceptance criteria:
+
+- Unavailable linked/primary targets never expose raw IDs.
+- Existing linked context rows use the same readable display rules as picker options.
+- Fallback labels are type-specific where the type is known and generic otherwise.
+
+---
+
+### Version 0.33.5.18.6.7 - Notes Tags and Files modal behavior
+
+Split into three sub-slices so modal-stack behavior is framework-safe before each utility moves.
+
+#### Version 0.33.5.18.6.7.3 - Files stacked modal
+
+- [x] Files button behavior:
+  - [x] Open a stacked modal/dialog above the Add/Edit Note modal.
+  - [x] Do not expand an inline box below the Body field.
+  - [x] Existing saved normal note: show file attachment UI in the modal.
+  - [x] New unsaved note: show a modal with this message:
+    - `Save the note before adding files.`
+  - [x] The unsaved-note files message should use error/warning styling, preferably red/danger treatment.
+  - [x] Secure note behavior must continue to follow secure-note file restrictions.
+- [x] Add regression coverage:
+  - [x] Files opens as stacked modal, not inline panel.
+  - [x] Unsaved note Files modal shows save-first warning.
+  - [x] Secure-note file restrictions still apply.
+
+Acceptance criteria:
+
+- Files no longer opens an inline panel below Body.
+- Files opens as a stacked modal.
+- Files on unsaved notes shows the red save-first message.
+- Secure-note file behavior is unchanged.
+
+---
+
+#### Version 0.33.5.18.7.1 - Tasks descriptor and minimal protected host
+
+- [x] Add a `viewSurfaces` descriptor for the Tasks protected workspace read path.
+- [x] Reduce `views/protected/tasks.html` to a minimal framework host element.
+- [x] Register Tasks as a converted surface only for the page shell/read path in this slice.
+- [x] Use the framework `slide-out-sidebar` layout pattern.
+- [x] Main panel must be the task list surface.
+- [x] Sidebar must be filter/navigation controls only.
+- [x] Keep existing task routes, payloads, permissions, and list behavior unchanged.
+- [x] Keep create/edit task modal, checklist editing, timers, recurrence, and bulk actions on existing imperative paths until later slices.
+- [x] Add regressions proving:
+  - [x] Tasks page renders from a descriptor.
+  - [x] The protected view is reduced to a host.
+  - [x] The slide-out filter sidebar shell exists.
+  - [x] The task list remains in the main panel.
+  - [x] The task list is not rendered inside the sidebar.
+
+Acceptance criteria:
+
+- Tasks has a descriptor-backed page shell.
+- The sidebar exists but does not own the task list.
+- Existing task list behavior still works.
+
+#### Version 0.33.5.18.7.2 - Framework-owned Tasks filter sidebar anatomy
+
+- [x] Add Tasks sidebar panels using the framework slide-out sidebar pattern.
+- [x] Sidebar top control: task view selector dropdown.
+- [x] The task view selector must not be a collapsible section.
+- [x] Task view selector options:
+  - [x] `My Tasks`
+  - [x] `All`
+  - [x] `Unassigned`
+  - [x] `Overdue`
+  - [x] `Due Today`
+  - [x] `Due This Week`
+  - [x] `Completed`
+  - [x] `Archived`
+- [x] Default selected view: `My Tasks`.
+- [x] Add a `Sorting and Filters` section below the task view selector.
+- [x] `Sorting and Filters` must be collapsed by default.
+- [x] Existing detailed filters should move into `Sorting and Filters`.
+- [x] Preserve Business/Personal/Family context rules:
+  - [x] Business workspaces may show Client and Project filters.
+  - [x] Personal/Family workspaces must not show Client filters.
+  - [x] Project filters may remain available where supported.
+- [x] Preserve existing tag, owner/assignee, due-date, status, priority, and context filtering where implemented.
+- [x] Add regressions proving:
+  - [x] View selector appears at top of sidebar.
+  - [x] View selector is a dropdown, not a collapsible group.
+  - [x] Sorting and Filters appears below it.
+  - [x] Sorting and Filters starts collapsed.
+  - [x] Client filter is hidden in Personal/Family workspaces.
+  - [x] Sidebar trigger/open/close behavior follows the Notes slide-out pattern.
+
+Acceptance criteria:
+
+- Tasks has the correct filter sidebar anatomy.
+- The high-level task view selector is fast and obvious.
+- Advanced sorting/filtering is available but tucked away.
+
+#### Version 0.33.5.18.9.3 - Task modal field sections and workspace context
+
+- [x] Organize the Task modal into clear sections.
+- [x] Standardize one framework-owned Task Details section shell for:
+  - [x] Status and priority.
+  - [x] Parent task.
+  - [x] Scheduling fields.
+  - [x] Resume note and next action.
+  - [x] Primary context.
+  - [x] Description.
+  - [x] Assignment.
+  - [x] Status-gated blocked reason.
+- [x] Keep recurrence, checklist, timer, tags, files, notes, and other specialized task fragments mounted through existing task-owned behavior until their dedicated preservation slices.
+- [x] Business workspace behavior:
+  - [x] Client selector may appear where task context supports client.
+  - [x] Project selector may appear.
+  - [x] Project may derive Client where appropriate.
+- [x] Personal/Family workspace behavior:
+  - [x] Client selector must not appear.
+  - [x] Project selector may appear if supported.
+- [x] Keep nullable context fields nullable.
+- [x] No raw UUIDs in normal modal UI.
+- [x] Add regressions proving:
+  - [x] Business context fields behave correctly.
+  - [x] Personal/Family hides Client.
+  - [x] Context can be cleared where nullable.
+  - [x] Edit modal hydrates readable labels before fields populate.
+  - [x] No UUIDs appear.
+
+Acceptance criteria:
+
+- The Task modal becomes a clean template-quality modal.
+- Workspace-specific context rules match Notes/List direction.
+
+#### Version 0.33.5.18.9.4 - Recurrence and reminder modal escape-hatch preservation
+
+- [x] Preserve existing recurrence behavior.
+- [x] Preserve existing reminder override behavior, if currently present in the modal.
+- [x] Do not force complex task-specific editors into generic descriptor fields if that makes them brittle.
+- [x] Use registered behaviors or mount regions for genuinely task-specific fragments.
+- [x] Framework owns shells and placement.
+- [x] Tasks owns rules and state.
+- [x] Add regressions proving:
+  - [x] Recurrence still opens/saves correctly.
+  - [x] Recurrence details still summarize correctly in the Task modal.
+  - [x] Reminder overrides still hydrate and save correctly where supported.
+  - [x] Recurrence/reminder fragments do not create duplicate modal shells.
+
+Acceptance criteria:
+
+- Recurrence and reminders survive modal standardization without becoming brittle generic fields.
+
+#### Version 0.33.5.18.9.5 - Checklist modal escape-hatch preservation
+
+- [x] Preserve existing checklist behavior.
+- [x] Preserve checklist add/edit/check/uncheck/reorder/delete behavior.
+- [x] Keep checklist rows as Tasks-owned fragments if generic descriptor rows would make the workflow brittle.
+- [x] Framework owns surrounding section shell and placement.
+- [x] Tasks owns checklist rules, API calls, row state, and progress meaning.
+- [x] Add regressions proving:
+  - [x] Checklist creation still works.
+  - [x] Checklist edit/check/uncheck behavior still works.
+  - [x] Checklist reorder/delete behavior still works.
+  - [x] Checklist progress still updates the task summary.
+  - [x] Checklist fragments do not create duplicate modal shells.
+
+Acceptance criteria:
+
+- Checklist behavior remains intact inside the standardized Task modal.
+
+#### Version 0.33.5.18.9.6 - Timer and modal utility escape-hatch preservation
+
+- [x] Preserve existing timer-related behavior.
+- [x] Preserve task modal utility actions where currently supported:
+  - [x] Tags.
+  - [x] Files.
+  - [x] Notes/linked notes.
+  - [x] Copy task link.
+  - [x] Notification follow/unfollow.
+- [x] Keep timer state behavior and utility child dialogs/panels Tasks-owned where needed.
+- [x] Framework owns footer/utility placement and modal stack anatomy.
+- [x] Tasks owns timer rules, file/tag/note/link behavior, and workflow state.
+- [x] Add regressions proving:
+  - [x] Timer actions still work.
+  - [x] Tags utility behavior still works.
+  - [x] Files utility behavior still works.
+  - [x] Notes/linked notes behavior still works where currently supported.
+  - [x] Copy link and notification follow/unfollow behavior still work where currently supported.
+  - [x] Utility fragments do not create duplicate modal shells.
+
+Acceptance criteria:
+
+- Timer and modal utility workflows remain intact inside the standardized Task modal.
+
+#### Version 0.33.5.18.10.1 - Task lifecycle action descriptor wiring
+
+- [x] Express remaining task lifecycle actions as declarative actions or registered behaviors.
+- [x] Include supported lifecycle actions such as:
+  - [x] Complete.
+  - [x] Reopen.
+  - [x] Block/unblock.
+  - [x] Archive.
+  - [x] Restore.
+  - [x] Delete/soft-delete is confirmed unsupported in the shipped Tasks workflow, so no delete control was added.
+- [x] Do not introduce a new permanent-delete workflow if Tasks does not already ship one.
+- [x] Framework owns placement and disabled/loading/error display.
+- [x] Tasks owns route calls, permission implications, and workflow meaning.
+- [x] Add regressions proving:
+  - [x] Each lifecycle action dispatches to the correct Tasks-owned handler.
+  - [x] Disabled/read-only/permission states display correctly.
+  - [x] Destructive operations confirm.
+  - [x] Lifecycle actions refresh the list consistently.
+
+Acceptance criteria:
+
+- Task lifecycle action placement is framework-standard.
+- Task lifecycle meaning remains module-owned.
+
+#### Version 0.33.5.18.10.2 - Task assignment, scheduling, recurrence, and timer action wiring
+
+- [x] Express remaining non-lifecycle workflow actions as declarative actions or registered behaviors where currently supported.
+- [x] Include supported workflow actions such as:
+  - [x] Assign/reassign.
+  - [x] Change due date.
+  - [x] Change due time.
+  - [x] Apply recurrence action.
+  - [x] Start/pause/resume timer.
+- [x] Keep complex edit flows in the canonical Task modal when an inline action would hide necessary context.
+- [x] Framework owns placement and disabled/loading/error display.
+- [x] Tasks owns route calls, permission implications, and workflow meaning.
+- [x] Add regressions proving:
+  - [x] Each supported action dispatches to the correct Tasks-owned handler.
+  - [x] Disabled/read-only/permission states display correctly.
+  - [x] Actions preserve workspace/client/project visibility rules.
+  - [x] Actions refresh the list consistently.
+
+Acceptance criteria:
+
+- Task workflow action placement is framework-standard without flattening complex task rules into framework code.
+
+#### Version 0.33.5.18.10.3 - Task detail/read panel cleanup
+
+- [x] Standardize any task detail/read panel anatomy that remains hand-built.
+- [x] Render detail metadata/badges/summary panels using framework primitives where applicable.
+- [x] Preserve the current task list as the primary view.
+- [x] If task detail is modal-based, keep it modal-based; do not create a new persistent detail column unless separately approved.
+- [x] Add regressions proving:
+  - [x] Task detail/read metadata uses framework primitives.
+  - [x] No raw UUIDs appear in normal task UI.
+  - [x] Existing detail/read behavior is preserved.
+
+Acceptance criteria:
+
+- Detail UI follows the same contracts as Notes without changing the main task-list-first workflow.
+
+#### Version 0.33.5.18.10.4 - Task relationships and linked context cleanup
+
+- [x] Render relationships/linked context through shared framework-supported anatomy where applicable.
+- [x] Keep relationship rules in Tasks-owned files.
+- [x] Preserve parent/child relationship behavior.
+- [x] Preserve blocking summary behavior.
+- [x] Preserve linked context and task-created note context display where currently supported.
+- [x] Add regressions proving:
+  - [x] Relationship/linked context display remains permission-safe.
+  - [x] No raw UUIDs appear in normal relationship or linked context UI.
+  - [x] Existing relationship behavior is preserved.
+  - [x] Existing linked context/task-created note behavior is preserved.
+
+Acceptance criteria:
+
+- Relationship and linked context UI follows shared contracts without changing Tasks relationship rules.
+
+#### Version 0.33.5.18.10.5 - Tasks strict guardrail inventory and escape-hatch map
+
+- [x] Inventory remaining hand-built framework-owned anatomy in `public/js/tasks.js` and `public/js/task-dialog.js`.
+- [x] Inventory documented Tasks-owned escape hatches for:
+  - [x] Task row-specific content.
+  - [x] Recurrence editor internals.
+  - [x] Checklist behavior fragments.
+  - [x] Timer state behavior.
+  - [x] Task modal utility fragments where generic fields would be brittle.
+- [x] Document which remaining fragments are intentional Tasks ownership rather than framework shell construction.
+- [x] Add or update non-failing guardrail inventory coverage, but do not fail strict Tasks guardrails until 0.33.5.18.10.6.
+- [x] Add regressions proving:
+  - [x] The inventory identifies framework-owned anatomy that must be removed before strict enforcement.
+  - [x] Documented escape hatches are explicit and narrow.
+  - [x] Existing task workflows still pass.
+
+Acceptance criteria:
+
+- Strict enforcement has a clear allowlist before it becomes a hard gate.
+
+#### Version 0.33.5.18.10.6 - Tasks strict declarative guardrail enforcement
+
+- [x] Reduce `public/js/tasks.js` and `public/js/task-dialog.js` to data bindings and behavior handlers.
+- [x] Remove hand-built framework-owned anatomy where a framework primitive now exists.
+- [x] Keep documented escape hatches for task-specific fragments.
+- [x] Expand fail-on-violation declarative guardrails to the Tasks surface.
+- [x] Guardrails should forbid new hand-built framework-owned anatomy for:
+  - [x] Page shell.
+  - [x] Slide-out sidebar shell.
+  - [x] Filter panel shell.
+  - [x] Bulk toolbar shell.
+  - [x] Modal shell/footer.
+  - [x] Standard field grids.
+  - [x] Standard action placement.
+- [x] Guardrails should allow documented Tasks-owned fragments for:
+  - [x] Task row-specific content.
+  - [x] Recurrence editor internals.
+  - [x] Checklist behavior fragments where necessary.
+  - [x] Timer state behavior.
+- [x] Add regressions proving:
+  - [x] Tasks no longer creates framework-owned shells by hand.
+  - [x] Documented escape hatches are the only exceptions.
+  - [x] Existing task workflows still pass.
+
+Acceptance criteria:
+
+- Tasks is guarded like Notes.
+- New code cannot quietly backslide into one-off UI construction.
+
+#### Version 0.33.5.18.10.7 - Tasks docs, changelog, and closeout
+
+- [x] Update `docs/tasks-module.md` or create it if missing.
+- [x] Update `docs/view-building-contract.md` for Tasks as a slide-out-sidebar adopter.
+- [x] Update `docs/module-contract.md` if the canonical Task editor opener becomes a cross-surface module action pattern.
+- [x] Update guardrail documentation with the Tasks strict enforcement scope and escape hatches.
+- [x] Document the canonical Task editor entry point for:
+  - [x] Tasks page.
+  - [x] Workbench.
+  - [x] Future Quick Action Center.
+  - [x] Future module-triggered task creation.
+- [x] Update `DECISIONS.md` if a new canonical cross-surface editor pattern is formalized.
+- [x] Update CHANGELOG.
+- [x] Bump package/app metadata.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Tasks UI regressions.
+  - [x] Task modal regressions.
+  - [x] Bulk-action regressions.
+  - [x] Permissions tests were not required because task visibility/assignment/context behavior did not change.
+- [x] Verify `/api/app-info` reports the expected version.
+- [x] Do not convert Files or Clients/Projects in this closeout.
+- [x] Do not redesign the task list rows in this closeout unless required to remove framework-owned anatomy.
+
+Acceptance criteria:
+
+- Tasks is converted enough to be a clean template for Files and Clients/Projects.
+- Filter sidebar uses the same framework-owned slide-out pattern as Notes.
+- Task list remains the primary main-panel view.
+- Bulk actions are collapsed above the list.
+- Add/Edit Task modal is canonical and reusable from Workbench/QAC/future module calls.
+- Framework/module separation is documented and regression-covered.
+
+#### Version 0.33.5.18.10.8.1 - Modal action ownership and regression contract
+
+- [x] Update `docs/ui-surface-contract.md` and `docs/view-building-contract.md` with the converted
+      modal action ownership standard.
+- [x] Update `docs/tasks-module.md` and `docs/notes-module.md` so Tasks and Notes describe the same
+      heading/footer ownership boundary.
+- [x] Add or update static regressions proving converted modal footers use framework footer groups,
+      framework action buttons, stable action roles, and no module-specific footer anatomy.
+- [x] Document the exact standard:
+  - [x] Tags, Files, and Copy Link are footer utility actions and should render as icon plus text on
+        converted add/edit modals unless the surface intentionally opts into dense icon-only mode.
+  - [x] Cancel and Save are footer commit actions and should use the compact Tasks icon treatment with
+        clear accessible labels and titles.
+  - [x] Follow Notifications belongs in the modal heading action slot for saved records that can emit
+        notifications.
+- [x] Keep this slice documentation/static-regression only; do not change modal behavior yet.
+- [x] Run `npm run check`.
+
+Acceptance criteria:
+
+- Framework-owned modal footer anatomy is documented once and applies to both Tasks and Notes.
+- Module-owned modal action semantics remain explicit.
+- The next implementation slice has no ambiguity about which visual pattern to use.
+
+#### Version 0.33.5.18.10.8.2 - Tasks Tags and Files child-dialog parity
+
+- [x] Replace the Tasks modal's inline/body-mounted Tags and Files utility panels with stacked child
+      dialogs opened from the Task modal footer, following the Notes modal pattern.
+- [x] Keep Tags picker ownership in Tags and Files attachment ownership in Files; Tasks only owns
+      task-specific placement, save-first messaging, target identifiers, visibility, refresh hooks,
+      and footer utility button behavior.
+- [x] Use `LongtailForge.view.createModal()` or `createModalForm()` plus `showModal()` / `closeModal()`
+      so the framework owns child dialog shell, backdrop/Escape behavior, stack ordering, focus return,
+      and parent-close cleanup.
+- [x] Preserve current Task rules:
+  - [x] Unsaved tasks show a save-first state for Files.
+  - [x] Tags remain staged and save through the normal Task save payload.
+  - [x] File attachments remain permission-checked through the Files helper and existing file routes.
+  - [x] Closing Tags or Files returns focus to the footer utility button.
+  - [x] Saving or canceling the Task editor closes any child Tags/Files dialog safely.
+- [x] Remove or stop using the body/overlay mounts that make Tags and Files appear inside the Task
+      modal body in inconsistent locations.
+- [x] Add regressions proving Task Tags and Files open stacked child dialogs like Notes and are not
+      mounted as inline parent-body panels.
+- [x] Run `npm run check`.
+
+Acceptance criteria:
+
+- Task Tags and Files behave like Notes Tags and Files: footer utility button opens a child dialog
+  above the parent editor.
+- Tags and Files content remains owned by the Tags and Files helpers.
+- The Task editor body no longer grows or shifts when Tags or Files are opened.
+
+#### Version 0.33.5.18.10.8.3 - Notes and Tasks modal footer visual parity
+
+- [x] Update the Notes modal footer utility actions to use icon plus text for Tags and Files.
+- [x] Add a Notes Copy Link footer utility action using the same record-URL/clipboard fallback pattern
+      as Tasks, with Notes-owned URL construction and status messaging.
+- [x] Update the Notes modal footer commit actions to match the Tasks compact Cancel and Save icon
+      treatment while preserving submit/cancel behavior, accessible labels, and focus return.
+- [x] Update Tasks footer utility actions to match the shared utility standard where space allows:
+      Tags, Files, and Copy Link should use icon plus text; Cancel and Save should remain compact
+      commit controls.
+- [x] Keep Tags picker ownership in Tags, Files attachment ownership in Files, copy-link behavior in
+      the owning module, and save payloads in the owning module.
+- [x] Add regressions covering Tasks and Notes footer utility/commit grouping, icon/text expectations,
+      copy-link presence, and cache keys.
+- [x] Run `npm run check`.
+
+Acceptance criteria:
+
+- Tasks and Notes modal footers look like the same modal system.
+- Footer utility actions are readable and grouped on the left.
+- Footer commit actions are compact and grouped on the right.
+- Notes has a Copy Link footer action for saved notes without duplicating Tasks code or changing
+  note save semantics.
+
+#### Version 0.33.5.18.10.8.4 - Notes notification producer and follow bell
+
+- [x] Inspect the framework notification subscription helper and notification service contract used by
+      Tasks.
+- [x] Add Notes notification producer support for meaningful note changes, excluding the acting user's
+      own changes where the existing notification model supports that pattern.
+- [x] Define the shipped Notes follower events as note updated, archived/restored, and linked context
+      linked/unlinked; revision-restore detail beyond `note.updated`, tags changed, and files changed
+      stay out of scope unless deliberately added later.
+- [x] Add a saved-note Follow Notifications bell to the Notes modal heading action slot.
+- [x] Remove the superfluous top Close button from the Notes modal once the heading bell is present;
+      footer Cancel remains the normal dismissal control.
+- [x] Ensure unsaved notes either hide or disable the follow bell with clear accessible state because
+      there is no note id to follow yet.
+- [x] Keep the subscription UI framework-owned where possible, but keep Notes event emission and note
+      notification meaning Notes-owned.
+- [x] Add service/browser regressions for Notes notification production, heading bell display, saved vs
+      unsaved state, and no duplicate Close button.
+- [x] Run `npm run check`.
+- [x] Run notification-specific regressions.
+
+Acceptance criteria:
+
+- Notes can produce notifications that make following a note useful.
+- The Notes modal heading uses a follow bell instead of a duplicate Close button.
+- Notification subscription behavior remains framework-owned, while note event meaning remains
+  Notes-owned.
+
+
+
+#### Version 0.33.5.18.11.5 - Files browse reset to compact listing
+
+Intent:
+
+Return Files to a simple browse/recovery surface: hideable filter sidebar on the left, compact file listing in the main panel, and no inline summary/detail/preview/metadata dashboard below the table.
+
+- [x] Remove the inline Files browse detail stack from the main page:
+  - [x] Remove the `Browse Summary` panel from the normal Files browse view.
+  - [x] Remove the selected-file header panel from the normal Files browse view.
+  - [x] Remove the inline `Preview` panel from the normal Files browse view.
+  - [x] Remove the inline `Metadata` panel from the normal Files browse view.
+- [x] Keep the framework-owned `files.browse` slide-out sidebar layout.
+- [x] Keep the Files filter sidebar as the place for browse filters.
+- [x] Keep the main Files panel focused on the table/list only.
+- [x] Render only a small status/live-region message above or near the table, for example `1 file visible`, loading text, empty state, or error text.
+- [x] Preserve the existing `/api/files/attachments` read path.
+- [x] Preserve readable row shaping for:
+  - [x] file type icon
+  - [x] filename
+  - [x] module
+  - [x] target
+  - [x] Client in Business workspaces only
+  - [x] Project
+  - [x] status
+  - [x] attached timestamp
+  - [x] dense row actions
+- [x] Remove selected-row state from the browse page.
+  - [x] Rows should no longer stay selected.
+  - [x] Rows should no longer drive an inline detail panel.
+- [x] Keep existing Download/Delete/Restore behavior untouched in this slice.
+- [x] Keep existing permission, scan, storage, download, delete, restore, report, quarantine, and attachment routes untouched in this slice.
+- [x] Confirm non-Business workspaces still hide Client filters, Client columns, and Client payload values.
+- [x] Add/update regressions proving the Files browse page does not render `Browse Summary`, inline `Preview`, inline `Metadata`, or selected-file detail panels.
+- [x] Add/update responsive regressions proving rows do not overlap at common desktop widths and remain horizontally scroll-safe where needed.
+- [x] Run `npm run check` with a full timeout.
+- [x] Verify `/api/app-info` reports the expected version after the slice.
+
+Acceptance criteria:
+
+- Files browse looks like a compact filterable file listing again.
+- The hideable filter sidebar remains on the left.
+- The main page does not show a detail dashboard below the table.
+- The row actions still work exactly as before.
+- No storage, scan, lifecycle, upload, delete, restore, report, quarantine, permission, or schema behavior changes in this slice.
+
+
+#### Version 0.33.5.18.11.6 - Files attachment context update route
+
+Intent:
+
+Add the backend mutation for attachment-context editing before adding any edit UI. This is attachment-context editing, not binary file editing.
+
+- [x] Add a Files service method for updating an attachment's context.
+  - [x] Treat the edited record as a `file_attachment`, not the underlying file binary.
+  - [x] Preserve the file record, storage provider, storage key, scan status, file status, hash, size, and upload metadata.
+  - [x] Do not add rename, move, hard purge, permanent delete, or storage controls.
+- [x] Add a route such as `PATCH /api/files/attachments/:fileAttachmentId/context`.
+- [x] The context update payload may include:
+  - [x] `moduleId`
+  - [x] `targetType`
+  - [x] `targetId`
+  - [x] `clientId` when Business workspace UI needs it as a selector/filter
+  - [x] `projectId`
+- [x] Treat Client and Project controls as context selectors/filters, not unsafe raw metadata overrides.
+  - [x] When the selected target has registered `clientField` or `projectField` values, derive the saved attachment Client/Project from the resolved target.
+  - [x] Do not allow the attachment row to save a Client/Project combination that conflicts with the selected target.
+- [x] Reuse the registered attachable type contract.
+  - [x] Resolve attachable type through the existing module/file attachment registry.
+  - [x] Resolve the target through the registered table/id/workspace/client/project fields.
+  - [x] Validate that the target belongs to the current workspace.
+- [x] Reuse existing permission rules.
+  - [x] Require permission to remove/edit from the old attachment context.
+  - [x] Require permission to attach/use the new target context.
+  - [x] Keep the Files service authoritative for permission decisions.
+- [x] Add audit coverage for context updates.
+  - [x] Record previous and next module/target/client/project context.
+  - [x] Do not expose storage keys, storage paths, hashes in normal UI, scanner internals, or protected filesystem data.
+- [x] Add lifecycle/internal event coverage for attachment context changes.
+  - [x] Either add an explicit `file.attachment.context_updated` event or emit documented old-context/new-context attachment events with safe `context_update` metadata.
+  - [x] Ensure Tasks/Notes/Lists activity hooks are not silently broken by context changes.
+- [x] Add service and route regressions for:
+  - [x] successful Business context update
+  - [x] Personal/Family context update without Client data
+  - [x] unreadable old attachment
+  - [x] unreadable or unauthorized new target
+  - [x] mismatched Client/Project/target context rejection
+  - [x] secure-note/unsupported target rejection where applicable
+  - [x] no storage path/key leakage
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions` if permission behavior changes.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Files has a safe backend route for editing attachment context.
+- The edit model is permission-checked, target-validated, audited, and route-backed.
+- The file binary and storage lifecycle remain untouched.
+- Client/Project behavior respects Business versus Personal/Family workspace scope.
+
+#### Version 0.33.5.18.11.7 - Files attachable target option provider
+
+Intent:
+
+Add the permission-safe target option provider that the later File Context modal will consume. This slice does not add the modal, row click behavior, or save UI.
+
+- [x] Add a permission-safe target option provider for the edit modal, such as `GET /api/files/attachable-targets`.
+- [x] List only active registered attachable types/targets the user can see and use.
+- [x] Support filtering by module, target type, Client, Project, and search text where practical.
+- [x] Return readable labels, module/target type labels, and safe context hints.
+- [x] Keep protected IDs only as internal option values required for saving.
+- [x] Do not expose storage keys, storage paths, scanner internals, file hashes, secure-note internals, or unreadable target labels.
+- [x] Business workspaces may expose Target, Client, and Project option filtering.
+- [x] Personal and Family workspaces must not expose Client filters or return Client option payload values for the normal UI.
+- [x] Personal and Family workspaces may expose Target and Project options where the selected attachable target/project model supports it.
+- [x] Reuse the registered attachable type contract and existing target access checks.
+- [x] Add regressions proving:
+  - [x] Business users receive readable allowed target options.
+  - [x] Personal/Family users receive no Client filter/control payload.
+  - [x] unreadable targets are omitted.
+  - [x] disabled/unsupported attachable types are omitted.
+  - [x] secure-note/unsupported targets are omitted or safely unavailable.
+  - [x] raw IDs are internal option values only and do not become display labels.
+  - [x] no storage path/key/scanner leakage.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions` if permission behavior changes.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Files has a safe target-option provider for the future File Context editor.
+- Option labels are readable and permission-shaped.
+- The provider is read-only and does not change attachment context.
+
+#### Version 0.33.5.18.11.8 - Files edit modal shell and read-only metadata
+
+Intent:
+
+Add the Files-owned edit modal shell using the same modal standards as Notes and Tasks, but do not wire row click or save behavior yet.
+
+- [x] Add a canonical Files editor opener, for example `LongtailForge.filesDialog.openFileEditor()` or a clearly named Files-owned equivalent.
+- [x] Build the modal with the shared framework modal/form/footer helpers used by converted Notes and Tasks modals.
+- [x] The modal title should be simple, such as `Edit File` or `File Context`.
+- [x] The modal should show the file name and compact read-only metadata.
+  - [x] File name
+  - [x] file type
+  - [x] size
+  - [x] status
+  - [x] scan state
+  - [x] uploaded timestamp
+  - [x] attached timestamp
+  - [x] uploader when available
+- [x] The only editable controls in the modal are:
+  - [x] Target
+  - [x] Client in Business workspaces only
+  - [x] Project
+- [x] Do not add filename rename.
+- [x] Do not add file replacement.
+- [x] Do not add storage provider controls.
+- [x] Do not add scan/quarantine controls.
+- [x] Do not add hard delete or permanent purge.
+- [x] Do not add download-only metadata editing.
+- [x] In Business workspaces:
+  - [x] Show Client and Project controls.
+  - [x] Client should filter Project and Target choices where possible.
+- [x] In Personal/Family workspaces:
+  - [x] Hide Client controls entirely.
+  - [x] Do not submit Client values.
+  - [x] Show Project where supported.
+- [x] Load target choices through the new target option provider.
+- [x] Keep Save disabled, hidden, or non-submitting until the save wiring slice; do not ship a fake save.
+- [x] Do not add row-click behavior in this slice.
+- [x] Do not add preview behavior in this slice.
+- [x] Add regressions proving:
+  - [x] the canonical opener creates the modal shell.
+  - [x] the modal uses shared modal/form/footer helpers.
+  - [x] read-only metadata is visible but not editable.
+  - [x] only Target, Business Client, and Project are editable controls.
+  - [x] Personal/Family scope hides Client controls.
+  - [x] no filename, binary, storage, scan, quarantine, hard-delete, or purge controls exist.
+  - [x] Cancel/Close returns focus to the opener.
+- [x] Run `npm run check`.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Files has a real shared-helper modal shell for attachment context editing.
+- The modal is not yet opened by table rows and does not submit context changes.
+- Metadata moves out of the browse page and into a modal as read-only context.
+
+#### Version 0.33.5.18.11.9 - Files edit modal row-open and save wiring
+
+Intent:
+
+Wire the compact Files listing to the File Context modal and connect Save to the route-backed context update path.
+
+- [x] Clicking a file row opens the edit modal.
+- [x] Pressing Enter on a focused file row opens the edit modal.
+- [x] Pressing Space on a focused file row opens the edit modal only if that matches the existing table accessibility pattern; otherwise keep Enter only and document the choice.
+- [x] Row action buttons must not trigger the row-open behavior.
+- [x] Save calls the new context update route and refreshes the Files list.
+- [x] Cancel/Close returns focus to the triggering row or action.
+- [x] Save success should close the modal or keep it open with a clear saved status, matching the closest Notes/Tasks modal behavior.
+- [x] Save failure should keep the modal open and show a clear inline status.
+- [x] Add regressions proving:
+  - [x] row click opens the edit modal
+  - [x] row keyboard open works
+  - [x] row Download/Delete/Restore actions do not open the edit modal
+  - [x] Business scope shows Target/Client/Project controls
+  - [x] Personal/Family scope hides Client controls
+  - [x] only context fields are editable
+  - [x] save calls the route-backed context update path
+  - [x] save success refreshes the Files list without reopening the bad inline detail panel
+  - [x] save errors stay inside the modal
+  - [x] focus returns correctly
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions` if route/permission behavior changes.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Clicking a file row opens that modal.
+- The modal matches the Notes/Tasks converted modal standard.
+- The modal edits attachment context only.
+- Row click, Download, Delete, Restore, and future Preview actions remain distinct.
+
+#### Version 0.33.5.18.11.10 - Files preview availability route and contract
+
+Intent:
+
+Add the attachment-scoped preview route contract and availability states before rendering preview content or adding UI.
+
+- [x] Add route-backed preview support for attachment rows, preferably attachment-scoped, for example:
+  - [x] `GET /api/files/attachments/:fileAttachmentId/preview`
+  - [x] No separate content route is returned in this descriptor-only slice; content handlers are deferred to 0.33.5.18.11.11.
+- [x] Preview access must be evaluated against the selected attachment context, not just a raw file ID.
+- [x] Preview must require the same safe availability rules as download:
+  - [x] file status is available
+  - [x] scan status is `passed` or `not_required`
+  - [x] user can read the attachment target
+  - [x] user has the required Files permission
+- [x] Return a permission-safe preview descriptor with:
+  - [x] preview state such as `previewable`, `download_only`, `too_large_for_preview`, `unavailable`, or `unauthorized`
+  - [x] preview kind such as `image`, `text`, `markdown`, or `unsupported`
+  - [x] readable filename/file type
+  - [x] route-backed content URL only when a separate content route is required; no content URL is returned in this descriptor-only slice.
+- [x] Other file types should return a safe `download_only` preview state.
+- [x] Do not return actual image/text/Markdown content in this slice unless it is required to prove the route contract.
+- [x] Do not make quarantined, deleted, pending, failed-scan, or unauthorized files previewable.
+- [x] Decide and document audit/lifecycle policy for preview descriptors:
+  - [x] Preview descriptors are not recorded in 0.33.5.18.11.10 because they do not read or display content.
+  - [x] If later content/user preview actions are recorded, use a distinct action such as `file.previewed`.
+- [x] Add regressions proving:
+  - [x] preview descriptors are attachment-scoped
+  - [x] unsupported files return download-only
+  - [x] deleted/quarantined/pending/failed-scan files are not previewable
+  - [x] unauthorized attachments are not previewable
+  - [x] no storage keys/paths leak
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions` if preview introduces new permission behavior.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Files has a route-backed preview availability contract.
+- The route is attachment-scoped and permission-safe.
+- No browser preview UI or Inspector behavior is introduced yet.
+
+#### Version 0.33.5.18.11.11 - Files preview content handlers
+
+Intent:
+
+Add safe content generation for image, text, and Markdown previews behind the preview route contract.
+
+- [x] Add preview categories for this slice:
+  - [x] image: JPG/JPEG/PNG/GIF
+  - [x] text: TXT
+  - [x] markdown: MD
+- [x] Image preview content must be served through authenticated Files routes, not protected storage paths or raw filesystem URLs.
+- [x] Text previews should be size-capped.
+  - [x] If the text file exceeds the preview cap, return `download_only` or a clear `too_large_for_preview` state.
+- [x] Markdown previews must use the existing server-backed Markdown platform.
+  - [x] Do not add a second browser-only Markdown parser.
+  - [x] Keep raw HTML disabled.
+  - [x] Keep unsafe links/images neutralized according to the Markdown platform contract.
+- [x] Markdown previews should be size-capped before rendering.
+- [x] Preview content must not expose storage keys, protected storage paths, scanner internals, raw filesystem URLs, or file hashes.
+- [x] Do not make quarantined, deleted, pending, failed-scan, or unauthorized files previewable.
+- [x] Add regressions proving:
+  - [x] images are previewable
+  - [x] text files are previewable
+  - [x] Markdown files render through the shared Markdown service
+  - [x] unsafe Markdown stays safe
+  - [x] unsupported files return download-only
+  - [x] deleted/quarantined/pending/failed-scan files are not previewable
+  - [x] unauthorized attachments are not previewable
+  - [x] no storage keys/paths leak
+- [x] Run `npm run check`.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Image, text, and Markdown previews work.
+- Unsupported files are clearly download-only.
+- Preview content is produced only through authenticated Files routes/services.
+- No Inspector work is introduced in this slice.
+
+#### Version 0.33.5.18.11.12 - Files preview modal and browse row preview action
+
+Intent:
+
+Add the user-facing View/Preview button to the Files listing and render previews in a dedicated Files preview modal.
+
+- [x] Add a View/Preview action to the main Files listing.
+- [x] Use a clear icon and accessible label/title, for example `Preview <filename>`.
+- [x] Show the Preview action only for previewable files, or show a disabled/download-only marker for non-previewable files.
+- [x] Non-previewable files should be visibly marked as download-only without adding noisy detail panels.
+- [x] Clicking Preview opens a dedicated Files Preview modal.
+- [x] Do not use the future Inspector in this slice.
+- [x] Do not add a persistent right-side preview pane in this slice.
+- [x] The preview modal should use the shared modal shell/stack behavior.
+- [x] The preview modal should render:
+  - [x] images inside a constrained preview area
+  - [x] text files in a readable scroll-safe text/code-style region
+  - [x] Markdown files as safe rendered Markdown
+- [x] The preview modal should include a Download action when the file remains downloadable.
+- [x] The preview modal should include a simple Close action.
+- [x] The preview modal should handle:
+  - [x] loading state
+  - [x] preview unavailable
+  - [x] download-only
+  - [x] too large for preview
+  - [x] permission failure
+  - [x] scan/status unavailable
+- [x] Preview modal close should return focus to the Preview button that opened it.
+- [x] The edit modal and preview modal should remain separate:
+  - [x] row click opens edit
+  - [x] Preview button opens preview
+  - [x] Download button downloads
+  - [x] Delete/Restore buttons mutate lifecycle
+- [x] Add regressions proving:
+  - [x] Preview button exists for image/text/Markdown rows
+  - [x] unsupported files are download-only
+  - [x] Preview opens the modal
+  - [x] row click does not open Preview
+  - [x] Preview button does not open Edit
+  - [x] modal content renders safely
+  - [x] focus returns correctly
+  - [x] narrow widths remain scroll-safe
+- [x] Run `npm run check`.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- The Files listing has a clear Preview/View action.
+- Preview lives in a modal, not in the main browse page and not in the future Inspector.
+- Row click, Preview, Download, and Delete/Restore each have distinct behavior.
+
+#### Version 0.33.5.18.11.13 - Files browse/edit/preview closeout and 0.33.5.18.12 handoff
+
+Intent:
+
+Close the revised Files browse/edit/preview branch and update the next Files upload/action slices so they do not conflict with the new route-backed File Context editor.
+
+- [x] Update `ROADMAP.md` to mark completed 0.33.5.18.11.5 through 0.33.5.18.11.12 slices.
+- [x] Update Files developer docs with the revised Files UX boundary:
+  - [x] Files page is a compact browse/recovery surface.
+  - [x] Filter sidebar owns browse filtering.
+  - [x] Main panel owns listing only.
+  - [x] Row click opens File Context edit modal.
+  - [x] Preview button opens Files Preview modal.
+  - [x] Metadata is read-only inside the edit modal.
+  - [x] Context editing is route-backed and attachment-scoped.
+  - [x] Preview is route-backed and attachment-scoped.
+  - [x] Inspector integration is deferred.
+- [x] Update `docs/view-building-contract.md` with the revised Files page state.
+- [x] Update Files-related decisions/docs to clarify that the 0.33.5.18.11.4 inline detail/summary anatomy was intentionally replaced by modal-based edit/preview behavior.
+- [x] Update `CHANGELOG.md`.
+- [x] Update package/app/module metadata to the implemented version.
+- [x] Adjust the upcoming 0.33.5.18.12 Files upload/action slices so they do not say or imply that route-backed attachment context editing is forbidden.
+  - [x] Continue forbidding rename, file replacement, storage moves, hard purge, permanent delete, raw storage controls, and unsafe direct metadata editing.
+  - [x] Allow the already-shipped File Context editor as the only attachment-context edit surface.
+  - [x] Exclude the already-shipped Preview modal from 0.33.5.18.12 action-wiring scope except for visual parity and guardrail documentation.
+- [x] Confirm existing Files upload and reusable attachment panel behavior still works.
+- [x] Confirm Notes and Tasks Files footer utility dialogs still work.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Files browse regressions
+  - [x] Files edit modal regressions
+  - [x] Files preview regressions
+  - [x] Files attachment/upload regressions if touched
+  - [x] Notes and Tasks Files utility regressions
+  - [x] `npm run test:permissions` if any route/permission behavior changed
+- [x] Verify `/api/app-info` reports the expected version.
+- [x] Archive completed roadmap sections according to the roadmap bookkeeping rule.
+
+Acceptance criteria:
+
+- Files has returned to a compact browse-first UX.
+- Editing and previewing are modal-based, route-backed, permission-safe, and consistent with Notes/Tasks patterns.
+- The future Inspector remains deferred instead of being half-built inside Files.
+- The next Files upload/attachment-panel conversion can proceed without carrying forward the bad inline detail-page experience.
+
+### Version 0.33.5.18.12 - File Upload, Attachment Panels, Actions, and Strict Guardrails
+
+Scope note:
+
+This branch starts after the 0.33.5.18.11.13 browse/edit/preview closeout. Files is already a compact
+browse/recovery listing with route-backed File Context and Preview modal workflows. These slices may
+standardize upload, attachment-panel, action, visual-state, and strict-guardrail anatomy, but they must
+not reintroduce inline Browse Summary, selected-file detail, Metadata, Preview, selected-row state, or
+Inspector behavior on the Files browse page.
+
+#### Version 0.33.5.18.12.1 - Upload control shell and progress/result behavior
+
+- [x] Render the Files upload/dropzone shell, accepted-file hint, upload button, progress/status, and
+      per-file result list through shared framework anatomy or descriptor mount regions.
+- [x] Keep file reading, base64 payload construction, batch upload payloads, accepted categories,
+      size/type checks, target IDs, visibility, and upload route calls in Files-owned browser/service
+      paths.
+- [x] Preserve multi-file upload and drag/drop behavior in both the Files page and reusable attachment
+      surfaces where currently supported.
+- [x] Keep upload UI out of File Context and Preview; those already-shipped modals remain focused on
+      attachment context editing and route-backed preview only.
+- [x] Add regressions proving successful, partial-failure, and rejected upload states remain visible
+      without moving scanner/storage rules into framework UI code.
+
+#### Version 0.33.5.18.12.2 - Shared attachment panel shell standardization
+
+- [x] Convert the shared attachment panel (`public/js/shared/file-attachments.js`) view anatomy to
+      framework-owned panel, list, empty, status, upload-result, and dense-action shells while keeping
+      the helper's upload/list/download/remove/delete/restore logic Files-owned.
+- [x] Preserve saved-record attachment behavior and unsaved-record save-first messaging for Notes,
+      Tasks, and future attachable modules.
+- [x] Keep the attachment helper body compatible with stacked child dialogs opened from converted modal
+      footer utility buttons.
+- [x] Do not turn attachment panels into inline File Context, Preview, Metadata, or Inspector surfaces;
+      any future edit/preview affordance must call the canonical route-backed Files modal workflow.
+- [x] Ensure deleted/unavailable/quarantined attachments show gentle recovery-safe states instead of
+      breaking the host modal or hiding history.
+- [x] Add regressions proving Notes and Tasks Files utilities still open stacked child dialogs and that
+      attachment helper focus/status behavior is preserved.
+
+#### Version 0.33.5.18.12.3 - Files row and attachment action wiring
+
+- [x] Express existing shipped actions through declarative route actions or registered Files behaviors:
+      download, report, quarantine where existing route/permission support permits it, remove attachment,
+      delete file, and restore file.
+- [x] Treat File Context edit and Files Preview as already-shipped 0.33.5.18.11 workflows; this slice
+      may preserve their placement/visual parity but must not reimplement those routes or modals.
+- [x] Preserve action isolation: row click/Enter opens File Context, Preview/View opens the Preview
+      modal, Download downloads, and Delete/Restore/Report/Quarantine remain distinct controls.
+- [x] Preserve existing confirmations, danger styling, permission-shaped visibility, scan/download
+      availability, retention semantics, and post-action refresh behavior.
+- [x] Keep route calls on the existing Files routes and keep API/service permission checks authoritative.
+- [x] Do not add rename, move, hard purge, permanent delete, storage moves, file replacement, or direct
+      file-metadata edit controls in this slice.
+- [x] Keep unsupported files download-only rather than routing them into a preview/detail panel.
+- [x] Add regressions proving action buttons use shared dense/action placement, remain accessible, and
+      never bypass the Files routes.
+
+#### Version 0.33.5.18.12.4 - Files visual states and control parity
+
+- [x] Align Files page and attachment-panel controls with the Notes/Tasks converted control standard:
+      icon buttons for dense row actions where appropriate, visible text for ambiguous upload/report
+      actions, accessible labels/titles, wrapping action rows, and theme-token surfaces.
+- [x] Include the already-shipped File Context and Preview controls in visual parity checks without
+      changing their route-backed behavior from 0.33.5.18.11.
+- [x] Standardize file status chips, scan-status chips, deleted/restored/quarantined messaging,
+      attachment counts, and empty states across Files page and reusable attachment panels.
+- [x] Preserve the compact listing boundary during visual work: no persistent inline preview, metadata,
+      selected-file detail, selected-row state, or nested dashboard-like browse panels.
+- [x] Ensure normal Files UI uses broad product language such as recovery, available, unavailable,
+      attachment, upload, download, restore, and review rather than punitive or diagnostic copy.
+- [x] Add responsive regressions or static guardrails proving action controls do not overlap file names,
+      metadata, or attachment panel content on narrow widths.
+
+#### Version 0.33.5.18.12.5 - Files strict guardrail inventory and escape-hatch map
+
+- [x] Add `docs/files-strict-guardrail-inventory.md` or an equivalent section in the view-building docs
+      before strict enforcement.
+- [x] Inventory remaining framework-owned candidates in `public/js/files.js` and
+      `public/js/shared/file-attachments.js`: page header, filters, table/list shell, attachment panel
+      shell, upload/dropzone shell, empty/status states, dense actions, and modal/overlay placement.
+- [x] Document intentional Files-owned escape hatches: file reading, upload payloads, accepted
+      categories, scan/download availability, route calls, confirmations, permission-aware visibility,
+      target metadata, deleted/quarantined recovery states, and host refresh callbacks.
+- [x] Document the already-shipped File Context and Preview modal openers/routes as allowed Files-owned
+      behavior, while marking inline detail/summary/preview/metadata panels, selected-row state, and
+      Inspector-style browse behavior as forbidden.
+- [x] Add non-failing guardrail inventory coverage, but do not fail strict Files guardrails until the
+      enforcement slice.
+
+#### Version 0.33.5.18.12.6 - Files strict declarative guardrail enforcement
+
+- [x] Reduce `public/js/files.js` and framework-owned view portions of
+      `public/js/shared/file-attachments.js` to data bindings, helper mounts, and Files-owned behavior
+      handlers.
+- [x] Expand fail-on-violation declarative guardrails to the Files surface.
+- [x] Guard against hand-built framework-owned page/filter/table/panel/upload/action anatomy once a
+      descriptor field or shared helper owns it.
+- [x] Keep documented Files-owned escape hatches allowed so the guardrail does not outlaw file route,
+      upload, scan, permission, and attachment behavior.
+- [x] Keep the canonical File Context/Preview modal workflows, row action isolation, readable-label
+      fallbacks, and attachment helper behavior allowed while failing reintroduced inline browse detail,
+      metadata, preview, selected-row, or Inspector anatomy.
+- [x] Add regressions proving Files no longer creates framework-owned anatomy by hand and never bypasses
+      file routes.
+
+#### Version 0.33.5.18.12.7 - Files docs, changelog, and closeout
+
+- [x] Update `docs/view-building-contract.md`, `docs/declarative-view-surfaces.md`,
+      `docs/module-contract.md`, and Files-specific developer docs with the completed Files conversion
+      boundary.
+- [x] Preserve the 0.33.5.18.11 compact browse/edit/preview boundary: File Context and Preview remain
+      route-backed modal workflows, while 0.33.5.18.12 closes upload, shared attachment panel, existing
+      lifecycle actions, visual parity, and strict guardrails.
+- [x] Update `DECISIONS.md` with the Files UI standardization and strict-surface decision.
+- [x] Update `CHANGELOG.md` and package metadata to the implemented version.
+- [x] Archive completed Files roadmap sections according to the roadmap bookkeeping rule.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Files browse regressions.
+  - [x] Files edit modal and preview modal preservation regressions if touched by visual/action/guardrail
+        work.
+  - [x] Files attachment/upload regressions.
+  - [x] Notes and Tasks Files utility regressions.
+  - [x] `npm run test:permissions` if file permission, attachment target, workspace gating, or route
+        guard behavior changed.
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Files page and reusable attachment panels share the standardized converted control system.
+- File Context and Preview remain the already-shipped route-backed modal workflows, with no inline
+  browse detail/preview/metadata panel or selected-row state returning.
+- File service behavior remains authoritative for storage, scanning, permissions, lifecycle, downloads,
+  uploads, delete/restore, reporting, quarantine, and attachment target validation.
+- Strict guardrails protect Files like Notes and Tasks without outlawing required Files-owned behavior.
+
+
+<!-- Archived from ROADMAP.md at branch closeout: completed 0.33.7 TypeScript/Zod/Vitest foundation planning block. -->
+
+## Version 0.33.7 - TypeScript, Runtime Contracts, and Fast Test Foundation
+
+Purpose:
+
+Introduce TypeScript, Zod, and Vitest as a focused correctness-and-speed foundation without rewriting the app, changing the runtime boot path, or turning Longtail Forge into a multi-language/polyglot project.
+
+This version is not a TypeScript conversion wave. It establishes the contract pattern that future modules and framework surfaces should use:
+
+- TypeScript catches code/contract drift at development time.
+- Zod validates untrusted runtime input at the edges.
+- Vitest provides fast, narrow contract/service tests so Codex/Claude can fail quickly before running the full regression suite.
+
+The goal is to reduce slow regression churn by catching common shape errors, renamed fields, invalid payloads, broken module contracts, and contract-test failures early and locally. This does not replace the existing regression suite, permission regressions, database regressions, browser/static regressions, or release closeout checks.
+
+Dependencies and sequencing:
+
+- Lands after 0.33.6 (Dashboard/Workbench formalization) so the framework surfaces it contracts against are stable, and before the Playwright, Mobile, Calendar, and Reporting slices that build on the contracts it establishes.
+- Lands before 0.33.12 (Reporting Framework) so Reporting, public API expansion, tickets, creator tools, and future module contribution points are built against clearer contracts.
+- Builds on the framework contracts stabilized through 0.33.5-0.33.6:
+  - Module manifests.
+  - Declarative view surfaces.
+  - Dashboard/Workbench contributions.
+  - Work candidates.
+  - Focus modes.
+  - Resume-state producers.
+  - Search.
+  - Notifications.
+  - Tags.
+  - Files.
+  - Permissions.
+  - Public API envelopes.
+  - Jobs.
+  - Database seam.
+- Keeps the primary app as Node/Express/ESM.
+- Does not introduce PHP, Python, or any second backend runtime in this version.
+- Does not add a TypeScript compile step to `npm start`.
+
+Key decisions:
+
+- Incremental, not a rewrite.
+- TypeScript is introduced first as dev-time checking.
+- Zod is introduced as runtime validation for selected edge contracts, not as a blanket internal-object parser.
+- Vitest is introduced for narrow unit/contract tests, not as a replacement for the existing regression runner.
+- Runtime-imported contract/schema files must remain runnable by the current Node app.
+  - If a schema is used at runtime, keep it in JavaScript (`.js`) with JSDoc/type support until the repo has an intentional build strategy.
+  - Type-only `.ts` files may exist, but runtime JavaScript must not import `.ts` files directly.
+- `npm start` must remain `node server.js`.
+- `npm run check` should run the fastest checks first:
+  1. TypeScript typecheck.
+  2. Vitest narrow/unit tests.
+  3. Existing regression runner.
+  4. ESLint.
+- Codex/Claude should run module-specific tests first, then typecheck, then full `npm run check` only when the change touches shared framework contracts, shared services, release closeout, or multiple modules.
+
+Non-goals:
+
+- Do not convert the whole repo to TypeScript.
+- Do not convert browser UI scripts broadly in this version.
+- Do not add a runtime TypeScript loader to app startup.
+- Do not add PHP or Python for Files or other module logic.
+- Do not replace the existing regression runner.
+- Do not weaken permission, workspace, module-enabled, private/secure-content, storage-key, or no-raw-ID guardrails.
+- Do not silence type errors with blanket `any`, broad `// @ts-ignore`, or global type exclusions.
+
+### Version 0.33.7.1 - Tooling setup: TypeScript, Zod, and Vitest
+
+**Model: GPT-5.5 Extra High** - Tooling foundation with no app boot-path change.
+
+- [x] Add TypeScript as a dev dependency.
+- [x] Add Vitest as a dev dependency.
+- [x] Add Zod as a runtime dependency because schemas will be used by runtime validation paths.
+- [x] Add `tsconfig.json`.
+  - [x] Node/ESM-compatible compiler settings (`module`/`moduleResolution` `nodenext`).
+  - [x] `noEmit: true`.
+  - [x] `allowJs: true`.
+  - [x] Scope `include` narrowly at first (`server.js`, `worker.js`, `src/**/*.js`, `tests/**/*.mjs`; browser `public/` scripts excluded).
+  - [x] Use `checkJs` selectively instead of type-checking the entire repo immediately (`checkJs: false`; files opt in with `// @ts-check`).
+  - [x] Exclude runtime data, generated files, `archive/`, build/vendor output, temporary directories, and `node_modules`.
+- [x] Add package scripts:
+  - [x] `typecheck` - runs `tsc --noEmit`.
+  - [x] `test:unit` - runs Vitest once.
+  - [x] `test:watch` - runs Vitest in watch mode.
+  - [x] `test:contracts` - runs contract/schema-focused Vitest tests (filtered pass; `--passWithNoTests` until 0.33.7.3).
+  - [x] `test:files` - runs Files-focused Vitest tests once Files is the proving-ground module (filtered pass; `--passWithNoTests` until then).
+  - [x] `test:tasks` - runs Tasks-focused Vitest tests once Tasks has contract tests (filtered pass; `--passWithNoTests` until then).
+- [x] Keep `npm start` unchanged.
+- [x] Update `npm run check` so it runs fast checks before the existing slow suite:
+  - [x] `npm run typecheck`
+  - [x] `npm run test:unit`
+  - [x] existing regression runner
+  - [x] ESLint
+- [x] Add a guardrail proving `npm run check` invokes `typecheck` and `test:unit` before the full regression runner (`scripts/regressions/release/fast-check-pipeline.regression.mjs`, a required release gate).
+- [x] Do not alter runtime behavior in this slice except dependency availability and script wiring.
+
+Acceptance criteria:
+
+- TypeScript, Zod, and Vitest are installed.
+- `npm run typecheck` works in `noEmit` mode.
+- `npm run test:unit` works even with an initial minimal test.
+- `npm run check` runs typecheck and unit tests before the existing regression runner.
+- `npm start` remains unchanged and does not run TypeScript compilation.
+
+### Version 0.33.7.2 - Contract folder and module public-entry pattern
+
+**Model: GPT-5.5 Extra High** - Repo-shape guardrails before broad conversion.
+
+Purpose:
+
+Create the structure that prevents future modules from becoming import spaghetti. This slice establishes where contracts live and how other code imports module capabilities.
+
+- [x] Establish the preferred contract/schema pattern:
+  - [x] `*.contracts.js` or `*.schema.js` for runtime Zod schemas and JSDoc-backed types.
+  - [x] Optional `*.types.ts` or shared `.d.ts` files for type-only definitions that are never imported by runtime JavaScript.
+  - [x] Tests live beside contracts or in a clearly named test folder (`tests/**/*.test.mjs`).
+- [x] Establish module public entry points where practical:
+  - [x] `src/modules/files/index.js` — not applicable: Files is framework-owned with no `src/modules/files/` directory; its public seam is `src/services/files.service.js` plus `src/core/files/`, documented in the module development guide.
+  - [x] `src/modules/tasks/index.js`
+  - [x] `src/modules/notes/index.js`
+  - [x] Similar pattern for other modules as they are touched — `lists`, `client-projects`, and `time-tracking` entries created now because they already have cross-module consumers; `tags`/`users`/`developer-example` are manifest-only and get entries when touched.
+- [x] Document the import rule:
+  - [x] Framework/shared code should import module capabilities from public entry points.
+  - [x] Other modules must not import another module's internal repositories/services directly unless an explicit contract allows it.
+- [x] Add a lightweight static guardrail for obvious forbidden imports between module internals (`framework.module-import-boundaries` release gate; the 22 pre-existing deep imports are frozen in `scripts/baselines/module-internal-import-baseline.json`).
+- [x] Document the distinction:
+  - [x] TypeScript types describe trusted internal shapes.
+  - [x] Zod validates untrusted runtime input and config.
+  - [x] Vitest proves contracts and service behavior.
+  - [x] Existing regressions still prove integration, permissions, database behavior, and browser/static behavior.
+
+Acceptance criteria:
+
+- The repo has a documented contract/schema/test pattern.
+- Module public-entry rules are documented.
+- At least one guardrail prevents obvious cross-module internal imports.
+- No broad module rewrite occurs.
+
+### Version 0.33.7.3 - Zod proving ground: Files contract schemas
+
+**Model: GPT-5.5 Extra High** - Runtime contract proof on the module most likely to grow storage/preview/upload complexity.
+
+Purpose:
+
+Use Files as the first Zod proving ground because Files will eventually need upload metadata, attachment contracts, previews, storage adapters, scanners, SaaS/private-hosted storage differences, and future indexing. This is where runtime validation will pay for itself without converting the whole app.
+
+- [x] Add Files-owned runtime schemas in JavaScript (`src/core/files/files.contracts.js`, framework-owned per the Files seam):
+  - [x] `CreateFileSchema`
+  - [x] `UpdateFileSchema` — implemented as `UpdateFileContextSchema`: Files has no generic file-update endpoint by design (no rename/replacement); the real update edge is the attachment-scoped File Context editor. `CreateFileBatchSchema` also added for the batch JSON envelope.
+  - [x] `FileMetadataSchema`
+  - [x] `FileAttachmentSchema`
+  - [x] `FilePreviewRequestSchema`
+  - [x] `FileStorageAdapterConfigSchema`
+- [x] Keep schemas focused on edge payloads:
+  - [x] Request bodies (JSON upload, batch, attach-existing, context update).
+  - [x] Query params — preview request attachment ID; list-filter queries stay on the existing normalizers (already validated, no behavior change wanted this slice).
+  - [x] Upload metadata (multipart fields after route assembly).
+  - [x] Storage configuration (validated at provider resolution, 500 on malformed config).
+  - [x] Preview/action payloads.
+- [x] Do not Zod-parse every internal object passed between already-trusted service functions.
+- [x] Preserve the existing Files behavior and error envelope for valid requests (all 44 Files-area regressions pass unchanged; validation failures throw the existing `AppError` envelope).
+- [x] If invalid payload handling changes, make the error shape explicit, consistent, and tested — unknown fields are stripped; wrong-typed known fields and non-object `attachmentMetadata` now fail 400 with explicit messages; server-managed storage/scanner/integrity fields are rejected outright.
+- [x] Add JSDoc typedefs inferred from Zod schemas where useful.
+- [x] Add Vitest contract tests proving:
+  - [x] Valid create/update payloads pass.
+  - [x] Empty/invalid required fields fail.
+  - [x] Defaults are applied intentionally.
+  - [x] Unknown/unsafe fields are stripped or rejected according to the chosen contract.
+  - [x] Private/storage/scanner-sensitive fields cannot be accepted from user input.
+- [x] Add one narrow Files command, such as `npm run test:files`, that runs only Files Vitest tests (wired in 0.33.7.1; now matches the Files contract tests).
+
+Acceptance criteria:
+
+- Files has runtime Zod schemas for its highest-risk edge payloads.
+- Files schemas are covered by fast Vitest tests.
+- Valid existing Files behavior is preserved.
+- Unsafe/unknown file input is explicitly handled.
+- `npm run test:files` gives Codex/Claude a narrow first check for Files work.
+
+### Version 0.33.7.4 - TypeScript contract checking for high-value framework seams
+
+**Model: GPT-5.5 Extra High** - Selective type coverage over shared contracts without broad conversion.
+
+Purpose:
+
+Type the seams that cause the most expensive regression churn when they drift. This slice should not try to type every module.
+
+- [x] Add shared typed/JSDoc-backed definitions for the highest-value contracts (`src/types/framework-contracts.d.ts`, type-only, never imported by runtime JavaScript):
+  - [x] Module manifest shape.
+  - [x] Declarative view descriptor shape.
+  - [x] Dashboard contribution shape.
+  - [x] Workbench contribution shape.
+  - [x] Work candidate shape.
+  - [x] Focus-mode definition/context shape.
+  - [x] Resume-state producer payload shape.
+  - [x] Search record/reference/result shape (plus the registered indexer signature).
+  - [x] Notification event/create/read payload shape.
+  - [x] Taggable/searchable/attachable manifest contribution shapes.
+  - [x] Public API success/error/list envelope.
+  - [x] Job enqueue/handler payload shape.
+  - [x] Database adapter/dialect seam shape.
+- [x] Add `// @ts-check` plus JSDoc typing only to selected high-value JavaScript files first:
+  - [x] `src/core/modules/manifest-contract.js`
+  - [x] module registry/validation path (`registry.js`, with the definition list typed `ModuleManifest[]` so all eight manifests are structurally checked)
+  - [x] work-candidate/focus/resume services (`work-candidate.service.js`, `work-focus-modes.service.js`, `work-resume-state.service.js`, `work-resume-state-producers.js`)
+  - [x] search contract/service seam (`search.service.js`, `indexer-registry.js`)
+  - [x] notification contract/service seam (`notifications.service.js`)
+  - [x] tag contract/service seam (`tags.service.js`, `tag-propagation-registry.js`)
+  - [x] Files contract/service seam from 0.33.7.3 (`files.contracts.js`)
+- [x] Model dual-cased shapes honestly where they still exist.
+  - [x] Do not pretend everything is camelCase if existing code still accepts or emits snake_case — resume payloads, job enqueue options, and search filters are typed with both casings.
+  - [x] Prefer a normalized internal shape plus explicit edge adapters where practical.
+- [x] Fix real contract drift exposed by typecheck — SQLite adapter `query/get/run` signatures documented named-parameter objects (they previously claimed arrays); search indexing now guards an unregistered indexer with a clear 500 instead of a raw TypeError; the contract types themselves were corrected against reality (defaultRolePermissions/auditRecordTypes/eventTypes are structured arrays, view dirs are URL objects, navigation has no id).
+- [x] Do not mask drift with blanket `any` — checking dials are tsconfig-level (`strict` on, `noImplicitAny` off for incremental JS) and the `framework.typecheck-seams` gate rejects `@ts-nocheck`/`@ts-ignore` in runtime files.
+- [x] Do not type-check the entire browser UI in this slice.
+- [x] Do not rename working files just to make them `.ts`.
+
+Acceptance criteria:
+
+- High-value framework contracts have importable/checkable definitions.
+- Selected files pass `@ts-check` or TypeScript checking against those contracts.
+- Typecheck catches real shape drift without requiring a repo-wide conversion.
+- Dual casing is modeled explicitly where it still exists.
+
+### Version 0.33.7.5 - Vitest narrow tests and Codex/Claude workflow
+
+**Model: GPT-5.5 Extra High** - Fast verification paths that reduce unnecessary full-regression runs.
+
+Purpose:
+
+Give agents fast, targeted commands before the full suite. Vitest does not replace the existing regression runner; it creates cheap tripwires for contracts and service logic.
+
+- [x] Add initial Vitest tests for:
+  - [x] Files schemas from 0.33.7.3 (landed with that slice; 40 tests).
+  - [x] Work candidate ranking pure functions (`rankWorkCandidates`, `resolveWorkCandidateRankBucket`, `normalizeWorkCandidate` allowlist/URL safety).
+  - [x] Focus-mode context resolution (`resolveFocusMode`/`listFocusModes` with workspace type passed via input, so resolution stays database-free; includes the unknown-id fallback and unavailable-mode 403 contracts).
+  - [x] Resume payload allowlist/denylist behavior (`buildSafeProducerPayload`, `isForbiddenField`, `sanitizeMetadata`, dual-cased `ALLOWED_PAYLOAD_FIELDS`).
+  - [x] Public API envelope helpers — covered through the shared bounded-pagination envelope the public API composes; the service's full envelope is integration behavior owned by the existing public API regressions.
+  - [x] Shared pagination/envelope helpers where currently duplicated (`normalizeBoundedPagination`, `boundedPaginationEnvelope`, offset-cursor round-trip).
+- [x] Add or document narrow commands (added in 0.33.7.1; documented with the verification order now):
+  - [x] `npm run test:contracts`
+  - [x] `npm run test:files`
+  - [x] `npm run test:tasks`
+  - [x] `npm run test:unit`
+- [x] Update agent/development docs with the verification order:
+  - [x] For a one-module change: run that module's narrow test first.
+  - [x] For schema/contract changes: run `npm run test:contracts` and `npm run typecheck`.
+  - [x] For shared framework changes: run `npm run typecheck`, `npm run test:unit`, then `npm run check`.
+  - [x] For release closeout: run full required verification.
+- [x] Add a guardrail proving the narrow commands exist and are wired to Vitest (the `release.fast-check-pipeline` gate, extended to also require the initial unit-test files).
+- [x] Keep existing regression scripts as the source of truth for integration behavior, permissions, database migrations, file-storage side effects, browser/static guardrails, and closeout coverage.
+- [x] Do not delete existing regressions merely because a Vitest test now covers a smaller unit; retirement/consolidation must follow the regression coverage-ratchet rules.
+
+Acceptance criteria:
+
+- Vitest has useful initial coverage of schemas and pure contract/service logic.
+- Narrow test commands exist and pass.
+- Agent docs tell Codex/Claude to run narrow tests first.
+- Existing regression coverage remains intact.
+
+### Version 0.33.7.6 - Optional Tasks contract schemas, only if Files proves the pattern cleanly
+
+**Model: GPT-5.5 Extra High** - Second-module validation only if the first proving ground is stable.
+
+Purpose:
+
+Apply the same Zod/Vitest pattern to Tasks only if Files establishes the pattern without churn. This slice may be deferred if 0.33.7 is getting too large.
+
+- [x] Add Tasks-owned runtime schemas for selected edge payloads (`src/modules/tasks/tasks.contracts.js`):
+  - [x] Create task.
+  - [x] Update task.
+  - [x] Checklist item mutation (create, update, and reorder payloads).
+  - [x] Recurrence update mode (`applyTo` is now strictly `future`/`instance`; other values fail instead of silently meaning `instance`).
+  - [x] Task focus/action payload where applicable — not applicable: complete/reopen/archive/restore routes carry no request body; child-relationship payloads (link + blocking-state update) are validated instead.
+- [x] Validate only edge inputs, not every internal service object. Calibration recorded: Tasks strips server-managed audit fields rather than rejecting them (the service ignores them and API callers echo fetched tasks back), unlike Files where server-managed fields are storage/scanner security controls.
+- [x] Add Vitest tests for:
+  - [x] Required title/status/priority behavior (wrong types fail; title required-ness stays with the service's existing message).
+  - [x] Checklist mutation payloads.
+  - [x] Recurrence update mode validation.
+  - [x] Invalid parent/child/context payload shapes.
+- [x] Add or activate `npm run test:tasks` (wired in 0.33.7.1; now matches 18 Tasks contract tests).
+
+Acceptance criteria:
+
+- Tasks has the same contract/schema/test pattern as Files for selected edge payloads.
+- The work remains contained and does not become a broad Tasks rewrite.
+- If deferred, document the reason and keep Files as the completed proving ground.
+
+### Version 0.33.7.7 - Release closeout
+
+**Model: GPT-5.5 Extra High** - Prove the new loop is useful, wired, and non-vacuous.
+
+- [x] Confirm `npm start` remains unchanged and does not compile or typecheck.
+- [x] Confirm `npm run typecheck` runs in `noEmit` mode.
+- [x] Confirm `npm run test:unit` runs Vitest tests.
+- [x] Confirm `npm run check` runs:
+  - [x] typecheck
+  - [x] unit/Vitest tests
+  - [x] existing regression runner
+  - [x] ESLint
+- [x] Confirm fast-failure ordering: typecheck/Vitest failures stop before the slow regression runner.
+- [x] Add a "proof it bites" guardrail:
+  - [x] A seeded temporary contract/type error fails `npm run typecheck`.
+  - [x] A seeded temporary schema test failure fails the relevant Vitest command.
+  - [x] The seeded failures are removed before final verification.
+- [x] Confirm no blanket `any`, broad `@ts-ignore`, or global `@ts-nocheck` was added to bypass the new checks.
+- [x] Confirm no PHP, Python, second backend runtime, app-start TypeScript loader, or broad browser TypeScript conversion was introduced.
+- [x] Update documentation:
+  - [x] Architecture notes.
+  - [x] Module contract docs.
+  - [x] Development/agent verification workflow.
+  - [x] Runtime validation vs. TypeScript checking explanation.
+- [x] Update `CHANGELOG.md` and package metadata.
+- [x] Run final verification:
+  - [x] `npm run typecheck`
+  - [x] `npm run test:unit`
+  - [x] `npm run check`
+  - [x] `npm run test:permissions`
+
+Acceptance criteria:
+
+- TypeScript, Zod, and Vitest are installed and documented.
+- `npm start` remains pure Node runtime startup.
+- `npm run check` fails faster by running typecheck and Vitest before the full regression runner.
+- Files has a proven Zod + Vitest contract pattern.
+- High-value framework seams have initial type coverage.
+- Existing regression coverage remains intact.
+- The repo has clearer contracts without becoming a rewrite, a polyglot app, or a TypeScript build-system project.
+
+<!-- Archived from ROADMAP.md at branch closeout: completed 0.33.7.8 roadmap-cursor floor helper slice. -->
+
+## Version 0.33.7.8 - Roadmap cursor floor helper (closeout-pin cleanup)
+
+**Model: GPT-5.5 Extra High** - Mechanically wide but guarantee-touching: ~34 closeout regressions convert to a shared helper, and a subtle comparison error would silently weaken the roadmap ratchet.
+
+Purpose:
+
+Historical branch-closeout regressions currently pin the live roadmap's state with exact values: `Active cursor: \`<version>\`` equality matches and `^## Version <next>` section-header matches. The intent is monotonic ("the roadmap has advanced past my branch and my archived block has not reappeared"), but the exact-value implementation means every branch closeout must re-reconcile every prior branch's closeout regression — 34 scripts at the 0.33.7.7 closeout, and growing by roughly one per closed branch. Convert the pins to a shared monotonic cursor floor so closing a branch requires zero edits to prior closeout regressions while preserving every guarantee.
+
+Sequencing:
+
+* Lands before the 0.33.8 Playwright branch starts, so the next branch closeout is the first to pay no pin tax.
+* The active cursor intentionally stays `0.33.8` while this slice is planned and implemented. Advancing it to `0.33.7.8` would re-trigger the 34 exact pins this slice exists to remove; the slice's own release still follows the normal `npm run version:bump -- 0.33.7.8` package ceremony.
+
+* [x] Add a shared helper, for example `scripts/lib/roadmap-cursor.mjs`:
+  * [x] Parse the `Active cursor: \`X\`.` line from `ROADMAP.md` once, failing loudly on a missing or malformed cursor line.
+  * [x] Export a numeric dotted-version comparison that handles uneven segment counts correctly (`0.33.5.29.5` < `0.33.7.7` < `0.33.8` < `0.33.12.2`); do not use string comparison.
+  * [x] Export an `assertRoadmapCursorAtLeast(version, message)`-style floor assertion for closeout regressions.
+* [x] Convert the existing exact pins in the historical closeout regressions:
+  * [x] Cursor equality matches become floor assertions at the version that was current when that branch closed (for example the database-extraction closeout asserts at-least `0.33.7`, not equals `0.33.8`).
+  * [x] Next-section header matches (`^## Version 0\.33\.8`) become cursor-floor assertions through the helper; they must not pin whichever section happens to be next.
+  * [x] Keep the negative assertions unchanged: archived-section and completed-breadcrumb `doesNotMatch` checks are already monotonic-safe and still prevent archived planning from reappearing.
+* [x] Keep every underlying guarantee: the cursor cannot regress below any closed branch, archived sections cannot reappear, and no closeout regression is retired or weakened (coverage ratchet untouched).
+* [x] Add a focused regression proving:
+  * [x] The helper parses the current live roadmap cursor.
+  * [x] The dotted comparison orders multi-segment versions correctly, including the uneven-length cases above.
+  * [x] A floor at or below the current cursor passes; a floor above it fails with a useful message.
+  * [x] A missing or malformed cursor line fails loudly rather than passing vacuously.
+* [x] Prove the tax is gone: against a fixture copy of the roadmap (not the real file) with an advanced cursor, the converted assertions still pass unchanged — a future branch closeout requires zero edits to prior closeout regressions for cursor/section bookkeeping.
+* [x] Update `docs/regression-suite.md` and the agent workflow docs so future closeout regressions use the helper instead of writing new exact pins.
+
+Acceptance criteria:
+
+* Closing a future branch requires no edits to prior closeout regressions for cursor or next-section bookkeeping.
+* All existing closeout guarantees are preserved; only the assertion mechanism changes.
+* The helper has focused regression coverage, and new closeout regressions have a documented pattern to follow.
+
+<!-- Archived from ROADMAP.md at branch closeout: completed 0.33.8 Playwright end-to-end smoke foundation planning block (0.33.8.1 through 0.33.8.3). -->
+
+## Version 0.33.8 - Playwright End-to-End Smoke Foundation (dev/test tooling only)
+
+Purpose:
+
+Add the missing rendered signal. The existing regression suite (300+ scripts) is entirely static source/string assertion and never launches a browser, so it cannot see real viewport behavior, horizontal overflow, mobile navigation, or runtime console errors. This version introduces Playwright as a narrow, dev/test-only end-to-end smoke harness that renders the real app at desktop and mobile viewports and asserts the handful of things static checks cannot.
+
+This is a foundation slice, not an end-to-end test conversion. Keep the first suite intentionally small: load, overflow, mobile nav, and console-error smoke on the highest-traffic surfaces. It exists so that 0.33.9 (Mobile Polish) and future responsive work have an objective, rendered pass/fail signal instead of "the static suite is green."
+
+Dependencies and sequencing:
+
+- Lands after 0.33.7 (TypeScript/Vitest foundation) so dev tooling conventions and `npm run check` ordering already exist.
+- Lands before 0.33.9 (Mobile Polish), which consumes this harness as its acceptance signal.
+- Builds on the framework-owned app shell, navigation, Dashboard, and Workbench surfaces already shipped through 0.33.6.
+- Does not depend on Reporting (now 0.33.12).
+
+Key decisions:
+
+- Playwright is dev/test tooling ONLY. It must never enter the production runtime or the app boot path.
+  - `@playwright/test` is a `devDependencies` entry, never a `dependencies` entry.
+  - Playwright browser binaries are installed on demand in dev/CI (`npx playwright install`), never required by `npm start` or app startup.
+  - No file under `src/`, `server.js`, `public/`, or any runtime path imports `@playwright/test` or `playwright`.
+  - The e2e suite lives in a dedicated `tests/e2e/` folder that is not shipped, served, or imported by runtime code.
+- `npm start` remains `node server.js`, unchanged.
+- The e2e smoke is a SEPARATE npm script (`test:e2e`), not wired into the default `npm run check`, because it requires browser binaries and a running server that not every environment (or fast local loop) will have. `npm run check` stays the fast static/regression gate; `test:e2e` is run explicitly, in CI, and as the acceptance gate for 0.33.9 and future responsive slices.
+- The smoke suite authenticates against a local dev server using a seeded test session/`storageState`, so protected surfaces (Dashboard, Workbench) are reachable without hard-coding real credentials.
+- Viewports are fixed and named: a desktop profile (e.g. 1280x800) and a mobile profile (e.g. 375x812), reused across specs.
+- "No major console errors" means captured `pageerror` and `console.error` events, minus a small, documented allowlist of known-benign messages; unexpected entries fail the spec.
+
+Non-goals:
+
+- Do not convert the existing static regression suite to Playwright.
+- Do not add Playwright to production `dependencies` or to `npm start`.
+- Do not build a large page-object framework or exhaustive E2E coverage in this pass.
+- Do not make `npm run check` depend on browser binaries.
+- Do not weaken permission, workspace, module-enabled, private/secure-content, or no-raw-ID guardrails to make a page testable.
+
+### Version 0.33.8.1 - Playwright dev-dependency install and config (no boot-path change)
+
+**Model: GPT-5.5 Extra High** - Dev tooling foundation with zero production-runtime footprint.
+
+- [x] Add `@playwright/test` as a `devDependencies` entry only.
+- [x] Add a `playwright.config.js` (or a type-only `.ts` per the 0.33.7 runtime-import rule) under the repo root or `tests/e2e/`:
+  - [x] Define named `projects` for a desktop viewport (e.g. 1280x800) and a mobile viewport (e.g. 375x812 / a device profile).
+  - [x] Point `testDir` at `tests/e2e/`.
+  - [x] Set `baseURL` to the local dev server (configurable via env, defaulting to the existing local port). (Implemented with a dedicated managed-server default port so the harness's throwaway database can never collide with the real dev server's data; `LTF_E2E_BASE_URL` targets an already-running server.)
+  - [x] Optionally use `webServer` to boot `node server.js` for the run, or document the "server already running" expectation; either way `npm start` itself stays unchanged.
+  - [x] Capture trace/screenshot on failure for debugging.
+- [x] Add package scripts:
+  - [x] `test:e2e` - runs the Playwright smoke suite once.
+  - [x] `test:e2e:install` - runs `npx playwright install` for local/CI browser setup.
+  - [x] (optional) `test:e2e:ui` - Playwright UI mode for local debugging.
+- [x] Add a seeded test-session/auth helper so protected surfaces are reachable:
+  - [x] Establish a `storageState` (or login-per-run) against a dev/test account without committing real credentials.
+  - [x] Keep any test seed/fixture data separate from production data paths.
+- [x] Keep `npm start` unchanged and do NOT wire `test:e2e` into `npm run check`.
+- [x] Do not alter runtime behavior in this slice except dev-dependency availability, config, and script wiring.
+
+Acceptance criteria:
+
+- `@playwright/test` is present only in `devDependencies`.
+- `npm run test:e2e` runs (even with a single trivial spec) at both desktop and mobile viewports.
+- `npm start` is unchanged and does not require Playwright or browser binaries.
+- `npm run check` does not invoke Playwright.
+
+### Version 0.33.8.2 - Core smoke specs: load, overflow, mobile nav, console
+
+**Model: GPT-5.4** - Narrow, high-signal rendered smoke on the highest-traffic surfaces.
+
+- [x] App loads (desktop): the app shell renders at the desktop viewport with primary navigation present and no fatal load error.
+- [x] App loads (mobile): the app shell renders at the mobile viewport with the mobile navigation affordance present.
+- [x] Dashboard has no horizontal overflow:
+  - [x] At the mobile viewport, assert `document.scrollingElement.scrollWidth <= clientWidth` (no horizontal scroll) on the Dashboard.
+  - [x] Assert the same at the desktop viewport.
+- [x] Workbench has no horizontal overflow:
+  - [x] At the mobile viewport, assert no horizontal scroll on the Workbench.
+  - [x] Assert the same at the desktop viewport.
+- [x] Mobile nav opens/closes:
+  - [x] At the mobile viewport, the nav toggle opens the navigation drawer/menu.
+  - [x] Closing (toggle, overlay, or close control) hides it again and returns focus safely.
+- [x] No major console errors:
+  - [x] Capture `pageerror` and `console.error` while loading the app shell, Dashboard, and Workbench.
+  - [x] Fail on any entry outside a small, documented allowlist of known-benign messages. (The allowlist ships empty: clean loads produce zero console errors, and each future entry requires a documented reason.)
+- [x] Keep specs organized by concern (e.g. `app-load.spec`, `overflow.spec`, `mobile-nav.spec`, `console.spec`) under `tests/e2e/`.
+- [x] Keep selectors resilient: prefer stable framework anatomy hooks (existing `data-view-*` / nav hooks) over brittle text or nth-child selectors.
+
+Acceptance criteria:
+
+- All six smoke checks pass at their intended viewports against a running dev server.
+- The overflow checks measure real rendered width, not CSS strings.
+- The console check fails on a deliberately injected error and passes when clean.
+
+### Version 0.33.8.3 - Guardrails, docs, and closeout
+
+**Model: GPT-5.5 Extra High** - Lock the dev-only boundary and document the harness.
+
+- [x] Add a static guardrail regression (in the existing `scripts/` suite) proving the dev-only boundary (`release.playwright-dev-only-boundary`, a required release gate):
+  - [x] `@playwright/test` appears in `devDependencies` and NOT in `dependencies`.
+  - [x] No `src/`, `server.js`, or `public/` runtime file imports `@playwright/test` or `playwright` (or reaches into `tests/e2e/`).
+  - [x] `npm start` remains `node server.js`.
+- [x] Confirm the version-guardrail ceremony: bump package/package-lock and any version-asserting scripts consistently, and register the new `scripts/` guardrail with the suite/coverage manifest.
+- [x] Document the harness:
+  - [x] Add `docs/e2e-testing.md` (or a section in an existing testing doc) describing how to install browsers, run `test:e2e`, add specs, the viewport profiles, and the console allowlist policy.
+  - [x] Note explicitly that Playwright is dev/test-only and never part of production runtime.
+- [x] Update `CHANGELOG.md`, package metadata, `DECISIONS.md` (record the "rendered smoke is a separate gate, not part of `npm run check`" decision), and roadmap archive bookkeeping.
+- [x] Run `npm run check` (static suite still green).
+- [x] Run `npm run test:e2e` (rendered smoke green at both viewports).
+- [x] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- A guardrail fails if Playwright is ever moved into production `dependencies` or imported by runtime code.
+- The static regression suite and the rendered smoke suite both pass.
+- The harness is documented and reproducible from a clean checkout.

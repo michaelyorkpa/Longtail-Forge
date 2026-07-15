@@ -1,0 +1,733 @@
+# Longtail Forge Decisions
+
+Last reset: 2026-06-26  
+Current active line when reset: 0.33.5.18.15 view-conversion branch closeout
+
+This file records **current governing decisions** for Longtail Forge. It is not a full release history. Historical decisions should be kept in `archive/` or other ignored historical files. When a historical decision is superseded, do not keep both as equally active guidance in this file.
+
+## How to Use This File
+
+- `ROADMAP.md` is the implementation plan and version-by-version scope.
+- `DECISIONS.md` is the current product/architecture boundary.
+- `AGENTS.md` is the execution guide for Codex and other coding agents.
+- `TODO.md` is a scratchpad only. Do not implement from it unless an item has been promoted into `ROADMAP.md`.
+- Historical archives preserve context, but they must not override the current roadmap or the current decisions here.
+- If the current roadmap and this file conflict, stop and ask for clarification before implementing.
+- If older documentation conflicts with this file, update that documentation as part of the relevant roadmap slice.
+
+## Regression and Check-Suite Direction
+
+As of 0.33.5.29.1, the 0.33.5.29 branch is a test-infrastructure and consolidation pass, not a coverage-reduction pass. No assertion may be silently dropped: consolidation must fold overlapping or superseded regressions into retained owners that still carry their assertions. Any genuinely dead script retirement needs a documented rationale, the retained coverage owner when assertions move, and verification performed.
+
+The 0.33.5.29.1 measurement baseline and speedup target list live in `docs/regression-suite-performance.md`. Use that baseline before changing runner execution behavior, source-scan behavior, or closeout-regression ownership. The current measured floor is 294 registered regression scripts and 21 closeout scripts until a coverage ratchet or documented retirement entry says otherwise.
+
+As of 0.33.5.29.2, the actual whole-runtime-source database guardrails consume `scripts/test-support/source-scan.mjs` for source walking, entry reads, line numbers, and call-expression parsing. `parameter-binding-audit`, `interpolation-enforcement-guardrail`, and `dialect-enforcement-guardrail` remain separate registered scripts until the coverage ratchet can record any assertion-owner movement explicitly.
+
+The current parameter-binding audit is baseline-driven. `npm run audit:params:check` scans runtime database operations and fails on new unreviewed legacy-helper or template-interpolated SQL findings; `scripts/baselines/parameter-binding-baseline.json` tracks reviewed pre-existing dynamic composition by stable file/signature identity. Scanned-operation and safe-bound totals are informational and must not be pinned across docs/regressions. Do not update the baseline in unrelated work or to hide value interpolation; safe query values use named params, and the update command is reserved for dedicated cleanup or explicitly reviewed dynamic-query changes.
+
+As of 0.33.5.29.3, the isolated regression bucket auto-tunes its default concurrency from the current Node runtime's available parallelism while preserving `LTF_ISOLATED_REGRESSION_PARALLELISM` as the highest-precedence override and `LTF_REGRESSION_PARALLELISM` as the shared fallback override. The auto path is capped at six isolated workers and does not change bucket order, serial shared-database buckets, fail-fast behavior, per-script timing, or per-script baseline database isolation.
+
+As of 0.33.11.4, every `*regression.mjs` / `*.regression.mjs` entry point that reaches the database must select a database beneath the operating-system temp directory before importing database or runtime modules. The provider refuses any regression entry point aimed at the canonical `data/longtail-forge.db` or another non-disposable configured path, regardless of whether it runs through the suite or directly. The full regression runner separately fingerprints the canonical workspace and membership inventory before and after all buckets and fails if either changes. Static/source metadata is never permission to attach to the app database.
+
+The 0.33.11.4 current-install cleanup is a dedicated operator maintenance command, not a startup migration, product workspace-name allowlist, or reusable admin delete workflow. Dry-run is the default. Apply requires explicit database and new backup paths, verifies the backup, uses one rollback-on-failure transaction, resolves the retained Personal workspace through the confirmed user membership rather than raw `Personal` name, and fingerprints every retained workspace-owned row before/after. Pre-existing retained-data integrity violations block apply unless the operator explicitly authorizes the narrow dangling-role repair flag; that exception may delete only reported retained-workspace role assignments whose user row no longer exists, requires an exact deletion count, and keeps every other retained row under the fingerprint guard.
+
+As of 0.33.6.16.11, only failed isolated-database scripts receive one automatic retry. The retry is sequential, uses a fresh fixture namespace, and is reported as `flaky-recovered` in console and timing output when it passes. A repeatable failure remains hard red, unscheduled work stays fail-fast until recovery succeeds, and static/source, default-database, and file-storage failures are never auto-retried. `LTF_REGRESSION_REPEAT` remains an independent deliberate stress control rather than being consumed as retry count.
+
+As of 0.33.6.16.12, the default regression run is explicitly cheap-first and fail-fast: static/source, default database, file storage, then isolated database. The sequence is enforced independently of discovery membership, preserves each bucket's existing parallel/serial safety, and stops before later stateful buckets when an earlier bucket fails. Narrow area filters preserve the relative order of the buckets they select and do not create a separate execution order.
+
+As of 0.33.6.16.13, `npm run closeout` is the standing slice-closeout maintenance conductor. It runs the version literal guard, generated regression-manifest check, database schema check, parameter-binding audit, documentation ownership check, and licensing readiness gate without stopping after the first failure, then prints one consolidated board. Version, manifest, schema, and parameter-binding failures are hard; documentation and licensing retain their warning-only policy. Every underlying command remains independently runnable, and the conductor complements rather than invokes or replaces `npm run check`.
+
+As of 0.33.6.16.14, the pre-TypeScript maintenance branch is closed and its workflow is the baseline inherited by 0.33.7: use the changed-area auto-run or a documented narrow area command while iterating, keep static/source regressions ahead of stateful buckets, allow only the bounded visible isolated-database retry, run `npm run closeout` for maintenance gates, and retain `npm run check` as the separate full regression/lint gate. The branch closes with 321 discovered regressions, 16 required release gates, unchanged `npm start` (`node server.js`), and no TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, or second backend runtime introduced early.
+
+As of 0.33.7.1, TypeScript (dev), Vitest (dev), and Zod (runtime) are installed as the 0.33.7 correctness-and-speed foundation, and `npm run check` fails fast: `npm run typecheck` (`tsc --noEmit` over a narrow `tsconfig.json` scope with `allowJs` and per-file `// @ts-check` opt-in rather than repo-wide `checkJs`), then `npm run test:unit` (Vitest over `tests/**/*.test.mjs`), then the regression runner, then cached ESLint. `npm start` remains `node server.js` with no compile/typecheck step, TypeScript and Vitest must stay `devDependencies`, Zod stays a runtime dependency because schemas will validate untrusted edge input, and runtime JavaScript must not import `.ts` files. The narrow `test:contracts`/`test:files`/`test:tasks` commands run filtered Vitest passes and tolerate an empty match until 0.33.7.3+ land their tests. Vitest complements the regression suite; it does not replace it, and regression retirement still follows the coverage-ratchet rules.
+
+As of 0.33.8.3, the 0.33.8 Playwright End-to-End Smoke Foundation branch is closed and its boundary is a standing enforced decision: **the rendered smoke is a separate gate, not part of `npm run check`**. `npm run check` stays the fast static/regression gate and must never require browser binaries or invoke Playwright; `npm run test:e2e` is run explicitly (locally, in CI, and as the acceptance gate for 0.33.9 and future responsive slices). The `release.playwright-dev-only-boundary` required release gate enforces the whole boundary — dev-dependency placement, zero runtime imports of Playwright or `tests/e2e/`, unchanged `npm start`, a Playwright-free `check` script, and a reproducible documented harness — and the branch closed with 326 discovered regressions, 17 release-area scripts, and 21 required release gates. The harness contract lives in `docs/e2e-testing.md`; the `e2e-testing` docs-ownership area routes `tests/e2e/` and `playwright.config.js` changes there.
+
+As of 0.33.8.2, the core rendered smoke suite covers app-load, horizontal overflow, mobile-nav open/close, and console errors on the Dashboard and Workbench at both named viewports, organized one spec file per concern under `tests/e2e/` with shared anatomy hooks in `tests/e2e/support/surfaces.mjs`. Governing choices: smoke selectors use stable framework anatomy hooks (module host `data-*` attributes, `.site-header`/`.site-nav`/`.nav-toggle`/`#primary-menu`), never text or positional selectors; overflow is measured from the real rendered `document.scrollingElement` after `networkidle`, never CSS strings; and the console allowlist ships empty — every future allowlist entry requires a documented benign reason in `console.spec.mjs`, and an unexplained entry is treated as a smell, not a fix. The console check is proven non-vacuous (a seeded injected `console.error` fails all console specs).
+
+As of 0.33.8.1, Playwright is installed as the dev/test-only rendered end-to-end smoke harness: `@playwright/test` stays in `devDependencies`, browser binaries install on demand (`npm run test:e2e:install`), and nothing in the production runtime (`src/`, `server.js`, `public/`) or the boot path may import Playwright — `npm start` remains `node server.js`. The rendered smoke (`npm run test:e2e`) is a deliberately separate gate from `npm run check`, which must never require browser binaries. The suite lives in `tests/e2e/` (`.spec.mjs`, so Vitest's `tests/**/*.test.mjs` discovery never collides), runs named `desktop` (1280x800) and `mobile` (375x812 touch) Chromium viewport projects, and authenticates through a saved `storageState` seeded by a setup project. By default the harness boots its own managed server on dedicated port 8101 against a wiped, git-ignored `data/e2e` throwaway directory with env pinned so a local `.env` cannot redirect it at real data; `LTF_E2E_BASE_URL` (plus `LTF_E2E_USERNAME`/`LTF_E2E_PASSWORD`) targets an already-running server instead. The static dev-only-boundary guardrail regression and the harness documentation are the 0.33.8.3 closeout's scope.
+
+As of 0.33.7.8, branch-closeout regressions assert roadmap bookkeeping through the shared monotonic cursor floor in `scripts/lib/roadmap-cursor.mjs` (`assertRoadmapCursorAtLeast` with the cursor value current when that branch closed) instead of exact `Active cursor`/next-section pins. Closing a branch now requires zero edits to prior closeout regressions; the guarantees are unchanged (the cursor cannot regress below any closed branch, and archived sections still cannot reappear via the untouched `doesNotMatch` assertions). The `release.roadmap-cursor-floor` release gate enforces the pattern: it rejects new exact pins repo-wide, proves the numeric dotted comparison across uneven segment counts, and proves floors pass unchanged against an advanced-cursor fixture. Do not write new exact roadmap pins in closeout regressions.
+
+As of 0.33.7.6, the Tasks edges validate untrusted input through module-owned Zod schemas in `src/modules/tasks/tasks.contracts.js` (create/update, checklist create/update/reorder, child relationships, embedded recurrence). The calibration is deliberate and different from Files: unknown and server-managed audit fields are stripped rather than rejected because the service already ignores them and public-API callers echo fetched tasks back on update; list entries stay liberal (string/number/nullish) for in-process callers with downstream normalization unchanged; required-ness (task title) stays with the service's existing error copy; and the one tightening is the recurrence `applyTo` mode, which now fails on values other than `future`/`instance` instead of silently meaning `instance`. Files remains the strict-rejection template for security-sensitive server-managed fields.
+
+As of 0.33.7.5, the fast verification order is: narrow module Vitest command for a one-module change; `test:contracts` plus `typecheck` for schema/contract changes; `typecheck`, `test:unit`, then full `npm run check` for shared framework changes; full required verification for release closeout. The initial Vitest suite covers the Files contract schemas, work-candidate ranking pure functions, focus-mode context resolution, resume-producer allowlist/denylist behavior, and the shared bounded-pagination/envelope helpers; the fast-check pipeline release gate keeps those test files present. Vitest tests are tripwires for contracts and pure logic — they never replace regressions, and regression retirement still follows the coverage-ratchet rules.
+
+As of 0.33.7.4, the high-value framework seams are TypeScript-checked JavaScript: `src/types/framework-contracts.d.ts` defines the importable contract shapes, twelve seam files carry `// @ts-check`, and the module registry's definition list is typed `ModuleManifest[]` so a drifted manifest fails `npm run typecheck` with a precise structural error (proven by a seeded wrong-typed manifest id). The checking dials are deliberate: `strict` on, `noImplicitAny` off (incremental JS checking; JSDoc adds annotations progressively), `checkJs` per-file opt-in, `@types/node` in `types`. Dual-cased shapes stay dual-cased in the types until the runtime stops accepting both. Real drift fixed by this pass: the SQLite adapter's `query/get/run` signatures now document named-parameter objects, and search indexing now guards an unregistered indexer with a clear 500 instead of a raw TypeError. The `framework.typecheck-seams` release gate keeps the pragmas in place and rejects `@ts-nocheck`, `@ts-ignore`, and runtime `.ts` imports.
+
+As of 0.33.7.3, the Files edges validate untrusted input through runtime Zod schemas in `src/core/files/files.contracts.js` (JSON/batch upload, multipart upload metadata, attach-existing, File Context editor, preview requests, storage adapter config). The wired contract: unknown fields are stripped, wrong-typed known fields fail 400 in the existing `AppError` envelope, server-managed storage/scanner/integrity fields (storage keys, stored filenames, hashes, scan/status fields, sizes) are rejected outright from user input, required-ness and context checks stay with the Files service where its error copy already exists, preview-request failures keep not-found parity, and trusted internal service objects are never re-parsed. Files has no generic file-update endpoint by design, so the update schema is the attachment-scoped `UpdateFileContextSchema`. This is the template `0.33.7.6` may apply to Tasks.
+
+As of 0.33.7.2, modules with cross-module consumers expose a public entry point at `src/modules/<module>/index.js` (Tasks, Notes, Lists, Clients/Projects, Time Tracking), and one module must not import another module's internal repositories/services/routes directly — new cross-module deep imports fail the `framework.module-import-boundaries` release gate, while the 22 pre-existing deep imports are frozen in `scripts/baselines/module-internal-import-baseline.json` and shrink only when a touched file converts to the entry point or in dedicated cleanup. Files has no module entry because Files is framework-owned; its public seam is `src/services/files.service.js` plus `src/core/files/`. Contract files follow the `*.contracts.js`/`*.schema.js` runtime-JavaScript pattern with optional never-imported-at-runtime `*.types.ts`/`.d.ts`, and the tool responsibilities stay distinct: TypeScript checks trusted internal shapes, Zod validates untrusted edge input, Vitest proves contracts/pure services, and the regression suite keeps owning integration/permission/database/browser-static proof. The pattern contract lives in `docs/module-development.md`.
+
+As of 0.33.5.29.4, regression coverage preservation is enforced by `scripts/regression-coverage-ratchet.mjs` and `scripts/regression-coverage-manifest.json`. The manifest records the required regression script set, a current registered-script floor of 295, a closeout-regression floor of 21, and documented retirement entries. A future script removal or consolidation must add a retirement entry with the retired script, version, retirement type, rationale, assertion disposition, retained coverage owner, and verification performed; otherwise the suite fails.
+
+As of 0.33.5.29.5, static historical closeout assertions are consolidated under `scripts/static-contract-closeout-regression.mjs`. The retired suite entries remain on disk as imported assertion modules and are documented in the coverage manifest as `assertions-moved`; database-backed closeout scripts remain separately registered because they still carry live behavioral database coverage.
+
+As of 0.33.5.29.6, parallel isolated-regression startup shares one in-flight baseline database preparation promise. Do not call `prepareRegressionBaselineDatabase()` independently per first-wave parallel script; the isolated bucket can be run standalone through `LTF_REGRESSION_BUCKET=isolated` and stress-repeated with bounded `LTF_REGRESSION_REPEAT` values, and per-script data paths must remain namespaced by bucket/pass to prevent repeat-run database and migration-lock reuse.
+
+As of 0.33.5.29.7, `npm run check` and `npm run lint` keep the same lint gate semantics while using content-based ESLint caching at `.eslintcache`. The regression runner remains the first stage of `npm run check`, `npm run test:permissions` remains a separate explicit permission harness, and the operational runner contract lives in `docs/regression-suite-performance.md`: source-scan consolidation stays in shared test support, the coverage ratchet/retirement manifest remains authoritative for script drops, isolated-bucket stress verification uses `LTF_REGRESSION_BUCKET` plus bounded `LTF_REGRESSION_REPEAT`, and the old standalone/serial isolated-bucket workaround is retired now that the documented stress command passes.
+
+## Licensing and Public-Release Process Gates
+
+Longtail Forge Core and the root package use `AGPL-3.0-only`. Commercial licensing, hosted SaaS, and private deployment/operations tooling may remain separate, and the trademark policy remains part of the discoverable licensing stack.
+
+The public-release and outside-contributor artifacts are future process gates, not evidence that current licensing is broken. `npm run licensing:gates` is warning-only during ordinary private development. A public release requires reviewed legal/about and third-party notice work; outside contribution acceptance requires `CONTRIBUTING.md`, a pull-request template, and an activated CLA process. Until those triggers are intentionally reached, agents should not rewrite licensing docs, add public-contributor language, or put private SaaS/commercial templates in the public repository.
+
+## Product North Star
+
+Longtail Forge is a context-preserving work system for small teams, freelancers, self-hosted users, and future hosted SaaS users.
+
+Longtail Forge is a product first. The framework exists to support this product and its official first-party modules, not to become a generic framework for its own sake. Support Tickets, Knowledge Base, and Creator Studio are committed public-core first-party modules when completed; they are not contingent on outside funding, preorders, customer demand, or a market-validation gate, though they may be disableable per workspace where appropriate.
+
+It is also **"VS Code for Work"**: an extensible platform meant to be modified by adding modules/plugins that contribute features and settings declaratively, not by forking the framework. Extensibility is a first-class product pillar, held to VS Code's discipline (typed, validated, namespaced contribution points) rather than WordPress's untyped-hook sprawl — capability without the bloat. The `Framework and Module Boundary` section below governs how that extensibility is built.
+
+Core product rules:
+
+- Never make the user rebuild context from memory.
+- Never show twenty choices when one useful next action will do.
+- Never punish drift; help the user recover.
+- Make work visible, startable, and resumable.
+- Keep workflows calm, practical, and recoverable.
+
+Use broad workflow language such as:
+
+- focus
+- next action
+- resume work
+- work context
+- review
+- recovery
+- structured context
+- startable work
+
+Do not use medical, diagnostic, or neurodivergence-specific positioning in product UI, Help, README, or marketing unless a future explicit decision changes that.
+
+## User Preferences and Appearance
+
+- Theme mode is a per-user preference with `light`, `auto`, and `dark` values.
+- Theme auto mode resolves through the operating system color-scheme preference using the stored `system` auto source.
+- Sunrise/sunset theme automation is deferred until the app has an explicit location contract; timezone alone is not enough to infer daylight boundaries.
+
+## Framework and Module Boundary
+
+Longtail Forge should behave as a framework with bundled first-party modules.
+
+Framework/core owns:
+
+- Workspaces and workspace membership.
+- Authentication, sessions, roles, permissions, and app shell.
+- Module registry, module manifests, module lifecycle, and contribution filtering.
+- Navigation composition and protected/public view registration.
+- Runtime configuration and install-level startup behavior.
+- Tags, Search, Notifications, Files, Help, Audit, Events, Work Resume state, and shared UI/view primitives.
+- Public API foundation and browser/internal API foundation.
+- Database adapter boundary, migrations, and future backup/restore foundation.
+
+Workflow modules own:
+
+- Their records, read models, write rules, validation, payloads, labels, workflow semantics, and service/repository behavior.
+- Their browser behavior adapters and record-specific UI decisions.
+- Their module-specific Help content and developer documentation.
+- Their contributions to framework services through manifests and registered providers.
+
+Modules must integrate through framework contracts, manifests, services, events, search, tags, files, notifications, Help, and permissions. Do not hard-code one module directly into another unless the roadmap explicitly names a narrowly scoped integration.
+
+Every extension point follows the VS Code `contributes` model, never the WordPress model:
+
+- Contributions are data-only, typed, validated manifests; executable behavior is registered by stable ID, never placed as functions in manifests (the sanctioned exception is the `hooks` field).
+- Contribution catalogs are permission/capability/enabled-module-filtered through the shared contribution pipeline, so listing stays safe without executing contribution code.
+- Prefer one canonical store per concern, namespaced by module id, over per-feature ad-hoc storage.
+- Avoid the WordPress failure modes: untyped global hooks/filters, arbitrary code in plugins, settings sprawl with no central registry, and contributions that can override anything.
+- Protected framework parts — for example Clients/Projects, Users, and Tags, which ship `canDisable: false` — can never be disabled or overridden by a module contribution.
+
+### Two-Module Rule
+
+- Do not add a framework primitive, manifest field, registry, contribution type, generalized service, or framework-owned abstraction merely because one module has one unusual requirement.
+- A generalized facility normally needs at least two real first-party consumers with materially similar behavioral and contract needs. Do not invent a hypothetical or fake second consumer, and do not treat shared appearance alone as sufficient.
+- Keep one-module requirements module-owned until the common contract is understood.
+- Authentication, sessions, security, permissions, workspace isolation, deployment, database abstraction, app-shell behavior, and similar intrinsically framework-wide concerns are valid explicit exceptions.
+- Apply this prospectively; do not destructively rewrite every existing abstraction because it predates the rule.
+- At closeout, name the two real consumers or document the framework-wide exception in the roadmap decision and architecture documentation.
+- The 0.33.14 editable-field primitive already qualifies because the current renderer, Reporting, and Settings have overlapping field-construction and behavior needs; this rule does not cancel that narrow work.
+
+Large first-party manifests may gradually compose one validated runtime definition from substantial concern files when reviewability warrants it. Do not create empty per-concern boilerplate for small modules, change IDs/order/runtime shape, or redesign the loader. Pilot the pattern on at least two large modules before making it standard.
+
+Frontend modernization during 0.3x is gradual native browser ES-module adoption, beginning with materially changed strained surfaces such as Workbench and Dashboard. Keep one explicit entry point per converted page, use a temporary compatibility bridge for existing globals, add no new script-order dependencies, preserve current behavior/accessibility/CSP/asset versioning, and do not replace the renderer or adopt a frontend framework wholesale.
+
+Startup maintenance must be classified by lifecycle before it is split: every boot, first install, versioned migration/repair, recurring lightweight check, explicit admin/CLI maintenance, background work, or readiness assertion. Preserve ordering, transactions, idempotency, fresh installs, failure behavior, and provider neutrality, and expose structured phase timings rather than moving a large file arbitrarily.
+
+## Roadmap Slicing and Delivery Efficiency
+
+Slice count, not raw app size, is the main driver of delivery cost. Each slice pays a fixed ceremony tax — context read, focused regressions, version/`package.json`/`package-lock.json` bump, `CHANGELOG.md`, docs, archive bookkeeping, and a full verification run — that is largely independent of how much code the slice changes. Two slices doing one slice's worth of work roughly double that tax for the same result.
+
+Governing rules:
+
+- Keep the "one primary blast radius" rule, but do not slice below it. A slice must earn its ceremony with distinct isolation value.
+- Merge measure-only slices with each other or with the change they directly inform. A pure-analysis slice that changes nothing and cannot fail verification should not consume its own ceremony unless a later slice genuinely cannot start safely without the recorded result.
+- Merge a "proof pair, then finish the rest" split into one slice when the rollout is mechanical once the shared helper or pattern exists. Prove-then-rollout earns its own slice only when the proof carries real, unresolved design risk.
+- Land suite/build speedups first within a branch so every later slice's mandatory verification run is cheaper.
+- Tag each slice with a recommended model tier (see the slice model signal in `AGENTS.md`) so model strength matches the slice's reasoning depth, blast radius, and correctness risk instead of paying top-tier cost on low-risk work.
+- Prefer fewer, well-scoped slices over many micro-slices. When unsure whether to split, size against blast radius and coverage risk, not against making each session small.
+
+This does not weaken scope discipline or coverage preservation: no slice may bundle unrelated blast radii, drop coverage, or skip the closeout verification gate. It only removes ceremonies that add cost without isolation value.
+
+## User Mental Model by Module
+
+- Workbench is the live work surface: active work, next actions, active timers, resumable work, blocked/stale work, and quick capture.
+- Dashboard is an overview surface. It summarizes state but should not become the main place users complete detailed work.
+- Tasks are commitments, outcomes, assigned work, and reminders.
+- Time Tracking records effort and supports active work.
+- Lists are operational execution aids: shopping, procurement, packing, supplies, parts, checklists, bills of materials, and reusable workflows. Lists must not become generic Notes, bookmarks, inventory, purchasing, accounting, vendor management, manufacturing, or ERP.
+- Notes are working context and reference memory. Notes should link to work without replacing Tasks, Lists, Files, Tickets, or Knowledge Base.
+- Knowledge Base is a reviewed publishing/curation layer over knowledge, not the same thing as active working Notes.
+- Files are supporting artifacts and source material. They should stay close to the record/workflow where they matter.
+- Search is a recovery surface.
+- Tags classify records. Tags must not become permissions, workflow status, visibility, billing logic, or module behavior.
+- Notifications and reminders recover attention and timing.
+- Help explains current shipped behavior only.
+- Templates should reduce repeated setup work through safe reusable packages.
+- Workspace people surfaces and assignable-person options include only users whose global user state and current workspace membership are both active. Inactive users remain lifecycle data, not visible workspace participants.
+- Billable state is a Business-workspace capability. Personal and Family browser surfaces omit the Billable flag, and Tasks, active timers, browser/public time-entry writes, and their read models treat the value as `no` even when a legacy database row still contains `yes`.
+- Leaving a workspace removes only the signed-in user's membership. User-facing copy must not describe that action as deleting the workspace or its data.
+
+## Dashboard, Workbench, Reporting, and Quick Capture Boundary
+
+As of 0.33.6.14.1, the Dashboard/Workbench formalization branch is closed at this boundary:
+
+- Dashboard is the workspace pulse and orientation surface. It answers what needs attention, what is coming up, where recent safe context may appear, and where the user should go next. Dashboard summarizes state, pressure, and direction through Workspace Pulse, Needs Attention, Today / Upcoming, Module Overview, optional safe Recent Activity, and secondary/reporting/setup shortcuts where relevant.
+- Dashboard must not become the primary work surface, a full module index, a report page, an inline editor, or a browser-owned permission/ranking layer. Dashboard may render short safe lists only when useful, capped, permission-shaped, body-free, and raw-ID-free.
+- Dashboard panel placement is contribution-driven through the validated `placement` region contract. The browser host must not place panels by hardcoded first-party panel IDs, rebuild module-owned ordering, or fetch host-owned module payloads outside declared module routes/renderers.
+- Needs Attention rows are deduped, permission-shaped, body-free, raw-ID-free, and capped. Recent Activity is safe-summary-only and may remain a quiet deferred region until richer permission-safe activity infrastructure is deliberately expanded. Setup/admin warnings appear only when safe warning data exists and must not expose raw runtime values, secrets, job payload JSON, storage internals, scanner internals, or raw IDs.
+- Workbench is the live action and recovery surface. Focus Selection is for choosing work; Task Focus is for working one selected task. Dashboard may link to Workbench focus modes or Task Focus, but it must not recreate Workbench recommendation lists as full Dashboard task lists.
+- Workbench Task Focus hides Focus Selection panels and Recommended Next Action until `Change Focus` returns the user to Focus Selection. The right-side Workbench panel is state-specific: Focus Selection uses it for bounded `More in this focus` overflow, while Task Focus uses it for selected-task related work context.
+- Workbench candidate primary actions enter Task Focus for task candidates instead of opening the edit modal. Task editing remains available through explicit Edit actions and canonical module-action openers.
+- Task Focus checklist execution is check/uncheck only; checklist structure editing remains in the Task editor. Task Focus checklist toggles keep task status aligned with visible work when Tasks returns the refreshed task payload. Recurring checklist structure and recurring linked-note relationship propagation remain Tasks/Notes owned and do not copy note bodies.
+- Task Focus linked notes open through the Notes-owned rendered read modal first, with an explicit Edit handoff to the canonical Notes editor. Task Focus Inspector must not embed preview panes, note bodies, secure/private content, storage internals, scanner details, or hidden labels.
+- Reporting owns detailed time and billing analysis. Time Tracking Dashboard content is compact active/recent effort visibility by default, not Current Month Billables, Hours & Billables, invoice-ready copy, billable amount totals, billing charts, or full report tables. A compact Business Pulse/reporting shortcut may exist only as a secondary Dashboard surface; detailed billable tables/charts remain Reporting-owned.
+- Personal and Family workspaces must not show Client, billable, invoice, or billing Dashboard language.
+- Quick Action Capture is quick capture. It stays a quiet app-shell drawer, dispatches Timer capture to the Time Tracking Create Timer modal, and must not add badges, alerts, recommendations, or a second Workbench-style ranking feed.
+- Deferred follow-ups stay explicit: richer Dashboard Recent Activity digest, compact Business reporting shortcut, advanced-search modal/result display, report-creation modal, any remaining Files target-aware upload modal, and future KB/Tickets/Creator Studio Dashboard module cards.
+
+As of 0.33.12.2, Reporting follows the same validated contribution discipline without becoming a disable-able workflow module:
+
+- Reporting is a framework-owned protected page and service boundary. The selected browser path is a narrow framework host adapter built on `LongtailForge.view` primitives because report selection, conditional filters, execution, renderer dispatch, and permission-filtered asset loading do not fit the current record-oriented `viewSurfaces` descriptor without report-specific escape hatches.
+- The framework owns the Reporting page shell/header, report selector, shared filter/status/loading/error/empty anatomy, results/overflow host, renderer dispatch, and future report-action placement. The dedicated host conversion remains in 0.33.12.6; 0.33.12.2 establishes the contract without prematurely replacing the current page.
+- Modules own report definitions, runner and renderer IDs, module browser assets, data queries, domain calculations, result shapes, readable labels, record-level permission safety, and renderer behavior registered outside the manifest by stable ID.
+- Report manifests are data-only and validated. `modulesService.listReportingReports(workspaceId, session)` filters through enabled module state, required modules, workspace capabilities, and permissions without executing a runner. Historical read access never keeps a disabled module's executable report active.
+- Renderer assets referenced by a report must be registered browser assets owned by that same module and must opt into the explicit `framework:reporting` host target. Framework Reporting code must not hard-code a first-party report ID, module asset path, or module service to discover a report.
+- As of 0.33.12.3, the protected Reporting catalog route returns only current-session eligible reports under stable `<moduleId>:<reportId>` keys, includes validated filter/default metadata and permission-filtered same-module renderer assets, and never resolves or runs server behavior. If any referenced renderer asset is unavailable to the session, the contribution is omitted rather than partially delivered.
+- Report execution re-resolves that same catalog eligibility, performs framework-owned basic query-shape validation, then dispatches through the stable-ID registry in `src/core/reporting/report-runner-registry.js`. The runner receives session/workspace/report/filter context and retains domain-query, calculation, result-shape, and record-level permission ownership.
+- Framework execution responses use stable ready/error envelopes. Unknown or ineligible reports are indistinguishable, missing runners are safely unavailable, and runner failures cannot expose raw runner IDs, hidden labels, database/storage details, stack traces, or module error strings.
+- As of 0.33.12.4, Time Tracking registers `time-tracking.project-time-billing` during module startup and owns its query, hierarchy shaping, date-period selection, aggregation, billing, and result contract through `time-tracking-billing.service.js`. The runner and retained `/api/reporting/project-summary` compatibility read call that same service path; the compatibility bootstrap and summary routes are module-owned until the framework host conversion removes their need.
+- Framework `src/services/reporting.service.js` is now first-party-module-neutral: it imports no module service/repository, names no Time Tracking report or module ID, and owns only catalog eligibility, basic filter normalization, stable runner dispatch, and safe envelopes. Time Tracking obtains readable hierarchy and billing metadata through the Clients/Projects-owned `clientsService.readClientProjects(session)` contract, and the report contribution explicitly requires both `time-tracking` and protected `client-projects`.
+- As of 0.33.12.5, Project Time & Billing recursive totals are leaf-owned. Each project filters its direct time against its own effective current/last billing period (or the shared explicit custom range), rounds that direct billable/display duration with its own effective rounding rule, and prices it with its own effective rate before the parent adds the already-calculated immediate child branch totals. Parent and child rows may display the same branch at different hierarchy levels, but footer and scope totals add only root branch rows.
+- Clients/Projects remains the hierarchy/billing metadata owner. `readClientProjects(session)` must expose `childScopeIds` as an array, not the internal descendant `Set`; Time Tracking snapshots each project’s effective owning-client defaults while normalizing the permission-shaped provider response so a parent-client report can include child-client projects without applying the parent client’s rate, period, or rounding. Dashboard-wide totals reduce only top-level readable client scopes because each parent scope already includes its descendants.
+
+- As of 0.33.12.6, `views/protected/reporting.html` is a minimal framework host and `public/js/reporting.js` builds the page through `LongtailForge.view`. The host selects from `/api/reporting/catalog`, renders filter controls from catalog metadata, loads only the selected report's permission-filtered renderer assets, dispatches the namespaced framework execution route, and owns deep-link state plus loading/error/empty/result placement. It exposes only the stable `LongtailForge.reporting.registerRenderer(rendererId, adapter)` browser seam; a renderer adapter may hydrate its module-owned filter options, validate module-specific combinations, synchronize dependent controls, and render the module-owned result shape.
+- The Time Tracking browser asset registers `time-project-billing-table`, obtains readable scope/project/tag options through its existing module-owned bootstrap/tag paths, and renders the runner result with shared table/action primitives. Its nested child rows are display-only and the table footer displays `result.totals` exactly; it does not call the retained compatibility summary route or reproduce billing calculations. Framework Reporting HTML/browser/service code names no Time Tracking report ID, renderer asset path, billing field, or module result shape.
+- As of 0.33.12.7, `reporting.view`, its `reporting` resource definition, and its existing role defaults are framework-owned contracts in `src/core/permissions/framework-permission-catalog.js`; the disable-able Time Tracking manifest may require that permission but must not define or grant it. Reporting navigation is also framework-owned: the app shell derives child links and the Reporting quick action from the current session's catalog-eligible reports, so disabled modules, missing permissions, unavailable capabilities, and ineligible renderer assets cannot leak report names or leave executable links active. A direct Reporting-page visit with no eligible reports renders the calm framework empty state.
+- The Reporting host is strict at this closeout boundary. Its protected HTML remains one minimal shared-width mount; framework browser/service code must use shared view anatomy, may directly create only catalog-approved renderer `link`/`script` assets, and must not import or name a first-party report, runner, renderer asset, module service, or repository. Module-owned adapters and runners retain report option hydration, domain behavior, data access, calculations, and result rendering.
+
+## UI and View Conversion Direction
+
+The framework owns common UI anatomy. Modules own workflow meaning.
+
+Framework may own:
+
+- Page shells, view descriptors, slide-out/sidebar shells, modal shells, modal stack behavior, field grid wrappers, list/table wrappers, empty/loading/error/status states, dense action placement, drawer/slideout behavior, focus return, accessible defaults, and shared CSS tokens.
+
+As of 0.33.11.6, the authenticated app shell owns expired-session recovery for same-origin `/api/` requests. A `401` opens one deduplicated, blocking framework `alertdialog` in the browser dialog top layer before the failed response returns to module code, so an already-open editor remains visible beneath a clear foreground `Sign in` action instead of receiving console-only or page-level status copy. The guard excludes external requests and ordinary `403` permission failures; modules do not implement competing session-expiry warnings.
+
+Modules own:
+
+- Which controls exist.
+- What records mean.
+- What route/API call is made.
+- What payload is valid.
+- What permissions apply.
+- What labels are safe and human-readable.
+- What refreshes after save.
+- Whether a workflow should be list-first, detail-first, modal-first, or record-near.
+
+Do not copy a layout from another module just because the framework can render it. First ask:
+
+1. What is the primary work surface?
+2. Is the user trying to browse, read, edit, recover, capture, or execute?
+3. Should this be inline, modal, drawer, or record-near?
+4. Does the current roadmap explicitly authorize the change?
+5. Does this preserve the user’s context?
+
+Converted surfaces must stay intentionally scoped. A “read proof” is not permission to turn a page into a new dashboard, inspector, document manager, or generic record browser.
+
+As of 0.33.5.18.15, the 0.33.5.18 view-conversion branch is closed at this strict/deferred boundary:
+
+- Strict declarative guardrails enforce `lists.workspace`, `notes.workspace`, `tasks.workspace`, `files.browse`, `client-projects.clients`, and `client-projects.projects`.
+- Strict surfaces must keep protected HTML minimal and render framework-owned page, filter, table, list, modal, bulk, and action anatomy through descriptors or shared helpers.
+- Tags management and Developer Example descriptors remain reported descriptor proofs, not strict-converted workflow surfaces.
+- Admin/Settings conversion, Reporting conversion, Dashboard/Workbench conversion, pagination/server-side paging, Inspector behavior, and non-view workflow changes are deferred to later roadmap lines.
+- The closeout did not add database schema, write payload, permission, public API, route, or workflow changes.
+- Future view conversion work starts from this boundary and should update the relevant strict guardrail inventory before changing ownership.
+
+## Mobile and Rendered Accessibility Direction
+
+As of 0.33.9.5, the framework CSS "Responsive foundation" section is the single source of responsive truth: canonical breakpoints are mobile `max-width: 700px` (the app shell collapses primary navigation into the drawer there) and tablet `max-width: 1024px`, with `--breakpoint-mobile`/`--breakpoint-tablet`/`--tap-target-min` tokens for `calc()`/JavaScript reads. New `@media` rules must use the canonical values; the `views.mobile-foundation` regression enforces the exact viewport meta on every view and a frozen, shrink-only allowlist of pre-existing legacy media-query values. Surfaces must not add horizontal-scrolling data tables (wrap/stack or contained overflow), long user-supplied labels must wrap or truncate safely including unbroken strings, and the shell-level 44px tap-target floor applies at the mobile breakpoint. The mobile navigation drawer (toggle, overlay, Escape/overlay/toggle close, focus containment and return, scoped body-scroll lock) is framework shell behavior owned by `public/js/navigation.js`; modules must not restyle or repurpose its anatomy.
+
+As of 0.33.9.5, automated accessibility scanning is part of the rendered Playwright harness and stays entirely dev/test-only: `@axe-core/playwright` lives in `devDependencies`, the `release.playwright-dev-only-boundary` gate rejects axe (like Playwright) in production dependencies or any runtime source, and `npm run check` never invokes either. `npm run test:a11y` (also included in the full `npm run test:e2e`) gates automatically detectable WCAG A/AA rules across authenticated surfaces and meaningful rendered states at both named viewports through the shared helper in `tests/e2e/support/axe.mjs`, whose known-issue baseline ships empty and only accepts exact rule/target fingerprints with documented reasons. A clean automated run is never claimed as WCAG conformance: interaction-dependent checks live in `tests/e2e/a11y-keyboard.spec.mjs`, and the manual keyboard/screen-reader/zoom-reflow checklist in `docs/accessibility.md` remains required for touched pages.
+
+## Current Canonical View Patterns
+
+### Tasks
+
+Tasks is list-first.
+
+- Main panel: task list.
+- Slide-out sidebar: Saved Task Views, sorting, and filters only.
+- Row actions remain distinct from row selection.
+- Add/edit/duplicate flows use the canonical `LongtailForge.tasksDialog.openTaskEditor()` opener.
+- Do not move the task list into the sidebar.
+- Do not add a persistent task detail column without a new explicit roadmap slice.
+
+### Notes
+
+Notes is selected-note/detail-first.
+
+- Main panel: selected note content or blank prompt.
+- Slide-out sidebar: Filters, Library, Collections, and Notes List.
+- Selecting a note may close the drawer so the note body becomes the focus.
+- Note editing uses the canonical Notes editor.
+- Do not move the Notes List into the main panel without a new explicit roadmap slice.
+
+### Lists
+
+Lists are operational execution surfaces.
+
+- Main detail should keep list execution clear: items, progress, next action, source/context where useful.
+- Add/edit item workflows should use modal/editor patterns when inline editing would overcrowd the detail surface.
+- Lists must not drift into inventory, ERP, accounting, vendor management, or generic note storage.
+
+### Clients/Projects
+
+Clients/Projects pages are hierarchy-aware record management surfaces, not generic inspectors.
+
+- As of 0.33.5.18.14.5, Clients/Projects strict guardrails are active for `client-projects.clients` and `client-projects.projects`. The protected hosts are minimal, filters live in the shared left slide-out filter surface, Tags render as secondary table rows rather than standalone columns, repeated table edit controls are shared icon-only controls with accessible labels, descriptor row-selection checkbox anatomy is framework-owned, shared bulk-toolbar regions are descriptor-mounted, Notes-style tag filters expose searchable suggestions while the service resolves typed tag text to canonical tag IDs, and Projects read ordering remains service-owned.
+- The current Clients/Projects adapter mounts those read pages through `LongtailForge.view.renderSurface()`, registers Add/Edit behavior handlers that dispatch through `LongtailForge.moduleActions.open(...)`, registers bulk-region behavior handlers that render through `LongtailForge.view.createBulkActionToolbar()`, publishes the module-owned `LongtailForge.clientProjectDialog` API, hydrates tag and Business-only Client filter options, preserves query-param openers through the same canonical action IDs, and refreshes the descriptor surface after existing dialog or bulk saves. It must not reintroduce legacy page tables, inline top filter panels, standalone Tags table columns, text-based repeated table actions, or standalone page bulk-dialog shells for the converted Clients/Projects pages.
+- Client detail related Projects and Project detail Client/Parent Project context rows use shared list/table/action helpers; Clients/Projects still owns related-row shaping, readable labels, billing/task-default summaries, tag chip content, and allowed row actions.
+- Clients/Projects still owns selected Client/Project IDs, allowed bulk status/billing/Client reassignment controls, Business-only Client reassignment visibility, granular route calls, confirmations, payloads, partial-failure messaging, permissions, and audit/search/event side effects.
+- Projects read ordering is service-owned: workspace-level Projects first, Client-backed Projects group by readable Client hierarchy, Project hierarchy sorts parent before child inside each group, and alphabetical order is only the secondary sort. No drag/drop hierarchy editing is part of the converted Clients/Projects surfaces.
+- The adapter must not reintroduce duplicate first-party module action registrations or page-level Add Client compatibility forms.
+- Future Clients and Projects page conversions should keep framework-owned page, filter drawer, index/table, secondary-row, status, action, related-list, and bulk shells separate from Clients/Projects-owned hierarchy rules, billing/task-default editors, tag assignment, route calls, permissions, save payloads, query-param openers, and readable label shaping.
+- Business workspaces may expose Client-aware surfaces; Personal and Family workspaces remain project-only.
+- Do not add drag/drop hierarchy editing, persistent Inspector panes, dashboard-style detail panels, or framework-owned Client/Project record semantics without a new roadmap slice.
+
+### Files
+
+Files is compact browse/recovery, not document management.
+
+Current Files decision:
+
+- The Files page is a compact workspace file recovery and audit listing.
+- The main panel shows the listing only.
+- The slide-out sidebar holds browse filters.
+- The listing should use one clear table frame with compact row text; normal desktop widths should truncate readable labels instead of forcing a horizontal scrollbar or nesting extra boxes around the table.
+- The main Files page must not show persistent inline detail dashboards, selected-file summary panels, inline metadata panels, inline previews, or sticky selected-row state.
+- Row click opens the File Context edit modal.
+- A dedicated Preview/View button opens the Files Preview modal.
+- Download, Delete, Restore, Report, and Review/Quarantine lifecycle controls remain distinct row/action controls.
+- Unsupported files should be marked download-only rather than forced into a preview/detail panel.
+- Inspector integration is deferred and must not be half-built inside the Files page.
+- The 0.33.5.18.11.13 closeout locks the replacement of the 0.33.5.18.11.4 inline detail/summary anatomy with separate route-backed File Context and Preview modal workflows. The completed 0.33.5.18.12 upload/action branch standardized upload, attachment-panel, row-action, visual-state, and strict-guardrail anatomy without reimplementing File Context or Preview routes/modals.
+
+File Context editing:
+
+- File Context editing is attachment-scoped, not file-binary editing.
+- It may update attachment context through Files-owned routes after service-owned permission checks, target validation, audit, and lifecycle handling.
+- Editable fields are limited to target context such as Target, Project, and Business-only Client where supported.
+- As of the 0.33.5.18.11.12 follow-up, File Context orders selectors as Client, Project, then Target so users choose the broader work context before the specific record.
+- File Context Client and Project dropdowns are populated from the shared `/api/client-projects` option source with hierarchy ordering; selecting a Client/Project filters target choices but must not shrink the available Client/Project lists to only the current target response.
+- File Context target choices are loaded from registered attachable targets for the selected Client/Project context and are not restricted to the attachment's current module/type; Tasks and Notes may both appear when readable and attachable. Target labels should omit Client/Project context already shown by the selected Context controls.
+- A stored file may be linked to multiple records through separate active `file_attachments` rows for the same file and different module/target contexts. The File Context modal edits/moves the selected attachment row; it does not create an additional link to another target.
+- It must not rename files, replace binaries, move storage, alter storage provider/key, edit scanner internals or raw quarantine metadata, hard purge, permanently delete, or expose raw storage controls.
+- The only File Context lifecycle exception is the `Mark Reviewed` action for in-review files that already passed scan or require no scan; it calls the existing Files restore route after service-owned permission checks instead of editing scan/quarantine fields directly.
+- Raw IDs may exist as internal option values where needed for saves, but normal labels must be readable and safe.
+
+Files Preview:
+
+- Preview is route-backed and attachment-scoped.
+- As of 0.33.5.18.11.10, the shipped preview descriptor route is `GET /api/files/attachments/:fileAttachmentId/preview`.
+- The preview descriptor evaluates target read access and `files.download` against the selected attachment context before returning availability.
+- Previewable descriptors include `contentAvailable` plus a route-backed content URL only when the attachment can be previewed.
+- As of 0.33.5.18.11.11, preview content is served through `GET /api/files/attachments/:fileAttachmentId/preview/content`.
+- Image previews stream through authenticated Files routes, while text and Markdown previews return capped JSON content.
+- Markdown preview uses the shared server Markdown service; do not add a second browser Markdown parser, enable raw HTML, or allow unsafe links/images.
+- As of 0.33.5.18.11.12, the Files browse listing exposes an explicit Preview button for previewable rows and a quiet download-only marker for downloadable non-previewable rows.
+- The Preview button opens a dedicated Files Preview modal; row click continues to open File Context, Download continues to download, and Delete/Restore continue to mutate lifecycle.
+- File Context may also expose the same icon-only Preview action and the in-review-only `Mark Reviewed` action to the left of Close/Save; Preview opens the same standalone Preview modal flow as the Files list without turning File Context into a preview surface, and `Mark Reviewed` calls the existing Files restore route.
+- The Preview modal is route-backed and uses the shared modal stack; it must not become a persistent browse-page pane or early Inspector implementation.
+- Preview descriptors and content routes do not expose storage keys, storage paths, hashes, scanner internals, raw filesystem URLs, or protected filesystem data.
+- Preview descriptor/content/modal reads do not record audit or lifecycle events in 0.33.5.18.11.12; add a deliberate `file.previewed` event later only if tracking becomes useful.
+- Initial preview targets are images, text, and Markdown.
+- Markdown preview must use the shared Markdown service.
+- Unsupported files are download-only.
+- Preview content must not expose storage keys, protected paths, signed URLs, file hashes, scanner internals, raw filesystem data, or unreadable target labels.
+- Preview must not bypass route-backed target access, Files permission, scan readiness, or safe content checks.
+- In-review files that have already passed scan or require no scan may expose the same route-backed Preview modal to users with `files.manage_quarantine` so they can review content before marking the file reviewed.
+- Download stays unavailable for in-review files until the file is marked reviewed/restored to available.
+
+Attachment management:
+
+- Attachment management belongs closest to the owning record through the shared Files attachment helper.
+- Notes, Tasks, Lists, and future modules use Files-owned helpers/routes instead of creating parallel file storage or attachment systems.
+- Attachment panels in converted add/edit modals should open as stacked child dialogs when they contain substantial upload/list bodies.
+- As of 0.33.5.18.12.1 and updated by 0.33.5.22.5, the shared attachment helper renders its upload/dropzone shell, accepted-file hint, upload status, upload action, and per-file result placement through shared view anatomy when available. Streamed multipart form construction, accepted categories, target context, visibility, upload route calls, partial-failure handling, and refresh callbacks remain Files-owned helper behavior.
+- As of 0.33.5.18.12.2, the shared attachment helper also wraps its reusable attachment panel, list, empty/loading/error states, panel status, upload-result rows, and dense attachment actions through shared view anatomy when available. The helper still owns attachment reads, upload payloads, download links, remove/delete/restore route calls, confirmations, refresh, events, save-first states, and host callbacks. Deleted, unavailable, pending-scan, scan-error, and quarantined attachments remain visible with recovery-safe status copy; the helper must not become an inline File Context, Preview, Metadata, or Inspector surface.
+- As of 0.33.5.18.12.3, Files row actions and shared attachment-panel actions use shared Files action IDs for Preview, Download, Report, Quarantine, Remove Attachment, Delete, and Restore while Files-owned browser code still calls the shipped Files routes, keeps confirmations and refresh behavior, shapes direct Quarantine visibility from explicit `files.manage_quarantine` evidence, and leaves File Context/Preview as their route-backed modal workflows. Unsupported files remain download-only; no rename, move, hard purge, permanent delete, binary replacement, storage moves, direct metadata editing, inline Preview, inline Metadata, selected-file detail, or Inspector behavior is part of this slice.
+- As of 0.33.5.18.12.4, Files visual states and control parity are standardized without changing Files service behavior. Browse rows render availability and review-state chips, attachment panels render metadata chips, empty/loading/count copy uses attachment/review/recovery language, and normal UI presents the quarantine route as a Review action while preserving `files.quarantine`, confirmations, permissions, audit/lifecycle semantics, and restore/download gates. Files and attachment action rows wrap on narrow widths and keep accessible labels/titles; dense browse row actions use icon-only controls for Preview, Download, Report, Review, Delete, and Restore. File Context and Preview controls are included in visual parity checks but remain the route-backed modal workflows from 0.33.5.18.11. No inline Preview, Metadata, selected-file detail, selected-row state, nested dashboard-like browse panel, Inspector behavior, rename, replacement, storage move, hard purge, permanent delete, or raw storage control is part of this slice.
+- As of 0.33.5.18.12.5, Files strict guardrail work created the reporting-only inventory that prepared the 0.33.5.18.12.6 enforcement slice. The inventory mapped framework-owned candidates such as page/header, filters, list/table shell, attachment/upload shells, empty/status states, dense actions, and modal placement while preserving Files-owned escape hatches for file reads, upload payloads, accepted categories, scan/download/preview availability, route calls, confirmations, permission-shaped visibility, target metadata, recovery states, host callbacks, and the already-shipped File Context and Preview modal openers/routes. The 0.33.5.18.12.6 decision below is now the active strict-surface rule.
+- As of 0.33.5.18.12.6, Files strict declarative guardrail enforcement is active. `files.browse` is now a strict framework-owned descriptor surface; the protected Files page remains a minimal host; `public/js/files.js` must create browse/filter/table/action/modal shell anatomy through descriptor behaviors and shared view helpers; and `public/js/shared/file-attachments.js` may keep only its centralized no-helper element fallback while using shared panel, upload, empty-state, action-strip, and action-button helpers when available. Files-owned escape hatches remain allowed for file reads, upload payloads, accepted categories, scan/download/preview availability, route calls, confirmations, permission-shaped visibility, target metadata, recovery states, host callbacks, and the route-backed File Context and Preview workflows. Strict guardrails continue to forbid inline Browse Summary, inline Preview, inline Metadata, selected-file detail, selected-row state, Inspector-style browse behavior, raw storage controls, storage internals, direct static downloads, and route bypasses.
+- As of 0.33.5.18.12.7, the Files browse/edit/preview/upload/action/strict-guardrail conversion branch is closed. Future Files work starts from this boundary: compact listing-first browse, filters in the slide-out sidebar, route-backed File Context and Preview modals, shared attachment/upload/action shells, and strict `files.browse` guardrails. Future slices must explicitly reopen scope before adding inline detail, preview, metadata, Inspector, rename/replacement, storage move, hard purge, permanent delete, or raw storage controls.
+
+## Files Service and Storage Decisions
+
+Files is framework-owned infrastructure with first-party Files/Attachments UI.
+
+The Files service owns:
+
+- Storage metadata and storage keys.
+- Local and future cloud/object storage adapters.
+- Upload acceptance, file type policy, size limits, and scanner integration.
+- Scan/quarantine state.
+- Download routing and safe headers.
+- Staged delete/restore/report/quarantine/purge contracts.
+- Attachment metadata and attachment target validation.
+- File lifecycle events and audit behavior.
+- Storage accounting and future quota policy.
+
+Modules own:
+
+- Where file controls appear on their records.
+- What the attachment means in the record workflow.
+- Save-first messages and local refresh callbacks.
+- Whether an attachment area is visible for the current record state.
+
+Guardrails:
+
+- No direct static download URLs.
+- No protected file paths in browser payloads.
+- No storage keys in normal UI.
+- No scanner internals in user-facing UI.
+- No secure-note attachments until a secure-attachment model is deliberately designed.
+- Tags must not become file visibility or access controls.
+- Public/client-visible file access requires explicit visibility fields and permission checks.
+
+As of 0.33.5.22.1, Files upload writes resolve `config.storage.provider` through a Files-service-owned resolver before writing bytes, persist the resolved provider on the `files.storage_provider` row, and fail clearly when the configured provider is not registered. `local` remains the default and only built-in provider in this slice. Download and preview reads continue to resolve storage from each stored file row, so existing local files keep reading through `files.storage_provider` even if the startup provider setting changes later. This slice does not add storage diagnostics, S3/object storage, streamed uploads, scanner adapter selection, or scanner behavior changes.
+
+As of 0.33.5.22.2, runtime diagnostics call the configured Files storage adapter `health()` method and expose only a safe storage read model: provider ID, `ok`/`unavailable` availability, and an app-root/data-root relative or redacted local storage root label. Workspace Settings renders that data in the existing Runtime Diagnostics panel and does not add a new admin surface. Diagnostics and Files route payloads must not expose storage keys, protected paths, signed URLs, scanner internals, or raw local filesystem roots. This slice still does not add S3/object storage, streamed uploads, scanner adapter selection, or storage editing.
+
+As of 0.33.5.22.3, the multipart upload route direction is to use Busboy as the streaming multipart parser dependency, not hand-roll multipart parsing inside Longtail Forge. The Files storage adapter contract now requires `saveStream(readable, options)` alongside the existing buffered `save(buffer, options)`. The local provider writes streams to disk with `pipeline()` through the same storage-key containment rules and removes partial local files after stream failures where practical. Existing base64 JSON upload routes and browser helpers remain unchanged until the 0.33.5.22.4 route slice. This slice does not add a multipart route, S3/object storage, scanner adapter selection, or upload UI changes.
+
+As of 0.33.5.22.4, `POST /api/files/upload` is the first single-file multipart upload route for local/self-hosted mode and uses Busboy. For this first route slice, multipart metadata fields (`moduleId`, `targetType`, and `targetId`) must arrive before the `file` part so Files can resolve permissions, target policy, and size limits before streaming bytes into storage. The route accepts one file, enforces size while streaming, and then uses the same Files-service lifecycle as the existing JSON/base64 route: create a pending file row with the resolved `files.storage_provider`, queue `file.scan`, attach through `attachFile`, emit/audit the normal lifecycle events, and leave download/preview availability governed by scan state. `POST /api/files` remains supported. This slice does not add streamed batch uploads, attachment-helper migration, upload UI changes, S3/object storage, scanner adapter selection, or alternate multipart field ordering.
+
+As of 0.33.5.22.5, `POST /api/files/upload/batch` is the normal browser attachment-panel upload route. It uses Busboy multipart parsing, accepts repeated `files` parts after the required metadata fields, streams each file through `filesService.uploadStreamAndAttach`, returns ordered per-file results, and uses HTTP 207 when at least one file fails while others succeed. The shared attachment helper now builds a `FormData` payload and posts to `/api/files/upload/batch` while preserving the existing upload UI, dropzone behavior, save-first state, per-file success/error copy, host callbacks, custom events, and attachment refresh. The JSON/base64 upload routes (`POST /api/files` and `POST /api/files/batch`) remain supported during the transition window; their retirement timing and additional streamed-upload cancellation/error hardening are deferred to 0.33.5.22.6.
+
+As of 0.33.5.22.6, JSON/base64 upload routes (`POST /api/files` and `POST /api/files/batch`) remain compatibility routes through the 0.33.5.22 storage/scanner runtime branch and are retired no earlier than 0.33.5.23.0 by a later explicit roadmap slice. New browser and module work should use the streamed routes (`POST /api/files/upload` and `/api/files/upload/batch`); the shared attachment helper's normal path no longer depends on FileReader/base64 conversion. Streamed upload cancellation, request read errors, fatal parser errors, oversized payloads, and storage stream errors must stop active multipart file streams, rely on the storage adapter to remove partial local files where practical, and avoid creating active file records or attachments unless the Files service completes the normal upload lifecycle. Unsupported files remain download-only, and scan/download/preview availability rules remain governed by Files status plus scan status.
+
+As of 0.33.5.22.7, Files scanner mode selection is configuration-owned through `LONGTAIL_FILE_SCANNER` and the only recognized modes are `none`, `noop`, `clamd`, and `clamscan`. `none` is the default disabled-scanning mode: uploads still queue `file.scan`, and the worker resolves pending files to `status = available` and `scan_status = not_required` without reading file bytes. `noop` is an explicit pass-through scanner for development or explicitly accepted self-hosted mode and resolves to `scan_status = passed`. Real scanner adapters are defined by the later `clamscan` and `clamd` decisions below. `scanFile` remains the service-owned scanner call site; adapters receive a service-built scan context with a service-owned read-stream helper rather than raw storage paths or storage keys. Scanner mode resolution must not bypass Files permission checks, download gates, preview gates, quarantine/review lifecycle, or `file.scan` job ownership.
+
+As of 0.33.5.22.8, Files scanner adapters may expose a safe `health()` method for runtime diagnostics. The built-in `none` and `noop` adapters report non-available scanner health because neither performs an external scan: `none` reports disabled and `noop` reports pass-through. Runtime Diagnostics calls scanner health through the Files service resolver, derives warning copy from safe mode/status values, and must not expose scanner hostnames, ports, executable paths, sockets, raw environment keys, storage keys, protected paths, signed URLs, or scanner internals. Workspace Settings renders the safe scanner mode/status and the server-provided warning; it does not invent scanner policy in browser code.
+
+As of 0.33.5.22.9, `clamscan` is the optional executable scanner adapter for installs that provide the ClamAV CLI. Files resolves it from `config.scanner.clamscanPath`, falling back to the `clamscan` command on `PATH`; that executable path is runtime configuration and must not appear in diagnostics, browser payloads, lifecycle/audit metadata, or scan results. The adapter health check probes `clamscan --version`. Scans stream bytes through the Files-owned scan context into the executable without exposing storage keys or protected paths. Exit code `0` marks the file `available`/`passed`; exit code `1` marks it `quarantined`/`failed`; unavailable executables, scanner errors, and timeouts mark the file `quarantined`/`error`. The adapter returns only safe scanner metadata (`scanner`, bounded result, and numeric exit code when available), does not auto-delete suspicious files, and leaves quarantined files unavailable for download/preview until an authorized review path says otherwise.
+
+As of 0.33.5.22.10, `clamd` is the optional TCP scanner adapter for installs that run the ClamAV daemon. Files resolves it from `config.scanner.clamdHost` and `config.scanner.clamdPort`, defaulting internally to `127.0.0.1:3310` when those runtime values are blank; hostnames and ports must not appear in diagnostics, browser payloads, lifecycle/audit metadata, or scan results. The adapter health check probes clamd `PING` over TCP, and scans stream bytes through the Files-owned scan context using clamd `INSTREAM` without exposing storage keys or protected paths. Clean responses mark files `available`/`passed`; `FOUND` responses mark files `quarantined`/`failed`; unavailable daemons, scanner errors, malformed responses, and timeouts mark files `quarantined`/`error`. The adapter returns only safe scanner metadata (`scanner` and bounded result), does not auto-delete suspicious files, and leaves quarantined files unavailable for download/preview until an authorized review path says otherwise. Unix-socket support is deferred; there is no active `LONGTAIL_CLAMD_SOCKET` key in this branch.
+
+As of 0.33.5.22.11, the scanner setup contract is OS-agnostic at the app level. Linux service installs should normally use `clamd` over TCP, Windows executable installs may use `clamscan` with `LONGTAIL_CLAMSCAN_PATH`, and macOS/Homebrew installs may use either `clamscan` or a TCP `clamd` daemon. The governing scanner distinctions remain: `none` is an explicit disabled-scanning mode that completes queued scan jobs as `not_required`/`available`; `noop` is an explicit pass-through scanner for development or accepted self-hosted troubleshooting; unavailable ClamAV adapters do not silently pass files and instead quarantine them with `scan_status = error`; suspicious or unavailable scan results are never automatically deleted. Scanner diagnostics and normal UI must keep executable paths, hostnames, ports, sockets, scanner output, storage keys, protected paths, signed URLs, and raw runtime values out of payloads. Unix-socket scanning remains deferred and no `LONGTAIL_CLAMD_SOCKET` setting is live.
+
+As of 0.33.5.22.12, `s3` is the explicit S3-compatible storage provider key. `local` remains the default storage provider, and S3 is selected only by `LONGTAIL_STORAGE_PROVIDER=s3`. Runtime configuration now reads `LONGTAIL_S3_BUCKET`, `LONGTAIL_S3_REGION`, `LONGTAIL_S3_ENDPOINT`, `LONGTAIL_S3_ACCESS_KEY_ID`, and `LONGTAIL_S3_SECRET_ACCESS_KEY` into the server-side storage config, but diagnostics, browser payloads, lifecycle/audit metadata, docs examples, and committed files must not expose bucket names, endpoints, credential values, storage keys, protected paths, or signed URLs. The S3 adapter is intentionally registered as a safe stub in this slice: missing required S3 config fails clearly as a configuration error, fully configured object operations fail as not implemented, and no partial writes are attempted. Dependency/client strategy: do not add an S3 SDK or network object client in 0.33.5.22.12; the mocked object-operation proof in 0.33.5.22.13 owns the client dependency and adapter behavior.
+
+As of 0.33.5.22.13, the S3 adapter implements the Files storage provider contract through a narrow provider-client interface: `save()` and `saveStream()` call `putObject`, `read()` calls `getObject` and returns a Node `Readable`, `metadata()` calls `headObject`, `delete()` calls `deleteObject`, and `health()` calls a safe provider health probe. This slice proves the object-operation path with a mocked client, including Files-service streamed upload and route-backed download behavior through stored `files.storage_provider = s3`. Dependency/client strategy: keep the Files service and adapter independent of a specific S3 SDK in this proof; a hosted/provider-specific SDK or HTTP client rollout may be added later behind the same client interface. Diagnostics, browser payloads, lifecycle/audit metadata, and normal route responses still must not expose bucket names, endpoints, credential values, storage keys, protected paths, raw provider responses, or signed URLs. Direct upload/download and presigned URL behavior remains deferred to the explicit signed-URL boundary slice.
+
+As of 0.33.5.22.14, S3 runtime diagnostics expose only the configured provider id and safe availability. Diagnostics must not expose bucket names, endpoints, credential values, storage keys, protected paths, root locations, raw provider responses, or signed URLs. No direct upload, direct download, or presigned S3 route is implemented in this slice; normal Files upload/read/list/preview/download flows remain route-backed through Longtail Forge permission checks and the stored `files.storage_provider` adapter. A future signed URL is a deliberate exception to the standing "no signed URLs unless designed for that route" guardrail and must be route-designed, per-object permission-checked, short-expiring, audit/lifecycle-aware, and absent from normal Files payloads unless that specific route contract returns it for a single request.
+
+As of 0.33.5.22.15, the storage/scanner runtime branch is closed. The active decisions remain: Files owns storage-provider selection for new writes through runtime configuration and stored per-row providers for reads; Busboy is the multipart parser dependency; streamed browser attachment uploads use `/api/files/upload/batch` while JSON/base64 routes remain compatibility routes until a later explicit retirement slice; `none` is disabled scanning and completes queued `file.scan` jobs as `not_required`/`available`; `noop` is the explicit pass-through scanner; unavailable ClamAV adapters quarantine with `scan_status = error` instead of silently passing or auto-deleting; S3 diagnostics expose only provider id and safe availability; and future signed URLs remain a deliberate route-designed, permission-checked, short-expiring exception rather than a normal Files payload field.
+
+As of 0.33.5.25.1, S3 storage is explicitly deferred scaffolding rather than a selectable runtime provider. The S3 adapter and reserved S3 config keys remain for mocked object-operation proof coverage and future provider-client work, but app startup and separate-worker startup must fail before listening or polling when `LONGTAIL_STORAGE_PROVIDER=s3` is selected without a functional provider client. `local` remains the only bootable built-in storage provider in this slice. No S3 SDK dependency, direct/presigned route, or provider-specific hosted client is added, and normal diagnostics/payloads must still keep buckets, endpoints, credentials, storage keys, protected paths, raw provider responses, and signed URLs out of view.
+
+As of 0.33.5.25.2, workspace and per-user storage quotas stored on `file_workspace_settings` are active upload policy, not informational settings. Files service checks `internal_storage_limit_bytes` and `per_user_storage_limit_bytes` against actual internal storage usage before buffered JSON/base64 uploads write bytes or create rows, and streamed multipart uploads use the tighter remaining quota as their stream guard so over-quota streams fail with partial local-file cleanup and no active file rows or attachments. `NULL` quota values remain unlimited. Quota accounting counts internal files that still occupy storage across pending, available, quarantined, and staged-deleted statuses, grouped by workspace and `uploaded_by_user_id`; modules do not implement or bypass quota policy.
+
+As of 0.33.5.25.3, streamed upload signature validation starts during the stream once enough sampled bytes exist for the file type, so wrong-type content can fail before the storage write completes where practical. Any rejected-upload object cleanup that still occurs after a write is awaited and logged on failure instead of being silently swallowed. Download and preview-content routes pre-check the stored provider's `metadata()` before opening the read stream, so missing or rotated storage objects return a clean 404 without exposing storage keys, paths, signed URLs, provider internals, or raw filesystem details.
+
+As of 0.33.5.25.4, multipart batch uploads keep their per-file result model for malformed file parts: one malformed file part is returned as a failed item while other valid file parts can still attach. Whole-request parser failures, metadata field limit failures, too many files, aborted requests, and empty batches remain fatal request errors. The active Files storage adapter contract is `save()`, `saveStream()`, `read()`, `metadata()`, `delete()`, and `health()`; the unused local-only `quarantine()` adapter method was removed. `quarantineFile()` remains a database lifecycle/status transition only until a future roadmap slice deliberately designs storage relocation semantics.
+
+## Runtime and Database Direction
+
+SQLite remains first-class.
+
+SQLite target:
+
+- Default self-hosted/small-office backend.
+- One app server.
+- Local or attached storage.
+- Roughly 50 total users.
+- Typical active usage around 5-15 concurrent users.
+- No horizontal app scaling expectation.
+- No external database administration required.
+
+PostgreSQL target:
+
+- Hosted SaaS backend.
+- Multiple app/web instances.
+- Durable workers.
+- Larger multi-workspace datasets.
+- High concurrency.
+- Managed backups and operational monitoring.
+
+Runtime configuration:
+
+- Install/startup configuration belongs in `.env` or environment variables.
+- Real `.env` files must not be committed.
+- `.env.example` documents the supported configuration contract.
+- As of 0.33.5.19.9, `docs/runtime-configuration.md` is the current runtime configuration contract. It separates active settings from reserved future settings.
+- As of 0.33.5.24.2, the supported app runtime baseline is Node 24 LTS. The root package declares `engines.node` as `>=24 <25`, and Node 25+ is not considered supported until a future validation slice. The Node 20 retirement is a runtime-major and native-ABI change for the `better-sqlite3` dependency; upgrading npm alone does not address the runtime baseline or rebuild the native module.
+- At app startup, Longtail Forge loads an optional local root `.env` file before creating runtime config. Process environment values take precedence over `.env` values.
+- Fresh-start install labels such as the initial workspace name and super-admin display name belong in runtime bootstrap configuration, not hardcoded database bootstrap logic.
+- Application/workspace settings may control user-facing behavior.
+- Secrets, database provider selection, startup paths, storage credentials, scanner paths, and worker mode belong in runtime configuration.
+- SQLite is still the only implemented database provider. Files storage provider selection, the local storage adapter, the S3-compatible provider contract proof, scanner adapters, and durable workers now have active runtime slices; PostgreSQL, hosted proxy behavior, and provider-specific hosted S3 client rollout remain future work.
+- SQLite startup must enforce foreign keys, apply the configured journal mode with WAL as the default, configure the busy timeout, verify the database file is writable, and report safe admin health without exposing secrets or storage internals.
+- As of 0.33.5.19.6, SQLite migration and schema-repair startup work must acquire the migration lock file beside the configured SQLite database before applying baselines, repairs, checksum validation, or future migration files. If the lock is already held, startup should fail clearly with the lock path and stale-lock recovery guidance.
+- In self-hosted SQLite mode, the app startup process owns migration work before serving requests. Future SaaS/PostgreSQL deployments should move that ownership to a deploy or maintenance process that uses a PostgreSQL advisory lock or provider-backed migration lock table, then starts web and worker processes against the current schema.
+- As of the 2026-07-10 migration/schema workflow slice, `src/db/schema/current.sql` remains the manually maintained executable fresh-start baseline and `src/db/schema/current.generated.sql` is the generated final-schema verification snapshot derived from that baseline plus ordered checksum-tracked migrations. New core migrations use `npm run db:migration:create -- <name>` so numbering is chosen across core/module directories and duplicates fail. Schema work must refresh and check the generated snapshot; an ordinary baseline edit without a forward migration is forbidden. This workflow does not add a database provider or change SQLite runtime migration semantics.
+- Production startup requires `SUPER_ADMIN_PASSWORD`; development/test startup may keep generated-password first-launch behavior.
+- Runtime diagnostics and admin readouts must not expose secrets, storage keys, signed URLs, protected paths, scanner internals, raw `.env` contents, or secure-note key material.
+- Runtime diagnostics route: as of 0.33.5.19.7, `GET /api/runtime-diagnostics` is the protected runtime diagnostics route. It requires `workspace_settings.manage`, returns a safe read-only diagnostics model, and must keep paths redacted or app/data-root relative.
+- As of 0.33.5.19.8, Workspace Settings includes a compact read-only Runtime Diagnostics panel that consumes `GET /api/runtime-diagnostics` instead of adding a second diagnostics source or a runtime configuration editor.
+- SQLite small-office mode supports one app process/server on local or attached storage with reliable SQLite file locking. Multiple app servers sharing one SQLite file, object/synced storage database files, and high-scale SaaS deployment shapes belong to future PostgreSQL/provider work instead.
+- The completed 0.33.5.19 foundation did not add PostgreSQL, server-side paging rewrites, durable jobs/outbox processing, storage-provider switching, scanner adapters, hosted-SaaS deployment behavior, or runtime configuration editing.
+
+Database adapter direction:
+
+- The current SQLite helper boundary is not enough to call the database layer fully provider-agnostic.
+- Build a provider-neutral database adapter before serious hosted SaaS work.
+- Keep SQLite support while adding PostgreSQL behind the same adapter.
+- New database work should move toward parameterized queries and explicit transaction helpers.
+- As of 0.33.5.19.5, `src/db/provider.js` is the provider-neutral adapter boundary, `src/core/database.js` is the preferred app-facing import path, SQLite helper access belongs behind `src/db/adapters/sqlite-adapter.js`, and repositories/module services should not import `src/db/sqlite.js` directly.
+- The current adapter supports named bound parameters for pilot single-statement repository paths and `db.transaction(callback)` for selected multi-step writes. New repository work should use parameters for values, keep identifiers static or allowlisted, and treat `sqlText` / `sqlInteger` helpers as compatibility escape hatches for unconverted code. Transaction callbacks must keep atomic database writes together, use the transaction client passed to the callback, and avoid nested transactions.
+- As of 0.33.5.23.2, `src/db/parameter-bindings.js` owns the named-to-positional binding layer at the adapter boundary. App-facing code should keep using named parameters through `db.query(sql, params)`, `db.get(sql, params)`, and `db.run(sql, params)`; adapters translate those names to provider-driver positional bindings. SQLite consumes the same layer with positional `?` bindings, while the layer can emit `$n` placeholders for a future PostgreSQL adapter. `sqlText()`, `sqlInteger()`, `sqlNullableText()`, and `sqlNullableInteger()` are deprecated compatibility escape hatches for unconverted literal SQL and no-parameter multi-statement startup/migration paths; do not turn them into param-emitting shims, and do not use them for new or touched single-statement repository queries unless a roadmap slice explicitly keeps that code on the compatibility path.
+- As of 0.33.5.26.1, the binding layer supports array-valued named parameters for variable-length `IN (...)` lists. Dollar-style providers reuse a repeated named array as the same `$n` sequence; SQLite/question-style binding duplicates values per occurrence; empty arrays expand to `NULL` so `IN (:ids)` stays valid and returns no rows. This is list expansion only.
+- As of 0.33.5.26.2, dynamic bulk `VALUES (...)` row groups are supported only through `createBulkValuesBindings()`. The helper builds named value placeholder groups plus scalar params; it does not parameterize identifiers, conflict targets, operators, sort clauses, backend search syntax, or SQL fragments. Repositories should use it for dynamic row value sets instead of inventing local string-join builders. The SQLite search adapter canonical `search_index` upsert is the proof; SQLite FTS maintenance remains on the compatibility path until the 0.33.5.27 search/dialect seam work.
+- As of 0.33.5.27.1, the database-extraction line makes the app agnostic by contract and enforcement, not agnostic-proven. SQLite remains the only live provider in this version. The PostgreSQL adapter, provider gating, PostgreSQL migration runner, dual-backend contract tests, and SaaS seed/load proof stay in the 0.40.0 database-extraction branch.
+- As of 0.33.5.27.2, `db.dialect` is the SQLite-backed seam surface for dialect-sensitive database operations. It is exposed on the provider adapter, the transaction client, `src/db/index.js`, and `src/core/database.js`; it scaffolds conflict writes, case-insensitive comparison/order helpers, boolean storage mapping, timestamp/interval math, FTS5 search lowering, JSON capability status, `RETURNING`/identity helpers, physical `rowid`, and PRAGMA/introspection helpers. This slice does not convert application repositories or prove PostgreSQL; conversion waves must consume this surface without adding raw SQLite-only SQL at app call sites.
+- As of 0.33.5.27.3, `db.dialect.conflict` owns provider-neutral insert-or-ignore and insert-on-conflict statement builders for converted low-risk proof paths, and durable-job returned-row paths now use `transaction.dialect.returning.columns(...)` instead of raw `RETURNING` SQL at the job call sites. The startup role-permission repair is the conflict proof path through `databaseDialect.conflict.buildInsertOrIgnore(...)`. The durable-job decision is conversion rather than exception: 0.33.5.27.32 asserts that raw `RETURNING` is provider-owned instead of allowlisting `core/jobs` or `services/jobs.service` statements.
+- As of 0.33.5.27.4, case-insensitive equality, LIKE pattern matching, and ordering belong behind `db.dialect.comparison`. Converted call sites should use helpers such as `equalsNoCase(...)`, `containsNoCase(...)`, `likePattern(...)`, and `orderByNoCase(...)` instead of owning `COLLATE NOCASE`, `LOWER(...) LIKE`, or local LIKE wildcard escaping. The proof path is the Files attachable-target option read, which keeps table and field names validated through existing static metadata and binds all values through `db.query(...)`.
+- As of 0.33.5.27.5, logical boolean storage and timestamp interval math belong behind `db.dialect.boolean` and `db.dialect.time`. Converted call sites should use `bind(...)`, `bindFields(...)`, `readField(...)`, `readFields(...)`, and timestamp helpers such as `elapsedSecondsSince(...)` instead of owning SQLite `0` / `1` boolean mapping or raw `julianday(...)` arithmetic. The proof paths are Workspace Settings boolean save/read mapping in `settings.repo` and active timer pause elapsed-time updates in `time-tracking/active-timers.repo`.
+- As of 0.33.5.27.6, full-text search syntax belongs inside the framework search adapter/service seam. SQLite FTS virtual-table creation, `MATCH`, `bm25(...)`, and indexed LIKE fallback lowering are adapter/provider-owned through `db.dialect.search` and `db.dialect.comparison`; search callers should continue sending backend-neutral request models and must not emit raw FTS5 SQL. Canonical `search_index` rows remain the source of truth, while FTS storage is repairable lookup/ranking state rebuilt from canonical rows.
+- As of 0.33.5.27.7, PRAGMA/introspection and physical identity usage remain provider/startup/migration/repair/adapter-owned. Runtime call sites that need SQLite compile options, table metadata, or qualified physical identity must consume `db.dialect.introspection` and `db.dialect.identity` helpers instead of spelling raw PRAGMA or `rowid`. As of 0.33.5.27.29, startup maintenance in `src/db/index.js` consumes those seams. As of 0.33.5.27.30, migration metadata and table probes in `src/db/migrations.js` consume named params plus the introspection/conflict seams; remaining raw PRAGMA/`rowid` SQL is limited to the SQLite dialect seam, migration compatibility code in `src/db/migrations.js`, and SQLite provider health in `src/db/sqlite.js`.
+- As of 0.33.5.27.8, `tasks/tasks.repo` is a converted repository owner. Future Tasks primary repository changes must keep task read/write statements on named params through `db.query(...)` / `db.run(...)`, use array-valued named params for variable task-id lists, and route dialect-sensitive title ordering and reminder override boolean mapping through `db.dialect.comparison` and `db.dialect.boolean` instead of reintroducing literal SQL helpers or raw SQLite-only syntax.
+- As of `0.33.5.27.9`, `tasks/task-checklists.repo` is converted. Future task checklist persistence changes must use named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, keep checklist progress task-id batches on array-valued params, and route checked-state storage through the boolean seam instead of reintroducing literal SQL helpers or SQLite `0` / `1` assumptions.
+- As of `0.33.5.27.10`, `tasks/task-relationships.repo` is converted. Future task relationship persistence changes must use named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`, keep relationship summary task-id batches on array-valued params, and route blocking-state storage through the boolean seam instead of reintroducing literal SQL helpers or SQLite `0` / `1` assumptions.
+- As of `0.33.5.27.11`, `tasks/task-recurrence.repo` and `tasks/task-reminders.repo` are converted. Future recurrence/reminder persistence changes must use named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)` for replacement flows, keep reminder target batches on generated named params, and avoid literal helpers or raw transaction scripts.
+- As of `0.33.5.27.12`, `time-tracking/active-timers.repo` is converted. Future active timer persistence changes must use named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`, keep active timer upsert on the conflict seam, keep running-timer elapsed pause math on the time seam, and preserve manual timer source-module `NULL` filtering plus two-phase slot compaction.
+- As of `0.33.5.27.13`, `time-tracking/time-entries.repo` is converted. Future time entry persistence changes must use named params through `db.query(...)`, `db.get(...)`, and `db.run(...)`, preserve nullable client/task field behavior, duration integer coercion, project-scope label updates, and end-time ordered read outputs used by Time Tracking and reporting-facing callers.
+- As of `0.33.5.27.14`, the `notes/notes.repo` record list/read/filter paths are converted. Future Notes record list/filter changes must use named params through `db.query(...)` / `db.get(...)`, keep note-id and collection-id batches on array-valued params, route case-insensitive owner/context/search filters and ordering through `db.dialect.comparison`, and preserve service-owned secure/private read-model shaping. Notes writes, revisions, linked-record, collection, and count paths remain assigned to `0.33.5.27.15`.
+- As of `0.33.5.27.15`, `notes/notes.repo` is fully converted. Future Notes persistence changes must use named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, keep create-with-staged-links writes transaction-backed, keep revision numbering and newest-first revision reads unchanged, keep link lifecycle and collection nesting/counts unchanged, keep target reads on allowlisted direct-context columns plus bound values, and keep plaintext secure-placeholder checks intact.
+- As of `0.33.5.27.16`, the `lists/lists.repo` list record and item paths are converted. Future Lists record/item persistence changes must use named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, keep batched list/item reads on array-valued params, route reusable-list storage through `db.dialect.boolean`, route list title ordering through `db.dialect.comparison`, preserve item reorder transaction behavior, and keep list execution, item progress, item ordering, item create/update/delete behavior, and service-owned read shaping unchanged. Lists catalog and linked-record paths remain assigned to `0.33.5.27.17`.
+- As of `0.33.5.27.17`, `lists/lists.repo` is fully converted. Future Lists persistence changes must use named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, keep batched list/item/link reads on array-valued params, route reusable-list storage through `db.dialect.boolean`, route title/catalog matching and ordering through `db.dialect.comparison`, preserve catalog suggestion ranking and snapshot behavior, preserve linked-record lifecycle and permission-safe target enrichment inputs, and avoid reintroducing literal SQL helpers or raw SQLite-only comparison syntax.
+- As of `0.33.5.27.18`, the Files browse and attachment read metadata paths in `services/files.service` are partially converted. Future Files browse/read metadata changes must use named params through `db.query(...)` / `db.get(...)`, bind candidate paging limit/offset values, route filename matching and filename/status ordering through `db.dialect.comparison`, and preserve compact browse/recovery listing, target-scoped read checks, permission-shaped visibility, scan/download/preview gates, unsupported download-only behavior, route-backed preview behavior, storage metadata pre-checks, and download routing. File Context update/read paths, attachable-target option reads, readable target label/context reads, duplicate-context checks, and safe target lookup SQL remain assigned to `0.33.5.27.19`.
+- As of `0.33.5.27.19`, the Files context and attachable-target metadata paths in `services/files.service` are partially converted. Future File Context and target-option changes must use named params through `db.run(...)`, `db.get(...)`, and `db.query(...)`, keep dynamic target identifiers behind attachable metadata validation, use array-valued params for Client/Project label enrichment, and preserve attachment-scoped File Context behavior, Client/Project/Target selector ordering, cross-module target choices, readable labels, safe unavailable states, no-raw-ID label rules, route-backed save behavior, audit/event metadata, and storage/download/preview boundaries. Attachment create/remove, file lifecycle writes, report/quarantine/review paths, workspace file settings, storage accounting, quota reads, and file record create/update paths remain assigned to `0.33.5.27.20`.
+- As of `0.33.5.27.20`, `services/files.service` is fully converted. Future Files service database changes must use named params through `db.run(...)`, `db.get(...)`, `db.query(...)`, and `db.transaction(...)`, keep workspace file settings and storage-accounting upserts on `db.dialect.conflict`, keep report and storage-accounting paired writes transaction-scoped, and preserve upload lifecycle, storage accounting, quota enforcement, report/review/quarantine semantics, audit/lifecycle events, scan state transitions, storage adapters, preview/download gates, route-backed File Context and Preview workflows, and attachment visibility behavior.
+- As of `0.33.5.27.27`, `client-projects/clients.repo` and `client-projects/projects.repo` are converted. Future Clients/Projects persistence changes must use named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, keep batched Client/Project reads on array-valued params, route Client/Project name ordering and Project duplicate-name matching through `db.dialect.comparison`, route billing rounding storage/readback through `db.dialect.boolean`, preserve transaction-scoped Client archive/replace-all behavior, and keep hierarchy-aware reads, Business-only Client gating, billing/task-default rows, service-owned Project ordering, and readable label shaping unchanged.
+- As of `0.33.5.27.28`, the remaining application-level framework/admin low-count repositories are converted: `core/modules/modules.service`, `audit-logs.repo`, `api-keys.repo`, and `services/help.service`. Future module registry/status, audit log, API key, and Help workspace visibility persistence changes must use named params through `db.query(...)`, `db.get(...)`, `db.run(...)`, and `db.transaction(callback)`, keep module/workspace-module insert/upsert behavior behind `db.dialect.conflict`, keep audit metadata LIKE matching and filter ordering behind `db.dialect.comparison`, keep multi-workspace audit visibility and required-module repairs on array-valued params, preserve API key scope creation transaction behavior, and avoid reintroducing literal helpers or raw SQLite-only syntax. Only `src/db/index.js` startup maintenance and `src/db/migrations.js` migration compatibility remain interpolated until their assigned slices.
+- As of `0.33.5.27.29`, `src/db/index.js` startup maintenance has no remaining literal-helper calls or direct interpolated operation sites. Value-bearing startup reads and repairs must use named params through the provider-neutral facade and transaction clients; startup conflict insert/upsert behavior must use `db.dialect.conflict`; startup boolean, physical identity, and table metadata checks must use their dialect seams. Static no-value startup maintenance SQL remains sanctioned startup-only compatibility under the final 0.33.5.27 dialect allowlist. `src/db/migrations.js` is now the only counted remaining helper/direct-interpolation owner.
+- As of `0.33.5.27.30`, `src/db/migrations.js` has no remaining literal-helper calls or direct interpolated operation sites. Value-bearing migration metadata, checksum, baseline, and table-probe paths must use named params through the provider-neutral facade; `schema_migrations` record inserts must use `db.dialect.conflict`; table metadata reads must use the introspection seam. Current baseline SQL, future migration SQL files, raw PRAGMAs, and legacy table-rebuild scripts remain migration-only compatibility until the dialect enforcement slice records the final allowlist.
+- As of `0.33.5.27.31`, the interpolation enforcement guardrail is active. New runtime source must not call `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` outside `src/db/sql-literals.js`, and runtime database operation calls must not directly contain those helpers. Provider/helper exports remain for historical API compatibility only; startup and migration compatibility now means no-value startup/schema scripts, not new value interpolation.
+- As of `0.33.5.27.32`, the dialect enforcement guardrail is active. New runtime source must not hardcode raw seam-backed SQLite dialect outside the SQLite dialect seam, SQLite provider health, startup/migration compatibility code, or the SQLite search adapter. The parameter-binding and dialect-adoption ratchets are separate axes: converted or already-bound owners must still use `db.dialect` seams for conflict writes, comparison/order, booleans, time math, search/FTS, JSON access, `RETURNING`/identity, physical identity, and PRAGMA/introspection. The re-audit moved remaining application raw conflict sites in `permissions.repo`, `app-settings.repo`, `workspaces.repo`, and `user-workspaces.repo` onto conflict seams, and durable jobs remain converted through `transaction.dialect.returning.columns(...)` with no raw `RETURNING` job exception.
+- As of `0.33.5.27.33`, the database extraction contract branch is closed. The whole app is on named bound params for value-bearing runtime database calls, application call sites are on provider-neutral seams for seam-backed dialect operations, and future modules must start from that contract instead of adding interpolation or raw SQLite dialect that would need later conversion. SQLite remains the only live backend in this branch; 0.40.0 owns the actual PostgreSQL adapter, provider gating, migration runner, dual-backend contract tests, and SaaS seed/load proof behind these seams, not an app-wide SQL rewrite.
+- The single agnostic data-access contract for new and converted code is: import database access from `src/core/database.js`; use named value bindings through `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, and `db.transaction(callback)`; keep table names, column names, conflict targets, operators, sort clauses, and SQL fragments static or allowlisted; route dialect-sensitive operations through `db.dialect` or provider-owned framework services; and do not use `sqlText()`, `sqlInteger()`, `sqlNullableText()`, or `sqlNullableInteger()` in new or converted single-statement app repository/service call sites.
+- No runtime owner currently has counted literal-helper calls or direct helper-interpolated SQL operation sites. Startup and migration retain sanctioned compatibility ownership only for no-value startup maintenance, schema repair scripts, and migration SQL-file execution under the final 0.33.5.27 dialect allowlist. No module, service, framework repository, startup repair, migration metadata path, or new migration-adjacent helper may add a new interpolation-helper call.
+- Dialect-sensitive operations must route through these seams:
+  - Upsert/conflict writes: provider-neutral write helper or adapter method, with SQLite lowering to the current `INSERT ... ON CONFLICT` / `INSERT OR IGNORE` shapes and PostgreSQL lowering later behind the adapter.
+  - Case-insensitive comparisons and ordering: provider-neutral comparison/order helper, with SQLite lowering to `COLLATE NOCASE` and a future PostgreSQL adapter choosing the matching provider shape.
+  - Boolean storage: adapter-owned normalization and row mapping, with app code binding and reading logical booleans while SQLite stores `0` / `1`.
+  - Timestamp and interval math: provider date/time helper or adapter method; converted repositories must not embed raw `julianday(...)` arithmetic.
+  - Full-text search: the framework search adapter/service seam owns backend search syntax; modules and services must not emit raw FTS5 SQL.
+  - JSON access: provider capability/helper if JSON SQL becomes necessary; do not add raw SQLite JSON functions or operators at app call sites.
+  - `RETURNING` and identity reads: provider adapter method/helper for returned rows or last-insert identity; durable-job `RETURNING` statements are reviewed under this seam.
+  - `rowid`/physical identity: provider-owned migration/maintenance method or dialect seam only; app repositories and startup repairs must not rely on raw SQLite `rowid`.
+  - PRAGMA/introspection: provider health, migration, repair, or dialect seam methods only; modules and startup repairs must not call SQLite PRAGMAs directly.
+- Migration locking is startup ownership, not a general job or worker lock. Do not use the migration lock for search indexing, notifications, recurrence, file scanning, imports, or webhooks; those remain future job/outbox work.
+- SQLite must enforce foreign keys.
+- Future background jobs/outbox should work in SQLite small-office mode and PostgreSQL SaaS mode.
+- Future bounded-query work should consume database health/capability information without requiring PostgreSQL; jobs/outbox work should consume `db.transaction(callback)` and reserved worker config names; storage/scanner work should consume the documented storage/scanner config keys; PostgreSQL work should consume the provider config, adapter contract, health/capability shape, and documented migration-lock strategy.
+- As of 0.33.5.21.0.2, the `sqlite3` CLI shell-out in `src/db/sqlite.js` has been replaced by one long-lived in-process `better-sqlite3` connection behind the same `src/db/provider.js` adapter contract before durable-jobs worker, streamed-upload, and PostgreSQL work build on it. `better-sqlite3` was chosen over `node:sqlite` for its stable API, bundled and consistent SQLite version across installs (guaranteed FTS5 and `RETURNING`), and no experimental-flag or Node-version-floor requirement; the accepted tradeoff is a native/compiled dependency. The completed 0.33.5.21.0 driver-swap slices keep `sqlText`/`sqlInteger` as compatibility escape hatches for unconverted multi-statement code, refresh capability labels, and retire active `SQLITE_COMMAND` docs. Revisit `node:sqlite` once it is no longer experimental.
+- As of 0.33.5.21.0.4, the SQLite adapter no longer uses a global operation queue for every call. Normal `db.query`, `db.get`, and `db.run` calls use the in-process synchronous driver path, while open `db.transaction(callback)` calls are protected by a transaction-only tail so outside adapter calls wait until the callback commits or rolls back. Transaction callbacks must still use the passed transaction client and must not open nested transactions. Migration, baseline, and schema-repair scripts that already embed `BEGIN ... COMMIT` must stay on no-parameter multi-statement `runSql()` / `exec()` compatibility paths instead of being wrapped in `db.transaction(callback)`.
+- As of 0.33.5.21.0.5, SQLite adapter capabilities should report `adapter: "better-sqlite3"` while keeping the rest of the capability shape stable. Do not enable `safeIntegers` for the current TEXT-key schema; current counters/counts are expected to stay within JavaScript safe-integer range, and any future exact 64-bit INTEGER identifier workflow must revisit this before shipping. SQLite small-office durable-job mode may run inline inside the one app process or, once implemented, through at most one local worker process attached to the same local install. SQLite mode does not support multiple app servers, multiple web nodes, or a worker fleet sharing one SQLite file.
+- As of 0.33.5.21.0.6, `SQLITE_COMMAND` is legacy ignored configuration. Normal database access no longer shells out to the `sqlite3` CLI; self-hosted installs need npm/`better-sqlite3` native dependency readiness, not the `sqlite3` command-line executable. Future diagnostics, setup docs, and runtime configuration readouts must not present the CLI as an active dependency.
+- As of 0.33.5.21.1, durable background work starts with the framework-owned `jobs` table from the checksum-tracked `065_job_outbox_schema` core migration. The table is the job/outbox store for workspace-scoped work, with `job_type`, optional active `dedupe_key`, `payload_json`, `status`, priority, `available_at`, retry counters, lock fields, error summary, and lifecycle timestamps. Active dedupe applies only to pending, running, and failed jobs; completed and dead-letter rows remain history and must not block replacement work. This slice does not implement worker polling, claiming, retry backoff, dead-letter transitions, admin readouts, or module job producers.
+- As of 0.33.5.21.2, durable background work has a framework-owned v1 worker runner. `inline` mode starts a poll timer after the app server begins listening; it is not a post-response drain and shares the SQLite adapter path with request handling. Future `available_at` work wakes on the next poll tick. `separate` mode is `node worker.js` with `LONGTAIL_WORKER_MODE=separate`; it verifies schema readiness, must not run migrations or app startup maintenance, and in SQLite mode is limited to one local worker process by a worker lock beside the database file. `disabled` mode starts no worker. The runner claims due work transactionally, runs registered handlers, completes successes, retries failures with bounded backoff, and moves exhausted rows to `dead`. That slice did not include lock-timeout reclaim, admin failure readouts, or module job producers.
+- As of 0.33.5.21.3, SQLite job claiming is an atomic `UPDATE ... WHERE job_id = (SELECT ... LIMIT 1)` repeated inside `db.transaction(...)` up to the claim limit; as of 0.33.5.27.3, the returned claim row is read through `transaction.dialect.returning.columns(...)`. SQLite has no `FOR UPDATE SKIP LOCKED`, so this claim shape is the active concurrency contract. The runner reclaims expired `running` locks after `LONGTAIL_JOB_LOCK_TTL_SECONDS`, increments the reclaimed attempt before invoking the handler, preserves bounded retry backoff, moves exhausted rows to `dead`, and exposes a protected `GET /api/jobs/status` readout for `workspace_settings.manage` users with pending/running/failed/dead counts plus paged recent failure summaries. Module job producers remain later slices.
+- As of 0.33.5.21.4, search indexing is the first framework job producer. Module mutation services still call `searchIndexSyncService`, but that helper now queues `search.index` jobs instead of writing `search_index` during the request. The worker owns `reindex`, `remove`, and `rebuild` operations through the registered search job handler. `POST /api/search-index/rebuild` queues a protected workspace/module rebuild job and returns `202`; it does not rebuild inside the HTTP request. Normal web startup no longer launches a full app-wide rebuild. If the canonical `search_index` table is empty, startup queues one deduped app rebuild job as the fresh/restore transition, and operators can use the admin rebuild button for explicit repairs. Direct `searchService` and `searchIndexRebuildService` methods remain available for focused tests and local maintenance scripts, not normal mutation side effects.
+- As of 0.33.5.21.5, notification-producing internal events are the second framework job producer. Framework notification event hooks queue `notification.event` jobs instead of creating notification records during the event dispatch. The worker resolves recipients and creates notifications through the existing `createFromEvent` fan-out path, preserving workspace defaults, user preferences, subscriptions, actor suppression, permission checks, and module-enabled checks in one service boundary. Direct `notificationsService.create()` / `createMany()` remain available for explicit service calls, focused tests, and maintenance tools, not normal event fan-out.
+- As of 0.33.5.21.6, task reminders, recurrence generation, file scanning, and future imports have durable job handlers. Tasks owns `task.reminder` and `task.recurrence`: task reminder jobs are scheduled from eligible task mutations, recompute effective reminder policy before emitting `task.due_soon`, and tolerate normal web/worker clock skew; recurring task completion queues next-instance generation instead of creating it inline, and the worker keeps recurrence audit/event/search side effects with idempotent existing-instance checks. Files owns `file.scan`: uploads queue scan jobs and the worker can process pending scan rows. `import.future` is a registered reserved no-op handler until a concrete import workflow is promoted into the roadmap.
+- As of 0.33.5.21.7.1, Files upload requests no longer run scanners inline after queueing `file.scan`. A successful upload creates and attaches a pending file, leaves download and preview unavailable, and relies on the inline or separate worker to move the file to available or quarantine. Target-scoped attachment reads may show safe pending-scan rows so the owning record can tell the user review is pending; normal Files browse availability, download, preview, storage keys, storage paths, and scanner internals remain service-owned and protected.
+- As of 0.33.5.21.7.2, task reminder scheduling is bounded and sweep-backed. Task create/update/reopen/restore pre-enqueues only reminder occurrences inside a documented 30-day scheduling horizon. App startup and separate-worker startup queue a durable `task.reminder` `sweep_reminders` operation per active workspace; the sweep reads existing active due-dated tasks, skips completed/archived tasks, suppresses duplicate reminder jobs through the existing dedupe key, and reschedules its next 12-hour top-up through the jobs table. This is not a module-owned timer and does not add a new job type.
+- As of 0.33.5.21.7.3, durable job handlers are documented and tested against normal at-least-once worker behavior. Reminder firing includes a stable `notification_delivery_key`, notification event jobs actively dedupe that key while pending/running/failed, and notification fan-out uses deterministic recipient notification IDs so reclaimed reminder jobs or retried notification jobs cannot double-notify the same user for the same reminder firing. Search indexing remains canonical upsert/delete work, recurrence generation keeps the existing-instance check, file scanning skips rows that are no longer pending scan work, and `import.future` remains a reserved no-op handler.
+- As of 0.33.5.21.7.4, durable job retention is framework-owned startup maintenance. App startup and separate-worker startup prune only old `completed` and `dead` rows according to `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` and `LONGTAIL_JOB_DEAD_RETENTION_DAYS`, deleting in batches through `jobsService.pruneOldJobs()` rather than route-owned deletes. Active `pending`, `running`, and `failed` rows are preserved regardless of age, and completed/dead history continues not to block replacement jobs through active dedupe.
+- As of 0.33.5.21.7.5, durable job observability is visible in Workspace Settings for users with `workspace_settings.manage`. The admin UI consumes the protected `GET /api/jobs/status` readout for pending/running/failed/dead counts and paged recent failures, while Runtime Diagnostics renders safe worker health counters and timestamps. These readouts remain read-only and must not expose job payload JSON, dedupe keys, scanner internals, storage paths, raw environment values, or secrets.
+- As of 0.33.5.21.7.6, `node worker.js` separate-worker mode is covered by an end-to-end regression against the real worker CLI. The proved SQLite boundary remains one app process/server plus at most one local worker process attached to the install; the worker verifies schema readiness, does not run migrations or app startup defaults, acquires the local worker lock, rejects a second local worker, and processes the current durable handlers for search indexing, notifications, task reminders, recurrence generation, and file scanning.
+- As of 0.33.9.6, recurring task completion keeps the asynchronous durable-worker contract but makes continuity explicit across dedicated, generic/edit, bulk, Workbench, and public completion surfaces. Safe `recurrenceContinuity` metadata may expose a computed next date, ended state, and readable next-task link, while `recurrenceJob` remains boolean-only and no job ID, dedupe key, payload, or worker internals may cross the route boundary. Queue failure after completion is a recoverable follow-up failure, not a failed task completion; the periodic sweep remains the safety net. Before queueing, an empty active recurrence checklist template seeds once from the completing occurrence's active labels/order, never checked state, and an established template changes only through explicit `All Future` behavior. Far-future passive occurrences remain outside normal Workbench ranking even while continuity is visible.
+- As of 0.33.5.21.8, task due reminders deliver to the in-app notification surface through the existing `task.reminder` -> `task.due_soon` -> `notification.event` worker path. Fired reminders pass explicit responsible recipients from the current task read: assignees for assigned tasks, or the task creator when no assignees exist. Existing task followers remain additive through notification subscriptions, default responsible recipients respect user notification preferences, and reminder notifications keep the high priority, task link, stable delivery key, and offset-based due-soon copy. Email and calendar reminder delivery remain future work.
+- As of 0.33.10.9, the 0.33.10 follow-up branch is closed. Workbench's calendar entry point is an icon-only shared-icon button in the focus panel heading's top-right (accessible week-view name, unchanged `calendar.html?view=week` target and navigation-tree gating), and the hidden-attribute root-rule family is complete for the display-rule-bearing shared classes: `.view-status-message[hidden]`, `.action-button[hidden]`, and `.button-link[hidden]` all restore `display: none`, so gated controls can never ghost-paint. Workbench still owns zero calendar logic — the icon button, like the link it replaced, is a plain navigation handoff.
+- As of 0.33.10.8, the task editor's heading utilities live in a framework-styled `.surface-modal-heading-actions` group: the icon-only "Open in Workbench" handoff (shared `anvil` icon, edit-mode only, navigating through the canonical `taskId` deep link) immediately left of the notification bell. Two standing rules came out of this slice: hidden action buttons hide at the root (`.action-button[hidden] { display: none; }` — author display rules must never ghost-paint a `hidden` control, same class as the 0.33.10.6 status-box fix), and any host that loads the Task editor must load `js/shared/notification-subscriptions.js` so the heading bell is functional — the ghost paint had been masking a dead bell on the Workbench, Calendar, and Dashboard hosts, and the guardrail now sweeps every protected view for the pairing. The same slice extended the no-raw-identifier rule from the Inspector to the whole Workbench recommendation surface and to the server: `looksLikeRawId` rejects copy with an *embedded* id (not just whole-string ids), the Recommended Next Action card prefers resolved client/project names for its meta line so identically-titled work is distinguishable, and the shared event summaries never use `record_id` as a label — a label-less event summarizes as "Timer Paused." rather than "Timer Paused for <uuid>." (that summary text is what resume-state context snapshots persist).
+- As of 0.33.10.7, `workbench.html?taskId=<id>` is the Workbench task-focus deep-link contract. A readable task enters Task Focus through the existing `enterTaskFocus` path with no parallel fetch or focus implementation; every failure (unknown id, unreadable or cross-workspace task, disabled Tasks module) falls back to Focus Selection with one shared generic message that never echoes the id or distinguishes causes, so links reveal nothing about task existence. Deep-link hrefs are built server-side by the owning module route only for rows a permission-filtered read already exposed (the Dashboard's per-task Open Workbench handoffs); generic entry points (Workspace Pulse, panel-level actions) stay plain `workbench.html`. Surfaces that later want to land in Task Focus (the 0.33.10.8 task-modal button) must reuse this contract rather than adding a second parameter or path.
+- As of 0.33.10.6, the calendar render path is a shared framework helper and the Dashboard is its second consumer. `public/js/shared/task-calendar.js` publishes frozen `LongtailForge.taskCalendar` helpers that own the period-range math, the bounded `/api/tasks/calendar` window fetch, and month/week/day grid rendering through `LongtailForge.view` primitives; the Calendar host keeps only page chrome and both hosts delegate the body — no surface may duplicate grid logic or fetch the calendar window directly. The Dashboard embed is a normal gated Tasks contribution (`tasks-calendar`, placement `calendar` in a framework-owned region ordered below Workspace Pulse and Needs Attention), so module-disabled workspaces and users without `tasks.view` never receive it server-side; entries open the canonical Task editor and the panel hands off to `calendar.html`. The same slice made hidden status boxes framework-correct at the root: `.view-status-message[hidden] { display: none; }` beats `.surface-main-panel`'s `display: grid`, page-specific `[hidden]` status fixes are rejected by guardrail, and browser namespace publishing must mutate `window.LongtailForge` in place rather than replacing the object (a replacement orphans load-time namespace snapshots like the Task dialog's from async assignments like navigation's `workspaceContext`). Follow-up tweaks in the same slice: the dashboard embed carries a today-anchored month/week/day segmented view switch; Dashboard panels suppress inner titles that merely repeat their region heading (keeping an `aria-label`); and the Dashboard `reporting` region is retired outright — the Client/Project `project-summary` reporting-shortcuts panel, its `/api/client-projects/dashboard/project-summary` route, and its service read were an early-Dashboard relic and are removed while the Reporting page and `/api/reporting/project-summary` remain the reporting surface. The `reporting` placement is no longer a valid dashboard contribution placement.
+- As of 0.33.10.5, raw asset cache keys are fully retired from active source and the convention is self-enforcing. Views and the Footer/Workbench dynamic-loader dependency lists reference bare `.js`/`.css` paths; the server rewrites served HTML and `LongtailForge.assetVersion.url(...)` rewrites runtime-injected URLs from the canonical application version. `scripts/asset-cache-legacy-baseline.json` is empty and may only stay empty — the asset-cache release gate fails on any raw `.css?v=`/`.js?v=` key in `public/js`, `src`, or `views`, so a regression that pins a version key now fails against real files immediately. Regression assertions are version-agnostic (helper presence and load order, no version literals), except that patterns matching preserved historical CHANGELOG text keep generic `\?v=\d+` forms because history is quoted verbatim, not source.
+- As of 0.33.10.4, the read-only Calendar branch is closed and guardrailed. The `views.calendar-host` static guardrail is the fail-on-violation boundary for the Calendar surface: minimal protected host, framework view primitives for page/header/filter/status anatomy, canonical Task editor opener, read-only fetches limited to the bounded calendar window and filter options, no calendar event records/iCal/external-provider behavior in the surface or schema (0.36.0 owns events/iCal; 0.70.x owns Google/Outlook sync), and Workbench limited to its lightweight week-view link. The `tasks.task-calendar-window` isolated regression is the standing proof of the data contract: bounded-range enforcement, workspace and permission scoping without cross-workspace or unreadable-task leaks in rows or markers, reminder-marker correctness (default timing, lookahead, completed/archived exclusion, ordering), client/project filter scoping, and disabled-module reads. Future calendar work (year view, events, iCal, shared calendars, external sync) starts from this boundary and must update the guardrail deliberately rather than eroding it.
+- As of 0.33.10.3, the Calendar surface is filterable and navigable without duplicating calendar logic anywhere else. Client/project filters go through the same shared descendant-aware filter scope as the Tasks list (`resolveClientProjectFilterScope` + the canonical context-filter match, applied server-side before permission filtering so reminder markers follow the filtered set); the browser hydrates filter options from `/api/client-projects` through the shared `clientProjectOptions` helper with the Client control hidden outside Business workspaces. Period navigation (previous/today/next) and view switching re-query the bounded window, and `?view=`/`?date=` query parameters select the initial view and anchor. The navigation entry is a Tasks-module contribution (`requiredPermissions: ["tasks.view"]`, module-enabled gated through the normal contribution pipeline) that the framework places in the Actions menu after Tasks; the pinned Actions order in the app-shell navigation regression advanced to include it. Workbench's only calendar involvement is a lightweight "See this week on the calendar" link in the focus panel pointing at `calendar.html?view=week`, hidden when the navigation tree has no calendar entry.
+- As of 0.33.10.2, the Calendar surface is a framework-owned read-only host in the Dashboard/Workbench style: a minimal `views/protected/calendar.html` shell registered in the static service's protected view map, with `public/js/calendar.js` building the page anatomy (header, status, segmented month/week/day switch, day grid, empty state) through `LongtailForge.view` primitives and the framework `.calendar-*` CSS section on the canonical responsive breakpoints. It consumes only the bounded task calendar-window read, shows priority/status affordances and per-day reminder indicators, and opens entries through `LongtailForge.tasksDialog.openTaskEditor()` — no inline editor, no calendar event records, no iCal, no external sync (0.36.0 / 0.70.x own those). The month fetch window is the visible grid (full leading/trailing weeks), so it stays within the 93-day bound. Filters, period navigation, framework navigation, and the Workbench entry point belong to 0.33.10.3; guardrails and focused regressions belong to 0.33.10.4.
+- As of 0.33.10.1, the task calendar-window read (`GET /api/tasks/calendar` -> `tasksService.calendarWindow` -> `tasksRepository.readDueBetween`) is the data contract for the 0.33.10 read-only Calendar surface, and it stays a bounded, permission-shaped read model rather than a calendar event store. Windows wider than 93 days are rejected with 400 instead of loading all tasks; results keep the existing workspace scope and `canReadTask` filtering; archived tasks stay excluded while completed tasks remain visible history rows; reads stay available when the Tasks module is disabled (`source_enabled` reports status like Workbench items) because module gating blocks writes, not reads. Calendar rows extend the shared task summary row with `id`/`allDay`/`startDate`/`endDate`/`startDateTimeUtc`/`source` plus an `assignees` display summary, and the payload's `reminders` markers reuse the 0.33.5.21 effective reminder policy chain through one batched offsets read (`taskRemindersService.computeReminderOccurrencesForTasks`) with a 7-day due-date lookahead so in-window reminder firings for tasks due just after the window still appear; completed/archived tasks produce no markers. No calendar event record type, event creation, iCal, or external calendar sync may enter this path — those remain 0.36.0 / 0.70.x work.
+
+## Query and Data Ownership
+
+Canonical filtering, sorting, paging, permission pruning, and read-model shaping belong on the server/service side, not only in browser JavaScript.
+
+Browser code may:
+
+- Preserve UI state.
+- Render returned payloads.
+- Request filters/sorts/pages.
+- Manage selection and focus.
+- Dispatch module-owned actions.
+
+Browser code must not:
+
+- Reconstruct canonical record visibility.
+- Reimplement permission logic.
+- Rebuild module-owned hierarchy/sorting rules as the source of truth.
+- Page a giant preloaded collection when the server should return bounded pages.
+
+List surfaces should use:
+
+- Server-side filtering/paging for large data sets.
+- Lightweight list projections separate from full detail reads.
+- Batched enrichment for visible rows, such as tags, file counts, linked-note counts, assignee labels, checklist progress, and notification/follow state.
+- Explicit maximum page sizes.
+
+As of 0.33.5.20.1, scale data starts with the disposable seed framework in `scripts/seed-scale.mjs`. The script is SQLite-only until the PostgreSQL provider exists, requires explicit provider/database/profile inputs, refuses normal or non-disposable app database paths, marks seed runs in `scale_seed_runs`, and verifies expected counts, permission sanity, search sanity, and app startup sanity. It is not a production import path, migration system, schema feature, runtime setting, or replacement for service-owned filtering/paging work in later 0.33.5.20 slices.
+
+As of 0.33.5.20.2, the protected Tasks list is the first completed bounded-query list surface in this branch. Normal Tasks page reads must use the repository-owned list query for SQL-side task-view/status/due/context/assignee filtering, stable sorting, and capped cursor pages, then keep `tasks.view` permission pruning in the Tasks service before any browser payload is shaped. Task list rows should remain lightweight projections with visible-row enrichment; full task detail, checklist rows, recurrence detail, and relationship reads remain detail/editor concerns. The public API keeps its existing offset/total list response through an internal unpaged service path rather than inheriting the browser cursor envelope.
+
+As of 0.33.5.20.3, the protected Notes list is a bounded, body-light read model. Normal Notes browsing must use the repository-owned list projection for SQL-side workspace scope, Library, Collection, Status, Owner, Visibility, Security mode, Updated-since, safe search, stable sort, and capped cursor pages, then keep Notes service permission pruning, linked-context visibility checks, tag filtering, and secure-note shaping authoritative. Notes list rows must not expose editable Markdown bodies, rendered `body_html`, plaintext body indexes, secure envelope fields, or decrypted secure bodies. Full body Markdown, rendered safe HTML, readable linked-context decoration, and owner display labels remain note detail/read concerns.
+
+As of 0.33.5.20.4, batched list enrichment has a shared visible-record helper shape in `src/core/list-enrichment.js`, while modules keep ownership of enrichment meaning. Tasks and Notes use the helper around their existing visible-row batch enrichment; Lists now batches visible-row item progress, linked-record rows, linked target summaries, source-list context, and tag decoration instead of reading those relationships once per row. Files tag enrichment remains out of scope until Files is a taggable record type, and notification/follow state stays on the shipped module/modal surfaces that currently expose it rather than being invented as a list-row field.
+
+As of 0.33.5.20.5, high-volume framework/admin list reads share the bounded pagination envelope in `src/core/bounded-pagination.js`. Audit Log, Notifications, Search results, and Files browse expose explicit maximum page sizes, stable ordering, permission-shaped reads, and next-cursor metadata where another bounded page is available. Notifications module filtering is endpoint-owned instead of filtering only the currently loaded browser page. Files browse now scans bounded candidate windows before shaping visible attachments, while File Context, Preview, download, delete, restore, report, quarantine, storage, scan, and attachment-panel behavior remain Files-owned and unchanged.
+
+As of 0.33.5.20.6, the SQLite small-office performance pass is a repeatable seeded-route harness in `scripts/sqlite-small-office-performance.mjs`, not a production telemetry feature or SaaS load-test framework. It measures App shell bootstrap, Tasks list/detail, Notes list/detail, Files browse, Search, Notifications, and Workbench bootstrap against local development hardware sanity targets for the `sqlite-small-office-50` profile. Repeated misses should drive bounded-query, indexing, or deployment-shape review; they do not change the SQLite target of one app server, roughly 50 total users, and typical active use around 5-15 concurrent users.
+
+## Search, Tags, Notifications, Help, and Resume State
+
+Search:
+
+- Search is framework-owned and permission-safe.
+- Canonical `search_index` metadata remains the source of truth for searchable records.
+- FTS tables or future backend-specific indexes are lookup/ranking engines only.
+- Modules provide searchable declarations and indexers; modules do not write directly to backend-specific search tables.
+- As of `0.33.5.27.25`, `services/search-index-rebuild.service` is converted to the provider-neutral database facade. Future search rebuild changes must keep inactive-row cleanup and stale canonical row reads on named params through `db.query(...)`, keep raw FTS5/ranking/indexed-LIKE syntax inside the provider-owned search adapter/dialect seam, and preserve backend-neutral search request shaping plus canonical `search_index` source-of-truth behavior.
+
+Tags:
+
+- Tags are framework-level workspace classification metadata.
+- Tags are not disable-able.
+- Tags must not drive permissions, visibility, billing, workflow status, archival state, or module behavior.
+- As of `0.33.5.27.23`, `tags.repo` persistence is fully converted to the provider-neutral database facade. Tag create/update/status writes, tag list/read/search paths, batched tag reads, assignments, source-filtered removals, propagation-context reads, and suppressions use named params and dialect seams while tag assignment, suppression, propagation-context, and filter behavior stay unchanged. As of `0.33.5.27.24`, tag propagation registry and tags service helper SQL are converted to the same facade while Client/Project/Task/Note propagation targets, resolver behavior, service-owned tag read shaping, propagated assignment materialization, repair count readouts, and target lookup behavior stay unchanged. Moving module-specific propagation SQL out of the framework registry remains a later 0.39.15.2 boundary change.
+
+Notifications:
+
+- Notifications are framework-owned records and delivery contracts.
+- Modules declare meaningful event types/templates/follow targets.
+- A follow control should not be displayed as a cosmetic button unless the module emits meaningful notifications for that record.
+- As of `0.33.5.27.22`, `notifications.repo` persistence is fully converted to the provider-neutral database facade. Inbox/lifecycle paths, user preferences, display preferences, workspace defaults, follow subscriptions, and subscription writes use named params and dialect seams while notification display, unread counts, low-priority badge behavior, priority alert state, filtering, lifecycle, recipient scope, target decoration, workspace defaults, per-user preferences, and follow/unfollow behavior stay unchanged.
+
+Help:
+
+- Help is framework-owned product/module documentation for current shipped behavior.
+- Help is not Knowledge Base, not roadmap, and not user-authored workspace knowledge.
+
+Resume State:
+
+- Global resume-state storage and APIs are framework-owned.
+- Modules may provide safe producer payloads and read resolvers.
+- Private/secure/inaccessible content must not leak into resume-state rows.
+- As of 0.33.5.27.26, Resume State persistence uses named params through the provider-neutral database facade. The source-key upsert uses the conflict seam, and Client/Project context checks stay behind static allowlisted lookup statements.
+
+## Public API Direction
+
+Browser/internal APIs live under `/api`.
+
+Stable integration/public APIs live under `/api/v1`.
+
+Public API scopes are declaration-owned. A scope should not be exposed unless matching route coverage and service-level permission behavior exist.
+
+Public API routes must reuse the same service boundaries as browser workflows. They must not bypass module state, workspace scope, permissions, audit behavior, search sync, file scan/download checks, or safe response shaping.
+
+## Runtime/Worker Direction
+
+The current application version has one metadata source: `package.json`. Runtime consumers read it through `src/core/version.js`; bundled workflow module manifests and `/api/app-info` must not duplicate the current version literal. Browser asset cache versioning derives from that same value through `src/core/asset-version.js`: served public/protected HTML, runtime-injected browser dependencies, and normalized module assets receive the canonical key automatically. Raw `?v=`/`?cache=` additions or manual bumps are forbidden; frozen legacy source literals are inert compatibility input guarded by `scripts/asset-cache-legacy-baseline.json` and should only be removed, not refreshed during normal UI work. Database adapter `contractVersion` values are independent provider-contract markers and advance only when their contract changes.
+
+Release bumps must use `npm run version:bump -- <version>` and must not use broad repository replacement. The helper changes only package and lock metadata; changelog and active-roadmap ceremony remains explicit. `npm run version:guard` rejects the exact current-version literal outside the narrow metadata allowlist while preserving historical roadmap, changelog, archive, and developer-documentation labels.
+
+The regression suite preserves four explicit execution/isolation modes through metadata-driven discovery. New convention-path regressions use `scripts/regressions/<area>/<name>.regression.mjs`; the checked-in 0.33.6.16.1 legacy snapshot keeps every pre-migration path, relative order, and run mode while existing top-level `scripts/*-regression.mjs` paths remain supported during transition. Every new discovered regression needs a stable ID, one canonical area and tier, cross-cutting tags, a concise description, and an explicit run mode so discovery cannot infer unsafe parallelism from a filename. The generated `scripts/regression-coverage-manifest.json` is a deterministic metadata index and must not be hand-edited; human coverage judgments live only in `scripts/regression-coverage-exceptions.json`, which preserves active/area/release-gate/family floors, legacy migration allowance, and complete retirement evidence. The current contract and canonical values live in `docs/regression-suite.md`. Narrow `test:regressions:<area>` commands, changed-file suggestions, and `test:regressions:changed` select from the same shared routing result. Route matches are additive for shared or cross-cutting files; one-module auto-runs stay narrow, framework/view/database/release matches escalate to `npm run check`, unknown non-empty paths fall back to the full regression runner, and empty diffs run nothing without claiming success. These iteration aids never replace `npm run check` as the release closeout gate.
+
+Background work should become durable before hosted SaaS scale.
+
+Current durable jobs/outbox producers cover search indexing, notification fan-out, in-app task due reminders, recurrence generation, file scanning, and reserved future imports. Future durable jobs/outbox should still handle:
+
+- Webhooks.
+- Integration/event delivery work.
+
+Jobs are Node-side work stored in database tables. SQL stores state; Node workers perform the work.
+
+SQLite mode may use inline processing or a single local worker process attached to the same local install. PostgreSQL/SaaS mode should support separate worker processes and worker fleets.
+
+## Security and Safety Direction
+
+Security-sensitive values belong in runtime configuration or external secret stores, not in committed files or database metadata unless deliberately encrypted.
+
+Secure Notes:
+
+- Secure note bodies use application-managed envelope encryption.
+- The model is encryption-at-rest, not zero-knowledge.
+- Secure note titles are plaintext metadata.
+- Secure note bodies, secure revisions, encryption metadata, raw crypto errors, and secure payload internals must not leak through search, audit summaries, notifications, Help, files, or normal UI.
+
+Files:
+
+- No direct protected file URLs.
+- No scanner internals in normal UI.
+- No hard purge without explicit permission, audit, and retention policy.
+- No automatic deletion of suspicious files by scanner adapters; quarantine first.
+
+## Documentation and Decision Hygiene
+
+Keep active guidance short and current.
+
+As of the 2026-07-10 documentation ownership slice, `docs/docs-ownership.json` is the data-only source-to-document review index and `npm run docs:suggest` is the normal changed-file helper. Suggestions identify likely owners; they do not require every listed document to change. The closeout gate remains warning-only through `npm run docs:check`. A mapped source change must end with either `Docs updated: <comma-separated paths>.` or `No docs change needed: <short reason>.` Do not update unrelated docs by reflex, and extend the index when a recurring ownership relationship is missing.
+
+- `DECISIONS.md` should contain active decisions and current boundaries.
+- `ROADMAP.md` should contain the active implementation plan.
+- `CHANGELOG.md` should record what shipped.
+- Historical decision detail should move to `archive/` or another ignored archive when it stops being active guidance.
+- When a decision changes, add or update the relevant current section here and record the version/date.
+- Do not keep superseded UI experiments as equally active guidance.
+- Do not require Codex to infer the current direction by reading hundreds of historical version notes.
+
+## Standing Do-Not-Do List
+
+- Do not turn Files into a document manager.
+- Do not turn Lists into inventory/ERP/purchasing/accounting.
+- Do not turn Notes into Tasks, Tickets, or Knowledge Base.
+- Do not make Dashboard the primary work surface.
+- Do not build future Inspector behavior inside current module pages without a roadmap slice.
+- Do not add module-owned file storage, search indexes, notification systems, tag tables, permission systems, or Help systems.
+- Do not expose raw UUIDs as normal user-facing labels when a readable label or safe unavailable state is possible.
+- Do not add destructive actions without explicit routes, permissions, audit behavior, confirmations, and regressions.
+- Do not implement TODO scratchpad items unless they are promoted into `ROADMAP.md`.

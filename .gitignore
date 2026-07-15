@@ -38,10 +38,7 @@ tests/e2e/.auth/
 *.sqlite-shm
 
 # Ignore documentation files that are not meant to be shared
-AGENTS.md
-DECISIONS.md
 CODEREVIEW.md
-ROADMAP-ARCHIVE.md
 ui-upgrade.md
 security-patches.md
 C-R-DB-EFFICIENCY.md

@@ -4,28 +4,7 @@ This file is the detailed per-version forward plan for Longtail Forge. README.md
 
 Active cursor: `0.33.14.1`.
 
-## Roadmap-Wide Architecture Rules
-
-### Product-first framework direction
-
-Longtail Forge is a product first. Its framework exists to support the Longtail Forge application and its official first-party modules, not to become a generic framework for its own sake. Support Tickets, Knowledge Base, and Creator Studio are committed first-party product modules that will ship in the public Longtail Forge core when completed. They may be disableable per workspace where appropriate, but they are not contingent on customer requests, preorders, outside funding, or a market-validation gate.
-
-### Two-Module Rule
-
-- Do not add a framework primitive, manifest field, registry, contribution type, generalized service, or framework-owned abstraction merely because one module has one unusual requirement.
-- A generalized framework facility should normally have at least two concrete first-party consumers with materially similar behavioral and contract requirements. Do not invent a hypothetical or fake second consumer.
-- A one-module requirement remains module-owned until the common contract is understood. Shared appearance alone is not sufficient when behavior and ownership are not also meaningfully shared.
-- Authentication, sessions, security, permissions, workspace isolation, deployment, database abstraction, and app-shell behavior are legitimate exceptions because they are intrinsically framework-wide. Any other exception must be explicit in the owning roadmap decision and architecture documentation.
-- Apply this rule prospectively. It does not require destructive rewrites of sound abstractions that predate it.
-- At closeout of a new generalized primitive, name its two real consumers or document the framework-wide exception.
-
-The 0.33.14 editable field primitive already satisfies this rule: the current descriptor renderer paths, Reporting, and Settings have overlapping metadata-to-control, value-binding, accessible-field-anatomy, and validation-message needs. The rule narrows that primitive to those real consumers; it does not cancel 0.33.14 or authorize a broad conversion of unrelated pages.
-
-### Gradual modernization rules
-
-- Large first-party module definitions may be composed from concern-focused source files while continuing to export one validated module definition to the registry. This is source organization, not a plugin-loader redesign; small modules do not need empty boilerplate files.
-- Browser modernization in the 0.3x branch uses native ES modules and explicit page entry points gradually. Do not rewrite the frontend in React, Vue, Svelte, Angular, or another framework, replace the renderer wholesale, or add new implicit script-order dependencies.
-- Test streamlining means measuring and relocating equivalent coverage deliberately, never deleting a test merely because it is slow. Permission, workspace-isolation, database, migration, file-safety, integration, rendered critical-journey, and accessibility coverage remain strong.
+These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
 ## Roadmap Reordering Record
 
@@ -721,67 +700,38 @@ Acceptance criteria:
 
 ### Version 0.33.18.2 - First-Party Module Registry De-Hardcoding and Runtime Activation
 
-**Model: High Effort** — Module loading sits ahead of migrations, routes,
-permissions, registries, jobs, and workers. A partial conversion could make
-the catalog appear dynamic while leaving module-specific startup coupling or
-import-time side effects behind.
+**Model: High Effort** — Module loading sits ahead of migrations, routes, permissions, registries, jobs, and workers. A partial conversion could make the catalog appear dynamic while leaving module-specific startup coupling or import-time side effects behind.
 
 Purpose:
 
-Replace the manually edited first-party import/list in
-`src/core/modules/registry.js` with a deterministic generated bundled-module
-catalog, while preserving explicit, auditable loading and the existing
-synchronous `npm start` runtime. Separate module declaration from module
-runtime activation so importing a module cannot mutate framework registries
-before the complete manifest graph has validated.
+Replace the manually edited first-party import/list in `src/core/modules/registry.js` with a deterministic generated bundled-module catalog, while preserving explicit, auditable loading and the existing synchronous `npm start` runtime. Separate module declaration from module runtime activation so importing a module cannot mutate framework registries before the complete manifest graph has validated.
 
-- [ ] Separate the registry engine from the bundled first-party module catalog.
-      The engine must not import or name individual workflow modules.
-- [ ] Define one canonical, side-effect-free module entry export containing the
-      validated manifest plus optional explicit app/worker activation hooks.
-- [ ] Add a generator that discovers only repository-owned
-      `src/modules/*/module.js` entries and emits a deterministic tracked ESM
-      catalog.
-- [ ] Add `modules:registry:generate` and `modules:registry:check`; the check must
-      fail on a missing, extra, reordered, or stale generated entry.
-- [ ] Validate directory-name/manifest-ID agreement, canonical export shape,
-      duplicate IDs, unresolved dependencies, and deterministic ordering before
-      database mutation or runtime activation.
-- [ ] Move module-owned import-time registrations into explicit activation.
-      Existing Tasks search/job/sweep registration and Time Tracking
-      search/report-runner registration are initial consumers.
-- [ ] Remove module-specific startup imports from framework app and worker
-      bootstrap where the behavior belongs to a module.
-- [ ] Preserve the exact pre-conversion inventory of module IDs, routes,
-      migration sources, permissions, API scopes, views, browser assets,
-      settings, hooks, and contribution IDs.
-- [ ] Update module-development, module-contract, architecture, startup, and
-      packaging documentation.
+- [ ] Separate the registry engine from the bundled first-party module catalog. The engine must not import or name individual workflow modules.
+- [ ] Define one canonical, side-effect-free module entry export containing the validated manifest plus optional explicit app/worker activation hooks.
+- [ ] Add a generator that discovers only repository-owned `src/modules/*/module.js` entries and emits a deterministic tracked ESM catalog.
+- [ ] Add `modules:registry:generate` and `modules:registry:check`; the check must fail on a missing, extra, reordered, or stale generated entry.
+- [ ] Validate directory-name/manifest-ID agreement, canonical export shape, duplicate IDs, unresolved dependencies, and deterministic ordering before database mutation or runtime activation.
+- [ ] Move module-owned import-time registrations into explicit activation. Existing Tasks search/job/sweep registration and Time Tracking search/report-runner registration are initial consumers.
+- [ ] Remove module-specific startup imports from framework app and worker bootstrap where the behavior belongs to a module.
+- [ ] Preserve the exact pre-conversion inventory of module IDs, routes, migration sources, permissions, API scopes, views, browser assets, settings, hooks, and contribution IDs.
+- [ ] Update module-development, module-contract, architecture, startup, and packaging documentation.
 
 Non-goals:
 
 - Do not load arbitrary code from an operator-writable runtime directory.
-- Do not build third-party plugin installation, update, removal, signing,
-  compatibility, or marketplace behavior.
+- Do not build third-party plugin installation, update, removal, signing, compatibility, or marketplace behavior.
 - Do not make the database the source of executable module paths.
 - Do not convert the registry API to broadly asynchronous lookup.
-- Do not add hidden load-order behavior; activation follows validated
-  dependencies with a stable module-ID tie-breaker.
+- Do not add hidden load-order behavior; activation follows validated dependencies with a stable module-ID tie-breaker.
 
 Acceptance criteria:
 
-- Adding a valid first-party fixture module requires no hand edit to
-  `src/core/modules/registry.js` or another framework-owned module list.
+- Adding a valid first-party fixture module requires no hand edit to `src/core/modules/registry.js` or another framework-owned module list. 
 - `registry.js` contains no import of a specifically named first-party module.
 - Module entry imports perform no registry mutation before validation.
-- Framework app and worker startup contain no first-party module-specific
-  activation calls for converted behavior.
-- A stale generated catalog, directory/ID mismatch, duplicate ID, missing
-  canonical export, or unresolved dependency fails before migrations or other
-  database changes.
-- The before/after module and contribution inventories match exactly, and
-  module sanity, typecheck, startup, migration, clean-clone, packaging, affected,
-  and full release gates pass.
+- Framework app and worker startup contain no first-party module-specific activation calls for converted behavior.
+- A stale generated catalog, directory/ID mismatch, duplicate ID, missing canonical export, or unresolved dependency fails before migrations or other database changes.
+- The before/after module and contribution inventories match exactly, and module sanity, typecheck, startup, migration, clean-clone, packaging, affected, and full release gates pass.
 
 ### Version 0.33.18.3 - Digestible module-manifest composition pilot
 
@@ -1668,10 +1618,666 @@ The first version should include:
 
 Do not expose raw audit records, raw event payloads, private module records, or cross-workspace administrative data. Every item must be visible only if the user could read the source record inside that workspace.
 
+## Version 0.36.6 - Asset Registry / Assets Module
+
+**Model: High Effort** — Assets is a durable cross-module registry with typed records, lifecycle state, permission-safe asset-to-asset relationships, backlinks to work records, Search/Tags/Files integration, Quick Action Capture, date-based attention, and import/export. A mistake in ownership or relationship design would create cross-module coupling, stale links, permission leaks, or an unusable pseudo-CMDB.
+
+Purpose:
+
+Ship an official first-party **Assets** module for the individually identifiable physical and digital things a workspace owns, manages, supports, leases, assigns, or depends upon. The module is not retail inventory: it does not model SKUs, warehouse quantity, fulfillment, stock adjustments, or purchase-order receiving. An Asset is a durable record with a persistent identity and lifecycle — for example a server, VM, network device, workstation, printer, camera, UPS, software installation, SaaS subscription, domain, TLS certificate, vehicle, bicycle, trailer, generator, appliance, or specialized tool.
+
+Assets must work across Business, Personal, and Family workspaces without forcing business-only concepts into personal use. A Business workspace may associate an Asset with a Client and Project; a Personal or Family workspace owns the Asset directly and must not receive Client fields or labels. The module should make it possible to answer:
+
+- What is this?
+- Where is it?
+- Who owns, manages, or uses it?
+- What does it run on, connect to, protect, back up, replace, or depend upon?
+- What depends upon it?
+- Which Tasks, Notes, Tickets, Knowledge Base articles, Lists, Files, and other records belong to it?
+- What happened to it previously?
+- What requires attention next?
+
+Placement:
+
+This version lands after 0.36.5 and before 0.37.0. That placement is deliberate:
+
+- Support Tickets (0.34.x) and Knowledge Base (0.35.x) already exist as real relationship targets.
+- Calendar and Account Home (0.36.0 and 0.36.5) already provide the hosts for due-date and cross-workspace attention integration.
+- Assets then exists before Expanded Reporting (0.37.0), the read-only MCP connector (0.38.8), Creator Studio (0.39.0), the 0.3x documentation/stabilization checkpoint (0.39.9), the integration-surface audit (0.39.15), and the SQLite/PostgreSQL dual-backend work (0.40.0).
+- The module therefore becomes part of those later contracts instead of being retrofitted after them.
+
+Decision:
+
+- Use **Assets** as the UI/navigation label and `assets` as the stable module ID. Documentation may call the module the **Asset Registry** when distinction from retail inventory is useful.
+- Ship Assets as a first-party public-core module with `enabledByDefault: false`, `canDisable: true`, and historical read access for already-created records where the existing module lifecycle contract permits it.
+- Make Assets available to Business, Personal, and Family workspaces. Workspace terminology may adjust descriptions and empty states, but stable IDs, routes, permissions, relationship keys, and stored values must not vary by workspace type.
+- Keep Assets module-owned: Assets owns Asset records, Asset Types, Asset Locations, identifiers, lifecycle dates, asset-to-asset relationships, and the authoritative Asset-to-record link ledger.
+- Reuse framework-owned Permissions, Search, Tags, Files, Audit, Events, Notifications, Reporting, Dashboard, Account Home, Quick Action Capture, view primitives, and Linked Context provider/shell contracts. Assets must not create duplicate engines for those concerns.
+- Treat explicit relationships and links as the source of truth. Tags may improve classification, filtering, and optional propagation, but tags must never stand in for an Asset relationship.
+- Keep type-specific fields Assets-owned. Asset Types may define validated field schemas rendered through the existing field factory, but this version must not invent a product-wide custom-field framework solely for Assets. Generalization waits for a second materially similar consumer under the Two-Module Rule.
+- Store each Asset in exactly one workspace. Asset-to-Asset and Asset-to-record links are same-workspace only in the first release. Account Home may aggregate permission-safe attention summaries across workspaces, but it must never create cross-workspace relationships or bypass source-workspace permissions.
+- Keep the first Assets release internal to authenticated workspace users. Client-visible Ticket or Knowledge Base projections must not expose an internal Asset name, code, identifier, relationship, or file merely because an internal record links to it.
+- Reserve **Assets** for persistent managed things. Creator Studio media remains Files-backed media/library content; it must not reuse the same term for uploaded images, video, audio, captions, or scripts. Creator Studio may later link content work to real Assets such as cameras, microphones, vehicles, computers, or software.
+
+Key data-model decisions:
+
+- Keep universally useful fields as normal columns and type-specific fields in a validated attributes document.
+- Use stable Asset Type field IDs and schema versions. Editing a type must not silently discard values already stored on existing Assets.
+- Keep the human-facing **Asset Code** separate from workspace Tags. Asset Code may also be described in help text as an asset tag or inventory ID, but it is a unique identifier field, not a Tags-module assignment.
+- Store additional non-secret identifiers separately so one Asset may have several useful identities: serial number, VIN, plate, hostname, domain, IP address, service ID, subscription ID, license ID, or external-system ID.
+- Model lifecycle status separately from archive state. A retired or disposed Asset remains part of history and relationships; archiving controls normal list visibility and is not a substitute for retirement.
+- Keep Locations Assets-owned rather than creating a framework-wide Locations primitive. Networks, environments, clusters, and platforms may themselves be Assets when relationship behavior is useful; physical/site placement uses Asset Locations.
+
+Baseline lifecycle statuses:
+
+- `planned`
+- `active`
+- `maintenance`
+- `inactive`
+- `retired`
+- `disposed`
+
+Type-specific operational states may live in validated attributes when a server, vehicle, subscription, certificate, or another type needs more precise language. Do not expand the universal lifecycle list until multiple real Asset Types require the same semantics.
+
+Non-goals:
+
+- Do not build retail inventory, SKU/quantity tracking, warehouses, fulfillment, reorder points, stock adjustments, or point-of-sale behavior.
+- Do not build network discovery, SNMP polling, endpoint management, remote control, patching, vulnerability scanning, uptime monitoring, or an RMM agent.
+- Do not build a password manager or secrets vault. Passwords, API keys, access tokens, recovery codes, private keys, certificate private material, and software activation secrets must not be stored in Asset fields, identifiers, search text, audit payloads, events, or ordinary Files. An Asset may store a human-readable reference such as `1Password -> Raymond Tec -> Mastodon Production`.
+- Do not build accounting depreciation, tax basis, fixed-asset accounting, lease accounting, or a replacement for bookkeeping software.
+- Do not build a full CMDB, NetBox replacement, vehicle fleet-management suite, maintenance work-order engine, parts inventory, fuel log, or software-license compliance scanner.
+- Do not add a graphical topology map in the first release. Start with readable relationship lists, inverse labels, dependency/impact summaries, and filters. A graph view may be evaluated later from real use.
+- Do not allow a relationship or tag to grant permission to another Asset or linked record.
+- Do not cascade-delete related Assets, Files, Tasks, Notes, Tickets, Knowledge Base records, or other records when an Asset is archived, retired, disposed, or removed.
+- Do not create automatic Task or Ticket rules in this version. Manual create/link actions are allowed; automation waits for the later rules/automation framework.
+- Do not create one hidden/system Tag per Asset as a substitute for an explicit Asset link.
+- Do not expose internal Assets through the client Ticket portal or public Knowledge Base in the first release.
+- Do not add cross-workspace Asset links in the first release.
+
+### Version 0.36.6.1 - Assets module contract, schema, Asset Types, and Locations
+
+**Model: High Effort** — The first schema must support materially different Asset Types without collapsing into an unvalidated JSON junk drawer or a sprawling universal table.
+
+- [ ] Add the `assets` first-party module through the generated bundled-module catalog and explicit runtime activation contract established in 0.33.18.
+- [ ] Use the composed-manifest and native browser ES-module patterns established in 0.33.18 from the first implementation; do not create a new loading shape.
+- [ ] Declare module metadata, navigation, protected views, browser assets, permissions, default role grants, searchable/taggable/attachable types, Linked Context provider metadata, events, notifications, reports, settings, help, seed hooks, and repair hooks only where the related slice implements them.
+- [ ] Add module-owned tables or provider-neutral equivalents for:
+  - [ ] `asset_types`
+  - [ ] `asset_locations`
+  - [ ] `assets`
+  - [ ] `asset_identifiers`
+  - [ ] later-slice relationship, record-link, and lifecycle-date tables
+- [ ] Define `asset_types` as workspace-scoped type definitions with stable type IDs, name, category, description, icon/key, active/archived state, schema version, and validated field-schema metadata.
+- [ ] Define the Asset Type field schema with stable field IDs and the existing supported field-factory types: text, number, boolean/toggle, select, multi-select, textarea, date, time, and safe URL where supported by the settled field contract.
+- [ ] Keep field descriptors data-only. Validation, normalization, allowed values, and persistence remain Assets-owned; manifests and saved schemas must not embed executable functions.
+- [ ] Preserve values when an Asset Type changes:
+  - [ ] Renaming a field keeps its stable field ID and values.
+  - [ ] Removing a field from the active schema does not silently delete saved values.
+  - [ ] Existing legacy values remain recoverable/admin-visible until explicitly migrated or removed through reviewed tooling.
+  - [ ] Type changes that would make stored values invalid require a preview/migration decision rather than blind coercion.
+- [ ] Define `assets` common fields:
+  - [ ] `asset_id`
+  - [ ] `workspace_id`
+  - [ ] `asset_type_id`
+  - [ ] `name`
+  - [ ] optional workspace-unique `asset_code`
+  - [ ] lifecycle `status`
+  - [ ] summary/description
+  - [ ] optional Business-only `client_id` and `project_id`
+  - [ ] optional `location_id`
+  - [ ] optional assigned/responsible user
+  - [ ] optional ownership/custody relationship such as owned, leased, rented, managed, or client-owned
+  - [ ] manufacturer and model
+  - [ ] acquisition/in-service metadata where generally useful
+  - [ ] validated `attributes` document plus schema-version marker
+  - [ ] `last_verified_at`, source, and optional external-system reference
+  - [ ] retirement/disposal metadata
+  - [ ] normal created/updated/archive metadata
+- [ ] Define `asset_identifiers` for multiple non-secret identifiers per Asset, including kind, label, value, normalized value, primary marker, and timestamps.
+- [ ] Support useful identifier kinds without hard-coding every possible domain: serial number, VIN, plate, hostname, domain, IP address, MAC address, service/subscription ID, license ID, external-system ID, and custom.
+- [ ] Apply workspace-scoped uniqueness where semantics require it, especially Asset Code. Do not globally reject legitimate repeated model, hostname, IP, or vendor identifiers without a type-specific rule.
+- [ ] Define `asset_locations` as an Assets-owned optional hierarchy with workspace, optional Business client context, parent location, location type, name, safe path label, status/archive state, and deterministic ordering.
+- [ ] Validate Project/Client consistency through existing hierarchy services. Personal and Family workspaces must not receive or persist Client context from normal Assets routes.
+- [ ] Seed protected starter template packs that can be cloned into workspace-owned types:
+  - [ ] IT and Infrastructure: physical server, VM, container host, network device, workstation, printer, camera, UPS, storage device, hosted service.
+  - [ ] Software and Online Services: application, SaaS subscription, domain, TLS certificate, license/subscription.
+  - [ ] Vehicles and Equipment: car, truck, motorcycle, bicycle, trailer/camper, generator, machine, specialized tool.
+  - [ ] Home and Family: appliance, electronics, safety equipment, household system.
+  - [ ] General Business: office equipment, shop equipment, assigned device, leased/rented equipment.
+- [ ] Treat starter templates as versioned defaults, not immutable assumptions about every workspace. Workspace admins may clone and adapt them without upgrades overwriting workspace-owned definitions.
+- [ ] Add schema and migration regressions for a fresh database, an enabled/disabled Assets module, type-schema edits, preserved legacy values, workspace isolation, and provider-neutral SQL/dialect guardrails.
+
+Acceptance criteria:
+
+- A Business, Personal, or Family workspace can enable Assets and create a type definition appropriate to that workspace without changing framework code.
+- Common fields remain queryable and type-specific values remain validated.
+- Type edits preserve existing data and never silently discard or coerce stored values.
+- Asset Codes and identifiers are searchable data, not disguised Tags or secrets.
+- The schema uses the existing database facade and dialect seams and introduces no SQLite-only application SQL.
+
+### Version 0.36.6.2 - Asset services, browser API, permissions, lifecycle, and history
+
+**Model: High Effort** — Asset reads and writes must preserve workspace/client scope, lifecycle history, module disablement, and future integration contracts without turning generic framework services into Asset-aware code.
+
+- [ ] Add Assets-owned repository, service, routes, normalizers, and policy helpers. Framework services must not query Assets tables directly.
+- [ ] Add permissions with user-facing labels and descriptions:
+  - [ ] `assets.view`
+  - [ ] `assets.create`
+  - [ ] `assets.edit`
+  - [ ] `assets.archive`
+  - [ ] `assets.manage_types`
+  - [ ] `assets.manage_locations`
+  - [ ] `assets.manage_relationships`
+  - [ ] `assets.manage_links`
+  - [ ] `assets.import_export`
+- [ ] Define conservative default role grants. Owners/admins receive management permissions; normal members receive only the Asset permissions deliberately appropriate to the existing role model.
+- [ ] Add browser service methods and routes for:
+  - [ ] paged/filterable Asset listing
+  - [ ] Asset detail
+  - [ ] create and update
+  - [ ] lifecycle transition
+  - [ ] archive and restore
+  - [ ] Asset Type list/create/edit/archive/clone
+  - [ ] Location list/create/edit/archive
+  - [ ] identifier add/edit/remove
+- [ ] Keep list filtering and paging server-side with stable ordering and opaque cursor behavior consistent with other large first-party modules.
+- [ ] Support filters for Asset Type, category, lifecycle status, Client/Project in Business workspaces, Location, assigned user, Tag, identifier kind/value, upcoming lifecycle date, archived state, and text query.
+- [ ] Validate every mutation at the service boundary:
+  - [ ] active workspace ownership
+  - [ ] enabled-module state
+  - [ ] permission and Client/Project scope
+  - [ ] Asset Type availability and schema
+  - [ ] Location availability
+  - [ ] Asset Code/identifier normalization
+  - [ ] lifecycle transition
+  - [ ] no secret-designated field or identifier type
+- [ ] Keep lifecycle transitions explicit. Retiring or disposing an Asset records who changed it, when, optional reason, and optional replacement Asset; it does not archive the record automatically.
+- [ ] Do not expose normal hard delete. If later cleanup tooling is required, it must refuse deletion while relationships, record links, Files, or history remain and must be owner/admin-only with an audit trail.
+- [ ] Add canonical Asset event types and safe summaries:
+  - [ ] `asset.created`
+  - [ ] `asset.updated`
+  - [ ] `asset.status_changed`
+  - [ ] `asset.retired`
+  - [ ] `asset.disposed`
+  - [ ] `asset.archived`
+  - [ ] `asset.restored`
+  - [ ] `asset.identifier_added`
+  - [ ] `asset.identifier_removed`
+  - [ ] relationship/link/date events added by later slices
+- [ ] Keep event/audit payloads body-light and safe. They may contain Asset ID, safe name/code snapshot, type, workspace, actor, safe previous/new values, and source; they must not contain secrets, file contents, private key material, credentials, or unrestricted type attributes.
+- [ ] Add an Asset history projection/timeline built from permission-safe event summaries and lifecycle records rather than exposing raw audit rows.
+- [ ] Add module settings through the 0.33.15 settings contract where useful:
+  - [ ] whether Asset Code is required
+  - [ ] optional auto-generation prefix/pattern
+  - [ ] default upcoming-attention window
+  - [ ] optional Asset-to-linked-record Tag propagation, default off
+- [ ] Add regressions for role grants, Client/Project scope, Personal/Family payload shaping, disabled-module behavior, historical read behavior, lifecycle transitions, archive/restore, audit/event safety, and concurrent conflicting edits.
+
+Acceptance criteria:
+
+- Assets can be created, edited, retired, disposed, archived, restored, filtered, and read through module-owned contracts with correct workspace and permission behavior.
+- Lifecycle history remains readable without raw audit exposure.
+- Disabling Assets removes active navigation/capture/integration contributions and blocks mutation without deleting historical records.
+- Personal and Family routes never leak Client fields or labels.
+
+### Version 0.36.6.3 - Assets UI, canonical openers, and module-contributed Quick Action Capture
+
+**Model: High Effort** — The Assets surface must handle dense typed data and relationships while the Quick Action Capture change moves an existing app-shell hard-coded list into a validated multi-module contribution contract.
+
+- [ ] Add Assets navigation under the existing Actions/workflow area through the module navigation contribution, with permission and enabled-module filtering.
+- [ ] Add a protected Assets browse surface using established framework anatomy:
+  - [ ] page header and primary action
+  - [ ] bottom-left slide-out filter/navigation drawer
+  - [ ] paged table/list with readable type, code, status, Client/Project, Location, assigned user, and due-attention summaries
+  - [ ] stable empty/loading/error states
+  - [ ] no raw UUIDs as labels
+- [ ] Add a dedicated Asset detail surface rather than forcing overview, identifiers, relationships, related work, Files, dates, and history into one oversized list-row modal.
+- [ ] Organize Asset detail into readable framework-owned panel anatomy:
+  - [ ] Overview
+  - [ ] Identifiers
+  - [ ] Relationships
+  - [ ] Related Work
+  - [ ] Files
+  - [ ] Dates and Attention
+  - [ ] History
+- [ ] Add one canonical Assets-owned create/edit dialog/opening contract and register:
+  - [ ] `assets.add`
+  - [ ] `assets.edit`
+- [ ] Render common and Asset Type fields through the 0.33.14 field factory. Do not hand-build parallel field anatomy or create an Assets-only form engine.
+- [ ] Keep complex Assets-owned behavior — type switching, identifier editing, schema validation, lifecycle transitions, relationship picking, and link management — behind module-owned handlers and routes.
+- [ ] Promote Quick Action Capture actions to a validated, data-only module contribution if this has not landed earlier:
+  - [ ] Add a `quickActions` manifest contribution with stable ID, label, description, icon, module action ID, sort order, required modules, required permissions, and required workspace capabilities.
+  - [ ] Add `modulesService.listQuickActionContributions(workspaceId, session)` using the existing enabled-module, dependency, capability, and permission filtering pattern.
+  - [ ] Keep the framework responsible for the drawer host, ordering, focus behavior, outside/Escape close, lazy module-action dispatch, current-page context, and fallback framework actions.
+  - [ ] Keep modules responsible for the canonical opener, defaults, validation, save payload, and refresh behavior.
+  - [ ] Migrate Timer, Task, Note, and List capture definitions out of the framework-owned `QUICK_ACTION_DEFINITIONS` list and into their owning modules without changing labels, order, permissions, or behavior.
+  - [ ] Keep File, Reporting, and Search fallbacks framework-owned until they have real module/opener contracts; do not pretend a page link is a module create action.
+  - [ ] Record the Two-Module evidence explicitly: Time Tracking, Tasks, Notes, Lists, and Assets are real consumers of the same Quick Action contribution contract.
+- [ ] Add an Assets Quick Action:
+  - [ ] Label: `Asset`
+  - [ ] Description: `Register a device, service, vehicle, or other managed asset.`
+  - [ ] Action: `assets.add`
+  - [ ] Required permission: `assets.create`
+  - [ ] Hidden when Assets is disabled or the user lacks permission
+- [ ] Keep Quick Capture intentionally small: name, Asset Type, optional Asset Code, lifecycle status/default, and safe current Client/Project/Location context. The full editor remains available after creation.
+- [ ] Accept current-page context in the canonical opener. When opened from a readable Task, Note, Ticket, Knowledge Base article, List, Client, or Project page, the dialog may offer to prefill context and create an explicit link after save; it must not silently create a relationship.
+- [ ] Add keyboard, focus-return, narrow-screen, modal-stack, and stale-context regressions for the Assets opener and Quick Action drawer.
+
+Acceptance criteria:
+
+- Assets has a usable list/detail/editor workflow built from established framework anatomy and module-owned behavior.
+- `Asset` appears in Quick Action Capture only when the module and permission permit it and opens the same canonical editor used elsewhere.
+- Existing Timer, Task, Note, and List capture behavior remains unchanged after their descriptors move to module ownership.
+- The framework Quick Action host no longer hard-codes those first-party workflow module IDs.
+
+### Version 0.36.6.4 - Typed Asset-to-Asset relationships and dependency/impact views
+
+**Model: High Effort** — Asset relationships form a durable directed graph. Direction, inverse labels, symmetric edges, cycle rules, retirement behavior, and permission checks must remain correct without turning the first release into a topology product.
+
+Purpose:
+
+Make relationships a first-class part of the Asset Registry rather than a note field. One stored relationship must render correctly from either Asset, answer both “what does this depend on?” and “what depends on this?”, and remain safe when an Asset is disabled, archived, retired, moved, or no longer readable.
+
+- [ ] Add Assets-owned relationship tables or provider-neutral equivalents:
+  - [ ] `asset_relationship_types`
+  - [ ] `asset_relationships`
+- [ ] Define relationship type metadata:
+  - [ ] stable key
+  - [ ] forward label
+  - [ ] inverse label
+  - [ ] directed or symmetric shape
+  - [ ] optional acyclic rule
+  - [ ] optional allowed source/target Asset Type categories
+  - [ ] built-in/protected vs workspace-defined state
+  - [ ] active/archive state
+  - [ ] deterministic ordering
+- [ ] Ship a conservative protected starter catalog:
+  - [ ] `contains` / `part of`
+  - [ ] `installed_on` / `has installed`
+  - [ ] `runs_on` / `hosts`
+  - [ ] `depends_on` / `supports`
+  - [ ] `connected_to` / `connected to` (symmetric)
+  - [ ] `backs_up` / `backed up by`
+  - [ ] `protects` / `protected by`
+  - [ ] `managed_through` / `manages`
+  - [ ] `replaces` / `replaced by`
+  - [ ] `paired_with` / `paired with` (symmetric)
+- [ ] Allow workspace admins to create additional relationship types without modifying framework code. Custom types remain Assets-owned settings/data, not manifest fields.
+- [ ] Store one canonical edge with source Asset, target Asset, relationship type, optional safe note, actor, and timestamps.
+- [ ] Enforce:
+  - [ ] same workspace
+  - [ ] actor may read both Assets and manage relationships
+  - [ ] no self-link
+  - [ ] no duplicate effective edge
+  - [ ] symmetric relationships canonicalize endpoint order so reverse duplicates cannot exist
+  - [ ] directed relationships render the configured inverse label from the target side without storing a second mirrored row
+  - [ ] only relationship types marked acyclic run cycle detection; do not impose a false universal tree on legitimate dependency or network relationships
+- [ ] Do not allow a relationship to grant access. A user sees an edge only when allowed to read both endpoint Assets; otherwise the relationship is omitted or shown through the existing safe-unavailable pattern without leaking the hidden Asset name/code.
+- [ ] Permit same-workspace cross-Client relationships only when the actor can read both Assets. Show both readable contexts and a clear warning because shared infrastructure may legitimately support multiple Clients, but one Client relationship must not imply access to the other.
+- [ ] Add Assets-owned service methods and routes for create, read, update-note/type where permitted, and remove.
+- [ ] Add relationship picker/search through the Assets provider and existing shared picker/list anatomy. The Assets module owns filtering, safe labels, status/type/location context, and deterministic result ordering.
+- [ ] Add relationship detail panels grouped by meaning rather than one undifferentiated list:
+  - [ ] `Depends on`
+  - [ ] `Supports / depended on by`
+  - [ ] `Runs on / hosts`
+  - [ ] `Connected to`
+  - [ ] `Backs up / backed up by`
+  - [ ] `Protects / protected by`
+  - [ ] `Contains / part of`
+  - [ ] replacement history
+  - [ ] other workspace-defined relationships
+- [ ] Add bounded dependency/impact traversal:
+  - [ ] direct upstream dependencies
+  - [ ] direct downstream dependents
+  - [ ] optional bounded multi-hop expansion with visited-node protection and explicit depth
+  - [ ] readable path labels and status indicators
+  - [ ] no unrestricted recursive query or browser-side permission reconstruction
+- [ ] When retiring, disposing, or archiving an Asset, warn about readable dependents, active linked Tasks/Tickets, and missing replacement context. The user may continue after explicit confirmation; do not silently cascade status or rewire relationships.
+- [ ] Support an optional replacement selection during retirement that creates `replaces` / `replaced by`. Do not automatically transfer identifiers, Files, record links, lifecycle dates, or every relationship.
+- [ ] Emit safe events:
+  - [ ] `asset.relationship_added`
+  - [ ] `asset.relationship_updated`
+  - [ ] `asset.relationship_removed`
+- [ ] Add regression cases based on real structures:
+  - [ ] DigitalOcean account -> production droplet -> Docker host -> Mastodon/PostgreSQL/Elasticsearch
+  - [ ] site -> UPS -> protected switch/server
+  - [ ] core switch connected to access point and camera network
+  - [ ] old workstation replaced by new workstation
+  - [ ] cross-workspace link rejected
+  - [ ] unreadable endpoint omitted
+  - [ ] symmetric reverse duplicate rejected
+  - [ ] acyclic containment loop rejected
+  - [ ] dependency cycle allowed where the relationship type does not claim acyclic semantics
+
+Acceptance criteria:
+
+- One canonical stored relationship renders correct forward and inverse meaning from both Assets.
+- A user can immediately see what an Asset depends on and what would be affected by its loss or retirement.
+- Relationship reads never leak an unreadable endpoint or cross a workspace boundary.
+- Retirement preserves history and warns about impact without destructive cascade behavior.
+- The first release remains a readable relationship registry, not an attempted graphical network mapper.
+
+### Version 0.36.6.5 - Authoritative Asset-to-record links, backlinks, and Related Work
+
+**Model: High Effort** — This slice crosses module boundaries and must provide bidirectional usefulness without duplicate link stores, cross-module table reads, hidden-record labels, or client-portal leakage.
+
+Purpose:
+
+Let an Asset become the durable context hub for every piece of work and knowledge associated with it. A user who searches for an Asset name, Asset Code, hostname, serial number, VIN, plate, or other identifier must be able to open that Asset and see every readable linked Task, Note, Support Ticket, Knowledge Base article, List, Project, and other supported record.
+
+Decision:
+
+Asset-to-record links are owned by one Assets ledger. Consumer modules may render and mutate those links through Assets-owned service/browser contracts, but they must not create separate Asset-link columns or duplicate Asset link tables. Existing module-owned relationships such as Note Linked Context, List linked records, Task parent/child relationships, and Ticket ledger entries remain intact; Assets adds a dedicated Asset relationship surface alongside them.
+
+- [ ] Add `asset_record_links` or a provider-neutral equivalent with:
+  - [ ] `asset_record_link_id`
+  - [ ] `workspace_id`
+  - [ ] `asset_id`
+  - [ ] `target_module_id`
+  - [ ] `target_type`
+  - [ ] `target_id`
+  - [ ] optional `link_kind`
+  - [ ] optional short safe context note
+  - [ ] actor and timestamps
+  - [ ] active/removed state where history requires it
+- [ ] Start with a small stable link-kind vocabulary:
+  - [ ] `related`
+  - [ ] `work`
+  - [ ] `incident`
+  - [ ] `maintenance`
+  - [ ] `documentation`
+  - [ ] `configuration`
+  - [ ] `purchase`
+  - [ ] `warranty`
+  - [ ] `replacement`
+- [ ] Keep link kind descriptive only. It does not grant permission, change target workflow state, or replace the source module's own status/type fields.
+- [ ] Validate target module/type through active module contracts and Linked Context providers. Creation requires:
+  - [ ] same workspace
+  - [ ] Assets enabled
+  - [ ] source module enabled
+  - [ ] `assets.manage_links`
+  - [ ] readable Asset
+  - [ ] readable target record
+  - [ ] recognized provider/type
+- [ ] Add or complete Linked Context target providers for real initial targets where they do not already exist:
+  - [ ] Task
+  - [ ] Note
+  - [ ] Support Ticket
+  - [ ] Knowledge Base article/review candidate where visibility permits
+  - [ ] List
+  - [ ] Project
+  - [ ] Client in Business workspaces
+  - [ ] later Calendar event/content records only when their owning modules expose safe providers
+- [ ] Register Assets itself as a `linkedContextProviders` target with safe Asset labels, type/status/location/Client context, source URL, deterministic ordering, and no secret identifiers.
+- [ ] Add Assets-owned browser/service routes for:
+  - [ ] list links by Asset
+  - [ ] list Asset links by target record
+  - [ ] create link
+  - [ ] update link kind/context
+  - [ ] remove link
+  - [ ] permission-safe counts grouped by module/type/status
+- [ ] Resolve target labels and URLs through provider-owned read contracts; do not query another module's table from the Assets repository or hard-code how Tickets, Notes, Tasks, Lists, Projects, or Knowledge Base records construct labels.
+- [ ] Keep strict creation and soft readback:
+  - [ ] new links to disabled, missing, unsupported, cross-workspace, or unreadable targets are rejected
+  - [ ] existing links may outlive a target/module and render a safe `Unavailable linked record` state
+  - [ ] stale rows never echo raw UUIDs, record IDs, hidden titles, internal Ticket text, secure Note content, or client-private metadata
+  - [ ] permitted users may remove/repair stale links
+- [ ] Add a Related Work panel on Asset detail:
+  - [ ] group by Tasks, Tickets, Notes, Knowledge Base, Lists, Projects/Clients, and other supported providers
+  - [ ] show safe label, source/type, status where provider supplies it, link kind, linked date, and source URL
+  - [ ] filter by module/type, status, link kind, active/archived state, and text
+  - [ ] show counts without counting unreadable records
+- [ ] Add reusable Assets-owned target panels/helpers for supported source records:
+  - [ ] Task detail/editor
+  - [ ] Note detail/editor
+  - [ ] internal Support Ticket detail
+  - [ ] Knowledge Base editorial/internal detail
+  - [ ] List detail/editor where useful
+- [ ] Consumer panels call Assets-owned APIs/helpers and use shared picker/list anatomy. They must not read Assets tables, reconstruct Asset permissions, or persist duplicate Asset IDs in their own storage.
+- [ ] Allow manual source actions:
+  - [ ] create a Task linked to an Asset through the registered Tasks opener
+  - [ ] create a Note linked to an Asset through the registered Notes opener
+  - [ ] create or link an internal Ticket through the registered Tickets action when available
+  - [ ] create a Knowledge Base review candidate only through the existing reviewed publication contract
+- [ ] Pass safe defaults/context to module actions and create the Asset link only after the target record is successfully created and the user has confirmed the relationship.
+- [ ] Keep client/public projections closed:
+  - [ ] Client Ticket views do not show internal Asset links.
+  - [ ] Public/client Knowledge Base views do not show Asset links unless a later version defines an explicit client-safe Asset projection.
+  - [ ] Internal users may see the link only when they can read both records.
+- [ ] Make Asset recovery through Search practical:
+  - [ ] Asset Search indexes name, Asset Code, allowed identifiers, manufacturer/model, Location, safe type attributes, and Tags.
+  - [ ] Search results open the Asset detail/Related Work handoff.
+  - [ ] The Asset detail route is the authoritative permission-safe expansion that reveals every readable linked record.
+  - [ ] Do not denormalize Asset names/codes into every linked record's `tags_text` or create a system Tag per Asset.
+- [ ] Emit safe events:
+  - [ ] `asset.record_link_added`
+  - [ ] `asset.record_link_updated`
+  - [ ] `asset.record_link_removed`
+- [ ] Add regressions for duplicate links, disabled providers, stale targets, secure Notes, internal/client-visible Ticket boundaries, cross-workspace rejection, same-workspace cross-Client permission checks, no raw-ID fallback, and bidirectional panel consistency.
+
+Acceptance criteria:
+
+- Searching an Asset name, Asset Code, hostname, serial number, VIN, plate, or other allowed identifier leads to one Asset hub that lists every linked record the current user may read.
+- Tasks, Notes, internal Tickets, Knowledge Base editorial records, Lists, and Projects can show and manage their Asset links without storing duplicate relationship data.
+- Removing a link from either side updates the same authoritative ledger.
+- Disabled/missing/unreadable targets fail safely and never leak labels or raw IDs.
+- Internal Asset context never appears in client/public projections by accident.
+
+### Version 0.36.6.6 - Search, Tags, Files, notifications, and activity integration
+
+**Model: High Effort** — These integrations must use existing framework services and preserve the distinction between classification, attachment, search text, relationship data, permissions, and sensitive information.
+
+- [ ] Register Assets as a framework-searchable type.
+- [ ] Add an Assets-owned indexer that includes:
+  - [ ] Asset name
+  - [ ] Asset Code
+  - [ ] safe identifier values
+  - [ ] Asset Type/category
+  - [ ] manufacturer/model
+  - [ ] readable Client/Project and Location context where permitted
+  - [ ] safe summary
+  - [ ] safe type-specific attributes explicitly marked searchable
+  - [ ] effective Tag text through the existing Tags/Search path
+  - [ ] lifecycle/record status
+- [ ] Exclude from search:
+  - [ ] credentials and secret-like values
+  - [ ] secure Note content
+  - [ ] private keys/tokens/license activation secrets
+  - [ ] unrestricted attribute JSON
+  - [ ] hidden relationship endpoint labels
+  - [ ] file contents unless the existing Files/Search contract independently permits them
+- [ ] Register Assets as a Taggable type.
+- [ ] Keep the distinctions explicit in UI/help:
+  - [ ] **Asset Code** identifies one Asset.
+  - [ ] **Identifiers** are searchable identities for one Asset.
+  - [ ] **Tags** classify and group records.
+  - [ ] **Relationships** connect Assets/records explicitly.
+- [ ] Reuse existing Tag propagation where semantics are real:
+  - [ ] allow Client/Project classification Tags to propagate to Assets through an Assets-owned resolver when an Asset carries that context
+  - [ ] add optional Asset-to-linked-record Tag propagation through an Assets-owned resolver, default off
+  - [ ] use existing materialized assignment source metadata and suppressions
+  - [ ] never make propagation create/remove the underlying Asset link
+  - [ ] never infer Asset visibility, lifecycle, ownership, or relationship type from a Tag
+- [ ] Register Assets as an attachable type through the Files service.
+- [ ] Support Files such as manuals, receipts, warranties, registrations, photographs, diagrams, service records, configuration exports, and vendor documents through the existing upload/scan/quarantine/download contract.
+- [ ] Allow one stored File to link to both an Asset and related Task/Ticket/Note where useful; do not duplicate the stored object.
+- [ ] Keep credential/private-key guidance explicit. Configuration exports containing secrets must not be treated as safe merely because Files allows the extension.
+- [ ] Add follow/unfollow and notification support through framework contracts where useful:
+  - [ ] lifecycle-date approaching
+  - [ ] Asset assigned/reassigned
+  - [ ] Asset status changed to maintenance/inactive/retired
+  - [ ] relationship or link changed when the user follows the Asset
+- [ ] Keep notification content safe and body-light; notification open must re-check current Asset and target-record access.
+- [ ] Add a readable Asset Activity panel from event summaries:
+  - [ ] lifecycle changes
+  - [ ] identifier changes
+  - [ ] relationship changes
+  - [ ] record-link changes
+  - [ ] lifecycle-date changes/completion
+  - [ ] file attachment events where the existing Files summary contract allows it
+- [ ] Add Search, Tags, Files, notification, event-summary, disabled-module, rebuild/repair, and permission regressions.
+
+Acceptance criteria:
+
+- Assets participates in global Search, exact Tag filters, Files, notifications, and safe activity through existing framework-owned services.
+- Asset Code/identifiers, Tags, and relationships remain distinct concepts in storage and UI.
+- Optional Tag propagation improves discovery without becoming the relationship source of truth.
+- Search, events, notifications, and Files expose no secrets or unreadable relationship labels.
+
+### Version 0.36.6.7 - Lifecycle dates, Calendar, Dashboard, Account Home, and Reporting
+
+**Model: High Effort** — Date-based attention crosses Calendar, notifications, Dashboard, and Account Home and must not create a second task/reminder/work-order engine or cross-workspace leak.
+
+- [ ] Add Assets-owned lifecycle-date records for durable Asset facts and obligations:
+  - [ ] warranty expiration
+  - [ ] subscription/license renewal
+  - [ ] domain/certificate expiration
+  - [ ] registration
+  - [ ] inspection
+  - [ ] planned maintenance/service
+  - [ ] battery replacement
+  - [ ] replacement/end-of-life review
+  - [ ] custom date
+- [ ] Store date kind, label, due date/time, status, reminder/attention window, optional safe note, completed/dismissed state, actor, and timestamps.
+- [ ] Keep one-time lifecycle facts in Assets. For recurring work execution, create/link a recurring Task through the Tasks recurrence engine rather than building an Assets work-order recurrence engine.
+- [ ] When the 0.36 Calendar contract supports module-owned event sources, register lifecycle dates as read-only Asset calendar items through that contract. Calendar must not query Assets tables or hard-code Asset date kinds.
+- [ ] If the Calendar source contract is not sufficiently general after 0.36.0, keep lifecycle dates in Assets/Account Home and create linked Tasks; do not add an Assets-only framework calendar query.
+- [ ] Add manual actions from a lifecycle date:
+  - [ ] create linked Task
+  - [ ] create/link Ticket for an incident/service request
+  - [ ] mark complete/dismiss
+  - [ ] reschedule
+- [ ] Add an Assets Dashboard module-overview card consistent with the settled Dashboard boundary:
+  - [ ] two or three safe metrics such as active Assets, due soon, and needs attention
+  - [ ] at most one suggested/latest attention row
+  - [ ] one primary handoff to Assets
+  - [ ] no full inventory table, topology graph, raw identifiers, or inline editor
+- [ ] Add an Assets attention provider for Account Home:
+  - [ ] overdue/expiring lifecycle dates
+  - [ ] Asset statuses requiring attention
+  - [ ] optional unreadable-safe counts of open linked Tasks/Tickets
+  - [ ] correct workspace-switch/open link
+  - [ ] no raw event or cross-workspace record data
+- [ ] Add initial Reporting contributions through the existing Reporting host:
+  - [ ] Assets by type/status/Location/Client
+  - [ ] upcoming renewals/expirations/maintenance
+  - [ ] retired/disposed/replacement history
+  - [ ] relationship/dependency summary
+- [ ] Keep reports operational, not accounting-facing. Do not calculate depreciation, tax basis, book value, or compliance conclusions.
+- [ ] Add deterministic time-zone/date-boundary behavior and regressions for due-soon/overdue calculations, Calendar visibility, Account Home workspace switching, Dashboard compactness, report permission filters, and disabled optional modules.
+
+Acceptance criteria:
+
+- Assets can surface upcoming warranty, renewal, inspection, certificate, registration, maintenance, and replacement attention without becoming a work-order engine.
+- Users may turn an Asset date into a linked Task/Ticket through canonical module actions.
+- Dashboard and Account Home show permission-safe summaries and handoffs, not full inventories or cross-workspace data.
+- Reporting can summarize Assets without direct framework-to-Assets table coupling.
+
+### Version 0.36.6.8 - CSV import/export and integration-safe API groundwork
+
+**Model: High Effort** — Bulk import and external writes can create duplicate identities, invalid type attributes, cross-workspace relationships, or partially committed graphs if validation/transactions are weak.
+
+- [ ] Add CSV export for:
+  - [ ] Assets/common fields
+  - [ ] type-specific fields
+  - [ ] identifiers
+  - [ ] Locations
+  - [ ] lifecycle dates
+  - [ ] Asset-to-Asset relationships
+  - [ ] Asset-to-record link metadata where the user may read the target
+- [ ] Add staged CSV import with:
+  - [ ] upload/parse preview
+  - [ ] column mapping
+  - [ ] Asset Type selection/mapping
+  - [ ] Location selection/mapping
+  - [ ] common-field and type-schema validation
+  - [ ] duplicate detection by Asset Code and selected identifier kinds
+  - [ ] create/update/skip decision
+  - [ ] dry-run summary
+  - [ ] bounded transactional batches
+  - [ ] per-row errors without exposing database internals
+  - [ ] explicit final confirmation
+- [ ] Keep relationship import separate from base Asset creation so endpoints can be resolved after Asset IDs/codes exist. Reject cross-workspace, self, duplicate, unreadable, or invalid-type edges.
+- [ ] Keep Asset-to-record link import conservative. It may use stable external keys only when the target module exposes a supported resolver; never accept arbitrary table names or raw cross-module IDs as trusted input.
+- [ ] Add module-owned public/integration API scopes where the existing public API contract is ready:
+  - [ ] `assets.read`
+  - [ ] `assets.write`
+  - [ ] `assets.relationships`
+- [ ] Expose stable API operations for Asset list/detail/create/update, identifiers, lifecycle dates, and relationships through module-owned service contracts and workspace-scoped API-key permissions.
+- [ ] Preserve fields useful to scripts and future observations:
+  - [ ] `external_system`
+  - [ ] `external_id`
+  - [ ] `last_verified_at`
+  - [ ] safe source metadata
+- [ ] Allow a script to update version/status/identifier/last-verified data through the normal API; do not add an agent, scanner, polling daemon, discovery engine, or unrestricted bulk SQL endpoint.
+- [ ] Make the Assets read contract consumable later by the 0.38.8 read-only MCP connector without coupling MCP directly to Assets tables.
+- [ ] Ensure the 0.39.15 public/integration-surface audit includes Assets and that the 0.40.0 dual-backend suite runs Asset CRUD, filters, attributes, identifiers, dates, relationships, and links against both adapters.
+- [ ] Add import/export/API regressions for validation, dry run, atomicity, duplicate resolution, API scopes, rate/size bounds, workspace isolation, and provider-neutral SQL.
+
+Acceptance criteria:
+
+- A user can safely import an existing spreadsheet, preview every decision, and export a portable representation of Assets and relationships.
+- External scripts can maintain safe Asset facts through scoped APIs without bypassing validation, permissions, or workspace isolation.
+- API and import paths cannot create cross-workspace links or arbitrary cross-module references.
+- The integration contract is ready for later MCP/automation work but does not pretend to be monitoring or discovery.
+
+### Version 0.36.6.9 - Seeds, documentation, regression, and closeout
+
+**Model: High Effort** — Closeout must prove the module works across Business, Personal, and Family use cases and that relationships, links, search, permissions, and later database work are not held together by special cases.
+
+- [ ] Add deterministic safe seed scenarios:
+  - [ ] Business/IT: hosted account -> production server/droplet -> container host -> Mastodon/PostgreSQL/Elasticsearch, with a UPS/network example, identifiers, lifecycle dates, Files, Notes, Tasks, Tickets, and typed relationships.
+  - [ ] Business/client: client site -> firewall/core switch -> access point/camera/workstation, with readable Client/Project context and an internal Ticket.
+  - [ ] Personal/Family: vehicle, bicycle, camper/trailer, generator/appliance, manuals, inspection/service dates, and linked maintenance Tasks/Notes without Client labels.
+  - [ ] Software/services: domain, TLS certificate, SaaS subscription, application version, renewal/expiration dates, and credential-manager references without actual secrets.
+- [ ] Add complete regression coverage for:
+  - [ ] module catalog/activation and disablement
+  - [ ] permissions and default roles
+  - [ ] workspace and Client/Project isolation
+  - [ ] Personal/Family payloads and terminology
+  - [ ] type schema/version/value preservation
+  - [ ] identifier normalization and uniqueness
+  - [ ] lifecycle/archive/history
+  - [ ] QAC contribution filtering and opener behavior
+  - [ ] relationship direction/inverse/symmetry/cycle rules
+  - [ ] retirement impact warnings
+  - [ ] Asset-to-record links and stale/unreadable targets
+  - [ ] secure Note and client Ticket/public KB boundaries
+  - [ ] Search, Tags, propagation, Files, notifications, and activity
+  - [ ] lifecycle dates, Calendar, Dashboard, Account Home, and Reporting
+  - [ ] CSV/API validation and atomicity
+  - [ ] database-dialect guardrails and migration/repair behavior
+  - [ ] accessibility and narrow/wide responsive behavior
+- [ ] Add current documentation:
+  - [ ] user guide: what qualifies as an Asset, creating types/assets, codes vs Tags, relationships, Related Work, dates, Files, search, retirement
+  - [ ] admin guide: enabling/disabling, permissions, type templates, locations, code generation, Tag propagation, import/export
+  - [ ] developer guide: module ownership, schema, provider contracts, QAC contribution, relationship/link APIs, Search/Tags/Files declarations, events, reports, public API, no-cross-module-table rule
+  - [ ] security guide: no credentials/secrets, safe credential-manager references, Files cautions, client/public boundary
+- [ ] Update `docs/module-contract.md`, `docs/module-development.md`, `docs/architecture.md`, declarative-view inventories, search/tag/file documentation, Linked Context provider documentation, Quick Action Capture documentation, and public API documentation.
+- [ ] Update `DECISIONS.md` with:
+  - [ ] Assets vs retail inventory boundary
+  - [ ] common columns plus validated type attributes
+  - [ ] explicit relationships/links vs Tags
+  - [ ] authoritative Assets-owned record-link ledger
+  - [ ] no secrets
+  - [ ] no cross-workspace relationships
+  - [ ] Creator Studio media terminology distinction
+- [ ] Run a formal test-suite streamlining review using timing output and the suite budget. Retire no permission, workspace-isolation, relationship, search, Files, import, migration, integration, or browser critical-journey coverage without demonstrated replacement evidence.
+- [ ] Update `CHANGELOG.md`, package metadata, Help content, roadmap archive, feature/marketing proof registers, and `/api/app-info` verification as required by normal closeout.
+
+Acceptance criteria:
+
+- Assets ships as a disableable first-party module that works for IT/business and Personal/Family equipment without terminology distortion.
+- Asset Types, identifiers, lifecycle, Locations, relationships, Related Work, Search, Tags, Files, Quick Capture, dates, attention, reporting, import/export, and scoped APIs are documented and regression-covered.
+- A searched Asset becomes the durable hub for everything that Asset is, depends upon, affects, and has had done to it.
+- The module stores no credentials/secrets, leaks no cross-workspace/client/public context, and introduces no framework-to-Assets table coupling.
+- Later Reporting, MCP, Creator Studio, stabilization, integration-audit, and PostgreSQL work can consume documented Assets contracts rather than retrofitting special cases.
+
 ## Version 0.37.0 - Expanded Reporting and Invoicing
 
 - [ ] Expanded reporting
 - [ ] Invoicing
+- [ ] Add Assets as a report-capable module and explicitly keep depreciation/fixed-asset accounting out of scope.
 
 ## Version 0.38.0 - Advanced User Account Security
 
@@ -1827,6 +2433,7 @@ Deliverables:
      - `notes:read`
      - `lists:read`
      - `activity:read`
+     - `assets:read`
 
 5. Add audit logging:
    - Log connector tool name.
@@ -1847,6 +2454,10 @@ Non-goals:
 - No broad data sync/indexing yet.
 
 ### Version 0.39.0 - Creator Studio / Content Studio Module
+
+**Note from 0.36.6 Assets module update**
+- Rename `Assets/media` and `Asset library` to `Media files/library` so the word **Assets** remains reserved for the Asset Registry.
+   - Allow Creator Studio records to link to real Assets such as cameras, microphones, computers, software, and vehicles through the Assets link contract.
 
 **Model: High Effort** — Creator Studio is a committed multi-workflow first-party module spanning records, Files, Tasks, Notes, Calendar, permissions, and specialized work surfaces.
 
@@ -1995,6 +2606,8 @@ Review, consolidate, and verify the complete 0.3x documentation and stabilizatio
 - [ ] Run the 0.3x test-suite streamlining review: consume timing output, report slowest tests, review the budget, identify evidence-backed consolidation, and preserve permissions, workspace isolation, database/migration, Files, integration, and critical Playwright/accessibility coverage.
 - [ ] Verify `ROADMAP.md`, `TODO.md`, `DECISIONS.md`, `CHANGELOG.md`, and package versions are consistent.
 
+- Add `Assets, Asset Types, relationships, Related Work, lifecycle dates, import/export, and no-secrets guidance` to the user/admin/developer documentation checklist.
+
 - [x] Wipe existing DB migrations and create a new DB baseline  -  Completed in 0.33.5.18.6.5.4.
 
 - [x] Evaluate all existing regressions and see what can be eliminated/lightened  -  Completed in 0.33.5.18.6.5.4 without removing coverage from the standard release gate.
@@ -2026,6 +2639,9 @@ Acceptance criteria:
 - The decision records two real upgrade/restore cycles and selects the smallest evidence-supported assistant, including a documented decision to build nothing if manual operations remain sufficient.
 
 ## Version 0.39.15 - Public API and integration-surface decoupling (backend-agnostic, pre-Postgres)
+
+**Note from 0.36.6 Assets Module**
+- Include the Assets API, relationship API, and future MCP read path in the backend/module-boundary audit.
 
 Purpose:
 
@@ -2113,6 +2729,9 @@ Acceptance criteria:
 - The SQLite adapter is measurably faster on hot reads/writes through prepared-statement reuse, single-scan parsing, single-row `get()`, and config-gated WAL-safe PRAGMAs, with no change to query results, error contracts, transaction semantics, or the agnostic contract, and with the durability tradeoff documented and diagnostics-visible. The optimizations are established before 0.40.0 so the PostgreSQL adapter can mirror the same patterns.
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
+
+**Note from 0.36.6 Assets Module**
+- Include Assets common fields, attributes JSON, identifiers, Locations, dates, relationship traversal, record links, filters, import transactions, and Search rebuilds in the dual-backend contract suite.
 
 Now that we have the base layer of a complete project management tool, we can begin expanding actual project management with milestones, dependencies, status reporting, budgeting, estimation, views, templates, etc.
 
