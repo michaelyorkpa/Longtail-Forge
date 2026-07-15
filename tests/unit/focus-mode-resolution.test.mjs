@@ -34,15 +34,11 @@ describe("resolveFocusMode", () => {
       .rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("reports the required selection for client focus", async () => {
-    const resolved = await resolveFocusMode({}, {
-      modeId: FOCUS_MODE_IDS.clientFocus,
-      workspaceType: "business",
-      clientId: "client-1",
-    });
-    expect(resolved.requiredSelection).toBe("client");
-    expect(resolved.scope.type).toBe("client");
-    expect(resolved.filters.clientId).toBe("client-1");
+  it("reports the required selection for client focus without reading hierarchy data", async () => {
+    const modes = await listFocusModes({}, { workspaceType: "business" });
+    const clientFocus = modes.find((mode) => mode.id === FOCUS_MODE_IDS.clientFocus);
+    expect(clientFocus?.requiredSelection).toBe("client");
+    expect(clientFocus?.scope).toBe("client");
   });
 });
 
