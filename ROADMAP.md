@@ -37,30 +37,6 @@ The 0.33.14 editable field primitive already satisfies this rule: the current de
 | 0.35.0-0.35.6 Support Tickets | 0.34.0-0.34.6 Support Tickets | Tickets land first as a committed first-party workflow module. |
 | Deferred test timing and affected-test notes in TODO | 0.33.18 and repeated closeout checkpoints | Timing consumption and evidence-based consolidation become versioned roadmap work. |
 
-## Version 0.33.13 - Lists Module UI/UX Overhaul
-
-Decision:
-
-The Lists workspace is a framework-declarative view surface (`lists.workspace` in `src/modules/lists/module.js`), so this overhaul is expressed by moving Lists onto the same framework anatomy Notes already uses — not by hand-building Lists-only page chrome. The framework owns page layout, the slide-out filter/navigation drawer and its bottom-left filter button, collapsible boxes, the shared Linked Context picker/read-list shells, and modal sizing/anatomy. Lists owns its filter/selector data, detail content, linked-record provider queries and save payloads, item workflow, and `.lists-*` content styling.
-
-Before this branch, Lists rendered filters and the "List Selector" inline above the detail through `layout: "stacked"`. As of 0.33.13.1, both controls live in the framework slide-out drawer and the selected-list detail owns the full-width main surface. As of 0.33.13.2, the detail opens with a collapsible List Details box that contains the description and read-only linked records through the shared linked-context list shell. As of 0.33.13.3, Create/Edit List owns all link management through the shared Linked Context picker in a framework-wide modal, with permission-filtered readable/writable targets and no raw record-ID entry. As of 0.33.13.4, the Add/Edit Item modal follows the same framework modal heading, section, and width-hint guidelines without the leftover one-off item-grid layout CSS. As of 0.33.13.5, Lists is closed on one declarative linked-record path per purpose, the retired detail-side linked-record editor/bootstrap/CSS are gone, and the branch is complete.
-
-Purpose:
-
-Bring the Lists workspace in line with the framework view guidelines and the Notes reference layout: move filtering and list selection into the standard bottom-left filter drawer, give the detail a clean full-width reading layout with a collapsible "List Details" box, and move all link management into a properly sized Edit List modal that uses the shared Linked Context picker.
-
-Dependencies and baseline:
-
-- Builds on the framework `slide-out-sidebar` layout and `sidebarPanels` (already consumed by `notes.workspace` and Tasks), the collapsible `view.createInfoPanel`, and the shared `view.createLinkedContextPicker` / `view.createLinkedContextList` shells and `linked-context-target.v1` provider contract (`docs/linked-context-picker-contract.md`). Lists already registers a `linkedContextProviders` List-target provider; this version makes Lists a *consumer* of the shared picker for its own linking UI, as Notes already is.
-- Honors the framework/module view-ownership boundary: framework owns layout/anatomy/`.view-*`; Lists owns data/behavior and `.lists-*`.
-- Does not depend on the 0.33.14 field-factory primitive; the Edit List and Item modals use the current descriptor modal-form primitives. Any field type the primitive does not yet cover stays as-is until 0.33.14 folds it in.
-
-Non-goals:
-
-- Do not change the Lists data model, routes, permissions, item/reusable/catalog workflow, or billing/cost math.
-- Do not build Lists-only layout classes where a framework primitive exists; consume `renderDescriptor*` / `view.*` helpers.
-- Do not revive the deprecated `.view-split-list-detail` primitive; Lists moves from `stacked` to `slide-out-sidebar`.
-
 ## Version 0.33.14 - Framework View Primitives: Editable Form-Field Factory
 
 Purpose:
@@ -743,7 +719,71 @@ Acceptance criteria:
 
 - Every startup action has explicit lifecycle ownership, slow phases are visible, and tests prove order and failure behavior without changing fresh-install or current SQLite semantics.
 
-### Version 0.33.18.2 - Digestible module-manifest composition pilot
+### Version 0.33.18.2 - First-Party Module Registry De-Hardcoding and Runtime Activation
+
+**Model: High Effort** — Module loading sits ahead of migrations, routes,
+permissions, registries, jobs, and workers. A partial conversion could make
+the catalog appear dynamic while leaving module-specific startup coupling or
+import-time side effects behind.
+
+Purpose:
+
+Replace the manually edited first-party import/list in
+`src/core/modules/registry.js` with a deterministic generated bundled-module
+catalog, while preserving explicit, auditable loading and the existing
+synchronous `npm start` runtime. Separate module declaration from module
+runtime activation so importing a module cannot mutate framework registries
+before the complete manifest graph has validated.
+
+- [ ] Separate the registry engine from the bundled first-party module catalog.
+      The engine must not import or name individual workflow modules.
+- [ ] Define one canonical, side-effect-free module entry export containing the
+      validated manifest plus optional explicit app/worker activation hooks.
+- [ ] Add a generator that discovers only repository-owned
+      `src/modules/*/module.js` entries and emits a deterministic tracked ESM
+      catalog.
+- [ ] Add `modules:registry:generate` and `modules:registry:check`; the check must
+      fail on a missing, extra, reordered, or stale generated entry.
+- [ ] Validate directory-name/manifest-ID agreement, canonical export shape,
+      duplicate IDs, unresolved dependencies, and deterministic ordering before
+      database mutation or runtime activation.
+- [ ] Move module-owned import-time registrations into explicit activation.
+      Existing Tasks search/job/sweep registration and Time Tracking
+      search/report-runner registration are initial consumers.
+- [ ] Remove module-specific startup imports from framework app and worker
+      bootstrap where the behavior belongs to a module.
+- [ ] Preserve the exact pre-conversion inventory of module IDs, routes,
+      migration sources, permissions, API scopes, views, browser assets,
+      settings, hooks, and contribution IDs.
+- [ ] Update module-development, module-contract, architecture, startup, and
+      packaging documentation.
+
+Non-goals:
+
+- Do not load arbitrary code from an operator-writable runtime directory.
+- Do not build third-party plugin installation, update, removal, signing,
+  compatibility, or marketplace behavior.
+- Do not make the database the source of executable module paths.
+- Do not convert the registry API to broadly asynchronous lookup.
+- Do not add hidden load-order behavior; activation follows validated
+  dependencies with a stable module-ID tie-breaker.
+
+Acceptance criteria:
+
+- Adding a valid first-party fixture module requires no hand edit to
+  `src/core/modules/registry.js` or another framework-owned module list.
+- `registry.js` contains no import of a specifically named first-party module.
+- Module entry imports perform no registry mutation before validation.
+- Framework app and worker startup contain no first-party module-specific
+  activation calls for converted behavior.
+- A stale generated catalog, directory/ID mismatch, duplicate ID, missing
+  canonical export, or unresolved dependency fails before migrations or other
+  database changes.
+- The before/after module and contribution inventories match exactly, and
+  module sanity, typecheck, startup, migration, clean-clone, packaging, affected,
+  and full release gates pass.
+
+### Version 0.33.18.3 - Digestible module-manifest composition pilot
 
 **Model: High Effort** — High-volume source movement can silently alter contribution IDs, ordering, permissions, or startup validation.
 
@@ -756,7 +796,7 @@ Acceptance criteria:
 
 - Two large modules are easier to review while their composed manifests validate and behave identically; the pattern is documented without becoming mandatory boilerplate.
 
-### Version 0.33.18.3 - First native browser ES-module conversion wave
+### Version 0.33.18.4 - First native browser ES-module conversion wave
 
 **Model: High Effort** — Dashboard/Workbench loading, accessibility, and module-host boundaries are highly coupled and user-visible.
 
@@ -770,7 +810,7 @@ Acceptance criteria:
 
 - The first strained surface loads through explicit imports with no new global-order dependency and no behavioral or accessibility regression.
 
-### Version 0.33.18.4 - First formal test-suite streamlining review
+### Version 0.33.18.5 - First formal test-suite streamlining review
 
 **Model: High Effort** — Coverage retirement and suite budgeting require evidence across unit, integration, permission, database, and browser layers.
 
@@ -784,7 +824,7 @@ Acceptance criteria:
 
 - The suite has a measured budget and evidence-backed consolidation plan; any retirement is traceable to equivalent coverage and no high-risk contract is weakened.
 
-### Version 0.33.18.5 - Maintainability closeout
+### Version 0.33.18.6 - Maintainability closeout
 
 **Model: High Effort** — Closeout must prove source reorganization did not change runtime contracts.
 
@@ -795,6 +835,122 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Documentation matches the settled structures, the Two-Module Rule is evidenced, and no runtime behavior changed accidentally.
+
+## Version 0.33.19 - Recurring Calendar Projection and Private Calendar Subscription Feed
+
+Purpose:
+
+Make the task calendar show recurring work the way users expect — every future occurrence of a repeating task visible up to its end date — and give users a read-only private calendar subscription they can add to Google Calendar, Apple Calendar, Outlook, or Thunderbird. Both are early-value calendar improvements built on the existing Tasks-owned calendar (`src/modules/tasks/tasks.service.js` `calendarWindow`/`taskCalendarRow`, `src/modules/tasks/tasks.repo.js` `readDueBetween`, `public/js/shared/task-calendar.js`) and the existing task recurrence engine (`src/modules/tasks/task-recurrence.service.js`, `task-recurrence.repo.js`, `task-jobs.service.js`, `task_recurrence_templates`).
+
+Today the calendar only shows already-materialized task rows with a concrete `due_date`, and recurrence is materialized one open instance at a time (completion-driven, with a 12-hour backfill sweep). A weekly task therefore appears once and does not march forward across the grid. This version keeps that materialize-on-completion model but adds a read-time projection so the calendar and the feed can display future occurrences that have not been generated as rows yet, without mass-materializing them.
+
+Decision:
+
+Recurrence projection is a read-time concern owned by the Tasks module: the calendar read expands a recurrence template's RRULE across the requested window into virtual (ghost) occurrences and merges them with real rows, rather than pre-creating rows. A virtual occurrence is promoted to a real `tasks` row only when a user attaches instance-specific data to it (materialize-on-touch), reusing the existing `recurrence_template_id` / `recurrence_instance_date` linkage and `materializeInstance`. The subscription feed is split by ownership per the framework's Two-Module boundaries: the framework owns the private tokenized feed endpoint and its authentication/throttling (an intrinsically framework-wide auth surface, and an explicit Two-Module exception), and the Tasks module owns turning tasks into iCalendar content. The feed is read-only and provider-neutral; no two-way sync, no per-provider OAuth.
+
+Dependencies and baseline:
+
+- Builds on the existing Tasks calendar read path and recurrence engine; extends `calendarWindow` and reuses `buildRRule`/`parseRRule`/`nextOccurrenceDate` and `materializeInstance` rather than adding a second recurrence implementation.
+- The feed endpoint is an internet-reachable, session-less, token-authenticated surface, so it depends on the 0.33.16 security hardening (trusted-proxy client-IP resolution, sensitive-endpoint throttling, secret handling, and the security-event stream) and lands after 0.33.17 preview readiness. Its token is hashed at rest and never logged, consistent with 0.33.16.8/0.33.16.9.
+- Honors the calendar's current single-day model (`endDate === startDate`); this version does not introduce multi-day/spanning events.
+
+Key decisions:
+
+- **Projection is read-time, not eager materialization.** The calendar continues to generate at most one open real instance per chain on completion; virtual occurrences are computed on read and are never persisted unless touched. This avoids row bloat and preserves the existing completion-continuity and sweep behavior (`task-jobs.service.js`).
+- **Dedup by instance identity.** A virtual occurrence for a given date is suppressed when a real row already exists for the same `(recurrence_template_id, recurrence_instance_date)`; the materialized row (which may carry an override) always wins. This dedup is shared by the calendar read and the feed serialization.
+- **Materialize-on-touch preserves per-instance editing.** Adding a note, description, checklist change, assignee change, reschedule, or completion to a virtual occurrence first promotes it to a real row for that date, then applies the edit; all other occurrences stay virtual. This is the workaround for "attach data to one occurrence of a recurring task."
+- **Bounded expansion.** Virtual expansion is capped by the existing `TASK_CALENDAR_WINDOW_MAX_DAYS` for the calendar and by a defined rolling window (past/future horizon) for the feed; open-ended templates (no `recurrence_end_date`) simply fill whatever bounded window is requested.
+- **Feed content is native iCalendar with RRULE.** A recurring task serializes to one `VEVENT` with an `RRULE`; a materialized instance-override serializes as a `RECURRENCE-ID` exception to that series. Non-recurring tasks serialize as single `VEVENT`s. All-day vs timed derives from `due_time`, matching `taskCalendarRow`.
+- **Per-user, single rotatable token.** Each user has one private feed URL scoped to the tasks they can read across the workspace; regenerating the token immediately revokes the old URL. The feed respects the same per-task read permission and workspace scope as the in-app calendar.
+- **Provider-neutral, one-way, described as "Calendar subscription."** The UI and docs describe this as a read-only calendar subscription, never "Google Calendar sync." Google OAuth/API integration and any two-way editing are explicitly deferred.
+
+Non-goals:
+
+- Do not switch recurrence to eager mass materialization of many future rows, and do not change the completion-driven generation or the backfill sweep.
+- Do not add multi-day/spanning calendar events, durations, or a standalone non-task event entity; a calendar entry remains a task.
+- Do not build two-way calendar sync, write-back, free/busy publishing, or per-provider OAuth/API integration in this version.
+- Do not add email/notification transport, `VALARM`-based push reminders as a delivery channel, or provider-specific feed variants.
+- Do not weaken per-task read permission, workspace isolation, private/secure-content, or audit guardrails to serve the calendar projection or the feed.
+- Do not generalize a framework "feed serving" facility for tasks alone; the framework owns only the tokenized-feed auth surface (a framework-wide exception), while iCalendar content stays module-owned until a second real content consumer exists.
+
+### Version 0.33.19.1 - Read-time recurrence projection on the calendar
+
+**Model: High Effort** — This changes the calendar read to merge computed virtual occurrences with real rows, and a mistake either drops real instances or double-shows occurrences.
+
+- [ ] Extend `tasksService.calendarWindow` to expand each active, in-window recurrence template (`task_recurrence_templates`, `template_status = active`) into virtual occurrences across the requested range using the existing `task-recurrence.service.js` occurrence math, bounded by `TASK_CALENDAR_WINDOW_MAX_DAYS` and by each template's `recurrence_end_date`/RRULE `UNTIL`.
+- [ ] Dedup virtual occurrences against materialized rows by `(recurrence_template_id, recurrence_instance_date)`, with the real row always taking precedence.
+- [ ] Extend `taskCalendarRow` (or a virtual-occurrence sibling) so virtual entries carry `templateId`, `instanceDate`, and a `virtual: true` marker, while keeping `allDay`/`startDate`/`endDate` semantics identical to real rows.
+- [ ] Apply the existing client/project scope and per-task read-permission filters to virtual occurrences exactly as for real rows; a user must never see a projected occurrence of a task they cannot read.
+- [ ] Render virtual entries in `public/js/shared/task-calendar.js` with a clear not-yet-materialized affordance, reused by both the Calendar page (`public/js/calendar.js`) and the Dashboard calendar panel (`public/js/dashboard.js`).
+- [ ] Add regressions: a weekly template with no end date shows one occurrence per week across the window; a template with an end date stops projecting after it; a materialized instance suppresses its virtual twin; a hidden/unreadable task projects nothing; and the reminder-marker lookahead still works.
+
+Acceptance criteria:
+
+- A recurring task appears on every applicable date within the calendar window, not only on its single materialized instance.
+- Virtual occurrences respect end dates, permission/scope filters, and never duplicate a materialized instance.
+- No new rows are created by opening or paging the calendar.
+
+### Version 0.33.19.2 - Per-instance overrides via materialize-on-touch
+
+**Model: High Effort** — Promotion-on-edit must be exactly-once and race-safe so an instance-specific edit cannot silently apply to the wrong date or spawn duplicate rows.
+
+- [ ] Add a materialize-on-touch path: opening and saving instance-specific data (note, description, checklist change, assignee change, reschedule, completion) on a virtual occurrence first calls `materializeInstance` for that `(template, instanceDate)`, then applies the edit to the resulting row.
+- [ ] Carry `templateId` + `instanceDate` from the virtual calendar entry through the task editor open path (`public/js/task-dialog.js`, `openCalendarTask`) so the save knows it is promoting a specific occurrence rather than editing the template.
+- [ ] Make promotion idempotent and race-safe: concurrent promotion of the same occurrence resolves to one row (reuse/verify the existing instance-uniqueness guarantee), and promotion never disturbs the completion-driven generation of the chain's next open instance.
+- [ ] Confirm the existing completion continuity and the 12-hour backfill sweep still behave correctly when the touched occurrence is not the current open instance.
+- [ ] Add regressions: touching one occurrence materializes exactly that date and leaves siblings virtual; the materialized override then displays instead of its ghost (0.33.19.1 dedup); concurrent touch yields a single row; and completing a virtual occurrence both records completion and preserves normal next-instance generation.
+
+Acceptance criteria:
+
+- A user can attach instance-specific data to a single occurrence of a recurring task, and only that occurrence becomes a real, independently-editable row.
+- Promotion is exactly-once, permission-checked, and does not disrupt recurrence generation or continuity.
+
+### Version 0.33.19.3 - Framework private calendar-feed subscription and token authentication
+
+**Model: High Effort** — This is a new session-less, internet-reachable authenticated read surface; getting token handling, revocation, or throttling wrong exposes private task data.
+
+- [ ] Add a framework-owned private-feed token: one rotatable token per user, hashed at rest, never logged, verified constant-time, resolvable to the user + workspace for a feed request without a session cookie.
+- [ ] Add a framework feed endpoint (for example `GET /feeds/calendar/:token.ics`) that authenticates by token only, resolves the requesting identity, and delegates content generation to a registered feed content provider by stable ID (Tasks is the initial and only provider).
+- [ ] Key throttling on the 0.33.16.1 trusted client IP and apply the 0.33.16.3 sensitive-endpoint throttle; keep responses non-enumerating (an invalid/rotated token is indistinguishable from an unknown one) and never reveal account or workspace existence.
+- [ ] Add token lifecycle: generate, rotate (immediately revoking the prior URL), and disable, gated behind the user's own session; emit a 0.33.16.8 security event on generate/rotate/disable.
+- [ ] Set correct read-only caching/`Content-Type: text/calendar` semantics and a conservative refresh hint, and ensure the endpoint bypasses CSRF/session-cookie assumptions safely (token auth only, no state change).
+- [ ] Document the token/feed auth surface as an explicit intrinsically-framework-wide Two-Module exception (authentication), with the content contract left to modules.
+- [ ] Add regressions: a valid token serves the owner's feed; a rotated/disabled/unknown token is rejected indistinguishably; the endpoint is throttled and forged-header-safe; the token never appears in logs; and rotation revokes the old URL on the next request.
+
+Acceptance criteria:
+
+- A per-user, rotatable, hashed feed token authenticates a session-less read of the user's calendar, permission- and workspace-scoped.
+- The feed endpoint is throttled, non-enumerating, secret-free in logs, and revocation takes effect immediately.
+- The framework owns only the feed auth/serving seam and dispatches content to a registered provider by ID.
+
+### Version 0.33.19.4 - Tasks iCalendar content serialization
+
+**Model: High Effort** — iCalendar correctness (RRULE, RECURRENCE-ID overrides, time zones, escaping) determines whether real calendar clients render the feed without corruption.
+
+- [ ] Register a Tasks feed content provider that serializes the user's readable tasks into standards-compliant iCalendar (`VCALENDAR`/`VEVENT`), reusing `taskCalendarRow` semantics for all-day (`due_time` absent) vs timed events and the same per-task read-permission and workspace scope as the in-app calendar.
+- [ ] Emit recurring tasks as a single `VEVENT` with an `RRULE` derived from the template (reusing `buildRRule`/the template's stored `rrule`), honoring `recurrence_end_date` as `UNTIL`, and serialize each materialized instance-override as a `RECURRENCE-ID` exception to its series (shared dedup with 0.33.19.1).
+- [ ] Produce stable, provider-neutral `UID`s (task/instance identity) and correct `DTSTART`/`DTEND`/time-zone (`due_timezone`/`due_at_utc`) handling, with proper iCalendar line folding and text escaping.
+- [ ] Bound the feed to a defined rolling window (past/future horizon) rather than unbounded history/future; open-ended recurrences fill the future horizon via RRULE.
+- [ ] Validate output against Google Calendar, Apple Calendar, Outlook, and Thunderbird import, and add a serialization regression (fixtures for single, all-day, timed, recurring, and overridden-instance tasks) asserting valid structure and correct RRULE/RECURRENCE-ID.
+
+Acceptance criteria:
+
+- The feed imports cleanly into Google, Apple, Outlook, and Thunderbird and renders one-off, all-day, timed, and recurring tasks correctly.
+- Recurring tasks appear as native RRULE events with per-instance overrides expressed as RECURRENCE-ID exceptions.
+- The feed exposes only tasks the token's user may read, within a bounded window.
+
+### Version 0.33.19.5 - Subscription UI, documentation, and closeout
+
+- [ ] Add a user-facing "Calendar subscription" control (in user settings, aligned with the 0.33.15 settings host if landed) to reveal, copy, rotate, and disable the private feed URL, described as a read-only subscription and never as "Google Calendar sync."
+- [ ] Provide short in-product guidance/links for adding the URL to Google Calendar, Apple Calendar, Outlook, and Thunderbird, and set expectations that client refresh is periodic (not real-time).
+- [ ] Document the recurrence projection model (read-time virtual occurrences, materialize-on-touch), the feed auth surface, and the deferral of Google OAuth/two-way sync in `docs/tasks-module.md` and the relevant architecture/security docs; update `DECISIONS.md` and `CHANGELOG.md`.
+- [ ] Record the Two-Module outcome at closeout: name the feed-auth seam as a framework-wide authentication exception and keep iCalendar content module-owned until a second real content consumer exists.
+- [ ] Run `npm run check`, `npm run test:permissions`, the calendar/recurrence regressions, and the feed auth/throttle/serialization regressions; confirm `/api/app-info` after implementation.
+
+Acceptance criteria:
+
+- Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
+- The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, and the release-gate checks pass.
 
 ## Version 0.34 - Support Tickets Module
 
