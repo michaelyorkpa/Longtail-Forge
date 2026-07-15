@@ -29,7 +29,9 @@ for (const primitive of [
   "Modal shell",
   "Modal form",
   "Modal footer/action groups",
+  "Field factory",
   "Field grid",
+  "Typed field-value collector",
   "Inline item/action row",
 ]) {
   assert.match(viewContract, new RegExp(escapeRegExp(primitive)), `Primitive should be documented: ${primitive}`);

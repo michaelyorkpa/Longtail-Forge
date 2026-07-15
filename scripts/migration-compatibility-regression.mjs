@@ -87,6 +87,8 @@ ORDER BY version;
     "067",
     "068",
     "069",
+    "070",
+    "071",
   ], "fresh database should record the consolidated baseline and active core migrations");
 
   for (const row of rows) {

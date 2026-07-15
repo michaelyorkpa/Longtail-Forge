@@ -1,3 +1,4 @@
+import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -11,7 +12,7 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.6.15.1";
+const currentTasksVersion = appVersion;
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should consume the canonical app version");
 

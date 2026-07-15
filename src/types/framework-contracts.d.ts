@@ -106,13 +106,34 @@ export interface NavigationContribution {
 export interface ModuleSettingDefinition {
   id: string;
   label: string;
-  type: "boolean" | "text" | "number" | "select" | "multi-select" | "info" | (string & {});
+  type: "boolean" | "toggle" | "text" | "textarea" | "number" | "select" | "multi-select" | "radio" | "info" | (string & {});
+  placement: "workspace" | "user" | "module" | "new-workspace" | (string & {});
+  target?: "module";
+  protected?: false;
+  ownerOnly?: boolean;
+  readOnly?: boolean;
   description?: string;
   placeholder?: string;
   inputmode?: string;
   readOnlyReason?: string;
   disabledReason?: string;
+  requiredPermissions?: string[];
+  requiredWorkspaceCapabilities?: string[];
+  requiresEnabledModules?: string[];
+  requiredModules?: string[];
+  handler?: string;
+  onChangeEffect?: string;
+  options?: { label: string; value: string }[];
+  min?: number;
+  max?: number;
+  step?: number;
+  rows?: number;
+  spellcheck?: boolean;
+  default?: boolean | string | number | string[];
+  visibleWhen?: { settingId: string; equals: boolean | string | number };
+  required?: boolean;
   moduleStatus?: boolean;
+  terminology?: TerminologyMap;
   [key: string]: unknown;
 }
 

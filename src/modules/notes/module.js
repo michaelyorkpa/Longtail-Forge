@@ -448,6 +448,7 @@ const notesModule = {
       id: "notesEnabled",
       label: "Notes",
       type: "boolean",
+      placement: "workspace",
       moduleStatus: true,
     },
   ],

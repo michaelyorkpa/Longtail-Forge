@@ -30,6 +30,7 @@ assert.doesNotMatch(
 for (const primitive of [
   "createPageHeader",
   "createInfoPanel",
+  "createField",
   "createFieldGrid",
   "createFilterPanel",
   "createStatusMessage",
@@ -45,7 +46,8 @@ assert.match(reportingHost, /loadRendererAssets\(report\.rendererAssets \|\| \[\
 assert.match(reportingHost, /reportRenderers\.get\(report\.renderer\)/);
 assert.match(reportingHost, /registerRenderer[\s\S]*reportRenderers\.set/);
 assert.match(reportingHost, /filter\.type === "custom-date-range"[\s\S]*createCustomDateRangeField/);
-assert.match(reportingHost, /filter\.type === "project-multi-select" \? \{ multiple: true \}/);
+assert.match(reportingHost, /filter\.type === "project-multi-select"[\s\S]*\? "multi-select"/);
+assert.match(reportingHost, /createDateField[\s\S]*reportingView\.createField\(\{/);
 assert.match(reportingHost, /function updateConditionalFilterVisibility\(\)/);
 assert.match(reportingHost, /field\.filter\.visibleWhen/);
 assert.match(reportingHost, /handleReportFilterChange[\s\S]*executeSelectedReport/);

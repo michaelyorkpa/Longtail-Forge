@@ -1000,6 +1000,17 @@ CREATE TABLE work_resume_state (
   UNIQUE (workspace_id, user_id, module_id, record_type, record_id)
 );
 
+CREATE TABLE workspace_module_settings (
+  workspace_id TEXT NOT NULL,
+  module_id TEXT NOT NULL,
+  setting_id TEXT NOT NULL,
+  setting_value_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (workspace_id, module_id, setting_id),
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id) ON DELETE CASCADE
+);
+
 CREATE TABLE workspace_modules (
   workspace_id TEXT NOT NULL,
   module_id TEXT NOT NULL,
@@ -1014,17 +1025,9 @@ CREATE TABLE workspace_modules (
 
 CREATE TABLE "workspace_settings" (
   workspace_id TEXT PRIMARY KEY,
-  fiscal_year_start_month INTEGER NOT NULL,
-  fiscal_year_start_day INTEGER NOT NULL,
-  default_billing_rate TEXT,
-  billing_period_type TEXT NOT NULL,
-  billing_period_start_day INTEGER NOT NULL,
-  rounding_enabled INTEGER NOT NULL,
-  rounding_increment TEXT NOT NULL,
   audit_logging_enabled INTEGER NOT NULL DEFAULT 1,
   audit_retention_days INTEGER NOT NULL DEFAULT 30,
   audit_settings_updated_at TEXT,
-  task_timers_enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)

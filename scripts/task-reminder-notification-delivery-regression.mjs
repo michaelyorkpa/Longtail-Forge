@@ -70,7 +70,7 @@ function assertStaticContract() {
   assert.match(regressionSuite, /scripts\/task-reminder-notification-delivery-regression\.mjs/, "regression suite should include reminder delivery coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the reminder delivery slice");
-  assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current implementation version");
+  assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current implementation version");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.8[\s\S]*explicit reminder recipients/, "database docs should document reminder delivery recipients");
   assert.match(runtimeDocs, /0\.33\.5\.21\.8[\s\S]*task due reminders reach in-app notifications/, "runtime docs should document reminder delivery");
 }

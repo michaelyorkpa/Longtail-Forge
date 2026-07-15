@@ -88,15 +88,29 @@ Each tool has one job, and they do not substitute for each other:
 
 ## Module Settings
 
-Declare settings in `settings`. A setting with `moduleStatus: true` controls the module enablement row in `workspace_modules`. Writable non-status settings need explicit server-side handling before they should be accepted by settings saves.
+Declare settings in `settings` with an `id`, `label`, supported field `type`, and one fixed `placement`: `workspace`, `user`, `module`, or `new-workspace`. Omitted `target` values default to `module`. Use the standard permission, workspace-capability, and enabled-module requirement arrays to control catalog eligibility. `modulesService.listSettingsContributions(workspaceId, session)` applies those filters and resolves terminology without reading values or running behavior.
+
+The browser reads eligible, hydrated sections from `GET /api/settings/catalog`; do not add a page-specific settings endpoint or a new DOM anchor. The catalog groups `workspace`, `user`, `module`, and `new-workspace` attachments, with module attachments keyed by the owning module ID. Current protected Settings pages are minimal `data-settings-host` mounts, and `LongtailForge.settingsHost` supplies the standardized `data-settings-attachment` regions.
+
+A module manifest may name a persistence `handler` or `onChangeEffect` only by stable string ID. Register the executable behavior separately; never put functions in a settings descriptor. Module settings cannot target `framework`, set `protected: true`, or reuse a framework-registered setting ID. Framework code owns those definitions through the protected registry.
+
+Use `visibleWhen: { settingId, equals }` when one setting should appear only for a matching value of another setting in the same contribution. The comparison value must match the controller type, and dependency chains must not contain self-references or cycles. Hidden fields are disabled and omitted from saves, so do not use visibility as a permission or persistence rule.
+
+A setting with `moduleStatus: true` controls the module enablement row in `workspace_modules`. An ordinary writable non-status value is type-validated from its descriptor and persists automatically in `workspace_module_settings`; module code reads it with `settingsService.getValue(context, moduleId, settingId)`. It does not need a `workspace_settings` column, a `normalizeSettings` branch, or a handler.
+
+Register a persistence handler by `<moduleId>.<settingId>` only when the setting owns specialized storage or needs a temporary legacy bridge. Register an on-change effect separately when successful changed persistence must invalidate or refresh other state. Effects are not persistence handlers and do not run for rejected or unchanged values. Module status remains on the module lifecycle path rather than generic value storage.
 
 Use `info` settings for documentation-only or read-only example fields.
+
+The browser `LongtailForge.settingsRenderer` creates the titled section, fields, and save action through framework view primitives and collects values into `moduleSettings[moduleId]`. Native constraint failures and server field errors use the framework field message channel. Modules own option meaning, validation, error wording, persistence handlers, and effects; they do not provide custom settings field DOM.
 
 ## Permissions
 
 Declare user-facing permission metadata in `permissions`, and keep `requiredPermissions` as the compact compatibility list used by navigation, view, and contribution filters.
 
 Use `defaultRolePermissions` for additive default grants. Startup sync inserts missing permissions and role mappings but does not remove existing grants.
+
+Declare each role-override matrix resource in `resourceDefinitions` with a stable `key`, user-facing `label`, supported `operations`, and `requiredPermissions` for catalog visibility. The required permission IDs are validated against the registered permission catalog. `modulesService.listActiveResourceDefinitions(workspaceId, session)` applies module status, terminology, and permission filtering, and User Admin consumes the result through `GET /api/users/permission-resources`. Do not add a module resource or future placeholder to `public/js/user-admin.js`; enabling or disabling the module must be sufficient to add or remove its matrix section. Resource definitions describe the assignment UI catalog and do not replace module/service record-level checks.
 
 ## Navigation
 

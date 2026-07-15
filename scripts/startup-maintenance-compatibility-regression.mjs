@@ -55,7 +55,8 @@ function assertStaticContract() {
   assert.match(dbIndexSource, /FRAMEWORK_MODULE_UPSERT_SQL[\s\S]*buildInsertOnConflictDoUpdate/, "framework module startup upsert should use the conflict update seam");
   assert.match(dbIndexSource, /USER_WORKSPACE_INSERT_SQL[\s\S]*buildInsertOrIgnore/, "workspace membership startup repair should use the conflict insert-or-ignore seam");
   assert.match(dbIndexSource, /USER_ROLE_ASSIGNMENT_INSERT_SQL[\s\S]*buildInsertOrIgnore/, "protected role startup repair should use the conflict insert-or-ignore seam");
-  assert.match(dbIndexSource, /databaseDialect\.boolean\.bind\(seedSettings\.billingRounding\.enabled\)/, "startup workspace settings should bind logical booleans through the dialect seam");
+  assert.match(dbIndexSource, /INSERT INTO workspace_settings \([\s\S]*workspace_id,[\s\S]*created_at,[\s\S]*updated_at[\s\S]*\)\s*VALUES \(\s*:workspaceId,\s*:createdAt,\s*:updatedAt\s*\)/, "startup should create only framework-owned workspace settings state with bound parameters");
+  assert.doesNotMatch(dbIndexSource, /seedSettings\.(?:billingRounding|taskTimersEnabled|fiscalYear|defaultBillingRate|billingPeriod)/, "startup must not seed module-owned settings through the framework workspace row");
   assert.match(dbIndexSource, /databaseDialect\.identity\.rowId/, "startup physical identity reads should use the rowid seam");
   assert.match(dbIndexSource, /databaseDialect\.introspection\.tableInfo\(tableName\)/, "startup column checks should use the introspection seam");
   assert.match(dbIndexSource, /await db\.transaction\(async \(transaction\) => \{[\s\S]*transaction\.run/, "multi-step startup repairs should use transaction clients");
@@ -88,12 +89,12 @@ LIMIT 1;
   assert.ok(workspace.owner_user_id, "startup should repair workspace owner from protected users");
 
   const settings = await db.get(`
-SELECT workspace_id, rounding_enabled
+SELECT workspace_id, audit_logging_enabled
 FROM workspace_settings
 WHERE workspace_id = :workspaceId;
 `, { workspaceId: workspace.workspace_id });
   assert.equal(settings.workspace_id, workspace.workspace_id, "startup should create workspace settings with bound params");
-  assert.equal([0, 1].includes(settings.rounding_enabled), true, "startup should store boolean settings using SQLite boolean storage");
+  assert.equal([0, 1].includes(settings.audit_logging_enabled), true, "startup should store framework boolean settings using SQLite boolean storage");
 
   const membership = await db.get(`
 SELECT status

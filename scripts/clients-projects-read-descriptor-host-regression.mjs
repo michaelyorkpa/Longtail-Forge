@@ -283,33 +283,17 @@ ON CONFLICT(workspace_id) DO UPDATE SET
 
 INSERT INTO workspace_settings (
   workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
   audit_logging_enabled,
   audit_retention_days,
   audit_settings_updated_at,
-  task_timers_enabled,
   created_at,
   updated_at
 )
 VALUES (
   ${sqlText(workspaceId)},
   1,
-  1,
-  NULL,
-  'calendarMonth',
-  1,
-  0,
-  'nearestQuarterHour',
-  1,
   30,
   datetime('now'),
-  1,
   datetime('now'),
   datetime('now')
 )

@@ -1,10 +1,12 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.6.15.1. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.15.8. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
 Tasks stay integrated through framework contracts for permissions, app shell navigation, Workbench cards, Dashboard summaries, tags, files, search, notifications, audit, public API scopes, Help, module settings, and module status. The framework owns those services; Tasks contributes declarations, routes, event metadata, and record-specific behavior.
+
+Tasks declares its module status at the workspace Settings placement. `taskTimersEnabled` attaches to the Tasks module Settings placement, requires `tasks.view` and enabled Time Tracking, defaults to enabled, and persists as an ordinary generic Tasks value. Four reminder-default contributions use stable Tasks-owned handlers over `task_reminder_offsets`. Catalog eligibility is framework-filtered, while `tasksSettingsService` owns reads used by Tasks behavior; the framework Settings service imports neither Tasks nor its reminder service.
 
 ## Current Workflow Surface
 

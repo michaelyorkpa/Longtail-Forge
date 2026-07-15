@@ -34,6 +34,7 @@ assert.deepEqual(
     "notifications",
     "tags",
     "time-tracking",
+    "settings",
     "permissions",
     "database",
     "module-contracts",
@@ -67,6 +68,34 @@ assert.deepEqual(tasksWithDocs.warnings, []);
 const workbench = suggestDocsForPaths(["public/js/workbench.js"], { index: rawIndex });
 assert.deepEqual(workbench.matchedAreas.map((area) => area.id), ["workbench"]);
 assert.deepEqual(workbench.docs, ["docs/ui-layout-guide.md", "docs/workflow-context-contract.md"]);
+
+const settings = suggestDocsForPaths(["src/services/settings.service.js"], { index: rawIndex });
+assert.deepEqual(settings.matchedAreas.map((area) => area.id), ["settings"]);
+assert.deepEqual(settings.docs, ["docs/settings-control-matrix.md", "docs/settings-ownership.md"]);
+
+const settingsOwnership = readFileSync("docs/settings-ownership.md", "utf8");
+for (const requiredMechanism of [
+  "workspace_settings",
+  "app_settings",
+  "Per-user `users` settings",
+  "file_workspace_settings",
+  "task_reminder_offsets",
+  "notification_user_preferences",
+  "notification_workspace_defaults",
+  "notification_user_display_preferences",
+  "notification_subscriptions",
+  "Secure Notes app-level policy",
+]) {
+  assert.match(settingsOwnership, new RegExp(requiredMechanism.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `settings ownership should inventory ${requiredMechanism}`);
+}
+assert.match(settingsOwnership, /Generic settings store/);
+assert.match(settingsOwnership, /Retained table \+ handler/);
+assert.match(settingsOwnership, /Per-user/);
+assert.match(settingsOwnership, /App-level/);
+assert.match(settingsOwnership, /workspace_module_settings/);
+assert.match(settingsOwnership, /settingsService\.getValue/);
+assert.match(settingsOwnership, /registerPersistenceHandler/);
+assert.match(settingsOwnership, /registerOnChangeEffect/);
 
 const database = suggestDocsForPaths(["src/db/migrations/071_example.sql"], { index: rawIndex });
 assert.deepEqual(database.matchedAreas.map((area) => area.id), ["database"]);

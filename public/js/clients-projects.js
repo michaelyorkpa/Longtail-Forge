@@ -2985,14 +2985,25 @@ function normalizeTags(tags) {
 }
 
 function normalizeSettings(settings) {
+  const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
+  const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
   return {
-    defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
-    billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
-    billingRounding: normalizeBillingRounding(settings?.billingRounding),
+    defaultBillingRate: String(readModuleSettingValue(settings, "client-projects", "defaultBillingRate", "")).trim(),
+    billingPeriod: normalizeBillingPeriod({ type: billingPeriodType, startDay: billingPeriodStartDay }),
+    billingRounding: normalizeBillingRounding({
+      enabled: readModuleSettingValue(settings, "time-tracking", "billingRoundingEnabled", false),
+      increment: readModuleSettingValue(settings, "time-tracking", "billingRoundingIncrement", "nearestQuarterHour"),
+    }),
     workspaceType: ["business", "personal", "family"].includes(settings?.workspaceType)
       ? settings.workspaceType
       : "business",
   };
+}
+
+function readModuleSettingValue(settings, moduleId, settingId, fallback) {
+  const moduleDefinition = (settings?.moduleSettings || []).find((item) => item.moduleId === moduleId);
+  const setting = (moduleDefinition?.settings || []).find((item) => item.id === settingId);
+  return setting && Object.hasOwn(setting, "value") ? setting.value : fallback;
 }
 
 function normalizeProjectTaskDefaults(defaults = {}) {

@@ -1,5 +1,262 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.15 - Settings De-Hardcoding: Module-Contributed Settings Framework
+
+Completed 0.33.15. The live roadmap continues with 0.33.16.1.
+
+Purpose:
+
+Turn settings from a hand-built framework island into a framework-owned settings host that renders settings **contributed** by modules. Today "settings" is four disconnected mechanisms with no shared registry — the columnar `workspace_settings` table (framework), the `app_settings` key/value table, per-user columns on `users`, and per-feature tables (`file_workspace_settings`, `task_reminder_offsets`, `notification_*`) — and the settings UI reuses **none** of the framework's declarative view system. Module-conceptual settings (billing rate, billing period, rounding, fiscal year, task timers, task reminder defaults, file policy/storage) are baked into framework-owned code, and adding a single functional module setting today requires editing the framework in three places: a `MODULE_SETTING_HANDLERS` entry in `settings.service.js`, a dedicated `workspace_settings` column, and a branch in `normalizeSettings`. This version establishes the pattern the product needs going forward: a module (eventually a third-party plugin) exposes a setting declaratively and says where it attaches, and the framework stores, permission-filters, renders, and saves it with no framework code change.
+
+This is the settings analog of the Reporting framework work (0.33.12): the same "framework owns the host and dispatch; modules own the definitions, data, and record-level safety" boundary, applied to settings instead of reports. It is also the "broader Administration/Settings audit" that 0.33.11 explicitly deferred as larger than a quick fix.
+
+Decision:
+
+Settings is framework-owned settings-host infrastructure, not a normal disable-able workflow module. The framework owns the settings page shell and anatomy, the settings catalog, contribution filtering, the settings renderer and its `.view-*` anatomy, generic settings storage, the save dispatch, and the declared attachment points. Individual modules own their setting descriptors (id, label, type, options, default, validation), the meaning and allowed values of each setting, per-setting permission requirements, and — only where a setting has side effects — a persistence/apply handler registered by stable ID. A module must never require a framework schema migration or a hardcoded framework branch to add an ordinary setting.
+
+A setting must be able to affect change in two places — the owning module and the framework — through one uniform read accessor plus an optional on-change effect registered by stable ID; each setting declares which of those two targets it affects. And some framework settings and capabilities are protected: they are framework-owned, may be read-only or owner-only, and can never be disabled or overridden by a module contribution — the same guarantee that already makes core modules like Clients/Projects and Users non-disable-able (`canDisable: false`), extended to the settings layer.
+
+Dependencies and baseline:
+
+- Builds on the framework view baseline (0.33.5.13-0.33.5.18) and the 0.33.14 editable form-field primitive: the 0.33.14 field factory supplies the exported field construction, the complete field-type set, and the editable value-bound field grid, so Settings consumes a finished primitive rather than inventing settings-only field anatomy. This version adds only the settings-specific layer on top (save binding to `PUT /api/settings`, dependent-setting visibility, and per-setting validation surfacing).
+- Follows the Reporting contribution contract (0.33.12.2-0.33.12.7) as its template and precedent: a validated data-only manifest contribution, a `modulesService.list*Contributions` method reusing the shared four-axis filter, register-by-ID execution kept separate from catalog filtering, permission-filtered module browser-asset delivery into a framework host, and grep/regression guardrails forbidding framework-to-module coupling.
+- Reuses the existing settings seam rather than replacing it: the manifest already has a validated `settings` field (`manifest-contract.js`), the generic contribution filter `listWorkspaceContributions` already applies enabled-module + required-module + workspace-capability + user-permission filtering, and settings already have a data-descriptor-to-behavior-by-ID split (`MODULE_SETTING_HANDLERS`). This version generalizes those; it does not start from scratch.
+- Honors the view-ownership boundary (framework owns page/anatomy/`.view-*`; modules own data/behavior/validation/save payloads and module-prefixed classes).
+
+Key decisions:
+
+- **Generic module-settings storage is the linchpin.** Add a generic per-module/per-workspace settings store (addressed by workspace + module + setting id, JSON-valued) so a contributed setting persists without a dedicated `workspace_settings` column or a `normalizeSettings` branch. Column-per-setting storage is what makes settings hard to un-hardcode; the generic store removes that.
+- **Register-by-ID handlers become opt-in, not mandatory.** The common case (store and read a validated value) is handled generically from the descriptor. A registered handler (generalizing `MODULE_SETTING_HANDLERS`) is required only when a setting has side effects (for example enabling/disabling a module, or writing a legacy per-feature table during migration).
+- **"Where it attaches" is a validated placement key**, modeled on the existing dashboard-panel `placement` contribution, resolving to framework-owned attachment points (workspace settings, user settings, a module's own settings page, and new-workspace creation) — replacing today's implicit `[data-module-settings]` / `[data-module-settings-fields]` / `[data-new-workspace-module-settings]` anchors.
+- **Existing framework-owned settings are migrated behind module ownership with backward-compatible reads.** Billing/rounding/fiscal-year and task settings move to their owning modules; the values keep flowing to the billing/reporting/client-projects consumers through a module-owned accessor, not a framework column read, mirroring the reporting.service.js decoupling.
+- **Settings affect change through one read accessor plus optional on-change effects.** Consuming code — module or framework — reads a setting's current value through a single accessor (`settingsService.getValue(...)`); an optional on-change effect registered by stable ID runs when the value changes (invalidate a cache, refresh navigation, revoke sessions). Read access and effects are separate concerns from write/persistence.
+- **Every setting declares a target: module or framework.** Module-target settings affect only the owning module; framework-target settings affect framework behavior and are framework-owned and guarded. A module contribution cannot reach a framework target it does not own.
+- **Protected framework parts are first-class.** Framework/core settings and capabilities can be marked protected (non-disable, read-only, or owner-only) and can never be removed, disabled, or overridden by a module contribution — extending the existing `canDisable: false` guarantee on core modules (Clients/Projects, Users, Tags) to the settings layer.
+- Settings values are validated at the edge by each module (the module owns validation and allowed values); the framework host stays value-agnostic and never special-cases a first-party module or setting id.
+
+Non-goals:
+
+- Do not build a third-party plugin loader or filesystem module discovery in this version; the contract is designed so a future plugin can use it, but modules remain the statically-registered first-party set.
+- Do not convert framework operational readouts (runtime diagnostics, jobs observability) into contributed settings; those stay framework-owned.
+- Do not migrate genuinely install-level config (session/cookie TTLs, sqlite/worker tuning) out of `config.js` into per-workspace settings.
+- Do not change the meaning, defaults, or persisted values of any existing setting; this is relocation and de-hardcoding, not a settings redesign.
+- Do not weaken permission, workspace-capability, enabled-module, private/secure-content, or audit guardrails to make settings contributable.
+- Do not leave two parallel settings renderers: the raw-`document.createElement` `settingsControls` path is replaced by framework view primitives / descriptor fields, not kept alongside them.
+- Do not let a module contribution disable, override, read-only-bypass, or otherwise weaken a protected framework setting or capability, or target the framework; protected framework parts stay framework-owned.
+- Do not add a generalized settings facility solely for one module's unusual configuration. Keep a single-module effect module-owned unless a second real consumer exists or the setting is intrinsically framework-wide.
+- Keep this branch bounded to Settings de-hardcoding; do not absorb the 0.33.16 security work or 0.33.17 preview/release work.
+
+## Version 0.33.15.8 - Guardrails, docs, and closeout
+
+Completed 0.33.15.8. The live roadmap continues with 0.33.16.1.
+
+**Model: Medium Effort** — This is a well-specified guardrail, documentation, and release-closeout pass over the completed Settings branch.
+
+- [x] Added branch-closeout guardrails proving Settings pages remain minimal hosts, the shared Settings host and renderer avoid first-party setting special cases, ordinary settings stay on the contribution contract, and protected framework settings cannot be claimed or weakened by module manifests.
+- [x] Inventoried the generalized Settings facilities and named their real consumers across Client/Projects, Time Tracking, Tasks, Files, Developer Example, module lifecycle, Create Workspace, and protected framework settings.
+- [x] Documented the intrinsically framework-wide exceptions for protected framework settings, workspace identity/type, user identity/profile/theme, audit/operations, module lifecycle, install/runtime configuration, diagnostics, jobs readouts, and secrets.
+- [x] Updated the Settings contract docs so Workspace, User, Tasks, Time Tracking, and Files Settings are documented as strict framework-owned converted hosts.
+- [x] Updated governing decisions, changelog, package metadata, roadmap archive, and active cursor for the 0.33.16 security branch handoff.
+- [x] Ran release closeout verification, permissions checks, focused Settings/declarative-surface regressions, and `/api/app-info` proof.
+
+Acceptance criteria:
+
+- A new module setting requires only a manifest contribution plus an optional registered handler/effect for side effects or retained storage, with no framework edit.
+- Settings surfaces are documented as framework-owned converted hosts, and the release-gate checks pass.
+
+## Version 0.33.15.7 - De-hardcode the permission resource catalog
+
+Completed 0.33.15.7. The live roadmap continues with 0.33.15.8.
+
+**Model: High Effort** — Permission-resource visibility must remain correctly filtered while the hardcoded framework catalog is removed.
+
+- [x] Removed the browser-owned `PERMISSION_RESOURCES` list and made User Admin render the session-aware `GET /api/users/permission-resources` catalog.
+- [x] Routed module `resourceDefinitions` through enabled-module, terminology, and required-permission filtering; added validated visibility permissions to current module resources.
+- [x] Kept Reporting, Workspace Settings, and Audit Logs on the same framework resource-definition boundary instead of hardcoding them in User Admin.
+- [x] Made module enable/disable state add or remove matrix sections without browser edits, while preserving hidden resource overrides across assignment saves.
+- [x] Preserved Users route authorization, scoped role assignment, compatibility time flags, and existing record-level permission enforcement.
+- [x] Added focused catalog and HTTP permission-harness coverage for contributed operations, missing future resources, session filtering, disabled-module removal, and re-enable restoration.
+
+Acceptance criteria:
+
+- The permission matrix is built from contributed `resourceDefinitions`, not a framework-hardcoded list.
+
+## Version 0.33.15.6 - Migrate hardcoded module settings and decouple the framework settings service
+
+Completed 0.33.15.6. The live roadmap continues with 0.33.15.7.
+
+**Model: High Effort** — This moves authoritative settings storage and runtime reads across several owner boundaries while preserving behavior and data.
+
+- [x] Migrated Client/Projects default billing rate/period and Time Tracking fiscal-year/rounding values from dedicated `workspace_settings` columns into owner-namespaced generic settings, with owner accessors feeding Client/Project, billing, and reporting consumers.
+- [x] Migrated Tasks timer enablement to ordinary generic storage and exposed reminder defaults as Tasks contributions backed by Tasks-registered handlers over `task_reminder_offsets`.
+- [x] Exposed Files type policy and storage quotas as protected Files contributions while retaining the permission-checked, audited, atomic Files settings route and storage table.
+- [x] Kept Secure Notes keys, Files storage-provider selection, and scanner configuration at the install environment boundary rather than exposing them as workspace settings.
+- [x] Added migration 071 to preserve existing values and rebuild `workspace_settings` without module-owned columns; updated fresh-install, historical-adoption, migration, schema, and fixture proofs.
+- [x] Removed module-specific imports, branches, compatibility payload shaping, and setting-ID lists from the framework Settings service, normalizer, and repository.
+- [x] Added decoupling guardrails that reject feature-module imports, module setting IDs, or legacy module columns in framework Settings code and pin the owner migration/configuration boundary.
+- [x] Preserved module state, defaults, workspace-capability behavior, task reminder scheduling, file policy/quota enforcement, permissions, and audit behavior across focused Framework, Views, Files, Tasks, Time Tracking, and permission suites.
+
+Acceptance criteria:
+
+- No module-conceptual setting remains defined, normalized, or stored in framework settings code.
+- The framework settings service imports no specific module service and hardcodes no module setting id, proven by a guardrail.
+- Migrated settings keep their values and behavior.
+
+## Version 0.33.15.5 - Framework settings host, catalog route, and attachment points
+
+Completed 0.33.15.5. The live roadmap continues with 0.33.15.6.
+
+**Model: High Effort** — This establishes the shared, permission-filtered catalog and framework host boundary across every Settings attachment surface.
+
+- [x] Added `GET /api/settings/catalog`, returning eligible Settings contributions grouped into fixed `workspace`, `user`, `module`, and `new-workspace` attachment points with hydrated values and defaults.
+- [x] Reused the shared enabled-module, dependency, workspace-capability, and permission filters for ordinary contributions while retaining an explicit framework lifecycle exception so an administrator can re-enable a disabled module.
+- [x] Replaced the implicit module-settings anchors with declared `data-settings-attachment` targets owned by the framework Settings host.
+- [x] Reduced Workspace, User, Tasks, and Time Tracking Settings views to minimal host mounts that load the shared renderer and `LongtailForge.settingsHost`.
+- [x] Moved existing framework-owned Workspace and User Settings anatomy through the same host construction path while preserving route, field, action, status, and dialog hooks.
+- [x] Added catalog, permission, static-host, and browser-VM regression coverage proving attachment placement, disabled-module lifecycle recovery, permission pruning, minimal protected views, and framework primitive use.
+- [x] Updated the governing decision, architecture, module contract/development guidance, Settings ownership/control docs, UI layout guide, and view-building contract.
+
+Acceptance criteria:
+
+- Contributed settings render into the correct framework-owned attachment point, permission-filtered.
+- Settings pages are minimal framework hosts, not hand-built forms.
+
+## Version 0.33.15.4 - Settings renderer: sections, value binding, and validation
+
+Completed 0.33.15.4. The live roadmap continues with 0.33.15.5.
+
+**Model: High Effort** — This replaces a shared browser renderer and binds typed values, dependent state, and field-level validation across multiple Settings surfaces.
+
+- [x] Added `LongtailForge.settingsRenderer` as the single contribution-normalization and browser-rendering layer over the 0.33.14 field factory, editable field grid, info panel, action, and typed collection primitives.
+- [x] Rendered each module contribution as a titled `.view-settings-section` fieldset with a framework field grid and section save action, with no hand-built settings field anatomy.
+- [x] Bound collected values into the existing `PUT /api/settings` nested `moduleSettings[moduleId][settingId]` payload across Workspace Settings and module-specific Settings, while Create Workspace reuses collection without a section save action.
+- [x] Added validated `visibleWhen: { settingId, equals }` dependencies with same-contribution reference/type checks, cycle rejection, stable chained evaluation, and disabled/omitted hidden fields.
+- [x] Routed native constraints and API field errors through each field primitive's accessible message channel while keeping allowed values and validation ownership with modules.
+- [x] Retired the parallel `settingsControls` and `settingsNormalizers` globals/assets and migrated every current consumer to `settingsRenderer`.
+- [x] Expanded the focused Settings contribution, field-factory, UI-contract, and descriptor regressions for section anatomy, load order, typed payloads, visibility, error surfacing, and removal of the legacy renderer.
+- [x] Updated the governing decision, architecture, module contract/development guidance, Settings ownership/control docs, UI layout guide, and view-building contract.
+
+Acceptance criteria:
+
+- Settings sections render from descriptors via the 0.33.14 primitives with no hand-built field DOM and save through `PUT /api/settings`.
+- The parallel raw-DOM Settings renderer is gone, and current Settings consumers use framework `.view-*` anatomy.
+
+## Version 0.33.15.3 - Settings contribution contract (manifest) and listing method
+
+Completed 0.33.15.3. The live roadmap continues with 0.33.15.4.
+
+**Model: High Effort** — This defines the protected, data-only settings contribution boundary and shared eligibility filtering, so subtle validation gaps could expose framework targets or unsafe contributions.
+
+- [x] Promoted `settings` into a strict data-only manifest contribution with fixed `workspace`, `user`, `module`, and `new-workspace` placements; module/framework target metadata; protected/read-only/owner-only flags; standard filter axes; stable handler/effect string IDs; and validated field types, options, ranges, and defaults.
+- [x] Added `validateSettingsContributions(...)` to manifest validation, including known-field enforcement, reference checks, duplicate detection, type/default checks, and explicit rejection of executable functions.
+- [x] Added a cycle-safe framework setting-definition registry and rejected module contributions that target the framework, claim protected status, or collide with a framework-registered setting ID.
+- [x] Added `modulesService.listSettingsContributions(workspaceId, session)` as the sorted Settings wrapper over `listWorkspaceContributions(...)`, inheriting enabled-module, dependency, workspace-capability, permission, and terminology filtering.
+- [x] Kept contribution catalog listing separate from value access, persistence handlers, and on-change effect execution.
+- [x] Added the focused `framework.settings-contribution-contract` regression and updated the typed manifest shape, module descriptors, governing decision, architecture, module contract/development guidance, Settings ownership map, and regression inventory.
+
+Acceptance criteria:
+
+- A module can declare a setting and its attachment point declaratively, with permission/capability/enabled-module filtering applied by the shared helper.
+- Contribution validation is data-only and documented.
+
+## Version 0.33.15.2 - Generic settings storage, read accessor, and effect registries
+
+Completed 0.33.15.2. The live roadmap continues with 0.33.15.3.
+
+**Model: High Effort** — This adds schema, generic persistence, and effect ordering across framework and module settings, so data-integrity and side-effect correctness are load-bearing.
+
+- [x] Added `workspace_module_settings`, a workspace-cascading JSON value store keyed by `(workspace_id, module_id, setting_id)` with provider-neutral conflict persistence and row timestamps.
+- [x] Added workspace-scoped `settingsService.getValue(context, moduleId, settingId)` and protected `getFrameworkValue(context, settingId)` accessors, plus matching internal setters, with descriptor defaults and stored/handler value validation.
+- [x] Replaced the mandatory hardcoded-handler path with separate opt-in persistence and on-change registries keyed by `<moduleId>.<settingId>`; persistence handlers own specialized reads/writes, while effects run only after changed persistence succeeds.
+- [x] Kept `PUT /api/settings` and `moduleSettings[moduleId][settingId]` compatible while routing ordinary values through generic storage and retaining module status plus `tasks.taskTimersEnabled` on their lifecycle/compatibility handlers.
+- [x] Added `developer-example.developerExampleHintsEnabled` as the no-handler functional proof, with response hydration and direct accessor reads returning the stored value or descriptor default.
+- [x] Added focused regression coverage for JSON persistence without a framework column, module/framework accessors and registries, exactly-once changed effects, rejected unknown/read-only/wrong-typed values, unchanged saves, and the Tasks handler bridge.
+- [x] Updated the governing decision, architecture/database/module-development/Settings docs, migration/fresh-start guardrails, and regression inventory/coverage floors.
+
+Acceptance criteria:
+
+- A module persists and reads a validated functional setting through the generic store and accessor with no framework column, normalizer branch, or hardcoded handler.
+- Persistence handlers and on-change effects are opt-in, registered by stable ID, and available to both module-target and framework-target settings.
+
+## Version 0.33.15.1 - Settings inventory, ownership map, and storage decision
+
+Completed 0.33.15.1. The live roadmap continues with 0.33.15.2.
+
+**Model: Medium Effort** — This is a bounded inventory and storage-decision slice with no runtime behavior or schema changes.
+
+- [x] Inventoried every setting across the four current mechanisms: framework `workspace_settings` columns, `app_settings` key/values, per-user `users` columns, and per-feature tables (`file_workspace_settings`, `task_reminder_offsets`, `notification_*`), plus the adjacent workspace identity, module-status, and workspace-creation entitlement paths surfaced by Settings.
+- [x] Classified each setting as framework-owned or module-owned-by-concept, including the Client/Projects versus Time Tracking billing split, Tasks timers/reminders, Files policy/quotas, Notes rendering/secure-key policy, and framework workspace/audit/install/notification concerns.
+- [x] Recorded each setting's current definition/normalizer, storage location, read consumers, and write path so later migration preserves behavior.
+- [x] Decided target storage per setting: generic namespaced settings storage, a retained behavior-rich table behind a registered handler, per-user storage, or app/environment-level configuration.
+- [x] Produced `docs/settings-ownership.md` as the migration map for later 0.33.15 slices without changing runtime behavior.
+- [x] Added Settings to documentation ownership routing and guardrailed the map's required mechanisms and target-storage vocabulary.
+
+Acceptance criteria:
+
+- Every setting has a documented owner, current storage, consumers, and target storage.
+- The framework-owned vs module-owned classification is explicit before any migration.
+
+## Version 0.33.14.2 - Editable field grids, value binding, and guardrails
+
+Completed 0.33.14.2. The live roadmap continues with 0.33.15.1.
+
+**Model: High Effort** — Editable binding and collection become a shared framework contract consumed by Settings, so subtle value or disabled-state regressions would spread across surfaces.
+
+- [x] Added opt-in editable mode to persistent descriptor field grids, record-shaped value binding, and a validated `itemForm.editable` descriptor flag while preserving read-only defaults.
+- [x] Exported `LongtailForge.view.collectFieldValues(grid)` and `grid.viewParts.collectValues()` to collect live typed scalar, boolean, number, multi-select, and radio values while omitting disabled controls by default.
+- [x] Added a per-field message channel through `viewParts.message` / `setMessage(...)` with framework-owned placement plus `aria-describedby` and `aria-invalid` synchronization; callers retain validation rules and save decisions.
+- [x] Routed the existing shared Settings controls through `createField()`, editable `createFieldGrid()`, and the generic collector while preserving the nested `moduleSettings[moduleId]` payload and read-only exclusion behavior.
+- [x] Guardrailed the renderer, Reporting, and Settings against raw covered field anatomy and expanded focused regressions for editable binding, collection, messages, manifest validation, load order, and Settings payload compatibility.
+- [x] Updated the view-building contract, declarative field-grid guidance, primitive inventory, and Settings control matrix.
+
+Acceptance criteria:
+
+- A persistent, editable, value-bound field grid renders from metadata with no hand-built DOM, and its values can be collected into a save payload.
+- The field factory is documented and guardrailed as the single field-construction path.
+- The current renderer, Reporting, and Settings are the primitive's three real consumers; no framework-wide exception is needed.
+
+## Version 0.33.14.1 - Exported field-factory primitive and complete field-type set
+
+Completed 0.33.14.1. The live roadmap continues with 0.33.14.2.
+
+**Model: High Effort** — This changes a framework-wide renderer seam and must preserve every converted surface while adding the field types needed by Reporting and Settings.
+
+- [x] Extracted field construction into exported `LongtailForge.view.createField(field, options)` so callers build labelled fields from metadata without passing fully formed DOM or reaching into renderer internals.
+- [x] Completed the field types required by the three named consumers: text, number (with `min`/`max`/`step`/`inputmode`), select, multi-select, boolean/checkbox, toggle/switch, radio group, textarea, date, and time, while retaining the existing descriptor compatibility types used by current surfaces.
+- [x] Kept the descriptor field schema (`VIEW_FIELD_FIELDS` in `manifest-contract.js`) and the primitive in sync by adding `max`, `inputmode`, and validation for the concrete supported type set.
+- [x] Routed descriptor modal, filter, and persistent-grid field rendering through the shared primitive so there is one field-construction path.
+- [x] Routed the Reporting selector, project multi-select, boolean filter, and custom-range date controls through the same primitive without changing report filters, conditional visibility, or query payloads.
+- [x] Added contract-focused regressions for supported metadata, accessible labels/control state, value binding, collection, descriptor-schema validation, renderer integration, and Reporting adoption without pinning private construction order.
+
+Acceptance criteria:
+
+- A caller can construct any supported field from metadata via one exported primitive.
+- Modal, filter, and persistent-grid field rendering all flow through the same primitive.
+
+## Version 0.33.14 - Framework View Primitives: Editable Form-Field Factory
+
+Purpose:
+
+Promote form-field construction from a private renderer helper into a first-class, exported `LongtailForge.view` primitive with the field types and editable value-binding required by its three real consumers: current descriptor-renderer paths, Reporting, and Settings. Today the framework can render fields from metadata — but only inside the renderer's private `renderFieldShell`/`createFieldControl` functions (`public/js/shared/view-renderer.js`), which are not part of the frozen `LongtailForge.view` export (`public/js/shared/view-builder.js`), do not cover current Reporting/Settings needs such as toggle/radio/multi-select or `max`/`inputmode`, and are hardwired `disabled: true` for persistent (non-modal) field grids (`renderFieldGridShell`). This satisfies the Two-Module Rule without turning the slice into a generic form-builder program.
+
+This is a deliberately small, foundational slice sequenced immediately ahead of the Settings work (0.33.15) so Settings consumes a finished primitive rather than inventing settings-only field anatomy. Reporting (0.33.12) lands first on the existing read/filter path and may use a narrow framework adapter for the missing project multi-select and conditional-date behavior; this version must fold any overlapping Reporting field construction into the exported factory without changing report behavior.
+
+Decision:
+
+Field construction is framework-owned view anatomy. The framework owns a single exported field-factory primitive (labels, controls, `.view-*` field anatomy, accessible structure, editable vs. read-only mode). Modules and framework hosts own field metadata (id, label, type, options, default), value meaning, validation, and save payloads — and must not hand-build field DOM when the primitive covers it.
+
+Dependencies and baseline:
+
+- Builds on the framework view baseline (0.33.5.13-0.33.5.18) and the existing renderer field internals; this version exposes and completes them rather than replacing the renderer.
+- Honors the view-ownership boundary (framework owns `.view-*` field anatomy; modules own data/validation/payloads).
+
+Non-goals:
+
+- Do not build settings-specific behavior here (save to `PUT /api/settings`, dependent-setting visibility, retiring `settingsControls`); that stays in Settings (0.33.15).
+- Do not broadly convert existing pages in this version; limit adoption to the shared renderer paths and any temporary Reporting field construction that the new primitive directly replaces.
+- Do not fork modal-form or filter rendering that already works; extend the shared path so there is one field-construction path, not two.
+- Do not add field types, schema keys, validation machinery, or layout modes without a current renderer, Reporting, or Settings consumer.
+
 ## Version 0.33.13.5 - Guardrails, docs, and closeout
 
 Completed 0.33.13.5. The live roadmap continues with 0.33.14.1.

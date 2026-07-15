@@ -157,13 +157,6 @@ VALUES (
     await transaction.run(`
 INSERT INTO workspace_settings (
   workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
   audit_logging_enabled,
   audit_retention_days,
   audit_settings_updated_at,
@@ -172,13 +165,6 @@ INSERT INTO workspace_settings (
 )
 VALUES (
   :workspaceId,
-  :fiscalYearStartMonth,
-  :fiscalYearStartDay,
-  :defaultBillingRate,
-  :billingPeriodType,
-  :billingPeriodStartDay,
-  :roundingEnabled,
-  :roundingIncrement,
   :auditLoggingEnabled,
   :auditRetentionDays,
   :auditSettingsUpdatedAt,
@@ -189,14 +175,7 @@ VALUES (
       auditLoggingEnabled: normalizedSettings.audit.loggingEnabled ? 1 : 0,
       auditRetentionDays: normalizedSettings.audit.retentionDays,
       auditSettingsUpdatedAt: now,
-      billingPeriodStartDay: normalizedSettings.billingPeriod.startDay,
-      billingPeriodType: normalizedSettings.billingPeriod.type,
       createdAt: now,
-      defaultBillingRate: normalizedSettings.defaultBillingRate,
-      fiscalYearStartDay: normalizedSettings.fiscalYear.startDay,
-      fiscalYearStartMonth: normalizedSettings.fiscalYear.startMonth,
-      roundingEnabled: normalizedSettings.billingRounding.enabled ? 1 : 0,
-      roundingIncrement: normalizedSettings.billingRounding.increment,
       updatedAt: now,
       workspaceId,
     });

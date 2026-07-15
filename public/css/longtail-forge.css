@@ -684,6 +684,62 @@ details[open] > summary.surface-modal-section-heading::before {
     align-self: flex-end;
 }
 
+fieldset.view-renderer-field {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.view-renderer-field.inline-option {
+    flex-wrap: wrap;
+}
+
+.view-renderer-field-message {
+    flex: 1 1 100%;
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.view-renderer-field-message[data-view-field-message-tone="error"] {
+    color: var(--color-danger);
+}
+
+.view-renderer-field > legend {
+    padding: 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.view-renderer-field-switch .view-field-switch-control {
+    position: relative;
+    width: 42px;
+    height: 24px;
+    padding: 2px;
+    border-radius: 999px;
+    appearance: none;
+    cursor: pointer;
+}
+
+.view-renderer-field-switch .view-field-switch-control::before {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-text-secondary);
+    content: "";
+    transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.view-renderer-field-switch .view-field-switch-control:checked::before {
+    transform: translateX(18px);
+    background: var(--color-accent);
+}
+
 .view-filter-panel select[multiple] {
     min-height: 148px;
 }
@@ -3233,23 +3289,37 @@ a.search-result-title:hover {
     font-weight: 700;
 }
 
-.module-settings-group {
+.view-settings-sections {
     display: grid;
-    gap: 10px;
+    gap: 16px;
 }
 
-.module-settings-group + .module-settings-group {
-    margin-top: 8px;
-}
-
-.module-settings-group h2 {
+.view-settings-section {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
     margin: 0;
-    font-size: 16px;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
 }
 
-.module-settings-group h3 {
+.view-settings-section-legend {
+    padding: 0 4px;
+    color: var(--color-text);
+    font-weight: 700;
+}
+
+.view-settings-section-fields {
+    gap: 14px;
+}
+
+.view-settings-section-actions {
+    justify-content: flex-end;
+}
+
+.view-settings-info {
     margin: 0;
-    font-size: 15px;
 }
 
 .settings-summary-grid {

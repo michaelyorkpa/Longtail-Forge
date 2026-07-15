@@ -13,15 +13,37 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Workbench URL Annoyance
+
+When I open a task from anywhere other than the workbench "Focus Task" button, it puts the ?taskID= in the URL. That's fine and not a problem. However, if I click change focus and then select another task, the ?taskID for the original task remains in the URL. That needs to be cleared either when the user navigates to a different view/task or immediately after it loads.
+
+## Projects Bug
+
+I just discovered that if I filter by the workspace name in Actions -> Project Settings, it does not return the Workspace owned projects. It returns nothing.
+
 ## Fix logo for Dark Mode Visibility
 
 Current logo disappears in dark mode. Need to fix this.
 
+## Task Reminders
+
+Need to be able to cancel at least one of the reminders. Having a reminder 3 days before a weekly task is due is unnecessary. Perhaps have a checkbox next to the heading for "Date-Only Reminder 2" and "Timed Reminder 2" which makes them nullable and doesn't trigger an event notification?
+
 ## Tasks Status Tweak
+
+### Blocked/In Progress switch
 
 Starting a timer should automatically move a task from blocked to In Progress. If the timer is cancelled before being saved, it should move back to blocked. Also, checking off items in the checklist should move the status from blocked to in progress, as well.
 
 When a task is moved from blocked, the blocked reason should be removed as well. Blocked reason should be restored *IF* the timer is cancelled (and that's the reason it was moved from blocked to in progress).
+
+### Completed switch
+
+Next action should be promoted to a meatier and important role. When a task is marked completed, it should open the edit task modal with Next Action in focus to allow users to specify the next action. This next action should be promoted to a "thing to do" in the Workbench. If the field is left blank, it's fine and allows normal moving on to the next item.
+
+### Adding estimated time
+
+It would be helpful to add an estimated time (down to the quarter hour) for tasks. This will allow the future wishlist item of having the app plan out/populate a day. Eventually, this estimate can be estimated automatically based on context of the task (client/project/tags) and previous work completed time entries.
 
 ## Workbench Timers Tweak
 

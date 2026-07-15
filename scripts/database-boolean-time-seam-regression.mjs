@@ -60,7 +60,7 @@ function assertStaticContract() {
 
   assert.match(settingsRepoSource, /db\.dialect\.boolean\.bindFields/, "workspace settings should bind logical booleans through the dialect seam");
   assert.match(settingsRepoSource, /db\.dialect\.boolean\.readFields/, "workspace settings should read logical booleans through the dialect seam");
-  assert.doesNotMatch(settingsRepoSource, /Number\(row\.(?:rounding_enabled|audit_logging_enabled|task_timers_enabled)\) === 1/, "workspace settings should not own SQLite integer boolean row mapping");
+  assert.doesNotMatch(settingsRepoSource, /Number\(row\.audit_logging_enabled\) === 1/, "workspace settings should not own SQLite integer boolean row mapping");
   assert.doesNotMatch(settingsRepoSource, /\? 1 : 0/, "workspace settings save path should not own SQLite integer boolean binding");
 
   const pauseOtherRunningTimers = functionBlock(activeTimersRepoSource, "pauseOtherRunningTimers");
@@ -198,28 +198,19 @@ LIMIT 1;
       ...original.audit,
       loggingEnabled: false,
     },
-    billingRounding: {
-      ...original.billingRounding,
-      enabled: false,
-    },
-    taskTimersEnabled: false,
   });
 
   const storedFalse = await db.get(`
-SELECT rounding_enabled, audit_logging_enabled, task_timers_enabled
+SELECT audit_logging_enabled
 FROM workspace_settings
 WHERE workspace_id = :workspaceId;
 `, { workspaceId: workspace.workspace_id });
   assert.deepEqual(storedFalse, {
     audit_logging_enabled: 0,
-    rounding_enabled: 0,
-    task_timers_enabled: 0,
-  }, "workspace settings proof path should store false booleans through the dialect seam");
+  }, "framework workspace settings should store false booleans through the dialect seam");
 
   const readFalse = await settingsRepository.readWorkspaceSettings(workspace.workspace_id);
-  assert.equal(readFalse.billingRounding.enabled, false);
   assert.equal(readFalse.audit.loggingEnabled, false);
-  assert.equal(readFalse.taskTimersEnabled, false);
 
   await settingsRepository.saveWorkspaceSettings(workspace.workspace_id, {
     ...readFalse,
@@ -227,28 +218,19 @@ WHERE workspace_id = :workspaceId;
       ...readFalse.audit,
       loggingEnabled: true,
     },
-    billingRounding: {
-      ...readFalse.billingRounding,
-      enabled: true,
-    },
-    taskTimersEnabled: true,
   });
 
   const storedTrue = await db.get(`
-SELECT rounding_enabled, audit_logging_enabled, task_timers_enabled
+SELECT audit_logging_enabled
 FROM workspace_settings
 WHERE workspace_id = :workspaceId;
 `, { workspaceId: workspace.workspace_id });
   assert.deepEqual(storedTrue, {
     audit_logging_enabled: 1,
-    rounding_enabled: 1,
-    task_timers_enabled: 1,
-  }, "workspace settings proof path should store true booleans through the dialect seam");
+  }, "framework workspace settings should store true booleans through the dialect seam");
 
   const readTrue = await settingsRepository.readWorkspaceSettings(workspace.workspace_id);
-  assert.equal(readTrue.billingRounding.enabled, true);
   assert.equal(readTrue.audit.loggingEnabled, true);
-  assert.equal(readTrue.taskTimersEnabled, true);
 }
 
 async function assertIntegrity() {

@@ -29,24 +29,11 @@ const rolePermissionsSummary = document.querySelector("[data-role-permissions-su
 const permissionMatrix = document.querySelector("[data-permission-matrix]");
 const cancelRolePermissionsButton = document.querySelector("[data-cancel-role-permissions]");
 
-const PERMISSION_RESOURCES = [
-  { id: "time_entries", label: "Time Entries", operations: ["create", "read", "update", "delete"] },
-  { id: "workspace_settings", label: "Workspace Settings", operations: ["read", "update"] },
-  { id: "clients", label: "Client Settings", operations: ["create", "read", "update", "delete"] },
-  { id: "projects", label: "Project Settings", operations: ["create", "read", "update", "delete"] },
-  { id: "users", label: "Users", operations: ["create", "read", "update", "delete"] },
-  { id: "reporting", label: "Reporting", operations: ["read"] },
-  { id: "audit_logs", label: "Audit Logs", operations: ["read"] },
-  { id: "tasks", label: "Tasks", operations: ["create", "read", "update", "delete"] },
-  { id: "tickets", label: "Tickets", operations: ["create", "read", "update", "delete"] },
-  { id: "notes", label: "Notes", operations: ["create", "read", "update", "delete"] },
-  { id: "knowledge_base", label: "Knowledge Base", operations: ["create", "read", "update", "delete"] },
-];
-
 let users = [];
 let roles = [];
 let clients = [];
 let workspaces = [];
+let permissionResources = [];
 let activeWorkspaceType = "business";
 let pendingRoleAssignments = [];
 let draftPermissionOverrides = createDefaultPermissionOverrides();
@@ -107,17 +94,20 @@ async function loadUsers() {
   setUserAdminStatus("Loading users...");
 
   try {
-    const [usersBody, rolesBody, clientProjectBody, workspacesBody, settingsBody] = await Promise.all([
+    const [usersBody, rolesBody, clientProjectBody, workspacesBody, settingsBody, permissionResourcesBody] = await Promise.all([
       window.LongtailForge.api.getJson("/api/users", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/roles", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/workspaces", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
+      window.LongtailForge.api.getJson("/api/users/permission-resources", { cache: "no-store" }),
     ]);
 
     roles = rolesBody.roles || [];
     clients = clientProjectBody.clients || [];
     workspaces = workspacesBody.workspaces || [];
+    permissionResources = normalizePermissionResources(permissionResourcesBody.resources);
+    draftPermissionOverrides = normalizePermissionOverrides(draftPermissionOverrides);
     activeWorkspaceType = normalizeWorkspaceType(settingsBody.workspaceType);
     applyUserCreationAvailability();
     renderRoleOptions();
@@ -693,7 +683,7 @@ function savePermissionDialog() {
 function renderPermissionMatrix(overrides) {
   permissionMatrix.replaceChildren();
 
-  PERMISSION_RESOURCES.forEach((resource) => {
+  permissionResources.forEach((resource) => {
     const row = document.createElement("fieldset");
     const legend = document.createElement("legend");
     const operations = document.createElement("div");
@@ -707,8 +697,8 @@ function renderPermissionMatrix(overrides) {
       const checkbox = document.createElement("input");
 
       checkbox.type = "checkbox";
-      checkbox.checked = getOperationAllowed(overrides, resource.id, operation);
-      checkbox.dataset.permissionResource = resource.id;
+      checkbox.checked = getOperationAllowed(overrides, resource.key, operation);
+      checkbox.dataset.permissionResource = resource.key;
       checkbox.dataset.permissionOperation = operation;
       label.append(checkbox, document.createTextNode(formatOperationLabel(operation)));
       operations.appendChild(label);
@@ -730,7 +720,7 @@ function renderPermissionMatrix(overrides) {
 }
 
 function readPermissionMatrix() {
-  const overrides = createDefaultPermissionOverrides();
+  const overrides = normalizePermissionOverrides(editingPermissionTarget?.overrides || {});
   const checkboxes = permissionMatrix.querySelectorAll("[data-permission-resource]");
 
   checkboxes.forEach((checkbox) => {
@@ -752,8 +742,8 @@ function createDefaultPermissionOverrides() {
     restrictBilling: false,
     allowManualTime: true,
     allowEditTime: true,
-    operationAccess: PERMISSION_RESOURCES.reduce((access, resource) => {
-      access[resource.id] = resource.operations.reduce((operations, operation) => {
+    operationAccess: permissionResources.reduce((access, resource) => {
+      access[resource.key] = resource.operations.reduce((operations, operation) => {
         operations[operation] = true;
         return operations;
       }, {});
@@ -770,17 +760,27 @@ function normalizePermissionOverrides(overrides = {}) {
   normalized.allowManualTime = overrides.allowManualTime !== false;
   normalized.allowEditTime = overrides.allowEditTime !== false;
 
-  PERMISSION_RESOURCES.forEach((resource) => {
+  Object.entries(operationAccess).forEach(([resourceKey, operations]) => {
+    normalized.operationAccess[resourceKey] ||= {};
+
+    Object.entries(operations || {}).forEach(([operation, allowed]) => {
+      normalized.operationAccess[resourceKey][operation] = allowed !== false;
+    });
+  });
+
+  permissionResources.forEach((resource) => {
     resource.operations.forEach((operation) => {
-      if (operationAccess[resource.id]?.[operation] === false) {
-        normalized.operationAccess[resource.id][operation] = false;
+      if (operationAccess[resource.key]?.[operation] === false) {
+        normalized.operationAccess[resource.key][operation] = false;
       }
     });
   });
 
-  normalized.operationAccess.time_entries.create = normalized.allowManualTime;
-  normalized.operationAccess.time_entries.update = normalized.allowEditTime;
-  normalized.operationAccess.time_entries.delete = normalized.allowEditTime;
+  if (normalized.operationAccess.time_entries) {
+    normalized.operationAccess.time_entries.create = normalized.allowManualTime;
+    normalized.operationAccess.time_entries.update = normalized.allowEditTime;
+    normalized.operationAccess.time_entries.delete = normalized.allowEditTime;
+  }
 
   return normalized;
 }
@@ -791,6 +791,18 @@ function clonePermissionOverrides(overrides) {
 
 function getOperationAllowed(overrides, resource, operation) {
   return overrides.operationAccess?.[resource]?.[operation] !== false;
+}
+
+function normalizePermissionResources(resources = []) {
+  return (Array.isArray(resources) ? resources : [])
+    .map((resource) => ({
+      key: String(resource?.key || "").trim(),
+      label: String(resource?.label || resource?.key || "").trim(),
+      operations: [...new Set((resource?.operations || [])
+        .map((operation) => String(operation || "").trim())
+        .filter(Boolean))],
+    }))
+    .filter((resource) => resource.key && resource.label && resource.operations.length > 0);
 }
 
 function formatOperationLabel(operation) {
@@ -954,7 +966,7 @@ window.LongtailForge.pageController.register("user-admin", {
       { name: "user list exists", ok: Boolean(userList) },
       { name: "roles array loaded", ok: Array.isArray(roles) },
       { name: "users array loaded", ok: Array.isArray(users) },
-      { name: "permission resources configured", ok: PERMISSION_RESOURCES.length > 0 },
+      { name: "permission resources loaded", ok: permissionResources.length > 0 },
     ];
 
     return {

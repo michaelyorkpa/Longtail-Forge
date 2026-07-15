@@ -25,6 +25,7 @@ const LIST_RESOURCE_DEFINITION = Object.freeze({
   key: "lists",
   moduleId: LIST_MODULE_ID,
   label: "Lists",
+  requiredPermissions: [LIST_PERMISSIONS.VIEW],
   operations: [
     "read",
     "create",

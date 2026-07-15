@@ -663,7 +663,7 @@ assert.match(
 );
 assert.match(
   files.tasksModuleDoc,
-  /current Tasks module behavior as of 0\.33\.6\.15\.1[\s\S]*Dashboard can show capped Tasks pressure[\s\S]*Dashboard must not open task rows directly into the edit modal/,
+  new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}[\\s\\S]*Dashboard can show capped Tasks pressure[\\s\\S]*Dashboard must not open task rows directly into the edit modal`),
   "Tasks docs must record the Dashboard card and Workbench execution boundary",
 );
 assert.match(
@@ -732,4 +732,8 @@ function listProjectFiles(relativeDirectory) {
   }
 
   return entries;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

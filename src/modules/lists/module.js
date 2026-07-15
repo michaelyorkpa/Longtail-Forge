@@ -509,6 +509,7 @@ const listsModule = {
       id: "listsEnabled",
       label: "Lists",
       type: "boolean",
+      placement: "workspace",
       moduleStatus: true,
       terminology: {
         business: {

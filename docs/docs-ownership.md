@@ -36,4 +36,4 @@ npm run docs:check -- --note "No docs change needed: internal refactor preserved
 - Keep patterns path-based and narrow. Unmapped paths should not create noisy false positives.
 - Keep each area's documentation paths sorted and limited to files that already exist.
 
-The ownership index covers Workbench, Dashboard, Tasks, Notes, Lists, Files, Search, Notifications, Tags, Time Tracking, Permissions, Database, module contracts, view-building/declarative surfaces, Public API, licensing, end-to-end smoke testing, accessibility testing, and the release process.
+The ownership index covers Workbench, Dashboard, Tasks, Notes, Lists, Files, Search, Notifications, Tags, Time Tracking, Settings, Permissions, Database, module contracts, view-building/declarative surfaces, Public API, licensing, end-to-end smoke testing, accessibility testing, and the release process.

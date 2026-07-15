@@ -144,6 +144,22 @@
       ]
     },
     {
+      "id": "settings",
+      "label": "Settings",
+      "sourcePatterns": [
+        "^public/js/(?:module|user|workspace|files)-settings\\.js$",
+        "^public/js/shared/settings-(?:controls|normalizers)\\.js$",
+        "^src/(?:repositories|routes|services)/(?:app-)?settings(?:[./-]|$)",
+        "^src/repositories/users\\.repo\\.js$",
+        "^src/services/users\\.service\\.js$",
+        "^views/protected/(?:tasks|time-tracking|user|workspace)-settings\\.html$"
+      ],
+      "docs": [
+        "docs/settings-control-matrix.md",
+        "docs/settings-ownership.md"
+      ]
+    },
+    {
       "id": "permissions",
       "label": "Permissions",
       "sourcePatterns": [

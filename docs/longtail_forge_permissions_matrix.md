@@ -126,6 +126,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | GET | /api/dashboard | authenticated user plus contribution permission filters | workspace/module contributions | Returns framework Dashboard pulse, layout, safe warnings, and permission-filtered contribution metadata |
 | Browser | GET | /api/tasks/dashboard-summary | tasks.view | self/task/project/client | Module-owned Dashboard data route, filtered by readable task scope |
 | Browser | GET | /api/audit-logs* | audit_logs.view | workspace | Enforced |
+| Browser | GET | /api/users/permission-resources | users.manage plus contributed resource visibility permissions | workspace | Returns enabled-module and permission-filtered matrix resources only |
 | Public API | GET | /api/v1/clients* | clients:read plus Business workspace | API key workspace | Enforced |
 | Public API | GET | /api/v1/projects* | projects:read | API key workspace | Enforced |
 | Public API | GET | /api/v1/tasks* | tasks:read | API key workspace | Enforced; disabled Tasks keeps historical reads |
@@ -134,6 +135,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Public API | POST | /api/v1/time-entries | time_entries:write | API key workspace | Enforced; module write must be enabled; accepts optional `task_id` |
 
 ## Permission Overrides
+
+User Admin builds its matrix from `GET /api/users/permission-resources`, not a browser-owned resource list. Enabled modules contribute validated `resourceDefinitions`; disabled modules drop out, required permissions prune unavailable resources, and the framework catalog retains Reporting, Workspace Settings, and Audit Logs. Hidden resource overrides remain stored so a temporary module disable does not erase assignment intent. The operation effects below remain enforced by the existing record-level permission service paths.
 
 | Override Field | Resource / Permission | Effect |
 | --- | --- | --- |
@@ -165,6 +168,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - task creation, scoped listing, project-client inheritance, assignment eligibility, completion, archive/restore, recurrence generation, calendar payload filtering, Dashboard task summaries, bulk route permission reuse, reminder-default saves, module-disabled write denial, and Personal/Family direct-client denial
 - task timer gating, unified active timer storage, Workbench bootstrap/status actions, mutual exclusion with normal timers, completion blocking, finalization into time entries, and disabled Task Timers behavior
 - reporting denial for External Client Users, allow for scoped users with `reporting.view`, and task-linked reporting filters
+- contributed permission-resource catalog delivery, User Admin route authorization, disabled-module removal/re-enable restoration, and browser de-hardcoding
 - Time Tracking and Tasks disabled-module read/write behavior, including public API reads/writes
 - workspace owner transfer, owner-removal blocking, and Personal fallback workspace creation
 - fresh database tag permission seeding and module sanity checks for taggable target type declarations

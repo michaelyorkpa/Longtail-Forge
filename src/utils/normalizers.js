@@ -167,11 +167,6 @@ function normalizeSettings(settings) {
     workspaceName,
     workspaceType,
     workspaceCapabilities: getWorkspaceCapabilities(workspaceType),
-    fiscalYear: workspaceType === "business" ? normalizeFiscalYear(settings?.fiscalYear) : { startMonth: 1, startDay: 1 },
-    defaultBillingRate: workspaceType === "business" ? String(settings?.defaultBillingRate || "").trim() : "",
-    billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
-    billingRounding: normalizeBillingRounding(settings?.billingRounding),
-    taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
     audit: normalizeAuditSettings(settings?.audit),
   };
 }
@@ -238,20 +233,6 @@ function normalizeBillableFlag(value, fallback = "yes") {
   }
 
   return fallback === "no" ? "no" : "yes";
-}
-
-function normalizeFiscalYear(fiscalYear) {
-  const startMonth = Math.min(12, Math.max(1, Number.parseInt(fiscalYear?.startMonth, 10) || 1));
-  const startDay = Math.min(
-    getDaysInFiscalYearMonth(startMonth),
-    Math.max(1, Number.parseInt(fiscalYear?.startDay, 10) || 1),
-  );
-
-  return { startMonth, startDay };
-}
-
-function getDaysInFiscalYearMonth(month) {
-  return new Date(2026, month, 0).getDate();
 }
 
 function normalizeBillingPeriod(period) {

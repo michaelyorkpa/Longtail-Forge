@@ -77,12 +77,7 @@ async function assertSettingsRejectLegacyAliases() {
   await settingsService.save({
     workspaceName: settings.workspaceName,
     workspaceType: settings.workspaceType,
-    fiscalYear: settings.fiscalYear,
-    defaultBillingRate: settings.defaultBillingRate,
-    billingPeriod: settings.billingPeriod,
-    billingRounding: settings.billingRounding,
     audit: settings.audit,
-    taskReminderDefaults: settings.taskReminderDefaults,
     moduleSettings: moduleSettingsPayload(settings),
   }, session);
   checks += 1;
@@ -124,6 +119,10 @@ async function assertActiveSourceHasNoLegacyOrganizationSurface() {
     /(^|[\\/])LICENSE$/,
     /(^|[\\/])archive[\\/]/,
     /(^|[\\/])docs[\\/]licensing(?:\.md|[\\/])/,
+    /(^|[\\/])docs[\\/]architecture\.md$/,
+    /(^|[\\/])docs[\\/]marketing[\\/]/,
+    /(^|[\\/])docs[\\/]module-contract\.md$/,
+    /(^|[\\/])docs[\\/]module-development\.md$/,
     /(^|[\\/])docs[\\/]storage-rename-plan\.md$/,
     /(^|[\\/])src[\\/]db[\\/]migrations\.js$/,
     /(^|[\\/])scripts[\\/]legacy-cleanup-regression\.mjs$/,

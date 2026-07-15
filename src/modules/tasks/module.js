@@ -1,10 +1,12 @@
 import { tasksRoutes } from "./tasks.routes.js";
 import { tasksPublicApiRoutes } from "./public-api.routes.js";
 import { registerTasksSearchIndexers } from "./search-indexers.js";
+import { taskRemindersService } from "./task-reminders.service.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 import { appVersion } from "../../core/version.js";
 
 registerTasksSearchIndexers();
+taskRemindersService.registerSettingsHandlers();
 
 function taskNotificationTitle({ event }) {
   return event.new_value?.title || event.previous_value?.title || event.record_id || "Task";
@@ -253,7 +255,6 @@ const tasksModule = {
       path: "/js/module-settings.js",
       type: "script",
       views: ["tasks-settings"],
-      requiredPermissions: ["workspace_settings.manage"],
     },
   ],
   dashboard: [
@@ -441,6 +442,7 @@ const tasksModule = {
       moduleId: "tasks",
       label: "Tasks",
       operations: ["read", "create", "update", "delete", "archive", "restore", "assign", "manage"],
+      requiredPermissions: ["tasks.view"],
     },
   ],
   auditRecordTypes: [
@@ -1065,13 +1067,58 @@ const tasksModule = {
       id: "tasksEnabled",
       label: "Tasks",
       type: "boolean",
+      placement: "workspace",
       moduleStatus: true,
     },
     {
       id: "taskTimersEnabled",
       label: "Task Timers",
       type: "boolean",
+      placement: "module",
+      default: true,
+      requiredPermissions: ["tasks.view"],
+      requiredModules: ["time-tracking"],
       moduleStatus: false,
+    },
+    {
+      id: "reminderDateTimeHours1",
+      label: "Timed Reminder 1 (hours before)",
+      type: "number",
+      placement: "module",
+      default: 2,
+      min: 1,
+      step: 1,
+      handler: "tasks.reminderDateTimeHours1",
+    },
+    {
+      id: "reminderDateTimeHours2",
+      label: "Timed Reminder 2 (hours before)",
+      type: "number",
+      placement: "module",
+      default: 24,
+      min: 1,
+      step: 1,
+      handler: "tasks.reminderDateTimeHours2",
+    },
+    {
+      id: "reminderDateOnlyDays1",
+      label: "Date-Only Reminder 1 (days before)",
+      type: "number",
+      placement: "module",
+      default: 3,
+      min: 1,
+      step: 1,
+      handler: "tasks.reminderDateOnlyDays1",
+    },
+    {
+      id: "reminderDateOnlyDays2",
+      label: "Date-Only Reminder 2 (days before)",
+      type: "number",
+      placement: "module",
+      default: 1,
+      min: 1,
+      step: 1,
+      handler: "tasks.reminderDateOnlyDays2",
     },
   ],
   frameworkDependencies: [

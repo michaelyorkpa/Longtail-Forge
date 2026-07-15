@@ -46,7 +46,7 @@ for (const [name, doc] of [
   assert.match(doc, /inline (parent-body )?Tags\/Files|substantial footer utilities\s+inside the parent modal body|expanding\s+inline\s+inside the parent editor body/, `${name} should reject inline parent-body utility panels`);
 }
 
-assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current module handoff version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");
 assert.match(tasksDocs, new RegExp(`As of ${escapeRegExp(modalStandardVersion)}[\\s\\S]*Task editor is the Tasks reference implementation`), "Tasks docs should keep the historical modal contract version");
 assert.match(tasksDocs, /Task Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should align utility action placement");

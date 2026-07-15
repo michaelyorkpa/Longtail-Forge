@@ -60,6 +60,16 @@ ORDER BY version;
       module_id: "core",
       name: "task_recurrence_note_links",
     },
+    {
+      version: "070",
+      module_id: "core",
+      name: "generic_workspace_module_settings",
+    },
+    {
+      version: "071",
+      module_id: "core",
+      name: "migrate_module_settings_ownership",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -126,6 +136,7 @@ ORDER BY name;
     "user_workspaces",
     "users",
     "work_resume_state",
+    "workspace_module_settings",
     "workspace_modules",
     "workspace_settings",
     "workspaces",

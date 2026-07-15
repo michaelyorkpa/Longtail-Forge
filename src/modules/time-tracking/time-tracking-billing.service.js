@@ -1,7 +1,8 @@
-import { clientsService } from "../client-projects/clients.service.js";
+import { clientProjectSettingsService, clientsService } from "../client-projects/index.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { settingsService } from "../../services/settings.service.js";
+import { timeTrackingSettingsService } from "./time-tracking-settings.service.js";
 import { timeEntriesService } from "./time-entries.service.js";
 
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
@@ -13,7 +14,7 @@ async function readDashboardBillingSummary(session) {
   });
 
   const [settings, clientProjectData, timeEntries] = await Promise.all([
-    settingsService.read(session),
+    readBillingSettings(session),
     clientsService.readClientProjects(session),
     timeEntriesService.list(session),
   ]);
@@ -115,7 +116,7 @@ async function readProjectTimeBillingContext(session, options = {}) {
   }
 
   const [settings, clientProjectData, moduleContext] = await Promise.all([
-    settingsService.read(session),
+    readBillingSettings(session),
     clientsService.readClientProjects(session),
     options.includeModuleContext
       ? modulesService.readWorkspaceModuleContext(session.workspace_id)
@@ -124,6 +125,19 @@ async function readProjectTimeBillingContext(session, options = {}) {
   const scopes = buildBillingScopes(clientProjectData, settings, options);
 
   return { settings, scopes, moduleContext };
+}
+
+async function readBillingSettings(session) {
+  const [workspaceSettings, clientProjectSettings, timeTrackingSettings] = await Promise.all([
+    settingsService.read(session),
+    clientProjectSettingsService.read(session),
+    timeTrackingSettingsService.read(session),
+  ]);
+  return {
+    ...workspaceSettings,
+    ...clientProjectSettings,
+    ...timeTrackingSettings,
+  };
 }
 
 function buildBillingScopes(data, settings, options = {}) {

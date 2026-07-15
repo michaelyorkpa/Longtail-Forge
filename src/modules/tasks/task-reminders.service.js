@@ -3,11 +3,41 @@ import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { registerPersistenceHandler } from "../../core/settings/settings-behavior-registry.js";
 
 const DEFAULT_DATE_TIME_OFFSETS = [120, 1440];
 const DEFAULT_DATE_ONLY_OFFSETS = [4320, 1440];
 const DUE_KIND_DATE_ONLY = "date_only";
 const DUE_KIND_DATE_TIME = "date_time";
+let settingsHandlersRegistered = false;
+
+const REMINDER_SETTING_SPECS = {
+  reminderDateTimeHours1: { kind: "dateTime", index: 0, multiplier: 60 },
+  reminderDateTimeHours2: { kind: "dateTime", index: 1, multiplier: 60 },
+  reminderDateOnlyDays1: { kind: "dateOnly", index: 0, multiplier: 1440 },
+  reminderDateOnlyDays2: { kind: "dateOnly", index: 1, multiplier: 1440 },
+};
+
+function registerSettingsHandlers() {
+  if (settingsHandlersRegistered) {
+    return;
+  }
+  settingsHandlersRegistered = true;
+  for (const [settingId, spec] of Object.entries(REMINDER_SETTING_SPECS)) {
+    registerPersistenceHandler(`tasks.${settingId}`, {
+      async read({ workspaceId }) {
+        const policy = (await readWorkspaceDefaults(workspaceId)).offsets;
+        return Math.max(1, Math.round(policy[spec.kind][spec.index] / spec.multiplier));
+      },
+      async write({ value, workspaceId }) {
+        const policy = (await readWorkspaceDefaults(workspaceId)).offsets;
+        policy[spec.kind][spec.index] = Math.max(1, Number.parseInt(value, 10)) * spec.multiplier;
+        await saveWorkspaceDefaults(workspaceId, policy);
+      },
+      recordUrl: "tasks-settings.html",
+    });
+  }
+}
 
 async function readWorkspaceDefaults(workspaceId) {
   const offsets = await taskRemindersRepository.readOffsets(workspaceId, "workspace", workspaceId);
@@ -279,6 +309,7 @@ export const taskRemindersService = {
   readTargetPolicy,
   readTaskReminderDetails,
   readWorkspaceDefaults,
+  registerSettingsHandlers,
   saveTargetPolicy,
   saveWorkspaceDefaults,
 };

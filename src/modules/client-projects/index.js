@@ -6,7 +6,7 @@
 // rejects new deep imports. Everything exported here is a supported
 // cross-module contract.
 
-export { clientProjectsModule } from "./module.js";
 export { clientsService } from "./clients.service.js";
 export { clientsRepository } from "./clients.repo.js";
 export { projectsRepository } from "./projects.repo.js";
+export { clientProjectSettingsService } from "./client-project-settings.service.js";

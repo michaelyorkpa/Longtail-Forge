@@ -39,6 +39,8 @@ import { notesService } from "../modules/notes/notes.service.js";
 import { NOTE_SECURITY_MODES } from "../modules/notes/library.js";
 import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
+import { registerFrameworkSettingDefinition } from "../core/settings/framework-settings-registry.js";
+import { registerPersistenceHandler } from "../core/settings/settings-behavior-registry.js";
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
@@ -118,6 +120,8 @@ const DEFAULT_BLOCKED_EXTENSIONS = Object.freeze([
   ".gz",
 ]);
 
+registerFilesSettingsContributions();
+
 const storageAdapters = new Map([
   ["local", createLocalFileStorageAdapter()],
   ["s3", createS3FileStorageAdapter(config.storage?.s3)],
@@ -134,6 +138,100 @@ let fileScanJobHandlersRegistered = false;
 
 function listFileStatuses() {
   return [...FILE_STATUS_SET];
+}
+
+function registerFilesSettingsContributions() {
+  const definitions = [
+    {
+      id: "files.fileTypePolicyMode",
+      fieldId: "fileTypePolicyMode",
+      label: "Policy Mode",
+      type: "select",
+      default: "safe_default",
+      options: [
+        { value: "safe_default", label: "Safe default" },
+        { value: "allowlist", label: "Allow-list only" },
+        { value: "blocklist", label: "Block-list only" },
+      ],
+    },
+    {
+      id: "files.allowedExtensions",
+      fieldId: "allowedExtensions",
+      label: "Allowed Extensions",
+      type: "textarea",
+      default: DEFAULT_SAFE_ALLOWED_EXTENSIONS.join(", "),
+      rows: 4,
+      spellcheck: false,
+    },
+    {
+      id: "files.blockedExtensions",
+      fieldId: "blockedExtensions",
+      label: "Blocked Extensions",
+      type: "textarea",
+      default: DEFAULT_BLOCKED_EXTENSIONS.join(", "),
+      rows: 4,
+      spellcheck: false,
+    },
+    {
+      id: "files.internalStorageLimitBytes",
+      fieldId: "internalStorageLimitBytes",
+      label: "Workspace Storage Limit (bytes)",
+      type: "text",
+      default: "",
+      inputmode: "numeric",
+      description: "Leave blank for unlimited internal storage.",
+    },
+    {
+      id: "files.perUserStorageLimitBytes",
+      fieldId: "perUserStorageLimitBytes",
+      label: "Per-user Storage Limit (bytes)",
+      type: "text",
+      default: "",
+      inputmode: "numeric",
+      description: "Leave blank for unlimited internal storage per user.",
+    },
+  ];
+
+  for (const definition of definitions) {
+    registerFrameworkSettingDefinition({
+      ...definition,
+      moduleId: "files",
+      moduleName: "Files",
+      placement: "module",
+      protected: true,
+      requiredPermissions: ["files.manage_workspace_settings"],
+    });
+    registerPersistenceHandler(`framework.${definition.id}`, {
+      async read({ workspaceId }) {
+        const settings = shapeWorkspaceFileSettings(await readWorkspaceFileSettingsForWorkspace(workspaceId));
+        return filesSettingValue(settings, definition.fieldId);
+      },
+      async write({ context, value }) {
+        await saveWorkspaceFileSettings(context, filesSettingPayload(definition.fieldId, value));
+      },
+      recordUrl: "files-settings.html",
+    });
+  }
+}
+
+function filesSettingValue(settings, fieldId) {
+  if (fieldId === "allowedExtensions" || fieldId === "blockedExtensions") {
+    return (settings[fieldId] || []).join(", ");
+  }
+  if (fieldId === "internalStorageLimitBytes" || fieldId === "perUserStorageLimitBytes") {
+    return settings[fieldId] ?? "";
+  }
+  return settings[fieldId];
+}
+
+function filesSettingPayload(fieldId, value) {
+  if (fieldId === "allowedExtensions" || fieldId === "blockedExtensions") {
+    return { [fieldId]: String(value || "").split(/[\s,]+/).filter(Boolean) };
+  }
+  if (fieldId === "internalStorageLimitBytes" || fieldId === "perUserStorageLimitBytes") {
+    return { [fieldId]: nullableInteger(value) };
+  }
+  return { [fieldId]: value };
 }
 
 function listScanStatuses() {

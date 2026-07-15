@@ -54,16 +54,15 @@ function buildReportingHost() {
     title: "Reporting",
     subtitle: "Run available workspace reports without leaving the current work context.",
   });
-  reportSelector = reportingView.createElement("select", {
-    attrs: { "aria-label": "Report" },
-    dataset: { reportingSelector: "" },
+  const selectorField = reportingView.createField({
+    field: "report",
+    type: "select",
+    label: "Report",
+  }, {
+    controlAttrs: { "aria-label": "Report" },
+    controlDataset: { reportingSelector: "" },
   });
-  const selectorField = reportingView.createElement("label", {
-    children: [
-      reportingView.createElement("span", { text: "Report" }),
-      reportSelector,
-    ],
-  });
+  reportSelector = selectorField.viewParts.control;
   reportSelectorPanel = reportingView.createInfoPanel({
     ariaLabel: "Report selection",
     title: "Choose a report",
@@ -232,34 +231,29 @@ function createReportFilterField(filter) {
   if (filter.type === "custom-date-range") {
     return createCustomDateRangeField(filter);
   }
-  if (filter.type === "boolean") {
-    return createBooleanFilterField(filter);
-  }
-
-  const select = reportingView.createElement("select", {
-    attrs: filter.type === "project-multi-select" ? { multiple: true } : {},
-    dataset: { reportingFilterControl: filter.id },
-  });
-  if (filter.type === "project-multi-select") {
-    select.disabled = true;
-  }
-  if (filter.type === "billing-period") {
-    select.replaceChildren(
-      createOption("current", "Current billing period"),
-      createOption("last", "Last billing period"),
-      createOption("custom", "Custom"),
-    );
-  }
-
-  const wrapper = reportingView.createElement("label", {
+  const fieldType = filter.type === "project-multi-select"
+    ? "multi-select"
+    : filter.type === "boolean"
+      ? "boolean"
+      : "select";
+  const wrapper = reportingView.createField({
+    field: filter.id,
+    type: fieldType,
+    label: filter.label,
+    options: filter.type === "billing-period" ? [
+      ["current", "Current billing period"],
+      ["last", "Last billing period"],
+      ["custom", "Custom"],
+    ] : [],
+    default: filter.defaultValue,
+  }, {
+    disabled: filter.type === "project-multi-select",
     dataset: { reportingFilter: filter.id },
-    children: [
-      reportingView.createElement("span", { text: filter.label }),
-      select,
-    ],
+    controlDataset: { reportingFilterControl: filter.id },
   });
+  const control = wrapper.viewParts.control;
   reportingState.filterFields.set(filter.id, {
-    controls: new Map([[filter.queryKeys[0], select]]),
+    controls: new Map([[filter.queryKeys[0], control]]),
     filter,
     wrapper,
   });
@@ -269,18 +263,17 @@ function createReportFilterField(filter) {
 
 function createCustomDateRangeField(filter) {
   const [startKey, endKey] = filter.queryKeys;
-  const startInput = createDateInput(filter.id, startKey);
-  const endInput = createDateInput(filter.id, endKey);
+  const startField = createDateField(filter.id, startKey, "Start Date");
+  const endField = createDateField(filter.id, endKey, "End Date");
+  const startInput = startField.viewParts.control;
+  const endInput = endField.viewParts.control;
   const wrapper = reportingView.createElement("fieldset", {
     dataset: { reportingFilter: filter.id },
     children: [
       reportingView.createElement("legend", { text: filter.label }),
       reportingView.createFieldGrid({
         surface: false,
-        fields: [
-          createLabeledControl("Start Date", startInput),
-          createLabeledControl("End Date", endInput),
-        ],
+        fields: [startField, endField],
       }),
     ],
   });
@@ -293,38 +286,16 @@ function createCustomDateRangeField(filter) {
   return wrapper;
 }
 
-function createDateInput(filterId, queryKey) {
-  return reportingView.createElement("input", {
-    attrs: { type: "date" },
-    dataset: {
+function createDateField(filterId, queryKey, label) {
+  return reportingView.createField({
+    field: queryKey,
+    type: "date",
+    label,
+  }, {
+    controlDataset: {
       reportingFilterControl: filterId,
       reportingFilterQueryKey: queryKey,
     },
-  });
-}
-
-function createBooleanFilterField(filter) {
-  const input = reportingView.createElement("input", {
-    attrs: { type: "checkbox" },
-    dataset: { reportingFilterControl: filter.id },
-  });
-  const wrapper = reportingView.createElement("label", {
-    className: "inline-option",
-    dataset: { reportingFilter: filter.id },
-    children: [input, reportingView.createElement("span", { text: filter.label })],
-  });
-  reportingState.filterFields.set(filter.id, {
-    controls: new Map([[filter.queryKeys[0], input]]),
-    filter,
-    wrapper,
-  });
-  setFilterValue(filter.id, filter.defaultValue);
-  return wrapper;
-}
-
-function createLabeledControl(label, control) {
-  return reportingView.createElement("label", {
-    children: [reportingView.createElement("span", { text: label }), control],
   });
 }
 

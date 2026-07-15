@@ -4,10 +4,12 @@ import { timeTrackingDashboardRoutes } from "./time-tracking-dashboard.routes.js
 import { timeTrackingPublicApiRoutes } from "./public-api.routes.js";
 import { registerTimeTrackingReportRunners } from "./report-runners.js";
 import { registerTimeTrackingSearchIndexers } from "./search-indexers.js";
+import { timeTrackingSettingsService } from "./time-tracking-settings.service.js";
 import { appVersion } from "../../core/version.js";
 
 registerTimeTrackingSearchIndexers();
 registerTimeTrackingReportRunners();
+timeTrackingSettingsService.registerTimeTrackingSettingEffects();
 
 const timeTrackingModule = {
   id: "time-tracking",
@@ -275,6 +277,7 @@ const timeTrackingModule = {
       moduleId: "time-tracking",
       label: "Time Entries",
       operations: ["read", "create", "update", "delete", "manage"],
+      requiredPermissions: ["time_entries.edit_all"],
     },
   ],
   auditRecordTypes: [
@@ -391,7 +394,53 @@ const timeTrackingModule = {
       id: "timeTrackingEnabled",
       label: "Time Tracking",
       type: "boolean",
+      placement: "workspace",
       moduleStatus: true,
+    },
+    {
+      id: "fiscalYearStartMonth",
+      label: "Fiscal Year Start Month",
+      type: "select",
+      placement: "workspace",
+      default: "1",
+      options: [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+      ].map((label, index) => ({ label, value: String(index + 1) })),
+      requiredWorkspaceCapabilities: ["billing_invoicing_reporting"],
+      onChangeEffect: "time-tracking.fiscalYearStartMonth",
+    },
+    {
+      id: "fiscalYearStartDay",
+      label: "Fiscal Year Start Day",
+      type: "number",
+      placement: "workspace",
+      default: 1,
+      min: 1,
+      max: 31,
+      step: 1,
+      requiredWorkspaceCapabilities: ["billing_invoicing_reporting"],
+      onChangeEffect: "time-tracking.fiscalYearStartDay",
+    },
+    {
+      id: "billingRoundingEnabled",
+      label: "Round time?",
+      type: "boolean",
+      placement: "workspace",
+      default: false,
+    },
+    {
+      id: "billingRoundingIncrement",
+      label: "Rounding Increment",
+      type: "select",
+      placement: "workspace",
+      default: "nearestQuarterHour",
+      options: [
+        { value: "nearestQuarterHour", label: "Nearest quarter hour" },
+        { value: "nearestHalfHour", label: "Nearest half hour" },
+        { value: "nearestHour", label: "Nearest hour" },
+      ],
+      visibleWhen: { settingId: "billingRoundingEnabled", equals: true },
     },
   ],
   apiScopes: [

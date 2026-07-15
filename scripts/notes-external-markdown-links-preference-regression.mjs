@@ -17,6 +17,7 @@ const usersRepo = readText("src/repositories/users.repo.js");
 const normalizers = readText("src/utils/normalizers.js");
 const usersServiceSource = readText("src/services/users.service.js");
 const userSettingsView = readText("views/protected/user-settings.html");
+const settingsHostScript = readText("public/js/shared/settings-host.js");
 const userSettingsScript = readText("public/js/user-settings.js");
 const notesScript = readText("public/js/notes.js");
 const css = readText("public/css/longtail-forge.css");
@@ -60,8 +61,9 @@ function assertStaticContract() {
   assert.match(usersServiceSource, /Object\.hasOwn\(payload, "openExternalLinksNewTab"\)/, "saveSettings should handle the Markdown preference");
   assert.match(usersServiceSource, /metadata\.setting_names\.push\("openExternalLinksNewTab"\)/, "saveSettings audit metadata should name the Markdown preference");
 
-  assert.match(userSettingsView, /<legend>Markdown Rendering<\/legend>/, "User Settings should expose the Markdown Rendering fieldset");
-  assert.match(userSettingsView, /data-open-external-links-new-tab/, "User Settings should expose the preference toggle");
+  assert.match(userSettingsView, /data-settings-host="user"/, "User Settings should expose the minimal framework host");
+  assert.match(settingsHostScript, /settingsForm\("userMarkdownRenderingForm", "Markdown Rendering"/, "User Settings should expose the Markdown Rendering section");
+  assert.match(settingsHostScript, /openExternalLinksNewTab/, "User Settings should expose the preference toggle");
   assert.match(userSettingsView, /js\/user-settings\.js/, "User Settings script cache key should advance");
   assert.match(userSettingsScript, /OPEN_EXTERNAL_LINKS_STORAGE_KEY/, "User Settings should cache the Markdown preference for Notes fallback reads");
   assert.match(userSettingsScript, /putJson\("\/api\/user\/settings", \{ openExternalLinksNewTab \}\)/, "User Settings should save the preference through the user settings route");

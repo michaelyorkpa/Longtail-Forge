@@ -14,6 +14,7 @@ import { taskRecurrenceService } from "./task-recurrence.service.js";
 import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
+import { tasksSettingsService } from "./tasks-settings.service.js";
 import { taskTimersService } from "./task-timers.service.js";
 import {
   queueTaskRecurrenceGeneration,
@@ -1166,9 +1167,10 @@ async function bulkUpdate(payload, session) {
 }
 
 async function readOptions(session) {
-  const [settings, users] = await Promise.all([
+  const [settings, users, taskTimersEnabled] = await Promise.all([
     settingsRepository.readWorkspaceSettings(session.workspace_id),
     usersRepository.readAll(session.workspace_id),
+    tasksSettingsService.readTaskTimersEnabled(session),
   ]);
   const [moduleContext, clientOptions, projectOptions, taskOptions] = await Promise.all([
     modulesService.readWorkspaceModuleContext(session.workspace_id),
@@ -1185,7 +1187,7 @@ async function readOptions(session) {
     users: users.filter((user) => user.userStatus === "active"),
     priorities: [...PRIORITIES],
     statuses: [...STATUSES],
-    taskTimersEnabled: settings.taskTimersEnabled !== false,
+    taskTimersEnabled,
     timeTrackingEnabled: moduleContext.moduleStatusById["time-tracking"] === "enabled",
   };
 }

@@ -28,6 +28,16 @@ async function simulateCurrentSchemaWithHistoricalMigrationRows() {
 DROP TABLE IF EXISTS jobs;
 DROP TABLE IF EXISTS task_recurrence_checklist_items;
 DROP TABLE IF EXISTS task_recurrence_note_links;
+DROP TABLE IF EXISTS workspace_module_settings;
+
+ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_month INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_day INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE workspace_settings ADD COLUMN default_billing_rate TEXT;
+ALTER TABLE workspace_settings ADD COLUMN billing_period_type TEXT NOT NULL DEFAULT 'calendar_month';
+ALTER TABLE workspace_settings ADD COLUMN billing_period_start_day INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE workspace_settings ADD COLUMN rounding_enabled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE workspace_settings ADD COLUMN rounding_increment TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE workspace_settings ADD COLUMN task_timers_enabled INTEGER NOT NULL DEFAULT 1;
 
 PRAGMA foreign_keys = OFF;
 PRAGMA legacy_alter_table = ON;
@@ -157,6 +167,16 @@ ORDER BY version;
       version: "069",
       module_id: "core",
       name: "task_recurrence_note_links",
+    },
+    {
+      version: "070",
+      module_id: "core",
+      name: "generic_workspace_module_settings",
+    },
+    {
+      version: "071",
+      module_id: "core",
+      name: "migrate_module_settings_ownership",
     },
   ]);
 }

@@ -167,6 +167,40 @@ function listResourceDefinitions() {
   ];
 }
 
+async function listActiveResourceDefinitions(workspaceId, session = null) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const [moduleResources, workspaceCapabilities] = await Promise.all([
+    listWorkspaceContributions(workspaceId, session, "resourceDefinitions"),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
+  const frameworkResources = [];
+
+  for (const resource of listFrameworkResourceDefinitions()) {
+    const resolvedResource = resolveContributionTerminology(resource, workspaceType, "resourceDefinitions");
+
+    if (await requiredPermissionsAllowed(resolvedResource, session)) {
+      frameworkResources.push(resolvedResource);
+    }
+  }
+
+  return [...frameworkResources, ...moduleResources]
+    .map(normalizeResourceDefinition)
+    .sort((left, right) => left.label.localeCompare(right.label) || left.key.localeCompare(right.key));
+}
+
+function normalizeResourceDefinition(resource) {
+  return {
+    key: String(resource.key || "").trim(),
+    moduleId: String(resource.moduleId || "").trim(),
+    label: String(resource.label || resource.key || "").trim(),
+    operations: [...new Set((resource.operations || []).map((operation) => String(operation || "").trim()).filter(Boolean))],
+  };
+}
+
 function listModuleApiScopes() {
   return listRegisteredModuleApiScopes();
 }
@@ -885,7 +919,21 @@ async function listModuleNavigation(workspaceId, session = null) {
 }
 
 async function listModuleSettings(workspaceId, session = null) {
-  return listWorkspaceContributions(workspaceId, session, "settings");
+  return listSettingsContributions(workspaceId, session);
+}
+
+async function listSettingsContributions(workspaceId, session = null) {
+  const settings = await listWorkspaceContributions(workspaceId, session, "settings");
+
+  return settings.map((setting) => ({
+    ...setting,
+    target: setting.target || "module",
+  })).sort((left, right) => (
+    left.placement.localeCompare(right.placement) ||
+    left.moduleId.localeCompare(right.moduleId) ||
+    left.label.localeCompare(right.label) ||
+    left.id.localeCompare(right.id)
+  ));
 }
 
 async function listModuleSettingsNavigation(workspaceId, session = null) {
@@ -1459,6 +1507,7 @@ export const modulesService = {
   getTimerSource,
   getWorkItemSource,
   listEnabledModules,
+  listActiveResourceDefinitions,
   listActiveViewSurfaces,
   listDashboardPanels,
   listReportingReports,
@@ -1493,6 +1542,7 @@ export const modulesService = {
   listActiveModuleBrowserAssets,
   listModuleBrowserAssets,
   listModuleSettings,
+  listSettingsContributions,
   listNotificationEvents,
   listNotificationFollowTargets,
   listModulePublicViews,

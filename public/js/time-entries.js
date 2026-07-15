@@ -392,10 +392,18 @@ function normalizeTimeEntries(data) {
 }
 
 function normalizeSettings(settings) {
+  const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
+  const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
   return {
-    billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
+    billingPeriod: normalizeBillingPeriod({ type: billingPeriodType, startDay: billingPeriodStartDay }),
     workspaceCapabilities: settings?.workspaceCapabilities || {},
   };
+}
+
+function readModuleSettingValue(settings, moduleId, settingId, fallback) {
+  const moduleDefinition = (settings?.moduleSettings || []).find((item) => item.moduleId === moduleId);
+  const setting = (moduleDefinition?.settings || []).find((item) => item.id === settingId);
+  return setting && Object.hasOwn(setting, "value") ? setting.value : fallback;
 }
 
 function normalizeUsers(data) {

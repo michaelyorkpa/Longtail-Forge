@@ -28,7 +28,8 @@ const saveNotificationPreferencesButton = document.querySelector("[data-save-not
 const workspaceCreateForm = document.querySelector("[data-workspace-create-form]");
 const newWorkspaceTypeSelect = document.querySelector("[data-new-workspace-type]");
 const newWorkspaceNameInput = document.querySelector("[data-new-workspace-name]");
-const newWorkspaceModuleSettingsContainer = document.querySelector("[data-new-workspace-module-settings]");
+const newWorkspaceModuleSettingsContainer = document.querySelector('[data-settings-attachment="new-workspace"]');
+const userSettingsContributionContainer = document.querySelector('[data-settings-attachment="user"]');
 const createWorkspaceButton = document.querySelector("[data-create-workspace]");
 const openWorkspaceRemovalButton = document.querySelector("[data-open-workspace-removal]");
 const workspaceRemovalDialog = document.querySelector("[data-workspace-removal-dialog]");
@@ -42,6 +43,7 @@ let lastSuggestedWorkspaceName = "";
 let workspaceNameEditedByUser = false;
 let systemThemeModeQuery = null;
 let systemThemeModeListenerAttached = false;
+let settingsCatalog = null;
 
 loadUserSettings();
 loadNotificationPreferences();
@@ -92,13 +94,18 @@ closeWorkspaceRemovalButton?.addEventListener("click", () => workspaceRemovalDia
 
 async function loadUserSettings() {
   try {
-    const body = await window.LongtailForge.api.getJson("/api/user/settings", { cache: "no-store" });
+    const [body, catalog] = await Promise.all([
+      window.LongtailForge.api.getJson("/api/user/settings", { cache: "no-store" }),
+      window.LongtailForge.api.getJson("/api/settings/catalog", { cache: "no-store" }),
+    ]);
+    settingsCatalog = catalog;
 
     applyThemeMode(body.themeMode, body.themeAutoSource);
     applyMarkdownRendering(body);
     applyProfile(body);
     applyWorkspaceAccess(body);
     applyWorkspaceCreation(body.workspaceCreation);
+    renderUserSettingsContributions();
     setUserSettingsStatus("");
   } catch (error) {
     handleApiError(error, "User settings could not be loaded.");
@@ -343,6 +350,11 @@ async function createWorkspace() {
     return;
   }
 
+  if (!window.LongtailForge.settingsRenderer.validate(workspaceCreateForm)) {
+    setUserSettingsStatus("Review the highlighted module settings.", true);
+    return;
+  }
+
   createWorkspaceButton.disabled = true;
   setUserSettingsStatus("Creating workspace...");
 
@@ -350,12 +362,13 @@ async function createWorkspace() {
     await window.LongtailForge.api.postJson("/api/workspaces", {
       workspaceType,
       workspaceName,
-      moduleSettings: window.LongtailForge.settingsControls.readModuleSettingsPayload(workspaceCreateForm),
+      moduleSettings: window.LongtailForge.settingsRenderer.collectPayload(workspaceCreateForm),
     });
 
     setUserSettingsStatus("Workspace created.");
     window.location.replace("/workspace-settings.html");
   } catch (error) {
+    window.LongtailForge.settingsRenderer.showValidationErrors(workspaceCreateForm, error);
     handleApiError(error, "Workspace was not created.");
     createWorkspaceButton.disabled = false;
   }
@@ -377,10 +390,18 @@ function updateSuggestedWorkspaceName() {
 function renderCreateWorkspaceModuleSettings() {
   const selectedType = workspaceCreationTypes.find((type) => type.workspaceType === newWorkspaceTypeSelect.value);
 
-  window.LongtailForge.settingsControls.renderModuleSettingsGroups(
+  window.LongtailForge.settingsRenderer.renderSections(
     newWorkspaceModuleSettingsContainer,
     selectedType?.moduleSettings || [],
-    { emptyText: "No module controls are available for this workspace type.", headingLevel: "h3" },
+    { emptyText: "No module controls are available for this workspace type.", showSaveAction: false },
+  );
+}
+
+function renderUserSettingsContributions() {
+  window.LongtailForge.settingsRenderer.renderSections(
+    userSettingsContributionContainer,
+    window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "user"),
+    { hideEmpty: true, showSaveAction: false },
   );
 }
 

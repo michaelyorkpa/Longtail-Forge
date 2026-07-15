@@ -49,6 +49,7 @@ async function assertStaticContracts() {
   const projectsSource = await readText("public/js/clients-projects.js");
   const timeTrackerView = await readText("views/protected/time-tracker.html");
   const userSettingsView = await readText("views/protected/user-settings.html");
+  const settingsHostSource = await readText("public/js/shared/settings-host.js");
   const userSettingsSource = await readText("public/js/user-settings.js");
 
   assert.match(usersRepoSource, /user_workspaces\.workspace_id = :workspaceId[\s\S]*user_workspaces\.status = 'active'[\s\S]*user_rows\.user_status = 'active'/, "workspace people reads should require active membership and active user state");
@@ -58,7 +59,10 @@ async function assertStaticContracts() {
   assert.match(timerDialogSource, /billableControl\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Create Timer should hide and coerce its Billable field");
   assert.match(entryDialogSource, /billableControl\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Time Entry should hide and coerce its Billable field");
   assert.match(projectsSource, /withoutUnsupportedBillingFields[\s\S]*field !== "billingDisplay"[\s\S]*"project-billable"/, "project read surfaces should omit billing metadata outside Business workspaces");
-  assert.match(userSettingsView, /Leave Workspace[\s\S]*Leave a Workspace[\s\S]*Leaving removes only your membership[\s\S]*workspace and its data remain available/, "User Settings should describe membership removal instead of workspace deletion");
+  assert.match(userSettingsView, /data-settings-host="user"/, "User Settings should expose the minimal framework host");
+  assert.match(settingsHostSource, /action\("Leave Workspace", "openWorkspaceRemoval"\)/, "User Settings should expose membership removal");
+  assert.match(settingsHostSource, /title: "Leave a Workspace"/, "User Settings should title membership removal explicitly");
+  assert.match(settingsHostSource, /Leaving removes only your membership\. The workspace and its data remain available/, "User Settings should describe membership removal instead of workspace deletion");
   assert.match(userSettingsSource, /Leaving \$\{workspace\.workspaceName[\s\S]*Workspace membership removed\.[\s\S]*Workspace membership was not removed\./, "membership-removal status copy should stay explicit");
 }
 

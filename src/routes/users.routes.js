@@ -11,6 +11,11 @@ usersRoutes.get("/users", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+usersRoutes.get("/users/permission-resources", asyncRoute(async (request, response) => {
+  const result = await usersService.listPermissionResources(request.session);
+  response.status(200).json(result);
+}));
+
 usersRoutes.get("/workspaces", asyncRoute(async (request, response) => {
   const result = await usersService.listWorkspaces(request.session);
   response.status(200).json(result);

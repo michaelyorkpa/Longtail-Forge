@@ -11,3 +11,4 @@ export { activeTimersService } from "./active-timers.service.js";
 export { activeTimersRepository } from "./active-timers.repo.js";
 export { timeEntriesService } from "./time-entries.service.js";
 export { timeEntriesRepository } from "./time-entries.repo.js";
+export { timeTrackingSettingsService } from "./time-tracking-settings.service.js";

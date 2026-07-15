@@ -33,8 +33,8 @@ try {
   assert.equal(packageJson.scripts["db:schema:check"], "node scripts/schema-snapshot.mjs --check");
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "070_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "072_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();
@@ -64,6 +64,7 @@ try {
   assert.equal(liveSchema.matches, true, "checked-in generated schema should match the baseline plus all migrations");
   assert.match(liveSchema.sql, /CREATE TABLE jobs/);
   assert.match(liveSchema.sql, /CREATE TABLE task_recurrence_note_links/);
+  assert.match(liveSchema.sql, /CREATE TABLE workspace_module_settings/);
 
   for (const requiredPath of [
     "scripts/fresh-database-regression.mjs",

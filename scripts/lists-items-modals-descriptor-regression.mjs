@@ -8,6 +8,7 @@ const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
+const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
@@ -29,7 +30,8 @@ assert.match(manifestContract, /function validateItemFormDescriptor/, "Manifest 
 assert.match(manifestContract, /function validateItemRowsDescriptor/, "Manifest contract should validate item row descriptors");
 assert.match(manifestContract, /detail\.itemForm\.actions/, "Reference validation should include item form actions");
 assert.match(manifestContract, /detail\.itemRows\.actions/, "Reference validation should include item row actions");
-assert.match(renderer, /min:\s*field\.min[\s\S]*step:\s*field\.step[\s\S]*rows:\s*field\.rows/, "Renderer should preserve basic descriptor field attributes");
+assert.match(renderer, /view\.createField\(field, options\)/, "Renderer should delegate descriptor fields to the shared factory");
+assert.match(builder, /min:\s*field\.min[\s\S]*step:\s*field\.step[\s\S]*rows:\s*field\.rows/, "Field factory should preserve basic descriptor field attributes");
 
 assert.match(listsJs, /function listsItemFormDescriptor\(\)/, "Lists browser fallback should declare the item form descriptor");
 assert.match(listsJs, /function listsItemRowsDescriptor\(\)/, "Lists browser fallback should declare the item rows descriptor");

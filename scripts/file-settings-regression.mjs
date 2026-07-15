@@ -9,6 +9,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-file-set
 process.env.SUPER_ADMIN_PASSWORD = "File-Settings-Test-123!";
 
 const { filesService } = await import("../src/services/files.service.js");
+const { settingsCatalogService } = await import("../src/services/settings-catalog.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
@@ -40,8 +41,10 @@ WHERE type = 'table'
 
   const view = await fs.readFile("views/protected/files-settings.html", "utf8");
   const script = await fs.readFile("public/js/files-settings.js", "utf8");
-  assert.match(view, /data-files-settings-form/);
-  assert.match(view, /data-storage-accounting/);
+  assert.match(view, /data-settings-host="module"[^>]+data-settings-module-id="files"/);
+  assert.match(view, /view-builder\.js[\s\S]*settings-renderer\.js[\s\S]*settings-host\.js[\s\S]*files-settings\.js/);
+  assert.doesNotMatch(view, /<(?:form|fieldset|input|select|textarea|button)\b/i, "Files Settings HTML should be a minimal host");
+  assert.match(script, /\/api\/settings\/catalog/);
   assert.match(script, /\/api\/files\/settings/);
 }
 
@@ -50,6 +53,10 @@ async function assertDefaultPolicy(adminSession, limitedSession, taskId) {
   assert.equal(response.settings.fileTypePolicyMode, "safe_default");
   assert.ok(response.settings.allowedExtensions.includes(".pdf"));
   assert.ok(response.settings.blockedExtensions.includes(".zip"));
+  const catalog = await settingsCatalogService.read(adminSession);
+  assert.equal(catalog.attachments.module.files?.[0]?.settings.length, 5, "Files should contribute five retained-table settings");
+  const limitedCatalog = await settingsCatalogService.read(limitedSession);
+  assert.equal(limitedCatalog.attachments.module.files, undefined, "Files settings should be permission-filtered from the catalog");
 
   await assert.rejects(
     () => filesService.readWorkspaceFileSettings(limitedSession),

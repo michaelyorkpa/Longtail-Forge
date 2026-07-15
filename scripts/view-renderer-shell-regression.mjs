@@ -29,6 +29,7 @@ for (const helperName of [
   "createDetailActionStrip",
   "createInfoPanel",
   "createModalForm",
+  "createField",
   "createFieldGrid",
   "createEmptyState",
   "createElement",

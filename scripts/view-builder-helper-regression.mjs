@@ -25,6 +25,7 @@ vm.runInNewContext(helper, context, { filename: "view-builder.js" });
 const view = context.window.LongtailForge.view;
 
 for (const helperName of [
+  "collectFieldValues",
   "createPageHeader",
   "createStatusMessage",
   "createBulkActionToolbar",
@@ -38,6 +39,7 @@ for (const helperName of [
   "createInfoPanel",
   "createModal",
   "createModalForm",
+  "createField",
   "createFieldGrid",
   "createActionButton",
   "createEmptyState",

@@ -347,7 +347,7 @@ LIMIT 1;
 }
 
 async function runNotificationUiContractTests() {
-  const [navigation, notificationsPage, notificationsScript, notificationPreferences, notificationSubscriptions, tasksPage, tasksScript, taskDialog, tasksModule, userSettingsPage, userSettingsScript, css] = await Promise.all([
+  const [navigation, notificationsPage, notificationsScript, notificationPreferences, notificationSubscriptions, tasksPage, tasksScript, taskDialog, tasksModule, userSettingsPage, settingsHostScript, userSettingsScript, css] = await Promise.all([
     readProjectFile("public/js/navigation.js"),
     readProjectFile("views/protected/notifications.html"),
     readProjectFile("public/js/notifications.js"),
@@ -358,6 +358,7 @@ async function runNotificationUiContractTests() {
     readProjectFile("public/js/task-dialog.js"),
     readProjectFile("src/modules/tasks/module.js"),
     readProjectFile("views/protected/user-settings.html"),
+    readProjectFile("public/js/shared/settings-host.js"),
     readProjectFile("public/js/user-settings.js"),
     readProjectFile("public/css/longtail-forge.css"),
   ]);
@@ -495,9 +496,10 @@ async function runNotificationUiContractTests() {
   });
 
   check("user settings exposes the same user notification preferences source", () => {
-    assert.match(userSettingsPage, /data-user-notification-preferences-form/);
-    assert.match(userSettingsPage, /data-user-notification-grouping-preferences/);
-    assert.match(userSettingsPage, /data-user-notification-preference-list/);
+    assert.match(userSettingsPage, /data-settings-host="user"/);
+    assert.match(settingsHostScript, /userNotificationPreferencesForm/);
+    assert.match(settingsHostScript, /userNotificationGroupingPreferences/);
+    assert.match(settingsHostScript, /userNotificationPreferenceList/);
     assert.match(userSettingsPage, /js\/shared\/notification-preferences\.js/);
     assert.match(userSettingsScript, /notificationPreferences\.loadPreferences/);
     assert.match(userSettingsScript, /renderGroupingPreferences/);

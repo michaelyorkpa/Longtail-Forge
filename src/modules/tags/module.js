@@ -152,6 +152,7 @@ const tagsModule = {
       moduleId: "tags",
       label: "Tags",
       operations: ["read", "create", "update", "delete", "archive", "restore", "assign", "manage"],
+      requiredPermissions: ["tags.view"],
     },
   ],
   auditRecordTypes: [

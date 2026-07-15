@@ -499,16 +499,24 @@ async function runTaskMutationTests(api, fixtures) {
     api.put("/api/settings", {
       workspaceName: "Harness Business Workspace",
       workspaceType: "business",
-      taskReminderDefaults: {
-        dateTime: [60, 180],
-        dateOnly: [1440, 2880],
+      moduleSettings: {
+        tasks: {
+          reminderDateTimeHours1: 1,
+          reminderDateTimeHours2: 3,
+          reminderDateOnlyDays1: 1,
+          reminderDateOnlyDays2: 2,
+        },
       },
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   ).then((response) => {
     check("workspace task reminder defaults are returned from settings save", () => {
-      assert.deepEqual(response.body.data.taskReminderDefaults.dateTime, [60, 180]);
-      assert.deepEqual(response.body.data.taskReminderDefaults.dateOnly, [1440, 2880]);
+      const taskSettings = response.body.data.moduleSettings
+        .find((moduleDefinition) => moduleDefinition.moduleId === "tasks")?.settings || [];
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateTimeHours1")?.value, 1);
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateTimeHours2")?.value, 3);
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateOnlyDays1")?.value, 1);
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateOnlyDays2")?.value, 2);
     });
   });
   await expectStatus(
@@ -1548,6 +1556,24 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
 async function runDisabledModuleTests(api, fixtures) {
   const settings = await api.get("/api/settings", { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can read settings before disabled-module smoke", settings, 200);
+  const permissionResources = await expectStatus(
+    "workspace admin can read the permission resource catalog",
+    api.get("/api/users/permission-resources", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("permission resource catalog contains contributed resources only", () => {
+    const resourceKeys = new Set(permissionResources.body.resources.map((resource) => resource.key));
+    assert.equal(resourceKeys.has("time_entries"), true);
+    assert.equal(resourceKeys.has("lists"), true);
+    assert.equal(resourceKeys.has("tags"), true);
+    assert.equal(resourceKeys.has("tickets"), false);
+    assert.equal(resourceKeys.has("knowledge_base"), false);
+  });
+  await expectStatus(
+    "project user cannot read the User Admin permission resource catalog",
+    api.get("/api/users/permission-resources", { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
   check("settings expose Time Tracking module metadata", () => {
     const timeTrackingModule = settings.body.modules.find((moduleDefinition) => moduleDefinition.id === "time-tracking");
     assert.ok(timeTrackingModule);
@@ -1608,6 +1634,15 @@ async function runDisabledModuleTests(api, fixtures) {
     assert.equal(disabledSettings.body.data.enabledModules.includes("time-tracking"), false);
   });
   await expectStatus(
+    "disabled Time Tracking drops out of the permission matrix catalog",
+    api.get("/api/users/permission-resources", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("disabled Time Tracking contributes no permission resource", () => {
+      assert.equal(response.body.resources.some((resource) => resource.key === "time_entries"), false);
+    });
+  });
+  await expectStatus(
     "disabled Time Tracking removes compact dashboard cards",
     api.get("/api/dashboard", { cookie: fixtures.sessions.projectUser }),
     200,
@@ -1659,6 +1694,15 @@ async function runDisabledModuleTests(api, fixtures) {
       "time-tracking": { timeTrackingEnabled: true },
     }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+  await expectStatus(
+    "re-enabled Time Tracking returns to the permission matrix catalog",
+    api.get("/api/users/permission-resources", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("re-enabled Time Tracking contributes its permission resource", () => {
+      assert.equal(response.body.resources.some((resource) => resource.key === "time_entries"), true);
+    });
+  });
   await expectStatus("workspace admin can disable Task Timers sub-option", api.put("/api/settings", {
     ...workspaceSettingsSavePayload(settings.body),
     moduleSettings: moduleSettingsPayload(settings.body, {
@@ -1727,12 +1771,7 @@ function workspaceSettingsSavePayload(settings) {
   return {
     workspaceName: settings.workspaceName,
     workspaceType: settings.workspaceType,
-    fiscalYear: settings.fiscalYear,
-    defaultBillingRate: settings.defaultBillingRate,
-    billingPeriod: settings.billingPeriod,
-    billingRounding: settings.billingRounding,
     audit: settings.audit,
-    taskReminderDefaults: settings.taskReminderDefaults,
   };
 }
 
@@ -2139,13 +2178,6 @@ function workspaceSettingsInsertSql(workspaceId, now) {
   return `
 INSERT INTO workspace_settings (
   workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
   audit_logging_enabled,
   audit_retention_days,
   created_at,
@@ -2153,13 +2185,6 @@ INSERT INTO workspace_settings (
 )
 VALUES (
   ${sqlText(workspaceId)},
-  1,
-  1,
-  '100',
-  'monthly',
-  1,
-  0,
-  'nearestQuarterHour',
   1,
   30,
   ${sqlText(now)},

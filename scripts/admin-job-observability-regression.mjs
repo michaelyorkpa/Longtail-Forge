@@ -23,6 +23,7 @@ const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const workspaceSettingsView = readText("views/protected/workspace-settings.html");
+const settingsHostScript = readText("public/js/shared/settings-host.js");
 const workspaceSettingsScript = readText("public/js/workspace-settings.js");
 const styles = readText("public/css/longtail-forge.css");
 const jobsRouteSource = readText("src/routes/jobs.routes.js");
@@ -66,10 +67,11 @@ function assertStaticContract() {
   assert.equal(packageLock.version, appVersion, "package-lock root should report the admin job observability version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the admin job observability version");
 
-  assert.match(workspaceSettingsView, /data-job-observability-fieldset/, "Workspace Settings should include a Jobs readout fieldset");
-  assert.match(workspaceSettingsView, /data-job-observability-summary/, "Workspace Settings should include a Jobs summary target");
-  assert.match(workspaceSettingsView, /data-job-observability-failures/, "Workspace Settings should include a recent failures target");
-  assert.match(workspaceSettingsView, /data-job-observability-more/, "Workspace Settings should include a bounded pagination load-more control");
+  assert.match(workspaceSettingsView, /data-settings-host="workspace"/, "Workspace Settings should expose the minimal framework host");
+  assert.match(settingsHostScript, /jobObservabilityFieldset/, "Workspace Settings should include a Jobs readout fieldset");
+  assert.match(settingsHostScript, /jobObservabilitySummary/, "Workspace Settings should include a Jobs summary target");
+  assert.match(settingsHostScript, /jobObservabilityFailures/, "Workspace Settings should include a recent failures target");
+  assert.match(settingsHostScript, /jobObservabilityMore/, "Workspace Settings should include a bounded pagination load-more control");
   assert.match(workspaceSettingsView, /js\/workspace-settings\.js/, "Workspace Settings should bump its script cache key");
 
   assert.match(workspaceSettingsScript, /loadJobObservability\(\)/, "Workspace Settings should load job observability separately");

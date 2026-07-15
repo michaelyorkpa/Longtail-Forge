@@ -501,33 +501,17 @@ VALUES (${sqlText(familyWorkspaceId)}, 'Lists API Family Workspace', 'active', '
 
 INSERT INTO workspace_settings (
   workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
   audit_logging_enabled,
   audit_retention_days,
   audit_settings_updated_at,
-  task_timers_enabled,
   created_at,
   updated_at
 )
 VALUES (
   ${sqlText(familyWorkspaceId)},
   1,
-  1,
-  '',
-  'monthly',
-  1,
-  0,
-  '0.25',
-  1,
   30,
   ${sqlText(now)},
-  1,
   ${sqlText(now)},
   ${sqlText(now)}
 );

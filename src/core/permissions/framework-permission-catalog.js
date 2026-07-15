@@ -28,6 +28,21 @@ const frameworkResourceDefinitions = Object.freeze([
     moduleId: "framework",
     label: "Reporting",
     operations: Object.freeze(["read"]),
+    requiredPermissions: Object.freeze(["reporting.view"]),
+  }),
+  Object.freeze({
+    key: "workspace_settings",
+    moduleId: "framework",
+    label: "Workspace Settings",
+    operations: Object.freeze(["read", "update"]),
+    requiredPermissions: Object.freeze(["workspace_settings.manage"]),
+  }),
+  Object.freeze({
+    key: "audit_logs",
+    moduleId: "framework",
+    label: "Audit Logs",
+    operations: Object.freeze(["read"]),
+    requiredPermissions: Object.freeze(["audit_logs.view"]),
   }),
 ]);
 
@@ -50,6 +65,7 @@ function listFrameworkResourceDefinitions() {
   return frameworkResourceDefinitions.map((resource) => ({
     ...resource,
     operations: [...resource.operations],
+    requiredPermissions: [...resource.requiredPermissions],
   }));
 }
 

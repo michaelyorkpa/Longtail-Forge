@@ -3,41 +3,41 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 345,
+    "discoveredScripts": 350,
     "legacyScripts": 312,
-    "releaseGateScripts": 22,
+    "releaseGateScripts": 23,
     "areaCounts": {
       "dashboard": 1,
       "database": 27,
       "docs": 9,
       "files": 44,
-      "framework": 42,
+      "framework": 45,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
       "notes": 36,
       "notifications": 3,
-      "permissions": 4,
+      "permissions": 5,
       "public-api": 3,
       "release": 17,
       "search": 12,
       "tags": 12,
       "tasks": 51,
       "time-tracking": 8,
-      "views": 29,
+      "views": 30,
       "workbench": 27
     },
     "tierCounts": {
-      "focused": 158,
+      "focused": 162,
       "integration": 156,
-      "release-gate": 22,
+      "release-gate": 23,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 134,
+      "isolated-database": 137,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 176
+      "static": 178
     }
   },
   "coverageFamilies": [
@@ -49,6 +49,7 @@
       "minimumActiveScripts": 9,
       "activeRegressionIds": [
         "docs.short-term-cleanup-closeout",
+        "framework.settings-branch-closeout",
         "legacy.async.recurrence.response.closeout",
         "legacy.better.sqlite3.driver.closeout",
         "legacy.client.project.hierarchy.branch.closeout",
@@ -2490,6 +2491,21 @@
     },
     {
       "area": "framework",
+      "description": "Proves generic workspace/module settings persistence, scoped accessors, opt-in persistence handlers, and post-save effects.",
+      "id": "framework.generic-settings-engine",
+      "legacy": false,
+      "path": "scripts/regressions/framework/generic-settings-engine.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "modules",
+        "settings"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Rejects new cross-module internal imports: modules must consume another module's capabilities through its public index.js entry point; pre-existing deep imports are baseline-managed.",
       "id": "framework.module-import-boundaries",
       "legacy": false,
@@ -2586,6 +2602,36 @@
     },
     {
       "area": "framework",
+      "description": "Locks the Settings branch closeout guardrails, converted-host inventory, and documented consumer map.",
+      "id": "framework.settings-branch-closeout",
+      "legacy": false,
+      "path": "scripts/regressions/framework/settings-branch-closeout.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "settings",
+        "views"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the data-only settings manifest contract, protected framework boundary, and shared eligibility-filtered listing seam.",
+      "id": "framework.settings-contribution-contract",
+      "legacy": false,
+      "path": "scripts/regressions/framework/settings-contribution-contract.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "modules",
+        "permissions",
+        "settings"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves the high-value framework seams stay @ts-check opted-in against the shared contract types, without ts-nocheck/ts-ignore escapes or runtime .ts imports.",
       "id": "framework.typecheck-seams",
       "legacy": false,
@@ -2628,6 +2674,21 @@
         "notes",
         "permissions",
         "selection"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Proves User Admin receives enabled-module and permission-filtered resource definitions instead of a browser-owned matrix catalog.",
+      "id": "permissions.permission-resource-catalog",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/permission-resource-catalog.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "modules",
+        "permissions",
+        "users"
       ],
       "tier": "focused"
     },
@@ -2884,6 +2945,22 @@
         "dashboard",
         "guardrail",
         "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Proves field-factory metadata, editable grids, typed collection, message channels, raw-anatomy guardrails, and renderer, Reporting, and Settings adoption.",
+      "id": "views.field-factory",
+      "legacy": false,
+      "path": "scripts/regressions/views/field-factory.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "browser",
+        "contracts",
+        "fields",
+        "reporting"
       ],
       "tier": "focused"
     },

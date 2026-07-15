@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const files = {
   appShell: readText("src/services/app-shell.service.js"),
   moduleSettings: readText("public/js/module-settings.js"),
   navigation: readText("public/js/navigation.js"),
-  settingsControls: readText("public/js/shared/settings-controls.js"),
+  settingsRenderer: readText("public/js/shared/settings-renderer.js"),
+  settingsHost: readText("public/js/shared/settings-host.js"),
+  settingsCatalog: readText("src/services/settings-catalog.service.js"),
+  settingsRoutes: readText("src/routes/settings.routes.js"),
   usersModule: readText("src/modules/users/module.js"),
   timeTrackingSettingsView: readText("views/protected/time-tracking-settings.html"),
   userSettings: readText("public/js/user-settings.js"),
@@ -19,9 +22,9 @@ const files = {
 const legacyModuleFlagPattern = /\b(?:timeTrackingEnabled|tasksEnabled|taskTimersEnabled)\b/;
 
 assert.doesNotMatch(
-  files.settingsControls,
+  files.settingsRenderer,
   legacyModuleFlagPattern,
-  "shared settings controls must not special-case first-party module setting IDs",
+  "shared settings renderer must not special-case first-party module setting IDs",
 );
 
 assert.doesNotMatch(
@@ -38,7 +41,7 @@ assert.doesNotMatch(
 
 assert.match(
   files.userSettings,
-  /moduleSettings:\s*window\.LongtailForge\.settingsControls\.readModuleSettingsPayload\(workspaceCreateForm\)/,
+  /moduleSettings:\s*window\.LongtailForge\.settingsRenderer\.collectPayload\(workspaceCreateForm\)/,
   "Create Workspace must submit initial module state through moduleSettings",
 );
 assert.match(
@@ -90,10 +93,29 @@ for (const [label, view] of Object.entries({
   timeTrackingSettingsView: files.timeTrackingSettingsView,
   userSettingsView: files.userSettingsView,
 })) {
-  assert.match(view, /js\/shared\/settings-normalizers\.js/, `${label} must load settings-normalizers with a cache key`);
-  assert.match(view, /js\/shared\/settings-controls\.js/, `${label} must load settings-controls with the updated cache key`);
+  assert.match(view, /js\/shared\/view-builder\.js[\s\S]*js\/shared\/settings-renderer\.js[\s\S]*js\/shared\/settings-host\.js/, `${label} must load the Settings primitive, renderer, and host assets in order`);
+  assert.match(view, /js\/shared\/settings-renderer\.js/, `${label} must load settings-renderer with the updated cache key`);
+  assert.doesNotMatch(view, /settings-(?:controls|normalizers)\.js/, `${label} must not load the retired parallel Settings path`);
   assert.match(view, /js\/shared\/status\.js/, `${label} must load status helper with a cache key`);
+  assert.match(view, /<main[^>]+data-settings-host="(?:workspace|user|module)"[^>]*><\/main>/, `${label} must be a minimal Settings host`);
+  assert.doesNotMatch(view, /<(?:form|fieldset|label|input|select|button|dialog)\b/, `${label} must not retain hand-built Settings anatomy`);
 }
+assert.equal(existsSync(new URL("../public/js/shared/settings-controls.js", import.meta.url)), false);
+assert.equal(existsSync(new URL("../public/js/shared/settings-normalizers.js", import.meta.url)), false);
+assert.match(files.settingsRenderer, /function applyDependentVisibility/);
+assert.match(files.settingsRenderer, /function showValidationErrors/);
+assert.match(files.settingsRenderer, /className: "view-settings-section"/);
+assert.match(files.settingsRoutes, /settingsRoutes\.get\("\/settings\/catalog"/);
+assert.match(files.settingsCatalog, /attachmentPoints:[\s\S]*\n    attachments,/);
+assert.match(files.settingsCatalog, /modulesService\.listSettingsContributions\(workspaceId, session\)/);
+assert.match(files.settingsHost, /attachment\("workspace"\)/);
+assert.match(files.settingsHost, /attachment\("user"\)/);
+assert.match(files.settingsHost, /attachment\("new-workspace"/);
+assert.match(files.settingsHost, /attachment\("module"/);
+assert.doesNotMatch(files.settingsHost, /document\.createElement\(/);
+assert.match(files.workspaceSettings, /getJson\("\/api\/settings\/catalog"/);
+assert.match(files.moduleSettings, /getJson\("\/api\/settings\/catalog"/);
+assert.match(files.userSettings, /getJson\("\/api\/settings\/catalog"/);
 
 assert.match(
   files.styles,

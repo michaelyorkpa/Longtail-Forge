@@ -516,14 +516,21 @@
       }
       const control = form.querySelector?.(`[data-view-input="${key}"]`);
       if (control) {
-        state.filterValues[key] = filterControlValue(control);
+        state.filterValues[key] = filterControlValue(control, form, key);
       }
     }
   }
 
-  function filterControlValue(control) {
+  function filterControlValue(control, form = null, fieldKey = "") {
     if (control.type === "checkbox") {
       return Boolean(control.checked);
+    }
+    if (control.type === "radio") {
+      const controls = form?.querySelectorAll?.(`[data-view-input="${fieldKey}"]`) || [control];
+      return [...controls].find((candidate) => candidate.checked)?.value || "";
+    }
+    if (control.multiple) {
+      return [...control.selectedOptions].map((option) => option.value);
     }
     if (control.dataset?.viewSearchOptions === "true") {
       const submitMode = control.dataset.viewSearchSubmitMode || "input";
@@ -1091,18 +1098,25 @@
     if (!control || control.tagName !== "SELECT") {
       return;
     }
+    const selectedValues = control.multiple
+      ? new Set((Array.isArray(selectedValue)
+        ? selectedValue
+        : selectedValue === undefined || selectedValue === null
+          ? [...control.selectedOptions].map((option) => option.value)
+          : [selectedValue]).map((value) => String(value)))
+      : null;
     const selected = selectedValue !== undefined && selectedValue !== null ? String(selectedValue) : control.value;
     const optionNodes = normalizeSelectOptions(options).map((option) => {
       const optionElement = document.createElement("option");
       optionElement.textContent = String(option.label ?? option.value ?? "");
       optionElement.value = String(option.value ?? "");
-      if (option.selected) {
-        optionElement.selected = true;
-      }
+      optionElement.selected = selectedValues
+        ? selectedValues.has(optionElement.value) || (selectedValues.size === 0 && option.selected)
+        : option.selected;
       return optionElement;
     });
     control.replaceChildren(...optionNodes);
-    if (selected && optionNodes.some((option) => option.value === selected)) {
+    if (!control.multiple && selected && optionNodes.some((option) => option.value === selected)) {
       control.value = selected;
     }
     control.disabled = false;
@@ -1393,10 +1407,12 @@
       return null;
     }
 
+    const editable = itemForm.editable === true;
     return view.createFieldGrid({
+      editable,
       fields: fields.map((field) => renderFieldShell(field, view, {
-        disabled: true,
-        value: readDescriptorValue(record, field.field, field.default || ""),
+        disabled: !editable,
+        value: readDescriptorValue(record, field.field, field.default ?? ""),
       })),
     });
   }
@@ -1563,10 +1579,24 @@
 
   function renderDescriptorFieldGrid(fieldDescriptor = {}, options = {}) {
     const view = requireViewPrimitives();
+    const values = options.values && typeof options.values === "object" ? options.values : {};
+    const fields = options.fields || (fieldDescriptor.fields || []).map((field) => {
+      const fieldKey = field.field || field.id || "";
+      const fieldOptions = { ...(options.fieldOptions || {}) };
+      if (Object.prototype.hasOwnProperty.call(values, fieldKey)) {
+        fieldOptions.value = values[fieldKey];
+      }
+      if (options.editable !== undefined) {
+        fieldOptions.disabled = !options.editable;
+      }
+      return renderFieldShell(field, view, fieldOptions);
+    });
     return view.createFieldGrid({
       surface: options.surface,
       className: options.className,
-      fields: options.fields || (fieldDescriptor.fields || []).map((field) => renderFieldShell(field, view, options.fieldOptions || {})),
+      dataset: options.dataset,
+      editable: options.editable,
+      fields,
     });
   }
 
@@ -1622,76 +1652,7 @@
   }
 
   function renderFieldShell(field, view, options = {}) {
-    const controlId = field.field || field.id || "";
-    const label = view.createElement("label", {
-      className: "view-renderer-field",
-      attrs: {
-        "data-view-field": controlId,
-        ...(field.width ? { "data-view-field-width": field.width } : {}),
-      },
-    });
-    label.appendChild(view.createElement("span", {
-      className: "view-renderer-field-label",
-      text: field.label || controlId || "Field",
-    }));
-    label.appendChild(createFieldControl(field, view, {
-      ...options,
-      controlId,
-    }));
-    return label;
-  }
-
-  function createFieldControl(field, view, options = {}) {
-    if (field.type === "select") {
-      const select = view.createElement("select", {
-        attrs: {
-          name: options.controlId,
-          disabled: options.disabled,
-          required: field.required,
-          "data-view-input": options.controlId,
-          ...(field.optionsSource ? { "data-view-options-source": field.optionsSource } : {}),
-        },
-      });
-      for (const option of normalizeSelectOptions(field.options)) {
-        const optionElement = view.createElement("option", {
-          text: option.label,
-          attrs: {
-            value: option.value,
-            selected: option.selected,
-          },
-        });
-        select.appendChild(optionElement);
-      }
-      if (options.value !== undefined && options.value !== null) {
-        select.value = String(options.value);
-      } else if (field.default !== undefined && field.default !== null) {
-        select.value = String(field.default);
-      }
-      return select;
-    }
-
-    const control = view.createElement(field.type === "textarea" ? "textarea" : "input", {
-      attrs: {
-        name: options.controlId,
-        type: inputTypeFor(field.type),
-        disabled: options.disabled,
-        hidden: field.hidden,
-        min: field.min,
-        step: field.step,
-        rows: field.rows,
-        autocomplete: field.autocomplete,
-        required: field.required,
-        value: options.value ?? field.default,
-        placeholder: field.placeholder,
-        "data-view-input": options.controlId,
-        ...(field.optionsSource ? { "data-view-options-source": field.optionsSource } : {}),
-      },
-    });
-    if (field.type === "checkbox") {
-      control.value = field.default ?? "true";
-      control.checked = Boolean(options.value ?? field.checked);
-    }
-    return control;
+    return view.createField(field, options);
   }
 
   function normalizeSelectOptions(options = []) {
@@ -1988,13 +1949,6 @@
     flushMounts(state);
   }
 
-  function inputTypeFor(type) {
-    if (type === "number" || type === "date" || type === "time" || type === "checkbox") {
-      return type;
-    }
-    return "text";
-  }
-
   function clearHost(host) {
     while (host.firstChild) {
       host.removeChild(host.firstChild);
@@ -2019,6 +1973,7 @@
       "createDetailHeader",
       "createElement",
       "createEmptyState",
+      "createField",
       "createFieldGrid",
       "createFilterPanel",
       "createIndexList",

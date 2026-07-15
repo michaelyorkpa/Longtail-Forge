@@ -554,37 +554,16 @@ VALUES (:workspaceId, :workspaceName, 'Active', :workspaceType, :createdAt, :upd
     await transaction.run(`
 INSERT INTO workspace_settings (
   workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
   created_at,
   updated_at
 )
 VALUES (
   :workspaceId,
-  :fiscalYearStartMonth,
-  :fiscalYearStartDay,
-  :defaultBillingRate,
-  :billingPeriodType,
-  :billingPeriodStartDay,
-  :roundingEnabled,
-  :roundingIncrement,
   :createdAt,
   :updatedAt
 );
 `, {
-      billingPeriodStartDay: seedSettings.billingPeriod.startDay,
-      billingPeriodType: seedSettings.billingPeriod.type,
       createdAt: now,
-      defaultBillingRate: seedSettings.defaultBillingRate,
-      fiscalYearStartDay: seedSettings.fiscalYear.startDay,
-      fiscalYearStartMonth: seedSettings.fiscalYear.startMonth,
-      roundingEnabled: databaseDialect.boolean.bind(seedSettings.billingRounding.enabled),
-      roundingIncrement: seedSettings.billingRounding.increment,
       updatedAt: now,
       workspaceId,
     });
@@ -605,43 +584,21 @@ LIMIT 1;
     return;
   }
 
-  const seedSettings = getDefaultSettings();
   const now = new Date().toISOString();
 
   await db.run(`
 INSERT INTO workspace_settings (
   workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
   created_at,
   updated_at
 )
 VALUES (
   :workspaceId,
-  :fiscalYearStartMonth,
-  :fiscalYearStartDay,
-  :defaultBillingRate,
-  :billingPeriodType,
-  :billingPeriodStartDay,
-  :roundingEnabled,
-  :roundingIncrement,
   :createdAt,
   :updatedAt
 );
 `, {
-    billingPeriodStartDay: seedSettings.billingPeriod.startDay,
-    billingPeriodType: seedSettings.billingPeriod.type,
     createdAt: now,
-    defaultBillingRate: seedSettings.defaultBillingRate,
-    fiscalYearStartDay: seedSettings.fiscalYear.startDay,
-    fiscalYearStartMonth: seedSettings.fiscalYear.startMonth,
-    roundingEnabled: databaseDialect.boolean.bind(seedSettings.billingRounding.enabled),
-    roundingIncrement: seedSettings.billingRounding.increment,
     updatedAt: now,
     workspaceId,
   });

@@ -48,7 +48,7 @@ assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should reference foot
 assert.match(workbenchView, /js\/task-dialog\.js/, "Workbench should reference the shared Task dialog browser wiring");
 assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current module handoff version");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
-assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp("0.33.6.15.1")}`), "Tasks docs should report the current module handoff version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should document footer utility visual parity");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(regressionSuite, /scripts\/notes-tasks-modal-footer-visual-parity-regression\.mjs/, "Regression suite should include the modal footer visual parity regression");

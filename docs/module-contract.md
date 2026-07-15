@@ -61,7 +61,7 @@ These fields are currently accepted by the manifest validator:
 - `permissions`: optional permission descriptors with user-facing labels and descriptions.
 - `requiredPermissions`: optional permission IDs expected by the module.
 - `defaultRolePermissions`: optional role-to-permission defaults to sync into `role_permissions`.
-- `resourceDefinitions`: optional module resource keys and supported operations.
+- `resourceDefinitions`: optional module resource keys, supported operations, and required permissions used by the User Admin permission catalog.
 - `publicApiEndpoints`: optional public API documentation/discovery descriptors.
 - `apiScopes`: optional API key scope descriptors provided by the module.
 - `auditRecordTypes`: optional audit record type descriptors accepted by the audit service.
@@ -101,6 +101,12 @@ Reporting contributions require `id`, `moduleId`, `label`, `description`, `categ
 Supported report filter descriptors require `id`, `label`, a validated `type`, and safe `queryKeys`: `billing-period`, `scope`, `project-multi-select`, `tag`, and `boolean` use exactly one query key, while `custom-date-range` uses exactly two. Query keys must be unique within a report. Filters may declare a type-matched `defaultValue` (string for scalar filters, string list for project/tag filters, boolean for boolean filters), `required`, and a data-only `visibleWhen` dependency with `filterId` plus string `equals`. Billing-period defaults are limited to `current`, `last`, or `custom`. References must resolve inside the same report, and unknown filter or report fields are rejected.
 
 `modulesService.listReportingReports(workspaceId, session)` uses the shared contribution pipeline: the owning module must be enabled, every `requiresEnabledModules` entry must be enabled, a relevant workspace capability must be available, and every required permission must pass before the contribution is returned. The function sorts metadata only and never resolves or runs the `runner`. A module's `historicalReadAccess` affects its historical record pages, not executable report/catalog availability.
+
+Settings contributions require `id`, `label`, `type`, and `placement`. Supported types are `boolean`, `toggle`, `text`, `number`, `select`, `multi-select`, `radio`, and read-only `info`. The fixed placement set is `workspace`, `user`, `module`, and `new-workspace`. A contribution may also declare `target` (default `module`), `ownerOnly`, `readOnly`, `description`, `placeholder`, `inputmode`, read-only/disabled reason text, `options`, `min`, `max`, `step`, a type-matched `default`, `required`, `moduleStatus`, display-only terminology, and the standard `requiredPermissions`, `requiredWorkspaceCapabilities`, `requiresEnabledModules` / `requiredModules` eligibility axes. Select, multi-select, and radio settings require registered options; defaults must match the declared type, options, and numeric range.
+
+Settings manifests are data-only. Optional `handler` and `onChangeEffect` values are stable string IDs; executable persistence handlers and effects register outside the manifest. Unknown fields, functions, duplicate setting IDs or options, unknown permission/module references, and invalid metadata fail startup validation. A module contribution cannot set `target: "framework"`, set `protected: true`, or reuse a framework-registered setting ID. Only framework registration may create a protected or framework-target definition.
+
+`modulesService.listSettingsContributions(workspaceId, session)` is the permission-safe metadata catalog. It delegates to the shared contribution pipeline, so the owning module and every declared module dependency must be enabled, workspace capabilities must match, and all required permissions must pass; display terminology is resolved for the workspace. The result defaults omitted targets to `module` and sorts metadata, but does not read setting values, resolve handlers, or run effects. Value reads and writes remain separate through `settingsService`.
 
 As of 0.33.12.3, `GET /api/reporting/catalog` exposes the framework-owned permission-safe catalog. Each entry uses the stable namespaced key `<moduleId>:<reportId>` and returns report metadata, renderer ID, validated filters, defaults keyed by filter ID, report requirements, and only the referenced same-module renderer assets that also pass enabled-module, capability, permission, and `framework:reporting` host filtering. The browser catalog does not expose or resolve the server runner ID, and listing never executes report code. If a required renderer asset is not allowed for the current session, the report is omitted instead of returning an unusable or partially authorized contribution.
 
@@ -306,15 +312,23 @@ Cross-screen add/edit dialog actions are registered in browser code through `win
 
 The Task editor is the first completed workflow example for this pattern: the framework can ask Tasks to create or edit a task from Workbench or future action surfaces, but the canonical Tasks dialog still owns assignment eligibility, scheduling/context rules, recurrence payloads, checklist/timer/utility fragments, validation, and save/refresh behavior.
 
-Settings items require `id`, `label`, and `type`. Supported field types are `boolean`, `text`, `number`, `select`, `multi-select`, and `info`. Settings may include `description`, `placeholder`, `options`, `min`, `max`, `step`, `required`, `inputmode`, `requiredPermissions`, `readOnly`, `readOnlyReason`, `disabledReason`, and `moduleStatus`.
+Settings items require `id`, `label`, and `type`. Supported field types are `boolean`, `toggle`, `text`, `number`, `select`, `multi-select`, `radio`, and `info`. Settings may include `description`, `placeholder`, `options`, `min`, `max`, `step`, `required`, `inputmode`, `requiredPermissions`, `readOnly`, `readOnlyReason`, `disabledReason`, `moduleStatus`, and `visibleWhen`.
+
+`visibleWhen` has the data-only shape `{ settingId, equals }`. It may reference only another setting in the same contribution, its comparison value must match that controller's type, and visibility dependencies must not be self-referential or cyclic. The browser disables and omits a hidden dependent field; the server remains authoritative for validation and persistence.
 
 A setting with `moduleStatus: true` controls the module enablement row through `workspace_modules`; it must be validated and saved by the server through the registry service. Related module options use `moduleStatus: false` and require an explicit server-side settings handler before they can be writable. The browser settings UI renders field definitions and values from the backend `moduleSettings` payload instead of hard-coding first-party module toggles.
 
-The shared browser settings renderer honors setting metadata by type and does not special-case first-party setting IDs. Browser settings payloads submit module state and module-specific values through `moduleSettings`; `/api/settings` and the app-shell workspace context expose module availability through `enabledModules`, `modules`, and `moduleSettings` rather than deprecated top-level flags such as `timeTrackingEnabled`, `tasksEnabled`, or `taskTimersEnabled`.
+`LongtailForge.settingsRenderer` is the single shared browser settings path. It renders titled sections, fields, info panels, and save actions through `LongtailForge.view`, honors setting metadata without special-casing first-party IDs, collects typed values into `moduleSettings`, applies `visibleWhen`, and routes native/API field errors through the field primitive's message channel. Browser settings payloads submit module state and module-specific values through `moduleSettings`; `/api/settings` and the app-shell workspace context expose module availability through `enabledModules`, `modules`, and `moduleSettings` rather than deprecated top-level flags such as `timeTrackingEnabled`, `tasksEnabled`, or `taskTimersEnabled`.
+
+`GET /api/settings/catalog` is the browser-facing catalog. It returns the fixed attachment-point list plus contribution sections grouped as `attachments.workspace`, `attachments.user`, `attachments.module[moduleId]`, and `attachments["new-workspace"]`; every delivered field has already passed enabled-module, dependency, workspace-capability, setting-permission, and placement-access filtering, and its current value or descriptor default is hydrated separately from contribution listing. Module lifecycle controls remain visible in the workspace attachment for disabled modules because lifecycle recovery is framework-owned, not an ordinary active-module contribution.
+
+The protected Workspace, User, Tasks, Time Tracking, and Files Settings views contain only a `data-settings-host` mount and shared assets. `LongtailForge.settingsHost` constructs framework-owned anatomy through view primitives and exposes `data-settings-attachment` targets; page adapters keep owning API calls, atomic domain saves, and operational readouts while module values flow through owner contributions and accessors.
 
 The `/api/settings` save contract accepts a `moduleSettings` object keyed by module ID and setting ID. The server rejects unknown module IDs, unknown setting IDs, read-only fields, invalid value types, invalid select options, writable settings that do not have a server-side handler, and old top-level module setting aliases.
 
 Module settings navigation is derived from registered module protected views whose descriptors identify settings pages. The app shell may group those pages under Settings -> Workspace -> Modules, but it should not hard-code first-party module settings links.
+
+A new ordinary module setting should require only this manifest contribution. Add a registered persistence handler only when the owning module needs retained-table storage or atomic domain behavior, and add an on-change effect only when a successful changed value must trigger owner-owned behavior. Do not add framework branches to `settings.service.js`, `settings-catalog.service.js`, `settings-host.js`, `settings-renderer.js`, normalizers, or `workspace_settings` for ordinary module-owned values. Module manifests cannot target `framework`, mark a setting `protected`, or collide with a framework-registered setting ID.
 
 Permission descriptors require `id`, `moduleId`, `label`, and `description`; they may include `resource` and `operation`. `requiredPermissions` remains as a compact compatibility list for route/view contribution filtering, while `permissions` is the user-facing contract used for database sync and future permission UI. Startup sync inserts or updates declared permissions and inserts default role mappings without deleting existing role permissions.
 
@@ -433,11 +447,11 @@ const exampleModule = {
     sortOrder: 30,
   }],
   settings: [
-    { id: "exampleWorkEnabled", label: "Example Work", type: "boolean", moduleStatus: true },
-    { id: "exampleMode", label: "Mode", type: "select", options: [
+    { id: "exampleWorkEnabled", label: "Example Work", type: "toggle", placement: "workspace", moduleStatus: true },
+    { id: "exampleMode", label: "Mode", type: "select", placement: "module", default: "simple", options: [
       { label: "Simple", value: "simple" },
       { label: "Detailed", value: "detailed" },
-    ] },
+    ], requiredPermissions: ["example.view"] },
   ],
   permissions: [{
     id: "example.view",
@@ -455,6 +469,7 @@ const exampleModule = {
     moduleId: "example-work",
     label: "Example Work",
     operations: ["read", "create", "update", "archive", "restore"],
+    requiredPermissions: ["example.view"],
   }],
   auditRecordTypes: [{
     recordType: "example_work",

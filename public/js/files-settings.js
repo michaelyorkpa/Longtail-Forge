@@ -1,134 +1,138 @@
-const filesSettingsForm = document.querySelector("[data-files-settings-form]");
-const policyModeSelect = document.querySelector("[data-file-policy-mode]");
-const allowedExtensionsInput = document.querySelector("[data-allowed-extensions]");
-const blockedExtensionsInput = document.querySelector("[data-blocked-extensions]");
-const internalStorageLimitInput = document.querySelector("[data-internal-storage-limit]");
-const perUserStorageLimitInput = document.querySelector("[data-per-user-storage-limit]");
-const storageAccountingContainer = document.querySelector("[data-storage-accounting]");
-const filesSettingsStatus = document.querySelector("[data-files-settings-status]");
-const saveFilesSettingsButton = document.querySelector("[data-save-files-settings]");
+const filesSettingsForm = document.querySelector("[data-module-settings-form='files']");
+const filesSettingsFields = document.querySelector('[data-settings-attachment="module"][data-settings-module-id="files"]');
+const filesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='files']");
+const filesSettingsStatus = document.querySelector("[data-module-settings-status]");
 const api = window.LongtailForge.api;
 
+let settingsCatalog = null;
+let accounting = {};
+
+mountAccountingReadout();
 filesSettingsForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveFilesSettings();
 });
-
 loadFilesSettings();
 
 async function loadFilesSettings() {
   setStatus("Loading Files settings...");
-
   try {
-    const result = await api.getJson("/api/files/settings", { cache: "no-store" });
-    renderSettings(result.settings || {});
-    renderAccounting(result.accounting || {});
+    const [catalog, result] = await Promise.all([
+      api.getJson("/api/settings/catalog", { cache: "no-store" }),
+      api.getJson("/api/files/settings", { cache: "no-store" }),
+    ]);
+    settingsCatalog = catalog;
+    accounting = result.accounting || {};
+    renderSettings();
     setStatus("");
   } catch (error) {
     if (error.status === 401) {
       window.location.replace("/login.html");
       return;
     }
-
     setStatus(error.message || "Files settings could not be loaded.", true);
   }
 }
 
 async function saveFilesSettings() {
-  const payload = readSettingsPayload();
-
+  if (!window.LongtailForge.settingsRenderer.validate(filesSettingsForm)) {
+    setStatus("Review the highlighted Files settings.", true);
+    return;
+  }
+  const values = window.LongtailForge.settingsRenderer.collectPayload(filesSettingsForm).files || {};
+  setSaveButtonsDisabled(true);
   setStatus("Saving Files settings...");
-  saveFilesSettingsButton.disabled = true;
-
   try {
-    const result = await api.putJson("/api/files/settings", payload);
-    renderSettings(result.settings || {});
-    renderAccounting(result.accounting || {});
+    const result = await api.putJson("/api/files/settings", {
+      allowedExtensions: parseExtensions(values["files.allowedExtensions"]),
+      blockedExtensions: parseExtensions(values["files.blockedExtensions"]),
+      fileTypePolicyMode: values["files.fileTypePolicyMode"] || "safe_default",
+      internalStorageLimitBytes: nullableInteger(values["files.internalStorageLimitBytes"]),
+      perUserStorageLimitBytes: nullableInteger(values["files.perUserStorageLimitBytes"]),
+    });
+    accounting = result.accounting || {};
+    settingsCatalog = await api.getJson("/api/settings/catalog", { cache: "no-store" });
+    renderSettings();
     setStatus("Files settings saved.");
   } catch (error) {
+    window.LongtailForge.settingsRenderer.showValidationErrors(filesSettingsForm, error);
     setStatus(error.message || "Files settings were not saved.", true);
   } finally {
-    saveFilesSettingsButton.disabled = false;
+    setSaveButtonsDisabled(false);
   }
 }
 
-function renderSettings(settings) {
-  policyModeSelect.value = settings.fileTypePolicyMode || "safe_default";
-  allowedExtensionsInput.value = formatExtensions(settings.allowedExtensions || []);
-  blockedExtensionsInput.value = formatExtensions(settings.blockedExtensions || []);
-  internalStorageLimitInput.value = settings.internalStorageLimitBytes ?? "";
-  perUserStorageLimitInput.value = settings.perUserStorageLimitBytes ?? "";
+function renderSettings() {
+  window.LongtailForge.settingsRenderer.renderSections(
+    filesSettingsFields,
+    window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", "files"),
+    { emptyText: "No configurable Files settings are available." },
+  );
+  renderAccounting();
 }
 
-function renderAccounting(accounting) {
+function mountAccountingReadout() {
+  if (!filesSettingsAuxiliary) {
+    return;
+  }
+  const view = window.LongtailForge.view;
+  filesSettingsAuxiliary.appendChild(view.createElement("fieldset", {
+    className: "view-settings-section",
+    children: [
+      view.createElement("legend", { className: "view-settings-section-legend", text: "Storage Accounting" }),
+      view.createElement("div", { className: "settings-summary-grid", dataset: { storageAccounting: "" } }),
+    ],
+  }));
+}
+
+function renderAccounting() {
+  const container = filesSettingsAuxiliary?.querySelector("[data-storage-accounting]");
+  if (!container) {
+    return;
+  }
   const totals = accounting.totals || {};
+  const view = window.LongtailForge.view;
   const items = [
     ["Internal files", totals.internalFileCount || 0],
     ["Internal storage", formatBytes(totals.internalBytes || 0)],
     ["External files", totals.externalFileCount || 0],
     ["External reported", formatBytes(totals.externalReportedBytes || 0)],
   ];
-
-  storageAccountingContainer.replaceChildren(...items.map(([label, value]) => {
-    const card = document.createElement("div");
-    const heading = document.createElement("span");
-    const strong = document.createElement("strong");
-
-    card.className = "settings-summary-item";
-    heading.textContent = label;
-    strong.textContent = String(value);
-    card.append(heading, strong);
-    return card;
-  }));
-}
-
-function readSettingsPayload() {
-  return {
-    allowedExtensions: parseExtensions(allowedExtensionsInput.value),
-    blockedExtensions: parseExtensions(blockedExtensionsInput.value),
-    fileTypePolicyMode: policyModeSelect.value || "safe_default",
-    internalStorageLimitBytes: nullableInteger(internalStorageLimitInput.value),
-    perUserStorageLimitBytes: nullableInteger(perUserStorageLimitInput.value),
-  };
+  container.replaceChildren(...items.map(([label, value]) => view.createElement("div", {
+    className: "settings-summary-item",
+    children: [
+      view.createElement("span", { text: label }),
+      view.createElement("strong", { text: String(value) }),
+    ],
+  })));
 }
 
 function parseExtensions(value) {
-  return String(value || "")
-    .split(/[\s,]+/)
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean)
-    .map((item) => item.startsWith(".") ? item : `.${item}`);
-}
-
-function formatExtensions(extensions) {
-  return [...extensions].sort().join(", ");
+  return String(value || "").split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
 }
 
 function nullableInteger(value) {
-  if (value === "") {
+  if (value === "" || value === null || value === undefined) {
     return null;
   }
-
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function formatBytes(value) {
   const bytes = Number(value || 0);
-
-  if (!bytes) {
-    return "0 B";
-  }
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
-  }
+  if (!bytes) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function setSaveButtonsDisabled(disabled) {
+  filesSettingsForm?.querySelectorAll("[data-settings-save]").forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
 function setStatus(message, isError = false) {
-  filesSettingsStatus.textContent = message;
-  filesSettingsStatus.classList.toggle("error-text", isError);
+  window.LongtailForge.status.set(filesSettingsStatus, message, isError ? { type: "error" } : {});
 }

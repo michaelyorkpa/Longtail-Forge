@@ -33,6 +33,17 @@ async function list(session) {
   return { users: await readUsersWithMemberships(session) };
 }
 
+async function listPermissionResources(session) {
+  await permissionsService.assertCan(session, "users.manage", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  });
+
+  return {
+    resources: await modulesService.listActiveResourceDefinitions(session.workspace_id, session),
+  };
+}
+
 async function listWorkspaces(session) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "read" });
 
@@ -1190,6 +1201,7 @@ export const usersService = {
   createWorkspace,
   delete: remove,
   list,
+  listPermissionResources,
   listWorkspaces,
   readSettings,
   removeOwnWorkspaceMembership,

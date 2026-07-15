@@ -28,6 +28,7 @@ const themeInitScript = readText("public/js/theme-init.js");
 const navigationScript = readText("public/js/navigation.js");
 const loginScript = readText("public/js/login.js");
 const userSettingsView = readText("views/protected/user-settings.html");
+const settingsHostScript = readText("public/js/shared/settings-host.js");
 const userSettingsScript = readText("public/js/user-settings.js");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
@@ -102,12 +103,13 @@ function assertStaticContract() {
   assert.match(loginScript, /normalizeThemeMode\(body\.user\?\.themeMode\)/, "login should preserve auto mode in localStorage");
   assert.match(loginScript, /normalizeThemeAutoSource\(body\.user\?\.themeAutoSource\)/, "login should preserve auto source in localStorage");
 
-  assert.match(userSettingsView, /name="themeMode" value="light" data-theme-mode-option/, "User Settings should expose Light mode");
-  assert.match(userSettingsView, /name="themeMode" value="auto" data-theme-mode-option/, "User Settings should expose Auto mode");
-  assert.match(userSettingsView, /name="themeMode" value="dark" data-theme-mode-option/, "User Settings should expose Dark mode");
-  assert.match(userSettingsView, /data-theme-auto-source-controls/, "User Settings should expose auto-source controls");
-  assert.match(userSettingsView, /name="themeAutoSource" value="system" data-theme-auto-source/, "User Settings should expose OS-match auto source");
-  assert.doesNotMatch(userSettingsView, /data-theme-mode-toggle|theme-mode-switch|theme-switch-track/, "User Settings should not keep the old binary slider");
+  assert.match(userSettingsView, /data-settings-host="user"/, "User Settings should expose the minimal framework host");
+  assert.match(settingsHostScript, /value: "light", label: "Light"/, "User Settings should expose Light mode");
+  assert.match(settingsHostScript, /value: "auto", label: "Auto"/, "User Settings should expose Auto mode");
+  assert.match(settingsHostScript, /value: "dark", label: "Dark"/, "User Settings should expose Dark mode");
+  assert.match(settingsHostScript, /themeAutoSourceControls/, "User Settings should expose auto-source controls");
+  assert.match(settingsHostScript, /value: "system", label: "Match operating system"/, "User Settings should expose OS-match auto source");
+  assert.doesNotMatch(settingsHostScript, /data-theme-mode-toggle|theme-mode-switch|theme-switch-track/, "User Settings should not keep the old binary slider");
   assert.match(userSettingsView, /css\/longtail-forge\.css/, "User Settings CSS cache key should advance with the segmented theme controls");
   assert.match(userSettingsView, /js\/user-settings\.js/, "User Settings script cache key should advance with the scoped three-way settings hydrator");
   assert.match(userSettingsScript, /^\(function attachUserSettingsPage\(\) \{[\s\S]*\}\)\(\);\s*$/, "User Settings should be scoped so theme helper names cannot collide with navigation.js");

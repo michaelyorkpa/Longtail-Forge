@@ -87,6 +87,7 @@ const usersModule = {
       moduleId: "users",
       label: "Users",
       operations: ["read", "create", "update", "delete", "assign", "manage"],
+      requiredPermissions: ["users.manage"],
     },
   ],
   auditRecordTypes: [

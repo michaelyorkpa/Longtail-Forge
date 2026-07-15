@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const html = readText("views/protected/lists.html");
 const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
+const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
@@ -50,8 +51,8 @@ assert.match(listsJs, /view\.createLinkedContextList\(/, "Lists detail should re
 assert.doesNotMatch(functionBlock(listsJs, "renderDetail"), /createLinkedRecordsPanel\(/, "Lists detail should no longer host the inline linked-record add/remove panel");
 assert.match(listsJs, /createListDialogShell\(/, "Lists modal shell should remain imperative until the modal slice");
 
-assert.match(renderer, /function createFieldControl\(field, view, options = \{\}\)/, "Renderer should support descriptor field controls");
-assert.match(renderer, /field\.type === "select"/, "Renderer should support descriptor select filters");
+assert.match(renderer, /function renderFieldShell\(field, view, options = \{\}\)[\s\S]*return view\.createField\(field, options\)/, "Renderer should route descriptor fields through the shared field factory");
+assert.match(builder, /options\.fieldType === "select" \|\| options\.fieldType === "multi-select"/, "Shared field factory should support descriptor select filters");
 assert.match(renderer, /data-view-input/, "Renderer should expose stable generic field input hooks");
 
 assert.match(changelog, /## Version 0\.33\.5\.16\.9 - /, "Changelog should include Lists declarative proof version");

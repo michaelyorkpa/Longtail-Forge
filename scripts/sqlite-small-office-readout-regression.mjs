@@ -13,6 +13,7 @@ const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const databaseDocs = readText("docs/database.md");
 const workspaceSettingsView = readText("views/protected/workspace-settings.html");
+const settingsHostScript = readText("public/js/shared/settings-host.js");
 const workspaceSettingsScript = readText("public/js/workspace-settings.js");
 const styles = readText("public/css/longtail-forge.css");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
@@ -34,10 +35,11 @@ assert.match(sqliteDocs, /does not edit runtime configuration/i, "SQLite docs sh
 assert.match(runtimeDocs, /sqlite-small-office-mode\.md/, "runtime docs should link the SQLite small-office mode contract");
 assert.match(databaseDocs, /sqlite-small-office-mode\.md/, "database docs should link the SQLite small-office mode contract");
 
-assert.match(workspaceSettingsView, /data-runtime-diagnostics-fieldset/, "Workspace Settings should include a runtime diagnostics fieldset");
-assert.match(workspaceSettingsView, /data-runtime-diagnostics-summary/, "Workspace Settings should include the diagnostics summary target");
-assert.match(workspaceSettingsView, /data-runtime-diagnostics-warnings/, "Workspace Settings should include diagnostics warning copy target");
-assert.match(workspaceSettingsView, /data-job-observability-fieldset/, "Workspace Settings should include a Jobs readout fieldset");
+assert.match(workspaceSettingsView, /data-settings-host="workspace"/, "Workspace Settings should expose the minimal framework host");
+assert.match(settingsHostScript, /runtimeDiagnosticsFieldset/, "Workspace Settings should include a runtime diagnostics fieldset");
+assert.match(settingsHostScript, /runtimeDiagnosticsSummary/, "Workspace Settings should include the diagnostics summary target");
+assert.match(settingsHostScript, /runtimeDiagnosticsWarnings/, "Workspace Settings should include diagnostics warning copy target");
+assert.match(settingsHostScript, /jobObservabilityFieldset/, "Workspace Settings should include a Jobs readout fieldset");
 assert.match(workspaceSettingsView, /js\/workspace-settings\.js/, "Workspace Settings should load the diagnostics readout script cache key");
 assert.equal(existsSync(path.join(root, "views/protected/runtime-diagnostics.html")), false, "runtime diagnostics should not add a new dashboard page");
 

@@ -7,7 +7,7 @@ import { auditService } from "../../core/audit.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
-import { settingsRepository } from "../../repositories/settings.repo.js";
+import { tasksSettingsService } from "./tasks-settings.service.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
 const TASKS_MODULE_ID = "tasks";
@@ -206,10 +206,10 @@ async function hasActiveTaskTimers(workspaceId, taskId) {
 }
 
 async function assertTaskTimersEnabled(session) {
-  const [tasksWritable, timeWritable, settings] = await Promise.all([
+  const [tasksWritable, timeWritable, taskTimersEnabled] = await Promise.all([
     modulesService.canWriteModule(session.workspace_id, TASKS_MODULE_ID),
     modulesService.canWriteModule(session.workspace_id, TIME_TRACKING_MODULE_ID),
-    settingsRepository.readWorkspaceSettings(session.workspace_id),
+    tasksSettingsService.readTaskTimersEnabled(session),
   ]);
 
   if (!tasksWritable) {
@@ -220,7 +220,7 @@ async function assertTaskTimersEnabled(session) {
     throw new AppError("Time Tracking is disabled for this workspace.", 403);
   }
 
-  if (settings.taskTimersEnabled === false) {
+  if (!taskTimersEnabled) {
     throw new AppError("Task timers are disabled for this workspace.", 403);
   }
 }

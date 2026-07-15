@@ -2,6 +2,8 @@
 
 Time Tracking is the first-party module for active timers, saved time entries, billing/reporting duration, and time-entry corrections.
 
+Time Tracking declares its module-status control as a workspace Settings contribution. Fiscal-year month/day and billing-rounding enabled/increment are Time Tracking-owned contributions persisted in the generic store and read through `timeTrackingSettingsService`; its owner-registered fiscal effect preserves valid month/day combinations. Module lifecycle state still persists through `workspace_modules`.
+
 Owned by `src/modules/time-tracking/`:
 
 - Browser API routes for time entries and active timers.

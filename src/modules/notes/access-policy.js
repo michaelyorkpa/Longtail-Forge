@@ -34,6 +34,7 @@ const NOTE_RESOURCE_DEFINITION = Object.freeze({
   key: "notes",
   moduleId: "notes",
   label: "Notes",
+  requiredPermissions: [NOTE_PERMISSIONS.VIEW],
   operations: [
     "read",
     "create",

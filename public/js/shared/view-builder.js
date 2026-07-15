@@ -32,6 +32,336 @@
     return element;
   }
 
+  function createField(field = {}, options = {}) {
+    const fieldKey = String(field.field || field.id || "").trim();
+    const labelText = String(field.label || fieldKey || "Field");
+    const fieldType = normalizeFieldType(field.type);
+    const fieldId = String(options.controlId || "").trim() || nextId("view-field");
+    const shellTag = fieldType === "radio" ? "fieldset" : "label";
+    const shell = createElement(shellTag, {
+      className: [
+        "view-renderer-field",
+        fieldType === "boolean" || fieldType === "switch" ? "inline-option" : "",
+        fieldType === "switch" ? "view-renderer-field-switch" : "",
+        options.className,
+      ],
+      attrs: {
+        "data-view-field": fieldKey,
+        "data-view-field-type": fieldType,
+        ...(field.width ? { "data-view-field-width": field.width } : {}),
+      },
+      dataset: options.dataset,
+      hidden: field.hidden,
+    });
+    const label = createElement(fieldType === "radio" ? "legend" : "span", {
+      className: "view-renderer-field-label",
+      text: labelText,
+    });
+
+    if (fieldType === "radio") {
+      const controls = createRadioControls(field, {
+        ...options,
+        fieldId,
+        fieldKey,
+      });
+      shell.append(label, ...controls.map((entry) => entry.label));
+      const messageChannel = createFieldMessage(fieldId, controls.map((entry) => entry.control), options);
+      shell.appendChild(messageChannel.message);
+      assignViewParts(shell, {
+        control: controls[0]?.control || null,
+        controls: controls.map((entry) => entry.control),
+        label,
+        message: messageChannel.message,
+        setMessage: messageChannel.setMessage,
+      });
+      return shell;
+    }
+
+    const control = createFieldControl(field, {
+      ...options,
+      fieldId,
+      fieldKey,
+      fieldType,
+    });
+    label.setAttribute("for", fieldId);
+    if (fieldType === "boolean" || fieldType === "switch") {
+      shell.append(control, label);
+    } else {
+      shell.append(label, control);
+    }
+    const messageChannel = createFieldMessage(fieldId, [control], options);
+    shell.appendChild(messageChannel.message);
+    assignViewParts(shell, {
+      control,
+      controls: [control],
+      label,
+      message: messageChannel.message,
+      setMessage: messageChannel.setMessage,
+    });
+    return shell;
+  }
+
+  function createFieldMessage(fieldId, controls, options = {}) {
+    const messageId = `${fieldId}-message`;
+    const message = createElement("span", {
+      id: messageId,
+      className: ["view-renderer-field-message", options.messageClassName],
+      attrs: {
+        role: "status",
+        "aria-live": "polite",
+        "data-view-field-message": "",
+      },
+      hidden: true,
+    });
+
+    const setMessage = (value, messageOptions = {}) => {
+      const text = String(value ?? "").trim();
+      const invalid = Boolean(messageOptions.invalid);
+      const tone = String(messageOptions.tone || (invalid ? "error" : "info"));
+      message.textContent = text;
+      message.hidden = !text;
+      message.dataset.viewFieldMessageTone = tone;
+      message.setAttribute("role", invalid ? "alert" : "status");
+      for (const control of controls) {
+        control.setAttribute("aria-invalid", invalid ? "true" : "false");
+        const describedBy = new Set(String(control.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+        if (text) {
+          describedBy.add(messageId);
+        } else {
+          describedBy.delete(messageId);
+        }
+        if (describedBy.size) {
+          control.setAttribute("aria-describedby", [...describedBy].join(" "));
+        } else {
+          control.removeAttribute?.("aria-describedby");
+        }
+      }
+    };
+
+    setMessage(options.message, {
+      invalid: options.invalid,
+      tone: options.messageTone,
+    });
+    return { message, setMessage };
+  }
+
+  function createFieldControl(field, options) {
+    const commonAttrs = {
+      id: options.fieldId,
+      name: options.fieldKey,
+      disabled: options.disabled,
+      required: field.required,
+      "data-view-input": options.fieldKey,
+      ...(field.optionsSource ? { "data-view-options-source": field.optionsSource } : {}),
+      ...(options.controlAttrs || {}),
+    };
+
+    if (options.fieldType === "select" || options.fieldType === "multi-select") {
+      const control = createElement("select", {
+        className: options.controlClassName,
+        attrs: {
+          ...commonAttrs,
+          multiple: options.fieldType === "multi-select",
+        },
+        dataset: options.controlDataset,
+      });
+      const hasBoundValue = options.value !== undefined && options.value !== null;
+      const hasConfiguredValue = hasBoundValue || field.default !== undefined && field.default !== null;
+      const selectedValues = options.fieldType === "multi-select"
+        ? new Set(normalizeFieldValues(hasBoundValue ? options.value : field.default))
+        : null;
+      for (const option of normalizeFieldOptions(field.options)) {
+        const optionElement = createElement("option", {
+          text: option.label,
+          attrs: {
+            value: option.value,
+            disabled: option.disabled,
+          },
+        });
+        optionElement.selected = selectedValues
+          ? selectedValues.has(String(option.value)) || (!hasConfiguredValue && option.selected)
+          : option.selected;
+        control.appendChild(optionElement);
+      }
+      if (!selectedValues) {
+        const value = hasBoundValue ? options.value : field.default;
+        if (value !== undefined && value !== null) {
+          control.value = String(value);
+        }
+      }
+      return control;
+    }
+
+    const tagName = options.fieldType === "textarea" ? "textarea" : "input";
+    const inputType = inputTypeForField(options.fieldType);
+    const control = createElement(tagName, {
+      className: [
+        options.fieldType === "switch" ? "view-field-switch-control" : "",
+        options.controlClassName,
+      ],
+      attrs: {
+        ...commonAttrs,
+        type: inputType,
+        role: options.fieldType === "switch" ? "switch" : undefined,
+        hidden: field.hidden,
+        min: field.min,
+        max: field.max,
+        step: field.step,
+        inputmode: field.inputmode,
+        rows: field.rows,
+        spellcheck: field.spellcheck,
+        autocomplete: field.autocomplete,
+        placeholder: field.placeholder,
+      },
+      dataset: options.controlDataset,
+    });
+    const value = options.value !== undefined ? options.value : field.default;
+    if (inputType === "checkbox") {
+      control.value = String(field.value ?? "true");
+      control.checked = normalizeCheckedValue(value !== undefined ? value : field.checked);
+    } else {
+      control.value = value === undefined || value === null ? "" : String(value);
+    }
+    return control;
+  }
+
+  function createRadioControls(field, options) {
+    const hasBoundValue = options.value !== undefined && options.value !== null;
+    const selectedValue = hasBoundValue ? String(options.value) : field.default === undefined ? "" : String(field.default);
+    return normalizeFieldOptions(field.options).map((option, index) => {
+      const optionId = `${options.fieldId}-${index + 1}`;
+      const control = createElement("input", {
+        className: options.controlClassName,
+        attrs: {
+          id: optionId,
+          name: options.fieldKey,
+          type: "radio",
+          value: option.value,
+          disabled: options.disabled || option.disabled,
+          required: field.required,
+          "data-view-input": options.fieldKey,
+          ...(field.optionsSource ? { "data-view-options-source": field.optionsSource } : {}),
+          ...(options.controlAttrs || {}),
+        },
+        dataset: options.controlDataset,
+      });
+      control.checked = selectedValue
+        ? selectedValue === String(option.value)
+        : !hasBoundValue && option.selected;
+      const optionLabel = createElement("label", {
+        className: "inline-option view-field-radio-option",
+        attrs: { for: optionId },
+        children: [control, createElement("span", { text: option.label })],
+      });
+      return { control, label: optionLabel };
+    });
+  }
+
+  function normalizeFieldType(type) {
+    const value = String(type || "text").trim().toLowerCase();
+    if (value === "boolean" || value === "checkbox") {
+      return value;
+    }
+    if (value === "toggle" || value === "switch") {
+      return "switch";
+    }
+    if (value === "radio") {
+      return "radio";
+    }
+    if (["select", "multi-select", "textarea", "number", "date", "time"].includes(value)) {
+      return value;
+    }
+    return value || "text";
+  }
+
+  function inputTypeForField(type) {
+    if (["number", "date", "time", "checkbox", "boolean"].includes(type)) {
+      return type === "boolean" ? "checkbox" : type;
+    }
+    if (type === "switch") {
+      return "checkbox";
+    }
+    return "text";
+  }
+
+  function normalizeFieldOptions(options = []) {
+    if (!Array.isArray(options)) {
+      return [];
+    }
+    return options.map((option) => {
+      if (Array.isArray(option)) {
+        return {
+          value: option[0] ?? "",
+          label: option[1] ?? option[0] ?? "",
+          selected: Boolean(option[2]),
+          disabled: Boolean(option[3]),
+        };
+      }
+      if (option && typeof option === "object") {
+        const value = option.value ?? option.id ?? "";
+        return {
+          value,
+          label: option.label ?? option.text ?? value,
+          selected: Boolean(option.selected || option.default),
+          disabled: Boolean(option.disabled),
+        };
+      }
+      return { value: option ?? "", label: option ?? "", selected: false, disabled: false };
+    });
+  }
+
+  function normalizeFieldValues(value) {
+    const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
+    return values.map((item) => String(item));
+  }
+
+  function normalizeCheckedValue(value) {
+    if (typeof value === "string") {
+      return ["true", "1", "yes", "on"].includes(value.trim().toLowerCase());
+    }
+    return Boolean(value);
+  }
+
+  function collectFieldValues(scope, options = {}) {
+    if (!scope || typeof scope.querySelectorAll !== "function") {
+      return {};
+    }
+
+    const payload = {};
+    const controls = Array.from(scope.querySelectorAll("[data-view-input]"));
+    const collectedRadioFields = new Set();
+    for (const control of controls) {
+      const fieldKey = String(control.dataset?.viewInput || control.name || "").trim();
+      if (!fieldKey || (control.disabled && !options.includeDisabled)) {
+        continue;
+      }
+      if (control.type === "radio") {
+        if (collectedRadioFields.has(fieldKey)) {
+          continue;
+        }
+        collectedRadioFields.add(fieldKey);
+        const selected = controls.find((candidate) => (
+          String(candidate.dataset?.viewInput || candidate.name || "").trim() === fieldKey
+          && candidate.type === "radio"
+          && candidate.checked
+          && (!candidate.disabled || options.includeDisabled)
+        ));
+        payload[fieldKey] = selected?.value || "";
+        continue;
+      }
+      if (control.type === "checkbox") {
+        payload[fieldKey] = Boolean(control.checked);
+      } else if (control.multiple) {
+        payload[fieldKey] = Array.from(control.selectedOptions || [], (option) => option.value);
+      } else if (control.type === "number") {
+        payload[fieldKey] = Number(control.value);
+      } else {
+        payload[fieldKey] = control.value;
+      }
+    }
+    return payload;
+  }
+
   function addClasses(element, className) {
     if (!className) {
       return element;
@@ -1043,10 +1373,20 @@
   }
 
   function createFieldGrid(options = {}) {
-    return createElement("div", {
+    const fields = options.fields || options.children || [];
+    const grid = createElement("div", {
       className: ["view-field-grid", options.surface === false ? "" : "surface-modal-section-body", options.className],
-      children: options.fields || options.children || [],
+      attrs: options.editable === undefined ? {} : { "data-view-editable": options.editable ? "true" : "false" },
+      dataset: options.dataset,
+      children: fields,
     });
+    const fieldElements = Array.isArray(fields) ? fields : [fields];
+    assignViewParts(grid, {
+      collectValues: (collectOptions = {}) => collectFieldValues(grid, collectOptions),
+      controls: fieldElements.flatMap((field) => field?.viewParts?.controls || []),
+      fields: fieldElements,
+    });
+    return grid;
   }
 
   function createInlineActionRow(options = {}) {
@@ -1625,6 +1965,7 @@
   }
 
   root.view = Object.freeze({
+    collectFieldValues,
     createActionButton,
     createBulkActionToolbar,
     createCollapsibleIndexPanel,
@@ -1635,6 +1976,7 @@
     createDetailHeader,
     createElement,
     createEmptyState,
+    createField,
     createFieldGrid,
     createFilterPanel,
     createIndexList,

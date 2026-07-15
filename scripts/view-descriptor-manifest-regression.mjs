@@ -287,6 +287,63 @@ assert.match(
   "Navigation sidebar panels should require a module-owned mount behavior",
 );
 
+const fieldTypes = ["text", "number", "select", "multi-select", "boolean", "checkbox", "toggle", "switch", "radio", "textarea", "date", "time"];
+const fieldContractErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      detail: {
+        itemForm: {
+          title: "Field contract",
+          editable: true,
+          fields: fieldTypes.map((type) => ({
+            field: `contract_${type.replaceAll("-", "_")}`,
+            type,
+            label: type,
+            options: ["select", "multi-select", "radio"].includes(type) ? [["one", "One"]] : undefined,
+            max: type === "number" ? 100 : undefined,
+            inputmode: type === "number" ? "numeric" : undefined,
+          })),
+        },
+      },
+    },
+  ],
+}));
+assert.deepEqual(fieldContractErrors, [], `Supported field types and metadata should pass validation: ${fieldContractErrors.join("; ")}`);
+
+const invalidEditableGridErrors = validateModuleManifest(createModule({
+  viewSurfaces: [{
+    ...validSurface(),
+    detail: {
+      itemForm: {
+        title: "Field contract",
+        editable: "yes",
+        fields: [{ field: "title", type: "text", label: "Title" }],
+      },
+    },
+  }],
+}));
+assert.match(invalidEditableGridErrors.join("\n"), /detail\.itemForm\.editable must be a boolean/);
+
+const invalidFieldTypeErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      detail: {
+        itemForm: {
+          title: "Field contract",
+          fields: [{ field: "invented", type: "invented-control", label: "Invented" }],
+        },
+      },
+    },
+  ],
+}));
+assert.match(
+  invalidFieldTypeErrors.join("\n"),
+  /viewSurfaces\[0\]\.detail\.itemForm\.fields\[0\]\.type must be one of/,
+  "Descriptor fields should reject types outside the concrete consumer set",
+);
+
 console.log("View descriptor manifest regression passed.");
 const { closeDatabase } = await import("../src/db/provider.js");
 await closeDatabase();

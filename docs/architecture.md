@@ -833,7 +833,8 @@ settings: [
   {
     id: "tasksEnabled",
     label: "Tasks",
-    type: "boolean",
+    type: "toggle",
+    placement: "workspace",
     moduleStatus: true
   }
 ]
@@ -843,7 +844,21 @@ The settings UI renders module setting definitions and values from the backend `
 
 Module settings navigation is assembled from registered module settings views rather than from app-shell first-party conditionals. Browser save payloads submit module state through `moduleSettings`, and API/browser consumers should read module availability from `enabledModules`, `modules`, and `moduleSettings` instead of deprecated top-level module flags.
 
-The settings save logic should not hard-code each module toggle.
+As of 0.33.15.2, ordinary workspace/module setting values persist as validated JSON in `workspace_module_settings`, keyed by workspace, module namespace, and setting ID. Module and framework consumers use the workspace-scoped `settingsService.getValue(...)` / `getFrameworkValue(...)` accessors so absent values resolve from descriptor defaults and stored values follow one validation path. The reserved `framework` namespace is definition-registered by framework code; a module cannot create a framework setting merely by writing a key.
+
+Custom persistence and post-save reactions are separate opt-in registries keyed by `<moduleId>.<settingId>`. A persistence handler bridges retained lifecycle/per-feature storage; the default path needs no handler. An on-change effect runs only after a changed value has persisted successfully and never for a rejected save. Module lifecycle status remains in `workspace_modules`.
+
+As of 0.33.15.3, module setting descriptors are validated data-only contributions with a fixed `workspace`, `user`, `module`, or `new-workspace` placement, field metadata/defaults, optional stable handler/effect IDs, and the shared permission, capability, and enabled-module requirements. `modulesService.listSettingsContributions(...)` applies the shared eligibility and terminology pipeline without reading values or executing behavior. Module targets default to the owning module; only framework registration may create a framework-target or protected definition, and startup validation rejects module collisions with registered framework setting IDs.
+
+As of 0.33.15.4, `LongtailForge.settingsRenderer` is the single browser path from those contribution descriptors to titled settings fieldsets, framework fields, section save actions, typed nested `moduleSettings` payloads, conditional visibility, and per-field validation messages. `visibleWhen` compares a dependent field against one same-contribution controller; validation rejects missing, self-referential, type-incompatible, or cyclic dependencies. Hidden dependents are disabled and omitted from the save payload. The adapter uses `LongtailForge.view` primitives for all settings anatomy, while modules retain validation rules, allowed values, handler/effect behavior, and domain meaning.
+
+As of 0.33.15.5, the protected `GET /api/settings/catalog` route returns the attachment-point catalog consumed by Settings hosts. Sections are grouped under `workspace`, `user`, module-ID-keyed `module`, and `new-workspace` attachments with hydrated values/defaults only after the shared contribution eligibility pipeline and placement access checks. The framework separately includes module lifecycle controls in the workspace attachment even for disabled modules so administrators retain the recovery path; prospective new-workspace module availability remains capability-shaped by the Users service rather than the active workspace.
+
+`views/protected/workspace-settings.html`, `user-settings.html`, `tasks-settings.html`, `time-tracking-settings.html`, and `files-settings.html` are minimal `data-settings-host` mounts. `LongtailForge.settingsHost` builds framework-owned page headers, fields, sections, actions, status regions, operational readouts, and dialogs through `LongtailForge.view`, exposes standardized `data-settings-attachment` mounts, and leaves page adapters responsible for their owning route calls and save behavior.
+
+As of 0.33.15.6, Client/Projects billing defaults and period values, Time Tracking fiscal-year and rounding values, and Tasks timer enablement persist as ordinary owner-namespaced generic settings. Tasks reminder defaults and Files policy/quota values remain in their specialized tables behind owner-registered handlers. Owner accessors feed runtime behavior, and the framework Settings service, its repository, and its normalizer contain no feature-module imports, setting IDs, or module-specific branches. Secure Notes keys, Files storage-provider selection, and scanner configuration remain environment-owned and never enter the Settings catalog.
+
+As of 0.33.15.7, `GET /api/users/permission-resources` is the authoritative browser catalog for the User Admin permission matrix. Module `resourceDefinitions` pass through the shared enabled-module, terminology, and required-permission contribution pipeline; framework-owned resources are filtered through the same permission rule. The browser renders the returned keys and operations without a first-party resource list, so enabling or disabling a module adds or removes its matrix section automatically. Stored overrides for temporarily hidden resources survive assignment edits, while route authorization, scoped role assignment, and record-level operation enforcement remain unchanged in the Users and Permissions services. This catalog is intrinsically framework-wide permission infrastructure and is an explicit Two-Module Rule exception.
 
 Dashboard and Workbench are framework-owned surfaces fed by module contributions. Modules declare Dashboard panels and Workbench cards in their manifests with stable IDs, renderer IDs, module IDs, permission requirements, module-state requirements, optional data routes, and optional workspace terminology. The backend filters those contributions by workspace, module state, capabilities, and permissions before returning them to the browser.
 

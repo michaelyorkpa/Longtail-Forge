@@ -1,5 +1,6 @@
 // @ts-check
 import { listTagPropagationResolverIds } from "../../services/tag-propagation-registry.js";
+import { listFrameworkSettingDefinitions } from "../settings/framework-settings-registry.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../linked-context/provider-contract.js";
 import { listFrameworkPermissionIds } from "../permissions/framework-permission-catalog.js";
 
@@ -63,9 +64,62 @@ const RESERVED_MANIFEST_FIELDS = new Set([
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HELP_ID_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+const SETTING_BEHAVIOR_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/;
 const HELP_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
-const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "multi-select", "info"]);
+const SETTING_FIELD_TYPES = new Set(["boolean", "toggle", "text", "textarea", "number", "select", "multi-select", "radio", "info"]);
+const SETTING_PLACEMENTS = new Set(["workspace", "user", "module", "new-workspace"]);
+const SETTING_TARGETS = new Set(["module", "framework"]);
+const SETTING_VISIBLE_WHEN_FIELDS = new Set(["settingId", "equals"]);
+const SETTINGS_CONTRIBUTION_FIELDS = new Set([
+  "id",
+  "label",
+  "type",
+  "placement",
+  "target",
+  "protected",
+  "ownerOnly",
+  "readOnly",
+  "description",
+  "placeholder",
+  "inputmode",
+  "readOnlyReason",
+  "disabledReason",
+  "requiredPermissions",
+  "requiredWorkspaceCapabilities",
+  "requiresEnabledModules",
+  "requiredModules",
+  "handler",
+  "onChangeEffect",
+  "options",
+  "min",
+  "max",
+  "step",
+  "rows",
+  "spellcheck",
+  "default",
+  "visibleWhen",
+  "required",
+  "moduleStatus",
+  "terminology",
+]);
+const VIEW_FIELD_TYPES = new Set([
+  "text",
+  "number",
+  "select",
+  "multi-select",
+  "boolean",
+  "checkbox",
+  "toggle",
+  "switch",
+  "radio",
+  "textarea",
+  "date",
+  "time",
+  "hidden",
+  "search",
+  "url",
+]);
 const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
@@ -165,7 +219,9 @@ const VIEW_FIELD_FIELDS = new Set([
   "default",
   "placeholder",
   "min",
+  "max",
   "step",
+  "inputmode",
   "rows",
   "autocomplete",
   "placement",
@@ -309,7 +365,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateDashboard(moduleDefinition.dashboard, errors);
   validateReporting(moduleDefinition.reporting, moduleDefinition.id, errors);
   validateWorkbench(moduleDefinition.workbench, errors);
-  validateSettings(moduleDefinition.settings, errors);
+  validateSettingsContributions(moduleDefinition.settings, errors);
   validatePermissions(moduleDefinition.permissions, moduleDefinition.id, errors);
   validateDefaultRolePermissions(moduleDefinition.defaultRolePermissions, errors);
   validateResourceDefinitions(moduleDefinition.resourceDefinitions, moduleDefinition.id, errors);
@@ -356,6 +412,7 @@ function validateModuleManifests(moduleDefinitions) {
   const allResolverIds = new Set(listTagPropagationResolverIds());
   const allProtectedViewKeys = new Set();
   const allViewSurfaceIds = new Set();
+  const frameworkSettingIds = new Set(listFrameworkSettingDefinitions().map((setting) => setting.id));
 
   for (const moduleDefinition of moduleDefinitions) {
     if (moduleDefinition?.id) {
@@ -426,6 +483,12 @@ function validateModuleManifests(moduleDefinitions) {
       allModuleIds,
       allPermissionIds,
     }));
+    errors.push(...validateSettingsReferences(moduleDefinition, {
+      allModuleIds,
+      allPermissionIds,
+      frameworkSettingIds,
+    }));
+    errors.push(...validateResourceDefinitionReferences(moduleDefinition, { allPermissionIds }));
   }
 
   const propagationIds = moduleDefinitions.flatMap((moduleDefinition) => (
@@ -887,6 +950,7 @@ function validateLinkedRecordsDescriptor(linkedRecords, prefix, errors) {
     validateKnownObjectFields(field, VIEW_FIELD_FIELDS, fieldPrefix, errors);
     requireString(field, "field", errors, { prefix: fieldPrefix });
     requireString(field, "type", errors, { prefix: fieldPrefix });
+    validateViewFieldType(field, fieldPrefix, errors);
     validateLabelDescriptor(field, fieldPrefix, errors);
     optionalBoolean(field, "required", errors, { prefix: fieldPrefix });
     optionalArray(field, "options", errors);
@@ -904,13 +968,15 @@ function validateItemFormDescriptor(itemForm, prefix, errors) {
     errors.push(`${prefix} must be an object.`);
     return;
   }
-  validateKnownObjectFields(itemForm, new Set(["title", "label", "fields", "actions", "emptyState"]), prefix, errors);
+  validateKnownObjectFields(itemForm, new Set(["title", "label", "fields", "actions", "emptyState", "editable"]), prefix, errors);
   validateLabelDescriptor(itemForm, prefix, errors);
+  optionalBoolean(itemForm, "editable", errors, { prefix });
   optionalArrayOfObjects(itemForm.fields, `${prefix}.fields`, errors, (field, fieldIndex) => {
     const fieldPrefix = `${prefix}.fields[${fieldIndex}]`;
     validateKnownObjectFields(field, VIEW_FIELD_FIELDS, fieldPrefix, errors);
     requireString(field, "field", errors, { prefix: fieldPrefix });
     requireString(field, "type", errors, { prefix: fieldPrefix });
+    validateViewFieldType(field, fieldPrefix, errors);
     validateLabelDescriptor(field, fieldPrefix, errors);
     optionalBoolean(field, "required", errors, { prefix: fieldPrefix });
     optionalBoolean(field, "hidden", errors, { prefix: fieldPrefix });
@@ -971,6 +1037,7 @@ function validateModalsDescriptor(modals, prefix, errors) {
       validateKnownObjectFields(field, VIEW_FIELD_FIELDS, fieldPrefix, errors);
       requireString(field, "field", errors, { prefix: fieldPrefix });
       requireString(field, "type", errors, { prefix: fieldPrefix });
+      validateViewFieldType(field, fieldPrefix, errors);
       validateLabelDescriptor(field, fieldPrefix, errors);
       optionalBoolean(field, "required", errors, { prefix: fieldPrefix });
       optionalArray(field, "options", errors);
@@ -979,6 +1046,12 @@ function validateModalsDescriptor(modals, prefix, errors) {
     validateActionsDescriptor(modal.footerActions, `${modalPrefix}.footerActions`, errors);
     validateActionsDescriptor(modal.actions, `${modalPrefix}.actions`, errors);
   });
+}
+
+function validateViewFieldType(field, prefix, errors) {
+  if (typeof field.type === "string" && !VIEW_FIELD_TYPES.has(field.type)) {
+    errors.push(`${prefix}.type must be one of ${Array.from(VIEW_FIELD_TYPES).join(", ")}.`);
+  }
 }
 
 function validateDataSourceDescriptor(dataSource, prefix, errors, options = {}) {
@@ -1271,32 +1344,226 @@ function validateWorkbench(workbench, errors) {
   });
 }
 
-function validateSettings(settings, errors) {
+function validateSettingsContributions(settings, errors) {
+  const seenIds = new Set();
+
   optionalArrayOfObjects(settings, "settings", errors, (item, index) => {
-    requireString(item, "id", errors, { prefix: `settings[${index}]` });
-    requireString(item, "label", errors, { prefix: `settings[${index}]` });
-    requireString(item, "type", errors, { prefix: `settings[${index}]` });
+    const prefix = `settings[${index}]`;
+    validateKnownObjectFields(item, SETTINGS_CONTRIBUTION_FIELDS, prefix, errors);
+    requireString(item, "id", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    requireString(item, "label", errors, { prefix });
+    requireString(item, "type", errors, { prefix });
     if (typeof item.type === "string" && !SETTING_FIELD_TYPES.has(item.type)) {
-      errors.push(`settings[${index}].type must be one of ${Array.from(SETTING_FIELD_TYPES).join(", ")}.`);
+      errors.push(`${prefix}.type must be one of ${Array.from(SETTING_FIELD_TYPES).join(", ")}.`);
     }
-    optionalString(item, "description", errors, { prefix: `settings[${index}]` });
-    optionalString(item, "placeholder", errors, { prefix: `settings[${index}]` });
-    optionalString(item, "inputmode", errors, { prefix: `settings[${index}]` });
-    optionalString(item, "readOnlyReason", errors, { prefix: `settings[${index}]` });
-    optionalString(item, "disabledReason", errors, { prefix: `settings[${index}]` });
-    optionalStringArray(item, "requiredPermissions", errors, { prefix: `settings[${index}]` });
-    optionalArrayOfObjects(item.options, `settings[${index}].options`, errors, (option, optionIndex) => {
-      requireString(option, "label", errors, { prefix: `settings[${index}].options[${optionIndex}]` });
-      requireString(option, "value", errors, { prefix: `settings[${index}].options[${optionIndex}]` });
+    requireString(item, "placement", errors, { prefix });
+    if (typeof item.placement === "string" && !SETTING_PLACEMENTS.has(item.placement)) {
+      errors.push(`${prefix}.placement must be one of ${[...SETTING_PLACEMENTS].join(", ")}.`);
+    }
+    optionalString(item, "target", errors, { prefix });
+    if (typeof item.target === "string" && !SETTING_TARGETS.has(item.target)) {
+      errors.push(`${prefix}.target must be one of ${[...SETTING_TARGETS].join(", ")}.`);
+    }
+    if (item.target === "framework") {
+      errors.push(`${prefix}.target 'framework' is reserved for framework-registered settings.`);
+    }
+    optionalBoolean(item, "protected", errors, { prefix });
+    if (item.protected === true) {
+      errors.push(`${prefix}.protected may only be set by a framework-registered setting.`);
+    }
+    optionalBoolean(item, "ownerOnly", errors, { prefix });
+    optionalBoolean(item, "readOnly", errors, { prefix });
+    optionalString(item, "description", errors, { prefix });
+    optionalString(item, "placeholder", errors, { prefix });
+    optionalString(item, "inputmode", errors, { prefix });
+    optionalString(item, "readOnlyReason", errors, { prefix });
+    optionalString(item, "disabledReason", errors, { prefix });
+    optionalStringArray(item, "requiredPermissions", errors, { prefix });
+    optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix });
+    optionalStringArray(item, "requiresEnabledModules", errors, { prefix });
+    optionalStringArray(item, "requiredModules", errors, { prefix });
+    optionalString(item, "handler", errors, { prefix, pattern: SETTING_BEHAVIOR_ID_PATTERN });
+    optionalString(item, "onChangeEffect", errors, { prefix, pattern: SETTING_BEHAVIOR_ID_PATTERN });
+    const optionValues = new Set();
+    optionalArrayOfObjects(item.options, `${prefix}.options`, errors, (option, optionIndex) => {
+      const optionPrefix = `${prefix}.options[${optionIndex}]`;
+      validateKnownObjectFields(option, new Set(["label", "value"]), optionPrefix, errors);
+      requireString(option, "label", errors, { prefix: optionPrefix });
+      requireString(option, "value", errors, { prefix: optionPrefix });
+      if (typeof option.value === "string" && optionValues.has(option.value)) {
+        errors.push(`${optionPrefix}.value '${option.value}' is duplicated.`);
+      }
+      optionValues.add(option.value);
     });
-    optionalNumber(item, "min", errors, { prefix: `settings[${index}]` });
-    optionalNumber(item, "max", errors, { prefix: `settings[${index}]` });
-    optionalNumber(item, "step", errors, { prefix: `settings[${index}]` });
-    optionalBoolean(item, "moduleStatus", errors, { prefix: `settings[${index}]` });
-    optionalBoolean(item, "readOnly", errors, { prefix: `settings[${index}]` });
-    optionalBoolean(item, "required", errors, { prefix: `settings[${index}]` });
-    validateTerminology(item.terminology, `settings[${index}].terminology`, errors);
+    if (["select", "multi-select", "radio"].includes(item.type) && (!Array.isArray(item.options) || item.options.length === 0)) {
+      errors.push(`${prefix}.options must contain at least one option for '${item.type}'.`);
+    }
+    optionalNumber(item, "min", errors, { prefix });
+    optionalNumber(item, "max", errors, { prefix });
+    optionalNumber(item, "step", errors, { prefix });
+    optionalNumber(item, "rows", errors, { prefix });
+    optionalBoolean(item, "spellcheck", errors, { prefix });
+    if (typeof item.min === "number" && typeof item.max === "number" && item.min > item.max) {
+      errors.push(`${prefix}.min must be less than or equal to max.`);
+    }
+    if (typeof item.step === "number" && item.step <= 0) {
+      errors.push(`${prefix}.step must be greater than zero.`);
+    }
+    optionalBoolean(item, "moduleStatus", errors, { prefix });
+    if (item.moduleStatus === true && item.type !== "boolean" && item.type !== "toggle") {
+      errors.push(`${prefix}.moduleStatus requires a boolean or toggle type.`);
+    }
+    optionalBoolean(item, "required", errors, { prefix });
+    if (item.type === "info" && item.readOnly !== true) {
+      errors.push(`${prefix}.type 'info' must be read-only.`);
+    }
+    validateSettingDefault(item, prefix, errors);
+    validateSettingVisibleWhen(item.visibleWhen, prefix, errors);
+    validateTerminology(item.terminology, `${prefix}.terminology`, errors);
+
+    if (typeof item.id === "string" && seenIds.has(item.id)) {
+      errors.push(`${prefix}.id '${item.id}' is duplicated.`);
+    }
+    seenIds.add(item.id);
   });
+}
+
+function validateSettingVisibleWhen(visibleWhen, prefix, errors) {
+  if (visibleWhen === undefined) {
+    return;
+  }
+  if (!isPlainObject(visibleWhen)) {
+    errors.push(`${prefix}.visibleWhen must be an object.`);
+    return;
+  }
+
+  validateKnownObjectFields(visibleWhen, SETTING_VISIBLE_WHEN_FIELDS, `${prefix}.visibleWhen`, errors);
+  requireString(visibleWhen, "settingId", errors, { prefix: `${prefix}.visibleWhen`, pattern: IDENTIFIER_PATTERN });
+  if (!Object.hasOwn(visibleWhen, "equals")) {
+    errors.push(`${prefix}.visibleWhen.equals is required.`);
+    return;
+  }
+  if (!["string", "number", "boolean"].includes(typeof visibleWhen.equals) ||
+      (typeof visibleWhen.equals === "number" && !Number.isFinite(visibleWhen.equals))) {
+    errors.push(`${prefix}.visibleWhen.equals must be text, a finite number, or a boolean.`);
+  }
+}
+
+function validateSettingDefault(setting, prefix, errors) {
+  if (!Object.hasOwn(setting, "default")) {
+    return;
+  }
+
+  const value = setting.default;
+  if (["boolean", "toggle"].includes(setting.type) && typeof value !== "boolean") {
+    errors.push(`${prefix}.default must be a boolean for '${setting.type}'.`);
+    return;
+  }
+  if (["text", "textarea", "info"].includes(setting.type) && typeof value !== "string") {
+    errors.push(`${prefix}.default must be text for '${setting.type}'.`);
+    return;
+  }
+  if (setting.type === "number") {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      errors.push(`${prefix}.default must be a finite number for 'number'.`);
+      return;
+    }
+    if (typeof setting.min === "number" && value < setting.min) {
+      errors.push(`${prefix}.default is below min.`);
+    }
+    if (typeof setting.max === "number" && value > setting.max) {
+      errors.push(`${prefix}.default is above max.`);
+    }
+    return;
+  }
+
+  const optionValues = new Set((setting.options || []).map((option) => option.value));
+  if (["select", "radio"].includes(setting.type) && (typeof value !== "string" || !optionValues.has(value))) {
+    errors.push(`${prefix}.default must match a registered option for '${setting.type}'.`);
+  }
+  if (setting.type === "multi-select" && (
+    !Array.isArray(value) || value.some((item) => typeof item !== "string" || !optionValues.has(item))
+  )) {
+    errors.push(`${prefix}.default must be a list of registered options for 'multi-select'.`);
+  }
+}
+
+function validateSettingsReferences(moduleDefinition, context) {
+  const errors = [];
+  const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
+  const settings = Array.isArray(moduleDefinition?.settings) ? moduleDefinition.settings : [];
+  const settingsById = new Map(settings.map((setting) => [setting?.id, setting]));
+
+  settings.forEach((setting, index) => {
+    const prefix = `settings[${index}]`;
+    for (const permissionId of setting?.requiredPermissions || []) {
+      if (!context.allPermissionIds.has(permissionId)) {
+        errors.push(`${moduleLabel}: ${prefix}.requiredPermissions references unknown permission '${permissionId}'.`);
+      }
+    }
+    for (const fieldName of ["requiresEnabledModules", "requiredModules"]) {
+      for (const requiredModuleId of setting?.[fieldName] || []) {
+        if (!context.allModuleIds.has(requiredModuleId)) {
+          errors.push(`${moduleLabel}: ${prefix}.${fieldName} references unknown module '${requiredModuleId}'.`);
+        }
+      }
+    }
+    if (context.frameworkSettingIds.has(setting?.id)) {
+      errors.push(`${moduleLabel}: ${prefix}.id '${setting.id}' conflicts with a framework-registered setting.`);
+    }
+    const dependencyId = setting?.visibleWhen?.settingId;
+    if (dependencyId) {
+      const dependency = settingsById.get(dependencyId);
+      if (!dependency) {
+        errors.push(`${moduleLabel}: ${prefix}.visibleWhen.settingId references unknown setting '${dependencyId}'.`);
+      } else if (dependencyId === setting.id) {
+        errors.push(`${moduleLabel}: ${prefix}.visibleWhen.settingId cannot reference itself.`);
+      } else {
+        validateSettingVisibleWhenValue(setting.visibleWhen.equals, dependency, `${moduleLabel}: ${prefix}`, errors);
+      }
+    }
+  });
+
+  validateSettingVisibilityCycles(settingsById, moduleLabel, errors);
+
+  return errors;
+}
+
+function validateSettingVisibilityCycles(settingsById, moduleLabel, errors) {
+  const reportedCycles = new Set();
+  for (const setting of settingsById.values()) {
+    const path = [];
+    const pathIndexes = new Map();
+    let current = setting;
+    while (current?.visibleWhen?.settingId && settingsById.has(current.visibleWhen.settingId)) {
+      if (pathIndexes.has(current.id)) {
+        const cycle = path.slice(pathIndexes.get(current.id)).concat(current.id);
+        const cycleKey = [...new Set(cycle)].sort().join("|");
+        if (!reportedCycles.has(cycleKey)) {
+          reportedCycles.add(cycleKey);
+          errors.push(`${moduleLabel}: settings visibleWhen dependencies must not form a cycle (${cycle.join(" depends on ")}).`);
+        }
+        break;
+      }
+      pathIndexes.set(current.id, path.length);
+      path.push(current.id);
+      current = settingsById.get(current.visibleWhen.settingId);
+    }
+  }
+}
+
+function validateSettingVisibleWhenValue(value, dependency, prefix, errors) {
+  const expectedType = dependency.type;
+  const valid = ["boolean", "toggle"].includes(expectedType)
+    ? typeof value === "boolean"
+    : expectedType === "number"
+      ? typeof value === "number" && Number.isFinite(value)
+      : ["text", "select", "radio", "multi-select"].includes(expectedType)
+        ? typeof value === "string"
+        : false;
+  if (!valid) {
+    errors.push(`${prefix}.visibleWhen.equals must match setting '${dependency.id}' type '${expectedType}'.`);
+  }
 }
 
 function validatePermissions(permissions, moduleId, errors) {
@@ -1324,8 +1591,24 @@ function validateResourceDefinitions(resourceDefinitions, moduleId, errors) {
     validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `resourceDefinitions[${index}]` });
     requireString(item, "label", errors, { prefix: `resourceDefinitions[${index}]` });
     optionalStringArray(item, "operations", errors, { prefix: `resourceDefinitions[${index}]` });
+    optionalStringArray(item, "requiredPermissions", errors, { prefix: `resourceDefinitions[${index}]` });
     validateTerminology(item.terminology, `resourceDefinitions[${index}].terminology`, errors);
   });
+}
+
+function validateResourceDefinitionReferences(moduleDefinition, context) {
+  const errors = [];
+  const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
+
+  (moduleDefinition?.resourceDefinitions || []).forEach((resource, index) => {
+    for (const permissionId of resource?.requiredPermissions || []) {
+      if (!context.allPermissionIds.has(permissionId)) {
+        errors.push(`${moduleLabel}: resourceDefinitions[${index}].requiredPermissions references unknown permission '${permissionId}'.`);
+      }
+    }
+  });
+
+  return errors;
 }
 
 function validateApiScopes(apiScopes, moduleId, errors) {

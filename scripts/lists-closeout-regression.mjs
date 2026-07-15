@@ -311,32 +311,16 @@ INSERT INTO workspaces (
 
 INSERT INTO workspace_settings (
   workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
   audit_logging_enabled,
   audit_retention_days,
   audit_settings_updated_at,
-  task_timers_enabled,
   created_at,
   updated_at
 ) VALUES (
   ${sqlText(workspaceId)},
   1,
-  1,
-  '',
-  'monthly',
-  1,
-  0,
-  '0.25',
-  1,
   30,
   '2026-06-11T00:00:00.000Z',
-  1,
   '2026-06-11T00:00:00.000Z',
   '2026-06-11T00:00:00.000Z'
 );
