@@ -20,7 +20,7 @@ It aligns with the release lanes in [../licensing/commercial-viability-plan.md](
 
 ## Stage 1 — Private friends-and-family preview
 
-- **Prerequisites:** 0.33.16 internet-exposure hardening complete; 0.33.17 tested backup/restore and deployment readiness; the [friends-and-family plan](friends-and-family-preview.md) prepared. Roadmap **target** July 31, 2026, conditional on the above.
+- **Prerequisites:** 0.33.16 internet-exposure hardening complete; 0.33.17 tested backup/restore and deployment readiness; the protected `nightly` -> `main` promotion, isolated demo/preview environments, and manual immutable preview deployment path proven; the [friends-and-family plan](friends-and-family-preview.md) prepared. Roadmap **target** July 31, 2026, conditional on the above.
 - **Audience:** a handful of trusted individuals in the wedge (freelancers/small service operators).
 - **Message:** "Try an early, private preview of a work hub built for interrupted client work. Experimental — no guarantees."
 - **Assets:** invitation copy, known-limitations + privacy warning, five-minute first-use path, bug-report template (all in the friends-and-family plan); Demo A (recordable now) for orientation.

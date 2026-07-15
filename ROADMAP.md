@@ -635,21 +635,100 @@ Acceptance criteria:
 
 - A developer can reproducibly seed and safely reset rich fake product data, while production-like targets, real data, shared preview credentials, and secret key material remain protected.
 
-### Version 0.33.17.5 - GitHub Actions, releases, and solo-maintainer workflow
+### Version 0.33.17.5 - Branch Topology, GitHub Actions, Releases, and Solo-Maintainer Workflow
 
-**Model: High Effort** — CI and release automation become repository gates and must avoid redundant cost or accidental deployment.
+**Model: High Effort** — Branch protection, CI triggers, immutable release identity, environment isolation, deployment, rollback, and hotfix reconciliation form one operational safety boundary.
 
-- [ ] Add clearly named pull-request/push jobs under `.github/workflows` using the supported Node major, clean checkout, `npm ci`, typecheck, Vitest/unit tests, ESLint, regression selection/full gates as appropriate, migration/schema checks, and documentation/closeout checks without redundantly running the enormous suite in multiple jobs.
-- [ ] Add Playwright browser installation plus critical smoke and accessibility checks; document whether these run per PR, on main/nightly, or by manual dispatch and why.
-- [ ] Plan and configure Dependabot/current GitHub dependency updates, CodeQL or equivalent code scanning, dependency review where supported, and secret-scanning/push-protection guidance without treating scan success as proof of security.
-- [ ] Add an initially manual or manually dispatched release workflow that runs gates, builds runtime and supported Docker assets, produces checksums/version metadata, and attaches/publishes appropriate release assets; never deploy a private or customer instance automatically.
-- [ ] Document a solo-maintainer ruleset: protected known-good `main`, short-lived branches, pull requests, required passing checks, resolved conversations, and no force-push/deletion. Do not require a second-human approval until contributors exist.
-- [ ] Deliver `docs/development/github-workflow.md` in ordinary language covering main, branches, commits, pushes, pull requests, Actions, required checks, protection, tags, Releases, example commands and practical VS Code/GitHub UI flows, failed-CI recovery, merge/delete, hotfixes, and version/changelog release flow.
-- [ ] Deliver or complete `docs/releasing.md`, `docs/self-hosting.md`, `docs/backup-and-restore.md`, and `docs/upgrading.md` as part of the relevant slices.
+Purpose:
+
+Create and prove the repository delivery path before private-preview invitations. Routine work integrates through one permanent `nightly` branch, verified promotion moves `nightly` into protected `main`, the Linux demo/development installation consumes verified `nightly` builds, and the friends-and-family installation consumes only a deliberately selected immutable release from `main`. In this section, “the `nightly` branch” means the permanent integration branch; “the scheduled nightly workflow” means a time-triggered full-suite run.
+
+#### Branch and promotion topology
+
+- [ ] Establish `main` as the protected, known-good preview/release branch.
+  - [ ] Do not perform routine development directly on `main`; changes arrive through pull requests with required checks and resolved review conversations.
+  - [ ] The friends-and-family installation may run only an exact verified `main` commit, release tag, image digest, or immutable checksummed artifact produced from `main`.
+  - [ ] A push or merge to `main` must never silently or automatically deploy the friends-and-family installation.
+- [ ] Create one permanent protected `nightly` integration branch; do not create a second permanent `dev` branch with the same responsibility.
+  - [ ] `nightly` is the normal integration target for active development and the source for verified Linux demo/development builds.
+  - [ ] Protect `nightly` from force-push and deletion, and document any narrow maintainer recovery bypass; routine work still uses pull requests and passing checks.
+- [ ] Use short-lived branches named by intent, for example `feature/<description>`, `fix/<description>`, `docs/<description>`, `chore/<description>`, and `hotfix/<description>`; do not create permanent branches per version or feature.
+- [ ] Document the normal promotion flow and delete short-lived branches after merge:
+
+  ```text
+  feature/*, fix/*, docs/*, chore/*
+                    |
+                    v
+                 nightly
+                    |
+            promotion pull request
+                    |
+                    v
+                  main
+  ```
+
+- [ ] Do not add a permanent `release` branch. Use immutable tags, GitHub Releases, checksummed artifacts, and container image digests for release identity. Permit a temporary `release/*` branch later only when a concrete stabilization need exists, such as maintaining a public release while incompatible development continues.
+
+#### GitHub Actions test gates
+
+- [ ] Add clearly named workflows under `.github/workflows` using a clean checkout and the supported Node major; choose the exact division between fast pull-request checks, affected checks, the scheduled nightly full workflow, and release checks to avoid waste while preserving the complete release gate before promotion.
+- [ ] For pull requests into `nightly`, run the applicable development gate: `npm ci`, typecheck, ESLint, Vitest unit/contract tests, affected regression selection, migration/schema checks, documentation checks, and relevant Playwright smoke/accessibility coverage.
+- [ ] Do not run the same enormous suite redundantly across several jobs. Keep Playwright's existing separate-gate contract while installing browsers in the jobs that actually run it.
+- [ ] For promotion pull requests from `nightly` into `main`, require the complete release-quality gate applicable at that point: typecheck, lint, unit/contract tests, full regressions, migration/schema checks, documentation checks, security checks, Playwright smoke/accessibility, packaging proof, `npm run closeout`, and every other standing release gate.
+  - [ ] Require the promotion branch to be current with `main` and identify the exact commit being promoted.
+  - [ ] Merging the promotion pull request creates no automatic friends-and-family deployment.
+- [ ] On pushes or merges to `main`, revalidate or attest to the promoted commit and build or retain immutable release-ready artifacts. Do not silently move a mutable `latest` reference and treat it as sufficient release identity.
+- [ ] Plan and configure Dependabot/current GitHub dependency updates, CodeQL or equivalent code scanning, dependency review where supported, and secret-scanning/push-protection guidance; passing scans are evidence, not proof that the application is secure.
+
+#### Demo/development deployment behavior
+
+- [ ] On a successful verified push to the `nightly` branch, reconfirm the integration gate, build the exact deployable artifact/image, and permit automatic deployment only to the non-production Linux demo/development environment once one supported deployment transport is safely implemented.
+- [ ] No feature/fix/docs/chore/hotfix branch may deploy directly to either persistent environment.
+- [ ] Record the deployed commit SHA plus artifact checksum or image digest, then verify `/healthz`, `/readyz`, and `/api/app-info`; deployment or post-deployment failure must be visible and non-green.
+- [ ] Define rollback to the recorded last-known-good demo artifact/image and never expose friends-and-family credentials or secrets to the demo workflow.
+
+#### Manual friends-and-family release and deployment behavior
+
+- [ ] Add a manually dispatched workflow or equivalent deliberate operator command that accepts or resolves an exact `main` SHA, tag, GitHub Release asset, artifact identity, or image digest and refuses unverified or non-`main` revisions.
+- [ ] Run or attest to all required release gates, produce version metadata and checksums, and create or attach the appropriate GitHub Release/runtime/Docker assets where applicable.
+- [ ] Perform the documented backup-first deployment from 0.33.17.2-0.33.17.3, then verify health, readiness, schema/application version, expected commit SHA, and artifact/image identity.
+- [ ] Record the previously deployed known-good release and support deliberate manual rollback through the same backup, restore, readiness, and version-verification contracts.
+- [ ] Never deploy customer, public self-hosted, unrelated private, or friends-and-family instances merely because `main` changed.
+
+#### Branch protection and GitHub Environment policy
+
+- [ ] Protect `main` and `nightly` with required status checks, resolved review conversations, and blocked force-push/deletion. While Mike is the sole maintainer, do not require an approval from a second human that he cannot provide; document future tightening when maintainers join.
+- [ ] Create separate GitHub Environments or equivalent isolated deployment configuration for demo/development and friends-and-family preview.
+  - [ ] Use separate least-privilege credentials, environment URLs, health checks, and deployment access.
+  - [ ] Never reuse application secrets, database files, Secure Notes keys, preview data, or production-like credentials between environments.
+  - [ ] Never commit secrets or print them in Actions logs.
+  - [ ] Friends-and-family deployment requires explicit manual dispatch, an exact revision, passing checks, and confirmation inputs; do not require a second-person environment approval until another maintainer can satisfy it.
+- [ ] Select and document one supported deployment transport during implementation based on least privilege, secret isolation, recoverability, and the Windows-development/Linux-deployment topology. Do not preselect SSH, a self-hosted runner, registry pull, or another transport without that review.
+
+#### Hotfix and reconciliation workflow
+
+- [ ] Branch an urgent friends-and-family fix from `main` as `hotfix/<description>` and return it to `main` through a focused pull request and all applicable required checks.
+- [ ] After deliberate deployment of the merged hotfix, merge or otherwise reconcile the same fix back into `nightly`; document conflict handling and verify the resulting `nightly` history so ongoing work cannot silently lose the preview fix.
+- [ ] A hotfix never bypasses backup, migration, security, immutable-release, health/readiness, or rollback requirements merely because it is urgent.
+
+#### Required development and release documentation
+
+- [ ] Deliver `docs/development/github-workflow.md` in ordinary language explaining why `nightly` and `main` both exist; which environment each powers; starting short-lived branches in VS Code/Codex; committing/pushing; opening a pull request into `nightly`; promoting `nightly` into `main`; reading and recovering from failed Actions; resolving drift/conflicts; deleting merged branches; creating and reconciling a hotfix; manually releasing/deploying an exact revision; finding the deployed SHA/version; rolling back; tags; GitHub Releases; practical Git commands; and equivalent GitHub/VS Code UI steps.
+- [ ] Deliver or complete `docs/releasing.md`, `docs/self-hosting.md`, `docs/backup-and-restore.md`, and `docs/upgrading.md` as part of the relevant 0.33.17 slices, with consistent immutable-release, backup-first, readiness, and rollback terminology.
+- [ ] Create and prove the `nightly` branch, both branch protections/rulesets, pull-request promotion rules, CI workflows, demo/development environment, friends-and-family environment, manual release/deployment workflow, hotfix procedure, and supporting operator documentation during 0.33.17.5 before any private-preview invitation is sent.
 
 Acceptance criteria:
 
-- A solo maintainer can use a protected PR-to-main flow, understand and recover from CI, and manually publish verified artifacts without needing another human approval or triggering deployment.
+- `main` is the protected known-good source for friends-and-family releases; `nightly` is the protected integration branch and source for demo/development builds.
+- Routine short-lived work merges into `nightly`, and promotion from `nightly` to `main` uses a pull request with the complete release-quality gate.
+- Verified `nightly` pushes may deploy automatically only to demo/development; feature branches cannot deploy persistent environments.
+- Friends-and-family deployment is manual, pinned to an immutable verified `main` revision/artifact, backup-first, health/readiness/version verified, and recoverable to the recorded prior release.
+- Demo and friends-and-family environments have isolated least-privilege secrets, configuration, data, URLs, and health checks.
+- Hotfixes originate from `main`, pass required gates, deploy deliberately, and are reconciled into `nightly` with conflicts resolved explicitly.
+- Immutable tags, GitHub Releases, checksums, artifacts, and image digests provide release identity; no permanent release branch is required.
+- A solo maintainer can follow the documented workflow without an impossible second-human approval, and future tightening is documented.
+- The branches, protections, CI, environments, promotion, release, deployment, health verification, hotfix, and rollback procedures are tested before invitations; preview remains blocked until relevant 0.33.16 and 0.33.17 acceptance criteria pass.
+- No automatic deployment of friends-and-family, customer, public self-hosted, or unrelated private instances is introduced.
 
 ### Version 0.33.17.6 - Private-preview documentation and readiness
 
@@ -669,6 +748,7 @@ Acceptance criteria:
 **Model: High Effort** — Release readiness must combine packaging, restore, CI, security, and live deployment evidence.
 
 - [ ] Run packaging/clean-boot checks, Docker and bare-metal upgrade/rollback exercises, the disposable restore drill, security and permission gates, `npm run closeout`, affected/full regression routing, and the full release gate.
+- [ ] Confirm the 0.33.17.5 `nightly` -> `main` promotion, isolated GitHub Environments, immutable manual preview deployment, deployed-SHA readout, and hotfix/reconciliation exercises have all been proven before invitations.
 - [ ] Verify `/healthz`, `/readyz`, and `/api/app-info` through the reference proxy and publish checksums, known limitations, and the completed readiness checklist.
 - [ ] Do not invite users until all 0.33.16 and 0.33.17 acceptance criteria are met; move the target instead of weakening a gate.
 

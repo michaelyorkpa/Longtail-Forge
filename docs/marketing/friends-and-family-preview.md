@@ -1,6 +1,6 @@
 # Friends-and-Family Private Preview Plan
 
-This plan prepares a small, private, invitation-only preview of Longtail Forge. It corresponds to ROADMAP **0.33.17 — Friends-and-Family Internet Preview**, which is gated on completed security hardening (0.33.16) and tested backup/restore + deployment readiness (0.33.17).
+This plan prepares a small, private, invitation-only preview of Longtail Forge. It corresponds to ROADMAP **0.33.17 — Friends-and-Family Internet Preview**, which is gated on completed security hardening (0.33.16), tested backup/restore + deployment readiness, and the proven `nightly` -> `main` branch/CI/manual-deployment topology in 0.33.17. Invitations do not begin until those gates pass.
 
 **Do not promise availability, security, uptime, backups, or a date beyond what is actually implemented.** The roadmap names a **target** of July 31, 2026 for this preview *if and only if* the prerequisite security and readiness work is complete. Treat that as a target, not a commitment, and never as permission to skip controls.
 

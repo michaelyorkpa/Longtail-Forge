@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Fix logo for Dark Mode Visibility
+
+Current logo disappears in dark mode. Need to fix this.
+
 ## Tasks Status Tweak
 
 Starting a timer should automatically move a task from blocked to In Progress. If the timer is cancelled before being saved, it should move back to blocked. Also, checking off items in the checklist should move the status from blocked to in progress, as well.
