@@ -1,8 +1,24 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.17.2 - Docker and manual bare-metal preview paths
+
+Completed 0.33.17.2 after the protected GitHub Linux promotion gate supplied the Docker-engine proof that was unavailable on the Windows development workstation. The live roadmap continues with the remaining host-dependent 0.33.17.5 proof.
+
+**Model: High Effort** — Packaging must preserve SQLite durability, least privilege, health reporting, and recoverable manual upgrades.
+
+- [x] Added a Dockerfile and Docker Compose definition with persistent database/data/file volumes, environment-file handling, health checks, non-root runtime, loopback host/port exposure, restart policy, backup paths, and SQLite-safe volume guidance.
+- [x] Kept the deployment SQLite-only and added artifact, clean bare-metal, clean Docker build/boot, persistence, upgrade, and rollback smoke coverage.
+- [x] Documented the first supported Docker upgrade as backup-first stop/replace/start/migrate/verify with `/readyz`, application-version, persisted-data, and manual restore proof.
+- [x] Retained the versioned checksummed bare-metal path with `npm ci --omit=dev`, a systemd supervisor example, stop/backup/replace/start/verify, and manual rollback.
+- [x] Kept the Node process behind the 0.33.16 Caddy reference TLS proxy and did not expose it directly in the supported topology.
+
+Acceptance criteria:
+
+- GitHub Actions promotion run `29461427695` built and booted the artifact through clean bare-metal and Docker paths, preserved data, reported health/readiness, and completed the backup-first upgrade and rollback exercises. The earlier Linux cleanup defect was fixed and the exact gate reran green.
+
 ## Version 0.33.17.4 - Seeded development database and sanitized demo workspace
 
-Completed 0.33.17.4 out of sequence at the operator's direction. The live roadmap remains at 0.33.17.2 until its Docker-engine acceptance proof is available.
+Completed 0.33.17.4 out of sequence at the operator's direction. At that closeout, the live roadmap remained at 0.33.17.2 pending Docker-engine proof; 0.33.17.2 has since completed.
 
 **Model: High Effort** — Deterministic data generation touches permissions and many product states and must never target live data.
 
@@ -22,7 +38,7 @@ Acceptance criteria:
 
 ## Version 0.33.17.3 - Baseline backup and restore
 
-Completed 0.33.17.3 out of sequence at the operator's direction. The live roadmap remains at 0.33.17.2 until its Docker-engine acceptance proof is available.
+Completed 0.33.17.3 out of sequence at the operator's direction. At that closeout, the live roadmap remained at 0.33.17.2 pending Docker-engine proof; 0.33.17.2 has since completed.
 
 **Model: High Effort** — A backup is only valid when database, files, encryption prerequisites, compatibility, and destructive restore behavior are proven together.
 
