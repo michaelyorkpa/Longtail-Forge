@@ -121,7 +121,7 @@ The exact Docker and bare-metal upgrade procedures are defined in [Docker and Ba
 5. If verification fails, remove public traffic and stop the candidate. Application rollback may point at the prior staged tree only when its schema compatibility with already-applied forward migrations is proven. Otherwise restore the complete known-good backup into an isolated path, validate integrity/readiness, then deliberately promote it. Never mix an old database with new Files data or reverse applied migrations by hand.
 6. Record candidate/prior versions, backup identity, migrations, commands, checks, decision, operator, timestamps, and any recovery action in the private operational record.
 
-The remaining 0.33.17 slices add demo data and release operations around the artifact, deployment, and recovery boundaries. There is no in-app updater or automatic rollback.
+The invitation gate that ties this deployment review to participant guidance, account flow, feedback, restore proof, and revocation readiness is [Private Preview Readiness](private-preview-readiness.md). There is no in-app updater or automatic rollback.
 
 ## Emergency containment and access revocation
 
@@ -136,7 +136,7 @@ For suspected active exploitation, first remove public traffic at Caddy while pr
 - HSTS begins with the bounded 300-second rollout; preload and long-lived promotion require the documented observation process. CSP retains the reviewed same-origin style compatibility allowance.
 - TOTP, passkeys, SSO, risk scoring, device history, PostgreSQL, S3-backed Files, worker fleets, WAF/IDS integration, and automatic updates/rollback are not part of this release.
 - Health and readiness are intentionally public and binary. They are not authentication, deep diagnostics, monitoring history, or proof that every workflow is correct.
-- Public-release CI, Docker acceptance, sanitized demo data, and final invitation readiness remain 0.33.17 work. Until those gates pass, this reference closeout does not authorize invitations.
+- Public-release CI, Docker acceptance, sanitized demo data, and final invitation readiness remain 0.33.17 work. Until those gates pass, this reference closeout does not authorize invitations. [Private Preview Readiness](private-preview-readiness.md) must also be complete for the exact candidate before access is granted.
 
 ## Reference sources
 

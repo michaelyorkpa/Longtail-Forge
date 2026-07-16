@@ -51,7 +51,7 @@ The tested baseline recovery capability and its limits are defined in [Baseline 
 
 ## Manual security review before invitations
 
-The maintainer must complete and date one manual review immediately before the first invitation and repeat it after a material security, deployment, authentication, permission, storage, or recovery change. Invitations remain blocked unless every applicable item passes or a documented risk decision explicitly defers the preview:
+The maintainer must complete and date one manual review immediately before the first invitation and repeat it after a material security, deployment, authentication, permission, storage, or recovery change. This review is paired with [Private Preview Readiness](private-preview-readiness.md), which owns the invitation gate and participant/account/feedback checklist. Invitations remain blocked unless every applicable item passes or a documented risk decision explicitly defers the preview:
 
 Use [Reference Internet Deployment](internet-deployment.md) as the authoritative Caddy topology and operator procedure for the proxy-specific checks below.
 

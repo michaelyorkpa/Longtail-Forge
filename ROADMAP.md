@@ -128,10 +128,12 @@ Acceptance criteria:
 
 **Model: Medium Effort** — This is a precise documentation and operational-readiness closeout after the underlying controls exist.
 
-- [ ] Publish installation/deployment, reverse-proxy/TLS, first-login/bootstrap, account creation, backup/restore, manual upgrade, known/security limitations, Secure Notes key, file scanning/upload, bug reporting, emergency shutdown/revocation, and feedback guidance.
-- [ ] Label the program “private preview”; document the supported scale and avoid unsupported uptime, security, backup, or compliance promises.
-- [ ] Require a tested restore, reference-proxy deployment review, unique invited accounts, feedback path, and operator readiness checklist before invitations.
-- [ ] Keep 0.39.9 as comprehensive 0.3x documentation/stabilization, not the first time essential operator and user documentation exists.
+- [x] Publish installation/deployment, reverse-proxy/TLS, first-login/bootstrap, account creation, backup/restore, manual upgrade, known/security limitations, Secure Notes key, file scanning/upload, bug reporting, emergency shutdown/revocation, and feedback guidance.
+- [x] Label the program “private preview”; document the supported scale and avoid unsupported uptime, security, backup, or compliance promises.
+- [x] Require a tested restore, reference-proxy deployment review, unique invited accounts, feedback path, and operator readiness checklist before invitations.
+- [x] Keep 0.39.9 as comprehensive 0.3x documentation/stabilization, not the first time essential operator and user documentation exists.
+
+Operational readiness documentation status (2026-07-16): `docs/private-preview-readiness.md` is the invitation gate and cross-links the supported installation, Caddy/TLS, backup/restore, upgrade, Secure Notes key, scanner, account, bug-reporting, feedback, revocation, and emergency-pause contracts. Invitations remain blocked until the remaining live deployment, rollback, hotfix, and final release-closeout proof passes.
 
 Acceptance criteria:
 

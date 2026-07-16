@@ -1,3 +1,13 @@
+## Version 0.33.17.6 - 2026-07-16
+
+- Added `docs/private-preview-readiness.md` as the invitation gate for the friends-and-family private preview, tying the existing installation/deployment, Caddy/TLS, backup/restore, manual upgrade, Secure Notes key, file-scanner, account, bug-reporting, feedback, emergency pause, session/API-key revocation, and readiness-record contracts together.
+- Kept the preview explicitly labeled as private, documented the one-server SQLite scale of roughly 50 total users and typical active use around 5-15 concurrent users, and rejected unsupported uptime, security, backup, compliance, hosted-SaaS, automatic-rollback, high-availability, or enterprise claims.
+- Required unique invited accounts, low-stakes-data guidance before access, tested restore evidence, reference-proxy review, protected Secure Notes key recovery, healthy production ClamAV scanning, and a private operator readiness record before invitations.
+- Cross-linked the readiness gate from the participant preview plan, release checklist, self-hosting summary, reference internet deployment, operational-security review, backup/restore entry point, runtime configuration contract, README, and documentation ownership map.
+- Docs updated: `README.md`, `docs/backup-and-restore.md`, `docs/docs-ownership.json`, `docs/internet-deployment.md`, `docs/lists-module.md`, `docs/marketing/friends-and-family-preview.md`, `docs/notes-module.md`, `docs/operational-security.md`, `docs/private-preview-readiness.md`, `docs/releasing.md`, `docs/runtime-configuration.md`, `docs/self-hosting.md`, and `docs/tasks-module.md`.
+- No docs change needed: user-facing Help, module workflow behavior, database schema/migrations, permissions, public API scopes, runtime environment variable names, backup archive format, and deployment automation code are unchanged; this slice is documentation and readiness alignment over existing contracts.
+- Version and roadmap closeout: package metadata advanced to `0.33.17.6`; the 0.33.17.6 checklist is complete, while private-preview invitations remain blocked until the remaining live deployment, rollback, hotfix, and final 0.33.17.7 release-closeout proof passes.
+
 ## Version 0.33.17.5 - 2026-07-15 19:23 -04:00
 
 - Established the checked-in `nightly` integration and protected `main` promotion model with intent-named short-lived branches, a single permanent integration branch, no permanent release branch, strict required checks, resolved conversations, blocked force-push/deletion, and a solo-maintainer policy that does not require an impossible second-human approval.

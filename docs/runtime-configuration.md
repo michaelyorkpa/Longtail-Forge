@@ -20,6 +20,8 @@ As of 0.33.17.3, [Baseline Backup and Restore](backup-restore.md) owns the safe 
 
 As of 0.33.17.4, [Development and Demo Data](development-and-demo-data.md) owns the local seed/reset environment boundary. Those commands require `LONGTAIL_ENV=development`, an explicitly marked and contained data directory, and a unique `SUPER_ADMIN_PASSWORD`; they refuse production/live/customer targets, clear Secure Notes key variables, and never change the production runtime contract or seed a normal startup.
 
+As of 0.33.17.6, [Private Preview Readiness](private-preview-readiness.md) owns the invitation gate that consumes this runtime configuration contract. It requires production fail-closed settings, exact release identity, tested backup/restore, separately protected Secure Notes key recovery, healthy `clamd` or `clamscan` scanning, unique invited accounts, and no unsafe production overrides before private-preview access is granted.
+
 ## Current Active Settings
 
 ### App
