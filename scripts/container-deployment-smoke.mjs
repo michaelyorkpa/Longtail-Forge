@@ -58,6 +58,7 @@ try {
 
   console.log(`Container deployment smoke passed: ${previous.version} -> ${candidate.version} -> restored ${previous.version}.`);
 } finally {
+  cleanupBindMountedBackup();
   cleanupDockerObjects();
   await fs.rm(workspace, { recursive: true, force: true });
 }
@@ -145,6 +146,14 @@ function readMarker(container, filePath) {
 
 function inspectImageUser(image) {
   return runDocker(["image", "inspect", "--format", "{{.Config.User}}", image]);
+}
+
+function cleanupBindMountedBackup() {
+  tryRunDocker([
+    "run", "--rm", "--user", "0:0", "--entrypoint", "sh",
+    "--volume", `${backupDir}:/backup`,
+    previousImage, "-c", "rm -rf /backup/data",
+  ]);
 }
 
 function cleanupDockerObjects() {

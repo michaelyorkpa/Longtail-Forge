@@ -93,6 +93,8 @@ assert.match(containerSmoke, /--read-only/);
 assert.match(containerSmoke, /10001:10001/);
 assert.match(containerSmoke, /snapshotVolume/);
 assert.match(containerSmoke, /restoreVolume/);
+assert.match(containerSmoke, /cleanupBindMountedBackup\(\);[\s\S]*cleanupDockerObjects\(\);[\s\S]*fs\.rm\(workspace/);
+assert.match(containerSmoke, /previousImage, "-c", "rm -rf \/backup\/data"/);
 assert.match(containerSmoke, /deployment-smoke-marker/);
 assert.match(bareMetalSmoke, /previousArtifact/);
 assert.match(bareMetalSmoke, /backupData/);
