@@ -3,6 +3,7 @@
   const DEFAULT_TAG_COLOR = "#64748b";
   const NO_TAGS_FILTER_VALUE = "__no_tags__";
   const mountedPickers = new Set();
+  let tagPickerId = 0;
   let tagSuggestionId = 0;
 
   async function loadTags(options = {}) {
@@ -138,10 +139,14 @@
     input.placeholder = options.placeholder || "Type a tag and press Enter";
     input.setAttribute("aria-label", `${legend.textContent} entry`);
     input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("role", "combobox");
     suggestions.className = "tag-picker-suggestions";
     suggestions.dataset.tagPickerSuggestions = "";
+    suggestions.id = `tag-picker-suggestions-${++tagPickerId}`;
     suggestions.hidden = true;
     suggestions.setAttribute("role", "listbox");
+    suggestions.setAttribute("aria-label", `${legend.textContent} suggestions`);
+    input.setAttribute("aria-controls", suggestions.id);
     input.setAttribute("aria-expanded", "false");
     status.className = "tag-picker-status";
     status.setAttribute("aria-live", "polite");
@@ -444,12 +449,16 @@
     const suggestions = document.createElement("div");
     suggestions.className = "tag-picker-suggestions tag-filter-suggestions";
     suggestions.dataset.tagFilterSuggestions = "";
+    suggestions.id = `tag-filter-suggestions-${++tagPickerId}`;
     suggestions.hidden = true;
     suggestions.setAttribute("role", "listbox");
+    suggestions.setAttribute("aria-label", `${input.getAttribute("aria-label") || "Tag filter"} suggestions`);
     input.parentElement?.appendChild(suggestions);
     input.autocomplete = "off";
     input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-controls", suggestions.id);
     input.setAttribute("aria-expanded", "false");
+    input.setAttribute("role", "combobox");
 
     function choices() {
       return [

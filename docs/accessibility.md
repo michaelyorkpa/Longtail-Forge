@@ -78,4 +78,6 @@ If a visible label is not practical, use `aria-label` or `aria-labelledby`.
 
 Icon-only command controls must be native `button` elements with an accessible name, usually through `aria-label`, and a discoverable `title` when visible text is removed. Decorative SVG icons inside buttons should be hidden from assistive technology with `aria-hidden="true"` and `focusable="false"`.
 
+Autocomplete tag entry fields use `role="combobox"`, name and control their `role="listbox"` suggestion surface through `aria-controls`, and keep `aria-expanded` synchronized with visible suggestions. A plain textbox must not carry disclosure state, and a suggestion listbox must not be unnamed.
+
 Use the shared `window.LongtailForge.icons` helper for common action icons so icon-only controls keep the shared 44px touch target, visible focus styling, disabled styling, theme-aware `currentColor`, and danger styling for destructive actions.

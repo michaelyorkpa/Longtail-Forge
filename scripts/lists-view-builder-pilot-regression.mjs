@@ -91,6 +91,10 @@ assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(stat
 assert.match(listsJs, /client_id: usesBusinessScope\(\) \? listClientInput\.value : ""/, "Lists pilot should preserve Personal/Family workspace scope payloads");
 assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/, "Lists pilot should preserve Business control visibility");
 assert.match(listsJs, /setContextControlsVisible\(usesBusinessScope\(\)\)/, "Lists pilot should preserve context control initialization");
+assert.ok(
+  listsJs.indexOf("let state = {") < listsJs.indexOf("buildListsViewShell();"),
+  "Lists must initialize workspace state before the rendered shell creates Business-scoped dialog controls",
+);
 assert.doesNotMatch(listsJs, /document\.createElement\("dialog"\)/, "Converted Lists pilot should use the modal form helper for the list dialog shell");
 
 assert.match(css, /\.view-split-list-detail\s*\{[\s\S]*grid-template-columns/, "Shared CSS should own split list/detail layout");
