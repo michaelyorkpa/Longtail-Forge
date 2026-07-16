@@ -14,6 +14,8 @@ As of 0.33.17.1, the supported runtime can be installed from the checksummed all
 
 As of 0.33.17.2, [Docker and Bare-Metal Preview Deployment](preview-deployment.md) owns the supported Compose and staged-release installation shapes. Compose variables such as image tag, loopback host port, volume name, network range, and backup directory configure orchestration; they do not become application settings. Runtime secrets and application variables still come from a protected external environment file, while the container fixes database and Files paths to its one local persistent data volume.
 
+As of 0.33.17.5, maintained immutable deployments may also provide `LONGTAIL_RELEASE_COMMIT` as an exact 40-character hexadecimal Git commit and `LONGTAIL_RELEASE_ARTIFACT_SHA256` as the exact 64-character artifact checksum. They are release identity, not user settings or secrets. `/api/app-info` returns them so operators can compare the running process to selected release metadata; ordinary local runs report `null`. The bare-metal systemd example loads these values from the optional root-owned `/etc/longtail-forge/release.env` file.
+
 As of 0.33.17.3, [Baseline Backup and Restore](backup-restore.md) owns the safe configuration inventory recorded in recovery archives. It records only provider and operating-mode classifications needed for restore review; it never copies `.env`, secrets, endpoints, credentials, the Secure Notes master key, or raw protected paths into the archive.
 
 As of 0.33.17.4, [Development and Demo Data](development-and-demo-data.md) owns the local seed/reset environment boundary. Those commands require `LONGTAIL_ENV=development`, an explicitly marked and contained data directory, and a unique `SUPER_ADMIN_PASSWORD`; they refuse production/live/customer targets, clear Secure Notes key variables, and never change the production runtime contract or seed a normal startup.
@@ -31,6 +33,8 @@ As of 0.33.17.4, [Development and Demo Data](development-and-demo-data.md) owns 
 | `LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING` | `false` | Narrow production override for temporary trace/debug logging. Startup emits an unsafe-override warning; browser errors remain generic even when enabled. |
 | `HOST` | `0.0.0.0` | Express listen host. |
 | `PORT` | `8001` | Express listen port. Must be an integer from 1 through 65535. |
+| `LONGTAIL_RELEASE_COMMIT` | empty | Optional immutable deployment identity. When present, it must be the exact 40-character hexadecimal Git commit and is returned by `/api/app-info`. |
+| `LONGTAIL_RELEASE_ARTIFACT_SHA256` | empty | Optional immutable deployment identity. When present, it must be the exact 64-character artifact checksum and is returned by `/api/app-info`. |
 
 ### Trusted Reverse Proxy
 

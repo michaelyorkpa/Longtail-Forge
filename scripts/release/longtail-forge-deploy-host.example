@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install a reviewed copy as /usr/local/sbin/longtail-forge-deploy, owned by
+# root and not writable by the SSH deployment account. Grant that account
+# passwordless sudo for this exact helper only.
+
+APP_SERVICE="${LTF_APP_SERVICE:-longtail-forge}"
+EDGE_SERVICE="${LTF_EDGE_SERVICE:-caddy}"
+APP_ROOT="${LTF_APP_ROOT:-/opt/longtail-forge}"
+DATA_ROOT="${LTF_DATA_ROOT:-/var/lib/longtail-forge}"
+DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-deploy}"
+BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge}"
+APP_ENV="${LTF_APP_ENV:-/etc/longtail-forge/longtail-forge.env}"
+RELEASE_ENV="${LTF_RELEASE_ENV:-/etc/longtail-forge/release.env}"
+DEPLOY_ACCOUNT="${LTF_DEPLOY_ACCOUNT:-longtail-forge-deploy}"
+PUBLIC_URL="${LTF_PUBLIC_URL:?LTF_PUBLIC_URL must be configured in the root-owned helper environment}"
+SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
+STATE_FILE="$DEPLOY_ROOT/deployment-state.json"
+INBOX="$DEPLOY_ROOT/inbox"
+
+fail() { printf 'deployment helper: %s\n' "$*" >&2; exit 1; }
+require_hex() { [[ "$2" =~ ^[a-f0-9]{$1}$ ]] || fail "$3 must be $1 lowercase hexadecimal characters"; }
+require_token() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || fail "unsafe filename or token: $1"; }
+
+operation="${1:-}"
+shift || true
+artifact="" metadata="" expected_version="" expected_commit="" expected_sha256=""
+while (($#)); do
+  case "$1" in
+    --artifact) artifact="${2:-}"; shift 2 ;;
+    --metadata) metadata="${2:-}"; shift 2 ;;
+    --expected-version) expected_version="${2:-}"; shift 2 ;;
+    --expected-commit) expected_commit="${2:-}"; shift 2 ;;
+    --expected-sha256) expected_sha256="${2:-}"; shift 2 ;;
+    *) fail "unknown argument: $1" ;;
+  esac
+done
+
+[[ "$operation" == "deploy" || "$operation" == "rollback" ]] || fail "operation must be deploy or rollback"
+[[ "$DEPLOY_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "LTF_DEPLOY_ACCOUNT is invalid"
+require_hex 40 "$expected_commit" "expected commit"
+mkdir -p "$APP_ROOT/releases" "$BACKUP_ROOT" "$DEPLOY_ROOT"
+chmod 0700 "$DEPLOY_ROOT" "$BACKUP_ROOT"
+install -d -o "$DEPLOY_ACCOUNT" -g "$DEPLOY_ACCOUNT" -m 0700 "$INBOX"
+
+stop_services() {
+  systemctl stop "$EDGE_SERVICE"
+  systemctl stop "$APP_SERVICE"
+}
+
+start_services() {
+  systemctl start "$APP_SERVICE"
+  for _ in $(seq 1 30); do
+    if curl --fail --silent --show-error http://127.0.0.1:8001/readyz >/dev/null; then break; fi
+    sleep 1
+  done
+  curl --fail --silent --show-error http://127.0.0.1:8001/readyz >/dev/null
+  systemctl start "$EDGE_SERVICE"
+}
+
+inspect_identity() {
+  node -e '
+    const expected = JSON.parse(process.argv[1]);
+    fetch(process.argv[2] + "/api/app-info").then(async (response) => {
+      if (!response.ok) throw new Error(`app-info HTTP ${response.status}`);
+      const actual = await response.json();
+      for (const key of ["version", "commitSha", "artifactSha256"]) {
+        if (actual[key] !== expected[key]) throw new Error(`${key} mismatch`);
+      }
+    }).catch((error) => { console.error(error.message); process.exit(1); });
+  ' "$1" "$PUBLIC_URL"
+  curl --fail --silent --show-error "$PUBLIC_URL/healthz" >/dev/null
+  curl --fail --silent --show-error "$PUBLIC_URL/readyz" >/dev/null
+}
+
+backup_current() {
+  local release_dir="$1" output="$2"
+  local args=(create --confirm-stopped --database "$DATA_ROOT/longtail-forge.db" --files-root "$DATA_ROOT/files" --output "$output")
+  local inspect_args=(inspect --archive "$output")
+  if [[ -n "$SECURE_KEY_BACKUP" ]]; then args+=(--secure-notes-key-backup "$SECURE_KEY_BACKUP"); fi
+  if [[ -n "$SECURE_KEY_BACKUP" ]]; then inspect_args+=(--secure-notes-key-backup "$SECURE_KEY_BACKUP"); fi
+  (cd "$release_dir" && node scripts/backup.mjs "${args[@]}")
+  (cd "$release_dir" && node scripts/backup.mjs "${inspect_args[@]}")
+}
+
+restore_backup() {
+  local release_dir="$1" archive="$2" pre_restore="$3"
+  local args=(restore --confirm-stopped --confirm-destructive "RESTORE LONGTAIL FORGE BACKUP" --archive "$archive" --database "$DATA_ROOT/longtail-forge.db" --files-root "$DATA_ROOT/files" --pre-restore-backup "$pre_restore")
+  if [[ -n "$SECURE_KEY_BACKUP" ]]; then args+=(--secure-notes-key-backup "$SECURE_KEY_BACKUP"); fi
+  (cd "$release_dir" && node scripts/backup.mjs "${args[@]}")
+}
+
+if [[ "$operation" == "deploy" ]]; then
+  require_token "$artifact"; require_token "$metadata"; require_token "$expected_version"
+  require_hex 64 "$expected_sha256" "expected artifact checksum"
+  artifact_path="$INBOX/$artifact"; metadata_path="$INBOX/$metadata"
+  [[ -f "$artifact_path" && -f "$artifact_path.sha256" && -f "$metadata_path" ]] || fail "artifact, checksum, or metadata is missing from the inbox"
+  actual_sha256="$(sha256sum "$artifact_path" | awk '{print $1}')"
+  [[ "$actual_sha256" == "$expected_sha256" ]] || fail "artifact checksum mismatch"
+  node -e '
+    const fs = require("node:fs"); const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const expected = JSON.parse(process.argv[2]);
+    if (data.version !== expected.version || data.commitSha !== expected.commitSha || data.artifact?.sha256 !== expected.artifactSha256) process.exit(1);
+  ' "$metadata_path" "$(printf '{"version":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_commit" "$expected_sha256")" || fail "release metadata mismatch"
+
+  release_dir="$APP_ROOT/releases/$expected_version-$expected_commit"
+  [[ ! -e "$release_dir" ]] || fail "release directory already exists"
+  previous_release="$(readlink -f "$APP_ROOT/current" 2>/dev/null || true)"
+  stopped_at="$(date -u +%Y%m%dT%H%M%SZ)"
+  previous_release_env="$DEPLOY_ROOT/release-env-before-$stopped_at"
+  if [[ -f "$RELEASE_ENV" ]]; then cp "$RELEASE_ENV" "$previous_release_env"; fi
+  mkdir "$release_dir"
+  tar --no-same-owner --no-same-permissions -xzf "$artifact_path" -C "$release_dir" --strip-components=1
+  (cd "$release_dir" && npm ci --omit=dev --no-audit --no-fund)
+  chown -R root:root "$release_dir"; chmod -R a-w "$release_dir"
+  stop_services
+  backup=""
+  if [[ -n "$previous_release" && -d "$previous_release" ]]; then
+    backup="$BACKUP_ROOT/pre-deploy-$stopped_at.ltfbackup.tgz"
+    if ! backup_current "$previous_release" "$backup"; then
+      start_services
+      fail "pre-deployment backup failed; the previous release was restarted"
+    fi
+  fi
+  printf 'LONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$expected_commit" "$expected_sha256" > "$RELEASE_ENV"
+  chmod 0600 "$RELEASE_ENV"
+  ln -sfn "$release_dir" "$APP_ROOT/current"
+  if ! start_services || ! inspect_identity "$(printf '{"version":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_commit" "$expected_sha256")"; then
+    systemctl stop "$EDGE_SERVICE" || true; systemctl stop "$APP_SERVICE" || true
+    if [[ -n "$previous_release" && -n "$backup" ]]; then
+      ln -sfn "$previous_release" "$APP_ROOT/current"
+      restore_backup "$previous_release" "$backup" "$BACKUP_ROOT/failed-candidate-$stopped_at.ltfbackup.tgz"
+      if [[ -f "$previous_release_env" ]]; then cp "$previous_release_env" "$RELEASE_ENV"; else rm -f "$RELEASE_ENV"; fi
+      start_services
+    fi
+    fail "candidate verification failed; prior release and backup were restored when available"
+  fi
+  node -e '
+    const fs = require("node:fs"); const previous = process.argv[2] && fs.existsSync(process.argv[2]) ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : null;
+    fs.writeFileSync(process.argv[1], JSON.stringify({ current: JSON.parse(process.argv[3]), previous: previous?.current || null, backup: process.argv[4] || null, deployedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
+  ' "$STATE_FILE" "$STATE_FILE" "$(printf '{"version":"%s","commitSha":"%s","artifactSha256":"%s","releaseDir":"%s"}' "$expected_version" "$expected_commit" "$expected_sha256" "$release_dir")" "$backup"
+  rm -f "$artifact_path" "$artifact_path.sha256" "$metadata_path" "$previous_release_env"
+  exit 0
+fi
+
+[[ -f "$STATE_FILE" ]] || fail "deployment state is missing"
+rollback_json="$(node -e '
+  const data = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+  if (!data.previous || data.previous.commitSha !== process.argv[2] || !data.backup) process.exit(1);
+  process.stdout.write(JSON.stringify({ previous: data.previous, backup: data.backup, current: data.current }));
+' "$STATE_FILE" "$expected_commit")" || fail "requested commit is not the recorded previous known-good release"
+previous_dir="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.releaseDir)' "$rollback_json")"
+backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).backup)' "$rollback_json")"
+current_dir="$(readlink -f "$APP_ROOT/current")"
+rollback_at="$(date -u +%Y%m%dT%H%M%SZ)"
+stop_services
+rollback_backup="$BACKUP_ROOT/pre-rollback-$rollback_at.ltfbackup.tgz"
+if ! backup_current "$current_dir" "$rollback_backup"; then
+  start_services
+  fail "pre-rollback backup failed; the current release was restarted"
+fi
+ln -sfn "$previous_dir" "$APP_ROOT/current"
+restore_backup "$previous_dir" "$backup" "$BACKUP_ROOT/pre-restore-rollback-$rollback_at.ltfbackup.tgz"
+previous_identity="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).previous))' "$rollback_json")"
+printf 'LONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$expected_commit" "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.artifactSha256)' "$rollback_json")" > "$RELEASE_ENV"
+chmod 0600 "$RELEASE_ENV"
+start_services
+inspect_identity "$previous_identity"
+node -e '
+  const fs = require("node:fs"); const selected = JSON.parse(process.argv[2]);
+  fs.writeFileSync(process.argv[1], JSON.stringify({ current: selected.previous, previous: selected.current, backup: process.argv[3], deployedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
+' "$STATE_FILE" "$rollback_json" "$rollback_backup"

@@ -1,0 +1,91 @@
+name: Manual friends and family preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy the selected main revision or roll back to the recorded previous revision
+        required: true
+        type: choice
+        options: [deploy, rollback]
+      revision:
+        description: Exact 40-character commit SHA reachable from main
+        required: true
+        type: string
+      confirmation:
+        description: Enter DEPLOY plus the SHA, or ROLLBACK plus the SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: friends-and-family-preview
+  cancel-in-progress: false
+
+jobs:
+  deliberate-preview-operation:
+    name: Manual preview deployment or rollback
+    runs-on: ubuntu-24.04
+    environment: friends-and-family-preview
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Require the configured isolated preview transport
+        env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_TRANSPORT: ${{ vars.DEPLOY_TRANSPORT }}
+        run: |
+          test "$DEPLOY_ENABLED" = "true"
+          test "$DEPLOY_TRANSPORT" = "ssh-root-owned-host-helper"
+      - name: Validate the exact main revision and confirmation
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REVISION: ${{ inputs.revision }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: node scripts/release/validate-release-revision.mjs --operation "$OPERATION" --revision "$REVISION" --confirmation "$CONFIRMATION" --required-confirmation "$(printf '%s' "$OPERATION" | tr '[:lower:]' '[:upper:]') $REVISION"
+      - name: Check out the selected immutable main revision
+        if: inputs.operation == 'deploy'
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: git checkout --detach "$REVISION"
+      - if: inputs.operation == 'deploy'
+        run: npm ci
+      - name: Re-run release gates
+        if: inputs.operation == 'deploy'
+        run: |
+          npm run closeout
+          npm run check
+          npm run test:permissions
+          npm audit --audit-level=high
+      - name: Build selected artifact and release metadata
+        if: inputs.operation == 'deploy'
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          npm run artifact:build
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel preview --output dist/release-metadata.json
+      - name: Deploy or roll back, then verify public identity
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REVISION: ${{ inputs.revision }}
+          LTF_DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          LTF_DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          LTF_DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          LTF_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          LTF_DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          LTF_DEPLOY_INBOX: ${{ vars.DEPLOY_INBOX }}
+          LTF_DEPLOY_HELPER: ${{ vars.DEPLOY_HELPER }}
+          LTF_DEPLOY_PUBLIC_URL: ${{ vars.DEPLOY_URL }}
+        run: |
+          if test "$OPERATION" = "deploy"; then
+            node scripts/release/deploy-via-ssh.mjs --mode deploy --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --metadata dist/release-metadata.json
+          else
+            node scripts/release/deploy-via-ssh.mjs --mode rollback --revision "$REVISION"
+          fi

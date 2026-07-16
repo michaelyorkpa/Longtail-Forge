@@ -55,6 +55,7 @@ const ROUTE_RULES = Object.freeze([
     /(?:^|[./_-])memberships?(?:[./_-]|$)/,
   ], ["permissions"], "permission, session, workspace, or membership path"),
   route([
+    /^\.github\//,
     /^package(?:-lock)?\.json$/,
     /^(?:\.dockerignore|Dockerfile|compose\.yaml)$/,
     /^(?:CHANGELOG|ROADMAP|ROADMAP-ARCHIVE)\.md$/,
@@ -64,6 +65,9 @@ const ROUTE_RULES = Object.freeze([
     /^docs\/runtime-artifact\.md$/,
     /^docs\/(?:compose\.env\.example|longtail-forge\.service\.example|preview-deployment\.md)$/,
     /^docs\/.*release(?:[./-]|$)/,
+    /^docs\/(?:backup-and-restore|self-hosting|upgrading)\.md$/,
+    /^docs\/development\/github-workflow\.md$/,
+    /^scripts\/release\//,
     /^scripts\/(?:bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|container-deployment-smoke|version-literal|run-regressions|runtime-artifact-smoke|regression-(?:suite|runner|coverage|clean-clone)|generate-regression-manifest)/,
     /^scripts\/regressions\/release\//,
   ], ["release"], "release, version, or regression-infrastructure path"),
@@ -88,7 +92,13 @@ function normalizeChangedPath(filePath) {
 }
 
 function collectChangedPaths({ cwd = process.cwd() } = {}) {
-  const tracked = runGit(["diff", "--name-only", "--diff-filter=ACMR", "HEAD", "--"], cwd);
+  const baseSha = String(process.env.LTF_REGRESSION_BASE_SHA || "").trim();
+  if (baseSha && !/^[a-f0-9]{40}$/i.test(baseSha)) {
+    throw new Error("LTF_REGRESSION_BASE_SHA must be a full 40-character commit SHA.");
+  }
+  const tracked = baseSha
+    ? runGit(["diff", "--name-only", "--diff-filter=ACMR", `${baseSha}...HEAD`, "--"], cwd)
+    : runGit(["diff", "--name-only", "--diff-filter=ACMR", "HEAD", "--"], cwd);
   const untracked = runGit(["ls-files", "--others", "--exclude-standard"], cwd);
   return Object.freeze([...new Set([...tracked, ...untracked].map(normalizeChangedPath).filter(Boolean))].sort());
 }

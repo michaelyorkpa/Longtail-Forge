@@ -9,6 +9,8 @@ appInfoRoutes.get("/app-info", (_request, response) => {
   response.status(200).json({
     name: config.appName,
     version: appVersion,
+    commitSha: config.release.commitSha || null,
+    artifactSha256: config.release.artifactSha256 || null,
   });
 });
 

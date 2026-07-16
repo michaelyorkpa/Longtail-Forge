@@ -17,6 +17,9 @@ assert.match(helper, /dataset\.tagPickerSelected/, "selected IDs must remain rea
 assert.match(helper, /if \(options\.allowCreate === false\)[\s\S]*Select an existing tag from the list\./, "record workflows must be able to disable inline tag creation with clear feedback");
 assert.match(helper, /catch \(error\) \{[\s\S]*setStatus\(status, error\.message \|\| "Unable to create tag\.", true\)/, "inline create permission failures must surface the API error message");
 assert.match(helper, /aria-autocomplete", "list"/, "tag entry must advertise autocomplete behavior");
+assert.match(helper, /input\.setAttribute\("role", "combobox"\)/, "tag entry must expose combobox semantics for expanded suggestion state");
+assert.match(helper, /input\.setAttribute\("aria-controls", suggestions\.id\)/, "tag entry must identify its controlled suggestion list");
+assert.match(helper, /suggestions\.setAttribute\("aria-label", `\$\{legend\.textContent\} suggestions`\)/, "tag suggestions must have an accessible listbox name");
 assert.match(helper, /aria-live", "polite"/, "inline status must announce create and validation feedback");
 assert.match(helper, /createTag,/, "shared namespace must expose createTag");
 assert.match(helper, /loadTags,/, "shared namespace must expose loadTags");
