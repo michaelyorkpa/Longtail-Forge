@@ -37,6 +37,7 @@
     "test:a11y": "playwright test tests/e2e/a11y.spec.mjs tests/e2e/a11y-keyboard.spec.mjs",
     "test:regressions": "node scripts/run-regressions.mjs",
     "test:regressions:changed": "node scripts/run-changed-regressions.mjs",
+    "verify:slice": "node scripts/run-slice-verification.mjs",
     "test:regressions:list": "node scripts/run-regressions.mjs --list",
     "test:regressions:framework": "node scripts/run-regressions.mjs --area framework",
     "test:regressions:views": "node scripts/run-regressions.mjs --area views",
