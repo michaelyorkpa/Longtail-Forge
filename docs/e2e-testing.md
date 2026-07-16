@@ -83,7 +83,7 @@ Shared surface paths and framework anatomy hooks live in `tests/e2e/support/surf
 
 ## Console Allowlist Policy
 
-"No major console errors" means every captured `pageerror` and `console.error` event fails the spec unless it matches `CONSOLE_ERROR_ALLOWLIST` in `tests/e2e/console.spec.mjs`.
+"No major console errors" means every captured `pageerror` and `console.error` event fails the spec unless it matches `CONSOLE_ERROR_ALLOWLIST` in `tests/e2e/console.spec.mjs`. Page errors include their browser stack when Chromium provides one, so clean-checkout failures identify the rendered source path and call sequence instead of only the exception message.
 
 - The allowlist ships **empty**: clean loads produce zero console errors, and it should stay that way.
 - Every future entry requires an inline comment documenting why the message is benign. An unexplained entry is a smell, not a fix.

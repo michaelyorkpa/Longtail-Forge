@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.17.4. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.17.5. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -146,7 +146,7 @@ Lists declares these framework integration points in `module.js`:
 
 Lists declares read-only public API routes for list summaries and list detail reads. Lists write routes, item mutations, reusable-list operations, catalog management, finalization, timer sources, dashboard cards, workbench cards, and notification events are not public API surfaces in the current release.
 
-The Lists descriptor defines framework-owned placement and action metadata. `public/js/lists.js` still owns filtered reads, canonical detail hydration, Business client/project controls, Personal/Family scope behavior, item/link payloads, validation, shared-picker binding, create-mode link staging, and the API calls behind workflow behaviors.
+The Lists descriptor defines framework-owned placement and action metadata. `public/js/lists.js` still owns filtered reads, canonical detail hydration, Business client/project controls, Personal/Family scope behavior, item/link payloads, validation, shared-picker binding, create-mode link staging, and the API calls behind workflow behaviors. Its workspace state is initialized before the descriptor shell builds because dialog provider options consult the current Business/Personal/Family scope during that first render; clean browser startup must not depend on a later initialization pass.
 
 ## Search, Tags, And Files
 

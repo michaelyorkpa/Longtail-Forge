@@ -18,10 +18,13 @@ import { suggestRegressionsForPaths } from "../../lib/regression-change-routing.
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const commandSource = readFileSync("scripts/run-changed-regressions.mjs", "utf8");
+const routingSource = readFileSync("scripts/lib/regression-change-routing.mjs", "utf8");
 
 assert.equal(packageJson.scripts["test:regressions:changed"], "node scripts/run-changed-regressions.mjs");
 assert.match(commandSource, /collectChangedPaths\(\)/, "auto-run should inspect changes on the same basis as the suggester");
 assert.match(commandSource, /createChangedRegressionPlan/, "auto-run should consume the shared routing plan");
+assert.match(routingSource, /LTF_REGRESSION_BASE_SHA/, "clean CI checkouts should compare the pull-request head with its exact base SHA");
+assert.match(routingSource, /\$\{baseSha\}\.\.\.HEAD/, "CI comparison should use the merge-base diff rather than an empty working tree");
 
 const taskPaths = ["src/modules/tasks/tasks.service.js"];
 const taskSuggestion = suggestRegressionsForPaths(taskPaths);

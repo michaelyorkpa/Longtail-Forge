@@ -37,6 +37,25 @@ let activeListsViewDescriptor = null;
 const listsWorkspaceHost = document.querySelector("[data-lists-host]");
 const isListsWorkspaceSurface = Boolean(listsWorkspaceHost);
 
+let state = {
+  clients: [],
+  currentUserId: "",
+  dialogDataReady: null,
+  editingListId: "",
+  editorList: null,
+  editorStagedTargets: [],
+  itemDialogList: null,
+  itemSuggestions: new Map(),
+  linkTargetSearchTimer: null,
+  linkTargets: [],
+  listDialogHostContext: null,
+  listDialogHostContextSettled: false,
+  lists: [],
+  selectedListId: new URLSearchParams(window.location.search).get("list") || "",
+  users: [],
+  workspaceType: "business",
+};
+
 buildListsViewShell();
 if (!isListsWorkspaceSurface) {
   ensureListsDialogShell();
@@ -83,25 +102,6 @@ const itemDialogClose = document.querySelector("[data-list-item-dialog-close]");
 const itemDialogCancel = document.querySelector("[data-list-item-cancel]");
 const itemDialogSave = document.querySelector("[data-list-item-save]");
 const itemDialogFormStatus = document.querySelector("[data-list-item-form-status]");
-
-let state = {
-  clients: [],
-  currentUserId: "",
-  dialogDataReady: null,
-  editingListId: "",
-  editorList: null,
-  editorStagedTargets: [],
-  itemDialogList: null,
-  itemSuggestions: new Map(),
-  linkTargetSearchTimer: null,
-  linkTargets: [],
-  listDialogHostContext: null,
-  listDialogHostContextSettled: false,
-  lists: [],
-  selectedListId: new URLSearchParams(window.location.search).get("list") || "",
-  users: [],
-  workspaceType: "business",
-};
 
 if (!createButton?.dataset.surfaceAction) {
   createButton?.addEventListener("click", () => openListDialog());

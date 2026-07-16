@@ -20,7 +20,7 @@ for (const surface of SMOKE_SURFACES) {
     const violations = [];
 
     page.on("pageerror", (error) => {
-      violations.push(`pageerror: ${error.message}`);
+      violations.push(`pageerror: ${error.stack || error.message}`);
     });
     page.on("console", (message) => {
       if (message.type() !== "error") {

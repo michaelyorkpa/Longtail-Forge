@@ -335,10 +335,14 @@
       "id": "release-process",
       "label": "Release process",
       "sourcePatterns": [
+        "^\\.github/",
         "^(?:\\.dockerignore|Dockerfile|compose\\.yaml)$",
         "^docs/backup-restore\\.md$",
         "^docs/docs-ownership\\.(?:json|md)$",
+        "^docs/(?:backup-and-restore|releasing|self-hosting|upgrading)\\.md$",
+        "^docs/development/github-workflow\\.md$",
         "^docs/(?:compose\\.env\\.example|longtail-forge\\.service\\.example|preview-deployment\\.md)$",
+        "^scripts/release/",
         "^scripts/(?:backup|backup-restore-drill|bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|container-deployment-smoke|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-(?:changed-regressions|closeout|regressions)|runtime-artifact-smoke|suggest-regressions|version-literal)",
         "^scripts/lib/backup-archive\\.mjs$",
         "^scripts/lib/(?:changed-regression-runner|closeout-gates|regression-change-routing)\\.mjs$",
@@ -349,13 +353,18 @@
         "^src/routes/app-info\\.routes\\.js$"
       ],
       "docs": [
+        "docs/backup-and-restore.md",
         "docs/backup-restore.md",
+        "docs/development/github-workflow.md",
         "docs/docs-ownership.json",
         "docs/docs-ownership.md",
         "docs/preview-deployment.md",
         "docs/regression-suite-performance.md",
         "docs/regression-suite.md",
+        "docs/releasing.md",
         "docs/runtime-artifact.md",
+        "docs/self-hosting.md",
+        "docs/upgrading.md",
         "docs/versioning.md"
       ]
     }

@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 366,
+    "discoveredScripts": 367,
     "legacyScripts": 312,
-    "releaseGateScripts": 28,
+    "releaseGateScripts": 29,
     "areaCounts": {
       "dashboard": 1,
       "database": 29,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 5,
       "public-api": 3,
-      "release": 19,
+      "release": 20,
       "search": 12,
       "tags": 12,
       "tasks": 51,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 171,
       "integration": 158,
-      "release-gate": 28,
+      "release-gate": 29,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 146,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 185
+      "static": 186
     }
   },
   "coverageFamilies": [
@@ -2979,6 +2979,22 @@
         "commands",
         "release",
         "tooling"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
+      "id": "release.github-release-operations",
+      "legacy": false,
+      "path": "scripts/regressions/release/github-release-operations.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "deployment",
+        "github-actions",
+        "release",
+        "security"
       ],
       "tier": "release-gate"
     },
