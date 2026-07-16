@@ -313,6 +313,8 @@ files, permissions, public API, jobs, database seam, and per-module record shape
 
 ### 0.42.x - SLA, Queues, and Service Desk Views
 
+* [ ] Add Post Ticket Surveys as an option
+
 * [ ] Add ticket queue views.
 
   * [ ] My assigned tickets.
