@@ -1,10 +1,11 @@
 ## Version 0.33.17.8 - 2026-07-17
 
+- Stabilized the required Playwright Settings gate by separating cross-viewport read-only coverage from the Developer Example lifecycle mutation, running that shared-server mutation once on desktop, and restoring its original module state even when the assertion path fails.
 - Added the unchecked `Remember me for 30 days` login choice in one responsive action row with the right-aligned Log In button; the browser always submits an explicit boolean and the server rejects non-boolean values.
 - Preserved `LONGTAIL_SESSION_TTL_SECONDS` for omitted and unchecked logins. Checked logins use one absolute 2,592,000-second lifetime for both `sessions.expires_at` and the `HttpOnly` session-cookie `Max-Age`, with no sliding renewal, parallel token, schema change, or new setting.
 - Kept remembered sessions inside the existing opaque session/revocation contract. Restart persistence, absolute expiry, logout, password reset/change, user deactivation, managed single-session revocation, and workspace-wide revocation remain authoritative; forced-password-change sessions remain restricted and preserve the requested expiry after successful completion.
 - Added `framework.remembered-sessions`, exercised the existing session-revocation matrix with remembered bearers, expanded forced-password-change coverage, and added rendered desktop/mobile assertions for unchecked/checked payloads, label and keyboard activation, one-line layout, field-edge alignment, and vertical centering.
-- Docs updated: `ROADMAP.md`, `docs/runtime-configuration.md`, `docs/e2e-testing.md`, and current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- Docs updated: `ROADMAP.md`, `docs/runtime-configuration.md`, `docs/e2e-testing.md`, and current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`; the E2E guide now records the shared-server parallel-state isolation rule.
 - No docs change needed: environment-variable names/defaults, database schema, permissions, public API scopes, module behavior, and user-facing Help workflows are unchanged.
 
 ## Version 0.33.17.7.20 - 2026-07-17

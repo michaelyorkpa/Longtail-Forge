@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("Workspace groups optional modules and repaired module Settings hosts load", async ({ page }) => {
+test("Workspace groups optional modules and repaired Files Settings host loads", async ({ page }) => {
   const workspaceResponse = await page.goto("/workspace-settings.html");
   expect(workspaceResponse.status()).toBe(200);
 
@@ -28,24 +28,50 @@ test("Workspace groups optional modules and repaired module Settings hosts load"
     "Developer Example",
   ]);
 
-  const developerToggle = page.locator('[data-module-id="developer-example"][data-module-setting="developerExampleEnabled"]');
-  await developerToggle.check();
-  await page.locator('[data-settings-page-save][data-settings-action-position="top"]').click();
-  await expect(page.locator('[data-settings-page-save][data-settings-action-position="top"]')).toBeDisabled();
-
   const filesResponse = await page.goto("/files-settings.html");
   expect(filesResponse.status()).toBe(200);
   await expect(page.locator(".view-settings-section-legend", { hasText: "Storage Accounting" })).toBeVisible();
   await expect(page.locator("[data-module-settings-status]")).not.toContainText("undefined");
+});
 
-  const developerResponse = await page.goto("/developer-example.html");
-  expect(developerResponse.status()).toBe(200);
-  await expect(page.locator("h1")).toHaveText("Developer Example Settings");
-  await expect(page.locator('[data-setting-field="developerExampleHintsEnabled"]')).toBeVisible();
-  await expect(page.locator('[data-setting-field="developerExampleMode"]')).toBeHidden();
-  await page.locator('[data-module-setting="developerExampleHintsEnabled"]').check();
-  await expect(page.locator('[data-setting-field="developerExampleMode"]')).toBeVisible();
-  await expect(page.locator("[data-settings-page-save]")).toHaveCount(2);
+test("Developer Example can be enabled and its Settings host loads", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile", "The shared-server lifecycle mutation is covered once on desktop.");
+
+  await page.goto("/workspace-settings.html");
+  const developerToggle = page.locator('[data-module-id="developer-example"][data-module-setting="developerExampleEnabled"]');
+  const saveButton = page.locator('[data-settings-page-save][data-settings-action-position="top"]');
+  const wasEnabled = await developerToggle.isChecked();
+
+  try {
+    if (!wasEnabled) {
+      await developerToggle.check();
+      await expect(saveButton).toBeEnabled();
+      await saveButton.click();
+      await expect(saveButton).toBeDisabled();
+    }
+
+    const developerResponse = await page.goto("/developer-example.html");
+    expect(developerResponse.status()).toBe(200);
+    await expect(page.locator("h1")).toHaveText("Developer Example Settings");
+    const hintsToggle = page.locator('[data-module-setting="developerExampleHintsEnabled"]');
+    const modeField = page.locator('[data-setting-field="developerExampleMode"]');
+    await expect(page.locator('[data-setting-field="developerExampleHintsEnabled"]')).toBeVisible();
+    await hintsToggle.uncheck();
+    await expect(modeField).toBeHidden();
+    await hintsToggle.check();
+    await expect(modeField).toBeVisible();
+    await expect(page.locator("[data-settings-page-save]")).toHaveCount(2);
+    await page.locator('[data-settings-page-revert][data-settings-action-position="top"]').click();
+  } finally {
+    if (!wasEnabled) {
+      await page.goto("/workspace-settings.html");
+      await page.locator('[data-module-id="developer-example"][data-module-setting="developerExampleEnabled"]').uncheck();
+      const restoreButton = page.locator('[data-settings-page-save][data-settings-action-position="top"]');
+      await expect(restoreButton).toBeEnabled();
+      await restoreButton.click();
+      await expect(restoreButton).toBeDisabled();
+    }
+  }
 });
 
 test("module lifecycle saves refresh recovery and timer surfaces immediately", async ({ page }) => {

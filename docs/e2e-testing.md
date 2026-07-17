@@ -54,6 +54,8 @@ Two named projects are defined in `playwright.config.js` and reused across every
 
 Every spec runs in both projects unless it opts out (see the mobile-nav spec's `test.skip(!isMobile, ...)` pattern for mobile-only behavior).
 
+The viewport projects run fully parallel against one managed server and throwaway database. Keep cross-viewport assertions read-only whenever possible. A test that must mutate durable shared state should run that mutation in only one project, restore the original value in `finally`, and leave the other viewport's relevant read-only coverage intact.
+
 ## The Core Smoke Specs
 
 Specs are organized one file per concern under `tests/e2e/`:
@@ -84,7 +86,8 @@ Shared surface paths and framework anatomy hooks live in `tests/e2e/support/surf
 3. Keep selectors resilient: prefer stable framework anatomy hooks (module host `data-*` attributes, `.site-header`, `.nav-toggle`, `#primary-menu`) over text or positional selectors.
 4. Remember every spec runs at both viewports; use the `isMobile` fixture to branch or skip.
 5. Specs run against the seeded authenticated session by default. Do not hard-code credentials in specs; the auth setup project owns login.
-6. Keep the suite small and high-signal. This is a smoke harness, not an E2E conversion of the regression suite.
+6. Do not let parallel viewport tests race over durable shared state. Isolate a required mutation to one project and restore it before the test finishes.
+7. Keep the suite small and high-signal. This is a smoke harness, not an E2E conversion of the regression suite.
 
 ## Console Allowlist Policy
 
