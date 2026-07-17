@@ -31,7 +31,7 @@ const {
 const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
-const { settingsRepository } = await import("../src/repositories/settings.repo.js");
+const { workspacesRepository } = await import("../src/repositories/workspaces.repo.js");
 
 try {
   assertStaticContract();
@@ -185,14 +185,19 @@ async function assertClientProjectRepositoryRuntime(session) {
 }
 
 async function assertBusinessOnlyClientGate(session) {
-  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
-  await settingsRepository.saveWorkspaceSettings(session.workspace_id, {
-    ...settings,
+  const personalWorkspace = await workspacesRepository.createWorkspace({
+    ownerUser: { user_id: session.user_id },
+    workspaceName: "Personal Client Gate Regression",
     workspaceType: "personal",
   });
+  const personalSession = {
+    ...session,
+    active_workspace_id: personalWorkspace.workspaceId,
+    workspace_id: personalWorkspace.workspaceId,
+  };
 
   await assert.rejects(
-    () => clientsService.listClients(session),
+    () => clientsService.listClients(personalSession),
     /Clients are only available in Business workspaces/,
     "Clients should remain gated to Business workspaces",
   );

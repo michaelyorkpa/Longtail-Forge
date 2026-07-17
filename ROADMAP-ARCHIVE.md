@@ -1,5 +1,47 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.17.7.17 - Database-backed authentication throttling
+
+Completed 0.33.17.7.17. The live pre-preview umbrella continues with 0.33.17.7.18 while the primary roadmap cursor remains on the separate host-dependent 0.33.17.5 proof.
+
+**Model: High Effort** — Authentication throttle persistence was security- and database-sensitive and had to remain atomic, bounded, non-enumerating, and restart-safe.
+
+- [x] Replaced Node-memory authentication throttle state with the dedicated migration-079 database store behind the existing throttle service without reconstructing security state from audit-log history.
+- [x] Defined installation-scoped `ip` and `account` key classes stored as versioned SHA-256 digests, explicit failure/window/lock/expiry state, transaction-serialized increment/reset behavior, bounded expired/unlocked cleanup, and the supported SQLite one-app-server concurrency contract without persisting raw usernames, IPs, credentials, sessions, or tokens.
+- [x] Preserved trusted-proxy client resolution, account-aware and non-enumerating responses, configuration limits, safe security events, all current password-sensitive endpoints, successful-login/password-change resets, and isolated test-database ownership.
+- [x] Added migration 079 and expanded the focused authentication regression to prove database close/reopen durability, expiry cleanup, concurrent no-loss threshold crossing, bounded storage, hashed-only keys, unchanged endpoint behavior, and `PRAGMA integrity_check`; refreshed and verified the generated schema plus fresh/upgrade adoption paths.
+
+Acceptance criteria:
+
+- Authentication throttle counters survive a Node restart, update atomically, expire/clean up predictably, and preserve every current response, proxy, audit, and non-enumeration contract.
+
+## Version 0.33.17.7.16 - Timer project hierarchy ordering
+
+Completed 0.33.17.7.16. The live pre-preview umbrella continues with 0.33.17.7.17 while the primary roadmap cursor remains on the separate host-dependent 0.33.17.5 proof.
+
+**Model: Medium Effort** — This was one selector-ordering correction that reused the existing Clients/Projects option contract.
+
+- [x] Corrected Capture -> Timer and the Time Tracker timer cards to preserve the shared parent-before-child project ordering and indented `-` child labels instead of applying a second flat alphabetical sort.
+- [x] Reused the shared readable Clients/Projects option labels without adding Timer-owned hierarchy logic, and proved the Business, Personal, and Family workspace labels and project ordering through the focused client-picker regression.
+
+Acceptance criteria:
+
+- Timer project selection matches the canonical Clients/Projects hierarchy everywhere without duplicating hierarchy logic.
+
+## Version 0.33.17.7.15 - Zero-workspace administrator export-only recovery mode
+
+Completed 0.33.17.7.15. The live pre-preview umbrella continues with 0.33.17.7.16 while the primary roadmap cursor remains on the separate host-dependent 0.33.17.5 proof.
+
+**Model: High Effort** — This introduced a restricted authentication/route mode whose main risk was accidental access to former workspace data or denial of the one allowed export.
+
+- [x] When a former workspace owner, Workspace Administrator, or installation Super Admin loses or leaves their only active workspace, authentication opens a minimal portable-account-export recovery surface with no ordinary navigation or workspace-record access.
+- [x] Client/Project Administrators and other non-workspace-admin roles do not qualify. The mode cannot invoke workspace backup, switch workspaces, use ordinary app/module routes, or recover former workspace data.
+- [x] The separate portable payload contains only account profile/preferences and explicit scope metadata. Durable qualification stores no former workspace identifier/name, ordinary sessions are revoked at qualification, workspace access clears stale qualification, and login denial remains non-enumerating for all nonqualifying identities.
+
+Acceptance criteria:
+
+- A qualifying former sole-workspace administrator can access only their portable account export and logout; other inactive/zero-workspace users receive the normal non-enumerating denial and no former workspace content leaks.
+
 ## Version 0.33.17.2 - Docker and manual bare-metal preview paths
 
 Completed 0.33.17.2 after the protected GitHub Linux promotion gate supplied the Docker-engine proof that was unavailable on the Windows development workstation. The live roadmap continues with the remaining host-dependent 0.33.17.5 proof.

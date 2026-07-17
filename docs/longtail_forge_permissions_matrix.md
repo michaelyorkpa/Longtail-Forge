@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-07-15 for version 0.33.16.8
+Updated: 2026-07-16 for version 0.33.17.7.13
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -37,12 +37,20 @@ The 0.32.5 tagging release makes the `tags` feature a disableable first-party mo
 | Super Admin | super_admin | all | Super Admin | Business only in normal assignment UI; protected users are seeded globally |
 | Workspace Administrator | workspace_admin | workspace | Super Admin, Workspace Administrator | Business, Family, Personal |
 | Client Administrator | client_admin | client | Super Admin, Workspace Administrator | Business only |
-| Project Administrator | project_admin | client | Super Admin, Workspace Administrator, Client Administrator | Business only |
+| Project Administrator | project_admin | project | Super Admin, Workspace Administrator, Client Administrator | Business only |
 | Client User | client_user | client | Super Admin, Workspace Administrator, Client Administrator | Business only |
 | Project User | project_user | project | Super Admin, Workspace Administrator, Client Administrator, Project Administrator | Business, Family |
 | Client User (External) | client_external_user | client | Super Admin, Workspace Administrator, Client Administrator | Business only |
 
 Scoped role assignment is scope-aware. Client Administrators and Project Administrators can open the role assignment flow, but replacement payloads are accepted only when every requested role is allowed by their role limit and every requested scope is inside their assigned client/project scope.
+
+Workspace backup creation and latest-receipt reads are administrative capabilities, not a new assignable permission key. The service requires the existing effective Workspace Administrator boundary for the active workspace or installation Super Admin authority. Client Administrators, Project Administrators, Client Users, Project Users, and external users cannot invoke either route even if they hold unrelated record permissions. A successful response contains only the safe receipt/checksum summary; archive access stays on the protected host operator boundary.
+
+Workspace-deletion lifecycle reads, requests, and cancellation use that same non-assignable active-workspace administrator boundary. The request additionally requires the exact workspace name and either a successful backup from the previous 24 hours or the exact no-current-backup acknowledgement. The service never accepts a browser-supplied workspace ID, and the safe response exposes no workspace, requester, or backup IDs. Pending state does not broaden or narrow any existing record permission.
+
+Add User uses the same service-owned assignment rules. Its workspace catalog contains only active workspaces where the actor has `users.manage` (or every active workspace for an installation Super Admin), and its role catalog contains only assignable roles with authorized concrete scopes. Exact-email lookup returns no suggestions or membership inventory. Personal workspaces cannot add users; Family workspaces can offer Workspace Administrator and Project User but never a client-scoped role. Only a Super Admin can assign Super Admin.
+
+Delete User is workspace-scoped and rejects the signed-in user's own ID. It deactivates the target's current membership and removes current-workspace roles. When no active membership remains, a former Workspace Administrator, workspace owner, or installation Super Admin keeps an active identity but has every ordinary session revoked and may authenticate only into portable account-export recovery; Client/Project Administrators and users instead have their credentials and sessions retired. Self-service Delete Account always retires every membership plus access credential after workspace-owner transfer checks and never grants recovery mode. None of these paths nulls readable Task, Note, File, List, or audit attribution. Recovery qualification does not grant workspace backup authority or access to former workspace records.
 
 ## Workspace-Type Rules
 
@@ -80,13 +88,19 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Surface | Method | Path | Required Permission or Scope | Resource Scope | Enforcement |
 | --- | --- | --- | --- | --- | --- |
 | Browser | GET | /api/users | users.manage | workspace | Workspace-level only; returns active users with active current-workspace memberships |
-| Browser | GET | /api/workspaces | users.manage | workspace | Workspace-level only |
-| Browser | POST | /api/users | users.manage | workspace | Workspace-level only |
+| Browser | GET | /api/workspaces | users.manage | administrable active workspaces | Super Admin receives all active workspaces; other actors receive only active memberships where they can manage users |
+| Browser | GET | /api/users/add-options | users.manage plus roles.assign | selected administrable workspace and authorized role scopes | Server-shaped; excludes unauthorized workspaces, roles, and scopes |
+| Browser | POST | /api/users/lookup | users.manage | selected administrable workspace plus exact normalized email | Returns only username, display name, and target-membership state for an exact match; no directory or unrelated memberships |
+| Browser | POST | /api/users | users.manage plus roles.assign when an initial role is requested | selected administrable workspace and requested role scope | Revalidates workspace/type/role/scope, activates existing identity or creates one, and limits Super Admin assignment to Super Admin |
 | Browser | PUT/DELETE | /api/users/:userId/* | users.manage | workspace | Workspace-level only |
+| Browser | DELETE | /api/user/account | authenticated active account | self across memberships | Self only; transfers or blocks owned workspaces, retires credentials/sessions/API keys/roles/grants and every membership, and preserves durable identity/attribution |
 | Browser | GET | /api/roles | roles.assign | any assigned scope | Scope-aware |
 | Browser | GET/PUT | /api/users/:userId/role-assignments | roles.assign | requested assignment scopes | Scope-aware |
 | Browser | GET | /api/settings | authenticated session | workspace | Open to active workspace members because bootstrap/navigation need settings metadata |
-| Browser | PUT | /api/settings | workspace_settings.manage | workspace | Enforced; includes Time Tracking, Tasks, Task Timers, and workspace task reminder defaults |
+| Browser | PUT | /api/settings | workspace_settings.manage | workspace | Enforced; workspace type is immutable, workspace rename additionally requires Workspace Administrator or Super Admin, and module/audit setting writes retain their owner rules |
+| Browser | GET/POST | /api/settings/workspace-backups* | Workspace Administrator or Super Admin | active workspace | Creates or reads only a safe protected-host package receipt; no browser archive access |
+| Browser | GET/POST | /api/settings/workspace-deletion* | Workspace Administrator or Super Admin | active workspace | Reads, schedules, or cancels the dedicated 30-day lifecycle; no browser route performs final purge |
+| Operator CLI/job | queue/run | `workspace.purge` | protected-host operator after an authorized lifecycle | exact expired workspace | Fences sessions, API keys, and jobs, drains running work, then irreversibly removes only that workspace's records and artifacts |
 | Browser | GET/POST/PUT | /api/api-keys* | workspace_settings.manage | workspace | Enforced |
 | Browser | GET | /api/client-projects | readable client/project scopes | client/project/workspace projects | Filtered; clients omitted outside Business workspaces |
 | Browser | GET/POST/PUT/DELETE | /api/clients* | clients.manage plus Business workspace | client | Enforced; client task reminder defaults save with client updates |
@@ -162,6 +176,7 @@ User Admin builds its matrix from `GET /api/users/permission-resources`, not a b
 - client and project mutation permissions, hierarchy validation, archive restrictions, and Personal workspace project creation without clients
 - Personal workspace client denial and `/api/client-projects` client omission
 - scoped role assignment by Client Administrator and Project Administrator
+- Add User workspace discovery, exact-account minimum disclosure, existing-identity reuse, client/project initial scopes, Personal/Family shaping, and Super Admin escalation limits
 - user lifecycle permissions remaining Workspace Administrator-only
 - inactive users and inactive workspace memberships omitted from workspace administration and task assignment options
 - Personal/Family Billable controls omitted and server/API reads and writes coerced to non-billable
@@ -172,4 +187,6 @@ User Admin builds its matrix from `GET /api/users/permission-resources`, not a b
 - contributed permission-resource catalog delivery, User Admin route authorization, disabled-module removal/re-enable restoration, and browser de-hardcoding
 - Time Tracking and Tasks disabled-module read/write behavior, including public API reads/writes
 - workspace owner transfer, owner-removal blocking, and Personal fallback workspace creation
+- workspace-deletion non-admin denial, current-backup and typed-acknowledgement paths, safe response shaping, unchanged sessions/memberships/navigation/modules, grace cancellation, restart durability, exact-boundary refusal, and database integrity
+- final-purge too-early refusal, exact-time queueing, worker/session/API-key fencing, interrupted restart retry, exactly-once tombstone, Files/backup cleanup, retained identities, complete target-scope removal, cross-workspace byte preservation, and database integrity
 - fresh database tag permission seeding and module sanity checks for taggable target type declarations

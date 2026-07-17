@@ -1,3 +1,188 @@
+## Version 0.33.17.8 - 2026-07-17
+
+- Added the unchecked `Remember me for 30 days` login choice in one responsive action row with the right-aligned Log In button; the browser always submits an explicit boolean and the server rejects non-boolean values.
+- Preserved `LONGTAIL_SESSION_TTL_SECONDS` for omitted and unchecked logins. Checked logins use one absolute 2,592,000-second lifetime for both `sessions.expires_at` and the `HttpOnly` session-cookie `Max-Age`, with no sliding renewal, parallel token, schema change, or new setting.
+- Kept remembered sessions inside the existing opaque session/revocation contract. Restart persistence, absolute expiry, logout, password reset/change, user deactivation, managed single-session revocation, and workspace-wide revocation remain authoritative; forced-password-change sessions remain restricted and preserve the requested expiry after successful completion.
+- Added `framework.remembered-sessions`, exercised the existing session-revocation matrix with remembered bearers, expanded forced-password-change coverage, and added rendered desktop/mobile assertions for unchecked/checked payloads, label and keyboard activation, one-line layout, field-edge alignment, and vertical centering.
+- Docs updated: `ROADMAP.md`, `docs/runtime-configuration.md`, `docs/e2e-testing.md`, and current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: environment-variable names/defaults, database schema, permissions, public API scopes, module behavior, and user-facing Help workflows are unchanged.
+
+## Version 0.33.17.7.20 - 2026-07-17
+
+- Closed the 0.33.17.7 pre-preview UI/UX review umbrella after recording explicit final results for each still-open applicable checklist area in `archive/0.33.17.7-pre-testing.md`.
+- Preserved the external TLS/proxy testing boundary by leaving real proxy sign-in, navigation, cookie persistence, and redirect-loop proof assigned to 0.33.19.6 instead of claiming local evidence.
+- Reconciled the roadmap numbering after the Settings footer fix consumed 0.33.17.7.19: the final manual-review closeout is now 0.33.17.7.20, while 0.33.17.7.19 remains the shipped Settings footer alignment repair.
+- Docs updated: `ROADMAP.md`, `archive/0.33.17.7-pre-testing.md`, and current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, `docs/lists-module.md`, and `docs/runtime-configuration.md`.
+- No docs change needed: routes, permissions, database schema, Settings transaction behavior, authentication/session behavior, Files storage, module manifests, and user-facing Help workflows are unchanged.
+
+## Version 0.33.17.7.19 - 2026-07-17
+
+- Corrected the shared bottom Settings Revert/Save row so it fills the page width and its existing end alignment places both actions at the bottom right instead of shrink-wrapping them at the bottom left.
+- Expanded `framework.settings-page-actions` to enforce the full-width flex footer and right-alignment contract across every shared Settings host.
+- Docs updated: `docs/settings-control-matrix.md`, `docs/runtime-configuration.md`, and the pre-preview manual-review record, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming module workflow changes.
+- No docs change needed: Settings routes, payloads, permissions, dirty-state behavior, action ordering, and user-facing Help workflows are unchanged.
+
+## Version 0.33.17.7.17 - 2026-07-17
+
+- Replaced process-local authentication throttle counters with the dedicated database-backed `authentication_throttle_entries` store for login, current-password verification, and administrator password-reset scopes.
+- Added migration 079 with installation-scoped IP/account buckets stored only as versioned SHA-256 digests plus counts and window/lock/expiry timestamps; plaintext usernames, client IPs, credentials, sessions, and tokens are not stored in the throttle table.
+- Added transaction-serialized two-dimension reads, increments, and resets; bounded expired-row cleanup and unlocked-row ceiling enforcement preserve active lockouts while keeping the supported one-app-server SQLite store bounded and restart-safe.
+- Preserved trusted-proxy client resolution, configuration limits, non-enumerating login/lockout envelopes, successful-login and password-change resets, administrator-reset semantics, and safe lockout security events.
+- Expanded `framework.authentication-throttle` to close and reopen the database before readback, prove concurrent failures are not lost and cross the threshold once, verify expiry cleanup and key bounds, reject raw username/IP persistence, and run `PRAGMA integrity_check`. Updated migration, fresh-database, baseline-adoption, runtime-contract, password-reset, schema, and docs-ownership coverage for migration 079.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/internet-deployment.md`, and `docs/runtime-configuration.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming module workflow changes.
+- No docs change needed: permissions, public API scopes, user-facing Help, module manifests, deployment topology, environment-variable names/defaults, session behavior, and audit authorization are unchanged.
+
+## Version 0.33.17.7.16 - 2026-07-17
+
+- Corrected Project selection in both Capture -> Timer and the Time Tracker timer cards so the canonical Clients/Projects parent-before-child order is preserved instead of being flattened into a second alphabetical sort.
+- Reused the shared readable option labels, including the indented `-` prefix for child projects and the correct Business, Personal, or Family workspace label, without adding Timer-owned hierarchy logic.
+- Expanded the existing client-picker hierarchy regression to prove all three workspace types and both Timer consumers retain the shared order and labels.
+- Docs updated: `docs/time-tracking-module.md` and `docs/runtime-configuration.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming module workflow changes.
+- No docs change needed: routes, payloads, permissions, database schema, module manifests, billing behavior, Time Entry behavior, and user-facing Help workflows are unchanged.
+
+## Version 0.33.17.7.15 - 2026-07-16
+
+- Added durable, workspace-free recovery qualification for a still-active former workspace owner, Workspace Administrator, or installation Super Admin who loses or leaves their final active workspace. Client/Project Administrators and users do not qualify; account retirement clears qualification and retains the ordinary non-enumerating denial.
+- Added migration 078 with a qualification row that stores no former workspace ID/name or role payload, plus nullable-workspace sessions constrained to explicit normal or `account_export_recovery` modes. New/reactivated workspace access invalidates stale recovery state.
+- Added a minimal **Account data recovery** page and separately versioned portable JSON export containing only the account profile/preferences and explicit inclusion/exclusion scope. It excludes credentials, sessions, internal IDs, membership/role history, audit/security history, workspace records, Files objects, and workspace-backup content.
+- Enforced the restricted session at middleware and auth-service boundaries: ordinary API/module/navigation/settings routes and workspace switching return the recovery-only denial, protected views redirect to the recovery page, and logout revokes the session. Qualification through User Admin removal, final-workspace leave, and workspace purge revokes all ordinary sessions.
+- Added the required `framework.account-export-recovery` isolated-database regression for former-admin role-history qualification, owner leave, normal-session revocation, route/page allowlisting, portable payload isolation, workspace-switch denial, non-admin/unknown denial parity, safe qualification schema, and logout. Expanded migration, fresh-database, baseline-adoption, purge, schema-workflow, and docs-ownership contracts for migration 078; the discovered suite advances to 374 scripts and 35 required release gates.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/longtail_forge_permissions_matrix.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/workspace-deletion.md`, `help/framework/users-roles-and-permissions.md`, `help/framework/workspaces-and-switching.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming module workflow changes.
+- No docs change needed: workspace/whole-instance backup formats, public API scopes, module manifests, and deployment/release topology are unchanged.
+
+## Version 0.33.17.7.14 - 2026-07-16
+
+- Added the explicit protected-host `workspace:purge` command and registered high-priority `workspace.purge` handler in both inline and separate workers. The exact grace deadline makes a lifecycle eligible, but expiry, startup, and browser requests never delete data automatically.
+- Added migration 077 with the durable `purging` fence, restart token/time, hash-only aggregate tombstone, nullable last-workspace identity home, and a reviewed populated-parent-table rebuild mode that checks foreign keys before commit and always restores SQLite enforcement.
+- Fenced an eligible workspace before artifact cleanup: target sessions are revoked, API keys stop authenticating, new/pending jobs are blocked, and already-running work must drain. Stale claimed jobs cannot run after the fence, while the missing workspace foreign key prevents post-finalization recreation.
+- Under the final database write lock, removed internal Files objects through their registered provider and protected workspace-backup artifacts idempotently, then removed dependent key scopes/sessions and every table row carrying the target `workspace_id` inside the same deferred-foreign-key transaction before deleting the workspace last. Install-level identities survive and are rehomed only to another active membership or `NULL`.
+- Added the required `database.workspace-final-purge` multi-workspace regression for too-early refusal, exact-time queueing, worker/session/API-key fencing, interrupted restart retry, exactly-once completion, Files/backup cleanup, complete target-scope removal, identity retention, byte-preserved retained workspace rows/artifacts, and SQLite foreign-key/integrity proof. The discovered suite advanced to 373 scripts and 34 release gates.
+- Shipped the purge command in the runtime artifact and expanded migration/fresh-database/baseline-adoption/runtime-artifact/coverage contracts for migration 077 and the new maintenance boundary.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/longtail_forge_permissions_matrix.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/workspace-deletion.md`, `help/framework/workspaces-and-switching.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming module workflow changes.
+- No docs change needed: public API scopes, module manifests, runtime environment variables, workspace/whole-instance backup formats, and browser UI anatomy are unchanged.
+
+## Version 0.33.17.7.13 - 2026-07-16
+
+- Added a Workspace Settings **Delete Workspace** action that is explicitly separate from User Settings -> Leave Workspace, rechecks active-workspace administrator authority, requires the exact workspace name, and accepts either a successful package from the previous 24 hours or the exact `DELETE WITHOUT CURRENT BACKUP` acknowledgement.
+- Added migration 076 and a dedicated lifecycle row recording the readable requester, request time, exact 30-day grace deadline, and qualifying receipt or acknowledgement without overloading workspace/membership status or exposing raw IDs.
+- Kept pending workspaces fully operational across existing sessions, memberships, owner/admin recovery, navigation, modules/jobs, Files, Search, and notifications; added a global pending-state notice and authorized cancellation before the deadline. Expiry alone does not delete data, and final purge remains reserved for the later explicit maintenance boundary.
+- Expanded the permission harness to 317 checks and added a required isolated-database regression proving restart durability, safe state, both backup paths, exact-boundary refusal, unchanged workspace-owned row counts, cancellation, and `PRAGMA integrity_check`. The discovered suite advanced to 372 scripts and 33 release gates.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/docs-ownership.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/workspace-deletion.md`, `help/framework/workspaces-and-switching.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming module workflow changes.
+- No docs change needed: public API scopes, module manifests, runtime environment variables, workspace-backup package format, and irreversible purge procedures are unchanged.
+
+## Version 0.33.17.7.12 - 2026-07-16
+
+- Added a Workspace Settings **Create Workspace Backup** action for the active workspace, gated server-side to its Workspace Administrators and installation Super Admins. Request, success, and classified failure outcomes are forced into the audit stream, while the browser receives only a safe checksum/creation/Files/Secure Notes receipt with no path or download route.
+- Added migration 075 and a durable successful-package receipt so later deletion planning can require a proven recent export without storing protected archive paths or secrets.
+- Added the versioned `*.ltfworkspace.tgz` package: one standalone SQLite workspace extract, provider-neutral internal Files objects, external-file metadata, retired readable attribution identities, migration/table inventories, explicit inclusion/exclusion records, internal SHA-256 inventory, and adjacent archive checksum.
+- Removed every other workspace plus password hashes, API keys/scopes, sessions, grants, runtime settings, active timers, jobs, search/FTS data, storage accounting, and prior receipts. The scoped database rebuilds FTS and runs `VACUUM` so deleted cross-workspace content or credentials cannot survive in SQLite free pages.
+- Kept encrypted Secure Notes payloads while excluding the master key. Inspection and disposable restore require separately protected non-empty key-backup proof when encrypted records exist; restore refuses existing targets and exact-version mismatches by default.
+- Added runtime `workspace-backup:inspect` / `workspace-backup:restore` commands, protected Compose storage configuration, a two-workspace disposable drill, release-artifact coverage, and permission regression coverage proving administrator access and non-admin denial. The discovered suite advanced to 371 scripts and 32 release gates, with the workspace-package drill required by the coverage ratchet.
+- Docs updated: `.env.example`, `DECISIONS.md`, `docs/architecture.md`, `docs/backup-restore.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/docs-ownership.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/preview-deployment.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/workspace-backup.md`, `help/framework/workspaces-and-switching.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: public API scopes, module manifests/workflow docs, whole-instance backup format, account-data export, workspace deletion behavior, and irreversible purge behavior are unchanged.
+
+## Version 0.33.17.7.11 - 2026-07-16
+
+- Added readable Client and Project names to Tasks-owned timer status audit metadata, including the automatic Open-to-In Progress transition used by recurring task instances.
+- Made Audit activity recover readable Client/Project attribution from saved before/after task snapshots when an older row contains context IDs but predates the readable-name metadata.
+- Added focused recurring-task coverage proving the status audit remains client- and project-filterable without changing Audit authorization or record scoping.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/runtime-configuration.md`, and `docs/tasks-module.md`, plus enforced current-version markers in `docs/notes-module.md` and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: database schema/migrations, permission definitions, public API scopes, runtime environment variables, module manifests, user-facing Help, and deployment/release contracts are unchanged.
+
+## Version 0.33.17.7.10 - 2026-07-16
+
+- Added User Settings -> Delete Account with an explicit destructive confirmation that retires the signed-in account's password, sessions, API keys, roles, workspace-creation grants, subscriptions, and every workspace membership while preserving the durable identity row.
+- Made User Admin Delete User workspace-scoped, disabled it for the signed-in user, enforced the self-target rejection server-side, and retained readable email/display-name attribution; removing a last active membership retires the remaining account credentials instead of hard-deleting history.
+- Replaced hard-delete attribution nulling with durable Task, Note, File, List, and audit identity references, including owner-transfer blocking/selection across every workspace during self-retirement.
+- Unified unknown, inactive, and retired login failures behind the same clear non-enumerating `These credentials do not have access to this installation.` response.
+- Expanded the permission harness to 297 checks and added Settings/security regressions for self-target denial, self-retirement, session invalidation, indistinguishable login failures, current-workspace administration, and retained cross-module attribution.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `help/framework/users-roles-and-permissions.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: database schema/migrations, public API scopes, runtime environment variables, module manifests, backup format, and deployment/release contracts are unchanged.
+
+## Version 0.33.17.7.9 - 2026-07-16
+
+- Rebuilt User Admin Add User around an administrable-workspace selector and exact normalized-email lookup that either activates an existing installation identity or creates one new account with a one-time generated password, without exposing directory results or unrelated memberships.
+- Made initial role options server-shaped and scope-aware: authorized client roles reveal client scope, Project Administrator and Project User reveal project scope, Personal workspaces reject additions, Family workspaces omit client roles, and only installation Super Admins can assign Super Admin.
+- Added migration 074 to convert legacy client-scoped Project Administrator assignments into concrete existing-project assignments, retained independent destination-client authorization for project moves, and aligned Tasks' project-administrator default-assignee lookup to the concrete project.
+- Expanded the permission harness to 287 checks covering non-super workspace discovery, exact-match disclosure, existing-account reuse, new cross-workspace identity creation, scoped assignments, Personal/Family shaping, and escalation denial; expanded UI, migration, and project-default-assignee regressions and verified database integrity through the schema/migration gates.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/development-and-demo-data.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/runtime-configuration.md`, `docs/tasks-module.md`, `help/framework/users-roles-and-permissions.md`, plus enforced current-version markers in `docs/notes-module.md` and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: public API scopes, runtime environment variables, module manifests, Files behavior, and deployment/release contracts are unchanged.
+
+## Version 0.33.17.7.8 - 2026-07-16
+
+- Added per-user Initial login page and After changing workspaces preferences under User Settings -> User App Preferences, with the exact Dashboard, Workbench, Actions: Tasks, Actions: Notes, and Actions: Lists choices.
+- Replaced same-page workspace reloads with a server-resolved destination for the target workspace, and applied the same resolver to fresh login, existing-session login-page redirects, and the forced-password-change continuation.
+- Added migration 073 for constrained per-user landing values and enforced Dashboard fallback for invalid values, disabled or unavailable modules, and protected module views the user cannot access.
+- Added an isolated migrated-database/API regression plus desktop/mobile Playwright coverage for Settings presentation and both redirect paths; `PRAGMA integrity_check` passed in the isolated regression.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/e2e-testing.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, and `help/framework/workspaces-and-switching.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: public API scopes, runtime environment variables, workspace permissions, module manifests, and module workflow behavior are unchanged.
+
+## Version 0.33.17.7.7 - 2026-07-16
+
+- Reorganized User Settings so Profile sits directly below Appearance, Notification Preferences spans the page with Notification Grouping first, and Workspace Creation is the full-width final section with an explicit caret and collapsed initial state.
+- Restored the complete browser-supported IANA timezone catalog and labelled every choice with its current `UTC +/-HH:MM` offset while preserving the existing validated profile field and save route.
+- Isolated Leave Workspace from workspace creation and added the same prominent warning to its section and in-app confirmation: the action removes only the signed-in user's membership, does not delete workspace data, and requires a Workspace Administrator or Super Admin to restore access.
+- Expanded the framework Settings release-gate regression and authenticated desktop/mobile Playwright coverage for order, width, disclosure, timezone, warning, and modal behavior.
+- Docs updated: `DECISIONS.md`, `docs/e2e-testing.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/ui-layout-guide.md`, and `help/framework/workspaces-and-switching.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: backend routes, membership permissions, profile persistence, notification persistence, database schema/migrations, public API scopes, and runtime environment variables are unchanged.
+
+## Version 0.33.17.7.6 - 2026-07-16
+
+- Made workspace type immutable after creation: direct settings requests are rejected by the service, the repository rechecks the stored identity, and ordinary settings persistence no longer updates `workspaces.workspace_type`.
+- Required Workspace Administrator or Super Admin authority for workspace renames at the server service boundary while preserving existing authorization for other workspace settings.
+- Disabled the Workspace Type control with creation-time guidance and moved the unchanged Workspace Users dialog opener into the Workspace Settings page header as a person-icon **Users** action.
+- Expanded the permission harness, workspace-storage and shared Settings regressions, and authenticated desktop Playwright proof for direct type-change rejection, retained type, administrator rename authority, immutable browser presentation, header placement, icon, and dialog behavior.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/e2e-testing.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, and `help/framework/workspaces-and-switching.md`, plus enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: database schema/migrations, public API scopes, module workflow behavior, runtime configuration variables, and workspace-user dialog behavior are unchanged.
+
+## Version 0.33.17.7.5 - 2026-07-16
+
+- Kept disabled Tasks and Time Tracking settings routes inside the normal permission-checked Settings host, replacing active module fields with a clear disabled state and direct Workspace Settings recovery action.
+- Refreshed the app-shell bootstrap after Workspace module lifecycle saves so Admin Modules navigation, Time Keeping navigation, and Quick Action Capture update immediately without a manual page reload while Workspace Settings remains reachable.
+- Removed timer UI from Tasks, Workbench, Capture, and navigation when Time Tracking is disabled; when only Tasks -> Task Timers is disabled, Tasks and Workbench omit task controls and task-sourced timer rows while manual Time Tracking remains available.
+- Expanded app-shell, Settings contribution, and Tasks/Workbench regressions, plus rendered desktop proof covering immediate lifecycle refresh, the in-context recovery page, Tasks control suppression, and manual-versus-task Workbench timer filtering.
+- Docs updated: `docs/architecture.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, plus the enforced current-version markers in `docs/notes-module.md` and `docs/lists-module.md` without claiming workflow changes in those modules.
+- No docs change needed: database schema, permissions, public API scopes, user-facing Help, and timer persistence/mutation behavior are unchanged; this slice corrects lifecycle recovery and browser-surface presence over existing server eligibility gates.
+
+## Version 0.33.17.7.4 - 2026-07-16
+
+- Replaced Settings -> Workspace with the ordered Settings -> Admin drawer, moved Projects out of Actions, and nested Files, Tags, Tasks, Time Tracking, plus explicitly enabled Developer Example beneath the ordered Modules drawer.
+- Kept Clients & Projects directly below Workspace identity and grouped all optional module controls in one alphabetized Modules box, with Developer Example forced to the final position while preserving each module's existing namespaced save payload.
+- Restored Files Settings by loading the shared status helper before its adapter, and converted Developer Example from the unstyled JSON page to the shared module Settings host with universal Save/Revert, persisted Example Detail Hints, and correctly hidden/revealed read-only Example Mode information.
+- Expanded the app-shell, Settings contribution, shared page-action, Notes, and Lists regressions, and added isolated desktop/mobile rendered proof for Workspace grouping, Files Settings, and Developer Example Settings.
+- Docs updated: `docs/architecture.md`, `docs/declarative-view-surfaces.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/runtime-configuration.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/ui-layout-guide.md`, `docs/view-building-contract.md`, `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: Files storage, policy, quota, permission, and Help behavior are unchanged; this slice repairs the existing Settings host dependency and information architecture without changing database, route, permission, or module workflow contracts.
+
+## Version 0.33.17.7.3 - 2026-07-16
+
+- Replaced per-section Settings submit buttons with exactly two framework-owned Revert/Save pairs on Workspace, User, Tasks, Time Tracking, and Files Settings, using restore/floppy icons at the page heading and page footer.
+- Added shared dirty snapshots, disabled states, red unsaved-change flashes, page-wide Revert, coordinated owner-route saving, native unload protection, and an in-app Cancel/Continue dialog for link navigation with pending changes.
+- Kept workspace creation/departure, password, and other lifecycle forms outside the Settings transaction; empty shared status messages now hide instead of rendering blank surface boxes.
+- Added desktop/mobile rendered coverage across all five protected Settings hosts plus User Settings dirty/revert, lifecycle exclusion, coordinated user/notification route saves, and navigation guarding; added a framework release regression for the shared contract.
+- Docs updated: `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/e2e-testing.md`, `docs/runtime-configuration.md`, `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`; no Files workflow/storage contract changed, and the three module handoffs advance their enforced current-version markers only.
+- No docs change needed: Files policy, quota, storage, permission, and Help behavior are unchanged; only the framework-owned Settings transaction around the existing Files route changed.
+
+## Version 0.33.17.7.2 - 2026-07-16
+
+- Added validated source-branch release identity and a qualified `<canonicalVersion>-<sourceBranch>` display version across `/api/app-info`, app-shell bootstrap metadata, runtime diagnostics, the public splash, and the shared footer while preserving the unsuffixed package version for assets and compatibility.
+- Carried branch identity explicitly through runtime artifacts, immutable release metadata, nightly/main/manual GitHub workflows, SSH deployment verification, the root-owned host helper, rollback state, and `LONGTAIL_RELEASE_BRANCH`; packaged installations never depend on `.git`.
+- Kept an omitted branch as an explicit local-only unqualified fallback and added release regressions for `nightly`, `main`, missing, malformed, artifact-manifest, UI-source, and deployment-path behavior.
+- Docs updated: `.env.example`, `docs/versioning.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/preview-deployment.md`, `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`; the three module handoffs advance their enforced current-version markers without claiming module behavior changes.
+
+## Version 0.33.17.7.1 - 2026-07-16
+
+- Restored User Settings -> Appearance Theme mode as a bounded, content-sized Light/Auto/Dark segmented radio group by separating the radio field shell from its bordered control wrapper and opting the Theme/Auto fields out of shared full-width flex growth.
+- Kept Auto source as a separate subordinate bounded control without changing saved theme values, OS-match behavior, radio semantics, or keyboard operation.
+- Added desktop/mobile rendered coverage for explicit Light and Dark modes, Auto under both operating-system color schemes, visible borders, bounded widths, and keyboard selection; strengthened the existing static theme regression and Playwright harness boundary.
+- Docs updated: `docs/e2e-testing.md`, `docs/runtime-configuration.md`, `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`; the three module handoffs advance their enforced current-version markers without claiming module behavior changes.
+
+## Version 0.33.17.7 - 2026-07-16
+
+- Fixed the public login page so the forced password-change form remains hidden until a successful login or existing session explicitly reports `passwordChangeRequired`; the normal login form and intentional password-change transition retain their existing behavior.
+- Added desktop and mobile Playwright coverage for the initial login-only state and the transition to the required password-change form.
+- Docs updated: `docs/e2e-testing.md` and `docs/runtime-configuration.md`; the rendered-test and runtime/authentication contracts record the corrected login-state visibility.
+- The `0.33.17.7` UI/UX review-and-fix branch remains in progress with this login correction as its first completed item; `0.33.17.8` now plans the optional 30-day remembered-session login choice, and the host-dependent live deployment, rollback, hotfix/reconciliation, and final release-readiness closeout moved intact to `0.33.17.9` in `ROADMAP.md`.
+
 ## Version 0.33.17.6 - 2026-07-16
 
 - Added `docs/private-preview-readiness.md` as the invitation gate for the friends-and-family private preview, tying the existing installation/deployment, Caddy/TLS, backup/restore, manual upgrade, Secure Notes key, file-scanner, account, bug-reporting, feedback, emergency pause, session/API-key revocation, and readiness-record contracts together.

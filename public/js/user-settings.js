@@ -10,6 +10,8 @@ const themeAutoSourceControls = document.querySelector("[data-theme-auto-source-
 const themeAutoSourceInputs = [...document.querySelectorAll("[data-theme-auto-source]")];
 const markdownRenderingForm = document.querySelector("[data-user-markdown-rendering-form]");
 const openExternalLinksNewTabToggle = document.querySelector("[data-open-external-links-new-tab]");
+const preferredLoginLandingSelect = document.querySelector("[data-preferred-login-landing]");
+const preferredWorkspaceSwitchLandingSelect = document.querySelector("[data-preferred-workspace-switch-landing]");
 const passwordForm = document.querySelector("[data-user-password-form]");
 const currentPasswordInput = document.querySelector("[data-current-password]");
 const newPasswordInput = document.querySelector("[data-new-password]");
@@ -20,11 +22,9 @@ const profileUsernameInput = document.querySelector("[data-profile-username]");
 const profileDisplayNameInput = document.querySelector("[data-profile-display-name]");
 const profileAltEmailInput = document.querySelector("[data-profile-alt-email]");
 const profileTimezoneSelect = document.querySelector("[data-profile-timezone]");
-const saveProfileButton = document.querySelector("[data-save-profile]");
 const notificationPreferencesForm = document.querySelector("[data-user-notification-preferences-form]");
 const notificationGroupingPreferences = document.querySelector("[data-user-notification-grouping-preferences]");
 const notificationPreferenceList = document.querySelector("[data-user-notification-preference-list]");
-const saveNotificationPreferencesButton = document.querySelector("[data-save-notification-preferences]");
 const workspaceCreateForm = document.querySelector("[data-workspace-create-form]");
 const newWorkspaceTypeSelect = document.querySelector("[data-new-workspace-type]");
 const newWorkspaceNameInput = document.querySelector("[data-new-workspace-name]");
@@ -32,6 +32,7 @@ const newWorkspaceModuleSettingsContainer = document.querySelector('[data-settin
 const userSettingsContributionContainer = document.querySelector('[data-settings-attachment="user"]');
 const createWorkspaceButton = document.querySelector("[data-create-workspace]");
 const openWorkspaceRemovalButton = document.querySelector("[data-open-workspace-removal]");
+const deleteAccountButton = document.querySelector("[data-delete-account]");
 const workspaceRemovalDialog = document.querySelector("[data-workspace-removal-dialog]");
 const workspaceRemovalList = document.querySelector("[data-workspace-removal-list]");
 const closeWorkspaceRemovalButton = document.querySelector("[data-close-workspace-removal]");
@@ -39,24 +40,30 @@ const userSettingsStatus = document.querySelector("[data-user-settings-status]")
 let workspaceCreationTypes = [];
 let currentWorkspaces = [];
 let activeWorkspaceId = "";
+let canEnterAccountExportRecovery = false;
 let lastSuggestedWorkspaceName = "";
 let workspaceNameEditedByUser = false;
 let systemThemeModeQuery = null;
 let systemThemeModeListenerAttached = false;
 let settingsCatalog = null;
+const settingsPageController = window.LongtailForge.settingsPageController.create({
+  root: document.querySelector("[data-settings-host='user']"),
+  onSave: saveAllSettings,
+  onRevert: applyPendingPreferencePreview,
+});
 
 loadUserSettings();
 loadNotificationPreferences();
 
-themeForm.addEventListener("change", async (event) => {
+themeForm.addEventListener("change", (event) => {
   if (event.target.matches("[data-theme-mode-option], [data-theme-auto-source]")) {
-    await saveThemeMode();
+    applyPendingPreferencePreview();
   }
 });
 
-markdownRenderingForm?.addEventListener("change", async (event) => {
+markdownRenderingForm?.addEventListener("change", (event) => {
   if (event.target.matches("[data-open-external-links-new-tab]")) {
-    await saveMarkdownRendering();
+    applyPendingPreferencePreview();
   }
 });
 
@@ -65,14 +72,12 @@ passwordForm.addEventListener("submit", async (event) => {
   await changePassword();
 });
 
-profileForm.addEventListener("submit", async (event) => {
+profileForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  await saveProfile();
 });
 
-notificationPreferencesForm?.addEventListener("submit", async (event) => {
+notificationPreferencesForm?.addEventListener("submit", (event) => {
   event.preventDefault();
-  await saveNotificationPreferences();
 });
 
 workspaceCreateForm.addEventListener("submit", async (event) => {
@@ -90,7 +95,33 @@ newWorkspaceTypeSelect.addEventListener("change", () => {
 });
 
 openWorkspaceRemovalButton?.addEventListener("click", openWorkspaceRemovalDialog);
+deleteAccountButton?.addEventListener("click", deleteAccount);
 closeWorkspaceRemovalButton?.addEventListener("click", () => workspaceRemovalDialog?.close());
+
+async function deleteAccount() {
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Delete your account?",
+    message: "This permanently retires your password, sessions, API keys, roles, and access to every workspace. Your email address, display name, contributions, and attribution are retained in workspace history. This cannot be undone.",
+    confirmLabel: "Delete Account",
+    cancelLabel: "Cancel",
+    danger: true,
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  deleteAccountButton.disabled = true;
+  setUserSettingsStatus("Deleting account...");
+
+  try {
+    await window.LongtailForge.api.deleteJson("/api/user/account");
+    window.location.replace("/login.html");
+  } catch (error) {
+    deleteAccountButton.disabled = false;
+    handleApiError(error, "Account could not be deleted.");
+  }
+}
 
 async function loadUserSettings() {
   try {
@@ -102,11 +133,13 @@ async function loadUserSettings() {
 
     applyThemeMode(body.themeMode, body.themeAutoSource);
     applyMarkdownRendering(body);
+    applyAppPreferences(body);
     applyProfile(body);
     applyWorkspaceAccess(body);
     applyWorkspaceCreation(body.workspaceCreation);
     renderUserSettingsContributions();
     setUserSettingsStatus("");
+    settingsPageController.setClean();
   } catch (error) {
     handleApiError(error, "User settings could not be loaded.");
   }
@@ -132,62 +165,61 @@ async function loadNotificationPreferences() {
       headingLevel: "h3",
       includeWorkspaceDefaults: false,
     });
+    settingsPageController.setClean();
   } catch (error) {
     notificationPreferenceList.replaceChildren(createPlaceholder("Notification preferences could not be loaded."));
     handleApiError(error, "Notification preferences could not be loaded.");
   }
 }
 
-async function saveNotificationPreferences() {
-  if (!notificationPreferenceList) {
-    return;
+function applyPendingPreferencePreview() {
+  applyThemeMode(getSelectedThemeMode(), getSelectedThemeAutoSource());
+  applyMarkdownRendering({ openExternalLinksNewTab: openExternalLinksNewTabToggle?.checked === true });
+}
+
+async function saveAllSettings() {
+  const username = profileUsernameInput.value.trim().toLowerCase();
+  const displayName = profileDisplayNameInput.value.trim();
+  const altEmail = profileAltEmailInput.value.trim().toLowerCase();
+  if (!isValidEmail(username)) {
+    setUserSettingsStatus("Enter a valid email address.", true);
+    return false;
+  }
+  if (!displayName) {
+    setUserSettingsStatus("Display name is required.", true);
+    return false;
+  }
+  if (altEmail && !isValidEmail(altEmail)) {
+    setUserSettingsStatus("Enter a valid alternate email address or leave it blank.", true);
+    return false;
   }
 
-  saveNotificationPreferencesButton.disabled = true;
-  setUserSettingsStatus("Saving notification preferences...");
-
+  setUserSettingsStatus("Saving user settings...");
   try {
+    const body = await window.LongtailForge.api.putJson("/api/user/settings", {
+      altEmail,
+      displayName,
+      openExternalLinksNewTab: openExternalLinksNewTabToggle?.checked === true,
+      preferredLoginLanding: preferredLoginLandingSelect?.value || "dashboard",
+      preferredWorkspaceSwitchLanding: preferredWorkspaceSwitchLandingSelect?.value || "dashboard",
+      themeAutoSource: getSelectedThemeAutoSource(),
+      themeMode: getSelectedThemeMode(),
+      timezone: profileTimezoneSelect.value,
+      username,
+    });
     const preferences = window.LongtailForge.notificationPreferences.readUserPreferencesPayload(notificationPreferenceList);
     const groupingPreferences = window.LongtailForge.notificationPreferences.readGroupingPreferencesPayload(notificationGroupingPreferences);
-
     await window.LongtailForge.notificationPreferences.saveUserPreferences(preferences, groupingPreferences);
-    await loadNotificationPreferences();
-    flashButtonSavedState(saveNotificationPreferencesButton, "Notification preferences saved.");
-  } catch (error) {
-    handleApiError(error, "Notification preferences were not saved.");
-  } finally {
-    saveNotificationPreferencesButton.disabled = false;
-  }
-}
-
-async function saveThemeMode() {
-  const themeMode = getSelectedThemeMode();
-  const themeAutoSource = getSelectedThemeAutoSource();
-  applyThemeMode(themeMode, themeAutoSource);
-  setUserSettingsStatus("Saving appearance...");
-
-  try {
-    const body = await window.LongtailForge.api.putJson("/api/user/settings", { themeMode, themeAutoSource });
-
     applyThemeMode(body.themeMode, body.themeAutoSource);
-    setUserSettingsStatus("Appearance saved.", false, { type: "success", clearAfter: 1600 });
-  } catch (error) {
-    handleApiError(error, "Appearance was not saved.");
-  }
-}
-
-async function saveMarkdownRendering() {
-  const openExternalLinksNewTab = openExternalLinksNewTabToggle?.checked === true;
-  applyMarkdownRendering({ openExternalLinksNewTab });
-  setUserSettingsStatus("Saving Markdown rendering...");
-
-  try {
-    const body = await window.LongtailForge.api.putJson("/api/user/settings", { openExternalLinksNewTab });
-
     applyMarkdownRendering(body);
-    setUserSettingsStatus("Markdown rendering saved.", false, { type: "success", clearAfter: 1600 });
+    applyAppPreferences(body);
+    applyProfile(body);
+    await loadNotificationPreferences();
+    setUserSettingsStatus("User settings saved.", false, { type: "success", clearAfter: 1600 });
+    return true;
   } catch (error) {
-    handleApiError(error, "Markdown rendering was not saved.");
+    handleApiError(error, "User settings were not saved.");
+    return false;
   }
 }
 
@@ -225,6 +257,24 @@ function applyMarkdownRendering(settings) {
   window.localStorage.setItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY, openExternalLinksNewTab ? "true" : "false");
 }
 
+function applyAppPreferences(settings) {
+  if (preferredLoginLandingSelect) {
+    preferredLoginLandingSelect.value = normalizeLandingPreference(settings?.preferredLoginLanding);
+  }
+
+  if (preferredWorkspaceSwitchLandingSelect) {
+    preferredWorkspaceSwitchLandingSelect.value = normalizeLandingPreference(
+      settings?.preferredWorkspaceSwitchLanding,
+    );
+  }
+}
+
+function normalizeLandingPreference(value) {
+  return ["dashboard", "workbench", "tasks", "notes", "lists"].includes(value)
+    ? value
+    : "dashboard";
+}
+
 function applyWorkspaceCreation(workspaceCreation) {
   workspaceCreationTypes = Array.isArray(workspaceCreation?.availableTypes)
     ? workspaceCreation.availableTypes
@@ -256,6 +306,9 @@ function applyWorkspaceCreation(workspaceCreation) {
 
 function applyWorkspaceAccess(settings) {
   activeWorkspaceId = String(settings?.activeWorkspaceId || settings?.active_workspace_id || "");
+  if (Object.hasOwn(settings || {}, "canEnterAccountExportRecovery")) {
+    canEnterAccountExportRecovery = settings.canEnterAccountExportRecovery === true;
+  }
   currentWorkspaces = Array.isArray(settings?.workspaces)
     ? settings.workspaces.map(normalizeWorkspaceAccess).filter((workspace) => workspace.workspaceId)
     : [];
@@ -283,52 +336,11 @@ function setTimezoneValue(timezone) {
     const option = document.createElement("option");
 
     option.value = timezone;
-    option.textContent = timezone;
+    option.textContent = `${timezone} (${window.LongtailForge.timezones.formatUtcOffset(new Date(), timezone)})`;
     profileTimezoneSelect.appendChild(option);
   }
 
   profileTimezoneSelect.value = timezone;
-}
-
-async function saveProfile() {
-  const username = profileUsernameInput.value.trim().toLowerCase();
-  const displayName = profileDisplayNameInput.value.trim();
-  const altEmail = profileAltEmailInput.value.trim().toLowerCase();
-  const timezone = profileTimezoneSelect.value;
-
-  if (!isValidEmail(username)) {
-    setUserSettingsStatus("Enter a valid email address.", true);
-    return;
-  }
-
-  if (!displayName) {
-    setUserSettingsStatus("Display name is required.", true);
-    return;
-  }
-
-  if (altEmail && !isValidEmail(altEmail)) {
-    setUserSettingsStatus("Enter a valid alternate email address or leave it blank.", true);
-    return;
-  }
-
-  saveProfileButton.disabled = true;
-  setUserSettingsStatus("Saving profile...");
-
-  try {
-    const body = await window.LongtailForge.api.putJson("/api/user/settings", {
-      username,
-      displayName,
-      altEmail,
-      timezone,
-    });
-
-    applyProfile(body);
-    flashButtonSavedState(saveProfileButton, "Profile saved.");
-  } catch (error) {
-    handleApiError(error, "Profile was not saved.");
-  } finally {
-    saveProfileButton.disabled = false;
-  }
 }
 
 async function createWorkspace() {
@@ -461,11 +473,12 @@ function createWorkspaceRemovalRow(workspace) {
   ].filter(Boolean).join(" - ");
 
   button.type = "button";
-  button.textContent = isCurrentWorkspace ? "Current Workspace" : "Leave";
-  button.disabled = isCurrentWorkspace || isLastActiveWorkspace;
+  const canLeaveForRecovery = isCurrentWorkspace && isLastActiveWorkspace && canEnterAccountExportRecovery;
+  button.textContent = canLeaveForRecovery ? "Leave" : (isCurrentWorkspace ? "Current Workspace" : "Leave");
+  button.disabled = (isCurrentWorkspace || isLastActiveWorkspace) && !canLeaveForRecovery;
   button.addEventListener("click", () => removeWorkspaceMembership(workspace.workspaceId));
 
-  if (isLastActiveWorkspace && !isCurrentWorkspace) {
+  if (isLastActiveWorkspace && !isCurrentWorkspace && !canLeaveForRecovery) {
     button.textContent = "Only Active Workspace";
   }
 
@@ -500,6 +513,11 @@ async function removeWorkspaceMembership(workspaceId) {
 
   try {
     const body = await window.LongtailForge.api.deleteJson(`/api/user/workspaces/${encodeURIComponent(workspaceId)}`);
+
+    if (body.accountExportRecovery) {
+      window.location.assign("/login.html?accountRecovery=1");
+      return;
+    }
 
     applyWorkspaceAccess(body);
     renderWorkspaceRemovalList();

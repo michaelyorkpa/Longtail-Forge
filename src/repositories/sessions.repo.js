@@ -12,6 +12,7 @@ INSERT INTO sessions (
   username,
   timezone,
   ip_address,
+  session_mode,
   expires_at,
   created_at,
   updated_at
@@ -24,16 +25,18 @@ VALUES (
   :username,
   :timezone,
   :ipAddress,
+  :sessionMode,
   :expiresAt,
   :createdAt,
   :updatedAt
 );
 `, {
-    activeWorkspaceId: session.active_workspace_id || session.workspace_id || session.home_workspace_id,
+    activeWorkspaceId: session.active_workspace_id ?? session.workspace_id ?? session.home_workspace_id ?? null,
     createdAt: now,
     expiresAt: session.expires_at,
-    homeWorkspaceId: session.home_workspace_id || session.workspace_id,
+    homeWorkspaceId: session.home_workspace_id ?? session.workspace_id ?? null,
     ipAddress: session.ip_address || null,
+    sessionMode: session.session_mode || "normal",
     sessionId: session.session_id,
     timezone: session.timezone,
     updatedAt: now,
@@ -52,6 +55,7 @@ SELECT
   sessions.username,
   sessions.timezone,
   sessions.ip_address,
+  sessions.session_mode,
   sessions.expires_at,
   users.password_change_required
 FROM sessions

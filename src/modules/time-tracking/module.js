@@ -66,6 +66,7 @@ const timeTrackingModule = {
       file: "time-tracking-settings.html",
       requiredPermissions: ["workspace_settings.manage"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+      allowDisabledRead: true,
     },
   ],
   publicViews: [],

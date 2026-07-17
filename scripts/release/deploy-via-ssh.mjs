@@ -29,6 +29,7 @@ try {
       "--artifact", path.basename(artifact),
       "--metadata", path.basename(metadata),
       "--expected-version", metadataJson.version,
+      "--expected-source-branch", metadataJson.sourceBranch,
       "--expected-commit", metadataJson.commitSha,
       "--expected-sha256", metadataJson.artifact.sha256,
     ])]);
@@ -42,7 +43,7 @@ try {
   if (appInfo.commitSha !== options.revision) throw new Error("Rollback target commit does not match /api/app-info.");
   await requireOk(`${config.publicUrl}/healthz`, "ok");
   await requireOk(`${config.publicUrl}/readyz`, "ready");
-  console.log(JSON.stringify({ ok: true, mode: "rollback", commitSha: appInfo.commitSha, version: appInfo.version, artifactSha256: appInfo.artifactSha256 }));
+  console.log(JSON.stringify({ ok: true, mode: "rollback", commitSha: appInfo.commitSha, version: appInfo.version, sourceBranch: appInfo.sourceBranch, artifactSha256: appInfo.artifactSha256 }));
 } finally {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
@@ -108,7 +109,7 @@ async function verifyPublic(publicUrl, metadata) {
   await requireOk(`${publicUrl}/healthz`, "ok");
   await requireOk(`${publicUrl}/readyz`, "ready");
   const appInfo = await readJson(`${publicUrl}/api/app-info`);
-  if (appInfo.version !== metadata.version || appInfo.commitSha !== metadata.commitSha || appInfo.artifactSha256 !== metadata.artifact.sha256) {
+  if (appInfo.canonicalVersion !== metadata.version || appInfo.sourceBranch !== metadata.sourceBranch || appInfo.version !== `${metadata.version}-${metadata.sourceBranch}` || appInfo.commitSha !== metadata.commitSha || appInfo.artifactSha256 !== metadata.artifact.sha256) {
     throw new Error("Deployed /api/app-info identity does not match the selected release metadata.");
   }
 }

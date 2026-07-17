@@ -21,7 +21,10 @@ async function read(session) {
   return {
     app: {
       name: config.appName,
-      version: config.appVersion,
+      version: config.appDisplayVersion,
+      displayVersion: config.appDisplayVersion,
+      canonicalVersion: config.appVersion,
+      sourceBranch: config.release.sourceBranch,
     },
     runtime: {
       environment: config.environment,

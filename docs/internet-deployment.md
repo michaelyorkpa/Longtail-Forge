@@ -131,7 +131,7 @@ For suspected active exploitation, first remove public traffic at Caddy while pr
 
 - This work has not received external penetration testing, independent security certification, a compliance audit, or a guarantee of perfect internet safety.
 - The supported posture is a small, invitation-only private preview on one server. It is not hosted SaaS, multi-node high availability, an enterprise deployment, or a public launch.
-- SQLite supports one app server and at most one same-host separate worker. Authentication throttles are process-local and reset on intentional restart.
+- SQLite supports one app server and at most one same-host separate worker. Authentication throttle buckets are database-backed and survive an intentional app restart, but multi-app-server coordination is not supported.
 - Caddy is the only reviewed public edge. CDN, load balancer, ingress-controller, VPN-proxy, or multi-proxy forwarding chains are unreviewed until explicitly added and tested.
 - HSTS begins with the bounded 300-second rollout; preload and long-lived promotion require the documented observation process. CSP retains the reviewed same-origin style compatibility allowance.
 - TOTP, passkeys, SSO, risk scoring, device history, PostgreSQL, S3-backed Files, worker fleets, WAF/IDS integration, and automatic updates/rollback are not part of this release.

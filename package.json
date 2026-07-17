@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.17.6",
+  "version": "0.33.17.8",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -21,6 +21,10 @@
     "backup:inspect": "node scripts/backup.mjs inspect",
     "backup:restore": "node scripts/backup.mjs restore",
     "backup:drill": "node scripts/backup-restore-drill.mjs",
+    "workspace-backup:inspect": "node scripts/workspace-backup.mjs inspect",
+    "workspace-backup:restore": "node scripts/workspace-backup.mjs restore",
+    "workspace-backup:drill": "node scripts/workspace-backup-drill.mjs",
+    "workspace:purge": "node scripts/workspace-purge.mjs",
     "container:build": "node scripts/build-container-image.mjs",
     "container:smoke": "node scripts/container-deployment-smoke.mjs",
     "check": "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",

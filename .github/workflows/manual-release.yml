@@ -59,8 +59,8 @@ jobs:
         env:
           REVISION: ${{ inputs.revision }}
         run: |
-          npm run artifact:build
-          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel main --output dist/release-metadata.json
+          npm run artifact:build -- --source-branch main
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel main --source-branch main --output dist/release-metadata.json
       - name: Create immutable tag and GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

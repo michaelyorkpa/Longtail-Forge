@@ -2,6 +2,8 @@
 
 Longtail Forge provides a CLI-first whole-instance backup for the supported one-server SQLite and local Files-storage deployment. The backup is a recovery artifact, not an ordinary download, source package, database-only copy, or substitute for the separately protected Secure Notes key.
 
+This document owns whole-instance recovery. The administrator-created, non-destructive one-workspace extract is a separate format and procedure documented in [Workspace Backup Package](workspace-backup.md).
+
 This baseline supports only `LONGTAIL_DATABASE_PROVIDER=sqlite` and `LONGTAIL_STORAGE_PROVIDER=local`. It does not claim PostgreSQL dumps, S3/object downloads, multi-server snapshots, continuous point-in-time recovery, or unattended retention automation.
 
 ## Backup format

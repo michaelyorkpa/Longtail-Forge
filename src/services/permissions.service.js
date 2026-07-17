@@ -33,7 +33,7 @@ const ROLE_SCOPE_TYPES = {
   super_admin: "all",
   workspace_admin: "workspace",
   client_admin: "client",
-  project_admin: "client",
+  project_admin: "project",
   client_user: "client",
   project_user: "project",
   client_external_user: "client",
@@ -49,6 +49,68 @@ async function listRoleOptions(session) {
   return {
     roles: await permissionsRepository.readRoles(),
   };
+}
+
+async function listAssignableRoleOptions(session) {
+  await assertCanAssignRoles(session);
+  const [roles, settings, clients, projects] = await Promise.all([
+    permissionsRepository.readRoles(),
+    settingsRepository.readWorkspaceSettings(session.workspace_id),
+    clientsRepository.readAll(session.workspace_id),
+    projectsRepository.readAll(session.workspace_id),
+  ]);
+  const clientNames = new Map(clients.map((client) => [client.id, client.name]));
+  const options = [];
+
+  for (const role of roles) {
+    if (!workspaceTypeAllowsRole(settings.workspaceType, role.role_id)) {
+      continue;
+    }
+
+    const scopeType = ROLE_SCOPE_TYPES[role.role_id];
+    const candidates = scopeType === "all"
+      ? [{ scopeId: "all", label: "All workspaces" }]
+      : scopeType === "workspace"
+        ? [{ scopeId: session.workspace_id, label: "Workspace" }]
+        : scopeType === "client"
+          ? clients
+            .filter((client) => client.status !== "Inactive")
+            .map((client) => ({ scopeId: client.id, label: client.name }))
+          : projects
+            .filter((project) => project.status !== "Inactive")
+            .map((project) => ({
+              scopeId: project.id,
+              label: project.client_id && clientNames.has(project.client_id)
+                ? `${clientNames.get(project.client_id)} / ${project.name}`
+                : project.name,
+            }));
+    const scopes = [];
+
+    for (const candidate of candidates) {
+      if (await canAssignRole(session, {
+        roleId: role.role_id,
+        scopeType,
+        scopeId: candidate.scopeId,
+      })) {
+        scopes.push(candidate);
+      }
+    }
+
+    if (scopes.length > 0) {
+      options.push({
+        ...role,
+        assignment_scope_type: scopeType,
+        scopes,
+      });
+    }
+  }
+
+  return { roles: options };
+}
+
+async function validateUserAssignments(session, assignments) {
+  await assertCanAssignRoles(session);
+  return normalizeAssignments(session, Array.isArray(assignments) ? assignments : []);
 }
 
 async function readUserAssignments(session, userId) {
@@ -95,6 +157,10 @@ async function replaceUserAssignments(session, userId, payload) {
 async function can(session, action, resource = {}) {
   if (!session?.workspace_id || !session?.user_id) {
     return false;
+  }
+
+  if (await isInstallationSuperAdmin(session)) {
+    return true;
   }
 
   const user = await readCurrentUser(session);
@@ -155,6 +221,10 @@ async function recordAuthorizationDenied(session, action, resource) {
 async function canInAnyScope(session, action, resource = {}) {
   if (!session?.workspace_id || !session?.user_id) {
     return false;
+  }
+
+  if (await isInstallationSuperAdmin(session)) {
+    return true;
   }
 
   const user = await readCurrentUser(session);
@@ -288,19 +358,17 @@ async function assertAssignmentScopeBelongsToWorkspace(session, scopeType, scope
 async function assertWorkspaceTypeAllowsRole(session, roleId) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
-  if (settings.workspaceType === "business") {
-    return;
-  }
-
-  if (settings.workspaceType === "family" && FAMILY_ROLE_LIMITS.has(roleId)) {
-    return;
-  }
-
-  if (settings.workspaceType === "personal" && PERSONAL_ROLE_LIMITS.has(roleId)) {
+  if (workspaceTypeAllowsRole(settings.workspaceType, roleId)) {
     return;
   }
 
   throw new AppError("That role is not available for this workspace type.", 403);
+}
+
+function workspaceTypeAllowsRole(workspaceType, roleId) {
+  return workspaceType === "business" ||
+    (workspaceType === "family" && FAMILY_ROLE_LIMITS.has(roleId)) ||
+    (workspaceType === "personal" && PERSONAL_ROLE_LIMITS.has(roleId));
 }
 
 async function assertCanAssignRoles(session) {
@@ -312,6 +380,10 @@ async function assertCanAssignRoles(session) {
 }
 
 async function hasAssignableRoleScope(session) {
+  if (await isInstallationSuperAdmin(session)) {
+    return true;
+  }
+
   const assignments = await readAssignmentsForSession(session);
   const permissionsByRole = await readPermissionsByRole();
 
@@ -322,6 +394,10 @@ async function hasAssignableRoleScope(session) {
 }
 
 async function canAssignRole(session, requestedAssignment) {
+  if (await isInstallationSuperAdmin(session)) {
+    return ROLE_LIMITS.super_admin.has(requestedAssignment.roleId);
+  }
+
   const assignments = await readAssignmentsForSession(session);
   const roleId = requestedAssignment.roleId;
   const assignmentResource = await readAssignmentResource(session.workspace_id, requestedAssignment);
@@ -375,14 +451,43 @@ async function isSuperAdmin(session) {
     return false;
   }
 
-  const user = await readCurrentUser(session);
+  return isInstallationSuperAdmin(session);
+}
 
-  if (normalizeProtectedUserFlag(user?.protected_user)) {
+async function isInstallationSuperAdmin(session) {
+  const cache = readRequestCache(session);
+  const userId = session?.user_id || "";
+
+  if (!userId) {
+    return false;
+  }
+
+  if (!cache.superAdmins.has(userId)) {
+    const user = await usersRepository.readFirstByUserId(userId);
+    cache.superAdmins.set(
+      userId,
+      normalizeProtectedUserFlag(user?.protected_user) ||
+        await permissionsRepository.hasSuperAdminAssignment(userId),
+    );
+  }
+
+  return cache.superAdmins.get(userId);
+}
+
+async function isWorkspaceAdministrator(session) {
+  if (!session?.workspace_id || !session?.user_id) {
+    return false;
+  }
+
+  if (await isSuperAdmin(session)) {
     return true;
   }
 
   const assignments = await readAssignmentsForSession(session);
-  return assignments.some((assignment) => assignment.role_id === "super_admin");
+  return assignments.some((assignment) => (
+    assignment.role_id === "workspace_admin" &&
+    assignmentMatchesResource(assignment, { workspace_id: session.workspace_id }, session)
+  ));
 }
 
 async function readReadableScopes(session) {
@@ -451,6 +556,7 @@ function readRequestCache(session) {
       enumerable: false,
       value: {
         assignments: new Map(),
+        superAdmins: new Map(),
         users: new Map(),
       },
     });
@@ -663,7 +769,10 @@ export const permissionsService = {
   filterReadableTasks,
   filterReadableTimeEntries,
   isSuperAdmin,
+  isWorkspaceAdministrator,
+  listAssignableRoleOptions,
   listRoleOptions,
   readUserAssignments,
   replaceUserAssignments,
+  validateUserAssignments,
 };

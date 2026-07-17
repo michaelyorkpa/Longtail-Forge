@@ -77,6 +77,29 @@ assert.deepEqual(
   "Client projects should keep parent-before-child hierarchy inside the client option.",
 );
 
+for (const [workspaceType, workspaceLabel] of [
+  ["Business", "Acme Business"],
+  ["Personal", "Morgan Personal"],
+  ["Family", "York-Lasher Family"],
+]) {
+  context.window.LongtailForge.getWorkspaceProjectsLabel = () => workspaceLabel;
+  const workspaceClients = context.window.LongtailForge.clientProjectOptions.normalizeClients({
+    clients: [],
+    workspaceProjects: [
+      { id: `${workspaceType}-child`, name: "Child Project", parent_project_id: `${workspaceType}-parent` },
+      { id: `${workspaceType}-parent`, name: "Parent Project" },
+      { id: `${workspaceType}-zulu`, name: "Zulu Project" },
+    ],
+  });
+
+  assert.equal(workspaceClients[0].optionLabel, workspaceLabel, `${workspaceType} Timer scope should use the readable workspace label.`);
+  assert.deepEqual(
+    plain(workspaceClients[0].projects.map((project) => project.optionLabel)),
+    ["Parent Project", "  - Child Project", "Zulu Project"],
+    `${workspaceType} Timer projects should retain canonical parent-before-child ordering and labels.`,
+  );
+}
+
 await assertPageLoadsHelperBeforeScript("views/protected/time-tracker.html", "js/stop-watch.js");
 await assertPageLoadsHelperBeforeScript("views/protected/workbench.html", "js/workbench.js");
 await assertPageLoadsHelperBeforeScript("views/protected/time-entries.html", "js/time-entries.js");
@@ -85,6 +108,8 @@ await assertSourceUsesSharedHelper("public/js/stop-watch.js");
 await assertSourceUsesSharedHelper("public/js/workbench.js");
 await assertSourceUsesSharedHelper("public/js/time-entry-dialog.js");
 await assertSourceUsesSharedHelper("public/js/time-entries.js");
+await assertTimerUsesSharedProjectOptions("public/js/stop-watch.js");
+await assertTimerUsesSharedProjectOptions("public/js/time-tracking-timer-dialog.js");
 
 console.log("Client picker hierarchy regression passed.");
 
@@ -105,6 +130,26 @@ async function assertSourceUsesSharedHelper(sourcePath) {
     source,
     /clientProjectOptions\.normalizeClients/,
     `${sourcePath} should normalize clients through the shared hierarchy helper.`,
+  );
+}
+
+async function assertTimerUsesSharedProjectOptions(sourcePath) {
+  const source = await fs.readFile(new URL(sourcePath, root), "utf8");
+
+  assert.match(
+    source,
+    /projects\.forEach\(\(project\) => \{[\s\S]*createOption\(project\.id, projectOptionLabel\(project\)\)/,
+    `${sourcePath} should render the shared project hierarchy in its supplied order and with its supplied labels.`,
+  );
+  assert.match(
+    source,
+    /function projectOptionLabel\(project\) \{[\s\S]*clientProjectOptions\.optionLabel\(project\)/,
+    `${sourcePath} should read project labels through the shared Clients/Projects option contract.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /sortByName\(projects\)|sortByName\(client\.projects\)/,
+    `${sourcePath} must not flatten the shared project hierarchy with a second alphabetical sort.`,
   );
 }
 

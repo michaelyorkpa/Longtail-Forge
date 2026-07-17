@@ -56,6 +56,7 @@ for (const requirement of [
   /no-new-privileges:true/,
   /longtail-data:\/var\/lib\/longtail-forge/,
   /LONGTAIL_BACKUP_DIR:-\.\/backups/,
+  /LONGTAIL_WORKSPACE_BACKUP_ROOT: \/var\/backups\/longtail-forge\/workspaces/,
   /restart: unless-stopped/,
   /\/readyz/,
   /172\.30\.17\.1\/32/,

@@ -166,7 +166,7 @@ async function seed(db, target, anchorDate) {
     }
     const roles = [
       [business, users.alex, "workspace_admin", "workspace", business],
-      [business, users.priya, "project_admin", "client", id("client", "cedar")],
+      [business, users.priya, "project_admin", "project", id("project", "website")],
       [business, users.sam, "project_user", "project", id("project", "maintenance")],
       [personal, users.alex, "workspace_admin", "workspace", personal],
       [family, users.alex, "workspace_admin", "workspace", family],

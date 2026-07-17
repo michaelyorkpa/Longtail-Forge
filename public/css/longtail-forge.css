@@ -2434,11 +2434,16 @@ h1 {
 
 @media (max-width: 640px) {
     .notification-preference-matrix {
-        grid-template-columns: minmax(120px, 1fr) 68px 118px;
+        grid-template-columns: minmax(0, 1fr) 58px minmax(88px, 100px);
     }
 
     .notification-preference-matrix > * {
         padding: 7px 8px;
+    }
+
+    .notification-preference-matrix select {
+        width: 100%;
+        min-width: 0;
     }
 }
 
@@ -2942,6 +2947,69 @@ a.search-result-title:hover {
     gap: 16px;
 }
 
+.user-settings-column {
+    display: grid;
+    gap: 16px;
+    align-content: start;
+}
+
+.user-settings-wide {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.user-settings-disclosure {
+    padding: 0;
+}
+
+.user-settings-disclosure-summary {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 16px;
+    color: var(--color-text);
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.user-settings-disclosure-summary::-webkit-details-marker {
+    display: none;
+}
+
+.user-settings-disclosure-summary::before {
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid currentColor;
+    content: "";
+    transition: transform 120ms ease;
+}
+
+.user-settings-disclosure[open] > .user-settings-disclosure-summary::before {
+    transform: rotate(90deg);
+}
+
+.user-settings-disclosure > .settings-form {
+    padding: 0 16px 16px;
+}
+
+.workspace-membership-warning {
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--color-danger-border);
+    border-radius: 8px;
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    font-weight: 650;
+    line-height: 1.45;
+}
+
+.login-form[hidden] {
+    display: none;
+}
+
 .login-form h1 {
     margin-bottom: 4px;
     text-align: center;
@@ -2949,6 +3017,36 @@ a.search-result-title:hover {
 
 .login-form button {
     justify-self: end;
+}
+
+.login-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-width: 0;
+}
+
+.login-remember-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.login-remember-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    margin: 0;
+    accent-color: var(--color-accent);
+}
+
+.login-action-row button {
+    flex: 0 0 auto;
 }
 
 [data-login-status] {
@@ -3314,12 +3412,61 @@ a.search-result-title:hover {
     gap: 14px;
 }
 
+.settings-grouped-modules {
+    display: grid;
+    gap: 0;
+}
+
+.settings-grouped-module {
+    padding: 16px 0;
+    border: 0;
+    border-radius: 0;
+}
+
+.settings-grouped-module + .settings-grouped-module {
+    border-top: 1px solid var(--color-border);
+}
+
+.settings-grouped-module:first-child {
+    padding-top: 0;
+}
+
+.settings-grouped-module:last-child {
+    padding-bottom: 0;
+}
+
 .view-settings-section-actions {
     justify-content: flex-end;
 }
 
+.settings-page-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.settings-page-save.is-unsaved-flash:not(:disabled) {
+    animation: settings-unsaved-flash 700ms ease-out;
+}
+
+@keyframes settings-unsaved-flash {
+    0%, 45% {
+        border-color: var(--color-danger);
+        background: var(--color-danger);
+        color: var(--color-surface);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 28%, transparent);
+    }
+    100% {
+        box-shadow: none;
+    }
+}
+
 .view-settings-info {
     margin: 0;
+}
+
+.view-settings-field[hidden] {
+    display: none;
 }
 
 .settings-summary-grid {
@@ -3460,6 +3607,12 @@ a.search-result-title:hover {
     accent-color: var(--color-accent);
 }
 
+.view-field-grid > .theme-mode-field,
+.view-field-grid > .theme-auto-source {
+    flex: 0 1 auto;
+    align-self: flex-start;
+}
+
 .theme-mode-control,
 .theme-auto-source-options {
     width: fit-content;
@@ -3566,6 +3719,23 @@ a.search-result-title:hover {
 button.danger-button {
     border-color: var(--color-danger-border);
     color: var(--color-danger);
+}
+
+.workspace-deletion-notice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--color-danger-border);
+    background: var(--color-danger-bg);
+    color: var(--color-text);
+    font-size: 14px;
+}
+
+.workspace-deletion-notice a {
+    color: var(--color-danger);
+    font-weight: 700;
 }
 
 [data-user-admin-status] {
@@ -8723,7 +8893,7 @@ button:disabled {
     .billing-editor button,
     .tag-editor-form button,
     .tag-row-actions button,
-    .login-form button {
+    .login-form > button {
         width: 100%;
     }
 

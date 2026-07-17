@@ -257,7 +257,15 @@ VALUES
   );
   assert.equal(dialect.search.dropVirtualTable("temp.__ltf_search_fts_probe"), "DROP TABLE IF EXISTS temp.__ltf_search_fts_probe");
   assert.equal(dialect.introspection.tableInfo("dialect_seam_records"), "PRAGMA table_info(dialect_seam_records);");
+  assert.equal(dialect.introspection.tableNames(), "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name;");
+  assert.deepEqual(dialect.introspection.scopedTableRows("dialect_seam_records", "workspace_id"), {
+    count: "SELECT COUNT(1) AS count FROM dialect_seam_records WHERE workspace_id = :scopeValue;",
+    delete: "DELETE FROM dialect_seam_records WHERE workspace_id = :scopeValue;",
+  });
   assert.equal(dialect.introspection.foreignKeys(), "PRAGMA foreign_keys;");
+  assert.equal(dialect.introspection.deferForeignKeys(), "PRAGMA defer_foreign_keys = ON;");
+  assert.equal(dialect.introspection.foreignKeyCheck(), "PRAGMA foreign_key_check;");
+  assert.equal(dialect.introspection.integrityCheck(), "PRAGMA integrity_check;");
 
   const searchRows = await db.query(`
 SELECT

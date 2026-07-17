@@ -18,10 +18,40 @@ async function requireAuth(request, response, next) {
   }
 
   request.session = session;
+  if (session.session_mode === "account_export_recovery" && enforceAccountExportRecovery(request, response)) {
+    return;
+  }
   if (session.password_change_required && enforceRequiredPasswordChange(request, response)) {
     return;
   }
   next();
+}
+
+function enforceAccountExportRecovery(request, response) {
+  const pathname = request.path;
+  if (request.method === "GET" && (
+    pathname === "/account-recovery.html" ||
+    pathname === "/api/user/portable-account-export"
+  )) {
+    return false;
+  }
+  if (pathname.startsWith("/api/")) {
+    sendJson(response, 403, {
+      code: "ACCOUNT_EXPORT_RECOVERY_ONLY",
+      error: "Only account export and logout are available in recovery mode.",
+    });
+    return true;
+  }
+  if (request.method === "GET") {
+    response.writeHead(302, { Location: "/account-recovery.html", "Cache-Control": "no-store" });
+    response.end();
+    return true;
+  }
+  sendJson(response, 403, {
+    code: "ACCOUNT_EXPORT_RECOVERY_ONLY",
+    error: "Only account export and logout are available in recovery mode.",
+  });
+  return true;
 }
 
 function enforceRequiredPasswordChange(request, response) {

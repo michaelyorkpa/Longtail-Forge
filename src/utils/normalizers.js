@@ -101,6 +101,12 @@ function normalizeThemeAutoSource(value) {
   return value === "system" ? "system" : "system";
 }
 
+function normalizeUserLandingPage(value) {
+  return ["dashboard", "workbench", "tasks", "notes", "lists"].includes(value)
+    ? value
+    : "dashboard";
+}
+
 function normalizeBooleanPreference(value) {
   return value === true || value === 1 || value === "1" || value === "true" || value === "yes" || value === "on";
 }
@@ -114,6 +120,8 @@ function userRowToAppValue(row) {
     timezone: normalizeTimezone(row.timezone),
     themeMode: normalizeThemeMode(row.theme_mode),
     themeAutoSource: normalizeThemeAutoSource(row.theme_auto_source),
+    preferredLoginLanding: normalizeUserLandingPage(row.preferred_login_landing),
+    preferredWorkspaceSwitchLanding: normalizeUserLandingPage(row.preferred_workspace_switch_landing),
     openExternalLinksNewTab: normalizeBooleanPreference(row.open_external_links_new_tab),
     passwordChangeRequired: normalizeBooleanPreference(row.password_change_required),
     userStatus: normalizeUserStatus(row.user_status),
@@ -324,6 +332,7 @@ export {
   normalizeProjectTaskDefaults,
   normalizeThemeAutoSource,
   normalizeThemeMode,
+  normalizeUserLandingPage,
   normalizeWorkspaceType,
   normalizeTimeEntry,
   normalizeTimezone,

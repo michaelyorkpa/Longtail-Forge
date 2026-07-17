@@ -165,6 +165,7 @@ const tasksModule = {
       file: "tasks-settings.html",
       requiredPermissions: ["workspace_settings.manage"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
+      allowDisabledRead: true,
     },
   ],
   publicViews: [],

@@ -109,15 +109,20 @@ function assertStaticContract() {
   assert.match(settingsHostScript, /value: "dark", label: "Dark"/, "User Settings should expose Dark mode");
   assert.match(settingsHostScript, /themeAutoSourceControls/, "User Settings should expose auto-source controls");
   assert.match(settingsHostScript, /value: "system", label: "Match operating system"/, "User Settings should expose OS-match auto source");
+  assert.match(settingsHostScript, /shellClassName: "theme-mode-field",[\s\S]*controlsClassName: "theme-mode-control"/, "Theme mode should keep its field shell separate from the bounded segmented control");
+  assert.match(settingsHostScript, /shellClassName: "theme-auto-source",[\s\S]*controlsClassName: "theme-auto-source-options"/, "Auto source should keep its field shell separate from its subordinate segmented control");
+  assert.match(settingsHostScript, /if \(options\.controlsClassName\)[\s\S]*fieldElement\.querySelectorAll\("label"\)[\s\S]*fieldElement\.replaceChildren\([\s\S]*fieldElement\.viewParts\.label,[\s\S]*controls,[\s\S]*fieldElement\.viewParts\.message/, "Settings host fields should move radio labels into an explicitly requested controls wrapper");
   assert.doesNotMatch(settingsHostScript, /data-theme-mode-toggle|theme-mode-switch|theme-switch-track/, "User Settings should not keep the old binary slider");
   assert.match(userSettingsView, /css\/longtail-forge\.css/, "User Settings CSS cache key should advance with the segmented theme controls");
   assert.match(userSettingsView, /js\/user-settings\.js/, "User Settings script cache key should advance with the scoped three-way settings hydrator");
   assert.match(userSettingsScript, /^\(function attachUserSettingsPage\(\) \{[\s\S]*\}\)\(\);\s*$/, "User Settings should be scoped so theme helper names cannot collide with navigation.js");
-  assert.match(userSettingsScript, /putJson\("\/api\/user\/settings", \{ themeMode, themeAutoSource \}\)/, "User Settings should save mode and source together");
+  assert.match(userSettingsScript, /putJson\("\/api\/user\/settings", \{[\s\S]*themeAutoSource: getSelectedThemeAutoSource\(\)[\s\S]*themeMode: getSelectedThemeMode\(\)/, "Universal User Settings Save should include mode and source together");
   assert.match(userSettingsScript, /themeAutoSourceControls\.hidden = normalizedThemeMode !== "auto"/, "auto-source controls should only show for auto mode");
   assert.match(userSettingsScript, /input\.disabled = normalizedThemeMode !== "auto"/, "auto-source inputs should only be active for auto mode");
   assert.match(userSettingsScript, /query\.addEventListener\("change", listener\)/, "User Settings should re-resolve auto mode when OS scheme changes");
   assert.match(css, /\.theme-mode-control,[\s\S]*\.theme-auto-source-options/, "CSS should style the segmented theme controls");
+  assert.match(css, /\.view-field-grid > \.theme-mode-field,[\s\S]*\.view-field-grid > \.theme-auto-source[\s\S]*flex: 0 1 auto/, "Theme fields should opt out of the shared full-width flex growth");
+  assert.match(css, /\.theme-mode-control,[\s\S]*border: 1px solid var\(--color-border-strong\)/, "Theme segmented controls should retain a visible bounded border");
   assert.match(css, /\.settings-segmented-option input:checked \+ span/, "CSS should show the selected segmented option");
   assert.match(css, /html\[data-theme-mode="auto"\]\[data-theme-auto-source="system"\]/, "CSS should resolve auto mode before theme-init finishes");
 

@@ -16,6 +16,7 @@ delete process.env.LTF_REGRESSION_BASELINE_DB;
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const migrationsSource = readText("src/db/migrations.js");
+const projectAdminScopeMigration = readText("src/db/migrations/074_project_admin_project_scope.sql");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
@@ -63,6 +64,10 @@ function assertStaticContract() {
   assert.match(migrationsSource, /PRAGMA foreign_keys = OFF;[\s\S]*INSERT OR IGNORE INTO user_workspaces[\s\S]*PRAGMA foreign_keys = ON;/, "legacy FK repair scripts should remain migration-owned compatibility SQL");
   assert.match(migrationsSource, /await runSql\(baseline\.sql\)/, "fresh-start schema scripts should remain migration-owned compatibility SQL");
   assert.match(migrationsSource, /await runSql\(migration\.sql\)/, "future migration SQL files should remain migration-owned compatibility SQL");
+  assert.match(migrationsSource, /migration-foreign-keys: off[\s\S]*PRAGMA foreign_keys = OFF[\s\S]*PRAGMA foreign_key_check[\s\S]*PRAGMA foreign_keys = ON/, "parent-table rebuild migrations should disable SQLite foreign keys only outside their transaction and validate them before commit");
+  assert.match(projectAdminScopeMigration, /INSERT INTO user_role_assignments[\s\S]*INNER JOIN projects[\s\S]*legacy\.role_id = 'project_admin'[\s\S]*legacy\.scope_type = 'client'/, "project administrator migration should expand legacy client scopes across their existing projects");
+  assert.match(projectAdminScopeMigration, /DELETE FROM user_role_assignments[\s\S]*role_id = 'project_admin'[\s\S]*scope_type = 'client'/, "project administrator migration should retire the superseded client scopes");
+  assert.match(projectAdminScopeMigration, /UPDATE roles[\s\S]*assignable_scope_type = 'project'[\s\S]*role_id = 'project_admin'/, "project administrator migration should publish the project-scope role contract");
 
   assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migrations as compatibility-tracked with values converted");
@@ -90,7 +95,21 @@ ORDER BY version;
     "070",
     "071",
     "072",
+    "073",
+    "074",
+    "075",
+    "076",
+    "077",
+    "078",
+    "079",
   ], "fresh database should record the consolidated baseline and active core migrations");
+
+  const projectAdminRole = await db.get(`
+SELECT assignable_scope_type
+FROM roles
+WHERE role_id = 'project_admin';
+`);
+  assert.equal(projectAdminRole.assignable_scope_type, "project", "fresh databases should publish Project Administrator as project-scoped");
 
   for (const row of rows) {
     assert.equal(row.module_id, "core", `migration ${row.version} should be recorded as a core migration`);

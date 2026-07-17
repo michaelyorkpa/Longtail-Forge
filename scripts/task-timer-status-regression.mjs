@@ -9,24 +9,66 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-tim
 process.env.SUPER_ADMIN_PASSWORD = "Task-Timer-Status-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { auditService } = await import("../src/core/audit.js");
 const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
 try {
   await initializeDatabase();
   const session = await readSeedSession();
-  const projectId = await createProject(session.workspace_id);
+  const context = await createClientProject(session.workspace_id);
 
-  await assertStartMovesOpenTask(session, projectId);
-  await assertPauseLeavesInProgress(session, projectId);
-  await assertRemoveRevertsOnlyTimerMovedTask(session, projectId);
-  await assertFinalizeLeavesInProgress(session, projectId);
-  await assertCompletedAndArchivedTasksRejectTimers(session, projectId);
+  await assertStartMovesOpenTask(session, context.projectId);
+  await assertRecurringStartAuditCarriesReadableContext(session, context);
+  await assertPauseLeavesInProgress(session, context.projectId);
+  await assertRemoveRevertsOnlyTimerMovedTask(session, context.projectId);
+  await assertFinalizeLeavesInProgress(session, context.projectId);
+  await assertCompletedAndArchivedTasksRejectTimers(session, context.projectId);
+  await assertAuditBrowserFallback();
 
   console.log("Task timer status regression passed.");
 } finally {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
+}
+
+async function assertRecurringStartAuditCarriesReadableContext(session, context) {
+  const task = await createTask(session, context.projectId, "Recurring timer audit context", {
+    recurrence: {
+      enabled: true,
+      endDate: "2026-07-31",
+      frequency: "WEEKLY",
+      interval: 1,
+    },
+  });
+
+  assert.ok(task.recurrence_template_id, "audit fixture should be a recurring task instance");
+  await taskTimersService.save(task.task_id, runningTimerPayload(), session);
+
+  const audit = await readAudit(session.workspace_id, "task_timer_status_started", task.task_id);
+  const metadata = JSON.parse(audit?.metadata_json || "{}");
+  assert.deepEqual(
+    {
+      client_id: metadata.client_id,
+      client_name: metadata.client_name,
+      project_id: metadata.project_id,
+      project_name: metadata.project_name,
+    },
+    {
+      client_id: context.clientId,
+      client_name: context.clientName,
+      project_id: context.projectId,
+      project_name: context.projectName,
+    },
+    "recurring-task timer status audit should retain readable client and project attribution",
+  );
+
+  const [byClient, byProject] = await Promise.all([
+    auditService.list(session, { clientId: context.clientId, recordType: "task" }),
+    auditService.list(session, { projectId: context.projectId, recordType: "task" }),
+  ]);
+  assert.ok(byClient.auditLogs.some((entry) => entry.audit_id === audit.audit_id), "client filtering should retain the recurring-task status audit");
+  assert.ok(byProject.auditLogs.some((entry) => entry.audit_id === audit.audit_id), "project filtering should retain the recurring-task status audit");
 }
 
 async function assertStartMovesOpenTask(session, projectId) {
@@ -132,14 +174,41 @@ async function createTask(session, projectId, title, overrides = {}) {
     project_id: projectId,
     status: overrides.status || "open",
     assignee_ids: [session.user_id],
+    ...(overrides.recurrence ? {
+      due_date: "2026-07-03",
+      recurrence: overrides.recurrence,
+    } : {}),
   }, session);
 
   return result.task;
 }
 
-async function createProject(workspaceId) {
+async function createClientProject(workspaceId) {
   const now = new Date().toISOString();
+  const clientId = randomUUID();
   const projectId = randomUUID();
+  const clientName = "Task Timer Status Client";
+  const projectName = "Task Timer Status Project";
+
+  await runSql(`
+INSERT INTO clients (
+  id, workspace_id, parent_client_id, name, status, billable,
+  billing_rate, billing_period_type, billing_period_start_day,
+  billing_rounding_enabled, billing_rounding_increment,
+  billing_contact_name, billing_contact_email,
+  billing_contact_alternate_name, billing_contact_alternate_email,
+  billing_contact_phone_number, billing_contact_alternate_phone_number,
+  billing_contact_street_address_1, billing_contact_street_address_2,
+  billing_contact_city, billing_contact_state, billing_contact_zip_code,
+  created_at, updated_at
+)
+VALUES (
+  ${sqlText(clientId)}, ${sqlText(workspaceId)}, NULL, ${sqlText(clientName)}, 'Active', 'yes',
+  NULL, NULL, NULL, NULL, NULL,
+  '', '', '', '', '', '', '', '', '', '', '',
+  ${sqlText(now)}, ${sqlText(now)}
+);
+`);
 
   await runSql(`
 INSERT INTO projects (
@@ -164,9 +233,9 @@ INSERT INTO projects (
 VALUES (
   ${sqlText(projectId)},
   ${sqlText(workspaceId)},
+  ${sqlText(clientId)},
   NULL,
-  NULL,
-  'Task Timer Status Project',
+  ${sqlText(projectName)},
   'Active',
   'yes',
   '100',
@@ -182,7 +251,16 @@ VALUES (
 );
 `);
 
-  return projectId;
+  return { clientId, clientName, projectId, projectName };
+}
+
+async function assertAuditBrowserFallback() {
+  const source = await fs.readFile(new URL("../public/js/audit-log.js", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /function getAuditContext\(log, metadata\)[\s\S]*new_value_json[\s\S]*previous_value_json[\s\S]*client_name:[\s\S]*project_name:/,
+    "Audit rows should recover readable context from saved before/after values when legacy metadata omitted names",
+  );
 }
 
 async function readSeedSession() {
@@ -267,4 +345,19 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 
   return Number(rows[0]?.count) || 0;
+}
+
+async function readAudit(workspaceId, action, taskId) {
+  const rows = await querySql(`
+SELECT audit_id, metadata_json
+FROM audit_logs
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND action = ${sqlText(action)}
+  AND record_type = 'task'
+  AND record_id = ${sqlText(taskId)}
+ORDER BY created_at DESC
+LIMIT 1;
+`);
+
+  return rows[0] || null;
 }

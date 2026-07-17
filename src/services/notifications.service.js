@@ -449,7 +449,7 @@ async function createFromEvent(event, declaration = null, options = {}) {
     return { notifications: [] };
   }
 
-  const summary = summarizeNotificationEvent(event);
+  const summary = summarizeNotificationEvent(event, { moduleId: notificationDeclaration.moduleId });
   const template = modulesService.listNotificationTemplates().find((candidate) => candidate.event === event.name);
   const workspaceDefault = await readWorkspaceDefault(workspaceId, notificationDeclaration.id);
   if (!workspaceDefault.enabled) {
@@ -535,7 +535,7 @@ async function readSubscribedRecipientIds(event, declaration) {
       module_id: moduleId,
       target_id: targetId,
       target_type: targetType,
-      url: summarizeNotificationEvent(event).url,
+      url: summarizeNotificationEvent(event, { moduleId: declaration.moduleId }).url,
       user_id: subscription.user_id,
       workspace_id: workspaceId,
     }) ? subscription : null;
@@ -548,7 +548,7 @@ async function resolveRecipients(event, declaration) {
   const recipientIds = new Set();
   const hints = new Set([
     declaration.recipientMode || "",
-    ...summarizeNotificationEvent(event).recipientHints,
+    ...summarizeNotificationEvent(event, { moduleId: declaration.moduleId }).recipientHints,
   ].filter(Boolean));
 
   for (const userId of readExplicitRecipientIds(event)) {

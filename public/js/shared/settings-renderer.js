@@ -106,6 +106,73 @@
     })).filter(Boolean);
   }
 
+  function renderGroupedSections(container, moduleSettings, options = {}) {
+    if (!container) {
+      return [];
+    }
+    const modules = normalizeContributions(moduleSettings, options.settings || options);
+    if (!options.append) {
+      container.replaceChildren();
+    }
+    if (modules.length === 0) {
+      if (options.hideEmpty !== true) {
+        container.appendChild(createPlaceholder(options.emptyText || "No configurable modules are available."));
+      }
+      return [];
+    }
+
+    const view = requireView();
+    const groupedModules = view.createElement("div", { className: "settings-grouped-modules" });
+    const group = view.createElement("fieldset", {
+      className: ["view-settings-section", "settings-grouped-section"],
+      children: [
+        view.createElement("legend", {
+          className: "view-settings-section-legend",
+          text: options.groupTitle || "Modules",
+        }),
+        groupedModules,
+      ],
+    });
+    const sections = modules.map((moduleDefinition) => renderSection(groupedModules, moduleDefinition, {
+      ...options,
+      append: true,
+      title: undefined,
+    })).filter(Boolean);
+    sections.forEach((section) => section.classList.add("settings-grouped-module"));
+    container.appendChild(group);
+    return sections;
+  }
+
+  function renderDisabledModuleRecovery(container, moduleDefinition = {}) {
+    if (!container) {
+      return null;
+    }
+
+    const view = requireView();
+    const moduleId = String(moduleDefinition.id || moduleDefinition.moduleId || "").trim();
+    const displayName = String(
+      moduleDefinition.displayName || moduleDefinition.name || moduleId || "This module",
+    ).trim();
+    const panel = view.createInfoPanel({
+      title: `${displayName} is disabled`,
+      message: `${displayName} is disabled for this workspace. Re-enable it from Workspace Settings to restore its settings and workspace surfaces.`,
+      className: "settings-disabled-module-recovery",
+    });
+    const recoveryLink = view.createElement("a", {
+      className: ["button-link", "secondary"],
+      attrs: { href: "workspace-settings.html" },
+      dataset: { moduleRecoveryLink: moduleId },
+      text: "Open Workspace Settings",
+    });
+    panel.dataset.disabledModuleRecovery = moduleId;
+    panel.appendChild(view.createElement("div", {
+      className: "view-info-panel-actions",
+      children: [recoveryLink],
+    }));
+    container.replaceChildren(panel);
+    return panel;
+  }
+
   function renderSection(container, moduleDefinition, options = {}) {
     if (!container) {
       return null;
@@ -145,24 +212,7 @@
       ],
     });
 
-    const writableFields = fields.filter((field) => (fieldMetadata.get(field)?.controls || []).some((control) => !control.disabled));
-    let saveAction = null;
-    if (options.showSaveAction !== false && writableFields.length > 0) {
-      saveAction = view.createActionButton({
-        label: options.saveLabel || "Save Settings",
-        type: "submit",
-        action: "save-settings-section",
-        className: "view-settings-section-save",
-      });
-      saveAction.dataset.settingsSave = "";
-      section.appendChild(view.createInlineActionRow({
-        className: "view-settings-section-actions",
-        ariaLabel: `${normalizedModule.displayName || normalizedModule.moduleId} settings actions`,
-        children: [saveAction],
-      }));
-    }
-
-    const metadata = { fields, grid, module: normalizedModule, saveAction };
+    const metadata = { fields, grid, module: normalizedModule };
     sectionMetadata.set(section, metadata);
     Object.defineProperty(section, "viewParts", {
       configurable: true,
@@ -170,7 +220,6 @@
       value: Object.freeze({
         fields,
         grid,
-        saveAction,
         collectValues: () => view.collectFieldValues(grid),
         applyVisibility: () => applyDependentVisibility(section),
       }),
@@ -499,6 +548,8 @@
     clearValidationErrors,
     collectPayload,
     normalizeContributions,
+    renderDisabledModuleRecovery,
+    renderGroupedSections,
     renderSection,
     renderSections,
     showValidationErrors,

@@ -127,7 +127,13 @@ const usersModule = {
       moduleId: "users",
       notification: {
         title: "Module Disabled",
-        body: ({ event }) => `Module "${event.record_id || event.metadata?.module_id || "Module"}" was disabled.`,
+        body: ({ event }) => {
+          const moduleLabel = event.metadata?.module_label
+            || event.record_id
+            || event.metadata?.module_id
+            || "A module";
+          return `Module "${moduleLabel}" was disabled.`;
+        },
         url: "workspace-settings.html",
         recipientHints: ["workspace_admins"],
       },

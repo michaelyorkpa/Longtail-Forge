@@ -821,7 +821,7 @@ async function updateProject(projectId, payload, session) {
     await permissionsService.assertCan(session, "projects.manage", {
       workspace_id: session.workspace_id,
       client_id: updatePlan.move.toClientId,
-      project_id: decodedProjectId,
+      project_id: "",
       operation: "update",
     });
   }

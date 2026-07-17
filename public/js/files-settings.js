@@ -6,6 +6,10 @@ const api = window.LongtailForge.api;
 
 let settingsCatalog = null;
 let accounting = {};
+const settingsPageController = window.LongtailForge.settingsPageController.create({
+  root: document.querySelector("[data-settings-host='module']"),
+  onSave: saveFilesSettings,
+});
 
 mountAccountingReadout();
 filesSettingsForm?.addEventListener("submit", async (event) => {
@@ -25,6 +29,7 @@ async function loadFilesSettings() {
     accounting = result.accounting || {};
     renderSettings();
     setStatus("");
+    settingsPageController.setClean();
   } catch (error) {
     if (error.status === 401) {
       window.location.replace("/login.html");
@@ -37,10 +42,9 @@ async function loadFilesSettings() {
 async function saveFilesSettings() {
   if (!window.LongtailForge.settingsRenderer.validate(filesSettingsForm)) {
     setStatus("Review the highlighted Files settings.", true);
-    return;
+    return false;
   }
   const values = window.LongtailForge.settingsRenderer.collectPayload(filesSettingsForm).files || {};
-  setSaveButtonsDisabled(true);
   setStatus("Saving Files settings...");
   try {
     const result = await api.putJson("/api/files/settings", {
@@ -54,11 +58,11 @@ async function saveFilesSettings() {
     settingsCatalog = await api.getJson("/api/settings/catalog", { cache: "no-store" });
     renderSettings();
     setStatus("Files settings saved.");
+    return true;
   } catch (error) {
     window.LongtailForge.settingsRenderer.showValidationErrors(filesSettingsForm, error);
     setStatus(error.message || "Files settings were not saved.", true);
-  } finally {
-    setSaveButtonsDisabled(false);
+    return false;
   }
 }
 
@@ -125,12 +129,6 @@ function formatBytes(value) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function setSaveButtonsDisabled(disabled) {
-  filesSettingsForm?.querySelectorAll("[data-settings-save]").forEach((button) => {
-    button.disabled = disabled;
-  });
 }
 
 function setStatus(message, isError = false) {

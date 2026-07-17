@@ -6,6 +6,7 @@ import {
   normalizeThemeAutoSource,
   normalizeThemeMode,
   normalizeTimezone,
+  normalizeUserLandingPage,
   normalizeUserStatus,
   userRowToAppValue,
 } from "../utils/normalizers.js";
@@ -21,6 +22,8 @@ const USER_SELECT_COLUMNS = `
   password_change_required,
   theme_mode,
   theme_auto_source,
+  preferred_login_landing,
+  preferred_workspace_switch_landing,
   open_external_links_new_tab,
   user_status,
   protected_user,
@@ -203,6 +206,28 @@ WHERE user_id = :userId
   });
 }
 
+async function updatePasswordByUserId(userId, passwordHash, options = {}) {
+  await db.run(`
+UPDATE users
+SET password = :passwordHash,
+    password_change_required = :passwordChangeRequired
+WHERE user_id = :userId;
+`, {
+    passwordChangeRequired: options.passwordChangeRequired ? 1 : 0,
+    passwordHash,
+    userId,
+  });
+}
+
+async function clearWorkspaceReferences(userId, workspaceId) {
+  await db.run(`
+UPDATE users
+SET home_workspace_id = CASE WHEN home_workspace_id = :workspaceId THEN NULL ELSE home_workspace_id END,
+    active_workspace_id = CASE WHEN active_workspace_id = :workspaceId THEN NULL ELSE active_workspace_id END
+WHERE user_id = :userId;
+`, { userId, workspaceId });
+}
+
 async function updateProfile(workspaceId, userId, profile) {
   await db.run(`
 UPDATE users
@@ -249,6 +274,29 @@ WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
   });
 }
 
+async function updateLandingPreferences(workspaceId, userId, preferences) {
+  await db.run(`
+UPDATE users
+SET preferred_login_landing = :preferredLoginLanding,
+    preferred_workspace_switch_landing = :preferredWorkspaceSwitchLanding
+WHERE user_id = :userId
+  AND (
+    home_workspace_id = :workspaceId
+    OR EXISTS (
+      SELECT 1
+      FROM user_workspaces
+      WHERE user_workspaces.user_id = users.user_id
+        AND user_workspaces.workspace_id = :workspaceId
+    )
+  );
+`, {
+    preferredLoginLanding: normalizeUserLandingPage(preferences.preferredLoginLanding),
+    preferredWorkspaceSwitchLanding: normalizeUserLandingPage(preferences.preferredWorkspaceSwitchLanding),
+    userId,
+    workspaceId,
+  });
+}
+
 async function updateStatus(workspaceId, userId, userStatus) {
   await db.run(`
 UPDATE users
@@ -263,6 +311,40 @@ UPDATE users
 SET active_workspace_id = :workspaceId
 WHERE user_id = :userId;
 `, { userId, workspaceId });
+}
+
+async function retireAccount(userId, passwordHash) {
+  const retiredAt = new Date().toISOString();
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+UPDATE users
+SET password = :passwordHash,
+    password_change_required = 0,
+    user_status = 'inactive'
+WHERE user_id = :userId;
+`, { passwordHash, userId });
+    await transaction.run(`
+UPDATE user_workspaces
+SET status = 'inactive',
+    updated_at = :retiredAt
+WHERE user_id = :userId;
+`, { retiredAt, userId });
+    await transaction.run("DELETE FROM user_role_assignments WHERE user_id = :userId;", { userId });
+    await transaction.run("DELETE FROM user_workspace_creation_permissions WHERE user_id = :userId;", { userId });
+    await transaction.run("DELETE FROM notification_subscriptions WHERE user_id = :userId;", { userId });
+    await transaction.run(`
+DELETE FROM api_key_scopes
+WHERE api_key_id IN (
+  SELECT api_key_id
+  FROM api_keys
+  WHERE created_by_user_id = :userId
+);
+`, { userId });
+    await transaction.run("DELETE FROM api_keys WHERE created_by_user_id = :userId;", { userId });
+    await transaction.run("DELETE FROM sessions WHERE user_id = :userId;", { userId });
+    await transaction.run("DELETE FROM account_export_recovery_qualifications WHERE user_id = :userId;", { userId });
+  });
 }
 
 async function remove(workspaceId, userId) {
@@ -360,6 +442,7 @@ WHERE linked_user_id = :userId
 ];
 
 export const usersRepository = {
+  clearWorkspaceReferences,
   create,
   readAll,
   readById,
@@ -367,9 +450,12 @@ export const usersRepository = {
   readByUsername,
   readByUsernameExcludingUser,
   readByUsernameForWorkspace,
+  retireAccount,
   remove,
   updatePassword,
+  updatePasswordByUserId,
   updateActiveWorkspace,
+  updateLandingPreferences,
   updateThemeAutoSource,
   updateOpenExternalLinksNewTab,
   updateProfile,

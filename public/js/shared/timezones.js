@@ -35,6 +35,30 @@
     return userTimezone;
   }
 
+  function listSupportedTimezones(date = new Date()) {
+    const supported = typeof Intl.supportedValuesOf === "function"
+      ? Intl.supportedValuesOf("timeZone")
+      : [Intl.DateTimeFormat().resolvedOptions().timeZone, DEFAULT_TIMEZONE];
+    const timezones = [...new Set([...supported, "UTC"].map(normalizeTimezone))];
+
+    return timezones
+      .sort((left, right) => left.localeCompare(right))
+      .map((timezone) => ({
+        value: timezone,
+        label: `${timezone} (${formatUtcOffset(date, timezone)})`,
+      }));
+  }
+
+  function formatUtcOffset(date, timezone) {
+    const totalMinutes = Math.round(getTimezoneOffsetMilliseconds(date, timezone) / 60000);
+    const sign = totalMinutes < 0 ? "-" : "+";
+    const absoluteMinutes = Math.abs(totalMinutes);
+    const hours = String(Math.floor(absoluteMinutes / 60)).padStart(2, "0");
+    const minutes = String(absoluteMinutes % 60).padStart(2, "0");
+
+    return `UTC ${sign}${hours}:${minutes}`;
+  }
+
   function normalizeTimezone(timezone) {
     const candidate = String(timezone || "").trim() || DEFAULT_TIMEZONE;
 
@@ -177,7 +201,9 @@
     formatDateInput,
     formatDateTime,
     formatTimeInput,
+    formatUtcOffset,
     getUserTimezone,
+    listSupportedTimezones,
     loadSessionTimezone,
     localDateRangeToUtc,
     normalizeTimezone,

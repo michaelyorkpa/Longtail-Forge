@@ -194,6 +194,7 @@ window.LongtailForge.sessionAuthWarnings = {
   show: showSessionAuthWarning,
 };
 installSessionAuthWarningGuard();
+window.LongtailForge.refreshAppShell = loadAppShellBootstrap;
 window.LongtailForge.workspaceContextReady = loadAppShellBootstrap();
 
 function installSessionAuthWarningGuard() {
@@ -583,14 +584,45 @@ async function loadAppShellBootstrap() {
     applySearchTargets(shell.searchTargets || []);
     applyWorkspaceName(workspaceContext.workspaceName);
     applyWorkspaceCapabilities(workspaceContext);
+    applyWorkspaceDeletionNotice(workspaceContext);
     if (shell.themeMode) {
       applyThemeMode(shell.themeMode, shell.themeAutoSource);
     }
     populateWorkspaceSelector(shell.workspaces || [], shell.activeWorkspaceId || workspaceContext.workspaceId);
+    window.dispatchEvent(new window.CustomEvent("longtailforge:workspace-context-updated", {
+      detail: workspaceContext,
+    }));
+    return workspaceContext;
   } catch {
     await loadWorkspaceSettings();
     await loadSessionWorkspaces();
+    return null;
   }
+}
+
+function applyWorkspaceDeletionNotice(workspaceContext) {
+  let notice = document.querySelector("[data-workspace-deletion-notice]");
+  const deletion = workspaceContext?.workspaceDeletion;
+  if (!deletion) {
+    notice?.remove();
+    return;
+  }
+  if (!notice) {
+    notice = document.createElement("aside");
+    notice.className = "workspace-deletion-notice";
+    notice.dataset.workspaceDeletionNotice = "";
+    notice.setAttribute("role", "status");
+    siteHeader.insertAdjacentElement("afterend", notice);
+  }
+  const deadline = new Date(deletion.purgeAfter);
+  const deadlineLabel = Number.isNaN(deadline.getTime()) ? "the displayed deadline" : deadline.toLocaleString();
+  notice.replaceChildren();
+  const message = document.createElement("span");
+  message.textContent = `This workspace is pending deletion. The 30-day grace period ends ${deadlineLabel}.`;
+  const link = document.createElement("a");
+  link.href = "workspace-settings.html";
+  link.textContent = "Review or cancel";
+  notice.append(message, link);
 }
 
 function submitGlobalSearch(event) {
@@ -1293,12 +1325,23 @@ if (workspaceSelector) {
         throw new Error("Workspace switch failed.");
       }
 
-      applyActiveWorkspaceLabel();
-      window.location.reload();
+      const body = await response.json().catch(() => ({}));
+      window.localStorage.removeItem(WORKSPACE_CONTEXT_STORAGE_KEY);
+      window.location.assign(normalizeLandingPath(body.landingPath));
     } catch {
       await loadSessionWorkspaces();
     }
   });
+}
+
+function normalizeLandingPath(value) {
+  return [
+    "/dashboard.html",
+    "/workbench.html",
+    "/tasks.html",
+    "/notes.html",
+    "/lists.html",
+  ].includes(value) ? value : "/dashboard.html";
 }
 
 async function logOut() {

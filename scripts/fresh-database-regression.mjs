@@ -13,6 +13,8 @@ try {
   await initializeDatabase();
   await assertFreshBaselineMarker();
   await assertCurrentTableSet();
+  await assertUserLandingColumns();
+  await assertProjectAdministratorScope();
   await assertCurrentIndexes();
   await assertSeedRows();
   await assertIntegrity();
@@ -75,7 +77,64 @@ ORDER BY version;
       module_id: "core",
       name: "require_password_change",
     },
+    {
+      version: "073",
+      module_id: "core",
+      name: "user_landing_preferences",
+    },
+    {
+      version: "074",
+      module_id: "core",
+      name: "project_admin_project_scope",
+    },
+    {
+      version: "075",
+      module_id: "core",
+      name: "workspace_backup_exports",
+    },
+    {
+      version: "076",
+      module_id: "core",
+      name: "workspace_deletion_lifecycle",
+    },
+    {
+      version: "077",
+      module_id: "core",
+      name: "workspace_purge_boundary",
+    },
+    {
+      version: "078",
+      module_id: "core",
+      name: "account_export_recovery",
+    },
+    {
+      version: "079",
+      module_id: "core",
+      name: "authentication_throttle_entries",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
+}
+
+async function assertProjectAdministratorScope() {
+  const roles = await querySql(`
+SELECT assignable_scope_type
+FROM roles
+WHERE role_id = 'project_admin';
+`);
+  assert.equal(roles[0]?.assignable_scope_type, "project");
+}
+
+async function assertUserLandingColumns() {
+  const columns = await querySql("PRAGMA table_info(users);");
+  const preferredLogin = columns.find((column) => column.name === "preferred_login_landing");
+  const preferredWorkspaceSwitch = columns.find((column) => column.name === "preferred_workspace_switch_landing");
+  const homeWorkspace = columns.find((column) => column.name === "home_workspace_id");
+
+  assert.equal(homeWorkspace?.notnull, 0, "a retained zero-workspace identity must not be pointed at an unrelated workspace");
+  assert.equal(preferredLogin?.notnull, 1);
+  assert.equal(preferredLogin?.dflt_value, "'dashboard'");
+  assert.equal(preferredWorkspaceSwitch?.notnull, 1);
+  assert.equal(preferredWorkspaceSwitch?.dflt_value, "'dashboard'");
 }
 
 async function assertCurrentTableSet() {
@@ -88,11 +147,13 @@ ORDER BY name;
 `);
   const tableNames = rows.map((row) => row.name);
   const expectedTables = [
+    "account_export_recovery_qualifications",
     "active_work_timers",
     "api_key_scopes",
     "api_keys",
     "app_settings",
     "audit_logs",
+    "authentication_throttle_entries",
     "clients",
     "file_attachments",
     "file_reports",
@@ -141,8 +202,11 @@ ORDER BY name;
     "user_workspaces",
     "users",
     "work_resume_state",
+    "workspace_backup_exports",
+    "workspace_deletion_lifecycle",
     "workspace_module_settings",
     "workspace_modules",
+    "workspace_purge_tombstones",
     "workspace_settings",
     "workspaces",
   ];
@@ -159,6 +223,8 @@ WHERE type = 'index'
     'idx_active_work_timers_user_slot',
     'idx_active_work_timers_source',
     'idx_api_keys_hash',
+    'idx_authentication_throttle_expires_at',
+    'idx_authentication_throttle_updated_at',
     'idx_file_attachments_unique_active_target',
     'idx_file_attachments_workspace_client',
     'idx_file_attachments_workspace_file',
@@ -294,7 +360,10 @@ WHERE type = 'index'
     'idx_work_resume_state_workspace_module',
     'idx_work_resume_state_workspace_project',
     'idx_work_resume_state_workspace_user_default',
-    'idx_workspace_modules_workspace_status'
+    'idx_workspace_modules_workspace_status',
+    'idx_workspace_backup_exports_workspace_created',
+    'idx_workspace_deletion_lifecycle_purge_after',
+    'idx_workspace_purge_tombstones_status_started'
   )
 ORDER BY name;
 `);
@@ -303,6 +372,8 @@ ORDER BY name;
     "idx_active_work_timers_source",
     "idx_active_work_timers_user_slot",
     "idx_api_keys_hash",
+    "idx_authentication_throttle_expires_at",
+    "idx_authentication_throttle_updated_at",
     "idx_file_attachments_unique_active_target",
     "idx_file_attachments_workspace_client",
     "idx_file_attachments_workspace_file",
@@ -438,7 +509,10 @@ ORDER BY name;
     "idx_work_resume_state_workspace_module",
     "idx_work_resume_state_workspace_project",
     "idx_work_resume_state_workspace_user_default",
+    "idx_workspace_backup_exports_workspace_created",
+    "idx_workspace_deletion_lifecycle_purge_after",
     "idx_workspace_modules_workspace_status",
+    "idx_workspace_purge_tombstones_status_started",
   ]);
 }
 

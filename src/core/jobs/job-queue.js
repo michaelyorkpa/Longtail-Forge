@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../database.js";
+import { WORKSPACE_PURGE_JOB_TYPE } from "./job-types.js";
 
 const DEFAULT_JOB_PRIORITY = 0;
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -35,6 +36,18 @@ async function enqueueJob(options = {}) {
   const availableAt = normalizeNullableText(options.availableAt || options.available_at) || now;
 
   return db.transaction(async (transaction) => {
+    if (jobType !== WORKSPACE_PURGE_JOB_TYPE) {
+      const workspace = await transaction.get(`
+SELECT status
+FROM workspaces
+WHERE workspace_id = :workspaceId
+LIMIT 1;
+`, { workspaceId });
+      if (!workspace || String(workspace.status || "").toLowerCase() === "purging") {
+        return { action: "skipped_workspace_unavailable", job: null };
+      }
+    }
+
     if (dedupeKey) {
       const updatedRows = await transaction.query(`
 UPDATE jobs

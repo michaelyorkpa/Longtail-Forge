@@ -122,10 +122,19 @@ WHERE user_id = :userId;
   assert.notEqual(resetUser.password, temporaryPassword, "generated credentials must be stored only as a hash");
   assert.match(resetUser.password, /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "reset credentials should use the current hardened policy");
 
-  const forcedLoginA = await login(api, target.body.user.username, temporaryPassword);
+  const forcedLoginA = await login(api, target.body.user.username, temporaryPassword, { rememberMe: true });
   const forcedLoginB = await login(api, target.body.user.username, temporaryPassword);
   const forcedCookieA = readSessionCookie(forcedLoginA);
   const forcedCookieB = readSessionCookie(forcedLoginB);
+  assert.match(
+    forcedLoginA.headers.get("set-cookie") || "",
+    /longtail_forge_session=[^,]*Max-Age=2592000/,
+    "a remembered preference should be retained by the restricted forced-change session",
+  );
+  const forcedExpiryBeforeChange = (await db.get(
+    "SELECT expires_at FROM sessions WHERE session_id = :sessionId;",
+    { sessionId: forcedCookieA },
+  )).expires_at;
   assert.equal(forcedLoginA.body.user.passwordChangeRequired, true);
   assert.equal((await api.get("/api/session", { cookie: forcedCookieA })).body.user.passwordChangeRequired, true);
 
@@ -151,7 +160,7 @@ WHERE user_id = :userId;
   }
   assert.deepEqual(wrongChangeStatuses, [400, 400, 429], "forced password change must retain the shared current-password throttle");
 
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   const changed = await api.put("/api/user/password", {
     currentPassword: temporaryPassword,
     newPassword: FINAL_PASSWORD,
@@ -162,6 +171,13 @@ WHERE user_id = :userId;
   const activeSession = await api.get("/api/session", { cookie: forcedCookieA });
   assert.equal(activeSession.status, 200);
   assert.equal(activeSession.body.user.passwordChangeRequired, false, "the current session should become unrestricted immediately");
+  assert.equal(
+    (await db.get("SELECT expires_at FROM sessions WHERE session_id = :sessionId;", {
+      sessionId: forcedCookieA,
+    })).expires_at,
+    forcedExpiryBeforeChange,
+    "successful forced password completion should preserve the requested absolute remembered lifetime",
+  );
   assert.equal((await api.get("/dashboard.html", { cookie: forcedCookieA })).status, 200);
   const changedUser = await db.get("SELECT password FROM users WHERE user_id = :userId;", { userId: targetUserId });
   assert.match(changedUser.password, /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "changed credentials should use the current hardened policy");
@@ -208,7 +224,7 @@ ORDER BY created_at;
   for (const unsubscribe of unsubscribers) {
     unsubscribe();
   }
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   if (server) {
     await closeServer(server);
   }
@@ -218,8 +234,8 @@ ORDER BY created_at;
 
 console.log("Password reset hardening regression passed.");
 
-async function login(api, username, password) {
-  const response = await api.post("/api/login", { username, password });
+async function login(api, username, password, options = {}) {
+  const response = await api.post("/api/login", { username, password, ...options });
   assert.equal(response.status, 200, JSON.stringify(response.body));
   assert.ok(readSessionCookie(response));
   return response;

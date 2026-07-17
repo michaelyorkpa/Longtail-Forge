@@ -66,7 +66,7 @@ function assertStaticContract() {
   assert.match(settingsHostScript, /openExternalLinksNewTab/, "User Settings should expose the preference toggle");
   assert.match(userSettingsView, /js\/user-settings\.js/, "User Settings script cache key should advance");
   assert.match(userSettingsScript, /OPEN_EXTERNAL_LINKS_STORAGE_KEY/, "User Settings should cache the Markdown preference for Notes fallback reads");
-  assert.match(userSettingsScript, /putJson\("\/api\/user\/settings", \{ openExternalLinksNewTab \}\)/, "User Settings should save the preference through the user settings route");
+  assert.match(userSettingsScript, /putJson\("\/api\/user\/settings", \{[\s\S]*openExternalLinksNewTab: openExternalLinksNewTabToggle\?\.checked === true/, "Universal User Settings Save should include the preference through the user settings route");
   assert.match(css, /\.settings-checkbox-line\s*\{[\s\S]*display:\s*inline-flex;/, "settings checkbox rows should have stable compact styling");
 
   assert.match(notesScript, /OPEN_EXTERNAL_LINKS_STORAGE_KEY/, "Notes should read the cached Markdown link preference");
