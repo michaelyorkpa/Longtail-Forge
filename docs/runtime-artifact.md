@@ -7,10 +7,10 @@ Longtail Forge publishes a versioned runtime-only npm tarball for staged bare-me
 From a reviewed source checkout with aligned package metadata, run:
 
 ```sh
-npm run artifact:build
+npm run artifact:build -- --source-branch nightly
 ```
 
-The command writes `dist/longtail-forge-<version>.tgz` and the adjacent `dist/longtail-forge-<version>.tgz.sha256`. `dist/` is ignored because release artifacts are generated outputs, not source files. Verify the SHA-256 checksum before extraction or promotion.
+Use `nightly` for nightly integration artifacts and `main` for main, preview, and tagged-release artifacts. The command writes `dist/longtail-forge-<version>.tgz` and the adjacent `dist/longtail-forge-<version>.tgz.sha256`; the canonical filename stays unsuffixed. `dist/` is ignored because release artifacts are generated outputs, not source files. Verify the SHA-256 checksum before extraction or promotion.
 
 For the full clean-install proof, run:
 
@@ -34,11 +34,11 @@ The tarball contains `npm-shrinkwrap.json`, so `npm ci --omit=dev` is the settle
 
 `npm run start:worker` starts the optional same-host separate worker from the same installed artifact. Docker Compose, the systemd supervisor example, persistence, upgrade/rollback, and the host Caddy boundary are documented in [Docker and Bare-Metal Preview Deployment](preview-deployment.md); this artifact does not expose the Node listener directly to the internet.
 
-The artifact also carries the `backup:create`, `backup:inspect`, `backup:export`, and `backup:restore` operator commands plus their framework-owned implementation. Their checksummed SQLite/Files format, separate Secure Notes key prerequisite, destructive safeguards, and recovery procedure are defined in [Baseline Backup and Restore](backup-restore.md). The disposable `backup:drill` regression remains repository-only test tooling.
+The artifact also carries the `backup:create`, `backup:inspect`, `backup:export`, and `backup:restore` whole-instance commands, `workspace-backup:inspect` and `workspace-backup:restore`, and the explicit `workspace:purge` queue command. Their checksummed formats, Secure Notes key prerequisites, recovery procedures, and irreversible deadline/fencing rules are defined in [Baseline Backup and Restore](backup-restore.md), [Workspace Backup Package](workspace-backup.md), and [Workspace Deletion Grace Period and Final Purge](workspace-deletion.md). The disposable `backup:drill`, `workspace-backup:drill`, and purge regressions remain repository-only test tooling.
 
 ## Inventory
 
-Every tarball includes `RUNTIME-ARTIFACT.json` with the application version, install/start commands, runtime dependency names, included paths, and exclusion categories. The human-readable inventory is:
+Every tarball includes `RUNTIME-ARTIFACT.json` with the canonical application version, validated source branch (or `null` only for an explicitly local build), install/start commands, runtime dependency names, included paths, and exclusion categories. The human-readable inventory is:
 
 - Runtime entrypoints: `server.js` and `worker.js`.
 - Runtime JavaScript, schemas, migrations, and database baseline: `src/`.

@@ -19,6 +19,7 @@ const contentTypes = {
 
 const frameworkProtectedViews = new Map([
   ["api-keys.html", { id: "api-keys", file: "api-keys.html" }],
+  ["account-recovery.html", { id: "account-recovery", file: "account-recovery.html" }],
   ["audit-log.html", { id: "audit-log", file: "audit-log.html" }],
   ["calendar.html", { id: "calendar", file: "calendar.html" }],
   ["dashboard.html", { id: "dashboard", file: "dashboard.html" }],
@@ -88,6 +89,13 @@ async function resolveRequestPath(requestPath, session) {
     return resolveViewPath("public", pageName);
   }
 
+  if (pageName === "account-recovery.html") {
+    if (session?.session_mode !== "account_export_recovery") {
+      return { statusCode: 404, message: "Not found" };
+    }
+    return resolveViewPath("protected", pageName, { protectedHtml: true });
+  }
+
   if (!session?.workspace_id) {
     return {
       statusCode: 401,
@@ -149,7 +157,9 @@ async function decorateHtml(contents, resolved, session) {
 }
 
 async function readInitialTheme(session) {
-  const user = await usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id);
+  const user = session.session_mode === "account_export_recovery"
+    ? await usersRepository.readFirstByUserId(session.user_id)
+    : await usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id);
   const themeMode = normalizeThemeMode(user?.theme_mode);
   const themeAutoSource = normalizeThemeAutoSource(user?.theme_auto_source);
 

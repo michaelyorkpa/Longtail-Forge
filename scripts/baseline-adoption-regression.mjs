@@ -15,6 +15,7 @@ try {
   await initializeDatabase();
   await assertAdoptedBaseline();
   await assertExistingUserPreserved();
+  await assertLegacyProjectAdministratorConverted();
   await assertIntegrity();
 
   console.log("Baseline adoption regression passed.");
@@ -29,6 +30,11 @@ DROP TABLE IF EXISTS jobs;
 DROP TABLE IF EXISTS task_recurrence_checklist_items;
 DROP TABLE IF EXISTS task_recurrence_note_links;
 DROP TABLE IF EXISTS workspace_module_settings;
+DROP TABLE IF EXISTS workspace_purge_tombstones;
+DROP TABLE IF EXISTS workspace_deletion_lifecycle;
+DROP TABLE IF EXISTS workspace_backup_exports;
+DROP TABLE IF EXISTS account_export_recovery_qualifications;
+DROP TABLE IF EXISTS authentication_throttle_entries;
 
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_month INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_day INTEGER NOT NULL DEFAULT 1;
@@ -122,6 +128,81 @@ FROM workspaces
 ORDER BY created_at
 LIMIT 1;
 
+UPDATE roles
+SET description = 'Controls projects and project assignments for one client.',
+    assignable_scope_type = 'client'
+WHERE role_id = 'project_admin';
+
+INSERT INTO clients (
+  id, workspace_id, parent_client_id, name, status, billable,
+  billing_rate, billing_period_type, billing_period_start_day,
+  billing_rounding_enabled, billing_rounding_increment,
+  billing_contact_name, billing_contact_email,
+  billing_contact_alternate_name, billing_contact_alternate_email,
+  billing_contact_phone_number, billing_contact_alternate_phone_number,
+  billing_contact_street_address_1, billing_contact_street_address_2,
+  billing_contact_city, billing_contact_state, billing_contact_zip_code,
+  created_at, updated_at
+)
+SELECT
+  'baseline-legacy-client', workspace_id, NULL, 'Legacy Scope Client', 'Active', 'yes',
+  NULL, NULL, NULL, NULL, NULL,
+  '', '', '', '', '', '', '', '', '', '', '',
+  '2026-07-16T11:00:00.000Z', '2026-07-16T11:00:00.000Z'
+FROM workspaces
+ORDER BY created_at
+LIMIT 1;
+
+INSERT INTO projects (
+  id, workspace_id, client_id, parent_project_id, name, status, billable,
+  billing_rate, billing_period_type, billing_period_start_day,
+  billing_rounding_enabled, billing_rounding_increment, created_at, updated_at
+)
+SELECT
+  project_id, workspace_id, 'baseline-legacy-client', NULL, project_name, 'Active', 'yes',
+  NULL, NULL, NULL, NULL, NULL, created_at, created_at
+FROM (
+  SELECT 'baseline-legacy-project-a' AS project_id, 'Legacy Project A' AS project_name, '2026-07-16T11:01:00.000Z' AS created_at
+  UNION ALL
+  SELECT 'baseline-legacy-project-b', 'Legacy Project B', '2026-07-16T11:02:00.000Z'
+) AS fixtures
+CROSS JOIN (
+  SELECT workspace_id
+  FROM workspaces
+  ORDER BY created_at
+  LIMIT 1
+) AS target_workspace;
+
+INSERT INTO user_role_assignments (
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+)
+SELECT
+  'baseline-legacy-project-admin',
+  projects.workspace_id,
+  'baseline-adoption-user',
+  'project_admin',
+  'client',
+  projects.client_id,
+  projects.client_id,
+  NULL,
+  '{"restrictBilling":true}',
+  '2026-07-16T12:00:00.000Z',
+  '2026-07-16T13:00:00.000Z'
+FROM projects
+WHERE projects.client_id = 'baseline-legacy-client'
+ORDER BY projects.created_at, projects.id
+LIMIT 1;
+
 DELETE FROM schema_migrations;
 INSERT INTO schema_migrations (version, module_id, name, checksum, applied_at)
 VALUES
@@ -183,12 +264,48 @@ ORDER BY version;
       module_id: "core",
       name: "require_password_change",
     },
+    {
+      version: "073",
+      module_id: "core",
+      name: "user_landing_preferences",
+    },
+    {
+      version: "074",
+      module_id: "core",
+      name: "project_admin_project_scope",
+    },
+    {
+      version: "075",
+      module_id: "core",
+      name: "workspace_backup_exports",
+    },
+    {
+      version: "076",
+      module_id: "core",
+      name: "workspace_deletion_lifecycle",
+    },
+    {
+      version: "077",
+      module_id: "core",
+      name: "workspace_purge_boundary",
+    },
+    {
+      version: "078",
+      module_id: "core",
+      name: "account_export_recovery",
+    },
+    {
+      version: "079",
+      module_id: "core",
+      name: "authentication_throttle_entries",
+    },
   ]);
 }
 
 async function assertExistingUserPreserved() {
   const rows = await querySql(`
-SELECT username, display_name, user_status, password_change_required
+SELECT username, display_name, user_status, password_change_required,
+  preferred_login_landing, preferred_workspace_switch_landing
 FROM users
 WHERE user_id = 'baseline-adoption-user';
 `);
@@ -197,11 +314,53 @@ WHERE user_id = 'baseline-adoption-user';
     username: "baseline-adoption@example.test",
     display_name: "Baseline Adoption User",
     password_change_required: 0,
+    preferred_login_landing: "dashboard",
+    preferred_workspace_switch_landing: "dashboard",
     user_status: "active",
   });
+}
+
+async function assertLegacyProjectAdministratorConverted() {
+  const roleRows = await querySql(`
+SELECT assignable_scope_type
+FROM roles
+WHERE role_id = 'project_admin';
+`);
+  const assignments = await querySql(`
+SELECT
+  assignments.scope_type,
+  assignments.scope_id,
+  assignments.client_id,
+  assignments.project_id,
+  assignments.permission_overrides_json,
+  assignments.created_at,
+  assignments.updated_at,
+  projects.id AS matched_project_id
+FROM user_role_assignments AS assignments
+LEFT JOIN projects
+  ON projects.workspace_id = assignments.workspace_id
+  AND projects.id = assignments.scope_id
+WHERE assignments.user_id = 'baseline-adoption-user'
+  AND assignments.role_id = 'project_admin'
+ORDER BY assignments.scope_id;
+`);
+
+  assert.equal(roleRows[0]?.assignable_scope_type, "project");
+  assert.ok(assignments.length > 0, "legacy Project Administrator scope should expand to existing projects");
+  for (const assignment of assignments) {
+    assert.equal(assignment.scope_type, "project");
+    assert.equal(assignment.scope_id, assignment.project_id);
+    assert.equal(assignment.client_id, null);
+    assert.equal(assignment.matched_project_id, assignment.scope_id);
+    assert.equal(assignment.permission_overrides_json, '{"restrictBilling":true}');
+    assert.equal(assignment.created_at, "2026-07-16T12:00:00.000Z");
+    assert.equal(assignment.updated_at, "2026-07-16T13:00:00.000Z");
+  }
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0].integrity_check, "ok");
+  assert.deepEqual(await querySql("PRAGMA foreign_key_check;"), []);
+  assert.deepEqual(await querySql("PRAGMA foreign_keys;"), [{ foreign_keys: 1 }], "parent-table rebuild migrations must restore SQLite foreign-key enforcement");
 }

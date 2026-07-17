@@ -10,7 +10,8 @@ A releasable Longtail Forge revision is an exact protected `main` commit with pa
 4. Review current security, backup, deployment, and known-limitation prerequisites. A green scan is evidence, not a security guarantee.
 5. For the private preview, dispatch the manual workflow with `DEPLOY <full-main-SHA>`. A main merge never deploys automatically.
 6. Require successful backup inspection, installation, `/healthz`, `/readyz`, and `/api/app-info` verification. Match `version`, `commitSha`, and `artifactSha256` to the selected release metadata.
-7. Record the prior known-good release and its pre-deployment backup. Keep both until the new release completes its observation period.
+7. Complete the [Private Preview Readiness](private-preview-readiness.md) record before any invitation or post-release access expansion.
+8. Record the prior known-good release and its pre-deployment backup. Keep both until the new release completes its observation period.
 
 The `nightly` artifact is for the isolated demo/development environment only. It must not be relabeled as a friends-and-family release. The preview environment remains blocked while its deployment variables are disabled or its isolated secrets, host helper, URL, backup, and restore proof are incomplete.
 

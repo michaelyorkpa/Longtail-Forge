@@ -21,6 +21,8 @@ At each checkpoint, review duplicate coverage, implementation-detail assertions,
 | `scripts/suggest-regressions-for-changes.mjs` | Inspects tracked and untracked working-tree changes and prints likely focused commands plus the unchanged release gate. |
 | `scripts/lib/changed-regression-runner.mjs` | Converts the shared routing result into a focused, fallback, empty, or full-check execution plan and runs only controlled package commands. |
 | `scripts/run-changed-regressions.mjs` | Inspects the same working-tree changes as the suggester, prints selected areas and reasons, then executes the shared plan. |
+| `scripts/lib/slice-verification-plan.mjs` | De-duplicates closeout, the existing changed-regression plan, full-check escalation, and the separate permission harness into one immutable local closeout plan. |
+| `scripts/run-slice-verification.mjs` | Collects changed paths and builds changed-area routing once, then runs the canonical ordinary local slice verification and prints the exact executed-command summary. |
 | `scripts/lib/closeout-gates.mjs` | Defines hard versus warning-only maintenance gates, runs every gate, and formats the consolidated closeout status board. |
 | `scripts/run-closeout.mjs` | Runs the six standing maintenance gates through their existing package scripts and exits nonzero only when a hard gate fails. |
 | `scripts/test-support/isolated-regression-retry.mjs` | Applies the isolated-database bucket's one-retry policy while preserving fail-fast scheduling and logical script counts. |
@@ -49,6 +51,7 @@ Current package commands:
 | `npm run test:contracts` / `test:files` / `test:tasks` | Filtered Vitest passes for contract/schema, Files, and Tasks tests; they tolerate an empty match (`--passWithNoTests`) until 0.33.7.3+ land their tests. |
 | `npm run test:regressions` | Runs the full discovered regression registry without the lint stage. |
 | `npm run test:regressions:changed` | Runs changed-area routing in one step; focused module paths use narrow commands while framework/view, database, and release paths escalate to `npm run check`. |
+| `npm run verify:slice` | Canonical ordinary final local verification: runs closeout once, executes the changed-area/full-check plan once, and adds the separate permission harness once when selected. |
 | `npm run test:regressions:list` | Lists every discovered regression and its metadata without executing it. |
 | `npm run test:regressions:<area>` | Runs one supported focused area: `framework`, `views`, `dashboard`, `workbench`, `tasks`, `notes`, `files`, `database`, `permissions`, or `release`. |
 | `npm run test:permissions` | Runs `scripts/permission-regression.mjs` directly; the same script is also registered in the full suite. |
@@ -99,13 +102,13 @@ The suite continues to give every non-static bucket a per-script fixture through
 
 `npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `db:schema:check`, `audit:params:check`, `docs:check`, and `licensing:gates` in that order. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
 
-The conductor is a bookkeeping convenience, not a broader release gate. It does not run the discovered regression suite or ESLint, so `npm run check` remains required for full closeout verification. The auto-discovered conductor regression injects pass, hard-failure, and warning-only outcomes to prove aggregation and exit semantics without deliberately breaking repository state.
+The closeout conductor remains a bookkeeping command and does not itself run the discovered regression suite or ESLint. `npm run verify:slice` is the ordinary local final conductor around it: it runs closeout exactly once, stops before regressions on a hard closeout failure, executes the existing changed-regression plan exactly once, and adds `npm run test:permissions` exactly once when routing selected permissions. The underlying commands remain independently runnable. The auto-discovered closeout regression still injects pass, hard-failure, and warning-only outcomes without deliberately breaking repository state.
 
 ### Pre-TypeScript maintenance baseline
 
 Branch-closeout regressions assert roadmap bookkeeping through the shared cursor-floor helper (`scripts/lib/roadmap-cursor.mjs`): call `assertRoadmapCursorAtLeast("<cursor current when the branch closes>", message)` instead of writing exact `Active cursor` or next-section regex pins. Floors are monotonic, so closing a future branch requires no edits to prior closeout regressions; the `release.roadmap-cursor-floor` gate rejects new exact pins and proves floors survive future cursor advances against a fixture. Archived-section `doesNotMatch` assertions are already monotonic-safe and stay as they are.
 
-The 0.33.6.16.14 closeout establishes this workflow for 0.33.7 and later slices: run `npm run test:regressions:changed` for the current diff or a documented area command for focused work, run `npm run closeout` for the standing maintenance gates, and run the separate full `npm run check` gate for shared/release closeout. The changed-area command conservatively escalates shared framework, database, view, and release changes to that full gate.
+The 0.33.17.5 release-operations workflow supersedes the former multi-command local ceremony for ordinary short-lived branches: use the cheapest focused command needed while iterating, then run `npm run verify:slice` exactly once after the intended files are complete. Its unchanged changed-area planner conservatively escalates shared framework, database, view, and release changes to `npm run check`; focused module changes stay narrow, unknown non-empty paths retain the full-regression fallback, and empty diffs add no regression command. After success, do not separately rerun closeout, check, changed regressions, an included area, or the permission harness unless files change.
 
 The closeout verified all 312 legacy snapshot paths remain in the 321-script discovered registry, the generated manifest and ratchet protect 16 required release gates, static/source work runs before stateful buckets, and isolated-database recovery remains one visible serial retry. `npm start` remains `node server.js`. TypeScript, Zod, Vitest, Playwright, Puppeteer, jsdom, PHP, Python, and any second backend runtime remain outside this completed maintenance branch and begin only in their explicit future roadmap slices.
 
@@ -294,17 +297,18 @@ npm run test:regressions:workbench
 npm run test:regressions:database
 ```
 
-Run `npm run test:regressions:changed` for the one-step path: it inspects the current tracked and untracked working-tree changes, prints the selected areas and matching route reasons, and then executes the shared routing plan. A one-module change runs only its narrow area command. Any selected `framework`, `views`, `database`, or `release` area escalates to `npm run check`; this intentionally prefers too much coverage over too little for shared or release-sensitive changes. An unrecognized non-empty path falls back to `npm run test:regressions`. An empty change set prints `No changed files found. No regressions were run.`, exits successfully, and never claims a passing test run.
+Run `npm run test:regressions:changed` when direct execution of the routing plan is useful during iteration: it inspects the current tracked and untracked working-tree changes, prints the selected areas and matching route reasons, and then executes the shared routing plan. A one-module change runs only its narrow area command. Any selected `framework`, `views`, `database`, or `release` area escalates to `npm run check`; this intentionally prefers too much coverage over too little for shared or release-sensitive changes. An unrecognized non-empty path falls back to `npm run test:regressions`. An empty change set prints `No changed files found. No regressions were run.`, exits successfully, and never claims a passing test run.
 
 `node scripts/suggest-regressions-for-changes.mjs` remains the advice-only view of the same routing result. Both commands consume `scripts/lib/regression-change-routing.mjs`; route rules are not duplicated in the auto-runner. The helper routes module paths to their owning area, shared view-builder/renderer paths to both `framework` and `views`, database/migration/repository paths to `database`, permission/session/workspace/membership paths to `permissions`, and package/version/app-info/release paths to `release`. Rules are additive: a repository file with permission meaning selects both database and permissions checks.
 
 Operator guidance:
 
 - For a one-module change, run that module's narrow command first.
-- For the common current-diff workflow, run `npm run test:regressions:changed` and review its printed selection before execution.
-- For a shared framework or view change, run both framework/view commands plus every affected module command.
-- For a database change, run the database command plus affected module commands; add permissions when access or workspace boundaries are involved.
-- For release closeout, always run `npm run check`. Narrow commands are iteration aids and never replace the full release gate.
+- During implementation, run only the cheapest focused test needed to diagnose the current edit; use the advice-only suggester when routing visibility is enough.
+- Do not run `npm run check` on every shared edit by reflex; final `verify:slice` performs it when the existing planner escalates.
+- At ordinary final local closeout, run `npm run verify:slice` once. Do not separately run an equivalent included command unless files subsequently change.
+- Local Playwright is for diagnosing browser behavior. The protected pull request supplies independent clean-Linux browser, dependency-review, CodeQL, and PR verification.
+- Promotion, manual release, and explicit security/data-integrity instructions retain their named additional gates.
 
 ## Adding a Regression
 

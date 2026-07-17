@@ -28,6 +28,19 @@ ORDER BY role_id, permission_id;
 `);
 }
 
+async function hasSuperAdminAssignment(userId) {
+  const row = await db.get(`
+SELECT assignment_id
+FROM user_role_assignments
+WHERE user_id = :userId
+  AND role_id = 'super_admin'
+  AND scope_type = 'all'
+LIMIT 1;
+`, { userId });
+
+  return Boolean(row);
+}
+
 async function ensurePermissionContracts(permissions, roleDefaults) {
   await db.transaction(async (transaction) => {
     for (const permission of permissions) {
@@ -186,6 +199,7 @@ VALUES (
 
 export const permissionsRepository = {
   ensurePermissionContracts,
+  hasSuperAdminAssignment,
   readAssignmentsForWorkspace,
   readAssignmentsForUser,
   readOldestActiveUserForRoleScope,

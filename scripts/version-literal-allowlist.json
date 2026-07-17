@@ -9,7 +9,8 @@
     "ROADMAP.md",
     "ROADMAP-ARCHIVE.md",
     "CHANGELOG.md",
-    "TODO.md"
+    "TODO.md",
+    "src/db/migrations/077_workspace_purge_boundary.sql"
   ],
   "historicalLabelDirectories": [
     "docs/",

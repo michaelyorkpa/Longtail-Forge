@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { config } from "../config.js";
 import { internalEventBus } from "../core/events/event-bus.js";
+import { authenticationThrottleRepository } from "../repositories/authentication-throttle.repo.js";
 
 const AUTHENTICATION_THROTTLE_MESSAGE = "Too many attempts. Try again later.";
 const DEFAULT_TRACKED_KEY_LIMIT = 10000;
@@ -13,53 +15,42 @@ function createAuthenticationThrottle(options = {}) {
     windowSeconds: positiveInteger(options.windowSeconds, 15 * 60),
   };
   const clock = typeof options.clock === "function" ? options.clock : Date.now;
-  const entries = new Map();
+  const store = options.store || authenticationThrottleRepository;
 
-  function check(context = {}) {
+  async function check(context = {}) {
     if (!settings.enabled) {
       return allowedResult();
     }
 
-    const now = clock();
-    const states = contextKeys(context).map(({ dimension, key }) => ({
-      dimension,
-      entry: readActiveEntry(key, now),
-    }));
-    const blockedStates = states.filter(({ entry }) => entry?.lockedUntil > now);
+    const now = normalizeNow(clock());
+    const keys = contextKeys(context);
+    const entries = await store.readEntries(keys, now);
+    const blockedStates = entries.filter((entry) => Number(entry.locked_until) > now);
 
     return {
       blocked: blockedStates.length > 0,
       newlyLockedDimensions: [],
       retryAfterSeconds: blockedStates.length
-        ? Math.max(...blockedStates.map(({ entry }) => Math.ceil((entry.lockedUntil - now) / 1000)))
+        ? Math.max(...blockedStates.map((entry) => Math.ceil((Number(entry.locked_until) - now) / 1000)))
         : 0,
     };
   }
 
-  function recordFailure(context = {}) {
+  async function recordFailure(context = {}) {
     if (!settings.enabled) {
       return allowedResult();
     }
 
-    const now = clock();
-    const newlyLockedDimensions = [];
-    const states = contextKeys(context).map(({ dimension, key }) => {
-      const entry = readActiveEntry(key, now) || {
-        failureTimes: [],
-        lockedUntil: 0,
-        touchedAt: now,
-      };
-      entry.failureTimes.push(now);
-      entry.touchedAt = now;
-
-      if (entry.lockedUntil <= now && entry.failureTimes.length >= settings.failureLimit) {
-        entry.lockedUntil = now + settings.lockoutSeconds * 1000;
-        newlyLockedDimensions.push(dimension);
-      }
-
-      setEntry(key, entry);
-      return entry;
+    const now = normalizeNow(clock());
+    const states = await store.recordFailures({
+      failureLimit: settings.failureLimit,
+      keys: contextKeys(context),
+      lockoutMilliseconds: settings.lockoutSeconds * 1000,
+      now,
+      trackedKeyLimit: settings.trackedKeyLimit,
+      windowMilliseconds: settings.windowSeconds * 1000,
     });
+    const newlyLockedDimensions = states.filter((entry) => entry.newlyLocked).map((entry) => entry.dimension);
     const blockedStates = states.filter((entry) => entry.lockedUntil > now);
 
     return {
@@ -71,45 +62,12 @@ function createAuthenticationThrottle(options = {}) {
     };
   }
 
-  function reset(context = {}) {
-    for (const { key } of contextKeys(context)) {
-      entries.delete(key);
-    }
+  async function reset(context = {}) {
+    await store.removeEntries(contextKeys(context));
   }
 
-  function clear() {
-    entries.clear();
-  }
-
-  function readActiveEntry(key, now) {
-    const entry = entries.get(key);
-
-    if (!entry) {
-      return null;
-    }
-
-    entry.failureTimes = entry.failureTimes.filter(
-      (failureTime) => now - failureTime < settings.windowSeconds * 1000,
-    );
-
-    if (entry.lockedUntil <= now && entry.failureTimes.length === 0) {
-      entries.delete(key);
-      return null;
-    }
-
-    entry.touchedAt = now;
-    setEntry(key, entry);
-    return entry;
-  }
-
-  function setEntry(key, entry) {
-    entries.delete(key);
-
-    while (entries.size >= settings.trackedKeyLimit) {
-      entries.delete(entries.keys().next().value);
-    }
-
-    entries.set(key, entry);
+  async function clear() {
+    await store.clear();
   }
 
   return Object.freeze({
@@ -143,9 +101,17 @@ async function emitAuthenticationThrottleLockout(context = {}, result = {}) {
 function contextKeys(context) {
   const scope = normalizeScope(context.scope);
   return [
-    { dimension: "ip", key: `${scope}:ip:${normalizeIpAddress(context.ipAddress)}` },
-    { dimension: "account", key: `${scope}:account:${normalizeUsername(context.username)}` },
+    createKey(scope, "ip", normalizeIpAddress(context.ipAddress)),
+    createKey(scope, "account", normalizeUsername(context.username)),
   ];
+}
+
+function createKey(scope, dimension, value) {
+  return {
+    dimension,
+    keyHash: createHash("sha256").update(`v1\0install\0${scope}\0${dimension}\0${value}`).digest("hex"),
+    scope,
+  };
 }
 
 function allowedResult() {
@@ -175,6 +141,11 @@ function normalizeText(value) {
 function positiveInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeNow(value) {
+  const now = Number(value);
+  return Number.isFinite(now) && now >= 0 ? Math.floor(now) : Date.now();
 }
 
 const authenticationThrottle = createAuthenticationThrottle(config.security.authenticationThrottle);

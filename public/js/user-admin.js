@@ -1,6 +1,13 @@
 const userAdminForm = document.querySelector("[data-user-admin-form]");
+const newUserWorkspaceSelect = document.querySelector("[data-new-user-workspace]");
 const newUserUsernameInput = document.querySelector("[data-new-user-username]");
+const findUserAccountButton = document.querySelector("[data-find-user-account]");
+const newUserAccountStatus = document.querySelector("[data-new-user-account-status]");
 const newUserRoleSelect = document.querySelector("[data-new-user-role]");
+const newUserClientScopeField = document.querySelector("[data-new-user-client-scope-field]");
+const newUserClientScopeSelect = document.querySelector("[data-new-user-client-scope]");
+const newUserProjectScopeField = document.querySelector("[data-new-user-project-scope-field]");
+const newUserProjectScopeSelect = document.querySelector("[data-new-user-project-scope]");
 const createUserButton = document.querySelector("[data-create-user]");
 const generatedPasswordPanel = document.querySelector("[data-generated-password-panel]");
 const generatedPasswordInput = document.querySelector("[data-generated-password]");
@@ -38,11 +45,15 @@ let clients = [];
 let workspaces = [];
 let permissionResources = [];
 let activeWorkspaceType = "business";
+let addUserRoles = [];
+let addUserCanCreate = false;
+let accountLookup = null;
 let pendingRoleAssignments = [];
 let draftPermissionOverrides = createDefaultPermissionOverrides();
 let editingPermissionTarget = null;
 let openedUserFromQuery = false;
 let managedUserSessions = [];
+let currentUserId = "";
 
 loadUsers();
 
@@ -50,6 +61,18 @@ userAdminForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await createUser();
 });
+
+findUserAccountButton?.addEventListener("click", async () => {
+  await findUserAccount();
+});
+
+newUserWorkspaceSelect?.addEventListener("change", async () => {
+  resetAccountLookup();
+  await loadAddUserOptions(newUserWorkspaceSelect.value);
+});
+
+newUserUsernameInput?.addEventListener("input", resetAccountLookup);
+newUserRoleSelect?.addEventListener("change", renderNewUserScopeOptions);
 
 copyGeneratedPasswordButton.addEventListener("click", async () => {
   await copyGeneratedPassword();
@@ -112,23 +135,25 @@ async function loadUsers() {
   setUserAdminStatus("Loading users...");
 
   try {
-    const [usersBody, rolesBody, clientProjectBody, workspacesBody, settingsBody, permissionResourcesBody] = await Promise.all([
+    const [usersBody, rolesBody, clientProjectBody, workspacesBody, settingsBody, permissionResourcesBody, addUserOptionsBody] = await Promise.all([
       window.LongtailForge.api.getJson("/api/users", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/roles", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/workspaces", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/users/permission-resources", { cache: "no-store" }),
+      window.LongtailForge.api.getJson("/api/users/add-options", { cache: "no-store" }),
     ]);
 
     roles = rolesBody.roles || [];
     clients = clientProjectBody.clients || [];
     workspaces = workspacesBody.workspaces || [];
     permissionResources = normalizePermissionResources(permissionResourcesBody.resources);
+    currentUserId = String(usersBody.currentUserId || "");
     draftPermissionOverrides = normalizePermissionOverrides(draftPermissionOverrides);
     activeWorkspaceType = normalizeWorkspaceType(settingsBody.workspaceType);
-    applyUserCreationAvailability();
     renderRoleOptions();
+    applyAddUserOptions(addUserOptionsBody);
     renderUsers(usersBody.users || []);
     openUserFromQuery();
     setUserAdminStatus("");
@@ -143,70 +168,210 @@ async function loadUsers() {
 }
 
 async function createUser() {
-  if (activeWorkspaceType === "personal") {
+  if (!addUserCanCreate) {
     setUserAdminStatus("Personal workspaces can only have the creator as a user.", true);
     return;
   }
 
   const username = newUserUsernameInput.value.trim().toLowerCase();
+  const workspaceId = newUserWorkspaceSelect?.value || "";
 
   if (!isValidEmail(username)) {
     setUserAdminStatus("Enter a valid email address.", true);
     return;
   }
 
+  if (!workspaceId) {
+    setUserAdminStatus("Choose a workspace.", true);
+    return;
+  }
+
+  if (!accountLookup || accountLookup.username !== username || accountLookup.workspaceId !== workspaceId) {
+    const found = await findUserAccount();
+
+    if (!found) {
+      return;
+    }
+  }
+
+  if (accountLookup?.match?.alreadyActive) {
+    setUserAdminStatus("That account already belongs to the selected workspace.", true);
+    return;
+  }
+
   const initialRoleId = newUserRoleSelect?.value || "";
-  const assignments = initialRoleId
-    ? [{
-        role_id: initialRoleId,
-        scope_type: initialRoleId === "super_admin" ? "all" : "workspace",
-        scope_id: initialRoleId === "super_admin" ? "all" : "workspace",
-        permission_overrides: createDefaultPermissionOverrides(),
-      }]
-    : [];
+  const role = addUserRoles.find((item) => item.role_id === initialRoleId);
+  const scopeType = role?.assignment_scope_type || "";
+  const scopeId = scopeType === "client"
+    ? newUserClientScopeSelect.value
+    : scopeType === "project"
+      ? newUserProjectScopeSelect.value
+      : role?.scopes?.[0]?.scopeId || "";
+  const assignments = role ? [{
+    role_id: role.role_id,
+    scope_type: scopeType,
+    scope_id: scopeId,
+    permission_overrides: createDefaultPermissionOverrides(),
+  }] : [];
+
+  if (role && !scopeId) {
+    setUserAdminStatus(`Choose a ${scopeType} scope.`, true);
+    return;
+  }
 
   createUserButton.disabled = true;
-  setUserAdminStatus("Creating user...");
+  setUserAdminStatus(accountLookup?.match ? "Adding existing account..." : "Creating account...");
 
   try {
-    const response = await fetch("/api/users", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, assignments }),
+    const body = await window.LongtailForge.api.postJson("/api/users", {
+      assignments,
+      username,
+      workspaceId,
     });
-    const body = await response.json().catch(() => ({}));
 
-    if (response.status === 401) {
+    userAdminForm.reset();
+    if (body.accountCreated) {
+      showGeneratedPassword(body.initialPassword || "");
+    } else {
+      showGeneratedPassword("");
+    }
+    resetAccountLookup();
+    await loadAddUserOptions(workspaceId);
+    renderUsers(body.users || []);
+    setUserAdminStatus(body.accountCreated
+      ? `Created ${body.user?.username || username} and added the account to the selected workspace.`
+      : `Added existing account ${body.user?.username || username} to the selected workspace.`);
+  } catch (error) {
+    if (error.status === 401) {
       window.location.replace("/login.html");
       return;
     }
 
-    if (!response.ok) {
-      throw new Error(body.error || "User was not created.");
-    }
-
-    userAdminForm.reset();
-    showGeneratedPassword(body.initialPassword || "");
-    renderUsers(body.users || []);
-    setUserAdminStatus(`Created ${body.user?.username || username}.`);
-  } catch (error) {
-    setUserAdminStatus(error.message || "User was not created.", true);
+    setUserAdminStatus(error.message || "User was not added.", true);
   } finally {
-    createUserButton.disabled = false;
+    applyUserCreationAvailability();
   }
 }
 
 function applyUserCreationAvailability() {
-  const canCreateUsers = activeWorkspaceType !== "personal";
+  const canCreateUsers = addUserCanCreate;
 
   createUserButton.disabled = !canCreateUsers;
+  findUserAccountButton.disabled = !canCreateUsers;
+  newUserWorkspaceSelect.disabled = newUserWorkspaceSelect.options.length < 2;
   newUserUsernameInput.disabled = !canCreateUsers;
   newUserRoleSelect.disabled = !canCreateUsers;
+  newUserClientScopeSelect.disabled = !canCreateUsers || newUserClientScopeField.hidden;
+  newUserProjectScopeSelect.disabled = !canCreateUsers || newUserProjectScopeField.hidden;
 
   if (!canCreateUsers) {
     newUserUsernameInput.value = "";
+  }
+}
+
+async function loadAddUserOptions(workspaceId = "") {
+  const query = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
+
+  try {
+    const body = await window.LongtailForge.api.getJson(`/api/users/add-options${query}`, { cache: "no-store" });
+    applyAddUserOptions(body);
+  } catch (error) {
+    addUserCanCreate = false;
+    applyUserCreationAvailability();
+    setUserAdminStatus(error.message || "Add User options could not be loaded.", true);
+  }
+}
+
+function applyAddUserOptions(options = {}) {
+  const selectedWorkspaceId = String(options.selectedWorkspaceId || "");
+  const availableWorkspaces = Array.isArray(options.workspaces) ? options.workspaces : [];
+  const previousWorkspaceId = newUserWorkspaceSelect.value;
+
+  newUserWorkspaceSelect.replaceChildren(...availableWorkspaces.map((workspace) => {
+    const option = document.createElement("option");
+    option.value = workspace.workspaceId;
+    option.textContent = formatWorkspaceMembershipName(workspace);
+    return option;
+  }));
+  newUserWorkspaceSelect.value = selectedWorkspaceId || previousWorkspaceId;
+  addUserRoles = Array.isArray(options.roles) ? options.roles : [];
+  addUserCanCreate = options.canAddUsers === true;
+  renderNewUserRoleOptions();
+  applyUserCreationAvailability();
+}
+
+function renderNewUserRoleOptions() {
+  newUserRoleSelect.replaceChildren(createRoleOption("", "No initial role"));
+
+  addUserRoles.forEach((role) => {
+    newUserRoleSelect.appendChild(createRoleOption(role.role_id, role.role_name));
+  });
+
+  renderNewUserScopeOptions();
+}
+
+function renderNewUserScopeOptions() {
+  const role = addUserRoles.find((item) => item.role_id === newUserRoleSelect.value);
+  const scopeType = role?.assignment_scope_type || "";
+  const scopes = Array.isArray(role?.scopes) ? role.scopes : [];
+
+  newUserClientScopeField.hidden = scopeType !== "client";
+  newUserProjectScopeField.hidden = scopeType !== "project";
+  newUserClientScopeSelect.replaceChildren();
+  newUserProjectScopeSelect.replaceChildren();
+
+  if (scopeType === "client") {
+    newUserClientScopeSelect.replaceChildren(...scopes.map(createAddUserScopeOption));
+  }
+
+  if (scopeType === "project") {
+    newUserProjectScopeSelect.replaceChildren(...scopes.map(createAddUserScopeOption));
+  }
+
+  applyUserCreationAvailability();
+}
+
+function createAddUserScopeOption(scope) {
+  const option = document.createElement("option");
+  option.value = scope.scopeId;
+  option.textContent = scope.label;
+  return option;
+}
+
+async function findUserAccount() {
+  const username = newUserUsernameInput.value.trim().toLowerCase();
+  const workspaceId = newUserWorkspaceSelect.value;
+
+  if (!isValidEmail(username)) {
+    setUserAdminStatus("Enter a valid email address.", true);
+    return false;
+  }
+
+  findUserAccountButton.disabled = true;
+  newUserAccountStatus.textContent = "Searching for an exact account match...";
+
+  try {
+    const body = await window.LongtailForge.api.postJson("/api/users/lookup", { username, workspaceId });
+    accountLookup = { match: body.match || null, username, workspaceId };
+    newUserAccountStatus.textContent = body.match
+      ? body.match.alreadyActive
+        ? `${body.match.displayName || body.match.username} already belongs to this workspace.`
+        : `Existing account found: ${body.match.displayName || body.match.username}.`
+      : "No existing account found. A new account and generated password will be created.";
+    return true;
+  } catch (error) {
+    resetAccountLookup();
+    setUserAdminStatus(error.message || "Account lookup failed.", true);
+    return false;
+  } finally {
+    applyUserCreationAvailability();
+  }
+}
+
+function resetAccountLookup() {
+  accountLookup = null;
+  if (newUserAccountStatus) {
+    newUserAccountStatus.textContent = "";
   }
 }
 
@@ -268,6 +433,7 @@ function createActionsCell(user) {
   const cell = document.createElement("td");
   const actions = document.createElement("div");
   const isProtected = Boolean(user.protectedUser);
+  const isCurrentUser = user.user_id === currentUserId;
 
   actions.className = "table-actions";
   actions.append(
@@ -282,7 +448,7 @@ function createActionsCell(user) {
     createUserActionButton(
       "Delete User",
       () => deleteUser(user),
-      isProtected,
+      isProtected || isCurrentUser,
       "danger-button",
     ),
   );
@@ -536,13 +702,7 @@ function renderRoleOptions() {
   });
 
   if (newUserRoleSelect) {
-    newUserRoleSelect.replaceChildren(createRoleOption("", "No initial role"));
-
-    roles
-      .filter((role) => ["workspace", "global"].includes(role.assignable_scope_type))
-      .forEach((role) => {
-        newUserRoleSelect.appendChild(createRoleOption(role.role_id, role.role_name));
-      });
+    renderNewUserRoleOptions();
   }
 
   renderScopeOptions();
@@ -990,7 +1150,7 @@ async function toggleUserStatus(user) {
 async function deleteUser(user) {
   const shouldDelete = await window.LongtailForge.modal.confirm({
     title: "Delete user?",
-    message: `Delete ${user.username}? This keeps existing time entry history but removes the user account. This cannot be undone.`,
+    message: `Delete ${user.username} from this workspace? This removes the user's current-workspace access. If no other workspace access remains, the account credentials are retired. The email address, display name, contributions, and attribution remain in workspace history.`,
     confirmLabel: "Delete",
     cancelLabel: "Cancel",
     danger: true,

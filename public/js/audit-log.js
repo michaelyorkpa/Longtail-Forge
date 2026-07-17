@@ -176,6 +176,7 @@ function renderAuditLogs() {
 function createAuditRow(log) {
   const row = document.createElement("tr");
   const metadata = parseJson(log.metadata_json);
+  const context = getAuditContext(log, metadata);
   const userCell = document.createElement("td");
   const userButton = document.createElement("button");
   const detailsButton = document.createElement("button");
@@ -201,8 +202,8 @@ function createAuditRow(log) {
   row.append(
     createCell(formatDateTime(log.created_at)),
     userCell,
-    createCell(createFilterButton(getClientLabel(log, metadata), getClientId(log, metadata), clientFilterSelect)),
-    createCell(createFilterButton(getProjectLabel(log, metadata), getProjectId(log, metadata), projectFilterSelect)),
+    createCell(createFilterButton(getClientLabel(log, context), getClientId(log, context), clientFilterSelect)),
+    createCell(createFilterButton(getProjectLabel(log, context), getProjectId(log, context), projectFilterSelect)),
     createCell(createFilterButton(formatEnum(log.record_type), log.record_type, recordTypeFilterSelect)),
     createCell(formatEnum(log.change_type)),
     createCell(detailsButton),
@@ -504,9 +505,21 @@ function normalizeAuditLog(log) {
   };
 }
 
-function getClientLabel(log, metadata) {
-  if (metadata?.client_name) {
-    return metadata.client_name;
+function getAuditContext(log, metadata) {
+  const newValue = parseJson(log.new_value_json);
+  const previousValue = parseJson(log.previous_value_json);
+
+  return {
+    client_id: metadata?.client_id || newValue?.client_id || previousValue?.client_id || "",
+    client_name: metadata?.client_name || newValue?.client_name || previousValue?.client_name || "",
+    project_id: metadata?.project_id || newValue?.project_id || previousValue?.project_id || "",
+    project_name: metadata?.project_name || newValue?.project_name || previousValue?.project_name || "",
+  };
+}
+
+function getClientLabel(log, context) {
+  if (context?.client_name) {
+    return context.client_name;
   }
 
   if (log.record_type === "client") {
@@ -516,17 +529,17 @@ function getClientLabel(log, metadata) {
   return "None";
 }
 
-function getClientId(log, metadata) {
-  if (metadata?.client_id) {
-    return String(metadata.client_id);
+function getClientId(log, context) {
+  if (context?.client_id) {
+    return String(context.client_id);
   }
 
   return log.record_type === "client" ? log.record_id : "";
 }
 
-function getProjectLabel(log, metadata) {
-  if (metadata?.project_name) {
-    return metadata.project_name;
+function getProjectLabel(log, context) {
+  if (context?.project_name) {
+    return context.project_name;
   }
 
   if (log.record_type === "project") {
@@ -536,9 +549,9 @@ function getProjectLabel(log, metadata) {
   return "None";
 }
 
-function getProjectId(log, metadata) {
-  if (metadata?.project_id) {
-    return String(metadata.project_id);
+function getProjectId(log, context) {
+  if (context?.project_id) {
+    return String(context.project_id);
   }
 
   return log.record_type === "project" ? log.record_id : "";

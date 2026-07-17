@@ -93,4 +93,5 @@ export {
   createChangedRegressionPlan,
   executeChangedRegressionPlan,
   formatChangedRegressionPlan,
+  runNpmCommand,
 };

@@ -19,6 +19,17 @@ usersRoutes.get("/users/permission-resources", asyncRoute(async (request, respon
   response.status(200).json(result);
 }));
 
+usersRoutes.get("/users/add-options", asyncRoute(async (request, response) => {
+  const result = await usersService.readAddUserOptions(request.session, request.query.workspaceId);
+  response.status(200).json(result);
+}));
+
+usersRoutes.post("/users/lookup", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await usersService.lookupAddUserAccount(payload, request.session);
+  response.status(200).json(result);
+}));
+
 usersRoutes.get("/workspaces", asyncRoute(async (request, response) => {
   const result = await usersService.listWorkspaces(request.session);
   response.status(200).json(result);
@@ -31,14 +42,24 @@ usersRoutes.post("/workspaces", asyncRoute(async (request, response) => {
 }));
 
 usersRoutes.delete("/user/workspaces/:workspaceId", asyncRoute(async (request, response) => {
-  const result = await usersService.removeOwnWorkspaceMembership(request.session, request.params.workspaceId);
+  const result = await usersService.removeOwnWorkspaceMembership(request.session, request.params.workspaceId, {
+    currentSessionId: getSessionIdFromRequest(request),
+  });
+  response.status(200).json(result);
+}));
+
+usersRoutes.delete("/user/account", asyncRoute(async (request, response) => {
+  const result = await usersService.retireOwnAccount(request.session, {
+    currentSessionId: getSessionIdFromRequest(request),
+    ipAddress: getRequestContext(request).ipAddress,
+  });
   response.status(200).json(result);
 }));
 
 usersRoutes.post("/users", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await usersService.create(payload, request.session);
-  response.status(201).json(result);
+  response.status(result.accountCreated ? 201 : 200).json(result);
 }));
 
 usersRoutes.get("/users/:userId/sessions", asyncRoute(async (request, response) => {
@@ -86,7 +107,10 @@ usersRoutes.put("/users/:userId/:action", asyncRoute(async (request, response) =
 }));
 
 usersRoutes.delete("/users/:userId", asyncRoute(async (request, response) => {
-  const result = await usersService.delete(request.session, request.params.userId);
+  const result = await usersService.delete(request.session, request.params.userId, {
+    currentSessionId: getSessionIdFromRequest(request),
+    ipAddress: getRequestContext(request).ipAddress,
+  });
   response.status(200).json(result);
 }));
 

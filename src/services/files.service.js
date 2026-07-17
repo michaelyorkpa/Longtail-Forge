@@ -2634,6 +2634,31 @@ async function deleteRejectedUploadStorage(storageProvider, storage, reason) {
   }
 }
 
+async function purgeWorkspaceStorageObjects(workspaceId, database = db) {
+  const files = await database.query(`
+SELECT storage_provider, storage_key, file_size_bytes
+FROM files
+WHERE workspace_id = :workspaceId
+  AND storage_kind = 'internal'
+ORDER BY file_id;
+`, { workspaceId });
+  let deletedBytes = 0;
+  let deletedCount = 0;
+
+  for (const file of files) {
+    const adapter = getFileStorageAdapter(file.storage_provider);
+    try {
+      await adapter.delete(file.storage_key);
+    } catch (error) {
+      if (!isStorageObjectNotFoundError(error)) throw error;
+    }
+    deletedCount += 1;
+    deletedBytes += Number(file.file_size_bytes) || 0;
+  }
+
+  return { deletedBytes, deletedCount };
+}
+
 function safeLogErrorMessage(error) {
   return String(error?.message || error || "storage cleanup failed")
     .trim()
@@ -4412,6 +4437,7 @@ export const filesService = {
   listFileStatuses,
   listScanStatuses,
   queueFileScanJob,
+  purgeWorkspaceStorageObjects,
   quarantineFile,
   readAttachmentPreviewContent,
   readAttachmentPreviewDescriptor,

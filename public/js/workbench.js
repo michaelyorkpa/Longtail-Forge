@@ -1341,12 +1341,15 @@ function renderTaskFocusSurface() {
   }
 
   taskFocusActionMount.appendChild(createTaskFocusActionStrip(active));
-  taskFocusBody.append(
+  const sections = [
     createTaskFocusSummary(active),
     createTaskDetailsSection(active),
     createTaskFocusChecklistSection(active),
-    createTaskFocusTimerSection(active),
-  );
+  ];
+  if (taskTimerSurfaceAvailable()) {
+    sections.push(createTaskFocusTimerSection(active));
+  }
+  taskFocusBody.append(...sections);
 }
 
 function createTaskFocusActionStrip(active) {
@@ -3201,7 +3204,9 @@ function activeOrPausedTimers(timers = []) {
 }
 
 function visibleTimerPanelTimers() {
-  const timers = activeOrPausedTimers(state.timers);
+  const timers = activeOrPausedTimers(state.timers).filter((timer) => (
+    taskTimerSurfaceAvailable() || !isTaskTimer(timer)
+  ));
 
   if (!isTaskFocusView()) {
     return timers;
@@ -3209,6 +3214,20 @@ function visibleTimerPanelTimers() {
 
   const focusedTaskId = currentTaskFocusId();
   return timers.filter((timer) => !taskTimerMatches(timer, focusedTaskId));
+}
+
+function isTaskTimer(timer) {
+  return Boolean(
+    timer?.source_type === "task" || timer?.source_module_id === "tasks" || timer?.active_task_timer_id,
+  );
+}
+
+function taskTimerSurfaceAvailable() {
+  const options = state.taskOptions || {};
+  return moduleEnabled("tasks") &&
+    moduleEnabled("time-tracking") &&
+    options.timeTrackingEnabled !== false &&
+    options.taskTimersEnabled !== false;
 }
 
 function currentTaskFocusId() {

@@ -1347,14 +1347,12 @@ async function resolveProjectAdminDefaultAssignee(session, projectId) {
     return "";
   }
 
-  const projectAdmin = project.client_id
-    ? await permissionsRepository.readOldestActiveUserForRoleScope(
-        session.workspace_id,
-        "project_admin",
-        "client",
-        project.client_id,
-      )
-    : null;
+  const projectAdmin = await permissionsRepository.readOldestActiveUserForRoleScope(
+    session.workspace_id,
+    "project_admin",
+    "project",
+    project.id,
+  );
 
   if (projectAdmin?.user_id) {
     return projectAdmin.user_id;

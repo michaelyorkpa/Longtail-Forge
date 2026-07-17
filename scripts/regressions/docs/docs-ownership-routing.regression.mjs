@@ -79,7 +79,12 @@ assert.deepEqual(workbench.docs, ["docs/ui-layout-guide.md", "docs/workflow-cont
 
 const settings = suggestDocsForPaths(["src/services/settings.service.js"], { index: rawIndex });
 assert.deepEqual(settings.matchedAreas.map((area) => area.id), ["settings"]);
-assert.deepEqual(settings.docs, ["docs/settings-control-matrix.md", "docs/settings-ownership.md"]);
+assert.deepEqual(settings.docs, [
+  "docs/settings-control-matrix.md",
+  "docs/settings-ownership.md",
+  "docs/workspace-backup.md",
+  "docs/workspace-deletion.md",
+]);
 
 const developmentData = suggestDocsForPaths(["scripts/development-data.mjs"], { index: rawIndex });
 assert.deepEqual(developmentData.matchedAreas.map((area) => area.id), ["development-demo-data"]);
@@ -92,6 +97,7 @@ const runtimeSecurity = suggestDocsForPaths([
   "public/js/theme-init.js",
   "src/core/csrf-protection.js",
   "src/core/request-context.js",
+  "src/repositories/authentication-throttle.repo.js",
   "src/security/auth-throttle.js",
 ], { index: rawIndex });
 assert.deepEqual(runtimeSecurity.matchedAreas.map((area) => area.id), ["runtime-security"]);

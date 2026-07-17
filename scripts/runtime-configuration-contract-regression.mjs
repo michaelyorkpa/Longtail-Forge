@@ -18,6 +18,7 @@ const sessionsSource = readText("src/security/sessions.js");
 const cookiesSource = readText("src/security/cookies.js");
 const transportSecuritySource = readText("src/core/transport-security.js");
 const authenticationThrottleSource = readText("src/security/auth-throttle.js");
+const authenticationThrottleRepositorySource = readText("src/repositories/authentication-throttle.repo.js");
 const usersService = readText("src/services/users.service.js");
 const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
@@ -68,6 +69,9 @@ for (const key of [
   "PORT=8001",
   "TRUST_PROXY=false",
   "LONGTAIL_DATA_DIR=./data",
+  "LONGTAIL_RELEASE_BRANCH=",
+  "LONGTAIL_RELEASE_COMMIT=",
+  "LONGTAIL_RELEASE_ARTIFACT_SHA256=",
   "LONGTAIL_DATABASE_PROVIDER=sqlite",
   "LONGTAIL_DATABASE_FILE=./data/longtail-forge.db",
   "LONGTAIL_SQLITE_FOREIGN_KEYS=on",
@@ -132,9 +136,11 @@ assert.match(runtimeDocs, /Startup fails clearly when active settings are invali
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 assert.match(configSource, /function createConfig\(env = process\.env\)/, "config should expose a testable runtime config builder");
-assert.match(configSource, /import \{ appVersion \} from "\.\/core\/version\.js";/, "runtime config should consume the canonical version helper");
-assert.match(appInfoRoutesSource, /import \{ appVersion \} from "\.\.\/core\/version\.js";/, "app-info should consume the canonical version helper directly");
-assert.match(appInfoRoutesSource, /version: appVersion/, "app-info should report the canonical version helper value");
+assert.match(configSource, /import \{ appVersion, normalizeReleaseBranch, qualifyAppVersion \} from "\.\/core\/version\.js";/, "runtime config should consume canonical and branch-qualified version helpers");
+assert.match(configSource, /LONGTAIL_RELEASE_BRANCH/, "runtime config should read the explicit source branch");
+assert.match(appInfoRoutesSource, /version: config\.appDisplayVersion/, "app-info should report the qualified display version");
+assert.match(appInfoRoutesSource, /canonicalVersion: config\.appVersion/, "app-info should retain the canonical package version");
+assert.match(appInfoRoutesSource, /sourceBranch: config\.release\.sourceBranch/, "app-info should report the explicit source branch");
 assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/, "config should validate the database provider");
 assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
 assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
@@ -157,7 +163,9 @@ assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS/, "config shou
 assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT/, "config should expose the authentication failure threshold");
 assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS/, "config should expose the authentication lockout duration");
 assert.match(authenticationThrottleSource, /security\.authentication_throttle\.lockout/, "the throttle should emit a stable security event");
-assert.match(authenticationThrottleSource, /scope}:ip:[\s\S]*scope}:account:/, "the throttle should own both trusted-IP and account dimensions");
+assert.match(authenticationThrottleSource, /createKey\(scope, "ip"[\s\S]*createKey\(scope, "account"/, "the throttle should own both trusted-IP and account dimensions");
+assert.match(authenticationThrottleSource, /createHash\("sha256"\)[\s\S]*v1\\0install/, "the throttle should hash normalized install-scoped bucket keys before persistence");
+assert.match(authenticationThrottleRepositorySource, /database\.transaction[\s\S]*recordFailures[\s\S]*authentication_throttle_entries/, "the throttle repository should serialize durable counter updates through the database transaction boundary");
 assert.match(usersService, /config\.envOverrides\.workspaceInstallMode/, "workspace creation should preserve env override precedence through config");
 assert.match(usersService, /config\.envOverrides\.workspaceTypeLimit/, "workspace type limit should preserve env override precedence through config");
 assert.match(secureCrypto, /readRuntimeSecret\("LONGTAIL_SECURE_NOTES_MASTER_KEY"\)/, "secure notes should read the preferred runtime secret name through config helpers");

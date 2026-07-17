@@ -1,6 +1,7 @@
 import { usersRepository } from "../repositories/users.repo.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
+import { accountExportRecoveryRepository } from "../repositories/account-export-recovery.repo.js";
 import { createSession, deleteSession } from "../security/sessions.js";
 import {
   CURRENT_PASSWORD_HASH_POLICY,
@@ -18,6 +19,8 @@ import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { settingsService } from "./settings.service.js";
 import { sessionsService } from "./sessions.service.js";
+import { userLandingService } from "./user-landing.service.js";
+import { accountExportRecoveryService } from "./account-export-recovery.service.js";
 import {
   emitPasswordChangedSecurityEvent,
   emitPasswordRehashedSecurityEvent,
@@ -34,8 +37,9 @@ import {
   normalizeUsername,
 } from "../utils/normalizers.js";
 
-const INVALID_LOGIN_MESSAGE = "Invalid email address or password.";
+const INVALID_LOGIN_MESSAGE = "These credentials do not have access to this installation.";
 async function login(payload, context = {}) {
+  const rememberMe = readRememberMe(payload);
   const username = normalizeUsername(payload.username);
   const password = String(payload.password || "");
 
@@ -51,7 +55,7 @@ async function login(payload, context = {}) {
     scope: "login",
     username,
   };
-  const throttleStatus = authenticationThrottle.check(throttleContext);
+  const throttleStatus = await authenticationThrottle.check(throttleContext);
 
   if (throttleStatus.blocked) {
     await recordLoginSecurityEvent({
@@ -65,7 +69,7 @@ async function login(payload, context = {}) {
   }
 
   if (!user || !passwordMatches || normalizeUserStatus(user.user_status) !== "active") {
-    const failure = authenticationThrottle.recordFailure(throttleContext);
+    const failure = await authenticationThrottle.recordFailure(throttleContext);
     await emitAuthenticationThrottleLockout(throttleContext, failure);
 
     await recordLoginSecurityEvent({
@@ -85,10 +89,76 @@ async function login(payload, context = {}) {
     throw new AppError(INVALID_LOGIN_MESSAGE, 401);
   }
 
-  authenticationThrottle.reset(throttleContext);
+  await authenticationThrottle.reset(throttleContext);
 
   const workspaceMemberships = await userWorkspacesRepository.readForUser(user.user_id);
   const activeWorkspaceId = resolveActiveWorkspaceId(user, workspaceMemberships);
+  if (!activeWorkspaceId) {
+    const qualification = await accountExportRecoveryRepository.readForUser(user.user_id);
+    if (qualification && !normalizeBooleanPreference(user.password_change_required)) {
+      let passwordRehash = null;
+      if (passwordVerification.needsRehash) {
+        await usersRepository.updatePasswordByUserId(user.user_id, await hashPassword(password), {
+          passwordChangeRequired: false,
+        });
+        passwordRehash = {
+          newAlgorithm: CURRENT_PASSWORD_HASH_POLICY.algorithm,
+          previousAlgorithm: passwordVerification.algorithm,
+          rehashReason: passwordVerification.rehashReason,
+        };
+      }
+      await accountExportRecoveryService.assertEligible(user.user_id);
+      const session = await createSession({
+        ...user,
+        active_workspace_id: null,
+        home_workspace_id: null,
+        ip_address: normalizeIpAddress(context.ipAddress),
+        session_mode: "account_export_recovery",
+      }, { rememberMe });
+      await recordLoginSecurityEvent({
+        context,
+        outcome: "success",
+        reasonClass: "account_export_recovery",
+        user,
+        username,
+      });
+      if (passwordRehash) {
+        await emitPasswordRehashedSecurityEvent({
+          ...passwordRehash,
+          session: {
+            user_id: user.user_id,
+            username: user.username,
+            timezone: normalizeTimezone(user.timezone),
+            ip_address: normalizeIpAddress(context.ipAddress),
+          },
+          targetUser: user,
+        });
+      }
+      return {
+        session,
+        themeMode: normalizeThemeMode(user.theme_mode),
+        themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
+        user: {
+          displayName: user.display_name || user.username,
+          username: user.username,
+          timezone: normalizeTimezone(user.timezone),
+          themeMode: normalizeThemeMode(user.theme_mode),
+          themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
+          recoveryMode: "account_export",
+          loginLandingPath: "/account-recovery.html",
+        },
+      };
+    }
+    await recordLoginSecurityEvent({
+      context,
+      outcome: "failure",
+      reasonClass: "no_active_workspace",
+      user,
+      username,
+    });
+    throw new AppError(INVALID_LOGIN_MESSAGE, 401);
+  }
+  await accountExportRecoveryRepository.clear(user.user_id);
   let passwordRehash = null;
 
   if (passwordVerification.needsRehash) {
@@ -106,7 +176,7 @@ async function login(payload, context = {}) {
     ...user,
     active_workspace_id: activeWorkspaceId,
     ip_address: normalizeIpAddress(context.ipAddress),
-  });
+  }, { rememberMe });
   const sessionContext = {
     workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
@@ -166,6 +236,10 @@ async function login(payload, context = {}) {
       themeMode: normalizeThemeMode(user.theme_mode),
       themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
       passwordChangeRequired: normalizeBooleanPreference(user.password_change_required),
+      loginLandingPath: await userLandingService.resolvePreferredLanding(
+        sessionContext,
+        user.preferred_login_landing,
+      ),
     },
   };
 }
@@ -174,20 +248,22 @@ async function logout(sessionId, session = null) {
   await deleteSession(sessionId);
 
   if (session) {
-    await recordAuditWithoutBlocking({
-      session,
-      action: "user_logout",
-      changeType: "logout",
-      recordType: "user",
-      recordId: session.user_id,
-      recordLabel: session.username,
-      recordUrl: "user-settings.html",
-      previousValue: { logged_in: true },
-      newValue: { logged_in: false },
-      metadata: {
-        session_deleted: Boolean(sessionId),
-      },
-    });
+    if (session.workspace_id) {
+      await recordAuditWithoutBlocking({
+        session,
+        action: "user_logout",
+        changeType: "logout",
+        recordType: "user",
+        recordId: session.user_id,
+        recordLabel: session.username,
+        recordUrl: "user-settings.html",
+        previousValue: { logged_in: true },
+        newValue: { logged_in: false },
+        metadata: {
+          session_deleted: Boolean(sessionId),
+        },
+      });
+    }
     await securityEventsService.record({
       actorUserId: session.user_id,
       actorUserName: session.username,
@@ -234,6 +310,21 @@ async function readSession(session) {
     throw new AppError("Not logged in.", 401);
   }
 
+  if (session.session_mode === "account_export_recovery") {
+    const user = await accountExportRecoveryService.assertEligible(session.user_id);
+    return {
+      user: {
+        displayName: user.display_name || user.username,
+        username: user.username,
+        timezone: normalizeTimezone(user.timezone),
+        themeMode: normalizeThemeMode(user.theme_mode),
+        themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
+        recoveryMode: "account_export",
+        loginLandingPath: "/account-recovery.html",
+      },
+    };
+  }
+
   const workspaceMemberships = await userWorkspacesRepository.readForUser(session.user_id);
   const workspaceContext = await settingsService.readWorkspaceBootstrap(session);
   const user = await usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id);
@@ -251,6 +342,10 @@ async function readSession(session) {
       themeMode: normalizeThemeMode(user?.theme_mode),
       themeAutoSource: normalizeThemeAutoSource(user?.theme_auto_source),
       passwordChangeRequired: normalizeBooleanPreference(session.password_change_required),
+      loginLandingPath: await userLandingService.resolvePreferredLanding(
+        session,
+        user?.preferred_login_landing,
+      ),
     },
   };
 }
@@ -258,6 +353,10 @@ async function readSession(session) {
 async function switchWorkspace(sessionId, session, payload) {
   if (!session) {
     throw new AppError("Not logged in.", 401);
+  }
+
+  if (session.session_mode === "account_export_recovery") {
+    throw new AppError("Only account export and logout are available in recovery mode.", 403);
   }
 
   if (session.password_change_required) {
@@ -278,6 +377,12 @@ async function switchWorkspace(sessionId, session, payload) {
 
   await sessionsRepository.updateActiveWorkspace(sessionId, workspaceId);
   await usersRepository.updateActiveWorkspace(session.user_id, workspaceId);
+  const user = await usersRepository.readFirstByUserId(session.user_id);
+  const targetSession = {
+    ...session,
+    workspace_id: workspaceId,
+    active_workspace_id: workspaceId,
+  };
   await auditService.record({
     session,
     action: "active_workspace_switched",
@@ -296,6 +401,10 @@ async function switchWorkspace(sessionId, session, payload) {
   return {
     ok: true,
     active_workspace_id: workspaceId,
+    landingPath: await userLandingService.resolvePreferredLanding(
+      targetSession,
+      user?.preferred_workspace_switch_landing,
+    ),
   };
 }
 
@@ -319,14 +428,14 @@ async function changePassword(payload, session, context = {}) {
     ? await verifyPassword(currentPassword, user.password)
     : { matches: false };
   const currentPasswordMatches = currentPasswordVerification.matches;
-  const throttleStatus = authenticationThrottle.check(throttleContext);
+  const throttleStatus = await authenticationThrottle.check(throttleContext);
 
   if (throttleStatus.blocked) {
     throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
   }
 
   if (!currentPasswordMatches) {
-    const failure = authenticationThrottle.recordFailure(throttleContext);
+    const failure = await authenticationThrottle.recordFailure(throttleContext);
     await emitAuthenticationThrottleLockout(throttleContext, failure);
 
     if (failure.blocked) {
@@ -336,7 +445,7 @@ async function changePassword(payload, session, context = {}) {
     throw new AppError("Current password is incorrect.", 400);
   }
 
-  authenticationThrottle.reset(throttleContext);
+  await authenticationThrottle.reset(throttleContext);
 
   if ((await verifyPassword(newPassword, user.password)).matches) {
     throw new AppError("New password must be different from the current password.", 400);
@@ -399,6 +508,18 @@ function normalizeIpAddress(value) {
   return String(value || "").replace(/^::ffff:/, "").trim().slice(0, 128);
 }
 
+function readRememberMe(payload) {
+  if (!Object.hasOwn(payload || {}, "rememberMe")) {
+    return false;
+  }
+
+  if (typeof payload.rememberMe !== "boolean") {
+    throw new AppError("Remember me must be a boolean.", 400);
+  }
+
+  return payload.rememberMe;
+}
+
 function resolveActiveWorkspaceId(user, memberships) {
   const activeMemberships = memberships.filter((membership) => membership.status === "active");
   const preferredWorkspaceId = String(user.active_workspace_id || "").trim();
@@ -411,7 +532,7 @@ function resolveActiveWorkspaceId(user, memberships) {
     return user.home_workspace_id;
   }
 
-  return activeMemberships[0]?.workspace_id || user.home_workspace_id;
+  return activeMemberships[0]?.workspace_id || null;
 }
 
 export const authService = {

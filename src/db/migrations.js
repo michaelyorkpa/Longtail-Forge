@@ -703,10 +703,23 @@ LIMIT 1;
 }
 
 async function applyMigration(migration) {
-  await runMigrationScriptTransaction(async () => {
-    await runSql(migration.sql);
-    await recordMigrationApplied(migration);
-  });
+  const rebuildsForeignKeyParent = /^-- migration-foreign-keys: off$/mu.test(migration.sql);
+  if (rebuildsForeignKeyParent) await runSql("PRAGMA foreign_keys = OFF;");
+
+  try {
+    await runMigrationScriptTransaction(async () => {
+      await runSql(migration.sql);
+      if (rebuildsForeignKeyParent) {
+        const violations = await querySql("PRAGMA foreign_key_check;");
+        if (violations.length > 0) {
+          throw new Error(`Migration ${migration.version} would leave ${violations.length} foreign-key violation(s).`);
+        }
+      }
+      await recordMigrationApplied(migration);
+    });
+  } finally {
+    if (rebuildsForeignKeyParent) await runSql("PRAGMA foreign_keys = ON;");
+  }
 }
 
 async function recordMigrationApplied(migration) {

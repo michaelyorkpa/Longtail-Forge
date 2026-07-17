@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 367,
+    "discoveredScripts": 375,
     "legacyScripts": 312,
-    "releaseGateScripts": 29,
+    "releaseGateScripts": 35,
     "areaCounts": {
       "dashboard": 1,
-      "database": 29,
+      "database": 32,
       "docs": 9,
       "files": 44,
-      "framework": 57,
+      "framework": 61,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 5,
       "public-api": 3,
-      "release": 20,
+      "release": 21,
       "search": 12,
       "tags": 12,
       "tasks": 51,
@@ -28,16 +28,16 @@
       "workbench": 27
     },
     "tierCounts": {
-      "focused": 171,
+      "focused": 173,
       "integration": 158,
-      "release-gate": 29,
+      "release-gate": 35,
       "slow": 9
     },
     "runModeCounts": {
-      "isolated-database": 146,
+      "isolated-database": 152,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 186
+      "static": 188
     }
   },
   "coverageFamilies": [
@@ -2465,6 +2465,24 @@
     },
     {
       "area": "database",
+      "description": "Proves one-workspace backup isolation, credential/key exclusion, provider-normalized Files, checksums, and disposable restore.",
+      "id": "database.workspace-backup-package",
+      "legacy": false,
+      "path": "scripts/regressions/database/workspace-backup-package.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "backup",
+        "files",
+        "permissions",
+        "restore",
+        "security",
+        "workspaces"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
       "description": "Protects dry-run-first workspace cleanup, retained-data preservation, and direct/full-suite regression database isolation.",
       "id": "database.workspace-cleanup-isolation",
       "legacy": false,
@@ -2475,6 +2493,42 @@
         "maintenance",
         "regressions",
         "sqlite",
+        "workspaces"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves authorized workspace-deletion requests are backup-aware, restart-durable, operational during the 30-day grace period, cancelable before the boundary, and non-destructive.",
+      "id": "database.workspace-deletion-lifecycle",
+      "legacy": false,
+      "path": "scripts/regressions/database/workspace-deletion-lifecycle.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "audit",
+        "backup",
+        "database",
+        "permissions",
+        "sessions",
+        "workspaces"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves the operator-queued final workspace purge is deadline-exact, fenced, restart-resumable, artifact-complete, idempotent, and isolated from every retained workspace.",
+      "id": "database.workspace-final-purge",
+      "legacy": false,
+      "path": "scripts/regressions/database/workspace-final-purge.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "files",
+        "jobs",
+        "permissions",
+        "sessions",
         "workspaces"
       ],
       "tier": "release-gate"
@@ -2511,6 +2565,24 @@
     },
     {
       "area": "framework",
+      "description": "Proves former sole-workspace administrators receive only a portable account export and logout, while other zero-workspace identities remain non-enumerating and former workspace data stays inaccessible.",
+      "id": "framework.account-export-recovery",
+      "legacy": false,
+      "path": "scripts/regressions/framework/account-export-recovery.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "database",
+        "permissions",
+        "security",
+        "sessions",
+        "workspaces"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
       "description": "Proves one application-derived asset version decorates served pages, runtime loaders, and module assets while raw keys stay guarded.",
       "id": "framework.asset-cache-version",
       "legacy": false,
@@ -2526,7 +2598,7 @@
     },
     {
       "area": "framework",
-      "description": "Proves login and password-sensitive throttling is trusted-IP keyed, account-aware, non-enumerating, configurable, and event emitting.",
+      "description": "Proves login and password-sensitive throttling is durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, bounded, and event emitting.",
       "id": "framework.authentication-throttle",
       "legacy": false,
       "path": "scripts/regressions/framework/authentication-throttle.regression.mjs",
@@ -2686,6 +2758,22 @@
     },
     {
       "area": "framework",
+      "description": "Proves strict remembered-login validation, matched absolute database and cookie lifetimes, restart persistence, expiry, and logout revocation.",
+      "id": "framework.remembered-sessions",
+      "legacy": false,
+      "path": "scripts/regressions/framework/remembered-sessions.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "cookies",
+        "security",
+        "sessions"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves permission-safe Reporting catalog delivery, stable runner dispatch, basic filter validation, and safe execution errors.",
       "id": "framework.reporting-catalog-execution",
       "legacy": false,
@@ -2830,6 +2918,22 @@
     },
     {
       "area": "framework",
+      "description": "Proves every Settings host uses dual universal Save and Revert actions while lifecycle forms stay outside dirty-state transactions.",
+      "id": "framework.settings-page-actions",
+      "legacy": false,
+      "path": "scripts/regressions/framework/settings-page-actions.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "dirty-state",
+        "navigation-guard",
+        "settings",
+        "ui"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
       "description": "Proves production public URL policy, cookie attributes, trusted effective HTTPS, and HSTS gating fail closed at direct and proxy edges.",
       "id": "framework.tls-cookie-posture",
       "legacy": false,
@@ -2873,6 +2977,24 @@
         "typecheck"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves per-user login and workspace-switch landing preferences resolve only to enabled, authorized protected pages with Dashboard fallback.",
+      "id": "framework.user-landing-preferences",
+      "legacy": false,
+      "path": "scripts/regressions/framework/user-landing-preferences.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "database",
+        "navigation",
+        "permissions",
+        "settings",
+        "workspaces"
+      ],
+      "tier": "focused"
     },
     {
       "area": "licensing",
@@ -3028,6 +3150,22 @@
         "deployment",
         "docker",
         "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves canonical and branch-qualified runtime identity across API, shell, diagnostics, public UI, artifacts, and deployment paths.",
+      "id": "release.qualified-runtime-version",
+      "legacy": false,
+      "path": "scripts/regressions/release/qualified-runtime-version.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "branch-identity",
+        "release",
+        "runtime",
+        "version"
       ],
       "tier": "release-gate"
     },

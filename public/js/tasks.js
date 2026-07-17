@@ -1247,6 +1247,10 @@ function taskWorkflowActionMenuDescriptor() {
 }
 
 function taskWorkflowActionVisible(action, task) {
+  if (action.timerVisibility && !taskTimerSurfaceAvailable()) {
+    return false;
+  }
+
   const visibleStatuses = action.visibleStatuses || [];
   if (visibleStatuses.length > 0 && !visibleStatuses.includes(task.status || "open")) {
     return false;
@@ -1264,6 +1268,10 @@ function taskWorkflowActionVisible(action, task) {
   }
 
   return true;
+}
+
+function taskTimerSurfaceAvailable() {
+  return state.options?.timeTrackingEnabled !== false && state.options?.taskTimersEnabled !== false;
 }
 
 function taskWorkflowActionButton(action, task) {

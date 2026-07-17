@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "focused",
   tags: ["authentication", "security", "throttling"],
-  description: "Proves login and password-sensitive throttling is trusted-IP keyed, account-aware, non-enumerating, configurable, and event emitting.",
+  description: "Proves login and password-sensitive throttling is durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, bounded, and event emitting.",
   runMode: "isolated-database",
 });
 
@@ -33,6 +33,7 @@ const {
   authenticationThrottle,
   createAuthenticationThrottle,
 } = await import("../../../src/security/auth-throttle.js");
+const { db } = await import("../../../src/core/database.js");
 const authServiceSource = await fs.readFile("src/services/auth.service.js", "utf8");
 const apiKeysServiceSource = await fs.readFile("src/services/api-keys.service.js", "utf8");
 const publicApiRoutesSource = await fs.readFile("src/routes/public-api.routes.js", "utf8");
@@ -58,13 +59,12 @@ assert.doesNotMatch(
   "there is no public-intake credential surface to throttle in this slice",
 );
 
-runDeterministicThrottleChecks();
-
 let server;
 let unsubscribe;
 
 try {
   await initializeDatabase();
+  await runDeterministicThrottleChecks();
   server = await listen(createApp());
   const api = createApi(`http://127.0.0.1:${server.address().port}`);
   const securityEvents = [];
@@ -72,7 +72,7 @@ try {
     securityEvents.push(event);
   }, { id: "regression:authentication-throttle" });
 
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   const knownFailure = await api.post("/api/login", {
     username: TEST_USERNAME,
     password: "Wrong-Password-1!",
@@ -89,7 +89,7 @@ try {
     "known and missing accounts should receive the same invalid-credential envelope",
   );
 
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   assert.equal((await api.post("/api/login", {
     username: TEST_USERNAME,
     password: "Wrong-Password-1!",
@@ -118,7 +118,7 @@ try {
     password: "Wrong-Password-3!",
   })).status, 401, "successful login should reset the IP and account failure counters");
 
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   securityEvents.length = 0;
   const lockoutStatuses = [];
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -144,7 +144,7 @@ try {
   assert.deepEqual(securityEvents[0].metadata.dimensions, ["ip", "account"]);
   assert.equal(JSON.stringify(securityEvents[0]).includes("Wrong-Lockout"), false, "security events must not contain passwords");
 
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   securityEvents.length = 0;
   const forgedStatuses = [];
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -159,7 +159,7 @@ try {
   assert.equal(securityEvents[0].metadata.client_ip, "127.0.0.1");
   assert.deepEqual(securityEvents[0].metadata.dimensions, ["ip"]);
 
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   securityEvents.length = 0;
   const passwordChangeStatuses = [];
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -171,7 +171,7 @@ try {
   assert.deepEqual(passwordChangeStatuses, [400, 400, 429]);
   assert.equal(securityEvents[0].metadata.scope, "password-change");
 
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   securityEvents.length = 0;
   const resetStatuses = [];
   for (let attempt = 1; attempt <= 4; attempt += 1) {
@@ -186,7 +186,7 @@ try {
   console.log("Authentication throttle regression passed.");
 } finally {
   unsubscribe?.();
-  authenticationThrottle.clear();
+  await authenticationThrottle.clear();
   if (server) {
     await closeServer(server);
   }
@@ -194,7 +194,7 @@ try {
   await fixture.cleanup();
 }
 
-function runDeterministicThrottleChecks() {
+async function runDeterministicThrottleChecks() {
   let now = 0;
   const throttle = createAuthenticationThrottle({
     clock: () => now,
@@ -205,35 +205,98 @@ function runDeterministicThrottleChecks() {
   });
 
   const sharedIp = (username) => ({ ipAddress: "192.0.2.1", scope: "login", username });
-  assert.equal(throttle.recordFailure(sharedIp("first@example.test")).blocked, false);
-  assert.equal(throttle.recordFailure(sharedIp("second@example.test")).blocked, false);
-  const ipLockout = throttle.recordFailure(sharedIp("third@example.test"));
+  await throttle.clear();
+  assert.equal((await throttle.recordFailure(sharedIp("first@example.test"))).blocked, false);
+  assert.equal((await throttle.recordFailure(sharedIp("second@example.test"))).blocked, false);
+  const ipLockout = await throttle.recordFailure(sharedIp("third@example.test"));
   assert.equal(ipLockout.blocked, true);
   assert.deepEqual(ipLockout.newlyLockedDimensions, ["ip"]);
 
-  throttle.clear();
+  await throttle.clear();
   const sharedAccount = (ipAddress) => ({ ipAddress, scope: "login", username: "target@example.test" });
-  assert.equal(throttle.recordFailure(sharedAccount("192.0.2.10")).blocked, false);
-  assert.equal(throttle.recordFailure(sharedAccount("192.0.2.11")).blocked, false);
-  const accountLockout = throttle.recordFailure(sharedAccount("192.0.2.12"));
+  assert.equal((await throttle.recordFailure(sharedAccount("192.0.2.10"))).blocked, false);
+  assert.equal((await throttle.recordFailure(sharedAccount("192.0.2.11"))).blocked, false);
+  const accountLockout = await throttle.recordFailure(sharedAccount("192.0.2.12"));
   assert.equal(accountLockout.blocked, true);
   assert.deepEqual(accountLockout.newlyLockedDimensions, ["account"]);
 
-  throttle.clear();
+  await throttle.clear();
   const resetContext = sharedAccount("192.0.2.20");
-  throttle.recordFailure(resetContext);
-  throttle.recordFailure(resetContext);
-  throttle.reset(resetContext);
-  assert.equal(throttle.recordFailure(resetContext).blocked, false);
-  assert.equal(throttle.recordFailure(resetContext).blocked, false);
+  await throttle.recordFailure(resetContext);
+  await throttle.recordFailure(resetContext);
+  await throttle.reset(resetContext);
+  assert.equal((await throttle.recordFailure(resetContext)).blocked, false);
+  assert.equal((await throttle.recordFailure(resetContext)).blocked, false);
 
-  throttle.recordFailure(resetContext);
-  assert.equal(throttle.check(resetContext).blocked, true);
+  await throttle.recordFailure(resetContext);
+  assert.equal((await throttle.check(resetContext)).blocked, true);
+
+  await closeDatabase();
+  await initializeDatabase();
+
+  const reconstructedThrottle = createAuthenticationThrottle({
+    clock: () => now,
+    enabled: true,
+    failureLimit: 3,
+    lockoutSeconds: 120,
+    windowSeconds: 60,
+  });
+  assert.equal(
+    (await reconstructedThrottle.check(resetContext)).blocked,
+    true,
+    "a reconstructed throttle service should read the persisted lockout state",
+  );
+
   now += 121000;
-  assert.equal(throttle.check(resetContext).blocked, false, "the temporary lockout should expire after its configured duration");
+  assert.equal((await throttle.check(resetContext)).blocked, false, "the temporary lockout should expire after its configured duration");
+  const expiredCount = await db.get("SELECT COUNT(1) AS count FROM authentication_throttle_entries;");
+  assert.equal(Number(expiredCount.count), 0, "expired throttle rows should be removed during the next bounded cleanup pass");
+
+  await throttle.clear();
+  now = 500000;
+  const concurrentContext = { ipAddress: "192.0.2.44", scope: "login", username: "concurrent@example.test" };
+  const concurrentResults = await Promise.all([
+    throttle.recordFailure(concurrentContext),
+    throttle.recordFailure(concurrentContext),
+    throttle.recordFailure(concurrentContext),
+  ]);
+  assert.equal(concurrentResults.filter((result) => result.newlyLockedDimensions.length > 0).length, 1, "concurrent failures should cross the threshold exactly once");
+  assert.equal((await throttle.check(concurrentContext)).blocked, true, "concurrent failure increments must not be lost");
+
+  const persistedRows = await db.query(`
+SELECT scope, dimension, key_hash, failure_count, window_expires_at, locked_until, expires_at
+FROM authentication_throttle_entries
+ORDER BY scope, dimension;
+`);
+  assert.equal(persistedRows.length, 2, "one context should persist only its IP and account buckets");
+  assert.ok(persistedRows.every((row) => /^[0-9a-f]{64}$/.test(row.key_hash)), "throttle keys should be stored only as SHA-256 digests");
+  assert.equal(JSON.stringify(persistedRows).includes("concurrent@example.test"), false, "the throttle store must not persist submitted usernames");
+  assert.equal(JSON.stringify(persistedRows).includes("192.0.2.44"), false, "the throttle store must not persist client IP addresses");
+
+  await throttle.clear();
+  const boundedThrottle = createAuthenticationThrottle({
+    clock: () => now,
+    enabled: true,
+    failureLimit: 100,
+    trackedKeyLimit: 3,
+    windowSeconds: 60,
+  });
+  for (let index = 0; index < 6; index += 1) {
+    await boundedThrottle.recordFailure({
+      ipAddress: `192.0.2.${100 + index}`,
+      scope: "bounded-cleanup",
+      username: `bounded-${index}@example.test`,
+    });
+    now += 1;
+  }
+  const boundedCount = await db.get("SELECT COUNT(1) AS count FROM authentication_throttle_entries;");
+  assert.ok(Number(boundedCount.count) <= 3, "unlocked throttle rows should be pruned to the configured tracked-key limit");
 
   const disabled = createAuthenticationThrottle({ enabled: false, failureLimit: 1 });
-  assert.equal(disabled.recordFailure(resetContext).blocked, false, "trusted offline installs should be able to disable throttling explicitly");
+  assert.equal((await disabled.recordFailure(resetContext)).blocked, false, "trusted offline installs should be able to disable throttling explicitly");
+  const integrity = await db.get("PRAGMA integrity_check;");
+  assert.equal(integrity.integrity_check, "ok", "the durable throttle proof database should pass integrity_check");
+  await throttle.clear();
 }
 
 function createApi(baseUrl) {

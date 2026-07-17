@@ -1293,6 +1293,7 @@
     }
 
     const options = context?.options || defaultTaskOptions();
+    const timerSurfaceAvailable = options.taskTimersEnabled !== false && options.timeTrackingEnabled !== false;
     const eligible = Boolean(
       task?.task_id &&
       task.project_id &&
@@ -1303,11 +1304,17 @@
     );
     const timer = task ? currentTaskTimer(task.task_id) : null;
 
-    fields.timerField.hidden = !task?.task_id;
+    fields.timerField.hidden = !task?.task_id || !timerSurfaceAvailable;
     fields.timerStart.disabled = !eligible || timer?.timer_status === "running";
     fields.timerPause.disabled = !eligible || timer?.timer_status !== "running";
     fields.timerFinalize.disabled = !eligible || !timer;
     fields.timerReset.disabled = !timer;
+
+    if (!timerSurfaceAvailable) {
+      fields.timerStatus.textContent = "";
+      updateTaskTimerDisplay(timer);
+      return;
+    }
 
     if (!task?.task_id) {
       fields.timerStatus.textContent = "Save the task before using a task timer.";

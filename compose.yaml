@@ -21,6 +21,7 @@ services:
       LONGTAIL_DATA_DIR: /var/lib/longtail-forge
       LONGTAIL_DATABASE_FILE: /var/lib/longtail-forge/longtail-forge.db
       LONGTAIL_LOCAL_STORAGE_ROOT: /var/lib/longtail-forge/files
+      LONGTAIL_WORKSPACE_BACKUP_ROOT: /var/backups/longtail-forge/workspaces
       TRUST_PROXY: ${LONGTAIL_DOCKER_TRUST_PROXY:-172.30.17.1/32}
       LONGTAIL_FILE_SCANNER: ${LONGTAIL_FILE_SCANNER:-clamd}
       LONGTAIL_CLAMD_HOST: ${LONGTAIL_CLAMD_HOST:-host.docker.internal}

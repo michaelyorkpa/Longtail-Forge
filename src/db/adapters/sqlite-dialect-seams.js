@@ -53,9 +53,14 @@ function createSqliteDialectSeams() {
       busyTimeout,
       compileOptions,
       databaseList,
+      deferForeignKeys,
+      foreignKeyCheck,
       foreignKeys,
+      integrityCheck,
       journalMode,
+      scopedTableRows,
       tableInfo,
+      tableNames,
     }),
     json: Object.freeze({
       supported: false,
@@ -318,6 +323,18 @@ function foreignKeys() {
   return "PRAGMA foreign_keys;";
 }
 
+function deferForeignKeys() {
+  return "PRAGMA defer_foreign_keys = ON;";
+}
+
+function foreignKeyCheck() {
+  return "PRAGMA foreign_key_check;";
+}
+
+function integrityCheck() {
+  return "PRAGMA integrity_check;";
+}
+
 function journalMode() {
   return "PRAGMA journal_mode;";
 }
@@ -332,6 +349,19 @@ function compileOptions() {
 
 function tableInfo(tableName) {
   return `PRAGMA table_info(${normalizeSqlIdentifier(tableName, "table name")});`;
+}
+
+function tableNames() {
+  return "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name;";
+}
+
+function scopedTableRows(tableName, scopeColumn) {
+  const normalizedTable = normalizeSqlIdentifier(tableName, "table name");
+  const normalizedScopeColumn = normalizeSqlIdentifier(scopeColumn, "scope column");
+  return Object.freeze({
+    count: `SELECT COUNT(1) AS count FROM ${normalizedTable} WHERE ${normalizedScopeColumn} = :scopeValue;`,
+    delete: `DELETE FROM ${normalizedTable} WHERE ${normalizedScopeColumn} = :scopeValue;`,
+  });
 }
 
 function unsupportedJsonAccess() {

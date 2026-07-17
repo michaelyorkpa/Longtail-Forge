@@ -2,7 +2,7 @@ import path from "node:path";
 import fs from "node:fs";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
-import { appVersion } from "./core/version.js";
+import { appVersion, normalizeReleaseBranch, qualifyAppVersion } from "./core/version.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(
@@ -79,6 +79,9 @@ function createConfig(env = process.env) {
   const localStorageRoot = resolveRuntimePath(
     readText(env, "LONGTAIL_LOCAL_STORAGE_ROOT", path.join(dataDir, "files")),
   );
+  const workspaceBackupRoot = resolveRuntimePath(
+    readText(env, "LONGTAIL_WORKSPACE_BACKUP_ROOT", path.join(root, "backups", "workspaces")),
+  );
   const sqliteForeignKeys = readBoolean(env, "LONGTAIL_SQLITE_FOREIGN_KEYS", DEFAULT_SQLITE_FOREIGN_KEYS);
   const sessionCookieSecure = readBoolean(env, "LONGTAIL_SESSION_COOKIE_SECURE", false);
   const sessionCookieSameSite = readSessionSameSite(env);
@@ -125,6 +128,7 @@ function createConfig(env = process.env) {
   const logLevel = readEnum(env, "LONGTAIL_LOG_LEVEL", DEFAULT_LOG_LEVEL, LOG_LEVELS);
   const releaseCommit = readOptionalHex(env, "LONGTAIL_RELEASE_COMMIT", 40);
   const releaseArtifactSha256 = readOptionalHex(env, "LONGTAIL_RELEASE_ARTIFACT_SHA256", 64);
+  const releaseSourceBranch = normalizeReleaseBranch(readText(env, "LONGTAIL_RELEASE_BRANCH", ""));
   const runtimeWarnings = [];
 
   if (!sqliteForeignKeys) {
@@ -138,6 +142,7 @@ function createConfig(env = process.env) {
   assertPathIsNotPublic(dataDir, "LONGTAIL_DATA_DIR", publicDir);
   assertPathIsNotPublic(databaseFile, "LONGTAIL_DATABASE_FILE", publicDir);
   assertPathIsNotPublic(localStorageRoot, "LONGTAIL_LOCAL_STORAGE_ROOT", publicDir);
+  assertPathIsNotPublic(workspaceBackupRoot, "LONGTAIL_WORKSPACE_BACKUP_ROOT", publicDir);
 
   if (environment === "production") {
     assertProductionSecret(bootstrapPassword, "SUPER_ADMIN_PASSWORD", 16);
@@ -199,7 +204,9 @@ function createConfig(env = process.env) {
   return {
     appName: toDisplayName(packageJson.name),
     appVersion,
+    appDisplayVersion: qualifyAppVersion(appVersion, releaseSourceBranch),
     release: {
+      sourceBranch: releaseSourceBranch || null,
       commitSha: releaseCommit,
       artifactSha256: releaseArtifactSha256,
     },
@@ -287,6 +294,9 @@ function createConfig(env = process.env) {
         region: readText(env, "LONGTAIL_S3_REGION", ""),
         secretAccessKey: readRuntimeSecret("LONGTAIL_S3_SECRET_ACCESS_KEY", env),
       },
+    },
+    workspaceBackups: {
+      root: workspaceBackupRoot,
     },
     scanner: {
       mode: scannerMode,

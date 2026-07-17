@@ -63,8 +63,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "visibleTimerPanelTimers"),
-  /const timers = activeOrPausedTimers\(state\.timers\);[\s\S]*if \(!isTaskFocusView\(\)\) \{[\s\S]*return timers;[\s\S]*const focusedTaskId = currentTaskFocusId\(\);[\s\S]*return timers\.filter\(\(timer\) => !taskTimerMatches\(timer, focusedTaskId\)\);/,
-  "Task Focus should filter the focused task's active or paused timer out of the lower timer panel",
+  /activeOrPausedTimers\(state\.timers\)\.filter\(\(timer\) => \([\s\S]*taskTimerSurfaceAvailable\(\) \|\| !isTaskTimer\(timer\)[\s\S]*if \(!isTaskFocusView\(\)\) \{[\s\S]*return timers;[\s\S]*const focusedTaskId = currentTaskFocusId\(\);[\s\S]*return timers\.filter\(\(timer\) => !taskTimerMatches\(timer, focusedTaskId\)\);/,
+  "the lower timer panel should suppress task timers when unavailable and otherwise filter the focused task timer",
 );
 assert.match(
   functionBody(workbenchScript, "timerPanelEmptyStateText"),

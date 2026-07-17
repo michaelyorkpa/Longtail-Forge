@@ -19,6 +19,7 @@ import { registerSearchIndexJobHandlers } from "../../services/search-index-jobs
 import { queueTaskRecurrenceSweepJobs, queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../../modules/tasks/task-jobs.service.js";
 import { assertRuntimeDataPathsReady } from "../runtime-readiness.js";
 import { operationalLogger } from "../operational-logger.js";
+import { workspacePurgeService } from "../../services/workspace-purge.service.js";
 
 let workerLock = null;
 let shuttingDown = false;
@@ -52,6 +53,7 @@ async function startWorkerProcess(options = {}) {
   registerTaskJobHandlers();
   filesService.registerFileScanJobHandlers();
   registerFutureImportJobHandlers();
+  workspacePurgeService.registerWorkspacePurgeJobHandlers();
   notificationsService.registerNotificationJobHandlers();
   const reminderSweep = await queueTaskReminderSweepJobs({
     source: "worker-startup-reminder-sweep",

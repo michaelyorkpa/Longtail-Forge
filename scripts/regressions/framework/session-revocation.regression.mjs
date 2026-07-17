@@ -42,6 +42,11 @@ try {
 
   const adminLoginA = await login(api, ADMIN_USERNAME, ADMIN_PASSWORD);
   const adminLoginB = await login(api, ADMIN_USERNAME, ADMIN_PASSWORD);
+  assert.match(
+    adminLoginA.headers.get("set-cookie") || "",
+    /longtail_forge_session=[^,]*Max-Age=2592000/,
+    "the revocation matrix should exercise remembered sessions",
+  );
   const adminCookieA = readSessionCookie(adminLoginA);
   const adminCookieB = readSessionCookie(adminLoginB);
   const originalWorkspaceId = adminLoginA.body.user.workspace_id;
@@ -178,7 +183,7 @@ ORDER BY created_at;
 console.log("Session revocation regression passed.");
 
 async function login(api, username, password) {
-  const response = await api.post("/api/login", { username, password });
+  const response = await api.post("/api/login", { username, password, rememberMe: true });
   assert.equal(response.status, 200, JSON.stringify(response.body));
   assert.ok(readSessionCookie(response));
   return response;

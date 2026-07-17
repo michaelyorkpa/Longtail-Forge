@@ -316,45 +316,43 @@ For every implementation slice:
 8. Update `CHANGELOG.md`.
 9. When the version changes, run `npm run version:bump -- <version>`; do not use a broad repository find/replace. Review only `package.json` and `package-lock.json`, and preserve historical roadmap/changelog/archive/docs labels.
 10. Archive completed roadmap sections according to the roadmap bookkeeping rule.
-11. Run `npm run closeout` to aggregate the version, manifest, schema, parameter-binding, documentation, and licensing gates. It runs all checks before reporting, hard-fails only on the existing hard gates, and does not replace `npm run check`.
-12. Run verification.
+11. At final local closeout, run `npm run verify:slice` exactly once. It collects the changed paths once, runs `npm run closeout` once, executes the existing changed-area plan once, and adds the separate permission harness once when the selected areas require it.
+12. After `npm run verify:slice` succeeds, do not separately rerun `closeout`, `check`, changed regressions, an included regression area, or the permission harness unless a source, test, documentation, package, lockfile, workflow, or configuration file changes.
 
 Use the running server for testing when useful. Restart it as needed.
 
-Run the fast checks first, ordered by blast radius:
+During implementation, run only the cheapest focused test needed to diagnose the current change. Do not run `npm run check` during every framework edit merely as a reflex. Typical iteration choices are:
 
 1. For a one-module change, run that module's narrow Vitest command first (`npm run test:files`, `npm run test:tasks`) or the module's narrow regression area command.
 2. For schema/contract changes, run `npm run test:contracts` and `npm run typecheck`.
-3. For shared framework changes, run `npm run typecheck`, then `npm run test:unit`, then the full `npm run check`.
-4. For release closeout, run the full required verification below.
+3. For shared framework changes, run the narrow unit, contract, typecheck, lint, or regression command that exercises the edited contract.
+4. For browser behavior, run focused local Playwright only while diagnosing or proving that behavior; do not duplicate it solely for ceremony after successful final verification.
 
 Vitest narrow tests are cheap tripwires for contracts and pure service logic; they never replace the regression suite, and a regression may only be retired through the coverage-ratchet rules even when a Vitest test covers a smaller unit.
 
-While iterating on a slice, start with the changed-area command when the working tree represents the focused change:
+The changed-area command remains independently available when its routing output or direct execution is useful during iteration:
 
 ```sh
 npm run test:regressions:changed
 ```
 
-It prints selected areas and route reasons, runs narrow module coverage when safe, and escalates framework/view, database, or release changes to the full gate. An empty change set runs nothing and says so. The advice-only `node scripts/suggest-regressions-for-changes.mjs` and manual area commands remain available when you need to inspect or override the normal flow.
+It prints selected areas and route reasons, runs narrow module coverage when safe, and escalates framework/view, database, or release changes to the full gate. An empty change set runs nothing and says so. The advice-only `node scripts/suggest-regressions-for-changes.mjs` and manual area commands remain available when you need to inspect or override the normal flow. Do not run this command separately as final ceremony before or after `npm run verify:slice`.
 
 The runner retries a failed isolated-database script once, serially, with a fresh fixture and reports a successful retry as `flaky-recovered`. Do not chase a one-off recovered contention failure as a product bug. Do investigate any script that fails its retry or appears repeatedly in recovery summaries. Static/source and other buckets are never auto-retried, and `LTF_REGRESSION_REPEAT` remains the deliberate flake-hunting control.
 
 The default full suite runs buckets cheap-first: static/source, default database, file storage, then isolated database. A failing bucket stops later buckets, so deterministic source failures short-circuit stateful work. Preserve this relative order, exact discovered-script membership, and each bucket's parallel/serial safety when changing runner orchestration; narrow filters retain the same relative order for whichever buckets remain.
 
-The slice-closeout maintenance gates are orchestrated by `npm run closeout`. Keep each underlying package script independently runnable, keep documentation and licensing warning-only, and add a gate to the conductor only when it is a standing cross-slice closeout contract. The conductor's consolidated board is complementary to the full regression/lint gate below.
+The standing maintenance gates remain independently orchestrated by `npm run closeout`. Keep each underlying package script independently runnable, keep documentation and licensing warning-only, and add a maintenance gate only when it is a standing cross-slice contract. Ordinary final local verification is orchestrated by `npm run verify:slice`, which de-duplicates that closeout conductor with changed-area/full-check escalation and the separate permission harness.
 
-Run the full check command once, as the slice's closeout gate, if the changed-area command did not already escalate to it:
-
-```sh
-npm run check
-```
-
-Run permission checks when permissions, visibility, route guards, workspace scope, module enablement, Files access, public API scopes, or admin/security behavior change:
+Run the canonical final local command once after all intended files are complete:
 
 ```sh
-npm run test:permissions
+npm run verify:slice
 ```
+
+When permissions, visibility, route guards, workspace scope, module enablement, Files access, public API scopes, or admin/security behavior change, changed-area routing includes the separate permission harness exactly once. Direct `npm run test:permissions` remains available for focused diagnosis, but do not repeat it after a successful `verify:slice` run that included it.
+
+GitHub Actions owns the independent clean-Linux pull-request proof into `nightly`, including browser, dependency-review, CodeQL, and PR verification passes. Promotion to `main`, manual releases, security or data-integrity exceptions explicitly required by the roadmap, and direct user instructions may still require additional named gates; those exceptional gates do not change the ordinary one-command local closeout rule.
 
 For database/storage changes, also run or document:
 

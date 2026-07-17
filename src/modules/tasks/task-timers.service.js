@@ -371,7 +371,9 @@ async function recordTaskTimerStatusAudit({ session, action, previousTask, nextT
     metadata: {
       task_id: nextTask?.task_id || previousTask?.task_id,
       client_id: nextTask?.client_id || previousTask?.client_id || "",
+      client_name: nextTask?.client_name || previousTask?.client_name || "",
       project_id: nextTask?.project_id || previousTask?.project_id || "",
+      project_name: nextTask?.project_name || previousTask?.project_name || "",
       source: "task_timer_lifecycle",
       transition,
     },

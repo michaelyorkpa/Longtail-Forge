@@ -49,7 +49,7 @@ LIMIT 1;
 
 async function saveWorkspaceSettings(workspaceId, settings) {
   const workspace = await db.get(`
-SELECT workspace_id
+SELECT workspace_id, workspace_type
 FROM workspaces
 WHERE workspace_id = :workspaceId
 LIMIT 1;
@@ -61,6 +61,9 @@ LIMIT 1;
 
   const now = new Date().toISOString();
   const savedSettings = normalizeSettings(settings);
+  if (savedSettings.workspaceType !== workspace.workspace_type) {
+    throw new AppError("Workspace type cannot be changed after creation.", 400);
+  }
   const booleanParams = db.dialect.boolean.bindFields({
     auditLoggingEnabled: savedSettings.audit.loggingEnabled,
   }, [
@@ -71,14 +74,12 @@ LIMIT 1;
     await transaction.run(`
 UPDATE workspaces
 SET name = :workspaceName,
-    workspace_type = :workspaceType,
     updated_at = :updatedAt
 WHERE workspace_id = :workspaceId;
 `, {
       updatedAt: now,
       workspaceId,
       workspaceName: savedSettings.workspaceName,
-      workspaceType: savedSettings.workspaceType,
     });
 
     await transaction.run(`

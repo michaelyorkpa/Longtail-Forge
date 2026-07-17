@@ -164,8 +164,8 @@
       return;
     }
 
-    sortByName(client.projects).forEach((project) => {
-      fields.project.appendChild(createOption(project.id, project.name));
+    client.projects.forEach((project) => {
+      fields.project.appendChild(createOption(project.id, projectOptionLabel(project)));
     });
     fields.project.value = client.projects.some((project) => project.id === projectId) ? projectId : "";
   }
@@ -369,6 +369,10 @@
     return namespace.clientProjectOptions.optionLabel(client);
   }
 
+  function projectOptionLabel(project) {
+    return namespace.clientProjectOptions.optionLabel(project);
+  }
+
   function workspaceShowsClientTools() {
     const tools = namespace.workspaceContext?.workspaceCapabilities?.availableTools || [];
     return Array.isArray(tools) && tools.includes("clients_projects");
@@ -384,10 +388,6 @@
 
   function createOption(value, text) {
     return pageController.createOption(value, text);
-  }
-
-  function sortByName(items) {
-    return pageController.sortByName(items);
   }
 
   function setStatus(message, options = {}) {

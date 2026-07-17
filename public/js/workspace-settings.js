@@ -3,6 +3,8 @@ const settingsForm = document.querySelector("[data-workspace-settings-form]");
 const workspaceNameInput = document.querySelector("[data-workspace-name-input]");
 const workspaceTypeSelect = document.querySelector("[data-workspace-type-input]");
 const moduleSettingsContainer = document.querySelector('[data-settings-attachment="workspace"]');
+const workspaceCoreSettingsContainer = moduleSettingsContainer?.querySelector("[data-workspace-core-settings]");
+const workspaceModuleSettingsContainer = moduleSettingsContainer?.querySelector("[data-workspace-module-settings]");
 const auditLoggingEnabledInput = document.querySelector("[data-audit-logging-enabled]");
 const auditRetentionDaysSelect = document.querySelector("[data-audit-retention-days]");
 const openWorkspaceUsersButton = document.querySelector("[data-open-workspace-users]");
@@ -10,21 +12,43 @@ const workspaceUsersDialog = document.querySelector("[data-workspace-users-dialo
 const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
 const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-users]");
 const workspaceSettingsStatus = document.querySelector("[data-workspace-settings-status]");
-const saveSettingsButton = document.querySelector("[data-save-settings]");
 const runtimeDiagnosticsSummary = document.querySelector("[data-runtime-diagnostics-summary]");
 const runtimeDiagnosticsWarnings = document.querySelector("[data-runtime-diagnostics-warnings]");
 const jobObservabilitySummary = document.querySelector("[data-job-observability-summary]");
 const jobObservabilityFailures = document.querySelector("[data-job-observability-failures]");
 const jobObservabilityMoreButton = document.querySelector("[data-job-observability-more]");
+const workspaceBackupSummary = document.querySelector("[data-workspace-backup-summary]");
+const workspaceBackupStatus = document.querySelector("[data-workspace-backup-status]");
+const createWorkspaceBackupButton = document.querySelector("[data-create-workspace-backup]");
+const workspaceDeletionSummary = document.querySelector("[data-workspace-deletion-summary]");
+const workspaceDeletionStatus = document.querySelector("[data-workspace-deletion-status]");
+const openWorkspaceDeletionButton = document.querySelector("[data-open-workspace-deletion]");
+const openWorkspaceDeletionCancelButton = document.querySelector("[data-open-workspace-deletion-cancel]");
+const workspaceDeletionDialog = document.querySelector("[data-workspace-deletion-dialog]");
+const workspaceDeletionDialogExplanation = document.querySelector("[data-workspace-deletion-dialog-explanation]");
+const workspaceDeletionNameInput = document.querySelector("[data-workspace-deletion-name]");
+const workspaceDeletionAcknowledgementInput = document.querySelector("[data-workspace-deletion-acknowledgement]");
+const workspaceDeletionAcknowledgementField = document.querySelector("[data-workspace-deletion-acknowledgement-field]");
+const workspaceDeletionDialogStatus = document.querySelector("[data-workspace-deletion-dialog-status]");
+const closeWorkspaceDeletionButton = document.querySelector("[data-close-workspace-deletion]");
+const confirmWorkspaceDeletionButton = document.querySelector("[data-confirm-workspace-deletion]");
 const JOB_FAILURE_PAGE_SIZE = 5;
 let activeWorkspaceId = "";
 let jobObservabilityFailureItems = [];
 let jobObservabilityNextCursor = "";
 let settingsCatalog = null;
+let workspaceDeletionState = null;
+let workspaceDeletionDialogMode = "request";
+const settingsPageController = window.LongtailForge.settingsPageController.create({
+  root: document.querySelector("[data-settings-host='workspace']"),
+  onSave: saveSettings,
+});
 
 loadSettingsForm();
 loadRuntimeDiagnostics();
 loadJobObservability();
+loadLatestWorkspaceBackup();
+loadWorkspaceDeletion();
 
 openWorkspaceUsersButton?.addEventListener("click", openWorkspaceUsersDialog);
 closeWorkspaceUsersButton?.addEventListener("click", () => workspaceUsersDialog?.close());
@@ -33,6 +57,11 @@ jobObservabilityMoreButton?.addEventListener("click", () => {
     loadJobObservability({ append: true, cursor: jobObservabilityNextCursor });
   }
 });
+createWorkspaceBackupButton?.addEventListener("click", createWorkspaceBackup);
+openWorkspaceDeletionButton?.addEventListener("click", () => openWorkspaceDeletionDialog("request"));
+openWorkspaceDeletionCancelButton?.addEventListener("click", () => openWorkspaceDeletionDialog("cancel"));
+closeWorkspaceDeletionButton?.addEventListener("click", () => workspaceDeletionDialog?.close());
+confirmWorkspaceDeletionButton?.addEventListener("click", confirmWorkspaceDeletion);
 
 settingsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -56,6 +85,7 @@ async function loadSettingsForm() {
     auditLoggingEnabledInput.checked = settings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
     setWorkspaceSettingsStatus("");
+    settingsPageController.setClean();
   } catch (error) {
     handleApiError(error, "Workspace settings could not be loaded.");
     console.error(error);
@@ -64,7 +94,7 @@ async function loadSettingsForm() {
 
 async function loadRuntimeDiagnostics() {
   if (!runtimeDiagnosticsSummary) {
-    return;
+    return false;
   }
 
   renderRuntimeDiagnosticsLoading();
@@ -77,10 +107,176 @@ async function loadRuntimeDiagnostics() {
   }
 }
 
+async function loadLatestWorkspaceBackup() {
+  if (!workspaceBackupSummary) return;
+  renderWorkspaceBackupSummary(null, "Loading latest backup...");
+  try {
+    const result = await window.LongtailForge.api.getJson("/api/settings/workspace-backups/latest", { cache: "no-store" });
+    renderWorkspaceBackupSummary(result.backup || null);
+  } catch (error) {
+    renderWorkspaceBackupError(error);
+  }
+}
+
+async function createWorkspaceBackup() {
+  if (!createWorkspaceBackupButton) return;
+  createWorkspaceBackupButton.disabled = true;
+  renderWorkspaceBackupMessage("Creating and validating a protected workspace package...");
+  try {
+    const result = await window.LongtailForge.api.postJson("/api/settings/workspace-backups", {});
+    renderWorkspaceBackupSummary(result.backup || null);
+    renderWorkspaceBackupMessage("Workspace backup created and checksum-verified.", "success");
+  } catch (error) {
+    renderWorkspaceBackupError(error);
+  } finally {
+    createWorkspaceBackupButton.disabled = false;
+  }
+}
+
+async function loadWorkspaceDeletion() {
+  if (!workspaceDeletionSummary) return;
+  renderWorkspaceDeletionSummary(null, "Loading deletion state...");
+  try {
+    const result = await window.LongtailForge.api.getJson("/api/settings/workspace-deletion", { cache: "no-store" });
+    renderWorkspaceDeletionSummary(result.deletion || null);
+  } catch (error) {
+    openWorkspaceDeletionButton.hidden = true;
+    openWorkspaceDeletionCancelButton.hidden = true;
+    renderWorkspaceDeletionMessage(error?.status === 403
+      ? "Workspace deletion requires a Workspace Administrator or Super Admin."
+      : error?.message || "Workspace deletion state could not be loaded.", "error");
+  }
+}
+
+function renderWorkspaceDeletionSummary(deletion, placeholder = "This workspace is not pending deletion.") {
+  if (!workspaceDeletionSummary) return;
+  workspaceDeletionState = deletion;
+  workspaceDeletionSummary.replaceChildren();
+  const lifecycle = deletion?.lifecycle;
+  if (!lifecycle) {
+    workspaceDeletionSummary.appendChild(createRuntimeDiagnosticItem("Status", placeholder));
+    openWorkspaceDeletionButton.hidden = false;
+    openWorkspaceDeletionCancelButton.hidden = true;
+    renderWorkspaceDeletionMessage(deletion?.backup?.current
+      ? `A workspace backup from the last ${deletion.backup.windowHours} hours is available.`
+      : "No current workspace backup is available. Scheduling deletion requires the displayed typed acknowledgement.");
+    return;
+  }
+  workspaceDeletionSummary.append(
+    createRuntimeDiagnosticItem("Status", "Pending deletion"),
+    createRuntimeDiagnosticItem("Requested", formatRuntimeDate(lifecycle.requestedAt)),
+    createRuntimeDiagnosticItem("Requested By", lifecycle.requestedByName || "Workspace administrator"),
+    createRuntimeDiagnosticItem("Grace Period Ends", formatRuntimeDate(lifecycle.purgeAfter)),
+    createRuntimeDiagnosticItem("Backup Protection", lifecycle.backupProtected ? "Current backup recorded" : "No current backup acknowledged"),
+  );
+  openWorkspaceDeletionButton.hidden = true;
+  openWorkspaceDeletionCancelButton.hidden = false;
+  renderWorkspaceDeletionMessage("The workspace remains fully operational during the grace period. Cancel before the displayed time to restore its normal lifecycle state.", "warning");
+}
+
+function openWorkspaceDeletionDialog(mode) {
+  if (!workspaceDeletionDialog || !workspaceDeletionState) return;
+  workspaceDeletionDialogMode = mode;
+  const canceling = mode === "cancel";
+  workspaceDeletionDialog.querySelector(".view-modal-title").textContent = canceling ? "Cancel Workspace Deletion" : "Delete Workspace";
+  workspaceDeletionDialogExplanation.textContent = canceling
+    ? `Cancel the pending deletion of ${workspaceDeletionState.workspaceName}. Its data and access remain unchanged.`
+    : `Schedule ${workspaceDeletionState.workspaceName} for deletion after a 30-day grace period. Sessions, memberships, navigation, modules, jobs, Files, Search, and notifications remain operational during the grace period.`;
+  workspaceDeletionNameInput.closest(".view-renderer-field")?.toggleAttribute("hidden", canceling);
+  workspaceDeletionNameInput.required = !canceling;
+  workspaceDeletionAcknowledgementField.hidden = canceling || workspaceDeletionState.backup?.current;
+  workspaceDeletionAcknowledgementInput.required = !canceling && !workspaceDeletionState.backup?.current;
+  workspaceDeletionAcknowledgementInput.placeholder = workspaceDeletionState.acknowledgementPhrase || "";
+  workspaceDeletionNameInput.value = "";
+  workspaceDeletionAcknowledgementInput.value = "";
+  workspaceDeletionDialogStatus.textContent = "";
+  confirmWorkspaceDeletionButton.textContent = canceling ? "Cancel Deletion" : "Schedule Deletion";
+  confirmWorkspaceDeletionButton.classList.toggle("danger-button", !canceling);
+  workspaceDeletionDialog.showModal();
+}
+
+async function confirmWorkspaceDeletion() {
+  if (!workspaceDeletionState || !confirmWorkspaceDeletionButton) return;
+  confirmWorkspaceDeletionButton.disabled = true;
+  workspaceDeletionDialogStatus.textContent = workspaceDeletionDialogMode === "cancel"
+    ? "Canceling workspace deletion..."
+    : "Scheduling workspace deletion...";
+  try {
+    const result = workspaceDeletionDialogMode === "cancel"
+      ? await window.LongtailForge.api.postJson("/api/settings/workspace-deletion/cancel", {})
+      : await window.LongtailForge.api.postJson("/api/settings/workspace-deletion/request", {
+        acknowledgement: workspaceDeletionAcknowledgementInput.value,
+        workspaceName: workspaceDeletionNameInput.value,
+      });
+    workspaceDeletionDialog.close();
+    renderWorkspaceDeletionSummary(result.deletion);
+    await window.LongtailForge.refreshAppShell?.();
+  } catch (error) {
+    workspaceDeletionDialogStatus.textContent = error?.message || "Workspace deletion state could not be changed.";
+  } finally {
+    confirmWorkspaceDeletionButton.disabled = false;
+  }
+}
+
+function renderWorkspaceDeletionMessage(message, type = "info") {
+  if (!workspaceDeletionStatus) return;
+  workspaceDeletionStatus.replaceChildren();
+  if (!message) return;
+  const note = document.createElement("p");
+  note.className = type === "error" || type === "warning" ? "runtime-diagnostics-warning" : "runtime-diagnostics-note";
+  note.textContent = message;
+  workspaceDeletionStatus.appendChild(note);
+}
+
+function renderWorkspaceBackupSummary(backup, placeholder = "No workspace backup has been created yet.") {
+  if (!workspaceBackupSummary) return;
+  workspaceBackupSummary.replaceChildren();
+  if (!backup) {
+    workspaceBackupSummary.appendChild(createRuntimeDiagnosticItem("Latest Backup", placeholder));
+    renderWorkspaceBackupMessage("");
+    return;
+  }
+  workspaceBackupSummary.append(
+    createRuntimeDiagnosticItem("Package", backup.packageLabel || "Workspace backup"),
+    createRuntimeDiagnosticItem("Created", formatRuntimeDate(backup.createdAt)),
+    createRuntimeDiagnosticItem("Created By", backup.createdByName || "Workspace administrator"),
+    createRuntimeDiagnosticItem("Files", `${formatRuntimeNumber(backup.fileObjectCount)} objects (${formatByteCount(backup.fileObjectBytes)})`),
+    createRuntimeDiagnosticItem("SHA-256", String(backup.archiveSha256 || "Unavailable")),
+  );
+  renderWorkspaceBackupMessage(backup.secureNotesRecoveryRequired
+    ? "Secure Notes are encrypted in the package. The master key is not included; keep the separately protected installation key backup for recovery."
+    : "The package contains no Secure Notes key material.");
+}
+
+function renderWorkspaceBackupError(error) {
+  const message = error?.status === 403
+    ? "Workspace backup requires a Workspace Administrator or Super Admin."
+    : error?.message || "Workspace backup could not be created.";
+  renderWorkspaceBackupMessage(message, "error");
+}
+
+function renderWorkspaceBackupMessage(message, type = "info") {
+  if (!workspaceBackupStatus) return;
+  workspaceBackupStatus.replaceChildren();
+  if (!message) return;
+  const note = document.createElement("p");
+  note.className = type === "error" ? "runtime-diagnostics-warning" : "runtime-diagnostics-note";
+  note.textContent = message;
+  workspaceBackupStatus.appendChild(note);
+}
+
+function formatByteCount(value) {
+  const bytes = Math.max(0, Number(value) || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
+
 async function saveSettings() {
   if (!window.LongtailForge.settingsRenderer.validate(settingsForm)) {
     setWorkspaceSettingsStatus("Review the highlighted module settings.");
-    return;
+    return false;
   }
   // Normalize before saving so the server receives the same shape the UI expects back.
   const settings = normalizeSettings({
@@ -99,7 +295,6 @@ async function saveSettings() {
     return;
   }
 
-  saveSettingsButton.disabled = true;
   setWorkspaceSettingsStatus("Saving workspace settings...");
 
   try {
@@ -116,13 +311,15 @@ async function saveSettings() {
       window.applyWorkspaceName(savedSettings.workspaceName);
     }
 
+    await window.LongtailForge.refreshAppShell?.();
+
     flashSavedState();
+    return true;
   } catch (error) {
     window.LongtailForge.settingsRenderer.showValidationErrors(settingsForm, error);
     handleApiError(error, "Workspace settings were not saved. Start the local server and try again.");
     console.error(error);
-  } finally {
-    saveSettingsButton.disabled = false;
+    return false;
   }
 }
 
@@ -143,11 +340,33 @@ function normalizeSettings(settings) {
 }
 
 function renderModuleSettings(catalog) {
+  const sections = window.LongtailForge.settingsHost.attachmentSections(catalog, "workspace");
+  const clientProjects = sections.filter((section) => section.moduleId === "client-projects");
+  const optionalModules = sections
+    .filter((section) => section.moduleId !== "client-projects" && section.lifecycle === true)
+    .sort(compareOptionalModules);
+  const otherWorkspaceSettings = sections.filter((section) => (
+    section.moduleId !== "client-projects" && section.lifecycle !== true
+  ));
+
   window.LongtailForge.settingsRenderer.renderSections(
-    moduleSettingsContainer,
-    window.LongtailForge.settingsHost.attachmentSections(catalog, "workspace"),
-    { emptyText: "No configurable modules are available for this workspace." },
+    workspaceCoreSettingsContainer || moduleSettingsContainer,
+    [...clientProjects, ...otherWorkspaceSettings],
+    { hideEmpty: true },
   );
+  window.LongtailForge.settingsRenderer.renderGroupedSections(
+    workspaceModuleSettingsContainer || moduleSettingsContainer,
+    optionalModules,
+    { groupTitle: "Modules", hideEmpty: true },
+  );
+}
+
+function compareOptionalModules(left, right) {
+  const leftLast = left.moduleId === "developer-example" ? 1 : 0;
+  const rightLast = right.moduleId === "developer-example" ? 1 : 0;
+  return leftLast - rightLast ||
+    String(left.displayName || left.name || left.moduleId).localeCompare(String(right.displayName || right.name || right.moduleId)) ||
+    left.moduleId.localeCompare(right.moduleId);
 }
 
 function renderRuntimeDiagnosticsLoading() {
@@ -606,15 +825,10 @@ function createWorkspaceUsersPlaceholder(message) {
 }
 
 function flashSavedState() {
-  const originalText = saveSettingsButton.textContent;
-  saveSettingsButton.textContent = "Saved.";
-  saveSettingsButton.classList.add("is-saved");
-  setWorkspaceSettingsStatus("");
-
-  window.setTimeout(() => {
-    saveSettingsButton.textContent = originalText;
-    saveSettingsButton.classList.remove("is-saved");
-  }, 1600);
+  window.LongtailForge.status.set(workspaceSettingsStatus, "Workspace settings saved.", {
+    type: "success",
+    clearAfter: 1600,
+  });
 }
 
 function setWorkspaceSettingsStatus(message) {

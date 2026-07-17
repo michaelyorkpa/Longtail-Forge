@@ -105,8 +105,8 @@ ${projectInsertSql(workspaceId, "", projectIds.workspaceFallbackProjectId, "Work
 ${projectInsertSql(workspaceId, "", projectIds.workspaceProjectId, "Workspace Creator Project", "creator", now)}
 ${projectInsertSql(workspaceId, "", projectIds.creatorProjectId, "Creator Project", "creator", now)}
 ${projectInsertSql(workspaceId, "", projectIds.unassignedProjectId, "Unassigned Project", "unassigned", now)}
-${assignmentInsertSql(workspaceId, users.projectAdminOld.userId, "project_admin", "client", clientIds.projectAdmin, "2026-06-06T16:01:00.000Z")}
-${assignmentInsertSql(workspaceId, users.projectAdminNew.userId, "project_admin", "client", clientIds.projectAdmin, "2026-06-06T16:02:00.000Z")}
+${assignmentInsertSql(workspaceId, users.projectAdminOld.userId, "project_admin", "project", projectIds.projectAdminProjectId, "2026-06-06T16:01:00.000Z")}
+${assignmentInsertSql(workspaceId, users.projectAdminNew.userId, "project_admin", "project", projectIds.projectAdminProjectId, "2026-06-06T16:02:00.000Z")}
 ${assignmentInsertSql(workspaceId, users.clientAdmin.userId, "client_admin", "client", clientIds.clientAdmin, "2026-06-06T16:03:00.000Z")}
 ${assignmentInsertSql(workspaceId, users.workspaceAdmin.userId, "workspace_admin", "workspace", workspaceId, "2026-06-06T16:04:00.000Z")}
 `);

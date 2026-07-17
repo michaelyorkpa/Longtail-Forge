@@ -45,6 +45,7 @@ SELECT
 FROM user_workspaces
 INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = :userId
+  AND lower(workspaces.status) = 'active'
 ORDER BY workspaces.name;
 `, { userId });
 }
@@ -65,6 +66,7 @@ SELECT
 FROM workspaces
 LEFT JOIN users AS owner
   ON owner.user_id = workspaces.owner_user_id
+WHERE lower(workspaces.status) = 'active'
 ORDER BY name;
 `);
 }
@@ -77,6 +79,7 @@ SELECT
 FROM workspaces
 LEFT JOIN users AS owner
   ON owner.user_id = workspaces.owner_user_id
+WHERE lower(workspaces.status) = 'active'
 ORDER BY
   CASE WHEN owner.protected_user = 'yes' THEN 0 ELSE 1 END,
   workspaces.created_at,
@@ -98,15 +101,22 @@ WHERE workspace_id = :workspaceId
 
 async function upsert({ userId, workspaceId, status = "active" }) {
   const now = new Date().toISOString();
+  const normalizedStatus = normalizeStatus(status);
 
   await db.run(`${USER_WORKSPACE_UPSERT_SQL};`, {
     createdAt: now,
-    status: normalizeStatus(status),
+    status: normalizedStatus,
     updatedAt: now,
     userId,
     userWorkspaceId: randomUUID(),
     workspaceId,
   });
+  if (normalizedStatus === "active") {
+    await db.run(`
+DELETE FROM account_export_recovery_qualifications
+WHERE user_id = :userId;
+`, { userId });
+  }
 
   return readByUserAndWorkspace(userId, workspaceId);
 }
@@ -130,12 +140,40 @@ WHERE user_id = :userId
   return readByUserAndWorkspace(userId, workspaceId);
 }
 
+async function deactivateAccess(userId, workspaceId) {
+  const updatedAt = new Date().toISOString();
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+UPDATE user_workspaces
+SET status = 'inactive',
+    updated_at = :updatedAt
+WHERE user_id = :userId
+  AND workspace_id = :workspaceId;
+`, { updatedAt, userId, workspaceId });
+    await transaction.run(`
+DELETE FROM user_role_assignments
+WHERE user_id = :userId
+  AND workspace_id = :workspaceId;
+`, { userId, workspaceId });
+  });
+
+  return readByUserAndWorkspace(userId, workspaceId);
+}
+
 async function remove(userId, workspaceId) {
-  await db.run(`
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+DELETE FROM user_role_assignments
+WHERE user_id = :userId
+  AND workspace_id = :workspaceId;
+`, { userId, workspaceId });
+    await transaction.run(`
 DELETE FROM user_workspaces
 WHERE user_id = :userId
   AND workspace_id = :workspaceId;
 `, { userId, workspaceId });
+  });
 }
 
 function normalizeStatus(status) {
@@ -143,6 +181,7 @@ function normalizeStatus(status) {
 }
 
 export const userWorkspacesRepository = {
+  deactivateAccess,
   readAllWorkspaces,
   readInstallSecurityWorkspace,
   readActiveForUser,

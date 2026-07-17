@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Account Data Recovery | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css">
+  </head>
+  <body>
+    <main class="login-page">
+      <section class="login-form" aria-labelledby="account-recovery-title">
+        <h1 id="account-recovery-title">Account data recovery</h1>
+        <p>Your account no longer has access to an active workspace. This restricted session can only export your account profile and preferences.</p>
+        <p>The export does not contain workspace records, files, backups, memberships, roles, credentials, sessions, audit history, or internal identifiers.</p>
+        <button type="button" data-download-account-export>Download account data</button>
+        <button type="button" class="secondary-button" data-account-recovery-logout>Log Out</button>
+        <p data-account-recovery-status role="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <script src="js/account-recovery.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

@@ -1,6 +1,8 @@
 # Application Versioning
 
-`package.json` is the single metadata source for the current Longtail Forge application version. Runtime code reads it through `src/core/version.js`; `/api/app-info`, runtime diagnostics, app-shell metadata, and the bundled workflow module manifests consume that derived value instead of duplicating a release literal.
+`package.json` is the single metadata source for the canonical Longtail Forge application version. Runtime code reads it through `src/core/version.js`; asset keys and bundled workflow module manifests consume that unsuffixed value instead of duplicating a release literal.
+
+Maintained deployment paths supply a validated `LONGTAIL_RELEASE_BRANCH`. Runtime identity qualifies the display version as `<canonicalVersion>-<sourceBranch>` (for example `0.33.17.7-nightly`) while exposing `canonicalVersion`, `sourceBranch`, and `displayVersion` separately through `/api/app-info`, runtime diagnostics, and app-shell metadata. The splash and shared footer show the qualified display value. An explicitly local run may omit the branch and remains unqualified; release artifacts and deployments must not infer identity from `.git` because packaged installations do not contain it.
 
 Database adapter `contractVersion` fields are independent provider-contract markers. They change only when their adapter contract changes and must not be updated merely because the application version changes.
 
@@ -35,10 +37,10 @@ After the helper runs:
    The conductor aggregates these maintenance gates and reports warning-only documentation/licensing results without replacing their existing policy. Each underlying package script remains independently runnable.
 
 4. Run the normal release verification, including the separate full `npm run check` regression and lint gate.
-5. Build the checksummed runtime artifact with `npm run artifact:build`. For a release candidate, run `npm run artifact:smoke` to prove a clean `npm ci --omit=dev` install and boot without development dependencies; see [Runtime Artifact](runtime-artifact.md).
+5. Build the checksummed runtime artifact with `npm run artifact:build -- --source-branch <branch>`. `nightly` builds use `nightly`; main, preview, and tagged-release builds use `main`. For a release candidate, run `npm run artifact:smoke` to prove a clean `npm ci --omit=dev` install and boot without development dependencies; see [Runtime Artifact](runtime-artifact.md).
 6. For a deployable preview candidate, exercise the staged bare-metal and container paths against the retained prior artifact with `npm run bare-metal:smoke -- --previous-artifact <path>` and `npm run container:smoke -- --previous-artifact <path> --pull`. Both must prove persistence, readiness/version reporting, backup-first replacement, and restored rollback; a missing Docker engine is a failed prerequisite. See [Docker and Bare-Metal Preview Deployment](preview-deployment.md).
 7. Run `npm run backup:drill` after any material database, Files, Secure Notes encryption, archive, or restore change. A preview candidate also needs a protected real-install backup inspected through the shipped CLI and a recorded representative restore; see [Baseline Backup and Restore](backup-restore.md).
-8. Restart the app and verify `/api/app-info` reports the intended version and served HTML uses the same value for local JavaScript/CSS URLs.
+8. Restart the app and verify `/api/app-info` reports the intended canonical version, source branch, and qualified display version. Served JavaScript/CSS URLs continue to use only the canonical version.
 
 ## Literal Guardrail
 

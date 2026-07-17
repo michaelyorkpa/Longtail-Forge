@@ -80,7 +80,7 @@
     const workspaceType = options.workspaceType || global.LongtailForge?.workspaceContext?.workspaceType || "business";
 
     fieldset.className = "notification-grouping-preferences surface-main-panel";
-    legend.textContent = "Notification grouping";
+    legend.textContent = "Notification Grouping";
     select.dataset.notificationGroupingMode = "";
     select.setAttribute("aria-label", "Notification grouping");
     groupingOptions(workspaceType).forEach((option) => select.append(optionElement(option.value, option.label)));

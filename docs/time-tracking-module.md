@@ -4,6 +4,8 @@ Time Tracking is the first-party module for active timers, saved time entries, b
 
 Time Tracking declares its module-status control as a workspace Settings contribution. Fiscal-year month/day and billing-rounding enabled/increment are Time Tracking-owned contributions persisted in the generic store and read through `timeTrackingSettingsService`; its owner-registered fiscal effect preserves valid month/day combinations. Module lifecycle state still persists through `workspace_modules`.
 
+When Time Tracking is disabled, its Settings route remains a permission-checked shared Settings host with a disabled message and Workspace Settings recovery link. The refreshed app shell removes Time Keeping navigation and the Capture Timer action immediately. Tasks and Workbench omit task-timer UI whenever Time Tracking is unavailable; if Time Tracking stays enabled while Tasks -> Task Timers is disabled, manual timers and the Time Tracking navigation remain available while task-sourced controls and Workbench task-timer rows are suppressed.
+
 Owned by `src/modules/time-tracking/`:
 
 - Browser API routes for time entries and active timers.
@@ -65,6 +67,8 @@ As of 0.33.6.12k, Task Focus renames the lower timer panel to `Other Active Time
 Create Timer modal:
 
 As of version 0.33.6.12d-2, Time Tracking owns the Create Timer modal registered as `time-tracking.timer.create`. QAC and future framework surfaces open this module action through `LongtailForge.moduleActions` instead of navigating to the Time Tracker page. The modal supports Client, Project, optional Task, Description, and Billable controls; manual timer starts use the existing `/api/active-timers/:timerSlot` route with the next available manual slot, while selected Task timers use `PUT /api/tasks/:taskId/timer` so Tasks keeps task-timer eligibility, status-transition, audit/event/search, and task-worked side effects. After a successful start, the modal completes the host action, returns focus through the module-action host, and notifies the host that timer state changed.
+
+As of 0.33.17.7.16, both the Create Timer modal and the Time Tracker timer cards preserve the Clients/Projects-owned option order and readable labels returned by the shared `client-project-options` helper. Workspace scope uses the readable Business, Personal, or Family workspace label; each selected scope keeps parent projects before their children, and child labels retain the shared indented `-` prefix. Timer browser code must not apply a second alphabetical sort or rebuild hierarchy labels.
 
 Linking a running manual timer to a task:
 

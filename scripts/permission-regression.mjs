@@ -8,7 +8,10 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-permission-regression-"));
+const permissionFilesRoot = path.join(tempDir, "files");
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-permission-test.db");
+process.env.LONGTAIL_LOCAL_STORAGE_ROOT = permissionFilesRoot;
+process.env.LONGTAIL_WORKSPACE_BACKUP_ROOT = path.join(tempDir, "workspace-backups");
 process.env.SUPER_ADMIN_PASSWORD = "Permission-Test-Password-123!";
 
 const { createApp } = await import("../src/core/app.js");
@@ -33,6 +36,7 @@ try {
   await runTimeEntryMutationTests(api, fixtures);
   await runActiveTimerMutationTests(api, fixtures);
   await runUserMutationTests(api, fixtures);
+  await runAddUserAdministrationTests(api, fixtures);
   await runRoleAssignmentTests(api, fixtures);
   await runSettingsTests(api, fixtures);
   await runOwnershipScopeTests(api, fixtures);
@@ -89,6 +93,10 @@ LIMIT 1;
     id: `workspace-personal-${randomUUID()}`,
     projectId: `project-personal-${randomUUID()}`,
   };
+  const familyWorkspace = {
+    id: `workspace-family-${randomUUID()}`,
+    projectId: `project-family-${randomUUID()}`,
+  };
 
   await runSql(`
 ${Object.values(users).filter((user) => user.userId).map((user) => userInsertSql(workspaceId, user)).join("\n")}
@@ -100,12 +108,13 @@ ${projectInsertSql(workspaceId, projects.beta, now)}
 ${projectInsertSql(workspaceId, projects.workspace, now)}
 ${assignmentInsertSql(workspaceId, users.workspaceAdmin.userId, "workspace_admin", "workspace", workspaceId, now)}
 ${assignmentInsertSql(workspaceId, users.clientAdmin.userId, "client_admin", "client", clients.alpha.id, now)}
-${assignmentInsertSql(workspaceId, users.projectAdmin.userId, "project_admin", "client", clients.alpha.id, now)}
+${assignmentInsertSql(workspaceId, users.projectAdmin.userId, "project_admin", "project", projects.alpha.id, now)}
 ${assignmentInsertSql(workspaceId, users.clientUser.userId, "client_user", "client", clients.alpha.id, now)}
 ${assignmentInsertSql(workspaceId, users.projectUser.userId, "project_user", "project", projects.alpha.id, now)}
 ${assignmentInsertSql(workspaceId, users.externalClientUser.userId, "client_external_user", "client", clients.alpha.id, now)}
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at)
 VALUES (${sqlText(otherWorkspace.id)}, 'Other Workspace', 'Active', 'business', ${sqlText(superAdmin.user_id)}, ${sqlText(now)}, ${sqlText(now)});
+${workspaceSettingsInsertSql(otherWorkspace.id, now)}
 ${workspaceModuleInsertSql(otherWorkspace.id, "tasks", now)}
 ${workspaceModuleInsertSql(otherWorkspace.id, "time-tracking", now)}
 ${clientInsertSql(otherWorkspace.id, { id: otherWorkspace.clientId, name: "Other Workspace Client" }, now)}
@@ -116,6 +125,13 @@ ${workspaceModuleInsertSql(personalWorkspace.id, "time-tracking", now)}
 ${Object.values(users).filter((user) => user.userId).map((user) => membershipInsertSql(personalWorkspace.id, user, now)).join("\n")}
 ${projectInsertSql(personalWorkspace.id, { id: personalWorkspace.projectId, clientId: "", name: "Personal Workspace Project" }, now)}
 ${assignmentInsertSql(personalWorkspace.id, users.workspaceAdmin.userId, "workspace_admin", "workspace", personalWorkspace.id, now)}
+${workspaceInsertSql(familyWorkspace.id, "Family Harness Workspace", "family", users.workspaceAdmin.userId, now)}
+${workspaceSettingsInsertSql(familyWorkspace.id, now)}
+${workspaceModuleInsertSql(familyWorkspace.id, "tasks", now)}
+${workspaceModuleInsertSql(familyWorkspace.id, "time-tracking", now)}
+${membershipInsertSql(familyWorkspace.id, users.workspaceAdmin, now)}
+${projectInsertSql(familyWorkspace.id, { id: familyWorkspace.projectId, clientId: "", name: "Family Workspace Project" }, now)}
+${assignmentInsertSql(familyWorkspace.id, users.workspaceAdmin.userId, "workspace_admin", "workspace", familyWorkspace.id, now)}
 `);
 
   const sessions = {};
@@ -130,8 +146,22 @@ ${assignmentInsertSql(personalWorkspace.id, users.workspaceAdmin.userId, "worksp
     users.workspaceAdmin.userId,
     users.workspaceAdmin.username,
   );
+  sessions.familyWorkspaceAdmin = await createSession(
+    familyWorkspace.id,
+    users.workspaceAdmin.userId,
+    users.workspaceAdmin.username,
+  );
 
-  return { workspaceId, users, sessions, clients, projects, otherWorkspace, personalWorkspace };
+  return {
+    workspaceId,
+    users,
+    sessions,
+    clients,
+    projects,
+    otherWorkspace,
+    personalWorkspace,
+    familyWorkspace,
+  };
 }
 
 async function runAccessGuardTests(api) {
@@ -1153,6 +1183,12 @@ async function runActiveTimerMutationTests(api, fixtures) {
 }
 
 async function runUserMutationTests(api, fixtures) {
+  await expectStatus(
+    "workspace admin cannot delete the signed-in account through User Administration",
+    api.delete(`/api/users/${fixtures.users.workspaceAdmin.userId}`, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+
   const created = await api.post("/api/users", {
     username: uniqueEmail("mutation-user"),
     displayName: "Mutation User",
@@ -1168,11 +1204,356 @@ async function runUserMutationTests(api, fixtures) {
   );
   await expectStatus("workspace admin can deactivate users", api.put(`/api/users/${userId}/deactivate`, {}, { cookie: fixtures.sessions.workspaceAdmin }), 200);
   await expectStatus("workspace admin can reactivate users", api.put(`/api/users/${userId}/reactivate`, {}, { cookie: fixtures.sessions.workspaceAdmin }), 200);
-  await expectStatus("workspace admin can remove users", api.delete(`/api/users/${userId}`, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+  await expectStatus("workspace admin can retire users", api.delete(`/api/users/${userId}`, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+  const retiredAdminTarget = await querySql(`
+SELECT users.username, users.display_name, users.user_status, user_workspaces.status AS membership_status
+FROM users
+INNER JOIN user_workspaces ON user_workspaces.user_id = users.user_id
+WHERE users.user_id = ${sqlText(userId)}
+  AND user_workspaces.workspace_id = ${sqlText(fixtures.workspaceId)};
+`);
+  check("administrator deletion retires access while preserving readable identity", () => {
+    assert.deepEqual(retiredAdminTarget, [{
+      username: created.body.user.username,
+      display_name: "Mutation User Updated",
+      user_status: "inactive",
+      membership_status: "inactive",
+    }]);
+  });
+
+  const selfCreated = await api.post("/api/users", {
+    username: uniqueEmail("self-retirement-user"),
+    displayName: "Retained Attribution User",
+    timezone: "America/New_York",
+  }, { cookie: fixtures.sessions.workspaceAdmin });
+  await expectStatus("workspace admin can create a self-retirement fixture", selfCreated, 201);
+  const selfUserId = selfCreated.body.user.user_id;
+  await runSql(`
+UPDATE users
+SET password_change_required = 0
+WHERE user_id = ${sqlText(selfUserId)};
+`);
+  const attribution = await seedUserAttribution(fixtures.workspaceId, selfUserId);
+  const selfLogin = await expectStatus(
+    "active user can sign in before self-retirement",
+    api.post("/api/login", {
+      username: selfCreated.body.user.username,
+      password: selfCreated.body.initialPassword,
+    }),
+    200,
+  );
+  const selfCookie = extractSessionCookie(selfLogin.headers);
+  await expectStatus(
+    "signed-in user can retire the account through User Settings",
+    api.delete("/api/user/account", { cookie: selfCookie }),
+    200,
+  );
+  await expectStatus(
+    "retired session cannot access User Settings",
+    api.get("/api/user/settings", { cookie: selfCookie }),
+    401,
+  );
+  const retiredLogin = await expectStatus(
+    "retired account receives a non-enumerating login denial",
+    api.post("/api/login", {
+      username: selfCreated.body.user.username,
+      password: selfCreated.body.initialPassword,
+    }),
+    401,
+  );
+  const unknownLogin = await expectStatus(
+    "unknown account receives the same non-enumerating login denial",
+    api.post("/api/login", {
+      username: uniqueEmail("unknown-retirement-user"),
+      password: selfCreated.body.initialPassword,
+    }),
+    401,
+  );
+  check("inactive and unknown login responses are indistinguishable", () => {
+    assert.deepEqual(retiredLogin.body, unknownLogin.body);
+    assert.deepEqual(retiredLogin.body, {
+      error: "These credentials do not have access to this installation.",
+    });
+  });
+
+  const retainedAttribution = await querySql(`
+SELECT
+  users.username,
+  users.display_name,
+  users.user_status,
+  tasks.created_by_user_id AS task_user_id,
+  notes.owner_user_id AS note_user_id,
+  files.uploaded_by_user_id AS file_user_id,
+  lists.created_by_user_id AS list_user_id
+FROM users
+INNER JOIN tasks ON tasks.task_id = ${sqlText(attribution.taskId)}
+INNER JOIN notes ON notes.note_id = ${sqlText(attribution.noteId)}
+INNER JOIN files ON files.file_id = ${sqlText(attribution.fileId)}
+INNER JOIN lists ON lists.list_id = ${sqlText(attribution.listId)}
+WHERE users.user_id = ${sqlText(selfUserId)};
+`);
+  check("self-retirement preserves readable task, note, file, and list attribution", () => {
+    assert.deepEqual(retainedAttribution, [{
+      username: selfCreated.body.user.username,
+      display_name: "Retained Attribution User",
+      user_status: "inactive",
+      task_user_id: selfUserId,
+      note_user_id: selfUserId,
+      file_user_id: selfUserId,
+      list_user_id: selfUserId,
+    }]);
+  });
+
   await expectStatus(
     "project user cannot create users",
     api.post("/api/users", { username: uniqueEmail("denied-user") }, { cookie: fixtures.sessions.projectUser }),
     403,
+  );
+}
+
+async function seedUserAttribution(workspaceId, userId) {
+  const now = new Date().toISOString();
+  const taskId = `retained-task-${randomUUID()}`;
+  const noteId = `retained-note-${randomUUID()}`;
+  const fileId = `retained-file-${randomUUID()}`;
+  const listId = `retained-list-${randomUUID()}`;
+
+  await runSql(`
+INSERT INTO tasks (
+  task_id, workspace_id, title, created_by_user_id, updated_by_user_id, created_at, updated_at
+) VALUES (
+  ${sqlText(taskId)}, ${sqlText(workspaceId)}, 'Retained task attribution',
+  ${sqlText(userId)}, ${sqlText(userId)}, ${sqlText(now)}, ${sqlText(now)}
+);
+INSERT INTO notes (
+  note_id, workspace_id, title, owner_user_id, created_by_user_id, updated_by_user_id, created_at, updated_at
+) VALUES (
+  ${sqlText(noteId)}, ${sqlText(workspaceId)}, 'Retained note attribution',
+  ${sqlText(userId)}, ${sqlText(userId)}, ${sqlText(userId)}, ${sqlText(now)}, ${sqlText(now)}
+);
+INSERT INTO files (
+  file_id, workspace_id, storage_key, original_filename, stored_filename, display_name,
+  status, uploaded_by_user_id, created_at, updated_at
+) VALUES (
+  ${sqlText(fileId)}, ${sqlText(workspaceId)}, ${sqlText(`retained/${fileId}`)},
+  'retained.txt', 'retained.txt', 'Retained file attribution', 'available',
+  ${sqlText(userId)}, ${sqlText(now)}, ${sqlText(now)}
+);
+INSERT INTO lists (
+  list_id, workspace_id, title, list_type, created_by_user_id, updated_by_user_id, created_at, updated_at
+) VALUES (
+  ${sqlText(listId)}, ${sqlText(workspaceId)}, 'Retained list attribution', 'checklist',
+  ${sqlText(userId)}, ${sqlText(userId)}, ${sqlText(now)}, ${sqlText(now)}
+);
+`);
+
+  const retainedFilePath = path.join(permissionFilesRoot, "retained", fileId);
+  await fs.mkdir(path.dirname(retainedFilePath), { recursive: true });
+  await fs.writeFile(retainedFilePath, "");
+
+  return { fileId, listId, noteId, taskId };
+}
+
+async function runAddUserAdministrationTests(api, fixtures) {
+  const workspaceAdminOptions = await expectStatus(
+    "workspace admin can read server-shaped Add User options",
+    api.get("/api/users/add-options", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("non-super Add User workspace options exclude unrelated business workspaces", () => {
+    const workspaceIds = workspaceAdminOptions.body.workspaces.map((workspace) => workspace.workspaceId);
+    assert.ok(workspaceIds.includes(fixtures.workspaceId));
+    assert.ok(workspaceIds.includes(fixtures.familyWorkspace.id));
+    assert.ok(!workspaceIds.includes(fixtures.otherWorkspace.id));
+  });
+  check("workspace admin Add User roles include authorized client and project scopes but exclude super admin", () => {
+    const roles = new Map(workspaceAdminOptions.body.roles.map((role) => [role.role_id, role]));
+    const clientScopeIds = roles.get("client_user").scopes.map((scope) => scope.scopeId);
+    const projectScopeIds = roles.get("project_user").scopes.map((scope) => scope.scopeId);
+    assert.ok(!roles.has("super_admin"));
+    assert.equal(roles.get("project_admin").assignment_scope_type, "project");
+    assert.ok(Object.values(fixtures.clients).every((client) => clientScopeIds.includes(client.id)));
+    assert.ok(Object.values(fixtures.projects).every((project) => projectScopeIds.includes(project.id)));
+    assert.ok(!clientScopeIds.includes(fixtures.otherWorkspace.clientId));
+  });
+
+  await expectStatus(
+    "workspace admin cannot enumerate Add User options for an unrelated workspace",
+    api.get(`/api/users/add-options?workspaceId=${encodeURIComponent(fixtures.otherWorkspace.id)}`, {
+      cookie: fixtures.sessions.workspaceAdmin,
+    }),
+    403,
+  );
+  await expectStatus(
+    "workspace admin cannot search accounts for an unrelated workspace",
+    api.post("/api/users/lookup", {
+      username: fixtures.users.projectUser.username,
+      workspaceId: fixtures.otherWorkspace.id,
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    403,
+  );
+
+  const exactLookup = await expectStatus(
+    "authorized exact-email lookup finds an existing account",
+    api.post("/api/users/lookup", {
+      username: fixtures.users.projectUser.username.toUpperCase(),
+      workspaceId: fixtures.familyWorkspace.id,
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("exact-email lookup discloses only the minimum safe account match", () => {
+    assert.deepEqual(Object.keys(exactLookup.body.match).sort(), ["alreadyActive", "displayName", "username"]);
+    assert.equal(exactLookup.body.match.username, fixtures.users.projectUser.username);
+    assert.equal(exactLookup.body.match.alreadyActive, false);
+  });
+  const noMatchLookup = await expectStatus(
+    "exact-email lookup does not return unrelated account suggestions",
+    api.post("/api/users/lookup", {
+      username: uniqueEmail("no-match"),
+      workspaceId: fixtures.familyWorkspace.id,
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("unmatched account lookup has no directory payload", () => {
+    assert.equal(noMatchLookup.body.match, null);
+  });
+
+  const existingAccount = await expectStatus(
+    "workspace admin can add an existing installation account with a family project role",
+    api.post("/api/users", {
+      username: fixtures.users.projectUser.username,
+      workspaceId: fixtures.familyWorkspace.id,
+      assignments: [{
+        role_id: "project_user",
+        scope_type: "project",
+        scope_id: fixtures.familyWorkspace.projectId,
+      }],
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("existing account addition reuses the identity and does not issue a password", () => {
+    assert.equal(existingAccount.body.accountCreated, false);
+    assert.equal(existingAccount.body.user.user_id, fixtures.users.projectUser.userId);
+    assert.equal(existingAccount.body.initialPassword, "");
+  });
+  const existingMemberships = await querySql(`
+SELECT workspace_id
+FROM user_workspaces
+WHERE user_id = ${sqlText(fixtures.users.projectUser.userId)}
+  AND workspace_id = ${sqlText(fixtures.familyWorkspace.id)}
+  AND status = 'active';
+`);
+  const existingAssignments = await querySql(`
+SELECT role_id, scope_type, scope_id
+FROM user_role_assignments
+WHERE user_id = ${sqlText(fixtures.users.projectUser.userId)}
+  AND workspace_id = ${sqlText(fixtures.familyWorkspace.id)};
+`);
+  check("existing account addition creates one target membership and scoped role assignment", () => {
+    assert.equal(existingMemberships.length, 1);
+    assert.deepEqual(existingAssignments, [{
+      role_id: "project_user",
+      scope_type: "project",
+      scope_id: fixtures.familyWorkspace.projectId,
+    }]);
+  });
+
+  const superOptions = await expectStatus(
+    "super admin can target any active workspace from Add User",
+    api.get(`/api/users/add-options?workspaceId=${encodeURIComponent(fixtures.otherWorkspace.id)}`, {
+      cookie: fixtures.sessions.superAdmin,
+    }),
+    200,
+  );
+  check("super admin Add User options include the global super role", () => {
+    assert.ok(superOptions.body.workspaces.some((workspace) => workspace.workspaceId === fixtures.otherWorkspace.id));
+    assert.ok(superOptions.body.roles.some((role) => role.role_id === "super_admin"));
+  });
+
+  const crossWorkspaceEmail = uniqueEmail("cross-workspace-user");
+  const crossWorkspaceCreated = await expectStatus(
+    "super admin can create an account in another active workspace",
+    api.post("/api/users", {
+      username: crossWorkspaceEmail,
+      workspaceId: fixtures.otherWorkspace.id,
+      assignments: [{
+        role_id: "client_user",
+        scope_type: "client",
+        scope_id: fixtures.otherWorkspace.clientId,
+      }],
+    }, { cookie: fixtures.sessions.superAdmin }),
+    201,
+  );
+  const crossWorkspaceIdentities = await querySql(`
+SELECT user_id
+FROM users
+WHERE lower(username) = ${sqlText(crossWorkspaceEmail)};
+`);
+  const crossWorkspaceAssignments = await querySql(`
+SELECT role_id, scope_type, scope_id
+FROM user_role_assignments
+WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
+  AND workspace_id = ${sqlText(fixtures.otherWorkspace.id)};
+`);
+  check("new cross-workspace account receives one identity, password, membership, and requested scope", () => {
+    assert.equal(crossWorkspaceCreated.body.accountCreated, true);
+    assert.ok(crossWorkspaceCreated.body.initialPassword);
+    assert.equal(crossWorkspaceIdentities.length, 1);
+    assert.deepEqual(crossWorkspaceAssignments, [{
+      role_id: "client_user",
+      scope_type: "client",
+      scope_id: fixtures.otherWorkspace.clientId,
+    }]);
+  });
+
+  await expectStatus(
+    "workspace admin cannot create users in an unrelated workspace",
+    api.post("/api/users", {
+      username: uniqueEmail("denied-cross-workspace"),
+      workspaceId: fixtures.otherWorkspace.id,
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    403,
+  );
+  await expectStatus(
+    "workspace admin cannot create a super admin",
+    api.post("/api/users", {
+      username: uniqueEmail("denied-super-admin"),
+      workspaceId: fixtures.workspaceId,
+      assignments: [{
+        role_id: "super_admin",
+        scope_type: "all",
+        scope_id: "all",
+      }],
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    403,
+  );
+
+  const familyOptions = await expectStatus(
+    "family workspace Add User options remain available to its workspace admin",
+    api.get("/api/users/add-options", { cookie: fixtures.sessions.familyWorkspaceAdmin }),
+    200,
+  );
+  check("family workspace Add User options exclude every client-scoped role", () => {
+    assert.ok(familyOptions.body.roles.some((role) => role.role_id === "project_user"));
+    assert.ok(familyOptions.body.roles.every((role) => role.assignment_scope_type !== "client"));
+  });
+
+  const personalOptions = await expectStatus(
+    "personal workspace returns a disabled Add User contract without client roles",
+    api.get("/api/users/add-options", { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    200,
+  );
+  check("personal workspace never offers Add User or client role scopes", () => {
+    assert.equal(personalOptions.body.canAddUsers, false);
+    assert.ok(personalOptions.body.roles.every((role) => role.assignment_scope_type !== "client"));
+  });
+  await expectStatus(
+    "personal workspace rejects Add User creation",
+    api.post("/api/users", {
+      username: uniqueEmail("denied-personal-user"),
+      workspaceId: fixtures.personalWorkspace.id,
+    }, { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    400,
   );
 }
 
@@ -1243,12 +1624,162 @@ async function runSettingsTests(api, fixtures) {
   const settings = await api.get("/api/settings", { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can read workspace settings", settings, 200);
   await expectStatus(
+    "workspace admin can read the latest workspace backup receipt",
+    api.get("/api/settings/workspace-backups/latest", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "project user cannot create a workspace backup",
+    api.post("/api/settings/workspace-backups", {}, { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
+  const workspaceBackup = await expectStatus(
+    "workspace admin can create a workspace backup",
+    api.post("/api/settings/workspace-backups", {}, { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  check("workspace backup response exposes a checksum without key material or a server path", () => {
+    assert.match(workspaceBackup.body.backup.archiveSha256, /^[a-f0-9]{64}$/);
+    assert.equal(workspaceBackup.body.backup.secureNotesKeyIncluded, false);
+    assert.equal(workspaceBackup.body.backup.workspaceName, "Harness Business Workspace");
+    assert.equal(Object.hasOwn(workspaceBackup.body.backup, "archiveFilename"), false);
+    assert.equal(Object.hasOwn(workspaceBackup.body.backup, "outputPath"), false);
+  });
+  const latestWorkspaceBackup = await expectStatus(
+    "super admin can read the latest workspace backup receipt",
+    api.get("/api/settings/workspace-backups/latest", { cookie: fixtures.sessions.superAdmin }),
+    200,
+  );
+  check("latest workspace backup receipt matches the created checksum", () => {
+    assert.equal(latestWorkspaceBackup.body.backup.archiveSha256, workspaceBackup.body.backup.archiveSha256);
+  });
+  await expectStatus(
+    "project user cannot read workspace deletion state",
+    api.get("/api/settings/workspace-deletion", { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
+  await expectStatus(
+    "project user cannot schedule workspace deletion",
+    api.post("/api/settings/workspace-deletion/request", {
+      workspaceName: "Harness Business Workspace",
+    }, { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
+  const lifecycleBeforeCounts = await querySql(`
+SELECT
+  (SELECT COUNT(1) FROM user_workspaces WHERE workspace_id = ${sqlText(fixtures.workspaceId)}) AS memberships,
+  (SELECT COUNT(1) FROM sessions WHERE active_workspace_id = ${sqlText(fixtures.workspaceId)}) AS sessions;
+`);
+  const deletionRequest = await expectStatus(
+    "workspace admin can schedule deletion with a recent workspace backup",
+    api.post("/api/settings/workspace-deletion/request", {
+      workspaceName: "Harness Business Workspace",
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  check("workspace deletion response is safe, explicit, and 30-day recoverable", () => {
+    const deletion = deletionRequest.body.deletion;
+    assert.equal(deletion.pending, true);
+    assert.equal(deletion.lifecycle.status, "pending_deletion");
+    assert.equal(deletion.lifecycle.backupProtected, true);
+    assert.equal(deletion.lifecycle.noCurrentBackupAcknowledged, false);
+    assert.equal(
+      new Date(deletion.lifecycle.purgeAfter).getTime() - new Date(deletion.lifecycle.requestedAt).getTime(),
+      30 * 24 * 60 * 60 * 1000,
+    );
+    assert.equal(JSON.stringify(deletion).includes(fixtures.workspaceId), false);
+    assert.equal(Object.hasOwn(deletion.lifecycle, "requestedByUserId"), false);
+  });
+  const pendingShell = await expectStatus(
+    "pending workspace remains navigable through the existing session",
+    api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("app shell exposes the safe pending lifecycle without suppressing modules", () => {
+    assert.equal(pendingShell.body.workspaceContext.workspaceDeletion.status, "pending_deletion");
+    assert.ok(pendingShell.body.enabledModules.includes("tasks"));
+    assert.match(JSON.stringify(pendingShell.body.navigation), /workspace-settings\.html/);
+  });
+  await expectStatus(
+    "super admin can cancel deletion during the grace period",
+    api.post("/api/settings/workspace-deletion/cancel", {}, { cookie: fixtures.sessions.superAdmin }),
+    200,
+  );
+  const lifecycleAfterCounts = await querySql(`
+SELECT
+  (SELECT COUNT(1) FROM user_workspaces WHERE workspace_id = ${sqlText(fixtures.workspaceId)}) AS memberships,
+  (SELECT COUNT(1) FROM sessions WHERE active_workspace_id = ${sqlText(fixtures.workspaceId)}) AS sessions;
+`);
+  check("request and cancellation do not alter memberships or sessions", () => {
+    assert.deepEqual(lifecycleAfterCounts, lifecycleBeforeCounts);
+  });
+  const noBackupState = await expectStatus(
+    "workspace admin can read a workspace with no current backup",
+    api.get("/api/settings/workspace-deletion", { cookie: fixtures.sessions.familyWorkspaceAdmin }),
+    200,
+  );
+  check("no-backup state requires the exact safe acknowledgement phrase", () => {
+    assert.equal(noBackupState.body.deletion.backup.current, false);
+    assert.equal(noBackupState.body.deletion.acknowledgementPhrase, "DELETE WITHOUT CURRENT BACKUP");
+  });
+  await expectStatus(
+    "workspace deletion refuses an incorrect no-backup acknowledgement",
+    api.post("/api/settings/workspace-deletion/request", {
+      acknowledgement: "delete",
+      workspaceName: "Family Harness Workspace",
+    }, { cookie: fixtures.sessions.familyWorkspaceAdmin }),
+    400,
+  );
+  const noBackupRequest = await expectStatus(
+    "workspace admin can explicitly acknowledge deletion without a current backup",
+    api.post("/api/settings/workspace-deletion/request", {
+      acknowledgement: "DELETE WITHOUT CURRENT BACKUP",
+      workspaceName: "Family Harness Workspace",
+    }, { cookie: fixtures.sessions.familyWorkspaceAdmin }),
+    201,
+  );
+  check("no-backup acknowledgement is recorded without pretending a receipt exists", () => {
+    assert.equal(noBackupRequest.body.deletion.lifecycle.backupProtected, false);
+    assert.equal(noBackupRequest.body.deletion.lifecycle.noCurrentBackupAcknowledged, true);
+  });
+  await expectStatus(
+    "workspace admin can cancel an acknowledged no-backup deletion request",
+    api.post("/api/settings/workspace-deletion/cancel", {}, { cookie: fixtures.sessions.familyWorkspaceAdmin }),
+    200,
+  );
+  await expectStatus(
     "workspace admin can update workspace settings",
     api.put("/api/settings", {
       ...workspaceSettingsSavePayload(settings.body),
       workspaceName: "Permission Regression Workspace",
       moduleSettings: moduleSettingsPayload(settings.body),
     }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "workspace type cannot be changed after creation",
+    api.put("/api/settings", {
+      ...workspaceSettingsSavePayload(settings.body),
+      workspaceType: "personal",
+      moduleSettings: moduleSettingsPayload(settings.body),
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+  const unchangedType = await expectStatus(
+    "workspace settings remain readable after a rejected type change",
+    api.get("/api/settings", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("rejected direct requests preserve the workspace type", () => {
+    assert.equal(unchangedType.body.workspaceType, "business");
+  });
+  await expectStatus(
+    "super admin can rename a workspace",
+    api.put("/api/settings", {
+      ...workspaceSettingsSavePayload(unchangedType.body),
+      workspaceName: "Super Admin Renamed Workspace",
+      moduleSettings: moduleSettingsPayload(unchangedType.body),
+    }, { cookie: fixtures.sessions.superAdmin }),
     200,
   );
   await expectStatus(
@@ -2031,6 +2562,14 @@ function createApi(baseUrl) {
     put: (url, body, options = {}) => request(baseUrl, "PUT", url, body, options),
     delete: (url, options = {}) => request(baseUrl, "DELETE", url, null, options),
   };
+}
+
+function extractSessionCookie(headers) {
+  const setCookie = headers.get("set-cookie") || "";
+  const match = setCookie.match(/(?:^|,\s*)longtail_forge_session=([^;,]+)/);
+
+  assert.ok(match?.[1], "login response should set the Longtail Forge session cookie");
+  return match[1];
 }
 
 async function request(baseUrl, method, url, body = null, options = {}) {

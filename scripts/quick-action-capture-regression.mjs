@@ -98,9 +98,12 @@ check("QAC styles are footer-aware, responsive, and quiet until opened", () => {
 });
 
 check("all shell-backed protected hosts load the shared app shell includes that mount QAC", () => {
+  const accountRecovery = readText(path.join("views", "protected", "account-recovery.html"));
+  assert.doesNotMatch(accountRecovery, /js\/navigation\.js/, "export-only recovery must not load ordinary navigation or QAC");
+  assert.match(accountRecovery, /js\/account-recovery\.js/, "export-only recovery should load only its restricted controller");
   const protectedViews = readdirSync(path.join(root, "views", "protected"))
     .filter((fileName) => fileName.endsWith(".html"))
-    .filter((fileName) => fileName !== "developer-example.html");
+    .filter((fileName) => !["account-recovery.html", "developer-example.html"].includes(fileName));
 
   assert.ok(protectedViews.length > 0, "protected views should be present");
   protectedViews.forEach((fileName) => {

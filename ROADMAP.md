@@ -128,16 +128,266 @@ Acceptance criteria:
 
 **Model: Medium Effort** — This is a precise documentation and operational-readiness closeout after the underlying controls exist.
 
-- [ ] Publish installation/deployment, reverse-proxy/TLS, first-login/bootstrap, account creation, backup/restore, manual upgrade, known/security limitations, Secure Notes key, file scanning/upload, bug reporting, emergency shutdown/revocation, and feedback guidance.
-- [ ] Label the program “private preview”; document the supported scale and avoid unsupported uptime, security, backup, or compliance promises.
-- [ ] Require a tested restore, reference-proxy deployment review, unique invited accounts, feedback path, and operator readiness checklist before invitations.
-- [ ] Keep 0.39.9 as comprehensive 0.3x documentation/stabilization, not the first time essential operator and user documentation exists.
+- [x] Publish installation/deployment, reverse-proxy/TLS, first-login/bootstrap, account creation, backup/restore, manual upgrade, known/security limitations, Secure Notes key, file scanning/upload, bug reporting, emergency shutdown/revocation, and feedback guidance.
+- [x] Label the program “private preview”; document the supported scale and avoid unsupported uptime, security, backup, or compliance promises.
+- [x] Require a tested restore, reference-proxy deployment review, unique invited accounts, feedback path, and operator readiness checklist before invitations.
+- [x] Keep 0.39.9 as comprehensive 0.3x documentation/stabilization, not the first time essential operator and user documentation exists.
+
+Operational readiness documentation status (2026-07-16): `docs/private-preview-readiness.md` is the invitation gate and cross-links the supported installation, Caddy/TLS, backup/restore, upgrade, Secure Notes key, scanner, account, bug-reporting, feedback, revocation, and emergency-pause contracts. Invitations remain blocked until the remaining live deployment, rollback, hotfix, and final release-closeout proof passes.
 
 Acceptance criteria:
 
 - An invited user and operator can understand the preview’s setup, safe operation, limits, recovery, account flow, and feedback path before access is granted.
 
-### Version 0.33.17.7 - Preview release closeout
+### Version 0.33.17.7 - Pre-preview UI/UX review and fixes
+
+**Model: High Effort** — Manual review spans several framework and module surfaces changed since 0.33.14, and fixes must preserve security, permission, responsive, and workflow contracts.
+
+Purpose:
+
+Review every user-visible UI/UX change shipped from 0.33.14 through 0.33.17.7 before the private-preview closeout, correct confirmed defects without adding speculative workflows, and add focused rendered or regression coverage for each fix.
+
+This is a tracking umbrella, not one implementation slice. Each numbered child below is sized for one implementation session, including its focused regression, owning-doc disposition, version/changelog/archive bookkeeping, canonical `npm run verify:slice`, and runtime proof when required. Do not combine children merely because they share the `.7` prefix. If a child reveals a new independent blast radius, add another numbered child rather than broadening the active session.
+
+The manual review is tracked in `archive/0.33.17.7-pre-testing.md`. Confirmed findings required before preview are assigned to `0.33.17.7.1` through `0.33.17.7.19`; findings deliberately deferred until after the friends-and-family preview live in 0.33.19. Record manual results during the owning child slice where possible. The final review slice records only the remaining checklist results and routes any newly confirmed defect into its own child; it does not absorb surprise implementation work.
+
+- [x] Correct the public login page so the required password-change form remains hidden for an ordinary unauthenticated visit and appears only after a successful login or existing session reports `passwordChangeRequired`; add desktop and mobile Playwright coverage for both the initial state and intentional transition.
+- [x] Complete the numbered pre-preview correction slices below without weakening the current module ownership, permission, security, responsive, retention, or workflow contracts.
+- [x] Complete the remaining changed-surface inventory at `0.33.17.7.20`; newly confirmed defects receive their own numbered child instead of extending the closeout session.
+
+Acceptance criteria:
+
+- Every user-visible surface changed from 0.33.14 through 0.33.17.7 has a recorded manual result; confirmed defects are corrected and regression-covered; no new workflow or preview-readiness claim is introduced through the review.
+- An operator can identify the source branch of every supported running installation from both the visible version label and `/api/app-info`; a build with canonical package version `<version>` displays exactly `<version>-<branch>` (for example the current `0.33.17.7` baseline displays `0.33.17.7-nightly`) while the canonical package version remains unsuffixed.
+
+#### Version 0.33.17.7.1 - Appearance Theme-mode grouped-control repair
+
+**Model: Medium Effort** — This is a contained renderer/layout correction on the existing User Settings Appearance contribution.
+
+- [x] Restore the bounded border box around User Settings -> Appearance -> Theme mode. Treat the missing grouped-control border and unwanted width expansion as related visible symptoms while verifying whether the renderer class handoff and conditional field layout have separate causes.
+- [x] Keep the Light/Auto/Dark selector content-sized with its rounded grouped-control shape, clear labels, selected state, radio semantics, keyboard behavior, and current saved values in every mode.
+- [x] Revealing Auto source -> Match operating system must not flatten, stretch, or redistribute the Theme-mode group; keep the secondary control visually subordinate and independently bounded.
+- [x] Scope the fix to the Appearance field layout/renderer class handoff unless inspection proves the shared segmented-control primitive is broken, and add focused Light/Auto/Dark coverage in both themes at desktop and mobile widths.
+
+Acceptance criteria:
+
+- Theme mode retains one bounded, content-sized grouped control in Light, Auto, and Dark states at supported widths, and the conditional Auto-source control does not alter its shape or behavior.
+
+#### Version 0.33.17.7.2 - Qualified runtime version and source-branch identity
+
+**Model: High Effort** — Release metadata crosses build, deployment, diagnostics, public UI, artifact identity, and version guardrails.
+
+- [x] Add an explicitly supplied source-branch identity to runtime release metadata and expose a qualified display version in the form `<packageVersion>-<branchName>`—for example `0.33.17.7-nightly`—through `/api/app-info`, the public splash, shared footer, app-shell metadata, and runtime diagnostics.
+- [x] Keep `package.json` as the unsuffixed canonical application version for compatibility, artifact checks, version guardrails, and asset-cache keys; expose the canonical version and branch separately alongside the qualified display value.
+- [x] Build and deployment paths must supply and validate branch identity without requiring a packaged installation to contain `.git`. Prove `nightly`, `main`, missing-label, and invalid-label behavior, and document the safe fallback for an explicitly local unqualified run.
+
+Acceptance criteria:
+
+- Every supported deployed installation exposes its source branch visibly and through `/api/app-info`; a build with canonical package version `<version>` displays exactly `<version>-<branch>` while the canonical package version remains unsuffixed.
+
+#### Version 0.33.17.7.3 - Universal Settings Save/Revert and unsaved-change guard
+
+**Model: High Effort** — This changes the framework-owned settings transaction anatomy shared by every settings surface; a mistake can lose or misroute pending values across the app.
+
+- [x] Remove the empty/blank view-status-message box that renders on every settings page (observed on Workspace Settings and Time Tracking Settings; the issue is settings-render-wide).
+- [x] Replace the many per-box "Save settings" buttons (Clients & Projects, Developer Example, Notes, Procurement Lists, Tasks, Time Tracking, Audit Log, and the page-bottom button) with exactly two universal page-level Save buttons wired through the same existing routes to save all settings on the page as currently set.
+  - [x] Save is a floppy-disk icon with the text "Save", grayed out until a change is made, and flashes red momentarily after an unsaved change: on change for dropdowns/radios/checkboxes, on de-focus for typed fields (for example Default Billing Rate).
+  - [x] One Save sits at the top right, vertically center-aligned with the page heading; one sits at the bottom right below all other content, so long pages never require scrolling to save.
+- [x] Add a universal Revert button immediately left of each Save: a counter-clockwise (undo) arrow icon with the text "Revert", grayed out until a change is made, clearing all pending changes back to the stored settings.
+- [x] If a user tries to navigate away from any settings surface with unsaved changes, warn with an in-app dialog offering "Cancel" (stay) and "Continue" (proceed to the intended destination).
+- [x] Apply the Save/Revert buttons, their states, and the unsaved-changes guard universally across all settings surfaces — both functionality and visibility.
+- [x] Treat password changes, workspace creation/departure, account deletion, API-key/session actions, and other immediate lifecycle operations as actions rather than dirty settings; universal Save/Revert must neither submit nor reset those forms.
+
+Acceptance criteria:
+
+- Every settings surface has exactly two Save buttons and two Revert buttons with the specified icons, placement, disabled/flash states, and unsaved-changes guard; no per-box settings-save buttons or blank status boxes remain, and lifecycle action forms remain independently safe.
+
+#### Version 0.33.17.7.4 - Admin navigation, module grouping, and broken Settings pages
+
+**Model: Medium Effort** — This is a contained Settings information-architecture and host-integration pass after the shared action anatomy is settled.
+
+- [x] Workspace Settings: group all optional modules into one "Modules" box, alphabetized, except Developer Example (optional, never-on) which always sorts last; Clients & Projects remains directly below the Workspace box.
+- [x] Rename the Settings -> Workspace slide-out drawer to "Admin", move Actions -> Project Settings to Settings -> Admin -> Projects, and order Settings -> Admin as: Modules (slide-out: Files, Tags, Tasks, Time Tracking, then Developer Example when explicitly enabled), Projects, Clients, User Admin, Workspace (renamed from "Workspace Settings"), API Keys, Audit Log.
+- [x] Fix Files Settings loading nothing (top priority — it blocks further manual testing): `loadFilesSettings` crashes with `TypeError: can't access property "set", window.LongtailForge.status is undefined` at `public/js/files-settings.js` `setStatus`.
+- [x] Render Developer Example settings inside the shared Settings anatomy instead of the current raw standalone HTML page (black background, no app fonts, JSON dump), and surface it under Settings -> Admin -> Modules -> Developer Example rather than as a top-level Workspace entry, so the 0.33.15.2-.4 checklist (Example Detail Hints, read-only Example Mode information, visibility and save behavior) becomes verifiable.
+
+Acceptance criteria:
+
+- The Admin drawer and Workspace Settings module group match the specified ownership/order; Files Settings and Developer Example load inside the shared Settings anatomy and are manually testable.
+
+#### Version 0.33.17.7.5 - Disabled-module recovery and timer-surface suppression
+
+**Model: High Effort** — Module lifecycle state affects framework navigation plus Tasks, Time Tracking, and Workbench visibility contracts.
+
+- [x] When a module such as Time Tracking is disabled, its settings route shows the disabled message inside the normal Settings page context, never a barren standalone page.
+- [x] Saving a module enable/disable change refreshes the Admin navigation immediately without a manual reload while retaining the recovery path needed to re-enable the module.
+- [x] When Time Tracking is disabled for the workspace, timer UI must not render in Tasks, Workbench, Capture, or Time Tracking navigation.
+- [x] When Tasks -> Task Timers is disabled while Time Tracking remains enabled, task-timer controls must not render in Tasks or Workbench; unrelated manual Time Tracking remains available.
+
+Acceptance criteria:
+
+- Disabled modules retain an in-context recovery route and immediate navigation refresh, and timer controls appear only where both the Time Tracking module and the applicable Task Timers setting allow them.
+
+#### Version 0.33.17.7.6 - Workspace identity policy and Settings header
+
+**Model: High Effort** — Workspace identity mutations require server-side permission enforcement and immutable type guarantees, not only a layout change.
+
+- [x] Enforce in the service/repository route that a workspace's type can never be changed after creation and that only a workspace administrator or super admin may rename it; the browser must not be the authority.
+- [x] Move the Workspace Users button to the top right of Workspace Settings across from the "Workspace Settings" heading, with a person/head icon and the shortened label "Users"; its function does not change.
+
+Acceptance criteria:
+
+- Workspace type is immutable through browser and direct requests, rename authorization is server-enforced, and the unchanged Users action occupies the specified Settings-header position.
+
+#### Version 0.33.17.7.7 - User Settings layout, timezones, and Leave Workspace warnings
+
+**Model: Medium Effort** — This is one existing User Settings surface with unchanged profile, notification, workspace-creation, and membership-removal contracts.
+
+- [x] User Settings layout: move Profile up directly below Appearance; rename the Workspaces box to "Workspace Creation" and move it to the bottom of the page, full-width within the user-settings-grid, collapsible and starting collapsed, with a caret.
+- [x] Make Notification Preferences full-width within the user-settings-grid as a single column with "Notification Grouping" at the top, fixing the current two-column layout that cuts off all adjustable settings.
+- [x] Restore the complete timezone list (non-USA timezones are currently missing) and append a "(UTC -X:00)"-style offset to the end of each timezone name for convenience and standardization.
+- [x] Move Leave Workspace out of Workspace Creation into its own box with prominent warnings that an administrator must restore access; clicking it opens an in-app confirmation with the same consequence wording.
+- [x] Preserve the governing membership contract: Leave Workspace removes only the signed-in user's membership and must not claim to delete or schedule deletion of the workspace or its data. Workspace deletion is a separate explicit action in `0.33.17.7.13`.
+
+Acceptance criteria:
+
+- User Settings matches the specified order, widths, and collapse behavior; all supported IANA timezones display current UTC offsets; Leave Workspace is isolated with layered, accurate membership-removal warnings.
+
+#### Version 0.33.17.7.8 - Preferred landing pages for login and workspace switching
+
+**Model: High Effort** — Persisted user navigation preferences affect authentication and workspace switching and may require a forward schema migration.
+
+- [x] Replace the current change-workspace behavior (resurfacing the exact prior page, which can produce an unformatted "Page not found" — for example switching from a business workspace's User Admin to a personal workspace) with navigation to a user-preferred landing page.
+- [x] Add two dropdown settings in Settings -> User under "User App Preferences": one for initial login, one for changing workspaces. Each offers: Dashboard, Workbench, Actions: Tasks, Actions: Notes, Actions: Lists.
+- [x] Validate the stored destination against the target workspace's enabled modules and the user's access; use Dashboard as the deterministic safe fallback when the preferred page is unavailable, invalid, or no longer permitted.
+
+Acceptance criteria:
+
+- Login and workspace switching land on an available configured page or Dashboard fallback, and no workspace switch produces an unformatted error page.
+
+#### Version 0.33.17.7.9 - User Administration Add User and scoped initial roles
+
+**Model: High Effort** — Cross-workspace membership creation and scoped initial roles are permission and account-enumeration boundaries.
+
+- [x] Make Add User search by exact normalized email for an existing installation account before creating a new account, then add/activate that account in the selected workspace without duplicating the user identity. Return only the minimum safe match needed for the action; do not expose unrelated memberships or an install-wide user directory.
+- [x] Add a workspace dropdown inside Add User that defaults to the current workspace and activates membership in the selected workspace. Non-super-admins see only workspaces where they can manage users; super admins may select any active workspace in the installation.
+- [x] Offer all roles in the initial-role dropdown with conditionally appearing scope selectors: choosing a client admin/user role reveals a client selector; choosing a project admin/user role reveals a project selector. (The current three-option limit exists because `public/js/user-admin.js` filters the dropdown to `workspace`/`global` `assignable_scope_type` roles, since the form has no scope picker — this slice adds the scope pickers.) Personal/family workspaces never offer client roles or client selectors.
+- [x] Only a super admin may create a super admin.
+- [x] Enforce workspace, role, and client/project-scope authorization in the service layer and prove Personal/Family shaping, non-super-admin workspace limits, and super-admin creation limits with permission regressions.
+
+Acceptance criteria:
+
+- An authorized administrator can add an existing or new account to an administrable workspace and assign every allowed initial role with the correct scope; unauthorized workspace discovery, role escalation, account enumeration, and Personal/Family client scoping are blocked.
+
+#### Version 0.33.17.7.10 - User self-deletion, deactivation messaging, and durable attribution
+
+**Model: High Effort** — Account retirement changes authentication, membership, retention, attribution, sessions, and permission behavior.
+
+- [x] Delete User must not be available for the signed-in user; render it disabled like other protected-user actions and enforce the self-target rejection server-side.
+- [x] Add a self-service Delete Account action under Settings -> User with explicit confirmation. Treat deletion as credential/session retirement plus membership deactivation, not hard deletion of the identity row or authored records.
+- [x] Preserve the user's email address and display name for audit and task/note/file/list attribution so normal history never degrades to a raw-ID `Deleted User ...` placeholder; make the confirmation copy state that all contributions and attribution are retained.
+- [x] Fully inactive/deleted accounts receive a clear but non-enumerating login denial such as "These credentials do not have access to this installation"; the response must not distinguish unknown, deleted, or inactive accounts to an attacker.
+
+Acceptance criteria:
+
+- Self-deletion cannot be invoked through User Administration, retires credentials/sessions/memberships through User Settings, preserves readable historical attribution, and keeps login responses non-enumerating.
+
+#### Version 0.33.17.7.11 - Recurring-task audit client/project attribution
+
+**Model: Medium Effort** — This is one confirmed Tasks-to-Audit metadata defect with an existing reproducible row.
+
+- [x] Fix audit-log rows for recurring-task status updates that omit client and project (filtering Audit activity by client surfaced rows with neither populated; example audit id `e2ad489e-686d-4794-b8bb-5beb2a9b6fd6`).
+- [x] Correct the Tasks-owned audit producer/read metadata without weakening Audit permission or record-visibility filtering, and add a focused recurrence-status regression.
+
+Acceptance criteria:
+
+- Recurring-task status audit rows carry readable client/project attribution when available and remain correctly scoped and filterable.
+
+#### Version 0.33.17.7.12 - Workspace-scoped export and backup package
+
+**Model: High Effort** — A workspace-only export crosses module-owned data, Files, secure content, permissions, and restore integrity without allowing cross-workspace leakage.
+
+- [x] Define and implement the supported backup/extract mechanism for one workspace before any deletion can be requested. Include the workspace records and attachment artifacts needed for recovery while preserving provider-neutral storage and module ownership.
+- [x] Exclude other workspaces and inaccessible secrets, document Secure Notes key/recovery handling explicitly, produce a manifest/checksum, and provide a repeatable validation/restore smoke against a disposable target.
+- [x] Gate export to super admins and administrators of that workspace, audit the request/result safely, and expose the action from Workspace Settings with clear scope and limitations.
+
+Acceptance criteria:
+
+- An authorized administrator can create and validate a self-contained, checksum-identified workspace backup without cross-workspace data or unsafe secret leakage, and the package has a proven disposable restore path.
+
+#### Version 0.33.17.7.13 - Workspace deletion request, grace period, and restore
+
+**Model: High Effort** — Scheduling workspace retirement requires a forward migration, authorization, session-state rules, audit, and reliable recovery without yet crossing the irreversible purge boundary.
+
+- [x] Add an explicit Delete Workspace action separate from Leave Workspace, available only to super admins and administrators of that workspace, and require a successful recent workspace export from `0.33.17.7.12` or an explicit typed acknowledgement that no current export exists.
+- [x] Mark the workspace pending deletion for 30 days with recorded requester, request time, and purge-after time; provide authorized restore/cancel during the grace period and make the state visible without exposing raw IDs.
+- [x] Define active-session, membership, navigation, module/job, Files, Search, and notification behavior while pending deletion. Do not overload membership `inactive` state as the workspace lifecycle store, and do not physically delete workspace data in this slice.
+- [x] Protect the installation's required owner/admin recovery path and add permission, restart, grace-period, and restore regressions plus database integrity proof.
+
+Acceptance criteria:
+
+- A deletion request is explicit, permission-checked, export-aware, visible, durable across restart, and cancelable for 30 days without deleting data or confusing Leave Workspace with deletion.
+
+#### Version 0.33.17.7.14 - Final workspace purge and cross-workspace isolation
+
+**Model: High Effort** — Irreversible workspace cleanup crosses every workspace-owned table and artifact and must be exactly-once, restart-safe, and demonstrably isolated.
+
+- [x] After the `0.33.17.7.13` grace period expires, perform final purge through the existing job/explicit-maintenance boundary; a normal page request must never coordinate destructive cleanup.
+- [x] Inventory and remove the target workspace's module records, framework records, Files artifacts/attachments, Search rows, jobs, notifications, sessions/memberships, and lifecycle row in foreign-key-safe order while preserving retained install-level identities and attribution required by `0.33.17.7.10`.
+- [x] Make purge idempotent and resumable after interruption, record only safe tombstone/audit evidence outside the deleted workspace, and prevent stale workers or sessions from recreating data after purge begins.
+- [x] Add disposable multi-workspace regressions for too-early refusal, exact-time eligibility, interrupted retry, exactly-once completion, Files cleanup, no cross-workspace deletion, and `PRAGMA integrity_check`.
+
+Acceptance criteria:
+
+- An expired pending-deletion workspace is purged exactly once through the maintenance/job boundary, an interrupted purge can resume safely, and another workspace's database rows and artifacts remain byte-for-byte outside the deletion scope.
+
+#### Version 0.33.17.7.19 - Settings footer action alignment repair
+
+**Model: Medium Effort** — This is a contained shared-layout correction for the existing universal Settings action row.
+
+- [x] Make the bottom Revert/Save row occupy the available Settings page width so its existing end alignment places both actions at the bottom right on every protected Settings surface.
+- [x] Preserve the universal top action pair, action ordering, dirty/disabled/flash states, save routes, and unsaved-navigation behavior.
+- [x] Strengthen the existing Settings page-actions regression so a shrink-wrapped footer row cannot silently restore the bottom-left placement.
+
+Acceptance criteria:
+
+- Workspace, User, Files, Tasks, Time Tracking, and other module Settings pages place their shared bottom Revert/Save pair at the bottom right without changing Settings transaction behavior.
+
+#### Version 0.33.17.7.20 - Remaining manual review and pre-preview correction closeout
+
+**Model: Medium Effort** — This is a bounded evidence/bookkeeping closeout after implementation risk has been isolated into the preceding children.
+
+- [x] Complete and timestamp every still-open applicable result in `archive/0.33.17.7-pre-testing.md` across the documented desktop/mobile, Light/Dark, workspace-type, administrator/restricted-user, keyboard/focus, two-session, and representative authenticated-write checks.
+- [x] Mark an item not applicable or externally blocked only with a concrete reason. TLS/proxy-only testing remains assigned to 0.33.19.6 after the real preview environment exists; do not claim it locally.
+- [x] If review finds a new pre-preview defect, record it, create a separately sized next available child, and leave this closeout open. Do not implement surprise fixes inside this session.
+- [x] After all correction children and manual results are complete, reconcile the umbrella checkboxes, owning docs, changelog, roadmap/archive handoff, version metadata, canonical `npm run verify:slice`, restart, and `/api/app-info` qualified-version proof.
+
+Acceptance criteria:
+
+- The review inventory has an explicit result for every applicable changed surface, every confirmed pre-preview defect is closed in its own regression-covered child, external TLS evidence is not fabricated, and the running app reports the expected canonical and qualified version metadata.
+
+### Version 0.33.17.8 - Optional 30-Day Remembered Sessions
+
+**Model: High Effort** — Login persistence changes both the browser cookie and authoritative server-side session lifetime, so security, revocation, forced-password-change, and responsive-login contracts must move together.
+
+Purpose:
+
+Let a user deliberately keep a trusted browser signed in for 30 days without changing the normal configured session lifetime for users who do not opt in.
+
+- [x] Add an unchecked `Remember me for 30 days` checkbox to the public login form. Keep the checkbox and wording on one line, left-aligned with the Email Address and Password field edges, in the same action row as the right-aligned `Log In` button, with the checkbox/label group vertically centered against the button on supported desktop and mobile widths.
+- [x] Send one explicit boolean login value. Treat an omitted or false value identically to today's behavior and continue using `LONGTAIL_SESSION_TTL_SECONDS`; reject invalid types instead of relying on browser truthiness.
+- [x] When selected, create an absolute 30-day session (`2592000` seconds) and use the same lifetime for both the existing authoritative `sessions.expires_at` value and the `HttpOnly` session cookie `Max-Age`. Reuse the existing session store; do not add a parallel remembered-login token or change the canonical normal-session configuration.
+- [x] Preserve the existing `Secure`, `SameSite`, path/domain, trusted-proxy, CSRF, login-throttle, audit, and random opaque session-token contracts. Remembered sessions must not slide or renew silently, and logout, expiry, password reset/change, user deactivation, individual revocation, and bulk workspace logout must continue to invalidate them immediately.
+- [x] Preserve the restricted forced-password-change flow. A checked preference must not grant an unrestricted 30-day session before the required password change succeeds; after successful completion, the resulting session may adopt the requested remembered lifetime without requiring the user to submit the temporary password again.
+- [x] Keep Active Sessions expiry readouts accurate for normal and remembered sessions, and add focused service/route/cookie regressions plus desktop/mobile rendered coverage for unchecked default behavior, checked 30-day behavior, validation, keyboard/label activation, exact action-row alignment, password-change-required handling, expiry, and every existing revocation path.
+- [x] Run `npm run docs:suggest`, update only the owning authentication/runtime and rendered-test documentation, record the shipped behavior in `CHANGELOG.md`, and complete the normal canonical local verification and live runtime-version proof.
+
+Acceptance criteria:
+
+- With the checkbox absent, omitted, or unchecked, login behavior and the configured normal session lifetime are unchanged. With it checked, a successful completed login remains valid for no more than 30 absolute days across browser restarts and server restarts unless an existing expiry or revocation action ends it sooner.
+- The login action row matches the specified alignment at supported desktop and mobile widths, remains keyboard- and screen-reader-operable, and does not disturb the required password-change form.
+
+### Version 0.33.17.9 - Preview release closeout
 
 **Model: High Effort** — Release readiness must combine packaging, restore, CI, security, and live deployment evidence.
 
@@ -260,7 +510,120 @@ Acceptance criteria:
 
 - Documentation matches the settled structures, the Two-Module Rule is evidenced, and no runtime behavior changed accidentally.
 
-## Version 0.33.19 - Recurring Calendar Projection and Private Calendar Subscription Feed
+## Version 0.33.19 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
+
+**Model: High Effort** — This branch batches the pre-preview review findings that were deliberately deferred until after the friends-and-family preview with related short-term TODO work, spanning Reporting, Clients/Projects, Workbench, Tasks, and Notes surfaces.
+
+Purpose:
+
+Land the UI/UX corrections and workflow improvements identified during the `archive/0.33.17.7-pre-testing.md` review that can safely wait until after the friends-and-family preview ships, together with the Workbench and Tasks short-term items promoted from `TODO.md`. This branch also receives review findings that cannot be verified until the app runs behind real TLS on the deployed Linux environment (post-0.33.17.9), such as HTTPS/proxy session behavior.
+
+Non-goals:
+
+- No preview-readiness claims move here; anything required before invitations belongs under 0.33.17.
+- No new module workflows beyond the corrections and settings surfaces named below.
+
+### Version 0.33.19.1 - Reporting refinements
+
+**Model: Medium Effort** — One contained control swap on an already-verified surface with routine shared-picker regression coverage.
+
+- [ ] Convert the Reporting tag filter into the typable search-and-select control used across the rest of the interface.
+
+Acceptance criteria:
+
+- The Reporting tag filter matches the shared tag-picker interaction pattern.
+
+### Version 0.33.19.2 - Clients and Projects list and modal polish
+
+**Model: High Effort** — Many small corrections across the Clients/Projects lists, filters, and add/edit modals with shared-modal and framework-ownership implications.
+
+Filters:
+
+- [ ] Shrink the client/project filter fields slightly so the focus ring is not clipped by the outer box (applies to both Clients filters and Project Settings filters).
+- [ ] Fix the project filter's "Workspace Client" selection displaying no results; it should display workspace projects.
+
+Add Project modal:
+
+- [ ] Vertically top-align the tagging box with "Parent Project" instead of leaving it in its own column.
+- [ ] When adding a workspace project, the client box must show the workspace's name rather than the literal text "Workspace Project".
+- [ ] "Add Client" must open a Clients-owned add-client modal instead of navigating to the Settings -> Admin -> Clients page, and the newly added client must refresh the modal's Client dropdown so it is immediately selectable.
+
+Edit Project modal:
+
+- [ ] Rebuild the edit modal to match the framework: wide-modal width, remove the box that encompasses the modal's interior, and remove the redundant collapsible heading below the project name (the modal's own "Edit Project: {{ projectName }}" heading is sufficient).
+- [ ] Stack Status, Client, and Parent Project as three separate full-width rows in that order.
+- [ ] Make Project tags full-width and unbounded by its own box.
+- [ ] Visually connect Task Reminder defaults to the task-module section under Project defaults.
+
+Billing defaults:
+
+- [ ] Workspace projects default to "Billable" OFF.
+
+List screens (Clients and Projects):
+
+- [ ] Remove the extra horizontal rule separating tags/tag chips from the rest of each row.
+- [ ] Fix text overrunning tag-chip borders and remove the redundant "Tags" label; place chips on the line directly below the client/project name without separation, mimicking the Actions -> Tasks list appearance.
+- [ ] Restore the preceding hyphen "-" on correctly ordered child clients and child projects.
+- [ ] Remove the "Actions", "Select client", and "Select Project" column headings (keep the columns) to eliminate wrapped headings and dead whitespace.
+
+Add Client dialog:
+
+- [ ] Rebuild the hard-coded/hand-built Add Client dialog (currently compressed and shifted) on the framework modal system.
+
+Acceptance criteria:
+
+- Clients/Projects filters, list rows, and add/edit modals match the shared framework modal and list patterns, with correct workspace-project labeling, hierarchy hyphens, default non-billable workspace projects, and no clipped focus rings or orphaned column headings.
+
+### Version 0.33.19.3 - Workbench algorithm, In Progress behavior, and timer-card follow-ups
+
+**Model: High Effort** — Focus-selection algorithm changes affect what work every user is steered toward.
+
+- [ ] Blocked items appear only in "Review blocked work".
+- [ ] "Start with what's due" includes due "In Progress" items (today they only appear in "Pick up where I left off").
+- [ ] Make the Workbench algorithm adjustable: Workbench surfaces a settings section under Settings -> Admin -> Modules -> Workbench.
+- [ ] Tasks with running timers appear in "Pick up where I left off", with running timers taking precedence, followed by active-but-paused timers.
+- [ ] Starting a task timer and then checking/unchecking checklist boxes must preserve "In Progress" status; status must not return to open while a timer is running or time has been attached in the past.
+- [ ] Clear the stale `?taskID=` URL parameter when the user changes focus or navigates to a different view/task (or immediately after load).
+- [ ] Resolve the Focus Selection recommendation for a manual timer: "Open work" currently falls back to the generic Time Tracking page; decide whether Time Tracking exposes a stable modal/opener contract or the recommendation adopts clearer resume/navigation wording. Do not add a Workbench-owned timer editor.
+
+Acceptance criteria:
+
+- Focus modes surface the right work (blocked only in review, due In-Progress items in due mode, running timers prioritized), In Progress status survives checklist edits under a timer, stale task URLs clear, and the manual-timer recommendation has a deliberate, documented behavior.
+
+### Version 0.33.19.4 - Task reminders, status transitions, and time estimates
+
+**Model: High Effort** — Status automation and reminder nullability change task lifecycle behavior across views.
+
+- [ ] Allow canceling individual reminders: a checkbox next to the "Date-Only Reminder 2" and "Timed Reminder 2" headings makes them nullable so they trigger no event notification (a 3-days-before reminder on a weekly task is unnecessary).
+- [ ] Starting a timer or checking off checklist items automatically moves a task from Blocked to In Progress, clearing the blocked reason; if the timer is cancelled before being saved (and that was the cause of the transition), restore Blocked status and its reason.
+- [ ] Promote Next Action: marking a task completed opens the edit-task modal with Next Action focused so the user can specify the follow-up, which is promoted to a "thing to do" in the Workbench; leaving it blank is fine and simply moves on.
+- [ ] Add an estimated-time field on tasks (quarter-hour granularity) as groundwork for future day-planning; eventually estimates can be suggested from task context (client/project/tags) and prior completed time entries.
+
+Acceptance criteria:
+
+- Second reminders are individually cancelable; Blocked/In Progress transitions and blocked-reason restore behave as specified; completion prompts for a Workbench-promoted next action; tasks can carry quarter-hour estimates.
+
+### Version 0.33.19.5 - Notes settings surface
+
+**Model: Medium Effort** — A new module settings contribution following the 0.33.15 settings host contract.
+
+- [ ] Give Notes a settings surface (it currently exposes none, which reads as incomplete): at minimum a notes settings box providing a list view/bulk editing of the catalogs.
+
+Acceptance criteria:
+
+- Notes contributes a settings surface with catalog list/bulk-edit management, following the shared settings anatomy and module-ownership boundaries.
+
+### Version 0.33.19.6 - Deferred TLS/proxy-dependent review findings (placeholder)
+
+**Model: Medium Effort** — Scope is unknown until the review runs against the deployed TLS environment.
+
+- [ ] Reserve this slice for findings from the HTTPS/proxy session-behavior review (`archive/0.33.17.7-pre-testing.md`), which requires the real TLS proxy on the deployed environment after 0.33.17.9: sign-in through the proxy, refresh/navigation, workspace switching, logout/login, and cookie persistence without redirect loops or authentication loss.
+
+Acceptance criteria:
+
+- Every TLS/proxy-dependent review item has a recorded result, and confirmed defects are corrected and regression-covered here.
+
+## Version 0.33.20 - Recurring Calendar Projection and Private Calendar Subscription Feed
 
 Purpose:
 
@@ -297,7 +660,7 @@ Non-goals:
 - Do not weaken per-task read permission, workspace isolation, private/secure-content, or audit guardrails to serve the calendar projection or the feed.
 - Do not generalize a framework "feed serving" facility for tasks alone; the framework owns only the tokenized-feed auth surface (a framework-wide exception), while iCalendar content stays module-owned until a second real content consumer exists.
 
-### Version 0.33.19.1 - Read-time recurrence projection on the calendar
+### Version 0.33.20.1 - Read-time recurrence projection on the calendar
 
 **Model: High Effort** — This changes the calendar read to merge computed virtual occurrences with real rows, and a mistake either drops real instances or double-shows occurrences.
 
@@ -314,7 +677,7 @@ Acceptance criteria:
 - Virtual occurrences respect end dates, permission/scope filters, and never duplicate a materialized instance.
 - No new rows are created by opening or paging the calendar.
 
-### Version 0.33.19.2 - Per-instance overrides via materialize-on-touch
+### Version 0.33.20.2 - Per-instance overrides via materialize-on-touch
 
 **Model: High Effort** — Promotion-on-edit must be exactly-once and race-safe so an instance-specific edit cannot silently apply to the wrong date or spawn duplicate rows.
 
@@ -322,14 +685,14 @@ Acceptance criteria:
 - [ ] Carry `templateId` + `instanceDate` from the virtual calendar entry through the task editor open path (`public/js/task-dialog.js`, `openCalendarTask`) so the save knows it is promoting a specific occurrence rather than editing the template.
 - [ ] Make promotion idempotent and race-safe: concurrent promotion of the same occurrence resolves to one row (reuse/verify the existing instance-uniqueness guarantee), and promotion never disturbs the completion-driven generation of the chain's next open instance.
 - [ ] Confirm the existing completion continuity and the 12-hour backfill sweep still behave correctly when the touched occurrence is not the current open instance.
-- [ ] Add regressions: touching one occurrence materializes exactly that date and leaves siblings virtual; the materialized override then displays instead of its ghost (0.33.19.1 dedup); concurrent touch yields a single row; and completing a virtual occurrence both records completion and preserves normal next-instance generation.
+- [ ] Add regressions: touching one occurrence materializes exactly that date and leaves siblings virtual; the materialized override then displays instead of its ghost (0.33.20.1 dedup); concurrent touch yields a single row; and completing a virtual occurrence both records completion and preserves normal next-instance generation.
 
 Acceptance criteria:
 
 - A user can attach instance-specific data to a single occurrence of a recurring task, and only that occurrence becomes a real, independently-editable row.
 - Promotion is exactly-once, permission-checked, and does not disrupt recurrence generation or continuity.
 
-### Version 0.33.19.3 - Framework private calendar-feed subscription and token authentication
+### Version 0.33.20.3 - Framework private calendar-feed subscription and token authentication
 
 **Model: High Effort** — This is a new session-less, internet-reachable authenticated read surface; getting token handling, revocation, or throttling wrong exposes private task data.
 
@@ -347,12 +710,12 @@ Acceptance criteria:
 - The feed endpoint is throttled, non-enumerating, secret-free in logs, and revocation takes effect immediately.
 - The framework owns only the feed auth/serving seam and dispatches content to a registered provider by ID.
 
-### Version 0.33.19.4 - Tasks iCalendar content serialization
+### Version 0.33.20.4 - Tasks iCalendar content serialization
 
 **Model: High Effort** — iCalendar correctness (RRULE, RECURRENCE-ID overrides, time zones, escaping) determines whether real calendar clients render the feed without corruption.
 
 - [ ] Register a Tasks feed content provider that serializes the user's readable tasks into standards-compliant iCalendar (`VCALENDAR`/`VEVENT`), reusing `taskCalendarRow` semantics for all-day (`due_time` absent) vs timed events and the same per-task read-permission and workspace scope as the in-app calendar.
-- [ ] Emit recurring tasks as a single `VEVENT` with an `RRULE` derived from the template (reusing `buildRRule`/the template's stored `rrule`), honoring `recurrence_end_date` as `UNTIL`, and serialize each materialized instance-override as a `RECURRENCE-ID` exception to its series (shared dedup with 0.33.19.1).
+- [ ] Emit recurring tasks as a single `VEVENT` with an `RRULE` derived from the template (reusing `buildRRule`/the template's stored `rrule`), honoring `recurrence_end_date` as `UNTIL`, and serialize each materialized instance-override as a `RECURRENCE-ID` exception to its series (shared dedup with 0.33.20.1).
 - [ ] Produce stable, provider-neutral `UID`s (task/instance identity) and correct `DTSTART`/`DTEND`/time-zone (`due_timezone`/`due_at_utc`) handling, with proper iCalendar line folding and text escaping.
 - [ ] Bound the feed to a defined rolling window (past/future horizon) rather than unbounded history/future; open-ended recurrences fill the future horizon via RRULE.
 - [ ] Validate output against Google Calendar, Apple Calendar, Outlook, and Thunderbird import, and add a serialization regression (fixtures for single, all-day, timed, recurring, and overridden-instance tasks) asserting valid structure and correct RRULE/RECURRENCE-ID.
@@ -363,7 +726,7 @@ Acceptance criteria:
 - Recurring tasks appear as native RRULE events with per-instance overrides expressed as RECURRENCE-ID exceptions.
 - The feed exposes only tasks the token's user may read, within a bounded window.
 
-### Version 0.33.19.5 - Subscription UI, documentation, and closeout
+### Version 0.33.20.5 - Subscription UI, documentation, and closeout
 
 - [ ] Add a user-facing "Calendar subscription" control (in user settings, aligned with the 0.33.15 settings host if landed) to reveal, copy, rotate, and disable the private feed URL, described as a read-only subscription and never as "Google Calendar sync."
 - [ ] Provide short in-product guidance/links for adding the URL to Google Calendar, Apple Calendar, Outlook, and Thunderbird, and set expectations that client refresh is periodic (not real-time).
@@ -375,6 +738,47 @@ Acceptance criteria:
 
 - Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
 - The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, and the release-gate checks pass.
+
+## Committed before 0.4x — Unversioned backlog
+
+These items are committed to land before 0.4x but are not yet assigned a version. Assign each to a concrete 0.33.x/0.3x slice when its design and prerequisite architecture are ready; do not let them slide past 0.4x.
+
+### Secure Catalogs
+
+* [ ] Add a first-class secure policy to Notes catalogs. Security must be represented as authorization state rather than as an ordinary tag.
+* [ ] Treat every note inside a secure catalog as effectively secure without requiring the application to copy a security tag or flag onto every child record.
+* [ ] Ensure newly created and newly moved notes inherit the catalog’s secure policy immediately.
+* [ ] Apply secure-note authorization consistently to note content, titles, attachments, previews, search, backlinks, activity surfaces, exports, APIs, notifications, connectors, and future indexing or AI features.
+* [ ] Moving a note out of a secure catalog must not silently expose it. Preserve note-level security until an authorized user explicitly removes it.
+* [ ] Record catalog-security changes and explicit note-security downgrades in the audit log.
+* [ ] Secure catalogs and their contents must never be visible through Support View.
+
+### Support View
+
+* [ ] Add a read-only Support View that allows specifically authorized platform administrators to inspect the application from the perspective of an existing user for troubleshooting.
+* [ ] Maintain separate actor and effective-user identities throughout the support session. Never replace the administrator’s authenticated identity with the target user’s identity.
+* [ ] Require administrator reauthentication, a support reason or ticket reference, and a short session expiration before entering Support View.
+* [ ] Rotate the session identifier when entering and leaving Support View, prevent nested sessions, and display a persistent banner identifying the viewed user and providing an immediate exit action.
+* [ ] Record Support View start, exit, expiration, target user, administrator, organization, reason, request context, and all attempted actions in an append-only audit trail.
+* [ ] Enforce read-only behavior on the server. Do not rely on disabled buttons or other frontend-only restrictions.
+* [ ] Do not expose secure notes or catalogs, credentials, API keys, OAuth tokens, authentication factors, recovery codes, payment secrets, or other protected secret material.
+* [ ] Prevent Support View from changing authentication, billing, organization membership, permissions, integrations, exports, destructive records, or other security-sensitive state.
+* [ ] Add narrowly scoped, explicitly named support actions only when a demonstrated support need exists. Each action must record both the administrator and affected user and must remain attributable to the administrator.
+* [ ] Do not implement automatic rollback-on-logout or generalized JSON before/after restoration. Use read-only inspection, explicit support commands, or an isolated disposable workspace clone when nonpersistent experimentation is required.
+* [ ] Keep unrestricted write-capable user impersonation outside the committed pre-0.4x scope unless later support evidence demonstrates that it is necessary and a dedicated security review approves it.
+* [ ] Allow self-hosted instance operators to disable Support View completely. Keep SaaS support permissions separate from ordinary workspace and instance-administration roles.
+
+### Custom 404 and Error Handling
+
+* [ ] Add friendly in-app handling for unknown routes, unavailable resources, authorization failures, conflicts, and unexpected server errors so users are never dropped onto a barren or unformatted Express response.
+* [ ] Return structured JSON errors for API routes and appropriate branded HTML responses for browser routes.
+* [ ] Keep production error messages generic and never expose stack traces, SQL details, filesystem paths, environment values, credentials, or other implementation details.
+* [ ] Assign every unexpected error a correlation ID shown to the user and included with the complete server-side diagnostic log.
+* [ ] Distinguish 401, 403, 404, 409, 500, and 503 behavior where appropriate.
+* [ ] Avoid confirming the existence of protected resources when the requesting user is unauthorized.
+* [ ] Ensure the fallback error surface remains usable when the database or another application dependency is unavailable.
+* [ ] Add a frontend error boundary for client-rendering failures and provide one clear recovery action from every error surface.
+* [ ] Place the final API and HTML not-found handlers after normal routes and place the final Express error middleware last.
 
 ## Version 0.34 - Support Tickets Module
 
