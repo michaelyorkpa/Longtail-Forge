@@ -56,7 +56,8 @@ async function updateFooterBrand() {
 
     const appInfo = await response.json();
     const name = appInfo.name || "Longtail Forge";
-    const version = appInfo.version ? ` v${appInfo.version}` : "";
+    const displayVersion = appInfo.displayVersion || appInfo.version;
+    const version = displayVersion ? ` v${displayVersion}` : "";
 
     footerBrand.textContent = [
       `${name}${version}`,
@@ -74,9 +75,13 @@ async function updateFooterBrand() {
 
 updateFooterBrand();
 updateFooterMetrics();
+let quickActionCaptureShell = null;
 mountQuickActionCapture();
 window.addEventListener?.("resize", updateFooterMetrics);
 window.addEventListener?.("scroll", updateFooterMetrics, { passive: true });
+window.addEventListener?.("longtailforge:workspace-context-updated", () => {
+  syncQuickActionCapture(quickActionCaptureShell);
+});
 
 const quickActionScriptLoads = new Map();
 const moduleActionBaseDependencies = [
@@ -131,21 +136,33 @@ function mountQuickActionCapture() {
   }
 
   const shell = createQuickActionShell();
+  quickActionCaptureShell = shell;
   document.body.append(shell.root);
 
   window.LongtailForge.workspaceContextReady
     .catch(() => null)
     .finally(() => {
-      const actions = readQuickActions();
-      if (actions.length === 0) {
-        shell.root.hidden = true;
-        return;
-      }
-
-      renderQuickActions(shell, actions);
-      shell.root.hidden = false;
-      updateFooterMetrics();
+      syncQuickActionCapture(shell);
     });
+}
+
+function syncQuickActionCapture(shell) {
+  if (!shell) {
+    return;
+  }
+
+  const actions = readQuickActions();
+  if (actions.length === 0) {
+    setQuickActionDrawerOpen(shell, false, { returnFocus: false });
+    shell.list.replaceChildren();
+    shell.root.hidden = true;
+    updateFooterMetrics();
+    return;
+  }
+
+  renderQuickActions(shell, actions);
+  shell.root.hidden = false;
+  updateFooterMetrics();
 }
 
 function createQuickActionShell() {

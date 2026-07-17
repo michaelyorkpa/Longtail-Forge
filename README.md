@@ -74,7 +74,7 @@ Calendar remains planned at 0.36. Hosted SaaS and PostgreSQL remain later work. 
 
 ## Current Release and Readiness Status
 
-- The current package version is reported by `/api/app-info`. The checksummed runtime artifact and tested baseline backup/restore path are complete; the Docker-engine acceptance proof, CI/release operations, and remaining preview gates are still required before invitations.
+- The current package version is reported by `/api/app-info`. The checksummed runtime artifact, tested baseline backup/restore path, and private-preview readiness checklist are complete; the remaining live deployment, rollback, hotfix, and final release-closeout gates are still required before invitations.
 - Longtail Forge is in active development and currently used privately. It runs as a self-hosted app; a limited friends-and-family private internet preview is planned once security-hardening (roadmap 0.33.16) and preview-readiness work (roadmap 0.33.17, including tested backup/restore) are complete.
 - Until that work ships, treat internet use as a **private/technical preview**, not a production deployment. Supported scale is small-office (SQLite for roughly 50 total users and about 5–15 concurrent on one server); PostgreSQL is required before shared hosted or larger use.
 - Longtail Forge makes no security, uptime, backup, or compliance guarantees, and Secure Notes are encrypted at rest but are not zero-knowledge (see [docs/architecture.md](docs/architecture.md)).
@@ -89,6 +89,7 @@ Product positioning, audience, demo, preview, and launch planning live in the [m
 - [docs/versioning.md](docs/versioning.md): application/asset-version sources, bump command, guardrails, and release workflow
 - [docs/runtime-artifact.md](docs/runtime-artifact.md): versioned runtime-only artifact inventory, checksum, clean-install proof, and settled runtime install/start commands
 - [docs/backup-restore.md](docs/backup-restore.md): checksummed SQLite and Files backups, separate Secure Notes recovery prerequisite, controlled export, destructive restore, and restore drill
+- [docs/private-preview-readiness.md](docs/private-preview-readiness.md): invitation gate for private-preview setup, limits, account flow, recovery, revocation, bug reporting, and feedback readiness
 - [docs/preview-deployment.md](docs/preview-deployment.md): supported Docker Compose and staged bare-metal installation, upgrade, verification, and rollback paths
 - [docs/docs-ownership.md](docs/docs-ownership.md): changed-area documentation suggestions and closeout note convention
 - [docs/internet-deployment.md](docs/internet-deployment.md): supported Caddy private-internet topology, operator procedure, live proxy proof, and known limitations

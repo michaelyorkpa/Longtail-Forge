@@ -3,26 +3,32 @@ import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { normalizeBooleanPreference, normalizeTimezone } from "../utils/normalizers.js";
 
-async function createSession(user) {
+const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+async function createSession(user, options = {}) {
   const sessionId = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + config.cookies.maxAgeSeconds * 1000);
+  const maxAgeSeconds = options.rememberMe
+    ? REMEMBERED_SESSION_TTL_SECONDS
+    : config.cookies.maxAgeSeconds;
+  const expiresAt = new Date(Date.now() + maxAgeSeconds * 1000);
 
   await sessionsRepository.removeExpired();
   await sessionsRepository.create({
     session_id: sessionId,
     home_workspace_id: user.home_workspace_id,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
+    workspace_id: user.active_workspace_id ?? user.home_workspace_id ?? null,
     user_id: user.user_id,
     username: user.username,
     timezone: normalizeTimezone(user.timezone),
     ip_address: user.ip_address || "",
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
+    active_workspace_id: user.active_workspace_id ?? user.home_workspace_id ?? null,
+    session_mode: user.session_mode || "normal",
     expires_at: expiresAt.toISOString(),
   });
 
   return {
     sessionId,
-    maxAgeSeconds: config.cookies.maxAgeSeconds,
+    maxAgeSeconds,
   };
 }
 
@@ -58,7 +64,7 @@ async function getRequestSession(request) {
     return null;
   }
 
-  const activeWorkspaceId = session.active_workspace_id || session.home_workspace_id;
+  const activeWorkspaceId = session.active_workspace_id ?? session.home_workspace_id ?? null;
 
   return {
     workspace_id: activeWorkspaceId,
@@ -69,6 +75,7 @@ async function getRequestSession(request) {
     timezone: normalizeTimezone(session.timezone),
     ip_address: session.ip_address || "",
     password_change_required: normalizeBooleanPreference(session.password_change_required),
+    session_mode: session.session_mode || "normal",
   };
 }
 
@@ -102,6 +109,7 @@ function parseCookieHeader(cookieHeader) {
 }
 
 export {
+  REMEMBERED_SESSION_TTL_SECONDS,
   createSession,
   deleteSession,
   deleteRequestSession,

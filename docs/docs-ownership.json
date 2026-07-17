@@ -148,15 +148,19 @@
       "label": "Settings",
       "sourcePatterns": [
         "^public/js/(?:module|user|workspace|files)-settings\\.js$",
+        "^public/js/shared/settings-host\\.js$",
         "^public/js/shared/settings-(?:controls|normalizers)\\.js$",
         "^src/(?:repositories|routes|services)/(?:app-)?settings(?:[./-]|$)",
+        "^src/(?:repositories|services)/workspace-(?:backup(?:-exports|-package|s)?|deletion(?:-lifecycle)?|purge)(?:[./-]|$)",
         "^src/repositories/users\\.repo\\.js$",
         "^src/services/users\\.service\\.js$",
         "^views/protected/(?:tasks|time-tracking|user|workspace)-settings\\.html$"
       ],
       "docs": [
         "docs/settings-control-matrix.md",
-        "docs/settings-ownership.md"
+        "docs/settings-ownership.md",
+        "docs/workspace-backup.md",
+        "docs/workspace-deletion.md"
       ]
     },
     {
@@ -173,6 +177,7 @@
         "^src/middleware/require-auth\\.js$",
         "^src/routes/(?:auth|operational-health|users)\\.routes\\.js$",
         "^src/security/(?:auth-throttle|cookies|password-events|sessions)\\.js$",
+        "^src/repositories/authentication-throttle\\.repo\\.js$",
         "^src/(?:repositories|services)/sessions(?:[./-]|$)",
         "^src/services/operational-readiness\\.service\\.js$",
         "^scripts/reference-caddy-security-smoke\\.mjs$",
@@ -191,7 +196,8 @@
       "label": "Permissions",
       "sourcePatterns": [
         "^src/(?:repositories|routes|services)/permissions?(?:[./-]|$)",
-        "^src/(?:repositories|routes|services)/(?:sessions?|users?|workspaces?|user-workspaces)(?:[./-]|$)",
+        "^src/(?:repositories|routes|services)/(?:account-export-recovery|sessions?|users?|workspaces?|user-workspaces)(?:[./-]|$)",
+        "^(?:public/js/account-recovery\\.js|views/protected/account-recovery\\.html)$",
         "^src/middleware/(?:auth|require-auth|permissions?)(?:[./-]|$)"
       ],
       "docs": [
@@ -224,10 +230,10 @@
       "id": "database",
       "label": "Database",
       "sourcePatterns": [
-        "^docs/backup-restore\\.md$",
-        "^scripts/(?:backup|backup-restore-drill)\\.mjs$",
+        "^docs/(?:backup-restore|workspace-backup|workspace-deletion)\\.md$",
+        "^scripts/(?:backup|backup-restore-drill|workspace-backup(?:-drill)?|workspace-purge)\\.mjs$",
         "^scripts/lib/backup-archive\\.mjs$",
-        "^scripts/regressions/database/backup-restore-foundation\\.regression\\.mjs$",
+        "^scripts/regressions/database/(?:backup-restore-foundation|workspace-backup-package|workspace-deletion-lifecycle|workspace-final-purge)\\.regression\\.mjs$",
         "^src/core/database\\.js$",
         "^src/db/"
       ],
@@ -235,7 +241,9 @@
         "docs/backup-restore.md",
         "docs/database-parameter-binding-audit.md",
         "docs/database.md",
-        "docs/sqlite-small-office-mode.md"
+        "docs/sqlite-small-office-mode.md",
+        "docs/workspace-backup.md",
+        "docs/workspace-deletion.md"
       ]
     },
     {
@@ -337,15 +345,15 @@
       "sourcePatterns": [
         "^\\.github/",
         "^(?:\\.dockerignore|Dockerfile|compose\\.yaml)$",
-        "^docs/backup-restore\\.md$",
+        "^docs/(?:backup-restore|workspace-backup)\\.md$",
         "^docs/docs-ownership\\.(?:json|md)$",
-        "^docs/(?:backup-and-restore|releasing|self-hosting|upgrading)\\.md$",
+        "^docs/(?:backup-and-restore|private-preview-readiness|releasing|self-hosting|upgrading)\\.md$",
         "^docs/development/github-workflow\\.md$",
         "^docs/(?:compose\\.env\\.example|longtail-forge\\.service\\.example|preview-deployment\\.md)$",
         "^scripts/release/",
-        "^scripts/(?:backup|backup-restore-drill|bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|container-deployment-smoke|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-(?:changed-regressions|closeout|regressions)|runtime-artifact-smoke|suggest-regressions|version-literal)",
+        "^scripts/(?:backup|backup-restore-drill|workspace-backup(?:-drill)?|bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|container-deployment-smoke|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-(?:changed-regressions|closeout|regressions|slice-verification)|runtime-artifact-smoke|suggest-regressions|version-literal)",
         "^scripts/lib/backup-archive\\.mjs$",
-        "^scripts/lib/(?:changed-regression-runner|closeout-gates|regression-change-routing)\\.mjs$",
+        "^scripts/lib/(?:changed-regression-runner|closeout-gates|regression-change-routing|slice-verification-plan)\\.mjs$",
         "^scripts/test-support/(?:isolated-regression-retry|regression-bucket-orchestrator|regression-runner-scheduler)\\.mjs$",
         "^scripts/(?:lib/docs-change-routing|suggest-docs-for-changes)\\.mjs$",
         "^scripts/regressions/release/",
@@ -359,13 +367,15 @@
         "docs/docs-ownership.json",
         "docs/docs-ownership.md",
         "docs/preview-deployment.md",
+        "docs/private-preview-readiness.md",
         "docs/regression-suite-performance.md",
         "docs/regression-suite.md",
         "docs/releasing.md",
         "docs/runtime-artifact.md",
         "docs/self-hosting.md",
         "docs/upgrading.md",
-        "docs/versioning.md"
+        "docs/versioning.md",
+        "docs/workspace-backup.md"
       ]
     }
   ]

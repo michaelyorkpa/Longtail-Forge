@@ -64,18 +64,20 @@ VALUES (:apiKeyId, :scope);
 async function readByHash(keyHash) {
   const row = await db.get(`
 SELECT
-  api_key_id,
-  workspace_id,
-  created_by_user_id,
-  name,
-  key_hash,
-  key_prefix,
-  status,
-  created_at,
-  last_used_at,
-  revoked_at
+  api_keys.api_key_id,
+  api_keys.workspace_id,
+  api_keys.created_by_user_id,
+  api_keys.name,
+  api_keys.key_hash,
+  api_keys.key_prefix,
+  api_keys.status,
+  api_keys.created_at,
+  api_keys.last_used_at,
+  api_keys.revoked_at
 FROM api_keys
+INNER JOIN workspaces ON workspaces.workspace_id = api_keys.workspace_id
 WHERE key_hash = :keyHash
+  AND lower(workspaces.status) = 'active'
 LIMIT 1;
 `, { keyHash: text(keyHash) });
 

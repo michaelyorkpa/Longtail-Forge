@@ -2,6 +2,7 @@ import { clearInterval, setInterval } from "node:timers";
 import { config } from "../../config.js";
 import { db } from "../database.js";
 import { getJobHandler, listRegisteredJobTypes } from "./job-handlers.js";
+import { WORKSPACE_PURGE_JOB_TYPE } from "./job-types.js";
 
 const ACTIVE_JOB_STATUSES = Object.freeze(["pending", "failed"]);
 const DEFAULT_CLAIM_LIMIT = 1;
@@ -302,6 +303,10 @@ ${transaction.dialect.returning.columns(CLAIMED_JOB_RETURN_COLUMNS)};
 }
 
 async function runClaimedJob(job) {
+  if (job.job_type !== WORKSPACE_PURGE_JOB_TYPE && !await workspaceCanRunClaimedJob(job.workspace_id)) {
+    await markJobCompleted(job.job_id);
+    return;
+  }
   const handler = getJobHandler(job.job_type);
 
   if (!handler) {
@@ -325,6 +330,16 @@ async function runClaimedJob(job) {
     payload,
   });
   await markJobCompleted(job.job_id);
+}
+
+async function workspaceCanRunClaimedJob(workspaceId) {
+  const workspace = await db.get(`
+SELECT status
+FROM workspaces
+WHERE workspace_id = :workspaceId
+LIMIT 1;
+`, { workspaceId });
+  return Boolean(workspace && String(workspace.status || "").toLowerCase() !== "purging");
 }
 
 async function markJobCompleted(jobId) {

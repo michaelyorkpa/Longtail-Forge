@@ -125,6 +125,7 @@ function assertRuntimeDiagnostics(diagnostics) {
     "search.index",
     "task.recurrence",
     "task.reminder",
+    "workspace.purge",
   ]);
 
   const serialized = JSON.stringify(diagnostics);

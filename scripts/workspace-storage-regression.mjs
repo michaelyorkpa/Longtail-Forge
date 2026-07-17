@@ -23,10 +23,26 @@ try {
   await assertLegacyTimerTablesRemoved();
   const workspaceId = await readDefaultWorkspaceId();
   const userId = await readDefaultUserId(workspaceId);
+  const initialSettings = await settingsRepository.readWorkspaceSettings(workspaceId);
+  const rejectedWorkspaceType = initialSettings.workspaceType === "business" ? "family" : "business";
+
+  await assert.rejects(
+    settingsRepository.saveWorkspaceSettings(workspaceId, {
+      ...initialSettings,
+      workspaceType: rejectedWorkspaceType,
+    }),
+    (error) => error?.statusCode === 400 && /Workspace type cannot be changed after creation/.test(error.message),
+    "workspace settings repository should reject a workspace type mutation",
+  );
+  assert.equal(
+    (await settingsRepository.readWorkspaceSettings(workspaceId)).workspaceType,
+    initialSettings.workspaceType,
+    "rejected repository writes should preserve the stored workspace type",
+  );
 
   await settingsRepository.saveWorkspaceSettings(workspaceId, {
     workspaceName: "Workspace Storage Regression",
-    workspaceType: "family",
+    workspaceType: initialSettings.workspaceType,
     fiscalYear: { startMonth: 4, startDay: 15 },
     defaultBillingRate: "125",
     billingPeriod: { type: "monthly", startDay: 7 },

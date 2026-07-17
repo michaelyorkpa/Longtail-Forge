@@ -25,12 +25,13 @@ require_token() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || fail "unsafe filename or to
 
 operation="${1:-}"
 shift || true
-artifact="" metadata="" expected_version="" expected_commit="" expected_sha256=""
+artifact="" metadata="" expected_version="" expected_source_branch="" expected_commit="" expected_sha256=""
 while (($#)); do
   case "$1" in
     --artifact) artifact="${2:-}"; shift 2 ;;
     --metadata) metadata="${2:-}"; shift 2 ;;
     --expected-version) expected_version="${2:-}"; shift 2 ;;
+    --expected-source-branch) expected_source_branch="${2:-}"; shift 2 ;;
     --expected-commit) expected_commit="${2:-}"; shift 2 ;;
     --expected-sha256) expected_sha256="${2:-}"; shift 2 ;;
     *) fail "unknown argument: $1" ;;
@@ -65,7 +66,7 @@ inspect_identity() {
     fetch(process.argv[2] + "/api/app-info").then(async (response) => {
       if (!response.ok) throw new Error(`app-info HTTP ${response.status}`);
       const actual = await response.json();
-      for (const key of ["version", "commitSha", "artifactSha256"]) {
+      for (const key of ["version", "canonicalVersion", "sourceBranch", "commitSha", "artifactSha256"]) {
         if (actual[key] !== expected[key]) throw new Error(`${key} mismatch`);
       }
     }).catch((error) => { console.error(error.message); process.exit(1); });
@@ -92,7 +93,7 @@ restore_backup() {
 }
 
 if [[ "$operation" == "deploy" ]]; then
-  require_token "$artifact"; require_token "$metadata"; require_token "$expected_version"
+  require_token "$artifact"; require_token "$metadata"; require_token "$expected_version"; require_token "$expected_source_branch"
   require_hex 64 "$expected_sha256" "expected artifact checksum"
   artifact_path="$INBOX/$artifact"; metadata_path="$INBOX/$metadata"
   [[ -f "$artifact_path" && -f "$artifact_path.sha256" && -f "$metadata_path" ]] || fail "artifact, checksum, or metadata is missing from the inbox"
@@ -101,8 +102,8 @@ if [[ "$operation" == "deploy" ]]; then
   node -e '
     const fs = require("node:fs"); const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
     const expected = JSON.parse(process.argv[2]);
-    if (data.version !== expected.version || data.commitSha !== expected.commitSha || data.artifact?.sha256 !== expected.artifactSha256) process.exit(1);
-  ' "$metadata_path" "$(printf '{"version":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_commit" "$expected_sha256")" || fail "release metadata mismatch"
+    if (data.version !== expected.version || data.sourceBranch !== expected.sourceBranch || data.commitSha !== expected.commitSha || data.artifact?.sha256 !== expected.artifactSha256) process.exit(1);
+  ' "$metadata_path" "$(printf '{"version":"%s","sourceBranch":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_source_branch" "$expected_commit" "$expected_sha256")" || fail "release metadata mismatch"
 
   release_dir="$APP_ROOT/releases/$expected_version-$expected_commit"
   [[ ! -e "$release_dir" ]] || fail "release directory already exists"
@@ -123,10 +124,10 @@ if [[ "$operation" == "deploy" ]]; then
       fail "pre-deployment backup failed; the previous release was restarted"
     fi
   fi
-  printf 'LONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$expected_commit" "$expected_sha256" > "$RELEASE_ENV"
+  printf 'LONGTAIL_RELEASE_BRANCH=%s\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$expected_source_branch" "$expected_commit" "$expected_sha256" > "$RELEASE_ENV"
   chmod 0600 "$RELEASE_ENV"
   ln -sfn "$release_dir" "$APP_ROOT/current"
-  if ! start_services || ! inspect_identity "$(printf '{"version":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_commit" "$expected_sha256")"; then
+  if ! start_services || ! inspect_identity "$(printf '{"version":"%s-%s","canonicalVersion":"%s","sourceBranch":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_source_branch" "$expected_version" "$expected_source_branch" "$expected_commit" "$expected_sha256")"; then
     systemctl stop "$EDGE_SERVICE" || true; systemctl stop "$APP_SERVICE" || true
     if [[ -n "$previous_release" && -n "$backup" ]]; then
       ln -sfn "$previous_release" "$APP_ROOT/current"
@@ -139,7 +140,7 @@ if [[ "$operation" == "deploy" ]]; then
   node -e '
     const fs = require("node:fs"); const previous = process.argv[2] && fs.existsSync(process.argv[2]) ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : null;
     fs.writeFileSync(process.argv[1], JSON.stringify({ current: JSON.parse(process.argv[3]), previous: previous?.current || null, backup: process.argv[4] || null, deployedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
-  ' "$STATE_FILE" "$STATE_FILE" "$(printf '{"version":"%s","commitSha":"%s","artifactSha256":"%s","releaseDir":"%s"}' "$expected_version" "$expected_commit" "$expected_sha256" "$release_dir")" "$backup"
+  ' "$STATE_FILE" "$STATE_FILE" "$(printf '{"version":"%s-%s","canonicalVersion":"%s","sourceBranch":"%s","commitSha":"%s","artifactSha256":"%s","releaseDir":"%s"}' "$expected_version" "$expected_source_branch" "$expected_version" "$expected_source_branch" "$expected_commit" "$expected_sha256" "$release_dir")" "$backup"
   rm -f "$artifact_path" "$artifact_path.sha256" "$metadata_path" "$previous_release_env"
   exit 0
 fi
@@ -163,7 +164,7 @@ fi
 ln -sfn "$previous_dir" "$APP_ROOT/current"
 restore_backup "$previous_dir" "$backup" "$BACKUP_ROOT/pre-restore-rollback-$rollback_at.ltfbackup.tgz"
 previous_identity="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).previous))' "$rollback_json")"
-printf 'LONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$expected_commit" "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.artifactSha256)' "$rollback_json")" > "$RELEASE_ENV"
+printf 'LONGTAIL_RELEASE_BRANCH=%s\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.sourceBranch)' "$rollback_json")" "$expected_commit" "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.artifactSha256)' "$rollback_json")" > "$RELEASE_ENV"
 chmod 0600 "$RELEASE_ENV"
 start_services
 inspect_identity "$previous_identity"

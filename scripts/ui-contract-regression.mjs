@@ -13,6 +13,8 @@ const files = {
   timeTrackingSettingsView: readText("views/protected/time-tracking-settings.html"),
   userSettings: readText("public/js/user-settings.js"),
   userSettingsView: readText("views/protected/user-settings.html"),
+  userAdmin: readText("public/js/user-admin.js"),
+  userAdminView: readText("views/protected/user-admin.html"),
   workspaceSettings: readText("public/js/workspace-settings.js"),
   workspaceSettingsView: readText("views/protected/workspace-settings.html"),
   tasksSettingsView: readText("views/protected/tasks-settings.html"),
@@ -136,6 +138,19 @@ assert.match(
   files.styles,
   /\.user-admin-page\s*\{[\s\S]*width:\s*min\(94vw,\s*var\(--page-standard-width\)\)/,
   "User Admin must use the standard workspace width",
+);
+assert.match(files.userAdminView, /data-new-user-workspace/, "Add User must expose the authorized workspace selector");
+assert.match(files.userAdminView, /data-find-user-account/, "Add User must provide explicit exact-account lookup");
+assert.match(files.userAdminView, /data-new-user-client-scope-field[^>]*hidden/, "client scope must start conditionally hidden");
+assert.match(files.userAdminView, /data-new-user-project-scope-field[^>]*hidden/, "project scope must start conditionally hidden");
+assert.match(files.userAdmin, /getJson\(`\/api\/users\/add-options\$\{query\}`/, "Add User must load server-shaped workspace, role, and scope options");
+assert.match(files.userAdmin, /postJson\("\/api\/users\/lookup"/, "Add User must use exact-account lookup before submission");
+assert.match(readFunctionBody(files.userAdmin, "renderNewUserScopeOptions"), /scopeType !== "client"/);
+assert.match(readFunctionBody(files.userAdmin, "renderNewUserScopeOptions"), /scopeType !== "project"/);
+assert.doesNotMatch(
+  readFunctionBody(files.userAdmin, "createUser"),
+  /scope_type:\s*initialRoleId === "super_admin"/,
+  "Add User must not reconstruct role scope policy in the browser",
 );
 
 console.log("UI contract regression passed.");

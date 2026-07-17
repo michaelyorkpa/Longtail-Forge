@@ -3,6 +3,15 @@
 -- Refresh with: npm run db:schema:refresh
 -- Do not edit by hand.
 
+CREATE TABLE account_export_recovery_qualifications (
+  user_id TEXT PRIMARY KEY,
+  qualification_basis TEXT NOT NULL CHECK (qualification_basis = 'former_workspace_administrator'),
+  qualification_source TEXT NOT NULL CHECK (qualification_source IN ('membership_loss', 'membership_leave', 'workspace_purge')),
+  qualified_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 CREATE TABLE active_work_timers (
   active_timer_id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL,
@@ -73,6 +82,19 @@ CREATE TABLE audit_logs (
   metadata_json TEXT,
   ip_address TEXT,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
+);
+
+CREATE TABLE authentication_throttle_entries (
+  scope TEXT NOT NULL,
+  dimension TEXT NOT NULL CHECK (dimension IN ('ip', 'account')),
+  key_hash TEXT NOT NULL CHECK (length(key_hash) = 64),
+  failure_count INTEGER NOT NULL CHECK (failure_count >= 0),
+  window_expires_at INTEGER NOT NULL CHECK (window_expires_at >= 0),
+  locked_until INTEGER NOT NULL DEFAULT 0 CHECK (locked_until >= 0),
+  expires_at INTEGER NOT NULL CHECK (expires_at >= 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (scope, dimension, key_hash)
 );
 
 CREATE TABLE clients (
@@ -658,14 +680,15 @@ CREATE TABLE secure_note_placeholder_warnings (
   body_plaintext_index_present INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE sessions (
+CREATE TABLE "sessions" (
   session_id TEXT PRIMARY KEY,
-  home_workspace_id TEXT NOT NULL,
-  active_workspace_id TEXT NOT NULL,
+  home_workspace_id TEXT,
+  active_workspace_id TEXT,
   user_id TEXT NOT NULL,
   username TEXT NOT NULL,
   timezone TEXT NOT NULL DEFAULT 'America/New_York',
   ip_address TEXT,
+  session_mode TEXT NOT NULL DEFAULT 'normal' CHECK (session_mode IN ('normal', 'account_export_recovery')),
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -949,9 +972,9 @@ CREATE TABLE user_workspaces (
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
 );
 
-CREATE TABLE users (
+CREATE TABLE "users" (
   user_id TEXT PRIMARY KEY,
-  home_workspace_id TEXT NOT NULL,
+  home_workspace_id TEXT,
   username TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL DEFAULT '',
   alt_email TEXT,
@@ -960,7 +983,14 @@ CREATE TABLE users (
   theme_mode TEXT NOT NULL DEFAULT 'light',
   user_status TEXT NOT NULL DEFAULT 'active',
   protected_user TEXT NOT NULL DEFAULT 'no',
-  active_workspace_id TEXT, open_external_links_new_tab INTEGER NOT NULL DEFAULT 0 CHECK (open_external_links_new_tab IN (0, 1)), theme_auto_source TEXT NOT NULL DEFAULT 'system' CHECK (theme_auto_source IN ('system')), password_change_required INTEGER NOT NULL DEFAULT 0,
+  active_workspace_id TEXT,
+  open_external_links_new_tab INTEGER NOT NULL DEFAULT 0 CHECK (open_external_links_new_tab IN (0, 1)),
+  theme_auto_source TEXT NOT NULL DEFAULT 'system' CHECK (theme_auto_source IN ('system')),
+  password_change_required INTEGER NOT NULL DEFAULT 0,
+  preferred_login_landing TEXT NOT NULL DEFAULT 'dashboard'
+    CHECK (preferred_login_landing IN ('dashboard', 'workbench', 'tasks', 'notes', 'lists')),
+  preferred_workspace_switch_landing TEXT NOT NULL DEFAULT 'dashboard'
+    CHECK (preferred_workspace_switch_landing IN ('dashboard', 'workbench', 'tasks', 'notes', 'lists')),
   FOREIGN KEY (home_workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (active_workspace_id) REFERENCES workspaces(workspace_id)
 );
@@ -1000,6 +1030,40 @@ CREATE TABLE work_resume_state (
   UNIQUE (workspace_id, user_id, module_id, record_type, record_id)
 );
 
+CREATE TABLE workspace_backup_exports (
+  backup_id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  archive_filename TEXT NOT NULL,
+  archive_sha256 TEXT NOT NULL,
+  app_version TEXT NOT NULL,
+  created_by_user_id TEXT,
+  status TEXT NOT NULL DEFAULT 'created',
+  secure_notes_recovery_required INTEGER NOT NULL DEFAULT 0,
+  file_object_count INTEGER NOT NULL DEFAULT 0,
+  file_object_bytes INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
+  FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE workspace_deletion_lifecycle (
+  workspace_id TEXT PRIMARY KEY,
+  requested_by_user_id TEXT,
+  requested_at TEXT NOT NULL,
+  purge_after TEXT NOT NULL,
+  backup_id TEXT,
+  no_current_backup_acknowledged INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending_deletion'
+CHECK (status IN ('pending_deletion', 'purging')), purge_started_at TEXT, purge_token TEXT,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
+  FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id),
+  FOREIGN KEY (backup_id) REFERENCES workspace_backup_exports(backup_id),
+  CHECK (purge_after > requested_at),
+  CHECK (
+    (backup_id IS NOT NULL AND no_current_backup_acknowledged = 0)
+    OR (backup_id IS NULL AND no_current_backup_acknowledged = 1)
+  )
+);
+
 CREATE TABLE workspace_module_settings (
   workspace_id TEXT NOT NULL,
   module_id TEXT NOT NULL,
@@ -1021,6 +1085,26 @@ CREATE TABLE workspace_modules (
   PRIMARY KEY (workspace_id, module_id),
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (module_id) REFERENCES modules(module_id)
+);
+
+CREATE TABLE workspace_purge_tombstones (
+  purge_tombstone_id TEXT PRIMARY KEY,
+  workspace_fingerprint TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL CHECK (status IN ('in_progress', 'complete')),
+  requested_at TEXT NOT NULL,
+  purge_started_at TEXT NOT NULL,
+  purged_at TEXT,
+  attempt_count INTEGER NOT NULL DEFAULT 1 CHECK (attempt_count > 0),
+  file_object_count INTEGER NOT NULL DEFAULT 0,
+  file_object_bytes INTEGER NOT NULL DEFAULT 0,
+  database_row_count INTEGER NOT NULL DEFAULT 0,
+  last_failure_class TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (
+    (status = 'in_progress' AND purged_at IS NULL)
+    OR (status = 'complete' AND purged_at IS NOT NULL)
+  )
 );
 
 CREATE TABLE "workspace_settings" (
@@ -1079,6 +1163,12 @@ ON audit_logs (workspace_id, record_id);
 
 CREATE INDEX idx_audit_logs_workspace_record_type
 ON audit_logs (workspace_id, record_type);
+
+CREATE INDEX idx_authentication_throttle_expires_at
+ON authentication_throttle_entries (expires_at);
+
+CREATE INDEX idx_authentication_throttle_updated_at
+ON authentication_throttle_entries (updated_at);
 
 CREATE INDEX idx_clients_workspace_name
 ON clients (workspace_id, name);
@@ -1615,7 +1705,7 @@ CREATE INDEX idx_user_workspaces_workspace_status
 ON user_workspaces (workspace_id, status);
 
 CREATE UNIQUE INDEX idx_users_unique_user_id
-ON users (user_id);
+  ON users (user_id);
 
 CREATE INDEX idx_work_resume_state_dismissed
 ON work_resume_state (workspace_id, user_id, dismissed_at, dismissed_source_updated_at);
@@ -1638,11 +1728,20 @@ ON work_resume_state (workspace_id, user_id, project_id, dismissed_at, last_work
 CREATE INDEX idx_work_resume_state_workspace_user_default
 ON work_resume_state (workspace_id, user_id, dismissed_at, last_worked_at DESC, updated_at DESC);
 
+CREATE INDEX idx_workspace_backup_exports_workspace_created
+  ON workspace_backup_exports(workspace_id, created_at DESC);
+
+CREATE INDEX idx_workspace_deletion_lifecycle_purge_after
+  ON workspace_deletion_lifecycle(purge_after);
+
 CREATE INDEX idx_workspace_modules_module
 ON workspace_modules (module_id);
 
 CREATE INDEX idx_workspace_modules_workspace_status
 ON workspace_modules (workspace_id, status);
+
+CREATE INDEX idx_workspace_purge_tombstones_status_started
+  ON workspace_purge_tombstones(status, purge_started_at);
 
 CREATE INDEX idx_workspaces_owner
 ON workspaces (owner_user_id);

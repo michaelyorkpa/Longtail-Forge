@@ -126,7 +126,10 @@ async function bootstrap(session) {
   return {
     app: {
       name: config.appName,
-      version: config.appVersion,
+      version: config.appDisplayVersion,
+      displayVersion: config.appDisplayVersion,
+      canonicalVersion: config.appVersion,
+      sourceBranch: config.release.sourceBranch,
     },
     activeWorkspaceId: session.active_workspace_id || session.workspace_id,
     enabledModules: workspaceContext.enabledModules || [],
@@ -372,9 +375,9 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     label: "Reporting",
     items: [],
   };
-  const workspaceSettingsMenu = {
-    id: "workspace-settings-group",
-    label: "Workspace",
+  const adminSettingsMenu = {
+    id: "admin-settings-group",
+    label: "Admin",
     items: [],
   };
   const modulesSettingsMenu = {
@@ -394,53 +397,56 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     href: "files.html",
   });
 
-  if (availableTools.has("projects") || availableTools.has("clients_projects")) {
-    actionsMenu.items.push({
-      id: "projects-settings",
-      label: "Project Settings",
-      href: "projects.html",
-    });
-  }
-
   addReportingNavigation(reportingMenu.items, reportingReports);
   if (reportingMenu.items.length > 0) {
     actionsMenu.items.push(reportingMenu);
   }
 
-  if (permissionHints.workspaceSettingsManage) {
-    workspaceSettingsMenu.items.push({
-      id: "workspace-settings",
-      label: "Workspace Settings",
-      href: "workspace-settings.html",
-    });
-  }
-
   if (permissionHints.filesSettingsManage) {
-    workspaceSettingsMenu.items.push({
+    modulesSettingsMenu.items.push({
       id: "files-settings",
       label: "Files",
       href: "files-settings.html",
     });
   }
 
-  if (availableTools.has("clients_projects")) {
-    addModuleNavItem(workspaceSettingsMenu.items, moduleNavByHref.get("clients.html"));
-  }
-
-  addSettingsModuleNavigation(workspaceSettingsMenu.items, moduleNavigation);
-
+  addSettingsModuleNavigation(
+    modulesSettingsMenu.items,
+    moduleNavigation.filter((item) => item.href !== "user-admin.html"),
+  );
   moduleSettingsNavigation.forEach((item) => addModuleNavItem(modulesSettingsMenu.items, item));
+  sortAdminModuleNavigation(modulesSettingsMenu.items);
 
   if (modulesSettingsMenu.items.length > 0) {
-    workspaceSettingsMenu.items.push(modulesSettingsMenu);
+    adminSettingsMenu.items.push(modulesSettingsMenu);
+  }
+
+  if ((availableTools.has("projects") || availableTools.has("clients_projects")) && permissionHints.projectsManage) {
+    adminSettingsMenu.items.push({
+      id: "projects",
+      label: "Projects",
+      href: "projects.html",
+    });
+  }
+
+  if (availableTools.has("clients_projects")) {
+    addModuleNavItem(adminSettingsMenu.items, moduleNavByHref.get("clients.html"));
   }
 
   if (availableTools.has("team_members") && permissionHints.usersManage) {
-    addModuleNavItem(workspaceSettingsMenu.items, moduleNavByHref.get("user-admin.html"));
+    addModuleNavItem(adminSettingsMenu.items, moduleNavByHref.get("user-admin.html"));
+  }
+
+  if (permissionHints.workspaceSettingsManage) {
+    adminSettingsMenu.items.push({
+      id: "workspace-settings",
+      label: "Workspace",
+      href: "workspace-settings.html",
+    });
   }
 
   if (workspaceType === "business" && permissionHints.workspaceSettingsManage) {
-    workspaceSettingsMenu.items.push({
+    adminSettingsMenu.items.push({
       id: "api-keys",
       label: "API Keys",
       href: "api-keys.html",
@@ -448,7 +454,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   }
 
   if (permissionHints.auditLogsView) {
-    workspaceSettingsMenu.items.push({
+    adminSettingsMenu.items.push({
       id: "audit-log",
       label: "Audit Log",
       href: "audit-log.html",
@@ -459,7 +465,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     id: "settings",
     label: "Settings",
     items: [
-      workspaceSettingsMenu,
+      adminSettingsMenu,
       {
         id: "user-settings",
         label: "User",
@@ -528,6 +534,21 @@ function addSettingsModuleNavigation(targetItems, moduleNavigation) {
   moduleNavigation
     .filter((item) => item.parent === "settings.html")
     .forEach((item) => addModuleNavItem(targetItems, item));
+}
+
+function sortAdminModuleNavigation(items) {
+  const order = new Map([
+    ["files-settings.html", 0],
+    ["tags.html", 1],
+    ["tasks-settings.html", 2],
+    ["time-tracking-settings.html", 3],
+    ["developer-example.html", Number.MAX_SAFE_INTEGER],
+  ]);
+  items.sort((left, right) => (
+    (order.get(left.href) ?? 100) - (order.get(right.href) ?? 100) ||
+    left.label.localeCompare(right.label) ||
+    left.id.localeCompare(right.id)
+  ));
 }
 
 function addModuleNavItem(targetItems, item) {

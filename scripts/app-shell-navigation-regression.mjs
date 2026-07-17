@@ -32,7 +32,7 @@ try {
   const actionLabels = (actionsMenu.items || []).map((item) => item.label);
   assert.deepEqual(
     actionLabels,
-    ["Time Keeping", "Tasks", "Calendar", "Files", "Project Settings", "Reporting"],
+    ["Time Keeping", "Tasks", "Calendar", "Files", "Reporting"],
     "Actions menu should keep the expected direct item order",
   );
 
@@ -40,9 +40,11 @@ try {
   assert.ok(calendarItem, "Actions should contain the Tasks-contributed Calendar entry");
   assert.equal(calendarItem.moduleId, "tasks", "Calendar nav entry should stay module-aware through the Tasks contribution");
 
-  const projectSettings = (actionsMenu.items || []).find((item) => item.id === "projects-settings");
-  assert.ok(projectSettings, "Actions should directly contain Project Settings");
-  assert.equal(projectSettings.href, "projects.html");
+  assert.equal(
+    (actionsMenu.items || []).some((item) => item.href === "projects.html"),
+    false,
+    "Actions should no longer contain Project Settings",
+  );
 
   const reportingMenu = (actionsMenu.items || []).find((item) => item.id === "reporting");
   assert.ok(reportingMenu, "Actions should directly contain a Reporting slide-out");
@@ -55,6 +57,29 @@ try {
   await disableFixtureModules(session.workspace_id, ["time-tracking"]);
   const disabledShell = await appShellService.bootstrap(session);
   const disabledActions = disabledShell.navigation.find((item) => item.id === "actions");
+  const disabledSettings = disabledShell.navigation.find((item) => item.id === "settings");
+  const disabledAdmin = (disabledSettings?.items || []).find((item) => item.id === "admin-settings-group");
+  const disabledModules = disabledAdmin?.items.find((item) => item.id === "module-settings-group");
+  assert.equal(
+    (disabledActions?.items || []).some((item) => item.label === "Time Keeping"),
+    false,
+    "Time Tracking navigation should disappear when the module is disabled",
+  );
+  assert.equal(
+    (disabledModules?.items || []).some((item) => item.label === "Time Tracking"),
+    false,
+    "Admin Modules should refresh without the disabled module settings entry",
+  );
+  assert.equal(
+    (disabledAdmin?.items || []).some((item) => item.href === "workspace-settings.html"),
+    true,
+    "Workspace Settings must remain available as the module recovery path",
+  );
+  assert.equal(
+    (disabledShell.quickActions || []).some((item) => item.id === "timer"),
+    false,
+    "Capture must not offer Timer when Time Tracking is disabled",
+  );
   assert.equal(
     (disabledActions?.items || []).some((item) => item.id === "reporting"),
     false,
@@ -67,10 +92,38 @@ try {
   );
 
   const settingsMenu = navigation.find((item) => item.id === "settings");
-  const workspaceMenu = (settingsMenu?.items || []).find((item) => item.id === "workspace-settings-group");
-  const workspaceHrefs = new Set((workspaceMenu?.items || []).map((item) => item.href));
-  assert.ok(workspaceHrefs.has("clients.html"), "Clients should remain under Settings -> Workspace");
+  const adminMenu = (settingsMenu?.items || []).find((item) => item.id === "admin-settings-group");
+  assert.ok(adminMenu, "Settings should expose the Admin drawer");
+  assert.equal(adminMenu.label, "Admin");
+  assert.deepEqual(
+    (adminMenu.items || []).map((item) => item.label),
+    ["Modules", "Projects", "Clients", "User Admin", "Workspace", "API Keys", "Audit Log"],
+    "Settings -> Admin should keep the specified administrative order",
+  );
+  const modulesMenu = adminMenu.items.find((item) => item.id === "module-settings-group");
+  assert.deepEqual(
+    (modulesMenu?.items || []).map((item) => item.label),
+    ["Files", "Tags", "Tasks", "Time Tracking"],
+    "Admin Modules should keep the specified order while Developer Example is disabled",
+  );
+  assert.equal(adminMenu.items.find((item) => item.label === "Projects")?.href, "projects.html");
+  assert.equal(adminMenu.items.find((item) => item.label === "Workspace")?.href, "workspace-settings.html");
+  const adminHrefs = new Set((adminMenu?.items || []).map((item) => item.href));
+  assert.ok(adminHrefs.has("clients.html"), "Clients should remain under Settings -> Admin");
   assert.ok(!(actionsMenu.items || []).some((item) => item.href === "clients.html"), "Clients should not move into Actions");
+
+  await modulesService.setModuleStatus(session.workspace_id, "time-tracking", true, { session });
+  await modulesService.setModuleStatus(session.workspace_id, "developer-example", true, { session });
+  const developerShell = await appShellService.bootstrap(session);
+  const developerAdmin = developerShell.navigation
+    .find((item) => item.id === "settings")?.items
+    .find((item) => item.id === "admin-settings-group");
+  const developerModules = developerAdmin?.items.find((item) => item.id === "module-settings-group");
+  assert.deepEqual(
+    developerModules?.items.map((item) => item.label),
+    ["Files", "Tags", "Tasks", "Time Tracking", "Developer Example"],
+    "Developer Example should appear last only after it is explicitly enabled",
+  );
 
   console.log("App shell navigation regression passed.");
 } finally {

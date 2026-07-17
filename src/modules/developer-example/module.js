@@ -79,7 +79,7 @@ const developerExampleModule = {
     {
       id: "developer-example-script",
       moduleId: "developer-example",
-      path: "/js/developer-example.js",
+      path: "/js/module-settings.js",
       type: "script",
       views: ["developer-example"],
       requiredPermissions: ["developer_example.view"],

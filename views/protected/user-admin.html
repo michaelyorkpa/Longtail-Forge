@@ -16,17 +16,35 @@
           <legend>Add User</legend>
 
           <label>
+            Workspace
+            <select data-new-user-workspace required></select>
+          </label>
+
+          <label>
             Email Address
             <input type="email" data-new-user-username required autocomplete="email">
           </label>
+
+          <button type="button" class="secondary-button" data-find-user-account>Find Account</button>
+          <p class="muted-text" data-new-user-account-status role="status" aria-live="polite"></p>
 
           <label>
             Initial Workspace Role
             <select data-new-user-role></select>
           </label>
+
+          <label data-new-user-client-scope-field hidden>
+            Client Scope
+            <select data-new-user-client-scope></select>
+          </label>
+
+          <label data-new-user-project-scope-field hidden>
+            Project Scope
+            <select data-new-user-project-scope></select>
+          </label>
         </fieldset>
 
-        <button type="submit" data-create-user>Create User</button>
+        <button type="submit" data-create-user>Add User</button>
       </form>
 
       <section class="generated-password-panel" data-generated-password-panel hidden>

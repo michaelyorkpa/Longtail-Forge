@@ -17,7 +17,7 @@ Repository promotion, immutable GitHub artifacts, and the maintained manual prev
 
 ## Docker image build
 
-The checked-in Dockerfile does not copy the repository. It receives one exact versioned runtime tarball produced by `npm run artifact:build`, installs its pruned shrinkwrap with `npm ci --omit=dev`, makes the application tree read-only, and runs as UID/GID 10001. Its default base is the immutable multi-platform digest for the official `node:24.18.0-bookworm-slim` image; changing that `NODE_IMAGE` build argument is a reviewed runtime-base change, not an ordinary deployment toggle. Build through the helper so the current artifact path, checksum, image label, and tag stay aligned:
+The checked-in Dockerfile does not copy the repository. It receives one exact versioned runtime tarball produced with an explicit source branch (`npm run artifact:build -- --source-branch main` for preview candidates), installs its pruned shrinkwrap with `npm ci --omit=dev`, makes the application tree read-only, and runs as UID/GID 10001. Deployment supplies the same branch through `LONGTAIL_RELEASE_BRANCH`; the installed runtime does not need `.git`. Its default base is the immutable multi-platform digest for the official `node:24.18.0-bookworm-slim` image; changing that `NODE_IMAGE` build argument is a reviewed runtime-base change, not an ordinary deployment toggle. Build through the helper so the current artifact path, checksum, image label, and tag stay aligned:
 
 ```sh
 npm run container:build -- --tag longtail-forge:0.33.17.3
@@ -50,7 +50,7 @@ Use `--no-cache --pull` for the clean release-candidate build. The image starts 
 
 Compose publishes only `127.0.0.1:${LONGTAIL_HOST_PORT}:8001`. Caddy keeps using `reverse_proxy 127.0.0.1:8001`; public firewall rules must still deny port 8001. The application filesystem is read-only, Linux capabilities are dropped, privilege escalation is disabled, `/tmp` is a bounded private tmpfs, and shutdown has 30 seconds for the app and inline worker to stop cleanly.
 
-The named `longtail-data` volume contains the SQLite database, WAL/SHM sidecars, and local Files storage. The configured backup bind mount appears at `/var/backups/longtail-forge`; it is the protected destination for the [baseline backup CLI](backup-restore.md) and operator recovery, not ordinary application downloads. Do not delete either location during image replacement.
+The named `longtail-data` volume contains the SQLite database, WAL/SHM sidecars, and local Files storage. The configured backup bind mount appears at `/var/backups/longtail-forge`; it is the protected destination for the [baseline backup CLI](backup-restore.md), the app-created `workspaces/` packages described in [Workspace Backup Package](workspace-backup.md), and operator recovery, not ordinary application downloads. Do not delete either location during image replacement.
 
 ## Docker backup-first upgrade
 

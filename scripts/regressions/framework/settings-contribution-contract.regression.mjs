@@ -26,6 +26,7 @@ const {
 } = await import("../../../src/core/settings/framework-settings-registry.js");
 const { developerExampleModule } = await import("../../../src/modules/developer-example/module.js");
 const { tasksModule } = await import("../../../src/modules/tasks/module.js");
+const { timeTrackingModule } = await import("../../../src/modules/time-tracking/module.js");
 
 try {
   assert.equal(ACTIVE_MANIFEST_FIELDS.has("settings"), true);
@@ -39,6 +40,7 @@ try {
   assertProtectedFrameworkBoundary();
   assertListingSeparation();
   assertOwnershipMigrationBoundary();
+  assertDisabledModuleRecoveryBrowserContract();
 
   await initializeDatabase();
   const session = await readSeedSession();
@@ -125,12 +127,28 @@ try {
   );
   await modulesService.setModuleStatus(session.workspace_id, "time-tracking", false, { session });
   assert.equal(
+    (await modulesService.resolveProtectedModuleView(
+      session.workspace_id,
+      session,
+      "/time-tracking-settings.html",
+    ))?.status,
+    "ok",
+    "disabled Time Tracking must retain its in-context settings recovery route",
+  );
+  assert.equal(
     (await modulesService.listSettingsContributions(session.workspace_id, session))
       .some((setting) => setting.moduleId === "tasks" && setting.id === "taskTimersEnabled"),
     false,
     "A missing required enabled module must remove the dependent setting",
   );
   await modulesService.setModuleStatus(session.workspace_id, "time-tracking", true, { session });
+  await modulesService.setModuleStatus(session.workspace_id, "tasks", false, { session });
+  assert.equal(
+    (await modulesService.resolveProtectedModuleView(session.workspace_id, session, "/tasks-settings.html"))?.status,
+    "ok",
+    "disabled Tasks must retain its in-context settings recovery route",
+  );
+  await modulesService.setModuleStatus(session.workspace_id, "tasks", true, { session });
 
   assert.equal(modulesService.moduleContributionRequirementsAvailable({
     moduleId: "developer-example",
@@ -157,6 +175,15 @@ function assertRealContributionShape() {
   const hints = developerExampleModule.settings.find((setting) => setting.id === "developerExampleHintsEnabled");
   const mode = developerExampleModule.settings.find((setting) => setting.id === "developerExampleMode");
   const taskTimers = tasksModule.settings.find((setting) => setting.id === "taskTimersEnabled");
+  const developerSettingsView = developerExampleModule.protectedViews.find((view) => view.id === "developer-example");
+  const developerSettingsAsset = developerExampleModule.browserAssets.find((asset) => asset.id === "developer-example-script");
+  const tasksSettingsView = tasksModule.protectedViews.find((view) => view.id === "tasks-settings");
+  const timeTrackingSettingsView = timeTrackingModule.protectedViews.find((view) => view.id === "time-tracking-settings");
+  assert.equal(developerSettingsView?.path, "/developer-example.html");
+  assert.equal(developerSettingsAsset?.path, "/js/module-settings.js");
+  assert.deepEqual(developerSettingsAsset?.views, ["developer-example"]);
+  assert.equal(tasksSettingsView?.allowDisabledRead, true);
+  assert.equal(timeTrackingSettingsView?.allowDisabledRead, true);
   assert.equal(hints.placement, "module");
   assert.equal(hints.default, false);
   assert.deepEqual(mode.visibleWhen, { settingId: "developerExampleHintsEnabled", equals: true });
@@ -172,6 +199,21 @@ function assertRealContributionShape() {
     false,
     "Settings manifests must contain IDs and metadata, never executable behavior",
   );
+}
+
+function assertDisabledModuleRecoveryBrowserContract() {
+  const moduleSettingsSource = readFileSync("public/js/module-settings.js", "utf8");
+  const rendererSource = readFileSync("public/js/shared/settings-renderer.js", "utf8");
+  const navigationSource = readFileSync("public/js/navigation.js", "utf8");
+  const footerSource = readFileSync("public/js/footer.js", "utf8");
+  const workspaceSettingsSource = readFileSync("public/js/workspace-settings.js", "utf8");
+
+  assert.match(moduleSettingsSource, /moduleDefinition\?\.status !== "enabled"[\s\S]*renderDisabledModuleRecovery/);
+  assert.match(rendererSource, /renderDisabledModuleRecovery[\s\S]*Open Workspace Settings/);
+  assert.match(rendererSource, /panel\.dataset\.disabledModuleRecovery = moduleId/);
+  assert.match(navigationSource, /refreshAppShell = loadAppShellBootstrap[\s\S]*longtailforge:workspace-context-updated/);
+  assert.match(workspaceSettingsSource, /await window\.LongtailForge\.refreshAppShell\?\.\(\)/);
+  assert.match(footerSource, /longtailforge:workspace-context-updated[\s\S]*syncQuickActionCapture/);
 }
 
 function assertValidatorContract() {

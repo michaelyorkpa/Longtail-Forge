@@ -15,6 +15,7 @@ import {
   registerPersistenceHandler,
 } from "../core/settings/settings-behavior-registry.js";
 import { AppError } from "../utils/app-error.js";
+import { workspaceDeletionService } from "./workspace-deletion.service.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
 async function read(session) {
@@ -29,7 +30,10 @@ async function readInternal(session) {
 }
 
 async function readWorkspaceBootstrap(session) {
-  const settings = await read(session);
+  const [settings, workspaceDeletion] = await Promise.all([
+    read(session),
+    workspaceDeletionService.readBootstrapState(session.workspace_id),
+  ]);
 
   return {
     enabledModules: settings.enabledModules,
@@ -37,6 +41,7 @@ async function readWorkspaceBootstrap(session) {
     workspaceId: settings.workspaceId,
     workspaceName: settings.workspaceName,
     workspaceType: settings.workspaceType,
+    workspaceDeletion,
   };
 }
 
@@ -111,10 +116,17 @@ async function save(payload, session) {
   rejectTopLevelModuleSettingAliases(payload);
 
   const previousSettings = await readInternal(session);
+  assertWorkspaceTypeImmutable(payload, previousSettings.workspaceType);
   const data = normalizeSettings({
     ...previousSettings,
     ...payload,
   });
+  if (
+    data.workspaceName !== previousSettings.workspaceName &&
+    !(await permissionsService.isWorkspaceAdministrator(session))
+  ) {
+    throw new AppError("Only a Workspace Administrator or Super Admin may rename a workspace.", 403);
+  }
   const moduleSettingChanges = resolveModuleSettingChanges(payload, previousSettings);
   const auditSettingChanged = previousSettings.audit.loggingEnabled !== data.audit.loggingEnabled ||
     previousSettings.audit.retentionDays !== data.audit.retentionDays;
@@ -185,6 +197,17 @@ async function save(payload, session) {
   return {
     data: await readInternal(session),
   };
+}
+
+function assertWorkspaceTypeImmutable(payload, currentWorkspaceType) {
+  for (const submittedKey of ["workspaceType", "workspace_type"]) {
+    if (Object.hasOwn(payload || {}, submittedKey)) {
+      const submittedWorkspaceType = String(payload[submittedKey] || "").trim();
+      if (submittedWorkspaceType !== currentWorkspaceType) {
+        throw new AppError("Workspace type cannot be changed after creation.", 400);
+      }
+    }
+  }
 }
 
 function rejectTopLevelModuleSettingAliases(payload) {

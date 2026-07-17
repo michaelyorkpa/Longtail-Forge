@@ -4,6 +4,10 @@ const moduleSettingsFields = document.querySelector('[data-settings-attachment="
 
 let currentSettings = null;
 let settingsCatalog = null;
+const settingsPageController = window.LongtailForge.settingsPageController.create({
+  root: document.querySelector("[data-settings-host='module']"),
+  onSave: saveSettings,
+});
 
 moduleSettingsForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -24,6 +28,7 @@ async function loadSettings() {
     settingsCatalog = catalog;
     renderModuleSettings();
     setStatus("");
+    settingsPageController.setClean();
   } catch (error) {
     setStatus(error.message || "Settings could not be loaded.", { isError: true });
   }
@@ -31,11 +36,11 @@ async function loadSettings() {
 
 async function saveSettings() {
   if (!currentSettings) {
-    return;
+    return false;
   }
   if (!window.LongtailForge.settingsRenderer.validate(moduleSettingsForm)) {
     setStatus("Review the highlighted settings.", { isError: true });
-    return;
+    return false;
   }
 
   const payload = {
@@ -45,7 +50,6 @@ async function saveSettings() {
     audit: currentSettings.audit,
   };
 
-  setSaveButtonsDisabled(true);
   setStatus("Saving settings...");
 
   try {
@@ -54,16 +58,24 @@ async function saveSettings() {
     settingsCatalog = await window.LongtailForge.api.getJson("/api/settings/catalog", { cache: "no-store" });
     renderModuleSettings();
     flashSavedState();
+    return true;
   } catch (error) {
     window.LongtailForge.settingsRenderer.showValidationErrors(moduleSettingsForm, error);
     setStatus(error.message || "Settings were not saved.", { isError: true });
-  } finally {
-    setSaveButtonsDisabled(false);
+    return false;
   }
 }
 
 function renderModuleSettings() {
   const moduleId = moduleSettingsForm?.dataset.moduleSettingsForm || "";
+  const moduleDefinition = currentSettings?.modules.find((module) => module.id === moduleId) || null;
+  if (moduleDefinition?.status !== "enabled") {
+    window.LongtailForge.settingsRenderer.renderDisabledModuleRecovery(moduleSettingsFields, moduleDefinition || {
+      id: moduleId,
+      displayName: moduleId,
+    });
+    return;
+  }
   window.LongtailForge.settingsRenderer.renderSections(
     moduleSettingsFields,
     window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", moduleId),
@@ -75,6 +87,8 @@ function normalizeSettings(settings) {
   return {
     workspaceName: String(settings?.workspaceName || "").trim(),
     workspaceType: normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type),
+    enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
+    modules: Array.isArray(settings?.modules) ? settings.modules : [],
     audit: normalizeAuditSettings(settings?.audit),
   };
 }
@@ -94,30 +108,7 @@ function normalizeAuditSettings(audit) {
 }
 
 function flashSavedState() {
-  const buttons = getSaveButtons();
-  const labels = buttons.map((button) => button.textContent);
-  buttons.forEach((button) => {
-    button.textContent = "Saved.";
-    button.classList.add("is-saved");
-  });
-  setStatus("");
-
-  window.setTimeout(() => {
-    buttons.forEach((button, index) => {
-      button.textContent = labels[index];
-      button.classList.remove("is-saved");
-    });
-  }, 1600);
-}
-
-function getSaveButtons() {
-  return [...moduleSettingsForm.querySelectorAll("[data-settings-save]")];
-}
-
-function setSaveButtonsDisabled(disabled) {
-  getSaveButtons().forEach((button) => {
-    button.disabled = disabled;
-  });
+  setStatus("Settings saved.", { type: "success", clearAfter: 1600 });
 }
 
 function setStatus(message, options = {}) {

@@ -17,6 +17,7 @@ import {
   buildRuntimeArtifact,
   createRuntimeLock,
   createRuntimePackage,
+  createArtifactManifest,
 } from "../../build-runtime-artifact.mjs";
 
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
@@ -28,6 +29,9 @@ assert.equal(packageJson.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts["backup:create"], "node scripts/backup.mjs create");
 assert.equal(runtimePackage.scripts["backup:restore"], "node scripts/backup.mjs restore");
+assert.equal(runtimePackage.scripts["workspace-backup:inspect"], "node scripts/workspace-backup.mjs inspect");
+assert.equal(runtimePackage.scripts["workspace-backup:restore"], "node scripts/workspace-backup.mjs restore");
+assert.equal(runtimePackage.scripts["workspace:purge"], "node scripts/workspace-purge.mjs");
 assert.equal(runtimePackage.devDependencies, undefined);
 assert.deepEqual(runtimePackage.dependencies, packageJson.dependencies);
 assert.equal(runtimeLock.packages[""].devDependencies, undefined);
@@ -38,10 +42,14 @@ assert.ok(RUNTIME_PATHS.includes("views"));
 assert.ok(RUNTIME_PATHS.includes("help"));
 assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("secrets")));
 assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("roadmaps")));
+assert.equal(createArtifactManifest(runtimePackage).sourceBranch, null);
+assert.equal(createArtifactManifest(runtimePackage, "nightly").sourceBranch, "nightly");
+assert.throws(() => createArtifactManifest(runtimePackage, "feature/bad"), /Source branch/);
 
 const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-artifact-regression-"));
 try {
-  const result = await buildRuntimeArtifact({ outputDir });
+  const result = await buildRuntimeArtifact({ outputDir, sourceBranch: "nightly" });
+  assert.equal(result.manifest.sourceBranch, "nightly");
   const fileSet = new Set(result.files);
   for (const requiredPath of [
     "RUNTIME-ARTIFACT.json",
@@ -55,9 +63,12 @@ try {
     "views/public/index.html",
     "public/js/navigation.js",
     "scripts/backup.mjs",
+    "scripts/workspace-backup.mjs",
+    "scripts/workspace-purge.mjs",
     "scripts/lib/backup-archive.mjs",
     "docs/backup-restore.md",
     "docs/runtime-artifact.md",
+    "docs/workspace-backup.md",
   ]) {
     assert.ok(fileSet.has(requiredPath), `${requiredPath} should be packaged`);
   }

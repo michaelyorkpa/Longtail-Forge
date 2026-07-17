@@ -62,7 +62,8 @@ async function assertStaticContracts() {
   assert.match(userSettingsView, /data-settings-host="user"/, "User Settings should expose the minimal framework host");
   assert.match(settingsHostSource, /action\("Leave Workspace", "openWorkspaceRemoval"\)/, "User Settings should expose membership removal");
   assert.match(settingsHostSource, /title: "Leave a Workspace"/, "User Settings should title membership removal explicitly");
-  assert.match(settingsHostSource, /Leaving removes only your membership\. The workspace and its data remain available/, "User Settings should describe membership removal instead of workspace deletion");
+  assert.match(settingsHostSource, /Leaving a workspace removes only your membership\. The workspace and its data are not deleted\. A Workspace Administrator or Super Admin must restore your access/, "User Settings should describe membership removal and administrator-restored access instead of workspace deletion");
+  assert.equal(settingsHostSource.match(/text: LEAVE_WORKSPACE_WARNING/g)?.length, 2, "the Leave Workspace section and confirmation should share the governing warning");
   assert.match(userSettingsSource, /Leaving \$\{workspace\.workspaceName[\s\S]*Workspace membership removed\.[\s\S]*Workspace membership was not removed\./, "membership-removal status copy should stay explicit");
 }
 

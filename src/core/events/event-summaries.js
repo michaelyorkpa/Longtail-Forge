@@ -66,8 +66,8 @@ function summarizeActivityEvent(event) {
   };
 }
 
-function summarizeNotificationEvent(event) {
-  const summary = findEventSummary(event, "notification");
+function summarizeNotificationEvent(event, options = {}) {
+  const summary = findEventSummary(event, "notification", options.moduleId);
   const context = summarizeEventContext(event);
 
   return {
@@ -105,9 +105,14 @@ function summarizeEventContext(event) {
   };
 }
 
-function findEventSummary(event, kind) {
+function findEventSummary(event, kind, moduleIdOverride) {
   const eventName = event?.name || event?.event || "";
-  const moduleId = event?.module_id || event?.moduleId || "";
+  // A module can surface a framework event whose module_id names a *different*
+  // module (e.g. Users surfacing module.disabled for whichever module was
+  // turned off). Callers that know the surfacing module pass it explicitly so
+  // the declaring module's summary still matches; everyone else keeps the old
+  // behavior of matching on the event's own module_id.
+  const moduleId = moduleIdOverride || event?.module_id || event?.moduleId || "";
 
   return modulesService.listModuleEventSummaries()
     .find((summary) => summary.event === eventName && (!summary.moduleId || summary.moduleId === moduleId))?.[kind] || null;

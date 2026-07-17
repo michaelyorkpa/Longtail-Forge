@@ -748,6 +748,7 @@ WHERE workspace_id = :workspaceId
     source: options.source || "manual",
     metadata: {
       module_id: moduleId,
+      module_label: moduleDefinition?.displayName || moduleDefinition?.name || moduleId,
       workspace_id: workspaceId,
     },
   });
@@ -950,7 +951,7 @@ async function listModuleSettingsNavigation(workspaceId, session = null) {
   for (const view of listRegisteredModuleProtectedViews().map(normalizeViewContribution)) {
     const moduleDefinition = modulesById.get(view.moduleId);
 
-    if (!moduleDefinition || !enabledModuleIds.has(view.moduleId) || !isModuleSettingsView(view)) {
+    if (!moduleDefinition || !enabledModuleIds.has(view.moduleId) || !isModuleSettingsView(view, moduleDefinition)) {
       continue;
     }
 
@@ -1395,8 +1396,16 @@ function readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById) {
   };
 }
 
-function isModuleSettingsView(view) {
-  return String(view.id || "").endsWith("-settings") || String(view.path || "").endsWith("-settings.html");
+function isModuleSettingsView(view, moduleDefinition = null) {
+  if (String(view.id || "").endsWith("-settings") || String(view.path || "").endsWith("-settings.html")) {
+    return true;
+  }
+  const viewHref = String(view.path || "").replace(/^\//, "");
+  const contributedUnderSettings = (moduleDefinition?.navigation || []).some((item) => (
+    item.parent === "settings.html" && item.href === viewHref
+  ));
+  const hasModuleSettings = (moduleDefinition?.settings || []).some((setting) => setting.placement === "module");
+  return contributedUnderSettings && hasModuleSettings;
 }
 
 function defaultSettingValue(setting) {

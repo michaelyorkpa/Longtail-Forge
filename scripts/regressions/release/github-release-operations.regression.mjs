@@ -138,23 +138,28 @@ for (const requirement of [
   /chmod -R a-w/,
   /LONGTAIL_RELEASE_COMMIT/,
   /LONGTAIL_RELEASE_ARTIFACT_SHA256/,
+  /LONGTAIL_RELEASE_BRANCH/,
   /recorded previous known-good release/,
 ]) assert.match(hostHelper, requirement);
 
 assert.match(configSource, /LONGTAIL_RELEASE_COMMIT/);
 assert.match(configSource, /LONGTAIL_RELEASE_ARTIFACT_SHA256/);
+assert.match(configSource, /LONGTAIL_RELEASE_BRANCH/);
 assert.match(appInfo, /commitSha: config\.release\.commitSha \|\| null/);
 assert.match(appInfo, /artifactSha256: config\.release\.artifactSha256 \|\| null/);
 const configuredIdentity = createConfig({
+  LONGTAIL_RELEASE_BRANCH: "nightly",
   LONGTAIL_RELEASE_COMMIT: "a".repeat(40),
   LONGTAIL_RELEASE_ARTIFACT_SHA256: "b".repeat(64),
 });
 assert.deepEqual(configuredIdentity.release, {
+  sourceBranch: "nightly",
   commitSha: "a".repeat(40),
   artifactSha256: "b".repeat(64),
 });
 assert.throws(() => createConfig({ LONGTAIL_RELEASE_COMMIT: "main" }), /40 hexadecimal characters/);
 assert.throws(() => createConfig({ LONGTAIL_RELEASE_ARTIFACT_SHA256: "latest" }), /64 hexadecimal characters/);
+assert.throws(() => createConfig({ LONGTAIL_RELEASE_BRANCH: "feature/bad" }), /Source branch/);
 assert.equal(packageJson.scripts["release:metadata"], "node scripts/release/create-release-metadata.mjs");
 assert.equal(packageJson.scripts["release:validate"], "node scripts/release/validate-release-revision.mjs");
 assert.equal(packageJson.scripts["deploy:ssh"], "node scripts/release/deploy-via-ssh.mjs");

@@ -29,6 +29,7 @@ The framework CSS (`public/css/longtail-forge.css`) owns the shared responsive f
 - Use shared renderers for registry-driven controls instead of hand-building duplicate UI in each page script.
 - Disabled required controls should remain visible and clearly locked.
 - Labels should describe the setting itself, not implementation details.
+- User Settings keeps Appearance and Profile together, uses full-width sections for adjustable notification matrices and lifecycle actions, and places the initially collapsed Workspace Creation disclosure last. The disclosure uses an explicit replacement caret because its summary uses flex layout.
 
 ## Current Modal Conventions
 
@@ -67,6 +68,6 @@ Plain browser JavaScript remains the default. Shared UI helpers should live unde
 
 `public/js/shared/settings-renderer.js` is the one shared module settings adapter for Workspace Settings, module-specific settings pages, and Create Workspace. It normalizes contributions, builds titled fieldset sections and save actions through `LongtailForge.view`, collects typed values into the nested backend payload, applies descriptor-driven dependent visibility, and routes native/API validation through each field's message channel. The Settings pages load `view-builder.js` first; the former `settings-controls.js` and `settings-normalizers.js` paths are retired. `public/js/shared/status.js` continues to own page-level accessible status updates.
 
-`public/js/shared/settings-host.js` owns the framework page/anatomy layer. Workspace, User, Tasks, Time Tracking, and Files Settings HTML each contain one `data-settings-host` mount; the host builds their framework fields, sections, action rows, statuses, operational readouts, and dialogs through view primitives, then exposes `data-settings-attachment="workspace|user|module|new-workspace"` targets. Page adapters read eligible contributed sections from `/api/settings/catalog` and never use the retired implicit module-settings anchors.
+`public/js/shared/settings-host.js` owns the framework page/anatomy layer. Workspace, User, Tasks, Time Tracking, Files, and Developer Example Settings HTML each contain one `data-settings-host` mount; the host builds their framework fields, individual or grouped sections, action rows, statuses, operational readouts, and dialogs through view primitives, then exposes `data-settings-attachment="workspace|user|module|new-workspace"` targets. Page adapters read eligible contributed sections from `/api/settings/catalog` and never use the retired implicit module-settings anchors.
 
 Shared settings helpers should render from metadata such as type, options, required state, numeric bounds, input mode, read-only state, and reason text. They should not know about first-party setting IDs.

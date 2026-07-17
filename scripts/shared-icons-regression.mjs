@@ -7,7 +7,9 @@ const moduleDevelopment = readText("docs/module-development.md");
 const license = readText("public/icons/LUCIDE-LICENSE.md");
 const packageJson = readText("package.json");
 const protectedViews = readdirSync(new URL("../views/protected/", import.meta.url))
-  .filter((fileName) => fileName.endsWith(".html"));
+  .filter((fileName) => fileName.endsWith(".html"))
+  .filter((fileName) => fileName !== "account-recovery.html");
+const accountRecoveryView = readText("views/protected/account-recovery.html");
 
 const requiredIcons = ["add", "edit", "archive", "restore", "delete", "download", "start", "pause", "save", "close", "copy", "refresh", "more", "complete", "duplicate", "up", "down", "tag", "file", "eye", "alert", "shield-alert", "link", "list", "list-checks"];
 
@@ -37,6 +39,7 @@ assert.match(moduleDevelopment, /duplicate icon registries/, "module development
 assert.match(license, /Lucide Icons/, "local Lucide attribution must be present");
 assert.match(license, /ISC License/, "local Lucide attribution must name the ISC license");
 assert.doesNotMatch(packageJson, /lucide/i, "shared icon foundation must not add a Lucide package dependency in Pass 1");
+assert.doesNotMatch(accountRecoveryView, /js\/shared\/icons\.js"/, "export-only recovery should not load an unused shared icon subsystem");
 
 protectedViews.forEach((viewName) => {
   const view = readText(`views/protected/${viewName}`);

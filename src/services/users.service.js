@@ -3,6 +3,7 @@ import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
+import { accountExportRecoveryRepository } from "../repositories/account-export-recovery.repo.js";
 import { workspacesRepository } from "../repositories/workspaces.repo.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { config } from "../config.js";
@@ -32,13 +33,17 @@ import {
   normalizeThemeAutoSource,
   normalizeThemeMode,
   normalizeTimezone,
+  normalizeUserLandingPage,
   normalizeUsername,
   userRowToAppValue,
 } from "../utils/normalizers.js";
 
 async function list(session) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "read" });
-  return { users: await readUsersWithMemberships(session) };
+  return {
+    currentUserId: session.user_id,
+    users: await readUsersWithMemberships(session),
+  };
 }
 
 async function listPermissionResources(session) {
@@ -60,82 +65,155 @@ async function listWorkspaces(session) {
   };
 }
 
-async function create(payload, session) {
-  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "create" });
-  const username = normalizeUsername(payload.username);
+async function readAddUserOptions(session, requestedWorkspaceId = "") {
+  const { targetSession, workspace, workspaces } = await resolveAddUserWorkspace(
+    session,
+    requestedWorkspaceId,
+    "create",
+  );
+  const roleOptions = await permissionsService.listAssignableRoleOptions(targetSession);
 
-  if (!username) {
-    throw new AppError("Email address is required.", 400);
+  return {
+    canAddUsers: workspace.workspaceType !== "personal",
+    roles: roleOptions.roles,
+    selectedWorkspaceId: workspace.workspaceId,
+    workspace,
+    workspaces,
+  };
+}
+
+async function lookupAddUserAccount(payload, session) {
+  const username = normalizeCreateUsername(payload.username);
+  const { targetSession, workspace } = await resolveAddUserWorkspace(
+    session,
+    payload.workspaceId || payload.workspace_id,
+    "create",
+  );
+  await assertWorkspaceCanAddUser(targetSession);
+  const existingUser = await usersRepository.readByUsername(username);
+
+  if (!existingUser) {
+    return {
+      match: null,
+      workspaceId: workspace.workspaceId,
+    };
   }
 
-  if (!isValidEmail(username)) {
-    throw new AppError("Enter a valid email address for the username.", 400);
+  const membership = await userWorkspacesRepository.readByUserAndWorkspace(
+    existingUser.user_id,
+    workspace.workspaceId,
+  );
+
+  return {
+    match: {
+      alreadyActive: membership?.status === "active",
+      displayName: normalizeDisplayName(existingUser.display_name, existingUser.username),
+      username: existingUser.username,
+    },
+    workspaceId: workspace.workspaceId,
+  };
+}
+
+async function create(payload, session) {
+  const { targetSession, workspace } = await resolveAddUserWorkspace(
+    session,
+    payload.workspaceId || payload.workspace_id,
+    "create",
+  );
+  const username = normalizeCreateUsername(payload.username);
+  const assignments = Array.isArray(payload.assignments) ? payload.assignments : [];
+  await assertWorkspaceCanAddUser(targetSession);
+  if (assignments.length > 0) {
+    await permissionsService.validateUserAssignments(targetSession, assignments);
   }
 
   const existingUser = await usersRepository.readByUsername(username);
+  const previousMembership = existingUser
+    ? await userWorkspacesRepository.readByUserAndWorkspace(existingUser.user_id, workspace.workspaceId)
+    : null;
+
+  if (previousMembership?.status === "active") {
+    throw new AppError("That account already belongs to the selected workspace.", 409);
+  }
+
+  let accountCreated = false;
+  let initialPassword = "";
+  let user;
 
   if (existingUser) {
-    throw new AppError("A user with that email address already exists.", 409);
+    user = userRowToAppValue(existingUser);
+  } else {
+    initialPassword = createGeneratedPassword();
+    const validation = validatePassword(initialPassword, username);
+
+    if (!validation.valid) {
+      throw new AppError("Generated password did not meet password requirements.", 500);
+    }
+
+    user = await usersRepository.create(
+      workspace.workspaceId,
+      {
+        username,
+        displayName: normalizeDisplayName(payload.displayName, username),
+        altEmail: normalizeOptionalEmail(payload.altEmail),
+        timezone: normalizeTimezone(payload.timezone),
+      },
+      await hashPassword(initialPassword),
+    );
+    accountCreated = true;
   }
 
-  await assertWorkspaceCanAddUser(session);
-
-  const initialPassword = createGeneratedPassword();
-  const validation = validatePassword(initialPassword, username);
-
-  if (!validation.valid) {
-    throw new AppError("Generated password did not meet password requirements.", 500);
-  }
-
-  const user = await usersRepository.create(
-    session.workspace_id,
-    {
-      username,
-      displayName: normalizeDisplayName(payload.displayName, username),
-      altEmail: normalizeOptionalEmail(payload.altEmail),
-      timezone: normalizeTimezone(payload.timezone),
-    },
-    await hashPassword(initialPassword),
-  );
+  const previousActiveMemberships = existingUser
+    ? await userWorkspacesRepository.readActiveForUser(user.user_id)
+    : [];
   const membership = await userWorkspacesRepository.upsert({
     userId: user.user_id,
-    workspaceId: session.workspace_id,
+    workspaceId: workspace.workspaceId,
     status: "active",
   });
-  await auditService.record({
-    session,
-    action: "user_created",
-    changeType: "create",
-    recordType: "user",
-    recordId: user.user_id,
-    recordLabel: user.username,
-    recordUrl: "user-admin.html",
-    previousValue: null,
-    newValue: user,
-    metadata: {
-      created_user_id: user.user_id,
-      created_username: user.username,
-    },
-  });
+
+  if (existingUser && previousActiveMemberships.length === 0) {
+    await usersRepository.updateActiveWorkspace(user.user_id, workspace.workspaceId);
+    await sessionsRepository.updateActiveWorkspaceForUser(user.user_id, workspace.workspaceId);
+  }
+
+  if (accountCreated) {
+    await auditService.record({
+      session: targetSession,
+      action: "user_created",
+      changeType: "create",
+      recordType: "user",
+      recordId: user.user_id,
+      recordLabel: user.username,
+      recordUrl: "user-admin.html",
+      previousValue: null,
+      newValue: user,
+      metadata: {
+        created_user_id: user.user_id,
+        created_username: user.username,
+      },
+    });
+  }
   await recordWorkspaceMembershipChange({
-    session,
-    action: "workspace_membership_added",
-    changeType: "create",
+    session: targetSession,
+    action: previousMembership ? "workspace_membership_reactivated" : "workspace_membership_added",
+    changeType: previousMembership ? "restore" : "create",
     user,
-    previousValue: null,
+    previousValue: previousMembership,
     newValue: membership,
   });
 
-  if (Array.isArray(payload.assignments) && payload.assignments.length > 0) {
-    await permissionsService.replaceUserAssignments(session, user.user_id, {
-      assignments: payload.assignments,
+  if (assignments.length > 0) {
+    await permissionsService.replaceUserAssignments(targetSession, user.user_id, {
+      assignments,
     });
   }
 
   const users = await readUsersWithMemberships(session);
 
   return {
-    user: await decorateUserWithMemberships(user),
+    accountCreated,
+    user: await decorateUserForWorkspace(user, workspace.workspaceId),
     users,
     initialPassword,
   };
@@ -244,7 +322,7 @@ async function resetPassword(session, userId, context = {}) {
     workspaceId: session.workspace_id,
   };
 
-  if (authenticationThrottle.check(throttleContext).blocked) {
+  if ((await authenticationThrottle.check(throttleContext)).blocked) {
     throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
   }
 
@@ -287,7 +365,7 @@ async function resetPassword(session, userId, context = {}) {
     session,
     targetUser: user,
   });
-  const throttleResult = authenticationThrottle.recordSensitiveAction(throttleContext);
+  const throttleResult = await authenticationThrottle.recordSensitiveAction(throttleContext);
   await emitAuthenticationThrottleLockout(throttleContext, throttleResult);
 
   return {
@@ -430,10 +508,14 @@ async function reactivate(session, userId) {
   };
 }
 
-async function remove(session, userId) {
+async function remove(session, userId, context = {}) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "delete" });
   if (!userId) {
     throw new AppError("User was not found.", 404);
+  }
+
+  if (userId === session.user_id) {
+    throw new AppError("Delete your own account from User Settings.", 400);
   }
 
   const user = await usersRepository.readById(session.workspace_id, userId);
@@ -446,46 +528,175 @@ async function remove(session, userId) {
     throw new AppError("Protected users cannot be deleted.", 400);
   }
 
+  const exportRecoveryEligible = await accountExportRecoveryRepository.recordWorkspaceAccessLoss({
+    source: "membership_loss",
+    userId,
+    workspaceId: session.workspace_id,
+  });
   await transferOrBlockWorkspaceOwnership({
     session,
     workspaceId: session.workspace_id,
     ownerUserId: userId,
     action: "remove",
   });
-
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
-  await userWorkspacesRepository.remove(userId, session.workspace_id);
-  await ensureUserHasActiveWorkspace({
-    session,
-    userId,
-    reason: "user_removed_from_workspace",
-  });
-  await usersRepository.remove(session.workspace_id, userId);
-  await auditService.record({
-    session,
-    action: "user_deleted",
-    changeType: "delete",
-    recordType: "user",
-    recordId: userId,
-    recordLabel: user.username,
-    recordUrl: "user-admin.html",
-    previousValue: userRowToAppValue(user),
-    newValue: null,
-    metadata: {
-      deleted_user_id: userId,
-      deleted_username: user.username,
-    },
-  });
-  await recordWorkspaceMembershipChange({
-    session,
-    action: "workspace_membership_removed",
-    changeType: "delete",
-    user: userRowToAppValue(user),
-    previousValue: previousMembership,
-    newValue: null,
-  });
+  const nextMembership = await userWorkspacesRepository.deactivateAccess(userId, session.workspace_id);
+  const activeMemberships = await userWorkspacesRepository.readActiveForUser(userId);
+
+  if (activeMemberships.length === 0) {
+    if (exportRecoveryEligible) {
+      const revocation = await sessionsService.revokeAllForUser({
+        actorSession: session,
+        currentSessionId: context.currentSessionId,
+        reason: "account_export_recovery_qualified",
+        targetUser: user,
+        workspaceId: session.workspace_id,
+      });
+      await usersRepository.clearWorkspaceReferences(userId, session.workspace_id);
+      await auditService.record({
+        session,
+        action: "user_removed_to_account_export_recovery",
+        changeType: "archive",
+        recordType: "user",
+        recordId: userId,
+        recordLabel: user.username,
+        recordUrl: "user-admin.html",
+        previousValue: userRowToAppValue(user),
+        newValue: userRowToAppValue(user),
+        metadata: {
+          attribution_retained: true,
+          portable_account_export_only: true,
+          revoked_sessions: revocation.revokedCount,
+        },
+      });
+      await recordWorkspaceMembershipChange({
+        session,
+        action: "workspace_membership_deactivated",
+        changeType: "archive",
+        user: userRowToAppValue(user),
+        previousValue: previousMembership,
+        newValue: nextMembership,
+      });
+    } else {
+      await retireAccount({
+        actorSession: session,
+        context,
+        targetUser: user,
+        selfService: false,
+      });
+    }
+  } else {
+    await ensureUserHasActiveWorkspace({
+      session,
+      userId,
+      reason: "user_removed_from_workspace",
+    });
+    await auditService.record({
+      session,
+      action: "user_removed_from_workspace",
+      changeType: "archive",
+      recordType: "user",
+      recordId: userId,
+      recordLabel: user.username,
+      recordUrl: "user-admin.html",
+      previousValue: userRowToAppValue(user),
+      newValue: userRowToAppValue(user),
+      metadata: {
+        attribution_retained: true,
+        remaining_active_memberships: activeMemberships.length,
+      },
+    });
+    await recordWorkspaceMembershipChange({
+      session,
+      action: "workspace_membership_deactivated",
+      changeType: "archive",
+      user: userRowToAppValue(user),
+      previousValue: previousMembership,
+      newValue: nextMembership,
+    });
+  }
 
   return { users: await readUsersWithMemberships(session) };
+}
+
+async function retireOwnAccount(session, context = {}) {
+  const user = await usersRepository.readFirstByUserId(session.user_id);
+
+  if (!user || user.user_status !== "active") {
+    throw new AppError("These credentials do not have access to this installation.", 401);
+  }
+
+  await retireAccount({
+    actorSession: session,
+    context,
+    targetUser: user,
+    selfService: true,
+  });
+
+  return { accountRetired: true };
+}
+
+async function retireAccount({ actorSession, context, targetUser, selfService }) {
+  const memberships = await userWorkspacesRepository.readForUser(targetUser.user_id);
+
+  for (const membership of memberships) {
+    await transferOrBlockWorkspaceOwnership({
+      session: actorSession,
+      workspaceId: membership.workspace_id,
+      ownerUserId: targetUser.user_id,
+      action: "account_retirement",
+    });
+  }
+
+  const revocation = await sessionsService.revokeAllForUser({
+    actorSession,
+    currentSessionId: context.currentSessionId,
+    reason: selfService ? "self_account_retired" : "user_account_retired",
+    targetUser,
+    workspaceId: actorSession.workspace_id,
+  });
+  const retiredPasswordHash = await hashPassword(createGeneratedPassword());
+  await usersRepository.retireAccount(targetUser.user_id, retiredPasswordHash);
+  const previousUser = userRowToAppValue(targetUser);
+  const retiredUser = {
+    ...previousUser,
+    userStatus: "inactive",
+  };
+
+  await auditService.record({
+    session: actorSession,
+    action: selfService ? "user_account_self_retired" : "user_account_retired",
+    changeType: "archive",
+    recordType: "user",
+    recordId: targetUser.user_id,
+    recordLabel: targetUser.username,
+    recordUrl: selfService ? "user-settings.html" : "user-admin.html",
+    previousValue: previousUser,
+    newValue: retiredUser,
+    metadata: {
+      attribution_retained: true,
+      membership_count: memberships.length,
+      revoked_sessions: revocation.revokedCount,
+      self_service: selfService,
+    },
+  });
+  await securityEventsService.record({
+    actorUserId: actorSession.user_id,
+    actorUserName: actorSession.username,
+    eventType: selfService ? "security.user.self_retired" : "security.user.retired",
+    ipAddress: context.ipAddress || actorSession.ip_address,
+    metadata: {
+      attribution_retained: true,
+      membership_count: memberships.length,
+      revoked_session_count: revocation.revokedCount,
+      target_user_id: targetUser.user_id,
+    },
+    outcome: "success",
+    reasonClass: selfService ? "self_account_retired" : "user_account_retired",
+    recordId: targetUser.user_id,
+    session: actorSession,
+    workspaceId: actorSession.workspace_id,
+  });
 }
 
 async function readSettings(session) {
@@ -504,7 +715,10 @@ async function readSettings(session) {
     timezone: appUser.timezone,
     themeMode: appUser.themeMode,
     themeAutoSource: appUser.themeAutoSource,
+    preferredLoginLanding: appUser.preferredLoginLanding,
+    preferredWorkspaceSwitchLanding: appUser.preferredWorkspaceSwitchLanding,
     openExternalLinksNewTab: appUser.openExternalLinksNewTab,
+    canEnterAccountExportRecovery: await permissionsService.isWorkspaceAdministrator(session),
     workspaceCreation: await readWorkspaceCreationOptions(session),
     activeWorkspaceId: session.active_workspace_id || session.workspace_id,
     workspaces: await workspacesRepository.readForUser(session.user_id),
@@ -590,15 +804,11 @@ async function createWorkspace(payload, session, sessionId = "") {
   };
 }
 
-async function removeOwnWorkspaceMembership(session, workspaceId) {
+async function removeOwnWorkspaceMembership(session, workspaceId, context = {}) {
   const targetWorkspaceId = String(workspaceId || "").trim();
 
   if (!targetWorkspaceId) {
     throw new AppError("Workspace is required.", 400);
-  }
-
-  if (targetWorkspaceId === session.workspace_id) {
-    throw new AppError("Switch to a different workspace before removing this one.", 400);
   }
 
   const memberships = await workspacesRepository.readForUser(session.user_id);
@@ -609,11 +819,20 @@ async function removeOwnWorkspaceMembership(session, workspaceId) {
   }
 
   const activeMemberships = memberships.filter((membership) => membership.status === "active");
+  const removingLastActive = targetMembership.status === "active" && activeMemberships.length <= 1;
 
-  if (targetMembership.status === "active" && activeMemberships.length <= 1) {
-    throw new AppError("You must keep at least one active workspace.", 400);
+  if (targetWorkspaceId === session.workspace_id && !removingLastActive) {
+    throw new AppError("Switch to a different workspace before removing this one.", 400);
   }
 
+  const exportRecoveryEligible = await accountExportRecoveryRepository.recordWorkspaceAccessLoss({
+    source: "membership_leave",
+    userId: session.user_id,
+    workspaceId: targetWorkspaceId,
+  });
+  if (removingLastActive && !exportRecoveryEligible) {
+    throw new AppError("You must keep at least one active workspace.", 400);
+  }
   await transferOrBlockWorkspaceOwnership({
     session,
     workspaceId: targetWorkspaceId,
@@ -643,6 +862,23 @@ async function removeOwnWorkspaceMembership(session, workspaceId) {
     },
   });
 
+  if (removingLastActive) {
+    const user = await usersRepository.readFirstByUserId(session.user_id);
+    await usersRepository.clearWorkspaceReferences(session.user_id, targetWorkspaceId);
+    await sessionsService.revokeAllForUser({
+      actorSession: session,
+      currentSessionId: context.currentSessionId,
+      reason: "account_export_recovery_qualified",
+      targetUser: user,
+      workspaceId: targetWorkspaceId,
+    });
+    return {
+      accountExportRecovery: true,
+      activeWorkspaceId: null,
+      workspaces: [],
+    };
+  }
+
   return {
     activeWorkspaceId: session.workspace_id,
     workspaces: await workspacesRepository.readForUser(session.user_id),
@@ -660,6 +896,8 @@ async function saveSettings(payload, session) {
   let nextValue = previousValue;
   let themeMode = previousValue.themeMode;
   let themeAutoSource = previousValue.themeAutoSource;
+  let preferredLoginLanding = previousValue.preferredLoginLanding;
+  let preferredWorkspaceSwitchLanding = previousValue.preferredWorkspaceSwitchLanding;
   let openExternalLinksNewTab = previousValue.openExternalLinksNewTab;
   const metadata = {
     setting_group: "user",
@@ -694,6 +932,28 @@ async function saveSettings(payload, session) {
       openExternalLinksNewTab,
     };
     metadata.setting_names.push("openExternalLinksNewTab");
+  }
+
+  if (
+    Object.hasOwn(payload, "preferredLoginLanding") ||
+    Object.hasOwn(payload, "preferredWorkspaceSwitchLanding")
+  ) {
+    preferredLoginLanding = Object.hasOwn(payload, "preferredLoginLanding")
+      ? normalizeUserLandingPage(payload.preferredLoginLanding)
+      : preferredLoginLanding;
+    preferredWorkspaceSwitchLanding = Object.hasOwn(payload, "preferredWorkspaceSwitchLanding")
+      ? normalizeUserLandingPage(payload.preferredWorkspaceSwitchLanding)
+      : preferredWorkspaceSwitchLanding;
+    await usersRepository.updateLandingPreferences(session.workspace_id, session.user_id, {
+      preferredLoginLanding,
+      preferredWorkspaceSwitchLanding,
+    });
+    nextValue = {
+      ...nextValue,
+      preferredLoginLanding,
+      preferredWorkspaceSwitchLanding,
+    };
+    metadata.setting_names.push("landingPreferences");
   }
 
   if (
@@ -747,6 +1007,8 @@ async function saveSettings(payload, session) {
     timezone: nextValue.timezone,
     themeMode,
     themeAutoSource,
+    preferredLoginLanding,
+    preferredWorkspaceSwitchLanding,
     openExternalLinksNewTab,
   };
 }
@@ -913,32 +1175,64 @@ async function readAssignableWorkspaces(session) {
       .filter((membership) => membership.status !== "inactive")
       .map((membership) => membership.workspace_id),
   );
-  const visibleWorkspaces = allWorkspaces.filter((workspace) => {
-    if (workspace.workspace_type === "personal") {
-      return workspace.owner_user_id === session.user_id || workspace.workspace_id === session.workspace_id;
+  const visibleWorkspaces = [];
+
+  for (const workspace of allWorkspaces) {
+    if (!currentUserWorkspaceIds.has(workspace.workspace_id)) {
+      continue;
     }
 
-    if (workspace.workspace_type === "family") {
-      return workspace.owner_user_id === session.user_id ||
-        currentUserWorkspaceIds.has(workspace.workspace_id) ||
-        workspace.workspace_id === session.workspace_id;
+    const targetSession = createTargetWorkspaceSession(session, workspace.workspace_id);
+
+    if (await permissionsService.can(targetSession, "users.manage", {
+      workspace_id: workspace.workspace_id,
+      operation: "read",
+    })) {
+      visibleWorkspaces.push(workspaceToAppValue(workspace));
     }
-
-    return true;
-  });
-
-  if (visibleWorkspaces.length > 0) {
-    return visibleWorkspaces.map(workspaceToAppValue);
   }
 
-  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
-  return [{
-    workspaceId: session.workspace_id,
-    workspaceName: settings.workspaceName,
-    workspaceType: settings.workspaceType,
-    ownerUserId: session.user_id,
-    ownerUsername: session.username,
-  }];
+  return visibleWorkspaces;
+}
+
+async function resolveAddUserWorkspace(session, requestedWorkspaceId, operation) {
+  const workspaces = await readAssignableWorkspaces(session);
+  const workspaceId = String(requestedWorkspaceId || session.workspace_id || "").trim();
+  const workspace = workspaces.find((item) => item.workspaceId === workspaceId);
+
+  if (!workspace) {
+    throw new AppError("You cannot manage users in that workspace.", 403);
+  }
+
+  const targetSession = createTargetWorkspaceSession(session, workspace.workspaceId);
+  await permissionsService.assertCan(targetSession, "users.manage", {
+    workspace_id: workspace.workspaceId,
+    operation,
+  });
+
+  return { targetSession, workspace, workspaces };
+}
+
+function createTargetWorkspaceSession(session, workspaceId) {
+  return {
+    ...session,
+    active_workspace_id: workspaceId,
+    workspace_id: workspaceId,
+  };
+}
+
+function normalizeCreateUsername(value) {
+  const username = normalizeUsername(value);
+
+  if (!username) {
+    throw new AppError("Email address is required.", 400);
+  }
+
+  if (!isValidEmail(username)) {
+    throw new AppError("Enter a valid email address for the username.", 400);
+  }
+
+  return username;
 }
 
 async function readWorkspaceCreationOptions(session) {
@@ -1199,6 +1493,21 @@ async function decorateUserWithMemberships(user) {
   };
 }
 
+async function decorateUserForWorkspace(user, workspaceId) {
+  const membership = await userWorkspacesRepository.readByUserAndWorkspace(user.user_id, workspaceId);
+
+  return {
+    ...user,
+    workspaceMemberships: membership ? [{
+      userWorkspaceId: membership.user_workspace_id,
+      workspaceId: membership.workspace_id,
+      status: membership.status,
+      createdAt: membership.created_at,
+      updatedAt: membership.updated_at,
+    }] : [],
+  };
+}
+
 async function assertWorkspaceCanAddUser(session) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
@@ -1267,7 +1576,10 @@ export const usersService = {
   list,
   listPermissionResources,
   listWorkspaces,
+  lookupAddUserAccount,
+  readAddUserOptions,
   readSettings,
+  retireOwnAccount,
   removeOwnWorkspaceMembership,
   saveSettings,
 };

@@ -187,6 +187,10 @@ VALUES (
       userId: ownerUser.user_id,
       workspaceId,
     });
+    await transaction.run(`
+DELETE FROM account_export_recovery_qualifications
+WHERE user_id = :userId;
+`, { userId: ownerUser.user_id });
 
     await transaction.run(`
 INSERT INTO user_role_assignments (

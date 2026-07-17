@@ -2,7 +2,7 @@
 
 This plan prepares a small, private, invitation-only preview of Longtail Forge. It corresponds to ROADMAP **0.33.17 — Friends-and-Family Internet Preview**, which is gated on completed security hardening (0.33.16), tested backup/restore + deployment readiness, and the proven `nightly` -> `main` branch/CI/manual-deployment topology in 0.33.17. Invitations do not begin until those gates pass.
 
-Immediately before the first invitation, the maintainer must complete and date the [manual operational-security review](../operational-security.md#manual-security-review-before-invitations) against the exact candidate version. A clean scan is not a substitute for that review. Invitations remain blocked until the 0.33.17 backup/restore path has been implemented and tested end to end.
+Immediately before the first invitation, the maintainer must complete and date the [Private Preview Readiness](../private-preview-readiness.md) checklist and the [manual operational-security review](../operational-security.md#manual-security-review-before-invitations) against the exact candidate version. A clean scan is not a substitute for that review. Invitations remain blocked until the 0.33.17 backup/restore path has been implemented and tested end to end.
 
 **Do not promise availability, security, uptime, backups, or a date beyond what is actually implemented.** The roadmap names a **target** of July 31, 2026 for this preview *if and only if* the prerequisite security and readiness work is complete. Treat that as a target, not a commitment, and never as permission to skip controls.
 
@@ -140,6 +140,8 @@ Do not publish these as metrics or convert them into public claims.
 - Never quietly abandon a preview with participant data on a live server.
 
 ## Cross-references
+
+- [Private Preview Readiness](../private-preview-readiness.md) - the invitation gate for setup, limits, recovery, account flow, revocation, and feedback readiness.
 
 - [Reference Internet Deployment](../internet-deployment.md) — the one supported Caddy topology, operational procedure, and known limitations.
 - [ROADMAP 0.33.16 / 0.33.17](../../ROADMAP.md) — the security and preview-readiness prerequisites.

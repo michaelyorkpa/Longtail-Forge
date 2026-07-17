@@ -9,6 +9,7 @@
 
     clearStatusTimer(element);
     element.textContent = message;
+    element.hidden = !message;
     element.classList.toggle("is-error", options.type === "error" || options.isError === true);
     element.classList.toggle("is-success", options.type === "success");
 
@@ -24,6 +25,7 @@
 
     clearStatusTimer(element);
     element.textContent = "";
+    element.hidden = true;
     element.classList.remove("is-error", "is-success");
   }
 

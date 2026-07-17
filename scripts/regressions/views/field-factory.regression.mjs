@@ -176,8 +176,8 @@ assert.match(manifestContractSource, /new Set\(\["title", "label", "fields", "ac
 assert.match(settingsRendererSource, /view\.createFieldGrid\(/);
 assert.match(settingsRendererSource, /view\.createField\(/);
 assert.match(settingsRendererSource, /view\.collectFieldValues\(grid\)/);
-assert.match(settingsRendererSource, /view\.createActionButton\(/);
-assert.match(settingsRendererSource, /view\.createInlineActionRow\(/);
+assert.match(settingsHostSource, /view\.createActionButton\(/);
+assert.match(settingsHostSource, /view\.createInlineActionRow\(/);
 for (const [consumer, source] of [
   ["renderer", rendererSource],
   ["Reporting", reportingSource],
@@ -239,7 +239,7 @@ assert.equal(settingsSection.tagName, "FIELDSET");
 assert(settingsSection.classList.contains("view-settings-section"));
 assert.equal(settingsSection.children[0].tagName, "LEGEND");
 assert.equal(settingsSection.children[0].textContent, "Tasks");
-assert.equal(settingsSection.querySelectorAll("[data-settings-save]").length, 1, "Settings sections should own a submit save action");
+assert.equal(settingsSection.querySelectorAll("[data-settings-save]").length, 0, "Settings sections should defer saving to the universal page actions");
 const settingFields = settingsSection.querySelectorAll("[data-setting-field]");
 const advancedField = settingFields.find((field) => field.dataset.settingField === "advanced");
 const detailField = settingFields.find((field) => field.dataset.settingField === "detail");

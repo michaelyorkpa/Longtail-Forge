@@ -653,8 +653,8 @@ class StopwatchTimer {
     this.projectSelect.innerHTML = "";
     this.projectSelect.appendChild(createOption("", "Select a project"));
 
-    sortByName(projects).forEach((project) => {
-      this.projectSelect.appendChild(createOption(project.id, project.name));
+    projects.forEach((project) => {
+      this.projectSelect.appendChild(createOption(project.id, projectOptionLabel(project)));
     });
 
     this.projectSelect.value = projects.some(
@@ -1218,16 +1218,16 @@ function decorateTaskLinkButton(button) {
   });
 }
 
-function sortByName(items) {
-  return window.LongtailForge.pageController.sortByName(items);
-}
-
 function normalizeClientProjectOptions(data) {
   return window.LongtailForge.clientProjectOptions.normalizeClients(data);
 }
 
 function clientOptionLabel(client) {
   return window.LongtailForge.clientProjectOptions.optionLabel(client);
+}
+
+function projectOptionLabel(project) {
+  return window.LongtailForge.clientProjectOptions.optionLabel(project);
 }
 
 function workspaceShowsClientTools() {

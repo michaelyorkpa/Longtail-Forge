@@ -16,8 +16,9 @@ async function updateSplashVersion() {
 
     const appInfo = await response.json();
 
-    if (splashVersion && appInfo.version) {
-      splashVersion.textContent = `Version ${appInfo.version}`;
+    const displayVersion = appInfo.displayVersion || appInfo.version;
+    if (splashVersion && displayVersion) {
+      splashVersion.textContent = `Version ${displayVersion}`;
       splashVersion.hidden = false;
     }
   } catch {

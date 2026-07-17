@@ -72,6 +72,32 @@ assert.match(functionBlock(taskDialog, "updateBlockedReasonState"), /fields\.blo
 assert.match(functionBlock(taskService, "normalizeTaskPayload"), /status === "blocked" && !blockedReason[\s\S]*Blocked Reason is required when a task is Blocked\.[\s\S]*400/, "the service boundary should reject blocked tasks without a reason");
 assert.match(functionBlock(tasks, "selectedBulkActions"), /blocked_reason: status === "blocked" \? blockedReason : ""/, "bulk Block should send the required reason through the canonical status action");
 
+assert.match(
+  functionBlock(tasks, "taskWorkflowActionVisible"),
+  /action\.timerVisibility && !taskTimerSurfaceAvailable\(\)[\s\S]*return false/,
+  "Tasks row menus should omit task-timer actions when timer surfaces are unavailable",
+);
+assert.match(
+  functionBlock(taskDialog, "writeTaskTimerFields"),
+  /timerSurfaceAvailable[\s\S]*timerField\.hidden = !task\?\.task_id \|\| !timerSurfaceAvailable[\s\S]*if \(!timerSurfaceAvailable\)[\s\S]*return/,
+  "the Task editor should remove its timer field when Time Tracking or Task Timers is disabled",
+);
+assert.match(
+  functionBlock(workbench, "renderTaskFocusSurface"),
+  /if \(taskTimerSurfaceAvailable\(\)\)[\s\S]*createTaskFocusTimerSection/,
+  "Task Focus should append its timer section only when task timers are available",
+);
+assert.match(
+  functionBlock(workbench, "visibleTimerPanelTimers"),
+  /taskTimerSurfaceAvailable\(\) \|\| !isTaskTimer\(timer\)/,
+  "Workbench should remove task timers from the timer panel while preserving unrelated manual timers",
+);
+assert.match(
+  functionBlock(workbench, "taskTimerSurfaceAvailable"),
+  /moduleEnabled\("tasks"\)[\s\S]*moduleEnabled\("time-tracking"\)[\s\S]*taskTimersEnabled !== false/,
+  "Workbench task-timer surfaces should share the module and Task Timers eligibility contract",
+);
+
 console.log("Task critical quick-fixes regression passed.");
 
 async function readText(relativePath) {

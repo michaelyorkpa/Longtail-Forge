@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { normalizeReleaseBranch } from "../../src/core/version.js";
 
 const options = parseArgs(process.argv.slice(2));
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
@@ -26,6 +27,7 @@ const metadata = {
   version: packageJson.version,
   commitSha: options.commit.toLowerCase(),
   channel: options.channel,
+  sourceBranch: normalizeReleaseBranch(options.sourceBranch, { required: true }),
   artifact: {
     filename: path.basename(artifactPath),
     sha256: artifactSha256,
@@ -41,7 +43,7 @@ function parseArgs(args) {
   const options = {};
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (["--artifact", "--commit", "--channel", "--output", "--created-at"].includes(arg)) {
+    if (["--artifact", "--commit", "--channel", "--source-branch", "--output", "--created-at"].includes(arg)) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
       options[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
@@ -50,7 +52,7 @@ function parseArgs(args) {
     }
     throw new Error(`Unknown release metadata argument: ${arg}`);
   }
-  for (const key of ["artifact", "commit", "channel", "output"]) {
+  for (const key of ["artifact", "commit", "channel", "sourceBranch", "output"]) {
     if (!options[key]) throw new Error(`--${key} is required.`);
   }
   if (!/^[a-f0-9]{40}$/i.test(options.commit)) throw new Error("--commit must be a full 40-character commit SHA.");

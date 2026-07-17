@@ -69,8 +69,8 @@ jobs:
         env:
           REVISION: ${{ inputs.revision }}
         run: |
-          npm run artifact:build
-          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel preview --output dist/release-metadata.json
+          npm run artifact:build -- --source-branch main
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel preview --source-branch main --output dist/release-metadata.json
       - name: Deploy or roll back, then verify public identity
         env:
           OPERATION: ${{ inputs.operation }}

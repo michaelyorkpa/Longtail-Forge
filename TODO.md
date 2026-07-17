@@ -13,65 +13,47 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-## Settings -> Workspace -> Workspace Settings
+## Reporting module
 
-A workspace type cannot be changed once created.
+The reporting module is not disable-able. It needs to expose that in settings for Workspace and Super admins. 
 
-## Workbench URL Annoyance
+## Permissions
 
-When I open a task from anywhere other than the workbench "Focus Task" button, it puts the ?taskID= in the URL. That's fine and not a problem. However, if I click change focus and then select another task, the ?taskID for the original task remains in the URL. That needs to be cleared either when the user navigates to a different view/task or immediately after it loads.
+### Warnings
 
-## Projects Bug
+There are no "You don't have permission to do that" messages when a user's permissions don't match the action. There needs to be an in-app modal warning. Security events are logged to the security audit log, but the offending user never sees them.
 
-I just discovered that if I filter by the workspace name in Actions -> Project Settings, it does not return the Workspace owned projects. It returns nothing.
+### Issues
+
+A client administrator should be able to create child clients, but not brand new, top-level clients. Currently they can do neither.
+
+Client administrators and project administrators should have access to the Project settings page. Currently they can access neither.
+
+### Notifications
+
+When a user's permissions are changed, the user needs to be notified. This may have to wait for the cross-workspace workflows we have planned later, because if a user is completely removed from a workspace, they will need to be notified in their other workspaces. Example scenario:
+
+User A is workspace admin for Workspace A. User B is workspace admin for two workspaces, a personal Workspace B Family workspace, Workspace C, and a client admin role in Workspace A. User A hired User B as a freelancer, but has come to the end of the contract, so removes permissions from User B for Workspace A. User B should receieve notifications in both Workspace B and Workspace C about discontinuation of Workspace A access.
+
+> The 0.33.17.7 pre-preview review batch (2026-07-16) promoted the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Deletion/Edge Cases -> **0.33.17.7.10 and 0.33.17.7.12-.15**; Timer project ordering -> **0.33.17.7.16**; Login throttling persistence -> **0.33.17.7.17**; Workbench (algorithm, In Progress, URL annoyance) and Workbench Timers Tweak -> **0.33.19.3**; Task Reminders and Tasks Status Tweak -> **0.33.19.4**; Secure Catalogs -> the **Committed before 0.4x** unversioned backlog. The prior 0.33.19 calendar branch moved to **0.33.20** in the same batch.
 
 ## Fix logo for Dark Mode Visibility
 
 Current logo disappears in dark mode. Need to fix this.
 
-## Task Reminders
-
-Need to be able to cancel at least one of the reminders. Having a reminder 3 days before a weekly task is due is unnecessary. Perhaps have a checkbox next to the heading for "Date-Only Reminder 2" and "Timed Reminder 2" which makes them nullable and doesn't trigger an event notification?
-
-## Tasks Status Tweak
-
-### Blocked/In Progress switch
-
-Starting a timer should automatically move a task from blocked to In Progress. If the timer is cancelled before being saved, it should move back to blocked. Also, checking off items in the checklist should move the status from blocked to in progress, as well.
-
-When a task is moved from blocked, the blocked reason should be removed as well. Blocked reason should be restored *IF* the timer is cancelled (and that's the reason it was moved from blocked to in progress).
-
-### Completed switch
-
-Next action should be promoted to a meatier and important role. When a task is marked completed, it should open the edit task modal with Next Action in focus to allow users to specify the next action. This next action should be promoted to a "thing to do" in the Workbench. If the field is left blank, it's fine and allows normal moving on to the next item.
-
-### Adding estimated time
-
-It would be helpful to add an estimated time (down to the quarter hour) for tasks. This will allow the future wishlist item of having the app plan out/populate a day. Eventually, this estimate can be estimated automatically based on context of the task (client/project/tags) and previous work completed time entries.
-
-## Workbench Timers Tweak
-
-Current code now displays the timer description/source label and gives manual and task timer cards state-appropriate lifecycle controls. Those stale portions of this note are resolved and removed.
-
-The remaining issue is the Focus Selection recommendation action for a manual timer: "Open work" falls back to the generic Time Tracking page rather than opening timer-owned context. Revisit whether Time Tracking should expose a stable modal/opener contract or whether the recommendation should use clearer resume/navigation wording. Do not add a Workbench-owned timer editor.
-
 > The Calendar/Dashboard/Tasks tweaks captured here after 0.33.10 shipped were promoted to **ROADMAP.md 0.33.10 follow-up slices 0.33.10.6 - 0.33.10.9** and removed from this file to prevent drift.
 >
-> The remaining Short Term notes are intentionally deferred rather than implementation-ready: the undated-task Wishlist and Workbench algorithm need a deliberate scheduling/settings design; the Lists UI/UX overhaul was promoted to 0.33.13 and removed; Suggested Library waits for a later Notes pass; Testing Goals remain human verification; Knowledge Base belongs to 0.35; Mobile Tweaks wait for a fresh current-surface audit; and Administration/Settings is larger than a cleanup slice. Executable near-term ideas start under the separate `# Near Term Ideas` heading.
+> The remaining Short Term notes are intentionally deferred rather than implementation-ready: the undated-task Wishlist needs a deliberate scheduling design; the Lists UI/UX overhaul was promoted to 0.33.13 and removed; Suggested Library waits for a later Notes pass; Testing Goals remain human verification; Knowledge Base belongs to 0.35; Mobile Tweaks wait for a fresh current-surface audit; and Administration/Settings is larger than a cleanup slice. Executable near-term ideas start under the separate `# Near Term Ideas` heading.
 
 ## Wishlist
 
-One thing I've always wanted and really want to figure out how to make happen, is having this figure out where to fit in tasks that don't have due dates.
+One thing I've always wanted and really want to figure out how to make happen, is having this app figure out where to fit in tasks that don't have due dates.
 
 This will require some thinking and some idea of how long tasks will take.
 
 It will also require a "business/working hours" put in the app somewhere so the app knows how long someone works each day.
 
-## Workbench algorithm
-
-Blocked items should only show up in "Review blocked work".
-
-The algorithm needs to be adjustable in settings.
+But this will aid in planning out the user's day.
 
 > Concrete Short Term cleanup items (inactive users, session-warning modals, Workbench parent rollup, Tasks blocked-state behavior, and the Tasks/Notes/Timers/Workspace/Misc/Client-Projects quick fixes) were promoted to **ROADMAP.md 0.33.11 - Short-Term Critical Cleanup Sweep** and removed from here to prevent drift. Items still listed below are intentionally deferred, belong to another version (KB -> 0.35; the Lists UI/UX overhaul was promoted to 0.33.13 and removed), are human testing goals, or are larger than a quick fix.
 
@@ -312,6 +294,8 @@ files, permissions, public API, jobs, database seam, and per-module record shape
   * [ ] No internal note support.
 
 ### 0.42.x - SLA, Queues, and Service Desk Views
+
+* [ ] Add Post Ticket Surveys as an option
 
 * [ ] Add ticket queue views.
 

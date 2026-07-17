@@ -8,6 +8,8 @@ const requiredCurrentPasswordInput = document.querySelector("[data-required-curr
 const requiredNewPasswordInput = document.querySelector("[data-required-new-password]");
 const requiredConfirmPasswordInput = document.querySelector("[data-required-confirm-password]");
 const requiredPasswordStatus = document.querySelector("[data-required-password-status]");
+const rememberMeInput = loginForm?.querySelector('[name="rememberMe"]');
+let pendingLoginLandingPath = "/dashboard.html";
 
 if (loginForm) {
   loginForm.addEventListener("submit", async (event) => {
@@ -18,6 +20,7 @@ if (loginForm) {
     const formData = new FormData(loginForm);
     const username = String(formData.get("username") || "").trim();
     const password = String(formData.get("password") || "");
+    const rememberMe = Boolean(rememberMeInput?.checked);
 
     submitButton.disabled = true;
 
@@ -27,7 +30,7 @@ if (loginForm) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, rememberMe }),
       });
 
       const body = await response.json().catch(() => ({}));
@@ -44,10 +47,11 @@ if (loginForm) {
       if (body.user?.workspaceContext) {
         window.localStorage.setItem("lf_workspace_context", JSON.stringify(body.user.workspaceContext));
       }
+      pendingLoginLandingPath = normalizeLandingPath(body.user?.loginLandingPath);
       if (body.user?.passwordChangeRequired) {
         showRequiredPasswordChange(password);
       } else {
-        window.location.assign("/dashboard.html");
+        window.location.assign(pendingLoginLandingPath);
       }
     } catch (error) {
       setLoginStatus(error.message || "Login failed.");
@@ -87,7 +91,7 @@ requiredPasswordForm?.addEventListener("submit", async (event) => {
     }
 
     requiredPasswordForm.reset();
-    window.location.replace("/dashboard.html");
+    window.location.replace(pendingLoginLandingPath);
   } catch (error) {
     setRequiredPasswordStatus(error.message || "Password was not changed.");
   } finally {
@@ -111,10 +115,11 @@ async function redirectIfLoggedIn() {
       if (body.user?.workspaceContext) {
         window.localStorage.setItem("lf_workspace_context", JSON.stringify(body.user.workspaceContext));
       }
+      pendingLoginLandingPath = normalizeLandingPath(body.user?.loginLandingPath);
       if (body.user?.passwordChangeRequired) {
         showRequiredPasswordChange();
       } else {
-        window.location.replace("/dashboard.html");
+        window.location.replace(pendingLoginLandingPath);
       }
     }
   } catch {
@@ -148,6 +153,17 @@ function normalizeThemeMode(value) {
 
 function normalizeThemeAutoSource(value) {
   return value === "system" ? "system" : "system";
+}
+
+function normalizeLandingPath(value) {
+  return [
+    "/dashboard.html",
+    "/workbench.html",
+    "/tasks.html",
+    "/notes.html",
+    "/lists.html",
+    "/account-recovery.html",
+  ].includes(value) ? value : "/dashboard.html";
 }
 
 redirectIfLoggedIn();

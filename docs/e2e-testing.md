@@ -1,6 +1,6 @@
 # End-to-End Smoke Testing (Playwright)
 
-Longtail Forge's rendered end-to-end smoke harness renders the real app in a real browser at fixed desktop and mobile viewports and asserts the handful of things the static regression suite cannot see: real rendered layout width, mobile navigation behavior, and runtime console errors.
+Longtail Forge's rendered end-to-end smoke harness renders the real app in a real browser at fixed desktop and mobile viewports and asserts the handful of things the static regression suite cannot see: real rendered layout width, authentication-state visibility, mobile navigation behavior, and runtime console errors.
 
 **Playwright is dev/test-only tooling. It is never part of the production runtime.** `@playwright/test` lives in `devDependencies`, browser binaries install on demand, `npm start` remains `node server.js`, and no file under `src/`, `server.js`, or `public/` imports Playwright or reaches into `tests/e2e/`. The `release.playwright-dev-only-boundary` release-gate regression enforces every part of that boundary.
 
@@ -54,6 +54,8 @@ Two named projects are defined in `playwright.config.js` and reused across every
 
 Every spec runs in both projects unless it opts out (see the mobile-nav spec's `test.skip(!isMobile, ...)` pattern for mobile-only behavior).
 
+The viewport projects run fully parallel against one managed server and throwaway database. Keep cross-viewport assertions read-only whenever possible. A test that must mutate durable shared state should run that mutation in only one project, restore the original value in `finally`, and leave the other viewport's relevant read-only coverage intact.
+
 ## The Core Smoke Specs
 
 Specs are organized one file per concern under `tests/e2e/`:
@@ -61,6 +63,11 @@ Specs are organized one file per concern under `tests/e2e/`:
 | Spec | Concern |
 | --- | --- |
 | `app-load.spec.mjs` | App shell renders with the right navigation affordance, the exact mobile-safe viewport meta, the 44px tap-target floor on the mobile nav toggle, and no fatal load error |
+| `login.spec.mjs` | An unauthenticated visit renders only the login form; the remembered-login checkbox stays one-line, field-edge aligned, vertically centered with Log In, label/keyboard operable, and submits explicit false/true values at desktop and mobile widths; the required-password transition hides login and reveals only the password-change form; successful login follows the safe server-resolved preferred landing path |
+| `user-settings-appearance.spec.mjs` | User Settings keeps the Light/Auto/Dark control bounded and keyboard-operable, with Auto source independently bounded; rendered desktop/mobile coverage also pins Profile placement, full-width Notifications/Leave/Workspace Creation anatomy, initial disclosure state/caret, complete offset-labelled IANA timezone choices, and matching leave-membership warnings |
+| `settings-universal-actions.spec.mjs` | Every protected Settings host renders exactly two Save/Revert pairs; User Settings proves dirty/flash/revert, lifecycle-form exclusion, coordinated owner-route saving, the exact User App Preferences choices, and the in-app unsaved-navigation dialog |
+| `workspace-switch-landing.spec.mjs` | The app-shell workspace switcher follows the safe server-resolved preferred landing path instead of reloading the prior workspace's page |
+| `settings-admin-navigation.spec.mjs` | Workspace Settings keeps the immutable type disabled and the person-icon Users action in the page header while preserving its dialog; Clients & Projects and optional-module grouping remain ordered; Files/Developer Example hosts load; rendered lifecycle saves immediately update Admin, Time Keeping, and Capture; disabled module recovery stays in the shared host; Tasks and Workbench suppress task-timer UI without removing manual timers |
 | `overflow.spec.mjs` | Dashboard, Workbench, Tasks, Notes, Files, and Lists have no horizontal overflow (real rendered `document.scrollingElement` width, not CSS strings) |
 | `mobile-nav.spec.mjs` | The mobile nav toggle opens/closes the primary menu drawer with focus on a visible control, plus the drawer contract: overlay and Escape close affordances, focus moving into the open drawer and returning to the toggle, and a body scroll lock while open |
 | `console.spec.mjs` | No `pageerror` or `console.error` outside the documented allowlist while loading the app shell and every smoke surface (Dashboard, Workbench, Tasks, Notes, Files, Lists) |
@@ -79,7 +86,8 @@ Shared surface paths and framework anatomy hooks live in `tests/e2e/support/surf
 3. Keep selectors resilient: prefer stable framework anatomy hooks (module host `data-*` attributes, `.site-header`, `.nav-toggle`, `#primary-menu`) over text or positional selectors.
 4. Remember every spec runs at both viewports; use the `isMobile` fixture to branch or skip.
 5. Specs run against the seeded authenticated session by default. Do not hard-code credentials in specs; the auth setup project owns login.
-6. Keep the suite small and high-signal. This is a smoke harness, not an E2E conversion of the regression suite.
+6. Do not let parallel viewport tests race over durable shared state. Isolate a required mutation to one project and restore it before the test finishes.
+7. Keep the suite small and high-signal. This is a smoke harness, not an E2E conversion of the regression suite.
 
 ## Console Allowlist Policy
 

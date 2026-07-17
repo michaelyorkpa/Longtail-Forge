@@ -43,7 +43,7 @@ try {
     username: "missing-security-account@example.test",
   });
   assert.equal(failedLogin.status, 401);
-  assert.deepEqual(failedLogin.body, { error: "Invalid email address or password." });
+  assert.deepEqual(failedLogin.body, { error: "These credentials do not have access to this installation." });
 
   const adminLogin = await login(api, ADMIN_USERNAME, ADMIN_PASSWORD);
   const adminCookie = readSessionCookie(adminLogin);

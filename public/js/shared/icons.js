@@ -136,6 +136,10 @@
       { type: "path", attrs: { d: "M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" } },
       { type: "circle", attrs: { cx: "7.5", cy: "7.5", r: "1.5" } },
     ]),
+    user: Object.freeze([
+      { type: "circle", attrs: { cx: "12", cy: "8", r: "4" } },
+      { type: "path", attrs: { d: "M4 21a8 8 0 0 1 16 0" } },
+    ]),
     up: Object.freeze([{ type: "path", attrs: { d: "m18 15-6-6-6 6" } }]),
   });
 

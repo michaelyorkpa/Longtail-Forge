@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeReleaseBranch } from "../src/core/version.js";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -17,6 +18,8 @@ const RUNTIME_PATHS = Object.freeze([
   "server.js",
   "worker.js",
   "scripts/backup.mjs",
+  "scripts/workspace-backup.mjs",
+  "scripts/workspace-purge.mjs",
   "scripts/lib/backup-archive.mjs",
   "src",
   "help",
@@ -36,6 +39,7 @@ const RUNTIME_PATHS = Object.freeze([
   "docs/runtime-artifact.md",
   "docs/runtime-configuration.md",
   "docs/sqlite-small-office-mode.md",
+  "docs/workspace-backup.md",
 ]);
 const EXCLUDED_CATEGORIES = Object.freeze([
   "development dependencies",
@@ -53,6 +57,7 @@ async function buildRuntimeArtifact(options = {}) {
   const packageJson = await readJson(path.join(rootDir, "package.json"));
   const packageLock = await readJson(path.join(rootDir, "package-lock.json"));
   assertPackageMetadata(packageJson, packageLock);
+  const sourceBranch = normalizeReleaseBranch(options.sourceBranch || process.env.LONGTAIL_RELEASE_BRANCH);
 
   const stageParent = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-artifact-"));
   const stageDir = path.join(stageParent, "package-source");
@@ -65,7 +70,7 @@ async function buildRuntimeArtifact(options = {}) {
 
     const runtimePackage = createRuntimePackage(packageJson);
     const runtimeLock = createRuntimeLock(packageLock);
-    const artifactManifest = createArtifactManifest(runtimePackage);
+    const artifactManifest = createArtifactManifest(runtimePackage, sourceBranch);
     await Promise.all([
       writeJson(path.join(stageDir, "package.json"), runtimePackage),
       writeJson(path.join(stageDir, "npm-shrinkwrap.json"), runtimeLock),
@@ -107,6 +112,9 @@ function createRuntimePackage(packageJson) {
       "backup:export": "node scripts/backup.mjs export",
       "backup:inspect": "node scripts/backup.mjs inspect",
       "backup:restore": "node scripts/backup.mjs restore",
+      "workspace-backup:inspect": "node scripts/workspace-backup.mjs inspect",
+      "workspace-backup:restore": "node scripts/workspace-backup.mjs restore",
+      "workspace:purge": "node scripts/workspace-purge.mjs",
     },
     dependencies: packageJson.dependencies,
   };
@@ -128,10 +136,11 @@ function createRuntimeLock(packageLock) {
   return runtimeLock;
 }
 
-function createArtifactManifest(runtimePackage) {
+function createArtifactManifest(runtimePackage, sourceBranch = "") {
   return {
     schemaVersion: 1,
     appVersion: runtimePackage.version,
+    sourceBranch: normalizeReleaseBranch(sourceBranch) || null,
     artifactType: "runtime-only-npm-tarball",
     installCommand: "npm ci --omit=dev",
     startCommand: "npm start",
@@ -211,7 +220,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     const outputArgIndex = process.argv.indexOf("--output-dir");
     const outputDir = outputArgIndex >= 0 ? process.argv[outputArgIndex + 1] : undefined;
-    const result = await buildRuntimeArtifact({ outputDir });
+    const branchArgIndex = process.argv.indexOf("--source-branch");
+    const sourceBranch = branchArgIndex >= 0 ? process.argv[branchArgIndex + 1] : undefined;
+    const result = await buildRuntimeArtifact({ outputDir, sourceBranch });
     console.log(`Runtime artifact: ${result.artifactPath}`);
     console.log(`SHA-256: ${result.checksum}`);
     console.log(`Checksum file: ${result.checksumPath}`);

@@ -5,6 +5,7 @@ import { closeDatabase, formatDatabaseHealth, initializeDatabase } from "../db/i
 import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { appInfoRoutes } from "../routes/app-info.routes.js";
+import { accountExportRecoveryRoutes } from "../routes/account-export-recovery.routes.js";
 import { appShellRoutes } from "../routes/app-shell.routes.js";
 import { apiKeysRoutes } from "../routes/api-keys.routes.js";
 import { auditRoutes } from "../routes/audit.routes.js";
@@ -32,6 +33,7 @@ import { notificationsService } from "../services/notifications.service.js";
 import { filesService } from "../services/files.service.js";
 import { registerFutureImportJobHandlers } from "../services/import-jobs.service.js";
 import { jobsService } from "../services/jobs.service.js";
+import { workspacePurgeService } from "../services/workspace-purge.service.js";
 import {
   queueSearchIndexRebuildIfEmpty,
   registerSearchIndexJobHandlers,
@@ -51,6 +53,7 @@ function createApp() {
   registerTaskJobHandlers();
   filesService.registerFileScanJobHandlers();
   registerFutureImportJobHandlers();
+  workspacePurgeService.registerWorkspacePurgeJobHandlers();
   notificationsService.registerEventHandlers();
   registerInitialResumeStateProducerEventHandlers();
   securityEventsService.registerEventHandlers();
@@ -71,6 +74,7 @@ function createApp() {
     app.use(moduleRoutes);
   }
   app.use(requireAuth);
+  app.use("/api", accountExportRecoveryRoutes);
   app.use("/api", appShellRoutes);
   app.use("/api", apiKeysRoutes);
   app.use("/api", auditRoutes);
