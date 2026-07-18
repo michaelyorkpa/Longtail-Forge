@@ -338,7 +338,7 @@ LIMIT 1;
 `, { version: BASELINE_VERSION });
 
   const appliedChecksum = rows[0]?.checksum;
-  if (!appliedChecksum || appliedChecksum === baseline.checksum) {
+  if (!appliedChecksum || baseline.compatibleChecksums.has(appliedChecksum)) {
     return;
   }
 
@@ -472,6 +472,7 @@ async function readMigrationFile(fileName, moduleId = "core", migrationsDir = co
 
   return {
     checksum: createMigrationChecksum(sql),
+    compatibleChecksums: createCompatibleMigrationChecksums(sql),
     fileName,
     moduleId,
     name: fileName.replace(/^\d+_/, "").replace(/\.sql$/, ""),
@@ -546,7 +547,7 @@ async function validateAppliedMigrationChecksums(migrations) {
       );
     }
 
-    if (appliedMigration.checksum !== migration.checksum) {
+    if (!migration.compatibleChecksums.has(appliedMigration.checksum)) {
       throw new Error(
         `Applied migration ${migration.fileName} checksum does not match the current migration file.`,
       );
@@ -669,6 +670,7 @@ async function readBaselineSchema() {
 
   return {
     checksum: createMigrationChecksum(sql),
+    compatibleChecksums: createCompatibleMigrationChecksums(sql),
     fileName: path.basename(CURRENT_SCHEMA_FILE),
     moduleId: BASELINE_MODULE_ID,
     name: BASELINE_NAME,
@@ -697,7 +699,7 @@ WHERE version = :version
 LIMIT 1;
 `, { version: BASELINE_VERSION });
 
-  if (rows.length > 0 && rows[0].checksum !== baseline.checksum) {
+  if (rows.length > 0 && !baseline.compatibleChecksums.has(rows[0].checksum)) {
     throw new Error(`Applied ${BASELINE_VERSION} fresh-start database baseline checksum does not match the current schema file.`);
   }
 }
@@ -750,6 +752,23 @@ async function runMigrationScriptTransaction(callback) {
 }
 
 function createMigrationChecksum(sql) {
+  return hashMigrationSql(normalizeMigrationSqlForChecksum(sql));
+}
+
+function createCompatibleMigrationChecksums(sql) {
+  const normalizedSql = normalizeMigrationSqlForChecksum(sql);
+
+  return new Set([
+    hashMigrationSql(normalizedSql),
+    hashMigrationSql(normalizedSql.replace(/\n/g, "\r\n")),
+  ]);
+}
+
+function normalizeMigrationSqlForChecksum(sql) {
+  return sql.replace(/\r\n?/g, "\n");
+}
+
+function hashMigrationSql(sql) {
   return createHash("sha256").update(sql).digest("hex");
 }
 

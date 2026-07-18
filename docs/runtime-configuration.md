@@ -8,7 +8,7 @@ Storage Provider and Scanner Runtime branch is complete as of 0.33.5.22.15, with
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
-As of 0.33.16.12, the supported private-internet posture is also closed around the single-proxy Caddy operator path in [Reference Internet Deployment](internet-deployment.md); that runbook owns DNS/TLS, ports, listener and filesystem permissions, forwarding behavior, logging, backup location, upgrade/emergency procedures, live proxy proof, and known limitations.
+As of 0.33.16.12, the supported private-internet posture is closed around the direct Caddy operator path in [Reference Internet Deployment](internet-deployment.md); that runbook owns DNS/TLS, ports, listener and filesystem permissions, forwarding behavior, logging, backup location, upgrade/emergency procedures, live proxy proof, and known limitations.
 
 As of 0.33.17.1, the supported runtime can be installed from the checksummed allowlisted tarball described in [Runtime Artifact](runtime-artifact.md). The artifact carries this configuration contract and `.env.example`, but never a real `.env`, secret, database, uploaded file, log, cache, or other installation state. Operators still supply the environment separately and install the pruned runtime dependency graph with `npm ci --omit=dev`.
 
@@ -54,6 +54,10 @@ As of 0.33.17.7.15, zero-workspace account-export recovery is also entirely data
 
 As of 0.33.17.7.16, Timer project selectors preserve the shared Clients/Projects hierarchy order and readable labels. This is a browser option-rendering correction only; it adds no environment variable, startup policy, route, payload, permission, or database migration.
 
+As of 0.33.17.8.1, the same private-internet contract adds the exact Nginx -> WireGuard -> Caddy path while retaining direct Caddy. The bounded path normalizes forwarding authority at each hop and keeps application `TRUST_PROXY` limited to loopback Caddy; it does not authorize generic multi-proxy trust or add an application environment variable.
+
+As of 0.33.17.8.2, SQLite baseline and migration checksum validation is portable across LF and CRLF checkouts. New checksums use canonical LF SQL, validation accepts only the exact LF or CRLF representation of otherwise identical SQL, existing migration-ledger rows remain unchanged, and every other applied-SQL mismatch still blocks startup. This adds no environment variable or operator bypass.
+
 ## Current Active Settings
 
 ### App
@@ -79,9 +83,9 @@ As of 0.33.17.7.16, Timer project selectors preserve the shared Clients/Projects
 
 Longtail Forge configures Express `trust proxy` from this allowlist before creating the shared request context. The resolved client IP, effective protocol, and effective hostname honor `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` only when the socket peer matches an allowlisted proxy. Otherwise the client IP is the socket peer, the protocol is the direct connection protocol, and the hostname comes from `Host`. Login session storage and audit context use the resolved client IP. Session, theme, and theme auto-source cookies gain `Secure` whenever the trusted effective protocol is HTTPS, even when `LONGTAIL_SESSION_COOKIE_SECURE=false`; setting that variable to `true` still forces `Secure` for every request.
 
-#### Supported single-proxy Caddy reference
+#### Supported proxy references
 
-The supported proof topology is one Node process reachable only on loopback behind one TLS-terminating Caddy process. Use environment values equivalent to:
+Both supported proof topologies keep one Node process reachable only on loopback behind one Caddy process. The direct topology terminates TLS at Caddy. The bounded multi-proxy topology terminates TLS at public Nginx, crosses one allowlisted WireGuard path to private Caddy, and collapses the verified chain before Node. Both use application environment values equivalent to:
 
 ```dotenv
 LONGTAIL_PUBLIC_URL=https://forge.example.com
@@ -105,9 +109,9 @@ forge.example.com {
 }
 ```
 
-Caddy must be the only public edge in this reference topology. Its reverse proxy replaces or augments `X-Forwarded-For`, sets `X-Forwarded-Proto` and `X-Forwarded-Host`, and ignores client-supplied values for those headers by default. Do not add a CDN or another proxy without explicitly listing the real immediate peer and reviewing the full proxy chain. Do not expose port 8001 publicly: firewall it or keep it loopback-only. If Longtail Forge is run directly for local/private HTTP use, keep `TRUST_PROXY=false`; forwarded headers are then deliberately ignored.
+Direct-edge Caddy ignores client-supplied forwarding values and derives the client IP, public protocol, and host itself. In the bounded multi-proxy topology, public Nginx replaces those values, private Caddy accepts only the exact Nginx WireGuard peer and parses right-to-left, then replaces the upstream chain with one resolved client IP. Longtail Forge still trusts only loopback Caddy; do not add the Nginx address, WireGuard subnet, private ranges, or a hop count to `TRUST_PROXY`. Do not expose port 8001 publicly. If Longtail Forge is run directly for local/private HTTP use, keep `TRUST_PROXY=false`; forwarded headers are then deliberately ignored.
 
-The authoritative operator path is [Reference Internet Deployment](internet-deployment.md), including the checked-in Caddyfile, DNS/port and permission requirements, manual upgrade and emergency procedures, repeatable TLS proxy smoke, and known limitations. Keep this variable summary aligned with that single supported topology rather than creating another equally official proxy variant here.
+The authoritative operator path is [Reference Internet Deployment](internet-deployment.md), including both checked-in Caddyfiles, the Nginx example, DNS/port and permission requirements, manual upgrade and emergency procedures, both repeatable proxy smokes, and known limitations. Other proxy chains remain unsupported until they receive the same bounded design and proof.
 
 ### Authentication Throttling
 

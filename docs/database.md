@@ -403,6 +403,8 @@ Older or incompatible local databases still fail with a backup/restore message i
 
 Checksum validation remains active for the current baseline and for any future migrations after this reset.
 
+As of 0.33.17.8.2, new baseline and migration checksums are computed from a canonical LF representation. Validation accepts the exact LF or CRLF digest of otherwise identical SQL so a Git checkout's line-ending policy cannot prevent startup on Windows. This compatibility is limited to newline representation: any other byte/content change still fails closed, applied migration rows are not rewritten, and forward-only migration files must not be edited after application.
+
 ## Future Migrations
 
 New schema changes after 0.33.5.18.6.5.4 must be added as forward-only SQL migration files with versions newer than the baseline. Create the next core migration with:

@@ -10,14 +10,20 @@ import Database from "better-sqlite3";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const caddyPath = readOption("--caddy") || "caddy";
+const topology = readOption("--topology") || "direct-caddy";
+if (!new Set(["direct-caddy", "multi-proxy"]).has(topology)) {
+  throw new Error("--topology must be direct-caddy or multi-proxy");
+}
 const fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-reference-caddy-"));
 const appPort = await reservePort();
 const proxyPort = await reservePort();
+const privateProxyPort = topology === "multi-proxy" ? await reservePort() : null;
 const publicOrigin = `https://localhost:${proxyPort}`;
 const username = "reference-proxy-admin@example.test";
 const password = "Reference-Proxy-Admin-Password-123!";
 const secureNotesKey = "reference-proxy-secure-notes-key-material-123456789";
 const forgedClientIp = "203.0.113.249";
+const multiProxyObservedClientIp = "127.0.0.2";
 const databaseFile = path.join(fixtureRoot, "reference-caddy.db");
 const caddyfilePath = path.join(fixtureRoot, "Caddyfile");
 const appOutput = [];
@@ -27,7 +33,12 @@ let caddyProcess = null;
 
 try {
   await fs.mkdir(path.join(fixtureRoot, "files"), { recursive: true });
-  await fs.writeFile(caddyfilePath, createLocalCaddyfile({ appPort, proxyPort }));
+  await fs.writeFile(caddyfilePath, createLocalCaddyfile({
+    appPort,
+    privateProxyPort,
+    proxyPort,
+    topology,
+  }));
 
   const caddyEnvironment = {
     ...process.env,
@@ -145,7 +156,15 @@ try {
   const loginSecurityEvent = readLatestLoginSecurityEvent(databaseFile);
   assert.equal(loginSecurityEvent.action, "security.authentication.login_succeeded");
   assert.notEqual(loginSecurityEvent.ip_address, forgedClientIp);
-  assert.ok(["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(loginSecurityEvent.ip_address));
+  if (topology === "multi-proxy") {
+    assert.equal(
+      loginSecurityEvent.ip_address,
+      multiProxyObservedClientIp,
+      "the normalized proxy chain should preserve the outer edge's observed client address",
+    );
+  } else {
+    assert.ok(["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(loginSecurityEvent.ip_address));
+  }
 
   await stopProcess(caddyProcess);
   caddyProcess = null;
@@ -164,11 +183,13 @@ try {
     forgedClientIpRejected: true,
     health: health.body.status,
     loginSession: "passed",
+    observedClientIp: loginSecurityEvent.ip_address,
     productionJsonLogs: logRecords.length,
     ready: ready.body.status,
     requestIdCorrelated: true,
     testOnlyScannerOverride: true,
     tls: "caddy-internal-ca",
+    topology,
   }, null, 2));
 } finally {
   await stopProcess(caddyProcess);
@@ -211,7 +232,46 @@ function createAppEnvironment({ appPort, databaseFile: dbFile, fixtureRoot: root
   return environment;
 }
 
-function createLocalCaddyfile({ appPort: upstreamPort, proxyPort: tlsPort }) {
+function createLocalCaddyfile({
+  appPort: upstreamPort,
+  privateProxyPort: innerPort,
+  proxyPort: tlsPort,
+  topology: selectedTopology,
+}) {
+  if (selectedTopology === "multi-proxy") {
+    return `{
+\tadmin off
+\tauto_https disable_redirects
+\tskip_install_trust
+\tservers :${innerPort} {
+\t\ttrusted_proxies static 127.0.0.1/32 ::1/128
+\t\ttrusted_proxies_strict
+\t}
+}
+
+https://localhost:${tlsPort} {
+\ttls internal
+\treverse_proxy http://127.0.0.1:${innerPort} {
+\t\theader_up X-Forwarded-For {http.request.remote.host}
+\t\theader_up X-Forwarded-Proto https
+\t\theader_up X-Forwarded-Host {http.request.host}
+\t\theader_up -Forwarded
+\t\theader_up -X-Real-IP
+\t}
+}
+
+http://localhost:${innerPort} {
+\t@not_public_edge not remote_ip 127.0.0.1/32 ::1/128
+\trespond @not_public_edge 403
+\treverse_proxy 127.0.0.1:${upstreamPort} {
+\t\theader_up X-Forwarded-For {client_ip}
+\t\theader_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+\t\theader_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+\t}
+}
+`;
+  }
+
   return `{
 \tadmin off
 \tauto_https disable_redirects
@@ -294,8 +354,9 @@ function sendHttpRequest({ appPort: port, pathName }) {
 function sendHttpsRequest({ body, headers = {}, method = "GET", pathName, proxyPort: port }) {
   return sendRequest(https, {
     body,
-    headers,
-    hostname: "localhost",
+    headers: { host: "localhost", ...headers },
+    hostname: "127.0.0.1",
+    localAddress: topology === "multi-proxy" ? multiProxyObservedClientIp : undefined,
     method,
     path: pathName,
     port,
