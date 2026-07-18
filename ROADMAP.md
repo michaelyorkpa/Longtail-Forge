@@ -421,6 +421,22 @@ Acceptance criteria:
 
 - A checksum-valid database starts from LF or CRLF checkouts without ledger edits, while any migration content change beyond line-ending representation still blocks startup.
 
+### Version 0.33.17.8.3 - Deployment inbox traversal repair
+
+**Model: Medium Effort** — This is a contained host-helper permission correction with one security-sensitive directory boundary.
+
+Purpose:
+
+Allow the pinned deployment account to deliver immutable artifacts to its private inbox without exposing root-owned deployment state.
+
+- [x] Keep the deployment root owned by root and non-listable while granting execute-only traversal to the nested deployment-account-owned `0700` inbox.
+- [x] Keep backups root-only and preserve the exact-helper passwordless-sudo, pinned-host-key, checksum, backup-first, readiness, identity, and rollback boundaries.
+- [x] Add a release regression that rejects the original non-traversable parent mode and documents the required host permission.
+
+Acceptance criteria:
+
+- A GitHub-hosted deployment can copy an artifact into the private inbox, while the deployment account cannot list the parent or access sibling deployment state.
+
 ### Version 0.33.17.9 - Preview release closeout
 
 **Model: High Effort** — Release readiness must combine packaging, restore, CI, security, and live deployment evidence.

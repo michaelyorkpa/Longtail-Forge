@@ -1,3 +1,11 @@
+## Version 0.33.17.8.3 - 2026-07-18
+
+- Fixed the SSH deployment handoff so the root-owned deployment-state directory is execute-only traversable (`0711`) while the deployment account's nested inbox remains private (`0700`) and sibling deployment state remains non-listable.
+- Kept the backup directory root-only and preserved pinned host keys, the dedicated deployment account, exact-helper passwordless sudo, immutable artifact checksums, backup-first installation, runtime identity verification, and rollback boundaries.
+- Added release coverage that rejects the original non-traversable deployment-root mode.
+- Docs updated: `ROADMAP.md`, `docs/preview-deployment.md`, `docs/runtime-configuration.md`, and enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: application routes, database schema, permissions, module behavior, public API scopes, backup format, runtime environment variables, and user-facing Help workflows are unchanged.
+
 ## Version 0.33.17.8.2 - 2026-07-17
 
 - Fixed Windows startup for checksum-valid SQLite installations whose applied migration SQL was recorded with LF endings but materialized from Git with CRLF endings.

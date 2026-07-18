@@ -58,6 +58,8 @@ As of 0.33.17.8.1, the same private-internet contract adds the exact Nginx -> Wi
 
 As of 0.33.17.8.2, SQLite baseline and migration checksum validation is portable across LF and CRLF checkouts. New checksums use canonical LF SQL, validation accepts only the exact LF or CRLF representation of otherwise identical SQL, existing migration-ledger rows remain unchanged, and every other applied-SQL mismatch still blocks startup. This adds no environment variable or operator bypass.
 
+As of 0.33.17.8.3, the root-owned SSH deployment-state directory is execute-only traversable (`0711`) so the pinned deployment account can reach its own nested `0700` inbox without listing the parent or accessing sibling state. The backup directory remains root-only `0700`; this corrects host filesystem permissions without adding an application environment variable or broadening the deployment account's sudo boundary.
+
 ## Current Active Settings
 
 ### App
