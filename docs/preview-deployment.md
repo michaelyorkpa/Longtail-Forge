@@ -10,6 +10,8 @@ The root-owned deployment state directory uses mode `0711` so the deployment acc
 
 Install the host helper from the LF-only tracked file. The repository pins `scripts/release/longtail-forge-deploy-host.example` to `eol=lf` because a CRLF shebang is not executable by Linux (`/usr/bin/env` would look for `bash\r`). Verify the staged file with `file` or an equivalent byte-level check before installing it as the root-owned helper; do not copy a differently normalized editor buffer.
 
+Install [longtail-forge-deploy-helper.env.example](longtail-forge-deploy-helper.env.example) separately as `/etc/longtail-forge/deploy-helper.env`, owned by `root:root` with mode `0600`, and set `LTF_PUBLIC_URL` to the exact clean HTTPS preview origin. This durable file is parsed as allowlisted literal `KEY=value` data before helper defaults are resolved; it is never sourced as shell code. Its parent and file must be root-owned, real paths that are not group- or other-writable. Keep the application environment and secrets out of this file. `LTF_SECURE_KEY_BACKUP`, when needed, is only the path to separately protected recovery-key material. Reinstalling the reviewed helper must not replace this host configuration file.
+
 ## Shared boundary
 
 - One Node application server, one local SQLite database, local Files storage, and either the inline worker or one same-host separate worker.

@@ -20,12 +20,13 @@ const workflowPaths = [
   ".github/workflows/manual-preview.yml",
   ".github/workflows/codeql.yml",
 ];
-const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, attributes, appInfo, configSource, packageSource] = await Promise.all([
+const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, packageSource] = await Promise.all([
   ...workflowPaths.map(read),
   read(".github/dependabot.yml"),
   read("scripts/release/configure-github-release-operations.mjs"),
   read("scripts/release/deploy-via-ssh.mjs"),
   read("scripts/release/longtail-forge-deploy-host.example"),
+  read("docs/longtail-forge-deploy-helper.env.example"),
   read(".gitattributes"),
   read("src/routes/app-info.routes.js"),
   read("src/config.js"),
@@ -157,9 +158,18 @@ for (const requirement of [
   /LONGTAIL_RELEASE_ARTIFACT_SHA256/,
   /LONGTAIL_RELEASE_BRANCH/,
   /recorded previous known-good release/,
+  /HELPER_ENV="\$\{LTF_HELPER_ENV:-\/etc\/longtail-forge\/deploy-helper\.env\}"/,
+  /stat -c '%u %a'/,
+  /helper environment must not be group- or other-writable/,
+  /helper environment parent must not be group- or other-writable/,
+  /helper environment contains unsupported key/,
+  /helper environment contains duplicate key/,
 ]) assert.match(hostHelper, requirement);
 assert.doesNotMatch(hostHelper, /chmod 0700 "\$DEPLOY_ROOT"/, "the deployment account must be able to traverse the root-owned parent to its private inbox");
 assert.match(attributes, /^scripts\/release\/longtail-forge-deploy-host\.example text eol=lf$/m);
+assert.match(helperEnvironment, /LTF_PUBLIC_URL=https:\/\/preview\.example\.com/);
+assert.match(helperEnvironment, /root:root ownership and mode 0600/);
+assert.doesNotMatch(helperEnvironment, /LONGTAIL_SECURE_NOTES_MASTER_KEY|PASSWORD=|TOKEN=/);
 
 assert.match(configSource, /LONGTAIL_RELEASE_COMMIT/);
 assert.match(configSource, /LONGTAIL_RELEASE_ARTIFACT_SHA256/);

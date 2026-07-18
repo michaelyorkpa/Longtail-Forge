@@ -5,6 +5,44 @@ set -euo pipefail
 # root and not writable by the SSH deployment account. Grant that account
 # passwordless sudo for this exact helper only.
 
+fail() { printf 'deployment helper: %s\n' "$*" >&2; exit 1; }
+
+HELPER_ENV="${LTF_HELPER_ENV:-/etc/longtail-forge/deploy-helper.env}"
+
+load_helper_environment() {
+  local helper_env_parent owner_id file_mode mode_value line key value
+  [[ -f "$HELPER_ENV" && ! -L "$HELPER_ENV" ]] || fail "helper environment must be a regular non-symbolic-link file: $HELPER_ENV"
+  helper_env_parent="$(dirname "$HELPER_ENV")"
+  [[ -d "$helper_env_parent" && ! -L "$helper_env_parent" ]] || fail "helper environment parent must be a real directory"
+  read -r owner_id file_mode < <(stat -c '%u %a' -- "$HELPER_ENV")
+  [[ "$owner_id" == "0" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment must be owned by root with a valid mode"
+  mode_value=$((8#$file_mode))
+  (( (mode_value & 0022) == 0 )) || fail "helper environment must not be group- or other-writable"
+  read -r owner_id file_mode < <(stat -c '%u %a' -- "$helper_env_parent")
+  [[ "$owner_id" == "0" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment parent must be owned by root with a valid mode"
+  mode_value=$((8#$file_mode))
+  (( (mode_value & 0022) == 0 )) || fail "helper environment parent must not be group- or other-writable"
+
+  declare -A seen=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=(.*)$ ]] || fail "helper environment contains an invalid line"
+    key="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    case "$key" in
+      LTF_APP_SERVICE|LTF_EDGE_SERVICE|LTF_APP_ACCOUNT|LTF_APP_GROUP|LTF_APP_ROOT|LTF_DATA_ROOT|LTF_DEPLOY_ROOT|LTF_BACKUP_ROOT|LTF_APP_ENV|LTF_RELEASE_ENV|LTF_DEPLOY_ACCOUNT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP) ;;
+      *) fail "helper environment contains unsupported key: $key" ;;
+    esac
+    [[ -z "${seen[$key]+set}" ]] || fail "helper environment contains duplicate key: $key"
+    seen[$key]=1
+    printf -v "$key" '%s' "$value"
+    export "$key"
+  done < "$HELPER_ENV"
+}
+
+if [[ -e "$HELPER_ENV" || -L "$HELPER_ENV" ]]; then load_helper_environment; fi
+
 APP_SERVICE="${LTF_APP_SERVICE:-longtail-forge}"
 EDGE_SERVICE="${LTF_EDGE_SERVICE:-caddy}"
 APP_ACCOUNT="${LTF_APP_ACCOUNT:-longtail-forge}"
@@ -21,7 +59,6 @@ SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
 STATE_FILE="$DEPLOY_ROOT/deployment-state.json"
 INBOX="$DEPLOY_ROOT/inbox"
 
-fail() { printf 'deployment helper: %s\n' "$*" >&2; exit 1; }
 require_hex() { [[ "$2" =~ ^[a-f0-9]{$1}$ ]] || fail "$3 must be $1 lowercase hexadecimal characters"; }
 require_token() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || fail "unsafe filename or token: $1"; }
 
