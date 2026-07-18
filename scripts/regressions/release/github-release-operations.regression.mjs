@@ -135,12 +135,16 @@ for (const requirement of [
 for (const requirement of [
   /backup_current/,
   /restore_backup/,
+  /chmod 0711 "\$DEPLOY_ROOT"/,
+  /chmod 0700 "\$BACKUP_ROOT"/,
+  /install -d -o "\$DEPLOY_ACCOUNT" -g "\$DEPLOY_ACCOUNT" -m 0700 "\$INBOX"/,
   /chmod -R a-w/,
   /LONGTAIL_RELEASE_COMMIT/,
   /LONGTAIL_RELEASE_ARTIFACT_SHA256/,
   /LONGTAIL_RELEASE_BRANCH/,
   /recorded previous known-good release/,
 ]) assert.match(hostHelper, requirement);
+assert.doesNotMatch(hostHelper, /chmod 0700 "\$DEPLOY_ROOT"/, "the deployment account must be able to traverse the root-owned parent to its private inbox");
 
 assert.match(configSource, /LONGTAIL_RELEASE_COMMIT/);
 assert.match(configSource, /LONGTAIL_RELEASE_ARTIFACT_SHA256/);

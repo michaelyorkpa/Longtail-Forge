@@ -6,6 +6,8 @@ This document does not authorize invitations. The tested baseline backup/restore
 
 Repository promotion, immutable GitHub artifacts, and the maintained manual preview handoff are defined in [GitHub Workflow](development/github-workflow.md). That handoff uses a low-privilege SSH account with pinned host keys and passwordless sudo access to one reviewed root-owned helper, rather than a root SSH login or a general-purpose self-hosted runner. The helper preserves this document's stop, backup, stage, start, verify, and restore boundary. Its GitHub Environments start disabled until isolated hosts, credentials, URLs, data, and recovery materials exist and a real deployment/rollback exercise passes.
 
+The root-owned deployment state directory uses mode `0711` so the deployment account can traverse only the known path to its own `0700` inbox; it cannot list the parent or read/write sibling state such as deployment history. The backup directory remains root-only `0700`. Do not make the deployment-state parent `0700`, because that prevents the pinned account from delivering an artifact to the nested inbox, and do not broaden it to a listable or group-writable directory.
+
 ## Shared boundary
 
 - One Node application server, one local SQLite database, local Files storage, and either the inline worker or one same-host separate worker.
