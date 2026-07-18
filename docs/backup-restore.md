@@ -101,6 +101,8 @@ npm run backup:restore -- \
 
 Before replacement, the command performs the complete validation above and creates/verifies the new pre-restore backup. It stages the restored database and Files separately, moves the current database (including WAL/SHM sidecars) and Files tree aside, promotes both restored components, rechecks database integrity/migration identity, and writes both operator and workspace security audit events. If promotion or verification fails, it restores the moved-aside database and Files tree together. It never reverses migrations or combines database and Files state from different snapshots.
 
+When the root-owned bare-metal deployment helper invokes this restore, it must return the complete data root to the dedicated application account before startup, keep the data and local Files roots at mode `0700`, and keep the SQLite database plus WAL/SHM sidecars at mode `0600`. The standalone restore CLI does not guess an installation's service account; an operator running it directly must restore the reviewed ownership and private modes required by that installation before starting the service.
+
 ## Post-restore acceptance and failed-restore recovery
 
 After the CLI succeeds:

@@ -5,8 +5,48 @@ set -euo pipefail
 # root and not writable by the SSH deployment account. Grant that account
 # passwordless sudo for this exact helper only.
 
+fail() { printf 'deployment helper: %s\n' "$*" >&2; exit 1; }
+
+HELPER_ENV="${LTF_HELPER_ENV:-/etc/longtail-forge/deploy-helper.env}"
+
+load_helper_environment() {
+  local helper_env_parent owner_id file_mode mode_value line key value
+  [[ -f "$HELPER_ENV" && ! -L "$HELPER_ENV" ]] || fail "helper environment must be a regular non-symbolic-link file: $HELPER_ENV"
+  helper_env_parent="$(dirname "$HELPER_ENV")"
+  [[ -d "$helper_env_parent" && ! -L "$helper_env_parent" ]] || fail "helper environment parent must be a real directory"
+  read -r owner_id file_mode < <(stat -c '%u %a' -- "$HELPER_ENV")
+  [[ "$owner_id" == "0" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment must be owned by root with a valid mode"
+  mode_value=$((8#$file_mode))
+  (( (mode_value & 0022) == 0 )) || fail "helper environment must not be group- or other-writable"
+  read -r owner_id file_mode < <(stat -c '%u %a' -- "$helper_env_parent")
+  [[ "$owner_id" == "0" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment parent must be owned by root with a valid mode"
+  mode_value=$((8#$file_mode))
+  (( (mode_value & 0022) == 0 )) || fail "helper environment parent must not be group- or other-writable"
+
+  declare -A seen=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=(.*)$ ]] || fail "helper environment contains an invalid line"
+    key="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    case "$key" in
+      LTF_APP_SERVICE|LTF_EDGE_SERVICE|LTF_APP_ACCOUNT|LTF_APP_GROUP|LTF_APP_ROOT|LTF_DATA_ROOT|LTF_DEPLOY_ROOT|LTF_BACKUP_ROOT|LTF_APP_ENV|LTF_RELEASE_ENV|LTF_DEPLOY_ACCOUNT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP) ;;
+      *) fail "helper environment contains unsupported key: $key" ;;
+    esac
+    [[ -z "${seen[$key]+set}" ]] || fail "helper environment contains duplicate key: $key"
+    seen[$key]=1
+    printf -v "$key" '%s' "$value"
+    export "$key"
+  done < "$HELPER_ENV"
+}
+
+if [[ -e "$HELPER_ENV" || -L "$HELPER_ENV" ]]; then load_helper_environment; fi
+
 APP_SERVICE="${LTF_APP_SERVICE:-longtail-forge}"
 EDGE_SERVICE="${LTF_EDGE_SERVICE:-caddy}"
+APP_ACCOUNT="${LTF_APP_ACCOUNT:-longtail-forge}"
+APP_GROUP="${LTF_APP_GROUP:-$APP_ACCOUNT}"
 APP_ROOT="${LTF_APP_ROOT:-/opt/longtail-forge}"
 DATA_ROOT="${LTF_DATA_ROOT:-/var/lib/longtail-forge}"
 DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-deploy}"
@@ -19,7 +59,6 @@ SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
 STATE_FILE="$DEPLOY_ROOT/deployment-state.json"
 INBOX="$DEPLOY_ROOT/inbox"
 
-fail() { printf 'deployment helper: %s\n' "$*" >&2; exit 1; }
 require_hex() { [[ "$2" =~ ^[a-f0-9]{$1}$ ]] || fail "$3 must be $1 lowercase hexadecimal characters"; }
 require_token() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || fail "unsafe filename or token: $1"; }
 
@@ -40,6 +79,8 @@ done
 
 [[ "$operation" == "deploy" || "$operation" == "rollback" ]] || fail "operation must be deploy or rollback"
 [[ "$DEPLOY_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "LTF_DEPLOY_ACCOUNT is invalid"
+[[ "$APP_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "LTF_APP_ACCOUNT is invalid"
+[[ "$APP_GROUP" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "LTF_APP_GROUP is invalid"
 require_hex 40 "$expected_commit" "expected commit"
 mkdir -p "$APP_ROOT/releases" "$BACKUP_ROOT" "$DEPLOY_ROOT"
 # The deployment account must traverse the root-owned parent to reach its
@@ -88,11 +129,24 @@ backup_current() {
   (cd "$release_dir" && node scripts/backup.mjs "${inspect_args[@]}")
 }
 
+repair_runtime_data_permissions() {
+  [[ -d "$DATA_ROOT" && ! -L "$DATA_ROOT" ]] || fail "runtime data root must be a real directory"
+  chown -R -h "$APP_ACCOUNT:$APP_GROUP" "$DATA_ROOT"
+  chmod 0700 "$DATA_ROOT"
+  if [[ -L "$DATA_ROOT/files" ]]; then fail "runtime Files root must not be a symbolic link"; fi
+  if [[ -d "$DATA_ROOT/files" ]]; then chmod 0700 "$DATA_ROOT/files"; fi
+  for database_path in "$DATA_ROOT/longtail-forge.db" "$DATA_ROOT/longtail-forge.db-wal" "$DATA_ROOT/longtail-forge.db-shm"; do
+    if [[ -L "$database_path" ]]; then fail "runtime database paths must not be symbolic links"; fi
+    if [[ -f "$database_path" ]]; then chmod 0600 "$database_path"; fi
+  done
+}
+
 restore_backup() {
   local release_dir="$1" archive="$2" pre_restore="$3"
   local args=(restore --confirm-stopped --confirm-destructive "RESTORE LONGTAIL FORGE BACKUP" --archive "$archive" --database "$DATA_ROOT/longtail-forge.db" --files-root "$DATA_ROOT/files" --pre-restore-backup "$pre_restore")
   if [[ -n "$SECURE_KEY_BACKUP" ]]; then args+=(--secure-notes-key-backup "$SECURE_KEY_BACKUP"); fi
-  (cd "$release_dir" && node scripts/backup.mjs "${args[@]}")
+  (cd "$release_dir" && node scripts/backup.mjs "${args[@]}") || return 1
+  repair_runtime_data_permissions
 }
 
 if [[ "$operation" == "deploy" ]]; then
@@ -158,20 +212,44 @@ previous_dir="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previo
 backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).backup)' "$rollback_json")"
 current_dir="$(readlink -f "$APP_ROOT/current")"
 rollback_at="$(date -u +%Y%m%dT%H%M%SZ)"
+current_release_env="$DEPLOY_ROOT/release-env-before-rollback-$rollback_at"
+if [[ -f "$RELEASE_ENV" ]]; then cp "$RELEASE_ENV" "$current_release_env"; fi
 stop_services
 rollback_backup="$BACKUP_ROOT/pre-rollback-$rollback_at.ltfbackup.tgz"
 if ! backup_current "$current_dir" "$rollback_backup"; then
   start_services
   fail "pre-rollback backup failed; the current release was restarted"
 fi
-ln -sfn "$previous_dir" "$APP_ROOT/current"
-restore_backup "$previous_dir" "$backup" "$BACKUP_ROOT/pre-restore-rollback-$rollback_at.ltfbackup.tgz"
 previous_identity="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).previous))' "$rollback_json")"
-printf 'LONGTAIL_RELEASE_BRANCH=%s\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.sourceBranch)' "$rollback_json")" "$expected_commit" "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.artifactSha256)' "$rollback_json")" > "$RELEASE_ENV"
-chmod 0600 "$RELEASE_ENV"
-start_services
-inspect_identity "$previous_identity"
+current_identity="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).current))' "$rollback_json")"
+
+attempt_rollback() {
+  ln -sfn "$previous_dir" "$APP_ROOT/current" || return 1
+  restore_backup "$previous_dir" "$backup" "$BACKUP_ROOT/pre-restore-rollback-$rollback_at.ltfbackup.tgz" || return 1
+  printf 'LONGTAIL_RELEASE_BRANCH=%s\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.sourceBranch)' "$rollback_json")" "$expected_commit" "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.artifactSha256)' "$rollback_json")" > "$RELEASE_ENV" || return 1
+  chmod 0600 "$RELEASE_ENV" || return 1
+  start_services || return 1
+  inspect_identity "$previous_identity" || return 1
+}
+
+recover_current_after_failed_rollback() {
+  systemctl stop "$EDGE_SERVICE" || true
+  systemctl stop "$APP_SERVICE" || true
+  ln -sfn "$current_dir" "$APP_ROOT/current" || return 1
+  restore_backup "$current_dir" "$rollback_backup" "$BACKUP_ROOT/failed-rollback-$rollback_at.ltfbackup.tgz" || return 1
+  if [[ -f "$current_release_env" ]]; then cp "$current_release_env" "$RELEASE_ENV" || return 1; else rm -f "$RELEASE_ENV" || return 1; fi
+  start_services || return 1
+  inspect_identity "$current_identity" || return 1
+}
+
+if ! attempt_rollback; then
+  if ! recover_current_after_failed_rollback; then
+    fail "rollback candidate verification failed and current-release recovery also failed; keep traffic closed and recover from the retained backups"
+  fi
+  fail "rollback candidate verification failed; the current release and pre-rollback backup were restored"
+fi
 node -e '
   const fs = require("node:fs"); const selected = JSON.parse(process.argv[2]);
   fs.writeFileSync(process.argv[1], JSON.stringify({ current: selected.previous, previous: selected.current, backup: process.argv[3], deployedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
 ' "$STATE_FILE" "$rollback_json" "$rollback_backup"
+rm -f "$current_release_env"

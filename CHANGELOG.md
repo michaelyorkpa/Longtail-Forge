@@ -1,3 +1,13 @@
+## Version 0.33.17.9 - 2026-07-18
+
+- Hardened the root-owned bare-metal deployment helper after the live preview rollback exposed restored data owned or moded incompatibly with the dedicated application service account.
+- Restore handoff now reapplies the configured application account recursively, keeps the runtime data and Files roots at `0700`, keeps SQLite database/WAL/SHM files at `0600`, and rejects symbolic-link substitutions before privileged permission repair.
+- Made rollback verification recoverable: the helper retains the current release environment and pre-rollback backup, and if the selected prior release fails startup or identity verification it restores and verifies the current release before returning a failed rollback result.
+- Added a durable `/etc/longtail-forge/deploy-helper.env` contract with strict root ownership/mode checks, an allowlist-only literal parser, a reviewed example, and separation from application secrets so helper reinstalls preserve the public verification origin and optional recovery-key backup path.
+- Expanded release guardrails for service-account ownership, private runtime modes, symbolic-link rejection, retained release identity, and failed-rollback recovery.
+- Docs updated: `docs/backup-restore.md`, `docs/development/github-workflow.md`, `docs/longtail-forge-deploy-helper.env.example`, `docs/preview-deployment.md`, `docs/runtime-configuration.md`, and enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: backup archive format, database schema, migrations, application routes, permissions, public API scopes, module behavior, runtime environment secrets, and user-facing Help workflows are unchanged.
+
 ## Version 0.33.17.8.4 - 2026-07-18
 
 - Pinned the privileged Linux deployment helper to LF with a path-specific `.gitattributes` rule so Windows checkout normalization cannot turn its shebang into `bash\r`.

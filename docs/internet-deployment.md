@@ -11,7 +11,7 @@ This document is the public-edge operational-security contract. The reproducible
 ```text
 Internet
   |
-  | TCP 80/443 only
+  | TCP 80/443 application ingress only
   v
 Caddy 2 (public edge, TLS termination, automatic HTTPS)
   |
@@ -28,7 +28,7 @@ Longtail Forge Node process at 127.0.0.1:8001
 ```text
 Internet
   |
-  | TCP 80/443 only
+  | TCP 80/443 application ingress only
   v
 Nginx (public edge, TLS termination, forwarding-header replacement)
   |
@@ -50,10 +50,11 @@ The supported scale is one application server with SQLite, roughly 50 total user
 ## DNS, ports, and firewall
 
 1. Choose one dedicated hostname such as `forge.example.com`. Create its DNS `A` record for the public TLS edge's IPv4 address. Add an `AAAA` record only when IPv6 reaches that same reviewed edge and its IPv6 firewall has been reviewed; otherwise omit it.
-2. Allow public inbound TCP 80 and 443 only to the selected TLS edge. Port 80 exists for certificate validation and HTTP-to-HTTPS redirects; normal application traffic uses 443.
-3. Deny public inbound access to Node port 8001, Caddy's administration endpoint 2019, the multi-proxy Caddy listener 8080, the SQLite database, Files storage, ClamAV, WireGuard administration, and any worker port or process interface. Bind Node to `127.0.0.1`, not merely a private interface protected by convention.
-4. In the multi-proxy topology, allow the public Nginx edge to reach the application Caddy listener only over WireGuard. Bind Caddy to the application host's WireGuard address and allow only the exact Nginx WireGuard peer to reach port 8080. Do not allow the whole tunnel subnet by convenience.
-5. Allow the outbound DNS/HTTPS traffic the selected TLS edge needs for certificate issuance and renewal. Monitor renewal failures before certificates expire.
+2. Allow public inbound Longtail Forge application traffic only on TCP 80 and 443 at the selected TLS edge. Port 80 exists for certificate validation and HTTP-to-HTTPS redirects; normal application traffic uses 443.
+3. Treat administrator SSH and the maintained GitHub deployment transport as a separate management plane, not application ingress. When a GitHub-hosted runner requires an Internet-reachable deployment SSH port, use a dedicated port and account with key-only authentication, a pinned host key, a forced command or exact-helper-only passwordless sudo boundary, isolated environment credentials, and no route to Node, Caddy administration, the database, Files, or runtime secrets. Record the real management ports and firewall policy in the private readiness record. Separately managed services on a shared edge remain outside the Longtail Forge application boundary and must not be described as Longtail Forge ingress.
+4. Deny public inbound access to Node port 8001, Caddy's administration endpoint 2019, the multi-proxy Caddy listener 8080, the SQLite database, Files storage, ClamAV, WireGuard administration, and any worker port or process interface. Bind Node to `127.0.0.1`, not merely a private interface protected by convention.
+5. In the multi-proxy topology, allow the public Nginx edge to reach the application Caddy listener only over WireGuard. Bind Caddy to the application host's WireGuard address and allow only the exact Nginx WireGuard peer to reach port 8080. Do not allow the whole tunnel subnet by convenience.
+6. Allow the outbound DNS/HTTPS traffic the selected TLS edge needs for certificate issuance and renewal. Monitor renewal failures before certificates expire.
 
 Direct-edge Caddy automatically manages public certificates for a qualifying hostname and redirects HTTP to HTTPS when ports 80 and 443 are reachable. In the multi-proxy topology, Nginx owns the public certificate and redirect while the Nginx-to-Caddy hop is protected by WireGuard and remains HTTP. Do not use `tls internal`, self-signed certificates, or disabled certificate verification at either public edge; `tls internal` is only for the local closeout harness.
 
@@ -127,7 +128,7 @@ curl --fail --silent --show-error https://forge.example.com/api/app-info
 
 Manual review through the complete selected proxy path must confirm:
 
-- HTTP redirects to HTTPS and only ports 80/443 are public.
+- HTTP redirects to HTTPS and TCP 80/443 are the only public Longtail Forge application-ingress ports. Any required administrator or exact-helper deployment SSH endpoints are recorded separately as restricted management-plane access with key-only authentication and no application/data-service exposure.
 - `/healthz` returns only `200 {"status":"ok"}` and `/readyz` returns only `200 {"status":"ready"}` for a ready install; both are `no-store` and carry server-generated request IDs.
 - The login page and authenticated session flow work at the public origin without a second authentication gate.
 - Login, session, and theme cookies are `Secure`; the session cookie is also `HttpOnly` and uses the configured `SameSite` policy.
