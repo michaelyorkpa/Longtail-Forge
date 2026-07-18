@@ -1,5 +1,6 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -34,9 +35,11 @@ try {
 
   await initializeDatabase();
   await assertMigrationRows();
+  const compatibleLineEndingChecksums = await installCompatibleLineEndingChecksums();
 
   await initializeDatabase();
   await assertMigrationRows();
+  await assertCompatibleLineEndingChecksumsPreserved(compatibleLineEndingChecksums);
   await assertIntegrity();
 
   console.log("Migration compatibility regression passed.");
@@ -64,6 +67,8 @@ function assertStaticContract() {
   assert.match(migrationsSource, /PRAGMA foreign_keys = OFF;[\s\S]*INSERT OR IGNORE INTO user_workspaces[\s\S]*PRAGMA foreign_keys = ON;/, "legacy FK repair scripts should remain migration-owned compatibility SQL");
   assert.match(migrationsSource, /await runSql\(baseline\.sql\)/, "fresh-start schema scripts should remain migration-owned compatibility SQL");
   assert.match(migrationsSource, /await runSql\(migration\.sql\)/, "future migration SQL files should remain migration-owned compatibility SQL");
+  assert.match(migrationsSource, /normalizeMigrationSqlForChecksum[\s\S]*replace\(\/\\r\\n\?\/g, "\\n"\)/, "migration checksums should canonicalize Windows and Unix line endings");
+  assert.match(migrationsSource, /createCompatibleMigrationChecksums[\s\S]*replace\(\/\\n\/g, "\\r\\n"\)/, "migration validation should accept previously recorded CRLF checksums");
   assert.match(migrationsSource, /migration-foreign-keys: off[\s\S]*PRAGMA foreign_keys = OFF[\s\S]*PRAGMA foreign_key_check[\s\S]*PRAGMA foreign_keys = ON/, "parent-table rebuild migrations should disable SQLite foreign keys only outside their transaction and validate them before commit");
   assert.match(projectAdminScopeMigration, /INSERT INTO user_role_assignments[\s\S]*INNER JOIN projects[\s\S]*legacy\.role_id = 'project_admin'[\s\S]*legacy\.scope_type = 'client'/, "project administrator migration should expand legacy client scopes across their existing projects");
   assert.match(projectAdminScopeMigration, /DELETE FROM user_role_assignments[\s\S]*role_id = 'project_admin'[\s\S]*scope_type = 'client'/, "project administrator migration should retire the superseded client scopes");
@@ -121,6 +126,40 @@ WHERE role_id = 'project_admin';
 async function assertIntegrity() {
   const row = await db.get("PRAGMA integrity_check;");
   assert.equal(row.integrity_check, "ok", "migration compatibility disposable database should pass integrity_check");
+}
+
+async function installCompatibleLineEndingChecksums() {
+  const fixtures = new Map([
+    ["0.33.5.18.6.5.4", "src/db/schema/current.sql"],
+    ["073", "src/db/migrations/073_user_landing_preferences.sql"],
+  ]);
+  const checksums = new Map();
+
+  for (const [version, filePath] of fixtures) {
+    const normalizedSql = readText(filePath).replace(/\r\n?/g, "\n");
+    const checksum = createHash("sha256")
+      .update(normalizedSql.replace(/\n/g, "\r\n"))
+      .digest("hex");
+    checksums.set(version, checksum);
+    await db.run(`
+UPDATE schema_migrations
+SET checksum = :checksum
+WHERE version = :version;
+`, { checksum, version });
+  }
+
+  return checksums;
+}
+
+async function assertCompatibleLineEndingChecksumsPreserved(expectedChecksums) {
+  for (const [version, checksum] of expectedChecksums) {
+    const row = await db.get(`
+SELECT checksum
+FROM schema_migrations
+WHERE version = :version;
+`, { version });
+    assert.equal(row.checksum, checksum, `migration ${version} should accept and preserve its compatible CRLF checksum`);
+  }
 }
 
 function assertNoLiteralHelperCalls(label, source) {

@@ -1,3 +1,37 @@
+## Version 0.33.17.8.4 - 2026-07-18
+
+- Pinned the privileged Linux deployment helper to LF with a path-specific `.gitattributes` rule so Windows checkout normalization cannot turn its shebang into `bash\r`.
+- Added release coverage that requires the helper's explicit LF checkout attribute.
+- Documented byte-preserving helper installation and verification while preserving the existing pinned-key, dedicated-account, exact-sudo-helper, inbox, checksum, backup, readiness, and rollback boundaries.
+- Docs updated: `ROADMAP.md`, `docs/preview-deployment.md`, `docs/runtime-configuration.md`, and enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: application routes, database schema, permissions, module behavior, public API scopes, backup format, runtime environment variables, and user-facing Help workflows are unchanged.
+
+## Version 0.33.17.8.3 - 2026-07-18
+
+- Fixed the SSH deployment handoff so the root-owned deployment-state directory is execute-only traversable (`0711`) while the deployment account's nested inbox remains private (`0700`) and sibling deployment state remains non-listable.
+- Kept the backup directory root-only and preserved pinned host keys, the dedicated deployment account, exact-helper passwordless sudo, immutable artifact checksums, backup-first installation, runtime identity verification, and rollback boundaries.
+- Added release coverage that rejects the original non-traversable deployment-root mode.
+- Docs updated: `ROADMAP.md`, `docs/preview-deployment.md`, `docs/runtime-configuration.md`, and enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: application routes, database schema, permissions, module behavior, public API scopes, backup format, runtime environment variables, and user-facing Help workflows are unchanged.
+
+## Version 0.33.17.8.2 - 2026-07-17
+
+- Fixed Windows startup for checksum-valid SQLite installations whose applied migration SQL was recorded with LF endings but materialized from Git with CRLF endings.
+- Canonicalized new baseline and migration checksums to LF while accepting only the exact LF or CRLF representation of otherwise identical SQL during validation; arbitrary content changes still fail closed, and existing `schema_migrations` rows are not rewritten.
+- Expanded the migration compatibility regression to prove both the consolidated baseline and a forward migration survive cross-platform line-ending changes while retaining their recorded checksums.
+- Docs updated: `ROADMAP.md`, `DECISIONS.md`, `docs/database.md`, `docs/runtime-configuration.md`, and enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: database schema, migration SQL, environment-variable names/defaults, permissions, module behavior, public API scopes, backup format, and user-facing Help workflows are unchanged.
+
+## Version 0.33.17.8.1 - 2026-07-17
+
+- Added one bounded multi-proxy deployment contract for the private preview: public Nginx terminates TLS, crosses one allowlisted WireGuard path to private Caddy on the application host, and Caddy reaches loopback-only Node.
+- Kept direct Caddy supported and kept application `TRUST_PROXY` limited to immediate loopback Caddy. Generic proxy chains, broad private-range trust, hop counts, CDNs, alternate VPN proxies, and extra hops remain unsupported.
+- Added reviewed Nginx and Caddy examples that reject unknown hosts, replace rather than append client forwarding values, restrict the private listener to the exact WireGuard peer, parse the client chain right-to-left, and collapse it before Node.
+- Extended the trusted-request-context and reference-deployment release regressions, and added a second executable proxy smoke that proves forged-header rejection, effective HTTPS, secure cookies, login/session behavior, request-ID correlation, and production-log safety through the normalized two-proxy chain.
+- Corrected the cross-platform Help-content regression so CRLF and LF Markdown paragraph separators receive the same assertion; shipped Help content is unchanged.
+- Docs updated: `ROADMAP.md`, `DECISIONS.md`, `docs/internet-deployment.md`, `docs/runtime-configuration.md`, `docs/preview-deployment.md`, `docs/operational-security.md`, `docs/private-preview-readiness.md`, `docs/self-hosting.md`, `docs/backup-and-restore.md`, `docs/Caddyfile.private-preview.multi-proxy.example`, `docs/nginx-wireguard.private-preview.example.conf`, `docs/docs-ownership.json`, and enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: application environment-variable names, runtime routes, database schema, permissions, module behavior, public API scopes, backup format, and user-facing Help workflows are unchanged.
+
 ## Version 0.33.17.8 - 2026-07-17
 
 - Stabilized the required Playwright Settings gate by separating cross-viewport read-only coverage from the Developer Example lifecycle mutation, running that shared-server mutation once on desktop, and restoring its original module state even when the assertion path fails.

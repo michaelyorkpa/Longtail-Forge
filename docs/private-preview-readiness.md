@@ -9,7 +9,7 @@ Do not invite participants until this page, the linked operator docs, and the cu
 ## Required Reading
 
 - [Docker and Bare-Metal Preview Deployment](preview-deployment.md) owns the supported application installation, deployment, upgrade, and rollback procedures.
-- [Reference Internet Deployment](internet-deployment.md) owns DNS, Caddy, TLS, firewalling, loopback binding, public health/readiness checks, proxy review, emergency containment, and known limitations.
+- [Reference Internet Deployment](internet-deployment.md) owns DNS, the selected direct-Caddy or bounded Nginx/WireGuard/Caddy path, TLS, firewalling, loopback binding, public health/readiness checks, proxy review, emergency containment, and known limitations.
 - [Backup and Restore Operator Guide](backup-and-restore.md) and [Baseline Backup and Restore](backup-restore.md) own the complete backup archive, restore, inspection, and drill contract.
 - [Operational Security](operational-security.md) owns production logs, repository scanning, incident response, manual security review, and access/session/API-key revocation expectations.
 - [Runtime Configuration](runtime-configuration.md) owns environment variables, production fail-closed startup, Secure Notes key requirements, worker readiness, and file-scanner settings.
@@ -25,7 +25,7 @@ Complete and record all of these against the exact candidate version, commit, ar
 - Remove or rewrite any unsupported promise of uptime, perfect security, guaranteed backups, compliance, enterprise readiness, hosted SaaS readiness, automatic rollback, or high availability.
 - Promote only through the protected `nightly` -> `main` flow and select an immutable release identity from the exact verified `main` revision.
 - Verify the runtime artifact checksum, container image digest or staged bare-metal artifact, `/api/app-info` version, commit SHA, and artifact SHA-256 all match the selected release metadata.
-- Complete the reference-proxy deployment review from [Reference Internet Deployment](internet-deployment.md), including HTTPS redirect, only ports 80/443 public, loopback-only Node, secure cookies, headers, forged-forwarding rejection, and public `/healthz`, `/readyz`, and `/api/app-info` checks.
+- Complete the selected reference-proxy deployment review from [Reference Internet Deployment](internet-deployment.md), including HTTPS redirect, only ports 80/443 public, loopback-only Node, secure cookies, headers, forged-forwarding rejection, and public `/healthz`, `/readyz`, and `/api/app-info` checks. For the multi-proxy path, also record `nginx -t`, the exact WireGuard edge peer and firewall rule, private Caddy's non-edge rejection, forwarding-chain collapse, and real client-IP attribution.
 - Run a complete backup, inspect its manifest and checksums, confirm the backup is outside public paths and the live data tree, and complete a representative restore drill.
 - Confirm the Secure Notes master key is supplied through the protected runtime environment, is backed up through a separate protected recovery channel, and is not stored in the backup archive, repository, logs, tickets, or participant material.
 - Confirm production file scanning uses a healthy `clamd` or `clamscan` configuration. Do not use `none`, `noop`, or `LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=true` for the internet preview.
@@ -71,7 +71,7 @@ Use [Friends-and-Family Private Preview Plan](marketing/friends-and-family-previ
 For suspected compromise, leaked credentials, harmful bug, participant data concern, or unclear deployment state:
 
 1. Stop new invitations.
-2. Remove public traffic at Caddy or stop the app if exploitation may be active, preserving data and logs.
+2. Remove public traffic at the selected TLS edge or stop the app if exploitation may be active, preserving data and logs.
 3. Revoke affected sessions and API keys through the supported admin surfaces when the app is safe to use.
 4. Deactivate affected accounts or reset credentials as needed.
 5. Rotate exposed runtime or external credentials through the secret store.

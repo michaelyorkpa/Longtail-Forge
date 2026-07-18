@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.17.5`.
+Active cursor: `0.33.17.9`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
@@ -387,6 +387,72 @@ Acceptance criteria:
 - With the checkbox absent, omitted, or unchecked, login behavior and the configured normal session lifetime are unchanged. With it checked, a successful completed login remains valid for no more than 30 absolute days across browser restarts and server restarts unless an existing expiry or revocation action ends it sooner.
 - The login action row matches the specified alignment at supported desktop and mobile widths, remains keyboard- and screen-reader-operable, and does not disturb the required password-change form.
 
+### Version 0.33.17.8.1 - Bounded Nginx/WireGuard/Caddy proxy contract
+
+**Model: High Effort** — Forwarding-header authority, client-IP attribution, effective HTTPS, CSRF origin checks, secure cookies, throttling, and audit evidence all cross this deployment trust boundary.
+
+Purpose:
+
+Support the actual private-preview edge without granting generic multi-proxy trust: one public Nginx TLS edge forwards over one private WireGuard path to one Caddy process on each application host, which forwards to loopback-only Node.
+
+- [x] Keep direct Caddy as a supported reference and add the exact Nginx -> WireGuard -> Caddy topology as the only supported multi-proxy variant; do not generalize to CDNs, load balancers, ingress controllers, alternate VPN proxies, private-range trust, hop counts, or arbitrary extra hops.
+- [x] Require Nginx to reject unknown hosts and replace, never append, client-supplied forwarding IP, protocol, and host values before the request crosses WireGuard.
+- [x] Require the WireGuard and host firewalls plus Caddy to accept the private HTTP hop only from the exact Nginx peer. Caddy must parse the trusted chain right-to-left and collapse it to one resolved client address before forwarding to Node.
+- [x] Keep Node on loopback and keep application `TRUST_PROXY` limited to immediate loopback Caddy; the application must not trust Nginx, the WireGuard subnet, broad private ranges, hostnames, blanket `true`, or a numeric hop count.
+- [x] Check in reviewed Nginx and Caddy examples, update the governing runtime/deployment/security documentation, and extend the release regression plus executable proxy smoke to cover forged forwarding values, effective HTTPS, secure cookies, request attribution, and the normalized two-proxy path.
+Acceptance criteria:
+
+- The exact two-proxy chain has one explicit authority at each boundary, direct clients cannot choose forwarding values, Node continues to trust only its immediate Caddy peer, and unsupported proxy variants remain fail-closed.
+
+### Version 0.33.17.8.2 - Cross-platform migration checksum compatibility
+
+**Model: High Effort** — Migration identity is a startup and data-integrity boundary, so portability must not weaken detection of real applied-SQL changes.
+
+Purpose:
+
+Restore Windows startup when Git changes only SQL line endings while preserving fail-closed migration identity and every existing database record.
+
+- [x] Prove the failing database recorded the LF digest for unchanged migration SQL that the Windows worktree materialized with CRLF endings; do not rewrite `schema_migrations` as the repair.
+- [x] Canonicalize newly recorded baseline and migration checksums to LF, accept only the exact LF or CRLF byte representation of otherwise identical SQL, and continue rejecting every other checksum mismatch.
+- [x] Extend disposable migration compatibility coverage across both the consolidated baseline and a forward migration, including preservation of already-recorded compatible checksums.
+- [x] Back up and integrity-check the real SQLite database, complete the release verification, restart the canonical port 8001 listener, and prove readiness plus release identity.
+
+Acceptance criteria:
+
+- A checksum-valid database starts from LF or CRLF checkouts without ledger edits, while any migration content change beyond line-ending representation still blocks startup.
+
+### Version 0.33.17.8.3 - Deployment inbox traversal repair
+
+**Model: Medium Effort** — This is a contained host-helper permission correction with one security-sensitive directory boundary.
+
+Purpose:
+
+Allow the pinned deployment account to deliver immutable artifacts to its private inbox without exposing root-owned deployment state.
+
+- [x] Keep the deployment root owned by root and non-listable while granting execute-only traversal to the nested deployment-account-owned `0700` inbox.
+- [x] Keep backups root-only and preserve the exact-helper passwordless-sudo, pinned-host-key, checksum, backup-first, readiness, identity, and rollback boundaries.
+- [x] Add a release regression that rejects the original non-traversable parent mode and documents the required host permission.
+
+Acceptance criteria:
+
+- A GitHub-hosted deployment can copy an artifact into the private inbox, while the deployment account cannot list the parent or access sibling deployment state.
+
+### Version 0.33.17.8.4 - Linux deployment-helper line-ending contract
+
+**Model: Medium Effort** — This is a narrow cross-platform packaging correction for one privileged Linux executable.
+
+Purpose:
+
+Prevent Windows checkout normalization from making the root-owned Linux deployment helper unexecutable.
+
+- [x] Pin the checked-in host helper to LF through a path-specific Git attribute without changing repository-wide line-ending behavior.
+- [x] Add release coverage that requires the helper's explicit LF checkout attribute.
+- [x] Document byte-preserving host installation and verification without changing helper privileges or deployment behavior.
+
+Acceptance criteria:
+
+- The helper's checkout policy retains an LF shebang on Windows and Linux, and the release gate fails if the explicit LF attribute is removed or changed.
+
 ### Version 0.33.17.9 - Preview release closeout
 
 **Model: High Effort** — Release readiness must combine packaging, restore, CI, security, and live deployment evidence.
@@ -394,6 +460,7 @@ Acceptance criteria:
 - [ ] Run packaging/clean-boot checks, Docker and bare-metal upgrade/rollback exercises, the disposable restore drill, security and permission gates, `npm run closeout`, affected/full regression routing, and the full release gate.
 - [ ] Confirm the 0.33.17.5 `nightly` -> `main` promotion, isolated GitHub Environments, immutable manual preview deployment, deployed-SHA readout, and hotfix/reconciliation exercises have all been proven before invitations.
 - [ ] Verify `/healthz`, `/readyz`, and `/api/app-info` through the reference proxy and publish checksums, known limitations, and the completed readiness checklist.
+- [ ] Prove the real Nginx configuration, WireGuard peer/firewall boundary, public health/readiness/version identity, non-edge Caddy rejection, forwarding-chain collapse, real client-IP attribution, and forged-header behavior on both deployed hosts; local proxy simulation does not substitute for live path evidence.
 - [ ] Do not invite users until all 0.33.16 and 0.33.17 acceptance criteria are met; move the target instead of weakening a gate.
 
 Acceptance criteria:

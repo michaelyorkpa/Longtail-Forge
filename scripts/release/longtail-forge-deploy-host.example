@@ -42,7 +42,10 @@ done
 [[ "$DEPLOY_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "LTF_DEPLOY_ACCOUNT is invalid"
 require_hex 40 "$expected_commit" "expected commit"
 mkdir -p "$APP_ROOT/releases" "$BACKUP_ROOT" "$DEPLOY_ROOT"
-chmod 0700 "$DEPLOY_ROOT" "$BACKUP_ROOT"
+# The deployment account must traverse the root-owned parent to reach its
+# private inbox, but must not list or write any sibling state kept there.
+chmod 0711 "$DEPLOY_ROOT"
+chmod 0700 "$BACKUP_ROOT"
 install -d -o "$DEPLOY_ACCOUNT" -g "$DEPLOY_ACCOUNT" -m 0700 "$INBOX"
 
 stop_services() {

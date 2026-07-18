@@ -73,7 +73,7 @@ try {
       assert.doesNotMatch(article.bodyHtml, /<script|href="javascript:|src="data:/i, `${articleId} should not expose unsafe rendered HTML`);
       assert.ok(article.summary.length >= 20, `${articleId} should have a useful summary`);
       assert.ok(article.body.length >= 120, `${articleId} should have a basic body`);
-      assert.ok(article.body.split(/\n{2,}/).length >= 2, `${articleId} should render at least two paragraphs`);
+      assert.ok(article.body.split(/(?:\r?\n){2,}/).length >= 2, `${articleId} should render at least two paragraphs`);
       assert.doesNotMatch(article.body, /\bfuture roadmap\b/i, `${articleId} should avoid future-roadmap promises`);
       assert.doesNotMatch(article.body, /\bwill be\b/i, `${articleId} should stay current-state oriented`);
     }
