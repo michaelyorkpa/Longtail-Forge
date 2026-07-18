@@ -89,7 +89,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.1",
-    "eslint": "^9.27.0",
+    "eslint": "^10.7.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
