@@ -37,6 +37,18 @@ Complete and record all of these against the exact candidate version, commit, ar
 
 If any item cannot be completed, invitations stay blocked. Record the blocker and either fix it or move the preview target.
 
+## 0.33.17.9 Release Evidence
+
+The non-sensitive technical closeout record for the 2026-07-18 candidate is:
+
+- Preview deploy run `29650387252` installed main commit `12112780ab2125d8ff0aff6a61b5e2070eab84fd`, version `0.33.17.9-main`, artifact SHA-256 `fd6c1cfa2426d0d7cd70b28a48fa101bb2142ff4fbf30d796add689a61e198c0`.
+- Preview rollback run `29650513803` restored the recorded known-good commit `cfe8930e0853a32525d932c94abe1e6b0202b103`, version `0.33.17.8.4-main`, artifact SHA-256 `5de87470bbc4634b6c6ae65928233f03840e9961484a52895a5a61a2c079a212`; restore-forward run `29650577402` returned to the exact `12112780` candidate.
+- Reconciliation PR #23 returned focused preview hotfix PRs #20-#22 to `nightly`. Integration run `29650754873` passed the full and browser gates and deployed nightly commit `c82622b2b8f82cdb86c2c580e2bff513030497d7`, version `0.33.17.9-nightly`, artifact SHA-256 `0817eb0cdd17b34d6730669d764d879b692616b09927ffc6eba08eeb6474f706`.
+- Both public hosts returned green `/healthz` and `/readyz` responses and exact `/api/app-info` version, source-branch, commit, and artifact identities.
+- Live review proved valid Nginx configuration and unknown-SNI rejection, the exact WireGuard peer/firewall boundary, private Caddy rejection of non-edge traffic, forwarding-chain collapse, real client-IP attribution, and forged-forwarding rejection.
+
+This repository record proves the release mechanics and public-path checks without publishing host credentials, private addresses, backup paths, recovery keys, participant details, or security evidence. Before any invitation, the operator must still complete and retain the private signed readiness record below, including the Secure Notes recovery channel, healthy production scanner, unique participant accounts, participant guidance, and the explicit invite/no-invite decision. No invitation was issued as part of this closeout.
+
 ## First Login And Accounts
 
 The preview uses ordinary Longtail Forge accounts. Operators create a unique user for each invited participant and assign only the workspace access they should have. A participant should never receive a shared account, bootstrap account, owner account, API key, server credential, database file, backup archive, Secure Notes recovery key, or deployment secret.

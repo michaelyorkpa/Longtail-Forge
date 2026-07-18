@@ -1,5 +1,470 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.17 - Friends-and-Family Internet Preview, Packaging, Backup/Restore, CI, and Release Operations
+
+Completed 0.33.17 on 2026-07-18. The live roadmap advances to 0.33.18.1; the private signed operator readiness record remains the invitation gate and is not committed here.
+
+**Model: High Effort** — This branch joins deployment, restore integrity, release artifacts, CI, and operational documentation into the minimum reproducible private-preview path.
+
+Purpose:
+
+Prepare a limited, explicitly labeled friends-and-family internet preview targeted for July 31, 2026 if and only if 0.33.16 security hardening, tested backup/restore, and deployment readiness are complete. The date is a target, not permission to skip controls or make unsupported uptime, security, backup, or compliance promises. SQLite remains supported for this one-server preview at roughly 50 total users and typical active use around 5-15 concurrent users; PostgreSQL remains required before shared hosted SaaS or larger production claims.
+
+Decision:
+
+- Docker is the primary reproducible preview/self-hosted path; a documented manual bare-metal path remains supported where practical.
+- Initial upgrades are manual. There is no in-app self-modifying updater in this branch.
+- Baseline Backup and Restore moves intentionally from former 0.38.4 into 0.33.17; 0.38.4 retains only advanced automation.
+- Essential installation, operation, onboarding, backup, upgrade, and security-limitation documentation moves forward from 0.39.9.
+
+The non-technical preview execution plan (participant profile, invitation copy, onboarding, five-minute first-use path, known-limitations and privacy templates, feedback, and closeout) is maintained in [docs/marketing/friends-and-family-preview.md](docs/marketing/friends-and-family-preview.md); the overall staging from private preview through hosted SaaS is in [docs/marketing/launch-plan.md](docs/marketing/launch-plan.md). Those plans consume this branch's readiness; they do not set its scope.
+
+Non-goals:
+
+- No hosted/SaaS deployment automation, PostgreSQL service profile before PostgreSQL exists, automatic customer-instance deployment, enterprise certification, or automatic updater.
+
+### Version 0.33.17.5 - Branch Topology, GitHub Actions, Releases, and Solo-Maintainer Workflow
+
+**Model: High Effort** — Branch protection, CI triggers, immutable release identity, environment isolation, deployment, rollback, and hotfix reconciliation form one operational safety boundary.
+
+Purpose:
+
+Create and prove the repository delivery path before private-preview invitations. Routine work integrates through one permanent `nightly` branch, verified promotion moves `nightly` into protected `main`, the Linux demo/development installation consumes verified `nightly` builds, and the friends-and-family installation consumes only a deliberately selected immutable release from `main`. In this section, “the `nightly` branch” means the permanent integration branch; “the scheduled nightly workflow” means a time-triggered full-suite run.
+
+#### Branch and promotion topology
+
+- [x] Establish `main` as the protected, known-good preview/release branch.
+  - [x] Do not perform routine development directly on `main`; changes arrive through pull requests with required checks and resolved review conversations.
+  - [x] The friends-and-family installation may run only an exact verified `main` commit, release tag, image digest, or immutable checksummed artifact produced from `main`.
+  - [x] A push or merge to `main` must never silently or automatically deploy the friends-and-family installation.
+- [x] Create one permanent protected `nightly` integration branch; do not create a second permanent `dev` branch with the same responsibility.
+  - [x] `nightly` is the normal integration target for active development and the source for verified Linux demo/development builds.
+  - [x] Protect `nightly` from force-push and deletion, and document any narrow maintainer recovery bypass; routine work still uses pull requests and passing checks.
+- [x] Use short-lived branches named by intent, for example `feature/<description>`, `fix/<description>`, `docs/<description>`, `chore/<description>`, and `hotfix/<description>`; do not create permanent branches per version or feature.
+- [x] Document the normal promotion flow and delete short-lived branches after merge:
+
+  ```text
+  feature/*, fix/*, docs/*, chore/*
+                    |
+                    v
+                 nightly
+                    |
+            promotion pull request
+                    |
+                    v
+                  main
+  ```
+
+- [x] Do not add a permanent `release` branch. Use immutable tags, GitHub Releases, checksummed artifacts, and container image digests for release identity. Permit a temporary `release/*` branch later only when a concrete stabilization need exists, such as maintaining a public release while incompatible development continues.
+
+#### GitHub Actions test gates
+
+- [x] Add clearly named workflows under `.github/workflows` using a clean checkout and the supported Node major; choose the exact division between fast pull-request checks, affected checks, the scheduled nightly full workflow, and release checks to avoid waste while preserving the complete release gate before promotion.
+- [x] For pull requests into `nightly`, run the applicable development gate: `npm ci`, typecheck, ESLint, Vitest unit/contract tests, affected regression selection, migration/schema checks, documentation checks, and relevant Playwright smoke/accessibility coverage.
+- [x] Do not run the same enormous suite redundantly across several jobs. Keep Playwright's existing separate-gate contract while installing browsers in the jobs that actually run it.
+- [x] For promotion pull requests from `nightly` into `main`, require the complete release-quality gate applicable at that point: typecheck, lint, unit/contract tests, full regressions, migration/schema checks, documentation checks, security checks, Playwright smoke/accessibility, packaging proof, `npm run closeout`, and every other standing release gate.
+  - [x] Require the promotion branch to be current with `main` and identify the exact commit being promoted.
+  - [x] Merging the promotion pull request creates no automatic friends-and-family deployment.
+- [x] On pushes or merges to `main`, revalidate or attest to the promoted commit and build or retain immutable release-ready artifacts. Do not silently move a mutable `latest` reference and treat it as sufficient release identity.
+- [x] Plan and configure Dependabot/current GitHub dependency updates, CodeQL or equivalent code scanning, dependency review where supported, and secret-scanning/push-protection guidance; passing scans are evidence, not proof that the application is secure.
+
+#### Demo/development deployment behavior
+
+- [x] On a successful verified push to the `nightly` branch, reconfirm the integration gate, build the exact deployable artifact/image, and permit automatic deployment only to the non-production Linux demo/development environment once one supported deployment transport is safely implemented.
+- [x] No feature/fix/docs/chore/hotfix branch may deploy directly to either persistent environment.
+- [x] Record the deployed commit SHA plus artifact checksum or image digest, then verify `/healthz`, `/readyz`, and `/api/app-info`; deployment or post-deployment failure must be visible and non-green.
+- [x] Define rollback to the recorded last-known-good demo artifact/image and never expose friends-and-family credentials or secrets to the demo workflow.
+
+#### Manual friends-and-family release and deployment behavior
+
+- [x] Add a manually dispatched workflow or equivalent deliberate operator command that accepts or resolves an exact `main` SHA, tag, GitHub Release asset, artifact identity, or image digest and refuses unverified or non-`main` revisions.
+- [x] Run or attest to all required release gates, produce version metadata and checksums, and create or attach the appropriate GitHub Release/runtime/Docker assets where applicable.
+- [x] Perform the documented backup-first deployment from 0.33.17.2-0.33.17.3, then verify health, readiness, schema/application version, expected commit SHA, and artifact/image identity.
+- [x] Record the previously deployed known-good release and support deliberate manual rollback through the same backup, restore, readiness, and version-verification contracts.
+- [x] Never deploy customer, public self-hosted, unrelated private, or friends-and-family instances merely because `main` changed.
+
+#### Branch protection and GitHub Environment policy
+
+- [x] Protect `main` and `nightly` with required status checks, resolved review conversations, and blocked force-push/deletion. While Mike is the sole maintainer, do not require an approval from a second human that he cannot provide; document future tightening when maintainers join.
+- [x] Create separate GitHub Environments or equivalent isolated deployment configuration for demo/development and friends-and-family preview.
+  - [x] Use separate least-privilege credentials, environment URLs, health checks, and deployment access.
+  - [x] Never reuse application secrets, database files, Secure Notes keys, preview data, or production-like credentials between environments.
+  - [x] Never commit secrets or print them in Actions logs.
+  - [x] Friends-and-family deployment requires explicit manual dispatch, an exact revision, passing checks, and confirmation inputs; do not require a second-person environment approval until another maintainer can satisfy it.
+- [x] Select and document one supported deployment transport during implementation based on least privilege, secret isolation, recoverability, and the Windows-development/Linux-deployment topology. Do not preselect SSH, a self-hosted runner, registry pull, or another transport without that review.
+
+#### Hotfix and reconciliation workflow
+
+- [x] Branch an urgent friends-and-family fix from `main` as `hotfix/<description>` and return it to `main` through a focused pull request and all applicable required checks.
+- [x] After deliberate deployment of the merged hotfix, merge or otherwise reconcile the same fix back into `nightly`; document conflict handling and verify the resulting `nightly` history so ongoing work cannot silently lose the preview fix.
+- [x] A hotfix never bypasses backup, migration, security, immutable-release, health/readiness, or rollback requirements merely because it is urgent.
+
+#### Required development and release documentation
+
+- [x] Deliver `docs/development/github-workflow.md` in ordinary language explaining why `nightly` and `main` both exist; which environment each powers; starting short-lived branches in VS Code/Codex; committing/pushing; opening a pull request into `nightly`; promoting `nightly` into `main`; reading and recovering from failed Actions; resolving drift/conflicts; deleting merged branches; creating and reconciling a hotfix; manually releasing/deploying an exact revision; finding the deployed SHA/version; rolling back; tags; GitHub Releases; practical Git commands; and equivalent GitHub/VS Code UI steps.
+- [x] Deliver or complete `docs/releasing.md`, `docs/self-hosting.md`, `docs/backup-and-restore.md`, and `docs/upgrading.md` as part of the relevant 0.33.17 slices, with consistent immutable-release, backup-first, readiness, and rollback terminology.
+- [x] Create and prove the `nightly` branch, both branch protections/rulesets, pull-request promotion rules, CI workflows, demo/development environment, friends-and-family environment, manual release/deployment workflow, hotfix procedure, and supporting operator documentation during 0.33.17.5 before any private-preview invitation is sent.
+
+Operational proof status (2026-07-18): branches, protections, pull-request checks, scheduled/push workflows, dependency/security scanning, immutable `main` artifacts, isolated environments, and protected `nightly` -> `main` promotion are proven. Focused hotfix PRs #20-#22 repaired the live edge and rollback path without bypassing release gates; PR #23 reconciled those fixes into `nightly`. Manual preview runs `29650387252`, `29650513803`, and `29650577402` proved exact deploy, rollback to the recorded known-good release, and restore-forward through the same backup/readiness/identity contract. Nightly integration run `29650754873` passed the full and browser gates and automatically deployed the isolated demo environment. Invitations remain subject to the private operator readiness record in `docs/private-preview-readiness.md`; no invitation was made as part of this technical closeout.
+
+Acceptance criteria:
+
+- `main` is the protected known-good source for friends-and-family releases; `nightly` is the protected integration branch and source for demo/development builds.
+- Routine short-lived work merges into `nightly`, and promotion from `nightly` to `main` uses a pull request with the complete release-quality gate.
+- Verified `nightly` pushes may deploy automatically only to demo/development; feature branches cannot deploy persistent environments.
+- Friends-and-family deployment is manual, pinned to an immutable verified `main` revision/artifact, backup-first, health/readiness/version verified, and recoverable to the recorded prior release.
+- Demo and friends-and-family environments have isolated least-privilege secrets, configuration, data, URLs, and health checks.
+- Hotfixes originate from `main`, pass required gates, deploy deliberately, and are reconciled into `nightly` with conflicts resolved explicitly.
+- Immutable tags, GitHub Releases, checksums, artifacts, and image digests provide release identity; no permanent release branch is required.
+- A solo maintainer can follow the documented workflow without an impossible second-human approval, and future tightening is documented.
+- The branches, protections, CI, environments, promotion, release, deployment, health verification, hotfix, and rollback procedures are tested before invitations; preview remains blocked until relevant 0.33.16 and 0.33.17 acceptance criteria pass.
+- No automatic deployment of friends-and-family, customer, public self-hosted, or unrelated private instances is introduced.
+
+### Version 0.33.17.6 - Private-preview documentation and readiness
+
+**Model: Medium Effort** — This is a precise documentation and operational-readiness closeout after the underlying controls exist.
+
+- [x] Publish installation/deployment, reverse-proxy/TLS, first-login/bootstrap, account creation, backup/restore, manual upgrade, known/security limitations, Secure Notes key, file scanning/upload, bug reporting, emergency shutdown/revocation, and feedback guidance.
+- [x] Label the program “private preview”; document the supported scale and avoid unsupported uptime, security, backup, or compliance promises.
+- [x] Require a tested restore, reference-proxy deployment review, unique invited accounts, feedback path, and operator readiness checklist before invitations.
+- [x] Keep 0.39.9 as comprehensive 0.3x documentation/stabilization, not the first time essential operator and user documentation exists.
+
+Operational readiness documentation status (2026-07-18): `docs/private-preview-readiness.md` remains the invitation gate and cross-links the supported installation, proxy/TLS, backup/restore, upgrade, Secure Notes key, scanner, account, bug-reporting, feedback, revocation, and emergency-pause contracts. The live deployment, rollback, hotfix, reconciliation, and technical release-closeout proof passed; invitations still require the operator's private signed readiness record and explicit invite/no-invite decision.
+
+Acceptance criteria:
+
+- An invited user and operator can understand the preview’s setup, safe operation, limits, recovery, account flow, and feedback path before access is granted.
+
+### Version 0.33.17.7 - Pre-preview UI/UX review and fixes
+
+**Model: High Effort** — Manual review spans several framework and module surfaces changed since 0.33.14, and fixes must preserve security, permission, responsive, and workflow contracts.
+
+Purpose:
+
+Review every user-visible UI/UX change shipped from 0.33.14 through 0.33.17.7 before the private-preview closeout, correct confirmed defects without adding speculative workflows, and add focused rendered or regression coverage for each fix.
+
+This is a tracking umbrella, not one implementation slice. Each numbered child below is sized for one implementation session, including its focused regression, owning-doc disposition, version/changelog/archive bookkeeping, canonical `npm run verify:slice`, and runtime proof when required. Do not combine children merely because they share the `.7` prefix. If a child reveals a new independent blast radius, add another numbered child rather than broadening the active session.
+
+The manual review is tracked in `archive/0.33.17.7-pre-testing.md`. Confirmed findings required before preview are assigned to `0.33.17.7.1` through `0.33.17.7.19`; findings deliberately deferred until after the friends-and-family preview live in 0.33.19. Record manual results during the owning child slice where possible. The final review slice records only the remaining checklist results and routes any newly confirmed defect into its own child; it does not absorb surprise implementation work.
+
+- [x] Correct the public login page so the required password-change form remains hidden for an ordinary unauthenticated visit and appears only after a successful login or existing session reports `passwordChangeRequired`; add desktop and mobile Playwright coverage for both the initial state and intentional transition.
+- [x] Complete the numbered pre-preview correction slices below without weakening the current module ownership, permission, security, responsive, retention, or workflow contracts.
+- [x] Complete the remaining changed-surface inventory at `0.33.17.7.20`; newly confirmed defects receive their own numbered child instead of extending the closeout session.
+
+Acceptance criteria:
+
+- Every user-visible surface changed from 0.33.14 through 0.33.17.7 has a recorded manual result; confirmed defects are corrected and regression-covered; no new workflow or preview-readiness claim is introduced through the review.
+- An operator can identify the source branch of every supported running installation from both the visible version label and `/api/app-info`; a build with canonical package version `<version>` displays exactly `<version>-<branch>` (for example the current `0.33.17.7` baseline displays `0.33.17.7-nightly`) while the canonical package version remains unsuffixed.
+
+#### Version 0.33.17.7.1 - Appearance Theme-mode grouped-control repair
+
+**Model: Medium Effort** — This is a contained renderer/layout correction on the existing User Settings Appearance contribution.
+
+- [x] Restore the bounded border box around User Settings -> Appearance -> Theme mode. Treat the missing grouped-control border and unwanted width expansion as related visible symptoms while verifying whether the renderer class handoff and conditional field layout have separate causes.
+- [x] Keep the Light/Auto/Dark selector content-sized with its rounded grouped-control shape, clear labels, selected state, radio semantics, keyboard behavior, and current saved values in every mode.
+- [x] Revealing Auto source -> Match operating system must not flatten, stretch, or redistribute the Theme-mode group; keep the secondary control visually subordinate and independently bounded.
+- [x] Scope the fix to the Appearance field layout/renderer class handoff unless inspection proves the shared segmented-control primitive is broken, and add focused Light/Auto/Dark coverage in both themes at desktop and mobile widths.
+
+Acceptance criteria:
+
+- Theme mode retains one bounded, content-sized grouped control in Light, Auto, and Dark states at supported widths, and the conditional Auto-source control does not alter its shape or behavior.
+
+#### Version 0.33.17.7.2 - Qualified runtime version and source-branch identity
+
+**Model: High Effort** — Release metadata crosses build, deployment, diagnostics, public UI, artifact identity, and version guardrails.
+
+- [x] Add an explicitly supplied source-branch identity to runtime release metadata and expose a qualified display version in the form `<packageVersion>-<branchName>`—for example `0.33.17.7-nightly`—through `/api/app-info`, the public splash, shared footer, app-shell metadata, and runtime diagnostics.
+- [x] Keep `package.json` as the unsuffixed canonical application version for compatibility, artifact checks, version guardrails, and asset-cache keys; expose the canonical version and branch separately alongside the qualified display value.
+- [x] Build and deployment paths must supply and validate branch identity without requiring a packaged installation to contain `.git`. Prove `nightly`, `main`, missing-label, and invalid-label behavior, and document the safe fallback for an explicitly local unqualified run.
+
+Acceptance criteria:
+
+- Every supported deployed installation exposes its source branch visibly and through `/api/app-info`; a build with canonical package version `<version>` displays exactly `<version>-<branch>` while the canonical package version remains unsuffixed.
+
+#### Version 0.33.17.7.3 - Universal Settings Save/Revert and unsaved-change guard
+
+**Model: High Effort** — This changes the framework-owned settings transaction anatomy shared by every settings surface; a mistake can lose or misroute pending values across the app.
+
+- [x] Remove the empty/blank view-status-message box that renders on every settings page (observed on Workspace Settings and Time Tracking Settings; the issue is settings-render-wide).
+- [x] Replace the many per-box "Save settings" buttons (Clients & Projects, Developer Example, Notes, Procurement Lists, Tasks, Time Tracking, Audit Log, and the page-bottom button) with exactly two universal page-level Save buttons wired through the same existing routes to save all settings on the page as currently set.
+  - [x] Save is a floppy-disk icon with the text "Save", grayed out until a change is made, and flashes red momentarily after an unsaved change: on change for dropdowns/radios/checkboxes, on de-focus for typed fields (for example Default Billing Rate).
+  - [x] One Save sits at the top right, vertically center-aligned with the page heading; one sits at the bottom right below all other content, so long pages never require scrolling to save.
+- [x] Add a universal Revert button immediately left of each Save: a counter-clockwise (undo) arrow icon with the text "Revert", grayed out until a change is made, clearing all pending changes back to the stored settings.
+- [x] If a user tries to navigate away from any settings surface with unsaved changes, warn with an in-app dialog offering "Cancel" (stay) and "Continue" (proceed to the intended destination).
+- [x] Apply the Save/Revert buttons, their states, and the unsaved-changes guard universally across all settings surfaces — both functionality and visibility.
+- [x] Treat password changes, workspace creation/departure, account deletion, API-key/session actions, and other immediate lifecycle operations as actions rather than dirty settings; universal Save/Revert must neither submit nor reset those forms.
+
+Acceptance criteria:
+
+- Every settings surface has exactly two Save buttons and two Revert buttons with the specified icons, placement, disabled/flash states, and unsaved-changes guard; no per-box settings-save buttons or blank status boxes remain, and lifecycle action forms remain independently safe.
+
+#### Version 0.33.17.7.4 - Admin navigation, module grouping, and broken Settings pages
+
+**Model: Medium Effort** — This is a contained Settings information-architecture and host-integration pass after the shared action anatomy is settled.
+
+- [x] Workspace Settings: group all optional modules into one "Modules" box, alphabetized, except Developer Example (optional, never-on) which always sorts last; Clients & Projects remains directly below the Workspace box.
+- [x] Rename the Settings -> Workspace slide-out drawer to "Admin", move Actions -> Project Settings to Settings -> Admin -> Projects, and order Settings -> Admin as: Modules (slide-out: Files, Tags, Tasks, Time Tracking, then Developer Example when explicitly enabled), Projects, Clients, User Admin, Workspace (renamed from "Workspace Settings"), API Keys, Audit Log.
+- [x] Fix Files Settings loading nothing (top priority — it blocks further manual testing): `loadFilesSettings` crashes with `TypeError: can't access property "set", window.LongtailForge.status is undefined` at `public/js/files-settings.js` `setStatus`.
+- [x] Render Developer Example settings inside the shared Settings anatomy instead of the current raw standalone HTML page (black background, no app fonts, JSON dump), and surface it under Settings -> Admin -> Modules -> Developer Example rather than as a top-level Workspace entry, so the 0.33.15.2-.4 checklist (Example Detail Hints, read-only Example Mode information, visibility and save behavior) becomes verifiable.
+
+Acceptance criteria:
+
+- The Admin drawer and Workspace Settings module group match the specified ownership/order; Files Settings and Developer Example load inside the shared Settings anatomy and are manually testable.
+
+#### Version 0.33.17.7.5 - Disabled-module recovery and timer-surface suppression
+
+**Model: High Effort** — Module lifecycle state affects framework navigation plus Tasks, Time Tracking, and Workbench visibility contracts.
+
+- [x] When a module such as Time Tracking is disabled, its settings route shows the disabled message inside the normal Settings page context, never a barren standalone page.
+- [x] Saving a module enable/disable change refreshes the Admin navigation immediately without a manual reload while retaining the recovery path needed to re-enable the module.
+- [x] When Time Tracking is disabled for the workspace, timer UI must not render in Tasks, Workbench, Capture, or Time Tracking navigation.
+- [x] When Tasks -> Task Timers is disabled while Time Tracking remains enabled, task-timer controls must not render in Tasks or Workbench; unrelated manual Time Tracking remains available.
+
+Acceptance criteria:
+
+- Disabled modules retain an in-context recovery route and immediate navigation refresh, and timer controls appear only where both the Time Tracking module and the applicable Task Timers setting allow them.
+
+#### Version 0.33.17.7.6 - Workspace identity policy and Settings header
+
+**Model: High Effort** — Workspace identity mutations require server-side permission enforcement and immutable type guarantees, not only a layout change.
+
+- [x] Enforce in the service/repository route that a workspace's type can never be changed after creation and that only a workspace administrator or super admin may rename it; the browser must not be the authority.
+- [x] Move the Workspace Users button to the top right of Workspace Settings across from the "Workspace Settings" heading, with a person/head icon and the shortened label "Users"; its function does not change.
+
+Acceptance criteria:
+
+- Workspace type is immutable through browser and direct requests, rename authorization is server-enforced, and the unchanged Users action occupies the specified Settings-header position.
+
+#### Version 0.33.17.7.7 - User Settings layout, timezones, and Leave Workspace warnings
+
+**Model: Medium Effort** — This is one existing User Settings surface with unchanged profile, notification, workspace-creation, and membership-removal contracts.
+
+- [x] User Settings layout: move Profile up directly below Appearance; rename the Workspaces box to "Workspace Creation" and move it to the bottom of the page, full-width within the user-settings-grid, collapsible and starting collapsed, with a caret.
+- [x] Make Notification Preferences full-width within the user-settings-grid as a single column with "Notification Grouping" at the top, fixing the current two-column layout that cuts off all adjustable settings.
+- [x] Restore the complete timezone list (non-USA timezones are currently missing) and append a "(UTC -X:00)"-style offset to the end of each timezone name for convenience and standardization.
+- [x] Move Leave Workspace out of Workspace Creation into its own box with prominent warnings that an administrator must restore access; clicking it opens an in-app confirmation with the same consequence wording.
+- [x] Preserve the governing membership contract: Leave Workspace removes only the signed-in user's membership and must not claim to delete or schedule deletion of the workspace or its data. Workspace deletion is a separate explicit action in `0.33.17.7.13`.
+
+Acceptance criteria:
+
+- User Settings matches the specified order, widths, and collapse behavior; all supported IANA timezones display current UTC offsets; Leave Workspace is isolated with layered, accurate membership-removal warnings.
+
+#### Version 0.33.17.7.8 - Preferred landing pages for login and workspace switching
+
+**Model: High Effort** — Persisted user navigation preferences affect authentication and workspace switching and may require a forward schema migration.
+
+- [x] Replace the current change-workspace behavior (resurfacing the exact prior page, which can produce an unformatted "Page not found" — for example switching from a business workspace's User Admin to a personal workspace) with navigation to a user-preferred landing page.
+- [x] Add two dropdown settings in Settings -> User under "User App Preferences": one for initial login, one for changing workspaces. Each offers: Dashboard, Workbench, Actions: Tasks, Actions: Notes, Actions: Lists.
+- [x] Validate the stored destination against the target workspace's enabled modules and the user's access; use Dashboard as the deterministic safe fallback when the preferred page is unavailable, invalid, or no longer permitted.
+
+Acceptance criteria:
+
+- Login and workspace switching land on an available configured page or Dashboard fallback, and no workspace switch produces an unformatted error page.
+
+#### Version 0.33.17.7.9 - User Administration Add User and scoped initial roles
+
+**Model: High Effort** — Cross-workspace membership creation and scoped initial roles are permission and account-enumeration boundaries.
+
+- [x] Make Add User search by exact normalized email for an existing installation account before creating a new account, then add/activate that account in the selected workspace without duplicating the user identity. Return only the minimum safe match needed for the action; do not expose unrelated memberships or an install-wide user directory.
+- [x] Add a workspace dropdown inside Add User that defaults to the current workspace and activates membership in the selected workspace. Non-super-admins see only workspaces where they can manage users; super admins may select any active workspace in the installation.
+- [x] Offer all roles in the initial-role dropdown with conditionally appearing scope selectors: choosing a client admin/user role reveals a client selector; choosing a project admin/user role reveals a project selector. (The current three-option limit exists because `public/js/user-admin.js` filters the dropdown to `workspace`/`global` `assignable_scope_type` roles, since the form has no scope picker — this slice adds the scope pickers.) Personal/family workspaces never offer client roles or client selectors.
+- [x] Only a super admin may create a super admin.
+- [x] Enforce workspace, role, and client/project-scope authorization in the service layer and prove Personal/Family shaping, non-super-admin workspace limits, and super-admin creation limits with permission regressions.
+
+Acceptance criteria:
+
+- An authorized administrator can add an existing or new account to an administrable workspace and assign every allowed initial role with the correct scope; unauthorized workspace discovery, role escalation, account enumeration, and Personal/Family client scoping are blocked.
+
+#### Version 0.33.17.7.10 - User self-deletion, deactivation messaging, and durable attribution
+
+**Model: High Effort** — Account retirement changes authentication, membership, retention, attribution, sessions, and permission behavior.
+
+- [x] Delete User must not be available for the signed-in user; render it disabled like other protected-user actions and enforce the self-target rejection server-side.
+- [x] Add a self-service Delete Account action under Settings -> User with explicit confirmation. Treat deletion as credential/session retirement plus membership deactivation, not hard deletion of the identity row or authored records.
+- [x] Preserve the user's email address and display name for audit and task/note/file/list attribution so normal history never degrades to a raw-ID `Deleted User ...` placeholder; make the confirmation copy state that all contributions and attribution are retained.
+- [x] Fully inactive/deleted accounts receive a clear but non-enumerating login denial such as "These credentials do not have access to this installation"; the response must not distinguish unknown, deleted, or inactive accounts to an attacker.
+
+Acceptance criteria:
+
+- Self-deletion cannot be invoked through User Administration, retires credentials/sessions/memberships through User Settings, preserves readable historical attribution, and keeps login responses non-enumerating.
+
+#### Version 0.33.17.7.11 - Recurring-task audit client/project attribution
+
+**Model: Medium Effort** — This is one confirmed Tasks-to-Audit metadata defect with an existing reproducible row.
+
+- [x] Fix audit-log rows for recurring-task status updates that omit client and project (filtering Audit activity by client surfaced rows with neither populated; example audit id `e2ad489e-686d-4794-b8bb-5beb2a9b6fd6`).
+- [x] Correct the Tasks-owned audit producer/read metadata without weakening Audit permission or record-visibility filtering, and add a focused recurrence-status regression.
+
+Acceptance criteria:
+
+- Recurring-task status audit rows carry readable client/project attribution when available and remain correctly scoped and filterable.
+
+#### Version 0.33.17.7.12 - Workspace-scoped export and backup package
+
+**Model: High Effort** — A workspace-only export crosses module-owned data, Files, secure content, permissions, and restore integrity without allowing cross-workspace leakage.
+
+- [x] Define and implement the supported backup/extract mechanism for one workspace before any deletion can be requested. Include the workspace records and attachment artifacts needed for recovery while preserving provider-neutral storage and module ownership.
+- [x] Exclude other workspaces and inaccessible secrets, document Secure Notes key/recovery handling explicitly, produce a manifest/checksum, and provide a repeatable validation/restore smoke against a disposable target.
+- [x] Gate export to super admins and administrators of that workspace, audit the request/result safely, and expose the action from Workspace Settings with clear scope and limitations.
+
+Acceptance criteria:
+
+- An authorized administrator can create and validate a self-contained, checksum-identified workspace backup without cross-workspace data or unsafe secret leakage, and the package has a proven disposable restore path.
+
+#### Version 0.33.17.7.13 - Workspace deletion request, grace period, and restore
+
+**Model: High Effort** — Scheduling workspace retirement requires a forward migration, authorization, session-state rules, audit, and reliable recovery without yet crossing the irreversible purge boundary.
+
+- [x] Add an explicit Delete Workspace action separate from Leave Workspace, available only to super admins and administrators of that workspace, and require a successful recent workspace export from `0.33.17.7.12` or an explicit typed acknowledgement that no current export exists.
+- [x] Mark the workspace pending deletion for 30 days with recorded requester, request time, and purge-after time; provide authorized restore/cancel during the grace period and make the state visible without exposing raw IDs.
+- [x] Define active-session, membership, navigation, module/job, Files, Search, and notification behavior while pending deletion. Do not overload membership `inactive` state as the workspace lifecycle store, and do not physically delete workspace data in this slice.
+- [x] Protect the installation's required owner/admin recovery path and add permission, restart, grace-period, and restore regressions plus database integrity proof.
+
+Acceptance criteria:
+
+- A deletion request is explicit, permission-checked, export-aware, visible, durable across restart, and cancelable for 30 days without deleting data or confusing Leave Workspace with deletion.
+
+#### Version 0.33.17.7.14 - Final workspace purge and cross-workspace isolation
+
+**Model: High Effort** — Irreversible workspace cleanup crosses every workspace-owned table and artifact and must be exactly-once, restart-safe, and demonstrably isolated.
+
+- [x] After the `0.33.17.7.13` grace period expires, perform final purge through the existing job/explicit-maintenance boundary; a normal page request must never coordinate destructive cleanup.
+- [x] Inventory and remove the target workspace's module records, framework records, Files artifacts/attachments, Search rows, jobs, notifications, sessions/memberships, and lifecycle row in foreign-key-safe order while preserving retained install-level identities and attribution required by `0.33.17.7.10`.
+- [x] Make purge idempotent and resumable after interruption, record only safe tombstone/audit evidence outside the deleted workspace, and prevent stale workers or sessions from recreating data after purge begins.
+- [x] Add disposable multi-workspace regressions for too-early refusal, exact-time eligibility, interrupted retry, exactly-once completion, Files cleanup, no cross-workspace deletion, and `PRAGMA integrity_check`.
+
+Acceptance criteria:
+
+- An expired pending-deletion workspace is purged exactly once through the maintenance/job boundary, an interrupted purge can resume safely, and another workspace's database rows and artifacts remain byte-for-byte outside the deletion scope.
+
+#### Version 0.33.17.7.19 - Settings footer action alignment repair
+
+**Model: Medium Effort** — This is a contained shared-layout correction for the existing universal Settings action row.
+
+- [x] Make the bottom Revert/Save row occupy the available Settings page width so its existing end alignment places both actions at the bottom right on every protected Settings surface.
+- [x] Preserve the universal top action pair, action ordering, dirty/disabled/flash states, save routes, and unsaved-navigation behavior.
+- [x] Strengthen the existing Settings page-actions regression so a shrink-wrapped footer row cannot silently restore the bottom-left placement.
+
+Acceptance criteria:
+
+- Workspace, User, Files, Tasks, Time Tracking, and other module Settings pages place their shared bottom Revert/Save pair at the bottom right without changing Settings transaction behavior.
+
+#### Version 0.33.17.7.20 - Remaining manual review and pre-preview correction closeout
+
+**Model: Medium Effort** — This is a bounded evidence/bookkeeping closeout after implementation risk has been isolated into the preceding children.
+
+- [x] Complete and timestamp every still-open applicable result in `archive/0.33.17.7-pre-testing.md` across the documented desktop/mobile, Light/Dark, workspace-type, administrator/restricted-user, keyboard/focus, two-session, and representative authenticated-write checks.
+- [x] Mark an item not applicable or externally blocked only with a concrete reason. TLS/proxy-only testing remains assigned to 0.33.19.6 after the real preview environment exists; do not claim it locally.
+- [x] If review finds a new pre-preview defect, record it, create a separately sized next available child, and leave this closeout open. Do not implement surprise fixes inside this session.
+- [x] After all correction children and manual results are complete, reconcile the umbrella checkboxes, owning docs, changelog, roadmap/archive handoff, version metadata, canonical `npm run verify:slice`, restart, and `/api/app-info` qualified-version proof.
+
+Acceptance criteria:
+
+- The review inventory has an explicit result for every applicable changed surface, every confirmed pre-preview defect is closed in its own regression-covered child, external TLS evidence is not fabricated, and the running app reports the expected canonical and qualified version metadata.
+
+### Version 0.33.17.8 - Optional 30-Day Remembered Sessions
+
+**Model: High Effort** — Login persistence changes both the browser cookie and authoritative server-side session lifetime, so security, revocation, forced-password-change, and responsive-login contracts must move together.
+
+Purpose:
+
+Let a user deliberately keep a trusted browser signed in for 30 days without changing the normal configured session lifetime for users who do not opt in.
+
+- [x] Add an unchecked `Remember me for 30 days` checkbox to the public login form. Keep the checkbox and wording on one line, left-aligned with the Email Address and Password field edges, in the same action row as the right-aligned `Log In` button, with the checkbox/label group vertically centered against the button on supported desktop and mobile widths.
+- [x] Send one explicit boolean login value. Treat an omitted or false value identically to today's behavior and continue using `LONGTAIL_SESSION_TTL_SECONDS`; reject invalid types instead of relying on browser truthiness.
+- [x] When selected, create an absolute 30-day session (`2592000` seconds) and use the same lifetime for both the existing authoritative `sessions.expires_at` value and the `HttpOnly` session cookie `Max-Age`. Reuse the existing session store; do not add a parallel remembered-login token or change the canonical normal-session configuration.
+- [x] Preserve the existing `Secure`, `SameSite`, path/domain, trusted-proxy, CSRF, login-throttle, audit, and random opaque session-token contracts. Remembered sessions must not slide or renew silently, and logout, expiry, password reset/change, user deactivation, individual revocation, and bulk workspace logout must continue to invalidate them immediately.
+- [x] Preserve the restricted forced-password-change flow. A checked preference must not grant an unrestricted 30-day session before the required password change succeeds; after successful completion, the resulting session may adopt the requested remembered lifetime without requiring the user to submit the temporary password again.
+- [x] Keep Active Sessions expiry readouts accurate for normal and remembered sessions, and add focused service/route/cookie regressions plus desktop/mobile rendered coverage for unchecked default behavior, checked 30-day behavior, validation, keyboard/label activation, exact action-row alignment, password-change-required handling, expiry, and every existing revocation path.
+- [x] Run `npm run docs:suggest`, update only the owning authentication/runtime and rendered-test documentation, record the shipped behavior in `CHANGELOG.md`, and complete the normal canonical local verification and live runtime-version proof.
+
+Acceptance criteria:
+
+- With the checkbox absent, omitted, or unchecked, login behavior and the configured normal session lifetime are unchanged. With it checked, a successful completed login remains valid for no more than 30 absolute days across browser restarts and server restarts unless an existing expiry or revocation action ends it sooner.
+- The login action row matches the specified alignment at supported desktop and mobile widths, remains keyboard- and screen-reader-operable, and does not disturb the required password-change form.
+
+### Version 0.33.17.8.1 - Bounded Nginx/WireGuard/Caddy proxy contract
+
+**Model: High Effort** — Forwarding-header authority, client-IP attribution, effective HTTPS, CSRF origin checks, secure cookies, throttling, and audit evidence all cross this deployment trust boundary.
+
+Purpose:
+
+Support the actual private-preview edge without granting generic multi-proxy trust: one public Nginx TLS edge forwards over one private WireGuard path to one Caddy process on each application host, which forwards to loopback-only Node.
+
+- [x] Keep direct Caddy as a supported reference and add the exact Nginx -> WireGuard -> Caddy topology as the only supported multi-proxy variant; do not generalize to CDNs, load balancers, ingress controllers, alternate VPN proxies, private-range trust, hop counts, or arbitrary extra hops.
+- [x] Require Nginx to reject unknown hosts and replace, never append, client-supplied forwarding IP, protocol, and host values before the request crosses WireGuard.
+- [x] Require the WireGuard and host firewalls plus Caddy to accept the private HTTP hop only from the exact Nginx peer. Caddy must parse the trusted chain right-to-left and collapse it to one resolved client address before forwarding to Node.
+- [x] Keep Node on loopback and keep application `TRUST_PROXY` limited to immediate loopback Caddy; the application must not trust Nginx, the WireGuard subnet, broad private ranges, hostnames, blanket `true`, or a numeric hop count.
+- [x] Check in reviewed Nginx and Caddy examples, update the governing runtime/deployment/security documentation, and extend the release regression plus executable proxy smoke to cover forged forwarding values, effective HTTPS, secure cookies, request attribution, and the normalized two-proxy path.
+Acceptance criteria:
+
+- The exact two-proxy chain has one explicit authority at each boundary, direct clients cannot choose forwarding values, Node continues to trust only its immediate Caddy peer, and unsupported proxy variants remain fail-closed.
+
+### Version 0.33.17.8.2 - Cross-platform migration checksum compatibility
+
+**Model: High Effort** — Migration identity is a startup and data-integrity boundary, so portability must not weaken detection of real applied-SQL changes.
+
+Purpose:
+
+Restore Windows startup when Git changes only SQL line endings while preserving fail-closed migration identity and every existing database record.
+
+- [x] Prove the failing database recorded the LF digest for unchanged migration SQL that the Windows worktree materialized with CRLF endings; do not rewrite `schema_migrations` as the repair.
+- [x] Canonicalize newly recorded baseline and migration checksums to LF, accept only the exact LF or CRLF byte representation of otherwise identical SQL, and continue rejecting every other checksum mismatch.
+- [x] Extend disposable migration compatibility coverage across both the consolidated baseline and a forward migration, including preservation of already-recorded compatible checksums.
+- [x] Back up and integrity-check the real SQLite database, complete the release verification, restart the canonical port 8001 listener, and prove readiness plus release identity.
+
+Acceptance criteria:
+
+- A checksum-valid database starts from LF or CRLF checkouts without ledger edits, while any migration content change beyond line-ending representation still blocks startup.
+
+### Version 0.33.17.8.3 - Deployment inbox traversal repair
+
+**Model: Medium Effort** — This is a contained host-helper permission correction with one security-sensitive directory boundary.
+
+Purpose:
+
+Allow the pinned deployment account to deliver immutable artifacts to its private inbox without exposing root-owned deployment state.
+
+- [x] Keep the deployment root owned by root and non-listable while granting execute-only traversal to the nested deployment-account-owned `0700` inbox.
+- [x] Keep backups root-only and preserve the exact-helper passwordless-sudo, pinned-host-key, checksum, backup-first, readiness, identity, and rollback boundaries.
+- [x] Add a release regression that rejects the original non-traversable parent mode and documents the required host permission.
+
+Acceptance criteria:
+
+- A GitHub-hosted deployment can copy an artifact into the private inbox, while the deployment account cannot list the parent or access sibling deployment state.
+
+### Version 0.33.17.8.4 - Linux deployment-helper line-ending contract
+
+**Model: Medium Effort** — This is a narrow cross-platform packaging correction for one privileged Linux executable.
+
+Purpose:
+
+Prevent Windows checkout normalization from making the root-owned Linux deployment helper unexecutable.
+
+- [x] Pin the checked-in host helper to LF through a path-specific Git attribute without changing repository-wide line-ending behavior.
+- [x] Add release coverage that requires the helper's explicit LF checkout attribute.
+- [x] Document byte-preserving host installation and verification without changing helper privileges or deployment behavior.
+
+Acceptance criteria:
+
+- The helper's checkout policy retains an LF shebang on Windows and Linux, and the release gate fails if the explicit LF attribute is removed or changed.
+
+### Version 0.33.17.9 - Preview release closeout
+
+**Model: High Effort** — Release readiness must combine packaging, restore, CI, security, and live deployment evidence.
+
+- [x] Run packaging/clean-boot checks, Docker and bare-metal upgrade/rollback exercises, the disposable restore drill, security and permission gates, `npm run closeout`, affected/full regression routing, and the full release gate.
+- [x] Confirm the 0.33.17.5 `nightly` -> `main` promotion, isolated GitHub Environments, immutable manual preview deployment, deployed-SHA readout, and hotfix/reconciliation exercises have all been proven before invitations.
+- [x] Verify `/healthz`, `/readyz`, and `/api/app-info` through the reference proxy and publish checksums, known limitations, and the completed readiness checklist.
+- [x] Prove the real Nginx configuration, WireGuard peer/firewall boundary, public health/readiness/version identity, non-edge Caddy rejection, forwarding-chain collapse, real client-IP attribution, and forged-header behavior on both deployed hosts; local proxy simulation does not substitute for live path evidence.
+- [x] Do not invite users until all 0.33.16 and 0.33.17 acceptance criteria are met; move the target instead of weakening a gate.
+
+Release proof (2026-07-18): manual preview deployment run `29650387252` installed `12112780ab2125d8ff0aff6a61b5e2070eab84fd` with artifact SHA-256 `fd6c1cfa2426d0d7cd70b28a48fa101bb2142ff4fbf30d796add689a61e198c0`; rollback run `29650513803` returned to `cfe8930e0853a32525d932c94abe1e6b0202b103` with artifact SHA-256 `5de87470bbc4634b6c6ae65928233f03840e9961484a52895a5a61a2c079a212`; restore-forward run `29650577402` returned to the exact `12112780` identity. Reconciliation PR #23 produced nightly commit `c82622b2b8f82cdb86c2c580e2bff513030497d7`; nightly integration run `29650754873` passed and deployed demo artifact SHA-256 `0817eb0cdd17b34d6730669d764d879b692616b09927ffc6eba08eeb6474f706`. Both public hosts returned green health/readiness and exact `/api/app-info` identities. Live inspection also proved Nginx syntax and unknown-SNI rejection, the allowlisted WireGuard peer/firewall path, private Caddy's non-edge `403`, forwarding-header collapse, real client-IP attribution, and rejection of forged forwarding input.
+
+Acceptance criteria:
+
+- The private preview has reproducible artifacts, proven restore, supported manual upgrades, passing CI/release gates, complete essential documentation, and no unsupported claims.
+
 ## Version 0.33.17.7.17 - Database-backed authentication throttling
 
 Completed 0.33.17.7.17. The live pre-preview umbrella continues with 0.33.17.7.18 while the primary roadmap cursor remains on the separate host-dependent 0.33.17.5 proof.
