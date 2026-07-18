@@ -58,7 +58,7 @@ Use the tested complete backup and restore command from [Baseline Backup and Res
 
 For the first supported upgrade after that prerequisite exists:
 
-1. Record the current `/api/app-info` version, exact image tag/digest, Compose configuration, volume identity, and last-known-good release. Pause changes and remove public traffic at Caddy.
+1. Record the current `/api/app-info` version, exact image tag/digest, Compose configuration, volume identity, and last-known-good release. Pause changes and remove public traffic at the selected TLS edge.
 2. Run the tested complete backup. Verify its manifest/checksums and required separately protected Secure Notes key recovery material before proceeding.
 3. Build or obtain the reviewed candidate image and verify its artifact checksum/image identity. Do not reuse a mutable `latest` tag.
 4. Stop the app with `docker compose stop longtail-forge`. Do not delete the data volume. Update only `LONGTAIL_IMAGE`, then run `docker compose up -d --no-deps --force-recreate longtail-forge`. Normal startup owns forward migrations.
@@ -72,7 +72,7 @@ If verification fails, remove public traffic and stop the candidate. Re-pointing
 Use a dedicated non-interactive `longtail-forge` account. Keep immutable releases under `/opt/longtail-forge/releases/<version>`, a `current` symlink to the selected release, protected configuration under `/etc/longtail-forge`, durable data under `/var/lib/longtail-forge`, and backups outside that tree. The service account owns only its data root; release files stay root-owned and read-only.
 
 1. Verify the versioned artifact SHA-256 sidecar, extract into a new release directory, and run `npm ci --omit=dev` there. Never `git pull` or extract over the live release.
-2. Copy [longtail-forge.service.example](longtail-forge.service.example) to `/etc/systemd/system/longtail-forge.service`, review every path, set `HOST=127.0.0.1` and `PORT=8001` in the protected environment, then enable/start the service. Keep Caddy as the only public edge.
+2. Copy [longtail-forge.service.example](longtail-forge.service.example) to `/etc/systemd/system/longtail-forge.service`, review every path, set `HOST=127.0.0.1` and `PORT=8001` in the protected environment, then enable/start the service. Keep Node behind the selected reviewed edge from [Reference Internet Deployment](internet-deployment.md): either direct Caddy or the exact Nginx -> WireGuard -> Caddy chain.
 3. Verify direct and proxied health/readiness/version, login/session, workspace access, Files access, and one representative workflow.
 
 For an upgrade, record the current symlink target and version, pause traffic, take and verify the complete backup, stage and install the new artifact in a new release directory, stop the service, atomically repoint `current`, start, allow normal migrations, and run the full verification above. If verification fails, stop the candidate. Repoint to the prior release only when migration rollback compatibility is proven; otherwise restore the complete pre-upgrade backup into an isolated recovery data path, point the prior release at that restored path, verify, and deliberately promote it. Keep the previous release and backup until the candidate has passed the observation period.

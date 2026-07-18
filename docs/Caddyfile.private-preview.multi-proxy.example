@@ -1,0 +1,32 @@
+{
+	# Keep administration local and disable certificate automation because the
+	# reviewed public Nginx edge owns TLS for this bounded topology.
+	admin 127.0.0.1:2019
+	auto_https off
+
+	# Trust exactly the Nginx WireGuard peer for the private HTTP listener.
+	# Strict right-to-left parsing prevents a client-prepended address from
+	# becoming the resolved client IP.
+	servers :8080 {
+		trusted_proxies static {$LONGTAIL_EDGE_WIREGUARD_PEER}
+		trusted_proxies_strict
+	}
+}
+
+http://{$LONGTAIL_PUBLIC_HOST}:8080 {
+	# Bind only the application host's WireGuard address. The host firewall must
+	# independently allow only LONGTAIL_EDGE_WIREGUARD_PEER to reach this port.
+	bind {$LONGTAIL_CADDY_WIREGUARD_ADDRESS}
+
+	@not_public_edge not remote_ip {$LONGTAIL_EDGE_WIREGUARD_PEER}
+	respond @not_public_edge 403
+
+	# Collapse the reviewed chain to one Caddy-resolved client address before
+	# Node. Nginx has already replaced the protocol and public-host values; only
+	# the allowlisted WireGuard peer is permitted to supply them to Caddy.
+	reverse_proxy 127.0.0.1:8001 {
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		header_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+	}
+}

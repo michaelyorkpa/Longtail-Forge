@@ -181,7 +181,7 @@
         "^src/(?:repositories|services)/sessions(?:[./-]|$)",
         "^src/services/operational-readiness\\.service\\.js$",
         "^scripts/reference-caddy-security-smoke\\.mjs$",
-        "^docs/(?:Caddyfile\\.private-preview\\.example|internet-deployment\\.md)$",
+        "^docs/(?:Caddyfile\\.private-preview(?:\\.multi-proxy)?\\.example|nginx-wireguard\\.private-preview\\.example\\.conf|internet-deployment\\.md)$",
         "^SECURITY\\.md$"
       ],
       "docs": [

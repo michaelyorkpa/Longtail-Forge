@@ -2,8 +2,8 @@ export const regressionMeta = Object.freeze({
   id: "framework.trusted-proxy-request-context",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "cookies", "security"],
-  description: "Proves trusted proxy request context rejects forged forwarding headers and secures cookies behind trusted TLS termination.",
+  tags: ["authentication", "cookies", "deployment", "proxy", "security"],
+  description: "Proves request context rejects forged forwarding headers, trusts only configured peers, and requires multi-proxy chains to collapse before Node.",
   runMode: "static",
 });
 
@@ -71,6 +71,16 @@ assert.equal(trusted.body.protocol, "https", "a configured trusted proxy should 
 assert.equal(trusted.body.hostname, "forge.example.test", "a configured trusted proxy should supply the public host");
 assert.ok(trusted.cookies.length === 3, "the probe should issue session and theme cookies");
 assert.ok(trusted.cookies.every((cookie) => cookie.includes("; Secure")), "effective HTTPS should secure every session/theme cookie");
+
+const uncollapsedMultiProxy = await probeRequest(["127.0.0.1/32"], {
+  ...forwardedHeaders,
+  "x-forwarded-for": "203.0.113.7, 10.57.67.1",
+});
+assert.equal(
+  uncollapsedMultiProxy.body.ipAddress,
+  "10.57.67.1",
+  "Node should stop at its immediate trusted Caddy peer unless Caddy collapses the reviewed outer-proxy chain",
+);
 
 const sourceFiles = (await fs.readdir("src", { recursive: true }))
   .filter((filePath) => filePath.endsWith(".js"));

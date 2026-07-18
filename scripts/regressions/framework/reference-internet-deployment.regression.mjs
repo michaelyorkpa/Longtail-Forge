@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "release-gate",
   tags: ["authentication", "deployment", "proxy", "security", "tls"],
-  description: "Proves the supported private-preview Caddy topology, operator controls, known limits, and executable TLS proxy smoke contract stay aligned.",
+  description: "Proves the supported direct-Caddy and bounded Nginx/WireGuard/Caddy topologies, operator controls, and executable proxy smokes stay aligned.",
   runMode: "static",
 });
 
@@ -12,15 +12,21 @@ import { readFileSync } from "node:fs";
 
 const deployment = readFileSync("docs/internet-deployment.md", "utf8");
 const caddyfile = readFileSync("docs/Caddyfile.private-preview.example", "utf8");
+const multiProxyCaddyfile = readFileSync("docs/Caddyfile.private-preview.multi-proxy.example", "utf8");
+const nginx = readFileSync("docs/nginx-wireguard.private-preview.example.conf", "utf8");
 const smoke = readFileSync("scripts/reference-caddy-security-smoke.mjs", "utf8");
 const runtime = readFileSync("docs/runtime-configuration.md", "utf8");
 const operations = readFileSync("docs/operational-security.md", "utf8");
+const readiness = readFileSync("docs/private-preview-readiness.md", "utf8");
 const preview = readFileSync("docs/marketing/friends-and-family-preview.md", "utf8");
 
 for (const requirement of [
-  /Caddy is the only supported public edge/i,
+  /two reviewed Longtail Forge private-internet-preview proxy topologies/i,
+  /Nginx \(public edge, TLS termination, forwarding-header replacement\)/i,
+  /private WireGuard HTTP; edge peer allowlisted at firewall and Caddy/i,
+  /verified forwarding chain collapsed to one client IP/i,
   /DNS `A` record[\s\S]*`AAAA` record only when IPv6/i,
-  /Allow inbound TCP 80 and 443 to Caddy/i,
+  /Allow public inbound TCP 80 and 443 only to the selected TLS edge/i,
   /Longtail Forge Node process at 127\.0\.0\.1:8001/i,
   /secret\/configuration files should be owner-readable only \(`0600`\)/i,
   /protected environment file/i,
@@ -39,7 +45,7 @@ for (const requirement of [
   assert.match(deployment, requirement);
 }
 
-assert.match(deployment, /default `reverse_proxy` behavior ignores client-supplied `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host`/i);
+assert.match(deployment, /default `reverse_proxy` behavior:[\s\S]*ignores client-supplied `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host`/i);
 assert.match(deployment, /without a second authentication gate/i);
 assert.match(deployment, /test-only unscanned-upload override/i);
 assert.match(deployment, /That override is forbidden in the real preview/i);
@@ -51,6 +57,35 @@ assert.match(caddyfile, /reverse_proxy 127\.0\.0\.1:8001/);
 assert.match(caddyfile, /default X-Forwarded-\* behavior/i);
 assert.doesNotMatch(caddyfile, /(?:basic_auth|basicauth|forward_auth)/i, "the application login remains the only required authentication gate");
 assert.doesNotMatch(caddyfile, /header_up|trusted_proxies/i, "the supported edge should retain Caddy's reviewed forwarding defaults");
+
+for (const requirement of [
+  /proxy_set_header X-Forwarded-For \$remote_addr/,
+  /proxy_set_header X-Forwarded-Proto https/,
+  /proxy_set_header X-Forwarded-Host \$host/,
+  /proxy_set_header Forwarded ""/,
+  /client_max_body_size 260m/,
+  /proxy_request_buffering off/,
+  /listen 443 ssl default_server/,
+  /return 444/,
+  /proxy_pass http:\/\/longtail_forge_private_preview/,
+]) {
+  assert.match(nginx, requirement);
+}
+assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/, "the public edge must replace, never append, client forwarding input");
+
+for (const requirement of [
+  /auto_https off/,
+  /servers :8080[\s\S]*trusted_proxies static \{\$LONGTAIL_EDGE_WIREGUARD_PEER\}/,
+  /trusted_proxies_strict/,
+  /bind \{\$LONGTAIL_CADDY_WIREGUARD_ADDRESS\}/,
+  /not remote_ip \{\$LONGTAIL_EDGE_WIREGUARD_PEER\}/,
+  /header_up X-Forwarded-For \{client_ip\}/,
+  /header_up X-Forwarded-Proto \{http\.request\.header\.X-Forwarded-Proto\}/,
+  /header_up X-Forwarded-Host \{http\.request\.header\.X-Forwarded-Host\}/,
+  /reverse_proxy 127\.0\.0\.1:8001/,
+]) {
+  assert.match(multiProxyCaddyfile, requirement);
+}
 
 for (const proof of [
   /LONGTAIL_ENV: "production"/,
@@ -71,10 +106,18 @@ for (const proof of [
   assert.match(smoke, proof);
 }
 assert.match(smoke, /assert\.notEqual\(loginSecurityEvent\.ip_address, forgedClientIp\)/);
+assert.match(smoke, /loginSecurityEvent\.ip_address,[\s\S]*multiProxyObservedClientIp/);
 assert.match(smoke, /\["127\.0\.0\.1", "::1", "::ffff:127\.0\.0\.1"\]/);
+assert.match(smoke, /"direct-caddy", "multi-proxy"/);
+assert.match(smoke, /trusted_proxies static 127\.0\.0\.1\/32 ::1\/128/);
+assert.match(smoke, /trusted_proxies_strict/);
+assert.match(smoke, /header_up X-Forwarded-For \{client_ip\}/);
+assert.match(smoke, /header_up X-Forwarded-Proto \{http\.request\.header\.X-Forwarded-Proto\}/);
 
-assert.match(runtime, /Supported single-proxy Caddy reference/i);
+assert.match(runtime, /Supported proxy references/i);
+assert.match(runtime, /still trusts only (?:its immediate )?loopback Caddy/i);
 assert.match(operations, /pre-invitation/i);
+assert.match(readiness, /record `nginx -t`[\s\S]*exact WireGuard edge peer[\s\S]*forwarding-chain collapse[\s\S]*real client-IP attribution/i);
 assert.match(preview, /invitations remain blocked/i);
 
 console.log("Reference internet deployment regression passed.");

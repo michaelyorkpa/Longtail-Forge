@@ -2741,7 +2741,7 @@
     },
     {
       "area": "framework",
-      "description": "Proves the supported private-preview Caddy topology, operator controls, known limits, and executable TLS proxy smoke contract stay aligned.",
+      "description": "Proves the supported direct-Caddy and bounded Nginx/WireGuard/Caddy topologies, operator controls, and executable proxy smokes stay aligned.",
       "id": "framework.reference-internet-deployment",
       "legacy": false,
       "path": "scripts/regressions/framework/reference-internet-deployment.regression.mjs",
@@ -2950,7 +2950,7 @@
     },
     {
       "area": "framework",
-      "description": "Proves trusted proxy request context rejects forged forwarding headers and secures cookies behind trusted TLS termination.",
+      "description": "Proves request context rejects forged forwarding headers, trusts only configured peers, and requires multi-proxy chains to collapse before Node.",
       "id": "framework.trusted-proxy-request-context",
       "legacy": false,
       "path": "scripts/regressions/framework/trusted-proxy-request-context.regression.mjs",
@@ -2959,6 +2959,8 @@
       "tags": [
         "authentication",
         "cookies",
+        "deployment",
+        "proxy",
         "security"
       ],
       "tier": "focused"
