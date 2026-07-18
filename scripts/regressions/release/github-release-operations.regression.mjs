@@ -20,12 +20,13 @@ const workflowPaths = [
   ".github/workflows/manual-preview.yml",
   ".github/workflows/codeql.yml",
 ];
-const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, appInfo, configSource, packageSource] = await Promise.all([
+const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, attributes, appInfo, configSource, packageSource] = await Promise.all([
   ...workflowPaths.map(read),
   read(".github/dependabot.yml"),
   read("scripts/release/configure-github-release-operations.mjs"),
   read("scripts/release/deploy-via-ssh.mjs"),
   read("scripts/release/longtail-forge-deploy-host.example"),
+  read(".gitattributes"),
   read("src/routes/app-info.routes.js"),
   read("src/config.js"),
   read("package.json"),
@@ -145,6 +146,7 @@ for (const requirement of [
   /recorded previous known-good release/,
 ]) assert.match(hostHelper, requirement);
 assert.doesNotMatch(hostHelper, /chmod 0700 "\$DEPLOY_ROOT"/, "the deployment account must be able to traverse the root-owned parent to its private inbox");
+assert.match(attributes, /^scripts\/release\/longtail-forge-deploy-host\.example text eol=lf$/m);
 
 assert.match(configSource, /LONGTAIL_RELEASE_COMMIT/);
 assert.match(configSource, /LONGTAIL_RELEASE_ARTIFACT_SHA256/);

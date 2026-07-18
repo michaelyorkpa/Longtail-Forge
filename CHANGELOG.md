@@ -1,3 +1,11 @@
+## Version 0.33.17.8.4 - 2026-07-18
+
+- Pinned the privileged Linux deployment helper to LF with a path-specific `.gitattributes` rule so Windows checkout normalization cannot turn its shebang into `bash\r`.
+- Added release coverage that requires the helper's explicit LF checkout attribute.
+- Documented byte-preserving helper installation and verification while preserving the existing pinned-key, dedicated-account, exact-sudo-helper, inbox, checksum, backup, readiness, and rollback boundaries.
+- Docs updated: `ROADMAP.md`, `docs/preview-deployment.md`, `docs/runtime-configuration.md`, and enforced current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: application routes, database schema, permissions, module behavior, public API scopes, backup format, runtime environment variables, and user-facing Help workflows are unchanged.
+
 ## Version 0.33.17.8.3 - 2026-07-18
 
 - Fixed the SSH deployment handoff so the root-owned deployment-state directory is execute-only traversable (`0711`) while the deployment account's nested inbox remains private (`0700`) and sibling deployment state remains non-listable.

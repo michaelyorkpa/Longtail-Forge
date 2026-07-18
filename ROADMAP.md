@@ -437,6 +437,22 @@ Acceptance criteria:
 
 - A GitHub-hosted deployment can copy an artifact into the private inbox, while the deployment account cannot list the parent or access sibling deployment state.
 
+### Version 0.33.17.8.4 - Linux deployment-helper line-ending contract
+
+**Model: Medium Effort** — This is a narrow cross-platform packaging correction for one privileged Linux executable.
+
+Purpose:
+
+Prevent Windows checkout normalization from making the root-owned Linux deployment helper unexecutable.
+
+- [x] Pin the checked-in host helper to LF through a path-specific Git attribute without changing repository-wide line-ending behavior.
+- [x] Add release coverage that requires the helper's explicit LF checkout attribute.
+- [x] Document byte-preserving host installation and verification without changing helper privileges or deployment behavior.
+
+Acceptance criteria:
+
+- The helper's checkout policy retains an LF shebang on Windows and Linux, and the release gate fails if the explicit LF attribute is removed or changed.
+
 ### Version 0.33.17.9 - Preview release closeout
 
 **Model: High Effort** — Release readiness must combine packaging, restore, CI, security, and live deployment evidence.

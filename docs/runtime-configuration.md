@@ -60,6 +60,8 @@ As of 0.33.17.8.2, SQLite baseline and migration checksum validation is portable
 
 As of 0.33.17.8.3, the root-owned SSH deployment-state directory is execute-only traversable (`0711`) so the pinned deployment account can reach its own nested `0700` inbox without listing the parent or accessing sibling state. The backup directory remains root-only `0700`; this corrects host filesystem permissions without adding an application environment variable or broadening the deployment account's sudo boundary.
 
+As of 0.33.17.8.4, the Linux SSH deployment helper is tracked with an explicit LF-only Git attribute and release coverage requires that checkout policy. This preserves the host helper's shebang and Bash syntax across Windows development checkouts without changing runtime environment variables or the helper's privilege boundary.
+
 ## Current Active Settings
 
 ### App
