@@ -62,6 +62,8 @@ As of 0.33.17.8.3, the root-owned SSH deployment-state directory is execute-only
 
 As of 0.33.17.8.4, the Linux SSH deployment helper is tracked with an explicit LF-only Git attribute and release coverage requires that checkout policy. This preserves the host helper's shebang and Bash syntax across Windows development checkouts without changing runtime environment variables or the helper's privilege boundary.
 
+As of 0.33.17.9, the root-owned bare-metal deployment helper reapplies the configured dedicated application account and private data/Files/database modes after a complete restore, rejects symbolic-link substitutions before privileged permission repair, and restores the retained current release identity plus pre-rollback backup if a rollback candidate fails startup or identity verification. This adds optional helper-only `LTF_APP_ACCOUNT` and `LTF_APP_GROUP` installation controls; it does not add application runtime variables or expose their values through diagnostics.
+
 ## Current Active Settings
 
 ### App
