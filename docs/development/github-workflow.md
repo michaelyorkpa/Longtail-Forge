@@ -84,7 +84,7 @@ The `friends-and-family-preview` environment has separate data, application secr
 
 The deployed identity is visible at `/api/app-info` as `version`, `commitSha`, and `artifactSha256`. Match all three to the workflow metadata before treating the deployment as successful.
 
-Rollback is another deliberate dispatch. Select `rollback`, enter the full SHA recorded as the previous known-good release, and confirm `ROLLBACK <SHA>`. The helper backs up the failed/current state, restores the recorded pre-deployment database and Files archive together, switches the immutable runtime, and repeats health and identity verification. Do not delete the prior release, backup, sidecar, or Secure Notes recovery material until the observation period passes.
+Rollback is another deliberate dispatch. Select `rollback`, enter the full SHA recorded as the previous known-good release, and confirm `ROLLBACK <SHA>`. The helper backs up the failed/current state, restores the recorded pre-deployment database and Files archive together, reapplies the dedicated application account plus private runtime-directory/database modes, switches the immutable runtime, and repeats health and identity verification. If the restored release does not pass startup or identity verification, the helper closes traffic, switches back to the current release, restores its pre-rollback backup and release identity, and verifies that recovery before reporting the rollback failure. Do not delete the prior release, backup, sidecar, or Secure Notes recovery material until the observation period passes.
 
 ## Hotfixes
 
