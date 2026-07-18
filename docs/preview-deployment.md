@@ -8,6 +8,8 @@ Repository promotion, immutable GitHub artifacts, and the maintained manual prev
 
 The root-owned deployment state directory uses mode `0711` so the deployment account can traverse only the known path to its own `0700` inbox; it cannot list the parent or read/write sibling state such as deployment history. The backup directory remains root-only `0700`. Do not make the deployment-state parent `0700`, because that prevents the pinned account from delivering an artifact to the nested inbox, and do not broaden it to a listable or group-writable directory.
 
+Install the host helper from the LF-only tracked file. The repository pins `scripts/release/longtail-forge-deploy-host.example` to `eol=lf` because a CRLF shebang is not executable by Linux (`/usr/bin/env` would look for `bash\r`). Verify the staged file with `file` or an equivalent byte-level check before installing it as the root-owned helper; do not copy a differently normalized editor buffer.
+
 ## Shared boundary
 
 - One Node application server, one local SQLite database, local Files storage, and either the inline worker or one same-host separate worker.
