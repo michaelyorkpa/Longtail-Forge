@@ -26,7 +26,9 @@ for (const requirement of [
   /private WireGuard HTTP; edge peer allowlisted at firewall and Caddy/i,
   /verified forwarding chain collapsed to one client IP/i,
   /DNS `A` record[\s\S]*`AAAA` record only when IPv6/i,
-  /Allow public inbound TCP 80 and 443 only to the selected TLS edge/i,
+  /Allow public inbound Longtail Forge application traffic only on TCP 80 and 443/i,
+  /administrator SSH.*GitHub deployment transport.*separate management plane/is,
+  /key-only authentication.*pinned host key.*exact-helper-only passwordless sudo boundary/is,
   /Longtail Forge Node process at 127\.0\.0\.1:8001/i,
   /secret\/configuration files should be owner-readable only \(`0600`\)/i,
   /protected environment file/i,
@@ -66,6 +68,7 @@ for (const requirement of [
   /client_max_body_size 260m/,
   /proxy_request_buffering off/,
   /listen 443 ssl default_server/,
+  /ssl_reject_handshake on/,
   /return 444/,
   /proxy_pass http:\/\/longtail_forge_private_preview/,
 ]) {
