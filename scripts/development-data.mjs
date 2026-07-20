@@ -135,10 +135,11 @@ async function seed(db, target, anchorDate) {
     dana: id("user", "dana"),
     jordan: id("user", "jordan"),
   };
+  const businessCreatedAt = `${anchorDate}T13:59:00.000Z`;
   const now = `${anchorDate}T14:00:00.000Z`;
   await db.transaction(async (tx) => {
     const add = createInserter(tx, ledger);
-    await tx.run("UPDATE workspaces SET name = :name, workspace_type = 'business', status = 'Active', owner_user_id = :owner, updated_at = :now WHERE workspace_id = :workspace;", { name: "Northwind Studio", owner: users.alex, now, workspace: business });
+    await tx.run("UPDATE workspaces SET name = :name, workspace_type = 'business', status = 'Active', owner_user_id = :owner, created_at = :createdAt, updated_at = :now WHERE workspace_id = :workspace;", { createdAt: businessCreatedAt, name: "Northwind Studio", owner: users.alex, now, workspace: business });
     await tx.run("UPDATE users SET display_name = 'Alex Rivera', alt_email = 'alex@example.com', timezone = 'America/New_York', theme_mode = 'light' WHERE user_id = :userId;", { userId: users.alex });
     await add("workspaces", { workspace_id: personal, name: "Alex's Personal Workspace", status: "Active", workspace_type: "personal", owner_user_id: users.alex, created_at: now, updated_at: now });
     await add("workspaces", { workspace_id: family, name: "Rivera Family", status: "Active", workspace_type: "family", owner_user_id: users.alex, created_at: now, updated_at: now });

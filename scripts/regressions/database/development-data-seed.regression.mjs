@@ -61,6 +61,10 @@ try {
 
   const database = new Database(path.join(firstDir, "longtail-forge.db"), { readonly: true });
   try {
+    const earliestWorkspace = database.prepare("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at, workspace_id LIMIT 1").get();
+    const operator = database.prepare("SELECT home_workspace_id FROM users WHERE protected_user = 'yes' LIMIT 1").get();
+    assert.equal(earliestWorkspace.workspace_type, "business", "startup must retain the Business bootstrap workspace as the deterministic first workspace");
+    assert.equal(operator.home_workspace_id, earliestWorkspace.workspace_id, "startup super-admin lookup must remain anchored to the operator's Business workspace");
     const taskStates = database.prepare("SELECT status, due_date, recurrence_template_id, next_action, blocked_reason, resume_note FROM tasks").all();
     assert.ok(taskStates.some((row) => row.status === "blocked" && row.blocked_reason));
     assert.ok(taskStates.some((row) => row.status === "completed"));
