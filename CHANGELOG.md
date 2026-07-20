@@ -1,3 +1,15 @@
+## Version 0.33.18.2 - 2026-07-20
+
+- Upgraded the application-wide HTTP runtime from Express 4.22.2 to the reviewed Express 5.2.1 baseline on Node 24, including its current router, path-to-regexp, body-parser, static-serving, MIME, and query-parser dependency graph.
+- Replaced the Express 4 bare `*` protected static fallback and browser-security fixture with root-inclusive named wildcard routes that compile under Express 5 and continue matching both `/` and nested browser paths.
+- Made the extended query parser explicit so nested and repeated query values preserve the prior application contract instead of silently adopting Express 5's simpler default parser.
+- Retained the existing `asyncRoute` compatibility boundary and proved wrapped failures plus native Express 5 async rejections reach the final error handler exactly once without unhandled rejections, duplicate error passes, or double responses.
+- Added the required `framework.express-5-http-contract` release regression for the exact dependency baseline, Node compatibility, invalid wildcard inventory, query shape, static JavaScript MIME behavior, root/nested fallback matching, and async error propagation.
+- Exercised framework/security routes, public APIs, module routers, multipart single/batch uploads, error/limit handling, trusted-proxy context, protected/static documents, browser startup/accessibility, clean runtime artifact installation, and canonical slice verification.
+- Superseded Dependabot PR #5 through a reviewed short-lived branch stacked on the completed 0.33.18.1 dependency baseline; it remains outside `nightly` until the normal pull-request integration step.
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `docs/architecture.md`, `docs/lists-module.md`, `docs/module-contract.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, and `docs/tasks-module.md`.
+- No docs change needed: environment-variable names/defaults, database schema, permissions, public API envelopes/scopes, module workflows, UI behavior, and user-facing Help are unchanged.
+
 ## Version 0.33.18.1 - 2026-07-19
 
 - Upgraded development linting from the resolved ESLint 9.39 line to ESLint 10.7 while preserving the existing flat configuration, full-file lint command, content-based cache, and warning/error behavior; the new engine contract remains compatible with the supported Node 24 line.
@@ -72,7 +84,7 @@
 ## Version 0.33.17.7.20 - 2026-07-17
 
 - Closed the 0.33.17.7 pre-preview UI/UX review umbrella after recording explicit final results for each still-open applicable checklist area in `archive/0.33.17.7-pre-testing.md`.
-- Preserved the external TLS/proxy testing boundary by leaving real proxy sign-in, navigation, cookie persistence, and redirect-loop proof assigned to 0.33.19.6 instead of claiming local evidence.
+- Preserved the external TLS/proxy testing boundary by leaving real proxy sign-in, navigation, cookie persistence, and redirect-loop proof assigned to 0.33.19.6 (renumbered to 0.33.20.6 on 2026-07-20 when the Workbench performance branch was inserted as 0.33.19) instead of claiming local evidence.
 - Reconciled the roadmap numbering after the Settings footer fix consumed 0.33.17.7.19: the final manual-review closeout is now 0.33.17.7.20, while 0.33.17.7.19 remains the shipped Settings footer alignment repair.
 - Docs updated: `ROADMAP.md`, `archive/0.33.17.7-pre-testing.md`, and current-version markers in `docs/tasks-module.md`, `docs/notes-module.md`, `docs/lists-module.md`, and `docs/runtime-configuration.md`.
 - No docs change needed: routes, permissions, database schema, Settings transaction behavior, authentication/session behavior, Files storage, module manifests, and user-facing Help workflows are unchanged.

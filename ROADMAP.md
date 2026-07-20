@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.18.2`.
+Active cursor: `0.33.18.3`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
@@ -19,21 +19,6 @@ Sequencing decision:
 - Land the dependency baseline before startup or module-loading reorganization so later slices verify against the supported production and development dependency graph.
 - Combine the compatible ESLint 10 and Markdown-it 14.3 updates in one package/lockfile maintenance slice. ESLint 10 removes the transitive `js-yaml` dependency, so the stale `js-yaml` 4.3 PR against `main` is closed as superseded rather than receiving its own slice or bypassing the `nightly` integration path.
 - Keep Express 5 separate. It is a major runtime framework migration with route-matching, request/response, static fallback, error propagation, security, and browser-startup implications; a green dependency review alone is not sufficient evidence.
-
-### Version 0.33.18.2 - Express 5 HTTP framework migration
-
-**Model: High Effort** — Express is the application-wide HTTP boundary; its major-version route, request, response, static-serving, and asynchronous-error changes can break every browser/API surface or weaken security behavior.
-
-- [ ] Reproduce the Express 5.2 dependency delta from Dependabot PR #5 on a current short-lived `chore/*` branch from `nightly`, then close the bot PR as superseded by the reviewed migration branch rather than patching around its red checks without roadmap/version closeout.
-- [ ] Inventory every Express 5 compatibility boundary used by the application and regression harnesses: route-path syntax and parameters, wildcard/catch-all matching, query parsing and request-property semantics, body availability, status/redirect/send/sendFile behavior, static dotfile and MIME behavior, sub-router mounting, trust-proxy behavior, and rejected/fulfilled async handlers.
-- [ ] Replace the invalid bare `*` static fallback route and every fixture equivalent with an Express 5-compatible catch-all that still matches the intended root/nested browser paths. Preserve public/protected route ordering, `/api` JSON behavior, 403/404 non-enumeration, method handling, and the rule that the final error middleware remains last.
-- [ ] Review the existing `asyncRoute` boundary against Express 5's native rejected-Promise forwarding so each failure reaches `errorHandler` exactly once, no rejection becomes unhandled, and no response is written twice. Preserve safe `AppError`, request-ID, production logging, CSRF, cookie, security-header, and authentication behavior.
-- [ ] Exercise operational routes, public API envelopes, browser APIs, module routers, static/protected documents, uploads/downloads, redirects, unknown routes, multipart limits, proxy-derived request context, and startup under the real Node 24 production dependency tree. Do not pull the branded error-surface redesign from 0.33.23 into this compatibility migration.
-- [ ] Update the focused HTTP/framework regressions and any owning architecture, runtime, security, module-development, or testing documentation that actually changes. Run `npm audit`, dependency review, framework/API/security/permission regressions, Playwright browser smoke/accessibility, `npm run artifact:smoke`, the canonical `npm run verify:slice`, and restarted `/healthz`, `/readyz`, and `/api/app-info` proof.
-
-Acceptance criteria:
-
-- Express 5.2 is the supported runtime baseline; all registered framework/module routes start and preserve their prior public, protected, API, security, proxy, static, and error semantics; clean artifact installation and browser/runtime proof pass; and Dependabot PR #5 is closed or merged only through the reviewed `nightly` integration result.
 
 ### Version 0.33.18.3 - Startup maintenance classification and split
 

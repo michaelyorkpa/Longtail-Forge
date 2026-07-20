@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 376,
+    "discoveredScripts": 377,
     "legacyScripts": 312,
-    "releaseGateScripts": 36,
+    "releaseGateScripts": 37,
     "areaCounts": {
       "dashboard": 1,
       "database": 32,
       "docs": 9,
       "files": 44,
-      "framework": 61,
+      "framework": 62,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 173,
       "integration": 158,
-      "release-gate": 36,
+      "release-gate": 37,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 152,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 189
+      "static": 190
     }
   },
   "coverageFamilies": [
@@ -2643,6 +2643,23 @@
         "security"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Pins the Express 5 runtime boundary, named wildcard routes, prior query semantics, and exactly-once async error propagation.",
+      "id": "framework.express-5-http-contract",
+      "legacy": false,
+      "path": "scripts/regressions/framework/express-5-http-contract.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "dependencies",
+        "errors",
+        "http",
+        "routing",
+        "security"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",
