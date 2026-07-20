@@ -36,6 +36,8 @@ When a user's permissions are changed, the user needs to be notified. This may h
 User A is workspace admin for Workspace A. User B is workspace admin for two workspaces, a personal Workspace B Family workspace, Workspace C, and a client admin role in Workspace A. User A hired User B as a freelancer, but has come to the end of the contract, so removes permissions from User B for Workspace A. User B should receieve notifications in both Workspace B and Workspace C about discontinuation of Workspace A access.
 
 > The 0.33.17.7 pre-preview review batch (2026-07-16) promoted the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Deletion/Edge Cases -> **0.33.17.7.10 and 0.33.17.7.12-.15**; Timer project ordering -> **0.33.17.7.16**; Login throttling persistence -> **0.33.17.7.17**; Workbench (algorithm, In Progress, URL annoyance) and Workbench Timers Tweak -> **0.33.19.3**; Task Reminders and Tasks Status Tweak -> **0.33.19.4**; Secure Catalogs -> the **Committed before 0.4x** unversioned backlog. The prior 0.33.19 calendar branch moved to **0.33.20** in the same batch.
+>
+> Renumber note (2026-07-20): a Workbench/API load-performance branch was inserted as **0.33.19**, moving the former 0.33.19-0.33.24 branches down one to **0.33.20-0.33.25**. The promoted slices above are therefore now **0.33.20.3** and **0.33.20.4**, and the calendar branch is now **0.33.21**.
 
 ## Fix logo for Dark Mode Visibility
 
