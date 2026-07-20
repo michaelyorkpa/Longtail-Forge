@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.19.2`.
+Active cursor: `0.33.19.3`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
@@ -35,20 +35,6 @@ Non-goals:
 - No generic remote command executor, arbitrary-path database reset, automatic cleanup cadence, shared demo password, or route/UI for triggering a reset.
 - No promise that accumulated demo testing state remains pristine. Preservation is intentional; operators invoke the manual reset only when the demo state becomes too messy or a clean scenario is specifically required.
 - No reduction of protected integration/promotion coverage, no retirement of the runtime-configuration integration owner, and no assumption that every Files regression is safe to parallelize.
-
-### Version 0.33.19.2 - Initial rt-ltf-demo installation, recovery proof, and closeout
-
-**Model: High Effort** — This slice changes a live public demo environment and closes only from verified backup, service, data, security, and public-route evidence.
-
-- [ ] Revalidate read-only SSH access, resolved host identity, service account, runtime data/database/Files paths, filesystem/mount boundaries, free space, current artifact identity, and current backup/restore readiness before authorizing the reset. Stop if the live configuration conflicts with the checked-in contract.
-- [ ] Capture and inspect the pre-reset whole-instance backup, record checksum and recovery location without exposing protected paths or secrets, quiesce app/worker access, provision the staged fictional dataset, apply required ownership/modes, atomically activate it, and restart the canonical services. Preserve the prior data state until the new installation completes its observation check.
-- [ ] Verify `PRAGMA integrity_check`, zero foreign-key violations, expected semantic fingerprint/counts, exact Files object bytes and attachment reads, Search results, disabled persona login, successful operator login using the host-owned credential, worker/job health, `/healthz`, `/readyz`, HTTPS behavior, and public `/api/app-info` identity for `demo.longtailforge.com`.
-- [ ] Exercise the documented recovery/reset procedure on a safe disposable or reversible host state, prove the recorded backup can be inspected and selected for rollback, and confirm a normal subsequent Nightly deployment preserves the seeded database and Files tree rather than reseeding it.
-- [ ] Record sanitized live evidence and the manual-reset/recovery pointer in the private operational record; update `CHANGELOG.md`, archive this completed branch, run the canonical local verification once, and do not claim completion from local proof if any live-host check remains missing.
-
-Acceptance criteria:
-
-- `demo.longtailforge.com` serves the current verified Nightly artifact with the rich fictional dataset, its database and Files objects survive ordinary deployment, operator/persona authentication boundaries are correct, the pre-reset state is recoverable, the explicit reset path is repeatable, and all required local plus live evidence is recorded without committing host data or secrets.
 
 ### Version 0.33.19.3 - Developer Verification Throughput
 

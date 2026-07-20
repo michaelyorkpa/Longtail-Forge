@@ -1,5 +1,26 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.19.2 - Initial rt-ltf-demo installation, recovery proof, and closeout
+
+Completed 0.33.19.2 on the live demo installation on 2026-07-20. The live roadmap advances to 0.33.19.3; generated host data, credentials, retained prior states, backups, logs, and the private access mechanism remain outside the repository.
+
+**Model: High Effort** — The slice changed a live public demo environment and could close only from verified backup, service, data, security, recovery, and public-route evidence.
+
+- [x] Revalidated exact `rt-ltf-demo` host/runtime identity, dedicated service account, data/database/Files and backup boundaries, ownership/modes, same-filesystem activation, available capacity, canonical app/edge services, protected environment, and whole-instance backup readiness before mutation. No preview/customer target or local developer environment was used.
+- [x] Installed the reviewed wrapper/config separately from the application release, then provisioned and repeat-reset the staged fictional scenario with exact target/action confirmations. Every operation quiesced services, created and inspected a database-plus-Files backup first, repaired ownership, atomically activated one data root, retained the prior state, and restarted the canonical services.
+- [x] Proved recovery rather than merely documenting it: an initial candidate-startup failure restored the original empty installation and services automatically while retaining its inspected archive. The deterministic workspace-ordering correction then provisioned successfully, and later repeat resets retained independently selectable pre-reset states and backups.
+- [x] Closed two live-discovered seed gaps through protected PRs rather than accepting partial proof: canonical Search rows now materialize into the SQLite FTS backend before activation, and Files extension metadata now uses normal upload conventions so the Markdown/text fixtures are previewable. Candidate verification refuses incomplete Search materialization or object/extension mismatch.
+- [x] Final live database proof returned `integrity_check=ok`, zero foreign-key violations, 3 workspaces, 5 users, 12 tasks, 4 notes, 5 lists, 2 Files records, 21 canonical Search rows, and 21 FTS rows under semantic fingerprint `8fac7d1fe8362c18b085ca91f71b013daaf80147dcec995ba6008a6cf4332b99`. It also proved zero Secure Notes, zero persona-contract violations, and exactly one active protected operator.
+- [x] Final authenticated proof returned 401 for an inactive fictional persona and 200 for the host-owned operator/session. Search used `sqlite-fts5` and returned the fictional checkout scenario. Both Files attachments listed, previewed through their Markdown/text route, downloaded, and matched database size/SHA-256 metadata and physical object bytes.
+- [x] Runtime proof returned healthy HTTPS `/healthz`, ready `/readyz`, database/storage health, SQLite foreign keys enabled, inline worker idle, zero active/failed/dead jobs, and exact `0.33.19.2-nightly` identity at commit `466f1c259013ca0513593daecbdac79d786eabc3` with artifact SHA-256 `0ecc5c440a2c014e46c1ebcd09b85d6ee7b87144d25659bc1f92f4a21eb475b9` from Nightly run `29780231625`.
+- [x] Independently inspected the newest pre-reset archive with the deployed backup tool: backup ID `9a5409f6-eb1f-4cbd-898b-38683c6bedd0`, archive SHA-256 `d2adbfa3c49e9fc592fc9dabb1b6096343484c15ec3111a9372af7af26f1d0e4`, two local objects/147 bytes, no Secure Notes key prerequisite, `restorable=true`, and no warnings. Earlier verified pre-provision/reset archives and prior states remain retained; no automatic pruning ran.
+- [x] Proved ordinary deployment preservation twice. Nightly runs `29779417449` and `29780231625` changed the immutable application artifact while preserving the existing demo marker/fingerprint, exact scenario counts, materialized Search rows, and both Files hashes; neither deployment invoked seed/reset. The manual reset/recovery procedure remains `docs/demo-data-operations.md`.
+- [x] Local and protected integration proof passed typecheck, 134 Vitest tests, lint, all 381 regressions, permissions, browser/accessibility, dependency review, CodeQL, immutable artifact creation, and exact demo deployment. One unrelated isolated reminder regression recovered through its existing fresh-fixture retry and was reported as `flaky-recovered`.
+
+Acceptance criteria:
+
+- `demo.longtailforge.com` serves the verified Nightly artifact with the rich fictional dataset; ordinary deployments preserve its database and Files tree; operator/persona authentication, Search, Files preview/download, worker/jobs, integrity, ownership, backup inspection, and automatic recovery boundaries are proven without committing host data, secrets, or private access details.
+
 ## Version 0.33.19.1 - Demo-host provision/reset operation and safety contract
 
 Completed 0.33.19.1 locally on 2026-07-20. The live roadmap advances to the separate 0.33.19.2 host installation/proof slice; no demo database reset or host installation is claimed by this local tooling closeout.
