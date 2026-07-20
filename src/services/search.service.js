@@ -10,14 +10,11 @@ import {
   hasSearchIndexer,
   listSearchIndexerIds,
 } from "../core/search/indexer-registry.js";
-import { registerFrameworkHelpSearchIndexers } from "../core/help/search-indexers.js";
 import { helpService } from "./help.service.js";
 import { AppError } from "../utils/app-error.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 
 const SEARCH_SERVICE_VERSION = "0.33.5.6.1";
-
-registerFrameworkHelpSearchIndexers();
 
 const SEARCH_CAPABILITIES = Object.freeze({
   owner: "framework",

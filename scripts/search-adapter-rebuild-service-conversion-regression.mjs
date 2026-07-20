@@ -32,11 +32,15 @@ const {
 } = await import("../src/db/index.js");
 const { searchIndexRebuildService } = await import("../src/services/search-index-rebuild.service.js");
 const { searchService } = await import("../src/services/search.service.js");
+const { registerFrameworkHelpSearchIndexers } = await import("../src/core/help/search-indexers.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 
 try {
   assertStaticContract();
 
   await initializeDatabase();
+  registerFrameworkHelpSearchIndexers();
+  activateModuleRuntime("worker");
   await seedWorkspace();
   await assertRebuildServiceRuntime();
   await assertIntegrity();

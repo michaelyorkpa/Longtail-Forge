@@ -9,6 +9,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Recurrence-Frequency-Test-Password-123!
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { registerTaskJobHandlers } = await import("../src/modules/tasks/task-jobs.service.js");
 const { taskRecurrenceService } = await import("../src/modules/tasks/task-recurrence.service.js");
@@ -16,6 +17,7 @@ const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
 try {
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   registerTaskJobHandlers({ replace: true });
   const session = await readSeedSession();

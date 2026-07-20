@@ -64,6 +64,8 @@ assert.match(docs, /warning-only licensing\/public-release process gate/);
 assert.match(docs, /0\.33\.6\.16\.2/);
 assert.match(docs, /auto-discover/);
 assert.match(docs, /Agents do not manually add the same regression/);
+assert.match(docs, /380 discovered scripts/, "current docs should report the active maintainability-closeout registry");
+assert.match(docs, /300 seconds/, "current docs should publish the formal suite-time review budget");
 
 assert.equal(REGRESSION_BUCKETS.length, 4, "inventory slice should preserve the four current buckets");
 assert.deepEqual(
@@ -80,12 +82,12 @@ assert.ok(
   REGRESSION_SCRIPTS.includes("scripts/regression-suite-inventory-regression.mjs"),
   "inventory contract guardrail should be registered",
 );
-assert.equal(legacySnapshot.scripts.length, 312, "legacy migration snapshot should preserve the inventory baseline");
-assert.equal(REGRESSION_ENTRIES.length, 377, "auto-discovery should add sixty-five metadata guardrails to the legacy baseline");
+assert.equal(legacySnapshot.scripts.length, 311, "the legacy migration snapshot should preserve its baseline minus the documented syntax-gate retirement");
+assert.equal(REGRESSION_ENTRIES.length, 380, "auto-discovery should retain sixty-nine metadata guardrails after the documented legacy retirement");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [190, 6, 29, 152],
-  "auto-discovery must preserve legacy bucket counts and add sixty-five metadata guardrails",
+  [191, 6, 29, 154],
+  "auto-discovery must preserve every stateful bucket, add the maintainability closeout guardrail, and remove only the documented static syntax gate",
 );
 assert.match(suite, /discoverRegressionEntries/);
 assert.match(suite, /createRegressionSuite/);
@@ -96,7 +98,7 @@ assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
 assert.equal(
   packageJson.scripts.check,
-  "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
+  "npm run typecheck && npm run test:unit && eslint . --cache --cache-strategy content --cache-location .eslintcache && node scripts/run-regressions.mjs",
 );
 assert.equal(packageJson.scripts["test:permissions"], "node scripts/permission-regression.mjs");
 assert.equal(packageJson.scripts["test:sqlite-driver"], "node scripts/better-sqlite3-install-smoke.mjs");

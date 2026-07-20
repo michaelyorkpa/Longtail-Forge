@@ -1,0 +1,63 @@
+const tasksSettings = {
+  settings: [
+      {
+        id: "tasksEnabled",
+        label: "Tasks",
+        type: "boolean",
+        placement: "workspace",
+        moduleStatus: true,
+      },
+      {
+        id: "taskTimersEnabled",
+        label: "Task Timers",
+        type: "boolean",
+        placement: "module",
+        default: true,
+        requiredPermissions: ["tasks.view"],
+        requiredModules: ["time-tracking"],
+        moduleStatus: false,
+      },
+      {
+        id: "reminderDateTimeHours1",
+        label: "Timed Reminder 1 (hours before)",
+        type: "number",
+        placement: "module",
+        default: 2,
+        min: 1,
+        step: 1,
+        handler: "tasks.reminderDateTimeHours1",
+      },
+      {
+        id: "reminderDateTimeHours2",
+        label: "Timed Reminder 2 (hours before)",
+        type: "number",
+        placement: "module",
+        default: 24,
+        min: 1,
+        step: 1,
+        handler: "tasks.reminderDateTimeHours2",
+      },
+      {
+        id: "reminderDateOnlyDays1",
+        label: "Date-Only Reminder 1 (days before)",
+        type: "number",
+        placement: "module",
+        default: 3,
+        min: 1,
+        step: 1,
+        handler: "tasks.reminderDateOnlyDays1",
+      },
+      {
+        id: "reminderDateOnlyDays2",
+        label: "Date-Only Reminder 2 (days before)",
+        type: "number",
+        placement: "module",
+        default: 1,
+        min: 1,
+        step: 1,
+        handler: "tasks.reminderDateOnlyDays2",
+      },
+    ],
+};
+
+export { tasksSettings };

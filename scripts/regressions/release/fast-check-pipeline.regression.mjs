@@ -3,12 +3,12 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["commands", "release", "tooling"],
-  description: "Proves npm run check runs the TypeScript typecheck and Vitest unit tests before the slow regression runner, and that npm start stays a pure Node boot.",
+  description: "Proves npm run check runs TypeScript, Vitest, and the sole ESLint syntax/lint owner before the slow regression runner, and that npm start stays a pure Node boot.",
   runMode: "static",
 });
 
 import assert from "node:assert/strict";
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const scripts = packageJson.scripts;
@@ -28,13 +28,14 @@ for (const narrow of ["test:contracts", "test:files", "test:tasks"]) {
   );
 }
 
-// npm run check fails fast: typecheck, then unit tests, then the regression runner, then ESLint.
+// npm run check fails fast: typecheck, unit tests, and the syntax/lint owner all
+// run before the stateful regression suite.
 const check = String(scripts.check || "");
 const checkStages = [
   "npm run typecheck",
   "npm run test:unit",
-  "node scripts/run-regressions.mjs",
   "eslint",
+  "node scripts/run-regressions.mjs",
 ];
 let previousIndex = -1;
 for (const stage of checkStages) {
@@ -47,14 +48,34 @@ for (const stage of checkStages) {
   previousIndex = index;
 }
 assert.ok(
-  check.indexOf("npm run typecheck") < check.indexOf("node scripts/run-regressions.mjs"),
-  "typecheck must run before the regression runner",
+  check.indexOf("eslint") < check.indexOf("node scripts/run-regressions.mjs"),
+  "ESLint must own syntax and lint failure before the stateful regression runner",
 );
 assert.ok(
   check.indexOf("npm run test:unit") < check.indexOf("node scripts/run-regressions.mjs"),
   "unit tests must run before the regression runner",
 );
 assert.match(check, /&&/, "check stages must be chained so a fast failure stops the slow suite");
+
+const eslintConfig = readFileSync("eslint.config.js", "utf8");
+for (const sourcePattern of [
+  "src/**/*.js",
+  "server.js",
+  "scripts/**/*.mjs",
+  "tests/**/*.mjs",
+  "vitest.config.mjs",
+  "playwright.config.js",
+  "eslint.config.js",
+  "public/**/*.js",
+]) {
+  assert.match(eslintConfig, new RegExp(escapeRegExp(sourcePattern)), `ESLint must cover the retired syntax gate's ${sourcePattern} input`);
+}
+assert.equal(existsSync("scripts/check-js.mjs"), false, "the duplicate per-file Node syntax subprocess gate should remain retired");
+const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
+assert.ok(
+  !legacySnapshot.scripts.some(({ path }) => path === "scripts/check-js.mjs"),
+  "the retired syntax gate must not remain registered in the legacy snapshot",
+);
 
 // Dependency placement: dev tooling stays dev-only; Zod is runtime because schemas validate untrusted input.
 assert.ok(packageJson.devDependencies.typescript, "typescript must be a devDependency");
@@ -97,3 +118,7 @@ for (const testFile of INITIAL_UNIT_TEST_FILES) {
 }
 
 console.log("fast-check pipeline regression passed.");
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

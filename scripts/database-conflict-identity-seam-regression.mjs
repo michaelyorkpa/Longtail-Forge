@@ -21,7 +21,7 @@ const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
-const dbIndexSource = readText("src/db/index.js");
+const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const jobQueueSource = readText("src/core/jobs/job-queue.js");
 const jobRunnerSource = readText("src/core/jobs/job-runner.js");
 const jobsServiceSource = readText("src/services/jobs.service.js");
@@ -63,7 +63,7 @@ function assertStaticContract() {
   assert.match(sqliteDialectSource, /buildInsertOrIgnore/, "SQLite dialect seams should expose a full insert-or-ignore builder");
   assert.match(sqliteDialectSource, /buildInsertOnConflictDoNothing/, "SQLite dialect seams should expose a do-nothing conflict builder");
   assert.match(sqliteDialectSource, /buildInsertOnConflictDoUpdate/, "SQLite dialect seams should expose an upsert conflict builder");
-  assert.match(dbIndexSource, /databaseDialect\.conflict\.buildInsertOrIgnore/, "startup maintenance should include the low-risk conflict proof path");
+  assert.match(appStartupMaintenanceSource, /databaseDialect\.conflict\.buildInsertOrIgnore/, "startup maintenance should include the low-risk conflict proof path");
 
   assert.doesNotMatch(jobQueueSource, /\bRETURNING\b/, "job queue should not carry raw RETURNING SQL at the call site");
   assert.doesNotMatch(jobRunnerSource, /\bRETURNING\b/, "job runner should not carry raw RETURNING SQL at the call site");

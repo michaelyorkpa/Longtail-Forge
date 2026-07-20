@@ -5,6 +5,7 @@ import path from "node:path";
 const root = process.cwd();
 const appShellService = readText("src/services/app-shell.service.js");
 const footer = readText("public/js/footer.js");
+const dashboardEntry = readText("public/js/dashboard.entry.js");
 const navigation = readText("public/js/navigation.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const icons = readText("public/js/shared/icons.js");
@@ -108,6 +109,13 @@ check("all shell-backed protected hosts load the shared app shell includes that 
   assert.ok(protectedViews.length > 0, "protected views should be present");
   protectedViews.forEach((fileName) => {
     const source = readText(path.join("views", "protected", fileName));
+
+    if (fileName === "dashboard.html") {
+      assert.match(source, /type="module" src="js\/dashboard\.entry\.js"/, "Dashboard should load its authenticated module entry");
+      assert.match(dashboardEntry, /"\/js\/navigation\.js"[\s\S]*"\/js\/footer\.js"/, "Dashboard entry should import the authenticated navigation and shared footer shells");
+      return;
+    }
+
     assert.match(source, /js\/navigation\.js/, `${fileName} should load the authenticated navigation shell`);
     assert.match(source, /js\/footer\.js/, `${fileName} should load the shared footer shell`);
   });

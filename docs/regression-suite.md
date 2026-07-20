@@ -1,12 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through the 0.33.6.16.14 pre-TypeScript maintenance closeout. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes narrow area commands plus conservative changed-file suggestions while preserving every 0.33.6.16.1 legacy script and its execution/isolation mode through a checked-in migration snapshot.
+This document records the current regression-suite contract through 0.33.18.8. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes narrow area commands plus conservative changed-file suggestions while preserving the checked-in legacy migration snapshot and every documented retirement.
 
-## Planned Streamlining Reviews
+## Streamlining Review Policy And Budget
 
-The suite has not been broadly consolidated by the current roadmap rewrite. Planned checkpoints at 0.33.18, Support Tickets closeout, Knowledge Base closeout, Creator Studio closeout, 0.39.9, the pre-PostgreSQL/API decoupling checkpoint, and the PostgreSQL dual-backend matrix will consume the existing `LTF_REGRESSION_TIMING_JSON` output, report the slowest tests, and establish/review suite-time budgets.
+The first formal review at 0.33.18.7 measured 380/380 pre-change regressions in 193.28 seconds with no flaky recoveries, then 379/379 post-change regressions in 279.78 seconds with one visible migration-lock recovery on the documented Windows reference workstation. The current local reference budget is 300 seconds for the full regression runner on comparable hardware and workload. This is a review threshold, not a cross-machine hard failure: two comparable runs above budget, a material slow-tail change, or more than 20% growth in the rolling three-run median triggers another ownership/setup review. The measurement, bucket totals, slow tail, retirement evidence, and consolidation queue live in [regression-suite-performance.md](regression-suite-performance.md).
 
-At each checkpoint, review duplicate coverage, implementation-detail assertions, obsolete historical checks, and overly broad setup. Prefer fixture, isolation, selection, and setup improvements before removing coverage. Pure functions, schema validation, and stable contracts may move toward Vitest, but permissions, workspace isolation, database/migration behavior, file safety, and integration behavior remain strongly covered, while critical rendered journeys and accessibility remain in Playwright. A slow test is not obsolete. Retirement requires demonstrated replacement coverage and evidence recorded through the current manifest/ratchet process, and the full release gate remains until equivalence is proven.
+At Support Tickets closeout, Knowledge Base closeout, Creator Studio closeout, 0.39.9, the pre-PostgreSQL/API decoupling checkpoint, and the PostgreSQL dual-backend matrix, consume `LTF_REGRESSION_TIMING_JSON` again and review the budget. Review duplicate coverage, implementation-detail assertions, obsolete historical checks, and overly broad setup. Prefer fixture, isolation, selection, bounded assertions, and setup improvements before removing coverage. Pure functions, schema validation, and stable contracts may move toward Vitest, but permissions, workspace isolation, database/migration behavior, file safety, and integration behavior remain strongly covered, while critical rendered journeys and accessibility remain in Playwright. A slow test is not obsolete. Retirement requires demonstrated replacement coverage and evidence recorded through the current manifest/ratchet process, and the full release gate remains until equivalence is proven.
 
 ## Current Entry Points
 
@@ -24,14 +24,14 @@ At each checkpoint, review duplicate coverage, implementation-detail assertions,
 | `scripts/lib/slice-verification-plan.mjs` | De-duplicates closeout, the existing changed-regression plan, full-check escalation, and the separate permission harness into one immutable local closeout plan. |
 | `scripts/run-slice-verification.mjs` | Collects changed paths and builds changed-area routing once, then runs the canonical ordinary local slice verification and prints the exact executed-command summary. |
 | `scripts/lib/closeout-gates.mjs` | Defines hard versus warning-only maintenance gates, runs every gate, and formats the consolidated closeout status board. |
-| `scripts/run-closeout.mjs` | Runs the six standing maintenance gates through their existing package scripts and exits nonzero only when a hard gate fails. |
+| `scripts/run-closeout.mjs` | Runs the seven standing maintenance gates through their existing package scripts and exits nonzero only when a hard gate fails. |
 | `scripts/test-support/isolated-regression-retry.mjs` | Applies the isolated-database bucket's one-retry policy while preserving fail-fast scheduling and logical script counts. |
 | `scripts/test-support/regression-bucket-orchestrator.mjs` | Executes selected buckets sequentially in their discovered order and returns immediately after the first bucket failure. |
 | `scripts/test-support/disposable-database.mjs` | Gives direct database-backed regressions a temp-directory database target before runtime/database imports. |
 | `scripts/test-support/canonical-workspace-inventory.mjs` | Fingerprints the canonical workspace and membership inventory before and after the full runner. |
 | `scripts/lib/docs-change-routing.mjs` | Validates the data-only documentation ownership index and maps changed source paths to likely owning documents. |
 | `scripts/suggest-docs-for-changes.mjs` | Prints changed-area documentation suggestions and the warning-only closeout disposition gate. |
-| `scripts/regression-legacy-snapshot.json` | Freezes the 312-script 0.33.6.16.1 legacy path and run-mode set so discovery cannot silently drop or parallelize an existing regression. |
+| `scripts/regression-legacy-snapshot.json` | Recorded the 312-script 0.33.6.16.1 legacy path/run-mode set and now contains 311 active legacy entries after the documented `check-js.mjs` assertion-moved retirement. |
 | `scripts/regression-coverage-ratchet.mjs` | Validates discovered metadata against the generated index and explicit policy, including active/area/release-gate/family floors plus retirement evidence. |
 | `scripts/lib/regression-manifest.mjs` | Builds the deterministic metadata index and owns coverage-policy validation shared by the generator and ratchet regressions. |
 | `scripts/generate-regression-manifest.mjs` | Writes or checks the generated coverage index from the discovered registry and exceptions policy. |
@@ -40,13 +40,13 @@ At each checkpoint, review duplicate coverage, implementation-detail assertions,
 | `scripts/regression-coverage-exceptions.json` | Human-maintained policy for active and per-area floors, protected areas, required release-gate IDs, coverage families, legacy migration allowance, and explicit retirement evidence. |
 | `package.json` | Exposes the broad and focused command entry points described below. |
 
-As of 0.33.18.2, the discovered registry contains 377 scripts and protects 37 release-gate entries. `release.dependency-baseline` owns the reviewed ESLint 10.7 and Markdown-it 14.3 package/lockfile contract, Node 24 compatibility, unchanged lint commands, corrected backslash-space hard-break parser behavior, and removal of obsolete transitive `js-yaml`. `framework.express-5-http-contract` owns the Express 5.2.1 dependency/engine baseline, invalid bare-wildcard inventory, explicit prior query shape, root/nested static fallback, JavaScript MIME behavior, and exactly-once wrapped/native async error propagation.
+As of 0.33.18.8, the discovered registry contains 380 scripts and protects 41 release-gate entries. Cached ESLint is the sole whole-repository JavaScript/module syntax-and-lint owner and runs before the stateful regression suite; `scripts/check-js.mjs` is retired through explicit assertion-movement evidence after a 793-file inventory comparison proved identical inputs. The checklist display regression keeps its contracts but uses bounded function/CSS-block assertions instead of greedy whole-file regular expressions. Twenty obsolete current-package-document assertions now use stable owning-document/behavior checks. The `release.maintainability-closeout` gate keeps the branch's architecture evidence and the existing dependency, startup, module-inventory, Dashboard-loading, coverage, and roadmap closeout owners mandatory. The frozen module inventory canonicalizes repository-owned `file:` URLs to repository-relative markers before hashing, so clean Windows and Linux checkouts prove the same declarations without weakening any manifest or contribution comparison.
 
 Current package commands:
 
 | Command | Current behavior |
 | --- | --- |
-| `npm run check` | Runs the fast checks first (`npm run typecheck`, then `npm run test:unit`), then `scripts/run-regressions.mjs`, then cached ESLint. A typecheck or unit-test failure stops the gate before the slow regression suite starts. |
+| `npm run check` | Runs deterministic fast checks first (`npm run typecheck`, `npm run test:unit`, then cached ESLint), followed by `scripts/run-regressions.mjs`. Any type, unit, syntax, or lint failure stops before the stateful suite starts. |
 | `npm run typecheck` | Runs `tsc --noEmit` against the narrow `tsconfig.json` scope; `checkJs` stays off so JavaScript files opt in per file with `// @ts-check`. |
 | `npm run test:unit` | Runs the Vitest suite (`tests/**/*.test.mjs`) once. |
 | `npm run test:watch` | Runs Vitest in watch mode for local iteration. |
@@ -63,6 +63,8 @@ Current package commands:
 | `npm run audit:params:update-baseline` | Deterministically updates the reviewed finding baseline; reserved for dedicated parameter-binding cleanup. |
 | `npm run docs:suggest` | Lists mapped source areas and likely documentation owners for current tracked and untracked changes. |
 | `npm run docs:check` | Runs the same documentation review as a warning-only closeout gate and accepts an optional explicit `--note`. |
+| `npm run modules:registry:generate` | Deterministically regenerates the tracked first-party ESM catalog from repository-owned `src/modules/*/module.js` entries. |
+| `npm run modules:registry:check` | Fails on a missing, extra, reordered, or stale bundled-module catalog and runs as a hard closeout gate. |
 | `npm run closeout` | Runs all standing maintenance gates and prints one hard/warning-only status board; it does not invoke or replace `npm run check`. |
 | `npm run licensing:gates` | Reports missing future public-release and outside-contribution artifacts without failing ordinary private development. |
 | `npm run db:migration:create -- <name>` | Creates the next globally numbered core migration with a forward-only template after validating core/module migration numbers. |
@@ -75,22 +77,22 @@ Current package commands:
 
 ## Current Execution Model
 
-At completion of 0.33.6.16.13, the suite contains 321 discovered scripts: all 312 paths in `scripts/regression-legacy-snapshot.json` plus convention-path guardrails for discovery, manifest generation, regression routing, changed-area auto-run, the closeout conductor, canonical asset cache versioning, documentation ownership routing, migration/schema workflow, and licensing/public-release process gates. Existing regressions remain in their original buckets.
+The current suite contains 380 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 69 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful bucket and all high-risk contract coverage remain registered.
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |
-| `static/source regressions` | 160 | parallel | 6 | Read-only/parallel-safe checks only; these do not receive a runner database fixture, and database access from a regression entry point is refused unless the script selected an OS-temp database before importing runtime/database modules. |
+| `static/source regressions` | 191 | parallel | 6 | Read-only/parallel-safe checks only; these do not receive a runner database fixture, and database access from a regression entry point is refused unless the script selected an OS-temp database before importing runtime/database modules. |
 | `default database regressions` | 6 | serial | 1 | Search/database checks whose current ordering and shared-state assumptions remain serial. |
 | `file storage regressions` | 29 | serial | 1 | File storage/scanner checks remain serial until their database, filesystem, port, and process isolation is explicitly proven. |
-| `isolated database regressions` | 126 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
+| `isolated database regressions` | 154 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.
 
 ### Fast-fail bucket order
 
-The default full run uses the table order above: 160 cheap static/source checks run first, followed by 6 serial default-database checks, 29 serial file-storage checks, and 126 isolated-database checks with adaptive safe parallelism. The runner executes buckets sequentially and stops after the first failing bucket, so a deterministic static/source failure does not pay for database fixture, filesystem, port, process, or isolated-database work.
+The default full run uses the table order above: 191 cheap static/source checks run first, followed by 6 serial default-database checks, 29 serial file-storage checks, and 154 isolated-database checks with adaptive safe parallelism. The runner executes buckets sequentially and stops after the first failing bucket, so a deterministic static/source failure does not pay for database fixture, filesystem, port, process, or isolated-database work.
 
-This is an explicit ordering guarantee, not a coverage or safety change. The flattened bucket paths must remain exactly equal to the 321 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Future 0.33.7 typecheck/Vitest work may run ahead of this sequence without replacing it.
+This is an explicit ordering guarantee, not a coverage or safety change. The flattened bucket paths must remain exactly equal to the 380 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
 
 ### Canonical database isolation
 
@@ -102,7 +104,7 @@ The suite continues to give every non-static bucket a per-script fixture through
 
 ### Closeout maintenance conductor
 
-`npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `db:schema:check`, `audit:params:check`, `docs:check`, and `licensing:gates` in that order. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
+`npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `modules:registry:check`, `db:schema:check`, `audit:params:check`, `docs:check`, and `licensing:gates` in that order. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
 
 The closeout conductor remains a bookkeeping command and does not itself run the discovered regression suite or ESLint. `npm run verify:slice` is the ordinary local final conductor around it: it runs closeout exactly once, stops before regressions on a hard closeout failure, executes the existing changed-regression plan exactly once, and adds `npm run test:permissions` exactly once when routing selected permissions. The underlying commands remain independently runnable. The auto-discovered closeout regression still injects pass, hard-failure, and warning-only outcomes without deliberately breaking repository state.
 
@@ -164,7 +166,7 @@ Transitional discovery must continue to include existing top-level files matchin
 scripts/*-regression.mjs
 ```
 
-All 312 pre-migration legacy paths are discovered from `scripts/regression-legacy-snapshot.json`, including historical nonstandard names such as `check-js.mjs`. Their exact run modes and relative order are preserved. A new top-level legacy-style `scripts/*-regression.mjs` file is discovered only when it exports valid metadata; metadata-free top-level files outside the snapshot remain ignored so retained source modules for documented retirements are not accidentally re-registered.
+The active 311 pre-migration legacy paths are discovered from `scripts/regression-legacy-snapshot.json`; their exact run modes and relative order are preserved. The original 312-path baseline is reconciled by the credited `check-js.mjs` retirement record in the exceptions policy. A new top-level legacy-style `scripts/*-regression.mjs` file is discovered only when it exports valid metadata; metadata-free top-level files outside the snapshot remain ignored so retained source modules for documented retirements are not accidentally re-registered.
 
 Legacy files do not need to move merely to adopt metadata. File migration, if later justified, must preserve script IDs, execution semantics, and coverage ownership. A snapshot-backed script that adds metadata cannot change its `runMode` without failing discovery.
 
@@ -270,7 +272,7 @@ The default remains unchanged:
 npm run check
 ```
 
-That command runs the full discovered suite and then ESLint. Direct runner options are available for focused iteration and inspection:
+That command runs typecheck, Vitest, and cached ESLint before the full discovered suite. Direct runner options are available for focused iteration and inspection:
 
 ```sh
 node scripts/run-regressions.mjs --area tasks

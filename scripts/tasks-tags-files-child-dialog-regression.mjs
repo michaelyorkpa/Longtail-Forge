@@ -61,7 +61,7 @@ assert.match(tasksView, /js\/task-dialog\.js/, "Tasks page should reference the 
 assert.match(workbenchView, /css\/longtail-forge\.css/, "Workbench should reference the child-dialog stylesheet cleanup");
 assert.match(workbenchView, /js\/task-dialog\.js/, "Workbench should reference the Task child-dialog browser wiring");
 
-assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Task child-dialog version");
+assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Save the task before adding files\./, "Tasks docs should preserve the Files save-first state");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
@@ -78,8 +78,4 @@ function functionBlock(source, functionName) {
   assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -55,8 +55,8 @@ function assertStaticContract() {
 
   assert.match(
     notesDocs,
-    new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`),
-    "Notes docs should report the current implementation version",
+    /^# Notes Module Developer Guide$/m,
+    "Notes docs should retain the owning developer-guide heading",
   );
   assert.match(
     notesDocs,
@@ -636,8 +636,4 @@ async function assertIntegrity() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

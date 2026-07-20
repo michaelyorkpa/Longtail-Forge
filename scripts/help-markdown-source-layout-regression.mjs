@@ -69,51 +69,51 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
   },
   "notes.basics": {
     path: "modules/notes/using-notes.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.library": {
     path: "modules/notes/notes-library.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.collections": {
     path: "modules/notes/notes-collections.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.active-work": {
     path: "modules/notes/active-work.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.ongoing-areas": {
     path: "modules/notes/ongoing-areas.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.reference-library": {
     path: "modules/notes/reference-library.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.archive": {
     path: "modules/notes/archive.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.markdown": {
     path: "modules/notes/markdown.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.linking": {
     path: "modules/notes/note-linking.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.revisions": {
     path: "modules/notes/note-revisions.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.secure-notes": {
     path: "modules/notes/secure-notes.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.attachments-search": {
     path: "modules/notes/notes-files-and-search.md",
-    sourceFile: "src/modules/notes/module.js",
+    sourceFile: "src/modules/notes/module.help.js",
   },
   "lists.basics": {
     path: "modules/lists/using-lists.md",

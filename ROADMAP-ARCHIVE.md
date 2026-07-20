@@ -1,5 +1,112 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.18.8 - Maintainability closeout
+
+Completed 0.33.18.8 locally on 2026-07-20. The complete dependency-baseline and post-preview maintainability branch is closed; the live roadmap advances to 0.33.19. Publication remains deferred until the complete stacked 0.33.18 work is committed and pushed, as requested.
+
+**Model: High Effort** — Closeout must prove source reorganization did not change runtime contracts.
+
+- [x] Added one durable architecture evidence table for every generalized facility introduced or materially settled by 0.33.18. All eight bundled modules consume the canonical entry/catalog contract; Tasks and Notes consume concern composition; Tasks and Time Tracking consume Dashboard contribution asset loading; the Dashboard bridge remains page-local transition machinery; and database startup plus release tooling are explicit framework-wide exceptions.
+- [x] Reconciled module-development, frontend/layout, startup/database, regression-suite, and governing-decision documentation with the settled structures. Corrected the 0.33.18.7 test guide to record all 20 obsolete current-package-document assertion removals.
+- [x] Kept the normalized pre-reorganization module inventory frozen at repository-relative SHA-256 `df4f8e6f95dc595e7c0106adb3dcf79f90c38407f419875306184e780d5df3fc` and retained the existing before/after activation assertions, exact startup action/fresh/repeat/worker proof, and Dashboard loading/accessibility/CSP proof. Repository-owned `file:` URLs are normalized before hashing so Windows and Linux prove the same inventory.
+- [x] Added the required `release.maintainability-closeout` static release gate to pin the evidence table, Two-Module qualifications/exceptions, branch archive handoff, and retained manifest/startup/loading proof owners.
+- [x] Advanced the coverage contract to 380 active regressions (191 static, 6 default-database, 29 Files, 154 isolated-database), 41 release gates, 311 active legacy paths plus one credited retirement, and 69 convention-path regressions without reducing any coverage floor.
+- [x] Updated the changelog, version metadata, roadmap/archive handoff, and owning documentation without changing product workflow, routes, permissions, database schema, HTTP payloads, browser behavior, or runtime configuration.
+
+Acceptance criteria:
+
+- Documentation matches the settled structures, the Two-Module Rule is evidenced, the frozen manifest and critical startup/loading behavior remain protected, and no runtime behavior changed accidentally.
+
+## Version 0.33.18.7 - First formal test-suite streamlining review
+
+Completed 0.33.18.7 locally on 2026-07-20. The live roadmap advances to 0.33.18.8; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Coverage retirement and suite budgeting require evidence across unit, integration, permission, database, and browser layers.
+
+- [x] Captured two machine-readable full-suite samples on the Windows reference workstation: a 380-script pre-change run at 193.28 seconds with no recoveries and a 379-script post-change run at 279.78 seconds with one visible migration-lock recovery. Established a 300-second comparable-workstation review budget, using two breaches or more than 20% rolling-median growth as review triggers rather than hard cross-machine failures.
+- [x] Reported bucket aggregates and the slow tail. Kept backup/restore, separate-worker, version/runtime, SQLite performance/locking, high-volume API, cross-module notification, permission, workspace-isolation, Files safety, migration, and Playwright coverage because their integration risk is not replaced by pure unit tests.
+- [x] Proved the legacy `check-js.mjs` subprocess fan-out and ESLint covered the exact same 793 JavaScript/module files. Moved cached ESLint ahead of stateful regressions, retired only `check-js.mjs`, and recorded complete `assertions-moved` evidence with `release.fast-check-pipeline` as the retained owner.
+- [x] Replaced greedy whole-file checklist display regex chains with bounded owning-function and CSS-rule assertions while retaining every behavior contract. Three focused pre-change runs took 8.68-8.93 seconds; the focused bounded run took 0.17 seconds and the post-change parallel run took 0.11 seconds.
+- [x] Removed 20 obsolete current-package-version pins: five in retired historical closeout modules and 15 in active Notes, Tasks, and Lists regressions. They now assert stable owning-document/behavior contracts instead of forcing unrelated developer docs to churn on every release.
+- [x] Recorded the next consolidation queue: move only pure runtime-configuration validation toward Vitest while retaining runtime/process/database proof; audit serial Files entries for proven disposable isolation before any run-mode change; preserve broader integration owners until replacement equivalence exists.
+- [x] Updated the generated manifest and ratchet policy to 379 active scripts (190 static, 6 default-database, 29 Files, 154 isolated-database), 40 release gates, 311 active legacy paths plus one credited legacy retirement, without lowering any high-risk area or release-gate coverage.
+- [x] Updated the regression-suite contract, performance record, governing decision, check ordering, changelog, version, and roadmap/archive handoff. The full release gate remains mandatory.
+
+Acceptance criteria:
+
+- The suite has a measured 300-second reference budget and evidence-backed consolidation plan; the only retirement is traceable to equivalent ESLint coverage, and no high-risk contract is weakened.
+
+## Version 0.33.18.6 - First native browser ES-module conversion wave
+
+Completed 0.33.18.6 locally on 2026-07-20. The live roadmap advances to 0.33.18.7; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Dashboard/Workbench loading, accessibility, and module-host boundaries are highly coupled and user-visible.
+
+- [x] Measured the two candidates before conversion. Dashboard had a 758-line page adapter and 19 body-level classic dependencies; Workbench had a 3,673-line adapter, 20 body dependencies, additional cross-module dialog loaders, and a scheduled 0.33.19 performance/loading branch. Selected Dashboard as the bounded first wave and left Workbench's measured graph unchanged.
+- [x] Replaced Dashboard's ordered body-level implementation scripts with one native `dashboard.entry.js` module entry. Its temporary `LongtailForge.esModuleBridge` accepts only same-origin `/js/` and `/css/` paths, reapplies the canonical application asset version, deduplicates scripts/styles, and imports the preserved compatibility graph explicitly and sequentially.
+- [x] Extended `/api/dashboard` with permission-, capability-, module-status-, and view-filtered `browserAssets`. The generic Dashboard adapter loads those contributions before rendering and no longer registers or names Tasks/Time Tracking renderer implementations.
+- [x] Moved the Tasks attention, calendar, upcoming, and pressure renderers into Tasks-owned `tasks-dashboard.js`; retained shared calendar delegation, canonical Task editor focus return, stable renderer IDs, server-shaped rows, capped pressure, and Workbench/Tasks handoffs. Time Tracking retains its module-owned renderer asset.
+- [x] Split framework Dashboard anatomy into `dashboard.css`, Tasks panel/calendar styling into `tasks-dashboard.css`, and Time Tracking panel styling into `time-tracking-dashboard.css`. Module styles load through the same manifest/catalog path while existing responsive breakpoints and shared surface tokens remain intact.
+- [x] Added the `views.dashboard-es-module-entry` release regression for single-entry loading, same-origin/versioned imports, resolvable paths, catalog ownership, CSS ownership, CSP-safe source, accessibility, keyboard controls, and focus return. Updated Dashboard/Workbench and Dashboard calendar regressions, the regression manifest/floor (380 scripts, 40 release gates), ESLint's browser-module parsing boundary, and the bundled module inventory hash for the intentional new assets.
+- [x] Updated architecture, module-development/contract, UI layout, Tasks, Time Tracking, runtime-configuration, regression-suite, ownership, changelog, version, and roadmap/archive contracts without adopting a frontend framework, rewriting the renderer, changing routes/permissions/data shape, or converting Workbench prematurely.
+
+Acceptance criteria:
+
+- Dashboard loads through one explicit native ES-module entry and contribution-loaded module assets, adds no new global-order dependency, preserves application asset versioning/CSP/local-origin boundaries, and retains behavior, accessibility, keyboard, focus, and responsive contracts.
+
+## Version 0.33.18.5 - Digestible module-manifest composition pilot
+
+Completed 0.33.18.5 locally on 2026-07-20. The live roadmap advances to 0.33.18.6; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — High-volume source movement can silently alter contribution IDs, ordering, permissions, or startup validation.
+
+- [x] Kept one canonical `moduleEntry` and one composed module definition in each pilot module's `module.js`; the generated catalog still discovers only those entries and the complete graph uses the unchanged startup validator.
+- [x] Piloted concern-based composition on Tasks and Notes, the two largest first-party manifests. Tasks now separates substantial permissions, events/notifications, integrations, and settings declarations; Notes separates substantial permissions, events/notifications, integrations, and Help declarations.
+- [x] Reduced the Tasks composition point from roughly 1,172 lines to about 340 and Notes from roughly 951 lines to about 340 without creating concern boilerplate for the six smaller first-party modules. Views remain at each composition point where that keeps the current review and source-test ownership clearer.
+- [x] Preserved the exact frozen eight-module inventory hash, contribution array order, IDs, permissions, routes, dependencies, activation hooks, and runtime behavior. Concern imports are declaration-only and no concern exports another registry entry.
+- [x] Extended the `framework.bundled-module-registry` release regression to enforce the two digestible composition points, substantial concern files, sole entry export, exact normalized inventory, and unchanged activation behavior; source-level Help, notification, reminder, and Files tests now read their actual owner files.
+- [x] Documented optional review thresholds, concern naming, preservation requirements, the two proven consumers, and a complete Support Tickets example for future Support Tickets, Knowledge Base, and Creator Studio work.
+
+Acceptance criteria:
+
+- Tasks and Notes are materially easier to review, their composed manifests validate and behave identically, the pattern is documented without mandatory boilerplate, and the canonical local release gates pass.
+
+## Version 0.33.18.4 - First-Party Module Registry De-Hardcoding and Runtime Activation
+
+Completed 0.33.18.4 locally on 2026-07-20. The live roadmap advances to 0.33.18.5; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Module loading sits ahead of migrations, routes, permissions, registries, jobs, and workers. A partial conversion could make the catalog appear dynamic while leaving module-specific startup coupling or import-time side effects behind.
+
+- [x] Split the synchronous registry engine from a deterministic tracked ESM catalog generated only from repository-owned `src/modules/*/module.js` entries. `registry.js` imports no named first-party workflow module, while `modules:registry:generate` and the standing `modules:registry:check` closeout gate reject missing, extra, reordered, or stale output.
+- [x] Added one canonical `moduleEntry` export containing the manifest and optional synchronous app/worker activation hooks. Runtime validation checks catalog/source agreement, directory/manifest identity, entry shape, manifest uniqueness, unresolved dependencies, and cycles before database mutation or activation, then orders activation by dependencies with module ID as the stable tie-breaker.
+- [x] Removed import-time registry mutation from every bundled entry. Clients/Projects, Lists, Notes, Tasks, and Time Tracking register their search behavior explicitly; Tasks also owns its reminder settings, job handlers, and reminder/recurrence startup tasks; Time Tracking owns its report runner and setting effects.
+- [x] Replaced framework Tasks-specific app/worker imports and calls with generic module activation/startup execution while preserving inline and separate-worker handler/sweep behavior, sources, logging, and error handling.
+- [x] Preserved the exact eight-module manifest inventory, route signatures, migration sources, permissions, API scopes, views, browser assets, settings, hooks, and contribution identities under a frozen pre-conversion inventory hash.
+- [x] Added the `framework.bundled-module-registry` release regression for discovery, stale/missing/extra/reordered catalogs, canonical shape and identity failures, duplicate/unresolved/cyclic graphs, declaration-only imports, explicit activation, startup decoupling, and inventory identity.
+- [x] Updated the module development/contract, architecture, startup/runtime-configuration, packaging/runtime-artifact, Tasks, Time Tracking, changelog, version, and roadmap contracts. Arbitrary runtime plugins, database executable paths, third-party lifecycle/signing/marketplace work, and broad asynchronous registry APIs remain out of scope.
+
+Acceptance criteria:
+
+- Adding a valid repository-owned first-party fixture requires only regeneration, module imports cannot mutate executable registries before the complete graph validates, app/worker startup contains no converted first-party activation call, invalid/stale catalogs fail before migrations, the before/after inventory is exact, and the canonical local release gates pass.
+
+## Version 0.33.18.3 - Startup maintenance classification and split
+
+Completed 0.33.18.3 locally on 2026-07-20. The live roadmap advances to 0.33.18.4; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Startup ordering, repair idempotency, transactions, and provider neutrality carry data-integrity risk.
+
+- [x] Inventoried and classified database provider initialization, locked migration internals, consolidated-baseline bootstrap/adoption, conditional schema repairs, checksum/readiness validation, application bootstrap, settings/module/permission synchronization, legacy data repairs, worker schema verification, post-readiness background work, and explicit operator/CLI maintenance.
+- [x] Added stable lifecycle-owned action declarations and fail-fast coordination. `src/db/index.js` composes the sequence; `src/db/migrations.js` keeps migration ownership; `src/db/app-startup-maintenance.js` owns bootstrap, recurring checks, and tracked data repairs; `src/db/startup-readiness.js` owns worker-only verification; and `src/db/startup-coordinator.js` owns validation, order, timing, and failure reporting.
+- [x] Added migration 080's `startup_maintenance_runs` ledger. Eight idempotent compatibility repairs write completion only after success, retry safely after failure, and skip on later boots; the historical timestamp normalization therefore no longer performs a full-table scan at every startup.
+- [x] Preserved the prior database/app dependency order, existing transactions, fresh-install workspace/settings/super-admin behavior, module synchronization, migration locking/order, error propagation, SQLite semantics, and provider seams. Separated legacy `local_user` time-entry reassignment from credential bootstrap so existing passwords remain untouched.
+- [x] Added structured phase events with stable ID, lifecycle, owner, status, safe failure type, and elapsed milliseconds for app and worker database startup. Classified data-path/Files assertions as readiness, startup sweeps/retention as background work, and cleanup/backup/restore/purge/schema/seed tools as explicit operator maintenance outside bootstrap.
+- [x] Added the required `database.startup-maintenance-lifecycle` regression and retained focused migration-locking, generated-schema, worker-runner, and separate-worker end-to-end proof for order, failure short-circuiting, fresh bootstrap, repeat-startup skipping, worker isolation, and SQLite integrity.
+- [x] Updated the owning architecture, database, runtime-configuration, changelog, version, and roadmap contracts without adding PostgreSQL implementation or changing runtime settings, routes, permissions, module workflows, UI behavior, or Help.
+
+Acceptance criteria:
+
+- Every startup action has explicit lifecycle ownership, slow phases are visible, and tests prove order and failure behavior without changing fresh-install or current SQLite semantics.
+
 ## Version 0.33.18.2 - Express 5 HTTP framework migration
 
 Completed 0.33.18.2 locally on 2026-07-20. The live roadmap advances to 0.33.18.3. The implementation branch is stacked on the completed 0.33.18.1 commit while that prerequisite awaits `nightly` integration; Dependabot PR #5 remains open only until this reviewed branch replaces it through the normal pull-request path.

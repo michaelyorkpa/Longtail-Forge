@@ -45,6 +45,8 @@ const {
   runJobWorkerOnce,
   stopJobWorker,
 } = await import("../src/core/jobs/index.js");
+const { registerFrameworkHelpSearchIndexers } = await import("../src/core/help/search-indexers.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 
 let server;
 
@@ -76,6 +78,8 @@ try {
   assert.match(moduleDocs, /Search indexing side effects are queued as durable jobs/, "module docs should document queued search indexing");
 
   await initializeDatabase();
+  registerFrameworkHelpSearchIndexers();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   const fixtures = await seedFixtures();
 

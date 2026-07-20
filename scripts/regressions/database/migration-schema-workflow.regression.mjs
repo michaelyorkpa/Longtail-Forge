@@ -33,8 +33,8 @@ try {
   assert.equal(packageJson.scripts["db:schema:check"], "node scripts/schema-snapshot.mjs --check");
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "080_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "081_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();
@@ -70,6 +70,7 @@ try {
   assert.match(liveSchema.sql, /preferred_workspace_switch_landing TEXT NOT NULL DEFAULT 'dashboard'/);
   assert.match(liveSchema.sql, /CREATE TABLE workspace_purge_tombstones/);
   assert.match(liveSchema.sql, /CREATE TABLE authentication_throttle_entries/);
+  assert.match(liveSchema.sql, /CREATE TABLE startup_maintenance_runs/);
 
   for (const requiredPath of [
     "scripts/fresh-database-regression.mjs",

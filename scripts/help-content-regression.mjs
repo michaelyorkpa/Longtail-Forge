@@ -10,6 +10,8 @@ process.env.SUPER_ADMIN_PASSWORD = "Help-Content-Test-Password-123!";
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { searchIndexRebuildService } = await import("../src/services/search-index-rebuild.service.js");
 const { helpService, HELP_SEARCH_SOURCE } = await import("../src/services/help.service.js");
+const { registerFrameworkHelpSearchIndexers } = await import("../src/core/help/search-indexers.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 
 const expectedFrameworkArticles = [
   "framework.help-center",
@@ -46,6 +48,8 @@ let checks = 0;
 
 try {
   await initializeDatabase();
+  registerFrameworkHelpSearchIndexers();
+  activateModuleRuntime("worker");
   const session = await readProtectedSession();
 
   await check("Help Center API returns the baseline framework article set", async () => {

@@ -20,7 +20,41 @@ As of version 0.33.5.20.1, `scripts/seed-scale.mjs` can seed a disposable SQLite
 
 As of version 0.33.11.4, `npm run db:cleanup-workspaces -- --database <sqlite-file>` is the dry-run-first, current-install maintenance command for the operator-approved leaked-workspace cleanup. It resolves `York Family`, `York-Lasher`, and `Raymond Tec` by unique exact name and resolves `Personal [michaelyork@raymondtec.com]` by its actual Personal-workspace membership, so duplicate raw `Personal` rows are never treated as interchangeable. The dry-run reports every removal workspace, orphan workspace scope, affected fixture user, membership, and nonzero workspace-table count without writing.
 
-The current startup path still coordinates migration, first-install/bootstrap, compatibility repair, recurring maintenance, and readiness work across broad database startup files. Roadmap 0.33.18 plans a behavior-preserving classification and ownership split with structured phase timings. It must preserve transaction safety, idempotency, fresh-install adoption, migration order, failures, and provider-neutral seams; this document does not claim that separation has already shipped or move PostgreSQL implementation into the cleanup.
+As of version 0.33.18.3, database startup has explicit lifecycle ownership. `src/db/index.js` is the public facade and composes ordered action declarations; `src/db/startup-coordinator.js` validates stable action IDs, lifecycle classes, owners, fail-fast execution, and structured elapsed-time events; `src/db/migrations.js` retains migration locking, consolidated-baseline adoption, schema repair, checksum validation, and ordered forward migration ownership; `src/db/app-startup-maintenance.js` owns bootstrap, recurring application contracts, and tracked data repairs; and `src/db/startup-readiness.js` owns the separate worker's read-only schema assertion. This is an ownership split, not a PostgreSQL implementation or a change to SQLite's one-app-server boundary.
+
+The coordinator and lifecycle vocabulary are an explicit Two-Module Rule exception because database startup, readiness, migration safety, and repair integrity are intrinsically framework-wide. App bootstrap and separate-worker readiness are the two execution hosts, but module code does not register arbitrary database startup actions through this seam. Module-owned post-readiness work continues through the validated module activation/startup-task contract instead.
+
+The database/app action order is unchanged and is now declared as follows:
+
+| Ordered action | Lifecycle | Owner and behavior |
+| --- | --- | --- |
+| Initialize the configured database runtime | Every-boot coordination | The database provider opens/configures the existing adapter and returns health metadata. |
+| Run schema migrations | One-time migration/versioned repair | The migration runner acquires the existing migration lock before any schema mutation. |
+| Ensure the framework module record | Recurring lightweight check | Application maintenance upserts the one framework catalog row and current app version. |
+| Normalize legacy stored timestamps | One-time migration/versioned repair | Application maintenance performs the historical full-table normalization once, then migration 080's `startup_maintenance_runs` ledger prevents repeat scans. |
+| Ensure install settings defaults | Recurring lightweight check | `app-settings.repo` inserts only missing protected defaults. |
+| Protect the legacy first user | One-time migration/versioned repair | The compatibility repair runs once and is retryable until its completion marker is written. |
+| Ensure the default workspace | First-install bootstrap | Existing installs skip creation; a fresh install creates the workspace and settings in the existing transaction. |
+| Ensure workspace settings | Recurring lightweight check | A missing row is inserted without replacing stored settings. |
+| Synchronize the module registry | Recurring lightweight check | The module service retains module/workspace rows, lifecycle hooks, and permission-contract ownership. |
+| Repair redacted seed identities | One-time migration/versioned repair | The legacy identity repair runs once after the workspace and module prerequisites exist. |
+| Ensure the super administrator | First-install bootstrap | A missing bootstrap identity requires `SUPER_ADMIN_PASSWORD` from the local untracked environment or deployment secret store; the secret is never generated or logged. Existing credentials are never rotated. |
+| Reassign legacy local-user time entries | One-time migration/versioned repair | The old `local_user` compatibility write is separated from credential bootstrap and runs once. |
+| Ensure default-workspace memberships | Recurring lightweight check | Conflict-safe inserts and owner fallback retain the current small-office invariant. |
+| Deduplicate legacy workspace users | One-time migration/versioned repair | The existing transaction-per-identity repair and unique-index creation run once. |
+| Repair user active-workspace state | One-time migration/versioned repair | The historical user/session reconciliation runs once. |
+| Repair the default workspace type | One-time migration/versioned repair | Invalid legacy values are normalized once. |
+| Synchronize workspace permission contracts | Recurring lightweight check | The current role-permission contract remains repaired on boot. |
+| Repair Personal-workspace memberships | One-time migration/versioned repair | The historical non-owner membership deactivation runs once. |
+| Ensure protected-user roles | Recurring lightweight check | Protected users retain their required installation-wide assignment. |
+
+Migration-runner internals retain their own explicit lifecycle within the locked schema action: disposable regression-baseline copying is test bootstrap only; a missing application schema receives the consolidated fresh baseline; compatible pre-baseline databases are adopted once; legacy foreign-key/checksum repairs are conditional versioned repairs; migration-table shape/checksum validation and applied-version reads are readiness checks; and pending core/module SQL files apply once in deterministic version/module order. An error still stops the action list immediately and is rethrown unchanged. Existing per-repair transactions are preserved, and a versioned application repair writes its completion row only after its idempotent work succeeds, so a partial failure retries safely on the next boot.
+
+Migration 080 adds only the `startup_maintenance_runs` completion ledger. Versioned application repair IDs are stable and record lifecycle, completion time, and the app version that completed the repair. The ledger is not a general job table, operator history, or substitute for `schema_migrations`.
+
+The remaining process-level actions are deliberately outside database bootstrap. Runtime data-path, Files provider, and scanner assertions are health/readiness assertions before database startup. Handler registration and HTTP/listener composition are every-boot coordination. Search rebuild, Tasks reminder/recurrence sweep queueing, and deferred job-retention pruning are background work after database readiness. Workspace cleanup, backup/restore, workspace purge queueing, schema snapshot tooling, and development/scale seed commands remain explicit admin/CLI maintenance and never run merely because the app boots. The separate worker initializes only the provider and executes the `jobs` schema-readiness assertion; it does not migrate, bootstrap, synchronize modules, or run application repairs.
+
+Each started, completed, skipped, or failed database/worker action emits a structured phase event with its stable ID, lifecycle, owner, status, and integer `durationMs`; failed events add only the safe error type before the original error propagates. Development output uses the equivalent `[startup-phase]` key/value line. These timings make a slow migration, registry sync, repair, or readiness assertion visible without recording SQL, database paths, usernames, credentials, or other runtime secrets.
 
 Apply is deliberately more explicit:
 

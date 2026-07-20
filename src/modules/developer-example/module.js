@@ -1,5 +1,6 @@
 import { developerExampleRoutes } from "./routes.js";
 import { developerExamplePublicApiRoutes } from "./public-api.routes.js";
+import { createModuleEntry } from "../../core/modules/module-entry.js";
 
 const developerExampleModule = {
   id: "developer-example",
@@ -291,4 +292,6 @@ const developerExampleModule = {
   workspaceCapabilityRequirements: [],
 };
 
-export { developerExampleModule };
+const moduleEntry = createModuleEntry({ manifest: developerExampleModule });
+
+export { developerExampleModule, moduleEntry };

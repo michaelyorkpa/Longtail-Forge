@@ -2,125 +2,9 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.18.3`.
+Active cursor: `0.33.19`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.18 - Dependency Baseline, Post-Preview Maintainability, and Architecture Cleanup
-
-**Model: High Effort** — This branch first changes the lint, Markdown, and HTTP framework dependency baselines, then reorganizes startup, manifests, frontend loading, and test ownership while preserving runtime behavior.
-
-Purpose:
-
-Clear the current Dependabot backlog into a reviewed and verified integration baseline before reducing the most visible maintainability strain after preview readiness. Then settle startup, module, browser, and test patterns that Support Tickets can consume without coupling Tickets to unrelated framework invention.
-
-Sequencing decision:
-
-- Land the dependency baseline before startup or module-loading reorganization so later slices verify against the supported production and development dependency graph.
-- Combine the compatible ESLint 10 and Markdown-it 14.3 updates in one package/lockfile maintenance slice. ESLint 10 removes the transitive `js-yaml` dependency, so the stale `js-yaml` 4.3 PR against `main` is closed as superseded rather than receiving its own slice or bypassing the `nightly` integration path.
-- Keep Express 5 separate. It is a major runtime framework migration with route-matching, request/response, static fallback, error propagation, security, and browser-startup implications; a green dependency review alone is not sufficient evidence.
-
-### Version 0.33.18.3 - Startup maintenance classification and split
-
-**Model: High Effort** — Startup ordering, repair idempotency, transactions, and provider neutrality carry data-integrity risk.
-
-- [ ] Inventory every action currently coordinated through `src/db/index.js`, `src/db/migrations.js`, module synchronization, bootstrap, legacy repair, settings/workspace defaults, and worker readiness.
-- [ ] Classify each action as every-boot coordination, one-time migration/versioned repair, first-install bootstrap, recurring lightweight check, explicit admin/CLI maintenance job, background job, or health/readiness assertion.
-- [ ] Establish understandable startup coordination, migration execution, bootstrap, versioned repair, recurring-check, explicit-maintenance, readiness/schema-verification, and timing/logging ownership based on the real inventory; do not merely split one large file arbitrarily.
-- [ ] Remove repeated full-table startup repair only when migration or explicit maintenance ownership is proven. Preserve transaction safety, idempotency, fresh installs, migration order, failure behavior, SQLite behavior, and provider-neutral seams.
-- [ ] Add structured phase timings and focused order/failure tests. Do not mix PostgreSQL implementation into this cleanup unless a genuine provider-neutral seam requires adjustment.
-
-Acceptance criteria:
-
-- Every startup action has explicit lifecycle ownership, slow phases are visible, and tests prove order and failure behavior without changing fresh-install or current SQLite semantics.
-
-### Version 0.33.18.4 - First-Party Module Registry De-Hardcoding and Runtime Activation
-
-**Model: High Effort** — Module loading sits ahead of migrations, routes, permissions, registries, jobs, and workers. A partial conversion could make the catalog appear dynamic while leaving module-specific startup coupling or import-time side effects behind.
-
-Purpose:
-
-Replace the manually edited first-party import/list in `src/core/modules/registry.js` with a deterministic generated bundled-module catalog, while preserving explicit, auditable loading and the existing synchronous `npm start` runtime. Separate module declaration from module runtime activation so importing a module cannot mutate framework registries before the complete manifest graph has validated.
-
-- [ ] Separate the registry engine from the bundled first-party module catalog. The engine must not import or name individual workflow modules.
-- [ ] Define one canonical, side-effect-free module entry export containing the validated manifest plus optional explicit app/worker activation hooks.
-- [ ] Add a generator that discovers only repository-owned `src/modules/*/module.js` entries and emits a deterministic tracked ESM catalog.
-- [ ] Add `modules:registry:generate` and `modules:registry:check`; the check must fail on a missing, extra, reordered, or stale generated entry.
-- [ ] Validate directory-name/manifest-ID agreement, canonical export shape, duplicate IDs, unresolved dependencies, and deterministic ordering before database mutation or runtime activation.
-- [ ] Move module-owned import-time registrations into explicit activation. Existing Tasks search/job/sweep registration and Time Tracking search/report-runner registration are initial consumers.
-- [ ] Remove module-specific startup imports from framework app and worker bootstrap where the behavior belongs to a module.
-- [ ] Preserve the exact pre-conversion inventory of module IDs, routes, migration sources, permissions, API scopes, views, browser assets, settings, hooks, and contribution IDs.
-- [ ] Update module-development, module-contract, architecture, startup, and packaging documentation.
-
-Non-goals:
-
-- Do not load arbitrary code from an operator-writable runtime directory.
-- Do not build third-party plugin installation, update, removal, signing, compatibility, or marketplace behavior.
-- Do not make the database the source of executable module paths.
-- Do not convert the registry API to broadly asynchronous lookup.
-- Do not add hidden load-order behavior; activation follows validated dependencies with a stable module-ID tie-breaker.
-
-Acceptance criteria:
-
-- Adding a valid first-party fixture module requires no hand edit to `src/core/modules/registry.js` or another framework-owned module list. 
-- `registry.js` contains no import of a specifically named first-party module.
-- Module entry imports perform no registry mutation before validation.
-- Framework app and worker startup contain no first-party module-specific activation calls for converted behavior.
-- A stale generated catalog, directory/ID mismatch, duplicate ID, missing canonical export, or unresolved dependency fails before migrations or other database changes.
-- The before/after module and contribution inventories match exactly, and module sanity, typecheck, startup, migration, clean-clone, packaging, affected, and full release gates pass.
-
-### Version 0.33.18.5 - Digestible module-manifest composition pilot
-
-**Model: High Effort** — High-volume source movement can silently alter contribution IDs, ordering, permissions, or startup validation.
-
-- [ ] Keep one composed module definition exported to the registry and passing the same startup validator.
-- [ ] Pilot concern-based source composition on at least two already-large first-party modules, using repository-conventional equivalents of `module.manifest.js`, `module.permissions.js`, `module.views.js`, `module.dashboard.js`, `module.workbench.js`, `module.events.js`, `module.notifications.js`, `module.api.js`, and `module.settings.js` only where each concern is substantial.
-- [ ] Preserve module/contribution IDs, permissions, routes, runtime behavior, and registration order. Do not create empty boilerplate files for small modules or redesign the plugin loader.
-- [ ] Document review thresholds and a complete example. Support Tickets, Knowledge Base, and Creator Studio use the proven composition pattern from their first implementation.
-
-Acceptance criteria:
-
-- Two large modules are easier to review while their composed manifests validate and behave identically; the pattern is documented without becoming mandatory boilerplate.
-
-### Version 0.33.18.6 - First native browser ES-module conversion wave
-
-**Model: High Effort** — Dashboard/Workbench loading, accessibility, and module-host boundaries are highly coupled and user-visible.
-
-- [ ] Establish one explicit ES-module entry point per converted page and import conventions; select Dashboard, Workbench, or both from measured coupling/risk while they are materially changed.
-- [ ] Preserve a temporary compatibility bridge for existing `LongtailForge`/`window` globals and prohibit new script-order global dependencies.
-- [ ] Keep module-specific browser behavior and styling module-owned; framework hosts must consume contribution contracts instead of hard-coding module renderers.
-- [ ] Split shared CSS source by framework anatomy and module ownership where useful while preserving practical release delivery, cache/versioning, CSP compatibility, accessibility, keyboard, responsive, and rendered behavior.
-- [ ] Add entry-point loading, missing-import, behavior, accessibility, and keyboard regressions. Do not adopt a frontend framework or replace the renderer wholesale during 0.3x.
-
-Acceptance criteria:
-
-- The first strained surface loads through explicit imports with no new global-order dependency and no behavioral or accessibility regression.
-
-### Version 0.33.18.7 - First formal test-suite streamlining review
-
-**Model: High Effort** — Coverage retirement and suite budgeting require evidence across unit, integration, permission, database, and browser layers.
-
-- [ ] Consume the regression runner timing output, report the slowest tests, and establish/review a suite-time budget.
-- [ ] Identify duplicate coverage, obsolete historical checks, implementation-detail assertions, and overly broad setup; prefer fixture, isolation, selection, and setup improvements before deletion.
-- [ ] Move pure functions, schema validation, and stable contract behavior toward Vitest where practical while retaining strong permission, workspace-isolation, database, migration, file-safety, and integration coverage and Playwright critical journeys/accessibility.
-- [ ] Do not retire a regression because it is slow. Identify and demonstrate replacement coverage and record retirement evidence through the existing manifest/ratchet process.
-- [ ] Keep the full release gate until replacement coverage is proven equivalent and update `docs/regression-suite.md` with the resulting policy and budget.
-
-Acceptance criteria:
-
-- The suite has a measured budget and evidence-backed consolidation plan; any retirement is traceable to equivalent coverage and no high-risk contract is weakened.
-
-### Version 0.33.18.8 - Maintainability closeout
-
-**Model: High Effort** — Closeout must prove source reorganization did not change runtime contracts.
-
-- [ ] Update architecture, module-development, frontend, startup/database, and testing documentation to match the implemented boundaries.
-- [ ] Name the two real consumers for every new generalized primitive or document the framework-wide exception.
-- [ ] Run manifest/startup/loading focused tests, `npm run closeout`, affected regression routing, and the full release gates; compare runtime manifests and critical behavior before/after reorganization.
-
-Acceptance criteria:
-
-- Documentation matches the settled structures, the Two-Module Rule is evidenced, and no runtime behavior changed accidentally.
 
 ## Version 0.33.19 - Workbench and API Load Performance
 
@@ -771,6 +655,113 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Both supported proxy topologies have a tested maintenance response for planned Node downtime, the multi-proxy path has a tested outer fallback for upstream failure, host permissions are least-privilege, and live preview/demo evidence proves traffic reopens only to a verified app.
+
+## Version 0.33.26 - Legal and Policy Surfaces, Help Coverage, and Marketing Refresh
+
+**Model: Medium Effort** — This branch is documentation and one small framework Help surface; the risk is accuracy drift (legal statements, third-party license attribution, and Help/marketing claims that do not match shipped behavior), not runtime regression.
+
+Purpose:
+
+Activate the two documentation-side public-release gates already defined in `docs/licensing.md` — the in-app legal/about surface and a reviewed `THIRD_PARTY_NOTICES.md` — add publicly visible Terms and Conditions and Privacy Policy pages linked from the footer, and bring the in-app Help Center to full coverage of the shipped app: what every framework and first-party action is intended to do, task-oriented "What do you want to do?" guidance, and how-features-work explanations (for example, what the Workbench focus modes are and why to use each). Refresh the marketing foundation, whose status labels froze at 0.33.13.5, to reflect everything shipped through 0.33.25.
+
+Public-exposure decision:
+
+- Terms, Privacy, and a short AGPL/source notice are public (session-less): privacy must be reviewable before credential collection at login, terms must be readable before agreement, and AGPL §13's prominent Corresponding Source offer applies to "all users interacting with it remotely" — a pre-auth footer notice makes that automatic for every install, including downstream modified self-hosted copies (and, per GPL §5(d), notices the original displays must be preserved by modifiers).
+- The full legal/licensing article and third-party notices are not required pre-authentication and stay in the authenticated Help surface. Third-party attribution obligations attach to distribution (repo, release artifact, container image) — satisfied by `THIRD_PARTY_NOTICES.md` shipping with the distribution — not to the rendered public UI. The full AGPL text ships as the root `LICENSE`, not as a public page.
+
+Sequencing decision:
+
+- Lands after 0.33.25 so Help and marketing document the app as it exists after the performance (0.33.19), UX (0.33.20), calendar (0.33.21), secure-catalog (0.33.22), support-view (0.33.23), error-surface (0.33.24), and maintenance-mode (0.33.25) branches, instead of documenting behavior those branches immediately change.
+- This branch is the intentional public-release-preparation work that the licensing maintenance rule in `docs/licensing.md` reserves licensing edits for; it activates the "Public app legal/about notice" and "Third-party notices" gates and updates the `npm run licensing:gates` readout accordingly. It does not change the license stack itself.
+- The 0.39.9 User Documentation and Stabilization Checkpoint remains the later consolidation pass over the full 0.3x feature set once Support Tickets (0.34), Knowledge Base (0.35), and Calendars (0.36) exist; this branch establishes the article inventory, action catalog, and coverage conventions that 0.39.9 re-verifies and extends rather than repeating this pass.
+
+Non-goals:
+
+- No license-stack or policy changes: the core stays `AGPL-3.0-only`, documentation prose CC BY 4.0, and the commercial/private boundary unchanged; policy documents in `docs/licensing/` are edited only where the new surfaces require cross-references.
+- No activation of the public-contribution gate: no `CONTRIBUTING.md`, PR template, or CLA workflow in this branch.
+- No public website publishing, screenshot/video production, pricing commitments, or invented claims; marketing documents remain an internal truthful foundation governed by the claims-and-proof register rules.
+- The in-app legal surface states rights and points to authoritative sources; it does not attempt to render legal advice, replace the attorney-review checklist, or embed a source-distribution mechanism beyond a version-accurate repository reference.
+- Help documents shipped behavior only; anything not landed by the time this branch runs is excluded rather than pre-documented.
+
+### Version 0.33.26.1 - Reviewed third-party notices
+
+**Model: Medium Effort** — License identification and attribution must be individually verified; a wrong or missing notice is a compliance defect that ships with every release.
+
+- [ ] Enumerate the shipped third-party surface: the production dependency tree (`better-sqlite3`, `busboy`, `cookie-parser`, `express`, `markdown-it`, `zod`, and their shipped transitive dependencies from the lockfile) and all bundled assets — Lucide icons (`public/icons/LUCIDE-LICENSE.md`), fonts, and any vendored browser code — explicitly excluding dev-only tooling that does not ship.
+- [ ] Generate `THIRD_PARTY_NOTICES.md` at the repo root with, per component: name, version(s), license identifier, copyright holder(s), and required notice/license text, following the intake rules in `docs/licensing/third-party-dependencies.md`; review each entry by hand rather than trusting scanner output alone, and verify every shipped license is compatible with `AGPL-3.0-only` distribution.
+- [ ] Make regeneration repeatable: a script or documented procedure that diffs the lockfile-derived component list against the notices file so dependency changes flag a stale notices file; wire it into `npm run licensing:gates` (or an adjacent check) so the third-party gate reports satisfied and future drift reports loudly.
+- [ ] Update `docs/licensing.md` and `docs/licensing/repo-integration-checklist.md` gate status to reflect the activated third-party-notices gate.
+
+Acceptance criteria:
+
+- `THIRD_PARTY_NOTICES.md` covers every shipped dependency and bundled asset with hand-reviewed license and attribution data, regeneration/drift detection is repeatable, and the licensing gate readout reflects the completed gate.
+
+### Version 0.33.26.2 - In-app legal and licensing surface in Help
+
+**Model: Medium Effort** — A small framework-owned surface, but its statements are legally meaningful and its version identity must never go stale.
+
+- [ ] Add a framework-owned legal/about surface in the Help section covering the items the repo-integration checklist specifies: project name and running version, copyright notice ("Michael York d/b/a Raymond Tec" per the ownership plan), the `AGPL-3.0-only` license notice with the user's source-access rights and how to obtain the Corresponding Source for the running version (a version-accurate repository/release reference, not a hard-coded link to `main`), the AGPL no-warranty statement, third-party notices, and the trademark notice per `docs/licensing/trademark-policy.md`.
+- [ ] Source the version from the existing runtime version identity (the same source `/api/app-info` reports), consistent with the version-literal guardrail — no hand-maintained version strings in the legal surface.
+- [ ] Serve the third-party notices content from the reviewed `THIRD_PARTY_NOTICES.md` (0.33.26.1) rather than duplicating it by hand; keep all legal text sourced from tracked files so legal edits are reviewable diffs, not string edits in JavaScript.
+- [ ] Keep the surface framework-owned and workspace-independent (like the Help Center itself), reachable from the Help table of contents, and indexed by Help search; pre-authentication exposure follows the branch-level public-exposure decision, with the public pieces implemented in 0.33.26.3.
+- [ ] Update the `docs/licensing.md` gate table for the activated legal/about gate and add regression coverage: the surface renders, reports the true running version, and links resolve to the tracked notices and policy documents.
+
+Acceptance criteria:
+
+- The Help section contains a legal/licensing surface with version, copyright, AGPL source-access, warranty, third-party notices, and trademark content, all sourced from tracked files with a live version identity, and the public-app legal gate reads satisfied.
+
+### Version 0.33.26.3 - Public terms, privacy, and pre-authentication legal footer
+
+**Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
+
+- [ ] Add publicly reachable, session-less Terms and Conditions and Privacy Policy pages, linked from the footer on both pre-authentication surfaces (login and other public pages) and the authenticated app shell, served with the same security-header posture as other public responses and no session, workspace, or user data.
+- [ ] Decide content ownership operator-truthfully: the repo ships neutral, clearly labeled default/template documents; each deployment's operator supplies the governing terms/privacy content through a documented override (runtime configuration or content path), because self-hosted operators — not Raymond Tec — are the data controllers for their installs. First-party terms must never present as binding on third-party installs.
+- [ ] Draft Raymond Tec's actual hosted-instance terms and privacy documents (data collected, credentials/cookies/session behavior, retention, backups, contact) for the preview/demo hosts, run them through `docs/licensing/attorney-review-checklist.md` before public exposure, and keep deployment-specific detail in the private operational record rather than tracked examples.
+- [ ] Add the short public AGPL notice from the branch-level public-exposure decision: project name, `AGPL-3.0-only`, and a version-accurate Corresponding Source reference in the public footer or a linked public legal line, sourced from the runtime version identity so it stays install-truthful for modified downstream copies; the full legal article and third-party notices remain in the authenticated Help surface (0.33.26.2).
+- [ ] Regressions: the public pages render without a session, footer links resolve pre- and post-authentication, operator-overridden content is served when configured and the neutral default otherwise, security headers match other public endpoints, and no authenticated data appears on any public page.
+
+Acceptance criteria:
+
+- Terms and Privacy are publicly reachable from the footer without authentication, content ownership is operator-scoped with attorney-reviewed first-party documents for the hosted instances, and the public AGPL/source notice satisfies the prominent-offer intent while the full legal article and third-party notices stay authenticated.
+
+### Version 0.33.26.4 - Help action catalog and task-oriented guidance
+
+**Model: Medium Effort** — High-volume content authoring against shipped behavior; the risk is coverage gaps and drift, controlled by working from the real contribution registries rather than memory.
+
+- [ ] Build the action inventory from the real registries, not recollection: every framework action and every current first-party module action, including the quick-action capture set (add task, time entry, note, list, project, client; create timer), per-page and per-card actions, and bulk operations — and document what each action is intended to do and where it is available.
+- [ ] Add task-oriented "What do you want to do?" articles that map user goals to steps ("track time against a client", "capture something mid-task without losing focus", "hand a project to another user"), linking into the action and feature articles rather than duplicating them.
+- [ ] Cover the administration and settings surfaces end to end: user settings (including preferences and any calendar-subscription controls if 0.33.21 landed), user admin, understanding roles and what each permission grants, workspace settings, and module settings (Settings -> Admin -> Modules, including the Workbench algorithm settings if 0.33.20.3 landed).
+- [ ] Respect Help ownership boundaries: framework articles for framework behavior, module-owned articles for module behavior that appear only when the module is active; update `help/toc.md` and confirm new articles index into Help search.
+
+Acceptance criteria:
+
+- Every framework and first-party action shipped through 0.33.25 has a Help home stating its intent and location, goal-oriented articles route users from "what do you want to do" to concrete steps, and the settings/admin/roles surfaces are documented within the existing ownership boundaries.
+
+### Version 0.33.26.5 - Help feature and concept coverage, and drift audit
+
+**Model: Medium Effort** — Explaining why features exist requires verified behavior claims; stale existing articles are as damaging as missing ones.
+
+- [ ] Add how-it-works articles for the app's conceptual features: the Workbench focus modes (what each mode surfaces and why a user would choose it), resume/pick-up-where-I-left-off behavior, Dashboard versus Workbench, notifications and reminders, tags and search behavior, and the recurring-calendar/subscription and secure-catalog models where those branches landed — written for users, with behavior claims verified against the shipped app rather than the roadmap.
+- [ ] Audit every existing Help article for drift against behavior changed by 0.33.19 through 0.33.25 and correct it; remove or rewrite anything describing pre-change behavior.
+- [ ] Verify the Help table of contents has no dangling entries and no orphaned articles, and that module-gated articles appear and disappear correctly with module enable/disable.
+- [ ] Add or extend the Help regression so table-of-contents integrity (every entry resolves, every article is reachable) is checked mechanically rather than by review.
+
+Acceptance criteria:
+
+- A user can learn what the focus modes and other conceptual features are for, not just where their buttons live; no Help article describes superseded behavior; and table-of-contents integrity is regression-checked.
+
+### Version 0.33.26.6 - Marketing refresh and closeout
+
+**Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
+
+- [ ] Re-baseline `docs/marketing/` from "Current through 0.33.13.5" to the actual shipped version: move shipped roadmap work (preview readiness, security hardening, performance, UX corrections, calendar subscription, secure catalogs, maintenance mode — whatever has actually landed) from private-preview/planned to current across the README status vocabulary, positioning, feature-outcome map, demo stories, website copy draft, and FAQ draft.
+- [ ] Update `claims-and-proof-register.md` for every reclassified claim with its evidence source, and re-verify that no document invents customers, numbers, guarantees, or absolute security claims; add the new legal/about and third-party-notices surfaces as citable proof points for licensing-related FAQ answers.
+- [ ] Reconcile the preview/design-partner/launch planning documents with the actual preview state at the time this branch runs.
+- [ ] Closeout: run `npm run docs:check`, `npm run licensing:gates`, the Help regressions, and the canonical slice verification; update `CHANGELOG.md`, and record the gate activations in `DECISIONS.md` if a decision-level note is warranted.
+
+Acceptance criteria:
+
+- Every marketing document's status labels match the shipped app, the claims register is consistent with its evidence, and the branch closes with both documentation-side public-release gates active and green gate/doc checks.
 
 ## Version 0.34 - Support Tickets Module
 

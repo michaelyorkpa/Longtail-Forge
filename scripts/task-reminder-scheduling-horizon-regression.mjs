@@ -14,6 +14,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Reminder-Horizon-Test-123!";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const taskJobsSource = readText("src/modules/tasks/task-jobs.service.js");
+const tasksModuleSource = readText("src/modules/tasks/module.js");
 const appSource = readText("src/core/app.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
 const tasksDocs = readText("docs/tasks-module.md");
@@ -61,9 +62,13 @@ function assertStaticContract() {
   assert.match(taskJobsSource, /TASK_REMINDER_SWEEP_INTERVAL_HOURS = 12/, "task reminder jobs should document the sweep top-up interval");
   assert.match(taskJobsSource, /operation:\s*"sweep_reminders"/, "task reminder jobs should queue a durable sweep operation");
   assert.match(taskJobsSource, /readReminderSchedulingCandidates/, "task reminder sweep should read existing due-task candidates");
-  assert.match(appSource, /queueTaskReminderSweepJobs/, "app startup should queue reminder sweeps");
-  assert.match(workerCliSource, /queueTaskReminderSweepJobs/, "separate worker startup should queue reminder sweeps");
-  assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current implementation version");
+  assert.match(tasksModuleSource, /queueTaskReminderSweepJobs/, "Tasks activation should own reminder sweeps");
+  assert.match(tasksModuleSource, /registerStartupTask/, "Tasks activation should register startup sweep work");
+  assert.match(appSource, /runModuleStartupTasks\("app"/, "app startup should run generic module startup work");
+  assert.doesNotMatch(appSource, /queueTaskReminderSweepJobs/, "app startup should not import Tasks-specific sweeps");
+  assert.match(workerCliSource, /runModuleStartupTasks\("worker"/, "separate worker startup should run generic module startup work");
+  assert.doesNotMatch(workerCliSource, /queueTaskReminderSweepJobs/, "separate worker startup should not import Tasks-specific sweeps");
+  assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.3[\s\S]*30-day scheduling horizon[\s\S]*12-hour sweep/, "database docs should document reminder horizon and sweep behavior");
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*30-day scheduling horizon[\s\S]*12-hour top-up sweep/, "runtime docs should document reminder horizon and sweep behavior");
   assert.match(regressionSuite, /scripts\/task-reminder-scheduling-horizon-regression\.mjs/, "regression suite should include reminder horizon coverage");
@@ -272,8 +277,4 @@ function localDateTimeParts(date, timeZone) {
 
 function readText(relativePath) {
   return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

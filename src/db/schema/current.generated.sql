@@ -697,6 +697,14 @@ CREATE TABLE "sessions" (
   FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE startup_maintenance_runs (
+  maintenance_id TEXT PRIMARY KEY,
+  lifecycle TEXT NOT NULL,
+  completed_at TEXT NOT NULL,
+  app_version TEXT NOT NULL,
+  CHECK (lifecycle = 'one-time-migration-versioned-repair')
+);
+
 CREATE TABLE tag_assignment_suppressions (
   tag_assignment_suppression_id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL,

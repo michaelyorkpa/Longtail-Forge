@@ -9,6 +9,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-co
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Collections-Test-123!";
 
 const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_LIBRARY_BUCKETS } = await import("../src/modules/notes/library.js");
@@ -18,6 +19,7 @@ const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../
 
 try {
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
   const workspace = await readWorkspace();

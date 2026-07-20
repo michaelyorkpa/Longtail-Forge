@@ -90,6 +90,30 @@ export interface ModuleManifest {
   workspaceCapabilityRequirements?: string[];
 }
 
+export interface ModuleStartupTask {
+  id: string;
+  run: () => unknown | Promise<unknown>;
+  formatSuccess?: (result: any) => string;
+  failureMessage?: string;
+}
+
+export interface ModuleActivationContext {
+  moduleId: string;
+  runtime: "app" | "worker";
+  registerStartupTask: (task: ModuleStartupTask) => void;
+}
+
+export interface ModuleEntry {
+  manifest: ModuleManifest;
+  activateApp?: (context: ModuleActivationContext) => unknown;
+  activateWorker?: (context: ModuleActivationContext) => unknown;
+}
+
+export interface BundledModuleCatalogEntry {
+  directoryName: string;
+  moduleEntry: ModuleEntry;
+}
+
 export type TerminologyMap = Partial<
   Record<"default" | "business" | "personal" | "family", Record<string, string>>
 >;

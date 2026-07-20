@@ -2,6 +2,7 @@ import { config, logRuntimeConfigWarnings } from "../../config.js";
 import {
   closeDatabase,
   formatDatabaseHealth,
+  formatStartupPhase,
   initializeWorkerDatabase,
 } from "../../db/index.js";
 import {
@@ -16,10 +17,11 @@ import { registerFutureImportJobHandlers } from "../../services/import-jobs.serv
 import { jobsService } from "../../services/jobs.service.js";
 import { notificationsService } from "../../services/notifications.service.js";
 import { registerSearchIndexJobHandlers } from "../../services/search-index-jobs.service.js";
-import { queueTaskRecurrenceSweepJobs, queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../../modules/tasks/task-jobs.service.js";
 import { assertRuntimeDataPathsReady } from "../runtime-readiness.js";
 import { operationalLogger } from "../operational-logger.js";
 import { workspacePurgeService } from "../../services/workspace-purge.service.js";
+import { activateModuleRuntime, runModuleStartupTasks } from "../modules/module-runtime.js";
+import { registerFrameworkHelpSearchIndexers } from "../help/search-indexers.js";
 
 let workerLock = null;
 let shuttingDown = false;
@@ -45,24 +47,20 @@ async function startWorkerProcess(options = {}) {
   workerLock = await acquireWorkerProcessLock();
   logger.log(`[job-worker] acquired_lock=${workerLock.lockPath}`);
 
-  const databaseHealth = await initializeWorkerDatabase();
+  const databaseHealth = await initializeWorkerDatabase({
+    report: (event) => logger.log(formatStartupPhase(event)),
+  });
   logger.log(formatDatabaseHealth(databaseHealth));
   const retentionPrune = await jobsService.pruneOldJobs();
   logger.log(`[job-retention] prune=complete completed_deleted=${retentionPrune.completed.deleted} dead_deleted=${retentionPrune.dead.deleted}`);
+  registerFrameworkHelpSearchIndexers();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers();
-  registerTaskJobHandlers();
   filesService.registerFileScanJobHandlers();
   registerFutureImportJobHandlers();
   workspacePurgeService.registerWorkspacePurgeJobHandlers();
   notificationsService.registerNotificationJobHandlers();
-  const reminderSweep = await queueTaskReminderSweepJobs({
-    source: "worker-startup-reminder-sweep",
-  });
-  logger.log(`[task-reminder-startup] sweep_queue=${reminderSweep.queued ? "queued" : "skipped"} workspaces=${reminderSweep.workspaceCount}`);
-  const recurrenceSweep = await queueTaskRecurrenceSweepJobs({
-    source: "worker-startup-recurrence-sweep",
-  });
-  logger.log(`[task-recurrence-startup] sweep_queue=${recurrenceSweep.queued ? "queued" : "skipped"} workspaces=${recurrenceSweep.workspaceCount}`);
+  await runModuleStartupTasks("worker", { logger });
 
   await startJobWorker({
     logger,

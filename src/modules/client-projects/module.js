@@ -1,9 +1,12 @@
 import { clientsRoutes } from "./clients.routes.js";
 import { registerClientProjectsSearchIndexers } from "./search-indexers.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
+import { createModuleEntry } from "../../core/modules/module-entry.js";
 import { appVersion } from "../../core/version.js";
 
-registerClientProjectsSearchIndexers();
+function activateClientProjectsRuntime() {
+  registerClientProjectsSearchIndexers();
+}
 
 const clientProjectsModule = {
   id: "client-projects",
@@ -736,4 +739,10 @@ const clientProjectsModule = {
   workspaceCapabilityRequirements: ["clients_projects", "projects"],
 };
 
-export { clientProjectsModule };
+const moduleEntry = createModuleEntry({
+  manifest: clientProjectsModule,
+  activateApp: activateClientProjectsRuntime,
+  activateWorker: activateClientProjectsRuntime,
+});
+
+export { clientProjectsModule, moduleEntry };

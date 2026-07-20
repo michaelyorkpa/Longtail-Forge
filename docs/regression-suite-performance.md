@@ -4,6 +4,53 @@ This document is the 0.33.5.29.1 measurement artifact for the regression and che
 
 For the current metadata-driven discovery, generated coverage index, exception policy, and runner commands, use [regression-suite.md](regression-suite.md). Counts and manifest shapes below are historical measurements and release records for the 0.33.5.29 branch.
 
+## 0.33.18.7 Formal Streamlining Review
+
+The first scheduled post-preview review consumed a fresh `LTF_REGRESSION_TIMING_JSON` report before changing suite membership. It was run with Node 24.18.0 on Windows 11 from the OneDrive-backed reference checkout on an Intel Core i7-8700 (6 cores / 12 logical processors). The command was `LTF_REGRESSION_TIMING_JSON=tmp\\0.33.18.7-regression-timing.json npm run test:regressions`; the ignored output file is measurement evidence, not a tracked build artifact.
+
+- Measured on: 2026-07-20.
+- Result: 380/380 regression scripts passed with zero flaky recoveries.
+- Runner wall time: 193.28 seconds.
+- Local reference budget: 300 seconds for a comparable full regression run, calibrated against both the clean pre-change sample and the contention/retry variance in the post-change sample.
+- Review trigger: two comparable runs above 300 seconds, more than 20% growth in the rolling three-run median, a repeated flaky recovery in the same script, or a materially changed slow tail. This triggers ownership/setup analysis; it never authorizes deleting a test merely because it is slow.
+
+| Bucket | Scripts | Aggregate script seconds | Mean | P95 | Longest |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| static/source | 191 | 268.49 | 1.41 | 5.87 | 22.89 |
+| default database | 6 | 21.25 | 3.54 | 5.71 | 5.71 |
+| file storage | 29 | 59.12 | 2.04 | 4.20 | 4.69 |
+| isolated database | 154 | 359.00 | 2.33 | 5.41 | 15.50 |
+
+Aggregate script seconds are useful for ownership comparisons but are not bucket wall time for parallel buckets. The overall 193.28-second runner result is the budget measurement.
+
+The post-change full run passed 379/379 scripts in 279.78 seconds. It recorded one `database-migration-locking-regression.mjs` recovery on attempt 2/2, which is green and visible under the existing isolated-retry policy; a repeat pattern would trigger investigation. Static/source aggregate script time fell from 268.49 to 164.71 seconds, and `task-checklist-editor-display-regression.mjs` measured 0.11 seconds inside the parallel runner. Stateful contention dominated the slower wall sample: file-storage aggregate script time was 101.63 seconds and isolated-database aggregate script time was 713.19 seconds. These two materially different green samples are why the budget is 300 seconds rather than a brittle percentage above the fastest run.
+
+### Measured slow tail and disposition
+
+| Script | Seconds | Review disposition |
+| --- | ---: | --- |
+| `task-checklist-editor-display-regression.mjs` | 22.89 | Keep every assertion; replace greedy whole-file regex chains with bounded owning-function/CSS-block checks. Three focused pre-change runs were 8.68-8.93 seconds; the bounded focused run was 0.17 seconds. |
+| `check-js.mjs` | 17.04 | Retire as duplicate coverage after proving ESLint covers the exact same 793 `.js`/`.mjs` files. Cached ESLint moves before the stateful runner; `release.fast-check-pipeline` and the ratchet retirement record retain the ownership evidence. |
+| `database.backup-restore-foundation` | 15.50 | Retain: real archive, checksum, restore, and database-integrity behavior is high-risk integration coverage. |
+| `separate-worker-end-to-end-regression.mjs` | 14.64 | Retain: process/worker/job handoff is not equivalent to a pure unit seam. |
+| `version-literal-guardrail-regression.mjs` | 14.21 | Retain: scans the workspace and proves the runtime `/api/app-info` version path; closeout and full-check commands must remain independently runnable. |
+| `runtime-configuration-contract-regression.mjs` | 8.52 | Keep current integration owner; move its pure config/default/error matrix toward Vitest in a later contained pass while retaining child-process/runtime/database proof. |
+| `sqlite-small-office-performance-regression.mjs` | 8.47 | Retain the supported SQLite-profile route smoke; review fixture reuse only after 0.33.19 performance work changes its inputs. |
+| `high-volume-admin-lists-regression.mjs` | 7.95 | Retain scale-seed/API paging integration coverage; do not replace it with helper-only pagination tests. |
+| `notes-notification-follow-regression.mjs` | 7.64 | Retain cross-module event/job/notification behavior. |
+| `sqlite-connection-hardening-regression.mjs` | 7.59 | Retain connection, locking, and database-integrity behavior. |
+
+### Consolidation queue
+
+1. Completed now: retire only `check-js.mjs` through the manifest/ratchet `assertions-moved` path. The replacement is cached ESLint over the identical current source inventory, run before stateful regressions; no release-gate, area, database, permission, or browser assertion is removed.
+2. Completed now: bound the checklist display regression's source assertions to their owning functions/rules. This is a setup/assertion-shape improvement, not a behavior or coverage reduction.
+3. Completed now: replace 20 obsolete assertions—five in retired historical closeouts and 15 in active Notes, Tasks, and Lists regressions—that coupled unrelated developer docs to the current package literal. Stable owning-document/behavior checks retain the substantive coverage; package/runtime version identity remains protected by the version guard and `/api/app-info` proof.
+4. Next pure-contract candidate: split `runtime-configuration-contract-regression.mjs` only when its config default/validation matrix can move into Vitest while its child-process environment materialization, module registry, database, and runtime response checks stay in the regression owner.
+5. Next isolation candidate: inspect the 29-script serial Files bucket for scripts whose database, filesystem, port, scanner, and process state are all already disposable. Change run mode only after a repeat stress proof; aggregate serial script time alone is not evidence of parallel safety.
+6. Preserve as integration coverage: permissions, workspace isolation, database/migrations, backup/restore, Files safety, worker/job delivery, high-volume APIs, and cross-module workflows. Preserve Playwright for critical rendered journeys and accessibility. Existing Vitest coverage remains the preferred home for pure ranking, pagination, schema, asset-version, and verification-plan functions, but it does not justify deleting broader integration owners.
+
+This review changes no full-release-gate requirement. Future checkpoints compare the rolling samples against the 300-second budget, regenerate timing evidence, and record any retirement with exact replacement owners and verification in `scripts/regression-coverage-exceptions.json`.
+
 ## Baseline Run
 
 - Version target: 0.33.5.29.1.

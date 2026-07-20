@@ -39,67 +39,74 @@
       "signature": "56acf10f5744ca1a3b848cfada6acd385444490e7c03e42b70ed8c52845a8689"
     },
     {
-      "id": "dynamic-sql-template.338772b6625dcea0",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.1b1955414a11a9b3",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
-      "operation": "querySql",
-      "signature": "338772b6625dcea0e6655c5bd267e77b525bb70481a51074a07d5d04a11ea743"
+      "operation": "transaction.run",
+      "signature": "1b1955414a11a9b3684826a0622378034eb415d2b994da2e8723954e04cab923"
     },
     {
-      "id": "dynamic-sql-template.4bc81816c7481531",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.3cd00f1929e6fccc",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
-      "operation": "querySql",
-      "signature": "4bc81816c7481531ee2db3b24dfee6fc810b22fced5678994effbed54596bc13"
+      "operation": "db.run",
+      "signature": "3cd00f1929e6fcccce734e02824040c9af8e73632f6f8442ccbcbf9caee708b4"
     },
     {
-      "id": "dynamic-sql-template.9378d838eac198a1",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.47cac2eb9396bdd2",
+      "file": "src/db/app-startup-maintenance.js",
+      "kind": "dynamic-sql-template",
+      "operation": "transaction.run",
+      "signature": "47cac2eb9396bdd2713dcd2d356e55e71bac4d38bed8e18f6398bf2a764d2e74"
+    },
+    {
+      "id": "dynamic-sql-template.627e085e9257b9d0",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
       "operation": "runSql",
-      "signature": "9378d838eac198a135b2878230f10381a30d4e2ca3099f5d137a847119b3aca1"
+      "signature": "627e085e9257b9d06b0e262e7a68c5897b502a1aacdc1fe8e59bec2e9e0f60f1"
     },
     {
-      "id": "dynamic-sql-template.a6ac02108a3bdc83",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.91919665762b161f",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
       "operation": "db.run",
-      "signature": "a6ac02108a3bdc8393e9a515c785f96828c03fda58503123b8e77f8079b32532"
+      "signature": "91919665762b161f9cc4f1d14d4beb9455234c0c29eaff8cd7e941945817360a"
     },
     {
-      "id": "dynamic-sql-template.aa3fea8810275911",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.c2b318941e86ccf1",
+      "file": "src/db/app-startup-maintenance.js",
+      "kind": "dynamic-sql-template",
+      "operation": "querySql",
+      "signature": "c2b318941e86ccf1d8281bee71dcfb2bc1fffd537a1e3c6268e6ce60c5621c8a"
+    },
+    {
+      "id": "dynamic-sql-template.d38dfbb613b5429f",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
       "operation": "transaction.run",
-      "signature": "aa3fea881027591180f233ce56447ead70bef1dc22d3762c73f451a999e4db4e"
+      "signature": "d38dfbb613b5429fc4a5c63415123de28492f843006922c66692ceae71aef637"
     },
     {
-      "id": "dynamic-sql-template.ab3094296be3f293",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.e5c25cce1fa0382a",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
       "operation": "transaction.run",
-      "signature": "ab3094296be3f2930fc1c7e3d1dfc81099b5b7078b123ba99c9a09a7cad475a9"
+      "signature": "e5c25cce1fa0382a883091f8025fbe9c4dbaa577ebde73415b392b9cc8cd9a11"
     },
     {
-      "id": "dynamic-sql-template.cf8528a28067a10a",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.e63e020b5627afe8",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
-      "operation": "transaction.run",
-      "signature": "cf8528a28067a10a752ded329812410c2e478ba3f2f73a5c50f4003437ff5651"
+      "operation": "querySql",
+      "signature": "e63e020b5627afe8c149338e4f7980e73b46df0a6e9d78554c6e70c58fe32afd"
     },
     {
-      "id": "dynamic-sql-template.e3face0d3c9c5644",
-      "file": "src/db/index.js",
-      "kind": "dynamic-sql-template",
-      "operation": "transaction.run",
-      "signature": "e3face0d3c9c5644c213a0ee87bf27119fe226e9f248b357834bd370b3f77a90"
-    },
-    {
-      "id": "dynamic-sql-template.fd8caac8b0302578",
-      "file": "src/db/index.js",
+      "id": "dynamic-sql-template.e7c1c551345ad95b",
+      "file": "src/db/app-startup-maintenance.js",
       "kind": "dynamic-sql-template",
       "operation": "db.run",
-      "signature": "fd8caac8b0302578e8c05cb04beed22c51e0b4c3b80558885c8a116efc987e90"
+      "signature": "e7c1c551345ad95bcc3eca47485e58d40c77a39ea49595431f2b0c7e9512f08c"
     },
     {
       "id": "dynamic-sql-template.0800aa04ddfed2ae",

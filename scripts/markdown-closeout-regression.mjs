@@ -46,8 +46,8 @@ for (const phrase of [
   assert.match(moduleDevelopment, new RegExp(escapeRegExp(phrase)), `module development guide should document ${phrase}`);
 }
 
+assert.match(notesModule, /^# Notes Module Developer Guide$/m, "Notes developer guide should retain its canonical owning document");
 for (const phrase of [
-  `current Notes implementation as of ${appVersion}`,
   "CommonMark paragraphs",
   "safe underline through the `++text++` token",
   "approved tables and task lists",

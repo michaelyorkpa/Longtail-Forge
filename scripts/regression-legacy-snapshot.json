@@ -3,10 +3,6 @@
   "recordedAtVersion": "0.33.6.16.1",
   "scripts": [
     {
-      "path": "scripts/check-js.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/accessibility-regression.mjs",
       "runMode": "static"
     },
