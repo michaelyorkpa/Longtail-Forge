@@ -2,19 +2,40 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.18.1`.
+Active cursor: `0.33.18.2`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
-## Version 0.33.18 - Post-Preview Maintainability and Architecture Cleanup
+## Version 0.33.18 - Dependency Baseline, Post-Preview Maintainability, and Architecture Cleanup
 
-**Model: High Effort** — This branch reorganizes startup, manifests, frontend loading, and test ownership while preserving runtime behavior.
+**Model: High Effort** — This branch first changes the lint, Markdown, and HTTP framework dependency baselines, then reorganizes startup, manifests, frontend loading, and test ownership while preserving runtime behavior.
 
 Purpose:
 
-Reduce the most visible maintainability strain after preview readiness and settle patterns that Support Tickets can consume without coupling Tickets to unrelated framework invention.
+Clear the current Dependabot backlog into a reviewed and verified integration baseline before reducing the most visible maintainability strain after preview readiness. Then settle startup, module, browser, and test patterns that Support Tickets can consume without coupling Tickets to unrelated framework invention.
 
-### Version 0.33.18.1 - Startup maintenance classification and split
+Sequencing decision:
+
+- Land the dependency baseline before startup or module-loading reorganization so later slices verify against the supported production and development dependency graph.
+- Combine the compatible ESLint 10 and Markdown-it 14.3 updates in one package/lockfile maintenance slice. ESLint 10 removes the transitive `js-yaml` dependency, so the stale `js-yaml` 4.3 PR against `main` is closed as superseded rather than receiving its own slice or bypassing the `nightly` integration path.
+- Keep Express 5 separate. It is a major runtime framework migration with route-matching, request/response, static fallback, error propagation, security, and browser-startup implications; a green dependency review alone is not sufficient evidence.
+
+### Version 0.33.18.2 - Express 5 HTTP framework migration
+
+**Model: High Effort** — Express is the application-wide HTTP boundary; its major-version route, request, response, static-serving, and asynchronous-error changes can break every browser/API surface or weaken security behavior.
+
+- [ ] Reproduce the Express 5.2 dependency delta from Dependabot PR #5 on a current short-lived `chore/*` branch from `nightly`, then close the bot PR as superseded by the reviewed migration branch rather than patching around its red checks without roadmap/version closeout.
+- [ ] Inventory every Express 5 compatibility boundary used by the application and regression harnesses: route-path syntax and parameters, wildcard/catch-all matching, query parsing and request-property semantics, body availability, status/redirect/send/sendFile behavior, static dotfile and MIME behavior, sub-router mounting, trust-proxy behavior, and rejected/fulfilled async handlers.
+- [ ] Replace the invalid bare `*` static fallback route and every fixture equivalent with an Express 5-compatible catch-all that still matches the intended root/nested browser paths. Preserve public/protected route ordering, `/api` JSON behavior, 403/404 non-enumeration, method handling, and the rule that the final error middleware remains last.
+- [ ] Review the existing `asyncRoute` boundary against Express 5's native rejected-Promise forwarding so each failure reaches `errorHandler` exactly once, no rejection becomes unhandled, and no response is written twice. Preserve safe `AppError`, request-ID, production logging, CSRF, cookie, security-header, and authentication behavior.
+- [ ] Exercise operational routes, public API envelopes, browser APIs, module routers, static/protected documents, uploads/downloads, redirects, unknown routes, multipart limits, proxy-derived request context, and startup under the real Node 24 production dependency tree. Do not pull the branded error-surface redesign from 0.33.23 into this compatibility migration.
+- [ ] Update the focused HTTP/framework regressions and any owning architecture, runtime, security, module-development, or testing documentation that actually changes. Run `npm audit`, dependency review, framework/API/security/permission regressions, Playwright browser smoke/accessibility, `npm run artifact:smoke`, the canonical `npm run verify:slice`, and restarted `/healthz`, `/readyz`, and `/api/app-info` proof.
+
+Acceptance criteria:
+
+- Express 5.2 is the supported runtime baseline; all registered framework/module routes start and preserve their prior public, protected, API, security, proxy, static, and error semantics; clean artifact installation and browser/runtime proof pass; and Dependabot PR #5 is closed or merged only through the reviewed `nightly` integration result.
+
+### Version 0.33.18.3 - Startup maintenance classification and split
 
 **Model: High Effort** — Startup ordering, repair idempotency, transactions, and provider neutrality carry data-integrity risk.
 
@@ -28,7 +49,7 @@ Acceptance criteria:
 
 - Every startup action has explicit lifecycle ownership, slow phases are visible, and tests prove order and failure behavior without changing fresh-install or current SQLite semantics.
 
-### Version 0.33.18.2 - First-Party Module Registry De-Hardcoding and Runtime Activation
+### Version 0.33.18.4 - First-Party Module Registry De-Hardcoding and Runtime Activation
 
 **Model: High Effort** — Module loading sits ahead of migrations, routes, permissions, registries, jobs, and workers. A partial conversion could make the catalog appear dynamic while leaving module-specific startup coupling or import-time side effects behind.
 
@@ -63,7 +84,7 @@ Acceptance criteria:
 - A stale generated catalog, directory/ID mismatch, duplicate ID, missing canonical export, or unresolved dependency fails before migrations or other database changes.
 - The before/after module and contribution inventories match exactly, and module sanity, typecheck, startup, migration, clean-clone, packaging, affected, and full release gates pass.
 
-### Version 0.33.18.3 - Digestible module-manifest composition pilot
+### Version 0.33.18.5 - Digestible module-manifest composition pilot
 
 **Model: High Effort** — High-volume source movement can silently alter contribution IDs, ordering, permissions, or startup validation.
 
@@ -76,7 +97,7 @@ Acceptance criteria:
 
 - Two large modules are easier to review while their composed manifests validate and behave identically; the pattern is documented without becoming mandatory boilerplate.
 
-### Version 0.33.18.4 - First native browser ES-module conversion wave
+### Version 0.33.18.6 - First native browser ES-module conversion wave
 
 **Model: High Effort** — Dashboard/Workbench loading, accessibility, and module-host boundaries are highly coupled and user-visible.
 
@@ -90,7 +111,7 @@ Acceptance criteria:
 
 - The first strained surface loads through explicit imports with no new global-order dependency and no behavioral or accessibility regression.
 
-### Version 0.33.18.5 - First formal test-suite streamlining review
+### Version 0.33.18.7 - First formal test-suite streamlining review
 
 **Model: High Effort** — Coverage retirement and suite budgeting require evidence across unit, integration, permission, database, and browser layers.
 
@@ -104,7 +125,7 @@ Acceptance criteria:
 
 - The suite has a measured budget and evidence-backed consolidation plan; any retirement is traceable to equivalent coverage and no high-risk contract is weakened.
 
-### Version 0.33.18.6 - Maintainability closeout
+### Version 0.33.18.8 - Maintainability closeout
 
 **Model: High Effort** — Closeout must prove source reorganization did not change runtime contracts.
 
@@ -219,7 +240,20 @@ Acceptance criteria:
 
 - Notes contributes a settings surface with catalog list/bulk-edit management, following the shared settings anatomy and module-ownership boundaries.
 
-### Version 0.33.19.6 - Deferred TLS/proxy-dependent review findings (placeholder)
+### Version 0.33.19.6 - User Settings password action isolation and runtime repair
+
+**Model: Medium Effort** — This is one contained User Settings action workflow with an intact server-side password-change contract but a reported rendered-runtime failure and stale/mixed-asset risk.
+
+- [ ] Reproduce the reported Settings -> User failure against the actual served asset set before editing and record whether the page loaded stale/mixed Settings host, controller, or User Settings JavaScript; the current disposable Playwright harness passes, so do not treat source-only assertions as proof of the field behavior.
+- [ ] Keep Current Password, New Password, and Confirm New Password inside an independent action form: editing or leaving those fields must not enable or flash either universal Save button, enable Revert, trigger the unsaved-navigation guard, enter the universal settings snapshot, or serialize credentials through `PUT /api/user/settings`.
+- [ ] Repair the dedicated Change Password action wherever the rendered/runtime path is broken so it submits exactly one `PUT /api/user/password`, retains scoped validation and status feedback, resets only after success, preserves the current session, and continues revoking the user's other sessions under the existing authentication-service contract.
+- [ ] Add rendered regression coverage using only the disposable managed-server account: prove the universal actions remain clean throughout password entry, the dedicated button changes the password, the old password is rejected, and the new password is accepted. Include cache/version loading in the proof if stale or mixed assets caused the field failure.
+
+Acceptance criteria:
+
+- Password entry and submission are fully isolated from universal User Settings Save/Revert behavior, the dedicated Change Password button works in the served app, and a rendered disposable-account regression protects both the UI transaction boundary and the completed credential change.
+
+### Version 0.33.19.7 - Deferred TLS/proxy-dependent review findings (placeholder)
 
 **Model: Medium Effort** — Scope is unknown until the review runs against the deployed TLS environment.
 
@@ -345,46 +379,269 @@ Acceptance criteria:
 - Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
 - The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, and the release-gate checks pass.
 
-## Committed before 0.4x — Unversioned backlog
+## Version 0.33.21 - Secure Notes Catalog Policy and Inherited Protection
 
-These items are committed to land before 0.4x but are not yet assigned a version. Assign each to a concrete 0.33.x/0.3x slice when its design and prerequisite architecture are ready; do not let them slide past 0.4x.
+**Model: High Effort** — Catalog-level authorization, encryption transitions, search suppression, and non-exposure across every Notes consumer carry security and data-integrity risk.
 
-### Secure Catalogs
+Purpose:
 
-* [ ] Add a first-class secure policy to Notes catalogs. Security must be represented as authorization state rather than as an ordinary tag.
-* [ ] Treat every note inside a secure catalog as effectively secure without requiring the application to copy a security tag or flag onto every child record.
-* [ ] Ensure newly created and newly moved notes inherit the catalog’s secure policy immediately.
-* [ ] Apply secure-note authorization consistently to note content, titles, attachments, previews, search, backlinks, activity surfaces, exports, APIs, notifications, connectors, and future indexing or AI features.
-* [ ] Moving a note out of a secure catalog must not silently expose it. Preserve note-level security until an authorized user explicitly removes it.
-* [ ] Record catalog-security changes and explicit note-security downgrades in the audit log.
-* [ ] Secure catalogs and their contents must never be visible through Support View.
+Make a Notes catalog a first-class security boundary. A secure catalog protects every note in its subtree without using tags as authorization and without copying an ordinary security flag onto every child while it remains inside that protected tree.
 
-### Support View
+Decision:
 
-* [ ] Add a read-only Support View that allows specifically authorized platform administrators to inspect the application from the perspective of an existing user for troubleshooting.
-* [ ] Maintain separate actor and effective-user identities throughout the support session. Never replace the administrator’s authenticated identity with the target user’s identity.
-* [ ] Require administrator reauthentication, a support reason or ticket reference, and a short session expiration before entering Support View.
-* [ ] Rotate the session identifier when entering and leaving Support View, prevent nested sessions, and display a persistent banner identifying the viewed user and providing an immediate exit action.
-* [ ] Record Support View start, exit, expiration, target user, administrator, organization, reason, request context, and all attempted actions in an append-only audit trail.
-* [ ] Enforce read-only behavior on the server. Do not rely on disabled buttons or other frontend-only restrictions.
-* [ ] Do not expose secure notes or catalogs, credentials, API keys, OAuth tokens, authentication factors, recovery codes, payment secrets, or other protected secret material.
-* [ ] Prevent Support View from changing authentication, billing, organization membership, permissions, integrations, exports, destructive records, or other security-sensitive state.
-* [ ] Add narrowly scoped, explicitly named support actions only when a demonstrated support need exists. Each action must record both the administrator and affected user and must remain attributable to the administrator.
-* [ ] Do not implement automatic rollback-on-logout or generalized JSON before/after restoration. Use read-only inspection, explicit support commands, or an isolated disposable workspace clone when nonpersistent experimentation is required.
-* [ ] Keep unrestricted write-capable user impersonation outside the committed pre-0.4x scope unless later support evidence demonstrates that it is necessary and a dedicated security review approves it.
-* [ ] Allow self-hosted instance operators to disable Support View completely. Keep SaaS support permissions separate from ordinary workspace and instance-administration roles.
+Notes owns one effective-security calculation: a note is secure when it has explicit note-level security or when its current catalog or any ancestor catalog has an active secure policy. A secure ancestor always wins; a child catalog cannot weaken it. Effective security drives authorization, encrypted-at-rest body/revision handling, shaping, and every downstream consumer. Catalog membership is never itself permission to read secure content.
 
-### Custom 404 and Error Handling
+Dependencies and baseline:
 
-* [ ] Add friendly in-app handling for unknown routes, unavailable resources, authorization failures, conflicts, and unexpected server errors so users are never dropped onto a barren or unformatted Express response.
-* [ ] Return structured JSON errors for API routes and appropriate branded HTML responses for browser routes.
-* [ ] Keep production error messages generic and never expose stack traces, SQL details, filesystem paths, environment values, credentials, or other implementation details.
-* [ ] Assign every unexpected error a correlation ID shown to the user and included with the complete server-side diagnostic log.
-* [ ] Distinguish 401, 403, 404, 409, 500, and 503 behavior where appropriate.
-* [ ] Avoid confirming the existence of protected resources when the requesting user is unauthorized.
-* [ ] Ensure the fallback error surface remains usable when the database or another application dependency is unavailable.
-* [ ] Add a frontend error boundary for client-rendering failures and provide one clear recovery action from every error surface.
-* [ ] Place the final API and HTML not-found handlers after normal routes and place the final Express error middleware last.
+- Build on the existing `notes.security_mode`, secure-note permissions, encrypted payload/revision path, `note_library_collections` hierarchy, Notes access policy, and framework audit/event contracts.
+- Preserve the current rule that secure Notes content and attachments do not enter normal Files, Search, notification, public API, resume-context, or export flows without an explicitly designed secure equivalent.
+- Land before Support View (0.33.22), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
+
+Non-goals:
+
+- Do not represent security as a tag, visibility value, naming convention, client-side filter, or copied catalog label.
+- Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
+- Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
+
+### Version 0.33.21.1 - Catalog policy, effective-security projection, and migration
+
+**Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
+
+- [ ] Add a forward migration for a first-class catalog security policy and any transition state required for fail-closed conversion; refresh/check the schema and preserve SQLite/provider-neutral repository seams.
+- [ ] Define one Notes-owned effective-security resolver covering explicit secure notes, direct secure catalogs, and secure ancestors. Secure inheritance must be cycle-safe, workspace-scoped, deterministic, and returned as authorization state rather than as a decorative tag.
+- [ ] Extend collection and note read projections so services can enforce effective security without browser-side tree reconstruction or per-consumer ad hoc joins.
+- [ ] Make note creation inside an effectively secure catalog encrypt the body and initial revision immediately. Make a move into a secure catalog encrypt the note and affected revision content before the new membership becomes readable.
+- [ ] Add repository/service tests for nested catalogs, archived catalogs, cross-workspace IDs, missing ancestors, cycles rejected by the existing hierarchy boundary, explicit-secure notes in normal catalogs, and normal notes under secure ancestors.
+
+Acceptance criteria:
+
+- One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
+
+### Version 0.33.21.2 - Fail-closed catalog transitions and deliberate downgrade
+
+**Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
+
+- [ ] Add an explicit catalog-security change service with preflight counts, permission checks, reauthentication for downgrade, audit metadata, and transaction/job ownership appropriate to the measured catalog size; do not perform an unbounded browser-request loop.
+- [ ] If conversion cannot finish atomically, use a durable `securing` state that applies secure authorization immediately, blocks unsafe content reads/exports/indexing, resumes idempotently through the framework jobs boundary, and becomes `secure` only after every affected note/revision is encrypted and stale search documents are removed. A failed transition remains fail-closed and operator-visible.
+- [ ] Preserve protection when content leaves a secure boundary: moving a note out gives it explicit note-level security before the move commits; moving a catalog subtree out preserves secure policy at the moved subtree root. Neither action is an implicit downgrade.
+- [ ] Add a separate, explicit remove-security action. It must require `notes.secure.manage`, current-password reauthentication, a clear affected-content preview/confirmation, safe decryption/revision handling, and an audit event. Clearing a catalog policy must preserve explicit security for any note/subtree not deliberately included in the downgrade.
+- [ ] Prove rollback/retry behavior, concurrent moves/policy edits, transition-state reads, partial job failure, and a representative large catalog without exposing plaintext or duplicating revisions.
+
+Acceptance criteria:
+
+- Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
+
+### Version 0.33.21.3 - Consumer enforcement, management UI, and closeout
+
+**Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
+
+- [ ] Route Notes list/detail/title shaping, attachments, previews, revisions, backlinks/wiki links, activity/events, notifications, Search/index jobs, resume state/Workbench, exports, browser/public APIs, and connector/provider declarations through the effective-security policy. Secure titles, counts, existence, and relationship labels must not leak to unauthorized callers.
+- [ ] Keep effectively secure notes out of normal search documents, notification payloads, excerpts, public APIs, exports, and future indexing/AI/provider catalogs; add a source/manifest guardrail so a new Notes consumer must declare and test secure-content behavior.
+- [ ] Add catalog management UI that clearly shows inherited versus explicit secure policy, prevents a child override under a secure ancestor, explains transition/failure state without exposing content, and keeps downgrade separate from ordinary edit/move controls.
+- [ ] Record catalog policy enable/complete/failure, subtree-preservation, and explicit downgrade events without note bodies, keys, plaintext, or secret metadata. Update Notes, security, module-contract, Help, and operator recovery documentation.
+- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.22 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
+
+Acceptance criteria:
+
+- Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
+
+## Version 0.33.22 - Read-Only Support View
+
+**Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
+
+Purpose:
+
+Give specifically authorized installation/platform support administrators a short-lived, read-only way to reproduce what an existing user can see without replacing the administrator's identity, granting the target new permissions, or enabling general impersonation.
+
+Decision:
+
+The authenticated administrator remains the actor for the entire session. A separate effective user and effective workspace shape permission-checked reads only. Support View is denied unless an install-level runtime gate is enabled and the actor has a dedicated support permission that ordinary workspace administrators never receive. The server rejects mutation; disabled buttons and hidden controls are only presentation.
+
+Dependencies and baseline:
+
+- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.21 effective Notes security.
+- Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
+- Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
+
+Non-goals:
+
+- No write-capable impersonation, nested support sessions, automatic rollback-on-exit, generalized before/after JSON restoration, hidden support bypass, or workspace clone implementation.
+- No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
+- No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
+
+### Version 0.33.22.1 - Durable support-session and actor/effective identity contract
+
+**Model: High Effort** — Session identity, workspace scope, expiration, and rotation mistakes can become privilege escalation or attribution failures.
+
+- [ ] Add an explicit runtime configuration gate (disabled by default for self-hosted installs), a dedicated support permission granted only to the intended install-level administrator role, and diagnostics that reveal enabled/disabled state without exposing session details.
+- [ ] Add a forward migration for durable support-session state and append-only support-view events. Store actor, effective user, effective workspace, bounded reason/reference, start/expiry/end timestamps, request IDs, and safe outcome metadata; never store credentials, session tokens, response bodies, secure content, or request bodies.
+- [ ] Enter Support View only after current-password reauthentication through the existing trusted-IP/account throttle, active target membership validation, and a fresh session-ID rotation. Keep actor identity immutable, expose effective identity separately in request/session context, and reject actor=target, nesting, disabled users/workspaces, or unsupported session modes.
+- [ ] Exit and expiry must rotate the session identifier again, restore the actor's normal context deliberately, and append an attributable exit/expiry event. A revoked/deactivated actor or target ends Support View immediately and fail-closed.
+- [ ] Add service/session tests for reauthentication failure, throttle behavior, expiry boundaries, concurrent sessions, target workspace switching, role changes, revocation, cookie security, no nesting, and actor/effective attribution.
+
+Acceptance criteria:
+
+- Every support request carries separate immutable actor and effective-user identities, a short expiry, and one effective workspace; entering/leaving rotates the session and cannot grant either identity new permissions.
+
+### Version 0.33.22.2 - Server read-only enforcement and protected-data exclusions
+
+**Model: High Effort** — Read-only enforcement must cover framework and module routes without trusting UI state or accidentally creating a universal hook.
+
+- [ ] Add one framework request gate after authentication and before protected framework/module routes. In Support View it permits only explicitly read-safe methods/actions, rejects every mutation with a stable error, and records the attempted action. Audit all existing GET/HEAD routes for side effects and bring the allowlist/guardrail to zero unexplained exceptions.
+- [ ] Shape ordinary reads using the target user's active memberships, roles, permissions, module enablement, record scope, and workspace boundaries. The actor's administrator permissions must never bleed into effective reads, and the target must never inherit the actor's cross-workspace reach.
+- [ ] Add a centrally testable sensitive-read exclusion catalog for secure Notes/catalogs, API key/token/recovery/auth-factor material, account/workspace exports and backups, billing/payment secrets, integration credentials, security configuration, and other explicitly protected surfaces. Preserve normal not-found/non-enumeration behavior.
+- [ ] Ensure audit/security/operational logging attributes the support actor, target, workspace, support-session ID, request ID, route/action ID, outcome, and reason reference without logging query secrets, bodies, content, or raw session IDs.
+- [ ] Add a manifest/source guardrail requiring new protected routes/actions to declare Support View read/mutation/sensitive-read behavior, without allowing modules to override the central deny rules.
+
+Acceptance criteria:
+
+- Direct HTTP calls cannot mutate state in Support View, the rendered data never exceeds the target user's normal readable scope, protected secrets/secure Notes remain absent, and every allowed or denied action remains attributable to the administrator.
+
+### Version 0.33.22.3 - Support View UX, audit review, documentation, and closeout
+
+**Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
+
+- [ ] Add an administrator-only entry flow with target user/workspace selection, current password, required reason/reference, explicit read-only warning, and visible expiry. Do not expose unavailable targets or use raw IDs as labels.
+- [ ] Display a persistent, accessible, non-dismissible Support View banner on every protected page naming the viewed user/workspace, identifying the administrator as the actor, showing remaining time, and providing one immediate Exit action. Restore focus and the actor's prior safe landing page after exit.
+- [ ] Hide/disable write controls for clarity while retaining server denial as authoritative. Present a stable explanation when a protected surface or action is unavailable, and never render a secret before hiding its control.
+- [ ] Add an append-only administrator audit view/filter for support sessions and attempted actions with bounded retention/export policy; Support View itself cannot open that administrative audit surface through the target identity.
+- [ ] Update authentication/session, permission, audit, operational-security, module-development, and Help documentation. Run permission, workspace-isolation, session, CSRF, route-declaration, secure-catalog, secret-exclusion, accessibility, and browser journey regressions plus canonical slice verification.
+
+Acceptance criteria:
+
+- An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
+
+## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
+
+**Model: High Effort** — Error classification sits on every route and must improve recovery without leaking protected resource existence or production diagnostics.
+
+Purpose:
+
+Replace barren Express responses and inconsistent browser failures with one secure error contract: structured JSON for APIs, branded resilient HTML for browser navigation, and one clear recovery action for client-rendering failures.
+
+Decision:
+
+Route class determines response format; API paths never receive HTML and browser document routes never fall through to raw JSON/text. Existing request-context IDs are the correlation IDs. Expected errors expose only approved user-safe messages, while unexpected errors show a generic message plus the request ID and write the complete safe diagnostic event server-side under that same ID.
+
+Dependencies and baseline:
+
+- Build on `AppError`, `attachRequestContext`, operational JSON logging, transport-security headers, `staticService`, and the existing `/api/v1` versioned envelope.
+- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.24.
+
+Non-goals:
+
+- No stack traces, SQL details, filesystem paths, environment values, credentials, raw errors, hidden record labels, or resource-existence confirmation in production responses.
+- No new telemetry vendor, hosted error-reporting service, automatic retry of unsafe mutations, or attempt to keep the Node process alive after an unrecoverable startup failure.
+
+### Version 0.33.23.1 - Server error taxonomy, API envelopes, and final route ordering
+
+**Model: High Effort** — A framework-wide middleware change can break every API client or weaken non-enumerating authorization behavior.
+
+- [ ] Inventory current `AppError`, direct `response.status(...)`, static-route, module-route, async rejection, unknown-route, and method-not-allowed behavior before defining stable codes for 401, 403, 404, 409, 429, 500, and 503.
+- [ ] Keep `/api/v1` in its versioned envelope and standardize internal `/api` errors as structured JSON with stable code, safe message, and request ID. Migrate shared browser fetch parsing and affected callers together; do not leave mixed string/object handling as the new permanent contract.
+- [ ] Add final API not-found/method handlers after all API routes, final browser not-found handling after all public/protected document routes, and the Express error middleware last. Content negotiation must not let an API path return the branded HTML page.
+- [ ] Use the existing request ID for every response and structured server diagnostic. Unexpected errors log type/stack and safe route/actor/workspace context only through the protected logger; responses remain generic.
+- [ ] Preserve 403/404 non-enumeration for protected resources and map dependency-unavailable conditions to 503 only when the distinction is safe and actionable.
+
+Acceptance criteria:
+
+- Every API failure has one documented JSON shape and request ID, every browser navigation failure has the correct status/HTML class, and route ordering plus non-enumeration are regression-locked.
+
+### Version 0.33.23.2 - Resilient branded pages and browser recovery boundary
+
+**Model: High Effort** — Failure UI must remain usable when normal rendering/data dependencies are broken and must not create retry loops or duplicate unsafe writes.
+
+- [ ] Add self-contained framework-owned browser pages/states for login-required, unavailable/forbidden-or-not-found, conflict, unexpected error, and temporary dependency unavailability. Use safe generic copy where 403/404 must remain indistinguishable.
+- [ ] Keep the fallback shell independent of workspace/module/database reads and optional application assets so a runtime database/dependency failure can still render it while the Node process is alive. Preserve security/no-store headers, keyboard use, responsive layout, theme-safe rendering, and a visible request ID for unexpected failures.
+- [ ] Give each surface one useful recovery action selected by context: sign in, return to the last safe page/dashboard, reload a read, or retry later. Never automatically replay a mutation.
+- [ ] Add a top-level browser rendering/unhandled-rejection boundary plus shared fetch-error presentation so client-rendering failures replace broken content with the recovery surface instead of leaving a blank page. Keep module-specific validation in its owning workflow.
+- [ ] Prove unknown public/protected routes, expired auth, forbidden/hidden records, conflict, thrown errors, database-unavailable reads, failed dynamic rendering, history navigation, focus return, and screen-reader announcements.
+
+Acceptance criteria:
+
+- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, and the fallback remains available without database-backed decoration or protected resource leakage.
+
+### Version 0.33.23.3 - Error-contract documentation, observability proof, and closeout
+
+**Model: High Effort** — Closeout must prove both user recovery and diagnostic correlation across public, protected, API, and dependency-failure paths.
+
+- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.24 proxy maintenance.
+- [ ] Add module-development guardrails so new routes use `AppError`/registered error codes rather than raw production diagnostics, and so new browser entries install the shared recovery boundary.
+- [ ] Add regressions that correlate a shown request ID with exactly one safe structured server diagnostic while asserting responses/logs omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers.
+- [ ] Run API contract, permission, workspace-isolation, security-header, static-fallback, accessibility, browser recovery, production-log, and canonical slice verification.
+
+Acceptance criteria:
+
+- The server and browser share a documented failure contract, support can correlate a user-visible ID to protected diagnostics, and all error surfaces preserve security, accessibility, and recovery behavior.
+
+## Version 0.33.24 - Operator Maintenance Mode and Deployment Outage Curtain
+
+**Model: High Effort** — Proxy routing, deploy/rollback failure handling, root-owned host assets, and truthful readiness checks directly affect release safety and public availability.
+
+Purpose:
+
+Turn the locally staged 2026-07-18 preview maintenance-mode concept into reviewed, generic repository assets and deploy behavior. Planned maintenance and app restarts should return a branded HTTP 503 page instead of a raw proxy 502, while monitoring and release verification can still inspect the underlying app when it is running.
+
+Decision:
+
+Maintenance mode is an operator/deployment concern at the reviewed proxy boundary, not an in-app workspace setting. Private Caddy remains running while the Node service is stopped. A root-owned, self-contained page is selected by marker files evaluated per request, so enabling/disabling does not require a Caddy reload. The bounded multi-proxy topology also gets a public-Nginx static fallback for app-host, tunnel, or private-Caddy failure.
+
+Dependencies and baseline:
+
+- Build on the two supported topologies in `docs/internet-deployment.md`, the checked-in Caddy/Nginx examples and proxy smoke, and `scripts/release/longtail-forge-deploy-host.example` backup-first deploy/rollback behavior.
+- Reuse 0.33.23 safe 503 language and styling principles, but keep the proxy page fully independent of Node, the database, Files, sessions, and normal application assets.
+- The real-client-IP forwarding correction is explicitly out of this branch; preserve the settled Nginx -> WireGuard -> Caddy header contract and its existing regression while that host configuration is completed separately.
+
+Non-goals:
+
+- No application/admin maintenance toggle, scheduled-maintenance calendar, user notification system, database quiescence control, automatic backup claim, high-availability failover, or generic load-balancer/CDN support.
+- Maintenance mode curtains public traffic; it does not by itself stop Node/workers or prove a backup is complete. Operators still use the reviewed service/backup procedures when quiescence is required.
+- Do not claim maintenance is scheduled, data is safe, or a backup is running unless the helper actually has evidence for that statement; default page copy stays truthful and generic.
+
+### Version 0.33.24.1 - Generic maintenance assets, marker ownership, and proxy contract
+
+**Model: High Effort** — A proxy matcher or filesystem-permission error can bypass maintenance, expose host paths, or give an operator account unintended content/configuration write access.
+
+- [ ] Promote the staged page/toggle/Caddy concept into hostname-neutral tracked assets. Remove hard-coded `mike`, hostnames, WireGuard addresses, and archive-only paths; configure reviewed values through the existing root-owned host environment/install boundary.
+- [ ] Install the maintenance page and proxy configuration root-owned and non-writable by the toggle/deployment accounts. Put only marker/state files in a narrowly writable directory so permission to toggle cannot replace page content, Caddy configuration, application releases, or secrets.
+- [ ] Support independent idempotent operator and deployment markers. Maintenance is active when either exists; `off` removes only the caller-owned marker so a deploy cannot cancel an operator hold and an operator cannot accidentally clear a failed-deploy curtain.
+- [ ] Serve a self-contained, accessible, responsive Longtail Forge page with generic temporary-unavailability copy, HTTP 503, `Retry-After`, `Cache-Control: no-store`, reviewed security headers, no external dependencies, and periodic refresh. Prefer passive light/dark system styling over executable page logic unless an equally strict CSP-safe theme mechanism is proven.
+- [ ] Exempt only `/healthz`, `/readyz`, and `/api/app-info` from the marker route. When Node is running they must return their real machine-readable app responses for monitoring/version proof; when Node is unavailable they must fail non-200 rather than returning a false healthy page.
+- [ ] Add a private-Caddy upstream-failure handler so an unexpected Node outage receives the same safe 503 curtain even when no marker was set, while the diagnostic exemptions remain non-200 and machine-checkable rather than falsely healthy.
+- [ ] Keep direct Caddy and bounded multi-proxy peer/header restrictions unchanged. Add disposable proxy tests for marker on/off, exact exemptions, methods/query strings, 503 body/headers, cache behavior, refresh, security headers, and forged forwarding values.
+
+Acceptance criteria:
+
+- An authorized operator can toggle a root-controlled maintenance curtain without reload or content/config write access; normal requests receive the reviewed 503 while diagnostic endpoints report the underlying app truthfully.
+
+### Version 0.33.24.2 - Backup-first deploy/rollback integration and failure safety
+
+**Model: High Effort** — Candidate failure and rollback recovery must never reopen traffic to a stopped, unverified, or partially restored application.
+
+- [ ] Change the reviewed host deploy helper to create its deployment marker before stopping Node/worker work and to leave Caddy running. Remove the current normal-path stop/start of the edge while preserving emergency traffic closure for unrecoverable proxy/security failures.
+- [ ] Keep artifact verification and dependency installation before the outage window. During the curtain, run backup/restore, release switch, direct loopback readiness, public `/api/app-info`, health, and readiness identity checks through the exempt routes before removing only the deployment marker.
+- [ ] Preserve a pre-existing operator marker throughout deploy and rollback. On backup failure, candidate failure, rollback failure, or current-release recovery failure, encode exact rules for restarting the last known-good app and for keeping the deployment marker active whenever verified service has not been restored.
+- [ ] Make helper cleanup signal-safe and idempotent without a broad trap that reopens traffic on failure. Record safe operator/deploy marker owner, reason class, start/end timestamps, candidate identity, and outcome in protected host logs/state without secrets.
+- [ ] Add failure-injection coverage for pre-backup failure, app stop, migration/start failure, wrong app identity, failed restore, failed rollback, repeated deploy/rollback, stale marker recovery, and an already-active operator hold.
+
+Acceptance criteria:
+
+- Deploys and rollbacks show maintenance instead of raw 502s, never clear someone else's hold, and reopen traffic only after the intended known-good app passes direct and public identity/readiness checks.
+
+### Version 0.33.24.3 - Public-edge fallback, operator runbook, live proof, and closeout
+
+**Model: High Effort** — The outer fallback and live rollout touch the real multi-proxy availability boundary and require host evidence beyond local configuration tests.
+
+- [ ] Add a reviewed Nginx static fallback for edge-generated 502/503/504 in the exact bounded multi-proxy example, with the same generic page semantics, `Retry-After`, no-store/security headers, and an internal asset route that cannot become a public file server. Do not intercept/replace a valid Caddy or application 503 response. Preserve exact-host rejection, upload streaming/limits, forwarding-header replacement, and WireGuard-only upstream access.
+- [ ] Define which layer owns the response in normal maintenance, Node-down, private-Caddy-down, tunnel-down, and public-edge-down scenarios. A public-edge outage remains unavailable rather than being mislabeled as application maintenance.
+- [ ] Update internet deployment, preview deployment, release/rollback, private-preview readiness, and host-helper documentation with install, validate, toggle, status, stale-marker recovery, emergency containment, rollback, and permission instructions. Keep real host values in the private operational record, not tracked examples.
+- [ ] Extend the direct and multi-proxy smoke harnesses to prove Caddy and Nginx configuration validation, normal pass-through, marker maintenance, upstream failure fallback, diagnostic endpoint truth, forwarding security, and recovery without proxy reload.
+- [ ] Roll out to both preview/demo hosts only after root-owned asset/config review and backups. Capture `caddy validate`, `nginx -t`, marker on/off HTTP evidence, Node-down fallback, successful deploy/rollback exercise, ownership/mode inspection, and `/api/app-info` identity. Do not close the branch from repo-local proof alone.
+- [ ] During operator handoff, retire or clearly label any local host-specific staging copies so they cannot be mistaken for the governing tracked configuration. Run canonical slice verification and the exceptional live deployment proof required by this branch.
+
+Acceptance criteria:
+
+- Both supported proxy topologies have a tested maintenance response for planned Node downtime, the multi-proxy path has a tested outer fallback for upstream failure, host permissions are least-privilege, and live preview/demo evidence proves traffic reopens only to a verified app.
 
 ## Version 0.34 - Support Tickets Module
 

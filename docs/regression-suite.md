@@ -40,6 +40,8 @@ At each checkpoint, review duplicate coverage, implementation-detail assertions,
 | `scripts/regression-coverage-exceptions.json` | Human-maintained policy for active and per-area floors, protected areas, required release-gate IDs, coverage families, legacy migration allowance, and explicit retirement evidence. |
 | `package.json` | Exposes the broad and focused command entry points described below. |
 
+As of 0.33.18.1, the discovered registry contains 376 scripts and protects 36 release-gate entries. `release.dependency-baseline` owns the reviewed ESLint 10.7 and Markdown-it 14.3 package/lockfile contract, Node 24 compatibility, unchanged lint commands, corrected backslash-space hard-break parser behavior, and removal of obsolete transitive `js-yaml`.
+
 Current package commands:
 
 | Command | Current behavior |

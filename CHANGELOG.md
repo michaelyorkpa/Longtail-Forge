@@ -1,3 +1,16 @@
+## Version 0.33.18.1 - 2026-07-19
+
+- Upgraded development linting from the resolved ESLint 9.39 line to ESLint 10.7 while preserving the existing flat configuration, full-file lint command, content-based cache, and warning/error behavior; the new engine contract remains compatible with the supported Node 24 line.
+- Upgraded the shared runtime Markdown parser from Markdown-it 14.2 to 14.3, including the reviewed `entities` 4.5 and `linkify-it` 5.0.2 dependency ranges.
+- Replaced the stale Markdown dependency assertion and added a required release regression for the reviewed ESLint/Markdown baseline, Node compatibility, unchanged lint commands, exact resolved parser helpers, and removal of obsolete transitive `js-yaml`.
+- Added focused document/default and user-authored parser coverage for Markdown-it 14.3's corrected literal-backslash plus two-space CommonMark hard-break behavior, while retaining application source normalization and product formatting policy.
+- Re-ran the shared Markdown safety and consumer contracts across raw HTML escaping, unsafe links and images, image opt-in, excerpts/plain text, tasks, tables, soft breaks, Notes, Help, and Files; `npm audit` reports zero vulnerabilities.
+- Corrected the bounded Nginx -> WireGuard -> Caddy reference so its trusted-proxy options attach to the listener created by `bind`, explicitly accepts `X-Forwarded-For` before `X-Real-IP`, and preserves the real public client address instead of falling back to the WireGuard peer.
+- Updated the static deployment contract and multi-proxy Caddy smoke fixture to reject address-qualified global `servers` options for the bound-listener topology and prove the forwarding-IP configuration.
+- Superseded Dependabot PRs #2, #6, and #7 with one reviewed `nightly` integration slice instead of allowing any dependency update to bypass the normal version and closeout workflow.
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `docs/Caddyfile.private-preview.multi-proxy.example`, `docs/internet-deployment.md`, `docs/markdown-platform-contract.md`, `docs/regression-suite.md`, and enforced current-version markers in `docs/runtime-configuration.md`, `docs/tasks-module.md`, `docs/notes-module.md`, and `docs/lists-module.md`.
+- No docs change needed: lint commands, application formatting behavior, routes, database schema, permissions, runtime configuration, public API scopes, module workflows, and user-facing Help behavior are unchanged.
+
 ## Version 0.33.17.9 - 2026-07-18
 
 - Hardened the root-owned bare-metal deployment helper after the live preview rollback exposed restored data owned or moded incompatibly with the dedicated application service account.

@@ -21,7 +21,7 @@ const regressionSuite = await readText("scripts/regression-legacy-snapshot.json"
 assert.equal(packageJson.version, appVersion, "package.json should carry the Markdown renderer slice version");
 assert.equal(packageLock.version, appVersion, "package-lock root version should carry the Markdown renderer slice version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package metadata should carry the Markdown renderer slice version");
-assert.equal(packageJson.dependencies["markdown-it"], "^14.2.0", "markdown-it should be installed as the selected Markdown dependency");
+assert.equal(packageJson.dependencies["markdown-it"], "^14.3.0", "markdown-it should use the reviewed 14.3 baseline");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
 assert.equal(typeof markdownService.markdownToPlainText, "function", "service should expose plain-text conversion");

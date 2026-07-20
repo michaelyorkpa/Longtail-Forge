@@ -78,7 +78,8 @@ assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/, "the public edge must 
 
 for (const requirement of [
   /auto_https off/,
-  /servers :8080[\s\S]*trusted_proxies static \{\$LONGTAIL_EDGE_WIREGUARD_PEER\}/,
+  /servers \{[\s\S]*trusted_proxies static \{\$LONGTAIL_EDGE_WIREGUARD_PEER\}/,
+  /client_ip_headers X-Forwarded-For X-Real-IP/,
   /trusted_proxies_strict/,
   /bind \{\$LONGTAIL_CADDY_WIREGUARD_ADDRESS\}/,
   /not remote_ip \{\$LONGTAIL_EDGE_WIREGUARD_PEER\}/,
@@ -89,6 +90,11 @@ for (const requirement of [
 ]) {
   assert.match(multiProxyCaddyfile, requirement);
 }
+assert.doesNotMatch(
+  multiProxyCaddyfile,
+  /^\s*servers :/m,
+  "the trusted_proxies servers block must stay address-less; with bind, an addressed block matches no listener and {client_ip} falls back to the TCP peer",
+);
 
 for (const proof of [
   /LONGTAIL_ENV: "production"/,

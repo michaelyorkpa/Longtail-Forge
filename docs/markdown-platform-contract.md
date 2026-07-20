@@ -20,6 +20,12 @@ Reviewed but not selected:
 
 The dependency should be added in 0.33.5.17.2, not in this contract slice.
 
+## Current Dependency Baseline
+
+As of 0.33.18.1, the reviewed runtime baseline is `markdown-it` 14.3 with `entities` 4.5 and `linkify-it` 5.0.2. The upgrade preserves the existing CommonMark, raw-HTML, safe-URL, image opt-in, table, task-list, underline, plain-text, excerpt, and render-mode policies.
+
+Markdown-it 14.3 corrects the CommonMark edge where a literal backslash immediately precedes the two trailing spaces that create a hard line break. The dependency regression exercises that behavior with both the document/default (`breaks: false`) and user-authored (`breaks: true`) parser configurations. Longtail Forge's application-level source normalization and formatting policy are unchanged by this dependency update.
+
 ## Approved Syntax
 
 The baseline syntax is CommonMark:
