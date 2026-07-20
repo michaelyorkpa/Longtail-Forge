@@ -89,6 +89,7 @@ assert.deepEqual(settings.docs, [
 const developmentData = suggestDocsForPaths(["scripts/development-data.mjs"], { index: rawIndex });
 assert.deepEqual(developmentData.matchedAreas.map((area) => area.id), ["development-demo-data"]);
 assert.deepEqual(developmentData.docs, [
+  "docs/demo-data-operations.md",
   "docs/development-and-demo-data.md",
   "docs/marketing/screenshot-and-demo-data-plan.md",
 ]);

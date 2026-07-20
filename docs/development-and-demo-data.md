@@ -7,6 +7,8 @@ Version 0.33.17.4 provides two reproducible, local-only data profiles:
 
 These are separate from automated test fixtures and from the scale/performance profiles in `scripts/seed-scale.mjs`. Normal installation and startup never run either seed command. Generated databases and Files objects remain ignored runtime data and must not be committed.
 
+Version 0.33.19.1 reuses the same `development` scenario definition behind a separate, named-host-only Linux operation for `rt-ltf-demo`. That operation does not relax this local CLI's development-environment and marked-directory refusals. Its reviewed source and runbook are tracked, while the generated demo database, Files objects, marker, backups, logs, and credentials remain host-only. See [Demo Host Data Provisioning and Reset](demo-data-operations.md).
+
 ## Seed a local profile
 
 Choose a unique local operator password and pass it only through the environment. The command does not contain or print a shared password.
@@ -32,7 +34,7 @@ The fixed default anchor date is `2026-07-15`, which makes IDs, scenario values,
 node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed --anchor-date 2026-07-15
 ```
 
-The result reports counts, a semantic fingerprint, and safe entry points for Dashboard, Workbench Focus Selection, and the seeded Task Focus task. It never reports a password.
+The result reports counts, a semantic fingerprint, and safe entry points for Dashboard, Workbench Focus Selection, and the seeded Task Focus task. It never reports a password. Seed completion also requires `PRAGMA integrity_check` and zero `PRAGMA foreign_key_check` rows.
 
 ## Run the seeded installation
 

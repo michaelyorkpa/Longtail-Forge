@@ -64,7 +64,7 @@ assert.match(docs, /warning-only licensing\/public-release process gate/);
 assert.match(docs, /0\.33\.6\.16\.2/);
 assert.match(docs, /auto-discover/);
 assert.match(docs, /Agents do not manually add the same regression/);
-assert.match(docs, /380 discovered scripts/, "current docs should report the active maintainability-closeout registry");
+assert.match(docs, /381 discovered scripts/, "current docs should report the active registry");
 assert.match(docs, /300 seconds/, "current docs should publish the formal suite-time review budget");
 
 assert.equal(REGRESSION_BUCKETS.length, 4, "inventory slice should preserve the four current buckets");
@@ -83,10 +83,10 @@ assert.ok(
   "inventory contract guardrail should be registered",
 );
 assert.equal(legacySnapshot.scripts.length, 311, "the legacy migration snapshot should preserve its baseline minus the documented syntax-gate retirement");
-assert.equal(REGRESSION_ENTRIES.length, 380, "auto-discovery should retain sixty-nine metadata guardrails after the documented legacy retirement");
+assert.equal(REGRESSION_ENTRIES.length, 381, "auto-discovery should retain seventy metadata guardrails after the documented legacy retirement");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [191, 6, 29, 154],
+  [191, 6, 29, 155],
   "auto-discovery must preserve every stateful bucket, add the maintainability closeout guardrail, and remove only the documented static syntax gate",
 );
 assert.match(suite, /discoverRegressionEntries/);

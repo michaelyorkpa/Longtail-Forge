@@ -2,11 +2,101 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.19`.
+Active cursor: `0.33.19.2`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
-## Version 0.33.19 - Workbench and API Load Performance
+## Version 0.33.19 - Reproducible Pretty Demo Dataset, Controlled Host Reset, and Developer Verification Throughput
+
+**Model: High Effort** — This branch combines a deliberately destructive public-demo data operation with release/test orchestration and isolation changes; database integrity, Files consistency, secret isolation, target identity, coverage preservation, and truthful escalation are all load-bearing.
+
+Purpose:
+
+Give `rt-ltf-demo` (`demo.longtailforge.com`) the coherent fictional development dataset that local development uses, without weakening the production runtime posture or turning ordinary Nightly deployment into a destructive reseed. The demo database and Files objects are environment state: they live only on the demo host, remain outside Git and runtime artifacts, and persist across routine deployments. The reviewed seed definition, Linux-safe provision/reset tooling, safety contracts, regressions, and operator runbook are repository-owned so the installation can be reproduced and audited instead of depending on an untracked one-off server script.
+
+After the initial demo-host closeout, reduce repeated developer verification cost without weakening protected integration or promotion coverage. The follow-on slices distinguish ceremony-only changes from executable release risk, expose stage timing, generate a focused agent context packet from canonical sources, move one bounded pure configuration matrix into Vitest while retaining its integration owner, and audit the serial Files bucket for only demonstrably safe reclassification.
+
+Sequencing decision:
+
+- This branch is inserted before the former 0.33.19 performance branch because the isolated demo/development environment needs representative, resettable data before further Nightly testing and performance proof. The former 0.33.19 through 0.33.26 branches move down one minor version to 0.33.20 through 0.33.27.
+- Build and prove the guarded operation locally before authorizing its first live use. The initial host reset and its external evidence remain a separate slice because repo-local proof cannot establish the demo host's backup, filesystem ownership, service identity, login, Search, Files, or public runtime state.
+- Close the live demo-host work before changing verification orchestration. Then land 0.33.19.3 first so its routing and timing improvements benefit 0.33.19.4 and 0.33.19.5; keep the pure-contract migration and Files isolation audit separate because they have different ownership and concurrency risks.
+
+Environment boundary:
+
+- The generated SQLite database, local Files object tree, seed marker, backups, logs, and all credentials stay on `rt-ltf-demo`; none are committed, packed into the application artifact, copied from the Windows development installation, or synchronized to preview/customer environments.
+- The demo host creates or uses its own strong `SUPER_ADMIN_PASSWORD` from its protected environment. The operation never reads, copies, prints, or transfers the local `.env`, and changing the environment value is not treated as an implicit password rotation for an existing account.
+- Routine verified `nightly` deployments preserve the demo data directory. Provision/reset is an explicit manual operator action only: never startup behavior, a migration side effect, an automatic deploy step, a scheduled Nightly action, an admin UI action, or a general production/customer seeding mechanism.
+- Only fictional scenario data is allowed. Persona accounts remain unable to authenticate; the one operator account uses the host-only credential. Secure Notes material, real customer/preview data, production secrets, storage paths, and raw identifiers are not seed content or command output.
+
+Non-goals:
+
+- No change to friends-and-family preview data, `rt-ltf`, customer/self-hosted installations, normal first-install bootstrap, migrations, or ordinary backup/restore semantics.
+- No generic remote command executor, arbitrary-path database reset, automatic cleanup cadence, shared demo password, or route/UI for triggering a reset.
+- No promise that accumulated demo testing state remains pristine. Preservation is intentional; operators invoke the manual reset only when the demo state becomes too messy or a clean scenario is specifically required.
+- No reduction of protected integration/promotion coverage, no retirement of the runtime-configuration integration owner, and no assumption that every Files regression is safe to parallelize.
+
+### Version 0.33.19.2 - Initial rt-ltf-demo installation, recovery proof, and closeout
+
+**Model: High Effort** — This slice changes a live public demo environment and closes only from verified backup, service, data, security, and public-route evidence.
+
+- [ ] Revalidate read-only SSH access, resolved host identity, service account, runtime data/database/Files paths, filesystem/mount boundaries, free space, current artifact identity, and current backup/restore readiness before authorizing the reset. Stop if the live configuration conflicts with the checked-in contract.
+- [ ] Capture and inspect the pre-reset whole-instance backup, record checksum and recovery location without exposing protected paths or secrets, quiesce app/worker access, provision the staged fictional dataset, apply required ownership/modes, atomically activate it, and restart the canonical services. Preserve the prior data state until the new installation completes its observation check.
+- [ ] Verify `PRAGMA integrity_check`, zero foreign-key violations, expected semantic fingerprint/counts, exact Files object bytes and attachment reads, Search results, disabled persona login, successful operator login using the host-owned credential, worker/job health, `/healthz`, `/readyz`, HTTPS behavior, and public `/api/app-info` identity for `demo.longtailforge.com`.
+- [ ] Exercise the documented recovery/reset procedure on a safe disposable or reversible host state, prove the recorded backup can be inspected and selected for rollback, and confirm a normal subsequent Nightly deployment preserves the seeded database and Files tree rather than reseeding it.
+- [ ] Record sanitized live evidence and the manual-reset/recovery pointer in the private operational record; update `CHANGELOG.md`, archive this completed branch, run the canonical local verification once, and do not claim completion from local proof if any live-host check remains missing.
+
+Acceptance criteria:
+
+- `demo.longtailforge.com` serves the current verified Nightly artifact with the rich fictional dataset, its database and Files objects survive ordinary deployment, operator/persona authentication boundaries are correct, the pre-reset state is recoverable, the explicit reset path is repeatable, and all required local plus live evidence is recorded without committing host data or secrets.
+
+### Version 0.33.19.3 - Developer Verification Throughput
+
+**Model: High Effort** — It changes release/test orchestration, so an error could accidentally omit required coverage.
+
+- [ ] Make changed-area routing understand ceremony-only changes. Treat `package.json` plus `package-lock.json` edits that alter only the application version as version bookkeeping rather than dependency or npm-script changes, and let changelog/roadmap bookkeeping run its owning closeout checks without automatically escalating to every regression.
+- [ ] Retain full escalation for actual dependency changes, npm-script changes, workflows, release tooling, framework code, database code, shared views, unknown paths, security-sensitive boundaries, and generated-contract changes. Add focused routing regressions that prove both the narrow ceremony cases and every retained full-escalation boundary.
+- [ ] Add a CI regression-only full-escalation path: after that job has already passed typecheck, unit tests, and lint, run the complete discovered regression registry without restarting `npm run check` from the beginning. Keep the independently runnable full local/release commands and protected integration/promotion coverage intact.
+- [ ] Add stage timing to `verify:slice` and CI for context/setup, closeout gates, typecheck/unit/lint, regression buckets, permission checks, browser checks, and packaging. Make skipped, included, and failed stages visible without treating timing output as a substitute for pass/fail evidence.
+- [ ] Add a generated `npm run agent:brief` command that prints only the active roadmap slice and acceptance criteria, relevant governing decisions, documentation owners, and likely test commands. Derive the packet at runtime from the canonical roadmap, decisions, documentation ownership, and test-routing files; do not create another maintained source of truth.
+- [ ] Prove representative narrow Tasks, Notes, CSS, and documentation changes select only their owning closeout/focused verification, while representative release, framework, database, Files, security, workflow, generated-contract, and unknown changes still select the complete required gates.
+
+Acceptance criteria:
+
+- A narrow Tasks, Notes, CSS, or documentation slice reaches final local completion without running unrelated database, Files, and framework regressions, while protected integration and promotion gates retain complete coverage; stage timings explain the remaining cost, and `agent:brief` produces a current focused packet entirely from canonical files.
+
+### Version 0.33.19.4 - Runtime-configuration pure contract migration
+
+**Model: Medium Effort** — Test ownership changes, but the target is a bounded pure validation matrix with an explicitly retained integration owner.
+
+- [ ] Measure the current pure-matrix and retained-integration runtime before changing ownership, and inventory the existing assertions so none can disappear silently.
+- [ ] Move only pure defaults, validation, normalization, and expected-error cases from `scripts/runtime-configuration-contract-regression.mjs` into Vitest.
+- [ ] Keep the regression responsible for child-process environment materialization, actual runtime startup behavior, module-registry integration, database integration, runtime/API responses, and every other process or integration boundary it currently owns.
+- [ ] Record assertion movement through the existing regression coverage ratchet, retain the integration regression as a discovered owner, and prove the Vitest and retained-regression layers divide responsibility without duplicate source-of-truth fixtures or omitted cases.
+- [ ] Measure the same paths after the migration and document the before/after timing plus the exact retained integration responsibilities. Do not retire the integration regression merely because part of it moved to Vitest.
+
+Acceptance criteria:
+
+- Pure configuration behavior runs through the faster Vitest layer, while the retained regression still proves every process, environment, database, registry, and runtime integration boundary previously covered.
+
+### Version 0.33.19.5 - Files regression isolation and scheduling audit
+
+**Model: High Effort** — File, database, scanner, process, port, and temporary-directory isolation can produce convincing but unsafe parallel results.
+
+The governing instruction is to **audit and safely reclassify**, not to parallelize all 29 tests.
+
+- [ ] Inventory every script in the serial Files bucket and classify its database, file-storage root, scanner process or executable, network port, environment variables, background worker or child process, and singleton module/runtime state.
+- [ ] Move only scripts whose complete mutable state is demonstrably disposable and uniquely namespaced. Preserve conservative serial scheduling for any script that shares, inherits, or ambiguously owns one of those resources.
+- [ ] Run bounded repeat-stress proof at several concurrency levels for every proposed reclassification, covering unique database, filesystem, scanner, port, environment, worker/child-process, and singleton-runtime state as applicable.
+- [ ] Leave unsafe or ambiguous scripts serial and record the script-specific reason instead of using aggregate bucket runtime as evidence of safety.
+- [ ] Record before/after wall-clock timing, exact bucket membership changes, concurrency settings, failures or recovered flakes observed during stress, and every retained serial member with its reason.
+- [ ] Preserve every assertion, regression identity, required release gate, coverage family, and existing coverage floor; update generated scheduling/coverage contracts only for reclassifications proven safe by the audit.
+
+Acceptance criteria:
+
+- Every reclassified Files regression passes repeated concurrent stress with unique database, filesystem, scanner, port, and process state; ambiguous scripts remain serial, and the final bucket wall time and membership changes are documented.
+
+## Version 0.33.20 - Workbench and API Load Performance
 
 **Model: High Effort** — Hot-path query pipelines, the SQLite adapter statement lifecycle, module-context read semantics, and API payload contracts all change in one branch; a regression here corrupts nothing but silently changes list contents, permission filtering, or payload shapes consumed by many pages.
 
@@ -16,7 +106,7 @@ Eliminate the ~5s Workbench load measured on the rt-ltf preview database (2026-0
 
 Sequencing decision:
 
-- This branch was inserted ahead of the former 0.33.19 UX branch because day-to-day slowness on the most-used database damages the preview experience more than the deferred UX corrections; the prior 0.33.19 through 0.33.24 branches each moved down one minor version (now 0.33.20 through 0.33.25).
+- This performance branch was previously inserted ahead of the UX branch because day-to-day slowness on the most-used database damages the preview experience more than the deferred UX corrections. It now follows the demo-data readiness branch as 0.33.20, while the UX branch and the remaining near-term plan continue at 0.33.21 through 0.33.27.
 - The SQLite adapter internals slice pulls the planned 0.39.16 adapter cleanup forward, because the review measured its per-query overhead multiplying every N+1 today; 0.39.16 remains as a re-benchmark checkpoint before the 0.40.0 PostgreSQL adapter.
 - Server-side slices land before the browser-client restructuring so the client work is measured against already-fast endpoints and does not paper over server cost.
 
@@ -36,7 +126,7 @@ Non-goals:
 - No behavior changes to ranking, permission filtering, or workspace isolation; faster must mean identical results.
 - Payload-shape changes are limited to removing duplicated/unused fields and adding opt-in slim projections, each with its consumers migrated in the same slice; no other API contract changes.
 
-### Version 0.33.19.1 - SQLite adapter statement cache and single-scan parsing (pulled forward from 0.39.16)
+### Version 0.33.20.1 - SQLite adapter statement cache and single-scan parsing (pulled forward from 0.39.16)
 
 **Model: High Effort** — Database adapter internals with prepared-statement lifecycle and durability implications; a subtle cache-invalidation or PRAGMA error is high-cost.
 
@@ -51,7 +141,7 @@ Acceptance criteria:
 
 - The adapter is measurably faster on the benchmark with no change to query results, error contracts, or transaction semantics, and the tuning PRAGMAs are config-gated, diagnostics-visible, and documented.
 
-### Version 0.33.19.2 - Module-context reads stop writing
+### Version 0.33.20.2 - Module-context reads stop writing
 
 **Model: High Effort** — Startup/first-install row-ensuring moves lifecycle; getting it wrong breaks fresh installs or module enable/disable.
 
@@ -64,7 +154,7 @@ Acceptance criteria:
 
 - No read-path endpoint opens a write transaction, module status behavior is unchanged across install/enable/disable/fresh-install flows, and repeated per-request context reads hit the memo.
 
-### Version 0.33.19.3 - Task list pipeline: opt-in options, bounded lists, batched reminders
+### Version 0.33.20.3 - Task list pipeline: opt-in options, bounded lists, batched reminders
 
 **Model: High Effort** — The task list projection feeds Workbench, candidates, and pickers; payload-shape changes must migrate every consumer in the same slice.
 
@@ -79,7 +169,7 @@ Acceptance criteria:
 
 - `workbench-items` is bounded and its payload materially smaller with identical visible list contents and permission behavior; task list paths issue a near-constant number of queries regardless of task count.
 
-### Version 0.33.19.4 - Focus-candidates and bootstrap pipeline
+### Version 0.33.20.4 - Focus-candidates and bootstrap pipeline
 
 **Model: High Effort** — Candidate ranking and resume-state semantics must not change while their data acquisition is rebuilt.
 
@@ -94,7 +184,7 @@ Acceptance criteria:
 
 - Focus-candidates and bootstrap return identical results with bounded query counts, and `focus-modes` latency collapses without being touched (queueing proof).
 
-### Version 0.33.19.5 - Client-projects options projection and reminder-policy batching
+### Version 0.33.20.5 - Client-projects options projection and reminder-policy batching
 
 **Model: High Effort** — Thirteen consuming pages; the slim projection must be adopted without breaking the management surface.
 
@@ -107,7 +197,7 @@ Acceptance criteria:
 
 - The options payload is a small fraction of the management payload, reminder-policy queries are constant-count, and every consumer renders identically.
 
-### Version 0.33.19.6 - Workbench client fan-out, caching, and progressive render
+### Version 0.33.20.6 - Workbench client fan-out, caching, and progressive render
 
 **Model: High Effort** — Load-order restructuring on the most-used page; races between restored local state and server truth must be handled deliberately.
 
@@ -123,7 +213,7 @@ Acceptance criteria:
 
 - Workbench wall-clock load approximates the slowest single request instead of the sum of waves, first useful render is sub-second on warm loads, and behavior is identical with cold caches.
 
-### Version 0.33.19.7 - Performance proof and closeout
+### Version 0.33.20.7 - Performance proof and closeout
 
 **Model: Medium Effort** — Evidence and documentation; no new behavior.
 
@@ -135,7 +225,7 @@ Acceptance criteria:
 
 - The measured Workbench load on the reference dataset is under ~1.5s cold / sub-second warm, the numbers are recorded, and budget regressions guard the hot paths.
 
-## Version 0.33.20 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
+## Version 0.33.21 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
 
 **Model: High Effort** — This branch batches the pre-preview review findings that were deliberately deferred until after the friends-and-family preview with related short-term TODO work, spanning Reporting, Clients/Projects, Workbench, Tasks, and Notes surfaces.
 
@@ -148,7 +238,7 @@ Non-goals:
 - No preview-readiness claims move here; anything required before invitations belongs under 0.33.17.
 - No new module workflows beyond the corrections and settings surfaces named below.
 
-### Version 0.33.20.1 - Reporting refinements
+### Version 0.33.21.1 - Reporting refinements
 
 **Model: Medium Effort** — One contained control swap on an already-verified surface with routine shared-picker regression coverage.
 
@@ -158,7 +248,7 @@ Acceptance criteria:
 
 - The Reporting tag filter matches the shared tag-picker interaction pattern.
 
-### Version 0.33.20.2 - Clients and Projects list and modal polish
+### Version 0.33.21.2 - Clients and Projects list and modal polish
 
 **Model: High Effort** — Many small corrections across the Clients/Projects lists, filters, and add/edit modals with shared-modal and framework-ownership implications.
 
@@ -199,7 +289,7 @@ Acceptance criteria:
 
 - Clients/Projects filters, list rows, and add/edit modals match the shared framework modal and list patterns, with correct workspace-project labeling, hierarchy hyphens, default non-billable workspace projects, and no clipped focus rings or orphaned column headings.
 
-### Version 0.33.20.3 - Workbench algorithm, In Progress behavior, and timer-card follow-ups
+### Version 0.33.21.3 - Workbench algorithm, In Progress behavior, and timer-card follow-ups
 
 **Model: High Effort** — Focus-selection algorithm changes affect what work every user is steered toward.
 
@@ -215,7 +305,7 @@ Acceptance criteria:
 
 - Focus modes surface the right work (blocked only in review, due In-Progress items in due mode, running timers prioritized), In Progress status survives checklist edits under a timer, stale task URLs clear, and the manual-timer recommendation has a deliberate, documented behavior.
 
-### Version 0.33.20.4 - Task reminders, status transitions, and time estimates
+### Version 0.33.21.4 - Task reminders, status transitions, and time estimates
 
 **Model: High Effort** — Status automation and reminder nullability change task lifecycle behavior across views.
 
@@ -228,7 +318,7 @@ Acceptance criteria:
 
 - Second reminders are individually cancelable; Blocked/In Progress transitions and blocked-reason restore behave as specified; completion prompts for a Workbench-promoted next action; tasks can carry quarter-hour estimates.
 
-### Version 0.33.20.5 - Notes settings surface
+### Version 0.33.21.5 - Notes settings surface
 
 **Model: Medium Effort** — A new module settings contribution following the 0.33.15 settings host contract.
 
@@ -238,7 +328,7 @@ Acceptance criteria:
 
 - Notes contributes a settings surface with catalog list/bulk-edit management, following the shared settings anatomy and module-ownership boundaries.
 
-### Version 0.33.20.6 - User Settings password action isolation and runtime repair
+### Version 0.33.21.6 - User Settings password action isolation and runtime repair
 
 **Model: Medium Effort** — This is one contained User Settings action workflow with an intact server-side password-change contract but a reported rendered-runtime failure and stale/mixed-asset risk.
 
@@ -251,7 +341,7 @@ Acceptance criteria:
 
 - Password entry and submission are fully isolated from universal User Settings Save/Revert behavior, the dedicated Change Password button works in the served app, and a rendered disposable-account regression protects both the UI transaction boundary and the completed credential change.
 
-### Version 0.33.20.7 - Deferred TLS/proxy-dependent review findings (placeholder)
+### Version 0.33.21.7 - Deferred TLS/proxy-dependent review findings (placeholder)
 
 **Model: Medium Effort** — Scope is unknown until the review runs against the deployed TLS environment.
 
@@ -261,7 +351,7 @@ Acceptance criteria:
 
 - Every TLS/proxy-dependent review item has a recorded result, and confirmed defects are corrected and regression-covered here.
 
-### Version 0.33.20.8 - Quick-action capture refresh consumption on host pages
+### Version 0.33.21.8 - Quick-action capture refresh consumption on host pages
 
 **Model: Medium Effort** — The broadcast half of an existing contract already works; this slice designs and lands the missing consumption half as a framework-owned, declarative subscription rather than per-page ad-hoc listeners.
 
@@ -276,7 +366,7 @@ Acceptance criteria:
 
 - A timer created through the quick-action capture while on the Workbench appears in the Timers card automatically; the refresh contract is framework-owned and declaratively consumed by pages; the dispatch-plus-consumption path is regression-covered.
 
-## Version 0.33.21 - Recurring Calendar Projection and Private Calendar Subscription Feed
+## Version 0.33.22 - Recurring Calendar Projection and Private Calendar Subscription Feed
 
 Purpose:
 
@@ -313,7 +403,7 @@ Non-goals:
 - Do not weaken per-task read permission, workspace isolation, private/secure-content, or audit guardrails to serve the calendar projection or the feed.
 - Do not generalize a framework "feed serving" facility for tasks alone; the framework owns only the tokenized-feed auth surface (a framework-wide exception), while iCalendar content stays module-owned until a second real content consumer exists.
 
-### Version 0.33.21.1 - Read-time recurrence projection on the calendar
+### Version 0.33.22.1 - Read-time recurrence projection on the calendar
 
 **Model: High Effort** — This changes the calendar read to merge computed virtual occurrences with real rows, and a mistake either drops real instances or double-shows occurrences.
 
@@ -330,7 +420,7 @@ Acceptance criteria:
 - Virtual occurrences respect end dates, permission/scope filters, and never duplicate a materialized instance.
 - No new rows are created by opening or paging the calendar.
 
-### Version 0.33.21.2 - Per-instance overrides via materialize-on-touch
+### Version 0.33.22.2 - Per-instance overrides via materialize-on-touch
 
 **Model: High Effort** — Promotion-on-edit must be exactly-once and race-safe so an instance-specific edit cannot silently apply to the wrong date or spawn duplicate rows.
 
@@ -338,14 +428,14 @@ Acceptance criteria:
 - [ ] Carry `templateId` + `instanceDate` from the virtual calendar entry through the task editor open path (`public/js/task-dialog.js`, `openCalendarTask`) so the save knows it is promoting a specific occurrence rather than editing the template.
 - [ ] Make promotion idempotent and race-safe: concurrent promotion of the same occurrence resolves to one row (reuse/verify the existing instance-uniqueness guarantee), and promotion never disturbs the completion-driven generation of the chain's next open instance.
 - [ ] Confirm the existing completion continuity and the 12-hour backfill sweep still behave correctly when the touched occurrence is not the current open instance.
-- [ ] Add regressions: touching one occurrence materializes exactly that date and leaves siblings virtual; the materialized override then displays instead of its ghost (0.33.21.1 dedup); concurrent touch yields a single row; and completing a virtual occurrence both records completion and preserves normal next-instance generation.
+- [ ] Add regressions: touching one occurrence materializes exactly that date and leaves siblings virtual; the materialized override then displays instead of its ghost (0.33.22.1 dedup); concurrent touch yields a single row; and completing a virtual occurrence both records completion and preserves normal next-instance generation.
 
 Acceptance criteria:
 
 - A user can attach instance-specific data to a single occurrence of a recurring task, and only that occurrence becomes a real, independently-editable row.
 - Promotion is exactly-once, permission-checked, and does not disrupt recurrence generation or continuity.
 
-### Version 0.33.21.3 - Framework private calendar-feed subscription and token authentication
+### Version 0.33.22.3 - Framework private calendar-feed subscription and token authentication
 
 **Model: High Effort** — This is a new session-less, internet-reachable authenticated read surface; getting token handling, revocation, or throttling wrong exposes private task data.
 
@@ -363,12 +453,12 @@ Acceptance criteria:
 - The feed endpoint is throttled, non-enumerating, secret-free in logs, and revocation takes effect immediately.
 - The framework owns only the feed auth/serving seam and dispatches content to a registered provider by ID.
 
-### Version 0.33.21.4 - Tasks iCalendar content serialization
+### Version 0.33.22.4 - Tasks iCalendar content serialization
 
 **Model: High Effort** — iCalendar correctness (RRULE, RECURRENCE-ID overrides, time zones, escaping) determines whether real calendar clients render the feed without corruption.
 
 - [ ] Register a Tasks feed content provider that serializes the user's readable tasks into standards-compliant iCalendar (`VCALENDAR`/`VEVENT`), reusing `taskCalendarRow` semantics for all-day (`due_time` absent) vs timed events and the same per-task read-permission and workspace scope as the in-app calendar.
-- [ ] Emit recurring tasks as a single `VEVENT` with an `RRULE` derived from the template (reusing `buildRRule`/the template's stored `rrule`), honoring `recurrence_end_date` as `UNTIL`, and serialize each materialized instance-override as a `RECURRENCE-ID` exception to its series (shared dedup with 0.33.21.1).
+- [ ] Emit recurring tasks as a single `VEVENT` with an `RRULE` derived from the template (reusing `buildRRule`/the template's stored `rrule`), honoring `recurrence_end_date` as `UNTIL`, and serialize each materialized instance-override as a `RECURRENCE-ID` exception to its series (shared dedup with 0.33.22.1).
 - [ ] Produce stable, provider-neutral `UID`s (task/instance identity) and correct `DTSTART`/`DTEND`/time-zone (`due_timezone`/`due_at_utc`) handling, with proper iCalendar line folding and text escaping.
 - [ ] Bound the feed to a defined rolling window (past/future horizon) rather than unbounded history/future; open-ended recurrences fill the future horizon via RRULE.
 - [ ] Validate output against Google Calendar, Apple Calendar, Outlook, and Thunderbird import, and add a serialization regression (fixtures for single, all-day, timed, recurring, and overridden-instance tasks) asserting valid structure and correct RRULE/RECURRENCE-ID.
@@ -379,7 +469,7 @@ Acceptance criteria:
 - Recurring tasks appear as native RRULE events with per-instance overrides expressed as RECURRENCE-ID exceptions.
 - The feed exposes only tasks the token's user may read, within a bounded window.
 
-### Version 0.33.21.5 - Subscription UI, documentation, and closeout
+### Version 0.33.22.5 - Subscription UI, documentation, and closeout
 
 - [ ] Add a user-facing "Calendar subscription" control (in user settings, aligned with the 0.33.15 settings host if landed) to reveal, copy, rotate, and disable the private feed URL, described as a read-only subscription and never as "Google Calendar sync."
 - [ ] Provide short in-product guidance/links for adding the URL to Google Calendar, Apple Calendar, Outlook, and Thunderbird, and set expectations that client refresh is periodic (not real-time).
@@ -392,7 +482,7 @@ Acceptance criteria:
 - Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
 - The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, and the release-gate checks pass.
 
-## Version 0.33.22 - Secure Notes Catalog Policy and Inherited Protection
+## Version 0.33.23 - Secure Notes Catalog Policy and Inherited Protection
 
 **Model: High Effort** — Catalog-level authorization, encryption transitions, search suppression, and non-exposure across every Notes consumer carry security and data-integrity risk.
 
@@ -408,7 +498,7 @@ Dependencies and baseline:
 
 - Build on the existing `notes.security_mode`, secure-note permissions, encrypted payload/revision path, `note_library_collections` hierarchy, Notes access policy, and framework audit/event contracts.
 - Preserve the current rule that secure Notes content and attachments do not enter normal Files, Search, notification, public API, resume-context, or export flows without an explicitly designed secure equivalent.
-- Land before Support View (0.33.23), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
+- Land before Support View (0.33.24), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
 
 Non-goals:
 
@@ -416,7 +506,7 @@ Non-goals:
 - Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
 - Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
 
-### Version 0.33.22.1 - Catalog policy, effective-security projection, and migration
+### Version 0.33.23.1 - Catalog policy, effective-security projection, and migration
 
 **Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
 
@@ -430,7 +520,7 @@ Acceptance criteria:
 
 - One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
 
-### Version 0.33.22.2 - Fail-closed catalog transitions and deliberate downgrade
+### Version 0.33.23.2 - Fail-closed catalog transitions and deliberate downgrade
 
 **Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
 
@@ -444,7 +534,7 @@ Acceptance criteria:
 
 - Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
 
-### Version 0.33.22.3 - Consumer enforcement, management UI, and closeout
+### Version 0.33.23.3 - Consumer enforcement, management UI, and closeout
 
 **Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
 
@@ -452,13 +542,13 @@ Acceptance criteria:
 - [ ] Keep effectively secure notes out of normal search documents, notification payloads, excerpts, public APIs, exports, and future indexing/AI/provider catalogs; add a source/manifest guardrail so a new Notes consumer must declare and test secure-content behavior.
 - [ ] Add catalog management UI that clearly shows inherited versus explicit secure policy, prevents a child override under a secure ancestor, explains transition/failure state without exposing content, and keeps downgrade separate from ordinary edit/move controls.
 - [ ] Record catalog policy enable/complete/failure, subtree-preservation, and explicit downgrade events without note bodies, keys, plaintext, or secret metadata. Update Notes, security, module-contract, Help, and operator recovery documentation.
-- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.23 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
+- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.24 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
 
 Acceptance criteria:
 
 - Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
 
-## Version 0.33.23 - Read-Only Support View
+## Version 0.33.24 - Read-Only Support View
 
 **Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
 
@@ -472,7 +562,7 @@ The authenticated administrator remains the actor for the entire session. A sepa
 
 Dependencies and baseline:
 
-- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.22 effective Notes security.
+- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.23 effective Notes security.
 - Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
 - Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
 
@@ -482,7 +572,7 @@ Non-goals:
 - No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
 - No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
 
-### Version 0.33.23.1 - Durable support-session and actor/effective identity contract
+### Version 0.33.24.1 - Durable support-session and actor/effective identity contract
 
 **Model: High Effort** — Session identity, workspace scope, expiration, and rotation mistakes can become privilege escalation or attribution failures.
 
@@ -496,7 +586,7 @@ Acceptance criteria:
 
 - Every support request carries separate immutable actor and effective-user identities, a short expiry, and one effective workspace; entering/leaving rotates the session and cannot grant either identity new permissions.
 
-### Version 0.33.23.2 - Server read-only enforcement and protected-data exclusions
+### Version 0.33.24.2 - Server read-only enforcement and protected-data exclusions
 
 **Model: High Effort** — Read-only enforcement must cover framework and module routes without trusting UI state or accidentally creating a universal hook.
 
@@ -510,7 +600,7 @@ Acceptance criteria:
 
 - Direct HTTP calls cannot mutate state in Support View, the rendered data never exceeds the target user's normal readable scope, protected secrets/secure Notes remain absent, and every allowed or denied action remains attributable to the administrator.
 
-### Version 0.33.23.3 - Support View UX, audit review, documentation, and closeout
+### Version 0.33.24.3 - Support View UX, audit review, documentation, and closeout
 
 **Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
 
@@ -524,7 +614,7 @@ Acceptance criteria:
 
 - An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
 
-## Version 0.33.24 - Branded Error Surfaces and Correlated Failure Handling
+## Version 0.33.25 - Branded Error Surfaces and Correlated Failure Handling
 
 **Model: High Effort** — Error classification sits on every route and must improve recovery without leaking protected resource existence or production diagnostics.
 
@@ -539,14 +629,14 @@ Route class determines response format; API paths never receive HTML and browser
 Dependencies and baseline:
 
 - Build on `AppError`, `attachRequestContext`, operational JSON logging, transport-security headers, `staticService`, and the existing `/api/v1` versioned envelope.
-- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.25.
+- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.26.
 
 Non-goals:
 
 - No stack traces, SQL details, filesystem paths, environment values, credentials, raw errors, hidden record labels, or resource-existence confirmation in production responses.
 - No new telemetry vendor, hosted error-reporting service, automatic retry of unsafe mutations, or attempt to keep the Node process alive after an unrecoverable startup failure.
 
-### Version 0.33.24.1 - Server error taxonomy, API envelopes, and final route ordering
+### Version 0.33.25.1 - Server error taxonomy, API envelopes, and final route ordering
 
 **Model: High Effort** — A framework-wide middleware change can break every API client or weaken non-enumerating authorization behavior.
 
@@ -560,7 +650,7 @@ Acceptance criteria:
 
 - Every API failure has one documented JSON shape and request ID, every browser navigation failure has the correct status/HTML class, and route ordering plus non-enumeration are regression-locked.
 
-### Version 0.33.24.2 - Resilient branded pages and browser recovery boundary
+### Version 0.33.25.2 - Resilient branded pages and browser recovery boundary
 
 **Model: High Effort** — Failure UI must remain usable when normal rendering/data dependencies are broken and must not create retry loops or duplicate unsafe writes.
 
@@ -574,11 +664,11 @@ Acceptance criteria:
 
 - Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, and the fallback remains available without database-backed decoration or protected resource leakage.
 
-### Version 0.33.24.3 - Error-contract documentation, observability proof, and closeout
+### Version 0.33.25.3 - Error-contract documentation, observability proof, and closeout
 
 **Model: High Effort** — Closeout must prove both user recovery and diagnostic correlation across public, protected, API, and dependency-failure paths.
 
-- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.25 proxy maintenance.
+- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.26 proxy maintenance.
 - [ ] Add module-development guardrails so new routes use `AppError`/registered error codes rather than raw production diagnostics, and so new browser entries install the shared recovery boundary.
 - [ ] Add regressions that correlate a shown request ID with exactly one safe structured server diagnostic while asserting responses/logs omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers.
 - [ ] Run API contract, permission, workspace-isolation, security-header, static-fallback, accessibility, browser recovery, production-log, and canonical slice verification.
@@ -587,7 +677,7 @@ Acceptance criteria:
 
 - The server and browser share a documented failure contract, support can correlate a user-visible ID to protected diagnostics, and all error surfaces preserve security, accessibility, and recovery behavior.
 
-## Version 0.33.25 - Operator Maintenance Mode and Deployment Outage Curtain
+## Version 0.33.26 - Operator Maintenance Mode and Deployment Outage Curtain
 
 **Model: High Effort** — Proxy routing, deploy/rollback failure handling, root-owned host assets, and truthful readiness checks directly affect release safety and public availability.
 
@@ -602,7 +692,7 @@ Maintenance mode is an operator/deployment concern at the reviewed proxy boundar
 Dependencies and baseline:
 
 - Build on the two supported topologies in `docs/internet-deployment.md`, the checked-in Caddy/Nginx examples and proxy smoke, and `scripts/release/longtail-forge-deploy-host.example` backup-first deploy/rollback behavior.
-- Reuse 0.33.24 safe 503 language and styling principles, but keep the proxy page fully independent of Node, the database, Files, sessions, and normal application assets.
+- Reuse 0.33.25 safe 503 language and styling principles, but keep the proxy page fully independent of Node, the database, Files, sessions, and normal application assets.
 - The real-client-IP forwarding correction is explicitly out of this branch; preserve the settled Nginx -> WireGuard -> Caddy header contract and its existing regression while that host configuration is completed separately.
 
 Non-goals:
@@ -611,7 +701,7 @@ Non-goals:
 - Maintenance mode curtains public traffic; it does not by itself stop Node/workers or prove a backup is complete. Operators still use the reviewed service/backup procedures when quiescence is required.
 - Do not claim maintenance is scheduled, data is safe, or a backup is running unless the helper actually has evidence for that statement; default page copy stays truthful and generic.
 
-### Version 0.33.25.1 - Generic maintenance assets, marker ownership, and proxy contract
+### Version 0.33.26.1 - Generic maintenance assets, marker ownership, and proxy contract
 
 **Model: High Effort** — A proxy matcher or filesystem-permission error can bypass maintenance, expose host paths, or give an operator account unintended content/configuration write access.
 
@@ -627,7 +717,7 @@ Acceptance criteria:
 
 - An authorized operator can toggle a root-controlled maintenance curtain without reload or content/config write access; normal requests receive the reviewed 503 while diagnostic endpoints report the underlying app truthfully.
 
-### Version 0.33.25.2 - Backup-first deploy/rollback integration and failure safety
+### Version 0.33.26.2 - Backup-first deploy/rollback integration and failure safety
 
 **Model: High Effort** — Candidate failure and rollback recovery must never reopen traffic to a stopped, unverified, or partially restored application.
 
@@ -641,7 +731,7 @@ Acceptance criteria:
 
 - Deploys and rollbacks show maintenance instead of raw 502s, never clear someone else's hold, and reopen traffic only after the intended known-good app passes direct and public identity/readiness checks.
 
-### Version 0.33.25.3 - Public-edge fallback, operator runbook, live proof, and closeout
+### Version 0.33.26.3 - Public-edge fallback, operator runbook, live proof, and closeout
 
 **Model: High Effort** — The outer fallback and live rollout touch the real multi-proxy availability boundary and require host evidence beyond local configuration tests.
 
@@ -656,13 +746,13 @@ Acceptance criteria:
 
 - Both supported proxy topologies have a tested maintenance response for planned Node downtime, the multi-proxy path has a tested outer fallback for upstream failure, host permissions are least-privilege, and live preview/demo evidence proves traffic reopens only to a verified app.
 
-## Version 0.33.26 - Legal and Policy Surfaces, Help Coverage, and Marketing Refresh
+## Version 0.33.27 - Legal and Policy Surfaces, Help Coverage, and Marketing Refresh
 
 **Model: Medium Effort** — This branch is documentation and one small framework Help surface; the risk is accuracy drift (legal statements, third-party license attribution, and Help/marketing claims that do not match shipped behavior), not runtime regression.
 
 Purpose:
 
-Activate the two documentation-side public-release gates already defined in `docs/licensing.md` — the in-app legal/about surface and a reviewed `THIRD_PARTY_NOTICES.md` — add publicly visible Terms and Conditions and Privacy Policy pages linked from the footer, and bring the in-app Help Center to full coverage of the shipped app: what every framework and first-party action is intended to do, task-oriented "What do you want to do?" guidance, and how-features-work explanations (for example, what the Workbench focus modes are and why to use each). Refresh the marketing foundation, whose status labels froze at 0.33.13.5, to reflect everything shipped through 0.33.25.
+Activate the two documentation-side public-release gates already defined in `docs/licensing.md` — the in-app legal/about surface and a reviewed `THIRD_PARTY_NOTICES.md` — add publicly visible Terms and Conditions and Privacy Policy pages linked from the footer, and bring the in-app Help Center to full coverage of the shipped app: what every framework and first-party action is intended to do, task-oriented "What do you want to do?" guidance, and how-features-work explanations (for example, what the Workbench focus modes are and why to use each). Refresh the marketing foundation, whose status labels froze at 0.33.13.5, to reflect everything shipped through 0.33.26.
 
 Public-exposure decision:
 
@@ -671,7 +761,7 @@ Public-exposure decision:
 
 Sequencing decision:
 
-- Lands after 0.33.25 so Help and marketing document the app as it exists after the performance (0.33.19), UX (0.33.20), calendar (0.33.21), secure-catalog (0.33.22), support-view (0.33.23), error-surface (0.33.24), and maintenance-mode (0.33.25) branches, instead of documenting behavior those branches immediately change.
+- Lands after 0.33.26 so Help and marketing document the app as it exists after the performance (0.33.20), UX (0.33.21), calendar (0.33.22), secure-catalog (0.33.23), support-view (0.33.24), error-surface (0.33.25), and maintenance-mode (0.33.26) branches, instead of documenting behavior those branches immediately change.
 - This branch is the intentional public-release-preparation work that the licensing maintenance rule in `docs/licensing.md` reserves licensing edits for; it activates the "Public app legal/about notice" and "Third-party notices" gates and updates the `npm run licensing:gates` readout accordingly. It does not change the license stack itself.
 - The 0.39.9 User Documentation and Stabilization Checkpoint remains the later consolidation pass over the full 0.3x feature set once Support Tickets (0.34), Knowledge Base (0.35), and Calendars (0.36) exist; this branch establishes the article inventory, action catalog, and coverage conventions that 0.39.9 re-verifies and extends rather than repeating this pass.
 
@@ -683,7 +773,7 @@ Non-goals:
 - The in-app legal surface states rights and points to authoritative sources; it does not attempt to render legal advice, replace the attorney-review checklist, or embed a source-distribution mechanism beyond a version-accurate repository reference.
 - Help documents shipped behavior only; anything not landed by the time this branch runs is excluded rather than pre-documented.
 
-### Version 0.33.26.1 - Reviewed third-party notices
+### Version 0.33.27.1 - Reviewed third-party notices
 
 **Model: Medium Effort** — License identification and attribution must be individually verified; a wrong or missing notice is a compliance defect that ships with every release.
 
@@ -696,53 +786,53 @@ Acceptance criteria:
 
 - `THIRD_PARTY_NOTICES.md` covers every shipped dependency and bundled asset with hand-reviewed license and attribution data, regeneration/drift detection is repeatable, and the licensing gate readout reflects the completed gate.
 
-### Version 0.33.26.2 - In-app legal and licensing surface in Help
+### Version 0.33.27.2 - In-app legal and licensing surface in Help
 
 **Model: Medium Effort** — A small framework-owned surface, but its statements are legally meaningful and its version identity must never go stale.
 
 - [ ] Add a framework-owned legal/about surface in the Help section covering the items the repo-integration checklist specifies: project name and running version, copyright notice ("Michael York d/b/a Raymond Tec" per the ownership plan), the `AGPL-3.0-only` license notice with the user's source-access rights and how to obtain the Corresponding Source for the running version (a version-accurate repository/release reference, not a hard-coded link to `main`), the AGPL no-warranty statement, third-party notices, and the trademark notice per `docs/licensing/trademark-policy.md`.
 - [ ] Source the version from the existing runtime version identity (the same source `/api/app-info` reports), consistent with the version-literal guardrail — no hand-maintained version strings in the legal surface.
-- [ ] Serve the third-party notices content from the reviewed `THIRD_PARTY_NOTICES.md` (0.33.26.1) rather than duplicating it by hand; keep all legal text sourced from tracked files so legal edits are reviewable diffs, not string edits in JavaScript.
-- [ ] Keep the surface framework-owned and workspace-independent (like the Help Center itself), reachable from the Help table of contents, and indexed by Help search; pre-authentication exposure follows the branch-level public-exposure decision, with the public pieces implemented in 0.33.26.3.
+- [ ] Serve the third-party notices content from the reviewed `THIRD_PARTY_NOTICES.md` (0.33.27.1) rather than duplicating it by hand; keep all legal text sourced from tracked files so legal edits are reviewable diffs, not string edits in JavaScript.
+- [ ] Keep the surface framework-owned and workspace-independent (like the Help Center itself), reachable from the Help table of contents, and indexed by Help search; pre-authentication exposure follows the branch-level public-exposure decision, with the public pieces implemented in 0.33.27.3.
 - [ ] Update the `docs/licensing.md` gate table for the activated legal/about gate and add regression coverage: the surface renders, reports the true running version, and links resolve to the tracked notices and policy documents.
 
 Acceptance criteria:
 
 - The Help section contains a legal/licensing surface with version, copyright, AGPL source-access, warranty, third-party notices, and trademark content, all sourced from tracked files with a live version identity, and the public-app legal gate reads satisfied.
 
-### Version 0.33.26.3 - Public terms, privacy, and pre-authentication legal footer
+### Version 0.33.27.3 - Public terms, privacy, and pre-authentication legal footer
 
 **Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
 
 - [ ] Add publicly reachable, session-less Terms and Conditions and Privacy Policy pages, linked from the footer on both pre-authentication surfaces (login and other public pages) and the authenticated app shell, served with the same security-header posture as other public responses and no session, workspace, or user data.
 - [ ] Decide content ownership operator-truthfully: the repo ships neutral, clearly labeled default/template documents; each deployment's operator supplies the governing terms/privacy content through a documented override (runtime configuration or content path), because self-hosted operators — not Raymond Tec — are the data controllers for their installs. First-party terms must never present as binding on third-party installs.
 - [ ] Draft Raymond Tec's actual hosted-instance terms and privacy documents (data collected, credentials/cookies/session behavior, retention, backups, contact) for the preview/demo hosts, run them through `docs/licensing/attorney-review-checklist.md` before public exposure, and keep deployment-specific detail in the private operational record rather than tracked examples.
-- [ ] Add the short public AGPL notice from the branch-level public-exposure decision: project name, `AGPL-3.0-only`, and a version-accurate Corresponding Source reference in the public footer or a linked public legal line, sourced from the runtime version identity so it stays install-truthful for modified downstream copies; the full legal article and third-party notices remain in the authenticated Help surface (0.33.26.2).
+- [ ] Add the short public AGPL notice from the branch-level public-exposure decision: project name, `AGPL-3.0-only`, and a version-accurate Corresponding Source reference in the public footer or a linked public legal line, sourced from the runtime version identity so it stays install-truthful for modified downstream copies; the full legal article and third-party notices remain in the authenticated Help surface (0.33.27.2).
 - [ ] Regressions: the public pages render without a session, footer links resolve pre- and post-authentication, operator-overridden content is served when configured and the neutral default otherwise, security headers match other public endpoints, and no authenticated data appears on any public page.
 
 Acceptance criteria:
 
 - Terms and Privacy are publicly reachable from the footer without authentication, content ownership is operator-scoped with attorney-reviewed first-party documents for the hosted instances, and the public AGPL/source notice satisfies the prominent-offer intent while the full legal article and third-party notices stay authenticated.
 
-### Version 0.33.26.4 - Help action catalog and task-oriented guidance
+### Version 0.33.27.4 - Help action catalog and task-oriented guidance
 
 **Model: Medium Effort** — High-volume content authoring against shipped behavior; the risk is coverage gaps and drift, controlled by working from the real contribution registries rather than memory.
 
 - [ ] Build the action inventory from the real registries, not recollection: every framework action and every current first-party module action, including the quick-action capture set (add task, time entry, note, list, project, client; create timer), per-page and per-card actions, and bulk operations — and document what each action is intended to do and where it is available.
 - [ ] Add task-oriented "What do you want to do?" articles that map user goals to steps ("track time against a client", "capture something mid-task without losing focus", "hand a project to another user"), linking into the action and feature articles rather than duplicating them.
-- [ ] Cover the administration and settings surfaces end to end: user settings (including preferences and any calendar-subscription controls if 0.33.21 landed), user admin, understanding roles and what each permission grants, workspace settings, and module settings (Settings -> Admin -> Modules, including the Workbench algorithm settings if 0.33.20.3 landed).
+- [ ] Cover the administration and settings surfaces end to end: user settings (including preferences and any calendar-subscription controls if 0.33.22 landed), user admin, understanding roles and what each permission grants, workspace settings, and module settings (Settings -> Admin -> Modules, including the Workbench algorithm settings if 0.33.21.3 landed).
 - [ ] Respect Help ownership boundaries: framework articles for framework behavior, module-owned articles for module behavior that appear only when the module is active; update `help/toc.md` and confirm new articles index into Help search.
 
 Acceptance criteria:
 
-- Every framework and first-party action shipped through 0.33.25 has a Help home stating its intent and location, goal-oriented articles route users from "what do you want to do" to concrete steps, and the settings/admin/roles surfaces are documented within the existing ownership boundaries.
+- Every framework and first-party action shipped through 0.33.26 has a Help home stating its intent and location, goal-oriented articles route users from "what do you want to do" to concrete steps, and the settings/admin/roles surfaces are documented within the existing ownership boundaries.
 
-### Version 0.33.26.5 - Help feature and concept coverage, and drift audit
+### Version 0.33.27.5 - Help feature and concept coverage, and drift audit
 
 **Model: Medium Effort** — Explaining why features exist requires verified behavior claims; stale existing articles are as damaging as missing ones.
 
 - [ ] Add how-it-works articles for the app's conceptual features: the Workbench focus modes (what each mode surfaces and why a user would choose it), resume/pick-up-where-I-left-off behavior, Dashboard versus Workbench, notifications and reminders, tags and search behavior, and the recurring-calendar/subscription and secure-catalog models where those branches landed — written for users, with behavior claims verified against the shipped app rather than the roadmap.
-- [ ] Audit every existing Help article for drift against behavior changed by 0.33.19 through 0.33.25 and correct it; remove or rewrite anything describing pre-change behavior.
+- [ ] Audit every existing Help article for drift against behavior changed by 0.33.20 through 0.33.26 and correct it; remove or rewrite anything describing pre-change behavior.
 - [ ] Verify the Help table of contents has no dangling entries and no orphaned articles, and that module-gated articles appear and disappear correctly with module enable/disable.
 - [ ] Add or extend the Help regression so table-of-contents integrity (every entry resolves, every article is reachable) is checked mechanically rather than by review.
 
@@ -750,7 +840,7 @@ Acceptance criteria:
 
 - A user can learn what the focus modes and other conceptual features are for, not just where their buttons live; no Help article describes superseded behavior; and table-of-contents integrity is regression-checked.
 
-### Version 0.33.26.6 - Marketing refresh and closeout
+### Version 0.33.27.6 - Marketing refresh and closeout
 
 **Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
 
@@ -2556,14 +2646,14 @@ Acceptance criteria:
 
 ## Version 0.39.16 - SQLite adapter pre-PostgreSQL benchmark checkpoint
 
-**Model: Medium Effort** — Verification checkpoint; the implementation scope of this branch was pulled forward to 0.33.19.1 (2026-07-20 Workbench performance review), because the adapter's per-query overhead was measured multiplying production N+1 costs rather than being a deferrable cleanup.
+**Model: Medium Effort** — Verification checkpoint; the implementation scope of this branch was pulled forward to 0.33.20.1 (2026-07-20 Workbench performance review), because the adapter's per-query overhead was measured multiplying production N+1 costs rather than being a deferrable cleanup.
 
 Purpose:
 
-The original 0.39.16 adapter cleanup (prepared-statement cache, single-scan SQL parsing, single-row `db.get()`, config-gated WAL-safe PRAGMAs) moved to 0.33.19.1. What remains here is its original end-of-0.39 placement rationale: confirm the SQLite adapter is still tuned and benchmarked immediately before the 0.40.0 PostgreSQL adapter lands, so both backends can be benchmarked fairly and the PostgreSQL adapter mirrors the same startup-tuning and statement-lifecycle patterns instead of diverging.
+The original 0.39.16 adapter cleanup (prepared-statement cache, single-scan SQL parsing, single-row `db.get()`, config-gated WAL-safe PRAGMAs) moved to 0.33.20.1. What remains here is its original end-of-0.39 placement rationale: confirm the SQLite adapter is still tuned and benchmarked immediately before the 0.40.0 PostgreSQL adapter lands, so both backends can be benchmarked fairly and the PostgreSQL adapter mirrors the same startup-tuning and statement-lifecycle patterns instead of diverging.
 
-- [ ] Re-run the 0.33.19.1 adapter micro-benchmark on the current codebase and compare against the recorded 0.33.19.1 numbers; investigate any regression before starting 0.40.0.
-- [ ] Verify the statement cache, single-scan parsing, single-row `get()`, and PRAGMA tuning survived the intervening branches (no reintroduced per-query scans or write-on-read paths) and that the behavior-preserving regressions from 0.33.19.1 still run in the suite.
+- [ ] Re-run the 0.33.20.1 adapter micro-benchmark on the current codebase and compare against the recorded 0.33.20.1 numbers; investigate any regression before starting 0.40.0.
+- [ ] Verify the statement cache, single-scan parsing, single-row `get()`, and PRAGMA tuning survived the intervening branches (no reintroduced per-query scans or write-on-read paths) and that the behavior-preserving regressions from 0.33.20.1 still run in the suite.
 - [ ] Record the final SQLite baseline that the 0.40.0 PostgreSQL adapter must be benchmarked against, and note the statement-lifecycle/startup-tuning patterns it should mirror.
 
 Acceptance criteria:

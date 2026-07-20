@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 381,
+  "minimumActiveScripts": 382,
   "minimumAreaScripts": {
     "dashboard": 1,
-    "database": 32,
+    "database": 34,
     "docs": 9,
     "files": 44,
     "framework": 63,
@@ -22,7 +22,7 @@
     "views": 31,
     "workbench": 27
   },
-  "minimumReleaseGateScripts": 41,
+  "minimumReleaseGateScripts": 42,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -35,6 +35,7 @@
     "database.startup-maintenance-lifecycle",
     "database.backup-restore-foundation",
     "database.development-data-seed",
+    "database.demo-data-host-operation",
     "database.workspace-cleanup-isolation",
     "database.workspace-backup-package",
     "database.workspace-deletion-lifecycle",

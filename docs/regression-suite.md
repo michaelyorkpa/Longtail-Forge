@@ -77,22 +77,22 @@ Current package commands:
 
 ## Current Execution Model
 
-The current suite contains 380 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 69 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful bucket and all high-risk contract coverage remain registered.
+The current suite contains 381 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 70 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful bucket and all high-risk contract coverage remain registered.
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |
 | `static/source regressions` | 191 | parallel | 6 | Read-only/parallel-safe checks only; these do not receive a runner database fixture, and database access from a regression entry point is refused unless the script selected an OS-temp database before importing runtime/database modules. |
 | `default database regressions` | 6 | serial | 1 | Search/database checks whose current ordering and shared-state assumptions remain serial. |
 | `file storage regressions` | 29 | serial | 1 | File storage/scanner checks remain serial until their database, filesystem, port, and process isolation is explicitly proven. |
-| `isolated database regressions` | 154 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
+| `isolated database regressions` | 155 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.
 
 ### Fast-fail bucket order
 
-The default full run uses the table order above: 191 cheap static/source checks run first, followed by 6 serial default-database checks, 29 serial file-storage checks, and 154 isolated-database checks with adaptive safe parallelism. The runner executes buckets sequentially and stops after the first failing bucket, so a deterministic static/source failure does not pay for database fixture, filesystem, port, process, or isolated-database work.
+The default full run uses the table order above: 191 cheap static/source checks run first, followed by 6 serial default-database checks, 29 serial file-storage checks, and 155 isolated-database checks with adaptive safe parallelism. The runner executes buckets sequentially and stops after the first failing bucket, so a deterministic static/source failure does not pay for database fixture, filesystem, port, process, or isolated-database work.
 
-This is an explicit ordering guarantee, not a coverage or safety change. The flattened bucket paths must remain exactly equal to the 380 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
+This is an explicit ordering guarantee, not a coverage or safety change. The flattened bucket paths must remain exactly equal to the 381 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
 
 ### Canonical database isolation
 

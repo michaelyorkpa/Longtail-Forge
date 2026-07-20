@@ -331,13 +331,19 @@
       "id": "development-demo-data",
       "label": "Development and sanitized demo data",
       "sourcePatterns": [
+        "^docs/demo-data-(?:helper\\.env\\.example|operations\\.md)$",
         "^docs/development-and-demo-data\\.md$",
         "^docs/marketing/screenshot-and-demo-data-plan\\.md$",
+        "^scripts/demo-data-host\\.mjs$",
         "^scripts/development-data\\.mjs$",
+        "^scripts/lib/demo-data-operation\\.mjs$",
         "^scripts/lib/development-data-safety\\.mjs$",
+        "^scripts/release/longtail-forge-demo-data-host\\.example$",
+        "^scripts/regressions/database/demo-data-host-operation\\.regression\\.mjs$",
         "^scripts/regressions/database/development-data-seed\\.regression\\.mjs$"
       ],
       "docs": [
+        "docs/demo-data-operations.md",
         "docs/development-and-demo-data.md",
         "docs/marketing/screenshot-and-demo-data-plan.md"
       ]
@@ -352,7 +358,7 @@
         "^docs/docs-ownership\\.(?:json|md)$",
         "^docs/(?:backup-and-restore|private-preview-readiness|releasing|self-hosting|upgrading)\\.md$",
         "^docs/development/github-workflow\\.md$",
-        "^docs/(?:compose\\.env\\.example|longtail-forge\\.service\\.example|preview-deployment\\.md)$",
+        "^docs/(?:compose\\.env\\.example|demo-data-helper\\.env\\.example|demo-data-operations\\.md|longtail-forge\\.service\\.example|preview-deployment\\.md)$",
         "^scripts/release/",
         "^scripts/(?:backup|backup-restore-drill|workspace-backup(?:-drill)?|bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|container-deployment-smoke|generate-regression-manifest|regression-(?:clean-clone|coverage|runner|suite)|run-(?:changed-regressions|closeout|regressions|slice-verification)|runtime-artifact-smoke|suggest-regressions|version-literal)",
         "^scripts/lib/backup-archive\\.mjs$",
@@ -366,6 +372,7 @@
       "docs": [
         "docs/backup-and-restore.md",
         "docs/backup-restore.md",
+        "docs/demo-data-operations.md",
         "docs/development/github-workflow.md",
         "docs/docs-ownership.json",
         "docs/docs-ownership.md",

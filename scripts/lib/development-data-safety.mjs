@@ -55,14 +55,15 @@ export function assertInside(parent, child, label) {
   }
 }
 
-export function assertOperatorPassword(env = process.env) {
+export function assertOperatorPassword(env = process.env, options = {}) {
+  const context = String(options.context || "local").trim();
   const password = String(env.SUPER_ADMIN_PASSWORD || "");
   if (password.length < 16) {
-    throw new Error("Set SUPER_ADMIN_PASSWORD to a unique local value of at least 16 characters before seeding.");
+    throw new Error(`Set SUPER_ADMIN_PASSWORD to a unique ${context} value of at least 16 characters before seeding.`);
   }
   const normalized = password.toLowerCase().replace(/[^a-z0-9]/g, "");
   if (["password", "changeme", "longtailforge", "superadmin"].some((word) => normalized.includes(word))) {
-    throw new Error("SUPER_ADMIN_PASSWORD must be a unique local value, not a documented or shared seed password.");
+    throw new Error(`SUPER_ADMIN_PASSWORD must be a unique ${context} value, not a documented or shared seed password.`);
   }
 }
 

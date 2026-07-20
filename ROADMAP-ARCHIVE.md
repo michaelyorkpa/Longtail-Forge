@@ -1,5 +1,23 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.19.1 - Demo-host provision/reset operation and safety contract
+
+Completed 0.33.19.1 locally on 2026-07-20. The live roadmap advances to the separate 0.33.19.2 host installation/proof slice; no demo database reset or host installation is claimed by this local tooling closeout.
+
+**Model: High Effort** — A Linux-safe destructive data operation had to fail closed around exact host/environment/path identity while installing the database and Files tree as one coherent unit.
+
+- [x] Reused the existing deterministic `development` scenario definition through the runtime-packaged host command without weakening `scripts/development-data.mjs`'s development-only environment/marked-directory refusals. Anchor date remains an explicit required input, and local development plus named-host staging share one fictional scenario/fingerprint contract.
+- [x] Added one separately installed root-owned wrapper and protected non-secret helper configuration for `rt-ltf-demo`. The Node operation requires exact target, hostname, public origin, service/account, release, data/database/Files, backup, application-environment, ownership/mode, action/confirmation, and marker contracts; it refuses unknown, preview/customer, nested, unresolved, partial, unexpectedly populated, or symbolic-link-substituted state.
+- [x] Made both provision and reset capture active services, quiesce them, create and inspect a checksummed whole-instance database-plus-Files backup, stage the candidate on the same filesystem, verify it independently, and promote the entire data root while retaining the prior state. Failed promotion/startup/identity verification restores the prior directory and services; failed recovery keeps traffic closed and points to the retained archive.
+- [x] Read the demo operator identity/password only from the protected host application environment, validate it as a strong demo-host value, pass only a minimal seed environment, and redact all configured paths and secret-like values from errors. No password enters arguments, output, markers, backup metadata, fixtures, or tracked configuration, and changing the environment alone does not rotate an existing account.
+- [x] Reapplied the dedicated service-account ownership and modes `0700` (data/Files), `0600` (database/sidecars/marker), retained root-only backups, rejected link substitution, and kept all generated database/Files/marker/backup/log/credential state outside Git and runtime artifacts. Only the inert reviewed command/builder and operator docs/config example are packaged.
+- [x] Added `database.demo-data-host-operation` plus extended `database.development-data-seed`, runtime-artifact, and docs-ownership coverage for exact identity/confirmation/marker/path refusal, symlink/partial-state guards, password redaction, backup-before-seed order, deterministic scenario parity, disabled personas, Secure Notes absence, integrity/foreign keys, Files/Search proof, database-and-Files activation, post-promotion rollback, fixed wrapper installation, and no invocation from normal startup/deploy/workflows. The manifest now contains 381 regressions and 42 release gates.
+- [x] Added the copy-pasteable demo operator runbook and updated development-data, backup/restore, preview deployment, release, runtime artifact/configuration, docs ownership, decisions, changelog, version, and roadmap/archive ownership. The private host-access mechanism is not part of tracked documentation.
+
+Acceptance criteria:
+
+- A reviewed operator can provision or reset only the named demo installation from fictional source data, with the database and Files tree staged and swapped together, a verified pre-reset backup retained, secrets redacted, all unsafe/ambiguous targets refused, and no change to ordinary Nightly deployment or normal production startup.
+
 ## Version 0.33.18.8 - Maintainability closeout
 
 Completed 0.33.18.8 locally on 2026-07-20. The complete dependency-baseline and post-preview maintainability branch is closed; the live roadmap advances to 0.33.19. Publication remains deferred until the complete stacked 0.33.18 work is committed and pushed, as requested.

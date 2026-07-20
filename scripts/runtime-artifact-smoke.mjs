@@ -11,6 +11,7 @@ const artifactDir = path.join(workspace, "artifact");
 const installDir = path.join(workspace, "install");
 const dataDir = path.join(workspace, "data");
 const port = await findAvailablePort();
+const smokeSuperAdminPassword = "Runtime-Artifact-Smoke-Password-123!";
 let server;
 
 try {
@@ -39,6 +40,7 @@ try {
       LONGTAIL_LOCAL_STORAGE_ROOT: path.join(dataDir, "files"),
       LONGTAIL_FILE_SCANNER: "none",
       LONGTAIL_WORKER_MODE: "inline",
+      SUPER_ADMIN_PASSWORD: smokeSuperAdminPassword,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
