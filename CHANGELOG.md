@@ -3,7 +3,8 @@
 - Corrected the separately installed demo-data wrapper to use the named demo host's canonical `/usr/local/bin/node` runtime instead of assuming `/usr/bin/node`.
 - Made the host CLI's main-module guard resolve the `/opt/longtail-forge/current` symlink before comparing its invoked and imported paths, so the reviewed command executes from immutable release installations while remaining inert when imported by regressions.
 - Made the fictional seed assign its Business bootstrap workspace a deterministic timestamp immediately before the Personal and Family workspaces, preventing startup from selecting a non-operator workspace and attempting a duplicate super-admin username when the anchor time precedes candidate creation.
-- No docs change needed: the operator command, protected configuration, data contract, backup/rollback behavior, and Nightly preservation policy are unchanged; this corrects only the installed runtime path and symlink-aware CLI execution.
+- Materialized the fictional seed's backend Search index from its canonical `search_index` rows and made candidate activation refuse a missing or incomplete backend index, so seeded scenarios are immediately discoverable after host provision/reset.
+- No docs change needed: the operator command, protected configuration, data contract, backup/rollback behavior, and Nightly preservation policy are unchanged; these corrections restore reviewed CLI execution, deterministic startup, and the already-documented immediate Search verification.
 
 ## Version 0.33.19.1 - 2026-07-20
 

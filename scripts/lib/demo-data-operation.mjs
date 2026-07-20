@@ -438,6 +438,10 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
       || counts.lists !== 5 || counts.files !== 2 || counts.search_index < 21) {
       throw new Error("Candidate demo database does not match the rich fictional scenario counts.");
     }
+    const searchBackendCount = Number(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count);
+    if (searchBackendCount !== counts.search_index) {
+      throw new Error("Candidate demo Search backend does not match the canonical search index.");
+    }
     const personaViolation = Number(database.prepare(`SELECT COUNT(*) AS count FROM users
       WHERE protected_user = 'no' AND (user_status != 'inactive' OR password != '!development-persona-login-disabled!')`).get().count);
     const secureNotes = Number(database.prepare(`SELECT COUNT(*) AS count FROM notes

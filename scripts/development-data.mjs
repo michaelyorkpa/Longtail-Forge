@@ -55,6 +55,7 @@ async function main() {
   databaseApi = await import("../src/db/index.js");
   await databaseApi.initializeDatabase();
   const result = await seed(databaseApi.db, target, options.anchorDate || BASE_DATE);
+  const searchRepair = await repairSeedSearchIndex(result.counts.search_index);
   await writeFiles(target, result.files);
   await writeSeedMarker(target, {
     contractVersion: SEED_CONTRACT,
@@ -70,9 +71,22 @@ async function main() {
     anchorDate: result.anchorDate,
     semanticFingerprint: result.semanticFingerprint,
     counts: result.counts,
+    search: searchRepair,
     workbench: result.workbench,
     identities: "Seeded personas use reserved example domains and disabled login credentials. Use the unique operator password supplied through SUPER_ADMIN_PASSWORD.",
   });
+}
+
+async function repairSeedSearchIndex(expectedCount) {
+  const { searchService } = await import("../src/services/search.service.js");
+  const result = await searchService.repairSearchBackendIndex({}, { refresh: true });
+  if (result.skipped || result.rebuiltCount !== expectedCount) {
+    throw new Error("Seeded Search backend did not materialize every canonical search document.");
+  }
+  return {
+    backend: result.adapterId,
+    rebuiltCount: result.rebuiltCount,
+  };
 }
 
 function parseArgs(args) {

@@ -53,6 +53,8 @@ try {
   assert.equal(first.counts.lists, 5);
   assert.equal(first.counts.active_work_timers, 2);
   assert.equal(first.counts.time_entries, 2);
+  assert.equal(first.search.backend, "sqlite");
+  assert.equal(first.search.rebuiltCount, first.counts.search_index);
   assert.equal(first.workbench.focusSelectionUrl, "workbench.html");
   assert.match(first.workbench.taskFocusUrl, /^workbench\.html\?taskId=/);
   assert.equal(first.workbench.secureNotesSeeded, false);
@@ -73,6 +75,8 @@ try {
     assert.ok(taskStates.some((row) => row.next_action && row.resume_note));
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count, 0);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!").count, 0);
+    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
+    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   } finally {
     database.close();
