@@ -15,9 +15,12 @@ import {
   runDemoDataOperation,
 } from "./lib/demo-data-operation.mjs";
 
-const scriptPath = fileURLToPath(import.meta.url);
+const scriptPath = await fs.realpath(fileURLToPath(import.meta.url));
+const invokedScriptPath = process.argv[1]
+  ? await fs.realpath(path.resolve(process.argv[1])).catch(() => path.resolve(process.argv[1]))
+  : "";
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+if (invokedScriptPath === scriptPath) {
   let redactions = [];
   try {
     const args = parseDemoDataArgs(process.argv.slice(2));

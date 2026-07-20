@@ -198,8 +198,9 @@ try {
   await fs.mkdir(path.join(partialRoot, ".longtail-demo-stale-stage"));
   await assert.rejects(assertNoPartialDemoState({ dataRoot: partialDataRoot }), /partial demo-data/);
 
-  const [operationSource, helperSource, deployHelperSource, serverSource, workerSource, workflows, attributes, packageSource] = await Promise.all([
+  const [operationSource, hostCliSource, helperSource, deployHelperSource, serverSource, workerSource, workflows, attributes, packageSource] = await Promise.all([
     fs.readFile("scripts/lib/demo-data-operation.mjs", "utf8"),
+    fs.readFile("scripts/demo-data-host.mjs", "utf8"),
     fs.readFile("scripts/release/longtail-forge-demo-data-host.example", "utf8"),
     fs.readFile("scripts/release/longtail-forge-deploy-host.example", "utf8"),
     fs.readFile("server.js", "utf8"),
@@ -215,6 +216,9 @@ try {
   assert.match(operationSource, /fs\.rename\(previousDataRoot, paths\.dataRoot\)/);
   assert.match(operationSource, /minimalSeedEnvironment/);
   assert.doesNotMatch(operationSource, /console\.log\(.*SUPER_ADMIN_PASSWORD/);
+  assert.match(hostCliSource, /await fs\.realpath\(path\.resolve\(process\.argv\[1\]\)\)/);
+  assert.match(hostCliSource, /if \(invokedScriptPath === scriptPath\)/);
+  assert.match(helperSource, /exec \/usr\/local\/bin\/node \/opt\/longtail-forge\/current\/scripts\/demo-data-host\.mjs/);
   assert.match(helperSource, /\/opt\/longtail-forge\/current\/scripts\/demo-data-host\.mjs/);
   assert.doesNotMatch(helperSource, /LTF_HELPER_ENV|--config/);
   assert.match(attributes, /^scripts\/release\/longtail-forge-demo-data-host\.example text eol=lf$/m);

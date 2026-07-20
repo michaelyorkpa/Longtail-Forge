@@ -11,4 +11,4 @@ if [[ "$(id -u)" != "0" ]]; then
   exit 1
 fi
 
-exec /usr/bin/node /opt/longtail-forge/current/scripts/demo-data-host.mjs "$@"
+exec /usr/local/bin/node /opt/longtail-forge/current/scripts/demo-data-host.mjs "$@"
