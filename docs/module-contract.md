@@ -14,6 +14,12 @@ The runtime contract remains one composed module definition per registered modul
 
 New manifest fields, registries, contribution types, and generalized module facilities follow the Two-Module Rule: normally identify two real first-party consumers with materially similar behavior and contract needs. A hypothetical consumer or shared appearance is insufficient. Keep a one-module requirement module-owned until the common contract is understood. Intrinsically framework-wide authentication, security, permission, workspace, deployment, database, and app-shell needs are explicit documented exceptions. Apply this prospectively and name the two consumers or exception at closeout.
 
+## HTTP Route Contract
+
+As of 0.33.18.2, framework and module routers run on Express 5.2.1. Route strings should use literal segments and named `:parameters`. Express 5 wildcards must be named: use `/*name` when the root path must not match and `/{*name}` when it must. Do not use the removed bare `*`, string-pattern `?`, character classes, regular-expression-like groups, or other reserved route-string metacharacters; use explicit routes or an actual reviewed `RegExp` route when that behavior is genuinely required.
+
+Register asynchronous route work through the shared `asyncRoute` boundary unless a framework slice deliberately adopts native Express 5 forwarding for that router. Both paths must reach the final framework error middleware exactly once, must not write a second response after failure, and must preserve safe `AppError` shaping. Module routers must not install their own global body parser, query parser, trust-proxy policy, static fallback, not-found handler, or terminal error middleware. The framework explicitly preserves the extended query-parser shape; route/service contracts still validate and normalize every untrusted value. JSON, multipart, streamed upload, and download bodies remain owned by their existing bounded helpers and services.
+
 ## Registry Service
 
 `src/core/modules/registry.js` remains the static first-party registration list. It does not perform filesystem discovery and does not load third-party modules yet.

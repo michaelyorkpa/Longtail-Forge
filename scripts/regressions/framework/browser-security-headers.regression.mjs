@@ -87,7 +87,7 @@ async function probeRequest(trustedProxies, requestPath, headers = {}, options =
   configureTrustedProxy(app, trustedProxies);
   app.use(attachRequestContext);
   app.use(createTransportSecurityMiddleware({ hsts: { enabled: true, maxAgeSeconds: 300 } }));
-  app.get("*", (request, response) => {
+  app.get("/{*browserPath}", (request, response) => {
     if (options.attachmentSandbox) {
       response.setHeader("Content-Security-Policy", "sandbox");
     }

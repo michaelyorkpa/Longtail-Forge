@@ -1,5 +1,23 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.18.2 - Express 5 HTTP framework migration
+
+Completed 0.33.18.2 locally on 2026-07-20. The live roadmap advances to 0.33.18.3. The implementation branch is stacked on the completed 0.33.18.1 commit while that prerequisite awaits `nightly` integration; Dependabot PR #5 remains open only until this reviewed branch replaces it through the normal pull-request path.
+
+**Model: High Effort** — Express is the application-wide HTTP boundary; its major-version route, request, response, static-serving, and asynchronous-error changes can break every browser/API surface or weaken security behavior.
+
+- [x] Reproduced Dependabot PR #5's Express 5.2.1 package/lockfile delta on `chore/0.33.18.2-express-5`, stacked on the completed 0.33.18.1 prerequisite rather than bypassing its unmerged dependency baseline.
+- [x] Audited application and regression HTTP compatibility boundaries: route-path syntax and parameters, wildcard/catch-all matching, query parsing and request-property semantics, body ownership, status/redirect/send/sendFile usage, static MIME behavior, sub-router mounting, trust-proxy behavior, and wrapped/native async handlers. No removed response signatures, parameter APIs, body parsers, or optional/reserved route metacharacters remained in runtime use.
+- [x] Replaced the invalid bare `*` protected static fallback and browser-security fixture with root-inclusive Express 5 named wildcards while preserving public/protected ordering, `/api` behavior, non-enumeration, method handling, and final error-middleware placement.
+- [x] Explicitly retained the prior extended query-parser contract for nested/repeated values and proved both the existing `asyncRoute` wrapper and native Express 5 rejected-Promise forwarding reach `errorHandler` exactly once without unhandled rejections or double responses.
+- [x] Added the required `framework.express-5-http-contract` release regression for the reviewed dependency/engine baseline, named wildcard inventory, root/nested fallback behavior, query shape, JavaScript MIME behavior, and exactly-once async failure paths.
+- [x] Exercised framework routes, public APIs, module routers, multipart single/batch uploads, upload error/limit handling, proxy-derived context, browser security headers, static startup compilation, and the full contract/framework coverage on Node 24 before final artifact, browser, permission, canonical verification, and restarted runtime proof.
+- [x] Updated the architecture, module route, runtime configuration, regression-suite, changelog, version, and roadmap contracts. Dependency review remains part of the clean-Linux pull request into `nightly`, where this branch supersedes Dependabot PR #5.
+
+Acceptance criteria:
+
+- Express 5.2.1 is the supported runtime baseline; registered framework/module routes preserve their prior public, protected, API, security, proxy, static, and error semantics; clean artifact, browser, permission, and runtime proof pass; and the bot PR is superseded only through the reviewed `nightly` integration result.
+
 ## Version 0.33.18.1 - Tooling and Markdown dependency baseline
 
 Completed 0.33.18.1 on 2026-07-19. The live roadmap advances to 0.33.18.2.
@@ -163,7 +181,7 @@ Review every user-visible UI/UX change shipped from 0.33.14 through 0.33.17.7 be
 
 This is a tracking umbrella, not one implementation slice. Each numbered child below is sized for one implementation session, including its focused regression, owning-doc disposition, version/changelog/archive bookkeeping, canonical `npm run verify:slice`, and runtime proof when required. Do not combine children merely because they share the `.7` prefix. If a child reveals a new independent blast radius, add another numbered child rather than broadening the active session.
 
-The manual review is tracked in `archive/0.33.17.7-pre-testing.md`. Confirmed findings required before preview are assigned to `0.33.17.7.1` through `0.33.17.7.19`; findings deliberately deferred until after the friends-and-family preview live in 0.33.19. Record manual results during the owning child slice where possible. The final review slice records only the remaining checklist results and routes any newly confirmed defect into its own child; it does not absorb surprise implementation work.
+The manual review is tracked in `archive/0.33.17.7-pre-testing.md`. Confirmed findings required before preview are assigned to `0.33.17.7.1` through `0.33.17.7.19`; findings deliberately deferred until after the friends-and-family preview live in 0.33.19 (renumbered to 0.33.20 on 2026-07-20 when the Workbench performance branch was inserted as 0.33.19). Record manual results during the owning child slice where possible. The final review slice records only the remaining checklist results and routes any newly confirmed defect into its own child; it does not absorb surprise implementation work.
 
 - [x] Correct the public login page so the required password-change form remains hidden for an ordinary unauthenticated visit and appears only after a successful login or existing session reports `passwordChangeRequired`; add desktop and mobile Playwright coverage for both the initial state and intentional transition.
 - [x] Complete the numbered pre-preview correction slices below without weakening the current module ownership, permission, security, responsive, retention, or workflow contracts.
@@ -372,7 +390,7 @@ Acceptance criteria:
 **Model: Medium Effort** — This is a bounded evidence/bookkeeping closeout after implementation risk has been isolated into the preceding children.
 
 - [x] Complete and timestamp every still-open applicable result in `archive/0.33.17.7-pre-testing.md` across the documented desktop/mobile, Light/Dark, workspace-type, administrator/restricted-user, keyboard/focus, two-session, and representative authenticated-write checks.
-- [x] Mark an item not applicable or externally blocked only with a concrete reason. TLS/proxy-only testing remains assigned to 0.33.19.6 after the real preview environment exists; do not claim it locally.
+- [x] Mark an item not applicable or externally blocked only with a concrete reason. TLS/proxy-only testing remains assigned to 0.33.19.6 (now 0.33.20.6 after the 2026-07-20 renumber) after the real preview environment exists; do not claim it locally.
 - [x] If review finds a new pre-preview defect, record it, create a separately sized next available child, and leave this closeout open. Do not implement surprise fixes inside this session.
 - [x] After all correction children and manual results are complete, reconcile the umbrella checkboxes, owning docs, changelog, roadmap/archive handoff, version metadata, canonical `npm run verify:slice`, restart, and `/api/app-info` qualified-version proof.
 

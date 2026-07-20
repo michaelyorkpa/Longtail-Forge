@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.18.1",
+  "version": "0.33.18.2",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -81,7 +81,7 @@
     "better-sqlite3": "12.11.1",
     "busboy": "^1.6.0",
     "cookie-parser": "^1.4.7",
-    "express": "^4.19.2",
+    "express": "^5.2.1",
     "markdown-it": "^14.3.0",
     "zod": "^4.4.3"
   },

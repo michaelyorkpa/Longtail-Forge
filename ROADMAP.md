@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.18.2`.
+Active cursor: `0.33.18.3`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
@@ -19,21 +19,6 @@ Sequencing decision:
 - Land the dependency baseline before startup or module-loading reorganization so later slices verify against the supported production and development dependency graph.
 - Combine the compatible ESLint 10 and Markdown-it 14.3 updates in one package/lockfile maintenance slice. ESLint 10 removes the transitive `js-yaml` dependency, so the stale `js-yaml` 4.3 PR against `main` is closed as superseded rather than receiving its own slice or bypassing the `nightly` integration path.
 - Keep Express 5 separate. It is a major runtime framework migration with route-matching, request/response, static fallback, error propagation, security, and browser-startup implications; a green dependency review alone is not sufficient evidence.
-
-### Version 0.33.18.2 - Express 5 HTTP framework migration
-
-**Model: High Effort** — Express is the application-wide HTTP boundary; its major-version route, request, response, static-serving, and asynchronous-error changes can break every browser/API surface or weaken security behavior.
-
-- [ ] Reproduce the Express 5.2 dependency delta from Dependabot PR #5 on a current short-lived `chore/*` branch from `nightly`, then close the bot PR as superseded by the reviewed migration branch rather than patching around its red checks without roadmap/version closeout.
-- [ ] Inventory every Express 5 compatibility boundary used by the application and regression harnesses: route-path syntax and parameters, wildcard/catch-all matching, query parsing and request-property semantics, body availability, status/redirect/send/sendFile behavior, static dotfile and MIME behavior, sub-router mounting, trust-proxy behavior, and rejected/fulfilled async handlers.
-- [ ] Replace the invalid bare `*` static fallback route and every fixture equivalent with an Express 5-compatible catch-all that still matches the intended root/nested browser paths. Preserve public/protected route ordering, `/api` JSON behavior, 403/404 non-enumeration, method handling, and the rule that the final error middleware remains last.
-- [ ] Review the existing `asyncRoute` boundary against Express 5's native rejected-Promise forwarding so each failure reaches `errorHandler` exactly once, no rejection becomes unhandled, and no response is written twice. Preserve safe `AppError`, request-ID, production logging, CSRF, cookie, security-header, and authentication behavior.
-- [ ] Exercise operational routes, public API envelopes, browser APIs, module routers, static/protected documents, uploads/downloads, redirects, unknown routes, multipart limits, proxy-derived request context, and startup under the real Node 24 production dependency tree. Do not pull the branded error-surface redesign from 0.33.23 into this compatibility migration.
-- [ ] Update the focused HTTP/framework regressions and any owning architecture, runtime, security, module-development, or testing documentation that actually changes. Run `npm audit`, dependency review, framework/API/security/permission regressions, Playwright browser smoke/accessibility, `npm run artifact:smoke`, the canonical `npm run verify:slice`, and restarted `/healthz`, `/readyz`, and `/api/app-info` proof.
-
-Acceptance criteria:
-
-- Express 5.2 is the supported runtime baseline; all registered framework/module routes start and preserve their prior public, protected, API, security, proxy, static, and error semantics; clean artifact installation and browser/runtime proof pass; and Dependabot PR #5 is closed or merged only through the reviewed `nightly` integration result.
 
 ### Version 0.33.18.3 - Startup maintenance classification and split
 
@@ -137,7 +122,136 @@ Acceptance criteria:
 
 - Documentation matches the settled structures, the Two-Module Rule is evidenced, and no runtime behavior changed accidentally.
 
-## Version 0.33.19 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
+## Version 0.33.19 - Workbench and API Load Performance
+
+**Model: High Effort** — Hot-path query pipelines, the SQLite adapter statement lifecycle, module-context read semantics, and API payload contracts all change in one branch; a regression here corrupts nothing but silently changes list contents, permission filtering, or payload shapes consumed by many pages.
+
+Purpose:
+
+Eliminate the ~5s Workbench load measured on the rt-ltf preview database (2026-07-20 review). The review found the slowness is not indexing (existing indexes were verified to cover the hot predicates) but (a) redundant server work — an options payload computed and discarded on every task list/read, three separate per-row reminder-policy N+1s, a write transaction on every module-status read, and unbounded/duplicated list serialization — amplified by a synchronous SQLite driver that serializes concurrent requests on the event loop, and (b) a four-wave sequential fetch waterfall in the Workbench browser client. Findings and agreed attack order are recorded from the review; grounding references below should be re-verified at implementation time since code will have drifted.
+
+Sequencing decision:
+
+- This branch was inserted ahead of the former 0.33.19 UX branch because day-to-day slowness on the most-used database damages the preview experience more than the deferred UX corrections; the prior 0.33.19 through 0.33.24 branches each moved down one minor version (now 0.33.20 through 0.33.25).
+- The SQLite adapter internals slice pulls the planned 0.39.16 adapter cleanup forward, because the review measured its per-query overhead multiplying every N+1 today; 0.39.16 remains as a re-benchmark checkpoint before the 0.40.0 PostgreSQL adapter.
+- Server-side slices land before the browser-client restructuring so the client work is measured against already-fast endpoints and does not paper over server cost.
+
+Entry contract and grounding (re-verify at implementation time — code will have drifted):
+
+- Every `queryTasks` and `tasksService.read` runs `readOptions(session)` (`src/modules/tasks/tasks.service.js`): workspace settings + all users + all clients + all projects + a second 200-task picker query with per-task permission checks; the Workbench candidate pipeline discards the result and `workbench/bootstrap` returns `taskOptions: null`.
+- `GET /api/tasks/workbench-items` emits no SQL LIMIT (limit 0 drops the clause in `src/modules/tasks/tasks.repo.js`), selects the full markdown `description` for list rows, and `taskWorkItemSummary` serializes most sub-objects twice (snake_case and camelCase) with `resume_context` repeating fields a third time — 507 kB uncompressed on rt-ltf.
+- Per-row N+1s: `attachTaskListProjectionDetails` awaits `readTaskReminderDetails` per task (~4 queries each) while checklists/relationships in the same function are already batched; `focus-candidates` runs the full `tasksService.read` (including `readOptions`) per resume-state row with 4×- and 3×-over-fetch multipliers (`src/services/work-candidate.service.js`, `src/services/work-resume-state.service.js`); `readClientProjects` queries `task_reminder_offsets` per client and per project before permission filtering (`src/modules/client-projects/clients.service.js`), though the batched `readOffsetsForTargets` already exists.
+- `modulesService.readModuleStatus`/`readWorkspaceModuleContext` call `ensureWorkspaceModuleRows` — an INSERT-per-module write transaction — on every read, ~8-10× per bootstrap request, serializing all requests behind WAL commits through the adapter's global transaction tail.
+- `GET /api/client-projects` (332 kB) ships the full management shape (11-field billing contact, five overlapping tag arrays, `taskReminderPolicy`) to 13 pages of which 12 need ~8 dropdown fields (`public/js/shared/client-project-options.js`); inactive records are fetched, enriched, and discarded in the browser; workspace projects are tag-decorated twice.
+- The browser client loads in four sequential waves (`loadWorkbench()` in `public/js/workbench.js`): app-shell/session, then bootstrap + client-projects + focus-modes, then per-card source data, then focus-candidates last — even though focus-candidates' inputs are restored from localStorage before wave two starts. Every fetch uses `cache: "no-store"`, which prevents ETag revalidation; `src/core/app.js` has no compression middleware (the preview proxy currently compresses).
+- `GET /api/workbench/focus-modes` performs one indexed SELECT; its ~2s is queueing behind the above, not its own work. Fixing the pipelines fixes it without touching it.
+
+Non-goals:
+
+- No PostgreSQL work, no frontend framework adoption, and no visual redesign of the Workbench.
+- No behavior changes to ranking, permission filtering, or workspace isolation; faster must mean identical results.
+- Payload-shape changes are limited to removing duplicated/unused fields and adding opt-in slim projections, each with its consumers migrated in the same slice; no other API contract changes.
+
+### Version 0.33.19.1 - SQLite adapter statement cache and single-scan parsing (pulled forward from 0.39.16)
+
+**Model: High Effort** — Database adapter internals with prepared-statement lifecycle and durability implications; a subtle cache-invalidation or PRAGMA error is high-cost.
+
+- [ ] Establish the repeatable adapter micro-benchmark (hot single-row read, hot list read, hot write, transaction) and record a baseline before any change.
+- [ ] Add a bounded, connection-scoped prepared-statement cache keyed on the final rewritten SQL, reused across `query`/`get`/`run`; invalidate on connection close/reopen (`initializeSqliteRuntime`); cap/evict under variable-length `IN (:ids)` expansion; identical results, errors, and transaction behavior.
+- [ ] Collapse the redundant per-query SQL scans (`countSqlStatements`, `collectSqlParameters`, `prepareDatabaseBindings`) into one shared tokenizer pass, preferring the tokenizer in `src/db/parameter-bindings.js`; preserve exact multi-statement, comment/quote, and error behavior.
+- [ ] Make `db.get(...)` use better-sqlite3's single-row `statement.get()` path, preserving the `null`-when-empty contract and row shape.
+- [ ] Add runtime-config-gated startup performance PRAGMAs (`synchronous`, `cache_size`, `temp_store`, optionally `mmap_size`) with WAL-safe defaults, surfaced in SQLite health/`/api/runtime-diagnostics` and documented in `docs/runtime-configuration.md` with the `synchronous = NORMAL` durability tradeoff; do not change `journal_mode`, `busy_timeout`, or `foreign_keys` behavior.
+- [ ] Add behavior-preserving regressions (identical results/errors/`get`-null semantics, cache correctness across connection reset and `IN (:ids)`, PRAGMA health reporting) and record before/after benchmark numbers.
+
+Acceptance criteria:
+
+- The adapter is measurably faster on the benchmark with no change to query results, error contracts, or transaction semantics, and the tuning PRAGMAs are config-gated, diagnostics-visible, and documented.
+
+### Version 0.33.19.2 - Module-context reads stop writing
+
+**Model: High Effort** — Startup/first-install row-ensuring moves lifecycle; getting it wrong breaks fresh installs or module enable/disable.
+
+- [ ] Move `ensureWorkspaceModuleRows` out of the read path: run it at startup for existing workspaces and at workspace-creation/module-install time, consistent with the 0.33.18.3 lifecycle classification.
+- [ ] Make `readModuleStatus` and `readWorkspaceModuleContext` pure SELECTs and cache module context/contribution lists per workspace in memory, invalidated by `setModuleStatus` and module install/uninstall.
+- [ ] Add a request-scoped memo for repeated context reads (`readWorkspaceSettings`, module status, workspace context) following the existing `session.__requestCache` pattern in `src/services/permissions.service.js`.
+- [ ] Regressions: fresh install, module enable/disable visibility, workspace creation, and proof that a bootstrap request performs zero write transactions.
+
+Acceptance criteria:
+
+- No read-path endpoint opens a write transaction, module status behavior is unchanged across install/enable/disable/fresh-install flows, and repeated per-request context reads hit the memo.
+
+### Version 0.33.19.3 - Task list pipeline: opt-in options, bounded lists, batched reminders
+
+**Model: High Effort** — The task list projection feeds Workbench, candidates, and pickers; payload-shape changes must migrate every consumer in the same slice.
+
+- [ ] Make `readOptions` opt-in (`queryTasks(session, query, { includeOptions: false })` or equivalent); list paths (`listWorkItems`, `listWorkbenchItems`, candidate sources) skip it. Provide a dedicated cacheable options endpoint for consumers that need pickers.
+- [ ] Split `tasksService.read` so lightweight callers (resume-state read-checks) get a core read without options/detail enrichment.
+- [ ] Add a SQL-side limit/cursor to `workbench-items` using the existing pagination machinery; push the due-window filter for due-oriented modes into the repository query (index `idx_tasks_workspace_due_date` exists; consider ordering by `(due_date, due_time)` directly so the LIMIT scan is index-ordered).
+- [ ] Batch `readTaskReminderDetails` for list projections (settings once, one IN-query for client/project rows, one `readOffsetsForTargets` call) or drop it from list projections if no list consumer reads it — verify consumers first.
+- [ ] Deduplicate `taskWorkItemSummary` serialization to one casing convention, drop the full `description` from list rows (keep the excerpt), and emit `resume_context` once; migrate all browser consumers in this slice.
+- [ ] Precompute the readable-scope set for permission filtering (as `filterReadableClients` does) instead of per-row `canReadTask` awaits, and parse `permission_overrides_json` once per assignment.
+
+Acceptance criteria:
+
+- `workbench-items` is bounded and its payload materially smaller with identical visible list contents and permission behavior; task list paths issue a near-constant number of queries regardless of task count.
+
+### Version 0.33.19.4 - Focus-candidates and bootstrap pipeline
+
+**Model: High Effort** — Candidate ranking and resume-state semantics must not change while their data acquisition is rebuilt.
+
+- [ ] Replace the per-resume-row full task read with a batched existence/status check (one IN-query over the scanned rows' record ids, in-memory `canReadTask`), and apply the same to lists/notes resolvers.
+- [ ] Thread the already-fetched timer/work-item source context from `workbenchService.bootstrap` into `listWorkCandidates` instead of re-fetching it.
+- [ ] Stop computing 50 work candidates on every bootstrap: drop `workCandidates` from the bootstrap payload or gate it behind the `?taskId` deep-link case, which is its only consumer.
+- [ ] Replace `readSecondMostRecentUpdatedTaskCandidate`'s full list query with a lean `ORDER BY updated_at DESC LIMIT` query.
+- [ ] Review the resume over-fetch multipliers (limit × 4 × 3) once per-row cost is gone and set them from measured need.
+- [ ] Regressions: identical candidate ranking and focus-mode results on a seeded dataset before/after; focus-candidates and bootstrap query-count budgets.
+
+Acceptance criteria:
+
+- Focus-candidates and bootstrap return identical results with bounded query counts, and `focus-modes` latency collapses without being touched (queueing proof).
+
+### Version 0.33.19.5 - Client-projects options projection and reminder-policy batching
+
+**Model: High Effort** — Thirteen consuming pages; the slim projection must be adopted without breaking the management surface.
+
+- [ ] Add a slim options projection (`?view=options` or a dedicated endpoint) returning only the fields `public/js/shared/client-project-options.js` consumes; migrate the dropdown consumers (workbench, stop-watch, dialogs, calendar, lists, files, search, footer, user-admin) to it, leaving the full shape for the Clients/Projects management page.
+- [ ] Batch `attachReminderPolicies` through the existing `readOffsetsForTargets`, run it only for permission-filtered records, and gate `taskReminderPolicy` behind an include flag requested only by the management page.
+- [ ] Tag-decorate each record set once (workspace projects are currently decorated twice), pass workspace settings down instead of re-reading, and filter `status != 'Inactive'` in SQL for the options projection (indexes exist).
+- [ ] Regressions: management page unchanged; options consumers render identical dropdowns; query-count and payload-size budgets for both shapes.
+
+Acceptance criteria:
+
+- The options payload is a small fraction of the management payload, reminder-policy queries are constant-count, and every consumer renders identically.
+
+### Version 0.33.19.6 - Workbench client fan-out, caching, and progressive render
+
+**Model: High Effort** — Load-order restructuring on the most-used page; races between restored local state and server truth must be handled deliberately.
+
+- [ ] Collapse the four sequential waves in `loadWorkbench()` into one parallel fan-out: fire focus-candidates with localStorage-restored mode/client/project alongside bootstrap/client-projects/focus-modes, refetching only if the restored selection is invalidated; stop awaiting `workspaceContextReady`/`loadSessionTimezone` where the cached context suffices, reconciling on the workspace-context-updated event.
+- [ ] Source the session timezone from the app-shell bootstrap payload instead of a separate `/api/session` round-trip.
+- [ ] Cache the near-static card registry (sessionStorage keyed by workspace) so per-card source fetches start immediately, reconciling when bootstrap resolves.
+- [ ] Render the focus-selection panel and skeletons immediately (its inputs are client-side constants) and patch each panel as its data arrives.
+- [ ] Switch near-static endpoint fetches from `cache: "no-store"` to `no-cache` so ETag revalidation works, add a shared cached-fetch helper (stale-while-revalidate via sessionStorage) for registry/focus-modes/client-project options, and keep timers/candidates/notifications uncached.
+- [ ] Add `compression()` (or record the proxy-compression requirement in deployment docs) and `defer` on workbench script tags; move the dialog-only scripts to the existing lazy-dependency mechanism.
+- [ ] Regressions: first-render correctness with cold and warm caches, selection-invalidation refetch, and no duplicate fetches per load.
+
+Acceptance criteria:
+
+- Workbench wall-clock load approximates the slowest single request instead of the sum of waves, first useful render is sub-second on warm loads, and behavior is identical with cold caches.
+
+### Version 0.33.19.7 - Performance proof and closeout
+
+**Model: Medium Effort** — Evidence and documentation; no new behavior.
+
+- [ ] Measure before/after on an rt-ltf-scale dataset: per-endpoint latency, query counts, payload sizes, and Workbench wall-clock/first-render; record the numbers in the changelog.
+- [ ] Add query-count/payload budget regressions for the hot endpoints so N+1 reintroductions fail loudly.
+- [ ] Update `docs/architecture.md`, `docs/runtime-configuration.md`, and `docs/regression-suite.md` for the adapter tuning, module-context lifecycle, projections, and client caching; run the canonical slice verification and full release gates.
+
+Acceptance criteria:
+
+- The measured Workbench load on the reference dataset is under ~1.5s cold / sub-second warm, the numbers are recorded, and budget regressions guard the hot paths.
+
+## Version 0.33.20 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
 
 **Model: High Effort** — This branch batches the pre-preview review findings that were deliberately deferred until after the friends-and-family preview with related short-term TODO work, spanning Reporting, Clients/Projects, Workbench, Tasks, and Notes surfaces.
 
@@ -150,7 +264,7 @@ Non-goals:
 - No preview-readiness claims move here; anything required before invitations belongs under 0.33.17.
 - No new module workflows beyond the corrections and settings surfaces named below.
 
-### Version 0.33.19.1 - Reporting refinements
+### Version 0.33.20.1 - Reporting refinements
 
 **Model: Medium Effort** — One contained control swap on an already-verified surface with routine shared-picker regression coverage.
 
@@ -160,7 +274,7 @@ Acceptance criteria:
 
 - The Reporting tag filter matches the shared tag-picker interaction pattern.
 
-### Version 0.33.19.2 - Clients and Projects list and modal polish
+### Version 0.33.20.2 - Clients and Projects list and modal polish
 
 **Model: High Effort** — Many small corrections across the Clients/Projects lists, filters, and add/edit modals with shared-modal and framework-ownership implications.
 
@@ -201,7 +315,7 @@ Acceptance criteria:
 
 - Clients/Projects filters, list rows, and add/edit modals match the shared framework modal and list patterns, with correct workspace-project labeling, hierarchy hyphens, default non-billable workspace projects, and no clipped focus rings or orphaned column headings.
 
-### Version 0.33.19.3 - Workbench algorithm, In Progress behavior, and timer-card follow-ups
+### Version 0.33.20.3 - Workbench algorithm, In Progress behavior, and timer-card follow-ups
 
 **Model: High Effort** — Focus-selection algorithm changes affect what work every user is steered toward.
 
@@ -217,7 +331,7 @@ Acceptance criteria:
 
 - Focus modes surface the right work (blocked only in review, due In-Progress items in due mode, running timers prioritized), In Progress status survives checklist edits under a timer, stale task URLs clear, and the manual-timer recommendation has a deliberate, documented behavior.
 
-### Version 0.33.19.4 - Task reminders, status transitions, and time estimates
+### Version 0.33.20.4 - Task reminders, status transitions, and time estimates
 
 **Model: High Effort** — Status automation and reminder nullability change task lifecycle behavior across views.
 
@@ -230,7 +344,7 @@ Acceptance criteria:
 
 - Second reminders are individually cancelable; Blocked/In Progress transitions and blocked-reason restore behave as specified; completion prompts for a Workbench-promoted next action; tasks can carry quarter-hour estimates.
 
-### Version 0.33.19.5 - Notes settings surface
+### Version 0.33.20.5 - Notes settings surface
 
 **Model: Medium Effort** — A new module settings contribution following the 0.33.15 settings host contract.
 
@@ -240,7 +354,7 @@ Acceptance criteria:
 
 - Notes contributes a settings surface with catalog list/bulk-edit management, following the shared settings anatomy and module-ownership boundaries.
 
-### Version 0.33.19.6 - User Settings password action isolation and runtime repair
+### Version 0.33.20.6 - User Settings password action isolation and runtime repair
 
 **Model: Medium Effort** — This is one contained User Settings action workflow with an intact server-side password-change contract but a reported rendered-runtime failure and stale/mixed-asset risk.
 
@@ -253,7 +367,7 @@ Acceptance criteria:
 
 - Password entry and submission are fully isolated from universal User Settings Save/Revert behavior, the dedicated Change Password button works in the served app, and a rendered disposable-account regression protects both the UI transaction boundary and the completed credential change.
 
-### Version 0.33.19.7 - Deferred TLS/proxy-dependent review findings (placeholder)
+### Version 0.33.20.7 - Deferred TLS/proxy-dependent review findings (placeholder)
 
 **Model: Medium Effort** — Scope is unknown until the review runs against the deployed TLS environment.
 
@@ -263,7 +377,22 @@ Acceptance criteria:
 
 - Every TLS/proxy-dependent review item has a recorded result, and confirmed defects are corrected and regression-covered here.
 
-## Version 0.33.20 - Recurring Calendar Projection and Private Calendar Subscription Feed
+### Version 0.33.20.8 - Quick-action capture refresh consumption on host pages
+
+**Model: Medium Effort** — The broadcast half of an existing contract already works; this slice designs and lands the missing consumption half as a framework-owned, declarative subscription rather than per-page ad-hoc listeners.
+
+Root cause (confirmed 2026-07-20): the quick-action capture drawer (`public/js/footer.js`) converts every module dialog's host `refresh` callback into a `longtailforge:quick-action-refresh` window CustomEvent, but no page subscribes to that event, so any record created through quick capture leaves the current page stale. The dialogs behave correctly (for example, the create-timer dialog awaits `hostContext.refresh(detail)` after saving), and page-owned openers are unaffected because they pass real callbacks (the Workbench passes `{ refresh: loadWorkbench }` for its own "Add Task"). The reported symptom is the Workbench: creating a timer via quick capture does not update the Timers (`active-work-timers`) card until a manual reload. `scripts/time-tracking-create-timer-modal-regression.mjs` asserts the event is dispatched but nothing asserts it is consumed.
+
+- [ ] Define a framework-owned subscription contract for `longtailforge:quick-action-refresh`: pages or cards declare the record types and/or action ids they display (following the declarative-contribution model), and a shared helper owns the window listener, filtering, and lifecycle instead of each page hand-rolling `window.addEventListener`.
+- [ ] Workbench consumes the contract: a completed `time-tracking.timer.create` quick action (record type `active_timer`) refreshes the active-timer state and Timers card without a page reload, preserving user-toggled card open/closed state and any active Task Focus surface.
+- [ ] Audit the remaining first-party quick actions (`tasks.add`, `time-entries.add`, `notes.add`, `lists.add`, `projects.add`, `clients.add`) for the same stale-host gap on the pages that list those records, and wire the same subscription where the page displays the affected record type.
+- [ ] Regression coverage proves consumption, not just dispatch: extend `scripts/time-tracking-create-timer-modal-regression.mjs` or add a Workbench regression demonstrating that a quick-capture-created timer appears in the Workbench Timers card without a reload.
+
+Acceptance criteria:
+
+- A timer created through the quick-action capture while on the Workbench appears in the Timers card automatically; the refresh contract is framework-owned and declaratively consumed by pages; the dispatch-plus-consumption path is regression-covered.
+
+## Version 0.33.21 - Recurring Calendar Projection and Private Calendar Subscription Feed
 
 Purpose:
 
@@ -300,7 +429,7 @@ Non-goals:
 - Do not weaken per-task read permission, workspace isolation, private/secure-content, or audit guardrails to serve the calendar projection or the feed.
 - Do not generalize a framework "feed serving" facility for tasks alone; the framework owns only the tokenized-feed auth surface (a framework-wide exception), while iCalendar content stays module-owned until a second real content consumer exists.
 
-### Version 0.33.20.1 - Read-time recurrence projection on the calendar
+### Version 0.33.21.1 - Read-time recurrence projection on the calendar
 
 **Model: High Effort** — This changes the calendar read to merge computed virtual occurrences with real rows, and a mistake either drops real instances or double-shows occurrences.
 
@@ -317,7 +446,7 @@ Acceptance criteria:
 - Virtual occurrences respect end dates, permission/scope filters, and never duplicate a materialized instance.
 - No new rows are created by opening or paging the calendar.
 
-### Version 0.33.20.2 - Per-instance overrides via materialize-on-touch
+### Version 0.33.21.2 - Per-instance overrides via materialize-on-touch
 
 **Model: High Effort** — Promotion-on-edit must be exactly-once and race-safe so an instance-specific edit cannot silently apply to the wrong date or spawn duplicate rows.
 
@@ -325,14 +454,14 @@ Acceptance criteria:
 - [ ] Carry `templateId` + `instanceDate` from the virtual calendar entry through the task editor open path (`public/js/task-dialog.js`, `openCalendarTask`) so the save knows it is promoting a specific occurrence rather than editing the template.
 - [ ] Make promotion idempotent and race-safe: concurrent promotion of the same occurrence resolves to one row (reuse/verify the existing instance-uniqueness guarantee), and promotion never disturbs the completion-driven generation of the chain's next open instance.
 - [ ] Confirm the existing completion continuity and the 12-hour backfill sweep still behave correctly when the touched occurrence is not the current open instance.
-- [ ] Add regressions: touching one occurrence materializes exactly that date and leaves siblings virtual; the materialized override then displays instead of its ghost (0.33.20.1 dedup); concurrent touch yields a single row; and completing a virtual occurrence both records completion and preserves normal next-instance generation.
+- [ ] Add regressions: touching one occurrence materializes exactly that date and leaves siblings virtual; the materialized override then displays instead of its ghost (0.33.21.1 dedup); concurrent touch yields a single row; and completing a virtual occurrence both records completion and preserves normal next-instance generation.
 
 Acceptance criteria:
 
 - A user can attach instance-specific data to a single occurrence of a recurring task, and only that occurrence becomes a real, independently-editable row.
 - Promotion is exactly-once, permission-checked, and does not disrupt recurrence generation or continuity.
 
-### Version 0.33.20.3 - Framework private calendar-feed subscription and token authentication
+### Version 0.33.21.3 - Framework private calendar-feed subscription and token authentication
 
 **Model: High Effort** — This is a new session-less, internet-reachable authenticated read surface; getting token handling, revocation, or throttling wrong exposes private task data.
 
@@ -350,12 +479,12 @@ Acceptance criteria:
 - The feed endpoint is throttled, non-enumerating, secret-free in logs, and revocation takes effect immediately.
 - The framework owns only the feed auth/serving seam and dispatches content to a registered provider by ID.
 
-### Version 0.33.20.4 - Tasks iCalendar content serialization
+### Version 0.33.21.4 - Tasks iCalendar content serialization
 
 **Model: High Effort** — iCalendar correctness (RRULE, RECURRENCE-ID overrides, time zones, escaping) determines whether real calendar clients render the feed without corruption.
 
 - [ ] Register a Tasks feed content provider that serializes the user's readable tasks into standards-compliant iCalendar (`VCALENDAR`/`VEVENT`), reusing `taskCalendarRow` semantics for all-day (`due_time` absent) vs timed events and the same per-task read-permission and workspace scope as the in-app calendar.
-- [ ] Emit recurring tasks as a single `VEVENT` with an `RRULE` derived from the template (reusing `buildRRule`/the template's stored `rrule`), honoring `recurrence_end_date` as `UNTIL`, and serialize each materialized instance-override as a `RECURRENCE-ID` exception to its series (shared dedup with 0.33.20.1).
+- [ ] Emit recurring tasks as a single `VEVENT` with an `RRULE` derived from the template (reusing `buildRRule`/the template's stored `rrule`), honoring `recurrence_end_date` as `UNTIL`, and serialize each materialized instance-override as a `RECURRENCE-ID` exception to its series (shared dedup with 0.33.21.1).
 - [ ] Produce stable, provider-neutral `UID`s (task/instance identity) and correct `DTSTART`/`DTEND`/time-zone (`due_timezone`/`due_at_utc`) handling, with proper iCalendar line folding and text escaping.
 - [ ] Bound the feed to a defined rolling window (past/future horizon) rather than unbounded history/future; open-ended recurrences fill the future horizon via RRULE.
 - [ ] Validate output against Google Calendar, Apple Calendar, Outlook, and Thunderbird import, and add a serialization regression (fixtures for single, all-day, timed, recurring, and overridden-instance tasks) asserting valid structure and correct RRULE/RECURRENCE-ID.
@@ -366,7 +495,7 @@ Acceptance criteria:
 - Recurring tasks appear as native RRULE events with per-instance overrides expressed as RECURRENCE-ID exceptions.
 - The feed exposes only tasks the token's user may read, within a bounded window.
 
-### Version 0.33.20.5 - Subscription UI, documentation, and closeout
+### Version 0.33.21.5 - Subscription UI, documentation, and closeout
 
 - [ ] Add a user-facing "Calendar subscription" control (in user settings, aligned with the 0.33.15 settings host if landed) to reveal, copy, rotate, and disable the private feed URL, described as a read-only subscription and never as "Google Calendar sync."
 - [ ] Provide short in-product guidance/links for adding the URL to Google Calendar, Apple Calendar, Outlook, and Thunderbird, and set expectations that client refresh is periodic (not real-time).
@@ -379,7 +508,7 @@ Acceptance criteria:
 - Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
 - The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, and the release-gate checks pass.
 
-## Version 0.33.21 - Secure Notes Catalog Policy and Inherited Protection
+## Version 0.33.22 - Secure Notes Catalog Policy and Inherited Protection
 
 **Model: High Effort** — Catalog-level authorization, encryption transitions, search suppression, and non-exposure across every Notes consumer carry security and data-integrity risk.
 
@@ -395,7 +524,7 @@ Dependencies and baseline:
 
 - Build on the existing `notes.security_mode`, secure-note permissions, encrypted payload/revision path, `note_library_collections` hierarchy, Notes access policy, and framework audit/event contracts.
 - Preserve the current rule that secure Notes content and attachments do not enter normal Files, Search, notification, public API, resume-context, or export flows without an explicitly designed secure equivalent.
-- Land before Support View (0.33.22), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
+- Land before Support View (0.33.23), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
 
 Non-goals:
 
@@ -403,7 +532,7 @@ Non-goals:
 - Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
 - Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
 
-### Version 0.33.21.1 - Catalog policy, effective-security projection, and migration
+### Version 0.33.22.1 - Catalog policy, effective-security projection, and migration
 
 **Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
 
@@ -417,7 +546,7 @@ Acceptance criteria:
 
 - One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
 
-### Version 0.33.21.2 - Fail-closed catalog transitions and deliberate downgrade
+### Version 0.33.22.2 - Fail-closed catalog transitions and deliberate downgrade
 
 **Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
 
@@ -431,7 +560,7 @@ Acceptance criteria:
 
 - Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
 
-### Version 0.33.21.3 - Consumer enforcement, management UI, and closeout
+### Version 0.33.22.3 - Consumer enforcement, management UI, and closeout
 
 **Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
 
@@ -439,13 +568,13 @@ Acceptance criteria:
 - [ ] Keep effectively secure notes out of normal search documents, notification payloads, excerpts, public APIs, exports, and future indexing/AI/provider catalogs; add a source/manifest guardrail so a new Notes consumer must declare and test secure-content behavior.
 - [ ] Add catalog management UI that clearly shows inherited versus explicit secure policy, prevents a child override under a secure ancestor, explains transition/failure state without exposing content, and keeps downgrade separate from ordinary edit/move controls.
 - [ ] Record catalog policy enable/complete/failure, subtree-preservation, and explicit downgrade events without note bodies, keys, plaintext, or secret metadata. Update Notes, security, module-contract, Help, and operator recovery documentation.
-- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.22 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
+- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.23 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
 
 Acceptance criteria:
 
 - Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
 
-## Version 0.33.22 - Read-Only Support View
+## Version 0.33.23 - Read-Only Support View
 
 **Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
 
@@ -459,7 +588,7 @@ The authenticated administrator remains the actor for the entire session. A sepa
 
 Dependencies and baseline:
 
-- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.21 effective Notes security.
+- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.22 effective Notes security.
 - Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
 - Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
 
@@ -469,7 +598,7 @@ Non-goals:
 - No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
 - No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
 
-### Version 0.33.22.1 - Durable support-session and actor/effective identity contract
+### Version 0.33.23.1 - Durable support-session and actor/effective identity contract
 
 **Model: High Effort** — Session identity, workspace scope, expiration, and rotation mistakes can become privilege escalation or attribution failures.
 
@@ -483,7 +612,7 @@ Acceptance criteria:
 
 - Every support request carries separate immutable actor and effective-user identities, a short expiry, and one effective workspace; entering/leaving rotates the session and cannot grant either identity new permissions.
 
-### Version 0.33.22.2 - Server read-only enforcement and protected-data exclusions
+### Version 0.33.23.2 - Server read-only enforcement and protected-data exclusions
 
 **Model: High Effort** — Read-only enforcement must cover framework and module routes without trusting UI state or accidentally creating a universal hook.
 
@@ -497,7 +626,7 @@ Acceptance criteria:
 
 - Direct HTTP calls cannot mutate state in Support View, the rendered data never exceeds the target user's normal readable scope, protected secrets/secure Notes remain absent, and every allowed or denied action remains attributable to the administrator.
 
-### Version 0.33.22.3 - Support View UX, audit review, documentation, and closeout
+### Version 0.33.23.3 - Support View UX, audit review, documentation, and closeout
 
 **Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
 
@@ -511,7 +640,7 @@ Acceptance criteria:
 
 - An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
 
-## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
+## Version 0.33.24 - Branded Error Surfaces and Correlated Failure Handling
 
 **Model: High Effort** — Error classification sits on every route and must improve recovery without leaking protected resource existence or production diagnostics.
 
@@ -526,14 +655,14 @@ Route class determines response format; API paths never receive HTML and browser
 Dependencies and baseline:
 
 - Build on `AppError`, `attachRequestContext`, operational JSON logging, transport-security headers, `staticService`, and the existing `/api/v1` versioned envelope.
-- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.24.
+- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.25.
 
 Non-goals:
 
 - No stack traces, SQL details, filesystem paths, environment values, credentials, raw errors, hidden record labels, or resource-existence confirmation in production responses.
 - No new telemetry vendor, hosted error-reporting service, automatic retry of unsafe mutations, or attempt to keep the Node process alive after an unrecoverable startup failure.
 
-### Version 0.33.23.1 - Server error taxonomy, API envelopes, and final route ordering
+### Version 0.33.24.1 - Server error taxonomy, API envelopes, and final route ordering
 
 **Model: High Effort** — A framework-wide middleware change can break every API client or weaken non-enumerating authorization behavior.
 
@@ -547,7 +676,7 @@ Acceptance criteria:
 
 - Every API failure has one documented JSON shape and request ID, every browser navigation failure has the correct status/HTML class, and route ordering plus non-enumeration are regression-locked.
 
-### Version 0.33.23.2 - Resilient branded pages and browser recovery boundary
+### Version 0.33.24.2 - Resilient branded pages and browser recovery boundary
 
 **Model: High Effort** — Failure UI must remain usable when normal rendering/data dependencies are broken and must not create retry loops or duplicate unsafe writes.
 
@@ -561,11 +690,11 @@ Acceptance criteria:
 
 - Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, and the fallback remains available without database-backed decoration or protected resource leakage.
 
-### Version 0.33.23.3 - Error-contract documentation, observability proof, and closeout
+### Version 0.33.24.3 - Error-contract documentation, observability proof, and closeout
 
 **Model: High Effort** — Closeout must prove both user recovery and diagnostic correlation across public, protected, API, and dependency-failure paths.
 
-- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.24 proxy maintenance.
+- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.25 proxy maintenance.
 - [ ] Add module-development guardrails so new routes use `AppError`/registered error codes rather than raw production diagnostics, and so new browser entries install the shared recovery boundary.
 - [ ] Add regressions that correlate a shown request ID with exactly one safe structured server diagnostic while asserting responses/logs omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers.
 - [ ] Run API contract, permission, workspace-isolation, security-header, static-fallback, accessibility, browser recovery, production-log, and canonical slice verification.
@@ -574,7 +703,7 @@ Acceptance criteria:
 
 - The server and browser share a documented failure contract, support can correlate a user-visible ID to protected diagnostics, and all error surfaces preserve security, accessibility, and recovery behavior.
 
-## Version 0.33.24 - Operator Maintenance Mode and Deployment Outage Curtain
+## Version 0.33.25 - Operator Maintenance Mode and Deployment Outage Curtain
 
 **Model: High Effort** — Proxy routing, deploy/rollback failure handling, root-owned host assets, and truthful readiness checks directly affect release safety and public availability.
 
@@ -589,7 +718,7 @@ Maintenance mode is an operator/deployment concern at the reviewed proxy boundar
 Dependencies and baseline:
 
 - Build on the two supported topologies in `docs/internet-deployment.md`, the checked-in Caddy/Nginx examples and proxy smoke, and `scripts/release/longtail-forge-deploy-host.example` backup-first deploy/rollback behavior.
-- Reuse 0.33.23 safe 503 language and styling principles, but keep the proxy page fully independent of Node, the database, Files, sessions, and normal application assets.
+- Reuse 0.33.24 safe 503 language and styling principles, but keep the proxy page fully independent of Node, the database, Files, sessions, and normal application assets.
 - The real-client-IP forwarding correction is explicitly out of this branch; preserve the settled Nginx -> WireGuard -> Caddy header contract and its existing regression while that host configuration is completed separately.
 
 Non-goals:
@@ -598,7 +727,7 @@ Non-goals:
 - Maintenance mode curtains public traffic; it does not by itself stop Node/workers or prove a backup is complete. Operators still use the reviewed service/backup procedures when quiescence is required.
 - Do not claim maintenance is scheduled, data is safe, or a backup is running unless the helper actually has evidence for that statement; default page copy stays truthful and generic.
 
-### Version 0.33.24.1 - Generic maintenance assets, marker ownership, and proxy contract
+### Version 0.33.25.1 - Generic maintenance assets, marker ownership, and proxy contract
 
 **Model: High Effort** — A proxy matcher or filesystem-permission error can bypass maintenance, expose host paths, or give an operator account unintended content/configuration write access.
 
@@ -614,7 +743,7 @@ Acceptance criteria:
 
 - An authorized operator can toggle a root-controlled maintenance curtain without reload or content/config write access; normal requests receive the reviewed 503 while diagnostic endpoints report the underlying app truthfully.
 
-### Version 0.33.24.2 - Backup-first deploy/rollback integration and failure safety
+### Version 0.33.25.2 - Backup-first deploy/rollback integration and failure safety
 
 **Model: High Effort** — Candidate failure and rollback recovery must never reopen traffic to a stopped, unverified, or partially restored application.
 
@@ -628,7 +757,7 @@ Acceptance criteria:
 
 - Deploys and rollbacks show maintenance instead of raw 502s, never clear someone else's hold, and reopen traffic only after the intended known-good app passes direct and public identity/readiness checks.
 
-### Version 0.33.24.3 - Public-edge fallback, operator runbook, live proof, and closeout
+### Version 0.33.25.3 - Public-edge fallback, operator runbook, live proof, and closeout
 
 **Model: High Effort** — The outer fallback and live rollout touch the real multi-proxy availability boundary and require host evidence beyond local configuration tests.
 
@@ -2434,40 +2563,21 @@ Acceptance criteria:
 
 - The public API and integration surfaces are provably independent of the storage backend and of specific module internals before 0.40.0 begins, with a guardrail preventing regression and the coupling allowlist reduced accordingly.
 
-## Version 0.39.16 - SQLite adapter performance cleanup
+## Version 0.39.16 - SQLite adapter pre-PostgreSQL benchmark checkpoint
 
-**Model: GPT-5.5 Extra High** ? database adapter internals with prepared-statement lifecycle, transaction, and durability/data-integrity implications; a subtle cache-invalidation or PRAGMA-durability error is high-cost.
+**Model: Medium Effort** — Verification checkpoint; the implementation scope of this branch was pulled forward to 0.33.19.1 (2026-07-20 Workbench performance review), because the adapter's per-query overhead was measured multiplying production N+1 costs rather than being a deferrable cleanup.
 
 Purpose:
 
-Now that the SQLite adapter is fully isolated behind the provider-neutral database seam and every application call site goes through `db.query/get/run` + `db.dialect.*` (0.33.5.27), the adapter's own internals can be optimized without touching a single call site or the agnostic contract. This is a self-contained, behavior-preserving cleanup of `src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`, deliberately placed at the end of 0.39 so the SQLite adapter is tuned *before* the 0.40.0 PostgreSQL adapter lands ? that way both backends can be benchmarked fairly and the PostgreSQL adapter can mirror the same startup-tuning and statement-lifecycle patterns instead of diverging.
+The original 0.39.16 adapter cleanup (prepared-statement cache, single-scan SQL parsing, single-row `db.get()`, config-gated WAL-safe PRAGMAs) moved to 0.33.19.1. What remains here is its original end-of-0.39 placement rationale: confirm the SQLite adapter is still tuned and benchmarked immediately before the 0.40.0 PostgreSQL adapter lands, so both backends can be benchmarked fairly and the PostgreSQL adapter mirrors the same startup-tuning and statement-lifecycle patterns instead of diverging.
 
-Scope decision (record in `DECISIONS.md`):
-
-- Adapter-internal only. This slice changes no query result, no error contract, no transaction semantics, and no call-site code. It must not touch the dialect seams, the parameter-binding contract's observable behavior, migrations, or the agnostic-by-contract guarantees. Any durability-affecting change (e.g. `synchronous`) must be runtime-config-gated with a documented default and surfaced in health/diagnostics, not silently changed.
-
-Entry contract and grounding (re-verify at implementation time ? code will have drifted):
-
-- Prepared statements are recompiled on every call: `executePreparedRun`/`executePreparedQuery` in `src/db/sqlite.js` call `getSqliteDatabase().prepare(sql)` per query with no statement cache. better-sqlite3 is fastest when prepared statements are reused.
-- The SQL string is scanned up to three times per query: `prepareDatabaseBindings()` (adapter) tokenizes it, then `countSqlStatements()` scans it again, then `resolveStatementBindings()` -> `collectSqlParameters()` scans it a third time in `src/db/sqlite.js`, re-deriving parameter shape the binding layer already computed. The tokenizing logic is duplicated across `src/db/parameter-bindings.js` and `src/db/sqlite.js`.
-- `db.get(...)` materializes the full result set then discards all but the first row: `executeGet` -> `executeQuery` -> `allStatement` -> `statement.all()` in `src/db/adapters/sqlite-adapter.js` / `src/db/sqlite.js`, instead of better-sqlite3's `statement.get()` which stops at the first row.
-- Startup PRAGMAs are minimal: `applyConnectionPragmas`/`applyStartupPragmas` set only `busy_timeout`, `foreign_keys`, and `journal_mode` (WAL). The standard WAL-safe performance PRAGMAs (`synchronous = NORMAL`, a larger `cache_size`, `temp_store = MEMORY`, and optionally `mmap_size`) are not applied.
-- `config.sqlite` already carries `journalMode`/`busyTimeoutMs`/`foreignKeys`; new tuning keys should follow the same runtime-configuration pattern and be documented in `docs/runtime-configuration.md`.
-
-Sizing rule for this branch:
-
-- One primary blast radius: the SQLite adapter (`src/db/adapters/sqlite-adapter.js` and `src/db/sqlite.js`). Measure first, then land the changes behind behavior-preserving regressions. Split only if the 0.39.16.1 measurement shows the prepared-statement cache is materially more complex than the rest ? do not pre-split the tuning bullets, since they share the same blast radius.
-
-- [ ] Establish a repeatable micro-benchmark for the adapter (hot single-row read, hot list read, hot write, and a transaction) and record a baseline before any change, so each optimization can be shown to help and proven not to change results.
-- [ ] Add a bounded, connection-scoped prepared-statement cache keyed on the final rewritten SQL, reused across `query`/`get`/`run`. It must be invalidated/reset when the connection is closed and reopened (`initializeSqliteRuntime` closes and recreates the database), must not grow unbounded under variable-length `IN (:ids)` expansion (cap/evict), and must not change results, errors, or transaction behavior.
-- [ ] Collapse the redundant per-query SQL scans: parse/tokenize the statement once and reuse the parameter/statement-shape result rather than re-scanning in `countSqlStatements` and `collectSqlParameters`. Prefer sharing the single tokenizer in `src/db/parameter-bindings.js` over maintaining a second copy in `src/db/sqlite.js`. Preserve the exact multi-statement, comment/quote-handling, and error behavior.
-- [ ] Make `db.get(...)` use better-sqlite3's single-row `statement.get()` path instead of `statement.all()[0]`, preserving the current `null`-when-empty contract and identical row shape.
-- [ ] Add runtime-config-gated startup performance PRAGMAs (`synchronous`, `cache_size`, `temp_store`, and optionally `mmap_size`) with safe WAL-appropriate defaults, apply them in `applyStartupPragmas`, surface the effective values in SQLite health/`/api/runtime-diagnostics`, and document the durability tradeoff of `synchronous = NORMAL` (safe under WAL: no corruption on app crash, only a possible last-transaction loss on OS/power loss). Do not change `journal_mode`, `busy_timeout`, or `foreign_keys` behavior.
-- [ ] Add behavior-preserving regressions: identical results/errors/`get`-null semantics before and after; statement-cache correctness across connection reset and variable-length `IN (:ids)`; PRAGMA values reported in health; and record the before/after benchmark numbers. Run `npm run check`, `npm run test:permissions`, `PRAGMA integrity_check`, and verify `/api/app-info` after restart.
+- [ ] Re-run the 0.33.19.1 adapter micro-benchmark on the current codebase and compare against the recorded 0.33.19.1 numbers; investigate any regression before starting 0.40.0.
+- [ ] Verify the statement cache, single-scan parsing, single-row `get()`, and PRAGMA tuning survived the intervening branches (no reintroduced per-query scans or write-on-read paths) and that the behavior-preserving regressions from 0.33.19.1 still run in the suite.
+- [ ] Record the final SQLite baseline that the 0.40.0 PostgreSQL adapter must be benchmarked against, and note the statement-lifecycle/startup-tuning patterns it should mirror.
 
 Acceptance criteria:
 
-- The SQLite adapter is measurably faster on hot reads/writes through prepared-statement reuse, single-scan parsing, single-row `get()`, and config-gated WAL-safe PRAGMAs, with no change to query results, error contracts, transaction semantics, or the agnostic contract, and with the durability tradeoff documented and diagnostics-visible. The optimizations are established before 0.40.0 so the PostgreSQL adapter can mirror the same patterns.
+- The SQLite adapter's tuned performance is re-proven on current code with recorded numbers, giving 0.40.0 a fair comparison baseline and a pattern reference for the PostgreSQL adapter.
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
 

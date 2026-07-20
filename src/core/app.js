@@ -59,6 +59,7 @@ function createApp() {
   securityEventsService.registerEventHandlers();
 
   app.disable("x-powered-by");
+  app.set("query parser", "extended");
   configureTrustedProxy(app, config.security.trustedProxies);
   app.use(attachRequestContext);
   app.use(createRequestLoggingMiddleware());

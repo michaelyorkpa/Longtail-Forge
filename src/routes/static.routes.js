@@ -4,7 +4,7 @@ import { asyncRoute } from "../utils/http.js";
 
 const staticRoutes = Router();
 
-staticRoutes.get("*", asyncRoute(async (request, response) => {
+staticRoutes.get("/{*staticPath}", asyncRoute(async (request, response) => {
   const result = await staticService.read(request.url, request.session);
 
   response.writeHead(result.statusCode, {
