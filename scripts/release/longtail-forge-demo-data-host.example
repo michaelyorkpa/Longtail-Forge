@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install a reviewed copy only on the named demo host as
+# /usr/local/sbin/longtail-forge-demo-data, owned by root and not writable by
+# the application or deployment accounts. This wrapper intentionally fixes the
+# protected configuration path; callers cannot select another installation.
+
+if [[ "$(id -u)" != "0" ]]; then
+  printf 'demo-data helper: must run as root\n' >&2
+  exit 1
+fi
+
+exec /usr/bin/node /opt/longtail-forge/current/scripts/demo-data-host.mjs "$@"

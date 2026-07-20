@@ -13,6 +13,6 @@ A releasable Longtail Forge revision is an exact protected `main` commit with pa
 7. Complete the [Private Preview Readiness](private-preview-readiness.md) record before any invitation or post-release access expansion.
 8. Record the prior known-good release and its pre-deployment backup. Keep both until the new release completes its observation period.
 
-The `nightly` artifact is for the isolated demo/development environment only. It must not be relabeled as a friends-and-family release. The preview environment remains blocked while its deployment variables are disabled or its isolated secrets, host helper, URL, backup, and restore proof are incomplete.
+The `nightly` artifact is for the isolated demo/development environment only. It must not be relabeled as a friends-and-family release. Routine Nightly deployment preserves the demo database and Files tree and never invokes the separate manual [demo-host provision/reset operation](demo-data-operations.md). The preview environment remains blocked while its deployment variables are disabled or its isolated secrets, host helper, URL, backup, and restore proof are incomplete.
 
 Rollback is a release operation, not a source-code reversal. Dispatch the manual workflow with the recorded previous main SHA and `ROLLBACK <SHA>`; restore the matching database and Files state together and verify the restored runtime identity. See [Upgrading](upgrading.md) and [Backup and Restore](backup-and-restore.md).

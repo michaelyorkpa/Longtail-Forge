@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 380,
+    "discoveredScripts": 381,
     "legacyScripts": 311,
-    "releaseGateScripts": 41,
+    "releaseGateScripts": 42,
     "areaCounts": {
       "dashboard": 1,
-      "database": 33,
+      "database": 34,
       "docs": 9,
       "files": 44,
       "framework": 63,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 173,
       "integration": 158,
-      "release-gate": 41,
+      "release-gate": 42,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 154,
+      "isolated-database": 155,
       "serial-database": 6,
       "serial-files": 29,
       "static": 191
@@ -2412,6 +2412,25 @@
         "files",
         "restore",
         "security",
+        "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves the named demo host can be provisioned/reset only through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+      "id": "database.demo-data-host-operation",
+      "legacy": false,
+      "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "backup",
+        "demo",
+        "deployment",
+        "files",
+        "security",
+        "seed",
         "sqlite"
       ],
       "tier": "release-gate"

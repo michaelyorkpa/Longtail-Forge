@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertOperatorPassword,
   assertSeedDirectoryEmpty,
@@ -16,16 +17,19 @@ import {
 const BASE_DATE = "2026-07-15";
 const DISABLED_PERSONA_PASSWORD = "!development-persona-login-disabled!";
 const SEED_CONTRACT = "development-data-v1";
+const scriptPath = fileURLToPath(import.meta.url);
 let databaseApi = null;
 
-try {
-  await main();
-} catch (error) {
-  console.error(error?.message || error);
-  process.exitCode = 1;
-} finally {
-  if (databaseApi?.closeDatabase) {
-    await databaseApi.closeDatabase();
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  try {
+    await main();
+  } catch (error) {
+    console.error(error?.message || error);
+    process.exitCode = 1;
+  } finally {
+    if (databaseApi?.closeDatabase) {
+      await databaseApi.closeDatabase();
+    }
   }
 }
 
@@ -307,6 +311,8 @@ async function seed(db, target, anchorDate) {
   if (Number(secure.count) !== 0) throw new Error("Seed contract violation: Secure Notes material was created.");
   const integrity = await db.get("PRAGMA integrity_check;");
   if (Object.values(integrity)[0] !== "ok") throw new Error("Seeded database failed PRAGMA integrity_check.");
+  const foreignKeyViolations = await db.query("PRAGMA foreign_key_check;");
+  if (foreignKeyViolations.length !== 0) throw new Error("Seeded database failed PRAGMA foreign_key_check.");
   const files = [{ key: "checkout-findings.md", bytes: "# Checkout findings\n\nFake fixture only. The header overlapped the cart button below 380px.\n" }, { key: "launch-readme.txt", bytes: "Sanitized demo fixture. No customer or production data.\n" }];
   return { anchorDate, semanticFingerprint: row.semantic_fingerprint, counts, workbench: JSON.parse(row.scenario_manifest_json), files };
 }
@@ -407,3 +413,4 @@ function print(value) {
 }
 
 export const __test = { id, semanticFingerprint };
+export { main as runDevelopmentDataCli };

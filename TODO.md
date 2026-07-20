@@ -41,7 +41,7 @@ User A is workspace admin for Workspace A. User B is workspace admin for two wor
 
 > The 0.33.17.7 pre-preview review batch (2026-07-16) promoted the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Deletion/Edge Cases -> **0.33.17.7.10 and 0.33.17.7.12-.15**; Timer project ordering -> **0.33.17.7.16**; Login throttling persistence -> **0.33.17.7.17**; Workbench (algorithm, In Progress, URL annoyance) and Workbench Timers Tweak -> **0.33.19.3**; Task Reminders and Tasks Status Tweak -> **0.33.19.4**; Secure Catalogs -> the **Committed before 0.4x** unversioned backlog. The prior 0.33.19 calendar branch moved to **0.33.20** in the same batch.
 >
-> Renumber note (2026-07-20): a Workbench/API load-performance branch was inserted as **0.33.19**, moving the former 0.33.19-0.33.24 branches down one to **0.33.20-0.33.25**. The promoted slices above are therefore now **0.33.20.3** and **0.33.20.4**, and the calendar branch is now **0.33.21**.
+> Renumber note (2026-07-20): a Workbench/API load-performance branch was inserted as **0.33.19**, moving the former 0.33.19-0.33.24 branches down one to **0.33.20-0.33.25**. The promoted Workbench and Tasks slices above remain owned only by **0.33.20.3** and **0.33.20.4**, and the calendar branch is **0.33.21**; the subsequently reused **0.33.19.3-0.33.19.5** numbers belong to the Developer Verification Throughput follow-ups in `ROADMAP.md`.
 
 ## Fix logo for Dark Mode Visibility
 
@@ -110,13 +110,6 @@ This section is to define a series of human testing goals for different sections
 Deferred to a future mobile-polish roadmap pass. Re-audit the current rendered surfaces after the completed modal, view-conversion, and responsive-foundation work; do not revive layout requests written against retired page anatomy.
 
 # Near Term Ideas
-
-## Unassigned Regression-Suite Follow-ups
-
-These candidates came out of the 0.33.18.7 formal suite-streamlining review and are recorded in `docs/regression-suite-performance.md`, but they do not yet have a numbered `ROADMAP.md` owner. Promote them into a dedicated roadmap slice before implementation, then remove this TODO entry.
-
-- [ ] Move only the pure configuration/default/error matrix from `scripts/runtime-configuration-contract-regression.mjs` toward Vitest when the retained regression owner still proves child-process environment materialization, module-registry behavior, database integration, and runtime responses. Do not retire integration coverage without demonstrated replacement evidence and the normal manifest/ratchet record.
-- [ ] Audit the 29-script serial Files regression bucket for entries whose database, filesystem, port, scanner, and process state are all disposable. Change an entry's run mode only after bounded repeat-stress evidence proves parallel safety; aggregate serial runtime alone is not sufficient evidence, and the bucket remains serial by default.
 
 ## User controls
 
