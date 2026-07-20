@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 375,
+    "discoveredScripts": 376,
     "legacyScripts": 312,
-    "releaseGateScripts": 35,
+    "releaseGateScripts": 36,
     "areaCounts": {
       "dashboard": 1,
       "database": 32,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 5,
       "public-api": 3,
-      "release": 21,
+      "release": 22,
       "search": 12,
       "tags": 12,
       "tasks": 51,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 173,
       "integration": 158,
-      "release-gate": 35,
+      "release-gate": 36,
       "slow": 9
     },
     "runModeCounts": {
       "isolated-database": 152,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 188
+      "static": 189
     }
   },
   "coverageFamilies": [
@@ -3088,6 +3088,22 @@
         "closeout",
         "commands",
         "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Pins the reviewed ESLint 10.7 and Markdown-it 14.3 dependency baseline and keeps obsolete js-yaml out of the resolved graph.",
+      "id": "release.dependency-baseline",
+      "legacy": false,
+      "path": "scripts/regressions/release/dependency-baseline.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "dependencies",
+        "markdown",
+        "release",
+        "tooling"
       ],
       "tier": "release-gate"
     },

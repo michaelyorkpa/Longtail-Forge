@@ -1,5 +1,23 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.18.1 - Tooling and Markdown dependency baseline
+
+Completed 0.33.18.1 on 2026-07-19. The live roadmap advances to 0.33.18.2.
+
+**Model: Medium Effort** — The package changes were bounded, while the Markdown parser remained a user-content boundary whose safe rendering semantics required explicit regression proof.
+
+- [x] Created the short-lived `chore/0.33.18.1-dependency-baseline` branch from the current `nightly` tree and incorporated the intended ESLint 10.7 and Markdown-it 14.3 package/lockfile deltas from Dependabot PRs #6 and #7 through the normal version, changelog, documentation-disposition, and canonical slice-closeout ceremony.
+- [x] Upgraded ESLint from the resolved 9.39 line to 10.7, confirmed its engine contract includes the repository's supported Node 24 range, and preserved the existing lint command, cache strategy, file coverage, and warning/error behavior.
+- [x] Upgraded Markdown-it from 14.2 to 14.3 with `entities` 4.5 and `linkify-it` 5.0.2, replaced the stale exact-version assertion, and added focused coverage for the corrected CommonMark backslash-space hard-line-break behavior under both document/default and user-authored parser configurations.
+- [x] Re-ran the Markdown safety contract for raw HTML escaping, unsafe URL degradation, image opt-in, excerpts/plain text, task lists, tables, soft breaks, and the shared Notes, Help, and Files consumers without adding syntax or changing product formatting policy.
+- [x] Confirmed ESLint 10 removes `js-yaml` from the resolved dependency graph; no direct YAML consumer exists, so Dependabot PR #2 is superseded rather than retained as an unused dependency update.
+- [x] Folded in the bounded multi-proxy forwarding-IP correction: the Caddy global options now use an address-less `servers` block that applies to the WireGuard listener created by `bind`, explicitly accepts `X-Forwarded-For` before `X-Real-IP`, and is covered by the deployment regression plus bound-listener smoke fixture.
+- [x] Ran `npm audit`, lint, focused Markdown tests/regressions, `npm run docs:suggest`, and the canonical `npm run verify:slice`; dependency review remains part of the clean-Linux pull-request proof into `nightly`, and Dependabot PRs #2, #6, and #7 are superseded by the integrated change.
+
+Acceptance criteria:
+
+- `nightly` receives one reviewed ESLint 10.7 and Markdown-it 14.3 baseline, the repository no longer resolves unused `js-yaml`, Markdown output remains safe and deliberately regression-covered, the bounded multi-proxy reference preserves the real public client IP through its bound Caddy listener, all required checks pass, and no dependency PR bypasses the normal integration branch.
+
 ## Version 0.33.17 - Friends-and-Family Internet Preview, Packaging, Backup/Restore, CI, and Release Operations
 
 Completed 0.33.17 on 2026-07-18. The live roadmap advances to 0.33.18.1; the private signed operator readiness record remains the invitation gate and is not committed here.

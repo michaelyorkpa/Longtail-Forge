@@ -7,8 +7,15 @@
 	# Trust exactly the Nginx WireGuard peer for the private HTTP listener.
 	# Strict right-to-left parsing prevents a client-prepended address from
 	# becoming the resolved client IP.
-	servers :8080 {
+	#
+	# This block must stay address-less. Caddy matches an addressed `servers`
+	# block by exact listener address, and `bind` below makes the listener
+	# {$LONGTAIL_CADDY_WIREGUARD_ADDRESS}:8080 — a `servers :8080` block would
+	# silently apply to no server and {client_ip} would fall back to the
+	# TCP peer.
+	servers {
 		trusted_proxies static {$LONGTAIL_EDGE_WIREGUARD_PEER}
+		client_ip_headers X-Forwarded-For X-Real-IP
 		trusted_proxies_strict
 	}
 }

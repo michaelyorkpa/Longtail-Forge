@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.17.9",
+  "version": "0.33.18.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -82,14 +82,14 @@
     "busboy": "^1.6.0",
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2",
-    "markdown-it": "^14.2.0",
+    "markdown-it": "^14.3.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.1",
-    "eslint": "^9.27.0",
+    "eslint": "^10.7.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
