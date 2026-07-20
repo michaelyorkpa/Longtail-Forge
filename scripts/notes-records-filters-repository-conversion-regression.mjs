@@ -79,7 +79,7 @@ function assertStaticContract() {
 
   assert.match(auditDocs, /0\.33\.5\.27\.14 Notes Records and Filters Repository Conversion[\s\S]*`notes\/notes\.repo`[\s\S]*named params[\s\S]*dialect comparison seams/, "audit docs should record the Notes records/filter conversion ratchet");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.14[\s\S]*`notes\/notes\.repo`[\s\S]*record list\/read\/filter paths[\s\S]*named params/, "database docs should record the Notes records/filter conversion");
-  assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegex(appVersion)}`), "Notes docs should report the current implementation version");
+  assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes docs should retain the owning developer-guide heading");
   assert.match(notesDocs, /As of 0\.33\.5\.27\.14[\s\S]*record list\/read\/filter SQL[\s\S]*named params[\s\S]*dialect comparison seams/, "Notes docs should document the converted Notes read/filter repository boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.14 - Conversion wave: Notes records and filters[\s\S]*- \[x\] Convert the note record list\/read\/filter paths[\s\S]*- \[x\] Preserve secure\/private placeholders[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.14 - [\s\S]*Notes records and filters repository conversion[\s\S]*helper invocations[\s\S]*direct interpolated operation sites[\s\S]*bound operation sites/, "changelog should record the Notes records/filter conversion burndown");
@@ -415,8 +415,4 @@ function sourceBlock(startPattern, endPattern) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegex(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -60,6 +60,8 @@ As of 0.33.17.8.1, the same private-internet contract adds the exact Nginx -> Wi
 
 As of 0.33.17.8.2, SQLite baseline and migration checksum validation is portable across LF and CRLF checkouts. New checksums use canonical LF SQL, validation accepts only the exact LF or CRLF representation of otherwise identical SQL, existing migration-ledger rows remain unchanged, and every other applied-SQL mismatch still blocks startup. This adds no environment variable or operator bypass.
 
+As of 0.33.18.3, app and separate-worker database startup emit structured lifecycle phase timings. Production records use the existing secret-safe operational logger fields for action component, lifecycle mode, owner source, state, integer duration, and safe error type; development uses equivalent `[startup-phase]` key/value lines. Migration 080 tracks completed one-time application repairs so legacy full-table normalization does not repeat on every boot. This adds no environment variable, log destination, database-provider choice, credential behavior, worker mode, or readiness-route change.
+
 As of 0.33.17.8.3, the root-owned SSH deployment-state directory is execute-only traversable (`0711`) so the pinned deployment account can reach its own nested `0700` inbox without listing the parent or accessing sibling state. The backup directory remains root-only `0700`; this corrects host filesystem permissions without adding an application environment variable or broadening the deployment account's sudo boundary.
 
 As of 0.33.17.8.4, the Linux SSH deployment helper is tracked with an explicit LF-only Git attribute and release coverage requires that checkout policy. This preserves the host helper's shebang and Bash syntax across Windows development checkouts without changing runtime environment variables or the helper's privilege boundary.
@@ -333,6 +335,12 @@ Production requires `clamd` or `clamscan` unless `LONGTAIL_UNSAFE_ALLOW_UNSCANNE
 Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, Unix-socket scanning, direct-transfer behavior, provider-specific S3 client rollout, actual signed URL routes, or runtime settings editing.
 
 ## Startup Validation
+
+As of 0.33.18.4, before opening or mutating the database, app and worker imports validate the tracked bundled-module catalog against repository-owned `src/modules/*/module.js` entries and validate the complete manifest/dependency graph. A stale generated catalog, missing canonical entry export, directory/manifest-ID mismatch, duplicate ID, unresolved dependency, or dependency cycle stops startup before migrations. After database readiness, the app or separate worker explicitly activates module behavior in dependency order; importing module entries alone cannot register search/report/settings/job behavior. This contract adds no environment variable or operator-selected executable module path.
+
+As of 0.33.18.5, the Tasks and Notes canonical entries compose substantial side-effect-free manifest declarations from concern files while the generated catalog still discovers only `src/modules/*/module.js`. This source layout preserves the same startup validation, activation, routes, permissions, and contribution inventory and adds no runtime setting, environment variable, executable search path, or operator-selected module source.
+
+As of 0.33.18.6, Dashboard's native ES-module entry and contribution-loaded scripts/styles reuse the canonical application version already injected into protected HTML. The compatibility bridge accepts only same-origin `/js/` and `/css/` assets and applies that version to dynamic imports and stylesheets. This changes no CSP directive, environment variable, external asset origin, runtime secret, route permission, or deployment setting.
 
 Production (`LONGTAIL_ENV=production`) is an explicit fail-closed posture. A safe public-preview process requires a strong bootstrap password, a strong external Secure Notes master key, an absolute HTTPS public URL, an explicit immediate-proxy allowlist, forced `Secure` cookies, an enabled authentication throttle, non-debug logging, and a configured healthy `clamd` or `clamscan` scanner. Unsafe exceptions use narrowly named `LONGTAIL_UNSAFE_ALLOW_*` variables and emit unmistakable redacted warnings; they are not the supported internet-preview posture.
 

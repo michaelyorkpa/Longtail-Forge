@@ -21,6 +21,7 @@ const changelog = readText("CHANGELOG.md");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const sqliteHelperSource = readText("src/db/sqlite.js");
 const dbIndexSource = readText("src/db/index.js");
+const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const migrationsSource = readText("src/db/migrations.js");
 const migrationLockSource = readText("src/db/migration-lock.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
@@ -48,8 +49,8 @@ try {
   assert.match(migrationLockSource, /\.longtail-forge-migrations\.lock/, "SQLite migration lock file name should be stable");
   assert.match(migrationLockSource, /Another Longtail Forge startup or maintenance process is running migrations or schema repairs/, "held-lock failure should explain the startup ownership conflict");
   assert.match(migrationLockSource, /remove the stale lock file and restart/, "held-lock failure should be actionable");
-  assert.match(dbIndexSource, /runSchemaStartupMaintenance\(\)[\s\S]*await runMigrations/, "database startup should isolate schema startup maintenance");
-  assert.match(dbIndexSource, /runAppStartupMaintenance\(\)[\s\S]*ensureFrameworkModuleRecord[\s\S]*ensureProtectedUserRoles/, "database startup should keep app defaults separate from schema maintenance");
+  assert.match(dbIndexSource, /createDatabaseStartupActions\(\)[\s\S]*id: "database\.run-migrations"[\s\S]*run: runMigrations[\s\S]*createAppStartupActions/, "database startup should coordinate schema maintenance before application maintenance");
+  assert.match(appStartupMaintenanceSource, /createAppStartupActions\(\)[\s\S]*app\.ensure-framework-module[\s\S]*app\.ensure-protected-user-roles/, "application defaults and repairs should have separate lifecycle-owned startup actions");
   assertMigrationScriptsUseExecCompatibilityPath();
 
   await initializeDatabase();

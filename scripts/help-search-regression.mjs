@@ -18,6 +18,8 @@ const { registerSearchIndexer } = await import("../src/core/search/indexer-regis
 const { appShellService } = await import("../src/services/app-shell.service.js");
 const { searchIndexRebuildService } = await import("../src/services/search-index-rebuild.service.js");
 const { searchService } = await import("../src/services/search.service.js");
+const { registerFrameworkHelpSearchIndexers } = await import("../src/core/help/search-indexers.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 
 const checks = [];
 let server;
@@ -25,6 +27,8 @@ let unregisterDeveloperExampleIndexer;
 
 try {
   await initializeDatabase();
+  registerFrameworkHelpSearchIndexers();
+  activateModuleRuntime("app");
   unregisterDeveloperExampleIndexer = registerSearchIndexer("developer-example.records", () => ({ documents: [] }));
   const session = await readProtectedSession();
   await enableDeveloperExample(session.workspace_id);

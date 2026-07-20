@@ -23,7 +23,7 @@ assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.10\.7 - Notes List s
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the closeout version");
 
-assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes developer guide should report the current version");
+assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes developer guide should retain its canonical owning document");
 assert.match(notesDocs, /layout: "slide-out-sidebar"/, "Notes guide should document the slide-out descriptor layout");
 assert.match(notesDocs, /Filters start collapsed inside the drawer, Library starts open/, "Notes guide should document drawer defaults");
 assert.match(notesDocs, /collection create\/edit handoffs wait for that actions modal to close/, "Notes guide should document collection modal handoff behavior");

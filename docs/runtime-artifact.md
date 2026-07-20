@@ -20,6 +20,8 @@ npm run artifact:smoke
 
 The smoke builds the tarball, extracts it into a disposable directory, installs from the artifact's pruned shrinkwrap with `npm ci --omit=dev`, confirms development dependencies are absent, starts `node server.js` through the unchanged `npm start` contract, and verifies `/api/app-info` plus `/readyz`. The proof uses disposable test-mode data; it is not the production deployment or backup/restore exercise.
 
+The runtime `src/` payload includes the generated bundled-module catalog and every repository-owned first-party `module.js` entry it names. Startup rechecks that catalog/source inventory before migrations, so a missing, extra, or stale packaged entry fails closed instead of silently changing the shipped module set. Catalog generation remains repository-only tooling; the installed artifact does not discover operator-added executable modules.
+
 ## Install and start
 
 Use Node 24.7 or newer within the Node 24 line and a matching npm release. In a new non-public staging directory:

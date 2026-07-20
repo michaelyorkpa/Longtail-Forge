@@ -13,9 +13,10 @@ const DASHBOARD_REGIONS = [
 ];
 
 async function readDashboard(session) {
-  const [settings, dashboardPanels] = await Promise.all([
+  const [settings, dashboardPanels, browserAssets] = await Promise.all([
     settingsRepository.readWorkspaceSettings(session.workspace_id),
     modulesService.listDashboardPanels(session.workspace_id, session),
+    modulesService.listActiveModuleBrowserAssets(session.workspace_id, session, "dashboard"),
   ]);
   const warnings = readSetupWarnings();
 
@@ -85,6 +86,7 @@ async function readDashboard(session) {
     },
     setupWarnings: warnings,
     extensionPoints: {
+      browserAssets,
       dashboardPanels,
     },
   };

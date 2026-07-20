@@ -9,6 +9,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Recurrence-Linked-Notes-Test-Password-1
 
 const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/index.js");
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { registerTaskJobHandlers } = await import("../src/modules/tasks/task-jobs.service.js");
 const { notesRepository } = await import("../src/modules/notes/notes.repo.js");
@@ -20,6 +21,7 @@ const { workbenchTaskFocusRelatedContextService } = await import("../src/service
 
 try {
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   registerTaskJobHandlers({ replace: true });
   const session = await readSeedSession();

@@ -2,7 +2,6 @@ import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const icons = readText("public/js/shared/icons.js");
@@ -11,6 +10,14 @@ const taskService = readText("src/modules/tasks/tasks.service.js");
 const tasksModule = readText("src/modules/tasks/module.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
+const checklistAddButton = functionBlock(taskDialog, "taskEditorChecklistAddButton");
+const checklistActionButton = functionBlock(taskDialog, "checklistActionButton");
+const checklistActionIcon = functionBlock(taskDialog, "checklistActionIcon");
+const checklistItemRow = functionBlock(taskDialog, "checklistItemRow");
+const openTaskEditor = functionBlock(taskDialog, "openTaskEditor");
+const attachTaskDetails = functionBlock(taskService, "attachTaskDetails");
+const taskSummaryRow = functionBlock(taskService, "taskSummaryRow");
+const writeChecklistFields = functionBlock(taskDialog, "writeChecklistFields");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the checklist editor display version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the checklist editor display version");
@@ -21,55 +28,87 @@ for (const iconName of ["add", "save", "up", "down", "delete"]) {
   assert.match(icons, new RegExp(`["']?${escapeRegExp(iconName)}["']?:\\s*Object\\.freeze`), `shared icons should include ${iconName}`);
 }
 
+assertPatterns(checklistAddButton, [
+  /view\.createActionButton\(\{/,
+  /className: "task-checklist-add-button"/,
+  /icon: "add"/,
+  /iconOnly: true/,
+  /label: "Add checklist item"/,
+  /text: ""/,
+  /title: "Add checklist item"/,
+  /button\.dataset\.taskChecklistAdd = ""/,
+], "Checklist add should be a shared icon-only action button while preserving the add hook.");
+
+assertPatterns(checklistActionButton, [
+  /namespace\.icons\.createIconButton\(\{/,
+  /icon: checklistActionIcon\(action\)/,
+  /iconOnly: true/,
+  /label,/,
+  /text: ""/,
+  /title: label/,
+  /variant: action === "delete" \? "danger" : ""/,
+  /button\.classList\.add\("task-checklist-action"\)/,
+  /button\.dataset\.taskChecklistAction = action/,
+], "Checklist row actions should use shared icon-only buttons with labels, titles, hooks, and danger styling for delete.");
+
+assertPatterns(checklistActionIcon, [
+  /delete: "delete"/,
+  /down: "down"/,
+  /save: "save"/,
+  /up: "up"/,
+], "Checklist row actions should map to recognizable shared icons.");
+
+assertPatterns(checklistItemRow, [
+  /const up = checklistActionButton\("up", "Move checklist item up"\)/,
+  /const down = checklistActionButton\("down", "Move checklist item down"\)/,
+  /up\.disabled = index === 0/,
+  /down\.disabled = index >= totalItems - 1/,
+], "Checklist up/down controls should keep their accessible names and disabled edge logic.");
+
 assert.match(
-  taskDialog,
-  /function taskEditorChecklistAddButton\(view\)[\s\S]*view\.createActionButton\(\{[\s\S]*className: "task-checklist-add-button"[\s\S]*icon: "add"[\s\S]*iconOnly: true[\s\S]*label: "Add checklist item"[\s\S]*text: ""[\s\S]*title: "Add checklist item"[\s\S]*button\.dataset\.taskChecklistAdd = ""/,
-  "Checklist add should be a shared icon-only action button while preserving the add hook.",
-);
-assert.match(
-  taskDialog,
-  /function checklistActionButton\(action, label\)[\s\S]*namespace\.icons\.createIconButton\(\{[\s\S]*icon: checklistActionIcon\(action\)[\s\S]*iconOnly: true[\s\S]*label,[\s\S]*text: ""[\s\S]*title: label[\s\S]*variant: action === "delete" \? "danger" : ""[\s\S]*button\.classList\.add\("task-checklist-action"\)[\s\S]*button\.dataset\.taskChecklistAction = action/,
-  "Checklist row actions should use shared icon-only buttons with labels, titles, hooks, and danger styling for delete.",
-);
-assert.match(
-  taskDialog,
-  /function checklistActionIcon\(action\)[\s\S]*delete: "delete"[\s\S]*down: "down"[\s\S]*save: "save"[\s\S]*up: "up"/,
-  "Checklist row actions should map to recognizable shared icons.",
-);
-assert.match(
-  taskDialog,
-  /const up = checklistActionButton\("up", "Move checklist item up"\)[\s\S]*const down = checklistActionButton\("down", "Move checklist item down"\)[\s\S]*up\.disabled = index === 0[\s\S]*down\.disabled = index >= totalItems - 1/,
-  "Checklist up/down controls should keep their accessible names and disabled edge logic.",
+  stylesheet,
+  /\.task-checklist-add-row,\s*\.task-checklist-item\s*\{[^}]*display: grid;[^}]*align-items: center;[^}]*\}/,
+  "Checklist input and icon-button rows should keep stable grid alignment.",
 );
 assert.match(
   stylesheet,
-  /\.task-checklist-add-row,[\s\S]*\.task-checklist-item\s*\{[\s\S]*display: grid;[\s\S]*align-items: center;[\s\S]*\}[\s\S]*\.task-checklist-item\s*\{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\) auto auto auto auto;[\s\S]*\}[\s\S]*\.task-checklist-add-row input,[\s\S]*\.task-checklist-item input\[type="text"\]\s*\{[\s\S]*min-width: 0;/,
-  "Checklist input and icon-button rows should keep stable grid alignment and shrink safely.",
+  /\.task-checklist-item\s*\{[^}]*grid-template-columns: auto minmax\(0, 1fr\) auto auto auto auto;[^}]*\}/,
+  "Checklist rows should keep their compact action-column grid.",
+);
+assert.match(
+  stylesheet,
+  /\.task-checklist-add-row input,\s*\.task-checklist-item input\[type="text"\]\s*\{[^}]*min-width: 0;[^}]*\}/,
+  "Checklist text inputs should shrink safely.",
 );
 
+assertPatterns(openTaskEditor, [
+  /if \(request\.taskId && request\.mode === "edit"\) \{/,
+  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(request\.taskId\)\}`,[\s\S]*\{ cache: "no-store" \}\)/,
+  /request\.task = detail\?\.task \|\| request\.task/,
+], "Opening the editor for an existing task should fetch single-task detail even when the caller passes a list row.");
+
+assertPatterns(attachTaskDetails, [
+  /const checklistItems = await taskChecklistsRepository\.readForTask\(task\.workspace_id, task\.task_id\)/,
+  /checklistItems,/,
+  /checklistProgress/,
+], "Single-task detail reads should carry checklist item rows for the editor.");
+
 assert.match(
-  taskDialog,
-  /async function openTaskEditor\(params = \{\}, hostContext = null\)[\s\S]*if \(request\.taskId && request\.mode === "edit"\) \{[\s\S]*api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(request\.taskId\)\}`,\s*\{ cache: "no-store" \}\)[\s\S]*request\.task = detail\?\.task \|\| request\.task/,
-  "Opening the editor for an existing task should fetch single-task detail even when the caller passes a list row.",
-);
-assert.match(
-  taskService,
-  /async function attachTaskDetails\(task\)[\s\S]*const checklistItems = await taskChecklistsRepository\.readForTask\(task\.workspace_id, task\.task_id\)[\s\S]*checklistItems,[\s\S]*checklistProgress/,
-  "Single-task detail reads should carry checklist item rows for the editor.",
-);
-assert.match(
-  taskService,
-  /function taskSummaryRow\(task, currentUserId = ""\)[\s\S]*checklistProgress: task\.checklistProgress \|\| emptyChecklistProgress\(\)[\s\S]*relationshipSummary:/,
+  taskSummaryRow,
+  /checklistProgress: task\.checklistProgress \|\| emptyChecklistProgress\(\)/,
   "List rows should remain lightweight summary rows with checklist progress.",
 );
-assert.doesNotMatch(
-  functionBlock(taskService, "taskSummaryRow"),
-  /checklistItems/,
-  "List rows should not start carrying full checklist item arrays.",
+assert.match(taskSummaryRow, /relationshipSummary:/, "List rows should preserve relationship summary context.");
+assert.doesNotMatch(taskSummaryRow, /checklistItems/, "List rows should not start carrying full checklist item arrays.");
+
+assert.match(
+  writeChecklistFields,
+  /const items = task\?\.checklistItems \|\| \[\]/,
+  "The task editor should read checklist rows from detail checklistItems.",
 );
 assert.match(
-  taskDialog,
-  /function writeChecklistFields\(task\)[\s\S]*const items = task\?\.checklistItems \|\| \[\][\s\S]*fields\.checklistList\.replaceChildren\(\.\.\.items\.map\(\(item, index\) => checklistItemRow\(item, index, items\.length\)\)\)/,
+  writeChecklistFields,
+  /fields\.checklistList\.replaceChildren\(\.\.\.items\.map\(\(item, index\) => checklistItemRow\(item, index, items\.length\)\)\)/,
   "The task editor should render checklist rows from detail checklistItems.",
 );
 assert.match(
@@ -86,6 +125,12 @@ function readText(path) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function assertPatterns(source, patterns, message) {
+  for (const pattern of patterns) {
+    assert.match(source, pattern, message);
+  }
 }
 
 function functionBlock(source, functionName) {

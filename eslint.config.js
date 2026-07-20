@@ -11,6 +11,7 @@ const browserGlobals = {
   navigator: "readonly",
   setInterval: "readonly",
   setTimeout: "readonly",
+  URL: "readonly",
   URLSearchParams: "readonly",
   window: "readonly",
 };
@@ -60,6 +61,14 @@ export default [
         argsIgnorePattern: "^_",
         varsIgnorePattern: "^_",
       }],
+    },
+  },
+  {
+    files: ["public/js/dashboard.entry.js", "public/js/tasks-dashboard.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: browserGlobals,
     },
   },
 ];

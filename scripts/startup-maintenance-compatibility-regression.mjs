@@ -17,6 +17,7 @@ delete process.env.LTF_REGRESSION_BASELINE_DB;
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const dbIndexSource = readText("src/db/index.js");
+const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
@@ -34,7 +35,7 @@ try {
 
   await initializeDatabase();
   await assertFreshStartupMaintenance();
-  await assertRedactedSeedRepairRerun();
+  await assertPendingRedactedSeedRepair();
   await assertIntegrity();
 
   console.log("Startup maintenance compatibility regression passed.");
@@ -49,17 +50,18 @@ function assertStaticContract() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the startup maintenance compatibility version");
 
   assertNoLiteralHelperCalls("db/index startup maintenance", dbIndexSource);
-  assert.doesNotMatch(dbIndexSource, /\bINSERT OR IGNORE\b/, "startup maintenance should use the conflict seam instead of raw INSERT OR IGNORE");
-  assert.doesNotMatch(dbIndexSource, /PRAGMA table_info/, "startup table metadata checks should use the introspection seam");
-  assert.doesNotMatch(dbIndexSource, /\browid\b/, "startup physical identity use should route through the identity seam");
-  assert.match(dbIndexSource, /FRAMEWORK_MODULE_UPSERT_SQL[\s\S]*buildInsertOnConflictDoUpdate/, "framework module startup upsert should use the conflict update seam");
-  assert.match(dbIndexSource, /USER_WORKSPACE_INSERT_SQL[\s\S]*buildInsertOrIgnore/, "workspace membership startup repair should use the conflict insert-or-ignore seam");
-  assert.match(dbIndexSource, /USER_ROLE_ASSIGNMENT_INSERT_SQL[\s\S]*buildInsertOrIgnore/, "protected role startup repair should use the conflict insert-or-ignore seam");
-  assert.match(dbIndexSource, /INSERT INTO workspace_settings \([\s\S]*workspace_id,[\s\S]*created_at,[\s\S]*updated_at[\s\S]*\)\s*VALUES \(\s*:workspaceId,\s*:createdAt,\s*:updatedAt\s*\)/, "startup should create only framework-owned workspace settings state with bound parameters");
-  assert.doesNotMatch(dbIndexSource, /seedSettings\.(?:billingRounding|taskTimersEnabled|fiscalYear|defaultBillingRate|billingPeriod)/, "startup must not seed module-owned settings through the framework workspace row");
-  assert.match(dbIndexSource, /databaseDialect\.identity\.rowId/, "startup physical identity reads should use the rowid seam");
-  assert.match(dbIndexSource, /databaseDialect\.introspection\.tableInfo\(tableName\)/, "startup column checks should use the introspection seam");
-  assert.match(dbIndexSource, /await db\.transaction\(async \(transaction\) => \{[\s\S]*transaction\.run/, "multi-step startup repairs should use transaction clients");
+  assertNoLiteralHelperCalls("application startup maintenance", appStartupMaintenanceSource);
+  assert.doesNotMatch(appStartupMaintenanceSource, /\bINSERT OR IGNORE\b/, "startup maintenance should use the conflict seam instead of raw INSERT OR IGNORE");
+  assert.doesNotMatch(appStartupMaintenanceSource, /PRAGMA table_info/, "startup table metadata checks should use the introspection seam");
+  assert.doesNotMatch(appStartupMaintenanceSource, /\browid\b/, "startup physical identity use should route through the identity seam");
+  assert.match(appStartupMaintenanceSource, /FRAMEWORK_MODULE_UPSERT_SQL[\s\S]*buildInsertOnConflictDoUpdate/, "framework module startup upsert should use the conflict update seam");
+  assert.match(appStartupMaintenanceSource, /USER_WORKSPACE_INSERT_SQL[\s\S]*buildInsertOrIgnore/, "workspace membership startup repair should use the conflict insert-or-ignore seam");
+  assert.match(appStartupMaintenanceSource, /USER_ROLE_ASSIGNMENT_INSERT_SQL[\s\S]*buildInsertOrIgnore/, "protected role startup repair should use the conflict insert-or-ignore seam");
+  assert.match(appStartupMaintenanceSource, /INSERT INTO workspace_settings \([\s\S]*workspace_id,[\s\S]*created_at,[\s\S]*updated_at[\s\S]*\)\s*VALUES \(\s*:workspaceId,\s*:createdAt,\s*:updatedAt\s*\)/, "startup should create only framework-owned workspace settings state with bound parameters");
+  assert.doesNotMatch(appStartupMaintenanceSource, /seedSettings\.(?:billingRounding|taskTimersEnabled|fiscalYear|defaultBillingRate|billingPeriod)/, "startup must not seed module-owned settings through the framework workspace row");
+  assert.match(appStartupMaintenanceSource, /databaseDialect\.identity\.rowId/, "startup physical identity reads should use the rowid seam");
+  assert.match(appStartupMaintenanceSource, /databaseDialect\.introspection\.tableInfo\(tableName\)/, "startup column checks should use the introspection seam");
+  assert.match(appStartupMaintenanceSource, /await db\.transaction\(async \(transaction\) => \{[\s\S]*transaction\.run/, "multi-step startup repairs should use transaction clients");
 
   assert.match(auditDocs, /Baseline-driven workflow[\s\S]*audit:params:check[\s\S]*informational totals without requiring documentation or baseline edits/, "audit docs should enforce stable findings without pinning current operation totals");
   assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migrations and startup as compatibility-tracked after value conversion");
@@ -120,11 +122,16 @@ WHERE workspace_id = :workspaceId
   assert.deepEqual(roleAssignment, { scope_type: "all", scope_id: "all" }, "startup should repair protected super-admin role scope");
 }
 
-async function assertRedactedSeedRepairRerun() {
+async function assertPendingRedactedSeedRepair() {
   const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
   const userId = `redacted-user-${randomUUID()}`;
   const sessionId = `redacted-session-${randomUUID()}`;
   const now = new Date().toISOString();
+
+  await db.run(`
+DELETE FROM startup_maintenance_runs
+WHERE maintenance_id = 'repair.redacted-seed-users-v1';
+`);
 
   await db.run(`
 INSERT INTO users (

@@ -32,6 +32,11 @@ async function loadVersionLiteralAllowlist(rootDir) {
       throw new Error(`Version literal allowlist field ${field} must be an array of paths.`);
     }
   }
+  if (!Array.isArray(allowlist.currentVersionLiteralLineRules) || allowlist.currentVersionLiteralLineRules.some((rule) => (
+    !rule || typeof rule !== "object" || typeof rule.path !== "string" || typeof rule.pattern !== "string"
+  ))) {
+    throw new Error("Version literal allowlist field currentVersionLiteralLineRules must contain path/pattern objects.");
+  }
 
   return normalizeAllowlist(allowlist);
 }
@@ -63,11 +68,13 @@ function scanEntriesForCurrentVersion(entries, version, allowlist) {
     let index = source.indexOf(currentVersion);
     while (index !== -1) {
       const location = sourceLocation(source, index);
-      violations.push({
-        column: location.column,
-        line: location.line,
-        path: filePath,
-      });
+      if (!isAllowedCurrentVersionLine(filePath, source, location.line, normalizedAllowlist)) {
+        violations.push({
+          column: location.column,
+          line: location.line,
+          path: filePath,
+        });
+      }
       index = source.indexOf(currentVersion, index + currentVersion.length);
     }
   }
@@ -121,6 +128,10 @@ function normalizeAllowlist(allowlist = {}) {
     currentVersionLiteralFiles: new Set(
       [...(allowlist.currentVersionLiteralFiles || [])].map(normalizeRepoPath),
     ),
+    currentVersionLiteralLineRules: [...(allowlist.currentVersionLiteralLineRules || [])].map((rule) => ({
+      path: normalizeRepoPath(rule.path),
+      pattern: new RegExp(rule.pattern),
+    })),
     historicalLabelDirectories: [...(allowlist.historicalLabelDirectories || [])]
       .map(normalizeRepoPath)
       .map((directory) => directory.endsWith("/") ? directory : `${directory}/`),
@@ -128,6 +139,13 @@ function normalizeAllowlist(allowlist = {}) {
       [...(allowlist.historicalLabelFiles || [])].map(normalizeRepoPath),
     ),
   };
+}
+
+function isAllowedCurrentVersionLine(filePath, source, lineNumber, allowlist) {
+  const line = String(source || "").split("\n")[lineNumber - 1] || "";
+  return allowlist.currentVersionLiteralLineRules.some((rule) => (
+    rule.path === filePath && rule.pattern.test(line)
+  ));
 }
 
 function normalizeRepoPath(filePath) {

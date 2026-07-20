@@ -35,6 +35,7 @@ DROP TABLE IF EXISTS workspace_deletion_lifecycle;
 DROP TABLE IF EXISTS workspace_backup_exports;
 DROP TABLE IF EXISTS account_export_recovery_qualifications;
 DROP TABLE IF EXISTS authentication_throttle_entries;
+DROP TABLE IF EXISTS startup_maintenance_runs;
 
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_month INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_day INTEGER NOT NULL DEFAULT 1;
@@ -298,6 +299,11 @@ ORDER BY version;
       version: "079",
       module_id: "core",
       name: "authentication_throttle_entries",
+    },
+    {
+      version: "080",
+      module_id: "core",
+      name: "startup_maintenance_runs",
     },
   ]);
 }

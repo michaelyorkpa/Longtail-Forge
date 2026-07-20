@@ -28,7 +28,7 @@ assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, cha
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should not keep previous completed Tasks slice bodies");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the Tasks conversion closeout version");
 
-assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Tasks closeout version");
+assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain their canonical owning document");
 assert.match(tasksDocs, /## Canonical Task Editor Entry Point/, "Tasks docs should document the canonical editor entry point");
 assert.match(tasksDocs, /The Tasks page calls `LongtailForge\.tasksDialog\.openTaskEditor\(\)`/, "Tasks docs should document the Tasks page opener path");
 assert.match(tasksDocs, /Workbench calls the same opener through the registered module action path/, "Tasks docs should document the Workbench opener path");

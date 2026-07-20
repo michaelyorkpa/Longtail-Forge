@@ -12,7 +12,6 @@ let dashboardRegionContainer = null;
 const dashboardPanelRenderers = {};
 const dashboardRegionBodies = new Map();
 const dashboardDataPromises = new Map();
-const DEFAULT_TASK_SUMMARY_ROUTE = "/api/tasks/dashboard-summary";
 const KNOWN_DASHBOARD_PLACEMENTS = new Set([
   "pulse",
   "attention",
@@ -24,11 +23,6 @@ const KNOWN_DASHBOARD_PLACEMENTS = new Set([
 ]);
 
 publishDashboardApi();
-registerDashboardPanelRenderer("tasks.needs-attention", renderTasksNeedsAttentionContribution);
-registerDashboardPanelRenderer("tasks.calendar", renderTasksCalendarContribution);
-registerDashboardPanelRenderer("tasks.today-upcoming", renderTasksTodayUpcomingContribution);
-registerDashboardPanelRenderer("tasks.pressure", renderTasksPressureContribution);
-registerDashboardPanelRenderer("task-summary", renderTasksPressureContribution);
 buildDashboardHost();
 loadDashboardData();
 
@@ -84,6 +78,7 @@ async function loadDashboardData() {
 
     dashboardData = await response.json();
     dashboardPanels = dashboardData?.extensionPoints?.dashboardPanels || [];
+    await loadDashboardBrowserAssets(dashboardData?.extensionPoints?.browserAssets);
     renderDashboardRegions();
     renderWorkspacePulse();
     renderSetupWarnings();
@@ -93,6 +88,16 @@ async function loadDashboardData() {
     setDashboardStatus("Dashboard data could not be loaded.", { isError: true });
     console.error(error);
   }
+}
+
+async function loadDashboardBrowserAssets(assets) {
+  const loader = window.LongtailForge?.esModuleBridge?.loadContributedAssets;
+
+  if (typeof loader !== "function") {
+    throw new Error("Dashboard browser assets require the ES-module compatibility bridge.");
+  }
+
+  await loader(assets);
 }
 
 function publishDashboardApi() {
@@ -354,327 +359,6 @@ function createDashboardRendererContext(contribution) {
     createPanel: (options = {}) => createDashboardPanel(contribution, options),
     createDashboardPanel,
   };
-}
-
-function renderTasksNeedsAttentionContribution(contribution, context) {
-  return renderTasksDashboardContribution(contribution, context, {
-    className: "dashboard-task-attention-panel",
-    errorMessage: "Task attention signals could not be loaded.",
-    errorTitle: "Needs Attention unavailable",
-    loadingMessage: "Loading attention signals...",
-    renderContent: createTasksNeedsAttentionContent,
-    title: contribution.label || "Needs Attention",
-  });
-}
-
-function renderTasksCalendarContribution(contribution, context) {
-  const taskCalendar = window.LongtailForge?.taskCalendar;
-
-  if (!taskCalendar) {
-    return null;
-  }
-
-  const state = { view: "month" };
-  let hydrateToken = 0;
-
-  const periodLabel = dashboardView.createElement("p", {
-    className: "dashboard-calendar-period",
-    dataset: { dashboardCalendarPeriod: "" },
-  });
-  const body = dashboardView.createElement("div", {
-    className: "dashboard-calendar-body",
-    attrs: { role: "status" },
-    text: "Loading calendar...",
-  });
-  const viewButtons = ["month", "week", "day"].map((viewId) => createViewButton(viewId));
-  const toolbar = dashboardView.createElement("div", {
-    className: "dashboard-calendar-toolbar",
-    children: [
-      periodLabel,
-      dashboardView.createElement("div", {
-        className: "segmented-control dashboard-calendar-view-switch",
-        attrs: { role: "group", "aria-label": "Dashboard calendar view" },
-        children: viewButtons,
-      }),
-    ],
-  });
-  const panel = createDashboardPanel(contribution, {
-    className: "dashboard-task-calendar-panel",
-    title: contribution.label || "Calendar",
-    children: [
-      toolbar,
-      body,
-      createDashboardTaskActions([{ label: "Open full calendar", href: "calendar.html" }]),
-    ],
-  });
-
-  hydrate();
-  return panel;
-
-  function createViewButton(viewId) {
-    const button = dashboardView.createElement("button", {
-      className: "calendar-view-button",
-      text: viewId.charAt(0).toUpperCase() + viewId.slice(1),
-      attrs: { type: "button", "aria-pressed": viewId === state.view ? "true" : "false" },
-      dataset: { dashboardCalendarView: viewId },
-    });
-
-    button.addEventListener("click", () => {
-      if (state.view === viewId) {
-        return;
-      }
-
-      state.view = viewId;
-
-      for (const other of viewButtons) {
-        other.setAttribute("aria-pressed", other.dataset.dashboardCalendarView === viewId ? "true" : "false");
-      }
-
-      hydrate();
-    });
-
-    return button;
-  }
-
-  async function hydrate() {
-    const token = ++hydrateToken;
-
-    try {
-      const range = taskCalendar.calendarRange(state.view, new Date());
-      const data = await taskCalendar.fetchCalendarWindow(range);
-
-      if (token !== hydrateToken) {
-        return;
-      }
-
-      periodLabel.textContent = range.label;
-      body.removeAttribute("role");
-      taskCalendar.renderCalendarBody(body, {
-        viewId: state.view,
-        range,
-        data,
-        onOpenTask: openTask,
-      });
-    } catch (error) {
-      if (token !== hydrateToken) {
-        return;
-      }
-
-      body.replaceChildren(context.view.createEmptyState({
-        title: "Calendar unavailable",
-        message: "Task calendar data could not be loaded.",
-      }));
-      console.error(error);
-    }
-  }
-
-  function openTask(taskId, trigger) {
-    const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
-
-    if (typeof opener !== "function" || !taskId) {
-      return;
-    }
-
-    opener({
-      taskId,
-      mode: "edit",
-      returnFocusTo: trigger,
-      onSaved: () => hydrate(),
-    }).catch((error) => {
-      context.setStatus("The task could not be opened.", { isError: true });
-      console.error(error);
-    });
-  }
-}
-
-function renderTasksTodayUpcomingContribution(contribution, context) {
-  return renderTasksDashboardContribution(contribution, context, {
-    className: "dashboard-task-upcoming-panel",
-    errorMessage: "Upcoming task work could not be loaded.",
-    errorTitle: "Today / Upcoming unavailable",
-    loadingMessage: "Loading upcoming work...",
-    renderContent: createTasksTodayUpcomingContent,
-    title: contribution.label || "Today / Upcoming",
-  });
-}
-
-function renderTasksPressureContribution(contribution, context) {
-  return renderTasksDashboardContribution(contribution, context, {
-    className: "task-summary-panel dashboard-task-pressure-panel",
-    errorMessage: "Task pressure could not be loaded.",
-    errorTitle: "Tasks unavailable",
-    loadingMessage: "Loading task pressure...",
-    renderContent: createTasksPressureContent,
-    title: contribution.label || "Tasks",
-  });
-}
-
-function renderTasksDashboardContribution(contribution, context, options) {
-  const body = dashboardView.createElement("div", {
-    className: "dashboard-panel-body",
-    attrs: { role: "status" },
-    text: options.loadingMessage,
-  });
-  const panel = createDashboardPanel(contribution, {
-    className: options.className,
-    title: options.title,
-    children: [body],
-  });
-
-  hydrateTasksDashboardPanel(body, contribution, context, options);
-  return panel;
-}
-
-async function hydrateTasksDashboardPanel(body, contribution, context, options) {
-  try {
-    const summary = await loadContributionData(contribution, DEFAULT_TASK_SUMMARY_ROUTE);
-    body.replaceChildren(options.renderContent(summary));
-  } catch (error) {
-    body.replaceChildren(context.view.createEmptyState({
-      title: options.errorTitle,
-      message: options.errorMessage,
-    }));
-    console.error(error);
-  }
-}
-
-function createTasksNeedsAttentionContent(summary = {}) {
-  return dashboardView.createElement("div", {
-    className: "dashboard-task-card-content",
-    children: [
-      createDashboardTaskRows(summary.attentionRows || [], "No urgent task signals right now."),
-      createDashboardTaskActions([summary.actions?.workbench]),
-    ],
-  });
-}
-
-function createTasksTodayUpcomingContent(summary = {}) {
-  return dashboardView.createElement("div", {
-    className: "dashboard-task-card-content",
-    children: [
-      createDashboardTaskRows(summary.upcomingRows || [], "No due-today or due-this-week task work."),
-      createDashboardTaskActions([summary.actions?.workbench]),
-    ],
-  });
-}
-
-function createTasksPressureContent(summary = {}) {
-  return dashboardView.createElement("div", {
-    className: "task-summary-content",
-    children: [
-      createDashboardTaskMetricGrid(summary.metrics || {}),
-      createDashboardTaskRows((summary.pressureRows || []).slice(0, 1), "No task pressure signals right now."),
-      createDashboardTaskActions([summary.actions?.workbench, summary.actions?.tasks]),
-    ],
-  });
-}
-
-function createDashboardTaskMetricGrid(metrics = {}) {
-  const orderedMetrics = ["overdue", "dueSoon", "blocked", "assignedToMe"]
-    .map((key) => metrics[key])
-    .filter(Boolean);
-
-  return dashboardView.createElement("div", {
-    className: "task-summary-counts dashboard-task-metrics",
-    children: orderedMetrics.map((metric) => createTaskMetric(metric)),
-  });
-}
-
-function createTaskMetric(metric = {}) {
-  const content = [
-    dashboardView.createElement("strong", { text: String(metric.value ?? 0) }),
-    dashboardView.createElement("span", { text: metric.label || "Metric" }),
-  ];
-
-  if (metric.href) {
-    return dashboardView.createElement("a", {
-      className: "dashboard-task-metric-link",
-      attrs: { href: metric.href },
-      children: content,
-    });
-  }
-
-  return dashboardView.createElement("span", { children: content });
-}
-
-function createDashboardTaskRows(rows, emptyMessage) {
-  const taskRows = Array.isArray(rows) ? rows : [];
-
-  if (taskRows.length === 0) {
-    return dashboardView.createElement("p", {
-      className: "dashboard-task-empty",
-      text: emptyMessage,
-    });
-  }
-
-  return dashboardView.createElement("ul", {
-    className: "dashboard-task-row-list",
-    children: taskRows.map((row) => createDashboardTaskRow(row)),
-  });
-}
-
-function createDashboardTaskRow(row = {}) {
-  const reasons = Array.isArray(row.reasons) && row.reasons.length > 0
-    ? row.reasons
-    : [row.reasonBadge].filter(Boolean);
-  const action = row.action || {};
-  const metaItems = [row.sourceLabel, row.contextLabel, row.dueLabel, row.timerStatus]
-    .filter(Boolean)
-    .map((item) => dashboardView.createElement("span", { text: item }));
-
-  return dashboardView.createElement("li", {
-    className: "dashboard-task-row",
-    children: [
-      dashboardView.createElement("div", {
-        className: "dashboard-task-row-main",
-        children: [
-          dashboardView.createElement("div", {
-            className: "dashboard-task-row-heading",
-            children: [
-              dashboardView.createElement("strong", {
-                className: "dashboard-task-row-title",
-                text: row.title || "Untitled task",
-              }),
-              dashboardView.createElement("span", {
-                className: "dashboard-task-row-badge",
-                text: row.reasonBadge || reasons[0] || "Task",
-              }),
-            ],
-          }),
-          reasons.length > 1 ? dashboardView.createElement("div", {
-            className: "dashboard-task-row-reasons",
-            children: reasons.map((reason) => dashboardView.createElement("span", { text: reason })),
-          }) : null,
-          dashboardView.createElement("div", {
-            className: "dashboard-task-row-meta",
-            children: metaItems,
-          }),
-        ].filter(Boolean),
-      }),
-      action.href ? dashboardView.createElement("a", {
-        className: "link-button dashboard-task-row-action",
-        attrs: { href: action.href },
-        text: action.label || "Open Workbench",
-      }) : null,
-    ],
-  });
-}
-
-function createDashboardTaskActions(actions = []) {
-  const availableActions = actions.filter((action) => action?.href);
-
-  if (availableActions.length === 0) {
-    return null;
-  }
-
-  return dashboardView.createElement("div", {
-    className: "dashboard-task-actions",
-    children: availableActions.map((action) => dashboardView.createElement("a", {
-      className: "button-link secondary",
-      attrs: { href: action.href },
-      text: action.label || "Open",
-    })),
-  });
 }
 
 function createDashboardPanel(contribution = {}, options = {}) {

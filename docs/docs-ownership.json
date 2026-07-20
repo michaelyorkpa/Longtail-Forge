@@ -23,6 +23,7 @@
       "label": "Dashboard",
       "sourcePatterns": [
         "^public/js/dashboard(?:[./-]|$)",
+        "^public/css/dashboard\\.css$",
         "^src/(?:modules|routes|services)/dashboard(?:/|[.-])",
         "^views/protected/dashboard\\.html$"
       ],
@@ -36,6 +37,7 @@
       "label": "Tasks",
       "sourcePatterns": [
         "^public/js/tasks(?:[./-]|$)",
+        "^public/css/tasks-dashboard\\.css$",
         "^src/modules/tasks/",
         "^views/protected/tasks\\.html$"
       ],
@@ -134,6 +136,7 @@
       "label": "Time Tracking",
       "sourcePatterns": [
         "^public/js/(?:time-tracking|time-entries|timer)(?:[./-]|$)",
+        "^public/css/time-tracking-dashboard\\.css$",
         "^src/modules/time-tracking/",
         "^views/protected/(?:time-entries|time-tracking)\\.html$"
       ],

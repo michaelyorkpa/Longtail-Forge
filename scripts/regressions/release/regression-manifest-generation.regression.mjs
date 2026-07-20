@@ -43,7 +43,12 @@ assert.deepEqual(
   "live generated coverage should satisfy the exception policy",
 );
 assert.equal(manifest.summary.discoveredScripts, REGRESSION_ENTRIES.length);
-assert.equal(manifest.summary.legacyScripts, 312, "legacy exception should preserve the migration snapshot count");
+const creditedLegacyRetirements = policy.retiredScripts.filter((entry) => entry.floorCredit === true && entry.legacy === true).length;
+assert.equal(
+  manifest.summary.legacyScripts,
+  policy.legacyMetadataException.expectedScripts - creditedLegacyRetirements,
+  "legacy summary should preserve the recorded baseline minus credited legacy retirements",
+);
 assert.ok(
   manifest.regressions.every((entry) => (
     entry.id && entry.area && entry.tier && Array.isArray(entry.tags) && entry.description && entry.runMode

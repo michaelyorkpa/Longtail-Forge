@@ -1,0 +1,141 @@
+/* Tasks-owned Dashboard contribution styles. */
+.dashboard-calendar-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.dashboard-calendar-period {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+}
+
+.dashboard-calendar-body {
+    display: grid;
+    gap: 6px;
+}
+
+.task-summary-panel,
+.dashboard-task-card-content,
+.task-summary-content {
+    display: grid;
+    gap: 12px;
+}
+
+.task-summary-counts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 8px;
+}
+
+.task-summary-counts span,
+.task-summary-counts a {
+    display: grid;
+    gap: 2px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: inherit;
+    text-decoration: none;
+}
+
+.task-summary-counts a:hover,
+.task-summary-counts a:focus-visible {
+    border-color: var(--color-accent);
+    background: var(--color-hover);
+}
+
+.task-summary-counts strong {
+    font-size: 24px;
+}
+
+.dashboard-task-row-list {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dashboard-task-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+}
+
+.dashboard-task-row-main {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.dashboard-task-row-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dashboard-task-row-title {
+    min-width: 0;
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+}
+
+.dashboard-task-row-badge,
+.dashboard-task-row-reasons span {
+    display: inline-flex;
+    align-items: center;
+    width: max-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--color-hover);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.dashboard-task-row-reasons,
+.dashboard-task-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+}
+
+.dashboard-task-row-meta span {
+    min-width: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-task-row-action {
+    white-space: nowrap;
+}
+
+.dashboard-task-empty {
+    margin: 0;
+    color: var(--color-muted);
+}
+
+.dashboard-task-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+@media (max-width: 640px) {
+    .dashboard-task-row {
+        grid-template-columns: 1fr;
+    }
+}

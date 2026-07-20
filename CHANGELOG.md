@@ -1,3 +1,68 @@
+## Version 0.33.18.8 - 2026-07-20
+
+- Closed the complete 0.33.18 dependency-baseline and post-preview maintainability branch without adding product behavior or broadening its startup, module, browser, or test abstractions.
+- Added a durable architecture evidence table for the Two-Module Rule: all eight bundled modules consume the canonical entry/catalog contract; Tasks and Notes consume concern composition; Tasks and Time Tracking consume Dashboard contribution asset loading; the Dashboard bridge remains page-local; and database startup plus release tooling are explicit framework-wide exceptions.
+- Preserved the frozen normalized pre-reorganization module inventory SHA-256, declaration-only import and explicit activation behavior, exact database startup/fresh/repeat/worker contracts, and Dashboard loading/accessibility/CSP boundaries under their existing required release gates.
+- Added the required `release.maintainability-closeout` guardrail and advanced the coverage contract to 380 active regressions, 41 release gates, and 69 convention-path entries without lowering a coverage floor.
+- Corrected the regression-suite guide to record all 20 obsolete current-package-document assertions removed in 0.33.18.7 rather than only its first five retired closeout cases.
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`, and `docs/ui-layout-guide.md`.
+- No docs change needed: product behavior, Help, HTTP routes/payloads, permissions, public API, schema/migrations, runtime environment variables, deployment, backup, and module workflow contracts are unchanged.
+
+## Version 0.33.18.7 - 2026-07-20
+
+- Completed the first formal regression-suite streamlining review with machine-readable 380-script pre-change and 379-script post-change timing samples, a documented slow-tail disposition, and a calibrated 300-second comparable-workstation review budget.
+- Proved cached ESLint and the legacy `check-js.mjs` subprocess fan-out covered the same 793 JavaScript/module files, moved ESLint ahead of stateful regressions, and retired only the duplicate syntax gate through complete manifest/ratchet assertion-movement evidence.
+- Preserved the full release gate and all permission, workspace-isolation, database, migration, backup/restore, Files safety, worker/job, high-volume API, integration, and Playwright critical-journey/accessibility coverage.
+- Replaced greedy whole-file checklist display regex chains with bounded owning-function/CSS-rule assertions, reducing its focused runtime from 8.68-8.93 seconds to 0.17 seconds and its post-change parallel sample to 0.11 seconds without dropping a contract.
+- Replaced 20 obsolete assertions across retired closeouts and active Notes, Tasks, and Lists regressions that forced unrelated developer documents to repeat every package version; stable owning-document and shipped-contract checks now carry that coverage while current version identity remains owned by package/runtime guardrails.
+- Kept 379 active regressions across the unchanged stateful bucket inventory (190 static, 6 default-database, 29 Files, 154 isolated-database) and 40 release gates; the legacy baseline now resolves as 311 active paths plus one credited retirement.
+- Recorded the evidence-backed next queue: Vitest for pure runtime-configuration validation only when integration proof remains, and serial Files parallelization only after disposable-state stress evidence.
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `DECISIONS.md`, `docs/regression-suite.md`, `docs/regression-suite-performance.md`, and `docs/versioning.md`.
+- No docs change needed: product behavior, browser UI, Help, HTTP routes, permissions, public API, database schema/migrations, runtime environment variables, module contracts, and deployment/backup operator workflows are unchanged.
+
+## Version 0.33.18.6 - 2026-07-20
+
+- Converted Dashboard as the first protected native browser ES-module page after measuring it against the substantially larger Workbench graph; Workbench remains unchanged for its scheduled performance/loading branch.
+- Replaced 19 body-level ordered classic dependencies with one explicit `dashboard.entry.js` entry and a temporary same-origin, application-versioned, deduplicating compatibility bridge for existing `LongtailForge` globals.
+- Returned active Dashboard scripts and styles through the permission-filtered module browser-asset catalog, removing hard-coded Tasks and Time Tracking renderer loading from the protected HTML and generic Dashboard adapter.
+- Moved Tasks Dashboard renderer behavior into `tasks-dashboard.js` while preserving attention, calendar, upcoming, pressure, Task editor focus return, Workbench handoffs, shared calendar helpers, and server-owned ranking/read models.
+- Split framework Dashboard anatomy, Tasks Dashboard panels, and Time Tracking Dashboard panels into separately owned stylesheets loaded through the appropriate framework or module contract, with existing keyboard, accessibility, responsive, CSP, and cache-version behavior retained.
+- Added the `views.dashboard-es-module-entry` release regression and updated Dashboard/calendar behavior guardrails, ESLint module parsing, regression inventory/floors, and the intentional bundled-module browser-asset inventory (380 scripts, 40 release gates).
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/lists-module.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, and `docs/ui-layout-guide.md`.
+- No docs change needed: database schema/migrations, environment variables, HTTP routes, permission IDs, public API contracts, Workbench behavior, module workflow semantics, and user-facing Help content are unchanged.
+
+## Version 0.33.18.5 - 2026-07-20
+
+- Piloted concern-based manifest source composition on the two largest first-party entries, reducing Tasks `module.js` from roughly 1,172 lines to about 340 and Notes from roughly 951 lines to about 340 while keeping each file as the sole canonical registry entry.
+- Moved substantial Tasks permissions, events/notifications, integrations, and settings declarations into explicit side-effect-free concern files; moved substantial Notes permissions, events/notifications, integrations, and Help declarations the same way.
+- Preserved the exact frozen eight-module manifest, contribution, route, permission, dependency, activation, and registration-order inventory under the unchanged startup validator and generated catalog.
+- Extended the bundled-module registry release regression to require both pilot layouts, substantial non-boilerplate concern files, digestible composition points, and no additional `moduleEntry` exports; updated source-level regressions to read the concern that now owns each declaration.
+- Documented practical review thresholds, optional concern naming, preservation rules, and a complete Support Tickets composition example for future Support Tickets, Knowledge Base, and Creator Studio implementations.
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `docs/architecture.md`, `docs/lists-module.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, and `docs/tasks-module.md`.
+- No docs change needed: module runtime shape, routes, database schema/migrations, permissions, public API scopes, environment variables, UI behavior, module workflows, and user-facing Help content are unchanged.
+
+## Version 0.33.18.4 - 2026-07-20
+
+- Replaced the manually edited first-party module import/list with a deterministic tracked ESM catalog generated exclusively from repository-owned `src/modules/*/module.js` entries; the registry engine no longer names workflow modules.
+- Added canonical `moduleEntry` exports and fail-fast validation for catalog freshness/order, directory-to-manifest identity, entry shape, duplicate IDs, unresolved dependencies, dependency cycles, and dependency-ordered activation before database mutation.
+- Moved Clients/Projects, Lists, Notes, Tasks, and Time Tracking search registration plus Tasks settings/jobs/sweeps and Time Tracking settings/report-runner behavior out of import-time side effects into explicit app/worker activation hooks.
+- Removed Tasks-specific handler and sweep imports from framework app and separate-worker bootstrap; both now activate module behavior and run module-owned startup tasks through one generic runtime boundary.
+- Added `modules:registry:generate`, the standing `modules:registry:check` closeout gate, canonical entry/runtime types, and the `framework.bundled-module-registry` release regression covering generated-catalog drift, validation failures, declaration-only imports, activation restoration, and the frozen pre-conversion module/route/contribution inventory.
+- Preserved all eight bundled module IDs and the exact route, migration-source, permission, API-scope, view, browser-asset, setting, hook, and contribution inventory without adding operator-writable runtime modules, database-supplied executable paths, third-party installation, or asynchronous registry lookup.
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `docs/architecture.md`, `docs/lists-module.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/tasks-module.md`, and `docs/time-tracking-module.md`.
+- No docs change needed: user-facing module workflows, routes and payloads, database schema/migrations, permissions, public API scopes, environment-variable names/defaults, UI behavior, and Help content are unchanged.
+
+## Version 0.33.18.3 - 2026-07-20
+
+- Split database startup by real lifecycle ownership: the public facade composes actions, the migration runner retains locked schema work, application maintenance owns bootstrap/recurring checks/tracked repairs, and worker readiness remains read-only.
+- Added stable startup action IDs, lifecycle classes, owners, fail-fast execution, and structured started/completed/skipped/failed phase timing events for app and separate-worker database initialization.
+- Added migration 080 and the `startup_maintenance_runs` ledger so eight idempotent legacy application repairs record completion only after success and retry after failure without repeating full-table timestamp normalization on every boot.
+- Preserved the existing migration, bootstrap, module synchronization, settings, membership, permission, and protected-user dependency order while separating legacy `local_user` time-entry repair from super-administrator credential bootstrap.
+- Added the `database.startup-maintenance-lifecycle` release regression for declared inventory/order, failure short-circuiting, timing output, fresh-install state, repeat-startup repair skipping, worker readiness, and SQLite integrity; retained migration-locking and separate-worker end-to-end proof.
+- Classified runtime readiness, background sweep/retention work, and explicit operator/CLI maintenance outside database bootstrap without adding PostgreSQL behavior or changing environment variables, routes, permissions, module workflows, or credentials.
+- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `docs/architecture.md`, `docs/database-parameter-binding-audit.md`, `docs/database.md`, `docs/lists-module.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, and `docs/tasks-module.md`.
+- No docs change needed: runtime-security policy, deployment topology, backup/restore behavior, public API contracts, module behavior, UI behavior, and user-facing Help are unchanged.
+
 ## Version 0.33.18.2 - 2026-07-20
 
 - Upgraded the application-wide HTTP runtime from Express 4.22.2 to the reviewed Express 5.2.1 baseline on Node 24, including its current router, path-to-regexp, body-parser, static-serving, MIME, and query-parser dependency graph.

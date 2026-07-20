@@ -12,6 +12,7 @@ const { clientsService } = await import("../src/modules/client-projects/clients.
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { timeEntriesService } = await import("../src/modules/time-tracking/time-entries.service.js");
 const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { timeTrackingBillingService } = await import("../src/modules/time-tracking/time-tracking-billing.service.js");
@@ -20,6 +21,7 @@ const { tagsService } = await import("../src/services/tags.service.js");
 
 try {
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   const session = await readProtectedSession();
   await enableAuditLogging(session.workspace_id);

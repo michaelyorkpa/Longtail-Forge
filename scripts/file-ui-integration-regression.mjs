@@ -21,7 +21,7 @@ const filesRoutes = read("src/routes/files.routes.js");
 const filesService = read("src/services/files.service.js");
 const appShell = read("src/services/app-shell.service.js");
 const staticService = read("src/services/static.service.js");
-const taskModule = read("src/modules/tasks/module.js");
+const taskModuleIntegrations = read("src/modules/tasks/module.integrations.js");
 
 [
   "uploadStarted",
@@ -70,8 +70,8 @@ assert.ok(taskDialog.includes("namespace.fileAttachments.mount"), "Task dialog s
 assert.ok(taskDialog.includes('moduleId: "tasks"'), "Task dialog should pass manifest module ID.");
 assert.ok(taskDialog.includes('targetType: "task"'), "Task dialog should pass manifest target type.");
 assert.ok(taskDialog.includes("onAttachmentsChanged"), "Task dialog should expose module-facing attachment callbacks.");
-assert.ok(taskModule.includes("attachableTypes"), "Tasks manifest should declare attachable target.");
-assert.ok(taskModule.includes('targetType: "task"'), "Tasks attachable target should be task.");
+assert.ok(taskModuleIntegrations.includes("attachableTypes"), "Tasks manifest should declare attachable target.");
+assert.ok(taskModuleIntegrations.includes('targetType: "task"'), "Tasks attachable target should be task.");
 
 assert.ok(tasksScript.includes("/api/files/attachments/counts"), "Tasks list should request framework attachment counts.");
 assert.ok(tasksScript.includes('moduleId: "tasks"'), "Task count request should use tasks module ID.");

@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 377,
-    "legacyScripts": 312,
-    "releaseGateScripts": 37,
+    "discoveredScripts": 380,
+    "legacyScripts": 311,
+    "releaseGateScripts": 41,
     "areaCounts": {
       "dashboard": 1,
-      "database": 32,
+      "database": 33,
       "docs": 9,
       "files": 44,
-      "framework": 62,
+      "framework": 63,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -24,20 +24,20 @@
       "tags": 12,
       "tasks": 51,
       "time-tracking": 8,
-      "views": 30,
+      "views": 31,
       "workbench": 27
     },
     "tierCounts": {
       "focused": 173,
       "integration": 158,
-      "release-gate": 37,
-      "slow": 9
+      "release-gate": 41,
+      "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 152,
+      "isolated-database": 154,
       "serial-database": 6,
       "serial-files": 29,
-      "static": 190
+      "static": 191
     }
   },
   "coverageFamilies": [
@@ -46,7 +46,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 9,
+      "minimumActiveScripts": 10,
       "activeRegressionIds": [
         "docs.short-term-cleanup-closeout",
         "framework.settings-branch-closeout",
@@ -60,6 +60,7 @@
         "legacy.task.qol.closeout",
         "legacy.work.resume.state.closeout",
         "release.closeout-conductor",
+        "release.maintainability-closeout",
         "release.playwright-dev-only-boundary",
         "release.roadmap-cursor-floor"
       ],
@@ -266,20 +267,6 @@
         "release"
       ],
       "tier": "release-gate"
-    },
-    {
-      "area": "release",
-      "description": "Protects the legacy check js contract.",
-      "id": "legacy.check.js",
-      "legacy": true,
-      "path": "scripts/check-js.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "release",
-        "slow"
-      ],
-      "tier": "slow"
     },
     {
       "area": "views",
@@ -2465,6 +2452,24 @@
     },
     {
       "area": "database",
+      "description": "Proves explicit startup lifecycle ownership, fail-fast ordering, timed phase reporting, one-time repair tracking, fresh bootstrap behavior, and worker schema readiness.",
+      "id": "database.startup-maintenance-lifecycle",
+      "legacy": false,
+      "path": "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "bootstrap",
+        "database",
+        "maintenance",
+        "migrations",
+        "readiness",
+        "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
       "description": "Proves one-workspace backup isolation, credential/key exclusion, provider-normalized Files, checksums, and disposable restore.",
       "id": "database.workspace-backup-package",
       "legacy": false,
@@ -2627,6 +2632,22 @@
         "security"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves deterministic bundled-module discovery, declaration-only imports, dependency-ordered activation, and exact inventory preservation.",
+      "id": "framework.bundled-module-registry",
+      "legacy": false,
+      "path": "scripts/regressions/framework/bundled-module-registry.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "modules",
+        "packaging",
+        "registry",
+        "startup"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",
@@ -3126,7 +3147,7 @@
     },
     {
       "area": "release",
-      "description": "Proves npm run check runs the TypeScript typecheck and Vitest unit tests before the slow regression runner, and that npm start stays a pure Node boot.",
+      "description": "Proves npm run check runs TypeScript, Vitest, and the sole ESLint syntax/lint owner before the slow regression runner, and that npm start stays a pure Node boot.",
       "id": "release.fast-check-pipeline",
       "legacy": false,
       "path": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
@@ -3152,6 +3173,25 @@
         "github-actions",
         "release",
         "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Pins the 0.33.18 maintainability boundary evidence and its retained manifest, startup, loading, coverage, and roadmap proof owners.",
+      "id": "release.maintainability-closeout",
+      "legacy": false,
+      "path": "scripts/regressions/release/maintainability-closeout.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "architecture",
+        "closeout",
+        "database",
+        "docs",
+        "modules",
+        "startup",
+        "views"
       ],
       "tier": "release-gate"
     },
@@ -3398,6 +3438,24 @@
         "views"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Proves the Dashboard native ES-module entry, versioned local compatibility imports, contribution-owned module scripts and styles, and preserved accessible calendar controls.",
+      "id": "views.dashboard-es-module-entry",
+      "legacy": false,
+      "path": "scripts/regressions/views/dashboard-es-module-entry.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "accessibility",
+        "assets",
+        "dashboard",
+        "es-modules",
+        "guardrail",
+        "keyboard"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "views",
@@ -5098,6 +5156,32 @@
     }
   ],
   "retiredRegressions": [
+    {
+      "script": "scripts/check-js.mjs",
+      "retiredInVersion": "0.33.18.7",
+      "retirementType": "assertions-moved",
+      "rationale": "The formal streamlining review proved that cached ESLint covers the same 793 JavaScript and module files as the legacy per-file node --check subprocess fan-out, so keeping both syntax parsers in the full release gate duplicated coverage and cost.",
+      "assertionDisposition": "JavaScript and module parsing plus lint failures are owned by the cached ESLint stage in npm run check, which now runs before the stateful regression suite. The retained fast-check pipeline release gate proves the ESLint source roots, fail-fast order, and removal from the frozen legacy snapshot.",
+      "retainedCoverageOwners": [
+        "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "793-file check-js versus ESLint inventory comparison",
+        "node scripts/regressions/release/fast-check-pipeline.regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run lint",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.check.js",
+      "area": "release",
+      "tier": "slow",
+      "tags": [
+        "release",
+        "slow"
+      ],
+      "legacy": true
+    },
     {
       "script": "scripts/clients-projects-strict-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",

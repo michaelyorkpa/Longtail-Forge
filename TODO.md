@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Notes -> Bulk Actions
+
+Tags in the Notes -> Bulk Actions area don't allow you to use the native tag picker, instead, it presents a long list in a scroll box. It should use the same flow as everything else.
+
 ## Reporting module
 
 The reporting module is not disable-able. It needs to expose that in settings for Workspace and Super admins. 
@@ -106,6 +110,13 @@ This section is to define a series of human testing goals for different sections
 Deferred to a future mobile-polish roadmap pass. Re-audit the current rendered surfaces after the completed modal, view-conversion, and responsive-foundation work; do not revive layout requests written against retired page anatomy.
 
 # Near Term Ideas
+
+## Unassigned Regression-Suite Follow-ups
+
+These candidates came out of the 0.33.18.7 formal suite-streamlining review and are recorded in `docs/regression-suite-performance.md`, but they do not yet have a numbered `ROADMAP.md` owner. Promote them into a dedicated roadmap slice before implementation, then remove this TODO entry.
+
+- [ ] Move only the pure configuration/default/error matrix from `scripts/runtime-configuration-contract-regression.mjs` toward Vitest when the retained regression owner still proves child-process environment materialization, module-registry behavior, database integration, and runtime responses. Do not retire integration coverage without demonstrated replacement evidence and the normal manifest/ratchet record.
+- [ ] Audit the 29-script serial Files regression bucket for entries whose database, filesystem, port, scanner, and process state are all disposable. Change an entry's run mode only after bounded repeat-stress evidence proves parallel safety; aggregate serial runtime alone is not sufficient evidence, and the bucket remains serial by default.
 
 ## User controls
 

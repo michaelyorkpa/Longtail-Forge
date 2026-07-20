@@ -19,6 +19,7 @@ const { timeTrackingBillingService } = await import("../../../src/modules/time-t
 const { tasksService } = await import("../../../src/modules/tasks/tasks.service.js");
 const { reportingService } = await import("../../../src/services/reporting.service.js");
 const { modulesService } = await import("../../../src/core/modules/modules.service.js");
+const { activateModuleRuntime } = await import("../../../src/core/modules/module-runtime.js");
 const { listReportRunnerIds } = await import("../../../src/core/reporting/report-runner-registry.js");
 const { tagsService } = await import("../../../src/services/tags.service.js");
 
@@ -27,6 +28,7 @@ const RUNNER_ID = "time-tracking.project-time-billing";
 
 try {
   await initializeDatabase();
+  activateModuleRuntime("app");
   const session = await readSeedSession();
   await modulesService.syncModuleRegistry(session.workspace_id);
 

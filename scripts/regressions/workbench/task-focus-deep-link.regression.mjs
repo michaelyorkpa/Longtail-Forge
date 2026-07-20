@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 const workbenchJs = await readText("public/js/workbench.js");
-const dashboardJs = await readText("public/js/dashboard.js");
+const tasksDashboardJs = await readText("public/js/tasks-dashboard.js");
 const tasksService = await readText("src/modules/tasks/tasks.service.js");
 
 let checks = 0;
@@ -82,7 +82,7 @@ assert.match(
   "the panel-level Open Workbench action must stay the generic Workbench entry",
 );
 assert.match(
-  dashboardJs,
+  tasksDashboardJs,
   /attrs: \{ href: action\.href \}/,
   "the dashboard browser must render the server-supplied row action href as-is",
 );

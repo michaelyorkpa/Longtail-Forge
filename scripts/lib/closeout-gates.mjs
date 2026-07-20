@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 const CLOSEOUT_GATES = Object.freeze([
   gate("version-guard", "Version literal guard", "version:guard", true),
   gate("regression-manifest", "Regression manifest", "regressions:manifest:check", true),
+  gate("module-registry", "Bundled module catalog", "modules:registry:check", true),
   gate("database-schema", "Database schema", "db:schema:check", true),
   gate("parameter-binding", "Parameter binding", "audit:params:check", true),
   gate("documentation", "Documentation ownership", "docs:check", false),

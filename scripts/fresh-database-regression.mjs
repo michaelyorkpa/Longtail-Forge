@@ -112,6 +112,11 @@ ORDER BY version;
       module_id: "core",
       name: "authentication_throttle_entries",
     },
+    {
+      version: "080",
+      module_id: "core",
+      name: "startup_maintenance_runs",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -184,6 +189,7 @@ ORDER BY name;
     "search_index",
     "secure_note_placeholder_warnings",
     "sessions",
+    "startup_maintenance_runs",
     "tag_assignment_suppressions",
     "tag_assignments",
     "tags",
