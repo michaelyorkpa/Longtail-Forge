@@ -77,6 +77,7 @@ try {
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!").count, 0);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
     assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
+    assert.deepEqual(database.prepare("SELECT extension FROM files ORDER BY storage_key").all(), [{ extension: ".md" }, { extension: ".txt" }], "seeded Files must retain the canonical dotted extension used by preview classification");
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   } finally {
     database.close();

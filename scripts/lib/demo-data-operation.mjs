@@ -449,10 +449,13 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
     if (personaViolation !== 0 || secureNotes !== 0) {
       throw new Error("Candidate demo database violates persona-login or Secure Notes exclusions.");
     }
-    const fileRows = database.prepare("SELECT storage_key, file_size_bytes, sha256_hash FROM files ORDER BY storage_key").all();
+    const fileRows = database.prepare("SELECT storage_key, extension, file_size_bytes, sha256_hash FROM files ORDER BY storage_key").all();
     for (const row of fileRows) {
       const objectPath = path.resolve(filesRoot, row.storage_key);
       if (!isInside(filesRoot, objectPath)) throw new Error("Candidate demo Files object escaped the Files root.");
+      if (row.extension !== path.extname(row.storage_key).toLowerCase()) {
+        throw new Error("Candidate demo Files extension metadata does not match its storage object.");
+      }
       const bytes = await fs.readFile(objectPath);
       const hash = await sha256(bytes);
       if (bytes.length !== Number(row.file_size_bytes) || hash !== row.sha256_hash) {
