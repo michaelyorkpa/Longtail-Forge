@@ -1,3 +1,9 @@
+## Version 0.33.19.2 - 2026-07-20
+
+- Corrected the separately installed demo-data wrapper to use the named demo host's canonical `/usr/local/bin/node` runtime instead of assuming `/usr/bin/node`.
+- Made the host CLI's main-module guard resolve the `/opt/longtail-forge/current` symlink before comparing its invoked and imported paths, so the reviewed command executes from immutable release installations while remaining inert when imported by regressions.
+- No docs change needed: the operator command, protected configuration, data contract, backup/rollback behavior, and Nightly preservation policy are unchanged; this corrects only the installed runtime path and symlink-aware CLI execution.
+
 ## Version 0.33.19.1 - 2026-07-20
 
 - Added one named-host-only Linux provision/reset operation for `rt-ltf-demo`, with exact target/hostname/public-origin/service/path identity, root-owned protected configuration, explicit action-specific confirmation, and refusal of preview/customer/unknown, symbolic-link-substituted, incorrectly owned/mode, partial, nested, or unexpectedly populated targets.
