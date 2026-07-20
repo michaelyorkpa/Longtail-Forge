@@ -1,12 +1,14 @@
 ## Version 0.33.18.8 - 2026-07-20
 
-- Closed the complete 0.33.18 dependency-baseline and post-preview maintainability branch without adding product behavior or broadening its startup, module, browser, or test abstractions.
+- Corrected the final Linux pull-request proof by normalizing repository-owned module asset/view URLs before hashing the frozen inventory instead of hashing host-specific Windows or Linux absolute `file:` paths.
+- Removed generated super-administrator password output. A fresh installation now requires `SUPER_ADMIN_PASSWORD` from the local untracked `.env` or the deployment secret store; bootstrap never rotates an existing credential, and production retains its stricter requirement that the deployment secret be present on every startup.
+- Closed the complete 0.33.18 dependency-baseline and post-preview maintainability branch without broadening its startup, module, browser, or test abstractions; final pull-request remediation remained limited to cross-platform proof and the fresh-install bootstrap-secret boundary.
 - Added a durable architecture evidence table for the Two-Module Rule: all eight bundled modules consume the canonical entry/catalog contract; Tasks and Notes consume concern composition; Tasks and Time Tracking consume Dashboard contribution asset loading; the Dashboard bridge remains page-local; and database startup plus release tooling are explicit framework-wide exceptions.
 - Preserved the frozen normalized pre-reorganization module inventory SHA-256, declaration-only import and explicit activation behavior, exact database startup/fresh/repeat/worker contracts, and Dashboard loading/accessibility/CSP boundaries under their existing required release gates.
 - Added the required `release.maintainability-closeout` guardrail and advanced the coverage contract to 380 active regressions, 41 release gates, and 69 convention-path entries without lowering a coverage floor.
 - Corrected the regression-suite guide to record all 20 obsolete current-package-document assertions removed in 0.33.18.7 rather than only its first five retired closeout cases.
-- Docs updated: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`, and `docs/ui-layout-guide.md`.
-- No docs change needed: product behavior, Help, HTTP routes/payloads, permissions, public API, schema/migrations, runtime environment variables, deployment, backup, and module workflow contracts are unchanged.
+- Docs updated: `.env.example`, `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, and `docs/ui-layout-guide.md`.
+- No docs change needed: Help, HTTP routes/payloads, permissions, public API, schema/migrations, deployment topology, backup, and module workflow contracts are unchanged.
 
 ## Version 0.33.18.7 - 2026-07-20
 

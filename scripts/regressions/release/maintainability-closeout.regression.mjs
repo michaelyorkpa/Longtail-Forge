@@ -62,7 +62,8 @@ for (const gateId of [
   assert.ok(policy.requiredReleaseGateIds.includes(gateId), `${gateId} should remain a required release gate`);
 }
 
-assert.match(bundledGate, /EXPECTED_INVENTORY_SHA256 = "08367987fa331d48405db0c15033cbffe849e8ed34bb4acaa62504a013032907"/);
+assert.match(bundledGate, /EXPECTED_INVENTORY_SHA256 = "df4f8e6f95dc595e7c0106adb3dcf79f90c38407f419875306184e780d5df3fc"/);
+assert.match(bundledGate, /repository-file:/, "the frozen inventory should normalize repository file URLs across operating systems");
 assert.match(bundledGate, /module and contribution inventory matches the pre-conversion baseline/);
 assert.match(bundledGate, /module entry import is side-effect free and explicit app activation restores behavior/);
 assert.match(startupGate, /fresh startup should preserve the declared dependency order/);

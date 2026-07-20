@@ -8,8 +8,15 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
+const scriptPath = fileURLToPath(import.meta.url);
+const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
 const fixture = await createDisposableDatabaseFixture("startup-maintenance-lifecycle");
 process.env.SUPER_ADMIN_USERNAME = "startup-maintenance-admin@example.test";
 process.env.SUPER_ADMIN_PASSWORD = "Startup-Maintenance-Lifecycle-123!";
@@ -51,6 +58,7 @@ const EXPECTED_DATABASE_ACTIONS = [
 ];
 
 try {
+  await assertFreshInstallRejectsMissingBootstrapPassword();
   await assertCoordinatorOrderAndFailureBehavior();
   assertLifecycleInventory();
   await assertFreshInstallAndRepeatStartup();
@@ -60,6 +68,71 @@ try {
 } finally {
   await closeDatabase();
   await fixture.cleanup();
+}
+
+async function assertFreshInstallRejectsMissingBootstrapPassword() {
+  const probeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-bootstrap-password-required-"));
+  const probePassword = "Bootstrap-Password-Required-Probe-123!";
+  const source = await fs.readFile(path.join(rootDir, "src", "db", "app-startup-maintenance.js"), "utf8");
+  assert.doesNotMatch(source, /createGeneratedPassword|generated password:/i, "startup must not generate or print a bootstrap credential");
+
+  const missingPasswordProbe = runBootstrapProbe(probeRoot);
+
+  try {
+    assert.equal(missingPasswordProbe.status, 0, missingPasswordProbe.stderr || missingPasswordProbe.stdout);
+    assert.deepEqual(readProbeResult(missingPasswordProbe), {
+      ok: false,
+      message: "SUPER_ADMIN_PASSWORD is required to create the initial super administrator. Set it in the local .env file or the deployment secret store before first launch.",
+    });
+    assert.doesNotMatch(missingPasswordProbe.stdout, /generated password|password:/i, "startup output must not disclose a bootstrap credential");
+
+    const configuredPasswordProbe = runBootstrapProbe(probeRoot, probePassword);
+    assert.equal(configuredPasswordProbe.status, 0, configuredPasswordProbe.stderr || configuredPasswordProbe.stdout);
+    assert.deepEqual(readProbeResult(configuredPasswordProbe), { ok: true });
+    assert.doesNotMatch(configuredPasswordProbe.stdout, new RegExp(probePassword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "startup output must not contain the configured bootstrap credential");
+
+    const existingInstallProbe = runBootstrapProbe(probeRoot);
+    assert.equal(existingInstallProbe.status, 0, existingInstallProbe.stderr || existingInstallProbe.stdout);
+    assert.deepEqual(readProbeResult(existingInstallProbe), { ok: true });
+  } finally {
+    await fs.rm(probeRoot, { recursive: true, force: true });
+  }
+}
+
+function runBootstrapProbe(probeRoot, password = "") {
+  const databaseFile = path.join(probeRoot, "bootstrap-password-required.db");
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => key !== "SUPER_ADMIN_PASSWORD"),
+  );
+  Object.assign(env, {
+    LONGTAIL_DATA_DIR: probeRoot,
+    LONGTAIL_DATABASE_FILE: databaseFile,
+    LONGTAIL_ENV: "development",
+    SUPER_ADMIN_USERNAME: "missing-bootstrap-password@example.test",
+  });
+  if (password) {
+    env.SUPER_ADMIN_PASSWORD = password;
+  }
+
+  return spawnSync(process.execPath, ["--input-type=module", "-e", `
+    const { closeDatabase, initializeDatabase } = await import("./src/db/index.js");
+    try {
+      await initializeDatabase();
+      console.log(JSON.stringify({ ok: true }));
+    } catch (error) {
+      console.log(JSON.stringify({ ok: false, message: error.message }));
+    } finally {
+      await closeDatabase();
+    }
+  `], {
+    cwd: rootDir,
+    encoding: "utf8",
+    env,
+  });
+}
+
+function readProbeResult(probe) {
+  return JSON.parse(probe.stdout.trim().split(/\r?\n/).at(-1));
 }
 
 async function assertCoordinatorOrderAndFailureBehavior() {

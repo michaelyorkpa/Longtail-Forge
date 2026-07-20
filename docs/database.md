@@ -38,7 +38,7 @@ The database/app action order is unchanged and is now declared as follows:
 | Ensure workspace settings | Recurring lightweight check | A missing row is inserted without replacing stored settings. |
 | Synchronize the module registry | Recurring lightweight check | The module service retains module/workspace rows, lifecycle hooks, and permission-contract ownership. |
 | Repair redacted seed identities | One-time migration/versioned repair | The legacy identity repair runs once after the workspace and module prerequisites exist. |
-| Ensure the super administrator | First-install bootstrap | Existing credentials are never rotated; only a missing bootstrap identity is created. |
+| Ensure the super administrator | First-install bootstrap | A missing bootstrap identity requires `SUPER_ADMIN_PASSWORD` from the local untracked environment or deployment secret store; the secret is never generated or logged. Existing credentials are never rotated. |
 | Reassign legacy local-user time entries | One-time migration/versioned repair | The old `local_user` compatibility write is separated from credential bootstrap and runs once. |
 | Ensure default-workspace memberships | Recurring lightweight check | Conflict-safe inserts and owner fallback retain the current small-office invariant. |
 | Deduplicate legacy workspace users | One-time migration/versioned repair | The existing transaction-per-identity repair and unique-index creation run once. |

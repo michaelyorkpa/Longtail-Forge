@@ -3,7 +3,7 @@ import { config } from "../config.js";
 import { normalizeSettings, normalizeThemeMode } from "../utils/normalizers.js";
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
 import { DEFAULT_WORKSPACE_TYPE } from "../utils/workspaces.js";
-import { hashPassword, createGeneratedPassword, validatePassword } from "../security/passwords.js";
+import { hashPassword, validatePassword } from "../security/passwords.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { runStartupActions, STARTUP_LIFECYCLES } from "./startup-coordinator.js";
@@ -620,7 +620,7 @@ LIMIT 1;
   let created = false;
 
   if (!userId) {
-    const passwordSetup = getSuperAdminPassword();
+    const password = getSuperAdminPassword();
     userId = randomUUID();
     created = true;
 
@@ -654,19 +654,12 @@ VALUES (
 `, {
       activeWorkspaceId: workspaceId,
       displayName: DEFAULT_SUPER_ADMIN_DISPLAY_NAME,
-      password: await hashPassword(passwordSetup.password),
+      password: await hashPassword(password),
       timezone: DEFAULT_TIMEZONE,
       userId,
       username: DEFAULT_SUPER_ADMIN_USERNAME,
       workspaceId,
     });
-
-    if (passwordSetup.generated) {
-      console.log(
-        `Created super administrator '${DEFAULT_SUPER_ADMIN_USERNAME}' with generated password: ${passwordSetup.password}`,
-      );
-      console.log(`Set ${SUPER_ADMIN_PASSWORD_ENV} before first launch to choose a different initial password.`);
-    }
   }
 
   return created;
@@ -901,8 +894,14 @@ ${USER_ROLE_ASSIGNMENT_INSERT_SQL};
 }
 
 function getSuperAdminPassword() {
-  const configuredPassword = config.bootstrap.superAdminPassword;
-  const password = configuredPassword || createGeneratedPassword();
+  const password = config.bootstrap.superAdminPassword;
+
+  if (!password) {
+    throw new Error(
+      `${SUPER_ADMIN_PASSWORD_ENV} is required to create the initial super administrator. Set it in the local .env file or the deployment secret store before first launch.`,
+    );
+  }
+
   const validation = validatePassword(password, DEFAULT_SUPER_ADMIN_USERNAME);
 
   if (!validation.valid) {
@@ -911,10 +910,7 @@ function getSuperAdminPassword() {
     );
   }
 
-  return {
-    password,
-    generated: !configuredPassword,
-  };
+  return password;
 }
 
 async function protectFirstUser() {

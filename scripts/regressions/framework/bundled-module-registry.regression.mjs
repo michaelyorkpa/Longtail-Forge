@@ -19,7 +19,7 @@ import { createDisposableDatabaseFixture } from "../../test-support/disposable-d
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
-const EXPECTED_INVENTORY_SHA256 = "08367987fa331d48405db0c15033cbffe849e8ed34bb4acaa62504a013032907";
+const EXPECTED_INVENTORY_SHA256 = "df4f8e6f95dc595e7c0106adb3dcf79f90c38407f419875306184e780d5df3fc";
 const fixture = await createDisposableDatabaseFixture("bundled-module-registry-regression");
 const { listModuleEntries, listModules } = await import("../../../src/core/modules/registry.js");
 const { createModuleEntry, validateAndOrderBundledModuleCatalog } = await import("../../../src/core/modules/module-entry.js");
@@ -248,7 +248,7 @@ function fixtureEntry(id, dependencies = []) {
 
 function stableValue(value, seen = new WeakSet()) {
   if (value instanceof URL) {
-    return value.href;
+    return normalizeInventoryUrl(value);
   }
   if (typeof value === "function") {
     if (Array.isArray(value.stack)) {
@@ -271,6 +271,20 @@ function stableValue(value, seen = new WeakSet()) {
     return value.map((item) => stableValue(item, seen));
   }
   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key], seen)]));
+}
+
+function normalizeInventoryUrl(value) {
+  if (value.protocol !== "file:") {
+    return value.href;
+  }
+
+  const relativePath = path.relative(rootDir, fileURLToPath(value));
+  const isRepositoryPath = relativePath === ""
+    || (!path.isAbsolute(relativePath) && relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`));
+
+  return isRepositoryPath
+    ? `repository-file:${relativePath.replaceAll(path.sep, "/") || "."}`
+    : "repository-file:[external]";
 }
 
 function runGenerator(fixtureRoot, argument = "") {

@@ -231,9 +231,9 @@ As of 0.33.5.21.0.6, `SQLITE_COMMAND` is a legacy ignored setting. Normal databa
 | `LONGTAIL_INITIAL_WORKSPACE_NAME` | `Longtail Forge Workspace` | Name used only when creating the first fresh-start workspace. Existing workspaces are not renamed. |
 | `SUPER_ADMIN_USERNAME` | `support@longtailforge.local` | Username for the initial protected super-admin account. |
 | `SUPER_ADMIN_DISPLAY_NAME` | `Super Admin` | Display name for the initial protected super-admin account. Existing users are not renamed except during first-user/bootstrap repair paths. |
-| `SUPER_ADMIN_PASSWORD` | empty | Optional in development. Production requires a non-default value of at least 16 characters and never generates a reusable default credential. If omitted outside production, the app keeps the existing generated-password behavior for first launch. |
+| `SUPER_ADMIN_PASSWORD` | empty | Required whenever a fresh installation must create its initial protected super administrator. Supply a unique value that satisfies the password policy. Existing development/test installations can restart without it because bootstrap values never rotate an existing credential; production still requires its deployment secret on every startup. |
 
-The bootstrap password is used only by fresh-start/repair bootstrap logic and is never logged. Production operators should source it from a deployment secret store, replace the account password through the normal product workflow after first launch, and rotate the deployment value deliberately; changing the environment value does not silently replace an existing account password.
+The bootstrap password is used only by fresh-start/repair bootstrap logic and is never generated, logged, returned by diagnostics, or committed. Local development keeps its real value only in the untracked root `.env`. Deployments inject their own value through the service manager or secret store; the local `.env` is not a deployment artifact and must not be synchronized to a server. Operators should replace the account password through the normal product workflow after first launch and rotate the deployment value deliberately; changing the environment value does not silently replace an existing account password.
 
 ### Sessions And Cookies
 
