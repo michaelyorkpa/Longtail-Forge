@@ -104,7 +104,7 @@ async function assertRecurringChecklistPropagation(session) {
 
   const workbench = await tasksService.listWorkbenchItems(session, { task_view: "all" });
   const workbenchFuture = workbench.items.find((item) => item.task_id === future.task_id);
-  assert.equal(workbenchFuture?.checklistProgress.total_count, 3, "Task Focus candidates should carry propagated checklist progress");
+  assert.equal(workbenchFuture?.checklist_progress.total_count, 3, "Task Focus candidates should carry propagated checklist progress");
 
   const unchangedPast = (await tasksService.read(past.task_id, session)).task;
   assert.deepEqual(unchangedPast.checklistItems.map((item) => item.label), ["Past checklist item"]);

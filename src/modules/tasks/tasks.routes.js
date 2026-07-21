@@ -37,6 +37,11 @@ tasksRoutes.get("/tasks/workbench-items", asyncRoute(async (request, response) =
   response.status(200).json(result);
 }));
 
+tasksRoutes.get("/tasks/options", asyncRoute(async (request, response) => {
+  const result = await tasksService.listOptions(request.session);
+  response.status(200).json(result);
+}));
+
 tasksRoutes.get("/tasks/dashboard-summary", asyncRoute(async (request, response) => {
   const result = await tasksService.summary(request.session);
   response.status(200).json(result);

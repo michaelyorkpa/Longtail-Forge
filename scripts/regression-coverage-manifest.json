@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 383,
+    "discoveredScripts": 390,
     "legacyScripts": 311,
     "releaseGateScripts": 44,
     "areaCounts": {
       "dashboard": 1,
-      "database": 34,
+      "database": 36,
       "docs": 9,
       "files": 44,
-      "framework": 63,
+      "framework": 64,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -22,19 +22,19 @@
       "release": 24,
       "search": 12,
       "tags": 12,
-      "tasks": 51,
+      "tasks": 52,
       "time-tracking": 8,
       "views": 31,
-      "workbench": 27
+      "workbench": 30
     },
     "tierCounts": {
-      "focused": 173,
+      "focused": 180,
       "integration": 158,
       "release-gate": 44,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 155,
+      "isolated-database": 162,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
@@ -2490,6 +2490,39 @@
     },
     {
       "area": "database",
+      "description": "Proves module-context reads perform zero writes, workspace module rows are ensured by the startup and workspace-creation lifecycle, enable/disable stays immediately visible through the context cache, and repeated request-scoped settings reads hit the memo.",
+      "id": "database.module-context-read-lifecycle",
+      "legacy": false,
+      "path": "scripts/regressions/database/module-context-read-lifecycle.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "lifecycle",
+        "modules",
+        "performance",
+        "workspace"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves the adapter prepared-statement cache, single-pass SQL analysis, db.get single-row path, and config-gated performance PRAGMAs preserve query results, error contracts, and transaction semantics.",
+      "id": "database.sqlite-statement-cache-adapter",
+      "legacy": false,
+      "path": "scripts/regressions/database/sqlite-statement-cache-adapter.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "adapter",
+        "performance",
+        "pragmas",
+        "sqlite",
+        "statement-cache"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
       "description": "Proves explicit startup lifecycle ownership, fail-fast ordering, timed phase reporting, one-time repair tracking, fresh bootstrap behavior, and worker schema readiness.",
       "id": "database.startup-maintenance-lifecycle",
       "legacy": false,
@@ -2686,6 +2719,23 @@
         "startup"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the slim client-project options projection renders dropdowns identical to the full management payload at a fraction of its size, the management shape keeps gated batched reminder policies, and reminder-policy queries stay constant-count.",
+      "id": "framework.client-project-options-projection",
+      "legacy": false,
+      "path": "scripts/regressions/framework/client-project-options-projection.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "client-projects",
+        "options",
+        "payload",
+        "performance",
+        "reminders"
+      ],
+      "tier": "focused"
     },
     {
       "area": "framework",
@@ -3445,6 +3495,23 @@
       "tier": "focused"
     },
     {
+      "area": "tasks",
+      "description": "Proves the task list pipeline keeps options opt-in with a dedicated options endpoint, bounds workbench items in SQL, drops per-row reminder details and duplicated work-item serialization, pushes due windows into the repository, and preserves permission filtering through the precomputed evaluator.",
+      "id": "tasks.task-list-pipeline-projection",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "options",
+        "pagination",
+        "performance",
+        "permissions",
+        "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
       "area": "time-tracking",
       "description": "Proves the module-owned Project Time & Billing runner, recursive mixed-setting rollups, compatibility reads, tag/task behavior, and framework decoupling.",
       "id": "time-tracking.project-time-billing-runner",
@@ -3562,6 +3629,38 @@
     },
     {
       "area": "workbench",
+      "description": "Proves batched resume-state read checks return results identical to the per-row resolvers, the workbench bootstrap computes no focus candidates, and focus-candidate query counts stay near-constant as resume rows grow.",
+      "id": "workbench.focus-candidate-pipeline",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/focus-candidate-pipeline.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "bootstrap",
+        "candidates",
+        "performance",
+        "resume-state"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Pins statement-count and payload budgets for the hot workbench-path endpoints over HTTP so N+1 reintroductions and payload bloat fail loudly.",
+      "id": "workbench.hot-endpoint-budgets",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "budgets",
+        "payload",
+        "performance",
+        "query-count"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
       "description": "Pins the Workbench task-focus deep-link contract: workbench.html?taskId= enters Task Focus through the existing path, every failure falls back to Focus Selection with one generic message that leaks nothing, and dashboard per-task handoffs carry the task while panel-level actions stay generic.",
       "id": "workbench.task-focus-deep-link",
       "legacy": false,
@@ -3574,6 +3673,23 @@
         "guardrail",
         "tasks",
         "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Proves the workbench client loads in one parallel fan-out with stale-while-revalidate caches and warm-first render, the cached-fetch helper never duplicates fetches, dialog scripts lazy-load, and the app serves compressed responses.",
+      "id": "workbench.workbench-client-fanout",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/workbench-client-fanout.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "cache",
+        "compression",
+        "fan-out",
+        "performance",
+        "progressive-render"
       ],
       "tier": "focused"
     },

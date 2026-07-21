@@ -710,7 +710,7 @@ async function loadOptions() {
 
 async function loadClientProjects() {
   try {
-    return await api.getJson("/api/client-projects", { cache: "no-store" });
+    return await api.getJson("/api/client-projects?view=options", { cache: "no-store" });
   } catch {
     return { clients: [], workspaceProjects: [] };
   }

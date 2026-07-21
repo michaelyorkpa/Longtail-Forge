@@ -645,6 +645,12 @@ When a module is disabled:
 
 Module disable behavior should be enforced by the framework as much as possible so module authors do not need to remember to add checks everywhere.
 
+### Module Status Reads and Row Lifecycle
+
+As of 0.33.20.2, `workspace_modules` rows are guaranteed by lifecycle, never by reads. Startup ensures a row per registered module for every existing workspace (`app.ensure-workspace-module-rows`, after `app.sync-module-registry`), and workspace creation syncs rows through `modulesService.syncModuleRegistry(workspaceId)` before the workspace is returned. `readWorkspaceModuleContext`, `readModuleStatus`, and `readEnabledModuleIds` are pure reads: no read-path endpoint opens a write transaction for module context. A missing row reads as disabled (the historical pure-SELECT semantics), and `canDisable: false` modules always read enabled, mirroring the startup repair without writing.
+
+The workspace module context (resolved terminology, capability filtering, contribution shaping) is cached in memory per workspace. Every read still performs one cheap indexed `workspace_modules` status query, and that row set is the cache fingerprint — so `setModuleStatus`, module install/uninstall, another process, or direct SQL row changes are all observed immediately, while the expensive context construction is reused. `modulesService.invalidateWorkspaceModuleContext(workspaceId)` remains available for explicit invalidation. Repeated per-request context reads additionally memoize through the shared request-scoped cache (`src/core/request-cache.js`, the `session.__requestCache` pattern shared with the permissions service); `settingsRepository.readWorkspaceSettings(workspaceId, session)` opts into that memo from read paths only.
+
 ---
 
 ## Workspaces
@@ -718,6 +724,8 @@ Notifications should also respect permissions. A user should not receive or open
 ## App Shell and Navigation
 
 The authenticated app shell should be framework-owned.
+
+As of 0.33.20.6, the shell supports cached-context-first page loads. `navigation.js` hydrates `window.LongtailForge.workspaceContext` synchronously from the last stored localStorage copy before the app-shell bootstrap fetch resolves, pages reconcile through the `longtailforge:workspace-context-updated` event, and the bootstrap payload's `user.timezone` feeds `LongtailForge.timezones.setUserTimezone` so pages no longer issue a separate `/api/session` round-trip for the timezone. The shared `LongtailForge.cachedFetch` helper (`public/js/shared/cached-fetch.js`) provides stale-while-revalidate sessionStorage caching for near-static reads (card registry, focus modes, client/project options) with `cache: "no-cache"` so ETag revalidation works; live reads (timers, candidates, notifications) must stay uncached. The Workbench is the reference consumer: `loadWorkbench()` renders the focus-selection panel and card skeletons immediately from warm caches, fires one parallel fan-out (bootstrap, options, focus modes, card sources from the cached registry, and focus candidates using the localStorage-restored selection), refetches candidates only when validation against fresh data invalidates the restored selection, and reconciles card fetches when the fresh registry differs from the cached one. Dialog-only scripts (`task-dialog.js`, `time-entry-dialog.js`, `clients-projects.js`) load through the module-action lazy-dependency mechanism instead of static tags, the remaining workbench script tags use `defer`, and the Express app serves compressed responses through `compression()` (reverse proxies may additionally compress).
 
 The frontend should not contain hard-coded knowledge of every module.
 

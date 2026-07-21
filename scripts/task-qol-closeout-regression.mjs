@@ -87,8 +87,8 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
   const workItem = workbench.items.find((item) => item.task_id === parent.task_id);
   assert.ok(workItem, "active task should appear in Workbench task items");
   assert.equal(workItem.next_action, "Review the closeout evidence.");
-  assert.equal(workItem.resumeContext.active_candidate, true);
-  assert.equal(workItem.relationshipSummary.incomplete_blocking_child_count, 1);
+  assert.equal(workItem.resume_context.active_candidate, true);
+  assert.equal(workItem.relationship_summary.incomplete_blocking_child_count, 1);
 
   const tasksModule = modulesService.getModule("tasks");
   const taskSearchDeclaration = tasksModule.searchableTypes.find((type) => type.recordType === "task");

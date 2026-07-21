@@ -86,7 +86,7 @@ assert.match(relationshipRegression, /blocking child tasks/i, "Existing relation
 assert.match(relationshipRegression, /relationshipSummary/, "Existing relationship regression should preserve relationship summary coverage");
 assert.match(linkedPanelRegression, /AccessBeforeShaping|createClientUserSession|private|secure/i, "Existing linked panel regression should preserve permission-safe read-model coverage");
 assert.match(tasksView, /js\/shared\/notes-linked-panel\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/task-dialog\.js[\s\S]*js\/tasks\.js/, "Tasks host should load refreshed linked-context, framework helper, and task row assets");
-assert.match(workbenchView, /js\/shared\/notes-linked-panel\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/task-dialog\.js/, "Workbench host should load refreshed linked-context and framework helper assets before the shared Task dialog");
+assert.match(workbenchView, /js\/shared\/notes-linked-panel\.js[\s\S]*js\/shared\/view-builder\.js/, "Workbench host should keep linked-context and framework helper assets static for the lazy Task dialog");
 assert.match(tasksDocs, /0\.33\.5\.18\.10\.4[\s\S]*relationships and linked notes/, "Tasks docs should document the relationship and linked-context cleanup");
 assert.match(notesDocs, /Tasks module mounts this helper[\s\S]*Task-created note links/, "Notes docs should keep the task-created note context contract");
 assert.match(moduleContract, /0\.33\.5\.18\.10\.4[\s\S]*Task relationship and linked-note display/, "Module contract should document the 10.4 ownership boundary");

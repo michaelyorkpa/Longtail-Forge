@@ -148,7 +148,7 @@ async function loadFilterOptions() {
 
 async function loadClientProjectOptions() {
   try {
-    const response = await fetch("/api/client-projects", { cache: "no-store" });
+    const response = await fetch("/api/client-projects?view=options", { cache: "no-store" });
     if (!response.ok) {
       throw new Error("Client/project filters unavailable.");
     }

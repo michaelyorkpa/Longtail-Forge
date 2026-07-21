@@ -194,8 +194,20 @@ window.LongtailForge.sessionAuthWarnings = {
   show: showSessionAuthWarning,
 };
 installSessionAuthWarningGuard();
+hydrateStoredWorkspaceContext();
 window.LongtailForge.refreshAppShell = loadAppShellBootstrap;
 window.LongtailForge.workspaceContextReady = loadAppShellBootstrap();
+
+// The last stored context is available synchronously so pages can render from
+// it immediately; the app-shell bootstrap reconciles through the
+// longtailforge:workspace-context-updated event when it resolves.
+function hydrateStoredWorkspaceContext() {
+  const context = readWorkspaceContext();
+
+  if (context && !window.LongtailForge.workspaceContext) {
+    window.LongtailForge.workspaceContext = context;
+  }
+}
 
 function installSessionAuthWarningGuard() {
   if (typeof window.fetch !== "function" || window.fetch.__longtailSessionAuthGuard) {
@@ -579,6 +591,9 @@ async function loadAppShellBootstrap() {
     };
 
     storeWorkspaceContext(workspaceContext);
+    if (shell.user?.timezone || shell.timezone) {
+      window.LongtailForge.timezones?.setUserTimezone?.(shell.user?.timezone || shell.timezone);
+    }
     renderNavigation(shell.navigation);
     applyNotificationSummary(shell.notificationSummary);
     applySearchTargets(shell.searchTargets || []);

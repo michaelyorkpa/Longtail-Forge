@@ -1,4 +1,5 @@
 import { permissionsRepository } from "../repositories/permissions.repo.js";
+import { readRequestScopedCache } from "../core/request-cache.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
@@ -55,7 +56,7 @@ async function listAssignableRoleOptions(session) {
   await assertCanAssignRoles(session);
   const [roles, settings, clients, projects] = await Promise.all([
     permissionsRepository.readRoles(),
-    settingsRepository.readWorkspaceSettings(session.workspace_id),
+    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
     clientsRepository.readAll(session.workspace_id),
     projectsRepository.readAll(session.workspace_id),
   ]);
@@ -242,6 +243,47 @@ async function canInAnyScope(session, action, resource = {}) {
   ));
 }
 
+// Precomputes one synchronous permission predicate for row-scale filtering:
+// the session-level checks run once and permission_overrides_json parses once
+// per assignment, instead of per row. Semantics match can(session, action,
+// resource) exactly for resources carrying { workspace_id, client_id,
+// project_id, operation }.
+async function createPermissionEvaluator(session, action, { operation = "read" } = {}) {
+  if (!session?.workspace_id || !session?.user_id) {
+    return () => false;
+  }
+
+  if (await isInstallationSuperAdmin(session)) {
+    return () => true;
+  }
+
+  const user = await readCurrentUser(session);
+
+  if (normalizeProtectedUserFlag(user?.protected_user)) {
+    return () => true;
+  }
+
+  const [assignments, permissionsByRole] = await Promise.all([
+    readAssignmentsForSession(session),
+    readPermissionsByRole(),
+  ]);
+  const preparedAssignments = assignments
+    .filter((assignment) => (permissionsByRole.get(assignment.role_id) || new Set()).has(action))
+    .map((assignment) => ({
+      assignment,
+      overrides: parseJsonObject(assignment.permission_overrides_json),
+    }));
+
+  return (resource = {}) => {
+    const evaluatedResource = { operation, ...resource };
+
+    return preparedAssignments.some(({ assignment, overrides }) => (
+      assignmentMatchesResource(assignment, evaluatedResource, session) &&
+      overridesAllowAction(overrides, action, evaluatedResource)
+    ));
+  };
+}
+
 async function filterReadableClients(session, clients) {
   if (await can(session, "clients.manage", { workspace_id: session.workspace_id, operation: "read" })) {
     return clients;
@@ -278,20 +320,13 @@ async function filterReadableTimeEntries(session, entries) {
 }
 
 async function filterReadableTasks(session, tasks) {
-  const readableTasks = [];
+  const canReadTask = await createPermissionEvaluator(session, "tasks.view");
 
-  for (const task of tasks) {
-    if (await can(session, "tasks.view", {
-      workspace_id: session.workspace_id,
-      client_id: task.client_id,
-      project_id: task.project_id,
-      operation: "read",
-    })) {
-      readableTasks.push(task);
-    }
-  }
-
-  return readableTasks;
+  return tasks.filter((task) => canReadTask({
+    workspace_id: session.workspace_id,
+    client_id: task.client_id,
+    project_id: task.project_id,
+  }));
 }
 
 async function normalizeAssignments(session, assignments) {
@@ -356,7 +391,7 @@ async function assertAssignmentScopeBelongsToWorkspace(session, scopeType, scope
 }
 
 async function assertWorkspaceTypeAllowsRole(session, roleId) {
-  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
 
   if (workspaceTypeAllowsRole(settings.workspaceType, roleId)) {
     return;
@@ -550,19 +585,11 @@ async function readAssignmentsForSession(session) {
 }
 
 function readRequestCache(session) {
-  if (!session.__requestCache) {
-    Object.defineProperty(session, "__requestCache", {
-      configurable: true,
-      enumerable: false,
-      value: {
-        assignments: new Map(),
-        superAdmins: new Map(),
-        users: new Map(),
-      },
-    });
-  }
-
-  return session.__requestCache;
+  return {
+    assignments: readRequestScopedCache(session, "permissions.assignments"),
+    superAdmins: readRequestScopedCache(session, "permissions.superAdmins"),
+    users: readRequestScopedCache(session, "permissions.users"),
+  };
 }
 
 async function readDecoratedAssignments(workspaceId, userId) {
@@ -608,7 +635,10 @@ function assignmentMatchesResource(assignment, resource, session) {
 }
 
 function assignmentAllowsAction(assignment, action, resource = {}) {
-  const overrides = parseJsonObject(assignment.permission_overrides_json);
+  return overridesAllowAction(parseJsonObject(assignment.permission_overrides_json), action, resource);
+}
+
+function overridesAllowAction(overrides, action, resource = {}) {
   const operationAccess = overrides.operationAccess || {};
   const operation = resource.operation || actionToOperation(action);
   const resourceKey = actionToResourceKey(action);
@@ -764,6 +794,7 @@ export const permissionsService = {
   assertCanInAnyScope,
   can,
   canInAnyScope,
+  createPermissionEvaluator,
   filterReadableClients,
   filterReadableProjects,
   filterReadableTasks,

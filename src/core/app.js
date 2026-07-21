@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import { config, logRuntimeConfigWarnings } from "../config.js";
 import { closeDatabase, formatDatabaseHealth, formatStartupPhase, initializeDatabase } from "../db/index.js";
@@ -63,6 +64,7 @@ function createApp() {
   app.disable("x-powered-by");
   app.set("query parser", "extended");
   configureTrustedProxy(app, config.security.trustedProxies);
+  app.use(compression());
   app.use(attachRequestContext);
   app.use(createRequestLoggingMiddleware());
   app.use(createTransportSecurityMiddleware());

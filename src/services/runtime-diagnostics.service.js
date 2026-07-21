@@ -40,6 +40,10 @@ async function read(session) {
         busyTimeoutMs: databaseHealth.busyTimeoutMs,
         foreignKeysEnabled: databaseHealth.foreignKeysEnabled,
         journalMode: databaseHealth.journalMode,
+        synchronous: databaseHealth.synchronous,
+        cacheSizeKib: databaseHealth.cacheSizeKib,
+        tempStore: databaseHealth.tempStore,
+        mmapSizeBytes: databaseHealth.mmapSizeBytes,
       },
       fileLocation: safeDatabaseFileLocation(databaseHealth.databaseFile || config.databaseFile),
     },
@@ -143,19 +147,27 @@ async function readSafeDatabaseHealth() {
 
     return {
       busyTimeoutMs: numberOrNull(health?.busyTimeoutMs),
+      cacheSizeKib: numberOrNull(health?.cacheSizeKib),
       databaseFile: health?.databaseFile || "",
       fileWritable: Boolean(health?.databaseFileWritable),
       foreignKeysEnabled: Boolean(health?.foreignKeysEnabled),
       journalMode: safeText(health?.journalMode),
+      mmapSizeBytes: numberOrNull(health?.mmapSizeBytes),
+      synchronous: safeText(health?.synchronous),
+      tempStore: safeText(health?.tempStore),
       status: "ok",
     };
   } catch {
     return {
       busyTimeoutMs: null,
+      cacheSizeKib: null,
       databaseFile: "",
       fileWritable: false,
       foreignKeysEnabled: false,
       journalMode: "",
+      mmapSizeBytes: null,
+      synchronous: "",
+      tempStore: "",
       status: "unavailable",
     };
   }

@@ -10,7 +10,7 @@ const notesScript = readText("public/js/notes.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const notesView = readText("views/protected/notes.html");
 const tasksView = readText("views/protected/tasks.html");
-const workbenchView = readText("views/protected/workbench.html");
+const workbenchScript = readText("public/js/workbench.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const notesDocs = readText("docs/notes-module.md");
 const roadmap = readText("ROADMAP.md");
@@ -45,7 +45,7 @@ assert.match(taskDecorateControls, /icons\.decorateButton\(fields\.cancel, \{ ic
 
 assert.match(notesView, /js\/notes\.js/, "Notes view should reference follow-bell browser wiring");
 assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should reference footer visual parity browser wiring");
-assert.match(workbenchView, /js\/task-dialog\.js/, "Workbench should reference the shared Task dialog browser wiring");
+assert.match(workbenchScript, /src: "js\/task-dialog\.js"/, "Workbench should lazy-load the shared Task dialog browser wiring");
 assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes docs should retain the owning developer-guide heading");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
 assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");

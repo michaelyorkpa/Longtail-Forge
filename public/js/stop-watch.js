@@ -141,7 +141,7 @@ async function pauseOtherTimers(activeTimer) {
 
 async function loadClientProjectData() {
   try {
-    const data = await window.LongtailForge.api.getJson("/api/client-projects", {
+    const data = await window.LongtailForge.api.getJson("/api/client-projects?view=options", {
       cache: "no-store",
     });
     clients = normalizeClientProjectOptions(data);

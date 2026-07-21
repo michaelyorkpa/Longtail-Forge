@@ -60,8 +60,11 @@ async function assertBusinessOptions(session) {
   assert.ok(options.tasks.some((task) => task.id === activeTask.task_id && task.optionLabel.includes("Options active task")), "active task options should include active readable tasks");
   assert.equal(options.tasks.some((task) => task.id === completedTask.task_id), false, "completed tasks should not leak into active picker defaults");
 
-  const historyOptions = (await tasksService.listWorkItems(session, { status: "history" })).options;
-  assert.equal(historyOptions.tasks.some((task) => task.id === completedTask.task_id), false, "active picker defaults should stay active even when list query reads history");
+  const historyWorkItems = await tasksService.listWorkItems(session, { status: "history" });
+  assert.equal(Object.hasOwn(historyWorkItems, "options"), false, "work-item lists must not compute the options payload");
+
+  const historyOptions = (await tasksService.listOptions(session)).options;
+  assert.equal(historyOptions.tasks.some((task) => task.id === completedTask.task_id), false, "active picker defaults should stay active on the dedicated options read");
 }
 
 async function assertPermissionFiltering(session) {

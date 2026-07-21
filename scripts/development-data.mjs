@@ -14,24 +14,18 @@ import {
   writeSeedMarker,
 } from "./lib/development-data-safety.mjs";
 
-const BASE_DATE = "2026-07-15";
 const DISABLED_PERSONA_PASSWORD = "!development-persona-login-disabled!";
-const SEED_CONTRACT = "development-data-v1";
+const SEED_CONTRACT = "development-data-v2";
+
+// Resets re-anchor to the current local date by default so every relative
+// offset (TODAY-30 .. TODAY+30) moves with the reset; pass --anchor-date for a
+// pinned deterministic anchor (regressions and repeatable captures).
+function currentAnchorDate() {
+  const value = new Date();
+  return new Date(value.getTime() - value.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
 const scriptPath = fileURLToPath(import.meta.url);
 let databaseApi = null;
-
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  try {
-    await main();
-  } catch (error) {
-    console.error(error?.message || error);
-    process.exitCode = 1;
-  } finally {
-    if (databaseApi?.closeDatabase) {
-      await databaseApi.closeDatabase();
-    }
-  }
-}
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -54,7 +48,7 @@ async function main() {
   configureRuntime(target);
   databaseApi = await import("../src/db/index.js");
   await databaseApi.initializeDatabase();
-  const result = await seed(databaseApi.db, target, options.anchorDate || BASE_DATE);
+  const result = await seed(databaseApi.db, target, options.anchorDate || currentAnchorDate());
   const searchRepair = await repairSeedSearchIndex(result.counts.search_index);
   await writeFiles(target, result.files);
   await writeSeedMarker(target, {
@@ -142,6 +136,8 @@ async function seed(db, target, anchorDate) {
   const business = bootstrapWorkspace.workspace_id;
   const personal = id("workspace", "personal");
   const family = id("workspace", "family");
+  const fieldOps = id("workspace", "field-ops");
+  const priyaPersonal = id("workspace", "priya-personal");
   const users = {
     alex: operator.user_id,
     priya: id("user", "priya"),
@@ -149,6 +145,9 @@ async function seed(db, target, anchorDate) {
     dana: id("user", "dana"),
     jordan: id("user", "jordan"),
   };
+  for (const persona of GENERATED_PERSONAS) {
+    users[persona.key] = id("user", persona.key);
+  }
   const businessCreatedAt = `${anchorDate}T13:59:00.000Z`;
   const now = `${anchorDate}T14:00:00.000Z`;
   await db.transaction(async (tx) => {
@@ -157,8 +156,10 @@ async function seed(db, target, anchorDate) {
     await tx.run("UPDATE users SET display_name = 'Alex Rivera', alt_email = 'alex@example.com', timezone = 'America/New_York', theme_mode = 'light' WHERE user_id = :userId;", { userId: users.alex });
     await add("workspaces", { workspace_id: personal, name: "Alex's Personal Workspace", status: "Active", workspace_type: "personal", owner_user_id: users.alex, created_at: now, updated_at: now });
     await add("workspaces", { workspace_id: family, name: "Rivera Family", status: "Active", workspace_type: "family", owner_user_id: users.alex, created_at: now, updated_at: now });
+    await add("workspaces", { workspace_id: fieldOps, name: "Northwind Field Ops", status: "Active", workspace_type: "business", owner_user_id: users.alex, created_at: now, updated_at: now });
+    await add("workspaces", { workspace_id: priyaPersonal, name: "Priya's Personal Workspace", status: "Active", workspace_type: "personal", owner_user_id: users.priya, created_at: now, updated_at: now });
 
-    for (const workspaceId of [personal, family]) {
+    for (const workspaceId of [personal, family, fieldOps, priyaPersonal]) {
       await tx.run(`INSERT INTO workspace_settings (workspace_id, audit_logging_enabled, audit_retention_days, audit_settings_updated_at, created_at, updated_at)
         SELECT :workspaceId, audit_logging_enabled, audit_retention_days, audit_settings_updated_at, :now, :now FROM workspace_settings WHERE workspace_id = :business;`, { workspaceId, business, now });
       await tx.run(`INSERT INTO workspace_modules (workspace_id, module_id, status, enabled_at, disabled_at, updated_at)
@@ -167,18 +168,27 @@ async function seed(db, target, anchorDate) {
         SELECT :workspaceId, module_id, setting_id, setting_value_json, :now, :now FROM workspace_module_settings WHERE workspace_id = :business;`, { workspaceId, business, now });
     }
 
+    const fat = fatScenarios({ anchorDate, business, family, fieldOps, now, personal, priyaPersonal, users });
+
     const personaRows = [
       [users.priya, business, "priya@example.com", "Priya Shah"],
       [users.sam, business, "sam@example.com", "Sam Okafor"],
       [users.dana, personal, "dana@example.com", "Dana Lindqvist"],
       [users.jordan, family, "jordan@example.com", "Jordan Bell"],
+      ...GENERATED_PERSONAS.map((persona) => [
+        users[persona.key],
+        persona.home === "field-ops" ? fieldOps : business,
+        `${persona.key}@example.com`,
+        persona.display,
+      ]),
     ];
     for (const [userId, home, username, display] of personaRows) {
       await add("users", { user_id: userId, home_workspace_id: home, username, display_name: display, alt_email: "", timezone: "America/New_York", password: DISABLED_PERSONA_PASSWORD, theme_mode: "light", user_status: "inactive", protected_user: "no", active_workspace_id: home });
     }
     const memberships = [
-      [users.alex, business], [users.alex, personal], [users.alex, family],
-      [users.priya, business], [users.sam, business], [users.dana, personal], [users.jordan, family],
+      [users.alex, business], [users.alex, personal], [users.alex, family], [users.alex, fieldOps],
+      [users.priya, business], [users.priya, priyaPersonal], [users.sam, business], [users.dana, personal], [users.jordan, family],
+      ...fat.memberships,
     ];
     for (const [userId, workspaceId] of memberships) {
       await add("user_workspaces", { user_workspace_id: id("membership", userId, workspaceId), user_id: userId, workspace_id: workspaceId, status: "active", created_at: now, updated_at: now }, { ignore: true });
@@ -190,16 +200,20 @@ async function seed(db, target, anchorDate) {
       [personal, users.alex, "workspace_admin", "workspace", personal],
       [family, users.alex, "workspace_admin", "workspace", family],
       [family, users.jordan, "project_user", "project", id("project", "weekend")],
+      [fieldOps, users.alex, "workspace_admin", "workspace", fieldOps],
+      [priyaPersonal, users.priya, "workspace_admin", "workspace", priyaPersonal],
+      ...fat.roles,
     ];
     for (const [workspaceId, userId, roleId, scopeType, scopeId] of roles) {
       await add("user_role_assignments", { assignment_id: id("role", workspaceId, userId, roleId), workspace_id: workspaceId, user_id: userId, role_id: roleId, scope_type: scopeType, scope_id: scopeId, client_id: scopeType === "client" ? scopeId : null, project_id: scopeType === "project" ? scopeId : null, permission_overrides_json: null, created_at: now, updated_at: now }, { ignore: true });
     }
 
     const clients = [
-      [id("client", "cedar"), "Cedar & Bloom"], [id("client", "maple"), "Maple Lane Cafe"], [id("client", "ridgeline"), "Ridgeline IT"],
+      [id("client", "cedar"), business, "Cedar & Bloom"], [id("client", "maple"), business, "Maple Lane Cafe"], [id("client", "ridgeline"), business, "Ridgeline IT"],
+      ...fat.clients,
     ];
-    for (const [clientId, name] of clients) {
-      await add("clients", clientRow(clientId, business, name, now));
+    for (const [clientId, workspaceId, name] of clients) {
+      await add("clients", clientRow(clientId, workspaceId, name, now));
     }
     const projects = [
       [id("project", "website"), business, id("client", "cedar"), "Website Refresh"],
@@ -207,19 +221,27 @@ async function seed(db, target, anchorDate) {
       [id("project", "maintenance"), business, id("client", "ridgeline"), "Monthly Maintenance"],
       [id("project", "studio"), personal, null, "Home Studio Reset"],
       [id("project", "weekend"), family, null, "Weekend Gathering"],
+      ...fat.projects,
     ];
     for (const [projectId, workspaceId, clientId, name] of projects) {
-      await add("projects", { id: projectId, workspace_id: workspaceId, client_id: clientId, parent_project_id: null, name, status: "Active", billable: workspaceId === business ? "yes" : "no", billing_rate: null, billing_period_type: null, billing_period_start_day: null, billing_rounding_enabled: null, billing_rounding_increment: null, created_at: now, updated_at: now });
+      await add("projects", { id: projectId, workspace_id: workspaceId, client_id: clientId, parent_project_id: null, name, status: "Active", billable: workspaceId === business || workspaceId === fieldOps ? "yes" : "no", billing_rate: null, billing_period_type: null, billing_period_start_day: null, billing_rounding_enabled: null, billing_rounding_increment: null, created_at: now, updated_at: now });
     }
 
     const recurrenceId = id("recurrence", "maintenance-review");
     await add("task_recurrence_templates", { recurrence_template_id: recurrenceId, workspace_id: business, client_id: id("client", "ridgeline"), project_id: id("project", "maintenance"), title: "Review monthly maintenance report", description: "Check the fake monthly service summary before sharing it.", status: "open", priority: "normal", recurrence_anchor_date: date(anchorDate, -7), due_time: "10:00", due_timezone: "America/New_York", due_at_utc: `${date(anchorDate, -7)}T14:00:00.000Z`, rrule: "FREQ=MONTHLY;BYMONTHDAY=8", recurrence_end_date: null, template_status: "active", created_by_user_id: users.alex, updated_by_user_id: users.alex, created_at: now, updated_at: now });
 
-    const tasks = taskScenarios({ anchorDate, now, business, personal, family, users, recurrenceId });
+    const scenarioTasks = taskScenarios({ anchorDate, now, business, personal, family, users, recurrenceId });
+    const tasks = [...scenarioTasks, ...fat.tasks];
     for (const task of tasks) await add("tasks", task);
     await add("task_recurrence_assignees", { recurrence_assignee_id: id("recurrence-assignee", "maintenance"), workspace_id: business, recurrence_template_id: recurrenceId, assignee_type: "user", user_id: users.alex, role_id: null, assigned_by_user_id: users.alex, assigned_at: now, removed_at: null });
-    for (const task of tasks.filter((row) => row.status !== "completed")) {
+    for (const task of scenarioTasks.filter((row) => !["complete", "archived"].includes(row.status))) {
       await add("task_assignees", { task_assignee_id: id("task-assignee", task.task_id), workspace_id: task.workspace_id, task_id: task.task_id, assignee_type: "user", user_id: users.alex, role_id: null, assigned_by_user_id: users.alex, assigned_at: now, removed_at: null });
+    }
+    for (const assignee of fat.taskAssignees) {
+      await add("task_assignees", assignee);
+    }
+    for (const checklistItem of fat.checklistItems) {
+      await add("task_checklist_items", checklistItem);
     }
 
     const heroTask = id("task", "hero");
@@ -235,9 +257,11 @@ async function seed(db, target, anchorDate) {
 
     const tags = [["review", "Review", "#4f46e5"], ["launch", "Launch", "#059669"], ["home", "Home", "#d97706"]];
     for (const [slug, name, color] of tags) await add("tags", { tag_id: id("tag", slug), workspace_id: slug === "home" ? personal : business, name, slug, description: `Fake ${name.toLowerCase()} scenario tag.`, color, status: "active", created_by_user_id: users.alex, created_at: now, updated_at: now });
+    for (const tag of fat.tags) await add("tags", tag);
     for (const [targetType, targetId, tagSlug, workspaceId] of [["task", heroTask, "launch", business], ["task", id("task", "personal-upcoming"), "home", personal]]) {
       await add("tag_assignments", { tag_assignment_id: id("tag-assignment", targetType, targetId, tagSlug), workspace_id: workspaceId, tag_id: id("tag", tagSlug), target_type: targetType, target_id: targetId, created_by_user_id: users.alex, source: "manual", source_assignment_id: null, source_target_type: null, source_target_id: null, propagation_rule_id: null, created_at: now });
     }
+    for (const tagAssignment of fat.tagAssignments) await add("tag_assignments", tagAssignment);
 
     const collections = [
       [id("collection", "active"), business, "Active client work", "active-client-work", "active_work"],
@@ -245,22 +269,23 @@ async function seed(db, target, anchorDate) {
       [id("collection", "personal"), personal, "Home reference", "home-reference", "reference"],
       [id("collection", "family"), family, "Family plans", "family-plans", "ongoing_area"],
     ];
-    for (const [collectionId, workspaceId, title, slug, bucket] of collections) {
+    for (const [collectionId, workspaceId, title, slug, bucket] of [...collections, ...fat.collections]) {
       await add("note_library_collections", { note_library_collection_id: collectionId, workspace_id: workspaceId, title, slug, description: "Deterministic fake collection for local development and screenshots.", library_bucket: bucket, parent_collection_id: null, sort_order: 0, status: "active", created_by_user_id: users.alex, created_at: now, updated_at: now, archived_at: null, deleted_at: null, metadata_json: JSON.stringify({ fake: true }), path_cache: slug, depth: 0, collection_source: "manual", updated_by_user_id: users.alex });
     }
-    const notes = noteScenarios({ now, business, personal, family, users, heroTask });
+    const notes = [...noteScenarios({ now, business, personal, family, users, heroTask }), ...fat.notes];
     for (const note of notes) {
       await add("notes", note);
-      await add("note_revisions", revisionRow(note, users.alex, now, 1, "Seeded safe fake note"));
+      await add("note_revisions", revisionRow(note, note.created_by_user_id, now, 1, "Seeded safe fake note"));
     }
     await add("note_revisions", { ...revisionRow(notes[0], users.alex, now, 2, "Added responsive test result"), body_markdown: `${notes[0].body_markdown}\n\n- Confirmed the cart button stays visible at 380px.`, body_excerpt: "Fake checkout findings with responsive retest result." });
     await add("note_links", { note_link_id: id("note-link", "hero"), workspace_id: business, note_id: notes[0].note_id, module_id: "tasks", target_type: "task", target_id: heroTask, link_role: "related", scope_role: "primary", created_by_user_id: users.alex, created_at: now, removed_at: null, metadata_json: JSON.stringify({ fake: true }) });
     await add("tag_assignments", { tag_assignment_id: id("tag-assignment", "note", notes[0].note_id), workspace_id: business, tag_id: id("tag", "review"), target_type: "note", target_id: notes[0].note_id, created_by_user_id: users.alex, source: "manual", source_assignment_id: null, source_target_type: null, source_target_id: null, propagation_rule_id: null, created_at: now });
 
-    const lists = listScenarios({ now, business, personal, family, users });
+    const lists = [...listScenarios({ now, business, personal, family, users }), ...fat.lists];
     for (const list of lists) await add("lists", list);
     const listItems = [
       [lists[0], "Confirm workspace contacts", "received"], [lists[0], "Create kickoff agenda", "received"], [lists[1], "Retest mobile checkout", "received"], [lists[1], "Publish launch checklist", "needed"], [lists[2], "Archive final approval", "received"], [lists[3], "Label storage bins", "needed"], [lists[4], "Bring reusable cups", "planned"],
+      ...fat.listItems,
     ];
     for (let index = 0; index < listItems.length; index += 1) {
       const [list, itemName, status] = listItems[index];
@@ -274,6 +299,8 @@ async function seed(db, target, anchorDate) {
     await add("active_work_timers", pausedTimer);
     await add("time_entries", timeEntry("completed-timer", business, users.alex, id("client", "cedar"), id("project", "website"), heroTask, "Completed task timer: responsive header investigation", `${date(anchorDate, -1)}T14:00:00.000Z`, `${date(anchorDate, -1)}T15:25:00.000Z`, 5100, "yes", now));
     await add("time_entries", timeEntry("manual", business, users.alex, id("client", "ridgeline"), id("project", "maintenance"), null, "Manual time: prepare fake maintenance summary", `${date(anchorDate, -2)}T17:00:00.000Z`, `${date(anchorDate, -2)}T17:45:00.000Z`, 2700, "no", now));
+    for (const entry of fat.timeEntries) await add("time_entries", entry);
+    for (const resumeRow of fat.resumeRows) await add("work_resume_state", resumeRow);
 
     const fileSpecs = [
       { key: "checkout-findings.md", name: "checkout-findings.md", mime: "text/markdown", bytes: "# Checkout findings\n\nFake fixture only. The header overlapped the cart button below 380px.\n" },
@@ -288,6 +315,7 @@ async function seed(db, target, anchorDate) {
 
     await add("notifications", { notification_id: id("notification", "reminder"), workspace_id: business, module_id: "tasks", event_type: "task.reminder.due", recipient_user_id: users.alex, actor_user_id: null, record_type: "task", record_id: heroTask, title: "Reminder: Fix mobile checkout overlap", body: "Fake due-soon reminder for the Northwind scenario.", url: `workbench.html?taskId=${heroTask}`, status: "unread", priority: "high", created_at: now, read_at: null, dismissed_at: null, metadata_json: JSON.stringify({ fake: true, reminder: true }) });
     await add("notifications", { notification_id: id("notification", "completed"), workspace_id: business, module_id: "tasks", event_type: "task.completed", recipient_user_id: users.alex, actor_user_id: users.priya, record_type: "task", record_id: id("task", "completed"), title: "Launch copy approved", body: "Priya completed a safe fake task.", url: "tasks.html", status: "read", priority: "normal", created_at: now, read_at: now, dismissed_at: null, metadata_json: JSON.stringify({ fake: true }) });
+    for (const notification of fat.notifications) await add("notifications", notification);
 
     const searchable = [
       ...tasks.map((row) => [row.workspace_id, "tasks", "task", row.task_id, row.title, row.description, row.client_id, row.project_id, row.status]),
@@ -295,7 +323,7 @@ async function seed(db, target, anchorDate) {
       ...lists.map((row) => [row.workspace_id, "lists", "list", row.list_id, row.title, row.description || "", row.client_id, row.project_id, row.status]),
     ];
     for (const [workspaceId, moduleId, recordType, recordId, title, summary, clientId, projectId, status] of searchable) {
-      await add("search_index", { search_index_id: id("search", moduleId, recordId), workspace_id: workspaceId, module_id: moduleId, record_type: recordType, record_id: recordId, title, summary, body: summary, tags_text: "fake deterministic", client_id: clientId, project_id: projectId, visibility: "normal", record_status: status === "completed" ? "completed" : "active", source: "development-data", record_created_at: now, record_updated_at: now, indexed_at: now, library_bucket: moduleId === "notes" ? "reference" : null, note_collection_id: null, collection_path: null });
+      await add("search_index", { search_index_id: id("search", moduleId, recordId), workspace_id: workspaceId, module_id: moduleId, record_type: recordType, record_id: recordId, title, summary, body: summary, tags_text: "fake deterministic", client_id: clientId, project_id: projectId, visibility: "normal", record_status: status === "complete" ? "completed" : "active", source: "development-data", record_created_at: now, record_updated_at: now, indexed_at: now, library_bucket: moduleId === "notes" ? "reference" : null, note_collection_id: null, collection_path: null });
     }
 
     const scenarios = {
@@ -342,10 +370,10 @@ function taskScenarios({ anchorDate, now, business, personal, family, users, rec
     make("upcoming", business, "Prepare maintenance review", { client_id: id("client", "ridgeline"), project_id: id("project", "maintenance"), due_date: date(anchorDate, 5), due_at_utc: `${date(anchorDate, 5)}T14:00:00.000Z`, next_action: "Summarize the fake uptime checks." }),
     make("blocked", business, "Schedule launch rehearsal", { client_id: id("client", "cedar"), project_id: id("project", "website"), status: "blocked", blocked_reason: "Waiting for the fake content approval.", next_action: "Choose a rehearsal slot after approval." }),
     make("recurring", business, "Review monthly maintenance report", { client_id: id("client", "ridgeline"), project_id: id("project", "maintenance"), recurrence_template_id: recurrenceId, recurrence_instance_date: anchorDate, due_date: date(anchorDate, 2), due_time: "10:00", due_at_utc: `${date(anchorDate, 2)}T14:00:00.000Z` }),
-    make("completed", business, "Approve launch copy", { client_id: id("client", "cedar"), project_id: id("project", "website"), status: "completed", completed_at: `${date(anchorDate, -1)}T18:00:00.000Z`, completed_by_user_id: users.priya, due_date: date(anchorDate, -1), due_at_utc: `${date(anchorDate, -1)}T21:00:00.000Z` }),
+    make("completed", business, "Approve launch copy", { client_id: id("client", "cedar"), project_id: id("project", "website"), status: "complete", completed_at: `${date(anchorDate, -1)}T18:00:00.000Z`, completed_by_user_id: users.priya, due_date: date(anchorDate, -1), due_at_utc: `${date(anchorDate, -1)}T21:00:00.000Z` }),
     make("undated", business, "Explore future studio typography", { client_id: id("client", "cedar"), project_id: id("project", "website"), priority: "low" }),
     make("personal-upcoming", personal, "Rearrange recording corner", { project_id: id("project", "studio"), billable: "no", due_date: date(anchorDate, 3), due_at_utc: `${date(anchorDate, 3)}T21:00:00.000Z`, next_action: "Measure the shelf wall." }),
-    make("personal-completed", personal, "Label cable drawer", { project_id: id("project", "studio"), billable: "no", status: "completed", completed_at: now, completed_by_user_id: users.alex }),
+    make("personal-completed", personal, "Label cable drawer", { project_id: id("project", "studio"), billable: "no", status: "complete", completed_at: now, completed_by_user_id: users.alex }),
     make("family-due", family, "Confirm picnic headcount", { project_id: id("project", "weekend"), billable: "no", due_date: date(anchorDate, 1), due_at_utc: `${date(anchorDate, 1)}T21:00:00.000Z`, next_action: "Send the final fake RSVP count." }),
     make("family-undated", family, "Choose a board game", { project_id: id("project", "weekend"), billable: "no" }),
   ];
@@ -374,6 +402,350 @@ function listScenarios({ now, business, personal, family, users }) {
     make("personal", personal, "Studio reset supplies", { list_type: "supplies", project_id: id("project", "studio") }),
     make("family", family, "Picnic packing list", { list_type: "packing", project_id: id("project", "weekend") }),
   ];
+}
+
+// Generated-but-themed volume for the fat Northwind profile. Everything stays
+// deterministic: ids hash from stable keys, the pseudo-random stream uses a
+// fixed seed, and every date is an offset from the anchor so resets move the
+// whole scenario with today.
+const GENERATED_PERSONAS = [
+  { key: "mika", display: "Mika Tanaka", home: "business" },
+  { key: "rowan", display: "Rowan Ellis", home: "business" },
+  { key: "ivy", display: "Ivy Chen", home: "business" },
+  { key: "theo", display: "Theo Marsh", home: "business" },
+  { key: "nadia", display: "Nadia Petrov", home: "business" },
+  { key: "omar", display: "Omar Haddad", home: "business" },
+  { key: "lena", display: "Lena Fischer", home: "business" },
+  { key: "caleb", display: "Caleb Wright", home: "business" },
+  { key: "sofia", display: "Sofia Marino", home: "field-ops" },
+  { key: "elliot", display: "Elliot Kim", home: "field-ops" },
+  { key: "grace", display: "Grace Nwosu", home: "field-ops" },
+  { key: "felix", display: "Felix Berg", home: "field-ops" },
+  { key: "harper", display: "Harper Quinn", home: "business" },
+];
+const GENERATED_CLIENTS = {
+  business: [
+    ["harbor-pine", "Harbor & Pine Outfitters"], ["bluebird", "Bluebird Bakery"], ["summit-physio", "Summit Physio"],
+    ["copper-kettle", "Copper Kettle Coffee"], ["lakeview-dental", "Lakeview Dental"], ["fernwood", "Fernwood Landscaping"],
+    ["brightpath", "Brightpath Tutoring"], ["old-town", "Old Town Records"], ["juniper-yoga", "Juniper Yoga"],
+    ["stonebridge", "Stonebridge Legal"], ["wildflower", "Wildflower Events"], ["anchor-point", "Anchor Point Marine"],
+  ],
+  fieldOps: [
+    ["northgate", "Northgate Property Group"], ["redwood-rentals", "Redwood Rentals"], ["cascade", "Cascade Facilities"],
+    ["beacon-storage", "Beacon Storage"], ["elm-street", "Elm Street Markets"],
+  ],
+};
+const GENERATED_PROJECT_NAMES = [
+  "Brand Refresh", "Spring Campaign", "Booking System", "Menu Redesign", "Photo Library Cleanup", "Quarterly Retainer",
+  "Signage Package", "Newsletter Automation", "Site Migration", "Social Templates", "Onboarding Portal", "Holiday Promo",
+  "Storefront Audit", "Print Collateral", "Event Microsite",
+];
+const TASK_VERBS = ["Draft", "Review", "Retest", "Publish", "Schedule", "Archive", "Outline", "Polish", "Measure", "Update", "Prepare", "Collect", "Approve", "Storyboard", "Export"];
+const TASK_OBJECTS = ["homepage hero copy", "invoice template", "gallery layout", "kickoff agenda", "color palette", "launch checklist", "print proofs", "booking flow", "photo selects", "menu board mockup", "status summary", "backup rotation", "style guide", "contact form", "analytics snapshot"];
+const PERSONAL_TASK_TITLES = ["Sort camera shelf", "Back up sample packs", "Clean monitor arms", "Reorganize plugin folder", "Plan practice schedule", "Label patch cables", "Test new headphones", "Archive old session files", "Sketch desk layout", "Update backup drive"];
+const FAMILY_TASK_TITLES = ["Plan Saturday dinner", "Book dentist appointments", "Sort donation boxes", "Refill emergency kit", "Schedule car service", "Pick a movie night film", "Update chore rotation", "Plan garden beds", "Order team snacks", "Check library due dates"];
+const BLOCKED_REASONS = ["Waiting for fake client approval.", "Blocked on the vendor sample kit.", "Needs the updated brand assets first.", "On hold until the fixture photos arrive."];
+const NEXT_ACTIONS = ["Confirm the next revision window.", "Send the sanitized summary for review.", "Collect the remaining fixture assets.", "Book a fifteen-minute check-in.", "Capture one clean screenshot for the log."];
+const DUE_OFFSETS = [-30, -21, -14, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3, 5, 7, 10, 14, 21, 30];
+const DUE_TIMES = [["10:00", "14:00"], ["14:30", "18:30"], ["16:00", "20:00"]];
+const NOTE_TOPICS = ["kickoff summary", "shoot day checklist", "asset naming rules", "feedback round notes", "vendor comparison", "retro highlights", "budget snapshot", "style references", "delivery checklist", "maintenance log"];
+
+function mulberry32(seedValue) {
+  let state = seedValue >>> 0;
+  return () => {
+    state = (state + 0x6D2B79F5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, priyaPersonal, users }) {
+  const random = mulberry32(0x0f2a11d5);
+  const pick = (list) => list[Math.floor(random() * list.length)];
+  const chance = (probability) => random() < probability;
+  const result = {
+    checklistItems: [], clients: [], collections: [], listItems: [], lists: [], memberships: [], notes: [],
+    notifications: [], projects: [], resumeRows: [], roles: [], tags: [], taskAssignees: [], tasks: [], tagAssignments: [], timeEntries: [],
+  };
+
+  const workspaceSlugs = { [business]: "business", [fieldOps]: "field-ops", [personal]: "personal", [priyaPersonal]: "priya-personal", [family]: "family" };
+  const businessPersonas = GENERATED_PERSONAS.filter((persona) => persona.home === "business").map((persona) => users[persona.key]);
+  const fieldPersonas = GENERATED_PERSONAS.filter((persona) => persona.home === "field-ops").map((persona) => users[persona.key]);
+  const assigneePools = {
+    [business]: [users.alex, users.priya, users.sam, ...businessPersonas],
+    [fieldOps]: [users.alex, ...fieldPersonas],
+    [personal]: [users.alex],
+    [priyaPersonal]: [users.priya],
+    [family]: [users.alex, users.jordan],
+  };
+
+  for (const persona of GENERATED_PERSONAS) {
+    const home = persona.home === "field-ops" ? fieldOps : business;
+    result.memberships.push([users[persona.key], home]);
+  }
+  result.memberships.push([users.mika, fieldOps], [users.sofia, business]);
+
+  const projectDescriptors = [];
+  const registerClient = (slug, name, workspaceId) => {
+    const clientId = id("client", slug);
+    result.clients.push([clientId, workspaceId, name]);
+    return { clientId, name };
+  };
+  const registerProject = (slug, name, workspaceId, client) => {
+    const projectId = id("project", slug);
+    result.projects.push([projectId, workspaceId, client ? client.clientId : null, name]);
+    projectDescriptors.push({
+      clientId: client ? client.clientId : null,
+      clientName: client ? client.name : "",
+      projectId,
+      projectName: name,
+      workspaceId,
+    });
+  };
+
+  for (const [workspaceKey, clientPool] of [["business", GENERATED_CLIENTS.business], ["fieldOps", GENERATED_CLIENTS.fieldOps]]) {
+    const workspaceId = workspaceKey === "business" ? business : fieldOps;
+    for (const [slug, name] of clientPool) {
+      const client = registerClient(slug, name, workspaceId);
+      const projectCount = 1 + Math.floor(random() * 3);
+      for (let index = 0; index < projectCount; index += 1) {
+        registerProject(`${slug}-project-${index}`, pick(GENERATED_PROJECT_NAMES), workspaceId, client);
+      }
+    }
+  }
+  registerProject("studio-archive", "Sample Library Cleanup", personal, null);
+  registerProject("priya-reading", "Reading Backlog", priyaPersonal, null);
+  registerProject("family-holiday", "Holiday Planning", family, null);
+
+  const businessRoleTargets = projectDescriptors.filter((descriptor) => descriptor.workspaceId === business);
+  const fieldRoleTargets = projectDescriptors.filter((descriptor) => descriptor.workspaceId === fieldOps);
+  businessPersonas.forEach((userId, index) => {
+    const descriptor = businessRoleTargets[index % businessRoleTargets.length];
+    result.roles.push(index % 3 === 0
+      ? [business, userId, "client_user", "client", descriptor.clientId]
+      : [business, userId, "project_user", "project", descriptor.projectId]);
+  });
+  fieldPersonas.forEach((userId, index) => {
+    const descriptor = fieldRoleTargets[index % fieldRoleTargets.length];
+    result.roles.push([fieldOps, userId, "project_user", "project", descriptor.projectId]);
+  });
+
+  const taskCounts = [[business, 258], [fieldOps, 80], [personal, 20], [priyaPersonal, 10], [family, 20]];
+  const taskDefaults = { archived_at: null, billable: "yes", blocked_reason: "", completed_at: null, completed_by_user_id: null, archived_by_user_id: null, description: "Deterministic fake scenario data only.", due_at_utc: null, due_date: null, due_time: null, due_timezone: "America/New_York", last_worked_at: null, next_action: "", recurrence_instance_date: null, recurrence_template_id: null, reminder_override_enabled: 0, resume_note: "", source_id: null, source_type: "manual" };
+
+  for (const [workspaceId, count] of taskCounts) {
+    const workspaceProjects = projectDescriptors.filter((descriptor) => descriptor.workspaceId === workspaceId);
+    const pool = assigneePools[workspaceId];
+    const businesslike = workspaceId === business || workspaceId === fieldOps;
+    for (let index = 0; index < count; index += 1) {
+      const key = `gen-${workspaceSlugs[workspaceId]}-${index}`;
+      const descriptor = workspaceProjects.length > 0 && (businesslike || chance(0.7)) ? pick(workspaceProjects) : null;
+      const creator = pick(pool);
+      const roll = random();
+      const status = roll < 0.42 ? "complete" : roll < 0.47 ? "archived" : roll < 0.55 ? "blocked" : roll < 0.66 ? "in_progress" : "open";
+      const title = businesslike
+        ? `${pick(TASK_VERBS)} ${pick(TASK_OBJECTS)}`
+        : pick(workspaceId === family ? FAMILY_TASK_TITLES : PERSONAL_TASK_TITLES);
+      const terminal = status === "complete" || status === "archived";
+      const dueOffset = chance(0.16) ? null : terminal ? pick(DUE_OFFSETS.filter((offset) => offset <= 0)) : pick(DUE_OFFSETS);
+      const dueDate = dueOffset === null ? null : date(anchorDate, dueOffset);
+      const timed = dueDate !== null && chance(0.3) ? pick(DUE_TIMES) : null;
+      const task = {
+        task_id: id("task", key),
+        workspace_id: workspaceId,
+        client_id: descriptor?.clientId || null,
+        project_id: descriptor?.projectId || null,
+        title: `${title}${businesslike && descriptor ? ` — ${descriptor.clientName}` : ""}`,
+        status,
+        priority: chance(0.18) ? "high" : chance(0.12) ? "low" : "normal",
+        created_by_user_id: creator,
+        updated_by_user_id: creator,
+        created_at: `${date(anchorDate, -30 + Math.floor(random() * 25))}T12:00:00.000Z`,
+        updated_at: `${date(anchorDate, -Math.floor(random() * 10))}T15:00:00.000Z`,
+        ...taskDefaults,
+        billable: businesslike ? "yes" : "no",
+      };
+      task.due_date = dueDate;
+      task.due_time = timed ? timed[0] : null;
+      task.due_at_utc = dueDate === null ? null : `${dueDate}T${timed ? timed[1] : "21:00"}:00.000Z`;
+      if (status === "complete") {
+        task.completed_at = `${date(anchorDate, pick([-1, -2, -3, -5, -7, -10, -14, -21]))}T18:00:00.000Z`;
+        task.completed_by_user_id = pick(pool);
+      }
+      if (status === "archived") {
+        task.archived_at = `${date(anchorDate, pick([-14, -21, -30]))}T18:00:00.000Z`;
+        task.archived_by_user_id = creator;
+      }
+      if (status === "blocked") {
+        task.blocked_reason = pick(BLOCKED_REASONS);
+      }
+      if (status === "in_progress") {
+        task.last_worked_at = `${date(anchorDate, pick([0, -1, -2, -3]))}T16:30:00.000Z`;
+        if (chance(0.5)) task.resume_note = "Paused mid-way through the fake pass.";
+      }
+      if (!terminal && chance(0.5)) {
+        task.next_action = pick(NEXT_ACTIONS);
+      }
+      result.tasks.push(task);
+
+      if (!terminal && chance(0.85)) {
+        const assignee = pick(pool);
+        result.taskAssignees.push({ task_assignee_id: id("task-assignee", key, assignee), workspace_id: workspaceId, task_id: task.task_id, assignee_type: "user", user_id: assignee, role_id: null, assigned_by_user_id: creator, assigned_at: now, removed_at: null });
+      }
+      if (index % 8 === 0) {
+        const itemCount = 2 + Math.floor(random() * 3);
+        for (let itemIndex = 0; itemIndex < itemCount; itemIndex += 1) {
+          const checked = terminal || chance(0.4) ? 1 : 0;
+          result.checklistItems.push({ task_checklist_item_id: id("check", key, itemIndex), workspace_id: workspaceId, task_id: task.task_id, label: `${pick(TASK_VERBS)} ${pick(TASK_OBJECTS)}`, is_checked: checked, completed_at: checked ? now : null, completed_by_user_id: checked ? creator : null, sort_order: itemIndex, deleted_at: null, deleted_by_user_id: null, created_by_user_id: creator, updated_by_user_id: creator, created_at: now, updated_at: now });
+        }
+      }
+    }
+  }
+
+  const collectionSpecs = [
+    ["gen-biz-campaigns", business, "Campaign notes", "campaign-notes", "active_work"],
+    ["gen-biz-processes", business, "Studio processes", "studio-processes", "reference"],
+    ["gen-field-sites", fieldOps, "Site walkthroughs", "site-walkthroughs", "active_work"],
+    ["gen-field-reference", fieldOps, "Field reference", "field-reference", "reference"],
+    ["gen-priya", priyaPersonal, "Reading notes", "reading-notes", "reference"],
+    ["gen-family-areas", family, "Household areas", "household-areas", "ongoing_area"],
+  ];
+  for (const [key, workspaceId, title, slug, bucket] of collectionSpecs) {
+    result.collections.push([id("collection", key), workspaceId, title, slug, bucket]);
+  }
+  const collectionsByWorkspace = {
+    [business]: [id("collection", "active"), id("collection", "reference"), id("collection", "gen-biz-campaigns"), id("collection", "gen-biz-processes")],
+    [fieldOps]: [id("collection", "gen-field-sites"), id("collection", "gen-field-reference")],
+    [personal]: [id("collection", "personal")],
+    [priyaPersonal]: [id("collection", "gen-priya")],
+    [family]: [id("collection", "family"), id("collection", "gen-family-areas")],
+  };
+
+  const noteCounts = [[business, 120], [fieldOps, 30], [personal, 20], [priyaPersonal, 10], [family, 16]];
+  for (const [workspaceId, count] of noteCounts) {
+    const workspaceProjects = projectDescriptors.filter((descriptor) => descriptor.workspaceId === workspaceId);
+    const pool = assigneePools[workspaceId];
+    for (let index = 0; index < count; index += 1) {
+      const key = `gen-note-${workspaceSlugs[workspaceId]}-${index}`;
+      const descriptor = workspaceProjects.length > 0 && chance(0.6) ? pick(workspaceProjects) : null;
+      const author = pick(pool);
+      const topic = pick(NOTE_TOPICS);
+      const title = descriptor ? `${descriptor.clientName || descriptor.projectName} ${topic}` : `${topic[0].toUpperCase()}${topic.slice(1)}`;
+      const body = `# ${title}\n\nDeterministic fake ${topic} for the Northwind scenario.\n\n- Everything here is fictional demo content.\n- Anchored ${Math.floor(random() * 30)} days into the fake timeline.\n\n## Follow-up\n\n${pick(NEXT_ACTIONS)}`;
+      result.notes.push({
+        note_id: id("note", key), workspace_id: workspaceId, title, slug: key, body_markdown: body,
+        body_excerpt: body.replace(/[#*_`\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 180),
+        body_plaintext_index: body.replace(/[#*_`]/g, " "),
+        note_type: pick(["general", "reference", "research", "decision"]), library_bucket: chance(0.4) ? "active_work" : "reference", library_bucket_source: "manual",
+        status: chance(0.06) ? "archived" : "active", visibility: "workspace", security_mode: "normal",
+        secure_payload: null, secure_payload_version: null, encrypted_data_key: null, encryption_key_version: null, encryption_algorithm: null, key_wrapping_algorithm: null, encryption_nonce: null, encryption_auth_tag: null, key_wrapping_nonce: null, key_wrapping_auth_tag: null, encrypted_at: null,
+        client_id: descriptor?.clientId || null, project_id: descriptor?.projectId || null, task_id: null, ticket_id: null, linked_user_id: null,
+        note_collection_id: chance(0.65) ? pick(collectionsByWorkspace[workspaceId]) : null,
+        owner_user_id: author, created_by_user_id: author, updated_by_user_id: author,
+        created_at: `${date(anchorDate, -Math.floor(random() * 30))}T12:30:00.000Z`, updated_at: `${date(anchorDate, -Math.floor(random() * 10))}T16:00:00.000Z`,
+        archived_at: null, deleted_at: null, metadata_json: JSON.stringify({ fake: true, generated: true }),
+        import_source: null, import_source_id: null, import_source_path: null, imported_at: null, import_batch_id: null, original_notebook: null, original_section_group: null, original_section: null, original_page_id: null,
+      });
+    }
+  }
+
+  const listCounts = [[business, 10], [fieldOps, 4], [personal, 2], [priyaPersonal, 1], [family, 2]];
+  for (const [workspaceId, count] of listCounts) {
+    const workspaceProjects = projectDescriptors.filter((descriptor) => descriptor.workspaceId === workspaceId);
+    const pool = assigneePools[workspaceId];
+    for (let index = 0; index < count; index += 1) {
+      const key = `gen-list-${workspaceSlugs[workspaceId]}-${index}`;
+      const descriptor = workspaceProjects.length > 0 && chance(0.7) ? pick(workspaceProjects) : null;
+      const owner = pick(pool);
+      const list = {
+        list_id: id("list", key), workspace_id: workspaceId, client_id: descriptor?.clientId || null, project_id: descriptor?.projectId || null,
+        title: `${descriptor ? `${descriptor.projectName} ` : ""}${pick(["prep list", "supply run", "handoff checklist", "review checklist", "pack list"])}`,
+        description: "Deterministic safe fake list.", list_type: pick(["checklist", "supplies", "packing"]), status: "active", is_reusable: chance(0.2) ? 1 : 0,
+        source_list_id: null, duplicated_from_list_id: null, created_by_user_id: owner, updated_by_user_id: owner, finalized_by_user_id: null,
+        created_at: now, updated_at: now, completed_at: null, finalized_at: null, archived_at: null, deleted_at: null, metadata_json: JSON.stringify({ fake: true, generated: true }),
+      };
+      result.lists.push(list);
+      const itemCount = 5 + Math.floor(random() * 5);
+      for (let itemIndex = 0; itemIndex < itemCount; itemIndex += 1) {
+        result.listItems.push([list, `${pick(TASK_VERBS)} ${pick(TASK_OBJECTS)}`, pick(["needed", "planned", "received", "received"])]);
+      }
+    }
+  }
+
+  const billableProjects = projectDescriptors.filter((descriptor) => descriptor.workspaceId === business || descriptor.workspaceId === fieldOps);
+  for (let index = 0; index < 600; index += 1) {
+    const personalEntry = index % 12 === 0;
+    const descriptor = personalEntry
+      ? projectDescriptors.find((candidate) => candidate.workspaceId === personal)
+      : pick(billableProjects);
+    const workspaceId = descriptor.workspaceId;
+    const userId = pick(assigneePools[workspaceId]);
+    const dayOffset = -Math.floor(random() * 30);
+    const startHour = 13 + Math.floor(random() * 6);
+    const seconds = (15 + Math.floor(random() * 165)) * 60;
+    const start = `${date(anchorDate, dayOffset)}T${String(startHour).padStart(2, "0")}:00:00.000Z`;
+    result.timeEntries.push({
+      entry_id: id("time-entry", `gen-${index}`), workspace_id: workspaceId, user_id: userId,
+      client_id: descriptor.clientId, client_name: descriptor.clientName, project_id: descriptor.projectId, project_name: descriptor.projectName,
+      description: `${pick(TASK_VERBS)} ${pick(TASK_OBJECTS)}`,
+      start_time: start, end_time: new Date(Date.parse(start) + seconds * 1000).toISOString(), duration_seconds: seconds, duration_hours: (seconds / 3600).toFixed(2),
+      billable: personalEntry ? "no" : chance(0.85) ? "yes" : "no", invoice_status: "not_invoiced", task_id: null, created_at: now, updated_at: now,
+    });
+  }
+
+  const notifiableTasks = result.tasks.filter((task) => task.workspace_id === business).slice(0, 120);
+  notifiableTasks.forEach((task, index) => {
+    const read = chance(0.7);
+    result.notifications.push({
+      notification_id: id("notification", `gen-${index}`), workspace_id: task.workspace_id, module_id: "tasks",
+      event_type: task.status === "complete" ? "task.completed" : "task.reminder.due",
+      recipient_user_id: pick(assigneePools[task.workspace_id]), actor_user_id: task.created_by_user_id,
+      record_type: "task", record_id: task.task_id, title: task.status === "complete" ? `Completed: ${task.title}` : `Reminder: ${task.title}`,
+      body: "Fake generated notification for the Northwind scenario.", url: `workbench.html?taskId=${task.task_id}`,
+      status: read ? "read" : "unread", priority: chance(0.2) ? "high" : "normal",
+      created_at: `${date(anchorDate, -Math.floor(random() * 14))}T17:00:00.000Z`, read_at: read ? now : null, dismissed_at: null,
+      metadata_json: JSON.stringify({ fake: true, generated: true }),
+    });
+  });
+
+  const resumeCandidates = result.tasks.filter((task) => task.status === "in_progress" && task.workspace_id === business).slice(0, 9);
+  resumeCandidates.forEach((task, index) => {
+    const userId = pick(assigneePools[task.workspace_id]);
+    result.resumeRows.push({
+      resume_state_id: id("resume", `gen-${index}`), workspace_id: task.workspace_id, user_id: userId, module_id: "tasks", record_type: "task", record_id: task.task_id,
+      client_id: task.client_id, project_id: task.project_id, source_url: `workbench.html?taskId=${task.task_id}`,
+      title_snapshot: task.title, context_label_snapshot: "Northwind Studio", last_action_type: "task.updated", last_action_label: "Updated task",
+      last_worked_at: task.last_worked_at, handoff_note: "Generated resume thread for the fat scenario.", next_action: task.next_action || "Pick the next fake step.",
+      blocked_reason: "", status_snapshot: "in_progress", priority_snapshot: task.priority, due_at_snapshot: task.due_at_utc,
+      resume_rank_hint: 50 - index, metadata_json: JSON.stringify({ fake: true, generated: true }), dismissed_at: null, dismissed_source_updated_at: null, created_at: now, updated_at: now,
+    });
+  });
+
+  const tagSpecs = [
+    ["billing", "Billing", "#0ea5e9", business], ["fieldwork", "Fieldwork", "#65a30d", fieldOps], ["client-facing", "Client Facing", "#e11d48", business],
+    ["internal", "Internal", "#7c3aed", business], ["urgent-follow-up", "Urgent Follow Up", "#dc2626", business], ["seasonal", "Seasonal", "#f59e0b", business],
+    ["reading", "Reading", "#0891b2", priyaPersonal], ["household", "Household", "#16a34a", family], ["site-visit", "Site Visit", "#a16207", fieldOps],
+  ];
+  for (const [slug, name, color, workspaceId] of tagSpecs) {
+    result.tags.push({ tag_id: id("tag", slug), workspace_id: workspaceId, name, slug, description: `Fake ${name.toLowerCase()} scenario tag.`, color, status: "active", created_by_user_id: users.alex, created_at: now, updated_at: now });
+  }
+  const taggableTags = { [business]: ["billing", "client-facing", "internal", "urgent-follow-up", "seasonal", "review", "launch"], [fieldOps]: ["fieldwork", "site-visit"], [priyaPersonal]: ["reading"], [family]: ["household"] };
+  result.tasks.forEach((task, index) => {
+    const slugs = taggableTags[task.workspace_id];
+    if (!slugs || index % 6 !== 0) return;
+    const slug = pick(slugs);
+    result.tagAssignments.push({ tag_assignment_id: id("tag-assignment", "task", task.task_id, slug), workspace_id: task.workspace_id, tag_id: id("tag", slug), target_type: "task", target_id: task.task_id, created_by_user_id: users.alex, source: "manual", source_assignment_id: null, source_target_type: null, source_target_id: null, propagation_rule_id: null, created_at: now });
+  });
+  result.notes.forEach((note, index) => {
+    const slugs = taggableTags[note.workspace_id];
+    if (!slugs || index % 10 !== 0) return;
+    const slug = pick(slugs);
+    result.tagAssignments.push({ tag_assignment_id: id("tag-assignment", "note", note.note_id, slug), workspace_id: note.workspace_id, tag_id: id("tag", slug), target_type: "note", target_id: note.note_id, created_by_user_id: users.alex, source: "manual", source_assignment_id: null, source_target_type: null, source_target_id: null, propagation_rule_id: null, created_at: now });
+  });
+
+  return result;
 }
 
 function clientRow(clientId, workspaceId, name, now) {
@@ -425,6 +797,19 @@ async function writeFiles(target, files) {
 
 function print(value) {
   console.log(JSON.stringify(value, null, 2));
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  try {
+    await main();
+  } catch (error) {
+    console.error(error?.message || error);
+    process.exitCode = 1;
+  } finally {
+    if (databaseApi?.closeDatabase) {
+      await databaseApi.closeDatabase();
+    }
+  }
 }
 
 export const __test = { id, semanticFingerprint };

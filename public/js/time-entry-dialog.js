@@ -45,7 +45,7 @@
     await namespace.timezones?.loadSessionTimezone?.();
     await namespace.workspaceContextReady;
     const [clientProjectData, entriesData, tagOptions] = await Promise.all([
-      api.getJson("/api/client-projects", { cache: "no-store" }),
+      api.getJson("/api/client-projects?view=options", { cache: "no-store" }),
       entryId ? api.getJson("/api/time-entries", { cache: "no-store" }) : Promise.resolve({ entries: [] }),
       loadTagOptions(),
     ]);

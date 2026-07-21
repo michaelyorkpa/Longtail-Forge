@@ -1,13 +1,11 @@
 import { modulesService } from "../core/modules/modules.service.js";
-import { workCandidateService } from "./work-candidate.service.js";
 
 async function bootstrap(session) {
-  const [moduleContext, workbenchCards, timerSources, workItemSources, workCandidates] = await Promise.all([
+  const [moduleContext, workbenchCards, timerSources, workItemSources] = await Promise.all([
     modulesService.readWorkspaceModuleContext(session.workspace_id),
     modulesService.listWorkbenchCards(session.workspace_id, session),
     modulesService.listTimerSources(session.workspace_id, session),
     modulesService.listWorkItemSources(session.workspace_id, session),
-    workCandidateService.listWorkCandidates(session, { limit: 50 }),
   ]);
 
   return {
@@ -20,8 +18,12 @@ async function bootstrap(session) {
     },
     timers: [],
     taskOptions: null,
-    workCandidates: workCandidates.items || [],
-    workCandidateMode: workCandidates.mode || "",
+    // Focus candidates load through /api/workbench/focus-candidates; the
+    // former 50-candidate bootstrap computation only ever fed the ?taskId
+    // deep-link fallback, which the browser resolves from focus candidates
+    // and the task detail read.
+    workCandidates: [],
+    workCandidateMode: "",
   };
 }
 

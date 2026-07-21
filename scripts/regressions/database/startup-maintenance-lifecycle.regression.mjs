@@ -45,6 +45,7 @@ const EXPECTED_DATABASE_ACTIONS = [
   "bootstrap.ensure-default-workspace",
   "app.ensure-workspace-settings",
   "app.sync-module-registry",
+  "app.ensure-workspace-module-rows",
   "repair.redacted-seed-users-v1",
   "bootstrap.ensure-super-admin",
   "repair.local-time-entry-user-v1",

@@ -54,12 +54,13 @@ VALUES (
 );
 `;
 
-async function readAll(workspaceId) {
+async function readAll(workspaceId, options = {}) {
+  const statusSql = options.activeOnly === true ? "\n  AND projects.status != 'Inactive'" : "";
   const rows = await db.query(`
 SELECT
   ${projectSelectColumnsSql()}
 FROM ${projectSelectFromSql()}
-WHERE projects.workspace_id = :workspaceId
+WHERE projects.workspace_id = :workspaceId${statusSql}
 ORDER BY ${db.dialect.comparison.orderByNoCase("projects.name", "ASC")};
 `, { workspaceId: text(workspaceId) });
 

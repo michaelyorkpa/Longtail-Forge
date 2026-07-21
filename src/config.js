@@ -17,6 +17,10 @@ const DEFAULT_DATABASE_FILE_NAME = "longtail-forge.db";
 const DEFAULT_SQLITE_FOREIGN_KEYS = true;
 const DEFAULT_SQLITE_JOURNAL_MODE = "wal";
 const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000;
+const DEFAULT_SQLITE_SYNCHRONOUS = "normal";
+const DEFAULT_SQLITE_CACHE_SIZE_KIB = 65536;
+const DEFAULT_SQLITE_TEMP_STORE = "memory";
+const DEFAULT_SQLITE_MMAP_SIZE_BYTES = 0;
 const DEFAULT_WORKSPACE_INSTALL_MODE = "self_hosted";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 12;
 const DEFAULT_SESSION_COOKIE_SAMESITE = "Lax";
@@ -41,6 +45,8 @@ const SESSION_SAMESITE_VALUES = new Set(["Lax", "Strict", "None"]);
 const ENVIRONMENTS = new Set(["development", "test", "production"]);
 const DATABASE_PROVIDERS = new Set(["sqlite"]);
 const SQLITE_JOURNAL_MODES = new Set(["delete", "truncate", "persist", "memory", "wal", "off"]);
+const SQLITE_SYNCHRONOUS_MODES = new Set(["normal", "full", "extra"]);
+const SQLITE_TEMP_STORE_MODES = new Set(["default", "file", "memory"]);
 const WORKSPACE_INSTALL_MODES = new Set(["self_hosted", "saas"]);
 const WORKSPACE_TYPE_LIMITS = new Set(["", "business"]);
 const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
@@ -232,6 +238,16 @@ function createConfig(env = process.env) {
       busyTimeoutMs: readInteger(env, "LONGTAIL_SQLITE_BUSY_TIMEOUT_MS", DEFAULT_SQLITE_BUSY_TIMEOUT_MS, {
         min: 0,
         max: 60 * 60 * 1000,
+      }),
+      synchronous: readSqliteSynchronousMode(env),
+      cacheSizeKib: readInteger(env, "LONGTAIL_SQLITE_CACHE_SIZE_KIB", DEFAULT_SQLITE_CACHE_SIZE_KIB, {
+        min: 1024,
+        max: 1024 * 1024,
+      }),
+      tempStore: readSqliteTempStore(env),
+      mmapSizeBytes: readInteger(env, "LONGTAIL_SQLITE_MMAP_SIZE_BYTES", DEFAULT_SQLITE_MMAP_SIZE_BYTES, {
+        min: 0,
+        max: 8 * 1024 * 1024 * 1024,
       }),
     },
     workspaceInstallMode: readEnum(
@@ -524,6 +540,26 @@ function readSqliteJournalMode(env) {
 
   if (!SQLITE_JOURNAL_MODES.has(value)) {
     throw new Error(`LONGTAIL_SQLITE_JOURNAL_MODE must be ${[...SQLITE_JOURNAL_MODES].join(", ")}.`);
+  }
+
+  return value;
+}
+
+function readSqliteSynchronousMode(env) {
+  const value = readText(env, "LONGTAIL_SQLITE_SYNCHRONOUS", DEFAULT_SQLITE_SYNCHRONOUS).toLowerCase();
+
+  if (!SQLITE_SYNCHRONOUS_MODES.has(value)) {
+    throw new Error(`LONGTAIL_SQLITE_SYNCHRONOUS must be ${[...SQLITE_SYNCHRONOUS_MODES].join(", ")}.`);
+  }
+
+  return value;
+}
+
+function readSqliteTempStore(env) {
+  const value = readText(env, "LONGTAIL_SQLITE_TEMP_STORE", DEFAULT_SQLITE_TEMP_STORE).toLowerCase();
+
+  if (!SQLITE_TEMP_STORE_MODES.has(value)) {
+    throw new Error(`LONGTAIL_SQLITE_TEMP_STORE must be ${[...SQLITE_TEMP_STORE_MODES].join(", ")}.`);
   }
 
   return value;

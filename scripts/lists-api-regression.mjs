@@ -575,6 +575,9 @@ VALUES
     username: "lists-api-external@example.test",
   });
 
+  const { modulesService } = await import("../src/core/modules/modules.service.js");
+  await modulesService.syncModuleRegistry(familyWorkspaceId);
+
   return {
     adminSessionId: adminSession.sessionId,
     clientId,

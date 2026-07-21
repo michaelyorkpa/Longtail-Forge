@@ -138,7 +138,7 @@ async function loadUsers() {
     const [usersBody, rolesBody, clientProjectBody, workspacesBody, settingsBody, permissionResourcesBody, addUserOptionsBody] = await Promise.all([
       window.LongtailForge.api.getJson("/api/users", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/roles", { cache: "no-store" }),
-      window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
+      window.LongtailForge.api.getJson("/api/client-projects?view=options&includeInactive=1", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/workspaces", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/users/permission-resources", { cache: "no-store" }),

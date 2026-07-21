@@ -269,7 +269,7 @@ const tasksModule = {
       renderer: "task-workbench-items",
       moduleId: "tasks",
       sourceType: "task",
-      listRoute: "/api/tasks/workbench-items",
+      listRoute: "/api/tasks/options",
       requiredPermissions: ["tasks.view"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
       requiresEnabledModules: ["tasks"],

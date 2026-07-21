@@ -58,7 +58,7 @@ async function loadTimeEntryData() {
   try {
     const [settingsResponse, clientsResponse, entriesResponse, usersResponse] = await Promise.all([
       fetch("/api/settings", { cache: "no-store" }),
-      fetch("/api/client-projects", { cache: "no-store" }),
+      fetch("/api/client-projects?view=options", { cache: "no-store" }),
       fetch("/api/time-entries", { cache: "no-store" }),
       fetch("/api/users", { cache: "no-store" }),
     ]);

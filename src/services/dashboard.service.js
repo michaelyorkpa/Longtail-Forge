@@ -14,7 +14,7 @@ const DASHBOARD_REGIONS = [
 
 async function readDashboard(session) {
   const [settings, dashboardPanels, browserAssets] = await Promise.all([
-    settingsRepository.readWorkspaceSettings(session.workspace_id),
+    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
     modulesService.listDashboardPanels(session.workspace_id, session),
     modulesService.listActiveModuleBrowserAssets(session.workspace_id, session, "dashboard"),
   ]);

@@ -85,7 +85,7 @@ checks += 1;
 // shared helpers own the calendar-window fetch, the adapter fetches only the
 // filter options, and neither uses a mutating method.
 const adapterFetchCalls = calendarJs.match(/fetch\(/g) || [];
-const adapterAllowedFetches = calendarJs.match(/fetch\("\/api\/client-projects"/g) || [];
+const adapterAllowedFetches = calendarJs.match(/fetch\("\/api\/client-projects\?view=options"/g) || [];
 assert.equal(adapterFetchCalls.length, adapterAllowedFetches.length, "calendar.js may only fetch the client/project filter options; the shared helpers own the calendar window fetch");
 const sharedFetchCalls = taskCalendarJs.match(/fetch\(/g) || [];
 const sharedAllowedFetches = taskCalendarJs.match(/fetch\(`\/api\/tasks\/calendar\?/g) || [];

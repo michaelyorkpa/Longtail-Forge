@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
 import { db } from "../core/database.js";
 import { AppError } from "../utils/app-error.js";
-import { readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
+import { readResumeStateBatchReadResolver, readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -216,10 +216,17 @@ ORDER BY
 LIMIT :limit;
 `;
   const rows = await db.query(listSql, params);
+  const [batchedReadChecks, moduleStatusById] = await Promise.all([
+    runBatchedReadChecks(rows, session),
+    readModuleStatusesForRows(rows),
+  ]);
   const results = [];
 
   for (const row of rows) {
-    const guarded = await shapeReadableRow(row, normalizedQuery, session);
+    const guarded = await shapeReadableRow(row, normalizedQuery, session, {
+      moduleStatus: moduleStatusById.get(`${row.workspace_id}:${row.module_id}`),
+      readCheck: batchedReadChecks.get(row),
+    });
 
     if (guarded) {
       results.push(guarded);
@@ -234,6 +241,63 @@ LIMIT :limit;
     items: results,
     mode: normalizedQuery.mode,
   };
+}
+
+// Resolves module status once per distinct module in the scan instead of once
+// per row, keeping the list scan's query count independent of row count.
+async function readModuleStatusesForRows(rows) {
+  const moduleStatusById = new Map();
+
+  for (const row of rows) {
+    const key = `${row.workspace_id}:${row.module_id}`;
+
+    if (!moduleStatusById.has(key)) {
+      moduleStatusById.set(key, await modulesService.readModuleStatus(row.workspace_id, row.module_id));
+    }
+  }
+
+  return moduleStatusById;
+}
+
+// Runs each registered batch read resolver once over the scanned rows of its
+// record type, so the list scan issues a constant number of queries instead of
+// one read per row. Rows without a batch resolver keep the per-row fallback.
+async function runBatchedReadChecks(rows, session) {
+  const checksByRow = new Map();
+  const groups = new Map();
+
+  for (const row of rows) {
+    const batchResolver = readResumeStateBatchReadResolver(row.module_id, row.record_type);
+
+    if (!batchResolver) {
+      continue;
+    }
+
+    const groupKey = `${row.module_id}:${row.record_type}`;
+
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, { batchResolver, rows: [] });
+    }
+
+    groups.get(groupKey).rows.push(row);
+  }
+
+  for (const group of groups.values()) {
+    const recordIds = [...new Set(group.rows.map((row) => row.record_id))];
+    const checksByRecordId = await group.batchResolver({
+      recordIds,
+      rows: group.rows,
+      session,
+      workspaceId: session.workspace_id,
+    });
+
+    for (const row of group.rows) {
+      const check = checksByRecordId instanceof Map ? checksByRecordId.get(row.record_id) : null;
+      checksByRow.set(row, check || { readable: false });
+    }
+  }
+
+  return checksByRow;
 }
 
 async function removeResumeStateForRecord(workspaceId, moduleId, recordType, recordId) {
@@ -313,14 +377,15 @@ async function normalizeUpsertPayload(session, payload) {
   };
 }
 
-async function shapeReadableRow(row, query, session) {
+async function shapeReadableRow(row, query, session, precomputed = {}) {
   const moduleDefinition = modulesService.getModule(row.module_id);
 
   if (!moduleDefinition) {
     return null;
   }
 
-  const moduleStatus = await modulesService.readModuleStatus(row.workspace_id, row.module_id);
+  const moduleStatus = precomputed.moduleStatus
+    || await modulesService.readModuleStatus(row.workspace_id, row.module_id);
   const explicitHistoryMode = EXPLICIT_HISTORY_MODES.has(query.mode);
 
   if (moduleStatus !== "enabled" && !(explicitHistoryMode && moduleDefinition.historicalReadAccess !== false)) {
@@ -331,7 +396,7 @@ async function shapeReadableRow(row, query, session) {
     return null;
   }
 
-  const readCheck = await runReadCheck(row, session);
+  const readCheck = precomputed.readCheck || await runReadCheck(row, session);
 
   if (!readCheck.readable) {
     return null;

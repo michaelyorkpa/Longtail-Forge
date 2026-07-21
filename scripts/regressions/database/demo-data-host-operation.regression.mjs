@@ -135,9 +135,9 @@ try {
   });
   assert.equal(result.status, "provisioned");
   assert.equal(result.target, "rt-ltf-demo");
-  assert.equal(result.counts.workspaces, 3);
-  assert.equal(result.counts.users, 5);
-  assert.equal(result.counts.tasks, 12);
+  assert.equal(result.counts.workspaces, 5);
+  assert.equal(result.counts.users, 18);
+  assert.equal(result.counts.tasks, 400);
   assert.equal(result.counts.files, 2);
   assert.doesNotMatch(JSON.stringify(result), new RegExp(operatorPassword));
   assert.deepEqual(events.slice(0, 7), ["capture", "stop", "stopped", "backup", "inspect", "seed", "repair"]);

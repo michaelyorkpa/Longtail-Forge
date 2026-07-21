@@ -15,6 +15,7 @@ const { clientsService } = await import("../src/modules/client-projects/clients.
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { settingsService } = await import("../src/services/settings.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
+const { workCandidateService } = await import("../src/services/work-candidate.service.js");
 const { workbenchService } = await import("../src/services/workbench.service.js");
 
 try {
@@ -54,9 +55,11 @@ async function assertWorkbenchSourcesEnabled(session, fixtures) {
     timerPayload.timers.some((timer) => timer.timer_slot === "1" && timer.description === "Workbench de-hardcode timer"),
     "Time Tracking timer source route should provide the timer card payload",
   );
+  assert.deepEqual(bootstrap.workCandidates, [], "bootstrap must not compute focus candidates");
+  const candidates = await workCandidateService.listWorkCandidates(session, { limit: 50 });
   assert.ok(
-    bootstrap.workCandidates.some((candidate) => candidate.recordType === "active_work_timer"),
-    "Workbench bootstrap should include normalized live-timer candidates",
+    candidates.items.some((candidate) => candidate.recordType === "active_work_timer"),
+    "the focus-candidates read should include normalized live-timer candidates",
   );
 }
 
@@ -85,10 +88,11 @@ async function assertWorkbenchDegradesWithoutTimeTracking(session, fixtures) {
   assert.equal(workbenchRenderers(bootstrap).includes("task-workbench-items"), true);
   assert.equal(taskPayload.source_enabled, true);
   assert.ok(taskPayload.items.some((item) => item.task_id === fixtures.task.task_id));
+  const disabledTimerCandidates = await workCandidateService.listWorkCandidates(session, { limit: 50 });
   assert.equal(
-    bootstrap.workCandidates.some((candidate) => candidate.recordType === "active_work_timer"),
+    disabledTimerCandidates.items.some((candidate) => candidate.recordType === "active_work_timer"),
     false,
-    "disabled Time Tracking should remove live timer candidates from Workbench bootstrap",
+    "disabled Time Tracking should remove live timer candidates from the focus-candidates read",
   );
 
   await modulesService.setModuleStatus(session.workspace_id, "time-tracking", true, { session });

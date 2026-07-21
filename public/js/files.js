@@ -347,7 +347,7 @@ function bindFilesEvents() {
 
 async function loadFilterOptions() {
   try {
-    const clientProjects = await api.getJson("/api/client-projects", { cache: "no-store" });
+    const clientProjects = await api.getJson("/api/client-projects?view=options", { cache: "no-store" });
     const normalizedClients = window.LongtailForge.clientProjectOptions?.normalizeClients?.(clientProjects) || [];
 
     state.clients = normalizedClients.filter((client) => client.id && !client.isWorkspaceScope);
