@@ -8,6 +8,7 @@
 - Added `workbench.hot-endpoint-budgets` regression coverage: over real HTTP it pins per-request SQLite statement counts, payload-size ceilings, the empty bootstrap `workCandidates`, description-free work-item rows, the options-free workbench-items payload, and near-constant statement growth (40 extra tasks may add at most 6 statements); the registry advances to 391 scripts.
 - Archived the completed 0.33.20 section to `ROADMAP-ARCHIVE.md` with the recorded measurements and advanced the roadmap cursor to 0.33.21; recorded the branch's durable decisions in `DECISIONS.md` (adapter statement cache and config-gated PRAGMAs, lifecycle-owned module rows with the fingerprint-validated context cache, options-projection contracts, browser caching discipline, budget-regression policy, and the today-anchored `development-data-v2` seed contract).
 - Docs updated: `docs/regression-suite.md`, `docs/demo-data-operations.md` (fat scenario and `--anchor-date today`), with `docs/architecture.md` and `docs/runtime-configuration.md` already updated in the earlier slices.
+- Post-release fix: the backup drill, bare-metal smoke, and container smoke now supply an explicit script-owned `SUPER_ADMIN_PASSWORD` for their disposable first-boot installs, matching the runtime-artifact smoke. The 0.33.18.3 bootstrap-secrets hardening removed the generated-password fallback, and these three promotion-only packaging checks were never updated, so the first post-hardening promotion run failed at first boot.
 
 ## Version 0.33.20.6 - 2026-07-21
 

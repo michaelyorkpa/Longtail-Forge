@@ -121,6 +121,7 @@ async function startInstalledRelease(installDir, dataDir) {
       LONGTAIL_LOCAL_STORAGE_ROOT: path.join(dataDir, "files"),
       LONGTAIL_FILE_SCANNER: "none",
       LONGTAIL_WORKER_MODE: "inline",
+      SUPER_ADMIN_PASSWORD: "Bare-Metal-Smoke-Password-123!",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
