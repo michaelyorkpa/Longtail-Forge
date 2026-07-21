@@ -82,6 +82,7 @@ function startContainer(name, image, volume) {
     "--env", "PORT=8001",
     "--env", "LONGTAIL_FILE_SCANNER=none",
     "--env", "LONGTAIL_WORKER_MODE=inline",
+    "--env", "SUPER_ADMIN_PASSWORD=Container-Smoke-Password-123!",
     "--volume", `${volume}:/var/lib/longtail-forge`,
     "--publish", "127.0.0.1::8001",
     image,

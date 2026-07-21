@@ -259,6 +259,7 @@ async function startServer() {
       LONGTAIL_WORKER_MODE: "inline",
       LONGTAIL_SECURE_NOTES_MASTER_KEY: "backup-restore-drill-master-key-value",
       LONGTAIL_SECURE_NOTES_KEY_VERSION: "test-v1",
+      SUPER_ADMIN_PASSWORD: "Backup-Restore-Drill-Password-123!",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
