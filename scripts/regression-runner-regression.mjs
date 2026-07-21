@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import {
+  resolveIsolatedFilesParallelism,
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
@@ -28,6 +29,7 @@ const packageJson = JSON.parse(await readProjectFile("package.json"));
 const staticBucket = bucketByName("static/source regressions");
 const defaultDatabaseBucket = bucketByName("default database regressions");
 const fileStorageBucket = bucketByName("file storage regressions");
+const isolatedFileStorageBucket = bucketByName("isolated file storage regressions");
 const isolatedDatabaseBucket = bucketByName("isolated database regressions");
 
 assert.deepEqual(
@@ -36,6 +38,7 @@ assert.deepEqual(
     { mode: "parallel", name: "static/source regressions", runMode: "static" },
     { mode: "serial", name: "default database regressions", runMode: "serial-database" },
     { mode: "serial", name: "file storage regressions", runMode: "serial-files" },
+    { mode: "parallel", name: "isolated file storage regressions", runMode: "isolated-files" },
     { mode: "parallel", name: "isolated database regressions", runMode: "isolated-database" },
   ],
   "the default full suite should keep the cheap deterministic bucket before every stateful bucket",
@@ -48,8 +51,9 @@ assert.deepEqual(
 
 assert.equal(
   packageJson.scripts.check,
-  "npm run typecheck && npm run test:unit && eslint . --cache --cache-strategy content --cache-location .eslintcache && node scripts/run-regressions.mjs",
+  "npm run check:fast && npm run test:regressions",
 );
+assert.equal(packageJson.scripts["check:fast"], "npm run typecheck && npm run test:unit && npm run lint");
 assert.equal(
   packageJson.scripts.lint,
   "eslint . --cache --cache-strategy content --cache-location .eslintcache",
@@ -58,6 +62,8 @@ assert.equal(
 assert.ok(staticBucket.concurrency > 1, "static source regressions should stay parallel");
 assert.equal(defaultDatabaseBucket.mode, "serial", "default database regressions should remain serial");
 assert.equal(fileStorageBucket.mode, "serial", "file storage regressions should remain serial");
+assert.equal(isolatedFileStorageBucket.mode, "parallel", "audited isolated Files regressions should run concurrently");
+assert.ok(isolatedFileStorageBucket.concurrency > 1, "isolated Files regressions should default to concurrent workers");
 assert.equal(isolatedDatabaseBucket.mode, "parallel", "isolated database regressions should remain a parallel bucket");
 assert.ok(isolatedDatabaseBucket.concurrency > 1, "isolated database regressions should default to concurrent workers");
 
@@ -66,6 +72,7 @@ assert.match(bucketOrchestratorSupport, /for \(const bucket of buckets\)/, "buck
 assert.match(runner, /runRegressionBucketsFailFast\(\s*runOptions\.buckets/, "default execution should use the guarded sequential bucket orchestrator");
 assert.doesNotMatch(runner, /Promise\.allSettled\(remainingBuckets/, "runner must not overlap shared database buckets with isolated buckets");
 assert.match(runner, /ISOLATED_BUCKET_NAME = "isolated database regressions"/);
+assert.match(runner, /ISOLATED_FILES_BUCKET_NAME = "isolated file storage regressions"/);
 assert.match(runner, /STATIC_BUCKET_NAME = "static\/source regressions"/);
 assert.match(runner, /MAX_REGRESSION_REPEAT_COUNT = 5/, "repeat stress mode should stay bounded");
 assert.match(runner, /LTF_REGRESSION_BUCKET/, "runner should expose a bucket filter for bounded stress checks");
@@ -85,16 +92,19 @@ assert.match(runner, /LTF_REGRESSION_TIMING_JSON/);
 assert.match(databaseFixtureSupport, /path\.join\(root, "script-data", namespace/, "database fixture should include the runner namespace in script data paths");
 assert.match(databaseFixtureSupport, /function sanitizePathSegment/, "database fixture should sanitize namespace and script path segments");
 assert.match(runnerSchedulerSupport, /LTF_ISOLATED_REGRESSION_PARALLELISM/);
+assert.match(runnerSchedulerSupport, /LTF_ISOLATED_FILES_PARALLELISM/);
 assert.match(runnerSchedulerSupport, /LTF_REGRESSION_PARALLELISM/);
 assert.match(runner, /resolveIsolatedRegressionParallelism\(\{ fallbackParallelism: bucket\.concurrency \}\)/);
+assert.match(runner, /resolveIsolatedFilesParallelism\(\{ fallbackParallelism: bucket\.concurrency \}\)/);
 assert.match(runner, /runLimitedItems\(/);
 assert.match(runner, /bucket\.name === ISOLATED_BUCKET_NAME[\s\S]*runIsolatedWithRetry[\s\S]*runLimited/, "only the isolated bucket should enter retry scheduling");
+assert.doesNotMatch(runner, /bucket\.name === ISOLATED_FILES_BUCKET_NAME\s*\? await runIsolatedWithRetry/, "isolated Files regressions must never enter retry scheduling");
 assert.match(runner, /flaky-recovered/, "recovered isolated flakes should be visible in console output");
 assert.match(runner, /flakyRecoveries/, "timing reports should carry a recovery summary");
 assert.match(runner, /retrySerial/, "per-script timing records should identify serial retry attempts");
 assert.match(runner, /retry-\$\{String\(runContext\.attemptNumber\)/, "retry fixtures should use a fresh attempt namespace");
-assert.match(runner, /printBucketSummary\(bucketLabel, results\)/, "runner should print a per-bucket summary");
-assert.match(runner, /\[\$\{bucketLabel\}\]/, "runner should keep bucket labels in output");
+assert.match(runner, /printBucketSummary\(bucketLabel, results, \(performance\.now\(\) - bucketStarted\) \/ 1000\)/, "runner should print a timed per-bucket summary");
+assert.match(runner, /\[stage:regression bucket:\$\{bucketName\}\]/, "runner should keep bucket labels in timed output");
 assert.ok(
   REGRESSION_COMMANDS.includes("node scripts/regression-runner-regression.mjs"),
   "Regression runner guardrail must remain in the full regression suite",
@@ -130,6 +140,15 @@ const autoParallelism = resolveIsolatedRegressionParallelism({
 });
 assert.equal(autoParallelism.parallelism, 6, "auto-tuning should use more isolated workers on larger machines");
 assert.equal(autoParallelism.source, "auto:12-available", "auto-tuned concurrency should explain its source");
+assert.deepEqual(
+  resolveIsolatedFilesParallelism({
+    availableParallelism: 12,
+    env: { LTF_ISOLATED_FILES_PARALLELISM: "2", LTF_REGRESSION_PARALLELISM: "5" },
+    fallbackParallelism: 4,
+  }),
+  { parallelism: 2, source: "LTF_ISOLATED_FILES_PARALLELISM" },
+  "Files-specific stress concurrency should take precedence over the shared override",
+);
 assert.equal(
   resolveIsolatedRegressionParallelism({
     availableParallelism: 12,
@@ -266,6 +285,7 @@ const seededBucketOrder = [
   { name: "static/source regressions" },
   { name: "default database regressions" },
   { name: "file storage regressions" },
+  { name: "isolated file storage regressions" },
   { name: "isolated database regressions" },
 ];
 const seededScheduledBuckets = [];

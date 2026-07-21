@@ -2,85 +2,9 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.19.3`.
+Active cursor: `0.33.20`.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.19 - Reproducible Pretty Demo Dataset, Controlled Host Reset, and Developer Verification Throughput
-
-**Model: High Effort** — This branch combines a deliberately destructive public-demo data operation with release/test orchestration and isolation changes; database integrity, Files consistency, secret isolation, target identity, coverage preservation, and truthful escalation are all load-bearing.
-
-Purpose:
-
-Give `rt-ltf-demo` (`demo.longtailforge.com`) the coherent fictional development dataset that local development uses, without weakening the production runtime posture or turning ordinary Nightly deployment into a destructive reseed. The demo database and Files objects are environment state: they live only on the demo host, remain outside Git and runtime artifacts, and persist across routine deployments. The reviewed seed definition, Linux-safe provision/reset tooling, safety contracts, regressions, and operator runbook are repository-owned so the installation can be reproduced and audited instead of depending on an untracked one-off server script.
-
-After the initial demo-host closeout, reduce repeated developer verification cost without weakening protected integration or promotion coverage. The follow-on slices distinguish ceremony-only changes from executable release risk, expose stage timing, generate a focused agent context packet from canonical sources, move one bounded pure configuration matrix into Vitest while retaining its integration owner, and audit the serial Files bucket for only demonstrably safe reclassification.
-
-Sequencing decision:
-
-- This branch is inserted before the former 0.33.19 performance branch because the isolated demo/development environment needs representative, resettable data before further Nightly testing and performance proof. The former 0.33.19 through 0.33.26 branches move down one minor version to 0.33.20 through 0.33.27.
-- Build and prove the guarded operation locally before authorizing its first live use. The initial host reset and its external evidence remain a separate slice because repo-local proof cannot establish the demo host's backup, filesystem ownership, service identity, login, Search, Files, or public runtime state.
-- Close the live demo-host work before changing verification orchestration. Then land 0.33.19.3 first so its routing and timing improvements benefit 0.33.19.4 and 0.33.19.5; keep the pure-contract migration and Files isolation audit separate because they have different ownership and concurrency risks.
-
-Environment boundary:
-
-- The generated SQLite database, local Files object tree, seed marker, backups, logs, and all credentials stay on `rt-ltf-demo`; none are committed, packed into the application artifact, copied from the Windows development installation, or synchronized to preview/customer environments.
-- The demo host creates or uses its own strong `SUPER_ADMIN_PASSWORD` from its protected environment. The operation never reads, copies, prints, or transfers the local `.env`, and changing the environment value is not treated as an implicit password rotation for an existing account.
-- Routine verified `nightly` deployments preserve the demo data directory. Provision/reset is an explicit manual operator action only: never startup behavior, a migration side effect, an automatic deploy step, a scheduled Nightly action, an admin UI action, or a general production/customer seeding mechanism.
-- Only fictional scenario data is allowed. Persona accounts remain unable to authenticate; the one operator account uses the host-only credential. Secure Notes material, real customer/preview data, production secrets, storage paths, and raw identifiers are not seed content or command output.
-
-Non-goals:
-
-- No change to friends-and-family preview data, `rt-ltf`, customer/self-hosted installations, normal first-install bootstrap, migrations, or ordinary backup/restore semantics.
-- No generic remote command executor, arbitrary-path database reset, automatic cleanup cadence, shared demo password, or route/UI for triggering a reset.
-- No promise that accumulated demo testing state remains pristine. Preservation is intentional; operators invoke the manual reset only when the demo state becomes too messy or a clean scenario is specifically required.
-- No reduction of protected integration/promotion coverage, no retirement of the runtime-configuration integration owner, and no assumption that every Files regression is safe to parallelize.
-
-### Version 0.33.19.3 - Developer Verification Throughput
-
-**Model: High Effort** — It changes release/test orchestration, so an error could accidentally omit required coverage.
-
-- [ ] Make changed-area routing understand ceremony-only changes. Treat `package.json` plus `package-lock.json` edits that alter only the application version as version bookkeeping rather than dependency or npm-script changes, and let changelog/roadmap bookkeeping run its owning closeout checks without automatically escalating to every regression.
-- [ ] Retain full escalation for actual dependency changes, npm-script changes, workflows, release tooling, framework code, database code, shared views, unknown paths, security-sensitive boundaries, and generated-contract changes. Add focused routing regressions that prove both the narrow ceremony cases and every retained full-escalation boundary.
-- [ ] Add a CI regression-only full-escalation path: after that job has already passed typecheck, unit tests, and lint, run the complete discovered regression registry without restarting `npm run check` from the beginning. Keep the independently runnable full local/release commands and protected integration/promotion coverage intact.
-- [ ] Add stage timing to `verify:slice` and CI for context/setup, closeout gates, typecheck/unit/lint, regression buckets, permission checks, browser checks, and packaging. Make skipped, included, and failed stages visible without treating timing output as a substitute for pass/fail evidence.
-- [ ] Add a generated `npm run agent:brief` command that prints only the active roadmap slice and acceptance criteria, relevant governing decisions, documentation owners, and likely test commands. Derive the packet at runtime from the canonical roadmap, decisions, documentation ownership, and test-routing files; do not create another maintained source of truth.
-- [ ] Prove representative narrow Tasks, Notes, CSS, and documentation changes select only their owning closeout/focused verification, while representative release, framework, database, Files, security, workflow, generated-contract, and unknown changes still select the complete required gates.
-
-Acceptance criteria:
-
-- A narrow Tasks, Notes, CSS, or documentation slice reaches final local completion without running unrelated database, Files, and framework regressions, while protected integration and promotion gates retain complete coverage; stage timings explain the remaining cost, and `agent:brief` produces a current focused packet entirely from canonical files.
-
-### Version 0.33.19.4 - Runtime-configuration pure contract migration
-
-**Model: Medium Effort** — Test ownership changes, but the target is a bounded pure validation matrix with an explicitly retained integration owner.
-
-- [ ] Measure the current pure-matrix and retained-integration runtime before changing ownership, and inventory the existing assertions so none can disappear silently.
-- [ ] Move only pure defaults, validation, normalization, and expected-error cases from `scripts/runtime-configuration-contract-regression.mjs` into Vitest.
-- [ ] Keep the regression responsible for child-process environment materialization, actual runtime startup behavior, module-registry integration, database integration, runtime/API responses, and every other process or integration boundary it currently owns.
-- [ ] Record assertion movement through the existing regression coverage ratchet, retain the integration regression as a discovered owner, and prove the Vitest and retained-regression layers divide responsibility without duplicate source-of-truth fixtures or omitted cases.
-- [ ] Measure the same paths after the migration and document the before/after timing plus the exact retained integration responsibilities. Do not retire the integration regression merely because part of it moved to Vitest.
-
-Acceptance criteria:
-
-- Pure configuration behavior runs through the faster Vitest layer, while the retained regression still proves every process, environment, database, registry, and runtime integration boundary previously covered.
-
-### Version 0.33.19.5 - Files regression isolation and scheduling audit
-
-**Model: High Effort** — File, database, scanner, process, port, and temporary-directory isolation can produce convincing but unsafe parallel results.
-
-The governing instruction is to **audit and safely reclassify**, not to parallelize all 29 tests.
-
-- [ ] Inventory every script in the serial Files bucket and classify its database, file-storage root, scanner process or executable, network port, environment variables, background worker or child process, and singleton module/runtime state.
-- [ ] Move only scripts whose complete mutable state is demonstrably disposable and uniquely namespaced. Preserve conservative serial scheduling for any script that shares, inherits, or ambiguously owns one of those resources.
-- [ ] Run bounded repeat-stress proof at several concurrency levels for every proposed reclassification, covering unique database, filesystem, scanner, port, environment, worker/child-process, and singleton-runtime state as applicable.
-- [ ] Leave unsafe or ambiguous scripts serial and record the script-specific reason instead of using aggregate bucket runtime as evidence of safety.
-- [ ] Record before/after wall-clock timing, exact bucket membership changes, concurrency settings, failures or recovered flakes observed during stress, and every retained serial member with its reason.
-- [ ] Preserve every assertion, regression identity, required release gate, coverage family, and existing coverage floor; update generated scheduling/coverage contracts only for reclassifications proven safe by the audit.
-
-Acceptance criteria:
-
-- Every reclassified Files regression passes repeated concurrent stress with unique database, filesystem, scanner, port, and process state; ambiguous scripts remain serial, and the final bucket wall time and membership changes are documented.
 
 ## Version 0.33.20 - Workbench and API Load Performance
 

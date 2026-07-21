@@ -54,6 +54,39 @@ for (const requiredEvidence of [
   assert.match(malformedErrors, new RegExp(escapeRegExp(requiredEvidence)));
 }
 
+const malformedMovementPolicy = cloneFixture(policy);
+malformedMovementPolicy.assertionMovements.push({
+  sourceRegression: "scripts/missing-source-regression.mjs",
+  movementType: "unknown",
+  assertionCount: 0,
+  movedTo: "tests/unit/missing.test.mjs",
+  retainedIntegrationOwner: "scripts/missing-owner-regression.mjs",
+  verificationPerformed: [],
+});
+const malformedMovementManifest = buildRegressionManifest({
+  entries: REGRESSION_ENTRIES,
+  policy: malformedMovementPolicy,
+});
+const malformedMovementErrors = collectRegressionCoverageErrors({
+  entries: REGRESSION_ENTRIES,
+  manifest: malformedMovementManifest,
+  policy: malformedMovementPolicy,
+}).join("\n");
+
+for (const requiredEvidence of [
+  "movedInVersion",
+  "rationale",
+  "assertionDisposition",
+  "movementType should be pure-contract-to-vitest",
+  "positive assertionCount",
+  "source regression should remain discovered",
+  "retained integration owner should remain discovered",
+  "existing Vitest test",
+  "verificationPerformed",
+]) {
+  assert.match(malformedMovementErrors, new RegExp(escapeRegExp(requiredEvidence)));
+}
+
 const manualEdit = cloneFixture(manifest);
 manualEdit.summary.discoveredScripts -= 1;
 assert.match(

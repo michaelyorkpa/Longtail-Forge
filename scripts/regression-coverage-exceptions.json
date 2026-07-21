@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 382,
+  "minimumActiveScripts": 384,
   "minimumAreaScripts": {
     "dashboard": 1,
     "database": 34,
@@ -14,7 +14,7 @@
     "notifications": 3,
     "permissions": 5,
     "public-api": 3,
-    "release": 23,
+    "release": 24,
     "search": 12,
     "tags": 12,
     "tasks": 51,
@@ -22,7 +22,7 @@
     "views": 31,
     "workbench": 27
   },
-  "minimumReleaseGateScripts": 42,
+  "minimumReleaseGateScripts": 44,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -60,6 +60,8 @@
     "release.preview-deployment-boundary",
     "release.github-release-operations",
     "release.maintainability-closeout",
+    "release.developer-verification-throughput",
+    "release.files-regression-isolation-audit",
     "views.dashboard-es-module-entry"
   ],
   "protectedAreas": [
@@ -97,6 +99,24 @@
     "expectedScripts": 312,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
+  "assertionMovements": [
+    {
+      "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
+      "movedInVersion": "0.33.19.4",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 108,
+      "rationale": "Defaults, normalization, accepted values, production warnings, and expected configuration errors are deterministic createConfig behavior and do not need one fresh Node process per case.",
+      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 108-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
+      "movedTo": "tests/unit/runtime-configuration.test.mjs",
+      "retainedIntegrationOwner": "scripts/runtime-configuration-contract-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/runtime-configuration.test.mjs",
+        "node scripts/runtime-configuration-contract-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run verify:slice"
+      ]
+    }
+  ],
   "retiredScripts": [
     {
       "script": "scripts/runtime-database-foundation-closeout-regression.mjs",

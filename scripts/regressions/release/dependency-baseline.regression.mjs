@@ -67,7 +67,7 @@ assert.equal(
 );
 assert.equal(
   packageJson.scripts.check,
-  "npm run typecheck && npm run test:unit && eslint . --cache --cache-strategy content --cache-location .eslintcache && node scripts/run-regressions.mjs",
+  "npm run check:fast && npm run test:regressions",
   "the ESLint upgrade should preserve the full-check warning and error boundary",
 );
 

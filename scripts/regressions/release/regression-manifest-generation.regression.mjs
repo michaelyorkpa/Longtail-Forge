@@ -59,6 +59,11 @@ assert.ok(
   manifest.regressions.filter((entry) => entry.releaseGate).every((entry) => entry.tier === "release-gate"),
   "release-gate status should be derived from metadata tier",
 );
+assert.deepEqual(
+  manifest.assertionMovements,
+  [...policy.assertionMovements].sort((left, right) => left.sourceRegression.localeCompare(right.sourceRegression)),
+  "generated coverage should retain explicit partial assertion movements without retiring their integration owners",
+);
 
 assert.throws(
   () => extractRegressionMeta(

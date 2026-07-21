@@ -43,19 +43,27 @@ assert.deepEqual(
   scanEntriesForCurrentVersion([
     { path: "scripts/regression-coverage-exceptions.json", source: `    "retiredInVersion": "${appVersion}",` },
     { path: "scripts/regression-coverage-manifest.json", source: `      "retiredInVersion": "${appVersion}",` },
+    { path: "scripts/regression-coverage-exceptions.json", source: `    "movedInVersion": "${appVersion}",` },
+    { path: "scripts/regression-coverage-manifest.json", source: `      "movedInVersion": "${appVersion}",` },
   ], appVersion, allowlist),
   [],
-  "retirement metadata should allow the current version only on the exact retiredInVersion field",
+  "coverage metadata should allow the current version only on exact retirement or assertion-movement version fields",
 );
 
 const syntheticViolations = scanEntriesForCurrentVersion([
   { path: "src/example.js", source: `const duplicatedVersion = "${appVersion}";` },
   { path: "scripts/example-regression.mjs", source: `assert.equal(version, "${appVersion}");` },
   { path: "scripts/regression-coverage-exceptions.json", source: `    "rationale": "retired during ${appVersion}",` },
+  { path: "scripts/regression-coverage-exceptions.json", source: `    "rationale": "moved during ${appVersion}",` },
 ], appVersion, allowlist);
 assert.deepEqual(
   syntheticViolations.map(({ path }) => path),
-  ["src/example.js", "scripts/example-regression.mjs", "scripts/regression-coverage-exceptions.json"],
+  [
+    "src/example.js",
+    "scripts/example-regression.mjs",
+    "scripts/regression-coverage-exceptions.json",
+    "scripts/regression-coverage-exceptions.json",
+  ],
   "runtime and regression literals outside the allowlist should fail",
 );
 

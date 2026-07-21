@@ -1,9 +1,12 @@
 import {
-  collectChangedPaths,
+  collectChangedChangeSet,
   suggestRegressionsForPaths,
 } from "./lib/regression-change-routing.mjs";
 
-const suggestion = suggestRegressionsForPaths(collectChangedPaths());
+const changeSet = collectChangedChangeSet();
+const suggestion = suggestRegressionsForPaths(changeSet.paths, {
+  versionBookkeepingPaths: changeSet.versionBookkeepingPaths,
+});
 
 if (suggestion.paths.length === 0) {
   console.log("No changed files found. No focused regression command is suggested.");

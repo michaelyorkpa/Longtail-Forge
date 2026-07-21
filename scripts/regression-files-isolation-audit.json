@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "auditId": "files-regression-isolation-2026-07-20",
+  "sourceRunMode": "serial-files",
+  "parallelRunMode": "isolated-files",
+  "resourceDimensions": [
+    "database",
+    "fileStorageRoot",
+    "scanner",
+    "networkPort",
+    "environment",
+    "workerOrChildProcess",
+    "singletonRuntime"
+  ],
+  "measurements": {
+    "baseline": {
+      "scripts": 29,
+      "concurrency": 1,
+      "passes": 1,
+      "wallSeconds": 71.36,
+      "failures": 0,
+      "recoveredFlakes": 0
+    },
+    "stress": [
+      { "concurrency": 2, "passes": 3, "scriptRuns": 27, "wallSeconds": 16.51, "failures": 0, "recoveredFlakes": 0 },
+      { "concurrency": 4, "passes": 3, "scriptRuns": 27, "wallSeconds": 9.43, "failures": 0, "recoveredFlakes": 0 },
+      { "concurrency": 6, "passes": 3, "scriptRuns": 27, "wallSeconds": 9.44, "failures": 0, "recoveredFlakes": 0 }
+    ],
+    "postChange": {
+      "scripts": 29,
+      "serialScripts": 20,
+      "isolatedScripts": 9,
+      "serialConcurrency": 1,
+      "isolatedConcurrency": 6,
+      "passes": 1,
+      "wallSeconds": 51.43,
+      "failures": 0,
+      "recoveredFlakes": 0
+    }
+  },
+  "entries": [
+    {
+      "path": "scripts/file-framework-contract-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "direct handler only", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses only runner-namespaced database and data roots; scanner and runtime state remain inside its dedicated regression process."
+    },
+    {
+      "path": "scripts/file-api-lifecycle-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "direct handler", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "job worker", "singletonRuntime": "application runtime" },
+      "rationale": "Retained serial because HTTP application lifecycle and background job-worker shutdown share singleton runtime state within the script."
+    },
+    {
+      "path": "scripts/file-storage-provider-configuration-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "none", "environment": "mutates storage provider config", "workerOrChildProcess": "job worker", "singletonRuntime": "configuration module" },
+      "rationale": "Retained serial because it mutates provider configuration and exercises a job worker against singleton configuration state."
+    },
+    {
+      "path": "scripts/file-storage-diagnostics-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "diagnostics path", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "application diagnostics" },
+      "rationale": "Retained serial because it boots the application diagnostics surface and an HTTP server around singleton runtime health state."
+    },
+    {
+      "path": "scripts/file-storage-streaming-contract-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "none", "fileStorageRoot": "script mkdtemp", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses a script-owned temporary storage root and no database, server, scanner, worker, or nested process."
+    },
+    {
+      "path": "scripts/file-storage-quota-enforcement-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "script mkdtemp", "fileStorageRoot": "script mkdtemp", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Creates its own database and storage roots and has no server, scanner, worker, or nested process."
+    },
+    {
+      "path": "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses only runner-namespaced database and data roots with direct service calls and process-local module state."
+    },
+    {
+      "path": "scripts/file-streamed-validation-download-metadata-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique plus cleanup", "scanner": "direct handler", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "application runtime" },
+      "rationale": "Retained serial because it combines HTTP lifecycle with storage cleanup after response streaming."
+    },
+    {
+      "path": "scripts/file-s3-provider-registration-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "provider abstraction", "scanner": "none", "networkPort": "none", "environment": "provider configuration", "workerOrChildProcess": "job worker", "singletonRuntime": "provider registry" },
+      "rationale": "Retained serial because provider registration and worker startup depend on shared module registry and configuration semantics."
+    },
+    {
+      "path": "scripts/file-s3-object-operation-proof-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "mock S3 objects", "scanner": "direct handler", "networkPort": "mocked provider", "environment": "provider configuration", "workerOrChildProcess": "job worker", "singletonRuntime": "provider registry" },
+      "rationale": "Retained serial because mocked S3 registration and worker execution use singleton provider state whose isolation is not independently proven."
+    },
+    {
+      "path": "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "mock S3 objects", "scanner": "direct handler", "networkPort": "ephemeral HTTP", "environment": "provider configuration", "workerOrChildProcess": "job worker", "singletonRuntime": "provider registry and app runtime" },
+      "rationale": "Retained serial because it combines HTTP, job-worker, and S3 registry lifecycles."
+    },
+    {
+      "path": "scripts/file-multipart-upload-route-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "direct handler", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "multipart application runtime" },
+      "rationale": "Retained serial because it boots the multipart HTTP route stack and application singleton runtime."
+    },
+    {
+      "path": "scripts/file-multipart-batch-upload-helper-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "direct handler", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "multipart application runtime" },
+      "rationale": "Retained serial because it exercises batch multipart behavior through the HTTP application runtime."
+    },
+    {
+      "path": "scripts/file-upload-compatibility-error-hardening-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique plus cleanup", "scanner": "direct handler", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "application error lifecycle" },
+      "rationale": "Retained serial because error-path cleanup is coupled to an HTTP application lifecycle and storage cleanup timing."
+    },
+    {
+      "path": "scripts/file-scanner-mode-resolver-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "multiple modes", "networkPort": "scanner-dependent", "environment": "scanner mode matrix", "workerOrChildProcess": "multiple child Node processes and worker", "singletonRuntime": "scanner configuration" },
+      "rationale": "Retained serial because it spawns multiple processes across scanner modes and starts worker/runtime combinations."
+    },
+    {
+      "path": "scripts/file-scanner-health-diagnostics-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "unreachable scanner diagnostics", "networkPort": "scanner network failure", "environment": "scanner configuration", "workerOrChildProcess": "multiple child processes", "singletonRuntime": "diagnostics runtime" },
+      "rationale": "Retained serial because it deliberately exercises scanner network failures in multiple child processes."
+    },
+    {
+      "path": "scripts/file-clamscan-adapter-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "fake clamscan executable", "networkPort": "none", "environment": "scanner executable path", "workerOrChildProcess": "scanner child process", "singletonRuntime": "scanner adapter" },
+      "rationale": "Retained serial because it creates and executes a scanner program through child-process lifecycle and executable-path configuration."
+    },
+    {
+      "path": "scripts/file-clamd-adapter-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "mock clamd service", "networkPort": "ephemeral TCP", "environment": "scanner host and port", "workerOrChildProcess": "none", "singletonRuntime": "scanner adapter" },
+      "rationale": "Retained serial because it owns a TCP scanner server and mutates scanner endpoint configuration."
+    },
+    {
+      "path": "scripts/file-scanner-setup-docs-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "none", "fileStorageRoot": "none", "scanner": "scanner family membership", "networkPort": "none", "environment": "none", "workerOrChildProcess": "none", "singletonRuntime": "none" },
+      "rationale": "Retained with the scanner cluster because it asserts the scanner suite membership and setup contract; separating that coupled inventory proof has no meaningful timing value."
+    },
+    {
+      "path": "scripts/file-scan-job-handoff-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "direct handler", "networkPort": "none", "environment": "worker configuration", "workerOrChildProcess": "background job worker", "singletonRuntime": "job registry" },
+      "rationale": "Retained serial because background job handoff and worker shutdown are the behavior under test."
+    },
+    {
+      "path": "scripts/files-attachment-context-route-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "application runtime" },
+      "rationale": "Retained serial because it exercises attachment context through a booted HTTP application."
+    },
+    {
+      "path": "scripts/files-attachable-target-options-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "application runtime" },
+      "rationale": "Retained serial because target-option permission shaping runs through a booted HTTP application."
+    },
+    {
+      "path": "scripts/files-browse-attachment-reads-conversion-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses runner-namespaced database and data roots with direct read-model calls and no server, scanner, worker, or nested process."
+    },
+    {
+      "path": "scripts/files-context-targets-conversion-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses runner-namespaced database and data roots through direct service calls with only process-local state."
+    },
+    {
+      "path": "scripts/files-preview-availability-route-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "application runtime" },
+      "rationale": "Retained serial because preview availability is verified through the HTTP application lifecycle."
+    },
+    {
+      "path": "scripts/files-preview-content-route-regression.mjs",
+      "decision": "serial-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "direct handler", "networkPort": "ephemeral HTTP", "environment": "child-process copy", "workerOrChildProcess": "job worker", "singletonRuntime": "application runtime" },
+      "rationale": "Retained serial because preview content combines HTTP, storage, scanner, and job-worker lifecycles."
+    },
+    {
+      "path": "scripts/file-storage-accounting-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses runner-namespaced database and data roots with direct accounting calls and no server, scanner, worker, or nested process."
+    },
+    {
+      "path": "scripts/file-settings-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses runner-namespaced database and data roots through direct settings calls with only process-local state."
+    },
+    {
+      "path": "scripts/files-attachment-readmodel-regression.mjs",
+      "decision": "isolated-files",
+      "resources": { "database": "runner-unique", "fileStorageRoot": "runner-unique", "scanner": "none", "networkPort": "none", "environment": "child-process copy", "workerOrChildProcess": "none", "singletonRuntime": "process-local" },
+      "rationale": "Uses runner-namespaced database and data roots for direct read-model proof with no server, scanner, worker, or nested process."
+    }
+  ]
+}

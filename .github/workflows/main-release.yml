@@ -19,9 +19,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npm run closeout
-      - run: npm run artifact:build -- --source-branch main
+      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - run: node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch main
       - id: artifact
         run: |
           echo "path=dist/longtail-forge-$(node -p "require('./package.json').version").tgz" >> "$GITHUB_OUTPUT"

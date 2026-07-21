@@ -1,11 +1,11 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 381,
+    "discoveredScripts": 383,
     "legacyScripts": 311,
-    "releaseGateScripts": 42,
+    "releaseGateScripts": 44,
     "areaCounts": {
       "dashboard": 1,
       "database": 34,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 5,
       "public-api": 3,
-      "release": 22,
+      "release": 24,
       "search": 12,
       "tags": 12,
       "tasks": 51,
@@ -30,14 +30,15 @@
     "tierCounts": {
       "focused": 173,
       "integration": 158,
-      "release-gate": 42,
+      "release-gate": 44,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 155,
+      "isolated-files": 9,
       "serial-database": 6,
-      "serial-files": 29,
-      "static": 191
+      "serial-files": 20,
+      "static": 193
     }
   },
   "coverageFamilies": [
@@ -79,6 +80,24 @@
         "scripts/tasks-conversion-closeout-regression.mjs",
         "scripts/view-builder-closeout-regression.mjs",
         "scripts/view-conversion-branch-closeout-regression.mjs"
+      ]
+    }
+  ],
+  "assertionMovements": [
+    {
+      "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
+      "movedInVersion": "0.33.19.4",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 108,
+      "rationale": "Defaults, normalization, accepted values, production warnings, and expected configuration errors are deterministic createConfig behavior and do not need one fresh Node process per case.",
+      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 108-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
+      "movedTo": "tests/unit/runtime-configuration.test.mjs",
+      "retainedIntegrationOwner": "scripts/runtime-configuration-contract-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/runtime-configuration.test.mjs",
+        "node scripts/runtime-configuration-contract-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run verify:slice"
       ]
     }
   ],
@@ -653,7 +672,7 @@
       "legacy": true,
       "path": "scripts/file-framework-contract-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "contract",
         "database",
@@ -800,7 +819,7 @@
       "legacy": true,
       "path": "scripts/file-settings-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -814,7 +833,7 @@
       "legacy": true,
       "path": "scripts/file-storage-accounting-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -856,7 +875,7 @@
       "legacy": true,
       "path": "scripts/file-storage-quota-enforcement-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -870,7 +889,7 @@
       "legacy": true,
       "path": "scripts/file-storage-streaming-contract-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "contract",
         "database",
@@ -967,7 +986,7 @@
       "legacy": true,
       "path": "scripts/files-attachment-readmodel-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -981,7 +1000,7 @@
       "legacy": true,
       "path": "scripts/files-browse-attachment-reads-conversion-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -1021,7 +1040,7 @@
       "legacy": true,
       "path": "scripts/files-context-targets-conversion-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -1087,7 +1106,7 @@
       "legacy": true,
       "path": "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -3166,6 +3185,23 @@
     },
     {
       "area": "release",
+      "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
+      "id": "release.developer-verification-throughput",
+      "legacy": false,
+      "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "ci",
+        "commands",
+        "release",
+        "routing",
+        "timing"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
       "description": "Proves npm run check runs TypeScript, Vitest, and the sole ESLint syntax/lint owner before the slow regression runner, and that npm start stays a pure Node boot.",
       "id": "release.fast-check-pipeline",
       "legacy": false,
@@ -3176,6 +3212,22 @@
         "commands",
         "release",
         "tooling"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves every legacy Files regression has an explicit isolation audit and only repeat-stressed scripts run concurrently without retries.",
+      "id": "release.files-regression-isolation-audit",
+      "legacy": false,
+      "path": "scripts/regressions/release/files-regression-isolation-audit.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "files",
+        "performance",
+        "release",
+        "scheduling"
       ],
       "tier": "release-gate"
     },

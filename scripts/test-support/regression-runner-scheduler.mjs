@@ -8,28 +8,40 @@ function resolveIsolatedRegressionParallelism({
   env = process.env,
   fallbackParallelism = DEFAULT_ISOLATED_PARALLELISM,
 } = {}) {
-  const directOverride = parsePositiveInteger(env.LTF_ISOLATED_REGRESSION_PARALLELISM);
+  return resolveRegressionParallelism({
+    availableParallelism,
+    directOverrideName: "LTF_ISOLATED_REGRESSION_PARALLELISM",
+    env,
+    fallbackParallelism,
+  });
+}
+
+function resolveIsolatedFilesParallelism(options = {}) {
+  return resolveRegressionParallelism({
+    ...options,
+    directOverrideName: "LTF_ISOLATED_FILES_PARALLELISM",
+  });
+}
+
+function resolveRegressionParallelism({
+  availableParallelism = getAvailableParallelism(),
+  directOverrideName,
+  env = process.env,
+  fallbackParallelism = DEFAULT_ISOLATED_PARALLELISM,
+}) {
+  const directOverride = parsePositiveInteger(env[directOverrideName]);
 
   if (directOverride) {
-    return {
-      parallelism: directOverride,
-      source: "LTF_ISOLATED_REGRESSION_PARALLELISM",
-    };
+    return { parallelism: directOverride, source: directOverrideName };
   }
 
   const sharedOverride = parsePositiveInteger(env.LTF_REGRESSION_PARALLELISM);
-
   if (sharedOverride) {
-    return {
-      parallelism: sharedOverride,
-      source: "LTF_REGRESSION_PARALLELISM",
-    };
+    return { parallelism: sharedOverride, source: "LTF_REGRESSION_PARALLELISM" };
   }
 
-  const autoParallelism = calculateAutoIsolatedParallelism(availableParallelism, fallbackParallelism);
-
   return {
-    parallelism: autoParallelism,
+    parallelism: calculateAutoIsolatedParallelism(availableParallelism, fallbackParallelism),
     source: `auto:${normalizeAvailableParallelism(availableParallelism)}-available`,
   };
 }
@@ -120,6 +132,7 @@ export {
   AUTO_ISOLATED_PARALLELISM_CAP,
   DEFAULT_ISOLATED_PARALLELISM,
   calculateAutoIsolatedParallelism,
+  resolveIsolatedFilesParallelism,
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 };
