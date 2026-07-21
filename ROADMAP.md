@@ -8,7 +8,7 @@ These version plans are governed by the standing architecture boundaries in `DEC
 
 ## Version 0.33.21 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
 
-**Model: High Effort** — This branch batches the pre-preview review findings that were deliberately deferred until after the friends-and-family preview with related short-term TODO work, spanning Reporting, Clients/Projects, Workbench, Tasks, and Notes surfaces.
+**Model: High Effort** — This branch batches the pre-preview review findings that were deliberately deferred until after the friends-and-family preview with related short-term TODO work, spanning Reporting, Clients/Projects, Workbench, Tasks, Notes, and Calendar/Dashboard surfaces.
 
 Purpose:
 
@@ -19,15 +19,16 @@ Non-goals:
 - No preview-readiness claims move here; anything required before invitations belongs under 0.33.17.
 - No new module workflows beyond the corrections and settings surfaces named below.
 
-### Version 0.33.21.1 - Reporting refinements
+### Version 0.33.21.1 - Reporting and Notes tag-control refinements
 
-**Model: Medium Effort** — One contained control swap on an already-verified surface with routine shared-picker regression coverage.
+**Model: Medium Effort** — Two contained control swaps on already-verified surfaces with routine shared-picker regression coverage.
 
 - [ ] Convert the Reporting tag filter into the typable search-and-select control used across the rest of the interface.
+- [ ] Convert the Notes -> Bulk Actions tag control from its long scroll-box list into the same native typable tag picker used everywhere else, following the shared-picker flow.
 
 Acceptance criteria:
 
-- The Reporting tag filter matches the shared tag-picker interaction pattern.
+- The Reporting tag filter and the Notes bulk-actions tag control both match the shared tag-picker interaction pattern.
 
 ### Version 0.33.21.2 - Clients and Projects list and modal polish
 
@@ -146,6 +147,21 @@ Root cause (confirmed 2026-07-20): the quick-action capture drawer (`public/js/f
 Acceptance criteria:
 
 - A timer created through the quick-action capture while on the Workbench appears in the Timers card automatically; the refresh contract is framework-owned and declaratively consumed by pages; the dispatch-plus-consumption path is regression-covered.
+
+### Version 0.33.21.9 - Read-only calendar active-task defaults and status filter
+
+**Model: Medium Effort** — A contained default-scope and filter change on the two existing read-only calendar surfaces; the risk is filter/default drift between the Dashboard panel and the Calendar page rather than data-model change.
+
+- [ ] The Dashboard calendar panel displays only active tasks (open, in progress, blocked); completed and archived tasks no longer appear there.
+- [ ] Actions -> Calendar defaults to the same active-status set on load.
+- [ ] Add a task-status multi-selector to the Calendar page's filters so users can widen or narrow the displayed statuses (for example, to include completed tasks); follow the shared filter-control patterns.
+- [ ] Keep the status scoping server-honored in the calendar read path rather than client-side-only, so the window query does not fetch rows the surface will discard.
+- [ ] Add regressions: the Dashboard panel excludes completed/archived tasks; the Calendar page defaults to active statuses; the multi-selector widens the set; reminder markers still render for the visible tasks.
+- [ ] Forward note for 0.33.22: the read-time recurrence projection must compose with this status scoping (virtual occurrences carry active status by construction, and the materialized-instance dedup must not resurrect filtered-out completed instances).
+
+Acceptance criteria:
+
+- Both read-only calendar surfaces default to active tasks only, the Calendar page can adjust the status set through a shared multi-selector, and the defaults/filters are regression-covered on both surfaces.
 
 ## Version 0.33.22 - Recurring Calendar Projection and Private Calendar Subscription Feed
 
@@ -439,11 +455,12 @@ Acceptance criteria:
 - [ ] Keep the fallback shell independent of workspace/module/database reads and optional application assets so a runtime database/dependency failure can still render it while the Node process is alive. Preserve security/no-store headers, keyboard use, responsive layout, theme-safe rendering, and a visible request ID for unexpected failures.
 - [ ] Give each surface one useful recovery action selected by context: sign in, return to the last safe page/dashboard, reload a read, or retry later. Never automatically replay a mutation.
 - [ ] Add a top-level browser rendering/unhandled-rejection boundary plus shared fetch-error presentation so client-rendering failures replace broken content with the recovery surface instead of leaving a blank page. Keep module-specific validation in its owning workflow.
+- [ ] Give permission-denied (403) action failures a shared in-app modal/dialog telling the user they do not have permission for the attempted action (promoted from TODO 2026-07-21), replacing today's per-page inline strings and silent failures; today only 401 has a global interceptor. Use safe generic copy wherever 403/404 must remain indistinguishable for protected resources, and leave the existing server-side `security.authorization.denied` security-event logging unchanged — this slice adds only the user-facing half.
 - [ ] Prove unknown public/protected routes, expired auth, forbidden/hidden records, conflict, thrown errors, database-unavailable reads, failed dynamic rendering, history navigation, focus return, and screen-reader announcements.
 
 Acceptance criteria:
 
-- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, and the fallback remains available without database-backed decoration or protected resource leakage.
+- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, permission-denied actions surface a clear in-app explanation instead of failing silently, and the fallback remains available without database-backed decoration or protected resource leakage.
 
 ### Version 0.33.25.3 - Error-contract documentation, observability proof, and closeout
 
@@ -633,6 +650,85 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Every marketing document's status labels match the shipped app, the claims register is consistent with its evidence, and the branch closes with both documentation-side public-release gates active and green gate/doc checks.
+
+## Version 0.33.28 - Permissions Role-Capability Alignment
+
+**Model: High Effort** — These corrections change what scoped administrator roles can reach; a scope mistake either keeps legitimate admins locked out or over-grants beyond the intended client/project boundary.
+
+Purpose:
+
+Close the gaps between what the seeded role model intends each role to do and what the code actually exposes, found by the 2026-07-21 code review of the role→permission grid (`src/db/schema/current.sql` `role_permissions` seed) against the scope semantics in `src/services/permissions.service.js`. The named defects promoted from `TODO.md`: a Client Administrator cannot create child clients (or any clients), and Client/Project Administrators cannot reach the Project Settings surface despite holding `projects.manage` at their scope. The review also surfaced systemic causes this branch corrects: navigation/permission hints are computed only at workspace level, view-surface `requiredPermissions` declarations are never enforced client-side, the baseline seed and migration 074 disagree on `project_admin` scope, and `roles.assign` is granted to scoped admins with no usable surface.
+
+Decision:
+
+- Child-client creation authorizes against the **parent client's** scope; top-level client creation remains workspace-scoped. A Client Administrator can create child clients under a client they administer and still cannot create top-level clients.
+- Navigation and permission hints become scope-aware rather than workspace-only. This branch grants no role any permission it does not already hold in the seeded grid (except where a slice explicitly says otherwise); it aligns reachability with existing grants, and server-side `assertCan` enforcement remains authoritative throughout.
+- The user-facing permission-denied modal is owned by 0.33.25.2 (branded error surfaces), not this branch; permission-change notifications are owned by 0.36.5 (Account Home), because workspace-removal notice requires cross-workspace delivery.
+
+Dependencies and baseline:
+
+- Builds on the service-layer authorization model (`permissionsService.assertCan`/`can`, scope matching in `assignmentMatchesResource`), the app-shell permission hints (`src/services/app-shell.service.js`), and the view-renderer contribution contract; lands after 0.33.25 so denied actions already have a visible error surface while reachability is being widened.
+
+Non-goals:
+
+- No new roles, no redesign of the role→permission grid, and no changes to workspace-type gating or workspace isolation.
+- No client-side enforcement replacing server checks; browser-side permission filtering is presentation only.
+- No secure-notes permission changes and no Support View interaction; 0.33.24 remains governed by its own catalog.
+- No permission-change notifications (0.36.5) and no in-app 403 modal (0.33.25.2).
+
+### Version 0.33.28.1 - Child-client creation scope correction
+
+**Model: High Effort** — This restructures an authorization gate on a create path; the failure modes are continued lockout or letting scoped admins create top-level clients.
+
+- [ ] Restructure the `createClient` gate (`src/modules/client-projects/clients.service.js` `createClient`): when `parent_client_id` is present, authorize `clients.manage` against the parent client's scope (the check the current code performs second but never reaches, because the unconditional workspace-scoped check fails first for client-scoped assignments); when no parent is given, keep the workspace-scoped check so top-level creation remains Workspace Administrator and above.
+- [ ] Apply the same rule to every create path: the browser route, the public API `POST /api/v1/clients`, and any quick-action capture that creates clients.
+- [ ] Surface the capability in the UI for scoped admins: a Client Administrator sees an add-child-client affordance for clients they administer, consistent with the 0.33.21.2 Clients-owned add-client modal work.
+- [ ] Add regressions: a client_admin creates a child under their own client; a client_admin cannot create a top-level client; a client_admin cannot create a child under a client outside their scope; project_admin still cannot create clients; workspace_admin/super_admin behavior is unchanged; the business-workspace gate still applies.
+
+Acceptance criteria:
+
+- A Client Administrator can create child clients under clients they administer and nothing more; top-level client creation remains workspace-scoped; every create path (browser, public API, capture) enforces the same split.
+
+### Version 0.33.28.2 - Scope-aware navigation, permission hints, and Project Settings access
+
+**Model: High Effort** — A sweep across every admin nav gate; hints that are too generous surface dead-end pages and hints that stay workspace-only preserve the lockout this branch exists to fix.
+
+- [ ] Make the app-shell permission hints scope-aware: compute hints like `projectsManage`/`clientsManage` via an any-scope check (the user holds the permission somewhere in the workspace) instead of a workspace-scoped resource check that client/project-scoped assignments can never satisfy.
+- [ ] Client and Project Administrators get the Projects/Project Settings navigation and page: the page loads for them with scope-filtered data (the APIs already enforce per-scope `projects.manage` and `filterReadableProjects`), and page affordances outside their scope do not render.
+- [ ] Sweep the remaining admin navigation gates for the same asymmetry and make each deliberate: which of Users, Audit Log, Workspace Settings, and module-settings links should appear for scoped admins, given their actual grants (today none appear, and scoped admins hold no `workspace_settings.manage`/`users.manage`/`audit_logs.view`, so those stay hidden — record that as the decided behavior rather than an accident).
+- [ ] Fix the inverse asymmetry: the Clients nav link currently shows on workspace capability alone with no permission check; gate it consistently with the decided hint model.
+- [ ] Add regressions: client_admin and project_admin see the Projects surface and only their scoped data; roles without the underlying grants see no new links; workspace_admin navigation is unchanged.
+
+Acceptance criteria:
+
+- Every admin navigation gate reflects a deliberate, scope-aware decision; Client/Project Administrators can reach and use the Project Settings surface within their scope; no link leads to a surface the role cannot use.
+
+### Version 0.33.28.3 - Client-side permission wiring for view surfaces
+
+**Model: Medium Effort** — Presentation-only filtering with an existing but never-fed contract; the risk is hiding controls a user can actually use, since server enforcement already protects the other direction.
+
+- [ ] Populate the workspace-context permission set that the view renderer's `requiredPermissions` filtering already consumes but that no code currently supplies, so declared button/action requirements take effect instead of short-circuiting to visible-for-everyone.
+- [ ] Define the scope semantics of that browser-side set explicitly (a permission is present when the user holds it in any scope within the workspace, mirroring the 0.33.28.2 hint model), and document that per-record affordances remain server-checked — the browser set is coarse presentation filtering, never authorization.
+- [ ] Convert the known offenders: surface actions such as "Add Client" no longer render for roles that would only receive a 403 on submit.
+- [ ] Add regressions: a role without `clients.manage` does not see the Add Client action; a scoped admin with the grant does; server-side denial behavior is unchanged when the filter is bypassed.
+
+Acceptance criteria:
+
+- View-surface `requiredPermissions` declarations actually filter rendered actions with documented any-scope semantics, users stop meeting 403s behind visible buttons, and server enforcement remains the authority.
+
+### Version 0.33.28.4 - Seed drift, roles.assign reconciliation, documentation, and closeout
+
+**Model: Medium Effort** — Seed and grid corrections plus documentation; the main risk is fresh-install/migrated-install divergence.
+
+- [ ] Fix the baseline-seed/runtime drift for `project_admin`: the schema seed marks it client-scoped while migration 074 and the runtime scope map treat it as project-scoped; align the baseline seed with the runtime so fresh installs and migrated installs agree.
+- [ ] Audit the seeds for any other role/permission rows that migrations have since rewritten, and align them the same way.
+- [ ] Reconcile `roles.assign` for scoped admins: client_admin/project_admin hold the grant (bounded by the role-assignment limits) but have no user-management surface and no `users.manage`. Decide and land the intended behavior — either a scoped role-assignment surface for the sub-roles they may assign, or removal of the grant until such a surface exists — and record the decision.
+- [ ] Document the intended role-capability matrix (per role: scope, grants, and reachable surfaces) in the permissions documentation so future role/module work has an authoritative statement of what each role SHOULD reach, not only the seeded grid.
+- [ ] Run `npm run check`, `npm run test:permissions`, the app-shell/navigation regressions, and the canonical slice verification; update `CHANGELOG.md` and record the scope-model decisions in `DECISIONS.md`.
+
+Acceptance criteria:
+
+- Fresh installs seed the same role scopes the runtime enforces, `roles.assign` for scoped admins has a deliberate landed answer, and the documented role-capability matrix matches the shipped behavior with the release-gate checks green.
 
 ## Version 0.34 - Support Tickets Module
 
@@ -1347,8 +1443,9 @@ The first version should include:
 - Current-user notifications across accessible workspaces.
 - Permission-safe attention items such as overdue tasks, assigned tickets, pending reviews, and stale timers where those modules are enabled.
 - Links that switch/open the correct workspace before navigating to the target record.
+- Permission-change and access-removal notifications (promoted from TODO 2026-07-21): when a user's role or permissions change in a workspace, notify that user; when a user is fully removed from a workspace, deliver the discontinuation notice through their remaining workspaces / Account Home, since the removed workspace can no longer surface it. (Example: a freelancer whose client-admin access to Workspace A ends must see that notice in their own other workspaces.) This item waits here deliberately because the removal case requires exactly this branch's cross-workspace delivery machinery; an in-workspace-only change notice may land earlier if a notification slice wants it, but the removal case is owned here.
 
-Do not expose raw audit records, raw event payloads, private module records, or cross-workspace administrative data. Every item must be visible only if the user could read the source record inside that workspace.
+Do not expose raw audit records, raw event payloads, private module records, or cross-workspace administrative data. Every item must be visible only if the user could read the source record inside that workspace. Permission-change notices must state the change without leaking who else holds which roles.
 
 ## Version 0.36.6 - Asset Registry / Assets Module
 
@@ -2007,6 +2104,7 @@ Acceptance criteria:
 
 ## Version 0.37.0 - Expanded Reporting and Invoicing
 
+- [ ] Opening slice — convert Reporting from hard-wired framework core into a registered first-party module (promoted from TODO 2026-07-21): today Reporting has framework-owned routes/service and a framework-catalog `reporting.view` permission, no module manifest, and no `workspace_modules` lifecycle row, so there is no path to disable it at all. Register it in the module catalog (`enabledByDefault: true`, `canDisable: true`), move `reporting.view` ownership into the module manifest, and backfill existing workspaces' module rows via the registry sync so Workspace and Super admins can disable Reporting from Settings -> Admin -> Modules like every other module.
 - [ ] Expanded reporting
 - [ ] Invoicing
 - [ ] Add Assets as a report-capable module and explicitly keep depreciation/fixed-asset accounting out of scope.
