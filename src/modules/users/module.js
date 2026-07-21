@@ -1,5 +1,6 @@
 import { usersRoutes } from "../../routes/users.routes.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
+import { createModuleEntry } from "../../core/modules/module-entry.js";
 
 const usersModule = {
   id: "users",
@@ -171,4 +172,6 @@ const usersModule = {
   workspaceCapabilityRequirements: ["team_members", "permissions", "family_permissions"],
 };
 
-export { usersModule };
+const moduleEntry = createModuleEntry({ manifest: usersModule });
+
+export { usersModule, moduleEntry };

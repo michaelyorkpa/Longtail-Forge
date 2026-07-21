@@ -1,5 +1,7 @@
 import { initializeDatabase } from "../src/db/index.js";
 import { searchIndexRebuildService } from "../src/services/search-index-rebuild.service.js";
+import { registerFrameworkHelpSearchIndexers } from "../src/core/help/search-indexers.js";
+import { activateModuleRuntime } from "../src/core/modules/module-runtime.js";
 
 const args = parseArgs(process.argv.slice(2));
 
@@ -8,6 +10,8 @@ if (!args.allWorkspaces && !args.workspaceId) {
 }
 
 await initializeDatabase();
+registerFrameworkHelpSearchIndexers();
+activateModuleRuntime("worker");
 
 const result = args.allWorkspaces
   ? await searchIndexRebuildService.rebuildApp({

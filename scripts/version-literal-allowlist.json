@@ -4,6 +4,24 @@
     "package.json",
     "package-lock.json"
   ],
+  "currentVersionLiteralLineRules": [
+    {
+      "path": "scripts/regression-coverage-exceptions.json",
+      "pattern": "^\\s*\\\"retiredInVersion\\\":\\s*\\\"[0-9]+(?:\\.[0-9]+)+\\\",?\\s*$"
+    },
+    {
+      "path": "scripts/regression-coverage-manifest.json",
+      "pattern": "^\\s*\\\"retiredInVersion\\\":\\s*\\\"[0-9]+(?:\\.[0-9]+)+\\\",?\\s*$"
+    },
+    {
+      "path": "scripts/regression-coverage-exceptions.json",
+      "pattern": "^\\s*\\\"movedInVersion\\\":\\s*\\\"[0-9]+(?:\\.[0-9]+)+\\\",?\\s*$"
+    },
+    {
+      "path": "scripts/regression-coverage-manifest.json",
+      "pattern": "^\\s*\\\"movedInVersion\\\":\\s*\\\"[0-9]+(?:\\.[0-9]+)+\\\",?\\s*$"
+    }
+  ],
   "historicalLabelFiles": [
     "DECISIONS.md",
     "ROADMAP.md",

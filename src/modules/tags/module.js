@@ -1,4 +1,5 @@
 import { tagsRoutes } from "../../routes/tags.routes.js";
+import { createModuleEntry } from "../../core/modules/module-entry.js";
 
 const tagsModule = {
   id: "tags",
@@ -232,4 +233,6 @@ const tagsModule = {
   workspaceCapabilityRequirements: [],
 };
 
-export { tagsModule };
+const moduleEntry = createModuleEntry({ manifest: tagsModule });
+
+export { tagsModule, moduleEntry };

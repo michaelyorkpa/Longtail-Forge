@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 375,
+  "minimumActiveScripts": 391,
   "minimumAreaScripts": {
     "dashboard": 1,
-    "database": 31,
+    "database": 36,
     "docs": 9,
     "files": 44,
-    "framework": 61,
+    "framework": 64,
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
@@ -14,15 +14,15 @@
     "notifications": 3,
     "permissions": 5,
     "public-api": 3,
-    "release": 21,
+    "release": 24,
     "search": 12,
     "tags": 12,
-    "tasks": 51,
+    "tasks": 52,
     "time-tracking": 8,
-    "views": 30,
-    "workbench": 27
+    "views": 31,
+    "workbench": 30
   },
-  "minimumReleaseGateScripts": 35,
+  "minimumReleaseGateScripts": 44,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -32,8 +32,10 @@
     "legacy.regression.suite.inventory",
     "licensing.public-release-gates",
     "database.migration-schema-workflow",
+    "database.startup-maintenance-lifecycle",
     "database.backup-restore-foundation",
     "database.development-data-seed",
+    "database.demo-data-host-operation",
     "database.workspace-cleanup-isolation",
     "database.workspace-backup-package",
     "database.workspace-deletion-lifecycle",
@@ -41,6 +43,8 @@
     "docs.ownership-routing",
     "framework.asset-cache-version",
     "framework.account-export-recovery",
+    "framework.express-5-http-contract",
+    "framework.bundled-module-registry",
     "legacy.version.literal.guardrail",
     "release.regression-discovery-runner",
     "release.changed-regression-auto-run",
@@ -54,7 +58,11 @@
     "release.playwright-dev-only-boundary",
     "release.runtime-artifact-boundary",
     "release.preview-deployment-boundary",
-    "release.github-release-operations"
+    "release.github-release-operations",
+    "release.maintainability-closeout",
+    "release.developer-verification-throughput",
+    "release.files-regression-isolation-audit",
+    "views.dashboard-es-module-entry"
   ],
   "protectedAreas": [
     "dashboard",
@@ -83,7 +91,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 9
+      "minimumActiveScripts": 10
     }
   ],
   "legacyMetadataException": {
@@ -91,6 +99,24 @@
     "expectedScripts": 312,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
+  "assertionMovements": [
+    {
+      "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
+      "movedInVersion": "0.33.19.4",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 108,
+      "rationale": "Defaults, normalization, accepted values, production warnings, and expected configuration errors are deterministic createConfig behavior and do not need one fresh Node process per case.",
+      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 108-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
+      "movedTo": "tests/unit/runtime-configuration.test.mjs",
+      "retainedIntegrationOwner": "scripts/runtime-configuration-contract-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/runtime-configuration.test.mjs",
+        "node scripts/runtime-configuration-contract-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run verify:slice"
+      ]
+    }
+  ],
   "retiredScripts": [
     {
       "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
@@ -315,6 +341,32 @@
         "npm run check"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/check-js.mjs",
+      "retiredInVersion": "0.33.18.7",
+      "retirementType": "assertions-moved",
+      "rationale": "The formal streamlining review proved that cached ESLint covers the same 793 JavaScript and module files as the legacy per-file node --check subprocess fan-out, so keeping both syntax parsers in the full release gate duplicated coverage and cost.",
+      "assertionDisposition": "JavaScript and module parsing plus lint failures are owned by the cached ESLint stage in npm run check, which now runs before the stateful regression suite. The retained fast-check pipeline release gate proves the ESLint source roots, fail-fast order, and removal from the frozen legacy snapshot.",
+      "retainedCoverageOwners": [
+        "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "793-file check-js versus ESLint inventory comparison",
+        "node scripts/regressions/release/fast-check-pipeline.regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run lint",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.check.js",
+      "area": "release",
+      "tier": "slow",
+      "tags": [
+        "release",
+        "slow"
+      ],
+      "legacy": true
     }
   ]
 }

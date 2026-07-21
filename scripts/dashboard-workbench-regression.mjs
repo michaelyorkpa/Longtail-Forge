@@ -3,7 +3,6 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { appVersion } from "../src/core/version.js";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
 const fixture = await createDisposableDatabaseFixture("dashboard-workbench-regression");
@@ -14,6 +13,8 @@ const files = {
   app: readText("src/core/app.js"),
   css: readText("public/css/longtail-forge.css"),
   dashboard: readText("public/js/dashboard.js"),
+  dashboardCss: readText("public/css/dashboard.css"),
+  dashboardEntry: readText("public/js/dashboard.entry.js"),
   dashboardRoutes: readText("src/routes/dashboard.routes.js"),
   dashboardService: readText("src/services/dashboard.service.js"),
   timeTrackingDashboard: readText("public/js/time-tracking-dashboard.js"),
@@ -27,6 +28,7 @@ const files = {
   reportingRoutes: readText("src/routes/reporting.routes.js"),
   reportingService: readText("src/services/reporting.service.js"),
   tasksModuleDoc: readText("docs/tasks-module.md"),
+  tasksDashboard: readText("public/js/tasks-dashboard.js"),
   timeTrackingModuleDoc: readText("docs/time-tracking-module.md"),
   uiSurfaceContract: readText("docs/ui-surface-contract.md"),
   viewBuildingContract: readText("docs/view-building-contract.md"),
@@ -153,8 +155,8 @@ assert.ok(
   tasksModule.workbench.some((card) =>
     card.id === "task-workbench-items" &&
     card.renderer === "task-workbench-items" &&
-    card.listRoute === "/api/tasks/workbench-items"),
-  "Tasks workbench card must declare its renderer and source route",
+    card.listRoute === "/api/tasks/options"),
+  "Tasks workbench card must declare its renderer and the cacheable options route",
 );
 assert.ok(
   timeTrackingModule.workbench.some((card) =>
@@ -324,10 +326,10 @@ assert.match(
   /modulesService\.listWorkbenchCards/,
   "workbench API must read permission-filtered workbench card contributions",
 );
-assert.match(
+assert.doesNotMatch(
   files.workbenchService,
-  /workCandidateService\.listWorkCandidates/,
-  "workbench API must include framework-normalized work candidates",
+  /workCandidateService/,
+  "workbench bootstrap must not compute focus candidates; they load through /api/workbench/focus-candidates",
 );
 assert.doesNotMatch(
   files.workbenchService,
@@ -371,24 +373,24 @@ assert.match(
   "dashboard browser script must render panels from contribution metadata",
 );
 assert.match(
-  files.dashboard,
-  /registerDashboardPanelRenderer\("tasks\.needs-attention"[\s\S]*registerDashboardPanelRenderer\("tasks\.today-upcoming"[\s\S]*registerDashboardPanelRenderer\("tasks\.pressure"/,
-  "dashboard browser script must register the Tasks attention, upcoming, and compact pressure renderers",
+  files.tasksDashboard,
+  /dashboard\.registerPanelRenderer\("tasks\.needs-attention"[\s\S]*dashboard\.registerPanelRenderer\("tasks\.today-upcoming"[\s\S]*dashboard\.registerPanelRenderer\("tasks\.pressure"/,
+  "Tasks-owned Dashboard asset must register the attention, upcoming, and compact pressure renderers",
 );
 assert.match(
-  files.dashboard,
+  files.tasksDashboard,
   /createTasksNeedsAttentionContent[\s\S]*summary\.attentionRows[\s\S]*createTasksTodayUpcomingContent[\s\S]*summary\.upcomingRows[\s\S]*createTasksPressureContent[\s\S]*summary\.pressureRows/,
-  "dashboard browser script must render server-shaped Tasks attention, upcoming, and pressure rows",
+  "Tasks-owned Dashboard asset must render server-shaped attention, upcoming, and pressure rows",
 );
 assert.match(
-  files.dashboard,
-  /createDashboardTaskActions\(\[summary\.actions\?\.workbench,\s*summary\.actions\?\.tasks\]\)/,
+  files.tasksDashboard,
+  /createDashboardTaskActions\(context, \[summary\.actions\?\.workbench,\s*summary\.actions\?\.tasks\]\)/,
   "dashboard Tasks pressure card must drill out through Workbench and Tasks actions supplied by the module route",
 );
 assert.doesNotMatch(
-  files.dashboard,
+  files.tasksDashboard,
   /createTaskSummarySection|summary\.overdue|summary\.dueSoon|tasks\.html\?task=/,
-  "dashboard browser script must not render the old three-list task summary or link rows into the Task edit modal",
+  "Tasks-owned Dashboard asset must not render the old three-list task summary or link rows into the Task edit modal",
 );
 assert.match(
   files.dashboard,
@@ -416,7 +418,7 @@ assert.match(
   "dashboard browser script must render the Recent Activity region as a quiet deferred state when no safe rows exist",
 );
 assert.match(
-  files.dashboard,
+  files.tasksDashboard,
   /createTasksPressureContent[\s\S]*summary\.pressureRows \|\| \[\]\)\.slice\(0, 1\)/,
   "dashboard module overview cards should show at most one suggested row",
 );
@@ -442,7 +444,7 @@ assert.match(
 );
 assert.doesNotMatch(
   files.dashboard,
-  /timeTracking|currentMonthBillables|currentMonthTotals|chartPoints|billing-summary|createBillables|formatCurrency|formatMonthLabel|formatHours|audit_logs|payload_json|storageKey|scanner_/,
+  /tasks\.needs-attention|tasks\.calendar|tasks\.today-upcoming|tasks\.pressure|timeTracking|currentMonthBillables|currentMonthTotals|chartPoints|billing-summary|createBillables|formatCurrency|formatMonthLabel|formatHours|audit_logs|payload_json|storageKey|scanner_/,
   "dashboard browser host must not hard-code Time Tracking billing data, unsafe activity internals, or module renderers",
 );
 assert.doesNotMatch(
@@ -482,13 +484,23 @@ assert.match(
 );
 assert.match(
   files.dashboardView,
-  /css\/longtail-forge\.css/,
-  "dashboard protected HTML must load the refreshed Dashboard region styles",
+  /css\/longtail-forge\.css[\s\S]*css\/dashboard\.css/,
+  "dashboard protected HTML must load framework base and Dashboard anatomy styles",
 );
 assert.match(
   files.dashboardView,
-  /js\/shared\/view-builder\.js[\s\S]*js\/dashboard\.js[\s\S]*js\/time-tracking-dashboard\.js/,
-  "dashboard protected HTML must load the view builder, dashboard adapter, and Time Tracking dashboard renderer in order",
+  /<script type="module" src="js\/dashboard\.entry\.js"><\/script>/,
+  "dashboard protected HTML must load one explicit native ES-module entry",
+);
+assert.doesNotMatch(
+  files.dashboardView,
+  /js\/shared\/view-builder\.js|js\/dashboard\.js|js\/tasks-dashboard\.js|js\/time-tracking-dashboard\.js/,
+  "dashboard protected HTML must not retain ordered body-level implementation scripts",
+);
+assert.match(
+  files.dashboardEntry,
+  /await importScripts\(\[[\s\S]*"\/js\/shared\/view-builder\.js"[\s\S]*"\/js\/dashboard\.js"[\s\S]*"\/js\/footer\.js"/,
+  "Dashboard ES-module entry must explicitly import framework compatibility dependencies in one place",
 );
 assert.doesNotMatch(
   files.dashboardView,
@@ -496,22 +508,22 @@ assert.doesNotMatch(
   "dashboard protected HTML must not carry static dashboard panel anatomy or the old extension stub",
 );
 assert.match(
-  files.css,
+  files.dashboardCss,
   /\.dashboard-pulse[\s\S]*border-left:\s*5px solid var\(--color-accent\)[\s\S]*linear-gradient/,
   "Dashboard Pulse should be visually distinct without becoming a hero billboard",
 );
 assert.match(
-  files.css,
+  files.dashboardCss,
   /\.dashboard-region-body--main[\s\S]*repeat\(auto-fit, minmax\(min\(100%, 260px\), 1fr\)\)/,
   "Dashboard Module Overview grid should wrap compact cards without desktop horizontal overflow",
 );
 assert.match(
-  files.css,
+  files.dashboardCss,
   /\.dashboard-region--activity[\s\S]*\.dashboard-region-body--activity \.view-empty-state/,
   "Dashboard Recent Activity should be visually secondary and support quiet empty states",
 );
 assert.match(
-  files.css,
+  files.dashboardCss,
   /@media \(max-width: 720px\)[\s\S]*\.dashboard-pulse[\s\S]*grid-template-columns: minmax\(0, 1fr\)[\s\S]*\.dashboard-region/,
   "Dashboard narrow layout should stack Pulse and following regions cleanly",
 );
@@ -663,7 +675,12 @@ assert.match(
 );
 assert.match(
   files.tasksModuleDoc,
-  new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}[\\s\\S]*Dashboard can show capped Tasks pressure[\\s\\S]*Dashboard must not open task rows directly into the edit modal`),
+  /^# Tasks Module$/m,
+  "Tasks docs must retain the owning module heading",
+);
+assert.match(
+  files.tasksModuleDoc,
+  /Dashboard can show capped Tasks pressure[\s\S]*Dashboard must not open task rows directly into the edit modal/,
   "Tasks docs must record the Dashboard card and Workbench execution boundary",
 );
 assert.match(
@@ -673,7 +690,12 @@ assert.match(
 );
 assert.match(
   files.notesModuleDoc,
-  new RegExp(`current Notes implementation as of ${appVersion.replaceAll(".", "\\.")}[\\s\\S]*Task Focus linked notes open the Notes-owned read modal before editing[\\s\\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route`),
+  /^# Notes Module Developer Guide$/m,
+  "Notes docs must retain the owning developer-guide heading",
+);
+assert.match(
+  files.notesModuleDoc,
+  /Task Focus linked notes open the Notes-owned read modal before editing[\s\S]*Dashboard does not add a Notes overview card until Notes exposes a safe body-free summary route/,
   "Notes docs must record the Task Focus read-first and Dashboard-deferred boundaries",
 );
 
@@ -691,6 +713,7 @@ function scanUnexpectedFrameworkCoupling() {
     "src/core/app.js",
     "src/core/client-project-filter-scope.js",
     "src/core/jobs/worker-cli.js",
+    "src/core/modules/bundled-module-catalog.generated.js",
     "src/core/modules/modules.service.js",
     "src/core/modules/registry.js",
     "src/core/record-scope.js",
@@ -732,8 +755,4 @@ function listProjectFiles(relativeDirectory) {
   }
 
   return entries;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -15,9 +15,13 @@ const { helpService } = await import("../src/services/help.service.js");
 const { searchIndexRebuildService } = await import("../src/services/search-index-rebuild.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { registerFrameworkHelpSearchIndexers } = await import("../src/core/help/search-indexers.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 
 try {
   await initializeDatabase();
+  registerFrameworkHelpSearchIndexers();
+  activateModuleRuntime("worker");
   await searchService.ensureSearchBackendStorage({ refresh: true });
 
   const businessSession = await seedBusinessSession();
@@ -116,7 +120,7 @@ async function assertDeveloperDocs() {
   const docs = await fs.readFile(path.join(process.cwd(), "docs/lists-module.md"), "utf8");
 
   for (const phrase of [
-    `current Lists implementation as of ${appVersion}`,
+    "# Lists Module Developer Guide",
     "The framework owns module registration",
     "Workspace Labels",
     "Reusable Lists And Catalog Suggestions",

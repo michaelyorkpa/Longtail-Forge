@@ -108,7 +108,7 @@ check("Workbench Add Task dispatches a module action instead of navigating away"
 });
 
 check("Tasks actions use module-owned reusable dialog helpers", () => {
-  assert.match(workbenchView, /js\/task-dialog\.js/);
+  assert.match(workbenchScript, /src: "js\/task-dialog\.js"/);
   assert.match(taskView, /js\/task-dialog\.js/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
@@ -120,7 +120,7 @@ check("Tasks actions use module-owned reusable dialog helpers", () => {
 });
 
 check("Time Entry actions use module-owned reusable dialog helpers", () => {
-  assert.match(workbenchView, /js\/time-entry-dialog\.js/);
+  assert.match(workbenchScript, /src: "js\/time-entry-dialog\.js"/);
   assert.match(timeEntriesView, /js\/time-entry-dialog\.js/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeEntryDialog\.openAdd\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeEntryDialog\.openEdit\(params, hostContext\)/);
@@ -140,7 +140,7 @@ check("Time Tracking timer action uses module-owned reusable dialog helpers", ()
 });
 
 check("Client and Project actions use module-owned reusable dialog helpers", () => {
-  assert.match(workbenchView, /js\/clients-projects\.js/);
+  assert.match(workbenchScript, /src: "js\/clients-projects\.js"/);
   assert.match(projectsView, /js\/clients-projects\.js/);
   assert.match(clientsView, /js\/clients-projects\.js/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openAddProject\(params, hostContext\)/);

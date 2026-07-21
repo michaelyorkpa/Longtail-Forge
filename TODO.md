@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Notes -> Bulk Actions
+
+Tags in the Notes -> Bulk Actions area don't allow you to use the native tag picker, instead, it presents a long list in a scroll box. It should use the same flow as everything else.
+
 ## Reporting module
 
 The reporting module is not disable-able. It needs to expose that in settings for Workspace and Super admins. 
@@ -36,6 +40,12 @@ When a user's permissions are changed, the user needs to be notified. This may h
 User A is workspace admin for Workspace A. User B is workspace admin for two workspaces, a personal Workspace B Family workspace, Workspace C, and a client admin role in Workspace A. User A hired User B as a freelancer, but has come to the end of the contract, so removes permissions from User B for Workspace A. User B should receieve notifications in both Workspace B and Workspace C about discontinuation of Workspace A access.
 
 > The 0.33.17.7 pre-preview review batch (2026-07-16) promoted the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Deletion/Edge Cases -> **0.33.17.7.10 and 0.33.17.7.12-.15**; Timer project ordering -> **0.33.17.7.16**; Login throttling persistence -> **0.33.17.7.17**; Workbench (algorithm, In Progress, URL annoyance) and Workbench Timers Tweak -> **0.33.19.3**; Task Reminders and Tasks Status Tweak -> **0.33.19.4**; Secure Catalogs -> the **Committed before 0.4x** unversioned backlog. The prior 0.33.19 calendar branch moved to **0.33.20** in the same batch.
+>
+> Renumber note (2026-07-20): a Workbench/API load-performance branch was inserted as **0.33.19**, moving the former 0.33.19-0.33.24 branches down one to **0.33.20-0.33.25**. The promoted Workbench and Tasks slices above remain owned only by **0.33.20.3** and **0.33.20.4**, and the calendar branch is **0.33.21**; the subsequently reused **0.33.19.3-0.33.19.5** numbers belong to the Developer Verification Throughput follow-ups in `ROADMAP.md`.
+
+## Regression fixture seeding hygiene
+
+Regression fixtures must not seed states the product cannot produce; seeding should happen through real routes/services (or repositories where no route exists), not raw SQL table writes. Raw-SQL seeding can construct impossible states that silently mask contract drift: the 0.33.20.2 slice found the lists API regression seeding a workspace with zero `workspace_modules` rows (a state workspace creation can never produce) and depending on the removed lazy write-on-read backfill to function, and the tag core-records regression asserting that backfill as the contract. Roughly 35 scripts write `workspace_modules` directly today, and many more seed other tables raw. A cleanup pass should convert fixture seeding to the product paths (workspace creation via `workspacesRepository.createWorkspace`/`syncModuleRegistry`, module status via `setModuleStatus`, records via their services or HTTP routes), keeping raw SQL only where a test deliberately constructs corruption/drift to prove a repair. This also feeds the 0.40.0 dual-backend contract suite, which requires provider-neutral seeding anyway. Sequencing thought: batch the conversion by fixture family and watch suite wall-time, since direct SQL seeding is part of why the suite is fast.
 
 ## Fix logo for Dark Mode Visibility
 

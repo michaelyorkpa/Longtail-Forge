@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.17.9. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.18.6. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -12,7 +12,11 @@ As of 0.33.6.12e-1, Workbench Task Focus related context consumes Notes through 
 
 Important files:
 
-- `src/modules/notes/module.js`: manifest, permissions, Help declarations, searchable/taggable/attachable declarations, and event metadata.
+- `src/modules/notes/module.js`: the canonical manifest composition, identity, routes, views, browser assets, settings, activation hooks, and sole `moduleEntry` export.
+- `src/modules/notes/module.permissions.js`: permission definitions, role defaults, resource definition, and audit record declarations.
+- `src/modules/notes/module.events.js`: event summaries plus notification event and follow-target declarations.
+- `src/modules/notes/module.integrations.js`: public API, tags, search, Files, and Linked Context declarations.
+- `src/modules/notes/module.help.js`: Notes Help section and article declarations.
 - `src/modules/notes/notes.routes.js`: authenticated browser API routes mounted under `/api`.
 - `src/modules/notes/notes.service.js`: workflow boundary for CRUD, Library changes, collections, Primary Context, Linked Context, revisions, search sync, audit, and events.
 - `src/modules/notes/notes.repo.js`: module-owned SQL for Notes tables only.

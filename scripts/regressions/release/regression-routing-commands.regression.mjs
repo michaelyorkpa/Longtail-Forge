@@ -18,6 +18,7 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 
 assert.equal(packageJson.scripts["test:regressions"], "node scripts/run-regressions.mjs");
 assert.equal(packageJson.scripts["test:regressions:changed"], "node scripts/run-changed-regressions.mjs");
+assert.equal(packageJson.scripts["test:regressions:changed:ci"], "node scripts/run-changed-regressions.mjs --prechecked");
 assert.equal(packageJson.scripts["test:regressions:list"], "node scripts/run-regressions.mjs --list");
 for (const [area, command] of Object.entries(AREA_COMMANDS)) {
   assert.equal(
@@ -37,7 +38,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   suggestRegressionsForPaths(["public/js/workbench.js", "docs/workbench.md"]).commands,
-  ["npm run test:regressions:workbench"],
+  ["npm run test:regressions:workbench", "npm run test:regressions:docs"],
 );
 assert.deepEqual(
   suggestRegressionsForPaths(["public/js/shared/view-builder.js"]).commands,
@@ -52,16 +53,16 @@ assert.deepEqual(
   suggestRegressionsForPaths(["CHANGELOG.md", "package.json", "src/routes/app-info.routes.js"]).commands,
   ["npm run test:regressions:release"],
 );
+assert.equal(suggestRegressionsForPaths(["CHANGELOG.md"]).fullCheckRecommended, false);
+assert.deepEqual(suggestRegressionsForPaths(["docs/tasks.md"]).commands, ["npm run test:regressions:tasks", "npm run test:regressions:docs"]);
+assert.deepEqual(suggestRegressionsForPaths(["public/css/tasks-dashboard.css"]).commands, ["npm run test:regressions:tasks"]);
 assert.deepEqual(
   suggestRegressionsForPaths([".github/workflows/promotion.yml", "scripts/release/deploy-via-ssh.mjs"]).commands,
   ["npm run test:regressions:release"],
 );
-assert.deepEqual(
-  suggestRegressionsForPaths(["unmapped/example.txt"]).commands,
-  ["npm run test:regressions"],
-  "unmapped changes should fall back to the whole regression runner rather than guessing narrowly",
-);
-assert.equal(packageJson.scripts.check, "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache");
+assert.equal(suggestRegressionsForPaths(["unmapped/example.txt"]).fullCheckRecommended, true, "unknown paths should require full escalation");
+assert.equal(packageJson.scripts.check, "npm run check:fast && npm run test:regressions");
+assert.equal(packageJson.scripts["check:fast"], "npm run typecheck && npm run test:unit && npm run lint");
 assert.equal(suggestRegressionsForPaths([]).releaseGate, "npm run check");
 assert.deepEqual(suggestRegressionsForPaths([]).commands, [], "an empty change set should not suggest a passing fallback run");
 

@@ -61,6 +61,28 @@ async function readTargetPolicy(workspaceId, targetType, targetId) {
   };
 }
 
+// Batched readTargetPolicy: one readOffsetsForTargets query answers every
+// target, keyed by taskRemindersRepository.reminderKey(targetType, targetId).
+async function readTargetPoliciesForTargets(workspaceId, targets = []) {
+  const uniqueTargets = [...new Map(targets
+    .filter((target) => target?.targetType && target?.targetId)
+    .map((target) => [taskRemindersRepository.reminderKey(target.targetType, target.targetId), target]),
+  ).entries()];
+  const offsetsByTarget = await taskRemindersRepository.readOffsetsForTargets(
+    workspaceId,
+    uniqueTargets.map(([, target]) => target),
+  );
+
+  return new Map(uniqueTargets.map(([key, target]) => {
+    const offsets = offsetsByTarget.get(key) || [];
+    return [key, {
+      inherited: offsets.length === 0,
+      source: target.targetType,
+      offsets: offsetsToPolicy(offsets, { dateTime: [], dateOnly: [] }),
+    }];
+  }));
+}
+
 async function saveTargetPolicy(workspaceId, targetType, targetId, policy, inherited) {
   await savePolicy(workspaceId, targetType, targetId, inherited ? null : policy);
 }
@@ -307,6 +329,7 @@ export const taskRemindersService = {
   normalizeTaskReminderPayload,
   readEffectivePolicyForTask,
   readTargetPolicy,
+  readTargetPoliciesForTargets,
   readTaskReminderDetails,
   readWorkspaceDefaults,
   registerSettingsHandlers,

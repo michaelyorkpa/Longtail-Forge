@@ -8,21 +8,27 @@ import {
 
 const DEFAULT_ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const LEGACY_SNAPSHOT_PATH = "scripts/regression-legacy-snapshot.json";
+const FILES_ISOLATION_AUDIT_PATH = "scripts/regression-files-isolation-audit.json";
 const CONVENTION_PREFIX = "scripts/regressions/";
 const RUN_MODE_BUCKETS = Object.freeze([
   Object.freeze({ concurrency: 6, mode: "parallel", name: "static/source regressions", runMode: "static" }),
   Object.freeze({ concurrency: 1, mode: "serial", name: "default database regressions", runMode: "serial-database" }),
   Object.freeze({ concurrency: 1, mode: "serial", name: "file storage regressions", runMode: "serial-files" }),
+  Object.freeze({ concurrency: 4, mode: "parallel", name: "isolated file storage regressions", runMode: "isolated-files" }),
   Object.freeze({ concurrency: 4, mode: "parallel", name: "isolated database regressions", runMode: "isolated-database" }),
 ]);
 
 async function discoverRegressionEntries({
   legacySnapshot,
+  filesIsolationAudit,
   rootDir = DEFAULT_ROOT_DIR,
   snapshotPath = LEGACY_SNAPSHOT_PATH,
+  filesIsolationAuditPath = FILES_ISOLATION_AUDIT_PATH,
 } = {}) {
   const snapshot = legacySnapshot || JSON.parse(await fs.readFile(path.join(rootDir, snapshotPath), "utf8"));
   validateSnapshot(snapshot, snapshotPath);
+  const isolationAudit = filesIsolationAudit || await readOptionalJson(rootDir, filesIsolationAuditPath);
+  const filesRunModeOverrides = validateFilesIsolationAudit(isolationAudit, filesIsolationAuditPath);
 
   const snapshotOrder = new Map(snapshot.scripts.map((entry, index) => [normalizeScriptPath(entry.path), index]));
   const snapshotRunModes = new Map(snapshot.scripts.map((entry) => [normalizeScriptPath(entry.path), entry.runMode]));
@@ -77,6 +83,13 @@ async function discoverRegressionEntries({
     }
 
     validateConventionArea(scriptPath, metadata.area);
+    const auditedRunMode = filesRunModeOverrides.get(scriptPath);
+    if (auditedRunMode) {
+      if (metadata.runMode !== "serial-files") {
+        throw new Error(`${scriptPath} must originate in serial-files before the Files isolation audit can reclassify it.`);
+      }
+      metadata = Object.freeze({ ...metadata, runMode: auditedRunMode });
+    }
     entries.push(Object.freeze({
       ...metadata,
       legacy: snapshotOrder.has(scriptPath),
@@ -88,6 +101,39 @@ async function discoverRegressionEntries({
   validateUniqueEntries(entries);
 
   return Object.freeze(entries.sort(compareEntries));
+}
+
+async function readOptionalJson(rootDir, relativePath) {
+  try {
+    return JSON.parse(await fs.readFile(path.join(rootDir, relativePath), "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function validateFilesIsolationAudit(audit, auditPath) {
+  if (!audit) {
+    return new Map();
+  }
+  if (audit.schemaVersion !== 1 || !Array.isArray(audit.entries)) {
+    throw new Error(`${auditPath} must use schemaVersion 1 and contain an entries array.`);
+  }
+
+  const overrides = new Map();
+  for (const entry of audit.entries) {
+    const scriptPath = normalizeScriptPath(entry?.path);
+    if (!scriptPath || !["serial-files", "isolated-files"].includes(entry?.decision)) {
+      throw new Error(`${auditPath} entries must contain a path and a serial-files or isolated-files decision.`);
+    }
+    if (overrides.has(scriptPath)) {
+      throw new Error(`${auditPath} must not contain duplicate paths.`);
+    }
+    overrides.set(scriptPath, entry.decision);
+  }
+  return overrides;
 }
 
 function createRegressionSuite(entries) {
@@ -196,6 +242,7 @@ function normalizeScriptPath(scriptPath) {
 }
 
 export {
+  FILES_ISOLATION_AUDIT_PATH,
   LEGACY_SNAPSHOT_PATH,
   RUN_MODE_BUCKETS,
   createRegressionSuite,

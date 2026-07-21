@@ -54,7 +54,7 @@ for (const field of ["id", "area", "tier", "tags", "description", "runMode"]) {
   assert.match(docs, new RegExp(`- \`${field}\``), `${field} metadata should be defined`);
 }
 
-for (const runMode of ["static", "serial-database", "serial-files", "isolated-database"]) {
+for (const runMode of ["static", "serial-database", "serial-files", "isolated-files", "isolated-database"]) {
   assert.match(docs, new RegExp(`\| \`${runMode}\` \|`), `${runMode} should be a canonical run mode`);
 }
 
@@ -64,14 +64,17 @@ assert.match(docs, /warning-only licensing\/public-release process gate/);
 assert.match(docs, /0\.33\.6\.16\.2/);
 assert.match(docs, /auto-discover/);
 assert.match(docs, /Agents do not manually add the same regression/);
+assert.match(docs, /390 discovered scripts/, "current docs should report the active registry");
+assert.match(docs, /300 seconds/, "current docs should publish the formal suite-time review budget");
 
-assert.equal(REGRESSION_BUCKETS.length, 4, "inventory slice should preserve the four current buckets");
+assert.equal(REGRESSION_BUCKETS.length, 5, "inventory should preserve all five scheduling buckets");
 assert.deepEqual(
   REGRESSION_BUCKETS.map(({ mode, name }) => [name, mode]),
   [
     ["static/source regressions", "parallel"],
     ["default database regressions", "serial"],
     ["file storage regressions", "serial"],
+    ["isolated file storage regressions", "parallel"],
     ["isolated database regressions", "parallel"],
   ],
   "inventory slice should preserve existing bucket scheduling",
@@ -80,12 +83,12 @@ assert.ok(
   REGRESSION_SCRIPTS.includes("scripts/regression-suite-inventory-regression.mjs"),
   "inventory contract guardrail should be registered",
 );
-assert.equal(legacySnapshot.scripts.length, 312, "legacy migration snapshot should preserve the inventory baseline");
-assert.equal(REGRESSION_ENTRIES.length, 375, "auto-discovery should add sixty-three metadata guardrails to the legacy baseline");
+assert.equal(legacySnapshot.scripts.length, 311, "the legacy migration snapshot should preserve its baseline minus the documented syntax-gate retirement");
+assert.equal(REGRESSION_ENTRIES.length, 390, "auto-discovery should retain the Files scheduling guardrail after the documented legacy retirement");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [188, 6, 29, 152],
-  "auto-discovery must preserve legacy bucket counts and add sixty-three metadata guardrails",
+  [193, 6, 20, 9, 162],
+  "auto-discovery must preserve every script while moving only the nine audited Files regressions into isolated scheduling",
 );
 assert.match(suite, /discoverRegressionEntries/);
 assert.match(suite, /createRegressionSuite/);
@@ -96,7 +99,7 @@ assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
 assert.equal(
   packageJson.scripts.check,
-  "npm run typecheck && npm run test:unit && node scripts/run-regressions.mjs && eslint . --cache --cache-strategy content --cache-location .eslintcache",
+  "npm run check:fast && npm run test:regressions",
 );
 assert.equal(packageJson.scripts["test:permissions"], "node scripts/permission-regression.mjs");
 assert.equal(packageJson.scripts["test:sqlite-driver"], "node scripts/better-sqlite3-install-smoke.mjs");

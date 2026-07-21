@@ -103,6 +103,7 @@ const FRAMEWORK_VIEW_SURFACE_MODULE = Object.freeze({
 });
 let moduleEventHookUnsubscribers = [];
 let moduleEventHooksRegistered = false;
+const workspaceModuleContextCache = new Map();
 const AVAILABLE_FRAMEWORK_DEPENDENCIES = new Set([
   "api-key-auth",
   "audit-service",
@@ -413,6 +414,7 @@ async function syncModuleRegistry(workspaceId) {
     await syncWorkspaceModuleRows(transaction, workspaceId, modules, now);
     await repairRequiredWorkspaceModules(workspaceId, modules, now, transaction);
   });
+  invalidateWorkspaceModuleContext(workspaceId ? workspaceId : null);
 
   for (const moduleDefinition of modules) {
     const existingModule = existingModulesById.get(moduleDefinition.id);
@@ -474,25 +476,56 @@ async function readWorkspaceModuleSettings(workspaceId, settings, moduleContext 
 }
 
 async function readWorkspaceModuleContext(workspaceId) {
-  const installedModules = listModules();
-  await ensureWorkspaceModuleRows(workspaceId, installedModules);
-  const [rows, workspaceCapabilities] = await Promise.all([
-    db.query(`
+  const cacheKey = text(workspaceId);
+  const rows = await db.query(`
 SELECT module_id, status
 FROM workspace_modules
 WHERE workspace_id = :workspaceId
 ORDER BY module_id;
-`, { workspaceId: text(workspaceId) }),
-    readWorkspaceCapabilities(workspaceId),
-  ]);
+`, { workspaceId: cacheKey });
+  // The status rows are the authoritative input, so re-reading them on every
+  // call keeps the cache exact against any writer (another process, direct
+  // SQL) while the expensive capability lookup, terminology resolution, and
+  // context construction stay cached per workspace.
+  const fingerprint = rows.map((row) => `${row.module_id}=${row.status}`).join("|");
+  const cached = workspaceModuleContextCache.get(cacheKey);
+
+  if (cached && cached.fingerprint === fingerprint) {
+    return cached.contextPromise;
+  }
+
+  const contextPromise = loadWorkspaceModuleContext(cacheKey, rows);
+  workspaceModuleContextCache.set(cacheKey, {
+    contextPromise: contextPromise.catch((error) => {
+      invalidateWorkspaceModuleContext(cacheKey);
+      throw error;
+    }),
+    fingerprint,
+  });
+  return workspaceModuleContextCache.get(cacheKey).contextPromise;
+}
+
+function invalidateWorkspaceModuleContext(workspaceId = null) {
+  if (workspaceId === null) {
+    workspaceModuleContextCache.clear();
+    return;
+  }
+
+  workspaceModuleContextCache.delete(text(workspaceId));
+}
+
+async function loadWorkspaceModuleContext(workspaceId, rows) {
+  const installedModules = listModules();
+  const workspaceCapabilities = await readWorkspaceCapabilities(workspaceId);
   const workspaceType = workspaceCapabilities.workspaceType || "business";
   const statusById = rows.reduce((statusMap, row) => {
     statusMap[row.module_id] = row.status === "enabled" ? "enabled" : "disabled";
     return statusMap;
   }, {});
+  const hasModuleRows = rows.length > 0;
   const modules = installedModules.map((rawModuleDefinition) => {
     const moduleDefinition = resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceType);
-    const status = statusById[moduleDefinition.id] || "disabled";
+    const status = workspaceModuleStatus(moduleDefinition, statusById, hasModuleRows);
 
     return {
       id: moduleDefinition.id,
@@ -535,6 +568,19 @@ ORDER BY module_id;
   };
 }
 
+// Rows are guaranteed by the startup/workspace-creation lifecycle, so a
+// missing row reads as disabled (the historical pure-SELECT semantics). In a
+// lifecycle-managed workspace (one with rows) required modules read as
+// enabled, mirroring repairRequiredWorkspaceModules without writing; a
+// workspace with no rows at all (unknown or never-ensured) has no modules.
+function workspaceModuleStatus(moduleDefinition, statusById, hasModuleRows) {
+  if (hasModuleRows && moduleDefinition.canDisable === false) {
+    return "enabled";
+  }
+
+  return statusById[moduleDefinition.id] || "disabled";
+}
+
 async function listEnabledModules(workspaceId) {
   const moduleContext = await readWorkspaceModuleContext(workspaceId);
 
@@ -542,7 +588,6 @@ async function listEnabledModules(workspaceId) {
 }
 
 async function listAvailableApiScopes(workspaceId) {
-  await syncModuleRegistry(workspaceId);
   const [enabledModuleIds, workspaceCapabilities] = await Promise.all([
     readEnabledModuleIds(workspaceId),
     readWorkspaceCapabilities(workspaceId),
@@ -580,15 +625,12 @@ function contributionSupportsWorkspaceType(contribution, workspaceType) {
 }
 
 async function readEnabledModuleIds(workspaceId) {
-  const rows = await db.query(`
-SELECT module_id
-FROM workspace_modules
-WHERE workspace_id = :workspaceId
-  AND status = 'enabled'
-ORDER BY module_id;
-`, { workspaceId: text(workspaceId) });
+  if (!workspaceId) {
+    return [];
+  }
 
-  return rows.map((row) => row.module_id);
+  const moduleContext = await readWorkspaceModuleContext(workspaceId);
+  return [...moduleContext.enabledModules].sort();
 }
 
 async function canReadModule(workspaceId, moduleId) {
@@ -614,20 +656,8 @@ async function readModuleStatus(workspaceId, moduleId) {
     return "disabled";
   }
 
-  await ensureWorkspaceModuleRows(workspaceId, [moduleDefinition]);
-
-  const rows = await db.query(`
-SELECT status
-FROM workspace_modules
-WHERE workspace_id = :workspaceId
-  AND module_id = :moduleId
-LIMIT 1;
-`, {
-    moduleId: text(moduleId),
-    workspaceId: text(workspaceId),
-  });
-
-  return rows[0]?.status === "enabled" ? "enabled" : "disabled";
+  const moduleContext = await readWorkspaceModuleContext(workspaceId);
+  return moduleContext.moduleStatusById[moduleId] === "enabled" ? "enabled" : "disabled";
 }
 
 async function ensureWorkspaceModuleRows(workspaceId, modules) {
@@ -643,6 +673,16 @@ async function ensureWorkspaceModuleRows(workspaceId, modules) {
     await syncWorkspaceModuleRows(transaction, workspaceId, moduleDefinitions, now);
     await repairRequiredWorkspaceModules(workspaceId, moduleDefinitions, now, transaction);
   });
+  invalidateWorkspaceModuleContext(workspaceId);
+}
+
+async function ensureAllWorkspaceModuleRows() {
+  const modules = listModules();
+  const workspaces = await db.query("SELECT workspace_id FROM workspaces ORDER BY workspace_id;");
+
+  for (const workspace of workspaces) {
+    await ensureWorkspaceModuleRows(workspace.workspace_id, modules);
+  }
 }
 
 async function syncWorkspaceModuleRows(database, workspaceId, modules, now) {
@@ -707,6 +747,7 @@ async function setModuleStatus(workspaceId, moduleId, enabled, options = {}) {
 
   const now = new Date().toISOString();
 
+  await ensureWorkspaceModuleRows(workspaceId, [moduleDefinition]);
   await db.run(`
 UPDATE workspace_modules
 SET status = :nextStatus,
@@ -722,6 +763,7 @@ WHERE workspace_id = :workspaceId
     now: text(now),
     workspaceId: text(workspaceId),
   });
+  invalidateWorkspaceModuleContext(workspaceId);
 
   await runModuleLifecycleHook(moduleDefinition, enabled ? "onModuleEnabled" : "onModuleDisabled", {
     moduleId,
@@ -1511,6 +1553,7 @@ export const modulesService = {
   canWriteModule,
   decorateWorkspaceSettings,
   emitInternalEvent,
+  ensureAllWorkspaceModuleRows,
   getModule,
   getModuleForApiScope,
   getTimerSource,
@@ -1567,6 +1610,7 @@ export const modulesService = {
   listTimerSources,
   listWorkbenchCards,
   listWorkItemSources,
+  invalidateWorkspaceModuleContext,
   moduleContributionRequirementsAvailable,
   onInternalEvent,
   readEnabledModuleIds,

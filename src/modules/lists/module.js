@@ -9,9 +9,12 @@ import { listsPublicApiRoutes } from "./public-api.routes.js";
 import { registerListsSearchIndexers } from "./search-indexers.js";
 import { LIST_MODULE_ID } from "./storage-contract.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
+import { createModuleEntry } from "../../core/modules/module-entry.js";
 import { appVersion } from "../../core/version.js";
 
-registerListsSearchIndexers();
+function activateListsRuntime() {
+  registerListsSearchIndexers();
+}
 
 const LIST_TYPE_LABELS = {
   bill_of_materials: "Bill of Materials",
@@ -776,4 +779,10 @@ const listsModule = {
   workspaceCapabilityRequirements: [],
 };
 
-export { listsModule };
+const moduleEntry = createModuleEntry({
+  manifest: listsModule,
+  activateApp: activateListsRuntime,
+  activateWorker: activateListsRuntime,
+});
+
+export { listsModule, moduleEntry };

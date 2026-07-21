@@ -19,7 +19,9 @@ const { modulesService } = await import("../../../src/core/modules/modules.servi
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 const dashboardHtml = await readText("views/protected/dashboard.html");
+const dashboardEntry = await readText("public/js/dashboard.entry.js");
 const dashboardJs = await readText("public/js/dashboard.js");
+const tasksDashboardJs = await readText("public/js/tasks-dashboard.js");
 const dashboardService = await readText("src/services/dashboard.service.js");
 const manifestContract = await readText("src/core/modules/manifest-contract.js");
 const frameworkCss = await readText("public/css/longtail-forge.css");
@@ -85,17 +87,17 @@ checks += 3;
 // The embedded calendar offers the month/week/day switch through the shared
 // segmented-control anatomy with an accessible pressed state.
 assert.match(
-  dashboardJs,
+  tasksDashboardJs,
   /segmented-control dashboard-calendar-view-switch/,
   "the dashboard calendar must render its view switch through the shared segmented-control anatomy",
 );
 assert.match(
-  dashboardJs,
+  tasksDashboardJs,
   /\["month", "week", "day"\]\.map\(\(viewId\) => createViewButton\(viewId\)\)/,
   "the dashboard calendar must offer month, week, and day views",
 );
 assert.match(
-  dashboardJs,
+  tasksDashboardJs,
   /aria-pressed/,
   "the dashboard calendar view switch must expose an accessible pressed state",
 );
@@ -118,51 +120,47 @@ checks += 6;
 // grid logic, no direct calendar-window fetch, and entries open through the
 // canonical Task editor with a link out to the full Calendar page.
 assert.match(
-  dashboardJs,
-  /registerDashboardPanelRenderer\("tasks\.calendar", renderTasksCalendarContribution\)/,
-  "dashboard must register the tasks.calendar renderer",
+  tasksDashboardJs,
+  /dashboard\.registerPanelRenderer\("tasks\.calendar", renderTasksCalendarContribution\)/,
+  "the Tasks-owned Dashboard asset must register the tasks.calendar renderer",
 );
 for (const requiredSharedCall of [
   "taskCalendar.calendarRange(",
   "taskCalendar.fetchCalendarWindow(",
   "taskCalendar.renderCalendarBody(",
 ]) {
-  assert.ok(dashboardJs.includes(requiredSharedCall), `dashboard must delegate calendar rendering to ${requiredSharedCall}`);
+  assert.ok(tasksDashboardJs.includes(requiredSharedCall), `Tasks Dashboard must delegate calendar rendering to ${requiredSharedCall}`);
 }
 assert.doesNotMatch(
-  dashboardJs,
+  tasksDashboardJs,
   /fetch\([^)]*\/api\/tasks\/calendar/,
   "dashboard must reach the calendar window only through the shared task-calendar helpers",
 );
 assert.doesNotMatch(
-  dashboardJs,
+  tasksDashboardJs,
   /calendar-grid|calendar-weekday|calendar-day-header/,
   "dashboard must not rebuild calendar grid anatomy",
 );
 assert.match(
-  dashboardJs,
+  tasksDashboardJs,
   /tasksDialog\?\.openTaskEditor/,
   "dashboard calendar entries must open through the canonical Task editor opener",
 );
 assert.match(
-  dashboardJs,
+  tasksDashboardJs,
   /label: "Open full calendar", href: "calendar\.html"/,
   "the dashboard calendar panel must link out to the full Calendar page",
 );
 checks += 8;
 
-// The dashboard host loads the shared dependencies in order: view builder,
-// then the shared task-calendar helpers, then the Task dialog, then the
-// dashboard adapter.
-for (const requiredScript of ["js/shared/view-builder.js", "js/shared/notification-subscriptions.js", "js/shared/task-calendar.js", "js/task-dialog.js", "js/dashboard.js"]) {
-  assert.ok(dashboardHtml.includes(requiredScript), `dashboard.html must load ${requiredScript}`);
-}
-assert.ok(
-  dashboardHtml.indexOf("js/shared/view-builder.js") < dashboardHtml.indexOf("js/shared/task-calendar.js")
-    && dashboardHtml.indexOf("js/shared/task-calendar.js") < dashboardHtml.indexOf("js/task-dialog.js")
-    && dashboardHtml.indexOf("js/task-dialog.js") < dashboardHtml.indexOf("js/dashboard.js"),
-  "dashboard.html must load the view builder, shared task-calendar helpers, and Task dialog before the dashboard adapter",
-);
+// The protected host has one ES-module entry. The entry owns framework
+// compatibility imports, and the Tasks-owned asset imports its calendar and
+// dialog dependencies through the versioned bridge.
+assert.match(dashboardHtml, /<script type="module" src="js\/dashboard\.entry\.js"><\/script>/);
+assert.doesNotMatch(dashboardHtml, /js\/shared\/task-calendar\.js|js\/task-dialog\.js|js\/dashboard\.js/);
+assert.match(dashboardEntry, /"\/js\/shared\/view-builder\.js"[\s\S]*"\/js\/dashboard\.js"/);
+assert.match(tasksDashboardJs, /await bridge\.importScripts\(\[[\s\S]*"\/js\/shared\/task-calendar\.js"[\s\S]*"\/js\/task-dialog\.js"/);
+assert.match(dashboardService, /listActiveModuleBrowserAssets\(session\.workspace_id, session, "dashboard"\)/);
 checks += 5;
 
 console.log(`Dashboard calendar embed guardrail passed ${checks} checks.`);

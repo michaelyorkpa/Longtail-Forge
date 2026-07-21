@@ -28,6 +28,8 @@ Longtail Forge uses two permanent branches because they answer different questio
 
 3. Open a pull request into `nightly`. On GitHub choose **Pull requests > New pull request**, set base to `nightly`, compare to the short-lived branch, and describe the outcome and proof. The required Development gate, Browser smoke and accessibility, and Dependency review checks must pass. Resolve every review conversation, even when the resolution is “no change” with a documented reason.
 
+The Development gate reports context/setup, closeout, typecheck/unit/lint, and regression stage timings. Changed-area full escalation uses the regression-only path only after fast checks pass in that same job, so it does not repeat them. Nightly, promotion, preview, and release workflows retain their complete regression, permission, browser, and packaging gates and report those stage timings separately.
+
 4. Merge without bypassing checks, then delete the short-lived branch on GitHub and locally:
 
    ```sh

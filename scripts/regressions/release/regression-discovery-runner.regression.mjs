@@ -26,7 +26,7 @@ import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 const legacySnapshot = JSON.parse(await fs.readFile("scripts/regression-legacy-snapshot.json", "utf8"));
 const discoveredPaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
 
-assert.equal(legacySnapshot.scripts.length, 312, "migration snapshot should freeze the 0.33.6.16.1 suite");
+assert.equal(legacySnapshot.scripts.length, 311, "migration snapshot should preserve the 0.33.6.16.1 suite minus the credited syntax-gate retirement");
 for (const entry of legacySnapshot.scripts) {
   assert.ok(discoveredPaths.has(entry.path), `${entry.path} must survive metadata discovery`);
 }

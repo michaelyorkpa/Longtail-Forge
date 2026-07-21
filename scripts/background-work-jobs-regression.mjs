@@ -50,10 +50,13 @@ try {
   assert.match(filesSource, /FILE_SCAN_JOB_TYPE = "file\.scan"/, "file scanning should have a durable job type");
   assert.match(filesSource, /registerJobHandler\(FILE_SCAN_JOB_TYPE/, "file scanning should register a worker handler");
   assert.match(importJobsSource, /FUTURE_IMPORT_JOB_TYPE = "import\.future"/, "future imports should have a reserved durable job type");
-  assert.match(appSource, /registerTaskJobHandlers/, "app startup should register task job handlers");
+  assert.match(taskJobsSource, /registerTaskJobHandlers/, "Tasks should expose task job handler registration");
+  assert.match(appSource, /activateModuleRuntime\("app"/, "app startup should activate module-owned handlers generically");
+  assert.doesNotMatch(appSource, /registerTaskJobHandlers/, "app startup should not import Tasks-specific handlers");
   assert.match(appSource, /registerFileScanJobHandlers/, "app startup should register file scan handlers");
   assert.match(appSource, /registerFutureImportJobHandlers/, "app startup should register future import handlers");
-  assert.match(workerCliSource, /registerTaskJobHandlers/, "separate worker startup should register task job handlers");
+  assert.match(workerCliSource, /activateModuleRuntime\("worker"/, "separate worker startup should activate module-owned handlers generically");
+  assert.doesNotMatch(workerCliSource, /registerTaskJobHandlers/, "separate worker startup should not import Tasks-specific handlers");
   assert.match(workerCliSource, /registerFileScanJobHandlers/, "separate worker startup should register file scan handlers");
   assert.match(workerCliSource, /registerFutureImportJobHandlers/, "separate worker startup should register future import handlers");
   assert.match(regressionSuite, /scripts\/background-work-jobs-regression\.mjs/, "regression suite should include background work job coverage");

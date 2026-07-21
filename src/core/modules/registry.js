@@ -1,32 +1,15 @@
 // @ts-check
-import { clientProjectsModule } from "../../modules/client-projects/module.js";
-import { developerExampleModule } from "../../modules/developer-example/module.js";
-import { listsModule } from "../../modules/lists/module.js";
-import { notesModule } from "../../modules/notes/module.js";
-import { tagsModule } from "../../modules/tags/module.js";
-import { tasksModule } from "../../modules/tasks/module.js";
-import { timeTrackingModule } from "../../modules/time-tracking/module.js";
-import { usersModule } from "../../modules/users/module.js";
-import { validateModuleManifests } from "./manifest-contract.js";
+import { bundledModuleCatalog } from "./bundled-module-catalog.generated.js";
+import { validateAndOrderBundledModuleCatalog } from "./module-entry.js";
 
 /**
- * Registered first-party module manifests, structurally checked against the
- * shared contract shape at development time (runtime validation still runs
- * through validateModuleManifests below).
- * @type {import("../../types/framework-contracts.js").ModuleManifest[]}
+ * Registered first-party module entries, structurally checked at development
+ * time and fully validated as one runtime catalog before any lookup is exposed.
+ * @type {readonly Readonly<import("../../types/framework-contracts.js").BundledModuleCatalogEntry>[]}
  */
-const moduleDefinitions = [
-  clientProjectsModule,
-  developerExampleModule,
-  listsModule,
-  notesModule,
-  tagsModule,
-  tasksModule,
-  timeTrackingModule,
-  usersModule,
-];
-
-validateModuleManifests(moduleDefinitions);
+const orderedModuleEntries = validateAndOrderBundledModuleCatalog(bundledModuleCatalog);
+/** @type {import("../../types/framework-contracts.js").ModuleManifest[]} */
+const moduleDefinitions = orderedModuleEntries.map((entry) => entry.moduleEntry.manifest);
 
 function cloneModuleDefinition(definition) {
   const hooks = { ...(definition.hooks || {}) };
@@ -78,6 +61,10 @@ function cloneModuleDefinition(definition) {
 
 function listModules() {
   return moduleDefinitions.map(cloneModuleDefinition);
+}
+
+function listModuleEntries() {
+  return [...orderedModuleEntries];
 }
 
 function getModule(moduleId) {
@@ -354,6 +341,7 @@ export {
   listModuleRolePermissionDefaults,
   listModuleRouteEntries,
   listModuleRoutes,
+  listModuleEntries,
   listModules,
   listNotificationEvents,
   listNotificationFollowTargets,

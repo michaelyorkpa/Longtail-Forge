@@ -5,11 +5,18 @@ import { timeTrackingPublicApiRoutes } from "./public-api.routes.js";
 import { registerTimeTrackingReportRunners } from "./report-runners.js";
 import { registerTimeTrackingSearchIndexers } from "./search-indexers.js";
 import { timeTrackingSettingsService } from "./time-tracking-settings.service.js";
+import { createModuleEntry } from "../../core/modules/module-entry.js";
 import { appVersion } from "../../core/version.js";
 
-registerTimeTrackingSearchIndexers();
-registerTimeTrackingReportRunners();
-timeTrackingSettingsService.registerTimeTrackingSettingEffects();
+function activateTimeTrackingAppRuntime() {
+  registerTimeTrackingSearchIndexers();
+  registerTimeTrackingReportRunners();
+  timeTrackingSettingsService.registerTimeTrackingSettingEffects();
+}
+
+function activateTimeTrackingWorkerRuntime() {
+  registerTimeTrackingSearchIndexers();
+}
 
 const timeTrackingModule = {
   id: "time-tracking",
@@ -106,6 +113,14 @@ const timeTrackingModule = {
       moduleId: "time-tracking",
       path: "/js/time-tracking-dashboard.js",
       type: "script",
+      views: ["dashboard"],
+      requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
+    },
+    {
+      id: "time-tracking-dashboard-style",
+      moduleId: "time-tracking",
+      path: "/css/time-tracking-dashboard.css",
+      type: "style",
       views: ["dashboard"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
     },
@@ -547,4 +562,10 @@ const timeTrackingModule = {
   ],
 };
 
-export { timeTrackingModule };
+const moduleEntry = createModuleEntry({
+  manifest: timeTrackingModule,
+  activateApp: activateTimeTrackingAppRuntime,
+  activateWorker: activateTimeTrackingWorkerRuntime,
+});
+
+export { moduleEntry, timeTrackingModule };

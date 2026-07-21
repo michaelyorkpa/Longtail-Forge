@@ -27,6 +27,7 @@ const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeDatabase, db, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { registerTaskJobHandlers } = await import("../src/modules/tasks/task-jobs.service.js");
 const { tasksPublicApiService } = await import("../src/modules/tasks/public-api.service.js");
@@ -55,6 +56,7 @@ try {
   assert.match(regressionSuite, /scripts\/async-recurrence-response-closeout-regression\.mjs/, "regression suite should include async recurrence response closeout coverage");
 
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   registerTaskJobHandlers({ replace: true });
   const session = await readSeedSession();

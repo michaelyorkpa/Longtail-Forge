@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { suggestRegressionsForPaths } from "./regression-change-routing.mjs";
 
-function createChangedRegressionPlan(filePaths = []) {
-  const suggestion = suggestRegressionsForPaths(filePaths);
+function createChangedRegressionPlan(filePaths = [], { prechecked = false, versionBookkeepingPaths = [] } = {}) {
+  const suggestion = suggestRegressionsForPaths(filePaths, { versionBookkeepingPaths });
   let mode = "focused";
   let commands = suggestion.commands;
 
@@ -10,8 +10,8 @@ function createChangedRegressionPlan(filePaths = []) {
     mode = "empty";
     commands = [];
   } else if (suggestion.fullCheckRecommended) {
-    mode = "full-check";
-    commands = [suggestion.releaseGate];
+    mode = prechecked ? "full-regressions" : "full-check";
+    commands = [prechecked ? "npm run test:regressions" : suggestion.releaseGate];
   } else if (suggestion.fallback) {
     mode = "fallback";
   }
@@ -50,8 +50,10 @@ function formatChangedRegressionPlan(plan) {
     }
   }
 
-  if (plan.mode === "full-check") {
-    lines.push("Escalation: shared/framework, database, view, or release changes require the full release gate.");
+  if (plan.mode === "full-check" || plan.mode === "full-regressions") {
+    lines.push(plan.mode === "full-regressions"
+      ? "Escalation: CI prechecks already passed; run the complete discovered regression registry without repeating them."
+      : "Escalation: the selected boundary requires the full release gate.");
   }
   lines.push("Commands to run:");
   plan.commands.forEach((command) => lines.push(`- ${command}`));

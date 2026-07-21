@@ -1,7 +1,8 @@
 import express from "express";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import { config, logRuntimeConfigWarnings } from "../config.js";
-import { closeDatabase, formatDatabaseHealth, initializeDatabase } from "../db/index.js";
+import { closeDatabase, formatDatabaseHealth, formatStartupPhase, initializeDatabase } from "../db/index.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { appInfoRoutes } from "../routes/app-info.routes.js";
@@ -29,6 +30,7 @@ import { workbenchRoutes } from "../routes/workbench.routes.js";
 import { formatJobWorkerStatus, startJobWorker, stopJobWorker } from "./jobs/index.js";
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
+import { activateModuleRuntime, runModuleStartupTasks } from "./modules/module-runtime.js";
 import { notificationsService } from "../services/notifications.service.js";
 import { filesService } from "../services/files.service.js";
 import { registerFutureImportJobHandlers } from "../services/import-jobs.service.js";
@@ -38,7 +40,6 @@ import {
   queueSearchIndexRebuildIfEmpty,
   registerSearchIndexJobHandlers,
 } from "../services/search-index-jobs.service.js";
-import { queueTaskRecurrenceSweepJobs, queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../modules/tasks/task-jobs.service.js";
 import { registerInitialResumeStateProducerEventHandlers } from "../services/work-resume-state-initial-producers.js";
 import { attachRequestContext, configureTrustedProxy } from "./request-context.js";
 import { createTransportSecurityMiddleware } from "./transport-security.js";
@@ -46,11 +47,13 @@ import { createCsrfProtectionMiddleware } from "./csrf-protection.js";
 import { securityEventsService } from "../security/security-events.js";
 import { assertRuntimeDataPathsReady } from "./runtime-readiness.js";
 import { createRequestLoggingMiddleware, operationalLogger } from "./operational-logger.js";
+import { registerFrameworkHelpSearchIndexers } from "./help/search-indexers.js";
 
 function createApp() {
   const app = express();
+  registerFrameworkHelpSearchIndexers();
+  activateModuleRuntime("app");
   registerSearchIndexJobHandlers();
-  registerTaskJobHandlers();
   filesService.registerFileScanJobHandlers();
   registerFutureImportJobHandlers();
   workspacePurgeService.registerWorkspacePurgeJobHandlers();
@@ -59,7 +62,9 @@ function createApp() {
   securityEventsService.registerEventHandlers();
 
   app.disable("x-powered-by");
+  app.set("query parser", "extended");
   configureTrustedProxy(app, config.security.trustedProxies);
+  app.use(compression());
   app.use(attachRequestContext);
   app.use(createRequestLoggingMiddleware());
   app.use(createTransportSecurityMiddleware());
@@ -128,7 +133,7 @@ async function startServer() {
     await assertRuntimeDataPathsReady();
     await filesService.assertConfiguredFileStorageProviderReady();
     await filesService.assertConfiguredFileScannerReady();
-    const databaseHealth = await initializeDatabase();
+    const databaseHealth = await initializeDatabase({ report: reportStartupPhase });
     if (config.environment === "production") {
       operationalLogger.info("database.ready", { component: databaseHealth.provider });
     } else {
@@ -136,9 +141,8 @@ async function startServer() {
     }
     queueStartupJobRetentionPrune();
     queueStartupSearchIndexRebuildIfEmpty();
-    queueStartupTaskReminderSweep();
-    queueStartupTaskRecurrenceSweep();
     const app = createApp();
+    await runModuleStartupTasks("app", { defer: true });
 
     const server = app.listen(config.port, config.host, () => {
       if (config.environment === "production") {
@@ -184,6 +188,22 @@ function startConfiguredInlineWorker() {
   });
 }
 
+function reportStartupPhase(event) {
+  if (config.environment === "production") {
+    operationalLogger.info("startup.phase", {
+      component: event.id,
+      durationMs: Math.round(event.durationMs),
+      errorType: event.errorType,
+      mode: event.lifecycle,
+      source: event.owner,
+      state: event.status,
+    });
+    return;
+  }
+
+  console.log(formatStartupPhase(event));
+}
+
 function registerGracefulShutdown(server) {
   let shuttingDown = false;
   const shutdown = (signal) => {
@@ -219,36 +239,6 @@ function queueStartupJobRetentionPrune() {
       console.log(`[job-retention] prune=complete completed_deleted=${result.completed.deleted} dead_deleted=${result.dead.deleted}`);
     } catch (error) {
       console.warn("[job-retention] Job history pruning failed.");
-      console.warn(error.message || error);
-    }
-  }, 0);
-}
-
-function queueStartupTaskReminderSweep() {
-  setTimeout(async () => {
-    try {
-      const result = await queueTaskReminderSweepJobs({
-        source: "startup-reminder-sweep",
-      });
-
-      console.log(`[task-reminder-startup] sweep_queue=${result.queued ? "queued" : "skipped"} workspaces=${result.workspaceCount}`);
-    } catch (error) {
-      console.warn("[task-reminder-startup] Reminder sweep queue failed.");
-      console.warn(error.message || error);
-    }
-  }, 0);
-}
-
-function queueStartupTaskRecurrenceSweep() {
-  setTimeout(async () => {
-    try {
-      const result = await queueTaskRecurrenceSweepJobs({
-        source: "startup-recurrence-sweep",
-      });
-
-      console.log(`[task-recurrence-startup] sweep_queue=${result.queued ? "queued" : "skipped"} workspaces=${result.workspaceCount}`);
-    } catch (error) {
-      console.warn("[task-recurrence-startup] Recurrence sweep queue failed.");
       console.warn(error.message || error);
     }
   }, 0);

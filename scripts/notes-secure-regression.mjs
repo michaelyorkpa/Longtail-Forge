@@ -14,6 +14,7 @@ process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION = "test-v2";
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { internalEventBus } = await import("../src/core/events/event-bus.js");
 const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { filesService } = await import("../src/services/files.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_PERMISSIONS } = await import("../src/modules/notes/access-policy.js");
@@ -36,6 +37,7 @@ const unsubscribeSecureNoteEvents = [
 
 try {
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
   const workspace = await readWorkspace();

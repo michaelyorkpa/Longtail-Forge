@@ -33,6 +33,8 @@ const requiredSupportFiles = [
   "scripts/generate-regression-manifest.mjs",
   "scripts/run-changed-regressions.mjs",
   "scripts/run-slice-verification.mjs",
+  "scripts/run-timed-stage.mjs",
+  "scripts/agent-brief.mjs",
   "scripts/run-closeout.mjs",
   "scripts/check-licensing-gates.mjs",
   "scripts/lib/licensing-gates.mjs",

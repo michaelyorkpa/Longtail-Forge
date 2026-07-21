@@ -11,6 +11,7 @@ import { workResumeStateService } from "./work-resume-state.service.js";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
+const SECOND_UPDATED_TASK_SCAN_LIMIT = 5;
 const TEXT_LIMITS = Object.freeze({
   blockedReason: 1000,
   candidateId: 240,
@@ -120,6 +121,10 @@ const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
 
 async function listResumeCandidates(session, query = {}) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
+  // Over-fetch stays at limit x 4 (capped) with the resume scan's own x 3:
+  // both only compensate for rows the query/read filters drop, trimming them
+  // could lose tail candidates, and with batched read checks the scanned rows
+  // cost a constant number of IN-queries rather than one read per row.
   const result = await workResumeStateService.listResumeState(session, {
     ...stripScopeFilters(query),
     limit: Math.min(MAX_LIMIT, normalizedQuery.limit * 4),
@@ -189,6 +194,10 @@ async function listTaskWorkItemCandidates(session, query = {}, sourceContext = n
   const result = await tasksService.listWorkbenchItems(session, {
     ...optionalContextFilter("clientId", normalizedQuery.clientId),
     ...optionalContextFilter("projectId", normalizedQuery.projectId),
+    ...optionalContextFilter("dueBefore", normalizedQuery.dueBefore),
+    ...optionalContextFilter("dueFrom", normalizedQuery.dueFrom),
+    ...optionalContextFilter("dueOn", normalizedQuery.dueOn),
+    ...optionalContextFilter("dueTo", normalizedQuery.dueTo),
     sort: "due_at",
     status: "active",
   });
@@ -223,9 +232,13 @@ async function readSecondMostRecentUpdatedTaskCandidate(session, query = {}, sou
     return null;
   }
 
+  // The boost needs only the top two eligible tasks; the SQL page bound keeps
+  // this an ORDER BY updated_at DESC LIMIT scan (the pagination machinery
+  // scans further only when permission filtering drops candidates).
   const result = await tasksService.listWorkbenchItems(session, {
     ...optionalContextFilter("clientId", normalizedQuery.clientId),
     ...optionalContextFilter("projectId", normalizedQuery.projectId),
+    limit: SECOND_UPDATED_TASK_SCAN_LIMIT,
     sort: "updated",
     status: "active",
   });

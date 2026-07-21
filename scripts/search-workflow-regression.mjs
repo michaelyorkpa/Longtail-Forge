@@ -22,9 +22,10 @@ let server;
 
 try {
   await initializeDatabase();
+  const app = createApp();
   const fixtures = await seedWorkflowFixtures();
   await searchIndexRebuildService.rebuildWorkspace({ audit: false, workspaceId: fixtures.workspaceId });
-  server = await listen(createApp());
+  server = await listen(app);
   const api = createApi(`http://127.0.0.1:${server.address().port}`);
 
   await checkAsync("browser search discovers indexed Tasks, Time Entries, Clients, and Projects", async () => {

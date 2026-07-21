@@ -333,6 +333,16 @@ async function runClientMutationTests(api, fixtures) {
       assert.ok(response.body.workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
     });
   });
+  await expectStatus(
+    "personal workspace hides clients in the options projection",
+    api.get("/api/client-projects?view=options", { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("personal workspace options payload has only workspace projects", () => {
+      assert.equal(response.body.clients.length, 0);
+      assert.ok(response.body.workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
+    });
+  });
 }
 
 async function runProjectMutationTests(api, fixtures) {
@@ -860,7 +870,16 @@ async function runTaskMutationTests(api, fixtures) {
       assert.ok(response.body.registry.workbenchCards.some((card) => card.renderer === "task-workbench-items"));
       assert.deepEqual(response.body.timers, []);
       assert.equal(Object.hasOwn(response.body, "taskItems"), false);
-      assert.ok(response.body.workCandidates.some((candidate) => candidate.recordType === "active_work_timer"));
+      assert.deepEqual(response.body.workCandidates, [], "bootstrap must not compute focus candidates");
+    });
+  });
+  await expectStatus(
+    "project user can load Workbench focus candidates",
+    api.get("/api/workbench/focus-candidates?limit=50", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("Workbench focus candidates include normalized live-timer candidates", () => {
+      assert.ok(response.body.items.some((candidate) => candidate.recordType === "active_work_timer"));
     });
   });
   await expectStatus(

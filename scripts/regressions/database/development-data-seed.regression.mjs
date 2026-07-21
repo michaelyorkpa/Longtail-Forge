@@ -47,12 +47,15 @@ try {
   assert.equal(first.semanticFingerprint, demo.semanticFingerprint, "sanitized demo data should use the same reproducible fake scenario contract");
   assert.equal(demo.profile, "sanitized-demo");
   assert.deepEqual(first.counts, second.counts);
-  assert.equal(first.counts.workspaces, 3);
-  assert.equal(first.counts.tasks, 12);
-  assert.equal(first.counts.notes, 4);
-  assert.equal(first.counts.lists, 5);
+  assert.equal(first.counts.workspaces, 5);
+  assert.equal(first.counts.tasks, 400);
+  assert.equal(first.counts.users, 18);
+  assert.equal(first.counts.notes, 200);
+  assert.equal(first.counts.lists, 24);
   assert.equal(first.counts.active_work_timers, 2);
-  assert.equal(first.counts.time_entries, 2);
+  assert.equal(first.counts.time_entries, 602);
+  assert.equal(first.search.backend, "sqlite");
+  assert.equal(first.search.rebuiltCount, first.counts.search_index);
   assert.equal(first.workbench.focusSelectionUrl, "workbench.html");
   assert.match(first.workbench.taskFocusUrl, /^workbench\.html\?taskId=/);
   assert.equal(first.workbench.secureNotesSeeded, false);
@@ -61,14 +64,22 @@ try {
 
   const database = new Database(path.join(firstDir, "longtail-forge.db"), { readonly: true });
   try {
+    const earliestWorkspace = database.prepare("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at, workspace_id LIMIT 1").get();
+    const operator = database.prepare("SELECT home_workspace_id FROM users WHERE protected_user = 'yes' LIMIT 1").get();
+    assert.equal(earliestWorkspace.workspace_type, "business", "startup must retain the Business bootstrap workspace as the deterministic first workspace");
+    assert.equal(operator.home_workspace_id, earliestWorkspace.workspace_id, "startup super-admin lookup must remain anchored to the operator's Business workspace");
     const taskStates = database.prepare("SELECT status, due_date, recurrence_template_id, next_action, blocked_reason, resume_note FROM tasks").all();
     assert.ok(taskStates.some((row) => row.status === "blocked" && row.blocked_reason));
-    assert.ok(taskStates.some((row) => row.status === "completed"));
+    assert.ok(taskStates.some((row) => row.status === "complete"), "seeded tasks must use the canonical complete status token");
+    assert.ok(taskStates.some((row) => row.status === "archived"));
     assert.ok(taskStates.some((row) => row.due_date === null));
     assert.ok(taskStates.some((row) => row.recurrence_template_id));
     assert.ok(taskStates.some((row) => row.next_action && row.resume_note));
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count, 0);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!").count, 0);
+    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
+    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
+    assert.deepEqual(database.prepare("SELECT extension FROM files ORDER BY storage_key").all(), [{ extension: ".md" }, { extension: ".txt" }], "seeded Files must retain the canonical dotted extension used by preview classification");
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   } finally {
     database.close();

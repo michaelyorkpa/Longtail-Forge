@@ -17,7 +17,7 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const taskJobsSource = readText("src/modules/tasks/task-jobs.service.js");
-const tasksModuleSource = readText("src/modules/tasks/module.js");
+const tasksModuleEventsSource = readText("src/modules/tasks/module.events.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -28,6 +28,7 @@ const {
   runJobWorkerOnce,
   stopJobWorker,
 } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { closeDatabase, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { notificationsService } = await import("../src/services/notifications.service.js");
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
@@ -38,6 +39,7 @@ try {
   assertStaticContract();
 
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   registerTaskJobHandlers({ replace: true });
   notificationsService.registerNotificationJobHandlers({ replace: true });
@@ -65,12 +67,12 @@ function assertStaticContract() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the reminder delivery version");
   assert.match(taskJobsSource, /recipient_user_ids:\s*taskReminderRecipientIds\(task\)/, "reminder jobs should pass explicit responsible recipients");
   assert.match(taskJobsSource, /function taskReminderRecipientIds/, "reminder jobs should resolve fallback creator recipients");
-  assert.match(tasksModuleSource, /taskDueSoonNotificationTitle/, "task due-soon notifications should include useful due-soon titles");
-  assert.match(tasksModuleSource, /Task "\$\{title\}" is due in \$\{offsetLabel\}\./, "task due-soon body should include the reminder offset");
+  assert.match(tasksModuleEventsSource, /taskDueSoonNotificationTitle/, "task due-soon notifications should include useful due-soon titles");
+  assert.match(tasksModuleEventsSource, /Task "\$\{title\}" is due in \$\{offsetLabel\}\./, "task due-soon body should include the reminder offset");
   assert.match(regressionSuite, /scripts\/task-reminder-notification-delivery-regression\.mjs/, "regression suite should include reminder delivery coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the reminder delivery slice");
-  assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current implementation version");
+  assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.8[\s\S]*explicit reminder recipients/, "database docs should document reminder delivery recipients");
   assert.match(runtimeDocs, /0\.33\.5\.21\.8[\s\S]*task due reminders reach in-app notifications/, "runtime docs should document reminder delivery");
 }

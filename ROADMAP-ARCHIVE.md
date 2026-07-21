@@ -1,5 +1,370 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.20 - Workbench and API Load Performance
+
+Completed the full branch locally on 2026-07-21 on `perf/0.33.20-workbench-api-load` and published as one unit per the standing instruction. Measured on the fat Northwind dataset (400 tasks, same machine, baseline worktree at the branch point versus the finished branch): Workbench cold first render 1152 to 209 ms and cold settled 1613 to 668 ms; warm first render 995 to 146 ms and warm settled 1384 to 648 ms — meeting the ~1.5 s cold / sub-second warm acceptance bar. Endpoint medians: bootstrap 65.1 to 13.4 ms, workbench-items 409.8 to 94.1 ms, focus-candidates 625.2 to 317.4 ms, tasks page 646.3 to 209.3 ms, the Workbench card options fetch 402.8 to 37.8 ms, and the client-projects dropdown 27.1 to 16 ms. The complete recorded numbers live in the CHANGELOG 0.33.20.7 entry.
+
+**Model: High Effort** — Hot-path query pipelines, the SQLite adapter statement lifecycle, module-context read semantics, and API payload contracts all change in one branch; a regression here corrupts nothing but silently changes list contents, permission filtering, or payload shapes consumed by many pages.
+
+Purpose:
+
+Eliminate the ~5s Workbench load measured on the rt-ltf preview database (2026-07-20 review). The review found the slowness is not indexing (existing indexes were verified to cover the hot predicates) but (a) redundant server work — an options payload computed and discarded on every task list/read, three separate per-row reminder-policy N+1s, a write transaction on every module-status read, and unbounded/duplicated list serialization — amplified by a synchronous SQLite driver that serializes concurrent requests on the event loop, and (b) a four-wave sequential fetch waterfall in the Workbench browser client. Findings and agreed attack order are recorded from the review; grounding references below should be re-verified at implementation time since code will have drifted.
+
+Sequencing decision:
+
+- This performance branch was previously inserted ahead of the UX branch because day-to-day slowness on the most-used database damages the preview experience more than the deferred UX corrections. It now follows the demo-data readiness branch as 0.33.20, while the UX branch and the remaining near-term plan continue at 0.33.21 through 0.33.27.
+- The SQLite adapter internals slice pulls the planned 0.39.16 adapter cleanup forward, because the review measured its per-query overhead multiplying every N+1 today; 0.39.16 remains as a re-benchmark checkpoint before the 0.40.0 PostgreSQL adapter.
+- Server-side slices land before the browser-client restructuring so the client work is measured against already-fast endpoints and does not paper over server cost.
+
+Entry contract and grounding (re-verify at implementation time — code will have drifted):
+
+- Every `queryTasks` and `tasksService.read` runs `readOptions(session)` (`src/modules/tasks/tasks.service.js`): workspace settings + all users + all clients + all projects + a second 200-task picker query with per-task permission checks; the Workbench candidate pipeline discards the result and `workbench/bootstrap` returns `taskOptions: null`.
+- `GET /api/tasks/workbench-items` emits no SQL LIMIT (limit 0 drops the clause in `src/modules/tasks/tasks.repo.js`), selects the full markdown `description` for list rows, and `taskWorkItemSummary` serializes most sub-objects twice (snake_case and camelCase) with `resume_context` repeating fields a third time — 507 kB uncompressed on rt-ltf.
+- Per-row N+1s: `attachTaskListProjectionDetails` awaits `readTaskReminderDetails` per task (~4 queries each) while checklists/relationships in the same function are already batched; `focus-candidates` runs the full `tasksService.read` (including `readOptions`) per resume-state row with 4×- and 3×-over-fetch multipliers (`src/services/work-candidate.service.js`, `src/services/work-resume-state.service.js`); `readClientProjects` queries `task_reminder_offsets` per client and per project before permission filtering (`src/modules/client-projects/clients.service.js`), though the batched `readOffsetsForTargets` already exists.
+- `modulesService.readModuleStatus`/`readWorkspaceModuleContext` call `ensureWorkspaceModuleRows` — an INSERT-per-module write transaction — on every read, ~8-10× per bootstrap request, serializing all requests behind WAL commits through the adapter's global transaction tail.
+- `GET /api/client-projects` (332 kB) ships the full management shape (11-field billing contact, five overlapping tag arrays, `taskReminderPolicy`) to 13 pages of which 12 need ~8 dropdown fields (`public/js/shared/client-project-options.js`); inactive records are fetched, enriched, and discarded in the browser; workspace projects are tag-decorated twice.
+- The browser client loads in four sequential waves (`loadWorkbench()` in `public/js/workbench.js`): app-shell/session, then bootstrap + client-projects + focus-modes, then per-card source data, then focus-candidates last — even though focus-candidates' inputs are restored from localStorage before wave two starts. Every fetch uses `cache: "no-store"`, which prevents ETag revalidation; `src/core/app.js` has no compression middleware (the preview proxy currently compresses).
+- `GET /api/workbench/focus-modes` performs one indexed SELECT; its ~2s is queueing behind the above, not its own work. Fixing the pipelines fixes it without touching it.
+
+Non-goals:
+
+- No PostgreSQL work, no frontend framework adoption, and no visual redesign of the Workbench.
+- No behavior changes to ranking, permission filtering, or workspace isolation; faster must mean identical results.
+- Payload-shape changes are limited to removing duplicated/unused fields and adding opt-in slim projections, each with its consumers migrated in the same slice; no other API contract changes.
+
+### Version 0.33.20.1 - SQLite adapter statement cache and single-scan parsing (pulled forward from 0.39.16)
+
+**Model: High Effort** — Database adapter internals with prepared-statement lifecycle and durability implications; a subtle cache-invalidation or PRAGMA error is high-cost.
+
+- [x] Establish the repeatable adapter micro-benchmark (hot single-row read, hot list read, hot write, transaction) and record a baseline before any change.
+- [x] Add a bounded, connection-scoped prepared-statement cache keyed on the final rewritten SQL, reused across `query`/`get`/`run`; invalidate on connection close/reopen (`initializeSqliteRuntime`); cap/evict under variable-length `IN (:ids)` expansion; identical results, errors, and transaction behavior.
+- [x] Collapse the redundant per-query SQL scans (`countSqlStatements`, `collectSqlParameters`, `prepareDatabaseBindings`) into one shared tokenizer pass, preferring the tokenizer in `src/db/parameter-bindings.js`; preserve exact multi-statement, comment/quote, and error behavior.
+- [x] Make `db.get(...)` use better-sqlite3's single-row `statement.get()` path, preserving the `null`-when-empty contract and row shape.
+- [x] Add runtime-config-gated startup performance PRAGMAs (`synchronous`, `cache_size`, `temp_store`, optionally `mmap_size`) with WAL-safe defaults, surfaced in SQLite health/`/api/runtime-diagnostics` and documented in `docs/runtime-configuration.md` with the `synchronous = NORMAL` durability tradeoff; do not change `journal_mode`, `busy_timeout`, or `foreign_keys` behavior.
+- [x] Add behavior-preserving regressions (identical results/errors/`get`-null semantics, cache correctness across connection reset and `IN (:ids)`, PRAGMA health reporting) and record before/after benchmark numbers.
+
+Acceptance criteria:
+
+- The adapter is measurably faster on the benchmark with no change to query results, error contracts, or transaction semantics, and the tuning PRAGMAs are config-gated, diagnostics-visible, and documented.
+
+### Version 0.33.20.2 - Module-context reads stop writing
+
+**Model: High Effort** — Startup/first-install row-ensuring moves lifecycle; getting it wrong breaks fresh installs or module enable/disable.
+
+- [x] Move `ensureWorkspaceModuleRows` out of the read path: run it at startup for existing workspaces and at workspace-creation/module-install time, consistent with the 0.33.18.3 lifecycle classification.
+- [x] Make `readModuleStatus` and `readWorkspaceModuleContext` pure SELECTs and cache module context/contribution lists per workspace in memory, invalidated by `setModuleStatus` and module install/uninstall.
+- [x] Add a request-scoped memo for repeated context reads (`readWorkspaceSettings`, module status, workspace context) following the existing `session.__requestCache` pattern in `src/services/permissions.service.js`.
+- [x] Regressions: fresh install, module enable/disable visibility, workspace creation, and proof that a bootstrap request performs zero write transactions.
+
+Acceptance criteria:
+
+- No read-path endpoint opens a write transaction, module status behavior is unchanged across install/enable/disable/fresh-install flows, and repeated per-request context reads hit the memo.
+
+### Version 0.33.20.3 - Task list pipeline: opt-in options, bounded lists, batched reminders
+
+**Model: High Effort** — The task list projection feeds Workbench, candidates, and pickers; payload-shape changes must migrate every consumer in the same slice.
+
+- [x] Make `readOptions` opt-in (`queryTasks(session, query, { includeOptions: false })` or equivalent); list paths (`listWorkItems`, `listWorkbenchItems`, candidate sources) skip it. Provide a dedicated cacheable options endpoint for consumers that need pickers.
+- [x] Split `tasksService.read` so lightweight callers (resume-state read-checks) get a core read without options/detail enrichment.
+- [x] Add a SQL-side limit/cursor to `workbench-items` using the existing pagination machinery; push the due-window filter for due-oriented modes into the repository query (index `idx_tasks_workspace_due_date` exists; consider ordering by `(due_date, due_time)` directly so the LIMIT scan is index-ordered).
+- [x] Batch `readTaskReminderDetails` for list projections (settings once, one IN-query for client/project rows, one `readOffsetsForTargets` call) or drop it from list projections if no list consumer reads it — verify consumers first.
+- [x] Deduplicate `taskWorkItemSummary` serialization to one casing convention, drop the full `description` from list rows (keep the excerpt), and emit `resume_context` once; migrate all browser consumers in this slice.
+- [x] Precompute the readable-scope set for permission filtering (as `filterReadableClients` does) instead of per-row `canReadTask` awaits, and parse `permission_overrides_json` once per assignment.
+
+Acceptance criteria:
+
+- `workbench-items` is bounded and its payload materially smaller with identical visible list contents and permission behavior; task list paths issue a near-constant number of queries regardless of task count.
+
+### Version 0.33.20.4 - Focus-candidates and bootstrap pipeline
+
+**Model: High Effort** — Candidate ranking and resume-state semantics must not change while their data acquisition is rebuilt.
+
+- [x] Replace the per-resume-row full task read with a batched existence/status check (one IN-query over the scanned rows' record ids, in-memory `canReadTask`), and apply the same to lists/notes resolvers.
+- [x] Thread the already-fetched timer/work-item source context from `workbenchService.bootstrap` into `listWorkCandidates` instead of re-fetching it.
+- [x] Stop computing 50 work candidates on every bootstrap: drop `workCandidates` from the bootstrap payload or gate it behind the `?taskId` deep-link case, which is its only consumer.
+- [x] Replace `readSecondMostRecentUpdatedTaskCandidate`'s full list query with a lean `ORDER BY updated_at DESC LIMIT` query.
+- [x] Review the resume over-fetch multipliers (limit × 4 × 3) once per-row cost is gone and set them from measured need.
+- [x] Regressions: identical candidate ranking and focus-mode results on a seeded dataset before/after; focus-candidates and bootstrap query-count budgets.
+
+Acceptance criteria:
+
+- Focus-candidates and bootstrap return identical results with bounded query counts, and `focus-modes` latency collapses without being touched (queueing proof).
+
+### Version 0.33.20.5 - Client-projects options projection and reminder-policy batching
+
+**Model: High Effort** — Thirteen consuming pages; the slim projection must be adopted without breaking the management surface.
+
+- [x] Add a slim options projection (`?view=options` or a dedicated endpoint) returning only the fields `public/js/shared/client-project-options.js` consumes; migrate the dropdown consumers (workbench, stop-watch, dialogs, calendar, lists, files, search, footer, user-admin) to it, leaving the full shape for the Clients/Projects management page.
+- [x] Batch `attachReminderPolicies` through the existing `readOffsetsForTargets`, run it only for permission-filtered records, and gate `taskReminderPolicy` behind an include flag requested only by the management page.
+- [x] Tag-decorate each record set once (workspace projects are currently decorated twice), pass workspace settings down instead of re-reading, and filter `status != 'Inactive'` in SQL for the options projection (indexes exist).
+- [x] Regressions: management page unchanged; options consumers render identical dropdowns; query-count and payload-size budgets for both shapes.
+
+Acceptance criteria:
+
+- The options payload is a small fraction of the management payload, reminder-policy queries are constant-count, and every consumer renders identically.
+
+### Version 0.33.20.6 - Workbench client fan-out, caching, and progressive render
+
+**Model: High Effort** — Load-order restructuring on the most-used page; races between restored local state and server truth must be handled deliberately.
+
+- [x] Collapse the four sequential waves in `loadWorkbench()` into one parallel fan-out: fire focus-candidates with localStorage-restored mode/client/project alongside bootstrap/client-projects/focus-modes, refetching only if the restored selection is invalidated; stop awaiting `workspaceContextReady`/`loadSessionTimezone` where the cached context suffices, reconciling on the workspace-context-updated event.
+- [x] Source the session timezone from the app-shell bootstrap payload instead of a separate `/api/session` round-trip.
+- [x] Cache the near-static card registry (sessionStorage keyed by workspace) so per-card source fetches start immediately, reconciling when bootstrap resolves.
+- [x] Render the focus-selection panel and skeletons immediately (its inputs are client-side constants) and patch each panel as its data arrives.
+- [x] Switch near-static endpoint fetches from `cache: "no-store"` to `no-cache` so ETag revalidation works, add a shared cached-fetch helper (stale-while-revalidate via sessionStorage) for registry/focus-modes/client-project options, and keep timers/candidates/notifications uncached.
+- [x] Add `compression()` (or record the proxy-compression requirement in deployment docs) and `defer` on workbench script tags; move the dialog-only scripts to the existing lazy-dependency mechanism.
+- [x] Regressions: first-render correctness with cold and warm caches, selection-invalidation refetch, and no duplicate fetches per load.
+
+Acceptance criteria:
+
+- Workbench wall-clock load approximates the slowest single request instead of the sum of waves, first useful render is sub-second on warm loads, and behavior is identical with cold caches.
+
+### Version 0.33.20.7 - Performance proof and closeout
+
+**Model: Medium Effort** — Evidence and documentation; no new behavior.
+
+- [x] Enlarge the Northwind development/demo seed into the fat measurement dataset (folded in 2026-07-21 by user request): 5 workspaces, 18 personas, 20 clients, 46 projects, 400 tasks, 200 notes, 24 lists, ~600 time entries, materialized Search index, canonical complete-status tokens, and today-anchored relative dates on reset (dev default; demo host accepts --anchor-date today; seed contract development-data-v2).
+- [x] Measure before/after on an rt-ltf-scale dataset: per-endpoint latency, query counts, payload sizes, and Workbench wall-clock/first-render; record the numbers in the changelog. Done via an honest A/B rig — a baseline git worktree at the branch point and the finished branch, both serving the identical fat seeded database, with endpoint medians-of-seven plus Playwright cold/warm browser wall-clock medians-of-three.
+- [x] Add query-count/payload budget regressions for the hot endpoints so N+1 reintroductions fail loudly. `workbench.hot-endpoint-budgets` pins HTTP-level statement counts, payload ceilings, and near-constant growth for bootstrap, focus-modes, workbench-items, and tasks/options, joining the service-level budgets in `workbench.focus-candidate-pipeline`.
+- [x] Update `docs/architecture.md`, `docs/runtime-configuration.md`, and `docs/regression-suite.md` for the adapter tuning, module-context lifecycle, projections, and client caching; run the canonical slice verification and full release gates.
+
+Acceptance criteria:
+
+- The measured Workbench load on the reference dataset is under ~1.5s cold / sub-second warm, the numbers are recorded, and budget regressions guard the hot paths.
+
+## Version 0.33.19.5 - Files regression isolation and scheduling audit
+
+Completed 0.33.19.5 locally on 2026-07-20. The complete 0.33.19 branch is closed and the live roadmap advances to 0.33.20. The stacked 0.33.19.3-.5 work remains uncommitted and unmerged pending the user's separate publication instruction.
+
+**Model: High Effort** — The audit preserved conservative scheduling wherever mutable file, database, scanner, process, port, environment, worker, or singleton state was not fully proven disposable.
+
+- [x] Inventoried all 29 original serial Files scripts across database, file-storage root, scanner executable/process, network port, environment, worker/child process, and singleton runtime state in `scripts/regression-files-isolation-audit.json`.
+- [x] Reclassified only nine scripts with unique runner- or script-owned database/storage state and no HTTP server, scanner process, worker, nested child process, or ambiguous singleton. The other 20 retain serial scheduling with script-specific reasons.
+- [x] Proved the nine candidates through three complete repeats at concurrency 2, 4, and 6: 81 logical script runs, zero failures, and zero recovered flakes.
+- [x] Added a separate `isolated-files` bucket and dedicated concurrency override while preserving no-retry Files semantics. Only isolated-database failures may enter the existing one-retry scheduler.
+- [x] Reduced the measured complete Files-family wall time from 71.36 seconds serial to 51.43 seconds with the conservative 20/9 split; timing is evidence, not the isolation justification.
+- [x] Added required `release.files-regression-isolation-audit` coverage, advanced the registry to 383 scripts and 44 release gates, retained all regression identities/assertions/families/floors, and left the frozen legacy snapshot unchanged.
+
+Acceptance criteria:
+
+- Every reclassified Files regression passed repeated concurrent stress with unique disposable state; all ambiguous scripts remain serial, and exact membership, timings, concurrency, outcomes, and retained reasons are documented.
+
+## Version 0.33.19.4 - Runtime-configuration pure contract migration
+
+Completed 0.33.19.4 locally on 2026-07-20. The live roadmap advances to 0.33.19.5; the user requested that the stacked 0.33.19.3-.4 work remain uncommitted and unmerged until 0.33.19.5 is complete.
+
+**Model: Medium Effort** — Test ownership changed inside one bounded configuration contract while its process and integration owner remained explicit.
+
+- [x] Inventoried 108 deterministic expectations and measured three unchanged pre-migration samples. Median time was 3,605.82 ms for the child-process pure matrix, 1,791.89 ms for retained setup/integration work, and 5,499.27 ms total.
+- [x] Moved defaults, explicit-value and relative-path normalization, safe-production values and warnings, legacy ignored input, four accepted scanner modes, and 31 expected-error cases to direct `createConfig` Vitest coverage. The 108 expectations run as 36 tests with a 332 ms median focused-suite duration and 16 ms median test execution.
+- [x] Kept `scripts/runtime-configuration-contract-regression.mjs` discovered in the legacy snapshot. It retains fresh child-process environment materialization, startup/import failure propagation, disposable database and live module-registry loading, package/module version identity, runtime docs/source contracts, and sessions, cookies, transport security, authentication throttling, workspace bootstrap, Secure Notes, Files storage, and app-info response integration.
+- [x] Added validated `assertionMovements` evidence to the existing generated coverage ratchet. The record pins the 108-case inventory, existing Vitest target, and retained discovered integration owner; it earns no retirement or floor credit.
+- [x] Measured the same owners after migration: the retained-regression median was 1,030.84 ms, and the combined Vitest plus retained median was 1,362.84 ms, 75.2% below the prior 5,499.27 ms total median. Both layers remain required.
+- [x] Preserved the 382-script registry and 43 required release gates while documenting the exact ownership boundary in Decisions, runtime configuration, regression-suite, performance, and documentation-routing contracts.
+
+Acceptance criteria:
+
+- Pure configuration behavior runs through the faster Vitest layer, while the retained regression still proves every process, environment, database, registry, and runtime integration boundary previously covered.
+
+## Version 0.33.19.3 - Developer Verification Throughput
+
+Completed 0.33.19.3 locally on 2026-07-20. The live roadmap advances to 0.33.19.4; the user requested that this work remain uncommitted and unmerged until 0.33.19.5 is complete.
+
+**Model: High Effort** — It changed release/test orchestration, so the closeout retained complete escalation evidence for every high-risk boundary.
+
+- [x] Made changed-area routing content-aware. Exact `package.json` plus `package-lock.json` application-version-only edits and roadmap/changelog bookkeeping stay focused, while dependency, npm-script, workflow, release-tooling, framework, shared-view, database, Files, security/permissions, generated-contract, and unknown changes still escalate completely.
+- [x] Added narrow Tasks, Notes, owned CSS, and documentation routing without selecting unrelated database, Files, or framework regressions; focused routing regressions prove both narrow and retained escalation matrices.
+- [x] Split the independently runnable full `npm run check` into `check:fast` followed by the complete registry, and added CI's prechecked changed-regression entry point so a full escalation after successful typecheck/unit/lint does not restart those stages.
+- [x] Added explicit local and CI timing for context/setup, closeout, typecheck/unit/lint, regression buckets, permission checks, browser checks, and packaging. Local output shows passed, failed, and skipped stages; regression buckets report actual wall time alongside script time.
+- [x] Added `npm run agent:brief`, generated at runtime from the active roadmap, current decisions, documentation ownership index, and test-routing rules; it creates no maintained parallel plan.
+- [x] Retained independently runnable local/release commands and complete Nightly, promotion, preview, release, browser, permission, packaging, dependency, and protected integration coverage. The required `release.developer-verification-throughput` guardrail advances the registry to 382 scripts and 43 release gates.
+
+Acceptance criteria:
+
+- Narrow Tasks, Notes, owned CSS, and documentation work can reach final local completion through owning checks only; high-risk boundaries retain full escalation, stage timing explains included/skipped cost, and `agent:brief` is generated exclusively from canonical sources.
+
+## Version 0.33.19.2 - Initial rt-ltf-demo installation, recovery proof, and closeout
+
+Completed 0.33.19.2 on the live demo installation on 2026-07-20. The live roadmap advances to 0.33.19.3; generated host data, credentials, retained prior states, backups, logs, and the private access mechanism remain outside the repository.
+
+**Model: High Effort** — The slice changed a live public demo environment and could close only from verified backup, service, data, security, recovery, and public-route evidence.
+
+- [x] Revalidated exact `rt-ltf-demo` host/runtime identity, dedicated service account, data/database/Files and backup boundaries, ownership/modes, same-filesystem activation, available capacity, canonical app/edge services, protected environment, and whole-instance backup readiness before mutation. No preview/customer target or local developer environment was used.
+- [x] Installed the reviewed wrapper/config separately from the application release, then provisioned and repeat-reset the staged fictional scenario with exact target/action confirmations. Every operation quiesced services, created and inspected a database-plus-Files backup first, repaired ownership, atomically activated one data root, retained the prior state, and restarted the canonical services.
+- [x] Proved recovery rather than merely documenting it: an initial candidate-startup failure restored the original empty installation and services automatically while retaining its inspected archive. The deterministic workspace-ordering correction then provisioned successfully, and later repeat resets retained independently selectable pre-reset states and backups.
+- [x] Closed two live-discovered seed gaps through protected PRs rather than accepting partial proof: canonical Search rows now materialize into the SQLite FTS backend before activation, and Files extension metadata now uses normal upload conventions so the Markdown/text fixtures are previewable. Candidate verification refuses incomplete Search materialization or object/extension mismatch.
+- [x] Final live database proof returned `integrity_check=ok`, zero foreign-key violations, 3 workspaces, 5 users, 12 tasks, 4 notes, 5 lists, 2 Files records, 21 canonical Search rows, and 21 FTS rows under semantic fingerprint `8fac7d1fe8362c18b085ca91f71b013daaf80147dcec995ba6008a6cf4332b99`. It also proved zero Secure Notes, zero persona-contract violations, and exactly one active protected operator.
+- [x] Final authenticated proof returned 401 for an inactive fictional persona and 200 for the host-owned operator/session. Search used `sqlite-fts5` and returned the fictional checkout scenario. Both Files attachments listed, previewed through their Markdown/text route, downloaded, and matched database size/SHA-256 metadata and physical object bytes.
+- [x] Runtime proof returned healthy HTTPS `/healthz`, ready `/readyz`, database/storage health, SQLite foreign keys enabled, inline worker idle, zero active/failed/dead jobs, and exact `0.33.19.2-nightly` identity at commit `466f1c259013ca0513593daecbdac79d786eabc3` with artifact SHA-256 `0ecc5c440a2c014e46c1ebcd09b85d6ee7b87144d25659bc1f92f4a21eb475b9` from Nightly run `29780231625`.
+- [x] Independently inspected the newest pre-reset archive with the deployed backup tool: backup ID `9a5409f6-eb1f-4cbd-898b-38683c6bedd0`, archive SHA-256 `d2adbfa3c49e9fc592fc9dabb1b6096343484c15ec3111a9372af7af26f1d0e4`, two local objects/147 bytes, no Secure Notes key prerequisite, `restorable=true`, and no warnings. Earlier verified pre-provision/reset archives and prior states remain retained; no automatic pruning ran.
+- [x] Proved ordinary deployment preservation twice. Nightly runs `29779417449` and `29780231625` changed the immutable application artifact while preserving the existing demo marker/fingerprint, exact scenario counts, materialized Search rows, and both Files hashes; neither deployment invoked seed/reset. The manual reset/recovery procedure remains `docs/demo-data-operations.md`.
+- [x] Local and protected integration proof passed typecheck, 134 Vitest tests, lint, all 381 regressions, permissions, browser/accessibility, dependency review, CodeQL, immutable artifact creation, and exact demo deployment. One unrelated isolated reminder regression recovered through its existing fresh-fixture retry and was reported as `flaky-recovered`.
+
+Acceptance criteria:
+
+- `demo.longtailforge.com` serves the verified Nightly artifact with the rich fictional dataset; ordinary deployments preserve its database and Files tree; operator/persona authentication, Search, Files preview/download, worker/jobs, integrity, ownership, backup inspection, and automatic recovery boundaries are proven without committing host data, secrets, or private access details.
+
+## Version 0.33.19.1 - Demo-host provision/reset operation and safety contract
+
+Completed 0.33.19.1 locally on 2026-07-20. The live roadmap advances to the separate 0.33.19.2 host installation/proof slice; no demo database reset or host installation is claimed by this local tooling closeout.
+
+**Model: High Effort** — A Linux-safe destructive data operation had to fail closed around exact host/environment/path identity while installing the database and Files tree as one coherent unit.
+
+- [x] Reused the existing deterministic `development` scenario definition through the runtime-packaged host command without weakening `scripts/development-data.mjs`'s development-only environment/marked-directory refusals. Anchor date remains an explicit required input, and local development plus named-host staging share one fictional scenario/fingerprint contract.
+- [x] Added one separately installed root-owned wrapper and protected non-secret helper configuration for `rt-ltf-demo`. The Node operation requires exact target, hostname, public origin, service/account, release, data/database/Files, backup, application-environment, ownership/mode, action/confirmation, and marker contracts; it refuses unknown, preview/customer, nested, unresolved, partial, unexpectedly populated, or symbolic-link-substituted state.
+- [x] Made both provision and reset capture active services, quiesce them, create and inspect a checksummed whole-instance database-plus-Files backup, stage the candidate on the same filesystem, verify it independently, and promote the entire data root while retaining the prior state. Failed promotion/startup/identity verification restores the prior directory and services; failed recovery keeps traffic closed and points to the retained archive.
+- [x] Read the demo operator identity/password only from the protected host application environment, validate it as a strong demo-host value, pass only a minimal seed environment, and redact all configured paths and secret-like values from errors. No password enters arguments, output, markers, backup metadata, fixtures, or tracked configuration, and changing the environment alone does not rotate an existing account.
+- [x] Reapplied the dedicated service-account ownership and modes `0700` (data/Files), `0600` (database/sidecars/marker), retained root-only backups, rejected link substitution, and kept all generated database/Files/marker/backup/log/credential state outside Git and runtime artifacts. Only the inert reviewed command/builder and operator docs/config example are packaged.
+- [x] Added `database.demo-data-host-operation` plus extended `database.development-data-seed`, runtime-artifact, and docs-ownership coverage for exact identity/confirmation/marker/path refusal, symlink/partial-state guards, password redaction, backup-before-seed order, deterministic scenario parity, disabled personas, Secure Notes absence, integrity/foreign keys, Files/Search proof, database-and-Files activation, post-promotion rollback, fixed wrapper installation, and no invocation from normal startup/deploy/workflows. The manifest now contains 381 regressions and 42 release gates.
+- [x] Added the copy-pasteable demo operator runbook and updated development-data, backup/restore, preview deployment, release, runtime artifact/configuration, docs ownership, decisions, changelog, version, and roadmap/archive ownership. The private host-access mechanism is not part of tracked documentation.
+
+Acceptance criteria:
+
+- A reviewed operator can provision or reset only the named demo installation from fictional source data, with the database and Files tree staged and swapped together, a verified pre-reset backup retained, secrets redacted, all unsafe/ambiguous targets refused, and no change to ordinary Nightly deployment or normal production startup.
+
+## Version 0.33.18.8 - Maintainability closeout
+
+Completed 0.33.18.8 locally on 2026-07-20. The complete dependency-baseline and post-preview maintainability branch is closed; the live roadmap advances to 0.33.19. Publication remains deferred until the complete stacked 0.33.18 work is committed and pushed, as requested.
+
+**Model: High Effort** — Closeout must prove source reorganization did not change runtime contracts.
+
+- [x] Added one durable architecture evidence table for every generalized facility introduced or materially settled by 0.33.18. All eight bundled modules consume the canonical entry/catalog contract; Tasks and Notes consume concern composition; Tasks and Time Tracking consume Dashboard contribution asset loading; the Dashboard bridge remains page-local transition machinery; and database startup plus release tooling are explicit framework-wide exceptions.
+- [x] Reconciled module-development, frontend/layout, startup/database, regression-suite, and governing-decision documentation with the settled structures. Corrected the 0.33.18.7 test guide to record all 20 obsolete current-package-document assertion removals.
+- [x] Kept the normalized pre-reorganization module inventory frozen at repository-relative SHA-256 `df4f8e6f95dc595e7c0106adb3dcf79f90c38407f419875306184e780d5df3fc` and retained the existing before/after activation assertions, exact startup action/fresh/repeat/worker proof, and Dashboard loading/accessibility/CSP proof. Repository-owned `file:` URLs are normalized before hashing so Windows and Linux prove the same inventory.
+- [x] Added the required `release.maintainability-closeout` static release gate to pin the evidence table, Two-Module qualifications/exceptions, branch archive handoff, and retained manifest/startup/loading proof owners.
+- [x] Advanced the coverage contract to 380 active regressions (191 static, 6 default-database, 29 Files, 154 isolated-database), 41 release gates, 311 active legacy paths plus one credited retirement, and 69 convention-path regressions without reducing any coverage floor.
+- [x] Updated the changelog, version metadata, roadmap/archive handoff, and owning documentation without changing product workflow, routes, permissions, database schema, HTTP payloads, browser behavior, or runtime configuration.
+
+Acceptance criteria:
+
+- Documentation matches the settled structures, the Two-Module Rule is evidenced, the frozen manifest and critical startup/loading behavior remain protected, and no runtime behavior changed accidentally.
+
+## Version 0.33.18.7 - First formal test-suite streamlining review
+
+Completed 0.33.18.7 locally on 2026-07-20. The live roadmap advances to 0.33.18.8; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Coverage retirement and suite budgeting require evidence across unit, integration, permission, database, and browser layers.
+
+- [x] Captured two machine-readable full-suite samples on the Windows reference workstation: a 380-script pre-change run at 193.28 seconds with no recoveries and a 379-script post-change run at 279.78 seconds with one visible migration-lock recovery. Established a 300-second comparable-workstation review budget, using two breaches or more than 20% rolling-median growth as review triggers rather than hard cross-machine failures.
+- [x] Reported bucket aggregates and the slow tail. Kept backup/restore, separate-worker, version/runtime, SQLite performance/locking, high-volume API, cross-module notification, permission, workspace-isolation, Files safety, migration, and Playwright coverage because their integration risk is not replaced by pure unit tests.
+- [x] Proved the legacy `check-js.mjs` subprocess fan-out and ESLint covered the exact same 793 JavaScript/module files. Moved cached ESLint ahead of stateful regressions, retired only `check-js.mjs`, and recorded complete `assertions-moved` evidence with `release.fast-check-pipeline` as the retained owner.
+- [x] Replaced greedy whole-file checklist display regex chains with bounded owning-function and CSS-rule assertions while retaining every behavior contract. Three focused pre-change runs took 8.68-8.93 seconds; the focused bounded run took 0.17 seconds and the post-change parallel run took 0.11 seconds.
+- [x] Removed 20 obsolete current-package-version pins: five in retired historical closeout modules and 15 in active Notes, Tasks, and Lists regressions. They now assert stable owning-document/behavior contracts instead of forcing unrelated developer docs to churn on every release.
+- [x] Recorded the next consolidation queue: move only pure runtime-configuration validation toward Vitest while retaining runtime/process/database proof; audit serial Files entries for proven disposable isolation before any run-mode change; preserve broader integration owners until replacement equivalence exists.
+- [x] Updated the generated manifest and ratchet policy to 379 active scripts (190 static, 6 default-database, 29 Files, 154 isolated-database), 40 release gates, 311 active legacy paths plus one credited legacy retirement, without lowering any high-risk area or release-gate coverage.
+- [x] Updated the regression-suite contract, performance record, governing decision, check ordering, changelog, version, and roadmap/archive handoff. The full release gate remains mandatory.
+
+Acceptance criteria:
+
+- The suite has a measured 300-second reference budget and evidence-backed consolidation plan; the only retirement is traceable to equivalent ESLint coverage, and no high-risk contract is weakened.
+
+## Version 0.33.18.6 - First native browser ES-module conversion wave
+
+Completed 0.33.18.6 locally on 2026-07-20. The live roadmap advances to 0.33.18.7; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Dashboard/Workbench loading, accessibility, and module-host boundaries are highly coupled and user-visible.
+
+- [x] Measured the two candidates before conversion. Dashboard had a 758-line page adapter and 19 body-level classic dependencies; Workbench had a 3,673-line adapter, 20 body dependencies, additional cross-module dialog loaders, and a scheduled 0.33.19 performance/loading branch. Selected Dashboard as the bounded first wave and left Workbench's measured graph unchanged.
+- [x] Replaced Dashboard's ordered body-level implementation scripts with one native `dashboard.entry.js` module entry. Its temporary `LongtailForge.esModuleBridge` accepts only same-origin `/js/` and `/css/` paths, reapplies the canonical application asset version, deduplicates scripts/styles, and imports the preserved compatibility graph explicitly and sequentially.
+- [x] Extended `/api/dashboard` with permission-, capability-, module-status-, and view-filtered `browserAssets`. The generic Dashboard adapter loads those contributions before rendering and no longer registers or names Tasks/Time Tracking renderer implementations.
+- [x] Moved the Tasks attention, calendar, upcoming, and pressure renderers into Tasks-owned `tasks-dashboard.js`; retained shared calendar delegation, canonical Task editor focus return, stable renderer IDs, server-shaped rows, capped pressure, and Workbench/Tasks handoffs. Time Tracking retains its module-owned renderer asset.
+- [x] Split framework Dashboard anatomy into `dashboard.css`, Tasks panel/calendar styling into `tasks-dashboard.css`, and Time Tracking panel styling into `time-tracking-dashboard.css`. Module styles load through the same manifest/catalog path while existing responsive breakpoints and shared surface tokens remain intact.
+- [x] Added the `views.dashboard-es-module-entry` release regression for single-entry loading, same-origin/versioned imports, resolvable paths, catalog ownership, CSS ownership, CSP-safe source, accessibility, keyboard controls, and focus return. Updated Dashboard/Workbench and Dashboard calendar regressions, the regression manifest/floor (380 scripts, 40 release gates), ESLint's browser-module parsing boundary, and the bundled module inventory hash for the intentional new assets.
+- [x] Updated architecture, module-development/contract, UI layout, Tasks, Time Tracking, runtime-configuration, regression-suite, ownership, changelog, version, and roadmap/archive contracts without adopting a frontend framework, rewriting the renderer, changing routes/permissions/data shape, or converting Workbench prematurely.
+
+Acceptance criteria:
+
+- Dashboard loads through one explicit native ES-module entry and contribution-loaded module assets, adds no new global-order dependency, preserves application asset versioning/CSP/local-origin boundaries, and retains behavior, accessibility, keyboard, focus, and responsive contracts.
+
+## Version 0.33.18.5 - Digestible module-manifest composition pilot
+
+Completed 0.33.18.5 locally on 2026-07-20. The live roadmap advances to 0.33.18.6; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — High-volume source movement can silently alter contribution IDs, ordering, permissions, or startup validation.
+
+- [x] Kept one canonical `moduleEntry` and one composed module definition in each pilot module's `module.js`; the generated catalog still discovers only those entries and the complete graph uses the unchanged startup validator.
+- [x] Piloted concern-based composition on Tasks and Notes, the two largest first-party manifests. Tasks now separates substantial permissions, events/notifications, integrations, and settings declarations; Notes separates substantial permissions, events/notifications, integrations, and Help declarations.
+- [x] Reduced the Tasks composition point from roughly 1,172 lines to about 340 and Notes from roughly 951 lines to about 340 without creating concern boilerplate for the six smaller first-party modules. Views remain at each composition point where that keeps the current review and source-test ownership clearer.
+- [x] Preserved the exact frozen eight-module inventory hash, contribution array order, IDs, permissions, routes, dependencies, activation hooks, and runtime behavior. Concern imports are declaration-only and no concern exports another registry entry.
+- [x] Extended the `framework.bundled-module-registry` release regression to enforce the two digestible composition points, substantial concern files, sole entry export, exact normalized inventory, and unchanged activation behavior; source-level Help, notification, reminder, and Files tests now read their actual owner files.
+- [x] Documented optional review thresholds, concern naming, preservation requirements, the two proven consumers, and a complete Support Tickets example for future Support Tickets, Knowledge Base, and Creator Studio work.
+
+Acceptance criteria:
+
+- Tasks and Notes are materially easier to review, their composed manifests validate and behave identically, the pattern is documented without mandatory boilerplate, and the canonical local release gates pass.
+
+## Version 0.33.18.4 - First-Party Module Registry De-Hardcoding and Runtime Activation
+
+Completed 0.33.18.4 locally on 2026-07-20. The live roadmap advances to 0.33.18.5; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Module loading sits ahead of migrations, routes, permissions, registries, jobs, and workers. A partial conversion could make the catalog appear dynamic while leaving module-specific startup coupling or import-time side effects behind.
+
+- [x] Split the synchronous registry engine from a deterministic tracked ESM catalog generated only from repository-owned `src/modules/*/module.js` entries. `registry.js` imports no named first-party workflow module, while `modules:registry:generate` and the standing `modules:registry:check` closeout gate reject missing, extra, reordered, or stale output.
+- [x] Added one canonical `moduleEntry` export containing the manifest and optional synchronous app/worker activation hooks. Runtime validation checks catalog/source agreement, directory/manifest identity, entry shape, manifest uniqueness, unresolved dependencies, and cycles before database mutation or activation, then orders activation by dependencies with module ID as the stable tie-breaker.
+- [x] Removed import-time registry mutation from every bundled entry. Clients/Projects, Lists, Notes, Tasks, and Time Tracking register their search behavior explicitly; Tasks also owns its reminder settings, job handlers, and reminder/recurrence startup tasks; Time Tracking owns its report runner and setting effects.
+- [x] Replaced framework Tasks-specific app/worker imports and calls with generic module activation/startup execution while preserving inline and separate-worker handler/sweep behavior, sources, logging, and error handling.
+- [x] Preserved the exact eight-module manifest inventory, route signatures, migration sources, permissions, API scopes, views, browser assets, settings, hooks, and contribution identities under a frozen pre-conversion inventory hash.
+- [x] Added the `framework.bundled-module-registry` release regression for discovery, stale/missing/extra/reordered catalogs, canonical shape and identity failures, duplicate/unresolved/cyclic graphs, declaration-only imports, explicit activation, startup decoupling, and inventory identity.
+- [x] Updated the module development/contract, architecture, startup/runtime-configuration, packaging/runtime-artifact, Tasks, Time Tracking, changelog, version, and roadmap contracts. Arbitrary runtime plugins, database executable paths, third-party lifecycle/signing/marketplace work, and broad asynchronous registry APIs remain out of scope.
+
+Acceptance criteria:
+
+- Adding a valid repository-owned first-party fixture requires only regeneration, module imports cannot mutate executable registries before the complete graph validates, app/worker startup contains no converted first-party activation call, invalid/stale catalogs fail before migrations, the before/after inventory is exact, and the canonical local release gates pass.
+
+## Version 0.33.18.3 - Startup maintenance classification and split
+
+Completed 0.33.18.3 locally on 2026-07-20. The live roadmap advances to 0.33.18.4; publication remains deferred until the complete 0.33.18 branch is ready, as requested.
+
+**Model: High Effort** — Startup ordering, repair idempotency, transactions, and provider neutrality carry data-integrity risk.
+
+- [x] Inventoried and classified database provider initialization, locked migration internals, consolidated-baseline bootstrap/adoption, conditional schema repairs, checksum/readiness validation, application bootstrap, settings/module/permission synchronization, legacy data repairs, worker schema verification, post-readiness background work, and explicit operator/CLI maintenance.
+- [x] Added stable lifecycle-owned action declarations and fail-fast coordination. `src/db/index.js` composes the sequence; `src/db/migrations.js` keeps migration ownership; `src/db/app-startup-maintenance.js` owns bootstrap, recurring checks, and tracked data repairs; `src/db/startup-readiness.js` owns worker-only verification; and `src/db/startup-coordinator.js` owns validation, order, timing, and failure reporting.
+- [x] Added migration 080's `startup_maintenance_runs` ledger. Eight idempotent compatibility repairs write completion only after success, retry safely after failure, and skip on later boots; the historical timestamp normalization therefore no longer performs a full-table scan at every startup.
+- [x] Preserved the prior database/app dependency order, existing transactions, fresh-install workspace/settings/super-admin behavior, module synchronization, migration locking/order, error propagation, SQLite semantics, and provider seams. Separated legacy `local_user` time-entry reassignment from credential bootstrap so existing passwords remain untouched.
+- [x] Added structured phase events with stable ID, lifecycle, owner, status, safe failure type, and elapsed milliseconds for app and worker database startup. Classified data-path/Files assertions as readiness, startup sweeps/retention as background work, and cleanup/backup/restore/purge/schema/seed tools as explicit operator maintenance outside bootstrap.
+- [x] Added the required `database.startup-maintenance-lifecycle` regression and retained focused migration-locking, generated-schema, worker-runner, and separate-worker end-to-end proof for order, failure short-circuiting, fresh bootstrap, repeat-startup skipping, worker isolation, and SQLite integrity.
+- [x] Updated the owning architecture, database, runtime-configuration, changelog, version, and roadmap contracts without adding PostgreSQL implementation or changing runtime settings, routes, permissions, module workflows, UI behavior, or Help.
+
+Acceptance criteria:
+
+- Every startup action has explicit lifecycle ownership, slow phases are visible, and tests prove order and failure behavior without changing fresh-install or current SQLite semantics.
+
+## Version 0.33.18.2 - Express 5 HTTP framework migration
+
+Completed 0.33.18.2 locally on 2026-07-20. The live roadmap advances to 0.33.18.3. The implementation branch is stacked on the completed 0.33.18.1 commit while that prerequisite awaits `nightly` integration; Dependabot PR #5 remains open only until this reviewed branch replaces it through the normal pull-request path.
+
+**Model: High Effort** — Express is the application-wide HTTP boundary; its major-version route, request, response, static-serving, and asynchronous-error changes can break every browser/API surface or weaken security behavior.
+
+- [x] Reproduced Dependabot PR #5's Express 5.2.1 package/lockfile delta on `chore/0.33.18.2-express-5`, stacked on the completed 0.33.18.1 prerequisite rather than bypassing its unmerged dependency baseline.
+- [x] Audited application and regression HTTP compatibility boundaries: route-path syntax and parameters, wildcard/catch-all matching, query parsing and request-property semantics, body ownership, status/redirect/send/sendFile usage, static MIME behavior, sub-router mounting, trust-proxy behavior, and wrapped/native async handlers. No removed response signatures, parameter APIs, body parsers, or optional/reserved route metacharacters remained in runtime use.
+- [x] Replaced the invalid bare `*` protected static fallback and browser-security fixture with root-inclusive Express 5 named wildcards while preserving public/protected ordering, `/api` behavior, non-enumeration, method handling, and final error-middleware placement.
+- [x] Explicitly retained the prior extended query-parser contract for nested/repeated values and proved both the existing `asyncRoute` wrapper and native Express 5 rejected-Promise forwarding reach `errorHandler` exactly once without unhandled rejections or double responses.
+- [x] Added the required `framework.express-5-http-contract` release regression for the reviewed dependency/engine baseline, named wildcard inventory, root/nested fallback behavior, query shape, JavaScript MIME behavior, and exactly-once async failure paths.
+- [x] Exercised framework routes, public APIs, module routers, multipart single/batch uploads, upload error/limit handling, proxy-derived context, browser security headers, static startup compilation, and the full contract/framework coverage on Node 24 before final artifact, browser, permission, canonical verification, and restarted runtime proof.
+- [x] Updated the architecture, module route, runtime configuration, regression-suite, changelog, version, and roadmap contracts. Dependency review remains part of the clean-Linux pull request into `nightly`, where this branch supersedes Dependabot PR #5.
+
+Acceptance criteria:
+
+- Express 5.2.1 is the supported runtime baseline; registered framework/module routes preserve their prior public, protected, API, security, proxy, static, and error semantics; clean artifact, browser, permission, and runtime proof pass; and the bot PR is superseded only through the reviewed `nightly` integration result.
+
+## Version 0.33.18.1 - Tooling and Markdown dependency baseline
+
+Completed 0.33.18.1 on 2026-07-19. The live roadmap advances to 0.33.18.2.
+
+**Model: Medium Effort** — The package changes were bounded, while the Markdown parser remained a user-content boundary whose safe rendering semantics required explicit regression proof.
+
+- [x] Created the short-lived `chore/0.33.18.1-dependency-baseline` branch from the current `nightly` tree and incorporated the intended ESLint 10.7 and Markdown-it 14.3 package/lockfile deltas from Dependabot PRs #6 and #7 through the normal version, changelog, documentation-disposition, and canonical slice-closeout ceremony.
+- [x] Upgraded ESLint from the resolved 9.39 line to 10.7, confirmed its engine contract includes the repository's supported Node 24 range, and preserved the existing lint command, cache strategy, file coverage, and warning/error behavior.
+- [x] Upgraded Markdown-it from 14.2 to 14.3 with `entities` 4.5 and `linkify-it` 5.0.2, replaced the stale exact-version assertion, and added focused coverage for the corrected CommonMark backslash-space hard-line-break behavior under both document/default and user-authored parser configurations.
+- [x] Re-ran the Markdown safety contract for raw HTML escaping, unsafe URL degradation, image opt-in, excerpts/plain text, task lists, tables, soft breaks, and the shared Notes, Help, and Files consumers without adding syntax or changing product formatting policy.
+- [x] Confirmed ESLint 10 removes `js-yaml` from the resolved dependency graph; no direct YAML consumer exists, so Dependabot PR #2 is superseded rather than retained as an unused dependency update.
+- [x] Folded in the bounded multi-proxy forwarding-IP correction: the Caddy global options now use an address-less `servers` block that applies to the WireGuard listener created by `bind`, explicitly accepts `X-Forwarded-For` before `X-Real-IP`, and is covered by the deployment regression plus bound-listener smoke fixture.
+- [x] Ran `npm audit`, lint, focused Markdown tests/regressions, `npm run docs:suggest`, and the canonical `npm run verify:slice`; dependency review remains part of the clean-Linux pull-request proof into `nightly`, and Dependabot PRs #2, #6, and #7 are superseded by the integrated change.
+
+Acceptance criteria:
+
+- `nightly` receives one reviewed ESLint 10.7 and Markdown-it 14.3 baseline, the repository no longer resolves unused `js-yaml`, Markdown output remains safe and deliberately regression-covered, the bounded multi-proxy reference preserves the real public client IP through its bound Caddy listener, all required checks pass, and no dependency PR bypasses the normal integration branch.
+
 ## Version 0.33.17 - Friends-and-Family Internet Preview, Packaging, Backup/Restore, CI, and Release Operations
 
 Completed 0.33.17 on 2026-07-18. The live roadmap advances to 0.33.18.1; the private signed operator readiness record remains the invitation gate and is not committed here.
@@ -145,7 +510,7 @@ Review every user-visible UI/UX change shipped from 0.33.14 through 0.33.17.7 be
 
 This is a tracking umbrella, not one implementation slice. Each numbered child below is sized for one implementation session, including its focused regression, owning-doc disposition, version/changelog/archive bookkeeping, canonical `npm run verify:slice`, and runtime proof when required. Do not combine children merely because they share the `.7` prefix. If a child reveals a new independent blast radius, add another numbered child rather than broadening the active session.
 
-The manual review is tracked in `archive/0.33.17.7-pre-testing.md`. Confirmed findings required before preview are assigned to `0.33.17.7.1` through `0.33.17.7.19`; findings deliberately deferred until after the friends-and-family preview live in 0.33.19. Record manual results during the owning child slice where possible. The final review slice records only the remaining checklist results and routes any newly confirmed defect into its own child; it does not absorb surprise implementation work.
+The manual review is tracked in `archive/0.33.17.7-pre-testing.md`. Confirmed findings required before preview are assigned to `0.33.17.7.1` through `0.33.17.7.19`; findings deliberately deferred until after the friends-and-family preview live in 0.33.19 (renumbered to 0.33.20 on 2026-07-20 when the Workbench performance branch was inserted as 0.33.19). Record manual results during the owning child slice where possible. The final review slice records only the remaining checklist results and routes any newly confirmed defect into its own child; it does not absorb surprise implementation work.
 
 - [x] Correct the public login page so the required password-change form remains hidden for an ordinary unauthenticated visit and appears only after a successful login or existing session reports `passwordChangeRequired`; add desktop and mobile Playwright coverage for both the initial state and intentional transition.
 - [x] Complete the numbered pre-preview correction slices below without weakening the current module ownership, permission, security, responsive, retention, or workflow contracts.
@@ -354,7 +719,7 @@ Acceptance criteria:
 **Model: Medium Effort** — This is a bounded evidence/bookkeeping closeout after implementation risk has been isolated into the preceding children.
 
 - [x] Complete and timestamp every still-open applicable result in `archive/0.33.17.7-pre-testing.md` across the documented desktop/mobile, Light/Dark, workspace-type, administrator/restricted-user, keyboard/focus, two-session, and representative authenticated-write checks.
-- [x] Mark an item not applicable or externally blocked only with a concrete reason. TLS/proxy-only testing remains assigned to 0.33.19.6 after the real preview environment exists; do not claim it locally.
+- [x] Mark an item not applicable or externally blocked only with a concrete reason. TLS/proxy-only testing remains assigned to 0.33.19.6 (now 0.33.20.6 after the 2026-07-20 renumber) after the real preview environment exists; do not claim it locally.
 - [x] If review finds a new pre-preview defect, record it, create a separately sized next available child, and leave this closeout open. Do not implement surprise fixes inside this session.
 - [x] After all correction children and manual results are complete, reconcile the umbrella checkboxes, owning docs, changelog, roadmap/archive handoff, version metadata, canonical `npm run verify:slice`, restart, and `/api/app-info` qualified-version proof.
 

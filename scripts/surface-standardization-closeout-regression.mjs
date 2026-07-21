@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -12,7 +11,6 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = appVersion;
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should consume the canonical app version");
 
@@ -30,7 +28,7 @@ assert.match(moduleContract, /Framework-owned UI surface contracts live in `docs
 assert.match(architecture, /As of version 0\.33\.5\.15\.6/, "Architecture should report the current architecture version");
 assert.match(architecture, /framework-owned UI surface contract/, "Architecture should include the surface contract in current state");
 
-assert.match(tasksDocs, new RegExp(escapeRegExp(currentTasksVersion)), "Tasks developer docs should report the current Tasks version");
+assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks developer docs should retain their canonical owning document");
 assert.match(tasksDocs, /Task Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should describe shipped child-dialog behavior");
 assert.doesNotMatch(tasksDocs, /until the shared framework overlay standardization pass replaces that temporary placement/, "Tasks docs should not describe completed overlay work as future");
 assert.match(tasksHelp, /Footer icons open task tags and files inside the task workflow/, "Help should describe current task Tags and Files behavior");
@@ -40,8 +38,4 @@ console.log("Surface standardization closeout regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

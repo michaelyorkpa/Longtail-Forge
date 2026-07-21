@@ -26,7 +26,7 @@ assert.match(html, /js\/search\.js/);
 
 assert.match(script, /new URLSearchParams\(window\.location\.search\)/);
 assert.match(script, /fetch\(`\/api\/search\?\$\{params\}`,\s*\{\s*cache: "no-store"\s*\}\)/);
-assert.match(script, /fetch\("\/api\/client-projects",\s*\{\s*cache: "no-store"\s*\}\)/);
+assert.match(script, /fetch\("\/api\/client-projects\?view=options",\s*\{\s*cache: "no-store"\s*\}\)/);
 assert.match(script, /window\.LongtailForge\?\.tags\?\.loadTags/);
 assert.match(script, /window\.history\.replaceState\(\{\},\s*"",\s*nextUrl\)/);
 assert.match(script, /params\.set\("limit",\s*String\(state\.pageSize\)\)/);
@@ -52,7 +52,7 @@ assert.match(styles, /\.search-result-row/);
 assert.match(styles, /\.search-pagination/);
 assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.search-workspace/);
 
-assert.match(packageJson.scripts.check, /node scripts\/run-regressions\.mjs/);
+assert.equal(packageJson.scripts["test:regressions"], "node scripts/run-regressions.mjs");
 assert.ok(
   REGRESSION_COMMANDS.includes("node scripts/search-results-page-regression.mjs"),
   "Search results page regression must remain in the full regression suite",

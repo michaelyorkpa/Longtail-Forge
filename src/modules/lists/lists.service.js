@@ -72,6 +72,49 @@ async function list(session, query = {}) {
   };
 }
 
+// Batched existence/status/readability check for resume-state scans: one
+// IN-query over the record ids, module status from the cached context, and
+// the in-memory permission evaluators feeding the same canAccessList policy
+// the single-list read enforces.
+async function readLifecycleForIds(session, listIds = []) {
+  const [listRecords, moduleEnabled, canViewList, canViewAllLists] = await Promise.all([
+    listsRepository.readByIds(session.workspace_id, listIds),
+    modulesService.canWriteModule(session.workspace_id, LIST_MODULE_ID),
+    permissionsService.createPermissionEvaluator(session, LIST_PERMISSIONS.VIEW),
+    permissionsService.createPermissionEvaluator(session, LIST_PERMISSIONS.VIEW_ALL),
+  ]);
+  const lifecycleByListId = new Map();
+
+  for (const listRecord of listRecords) {
+    const resource = listResource(listRecord);
+    const permissions = [
+      canViewList(resource) ? LIST_PERMISSIONS.VIEW : "",
+      canViewAllLists(resource) ? LIST_PERMISSIONS.VIEW_ALL : "",
+    ].filter(Boolean);
+    const access = canAccessList({
+      historicalReadAccess: true,
+      list: listRecord,
+      listsModuleEnabled: moduleEnabled,
+      operation: "read",
+      permissions,
+      session,
+    });
+
+    lifecycleByListId.set(listRecord.list_id, access.allowed
+      ? {
+          archived: listRecord.status === LIST_STATUSES.ARCHIVED,
+          completed: listRecord.status === LIST_STATUSES.COMPLETED,
+          deleted: listRecord.status === LIST_STATUSES.DELETED,
+          finalized: listRecord.status === LIST_STATUSES.FINALIZED,
+          readable: true,
+          status: listRecord.status || LIST_STATUSES.ACTIVE,
+        }
+      : { readable: false });
+  }
+
+  return lifecycleByListId;
+}
+
 async function read(listId, session, options = {}) {
   const listRecord = await readListOrThrow(session, listId, options);
   await assertCanAccessList(session, listRecord, "read");
@@ -2224,6 +2267,7 @@ const listsService = {
   listLinks,
   markReusable,
   read,
+  readLifecycleForIds,
   reopen,
   reorderItems,
   restore,

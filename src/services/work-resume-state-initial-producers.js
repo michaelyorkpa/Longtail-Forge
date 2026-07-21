@@ -13,7 +13,10 @@ import {
   registerResumeStateProducer,
   registerResumeStateProducerEventHandlers,
 } from "./work-resume-state-producers.js";
-import { registerResumeStateReadResolver } from "./work-resume-state-read-checks.js";
+import {
+  registerResumeStateBatchReadResolver,
+  registerResumeStateReadResolver,
+} from "./work-resume-state-read-checks.js";
 
 const TASK_EVENTS = [
   "task.created",
@@ -94,6 +97,10 @@ function registerReadResolvers() {
   registerResumeStateReadResolver("lists", "list", listReadResolver);
   registerResumeStateReadResolver("notes", "note", noteReadResolver);
   registerResumeStateReadResolver("time-tracking", "active_work_timer", activeTimerReadResolver);
+  registerResumeStateBatchReadResolver("tasks", "task", taskBatchReadResolver);
+  registerResumeStateBatchReadResolver("lists", "list", listBatchReadResolver);
+  registerResumeStateBatchReadResolver("notes", "note", noteBatchReadResolver);
+  registerResumeStateBatchReadResolver("time-tracking", "active_work_timer", activeTimerBatchReadResolver);
 }
 
 function registerTaskProducer() {
@@ -136,9 +143,71 @@ function registerTimerProducer() {
   });
 }
 
+async function taskBatchReadResolver({ recordIds, session }) {
+  return tasksService.readLifecycleForIds(session, recordIds);
+}
+
+async function listBatchReadResolver({ recordIds, session }) {
+  return listsService.readLifecycleForIds(session, recordIds);
+}
+
+// Batches the safe lifecycle pre-filter into one IN-query; notes that survive
+// it still go through notesService.read per row because Notes owns its access
+// and secure-content policy, and that boundary is not re-implemented here.
+async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
+  const lifecycleRows = await readSafeNoteLifecycleForIds(workspaceId, recordIds);
+  const lifecycleByNoteId = new Map(lifecycleRows.map((row) => [row.note_id, row]));
+  const checks = new Map();
+
+  for (const recordId of recordIds) {
+    const note = lifecycleByNoteId.get(recordId) || null;
+
+    if (!isResumeEligibleNote(note)) {
+      checks.set(recordId, {
+        archived: note?.status === NOTE_STATUSES.ARCHIVED,
+        deleted: note?.status === NOTE_STATUSES.DELETED || !note,
+        readable: false,
+        status: note?.status || "",
+      });
+      continue;
+    }
+
+    checks.set(recordId, await readEligibleNoteCheck(recordId, session));
+  }
+
+  return checks;
+}
+
+async function activeTimerBatchReadResolver({ recordIds, session, workspaceId }) {
+  const timerRows = await db.query(`
+SELECT active_timer_id, timer_status
+FROM active_work_timers
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+  AND active_timer_id IN (:activeTimerIds);
+`, {
+    activeTimerIds: recordIds.map((recordId) => textParam(recordId)),
+    userId: textParam(session.user_id),
+    workspaceId: textParam(workspaceId),
+  });
+  const statusByTimerId = new Map(timerRows.map((row) => [row.active_timer_id, row.timer_status]));
+  const checks = new Map();
+
+  for (const recordId of recordIds) {
+    checks.set(recordId, statusByTimerId.has(recordId)
+      ? {
+          readable: true,
+          status: statusByTimerId.get(recordId) === "running" ? "active" : "paused",
+        }
+      : { deleted: true, readable: false, status: "deleted" });
+  }
+
+  return checks;
+}
+
 async function taskReadResolver({ recordId, session }) {
   try {
-    const result = await tasksService.read(recordId, session);
+    const result = await tasksService.readCore(recordId, session);
     const task = result.task || {};
     return {
       archived: task.status === "archived",
@@ -180,6 +249,10 @@ async function noteReadResolver({ recordId, session, workspaceId }) {
     };
   }
 
+  return readEligibleNoteCheck(recordId, session);
+}
+
+async function readEligibleNoteCheck(recordId, session) {
   try {
     const result = await notesService.read(recordId, session);
     return {
@@ -415,6 +488,26 @@ WHERE workspace_id = :workspaceId
 LIMIT 1;
 `, {
     noteId: textParam(noteId),
+    workspaceId: textParam(workspaceId),
+  });
+}
+
+async function readSafeNoteLifecycleForIds(workspaceId, noteIds = []) {
+  const ids = [...new Set((Array.isArray(noteIds) ? noteIds : [])
+    .map((noteId) => textParam(noteId).trim())
+    .filter(Boolean))];
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  return db.query(`
+SELECT note_id, library_bucket, status, visibility, security_mode
+FROM notes
+WHERE workspace_id = :workspaceId
+  AND note_id IN (:noteIds);
+`, {
+    noteIds: ids,
     workspaceId: textParam(workspaceId),
   });
 }

@@ -1,4 +1,6 @@
-const MANIFEST_SCHEMA_VERSION = 2;
+import { existsSync } from "node:fs";
+
+const MANIFEST_SCHEMA_VERSION = 3;
 const MANIFEST_GENERATOR = "node scripts/generate-regression-manifest.mjs";
 const POLICY_SOURCE = "scripts/regression-coverage-exceptions.json";
 
@@ -20,6 +22,9 @@ function buildRegressionManifest({ entries, policy }) {
   const retiredRegressions = [...(policy.retiredScripts || [])]
     .map((entry) => cloneJson(entry))
     .sort((left, right) => left.script.localeCompare(right.script));
+  const assertionMovements = [...(policy.assertionMovements || [])]
+    .map((entry) => cloneJson(entry))
+    .sort((left, right) => left.sourceRegression.localeCompare(right.sourceRegression));
 
   return Object.freeze({
     schemaVersion: MANIFEST_SCHEMA_VERSION,
@@ -27,6 +32,7 @@ function buildRegressionManifest({ entries, policy }) {
     policySource: POLICY_SOURCE,
     summary: buildSummary(regressions),
     coverageFamilies: buildCoverageFamilies(regressions, retiredRegressions, policy.coverageFamilies || []),
+    assertionMovements,
     legacyMetadataException: cloneJson(policy.legacyMetadataException),
     regressions,
     retiredRegressions,
@@ -45,6 +51,7 @@ function collectRegressionCoverageErrors({ entries, manifest, policy }) {
   const errors = [];
   const activeEntries = Array.isArray(entries) ? entries : [];
   const retiredEntries = Array.isArray(policy?.retiredScripts) ? policy.retiredScripts : [];
+  const assertionMovements = Array.isArray(policy?.assertionMovements) ? policy.assertionMovements : [];
   const creditedRetirements = retiredEntries.filter((entry) => entry?.floorCredit === true);
   const activePaths = new Set(activeEntries.map((entry) => entry.path));
   const activeIds = new Set(activeEntries.map((entry) => entry.id));
@@ -54,9 +61,17 @@ function collectRegressionCoverageErrors({ entries, manifest, policy }) {
   validateUniqueValues(errors, "active regression IDs", activeEntries.map((entry) => entry.id));
   validateUniqueValues(errors, "retired regression paths", retiredEntries.map((entry) => entry?.script).filter(Boolean));
   validateUniqueValues(errors, "retired regression IDs", retiredEntries.map((entry) => entry?.id).filter(Boolean));
+  validateUniqueValues(
+    errors,
+    "assertion movement sources and targets",
+    assertionMovements.map((entry) => `${entry?.sourceRegression || ""}->${entry?.movedTo || ""}`),
+  );
 
   for (const retiredEntry of retiredEntries) {
     validateRetirementEntry({ activeIds, activePaths, errors, retiredEntry });
+  }
+  for (const movement of assertionMovements) {
+    validateAssertionMovement({ activePaths, errors, movement });
   }
 
   const minimumActive = Number.isInteger(policy?.minimumActiveScripts) ? policy.minimumActiveScripts : 0;
@@ -144,6 +159,48 @@ function validatePolicyShape(errors, policy) {
   }
   if (!Array.isArray(policy.retiredScripts)) {
     errors.push("retiredScripts should be an array");
+  }
+  if (!Array.isArray(policy.assertionMovements)) {
+    errors.push("assertionMovements should be an array");
+  }
+}
+
+function validateAssertionMovement({ activePaths, errors, movement }) {
+  if (!movement || typeof movement !== "object") {
+    errors.push("assertion movement should be an object");
+    return;
+  }
+  const label = movement.sourceRegression || "assertion movement";
+  for (const field of [
+    "sourceRegression",
+    "movedInVersion",
+    "movementType",
+    "rationale",
+    "assertionDisposition",
+    "movedTo",
+    "retainedIntegrationOwner",
+  ]) {
+    if (typeof movement[field] !== "string" || !movement[field].trim()) {
+      errors.push(`${label} should include ${field}`);
+    }
+  }
+  if (movement.movementType !== "pure-contract-to-vitest") {
+    errors.push(`${label} movementType should be pure-contract-to-vitest`);
+  }
+  if (!Number.isInteger(movement.assertionCount) || movement.assertionCount < 1) {
+    errors.push(`${label} should include a positive assertionCount`);
+  }
+  if (!activePaths.has(movement.sourceRegression)) {
+    errors.push(`${label} source regression should remain discovered`);
+  }
+  if (!activePaths.has(movement.retainedIntegrationOwner)) {
+    errors.push(`${label} retained integration owner should remain discovered`);
+  }
+  if (!/^tests\/.+\.test\.mjs$/.test(movement.movedTo || "") || !existsSync(movement.movedTo)) {
+    errors.push(`${label} movedTo should identify an existing Vitest test`);
+  }
+  if (!Array.isArray(movement.verificationPerformed) || movement.verificationPerformed.length === 0) {
+    errors.push(`${label} should include verificationPerformed`);
   }
 }
 

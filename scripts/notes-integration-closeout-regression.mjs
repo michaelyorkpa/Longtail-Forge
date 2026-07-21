@@ -11,6 +11,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Notes-Integration-Closeout-Test-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-integration-closeout-secure-note-test-key";
 
 const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
@@ -20,6 +21,7 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 
 try {
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
 

@@ -22,6 +22,7 @@ import {
 
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
 const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
+const runtimeSmoke = await fs.readFile("scripts/runtime-artifact-smoke.mjs", "utf8");
 const runtimePackage = createRuntimePackage(packageJson);
 const runtimeLock = createRuntimeLock(packageLock);
 
@@ -29,6 +30,7 @@ assert.equal(packageJson.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts["backup:create"], "node scripts/backup.mjs create");
 assert.equal(runtimePackage.scripts["backup:restore"], "node scripts/backup.mjs restore");
+assert.equal(runtimePackage.scripts["demo:data:host"], "node scripts/demo-data-host.mjs");
 assert.equal(runtimePackage.scripts["workspace-backup:inspect"], "node scripts/workspace-backup.mjs inspect");
 assert.equal(runtimePackage.scripts["workspace-backup:restore"], "node scripts/workspace-backup.mjs restore");
 assert.equal(runtimePackage.scripts["workspace:purge"], "node scripts/workspace-purge.mjs");
@@ -45,6 +47,8 @@ assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("roadmaps")));
 assert.equal(createArtifactManifest(runtimePackage).sourceBranch, null);
 assert.equal(createArtifactManifest(runtimePackage, "nightly").sourceBranch, "nightly");
 assert.throws(() => createArtifactManifest(runtimePackage, "feature/bad"), /Source branch/);
+assert.match(runtimeSmoke, /SUPER_ADMIN_PASSWORD:\s*smokeSuperAdminPassword/);
+assert.match(runtimeSmoke, /const smokeSuperAdminPassword = "Runtime-Artifact-Smoke-Password-123!"/);
 
 const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-artifact-regression-"));
 try {
@@ -63,10 +67,16 @@ try {
     "views/public/index.html",
     "public/js/navigation.js",
     "scripts/backup.mjs",
+    "scripts/demo-data-host.mjs",
+    "scripts/development-data.mjs",
     "scripts/workspace-backup.mjs",
     "scripts/workspace-purge.mjs",
     "scripts/lib/backup-archive.mjs",
+    "scripts/lib/demo-data-operation.mjs",
+    "scripts/lib/development-data-safety.mjs",
     "docs/backup-restore.md",
+    "docs/demo-data-helper.env.example",
+    "docs/demo-data-operations.md",
     "docs/runtime-artifact.md",
     "docs/workspace-backup.md",
   ]) {

@@ -38,6 +38,7 @@ const { listsService } = await import("../src/modules/lists/lists.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { createSession } = await import("../src/security/sessions.js");
 const { searchService } = await import("../src/services/search.service.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const {
   FOCUS_MODE_IDS,
@@ -50,6 +51,7 @@ try {
   assertStaticContract();
 
   await initializeDatabase();
+  activateModuleRuntime("app");
   const adminUser = await readSeedUser();
   const adminSession = toSession(adminUser);
   const adminBrowserSession = await createSession(adminUser);
@@ -88,8 +90,8 @@ function assertStaticContract() {
 
   assert.match(
     listsDocs,
-    new RegExp(`current Lists implementation as of ${escapeRegExp(appVersion)}`),
-    "Lists docs should report the current implementation version",
+    /^# Lists Module Developer Guide$/m,
+    "Lists docs should retain the owning developer-guide heading",
   );
   assert.match(
     listsDocs,
@@ -953,8 +955,4 @@ function closeServer(activeServer) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

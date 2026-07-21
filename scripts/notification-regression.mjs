@@ -348,7 +348,7 @@ LIMIT 1;
 }
 
 async function runNotificationUiContractTests() {
-  const [navigation, notificationsPage, notificationsScript, notificationPreferences, notificationSubscriptions, tasksPage, tasksScript, taskDialog, tasksModule, userSettingsPage, settingsHostScript, userSettingsScript, css] = await Promise.all([
+  const [navigation, notificationsPage, notificationsScript, notificationPreferences, notificationSubscriptions, tasksPage, tasksScript, taskDialog, tasksModuleEvents, userSettingsPage, settingsHostScript, userSettingsScript, css] = await Promise.all([
     readProjectFile("public/js/navigation.js"),
     readProjectFile("views/protected/notifications.html"),
     readProjectFile("public/js/notifications.js"),
@@ -357,7 +357,7 @@ async function runNotificationUiContractTests() {
     readProjectFile("views/protected/tasks.html"),
     readProjectFile("public/js/tasks.js"),
     readProjectFile("public/js/task-dialog.js"),
-    readProjectFile("src/modules/tasks/module.js"),
+    readProjectFile("src/modules/tasks/module.events.js"),
     readProjectFile("views/protected/user-settings.html"),
     readProjectFile("public/js/shared/settings-host.js"),
     readProjectFile("public/js/user-settings.js"),
@@ -528,9 +528,9 @@ async function runNotificationUiContractTests() {
   });
 
   check("tasks module declares task notification follow target", () => {
-    assert.match(tasksModule, /notificationFollowTargets/);
-    assert.match(tasksModule, /targetType: "task"/);
-    assert.match(tasksModule, /eventTypes:\s*\[/);
+    assert.match(tasksModuleEvents, /notificationFollowTargets/);
+    assert.match(tasksModuleEvents, /targetType: "task"/);
+    assert.match(tasksModuleEvents, /eventTypes:\s*\[/);
   });
 }
 

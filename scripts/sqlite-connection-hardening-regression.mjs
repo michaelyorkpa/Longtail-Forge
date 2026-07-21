@@ -21,6 +21,7 @@ const changelog = readText("CHANGELOG.md");
 const configSource = readText("src/config.js");
 const sqliteSource = readText("src/db/sqlite.js");
 const dbIndexSource = readText("src/db/index.js");
+const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const schemaSource = readText("src/db/schema/current.sql");
 const migrationsSource = readText("src/db/migrations.js");
 const appSource = readText("src/core/app.js");
@@ -52,7 +53,8 @@ try {
   assert.match(sqliteSource, /foreign_keys = /, "SQLite helper should enable foreign keys for SQLite connections");
   assert.match(sqliteSource, /journal_mode = /, "SQLite helper should configure journal mode during startup");
   assert.match(sqliteSource, /PRAGMA busy_timeout;/, "SQLite helper should report busy timeout during health checks");
-  assert.match(dbIndexSource, /ensureFrameworkModuleRecord/, "database startup should seed framework as a real module row for hardened module foreign keys");
+  assert.match(dbIndexSource, /createAppStartupActions/, "database startup should include application maintenance after migrations");
+  assert.match(appStartupMaintenanceSource, /ensureFrameworkModuleRecord/, "application startup maintenance should seed framework as a real module row for hardened module foreign keys");
   assert.doesNotMatch(schemaSource, /REFERENCES\s+(?:clients|projects|tasks)\s*\(\s*(?:client_id|project_id|task_id)\s*\)/, "fresh schema should not use invalid legacy client/project/task foreign keys");
   assert.match(schemaSource, /FOREIGN KEY \(workspace_id, client_id\) REFERENCES clients\(workspace_id, id\)/, "fresh schema should use workspace-scoped client foreign keys");
   assert.match(schemaSource, /FOREIGN KEY \(workspace_id, project_id\) REFERENCES projects\(workspace_id, id\)/, "fresh schema should use workspace-scoped project foreign keys");

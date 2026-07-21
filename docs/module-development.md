@@ -6,34 +6,82 @@ For current first-party workflow modules, see `docs/tasks-module.md` for Tasks, 
 
 ## Create A Module Manifest
 
-Create a static ESM module record and register it in `src/core/modules/registry.js`. Third-party discovery is still deferred, so modules are intentionally explicit.
+Create `src/modules/<module-id>/module.js` and export a canonical `moduleEntry` with `createModuleEntry({ manifest, activateApp?, activateWorker? })`. The directory name and manifest `id` must match. Run `npm run modules:registry:generate`; never hand-edit `src/core/modules/registry.js` or the generated catalog. `npm run modules:registry:check` rejects missing, extra, reordered, or stale catalog output. Discovery is limited to repository-owned first-party source entries; third-party and operator-writable runtime discovery remain deferred.
 
 Required fields include `id`, `name`, `displayName`, `description`, `category`, `version`, and `enabledByDefault`. Keep `id` stable and kebab-case because it is used in `modules`, `workspace_modules`, route guards, settings, dependencies, and contribution filtering.
 
 Use `enabledByDefault: false` for examples or optional features that should not appear in new workspaces automatically. Use `canDisable: false` only for framework-core modules.
 
-### Planned Concern-Based Manifest Source Composition
+Keep entry imports side-effect free. Search indexers, report runners, setting persistence/effects, job handlers, and module-owned startup work belong in `activateApp` and/or `activateWorker`, not at module scope. Activation hooks must remain synchronous and data-free; register later startup work through `context.registerStartupTask(...)`. The framework validates the entire manifest graph first, then activates dependencies before dependents with module-ID ordering as the deterministic tie-breaker. App and worker bootstrap must call the generic module runtime rather than import a specific module's handlers or sweeps.
 
-The current runtime and development contract is still one validated module object, and existing large modules still keep that definition in `module.js`. The 0.33.18 roadmap plans to pilot a source-organization pattern on at least two large first-party modules. After that pattern is proven, a difficult-to-review module may compose substantial concerns from repository-conventional equivalents of:
+### Concern-Based Manifest Source Composition
 
-```text
-module.js
-module.manifest.js
-module.permissions.js
-module.views.js
-module.dashboard.js
-module.workbench.js
-module.events.js
-module.notifications.js
-module.api.js
-module.settings.js
+As of 0.33.18.5, Tasks and Notes prove the concern-composition pattern. The runtime contract is still one validated manifest and one canonical `moduleEntry` exported from `module.js`; concern files export data used by that composition point and are never registry entries themselves. The generated catalog, startup validator, dependency ordering, and activation lifecycle are unchanged.
+
+Use these review heuristics rather than creating mandatory boilerplate:
+
+- Consider composition when `module.js` is roughly 500 lines or longer, or when unrelated permissions, events, Help, integration, and settings declarations make identity, routes, views, or activation difficult to review.
+- Add a concern file only when it owns substantial cohesive content: normally about 75 or more lines, several closely related manifest fields, or one behavior-rich declaration set such as Tasks settings. Keep small arrays next to the composition unless separating them materially improves review.
+- Use repository-conventional names such as `module.permissions.js`, `module.events.js`, `module.integrations.js`, `module.help.js`, `module.views.js`, `module.dashboard.js`, `module.workbench.js`, `module.api.js`, or `module.settings.js`. The filename should describe the actual content; no module needs every file.
+- Keep route objects, activation hooks, and the canonical `createModuleEntry(...)` call in `module.js` unless a later contract deliberately says otherwise. Importing any concern must remain side-effect free.
+- Assign each composed field explicitly so reviewers can see the complete manifest shape and preserve contribution array order. Update source-level tests to read the owning concern file rather than copying declarations back into `module.js` for a test.
+- Before and after movement, compare the complete normalized manifest inventory and run the ordinary startup validator. IDs, routes, permissions, dependencies, contribution order, executable registration, and runtime behavior must not change in an organization-only slice.
+
+Tasks uses permissions, events/notifications, integrations, and settings concerns; Notes uses permissions, events/notifications, integrations, and Help concerns. Their view declarations remain in `module.js` because those composition points are still digestible and existing review/test ownership is view-centered. A future Support Tickets, Knowledge Base, or Creator Studio module should start compact, apply the same thresholds as it grows, and use only the concerns it actually needs.
+
+Complete pattern:
+
+```js
+// src/modules/support-tickets/module.permissions.js
+const supportTicketPermissions = {
+  requiredPermissions: ["support_tickets.view"],
+  permissions: [
+    {
+      id: "support_tickets.view",
+      moduleId: "support-tickets",
+      label: "View Support Tickets",
+      description: "View authorized support tickets.",
+      resource: "support_tickets",
+      operation: "read",
+    },
+  ],
+};
+
+export { supportTicketPermissions };
 ```
 
-Use only files that own substantial content; do not generate empty boilerplate for small modules. `module.js` remains the single composition/export point consumed by the static registry. The composed definition must pass the same startup validation and preserve module IDs, contribution IDs, permissions, routes, registration order, and runtime behavior. This is source organization, not plugin discovery or a loader redesign. Support Tickets, Knowledge Base, and Creator Studio should use the proven pattern rather than beginning as giant files.
+```js
+// src/modules/support-tickets/module.js
+import { supportTicketPermissions } from "./module.permissions.js";
+import { createModuleEntry } from "../../core/modules/module-entry.js";
+import { appVersion } from "../../core/version.js";
+
+const supportTicketsModule = {
+  id: "support-tickets",
+  name: "Support Tickets",
+  displayName: "Support Tickets",
+  description: "Support request tracking.",
+  category: "workflow",
+  version: appVersion,
+  enabledByDefault: true,
+  requiredPermissions: supportTicketPermissions.requiredPermissions,
+  permissions: supportTicketPermissions.permissions,
+};
+
+const moduleEntry = createModuleEntry({ manifest: supportTicketsModule });
+
+export { moduleEntry, supportTicketsModule };
+```
+
+This is source organization, not third-party plugin discovery or a loader redesign. Small modules should remain small single files.
 
 Before adding a framework primitive, manifest field, registry, contribution type, or generalized service, apply the Two-Module Rule: name two real first-party consumers with materially similar behavior and contract requirements. Do not invent a second consumer or generalize appearance alone. Keep a one-module requirement inside that module until the shared contract is understood. Intrinsically framework-wide authentication, security, permissions, workspace isolation, deployment, database, and app-shell work is an explicit documented exception.
 
-The planned browser direction is gradual native ES modules, not a framework rewrite. A newly built module should follow the settled entry-point/import convention once 0.33.18 proves it, avoid new `window`/script-order dependencies, keep module-specific behavior and CSS module-owned, and use the temporary compatibility bridge only where an existing host requires it. Until that slice lands, do not claim the convention is already implemented.
+The 0.33.18 closeout records the actual qualifications in `docs/architecture.md`: all eight bundled modules consume the canonical entry/catalog contract; Tasks and Notes consume concern composition; Tasks and Time Tracking consume Dashboard contribution asset loading; and database startup plus release tooling are explicit framework-wide exceptions. `LongtailForge.esModuleBridge` remains Dashboard page-local compatibility machinery, not a new general extension API. Future modules may consume the settled manifest and contribution contracts, but a second converted page must prove materially similar loading needs before the bridge is extracted or broadened.
+
+Browser modernization is gradual native ES-module adoption, not a framework rewrite. Dashboard is the first settled conversion: one `<script type="module">` page entry owns an explicit compatibility import list; all imported local assets are same-origin, application-versioned, and deduplicated; and existing `LongtailForge` globals survive temporarily behind `LongtailForge.esModuleBridge`. A converted page must not retain ordered body-level implementation scripts or introduce a new global ordering dependency.
+
+Keep the framework page entry generic. Permission-filtered module scripts and styles must be declared in `browserAssets`, returned by the host's contribution catalog, and loaded through `loadContributedAssets(...)`; do not hard-code a module renderer path into the protected HTML or framework host. A module asset may use `importScripts(...)` only to bridge an existing dependency while it is converted. New module code should use real imports/exports where its dependency is already modular. Keep CSS ownership parallel to behavior ownership: page anatomy belongs in a framework page stylesheet, while module panels belong in module-owned styles. Every converted entry needs missing-file/import, same-origin/versioning, behavior, accessibility, keyboard, responsive, and CSP-safe regression proof. Workbench remains unconverted until its scheduled performance restructuring.
 
 ## Register Routes
 
@@ -77,7 +125,7 @@ As of 0.33.12.6, report browser behavior follows the same stable-ID split as ser
 
 As of 0.33.7.3, Files is the first proving ground: `src/core/files/files.contracts.js` holds the runtime Zod schemas for the Files edges (JSON/batch upload bodies, multipart upload metadata, attach-existing payloads, the File Context editor payload, preview requests, and storage adapter configuration), wired at the Files service entry points through `parseFilesEdgePayload`. The contract choices there are the template for later modules: unknown fields are stripped, wrong-typed known fields fail with a 400 `AppError`, server-managed storage/scanner/integrity fields are rejected outright, required-ness stays with the service where its error copy already exists, and trusted internal objects are never re-parsed. Fast proof lives in `tests/contracts/files-contracts.test.mjs` (`npm run test:files` / `npm run test:contracts`).
 
-As of 0.33.7.4, the highest-value framework contracts have importable type definitions in `src/types/framework-contracts.d.ts` (module manifest, view-surface descriptor, Dashboard/Workbench contributions, work candidate, focus mode, resume-state payload, search record/reference/result/indexer, notification event payload, taggable/searchable/attachable contributions, public API envelopes, job enqueue/handler/record, and the database seam). Twelve high-value seam files carry `// @ts-check` (manifest contract, module registry, work candidate/focus/resume services and producers, search service and indexer registry, notifications, tags and tag propagation, and the Files contracts file), and the module registry's definition list is typed as `ModuleManifest[]` so every registered manifest is structurally checked at development time. Dual-cased shapes (resume payloads, job options, search filters) are modeled with both casings on purpose. The checking dials live in `tsconfig.json`: `strict` stays on so real type conflicts fire, `noImplicitAny` is off so unannotated legacy helpers do not drown the signal, and `checkJs` stays per-file opt-in. Do not remove an existing `// @ts-check` pragma, add `@ts-nocheck`/`@ts-ignore` to runtime files, or import `.ts` files from runtime JavaScript — the `framework.typecheck-seams` release gate rejects all three.
+As of 0.33.18.4, the highest-value framework contracts have importable type definitions in `src/types/framework-contracts.d.ts`, including the module manifest, canonical module entry/activation/startup-task shapes, view-surface descriptor, Dashboard/Workbench contributions, work candidate, focus mode, resume-state payload, search record/reference/result/indexer, notification event payload, taggable/searchable/attachable contributions, public API envelopes, job enqueue/handler/record, and the database seam. High-value seam files carry `// @ts-check`, and the generated catalog, registry engine, entry validator, and runtime activation layer are structurally checked at development time. Dual-cased shapes (resume payloads, job options, search filters) are modeled with both casings on purpose. The checking dials live in `tsconfig.json`: `strict` stays on so real type conflicts fire, `noImplicitAny` is off so unannotated legacy helpers do not drown the signal, and `checkJs` stays per-file opt-in. Do not remove an existing `// @ts-check` pragma, add `@ts-nocheck`/`@ts-ignore` to runtime files, or import `.ts` files from runtime JavaScript — the `framework.typecheck-seams` release gate rejects all three.
 
 Each tool has one job, and they do not substitute for each other:
 
@@ -140,7 +188,8 @@ To participate:
 2. Register a resume-state producer in service code with `registerResumeStateProducer()`.
 3. Shape explicit recovery fields in the producer payload, such as title, source URL, status, priority, due date, next action, handoff note, blocked reason, and safe metadata.
 4. Register a read resolver with `registerResumeStateReadResolver()` so the framework can re-check source visibility before returning a row.
-5. Add regressions for workspace scope, disabled modules, permission-denied reads, deleted/completed/archived/finalized filtering, dismissal refresh, and unsafe metadata exclusion.
+5. Optionally register a batch read resolver with `registerResumeStateBatchReadResolver()` (`{ recordIds, rows, session, workspaceId } → Map<recordId, readCheck>`) so list scans answer the same check with one IN-query per record type instead of one read per row; modules without one keep the per-row fallback, and re-registering a per-row resolver for a key supersedes its batch shortcut so both paths always share one policy. The first-party Tasks, Lists, Notes, and Time Tracking resolvers are batched this way as of 0.33.20.4 (Notes batches only its safe lifecycle pre-filter — eligible notes still go through `notesService.read` because Notes owns its access and secure-content policy).
+6. Add regressions for workspace scope, disabled modules, permission-denied reads, deleted/completed/archived/finalized filtering, dismissal refresh, and unsafe metadata exclusion.
 
 Do not copy freeform bodies, comments, rendered HTML, secure/encrypted fields, attachment internals, protected storage paths, scanner details, private-note hints, or inaccessible linked-record labels into resume state. Private and secure Notes are excluded from global resume-state rows in the current foundation. Time Tracking should update sourced task timer resume state on the source task record; manual active timers remain Time Tracking-owned. For recurring task instances, include recurrence template/instance metadata when available so framework ranking can avoid surfacing far-future instances whose only resume signal is creation.
 
@@ -148,7 +197,7 @@ Do not copy freeform bodies, comments, rendered HTML, secure/encrypted fields, a
 
 Register authenticated module pages through `protectedViews`. Protected module pages are served only when a registered descriptor matches the requested path.
 
-Declare module-specific browser scripts or styles in `browserAssets`. Shared app-shell assets remain framework-owned.
+Declare module-specific browser scripts or styles in `browserAssets`. Shared app-shell assets remain framework-owned. For a converted contribution host such as Dashboard, target both script and style descriptors at the host view and let the permission-filtered catalog load them; the host HTML and framework adapter must not name the owning module's file. Keep prerequisite imports inside the module asset through the temporary versioned bridge until those prerequisites expose native exports.
 
 ## Shared UI Surfaces
 
@@ -236,6 +285,8 @@ Lifecycle hooks remain direct functions such as `hooks.onModuleEnabled` and `hoo
 Use `modulesService.setModuleStatus` for module state changes. Do not update `workspace_modules` directly.
 
 Disabling a module hides normal navigation and blocks normal browser/public API writes. Disabled modules may keep historical reads only when `historicalReadAccess` allows it.
+
+As of 0.33.20.2, `workspace_modules` rows are created by the startup and workspace-creation lifecycle, and module status reads (`readModuleStatus`, `readWorkspaceModuleContext`, `readEnabledModuleIds`) are pure reads served through a per-workspace in-memory context cache. The cache fingerprints the status rows on every read, so `setModuleStatus` and even direct row changes from another process are observed immediately; test fixtures that write `workspace_modules` directly keep working, but product code must still go through `setModuleStatus`.
 
 ## Framework Notifications
 

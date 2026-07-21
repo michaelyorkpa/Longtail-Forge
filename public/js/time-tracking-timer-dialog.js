@@ -25,7 +25,7 @@
   async function prepareContext({ hostContext = null, params = {} } = {}) {
     await namespace.workspaceContextReady;
     const [clientProjectData, taskOptionsData, activeTimersData] = await Promise.all([
-      api.getJson("/api/client-projects", { cache: "no-store" }),
+      api.getJson("/api/client-projects?view=options", { cache: "no-store" }),
       loadTaskOptions(),
       api.getJson("/api/active-timers", { cache: "no-store" }),
     ]);

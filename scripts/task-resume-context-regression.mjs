@@ -83,7 +83,8 @@ async function assertTaskContextFeedsSafeSummaries(session) {
   assert.equal(workItem.next_action, "Ask finance for the signed agreement.");
   assert.equal(workItem.blocked_reason, "Agreement is not signed.");
   assert.equal(workItem.resume_note, "Draft response is saved in the description.");
-  assert.equal(workItem.resumeContext.active_candidate, true);
+  assert.equal(workItem.resume_context.active_candidate, true);
+  assert.equal(workItem.resumeContext, undefined, "work items emit resume_context once");
 
   const searchDocument = await indexTaskRecord({
     workspaceId: session.workspace_id,

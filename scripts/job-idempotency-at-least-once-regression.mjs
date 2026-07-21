@@ -30,6 +30,7 @@ const {
   runJobWorkerOnce,
   stopJobWorker,
 } = await import("../src/core/jobs/index.js");
+const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 const { closeDatabase, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { notificationsService } = await import("../src/services/notifications.service.js");
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
@@ -40,6 +41,7 @@ try {
   assertStaticContract();
 
   await initializeDatabase();
+  activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   registerTaskJobHandlers({ replace: true });
   notificationsService.registerNotificationJobHandlers({ replace: true });

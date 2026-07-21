@@ -90,7 +90,7 @@ async function assertParentChildBlockingLifecycle(session) {
 
   const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === parent.task_id);
-  assert.equal(workItem.relationshipSummary.child_count, 1);
+  assert.equal(workItem.relationship_summary.child_count, 1);
 }
 
 async function assertRelationshipBoundaries(session, clientA, clientB) {

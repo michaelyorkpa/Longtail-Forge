@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 
 const AREA_COMMANDS = Object.freeze({
   framework: "npm run test:regressions:framework",
@@ -11,6 +13,7 @@ const AREA_COMMANDS = Object.freeze({
   database: "npm run test:regressions:database",
   permissions: "npm run test:regressions:permissions",
   release: "npm run test:regressions:release",
+  docs: "npm run test:regressions:docs",
 });
 
 const FULL_CHECK_ESCALATION_AREAS = Object.freeze([
@@ -21,12 +24,15 @@ const FULL_CHECK_ESCALATION_AREAS = Object.freeze([
 ]);
 
 const ROUTE_RULES = Object.freeze([
+  route([/^public\/css\/tasks-dashboard\.css$/], ["tasks"], "Tasks-owned CSS path"),
+  route([/^public\/css\/dashboard\.css$/], ["dashboard"], "Dashboard-owned CSS path"),
+  route([/^public\/css\/time-tracking-dashboard\.css$/], ["time-tracking"], "Time Tracking-owned CSS path"),
   route([/^src\/modules\/tasks\//, /^public\/js\/tasks(?:[./-]|$)/, /^docs\/tasks(?:[./-]|$)/], ["tasks"], "Tasks-owned path"),
   route([
     /^src\/modules\/files\//,
     /^public\/js\/(?:shared\/)?files?(?:[./-]|$)/,
     /^docs\/files(?:[./-]|$)/,
-  ], ["files"], "Files-owned path"),
+  ], ["files"], "Files-owned path", { fullCheck: true }),
   route([
     /^public\/js\/workbench\.js$/,
     /^src\/(?:routes|services)\/workbench(?:[./-]|$)/,
@@ -53,12 +59,12 @@ const ROUTE_RULES = Object.freeze([
     /(?:^|[./_-])sessions?(?:[./_-]|$)/,
     /(?:^|[./_-])workspaces?(?:[./_-]|$)/,
     /(?:^|[./_-])memberships?(?:[./_-]|$)/,
-  ], ["permissions"], "permission, session, workspace, or membership path"),
+  ], ["permissions"], "permission, session, workspace, or membership path", { fullCheck: true }),
+  route([/^(?:CHANGELOG|ROADMAP|ROADMAP-ARCHIVE)\.md$/], ["release"], "release bookkeeping path", { fullCheck: false }),
   route([
     /^\.github\//,
     /^package(?:-lock)?\.json$/,
     /^(?:\.dockerignore|Dockerfile|compose\.yaml)$/,
-    /^(?:CHANGELOG|ROADMAP|ROADMAP-ARCHIVE)\.md$/,
     /^src\/core\/version\.js$/,
     /^src\/routes\/app-info\.routes\.js$/,
     /^docs\/versioning\.md$/,
@@ -79,10 +85,16 @@ const ROUTE_RULES = Object.freeze([
     /^src\/core\//,
     /^src\/(?:routes|services)\/[^/]*shared/,
   ], ["framework"], "shared framework path"),
+  route([/^docs\//], ["docs"], "documentation-owned path", { fullCheck: false }),
 ]);
 
-function route(patterns, areas, reason) {
-  return Object.freeze({ areas: Object.freeze(areas), patterns: Object.freeze(patterns), reason });
+function route(patterns, areas, reason, { fullCheck } = {}) {
+  return Object.freeze({
+    areas: Object.freeze(areas),
+    fullCheck: fullCheck ?? areas.some((area) => FULL_CHECK_ESCALATION_AREAS.includes(area)),
+    patterns: Object.freeze(patterns),
+    reason,
+  });
 }
 
 function normalizeChangedPath(filePath) {
@@ -93,6 +105,10 @@ function normalizeChangedPath(filePath) {
 }
 
 function collectChangedPaths({ cwd = process.cwd() } = {}) {
+  return collectChangedChangeSet({ cwd }).paths;
+}
+
+function collectChangedChangeSet({ cwd = process.cwd() } = {}) {
   const baseSha = String(process.env.LTF_REGRESSION_BASE_SHA || "").trim();
   if (baseSha && !/^[a-f0-9]{40}$/i.test(baseSha)) {
     throw new Error("LTF_REGRESSION_BASE_SHA must be a full 40-character commit SHA.");
@@ -101,7 +117,9 @@ function collectChangedPaths({ cwd = process.cwd() } = {}) {
     ? runGit(["diff", "--name-only", "--diff-filter=ACMR", `${baseSha}...HEAD`, "--"], cwd)
     : runGit(["diff", "--name-only", "--diff-filter=ACMR", "HEAD", "--"], cwd);
   const untracked = runGit(["ls-files", "--others", "--exclude-standard"], cwd);
-  return Object.freeze([...new Set([...tracked, ...untracked].map(normalizeChangedPath).filter(Boolean))].sort());
+  const paths = Object.freeze([...new Set([...tracked, ...untracked].map(normalizeChangedPath).filter(Boolean))].sort());
+  const versionBookkeepingPaths = inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked });
+  return Object.freeze({ paths, versionBookkeepingPaths });
 }
 
 function runGit(args, cwd) {
@@ -112,8 +130,9 @@ function runGit(args, cwd) {
   return String(result.stdout || "").split(/\r?\n/).filter(Boolean);
 }
 
-function suggestRegressionsForPaths(filePaths = []) {
+function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = [] } = {}) {
   const paths = [...new Set(filePaths.map(normalizeChangedPath).filter(Boolean))].sort();
+  const versionBookkeeping = new Set(versionBookkeepingPaths.map(normalizeChangedPath));
   const areas = new Set();
   const matches = [];
 
@@ -128,14 +147,27 @@ function suggestRegressionsForPaths(filePaths = []) {
       }));
     }
     for (const rule of ROUTE_RULES) {
+      if (versionBookkeeping.has(filePath) && /^package(?:-lock)?\.json$/.test(filePath) && rule.reason === "release, version, or regression-infrastructure path") {
+        continue;
+      }
       if (rule.patterns.some((pattern) => pattern.test(filePath))) {
         rule.areas.forEach((area) => areas.add(area));
         matches.push(Object.freeze({
           areas: rule.areas,
           path: filePath,
           reason: rule.reason,
+          fullCheck: rule.fullCheck,
         }));
       }
+    }
+    if (versionBookkeeping.has(filePath)) {
+      areas.add("release");
+      matches.push(Object.freeze({
+        areas: Object.freeze(["release"]),
+        fullCheck: false,
+        path: filePath,
+        reason: "application-version bookkeeping only",
+      }));
     }
   }
 
@@ -144,7 +176,7 @@ function suggestRegressionsForPaths(filePaths = []) {
     .filter((area) => areas.has(area))
     .map((area) => AREA_COMMANDS[area]);
   const fallback = paths.length > 0 && commands.length === 0;
-  const fullCheckRecommended = selectedAreas.some((area) => FULL_CHECK_ESCALATION_AREAS.includes(area));
+  const fullCheckRecommended = fallback || matches.some((match) => match.fullCheck);
 
   return Object.freeze({
     areas: Object.freeze(selectedAreas),
@@ -157,11 +189,54 @@ function suggestRegressionsForPaths(filePaths = []) {
   });
 }
 
+function inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked }) {
+  const packagePaths = ["package.json", "package-lock.json"];
+  if (!packagePaths.every((filePath) => paths.includes(filePath)) || packagePaths.some((filePath) => untracked.includes(filePath))) {
+    return Object.freeze([]);
+  }
+  const reference = baseSha || "HEAD";
+  try {
+    const comparisons = packagePaths.map((filePath) => {
+      const before = JSON.parse(runGitText(["show", `${reference}:${filePath}`], cwd));
+      const after = JSON.parse(readFileSync(`${cwd}/${filePath}`, "utf8"));
+      return isApplicationVersionOnlyChange(before, after, filePath);
+    });
+    return Object.freeze(comparisons.every(Boolean) ? packagePaths : []);
+  } catch {
+    return Object.freeze([]);
+  }
+}
+
+function isApplicationVersionOnlyChange(before, after, filePath) {
+  const normalizedBefore = JSON.parse(JSON.stringify(before));
+  const normalizedAfter = JSON.parse(JSON.stringify(after));
+  const beforeVersion = normalizedBefore.version;
+  const afterVersion = normalizedAfter.version;
+  if (!beforeVersion || !afterVersion || beforeVersion === afterVersion) return false;
+  normalizedBefore.version = "<application-version>";
+  normalizedAfter.version = "<application-version>";
+  if (filePath === "package-lock.json") {
+    if (!normalizedBefore.packages?.[""] || !normalizedAfter.packages?.[""]) return false;
+    if (normalizedBefore.packages[""].version !== beforeVersion || normalizedAfter.packages[""].version !== afterVersion) return false;
+    normalizedBefore.packages[""].version = "<application-version>";
+    normalizedAfter.packages[""].version = "<application-version>";
+  }
+  return isDeepStrictEqual(normalizedBefore, normalizedAfter);
+}
+
+function runGitText(args, cwd) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  if (result.status !== 0) throw new Error(String(result.stderr || result.stdout).trim());
+  return String(result.stdout || "");
+}
+
 export {
   AREA_COMMANDS,
   FULL_CHECK_ESCALATION_AREAS,
   ROUTE_RULES,
+  collectChangedChangeSet,
   collectChangedPaths,
+  isApplicationVersionOnlyChange,
   normalizeChangedPath,
   suggestRegressionsForPaths,
 };

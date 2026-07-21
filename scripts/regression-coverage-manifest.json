@@ -1,17 +1,17 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 375,
-    "legacyScripts": 312,
-    "releaseGateScripts": 35,
+    "discoveredScripts": 390,
+    "legacyScripts": 311,
+    "releaseGateScripts": 44,
     "areaCounts": {
       "dashboard": 1,
-      "database": 32,
+      "database": 36,
       "docs": 9,
       "files": 44,
-      "framework": 61,
+      "framework": 64,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -19,25 +19,26 @@
       "notifications": 3,
       "permissions": 5,
       "public-api": 3,
-      "release": 21,
+      "release": 24,
       "search": 12,
       "tags": 12,
-      "tasks": 51,
+      "tasks": 52,
       "time-tracking": 8,
-      "views": 30,
-      "workbench": 27
+      "views": 31,
+      "workbench": 30
     },
     "tierCounts": {
-      "focused": 173,
+      "focused": 180,
       "integration": 158,
-      "release-gate": 35,
-      "slow": 9
+      "release-gate": 44,
+      "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 152,
+      "isolated-database": 162,
+      "isolated-files": 9,
       "serial-database": 6,
-      "serial-files": 29,
-      "static": 188
+      "serial-files": 20,
+      "static": 193
     }
   },
   "coverageFamilies": [
@@ -46,7 +47,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 9,
+      "minimumActiveScripts": 10,
       "activeRegressionIds": [
         "docs.short-term-cleanup-closeout",
         "framework.settings-branch-closeout",
@@ -60,6 +61,7 @@
         "legacy.task.qol.closeout",
         "legacy.work.resume.state.closeout",
         "release.closeout-conductor",
+        "release.maintainability-closeout",
         "release.playwright-dev-only-boundary",
         "release.roadmap-cursor-floor"
       ],
@@ -78,6 +80,24 @@
         "scripts/tasks-conversion-closeout-regression.mjs",
         "scripts/view-builder-closeout-regression.mjs",
         "scripts/view-conversion-branch-closeout-regression.mjs"
+      ]
+    }
+  ],
+  "assertionMovements": [
+    {
+      "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
+      "movedInVersion": "0.33.19.4",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 108,
+      "rationale": "Defaults, normalization, accepted values, production warnings, and expected configuration errors are deterministic createConfig behavior and do not need one fresh Node process per case.",
+      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 108-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
+      "movedTo": "tests/unit/runtime-configuration.test.mjs",
+      "retainedIntegrationOwner": "scripts/runtime-configuration-contract-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/runtime-configuration.test.mjs",
+        "node scripts/runtime-configuration-contract-regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run verify:slice"
       ]
     }
   ],
@@ -266,20 +286,6 @@
         "release"
       ],
       "tier": "release-gate"
-    },
-    {
-      "area": "release",
-      "description": "Protects the legacy check js contract.",
-      "id": "legacy.check.js",
-      "legacy": true,
-      "path": "scripts/check-js.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "release",
-        "slow"
-      ],
-      "tier": "slow"
     },
     {
       "area": "views",
@@ -666,7 +672,7 @@
       "legacy": true,
       "path": "scripts/file-framework-contract-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "contract",
         "database",
@@ -813,7 +819,7 @@
       "legacy": true,
       "path": "scripts/file-settings-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -827,7 +833,7 @@
       "legacy": true,
       "path": "scripts/file-storage-accounting-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -869,7 +875,7 @@
       "legacy": true,
       "path": "scripts/file-storage-quota-enforcement-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -883,7 +889,7 @@
       "legacy": true,
       "path": "scripts/file-storage-streaming-contract-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "contract",
         "database",
@@ -980,7 +986,7 @@
       "legacy": true,
       "path": "scripts/files-attachment-readmodel-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -994,7 +1000,7 @@
       "legacy": true,
       "path": "scripts/files-browse-attachment-reads-conversion-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -1034,7 +1040,7 @@
       "legacy": true,
       "path": "scripts/files-context-targets-conversion-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -1100,7 +1106,7 @@
       "legacy": true,
       "path": "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -2431,6 +2437,25 @@
     },
     {
       "area": "database",
+      "description": "Proves the named demo host can be provisioned/reset only through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+      "id": "database.demo-data-host-operation",
+      "legacy": false,
+      "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "backup",
+        "demo",
+        "deployment",
+        "files",
+        "security",
+        "seed",
+        "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
       "description": "Proves deterministic rich development/demo data, safe reset ownership, disabled persona logins, and production/live target refusal.",
       "id": "database.development-data-seed",
       "legacy": false,
@@ -2460,6 +2485,57 @@
         "migrations",
         "release",
         "schema"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves module-context reads perform zero writes, workspace module rows are ensured by the startup and workspace-creation lifecycle, enable/disable stays immediately visible through the context cache, and repeated request-scoped settings reads hit the memo.",
+      "id": "database.module-context-read-lifecycle",
+      "legacy": false,
+      "path": "scripts/regressions/database/module-context-read-lifecycle.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "lifecycle",
+        "modules",
+        "performance",
+        "workspace"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves the adapter prepared-statement cache, single-pass SQL analysis, db.get single-row path, and config-gated performance PRAGMAs preserve query results, error contracts, and transaction semantics.",
+      "id": "database.sqlite-statement-cache-adapter",
+      "legacy": false,
+      "path": "scripts/regressions/database/sqlite-statement-cache-adapter.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "adapter",
+        "performance",
+        "pragmas",
+        "sqlite",
+        "statement-cache"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves explicit startup lifecycle ownership, fail-fast ordering, timed phase reporting, one-time repair tracking, fresh bootstrap behavior, and worker schema readiness.",
+      "id": "database.startup-maintenance-lifecycle",
+      "legacy": false,
+      "path": "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "bootstrap",
+        "database",
+        "maintenance",
+        "migrations",
+        "readiness",
+        "sqlite"
       ],
       "tier": "release-gate"
     },
@@ -2630,6 +2706,39 @@
     },
     {
       "area": "framework",
+      "description": "Proves deterministic bundled-module discovery, declaration-only imports, dependency-ordered activation, and exact inventory preservation.",
+      "id": "framework.bundled-module-registry",
+      "legacy": false,
+      "path": "scripts/regressions/framework/bundled-module-registry.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "modules",
+        "packaging",
+        "registry",
+        "startup"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the slim client-project options projection renders dropdowns identical to the full management payload at a fraction of its size, the management shape keeps gated batched reminder policies, and reminder-policy queries stay constant-count.",
+      "id": "framework.client-project-options-projection",
+      "legacy": false,
+      "path": "scripts/regressions/framework/client-project-options-projection.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "client-projects",
+        "options",
+        "payload",
+        "performance",
+        "reminders"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves browser mutations share one origin, token, and content-type boundary while bearer API calls remain independent.",
       "id": "framework.csrf-protection",
       "legacy": false,
@@ -2643,6 +2752,23 @@
         "security"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Pins the Express 5 runtime boundary, named wildcard routes, prior query semantics, and exactly-once async error propagation.",
+      "id": "framework.express-5-http-contract",
+      "legacy": false,
+      "path": "scripts/regressions/framework/express-5-http-contract.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "dependencies",
+        "errors",
+        "http",
+        "routing",
+        "security"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",
@@ -3093,7 +3219,40 @@
     },
     {
       "area": "release",
-      "description": "Proves npm run check runs the TypeScript typecheck and Vitest unit tests before the slow regression runner, and that npm start stays a pure Node boot.",
+      "description": "Pins the reviewed ESLint 10.7 and Markdown-it 14.3 dependency baseline and keeps obsolete js-yaml out of the resolved graph.",
+      "id": "release.dependency-baseline",
+      "legacy": false,
+      "path": "scripts/regressions/release/dependency-baseline.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "dependencies",
+        "markdown",
+        "release",
+        "tooling"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
+      "id": "release.developer-verification-throughput",
+      "legacy": false,
+      "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "ci",
+        "commands",
+        "release",
+        "routing",
+        "timing"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves npm run check runs TypeScript, Vitest, and the sole ESLint syntax/lint owner before the slow regression runner, and that npm start stays a pure Node boot.",
       "id": "release.fast-check-pipeline",
       "legacy": false,
       "path": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
@@ -3103,6 +3262,22 @@
         "commands",
         "release",
         "tooling"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves every legacy Files regression has an explicit isolation audit and only repeat-stressed scripts run concurrently without retries.",
+      "id": "release.files-regression-isolation-audit",
+      "legacy": false,
+      "path": "scripts/regressions/release/files-regression-isolation-audit.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "files",
+        "performance",
+        "release",
+        "scheduling"
       ],
       "tier": "release-gate"
     },
@@ -3119,6 +3294,25 @@
         "github-actions",
         "release",
         "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Pins the 0.33.18 maintainability boundary evidence and its retained manifest, startup, loading, coverage, and roadmap proof owners.",
+      "id": "release.maintainability-closeout",
+      "legacy": false,
+      "path": "scripts/regressions/release/maintainability-closeout.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "architecture",
+        "closeout",
+        "database",
+        "docs",
+        "modules",
+        "startup",
+        "views"
       ],
       "tier": "release-gate"
     },
@@ -3301,6 +3495,23 @@
       "tier": "focused"
     },
     {
+      "area": "tasks",
+      "description": "Proves the task list pipeline keeps options opt-in with a dedicated options endpoint, bounds workbench items in SQL, drops per-row reminder details and duplicated work-item serialization, pushes due windows into the repository, and preserves permission filtering through the precomputed evaluator.",
+      "id": "tasks.task-list-pipeline-projection",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "options",
+        "pagination",
+        "performance",
+        "permissions",
+        "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
       "area": "time-tracking",
       "description": "Proves the module-owned Project Time & Billing runner, recursive mixed-setting rollups, compatibility reads, tag/task behavior, and framework decoupling.",
       "id": "time-tracking.project-time-billing-runner",
@@ -3368,6 +3579,24 @@
     },
     {
       "area": "views",
+      "description": "Proves the Dashboard native ES-module entry, versioned local compatibility imports, contribution-owned module scripts and styles, and preserved accessible calendar controls.",
+      "id": "views.dashboard-es-module-entry",
+      "legacy": false,
+      "path": "scripts/regressions/views/dashboard-es-module-entry.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "accessibility",
+        "assets",
+        "dashboard",
+        "es-modules",
+        "guardrail",
+        "keyboard"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "views",
       "description": "Proves field-factory metadata, editable grids, typed collection, message channels, raw-anatomy guardrails, and renderer, Reporting, and Settings adoption.",
       "id": "views.field-factory",
       "legacy": false,
@@ -3400,6 +3629,38 @@
     },
     {
       "area": "workbench",
+      "description": "Proves batched resume-state read checks return results identical to the per-row resolvers, the workbench bootstrap computes no focus candidates, and focus-candidate query counts stay near-constant as resume rows grow.",
+      "id": "workbench.focus-candidate-pipeline",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/focus-candidate-pipeline.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "bootstrap",
+        "candidates",
+        "performance",
+        "resume-state"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Pins statement-count and payload budgets for the hot workbench-path endpoints over HTTP so N+1 reintroductions and payload bloat fail loudly.",
+      "id": "workbench.hot-endpoint-budgets",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "budgets",
+        "payload",
+        "performance",
+        "query-count"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
       "description": "Pins the Workbench task-focus deep-link contract: workbench.html?taskId= enters Task Focus through the existing path, every failure falls back to Focus Selection with one generic message that leaks nothing, and dashboard per-task handoffs carry the task while panel-level actions stay generic.",
       "id": "workbench.task-focus-deep-link",
       "legacy": false,
@@ -3412,6 +3673,23 @@
         "guardrail",
         "tasks",
         "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Proves the workbench client loads in one parallel fan-out with stale-while-revalidate caches and warm-first render, the cached-fetch helper never duplicates fetches, dialog scripts lazy-load, and the app serves compressed responses.",
+      "id": "workbench.workbench-client-fanout",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/workbench-client-fanout.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "cache",
+        "compression",
+        "fan-out",
+        "performance",
+        "progressive-render"
       ],
       "tier": "focused"
     },
@@ -5065,6 +5343,32 @@
     }
   ],
   "retiredRegressions": [
+    {
+      "script": "scripts/check-js.mjs",
+      "retiredInVersion": "0.33.18.7",
+      "retirementType": "assertions-moved",
+      "rationale": "The formal streamlining review proved that cached ESLint covers the same 793 JavaScript and module files as the legacy per-file node --check subprocess fan-out, so keeping both syntax parsers in the full release gate duplicated coverage and cost.",
+      "assertionDisposition": "JavaScript and module parsing plus lint failures are owned by the cached ESLint stage in npm run check, which now runs before the stateful regression suite. The retained fast-check pipeline release gate proves the ESLint source roots, fail-fast order, and removal from the frozen legacy snapshot.",
+      "retainedCoverageOwners": [
+        "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "793-file check-js versus ESLint inventory comparison",
+        "node scripts/regressions/release/fast-check-pipeline.regression.mjs",
+        "node scripts/regression-coverage-ratchet.mjs",
+        "npm run lint",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.check.js",
+      "area": "release",
+      "tier": "slow",
+      "tags": [
+        "release",
+        "slow"
+      ],
+      "legacy": true
+    },
     {
       "script": "scripts/clients-projects-strict-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",

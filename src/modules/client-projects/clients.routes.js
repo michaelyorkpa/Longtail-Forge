@@ -5,7 +5,17 @@ import { asyncRoute, readJsonBody } from "../../core/http.js";
 const clientsRoutes = Router();
 
 clientsRoutes.get("/client-projects", asyncRoute(async (request, response) => {
-  const result = await clientsService.readClientProjects(request.session);
+  if (String(request.query.view || "").trim() === "options") {
+    const optionsResult = await clientsService.readClientProjectOptions(request.session, {
+      includeInactive: readQueryFlag(request.query.includeInactive ?? request.query.include_inactive),
+    });
+    response.status(200).json(optionsResult);
+    return;
+  }
+
+  const result = await clientsService.readClientProjects(request.session, {
+    includeReminderPolicies: readQueryList(request.query.include).includes("reminderPolicy"),
+  });
   response.status(200).json(result);
 }));
 
@@ -13,6 +23,17 @@ clientsRoutes.put("/client-projects", asyncRoute(async (request, response) => {
   const result = await clientsService.saveClientProjects(request.session);
   response.status(200).json(result);
 }));
+
+function readQueryFlag(value) {
+  return ["1", "true", "yes"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function readQueryList(value) {
+  return String(value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
 
 clientsRoutes.get("/clients", asyncRoute(async (request, response) => {
   const result = await clientsService.listClients(request.session, request.query);

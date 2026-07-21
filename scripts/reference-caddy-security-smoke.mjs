@@ -243,8 +243,9 @@ function createLocalCaddyfile({
 \tadmin off
 \tauto_https disable_redirects
 \tskip_install_trust
-\tservers :${innerPort} {
+\tservers {
 \t\ttrusted_proxies static 127.0.0.1/32 ::1/128
+\t\tclient_ip_headers X-Forwarded-For X-Real-IP
 \t\ttrusted_proxies_strict
 \t}
 }
@@ -261,6 +262,9 @@ https://localhost:${tlsPort} {
 }
 
 http://localhost:${innerPort} {
+\t# bind mirrors the deployed topology: an explicit bind changes the listener
+\t# address, which is why the trusted_proxies servers block must be address-less.
+\tbind 127.0.0.1
 \t@not_public_edge not remote_ip 127.0.0.1/32 ::1/128
 \trespond @not_public_edge 403
 \treverse_proxy 127.0.0.1:${upstreamPort} {

@@ -20,6 +20,8 @@ Do not update the baseline in unrelated feature work. New or touched value-beari
 
 The checked-in baseline contains reviewed pre-existing dynamic SQL composition, including validated identifier/fragment builders and provider/dialect seams. Baseline membership is not permission to interpolate user values. Any new dynamic composition requires explicit review, while new value input belongs in the params object.
 
+As of 0.33.18.3, the startup ownership split relocates the nine reviewed startup compatibility findings from `src/db/index.js` to `src/db/app-startup-maintenance.js`. The same baseline review also covers one new dialect-generated conflict-safe insert for the versioned-repair completion ledger; its values remain named bindings. The public `src/db/index.js` facade now contains no startup SQL. This is a reviewed path/owner update, not permission for new value interpolation, and the historical inventory below remains unchanged.
+
 ## Historical Exact-Count Snapshot
 
 Runtime source scan:

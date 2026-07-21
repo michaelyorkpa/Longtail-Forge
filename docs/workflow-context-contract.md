@@ -36,6 +36,10 @@ If a primary or linked target cannot be resolved to a readable label, show a saf
 
 These fallback labels are display labels only. They must not imply the target is deleted, unauthorized, or broken unless the service already exposes that state safely.
 
+## Client/Project Dropdown Options Projection
+
+As of 0.33.20.5, `GET /api/client-projects?view=options` is the read behind every Client/Project dropdown surface (workbench, stop-watch, time dialogs, calendar, lists, files, search, and user-admin). It returns only the fields `public/js/shared/client-project-options.js` consumes — id, name, status, parent linkage, billable, billing rate/period/rounding, and nested projects — with the same permission filtering as the full read, and it filters `status != 'Inactive'` in SQL by default. User Admin passes `includeInactive=1` so existing role-scope labels for inactive clients/projects keep resolving. The full management shape stays on the flagless `GET /api/client-projects` for the Clients/Projects management page, which requests `include=reminderPolicy` to receive `taskReminderPolicy` values; those policies are read through one batched offsets query over the permission-filtered records only. Dropdown consumers must not fetch the management shape, and new picker fields belong in the shared options helper plus this projection, not in per-page payload reads.
+
 ## Shared Picker Provider Contract
 
 Shared Linked Context pickers use module-owned providers. The framework owns reusable picker anatomy through `LongtailForge.view.createLinkedContextPicker()`, but source modules own permission-safe target lookup, search filtering, sorting, display labels, secondary labels, source URLs, and Primary Context hints.

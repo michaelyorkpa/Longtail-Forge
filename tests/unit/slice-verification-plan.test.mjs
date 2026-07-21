@@ -22,23 +22,27 @@ describe("slice verification planning", () => {
     expect(plan.commands).not.toContain("npm run check");
   });
 
-  it.each([
-    ["CHANGELOG.md", "release"],
-    ["src/core/shared-context.js", "framework"],
-  ])("escalates a %s change to one full check with no individual %s command", (filePath, area) => {
-    const plan = planFor([filePath]);
+  it("keeps changelog bookkeeping on its focused release owner", () => {
+    const plan = planFor(["CHANGELOG.md"]);
 
-    expect(plan.commands).toEqual(["npm run closeout", "npm run check"]);
-    expect(plan.fullCheckIncluded).toBe(true);
-    expect(plan.commands).not.toContain(`npm run test:regressions:${area}`);
+    expect(plan.commands).toEqual(["npm run closeout", "npm run test:regressions:release"]);
+    expect(plan.fullCheckIncluded).toBe(false);
   });
 
-  it("schedules the focused permission area and separate permission harness exactly once", () => {
+  it("decomposes full escalation into timed fast-check and regression stages", () => {
+    const plan = planFor(["src/core/shared-context.js"]);
+
+    expect(plan.commands).toEqual(["npm run closeout", "npm run check:fast", "npm run test:regressions"]);
+    expect(plan.fullCheckIncluded).toBe(true);
+  });
+
+  it("fully escalates permission changes and adds the separate permission harness exactly once", () => {
     const plan = planFor(["src/services/permission-policy.js"]);
 
     expect(plan.commands).toEqual([
       "npm run closeout",
-      "npm run test:regressions:permissions",
+      "npm run check:fast",
+      "npm run test:regressions",
       "npm run test:permissions",
     ]);
     expect(plan.commands.filter((command) => command === "npm run test:permissions")).toHaveLength(1);
@@ -49,7 +53,8 @@ describe("slice verification planning", () => {
 
     expect(plan.commands).toEqual([
       "npm run closeout",
-      "npm run check",
+      "npm run check:fast",
+      "npm run test:regressions",
       "npm run test:permissions",
     ]);
     expect(new Set(plan.commands).size).toBe(plan.commands.length);
@@ -85,7 +90,9 @@ describe("slice verification planning", () => {
     const summary = formatSliceVerificationSummary(plan, result);
 
     expect(summary).toMatch(/Changed-regression mode: full-check/);
-    expect(summary).toMatch(/Commands actually executed:[\s\S]*npm run closeout[\s\S]*npm run check/);
+    expect(summary).toMatch(/\[PASSED\] Closeout gates/);
+    expect(summary).toMatch(/\[PASSED\] Typecheck\/unit\/lint/);
+    expect(summary).toMatch(/\[PASSED\] Regression buckets/);
     expect(summary).toMatch(/Full-check escalation included: yes/);
     expect(summary).toMatch(/Permission harness included: yes/);
     expect(summary).toMatch(/Do not run an equivalent local verification command again unless files change/);

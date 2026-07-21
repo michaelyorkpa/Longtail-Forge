@@ -13,7 +13,7 @@ const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const configSource = readText("src/config.js");
-const dbIndexSource = readText("src/db/index.js");
+const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
@@ -32,10 +32,10 @@ assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `),
 assert.match(configSource, /DEFAULT_INITIAL_WORKSPACE_NAME = "Longtail Forge Workspace"/, "config should keep only a generic fallback for first workspace name");
 assert.match(configSource, /initialWorkspaceName: readText\(env, "LONGTAIL_INITIAL_WORKSPACE_NAME"/, "config should read the initial workspace name from runtime config");
 assert.match(configSource, /superAdminDisplayName: readText\(env, "SUPER_ADMIN_DISPLAY_NAME"/, "config should read the super-admin display name from runtime config");
-assert.match(dbIndexSource, /const DEFAULT_WORKSPACE_NAME = config\.bootstrap\.initialWorkspaceName;/, "database bootstrap should use the runtime-configured workspace name");
-assert.match(dbIndexSource, /const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = config\.bootstrap\.superAdminDisplayName;/, "database bootstrap should use the runtime-configured super-admin display name");
-assert.doesNotMatch(dbIndexSource, /Raymond Tec/, "database bootstrap should not hardcode this checkout's workspace name");
-assert.doesNotMatch(dbIndexSource, /const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin"/, "database bootstrap should not hardcode the super-admin display name");
+assert.match(appStartupMaintenanceSource, /const DEFAULT_WORKSPACE_NAME = config\.bootstrap\.initialWorkspaceName;/, "database bootstrap should use the runtime-configured workspace name");
+assert.match(appStartupMaintenanceSource, /const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = config\.bootstrap\.superAdminDisplayName;/, "database bootstrap should use the runtime-configured super-admin display name");
+assert.doesNotMatch(appStartupMaintenanceSource, /Raymond Tec/, "database bootstrap should not hardcode this checkout's workspace name");
+assert.doesNotMatch(appStartupMaintenanceSource, /const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin"/, "database bootstrap should not hardcode the super-admin display name");
 assert.match(settingsRepoSource, /const DEFAULT_WORKSPACE_NAME = config\.bootstrap\.initialWorkspaceName;/, "settings fallback should use the runtime-configured workspace name");
 assert.doesNotMatch(settingsRepoSource, /Raymond Tec/, "settings fallback should not hardcode this checkout's workspace name");
 

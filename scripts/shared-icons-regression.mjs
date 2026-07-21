@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 
 const iconHelper = readText("public/js/shared/icons.js");
+const dashboardEntry = readText("public/js/dashboard.entry.js");
 const css = readText("public/css/longtail-forge.css");
 const moduleDevelopment = readText("docs/module-development.md");
 const license = readText("public/icons/LUCIDE-LICENSE.md");
@@ -45,6 +46,12 @@ protectedViews.forEach((viewName) => {
   const view = readText(`views/protected/${viewName}`);
   // Views reference the bare asset path; the server stamps the canonical
   // version at serve time and raw ?v= keys are rejected by the asset-cache gate.
+  if (viewName === "dashboard.html") {
+    assert.match(view, /type="module" src="js\/dashboard\.entry\.js"/, "Dashboard must load its authenticated module entry");
+    assert.match(dashboardEntry, /"\/js\/shared\/icons\.js"/, "Dashboard entry must import the shared icon helper");
+    return;
+  }
+
   assert.match(view, /js\/shared\/icons\.js"/, `${viewName} must load the shared icon helper`);
 });
 

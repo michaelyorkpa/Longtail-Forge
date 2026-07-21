@@ -21,7 +21,8 @@ const commandSource = readFileSync("scripts/run-changed-regressions.mjs", "utf8"
 const routingSource = readFileSync("scripts/lib/regression-change-routing.mjs", "utf8");
 
 assert.equal(packageJson.scripts["test:regressions:changed"], "node scripts/run-changed-regressions.mjs");
-assert.match(commandSource, /collectChangedPaths\(\)/, "auto-run should inspect changes on the same basis as the suggester");
+assert.match(commandSource, /collectChangedChangeSet\(\)/, "auto-run should inspect paths and package-version-only changes together");
+assert.match(commandSource, /--prechecked/, "CI should be able to skip already-passed fast checks during full escalation");
 assert.match(commandSource, /createChangedRegressionPlan/, "auto-run should consume the shared routing plan");
 assert.match(routingSource, /LTF_REGRESSION_BASE_SHA/, "clean CI checkouts should compare the pull-request head with its exact base SHA");
 assert.match(routingSource, /\$\{baseSha\}\.\.\.HEAD/, "CI comparison should use the merge-base diff rather than an empty working tree");
@@ -48,6 +49,8 @@ for (const [filePath, expectedAreas] of [
   ["public/js/shared/view-builder.js", ["framework", "views"]],
   ["src/db/migrations/070_example.sql", ["database"]],
   ["src/core/version.js", ["framework", "release"]],
+  ["src/modules/files/files.routes.js", ["files"]],
+  ["src/routes/permissions.routes.js", ["permissions"]],
 ]) {
   const suggestion = suggestRegressionsForPaths([filePath]);
   const plan = createChangedRegressionPlan([filePath]);
@@ -57,9 +60,19 @@ for (const [filePath, expectedAreas] of [
   assert.deepEqual(plan.commands, ["npm run check"], `${filePath} should conservatively escalate to the full gate`);
 }
 
+const precheckedPlan = createChangedRegressionPlan(["src/db/migrations/070_example.sql"], { prechecked: true });
+assert.equal(precheckedPlan.mode, "full-regressions");
+assert.deepEqual(precheckedPlan.commands, ["npm run test:regressions"]);
+
+const ceremonyPlan = createChangedRegressionPlan(["package.json", "package-lock.json", "CHANGELOG.md", "ROADMAP.md"], {
+  versionBookkeepingPaths: ["package.json", "package-lock.json"],
+});
+assert.equal(ceremonyPlan.mode, "focused");
+assert.deepEqual(ceremonyPlan.commands, ["npm run test:regressions:release"]);
+
 const unknownPlan = createChangedRegressionPlan(["unmapped/example.txt"]);
-assert.equal(unknownPlan.mode, "fallback");
-assert.deepEqual(unknownPlan.commands, ["npm run test:regressions"]);
+assert.equal(unknownPlan.mode, "full-check");
+assert.deepEqual(unknownPlan.commands, ["npm run check"]);
 assert.match(formatChangedRegressionPlan(unknownPlan), /No specific route matched/);
 
 const emptyPlan = createChangedRegressionPlan([]);

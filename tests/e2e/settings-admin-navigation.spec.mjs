@@ -120,7 +120,7 @@ test("module lifecycle saves refresh recovery and timer surfaces immediately", a
     }
     await route.fulfill({ response, json: result });
   });
-  await page.route("**/api/tasks/workbench-items", async (route) => {
+  await page.route("**/api/tasks/options**", async (route) => {
     const response = await route.fetch();
     const result = await response.json();
     if (taskTimersDisabled) {

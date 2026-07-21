@@ -20,6 +20,7 @@ const commandSource = readFileSync("scripts/run-closeout.mjs", "utf8");
 const expectedScripts = [
   "version:guard",
   "regressions:manifest:check",
+  "modules:registry:check",
   "db:schema:check",
   "audit:params:check",
   "docs:check",
@@ -28,7 +29,7 @@ const expectedScripts = [
 
 assert.equal(packageJson.scripts.closeout, "node scripts/run-closeout.mjs");
 assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.script), expectedScripts);
-assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.hard), [true, true, true, true, false, false]);
+assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.hard), [true, true, true, true, true, false, false]);
 for (const script of expectedScripts) {
   assert.ok(packageJson.scripts[script], `${script} should remain independently runnable`);
 }

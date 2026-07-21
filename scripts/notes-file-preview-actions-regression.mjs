@@ -74,8 +74,10 @@ assert.match(notesView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/view
   "Notes view should load updated attachment actions and shared preview before Notes mounts panels");
 assert.match(tasksView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/task-dialog\.js/,
   "Tasks view should load updated attachment actions and shared preview before Task Files dialogs");
-assert.match(workbenchView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/task-dialog\.js/,
-  "Workbench should load updated attachment actions and shared preview before Task Files dialogs");
+assert.match(workbenchView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/,
+  "Workbench should load updated attachment actions and shared preview for the lazy Task Files dialogs");
+assert.match(readText("public/js/workbench.js"), /src: "js\/task-dialog\.js"/,
+  "Workbench should lazy-load the task dialog after its static attachment and preview helpers");
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
   "live roadmap should not carry completed-history breadcrumbs");

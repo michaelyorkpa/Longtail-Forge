@@ -75,11 +75,13 @@ function assertStaticContract() {
   assert.doesNotMatch(workerCliSource, /\binitializeDatabase\b/, "separate worker CLI must not own app migrations");
   assert.match(workerCliSource, /acquireWorkerProcessLock/, "separate worker should enforce the one-local-worker SQLite boundary");
   assert.match(workerCliSource, /registerSearchIndexJobHandlers/, "separate worker should register search handlers");
-  assert.match(workerCliSource, /registerTaskJobHandlers/, "separate worker should register task handlers");
+  assert.match(workerCliSource, /activateModuleRuntime\("worker"/, "separate worker should activate module handlers generically");
+  assert.doesNotMatch(workerCliSource, /registerTaskJobHandlers/, "separate worker should not import Tasks-specific handlers");
   assert.match(workerCliSource, /registerFileScanJobHandlers/, "separate worker should register file scan handlers");
   assert.match(workerCliSource, /registerNotificationJobHandlers/, "separate worker should register notification handlers");
   assert.match(workerCliSource, /registerFutureImportJobHandlers/, "separate worker should register reserved import handlers");
-  assert.match(workerCliSource, /queueTaskReminderSweepJobs/, "separate worker startup should queue reminder sweeps");
+  assert.match(workerCliSource, /runModuleStartupTasks\("worker"/, "separate worker startup should run module-owned startup work");
+  assert.doesNotMatch(workerCliSource, /queueTaskReminderSweepJobs/, "separate worker startup should not import Tasks-specific sweeps");
   assert.match(workerCliSource, /jobsService\.pruneOldJobs/, "separate worker startup should run retention pruning");
   assert.doesNotMatch(functionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup should not run migrations or app defaults");
   assert.match(appSource, /config\.worker\.mode === "separate"[\s\S]*state=external/, "app separate mode should leave processing to node worker.js");

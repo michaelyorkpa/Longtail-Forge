@@ -56,20 +56,28 @@ jobs:
           REVISION: ${{ inputs.revision }}
         run: git checkout --detach "$REVISION"
       - if: inputs.operation == 'deploy'
-        run: npm ci
-      - name: Re-run release gates
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - name: Re-run closeout gates
         if: inputs.operation == 'deploy'
-        run: |
-          npm run closeout
-          npm run check
-          npm run test:permissions
-          npm audit --audit-level=high
+        run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - name: Re-run fast checks
+        if: inputs.operation == 'deploy'
+        run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
+      - name: Re-run regression buckets
+        if: inputs.operation == 'deploy'
+        run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
+      - name: Re-run permission checks
+        if: inputs.operation == 'deploy'
+        run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
+      - name: Re-run dependency audit
+        if: inputs.operation == 'deploy'
+        run: npm audit --audit-level=high
       - name: Build selected artifact and release metadata
         if: inputs.operation == 'deploy'
         env:
           REVISION: ${{ inputs.revision }}
         run: |
-          npm run artifact:build -- --source-branch main
+          node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch main
           node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel preview --source-branch main --output dist/release-metadata.json
       - name: Deploy or roll back, then verify public identity
         env:

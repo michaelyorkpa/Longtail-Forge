@@ -1,8 +1,104 @@
 # Regression Suite Performance Baseline
 
+## 0.33.19.5 Files Isolation And Scheduling Audit
+
+All 29 original `serial-files` entries were reviewed across database, file-storage root, scanner executable/process, network port, environment, worker/child process, and singleton runtime state. The machine-readable source is `scripts/regression-files-isolation-audit.json`; the frozen legacy snapshot remains unchanged. Nine scripts with complete runner- or script-owned disposable state and no server, scanner process, worker, nested child, or ambiguous singleton moved to the new no-retry `isolated-files` bucket. Twenty remain serial for their recorded script-specific HTTP, worker, scanner, process, provider-registry, cleanup, or coupled-inventory reasons.
+
+The nine proposed moves passed three complete repeats at concurrency 2, 4, and 6: 27 logical runs per level, 81 total, zero failures, and zero recovered flakes. Files regressions still never enter the isolated-database retry scheduler. The dedicated `LTF_ISOLATED_FILES_PARALLELISM` stress override wins over the shared concurrency override; the normal auto path uses the same conservative six-worker cap. `LTF_REGRESSION_BUCKET=file-storage` continues to select the complete 29-script Files family, while `isolated-files` selects only the audited subset.
+
+On the Windows reference workstation, the unchanged 29-script serial baseline passed in 71.36 seconds at concurrency 1. The post-change complete Files family passed in 51.43 seconds: 20 retained serial scripts took 48.62 seconds, then nine audited isolated scripts took 2.80 seconds at auto-selected concurrency 6. That sample is 19.93 seconds (27.9%) faster. Timing is evidence, not the safety justification; unique mutable state plus clean bounded stress is the reclassification contract.
+
+Moved to `isolated-files`: `file-framework-contract-regression.mjs`, `file-storage-streaming-contract-regression.mjs`, `file-storage-quota-enforcement-regression.mjs`, `files-lifecycle-settings-quota-conversion-regression.mjs`, `files-browse-attachment-reads-conversion-regression.mjs`, `files-context-targets-conversion-regression.mjs`, `file-storage-accounting-regression.mjs`, `file-settings-regression.mjs`, and `files-attachment-readmodel-regression.mjs`.
+
+Retained serial:
+
+| Script | Retained reason |
+| --- | --- |
+| `file-api-lifecycle-regression.mjs` | HTTP application and background job-worker lifecycle share the script's singleton runtime. |
+| `file-storage-provider-configuration-regression.mjs` | Mutates provider configuration and starts a job worker against singleton configuration state. |
+| `file-storage-diagnostics-regression.mjs` | Boots the application diagnostics surface and HTTP server around singleton health state. |
+| `file-streamed-validation-download-metadata-regression.mjs` | Couples HTTP response streaming with post-response storage cleanup. |
+| `file-s3-provider-registration-regression.mjs` | Provider registration and worker startup depend on module registry/configuration semantics. |
+| `file-s3-object-operation-proof-regression.mjs` | Mock S3 registration and worker execution use provider registry state not independently proven isolated. |
+| `file-s3-diagnostics-signed-url-boundary-regression.mjs` | Combines HTTP, job-worker, and S3 registry lifecycles. |
+| `file-multipart-upload-route-regression.mjs` | Boots the multipart HTTP route stack and application runtime. |
+| `file-multipart-batch-upload-helper-regression.mjs` | Exercises batch multipart behavior through the HTTP application runtime. |
+| `file-upload-compatibility-error-hardening-regression.mjs` | Error-path cleanup is coupled to HTTP lifecycle and storage-cleanup timing. |
+| `file-scanner-mode-resolver-regression.mjs` | Spawns multiple processes across scanner modes and worker/runtime combinations. |
+| `file-scanner-health-diagnostics-regression.mjs` | Deliberately exercises scanner network failures in multiple child processes. |
+| `file-clamscan-adapter-regression.mjs` | Creates and executes a scanner program through child-process and executable-path configuration. |
+| `file-clamd-adapter-regression.mjs` | Owns a TCP scanner server and mutates scanner endpoint configuration. |
+| `file-scanner-setup-docs-regression.mjs` | Asserts scanner-family membership/setup; separating the coupled inventory proof has no useful timing value. |
+| `file-scan-job-handoff-regression.mjs` | Background job handoff and worker shutdown are the behavior under test. |
+| `files-attachment-context-route-regression.mjs` | Exercises attachment context through a booted HTTP application. |
+| `files-attachable-target-options-regression.mjs` | Exercises target-option permission shaping through a booted HTTP application. |
+| `files-preview-availability-route-regression.mjs` | Verifies preview availability through the HTTP application lifecycle. |
+| `files-preview-content-route-regression.mjs` | Combines HTTP, storage, scanner, and job-worker lifecycles. |
+
+## 0.33.19.4 Runtime-configuration Pure Contract Result
+
+The unchanged pre-migration regression was sampled three times with internal timing around its deterministic child-process matrix and all retained setup/integration work. The samples were 3,605.82 / 4,738.44 / 2,566.56 ms for the pure matrix, 1,893.45 / 1,791.89 / 1,425.51 ms for retained work, and 5,499.27 / 6,530.34 / 3,992.07 ms total. Medians were therefore 3,605.82 ms pure, 1,791.89 ms retained, and 5,499.27 ms total.
+
+After migration, the 108 deterministic expectations run as 36 Vitest cases. Three focused Vitest samples reported 332 / 334 / 327 ms total duration (16 / 16 / 14 ms test execution), for a 332 ms median. The still-discovered integration regression reported 2,669.15 / 1,030.84 / 1,000.86 ms, for a 1,030.84 ms median including its cold first sample. Summing the median pure and retained paths gives 1,362.84 ms, 75.2% below the prior 5,499.27 ms total median. Timing is descriptive; both owners must pass.
+
+The Vitest owner is `tests/unit/runtime-configuration.test.mjs`: defaults, explicit-value and relative-path normalization, safe-production values and warnings, legacy ignored input, all accepted scanner modes, and all expected configuration errors. `scripts/runtime-configuration-contract-regression.mjs` remains in the legacy discovery snapshot and retains fresh child-process `process.env` materialization, startup/import failure propagation, disposable database and live module-registry loading, canonical package/module version identity, `.env.example` and runtime-document/source contracts, and runtime consumers including app-info response fields, sessions/cookies, trusted transport security, authentication throttling, workspace bootstrap, Secure Notes secrets, and Files local storage. The coverage policy's `assertionMovements` record pins the 108-case disposition and both owners; it provides no retirement or floor credit.
+
+## 0.33.19.3 Verification Throughput Result
+
+Changed-area routing now distinguishes release ceremony from executable risk. Exact application-version-only edits across `package.json` and `package-lock.json`, changelog/roadmap bookkeeping, Tasks, Notes, owned CSS, and documentation can complete through closeout plus focused owners. Dependency or npm-script edits, Files, permissions/security, framework/shared views, database, workflows, release tooling, generated contracts, and unknown paths still escalate completely. CI's `test:regressions:changed:ci` runs the full discovered registry after fast checks have already passed rather than restarting them.
+
+`verify:slice` reports context/setup, closeout, typecheck/unit/lint, regression, permission, browser, and packaging stages as passed, failed, or skipped with elapsed time. CI wraps those same stage families with `run-timed-stage.mjs`, and the regression runner now prints actual bucket wall time in addition to script time. These timings explain cost; command exit status remains authoritative. No coverage or protected gate was removed: the registry is 383 scripts with 44 required release gates.
+
 This document is the 0.33.5.29.1 measurement artifact for the regression and check-suite performance branch. It records the pre-optimization baseline, suite inventory, and target list. This slice intentionally changes no runner behavior and does not drop coverage.
 
 For the current metadata-driven discovery, generated coverage index, exception policy, and runner commands, use [regression-suite.md](regression-suite.md). Counts and manifest shapes below are historical measurements and release records for the 0.33.5.29 branch.
+
+## 0.33.18.7 Formal Streamlining Review
+
+The first scheduled post-preview review consumed a fresh `LTF_REGRESSION_TIMING_JSON` report before changing suite membership. It was run with Node 24.18.0 on Windows 11 from the OneDrive-backed reference checkout on an Intel Core i7-8700 (6 cores / 12 logical processors). The command was `LTF_REGRESSION_TIMING_JSON=tmp\\0.33.18.7-regression-timing.json npm run test:regressions`; the ignored output file is measurement evidence, not a tracked build artifact.
+
+- Measured on: 2026-07-20.
+- Result: 380/380 regression scripts passed with zero flaky recoveries.
+- Runner wall time: 193.28 seconds.
+- Local reference budget: 300 seconds for a comparable full regression run, calibrated against both the clean pre-change sample and the contention/retry variance in the post-change sample.
+- Review trigger: two comparable runs above 300 seconds, more than 20% growth in the rolling three-run median, a repeated flaky recovery in the same script, or a materially changed slow tail. This triggers ownership/setup analysis; it never authorizes deleting a test merely because it is slow.
+
+| Bucket | Scripts | Aggregate script seconds | Mean | P95 | Longest |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| static/source | 191 | 268.49 | 1.41 | 5.87 | 22.89 |
+| default database | 6 | 21.25 | 3.54 | 5.71 | 5.71 |
+| file storage | 29 | 59.12 | 2.04 | 4.20 | 4.69 |
+| isolated database | 154 | 359.00 | 2.33 | 5.41 | 15.50 |
+
+Aggregate script seconds are useful for ownership comparisons but are not bucket wall time for parallel buckets. The overall 193.28-second runner result is the budget measurement.
+
+The post-change full run passed 379/379 scripts in 279.78 seconds. It recorded one `database-migration-locking-regression.mjs` recovery on attempt 2/2, which is green and visible under the existing isolated-retry policy; a repeat pattern would trigger investigation. Static/source aggregate script time fell from 268.49 to 164.71 seconds, and `task-checklist-editor-display-regression.mjs` measured 0.11 seconds inside the parallel runner. Stateful contention dominated the slower wall sample: file-storage aggregate script time was 101.63 seconds and isolated-database aggregate script time was 713.19 seconds. These two materially different green samples are why the budget is 300 seconds rather than a brittle percentage above the fastest run.
+
+### Measured slow tail and disposition
+
+| Script | Seconds | Review disposition |
+| --- | ---: | --- |
+| `task-checklist-editor-display-regression.mjs` | 22.89 | Keep every assertion; replace greedy whole-file regex chains with bounded owning-function/CSS-block checks. Three focused pre-change runs were 8.68-8.93 seconds; the bounded focused run was 0.17 seconds. |
+| `check-js.mjs` | 17.04 | Retire as duplicate coverage after proving ESLint covers the exact same 793 `.js`/`.mjs` files. Cached ESLint moves before the stateful runner; `release.fast-check-pipeline` and the ratchet retirement record retain the ownership evidence. |
+| `database.backup-restore-foundation` | 15.50 | Retain: real archive, checksum, restore, and database-integrity behavior is high-risk integration coverage. |
+| `separate-worker-end-to-end-regression.mjs` | 14.64 | Retain: process/worker/job handoff is not equivalent to a pure unit seam. |
+| `version-literal-guardrail-regression.mjs` | 14.21 | Retain: scans the workspace and proves the runtime `/api/app-info` version path; closeout and full-check commands must remain independently runnable. |
+| `runtime-configuration-contract-regression.mjs` | 8.52 | Keep current integration owner; move its pure config/default/error matrix toward Vitest in a later contained pass while retaining child-process/runtime/database proof. |
+| `sqlite-small-office-performance-regression.mjs` | 8.47 | Retain the supported SQLite-profile route smoke; review fixture reuse only after 0.33.19 performance work changes its inputs. |
+| `high-volume-admin-lists-regression.mjs` | 7.95 | Retain scale-seed/API paging integration coverage; do not replace it with helper-only pagination tests. |
+| `notes-notification-follow-regression.mjs` | 7.64 | Retain cross-module event/job/notification behavior. |
+| `sqlite-connection-hardening-regression.mjs` | 7.59 | Retain connection, locking, and database-integrity behavior. |
+
+### Consolidation queue
+
+1. Completed now: retire only `check-js.mjs` through the manifest/ratchet `assertions-moved` path. The replacement is cached ESLint over the identical current source inventory, run before stateful regressions; no release-gate, area, database, permission, or browser assertion is removed.
+2. Completed now: bound the checklist display regression's source assertions to their owning functions/rules. This is a setup/assertion-shape improvement, not a behavior or coverage reduction.
+3. Completed now: replace 20 obsolete assertions—five in retired historical closeouts and 15 in active Notes, Tasks, and Lists regressions—that coupled unrelated developer docs to the current package literal. Stable owning-document/behavior checks retain the substantive coverage; package/runtime version identity remains protected by the version guard and `/api/app-info` proof.
+4. Next pure-contract candidate: split `runtime-configuration-contract-regression.mjs` only when its config default/validation matrix can move into Vitest while its child-process environment materialization, module registry, database, and runtime response checks stay in the regression owner.
+5. Next isolation candidate: inspect the 29-script serial Files bucket for scripts whose database, filesystem, port, scanner, and process state are all already disposable. Change run mode only after a repeat stress proof; aggregate serial script time alone is not evidence of parallel safety.
+6. Preserve as integration coverage: permissions, workspace isolation, database/migrations, backup/restore, Files safety, worker/job delivery, high-volume APIs, and cross-module workflows. Preserve Playwright for critical rendered journeys and accessibility. Existing Vitest coverage remains the preferred home for pure ranking, pagination, schema, asset-version, and verification-plan functions, but it does not justify deleting broader integration owners.
+
+This review changes no full-release-gate requirement. Future checkpoints compare the rolling samples against the 300-second budget, regenerate timing evidence, and record any retirement with exact replacement owners and verification in `scripts/regression-coverage-exceptions.json`.
 
 ## Baseline Run
 
@@ -239,12 +335,14 @@ Current execution model and tuning knobs:
 | `npm run test:permissions` | Runs the standalone `scripts/permission-regression.mjs` harness unchanged. |
 | Static/source bucket | Parallel read-only regressions, including `scripts/check-js.mjs` and the shared-source database guardrails. |
 | Default database bucket | Serial shared-database regressions. |
-| File storage bucket | Serial regressions until storage/database isolation is explicitly re-proven for parallelism. |
+| File storage bucket | Twenty retained serial regressions with script-specific HTTP, scanner, worker, process, registry, cleanup, or coupled-inventory reasons. |
+| Isolated file storage bucket | Nine audited regressions with unique disposable state; parallel with no automatic retry. |
 | Isolated database bucket | Parallel per-script fixture clones with one shared in-flight baseline preparation promise and namespaced bucket/pass fixture paths. |
 
 | Knob | Purpose | Notes |
 | --- | --- | --- |
 | `LTF_ISOLATED_REGRESSION_PARALLELISM` | Explicit isolated-bucket worker override. | Highest-precedence concurrency override for isolated database regressions. |
+| `LTF_ISOLATED_FILES_PARALLELISM` | Explicit isolated-Files worker override. | Highest-precedence concurrency override for bounded Files stress; it does not enable retries. |
 | `LTF_REGRESSION_PARALLELISM` | Shared runner concurrency fallback. | Used when the isolated-specific override is absent. |
 | `LTF_REGRESSION_TIMING_JSON` | Write per-script timing JSON. | Parent directory must exist before the run starts. |
 | `LTF_REGRESSION_BUCKET` | Run one selected bucket or bucket alias. | Useful for bounded targeted reruns such as `isolated`. |

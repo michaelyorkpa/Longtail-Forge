@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
+import { analyzeSqlStatement } from "./parameter-bindings.js";
 import {
   sqlInteger,
   sqlNullableInteger,
@@ -9,16 +10,30 @@ import {
   sqlText,
 } from "./sql-literals.js";
 
+const STATEMENT_CACHE_LIMIT = 512;
+
 let sqliteDatabase = null;
 let lastSqliteHealth = null;
+let executedStatementCount = 0;
+const statementCache = new Map();
 
-async function runSql(sql, params = undefined) {
-  executeRunSql(sql, normalizeSqliteParameters(params));
+// Monotonic count of executed driver calls (multi-statement exec scripts
+// count once); consumed by query-count budget regressions.
+function readSqliteStatementCount() {
+  return executedStatementCount;
+}
+
+async function runSql(sql, params = undefined, analysis = undefined) {
+  executeRunSql(sql, normalizeSqliteParameters(params), analysis);
   return "";
 }
 
-async function querySql(sql, params = undefined) {
-  return executeQuerySql(sql, normalizeSqliteParameters(params));
+async function querySql(sql, params = undefined, analysis = undefined) {
+  return executeQuerySql(sql, normalizeSqliteParameters(params), analysis);
+}
+
+async function getSql(sql, params = undefined, analysis = undefined) {
+  return executeGetSql(sql, normalizeSqliteParameters(params), analysis);
 }
 
 async function closeSqlite() {
@@ -28,6 +43,7 @@ async function closeSqlite() {
 
   const database = sqliteDatabase;
   sqliteDatabase = null;
+  statementCache.clear();
   database.close();
 }
 
@@ -45,11 +61,26 @@ async function initializeSqliteRuntime() {
 }
 
 async function readSqliteHealth() {
-  const [databaseRows, foreignKeyRows, journalRows, busyTimeoutRows] = await Promise.all([
+  const [
+    databaseRows,
+    foreignKeyRows,
+    journalRows,
+    busyTimeoutRows,
+    synchronousRows,
+    cacheSizeRows,
+    pageSizeRows,
+    tempStoreRows,
+    mmapSizeRows,
+  ] = await Promise.all([
     querySql("PRAGMA database_list;"),
     querySql("PRAGMA foreign_keys;"),
     querySql("PRAGMA journal_mode;"),
     querySql("PRAGMA busy_timeout;"),
+    querySql("PRAGMA synchronous;"),
+    querySql("PRAGMA cache_size;"),
+    querySql("PRAGMA page_size;"),
+    querySql("PRAGMA temp_store;"),
+    querySql("PRAGMA mmap_size;"),
   ]);
   const databaseFile = databaseRows.find((row) => row.name === "main")?.file || config.databaseFile;
 
@@ -60,7 +91,36 @@ async function readSqliteHealth() {
     foreignKeysEnabled: Number(foreignKeyRows[0]?.foreign_keys) === 1,
     journalMode: String(journalRows[0]?.journal_mode || "").toLowerCase(),
     busyTimeoutMs: Number.parseInt(String(busyTimeoutRows[0]?.timeout ?? ""), 10),
+    synchronous: sqliteSynchronousModeName(synchronousRows[0]?.synchronous),
+    cacheSizeKib: sqliteCacheSizeKib(cacheSizeRows[0]?.cache_size, pageSizeRows[0]?.page_size),
+    tempStore: sqliteTempStoreName(tempStoreRows[0]?.temp_store),
+    mmapSizeBytes: Number(mmapSizeRows[0]?.mmap_size ?? 0),
   };
+}
+
+function sqliteSynchronousModeName(value) {
+  const names = ["off", "normal", "full", "extra"];
+  return names[Number(value)] || "unknown";
+}
+
+function sqliteTempStoreName(value) {
+  const names = ["default", "file", "memory"];
+  return names[Number(value)] || "unknown";
+}
+
+function sqliteCacheSizeKib(cacheSize, pageSize) {
+  const value = Number(cacheSize);
+
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  if (value <= 0) {
+    return -value;
+  }
+
+  const bytesPerPage = Number(pageSize) > 0 ? Number(pageSize) : 4096;
+  return Math.round((value * bytesPerPage) / 1024);
 }
 
 function getLastSqliteHealth() {
@@ -80,6 +140,10 @@ function formatSqliteHealth(health = lastSqliteHealth) {
     `foreign_keys=${health.foreignKeysEnabled ? "on" : "off"}`,
     `journal_mode=${health.journalMode}`,
     `busy_timeout_ms=${health.busyTimeoutMs}`,
+    `synchronous=${health.synchronous}`,
+    `cache_size_kib=${health.cacheSizeKib}`,
+    `temp_store=${health.tempStore}`,
+    `mmap_size_bytes=${health.mmapSizeBytes}`,
   ].join(" ");
 }
 
@@ -88,14 +152,39 @@ function getSqliteDatabase() {
     return sqliteDatabase;
   }
 
+  statementCache.clear();
   sqliteDatabase = new Database(config.databaseFile);
   applyConnectionPragmas(sqliteDatabase);
   return sqliteDatabase;
 }
 
+function prepareCachedStatement(sql) {
+  const database = getSqliteDatabase();
+  const cached = statementCache.get(sql);
+
+  if (cached) {
+    statementCache.delete(sql);
+    statementCache.set(sql, cached);
+    return cached;
+  }
+
+  const statement = database.prepare(sql);
+  statementCache.set(sql, statement);
+
+  if (statementCache.size > STATEMENT_CACHE_LIMIT) {
+    statementCache.delete(statementCache.keys().next().value);
+  }
+
+  return statement;
+}
+
 function applyConnectionPragmas(database) {
   database.pragma(`busy_timeout = ${config.sqlite.busyTimeoutMs}`);
   database.pragma(`foreign_keys = ${config.sqlite.foreignKeys ? "ON" : "OFF"}`);
+  database.pragma(`synchronous = ${config.sqlite.synchronous.toUpperCase()}`);
+  database.pragma(`cache_size = -${config.sqlite.cacheSizeKib}`);
+  database.pragma(`temp_store = ${config.sqlite.tempStore.toUpperCase()}`);
+  database.pragma(`mmap_size = ${config.sqlite.mmapSizeBytes}`);
 }
 
 function applyStartupPragmas(database) {
@@ -103,20 +192,21 @@ function applyStartupPragmas(database) {
   database.pragma(`journal_mode = ${config.sqlite.journalMode}`);
 }
 
-function executeRunSql(sql, parameters) {
+function executeRunSql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
   if (!text) {
     return;
   }
 
-  const statementCount = countSqlStatements(text);
+  executedStatementCount += 1;
+
+  const bindings = resolveStatementBindings(text, parameters, analysis);
+  const statementCount = bindings.statementCount;
 
   if (statementCount === 0) {
     return;
   }
-
-  const bindings = resolveStatementBindings(text, parameters);
 
   if (bindings.hasBindings) {
     if (statementCount > 1) {
@@ -130,20 +220,21 @@ function executeRunSql(sql, parameters) {
   getSqliteDatabase().exec(text);
 }
 
-function executeQuerySql(sql, parameters) {
+function executeQuerySql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
   if (!text) {
     return [];
   }
 
-  const statementCount = countSqlStatements(text);
+  executedStatementCount += 1;
+
+  const bindings = resolveStatementBindings(text, parameters, analysis);
+  const statementCount = bindings.statementCount;
 
   if (statementCount === 0) {
     return [];
   }
-
-  const bindings = resolveStatementBindings(text, parameters);
 
   if (bindings.hasBindings) {
     if (statementCount > 1) {
@@ -161,8 +252,40 @@ function executeQuerySql(sql, parameters) {
   return executePreparedQuery(text);
 }
 
+function executeGetSql(sql, parameters, analysis = undefined) {
+  const text = String(sql || "").trim();
+
+  if (!text) {
+    return null;
+  }
+
+  executedStatementCount += 1;
+
+  const bindings = resolveStatementBindings(text, parameters, analysis);
+  const statementCount = bindings.statementCount;
+
+  if (statementCount === 0) {
+    return null;
+  }
+
+  if (bindings.hasBindings) {
+    if (statementCount > 1) {
+      throw new Error("Parameterized SQLite statements must be single statements.");
+    }
+
+    return executePreparedGet(text, bindings.values);
+  }
+
+  if (statementCount > 1) {
+    getSqliteDatabase().exec(text);
+    return null;
+  }
+
+  return executePreparedGet(text);
+}
+
 function executePreparedRun(sql, bindings = undefined) {
-  const statement = getSqliteDatabase().prepare(sql);
+  const statement = prepareCachedStatement(sql);
 
   if (statement.reader) {
     allStatement(statement, bindings);
@@ -173,7 +296,7 @@ function executePreparedRun(sql, bindings = undefined) {
 }
 
 function executePreparedQuery(sql, bindings = undefined) {
-  const statement = getSqliteDatabase().prepare(sql);
+  const statement = prepareCachedStatement(sql);
 
   if (!statement.reader) {
     runStatement(statement, bindings);
@@ -181,6 +304,18 @@ function executePreparedQuery(sql, bindings = undefined) {
   }
 
   return allStatement(statement, bindings);
+}
+
+function executePreparedGet(sql, bindings = undefined) {
+  const statement = prepareCachedStatement(sql);
+
+  if (!statement.reader) {
+    runStatement(statement, bindings);
+    return null;
+  }
+
+  const row = getStatement(statement, bindings);
+  return row === undefined ? null : row;
 }
 
 function runStatement(statement, bindings) {
@@ -197,6 +332,14 @@ function allStatement(statement, bindings) {
   }
 
   return statement.all(bindings);
+}
+
+function getStatement(statement, bindings) {
+  if (bindings === undefined) {
+    return statement.get();
+  }
+
+  return statement.get(bindings);
 }
 
 function normalizeSqliteParameters(params) {
@@ -230,25 +373,79 @@ function normalizeSqliteParameters(params) {
   };
 }
 
-function resolveStatementBindings(sql, parameters) {
-  const expected = collectSqlParameters(sql);
+function resolveStatementBindings(sql, parameters, analysis = undefined) {
+  if (analysis) {
+    return resolvePreparedStatementBindings(parameters, analysis);
+  }
+
+  const { statementCount, tokens } = analyzeSqlStatement(sql);
+  const expected = summarizeSqlParameterTokens(tokens);
 
   if (expected.named.size > 0 && expected.positionalCount > 0) {
     throw new Error("SQLite statements cannot mix named and positional parameters.");
   }
 
   if (expected.named.size > 0) {
-    return resolveNamedStatementBindings(expected.named, parameters);
+    return {
+      ...resolveNamedStatementBindings(expected.named, parameters),
+      statementCount,
+    };
   }
 
   if (expected.positionalCount > 0) {
-    return resolvePositionalStatementBindings(expected.positionalCount, parameters);
+    return {
+      ...resolvePositionalStatementBindings(expected.positionalCount, parameters),
+      statementCount,
+    };
   }
 
   assertNoProvidedParameters(parameters);
   return {
     hasBindings: false,
+    statementCount,
     values: undefined,
+  };
+}
+
+function resolvePreparedStatementBindings(parameters, analysis) {
+  const statementCount = analysis.statementCount;
+
+  if (!analysis.hasBindings) {
+    assertNoProvidedParameters(parameters);
+    return {
+      hasBindings: false,
+      statementCount,
+      values: undefined,
+    };
+  }
+
+  if (parameters.kind !== "array") {
+    throw new Error("SQLite positional parameters require an array.");
+  }
+
+  return {
+    hasBindings: true,
+    statementCount,
+    values: parameters.values,
+  };
+}
+
+function summarizeSqlParameterTokens(tokens) {
+  const named = new Set();
+  let positionalCount = 0;
+
+  for (const token of tokens) {
+    if (token.type === "named") {
+      named.add(token.name);
+      continue;
+    }
+
+    positionalCount = Math.max(positionalCount, token.position);
+  }
+
+  return {
+    named,
+    positionalCount,
   };
 }
 
@@ -353,299 +550,6 @@ function normalizeSqliteParameterValue(value) {
   throw new Error("Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined.");
 }
 
-function collectSqlParameters(sql) {
-  const named = new Set();
-  let anonymousIndex = 0;
-  let positionalCount = 0;
-  let index = 0;
-  let state = "sql";
-
-  while (index < sql.length) {
-    const char = sql[index];
-    const next = sql[index + 1] || "";
-
-    if (state === "line-comment") {
-      if (char === "\n") {
-        state = "sql";
-      }
-      index += 1;
-      continue;
-    }
-
-    if (state === "block-comment") {
-      if (char === "*" && next === "/") {
-        state = "sql";
-        index += 2;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "single-quote") {
-      if (char === "'" && next === "'") {
-        index += 2;
-      } else if (char === "'") {
-        state = "sql";
-        index += 1;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "double-quote") {
-      if (char === "\"" && next === "\"") {
-        index += 2;
-      } else if (char === "\"") {
-        state = "sql";
-        index += 1;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "backtick") {
-      if (char === "`" && next === "`") {
-        index += 2;
-      } else if (char === "`") {
-        state = "sql";
-        index += 1;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "bracket") {
-      if (char === "]") {
-        state = "sql";
-      }
-      index += 1;
-      continue;
-    }
-
-    if (char === "-" && next === "-") {
-      state = "line-comment";
-      index += 2;
-      continue;
-    }
-
-    if (char === "/" && next === "*") {
-      state = "block-comment";
-      index += 2;
-      continue;
-    }
-
-    if (char === "'") {
-      state = "single-quote";
-      index += 1;
-      continue;
-    }
-
-    if (char === "\"") {
-      state = "double-quote";
-      index += 1;
-      continue;
-    }
-
-    if (char === "`") {
-      state = "backtick";
-      index += 1;
-      continue;
-    }
-
-    if (char === "[") {
-      state = "bracket";
-      index += 1;
-      continue;
-    }
-
-    if ([":", "@", "$"].includes(char) && /[A-Za-z_]/.test(next)) {
-      const parameter = readNamedParameter(sql, index);
-      named.add(parameter.name);
-      index = parameter.end;
-      continue;
-    }
-
-    if (char === "?") {
-      const parameter = readQuestionParameter(sql, index, ++anonymousIndex);
-      positionalCount = Math.max(positionalCount, parameter.position);
-      index = parameter.end;
-      continue;
-    }
-
-    index += 1;
-  }
-
-  return {
-    named,
-    positionalCount,
-  };
-}
-
-function readNamedParameter(sql, start) {
-  let end = start + 2;
-
-  while (end < sql.length && /[A-Za-z0-9_]/.test(sql[end])) {
-    end += 1;
-  }
-
-  return {
-    end,
-    name: sql.slice(start + 1, end),
-  };
-}
-
-function readQuestionParameter(sql, start, fallbackPosition) {
-  let end = start + 1;
-
-  while (end < sql.length && /\d/.test(sql[end])) {
-    end += 1;
-  }
-
-  return {
-    end,
-    position: end === start + 1 ? fallbackPosition : Number.parseInt(sql.slice(start + 1, end), 10),
-  };
-}
-
-function countSqlStatements(sql) {
-  let count = 0;
-  let hasStatementText = false;
-  let index = 0;
-  let state = "sql";
-
-  while (index < sql.length) {
-    const char = sql[index];
-    const next = sql[index + 1] || "";
-
-    if (state === "line-comment") {
-      if (char === "\n") {
-        state = "sql";
-      }
-      index += 1;
-      continue;
-    }
-
-    if (state === "block-comment") {
-      if (char === "*" && next === "/") {
-        state = "sql";
-        index += 2;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "single-quote") {
-      if (char === "'" && next === "'") {
-        index += 2;
-      } else if (char === "'") {
-        state = "sql";
-        index += 1;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "double-quote") {
-      if (char === "\"" && next === "\"") {
-        index += 2;
-      } else if (char === "\"") {
-        state = "sql";
-        index += 1;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "backtick") {
-      if (char === "`" && next === "`") {
-        index += 2;
-      } else if (char === "`") {
-        state = "sql";
-        index += 1;
-      } else {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (state === "bracket") {
-      if (char === "]") {
-        state = "sql";
-      }
-      index += 1;
-      continue;
-    }
-
-    if (char === "-" && next === "-") {
-      state = "line-comment";
-      index += 2;
-      continue;
-    }
-
-    if (char === "/" && next === "*") {
-      state = "block-comment";
-      index += 2;
-      continue;
-    }
-
-    if (char === "'") {
-      hasStatementText = true;
-      state = "single-quote";
-      index += 1;
-      continue;
-    }
-
-    if (char === "\"") {
-      hasStatementText = true;
-      state = "double-quote";
-      index += 1;
-      continue;
-    }
-
-    if (char === "`") {
-      hasStatementText = true;
-      state = "backtick";
-      index += 1;
-      continue;
-    }
-
-    if (char === "[") {
-      hasStatementText = true;
-      state = "bracket";
-      index += 1;
-      continue;
-    }
-
-    if (char === ";") {
-      if (hasStatementText) {
-        count += 1;
-        hasStatementText = false;
-      }
-      index += 1;
-      continue;
-    }
-
-    if (!/\s/.test(char)) {
-      hasStatementText = true;
-    }
-
-    index += 1;
-  }
-
-  if (hasStatementText) {
-    count += 1;
-  }
-
-  return count;
-}
-
 async function ensureDatabaseFileWritable() {
   try {
     await fs.mkdir(path.dirname(config.databaseFile), { recursive: true });
@@ -677,9 +581,32 @@ function validateSqliteHealth(health) {
   if (!Number.isInteger(health.busyTimeoutMs) || health.busyTimeoutMs !== config.sqlite.busyTimeoutMs) {
     throw new Error(`SQLite busy_timeout is ${health.busyTimeoutMs}; expected ${config.sqlite.busyTimeoutMs}.`);
   }
+
+  if (health.synchronous !== config.sqlite.synchronous) {
+    throw new Error(`SQLite synchronous is ${health.synchronous}; expected ${config.sqlite.synchronous}.`);
+  }
+
+  if (health.cacheSizeKib !== config.sqlite.cacheSizeKib) {
+    throw new Error(`SQLite cache_size is ${health.cacheSizeKib} KiB; expected ${config.sqlite.cacheSizeKib} KiB.`);
+  }
+
+  if (health.tempStore !== config.sqlite.tempStore) {
+    throw new Error(`SQLite temp_store is ${health.tempStore}; expected ${config.sqlite.tempStore}.`);
+  }
+
+  if (config.sqlite.mmapSizeBytes === 0 && health.mmapSizeBytes !== 0) {
+    throw new Error(`SQLite mmap_size is ${health.mmapSizeBytes}; expected 0.`);
+  }
+
+  if (config.sqlite.mmapSizeBytes > 0
+    && (health.mmapSizeBytes <= 0 || health.mmapSizeBytes > config.sqlite.mmapSizeBytes)) {
+    throw new Error(`SQLite mmap_size is ${health.mmapSizeBytes}; expected at most ${config.sqlite.mmapSizeBytes} and greater than 0.`);
+  }
 }
 
 export {
+  getSql,
+  readSqliteStatementCount,
   querySql,
   runSql,
   closeSqlite,

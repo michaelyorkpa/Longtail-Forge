@@ -21,7 +21,7 @@ const filesRoutes = read("src/routes/files.routes.js");
 const filesService = read("src/services/files.service.js");
 const appShell = read("src/services/app-shell.service.js");
 const staticService = read("src/services/static.service.js");
-const taskModule = read("src/modules/tasks/module.js");
+const taskModuleIntegrations = read("src/modules/tasks/module.integrations.js");
 
 [
   "uploadStarted",
@@ -58,20 +58,20 @@ assert.ok(
   tasksPage.indexOf("js/shared/notes-linked-panel.js") < tasksPage.indexOf("js/task-dialog.js"),
   "Task notes helper must load before task dialog.",
 );
-assert.ok(
-  workbenchPage.indexOf("js/shared/file-attachments.js") < workbenchPage.indexOf("js/task-dialog.js"),
-  "Workbench task dialog host must load task attachment helper before task dialog.",
-);
-assert.ok(
-  workbenchPage.indexOf("js/shared/notes-linked-panel.js") < workbenchPage.indexOf("js/task-dialog.js"),
-  "Workbench task dialog host must load task notes helper before task dialog.",
-);
+// The workbench lazy-loads the task dialog through the module-action
+// dependency mechanism; its attachment and notes helpers stay static so they
+// are always present before the dialog script executes.
+const workbenchScript = read("public/js/workbench.js");
+assert.ok(workbenchPage.includes("js/shared/file-attachments.js"), "Workbench must keep the task attachment helper static for the lazy task dialog.");
+assert.ok(workbenchPage.includes("js/shared/notes-linked-panel.js"), "Workbench must keep the task notes helper static for the lazy task dialog.");
+assert.ok(!workbenchPage.includes("js/task-dialog.js"), "Workbench must not load the task dialog statically.");
+assert.ok(workbenchScript.includes('src: "js/task-dialog.js"'), "Workbench must lazy-load the task dialog as a module-action dependency.");
 assert.ok(taskDialog.includes("namespace.fileAttachments.mount"), "Task dialog should mount shared file helper.");
 assert.ok(taskDialog.includes('moduleId: "tasks"'), "Task dialog should pass manifest module ID.");
 assert.ok(taskDialog.includes('targetType: "task"'), "Task dialog should pass manifest target type.");
 assert.ok(taskDialog.includes("onAttachmentsChanged"), "Task dialog should expose module-facing attachment callbacks.");
-assert.ok(taskModule.includes("attachableTypes"), "Tasks manifest should declare attachable target.");
-assert.ok(taskModule.includes('targetType: "task"'), "Tasks attachable target should be task.");
+assert.ok(taskModuleIntegrations.includes("attachableTypes"), "Tasks manifest should declare attachable target.");
+assert.ok(taskModuleIntegrations.includes('targetType: "task"'), "Tasks attachable target should be task.");
 
 assert.ok(tasksScript.includes("/api/files/attachments/counts"), "Tasks list should request framework attachment counts.");
 assert.ok(tasksScript.includes('moduleId: "tasks"'), "Task count request should use tasks module ID.");
