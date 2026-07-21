@@ -155,8 +155,8 @@ assert.ok(
   tasksModule.workbench.some((card) =>
     card.id === "task-workbench-items" &&
     card.renderer === "task-workbench-items" &&
-    card.listRoute === "/api/tasks/workbench-items"),
-  "Tasks workbench card must declare its renderer and source route",
+    card.listRoute === "/api/tasks/options"),
+  "Tasks workbench card must declare its renderer and the cacheable options route",
 );
 assert.ok(
   timeTrackingModule.workbench.some((card) =>
@@ -326,10 +326,10 @@ assert.match(
   /modulesService\.listWorkbenchCards/,
   "workbench API must read permission-filtered workbench card contributions",
 );
-assert.match(
+assert.doesNotMatch(
   files.workbenchService,
-  /workCandidateService\.listWorkCandidates/,
-  "workbench API must include framework-normalized work candidates",
+  /workCandidateService/,
+  "workbench bootstrap must not compute focus candidates; they load through /api/workbench/focus-candidates",
 );
 assert.doesNotMatch(
   files.workbenchService,

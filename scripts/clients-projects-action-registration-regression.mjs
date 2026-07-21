@@ -7,7 +7,7 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
-const workbenchHtml = readText("views/protected/workbench.html");
+const workbenchScript = readText("public/js/workbench.js");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const moduleActionsScript = readText("public/js/shared/module-actions.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
@@ -18,7 +18,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(clientsHtml, /clients-projects\.js/, "Clients host should load the action-registration adapter cache key");
 assert.match(projectsHtml, /clients-projects\.js/, "Projects host should load the action-registration adapter cache key");
-assert.match(workbenchHtml, /clients-projects\.js/, "Workbench should load the action-registration adapter cache key for module-triggered actions");
+assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench should lazy-load the action-registration adapter for module-triggered actions");
 
 for (const [behaviorId, actionId] of [
   ["client-projects.clients.create", "clients.add"],

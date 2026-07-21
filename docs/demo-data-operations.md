@@ -43,12 +43,12 @@ The application environment remains `/etc/longtail-forge/longtail-forge.env`. Th
 
 ## First provision
 
-Choose and record an explicit anchor date. It controls the fictional relative due states and remains in the host-only ownership marker.
+Choose and record an explicit anchor date, or pass the literal `today` to anchor the fictional timeline to the current date. Every seeded date is a relative offset (anchor -30 through anchor +30 days), so the anchor controls all overdue/today/upcoming states and remains in the host-only ownership marker.
 
 ```sh
 /usr/local/sbin/longtail-forge-demo-data provision \
   --target rt-ltf-demo \
-  --anchor-date YYYY-MM-DD \
+  --anchor-date today \
   --confirm "PROVISION RT-LTF-DEMO DATA"
 ```
 
@@ -61,9 +61,13 @@ Routine verified `nightly` deployments preserve the database and Files tree. The
 ```sh
 /usr/local/sbin/longtail-forge-demo-data reset \
   --target rt-ltf-demo \
-  --anchor-date YYYY-MM-DD \
+  --anchor-date today \
   --confirm "RESET RT-LTF-DEMO DATA"
 ```
+
+Resetting with `--anchor-date today` re-anchors the whole relative timeline: yesterday's overdue tasks stay one day overdue, next week's work stays next week. An explicit `YYYY-MM-DD` anchor remains available for pinned, repeatable captures.
+
+As of 0.33.20.7 the fictional scenario is the fat Northwind dataset (seed contract `development-data-v2`): 5 workspaces (Northwind Studio, Northwind Field Ops, two personal, one family), 18 login-disabled personas, 20 clients, 46 projects, 400 tasks across every lifecycle state, 200 notes, 24 lists, ~600 time entries, and a fully materialized Search index — generated deterministically from themed pools so two seeds with the same anchor produce identical fingerprints.
 
 `reset` requires the matching live ownership marker. It refuses an unmarked, mismatched, preview/customer, unknown-host, unknown-origin, non-production, symbolic-link-substituted, incorrectly owned/mode, partial-stage, unexpectedly populated, nested backup/data, or unresolved installation.
 

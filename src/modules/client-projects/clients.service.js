@@ -13,9 +13,10 @@ import { planProjectUpdate } from "./project-update-planner.js";
 import { timeEntriesRepository } from "../time-tracking/time-entries.repo.js";
 import { taskRemindersService } from "../tasks/task-reminders.service.js";
 
-async function readClientProjects(session) {
-  const data = await attachReminderPolicies(await readClientProjectData(session.workspace_id), session.workspace_id);
-  const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+async function readClientProjects(session, options = {}) {
+  const includeReminderPolicies = options.includeReminderPolicies === true;
+  const data = await readClientProjectData(session.workspace_id);
+  const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
   const clients = workspaceSettings.workspaceType === "business" ? data.clients : [];
   const allProjects = data.clients.flatMap((client) => (
     client.projects.map((project) => ({ ...project, client_id: client.id }))
@@ -26,19 +27,35 @@ async function readClientProjects(session) {
   const readableProjectClientIds = new Set(readableProjects.map((project) => project.client_id));
   const readableProjectIds = new Set(readableProjects.map((project) => project.id));
 
-  const workspaceProjects = buildProjectShape(await tagsService.decorateRecordsForTarget(
-    session,
-    "project",
-    (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id)),
-  ), { shape: "flat", includeDepth: true }).map(stripProjectClientIdForWorkspacePayload);
-  const decoratedClients = await tagsService.decorateRecordsForTarget(
-    session,
-    "client",
-    clients.filter((client) => readableClientIds.has(client.id) || readableProjectClientIds.has(client.id)),
+  const visibleClients = clients.filter((client) => (
+    readableClientIds.has(client.id) || readableProjectClientIds.has(client.id)
+  ));
+  const visibleWorkspaceProjects = (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id));
+  // One decoration per record set: workspace projects decorate here and are
+  // excluded from the client-project decoration below.
+  const [decoratedWorkspaceProjects, decoratedClients, decoratedClientProjects] = await Promise.all([
+    tagsService.decorateRecordsForTarget(session, "project", visibleWorkspaceProjects),
+    tagsService.decorateRecordsForTarget(session, "client", visibleClients),
+    tagsService.decorateRecordsForTarget(session, "project", readableProjects.filter((project) => project.client_id)),
+  ]);
+  const policiesByTarget = includeReminderPolicies
+    ? await readReminderPoliciesForVisibleRecords(session.workspace_id, {
+        clients: decoratedClients,
+        projects: [...decoratedClientProjects, ...decoratedWorkspaceProjects],
+      })
+    : null;
+
+  const workspaceProjects = buildProjectShape(
+    decoratedWorkspaceProjects.map((project) => attachTargetReminderPolicy(project, "project", policiesByTarget)),
+    { shape: "flat", includeDepth: true },
+  ).map(stripProjectClientIdForWorkspacePayload);
+  const projectsById = new Map(decoratedClientProjects
+    .map((project) => attachTargetReminderPolicy(project, "project", policiesByTarget))
+    .map((project) => [project.id, project]));
+  const shapedClients = buildClientShape(
+    decoratedClients.map((client) => attachTargetReminderPolicy(client, "client", policiesByTarget)),
+    { shape: "flat", includeDepth: true },
   );
-  const projectAssignments = await tagsService.decorateRecordsForTarget(session, "project", readableProjects);
-  const projectsById = new Map(projectAssignments.map((project) => [project.id, project]));
-  const shapedClients = buildClientShape(decoratedClients, { shape: "flat", includeDepth: true });
 
   return {
     workspaceProjects,
@@ -55,6 +72,68 @@ async function readClientProjects(session) {
   };
 }
 
+// Slim projection for dropdown consumers: only the fields
+// public/js/shared/client-project-options.js reads, active records only by
+// default (inactive rows filtered in SQL), no tags, and no reminder policies.
+async function readClientProjectOptions(session, options = {}) {
+  const includeInactive = options.includeInactive === true;
+  const data = await readClientProjectData(session.workspace_id, { activeOnly: !includeInactive });
+  const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
+  const clients = workspaceSettings.workspaceType === "business" ? data.clients : [];
+  const allProjects = data.clients.flatMap((client) => (
+    client.projects.map((project) => ({ ...project, client_id: client.id }))
+  )).concat(data.workspaceProjects || []);
+  const readableClients = await permissionsService.filterReadableClients(session, clients);
+  const readableProjects = await permissionsService.filterReadableProjects(session, allProjects);
+  const readableClientIds = new Set(readableClients.map((client) => client.id));
+  const readableProjectClientIds = new Set(readableProjects.map((project) => project.client_id));
+  const readableProjectIds = new Set(readableProjects.map((project) => project.id));
+
+  return {
+    view: "options",
+    clients: clients
+      .filter((client) => readableClientIds.has(client.id) || readableProjectClientIds.has(client.id))
+      .map((client) => ({
+        ...clientOptionFields(client),
+        projects: client.projects
+          .filter((project) => readableClientIds.has(client.id) || readableProjectIds.has(project.id))
+          .map(projectOptionFields),
+      })),
+    workspaceProjects: (data.workspaceProjects || [])
+      .filter((project) => readableProjectIds.has(project.id))
+      .map((project) => ({
+        ...projectOptionFields(project),
+        client_id: "",
+      })),
+  };
+}
+
+function clientOptionFields(client) {
+  return {
+    id: client.id,
+    name: client.name,
+    status: client.status,
+    parent_client_id: client.parent_client_id || "",
+    billable: client.billable,
+    billing_rate: client.billing_rate ?? null,
+    billing_period: client.billing_period ?? null,
+    billing_rounding: client.billing_rounding ?? null,
+  };
+}
+
+function projectOptionFields(project) {
+  return {
+    id: project.id,
+    name: project.name,
+    status: project.status,
+    parent_project_id: project.parent_project_id || "",
+    billable: project.billable,
+    billing_rate: project.billing_rate ?? null,
+    billing_period: project.billing_period ?? null,
+    billing_rounding: project.billing_rounding ?? null,
+  };
+}
+
 async function saveClientProjects() {
   throw new AppError(
     "Whole-tree client/project saves are deprecated. Use granular client and project endpoints.",
@@ -62,9 +141,10 @@ async function saveClientProjects() {
   );
 }
 
-async function readClientProjectData(workspaceId) {
-  const clients = await clientsRepository.readAll(workspaceId);
-  const projects = await projectsRepository.readAll(workspaceId);
+async function readClientProjectData(workspaceId, options = {}) {
+  const activeOnly = options.activeOnly === true;
+  const clients = await clientsRepository.readAll(workspaceId, { activeOnly });
+  const projects = await projectsRepository.readAll(workspaceId, { activeOnly });
   const descendantClientIdsByClient = buildDescendantIdMap(clients, "parent_client_id");
   const workspaceProjects = [];
   const projectsByClientId = projects.reduce((projectsByClient, project) => {
@@ -1261,25 +1341,40 @@ async function recordAudit(providedAction, auditEvent) {
   });
 }
 
-async function attachReminderPolicies(data, workspaceId) {
-  const clients = await Promise.all((data.clients || []).map(async (client) => ({
-    ...client,
-    taskReminderPolicy: await taskRemindersService.readTargetPolicy(workspaceId, "client", client.id),
-    projects: await Promise.all((client.projects || []).map(async (project) => ({
-      ...project,
-      taskReminderPolicy: await taskRemindersService.readTargetPolicy(workspaceId, "project", project.id),
+// One batched offsets read covers every permission-filtered client and
+// project, replacing the former per-record readTargetPolicy queries.
+async function readReminderPoliciesForVisibleRecords(workspaceId, { clients = [], projects = [] }) {
+  return taskRemindersService.readTargetPoliciesForTargets(workspaceId, [
+    ...clients.map((client) => ({ targetId: client.id, targetType: "client" })),
+    ...clients.flatMap((client) => (client.projects || []).map((project) => ({
+      targetId: project.id,
+      targetType: "project",
     }))),
-  })));
-  const workspaceProjects = await Promise.all((data.workspaceProjects || []).map(async (project) => ({
-    ...project,
-    taskReminderPolicy: await taskRemindersService.readTargetPolicy(workspaceId, "project", project.id),
-  })));
+    ...projects.map((project) => ({ targetId: project.id, targetType: "project" })),
+  ]);
+}
 
-  return {
-    ...data,
-    clients,
-    workspaceProjects,
+function attachTargetReminderPolicy(record, targetType, policiesByTarget) {
+  if (!policiesByTarget) {
+    return record;
+  }
+
+  const policy = policiesByTarget.get(`${targetType}:${record.id}`);
+
+  if (!policy) {
+    return record;
+  }
+
+  const attached = {
+    ...record,
+    taskReminderPolicy: policy,
   };
+
+  if (targetType === "client" && Array.isArray(record.projects)) {
+    attached.projects = record.projects.map((project) => attachTargetReminderPolicy(project, "project", policiesByTarget));
+  }
+
+  return attached;
 }
 
 async function saveClientReminderPolicy(workspaceId, clientId, payload = {}) {
@@ -1372,6 +1467,7 @@ export const clientsService = {
   listProjects,
   readClient,
   readClientProjects,
+  readClientProjectOptions,
   readProject,
   saveClientProjects,
   updateClient,

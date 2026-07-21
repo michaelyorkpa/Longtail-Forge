@@ -58,14 +58,14 @@ assert.ok(
   tasksPage.indexOf("js/shared/notes-linked-panel.js") < tasksPage.indexOf("js/task-dialog.js"),
   "Task notes helper must load before task dialog.",
 );
-assert.ok(
-  workbenchPage.indexOf("js/shared/file-attachments.js") < workbenchPage.indexOf("js/task-dialog.js"),
-  "Workbench task dialog host must load task attachment helper before task dialog.",
-);
-assert.ok(
-  workbenchPage.indexOf("js/shared/notes-linked-panel.js") < workbenchPage.indexOf("js/task-dialog.js"),
-  "Workbench task dialog host must load task notes helper before task dialog.",
-);
+// The workbench lazy-loads the task dialog through the module-action
+// dependency mechanism; its attachment and notes helpers stay static so they
+// are always present before the dialog script executes.
+const workbenchScript = read("public/js/workbench.js");
+assert.ok(workbenchPage.includes("js/shared/file-attachments.js"), "Workbench must keep the task attachment helper static for the lazy task dialog.");
+assert.ok(workbenchPage.includes("js/shared/notes-linked-panel.js"), "Workbench must keep the task notes helper static for the lazy task dialog.");
+assert.ok(!workbenchPage.includes("js/task-dialog.js"), "Workbench must not load the task dialog statically.");
+assert.ok(workbenchScript.includes('src: "js/task-dialog.js"'), "Workbench must lazy-load the task dialog as a module-action dependency.");
 assert.ok(taskDialog.includes("namespace.fileAttachments.mount"), "Task dialog should mount shared file helper.");
 assert.ok(taskDialog.includes('moduleId: "tasks"'), "Task dialog should pass manifest module ID.");
 assert.ok(taskDialog.includes('targetType: "task"'), "Task dialog should pass manifest target type.");

@@ -77,6 +77,7 @@ function createAppStartupActions() {
     },
     recurringCheck("app.ensure-workspace-settings", (context) => ensureWorkspaceSettings(context.workspaceId)),
     recurringCheck("app.sync-module-registry", (context) => modulesService.syncModuleRegistry(context.workspaceId)),
+    recurringCheck("app.ensure-workspace-module-rows", () => modulesService.ensureAllWorkspaceModuleRows()),
     versionedRepair("repair.redacted-seed-users-v1", (context) => repairRedactedSeedUsers(context.workspaceId)),
     {
       id: "bootstrap.ensure-super-admin",

@@ -43,6 +43,10 @@ User A is workspace admin for Workspace A. User B is workspace admin for two wor
 >
 > Renumber note (2026-07-20): a Workbench/API load-performance branch was inserted as **0.33.19**, moving the former 0.33.19-0.33.24 branches down one to **0.33.20-0.33.25**. The promoted Workbench and Tasks slices above remain owned only by **0.33.20.3** and **0.33.20.4**, and the calendar branch is **0.33.21**; the subsequently reused **0.33.19.3-0.33.19.5** numbers belong to the Developer Verification Throughput follow-ups in `ROADMAP.md`.
 
+## Regression fixture seeding hygiene
+
+Regression fixtures must not seed states the product cannot produce; seeding should happen through real routes/services (or repositories where no route exists), not raw SQL table writes. Raw-SQL seeding can construct impossible states that silently mask contract drift: the 0.33.20.2 slice found the lists API regression seeding a workspace with zero `workspace_modules` rows (a state workspace creation can never produce) and depending on the removed lazy write-on-read backfill to function, and the tag core-records regression asserting that backfill as the contract. Roughly 35 scripts write `workspace_modules` directly today, and many more seed other tables raw. A cleanup pass should convert fixture seeding to the product paths (workspace creation via `workspacesRepository.createWorkspace`/`syncModuleRegistry`, module status via `setModuleStatus`, records via their services or HTTP routes), keeping raw SQL only where a test deliberately constructs corruption/drift to prove a repair. This also feeds the 0.40.0 dual-backend contract suite, which requires provider-neutral seeding anyway. Sequencing thought: batch the conversion by fixture family and watch suite wall-time, since direct SQL seeding is part of why the suite is fast.
+
 ## Fix logo for Dark Mode Visibility
 
 Current logo disappears in dark mode. Need to fix this.

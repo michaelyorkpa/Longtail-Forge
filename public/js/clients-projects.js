@@ -411,7 +411,7 @@ async function loadPageData(_options = {}) {
   try {
     const [settingsData, clientsData, loadedTags] = await Promise.all([
       window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-      window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
+      window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
       loadTagOptions(),
     ]);
 
@@ -435,7 +435,7 @@ async function loadClientProjectDialogData() {
 
   const [settingsData, clientsData, loadedTags] = await Promise.all([
     window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-    window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
+    window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
     loadTagOptions(),
   ]);
 
@@ -2862,7 +2862,7 @@ function completeClientProjectAction(hostContext, detail) {
 }
 
 async function refreshClientProjectData() {
-  const result = await window.LongtailForge.api.getJson("/api/client-projects", {
+  const result = await window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", {
     cache: "no-store",
   });
 

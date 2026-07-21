@@ -221,8 +221,12 @@ All `/api/*`, root, and HTML responses default to `Cache-Control: no-store`, cov
 | `LONGTAIL_SQLITE_FOREIGN_KEYS` | `on` | Must stay enabled. Startup fails if this is disabled, and each SQLite process runs with foreign-key enforcement on. |
 | `LONGTAIL_SQLITE_JOURNAL_MODE` | `wal` | Journal mode applied during SQLite startup. WAL is the default for small-office installs; set a different valid SQLite mode only when the deployment filesystem requires it. |
 | `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` | `5000` | SQLite busy timeout in milliseconds. The helper applies it to the active SQLite connection and verifies `PRAGMA busy_timeout` during startup health checks. |
+| `LONGTAIL_SQLITE_SYNCHRONOUS` | `normal` | `PRAGMA synchronous` mode: `normal`, `full`, or `extra`. The default `normal` is the recommended WAL pairing: it keeps the database corruption-safe, but transactions committed immediately before an operating-system crash or power loss may roll back on restart. Set `full` (or `extra`) to trade write throughput for maximum durability, and prefer `full` when running a non-WAL `LONGTAIL_SQLITE_JOURNAL_MODE`. |
+| `LONGTAIL_SQLITE_CACHE_SIZE_KIB` | `65536` | Per-connection SQLite page-cache size in KiB (applied as a negative `PRAGMA cache_size`). Range 1024 through 1048576. |
+| `LONGTAIL_SQLITE_TEMP_STORE` | `memory` | `PRAGMA temp_store` target for temporary tables and indices: `default`, `file`, or `memory`. |
+| `LONGTAIL_SQLITE_MMAP_SIZE_BYTES` | `0` | `PRAGMA mmap_size` in bytes; `0` keeps memory-mapped I/O disabled. When set above zero, SQLite may cap the effective value below the request, so startup health validates the reported value is positive and no larger than the configured one. |
 
-SQLite startup applies `PRAGMA foreign_keys = ON`, applies the configured `PRAGMA journal_mode`, configures the SQLite busy timeout, and verifies the database file path is writable. Development may emit its detailed local startup health line; production emits only a structured database-ready classification without a path or database internals. Protected Runtime Diagnostics retains its existing safe location labels for authorized administrators. Public health/readiness output does not include database details, secrets, secure-note key material, storage keys, signed URLs, scanner internals, or protected file paths.
+SQLite startup applies `PRAGMA foreign_keys = ON`, applies the configured `PRAGMA journal_mode`, configures the SQLite busy timeout, applies the configured `synchronous`, `cache_size`, `temp_store`, and `mmap_size` tuning PRAGMAs, and verifies the database file path is writable. Development may emit its detailed local startup health line; production emits only a structured database-ready classification without a path or database internals. Protected Runtime Diagnostics retains its existing safe location labels for authorized administrators. Public health/readiness output does not include database details, secrets, secure-note key material, storage keys, signed URLs, scanner internals, or protected file paths.
 
 SQLite migrations and schema repairs use a local lock file beside `LONGTAIL_DATABASE_FILE` so only one startup or maintenance process owns migration work at a time. This is startup behavior, not a runtime-editable setting.
 
@@ -363,6 +367,10 @@ Startup fails clearly when active settings are invalid:
 - `LONGTAIL_SQLITE_FOREIGN_KEYS` must be `on`.
 - `LONGTAIL_SQLITE_JOURNAL_MODE` must be `delete`, `truncate`, `persist`, `memory`, `wal`, or `off`.
 - `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` must be an integer from 0 through 3600000.
+- `LONGTAIL_SQLITE_SYNCHRONOUS` must be `normal`, `full`, or `extra`.
+- `LONGTAIL_SQLITE_CACHE_SIZE_KIB` must be an integer from 1024 through 1048576.
+- `LONGTAIL_SQLITE_TEMP_STORE` must be `default`, `file`, or `memory`.
+- `LONGTAIL_SQLITE_MMAP_SIZE_BYTES` must be an integer from 0 through 8589934592.
 - `LONGTAIL_FILE_SCANNER` must be `none`, `noop`, `clamd`, or `clamscan`. Production requires `clamd` or `clamscan` and successful startup health unless `LONGTAIL_UNSAFE_ALLOW_UNSCANNED_UPLOADS=true`.
 - `LONGTAIL_WORKER_MODE` must be `inline`, `separate`, or `disabled`.
 - `LONGTAIL_JOB_POLL_INTERVAL_MS` must be an integer from 1000 through 3600000.

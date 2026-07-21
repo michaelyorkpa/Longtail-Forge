@@ -104,8 +104,8 @@ async function assertChecklistLifecycleAndProgress(session) {
 
   const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === task.task_id);
-  assert.equal(workItem.checklistProgress.total_count, 2);
-  assert.equal(workItem.resumeContext.checklist_progress.total_count, 2);
+  assert.equal(workItem.checklist_progress.total_count, 2);
+  assert.equal(workItem.resume_context.checklist_progress.total_count, 2);
 
   const searchDocument = await indexTaskRecord({
     workspaceId: session.workspace_id,

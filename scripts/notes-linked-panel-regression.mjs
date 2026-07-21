@@ -46,7 +46,7 @@ async function assertTaskNotesPanelSourceContract() {
   assert.match(taskDialog, /data-task-notes-panel/);
   assert.match(taskDialog, /data-task-notes/);
   assert.ok(tasksPage.indexOf("js/shared/notes-linked-panel.js") < tasksPage.indexOf("js/task-dialog.js"), "Tasks page should load Notes helper before task dialog.");
-  assert.ok(workbenchPage.indexOf("js/shared/notes-linked-panel.js") < workbenchPage.indexOf("js/task-dialog.js"), "Workbench should load Notes helper before task dialog.");
+  assert.ok(workbenchPage.includes("js/shared/notes-linked-panel.js"), "Workbench should keep the Notes helper static for the lazy task dialog.");
   assert.match(taskDialog, /namespace\.notesLinkedPanel\.mount/);
   assert.match(taskDialog, /Save the task before adding notes\./);
   assert.match(taskDialog, /title: "Task Notes"/);

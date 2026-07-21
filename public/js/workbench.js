@@ -53,6 +53,30 @@ const WORKBENCH_MODULE_ACTION_DEPENDENCIES = {
     { src: "js/shared/client-project-options.js", test: () => window.LongtailForge?.clientProjectOptions },
     { module: true, src: "js/lists.js", test: () => window.LongtailForge?.listsDialog?.openListEditor },
   ],
+  "tasks.add": [
+    { src: "js/task-dialog.js", test: () => window.LongtailForge?.tasksDialog?.openTaskEditor },
+  ],
+  "tasks.edit": [
+    { src: "js/task-dialog.js", test: () => window.LongtailForge?.tasksDialog?.openTaskEditor },
+  ],
+  "time-entries.add": [
+    { src: "js/time-entry-dialog.js", test: () => window.LongtailForge?.timeEntryDialog },
+  ],
+  "time-entries.edit": [
+    { src: "js/time-entry-dialog.js", test: () => window.LongtailForge?.timeEntryDialog },
+  ],
+  "clients.add": [
+    { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
+  ],
+  "clients.edit": [
+    { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
+  ],
+  "projects.add": [
+    { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
+  ],
+  "projects.edit": [
+    { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
+  ],
 };
 const workbenchViewHelpers = window.LongtailForge.view;
 const api = window.LongtailForge.api;
@@ -132,6 +156,9 @@ const workbenchCardDataLoaders = {
 
 buildWorkbenchHost();
 bindWorkbenchEvents();
+window.addEventListener("longtailforge:workspace-context-updated", () => {
+  updateCalendarWeekLinkVisibility();
+});
 loadWorkbench();
 
 function buildWorkbenchHost() {
@@ -549,20 +576,40 @@ async function loadWorkbench() {
   setStatus("Loading Workbench...");
 
   try {
-    await window.LongtailForge.workspaceContextReady;
-    updateCalendarWeekLinkVisibility();
-    await window.LongtailForge.timezones?.loadSessionTimezone?.();
+    // The cached workspace context and sessionStorage copies render the focus
+    // panel and card skeletons immediately; the app-shell bootstrap reconciles
+    // through the longtailforge:workspace-context-updated event, and the
+    // fan-out below revalidates everything in parallel.
     restoreFocusState();
-    const [bootstrap, clientProjectData, focusModeData] = await Promise.all([
-      api.getJson("/api/workbench/bootstrap", { cache: "no-store" }),
+    renderWarmWorkbench();
+
+    const cachedRegistry = readCachedWorkbenchRegistry();
+    const bootstrapPromise = api.getJson("/api/workbench/bootstrap", { cache: "no-store" });
+    const restoredFocusPromise = loadFocusCandidatesForState();
+    const sourceDataPromise = cachedRegistry
+      ? loadWorkbenchSourceData(cachedRegistry)
+      : bootstrapPromise.then((bootstrap) => loadWorkbenchSourceData(bootstrap.registry || {}));
+    const [bootstrap, clientProjectData, focusModeData, initialSourceData, restoredFocusData] = await Promise.all([
+      bootstrapPromise,
       loadClientProjectData(),
       loadFocusModes(),
+      sourceDataPromise,
+      restoredFocusPromise,
     ]);
     const registry = bootstrap.registry || state.registry;
-    const sourceData = await loadWorkbenchSourceData(registry);
+    const sourceData = cachedRegistry && workbenchRegistryCardsChanged(cachedRegistry, registry)
+      ? await loadWorkbenchSourceData(registry)
+      : initialSourceData;
+    writeCachedWorkbenchRegistry(registry);
+
     const clients = normalizeClientProjectOptions(clientProjectData);
     const workspaceType = currentWorkspaceType();
     const focusModes = curateFocusModes(focusModeData?.modes || []);
+    const restoredSelection = {
+      clientId: state.selectedClientId,
+      modeId: state.focusModeId,
+      projectId: state.selectedProjectId,
+    };
     const focusModeId = resolveFocusModeSelection(state.focusModeId, focusModes);
     const selectedClientId = resolveClientSelection(state.selectedClientId, clients, workspaceType);
     const selectedProjectId = resolveProjectSelection(state.selectedProjectId, clients, selectedClientId);
@@ -583,7 +630,12 @@ async function loadWorkbench() {
       workCandidates: bootstrap.workCandidates || [],
       workspaceType,
     };
-    const focusData = await loadFocusCandidatesForState();
+    // The candidates fetched with the restored selection stand unless
+    // validation against the fresh lists changed the selection.
+    const selectionInvalidated = focusModeId !== restoredSelection.modeId
+      || selectedClientId !== restoredSelection.clientId
+      || selectedProjectId !== restoredSelection.projectId;
+    const focusData = selectionInvalidated ? await loadFocusCandidatesForState() : restoredFocusData;
     state = {
       ...state,
       focusCandidates: Array.isArray(focusData?.items) ? focusData.items : [],
@@ -599,6 +651,56 @@ async function loadWorkbench() {
   } catch (error) {
     setStatus(error.message || "Workbench could not be loaded.", { isError: true });
   }
+}
+
+// First paint from the cached workspace context and sessionStorage copies:
+// warm loads render the full focus-selection panel immediately, cold loads
+// keep the restored selection untouched so the parallel candidate fetch uses
+// it, and every value is reconciled when the fan-out resolves.
+function renderWarmWorkbench() {
+  updateCalendarWeekLinkVisibility();
+  const cachedFetch = window.LongtailForge.cachedFetch;
+  const cachedClientProjects = cachedFetch?.readCached(workbenchCacheKey("client-project-options")) || null;
+  const cachedFocusModes = cachedFetch?.readCached(workbenchCacheKey("focus-modes")) || null;
+  const cachedRegistry = readCachedWorkbenchRegistry();
+  const clients = cachedClientProjects ? normalizeClientProjectOptions(cachedClientProjects) : state.clients;
+  const focusModes = cachedFocusModes ? curateFocusModes(cachedFocusModes.modes || []) : state.focusModes;
+  const workspaceType = currentWorkspaceType();
+  const selectedClientId = cachedClientProjects
+    ? resolveClientSelection(state.selectedClientId, clients, workspaceType)
+    : state.selectedClientId;
+
+  state = {
+    ...state,
+    clients,
+    focusModeId: cachedFocusModes ? resolveFocusModeSelection(state.focusModeId, focusModes) : state.focusModeId,
+    focusModes,
+    registry: cachedRegistry || state.registry,
+    selectedClientId,
+    selectedProjectId: cachedClientProjects
+      ? resolveProjectSelection(state.selectedProjectId, clients, selectedClientId)
+      : state.selectedProjectId,
+    workspaceType,
+  };
+  restoreCardState();
+  renderWorkbench();
+}
+
+function workbenchCacheKey(name) {
+  const workspaceId = String(window.LongtailForge?.workspaceContext?.workspaceId || "");
+  return `${workspaceId}:workbench:${name}`;
+}
+
+function readCachedWorkbenchRegistry() {
+  return window.LongtailForge.cachedFetch?.readCached(workbenchCacheKey("registry")) || null;
+}
+
+function writeCachedWorkbenchRegistry(registry) {
+  window.LongtailForge.cachedFetch?.writeCached(workbenchCacheKey("registry"), registry || {});
+}
+
+function workbenchRegistryCardsChanged(cachedRegistry, freshRegistry) {
+  return JSON.stringify(cachedRegistry?.workbenchCards || []) !== JSON.stringify(freshRegistry?.workbenchCards || []);
 }
 
 // Deep-link contract: workbench.html?taskId=<id> lands directly in Task Focus
@@ -676,8 +778,13 @@ async function loadTaskOptionsData(card) {
   };
 }
 
+// The warm render consumes the sessionStorage copy; the fan-out resolves with
+// the fresh payload (falling back to the cached copy if revalidation fails).
 async function loadFocusModes() {
-  return api.getJson("/api/workbench/focus-modes", { cache: "no-store" });
+  const result = await window.LongtailForge.cachedFetch.getJson("/api/workbench/focus-modes", {
+    cacheKey: workbenchCacheKey("focus-modes"),
+  });
+  return result.revalidated.catch(() => result.data);
 }
 
 async function loadFocusCandidatesForState() {
@@ -716,7 +823,10 @@ function mergeWorkbenchSourceData(target, data = {}) {
 
 async function loadClientProjectData() {
   try {
-    return await api.getJson("/api/client-projects", { cache: "no-store" });
+    const result = await window.LongtailForge.cachedFetch.getJson("/api/client-projects?view=options", {
+      cacheKey: workbenchCacheKey("client-project-options"),
+    });
+    return await result.revalidated.catch(() => result.data);
   } catch {
     return { clients: [], workspaceProjects: [] };
   }
@@ -2378,6 +2488,7 @@ async function openTaskCandidate(candidate, taskId, trigger = null, editorOption
 
   setStatus("Opening task...");
   try {
+    await ensureWorkbenchModuleAction("tasks.edit");
     const result = await window.LongtailForge.moduleActions.open("tasks.edit", {
       context: {
         source: "workbench",
@@ -3026,6 +3137,7 @@ async function refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId) {
 async function openAddTaskAction() {
   setStatus("Opening task form...");
   try {
+    await ensureWorkbenchModuleAction("tasks.add");
     const result = await window.LongtailForge.moduleActions.open("tasks.add", {
       context: { source: "workbench" },
     }, { refresh: loadWorkbench, setStatus });

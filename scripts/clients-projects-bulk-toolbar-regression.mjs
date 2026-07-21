@@ -7,7 +7,7 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
-const workbenchHtml = readText("views/protected/workbench.html");
+const workbenchScript = readText("public/js/workbench.js");
 const clientProjectsModule = readText("src/modules/client-projects/module.js");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
 const viewRenderer = readText("public/js/shared/view-renderer.js");
@@ -60,7 +60,7 @@ assert.match(css, /\.client-projects-bulk-region\s*\{[\s\S]*background:\s*transp
 assert.match(css, /\.view-data-table \.view-row-select\s*\{[\s\S]*width:\s*16px[\s\S]*height:\s*16px/, "Shared table selection checkboxes should have stable dimensions");
 assert.match(clientsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Clients host should reference CSS, renderer, and adapter for bulk toolbar conversion");
 assert.match(projectsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Projects host should reference CSS, renderer, and adapter for bulk toolbar conversion");
-assert.match(workbenchHtml, /clients-projects\.js/, "Workbench should load the updated Clients/Projects adapter for module-triggered actions");
+assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench should lazy-load the updated Clients/Projects adapter for module-triggered actions");
 assert.match(regressionSuite, /scripts\/clients-projects-bulk-toolbar-regression\.mjs/, "Regression suite should include the Clients/Projects bulk toolbar regression");
 
 console.log("Clients/Projects bulk toolbar regression passed.");

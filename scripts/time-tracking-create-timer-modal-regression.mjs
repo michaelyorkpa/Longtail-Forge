@@ -77,7 +77,7 @@ assert.match(timerDialog, /Start Timer/, "Create Timer modal should expose a Sta
 
 assert.match(
   timerDialog,
-  /api\.getJson\("\/api\/client-projects"[\s\S]*loadTaskOptions\(\)[\s\S]*api\.getJson\("\/api\/active-timers"/,
+  /api\.getJson\("\/api\/client-projects\?view=options"[\s\S]*loadTaskOptions\(\)[\s\S]*api\.getJson\("\/api\/active-timers"/,
   "Create Timer modal should hydrate Client/Project, optional task, and active timer-slot state",
 );
 assert.match(

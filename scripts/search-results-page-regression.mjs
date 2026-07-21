@@ -26,7 +26,7 @@ assert.match(html, /js\/search\.js/);
 
 assert.match(script, /new URLSearchParams\(window\.location\.search\)/);
 assert.match(script, /fetch\(`\/api\/search\?\$\{params\}`,\s*\{\s*cache: "no-store"\s*\}\)/);
-assert.match(script, /fetch\("\/api\/client-projects",\s*\{\s*cache: "no-store"\s*\}\)/);
+assert.match(script, /fetch\("\/api\/client-projects\?view=options",\s*\{\s*cache: "no-store"\s*\}\)/);
 assert.match(script, /window\.LongtailForge\?\.tags\?\.loadTags/);
 assert.match(script, /window\.history\.replaceState\(\{\},\s*"",\s*nextUrl\)/);
 assert.match(script, /params\.set\("limit",\s*String\(state\.pageSize\)\)/);

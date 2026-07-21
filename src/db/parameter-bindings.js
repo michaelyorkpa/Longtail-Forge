@@ -6,7 +6,7 @@ function prepareDatabaseBindings(sql, params = undefined, options = {}) {
   const text = String(sql || "").trim();
   const placeholderStyle = normalizePlaceholderStyle(options.placeholderStyle || DOLLAR_PLACEHOLDERS);
   const parameters = normalizeDatabaseParameters(params);
-  const tokens = collectSqlParameterTokens(text);
+  const { statementCount, tokens } = analyzeSqlStatement(text);
   const namedTokens = tokens.filter((token) => token.type === "named");
   const positionalTokens = tokens.filter((token) => token.type === "positional");
 
@@ -15,11 +15,17 @@ function prepareDatabaseBindings(sql, params = undefined, options = {}) {
   }
 
   if (namedTokens.length > 0) {
-    return resolveNamedDatabaseBindings(text, namedTokens, parameters, placeholderStyle);
+    return {
+      ...resolveNamedDatabaseBindings(text, namedTokens, parameters, placeholderStyle),
+      statementCount,
+    };
   }
 
   if (positionalTokens.length > 0) {
-    return resolvePositionalDatabaseBindings(text, positionalTokens, parameters, placeholderStyle);
+    return {
+      ...resolvePositionalDatabaseBindings(text, positionalTokens, parameters, placeholderStyle),
+      statementCount,
+    };
   }
 
   assertNoProvidedParameters(parameters);
@@ -27,6 +33,7 @@ function prepareDatabaseBindings(sql, params = undefined, options = {}) {
     hasBindings: false,
     params: undefined,
     sql: text,
+    statementCount,
   };
 }
 
@@ -339,9 +346,11 @@ function normalizeDatabaseParameterValue(value) {
   throw new Error("Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined.");
 }
 
-function collectSqlParameterTokens(sql) {
+function analyzeSqlStatement(sql) {
   const tokens = [];
   let anonymousIndex = 0;
+  let statementCount = 0;
+  let hasStatementText = false;
   let index = 0;
   let state = "sql";
 
@@ -424,35 +433,50 @@ function collectSqlParameterTokens(sql) {
     }
 
     if (char === "'") {
+      hasStatementText = true;
       state = "single-quote";
       index += 1;
       continue;
     }
 
     if (char === "\"") {
+      hasStatementText = true;
       state = "double-quote";
       index += 1;
       continue;
     }
 
     if (char === "`") {
+      hasStatementText = true;
       state = "backtick";
       index += 1;
       continue;
     }
 
     if (char === "[") {
+      hasStatementText = true;
       state = "bracket";
       index += 1;
       continue;
     }
 
+    if (char === ";") {
+      if (hasStatementText) {
+        statementCount += 1;
+        hasStatementText = false;
+      }
+      index += 1;
+      continue;
+    }
+
     if (char === ":" && next === ":") {
+      hasStatementText = true;
       index += 2;
       continue;
     }
 
     if ([":", "@", "$"].includes(char) && /[A-Za-z_]/.test(next)) {
+      hasStatementText = true;
       const parameter = readNamedParameter(sql, index);
       tokens.push({
         ...parameter,
@@ -464,6 +488,7 @@ function collectSqlParameterTokens(sql) {
     }
 
     if (char === "?") {
+      hasStatementText = true;
       const parameter = readQuestionParameter(sql, index, ++anonymousIndex);
       tokens.push({
         ...parameter,
@@ -474,10 +499,21 @@ function collectSqlParameterTokens(sql) {
       continue;
     }
 
+    if (!/\s/.test(char)) {
+      hasStatementText = true;
+    }
+
     index += 1;
   }
 
-  return tokens;
+  if (hasStatementText) {
+    statementCount += 1;
+  }
+
+  return {
+    statementCount,
+    tokens,
+  };
 }
 
 function readNamedParameter(sql, start) {
@@ -507,6 +543,7 @@ function readQuestionParameter(sql, start, fallbackPosition) {
 }
 
 export {
+  analyzeSqlStatement,
   createBulkValuesBindings,
   DOLLAR_PLACEHOLDERS,
   QUESTION_PLACEHOLDERS,

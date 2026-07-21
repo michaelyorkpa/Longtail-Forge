@@ -9,7 +9,6 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const taskDialogScript = readText("public/js/task-dialog.js");
 const moduleActions = readText("public/js/shared/module-actions.js");
-const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the in-place Workbench open-work version");
@@ -17,9 +16,9 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the in-place Workbench open-work version");
 
 assert.match(
-  workbenchHtml,
-  /js\/task-dialog\.js[\s\S]*js\/workbench\.js/,
-  "Workbench should load the canonical Task dialog before the referenceed Workbench adapter",
+  workbenchScript,
+  /src: "js\/task-dialog\.js"/,
+  "Workbench should lazy-load the canonical Task dialog for the in-place open-work adapter",
 );
 
 assert.match(

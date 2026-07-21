@@ -84,7 +84,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(
     await modulesService.canWriteModule(session.workspace_id, "tags"),
     true,
-    "Missing required Tags rows should be backfilled on module-state reads.",
+    "A missing required Tags row must still read enabled without a write-on-read backfill.",
   );
   assert.deepEqual(
     await querySql(`
@@ -93,7 +93,19 @@ FROM workspace_modules
 WHERE workspace_id = ${sqlText(session.workspace_id)}
   AND module_id = 'tags';
 `),
+    [],
+    "Module-state reads must not write missing rows back.",
+  );
+  await modulesService.ensureAllWorkspaceModuleRows();
+  assert.deepEqual(
+    await querySql(`
+SELECT status
+FROM workspace_modules
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tags';
+`),
     [{ status: "enabled" }],
+    "The startup lifecycle owner should backfill missing required module rows.",
   );
   assert.equal((await tagsService.list(session)).tags.length, 1);
 

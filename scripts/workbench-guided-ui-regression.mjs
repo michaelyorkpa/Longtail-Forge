@@ -76,7 +76,7 @@ assert.match(workbenchScript, /workbenchViewHelpers\.createStatusMessage/, "Work
 assert.match(workbenchScript, /workbenchViewHelpers\.createEmptyState/, "Workbench should use the shared empty-state primitive");
 assert.match(
   workbenchScript,
-  /api\.getJson\("\/api\/workbench\/focus-modes"[\s\S]*api\.getJson\(`\/api\/workbench\/focus-candidates\?\$\{params\.toString\(\)\}`/,
+  /cachedFetch\.getJson\("\/api\/workbench\/focus-modes"[\s\S]*api\.getJson\(`\/api\/workbench\/focus-candidates\?\$\{params\.toString\(\)\}`/,
   "Workbench browser code should load focus data from protected Workbench routes",
 );
 assert.match(

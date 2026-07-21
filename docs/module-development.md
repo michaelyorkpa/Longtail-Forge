@@ -188,7 +188,8 @@ To participate:
 2. Register a resume-state producer in service code with `registerResumeStateProducer()`.
 3. Shape explicit recovery fields in the producer payload, such as title, source URL, status, priority, due date, next action, handoff note, blocked reason, and safe metadata.
 4. Register a read resolver with `registerResumeStateReadResolver()` so the framework can re-check source visibility before returning a row.
-5. Add regressions for workspace scope, disabled modules, permission-denied reads, deleted/completed/archived/finalized filtering, dismissal refresh, and unsafe metadata exclusion.
+5. Optionally register a batch read resolver with `registerResumeStateBatchReadResolver()` (`{ recordIds, rows, session, workspaceId } → Map<recordId, readCheck>`) so list scans answer the same check with one IN-query per record type instead of one read per row; modules without one keep the per-row fallback, and re-registering a per-row resolver for a key supersedes its batch shortcut so both paths always share one policy. The first-party Tasks, Lists, Notes, and Time Tracking resolvers are batched this way as of 0.33.20.4 (Notes batches only its safe lifecycle pre-filter — eligible notes still go through `notesService.read` because Notes owns its access and secure-content policy).
+6. Add regressions for workspace scope, disabled modules, permission-denied reads, deleted/completed/archived/finalized filtering, dismissal refresh, and unsafe metadata exclusion.
 
 Do not copy freeform bodies, comments, rendered HTML, secure/encrypted fields, attachment internals, protected storage paths, scanner details, private-note hints, or inaccessible linked-record labels into resume state. Private and secure Notes are excluded from global resume-state rows in the current foundation. Time Tracking should update sourced task timer resume state on the source task record; manual active timers remain Time Tracking-owned. For recurring task instances, include recurrence template/instance metadata when available so framework ranking can avoid surfacing far-future instances whose only resume signal is creation.
 
@@ -284,6 +285,8 @@ Lifecycle hooks remain direct functions such as `hooks.onModuleEnabled` and `hoo
 Use `modulesService.setModuleStatus` for module state changes. Do not update `workspace_modules` directly.
 
 Disabling a module hides normal navigation and blocks normal browser/public API writes. Disabled modules may keep historical reads only when `historicalReadAccess` allows it.
+
+As of 0.33.20.2, `workspace_modules` rows are created by the startup and workspace-creation lifecycle, and module status reads (`readModuleStatus`, `readWorkspaceModuleContext`, `readEnabledModuleIds`) are pure reads served through a per-workspace in-memory context cache. The cache fingerprints the status rows on every read, so `setModuleStatus` and even direct row changes from another process are observed immediately; test fixtures that write `workspace_modules` directly keep working, but product code must still go through `setModuleStatus`.
 
 ## Framework Notifications
 

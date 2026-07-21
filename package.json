@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.19.5",
+  "version": "0.33.20.7",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -74,6 +74,7 @@
     "db:schema:refresh": "node scripts/schema-snapshot.mjs --refresh",
     "db:schema:check": "node scripts/schema-snapshot.mjs --check",
     "db:cleanup-workspaces": "node scripts/cleanup-development-workspaces.mjs",
+    "bench:adapter": "node scripts/adapter-microbenchmark.mjs",
     "dev:data:seed": "node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed",
     "dev:data:reset": "node scripts/development-data.mjs reset --profile development --environment development --data-dir ./data/development-seed --confirm development-seed",
     "demo:data:seed": "node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo",
@@ -87,6 +88,7 @@
   "dependencies": {
     "better-sqlite3": "12.11.1",
     "busboy": "^1.6.0",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "markdown-it": "^14.3.0",

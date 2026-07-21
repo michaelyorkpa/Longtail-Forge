@@ -51,6 +51,7 @@ const TASK_LIST_MAX_PAGE_SIZE = 200;
 const TASK_LIST_BATCH_MULTIPLIER = 5;
 const TASK_LIST_MAX_CANDIDATE_SCAN = 1000;
 const TASK_OPTION_MAX_ITEMS = 200;
+const TASK_WORK_ITEM_MAX_ITEMS = 200;
 const TASK_CALENDAR_WINDOW_MAX_DAYS = 93;
 const TASK_CALENDAR_REMINDER_LOOKAHEAD_DAYS = 7;
 const DASHBOARD_TASK_ATTENTION_LIMIT = 5;
@@ -185,11 +186,11 @@ async function filterAndShapeTaskListCandidates({ candidates, offset, query, res
   }, session, timerByTaskId));
 }
 
-async function queryTasksResult({ pagination, query, session, tasks, timers, nextCursor = "" }) {
+async function queryTasksResult({ includeOptions = true, pagination, query, session, tasks, timers, nextCursor = "" }) {
   return {
     tasks: sortCanonicalTasks(tasks, query),
     currentUserId: session.user_id,
-    options: await readOptions(session),
+    options: includeOptions ? await readOptions(session) : null,
     pagination: pagination ? {
       hasMore: Boolean(nextCursor),
       limit: pagination.pageSize,
@@ -212,6 +213,8 @@ async function taskListRepositoryQuery(session, query = {}) {
     projectId: String(query.projectId || query.project_id || "").trim(),
   });
 
+  const dueWindow = taskListDueWindow(query);
+
   return {
     [TASK_SCOPE_QUERY_MARKER]: true,
     assigneeFilter: normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value),
@@ -224,6 +227,8 @@ async function taskListRepositoryQuery(session, query = {}) {
     currentWeekEnd: currentWeekEndKey(today),
     dueFilter: normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter),
     dueSoonCutoff: addDaysKey(today, 7),
+    dueWindowEnd: dueWindow.end,
+    dueWindowStart: dueWindow.start,
     hasClientFilter: scope.hasClientFilter,
     hasProjectFilter: scope.hasProjectFilter,
     nowIso: now.toISOString(),
@@ -236,6 +241,30 @@ async function taskListRepositoryQuery(session, query = {}) {
     statusFilter: normalizedTaskFilter(query.status || query.status_filter || query.filter),
     taskView,
     today,
+  };
+}
+
+// Explicit due-window query keys (used by due-oriented focus modes) restrict
+// the repository scan. The window widens one day on each side because the
+// exact match is timezone-sensitive and stays with the in-memory candidate
+// matcher; SQL only needs a superset.
+function taskListDueWindow(query = {}) {
+  const dueOn = normalizeDueDate(query.dueOn || query.due_on);
+  const dueFrom = normalizeDueDate(query.dueFrom || query.due_from);
+  const dueTo = normalizeDueDate(query.dueTo || query.due_to);
+  const dueBefore = normalizeDueDate(query.dueBefore || query.due_before);
+  const startCandidates = [dueFrom, dueOn]
+    .filter(Boolean)
+    .map((dateKey) => addCalendarDaysKey(dateKey, -1));
+  const endCandidates = [
+    dueTo ? addCalendarDaysKey(dueTo, 1) : "",
+    dueOn ? addCalendarDaysKey(dueOn, 1) : "",
+    dueBefore,
+  ].filter(Boolean);
+
+  return {
+    end: endCandidates.length ? endCandidates.reduce((left, right) => (left > right ? left : right)) : "",
+    start: startCandidates.length ? startCandidates.reduce((left, right) => (left < right ? left : right)) : "",
   };
 }
 
@@ -290,7 +319,10 @@ function stripTaskListCandidateMetadata(task) {
 }
 
 async function summary(session) {
-  const { options = {}, tasks, timers = [] } = await queryTasks(session);
+  const [{ tasks, timers = [] }, settings] = await Promise.all([
+    queryTasks(session, {}, { includeOptions: false }),
+    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
+  ]);
   const now = new Date();
   const today = localDateKey(now, session.timezone);
   const dueSoonCutoff = addDaysKey(today, 7);
@@ -311,7 +343,7 @@ async function summary(session) {
     now,
     timerByTaskId,
     today,
-    workspaceType: options.workspaceType || "business",
+    workspaceType: settings.workspaceType || "business",
   };
   const attentionRows = dashboardAttentionRows(activeTasks, dashboardContext);
   const upcomingRows = dashboardUpcomingRows(activeTasks, dashboardContext);
@@ -345,9 +377,13 @@ async function summary(session) {
 
 async function listWorkItems(session, query = {}) {
   const result = await queryTasks(session, {
+    limit: TASK_WORK_ITEM_MAX_ITEMS,
     status: "active",
     sort: "due_at",
     ...query,
+  }, {
+    includeOptions: false,
+    paginate: true,
   });
   const timerByTaskId = new Map((result.timers || []).map((timer) => [timer.task_id, timer]));
 
@@ -358,7 +394,13 @@ async function listWorkItems(session, query = {}) {
       currentUserId: session.user_id,
       timer: timerByTaskId.get(task.task_id),
     })),
-    options: result.options,
+  };
+}
+
+async function listOptions(session) {
+  return {
+    currentUserId: session.user_id,
+    options: await readOptions(session),
   };
 }
 
@@ -398,13 +440,10 @@ async function calendarWindow(session, query = {}) {
     modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
     tasksRepository.readDueBetween(session.workspace_id, startDate, reminderLookaheadEndDate),
   ]);
-  const readableTasks = [];
-
-  for (const task of dueTasks) {
-    if (matchesTaskContextFilters(task, scope) && await canReadTask(session, task)) {
-      readableTasks.push(task);
-    }
-  }
+  const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
+  const readableTasks = dueTasks.filter((task) => (
+    matchesTaskContextFilters(task, scope) && canReadTaskRow(taskResource(task))
+  ));
 
   return {
     range: {
@@ -457,6 +496,41 @@ async function read(taskId, session) {
     currentUserId: session.user_id,
     options: await readOptions(session),
   };
+}
+
+// Lightweight permission-checked read for callers (resume-state read checks)
+// that need only the raw task, without options or detail enrichment.
+async function readCore(taskId, session) {
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanReadTask(session, task);
+
+  return {
+    task,
+    currentUserId: session.user_id,
+  };
+}
+
+// Batched existence/status/readability check for resume-state scans: one
+// IN-query over the record ids plus the in-memory permission evaluator.
+async function readLifecycleForIds(session, taskIds = []) {
+  const [statusRows, canReadTaskRow] = await Promise.all([
+    tasksRepository.readStatusByIds(session.workspace_id, taskIds),
+    permissionsService.createPermissionEvaluator(session, "tasks.view"),
+  ]);
+  const lifecycleByTaskId = new Map();
+
+  for (const row of statusRows) {
+    lifecycleByTaskId.set(row.task_id, canReadTaskRow(taskResource(row))
+      ? {
+          archived: row.status === "archived",
+          completed: row.status === "complete",
+          readable: true,
+          status: row.status || "open",
+        }
+      : { readable: false });
+  }
+
+  return lifecycleByTaskId;
 }
 
 async function create(rawPayload, session) {
@@ -1239,18 +1313,17 @@ async function readTaskOptionPayload(session, query = {}) {
     sort: "context",
     status,
   });
-  const result = await tasksRepository.queryList(session.workspace_id, {
-    ...repositoryQuery,
-    limit: TASK_OPTION_MAX_ITEMS,
-    offset: 0,
-  });
-  const readable = [];
-
-  for (const task of result.tasks || []) {
-    if (await canReadTask(session, task) && matchesStatusFilter(task, status)) {
-      readable.push(task);
-    }
-  }
+  const [result, canReadTaskRow] = await Promise.all([
+    tasksRepository.queryList(session.workspace_id, {
+      ...repositoryQuery,
+      limit: TASK_OPTION_MAX_ITEMS,
+      offset: 0,
+    }),
+    permissionsService.createPermissionEvaluator(session, "tasks.view"),
+  ]);
+  const readable = (result.tasks || []).filter((task) => (
+    canReadTaskRow(taskResource(task)) && matchesStatusFilter(task, status)
+  ));
 
   return sortCanonicalTasks(readable, { sort: "context" }).map(taskPickerOption);
 }
@@ -2271,7 +2344,7 @@ async function attachTaskListProjectionDetails(tasks, session) {
     readPrimaryParentByTaskId(session, tasks),
   ]);
 
-  return Promise.all(tasks.map(async (task) => {
+  return tasks.map((task) => {
     const checklistProgress = checklistProgressByTaskId.get(task.task_id) || emptyChecklistProgress();
     const relationshipSummary = relationshipSummaryByTaskId.get(task.task_id) || emptyRelationshipSummary();
     const taskWithListDetails = {
@@ -2280,14 +2353,13 @@ async function attachTaskListProjectionDetails(tasks, session) {
       parentTask: primaryParentByTaskId.get(task.task_id) || null,
       relationshipSummary,
       completionMetrics: taskCompletionMetrics(task),
-      reminderDetails: await taskRemindersService.readTaskReminderDetails(task),
     };
 
     return {
       ...taskWithListDetails,
       resumeContext: taskResumeContext(taskWithListDetails),
     };
-  }));
+  });
 }
 
 async function attachTaskDetails(task) {
@@ -2313,17 +2385,20 @@ async function attachTaskDetails(task) {
 
 async function readPrimaryParentByTaskId(session, tasks = []) {
   const taskIds = tasks.map((task) => task.task_id).filter(Boolean);
-  const relationships = await taskRelationshipsRepository.readParentsForTasks(session.workspace_id, taskIds);
+  const [relationships, canReadTaskRow] = await Promise.all([
+    taskRelationshipsRepository.readParentsForTasks(session.workspace_id, taskIds),
+    permissionsService.createPermissionEvaluator(session, "tasks.view"),
+  ]);
   const parentByTaskId = new Map();
 
   for (const relationship of relationships) {
     if (parentByTaskId.has(relationship.child_task_id) || !relationship.parent_title) {
       continue;
     }
-    const readable = await canReadTask(session, {
+    const readable = canReadTaskRow({
       workspace_id: relationship.workspace_id,
-      client_id: relationship.parent_client_id,
-      project_id: relationship.parent_project_id,
+      client_id: relationship.parent_client_id || "",
+      project_id: relationship.parent_project_id || "",
     });
     if (readable) {
       parentByTaskId.set(relationship.child_task_id, {
@@ -3051,7 +3126,6 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     },
     task_id: task.task_id,
     title: task.title,
-    description: task.description || "",
     description_excerpt: descriptionExcerpt(task.description),
     status: task.status || "open",
     priority: task.priority || "normal",
@@ -3069,16 +3143,12 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     assignees: task.assignees || [],
     assigned_to_current_user: (task.assignee_ids || []).includes(currentUserId),
     direct_tags: safeTaskTags(task.directTags),
-    directTags: safeTaskTags(task.directTags),
     propagated_tag_count: Array.isArray(task.propagatedTags) ? task.propagatedTags.length : 0,
-    propagatedTagCount: Array.isArray(task.propagatedTags) ? task.propagatedTags.length : 0,
     next_action: task.next_action || "",
     blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
     resume_note: task.resume_note || "",
     checklist_progress: task.checklistProgress || emptyChecklistProgress(),
-    checklistProgress: task.checklistProgress || emptyChecklistProgress(),
     relationship_summary: task.relationshipSummary || emptyRelationshipSummary(),
-    relationshipSummary: task.relationshipSummary || emptyRelationshipSummary(),
     timer_status: timerStatus,
     elapsed_seconds: elapsedSeconds,
     timer,
@@ -3086,10 +3156,8 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     created_at: task.created_at || "",
     updated_at: task.updated_at || "",
     completion_metrics: taskCompletionMetrics(task),
-    completionMetrics: taskCompletionMetrics(task),
     active_candidate: resumeContext.active_candidate,
     resume_context: resumeContext,
-    resumeContext,
   };
 }
 
@@ -3588,10 +3656,13 @@ export const tasksService = {
   list,
   listAll,
   listChecklistItems,
+  listOptions,
   listWorkbenchItems,
   listWorkItems,
   listRelationships,
   read,
+  readCore,
+  readLifecycleForIds,
   readRecurrenceContinuity,
   reopen,
   removeChildTaskRelationship,

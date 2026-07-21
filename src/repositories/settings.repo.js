@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { db } from "../core/database.js";
+import { readRequestScopedCache } from "../core/request-cache.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
@@ -26,7 +27,23 @@ const MODULE_SETTING_UPSERT_SQL = `${db.dialect.conflict.buildInsertOnConflictDo
   },
 })};`;
 
-async function readWorkspaceSettings(workspaceId) {
+// Pass the request session only from read paths: the memo is not invalidated
+// by saveWorkspaceSettings within the same request.
+async function readWorkspaceSettings(workspaceId, session = null) {
+  if (!session) {
+    return readWorkspaceSettingsFresh(workspaceId);
+  }
+
+  const cache = readRequestScopedCache(session, "workspace-settings");
+
+  if (!cache.has(workspaceId)) {
+    cache.set(workspaceId, readWorkspaceSettingsFresh(workspaceId));
+  }
+
+  return cache.get(workspaceId);
+}
+
+async function readWorkspaceSettingsFresh(workspaceId) {
   const row = await db.get(`
 SELECT
   workspaces.name AS workspace_name,

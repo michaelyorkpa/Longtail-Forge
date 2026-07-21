@@ -1,12 +1,14 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.19.5. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.20.7. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 ## Streamlining Review Policy And Budget
 
 The first formal review at 0.33.18.7 measured 380/380 pre-change regressions in 193.28 seconds with no flaky recoveries, then 379/379 post-change regressions in 279.78 seconds with one visible migration-lock recovery on the documented Windows reference workstation. The current local reference budget is 300 seconds for the full regression runner on comparable hardware and workload. This is a review threshold, not a cross-machine hard failure: two comparable runs above budget, a material slow-tail change, or more than 20% growth in the rolling three-run median triggers another ownership/setup review. The measurement, bucket totals, slow tail, retirement evidence, and consolidation queue live in [regression-suite-performance.md](regression-suite-performance.md).
 
 At Support Tickets closeout, Knowledge Base closeout, Creator Studio closeout, 0.39.9, the pre-PostgreSQL/API decoupling checkpoint, and the PostgreSQL dual-backend matrix, consume `LTF_REGRESSION_TIMING_JSON` again and review the budget. Review duplicate coverage, implementation-detail assertions, obsolete historical checks, and overly broad setup. Prefer fixture, isolation, selection, bounded assertions, and setup improvements before removing coverage. Pure functions, schema validation, and stable contracts may move toward Vitest, but permissions, workspace isolation, database/migration behavior, file safety, and integration behavior remain strongly covered, while critical rendered journeys and accessibility remain in Playwright. A slow test is not obsolete. Retirement requires demonstrated replacement coverage and evidence recorded through the current manifest/ratchet process, and the full release gate remains until equivalence is proven.
+
+As of 0.33.20.7 the suite also carries explicit performance-budget regressions for the hot Workbench path. `workbench.hot-endpoint-budgets` boots the app over HTTP and pins per-request SQLite statement counts (via `readSqliteStatementCount()` in `src/db/sqlite.js`), payload sizes, and near-constant statement growth as data grows for `/api/workbench/bootstrap`, `/api/workbench/focus-modes`, `/api/tasks/workbench-items`, and `/api/tasks/options`; `workbench.focus-candidate-pipeline` pins the bootstrap and focus-candidate statement budgets at the service layer. A budget failure means an N+1 or payload regression was reintroduced — raise a budget only with a deliberate, documented capacity decision, not to absorb accidental growth.
 
 The 0.33.19.4 runtime-configuration split is the reference partial-movement contract. The policy's generated `assertionMovements` evidence records the exact pure assertion inventory, existing Vitest target, and still-discovered integration owner without granting retirement or floor credit. The 108-case defaults/normalization/accepted-value/warning/error matrix calls `createConfig` directly in Vitest. The legacy-snapshot regression keeps child-process environment/import behavior and its database, module-registry, version, docs/source, and runtime/app-info consumer integration. Pure and integration fixtures remain local to their one responsibility rather than sharing a second maintained source of truth.
 
@@ -85,7 +87,7 @@ Current package commands:
 
 ## Current Execution Model
 
-The current suite contains 383 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 72 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful script and all high-risk contract coverage remain registered.
+The current suite contains 390 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 79 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful script and all high-risk contract coverage remain registered.
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |

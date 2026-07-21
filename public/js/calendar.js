@@ -222,7 +222,7 @@ function applyCalendarWorkspaceContext() {
 
 async function loadCalendarFilterOptions() {
   try {
-    const response = await fetch("/api/client-projects", { cache: "no-store" });
+    const response = await fetch("/api/client-projects?view=options", { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error(`Could not load filter options: ${response.status}`);

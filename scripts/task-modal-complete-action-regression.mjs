@@ -74,7 +74,8 @@ function assertStaticContract() {
     "Complete route should preserve the active-timer guard");
 
   assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should load the updated Task dialog cache key");
-  assert.match(workbenchView, /js\/task-dialog\.js[\s\S]*js\/workbench\.js/, "Workbench should load the updated Task dialog and Workbench cache keys");
+  assert.match(workbenchView, /js\/workbench\.js/, "Workbench should load the Workbench cache keys");
+  assert.match(workbenchScript, /src: "js\/task-dialog\.js"/, "Workbench should lazy-load the updated Task dialog");
   assert.match(regressionSuite, /scripts\/task-modal-complete-action-regression\.mjs/, "Regression suite should include modal complete action coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
     "live roadmap should not carry completed-history breadcrumbs");

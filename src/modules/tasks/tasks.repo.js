@@ -65,6 +65,26 @@ LIMIT 1;
   return attachAssignees([taskRowToAppValue(rows[0])], assignees)[0];
 }
 
+async function readStatusByIds(workspaceId, taskIds = []) {
+  const ids = [...new Set((Array.isArray(taskIds) ? taskIds : [])
+    .map((taskId) => String(taskId || "").trim())
+    .filter(Boolean))];
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  return db.query(`
+SELECT task_id, workspace_id, client_id, project_id, status
+FROM tasks
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.task_id IN (:taskIds);
+`, {
+    taskIds: ids,
+    workspaceId,
+  });
+}
+
 async function readByIds(workspaceId, taskIds = []) {
   const ids = [...new Set((Array.isArray(taskIds) ? taskIds : [])
     .map((taskId) => String(taskId || "").trim())
@@ -474,10 +494,32 @@ function taskListWhereSql(options, params) {
   applyStatusFilter(conditions, options, params);
   applyQuickFilter(conditions, options, params);
   applyDueFilter(conditions, options, params);
+  applyDueWindowFilter(conditions, options, params);
   applyContextFilters(conditions, options, params);
   applyAssigneeFilters(conditions, options, params);
 
   return `WHERE ${conditions.join("\n  AND ")}`;
+}
+
+function applyDueWindowFilter(conditions, options, params) {
+  const dueWindowStart = String(options.dueWindowStart || "").trim();
+  const dueWindowEnd = String(options.dueWindowEnd || "").trim();
+
+  if (!dueWindowStart && !dueWindowEnd) {
+    return;
+  }
+
+  conditions.push("tasks.due_date IS NOT NULL");
+
+  if (dueWindowStart) {
+    conditions.push("tasks.due_date >= :dueWindowStart");
+    params.dueWindowStart = dueWindowStart;
+  }
+
+  if (dueWindowEnd) {
+    conditions.push("tasks.due_date <= :dueWindowEnd");
+    params.dueWindowEnd = dueWindowEnd;
+  }
 }
 
 function applyTaskViewFilter(conditions, options, params) {
@@ -930,6 +972,7 @@ export const tasksRepository = {
   readAll,
   readById,
   readByIds,
+  readStatusByIds,
   readByRecurrenceInstance,
   readFutureRecurrenceInstances,
   readDueBetween,

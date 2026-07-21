@@ -3,6 +3,7 @@ import {
   closeSqlite,
   formatSqliteHealth,
   getLastSqliteHealth,
+  getSql,
   initializeSqliteRuntime,
   querySql,
   readSqliteHealth,
@@ -56,7 +57,7 @@ function createSqliteAdapter() {
    */
   async function executeQuery(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
-    return querySql(statement.sql, statement.params);
+    return querySql(statement.sql, statement.params, statement);
   }
 
   /**
@@ -65,8 +66,8 @@ function createSqliteAdapter() {
    * @returns {Promise<Record<string, any> | null>} first result row, if any
    */
   async function executeGet(sql, params = []) {
-    const rows = await executeQuery(sql, params);
-    return rows[0] || null;
+    const statement = prepareSqliteStatement(sql, params);
+    return getSql(statement.sql, statement.params, statement);
   }
 
   /**
@@ -76,7 +77,7 @@ function createSqliteAdapter() {
    */
   async function executeRun(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
-    return runSql(statement.sql, statement.params);
+    return runSql(statement.sql, statement.params, statement);
   }
 
   function prepareSqliteStatement(sql, params) {

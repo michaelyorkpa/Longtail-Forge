@@ -72,9 +72,8 @@ assert.ok(
   "Tasks host should load framework view helpers before the Task dialog and page controller",
 );
 assert.ok(
-  workbenchView.indexOf("js/shared/view-builder.js") < workbenchView.indexOf("js/shared/view-renderer.js")
-    && workbenchView.indexOf("js/shared/view-renderer.js") < workbenchView.indexOf("js/task-dialog.js"),
-  "Workbench host should load framework view helpers before the shared Task dialog",
+  workbenchView.indexOf("js/shared/view-builder.js") < workbenchView.indexOf("js/shared/view-renderer.js"),
+  "Workbench host should load framework view helpers for the lazy shared Task dialog",
 );
 assert.match(regressionSuite, /scripts\/tasks-modal-shell-regression\.mjs/, "Task modal shell regression should be included in the regression suite");
 

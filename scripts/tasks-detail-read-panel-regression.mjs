@@ -54,7 +54,7 @@ assert.match(taskRow, /titleButton\.addEventListener\("click", \(\) => openTaskD
 assert.doesNotMatch(tasksView, /data-task-detail-column|data-task-read-panel|task-detail-column/, "Tasks host should not add a persistent task detail column");
 
 assert.match(tasksView, /js\/shared\/view-builder\.js[\s\S]*js\/task-dialog\.js[\s\S]*js\/tasks\.js/, "Tasks host should advance cache keys for the touched view helper and task dialog assets");
-assert.match(workbenchView, /js\/shared\/view-builder\.js[\s\S]*js\/task-dialog\.js/, "Workbench host should load the updated shared view helper before the Task dialog");
+assert.match(workbenchView, /js\/shared\/view-builder\.js/, "Workbench host should keep the shared view helper static for the lazy Task dialog");
 assert.match(tasksDocs, /0\.33\.5\.18\.10\.3[\s\S]*detail badge row/, "Tasks docs should document the task detail/read metadata cleanup");
 assert.match(viewContract, /createDetailBadgeRow/, "View-building contract should document the detail badge row primitive");
 assert.match(regressionSuite, /scripts\/tasks-detail-read-panel-regression\.mjs/, "Regression suite should include the task detail/read panel regression");

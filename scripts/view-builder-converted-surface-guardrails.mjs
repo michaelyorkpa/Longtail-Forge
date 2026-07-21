@@ -65,7 +65,7 @@ for (const helperName of [
   assert.match(listsJs, new RegExp(`view\\.${helperName}`), `Converted Lists should use LongtailForge.view.${helperName}`);
 }
 
-for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
+for (const html of [clientsHtml, projectsHtml]) {
   assert.match(html, /js\/shared\/view-builder\.js/, "Client/Project surfaces should load view-builder");
   assert.match(html, /js\/shared\/view-renderer\.js/, "Client/Project surfaces should load view-renderer");
   assert.ok(
@@ -74,6 +74,16 @@ for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
     "Client/Project surfaces should load view-builder and view-renderer before shared Client/Project code",
   );
 }
+// The workbench keeps the view helpers static and lazy-loads the shared
+// Client/Project dialog code through its module-action dependency mechanism.
+assert.match(workbenchHtml, /js\/shared\/view-builder\.js/, "Workbench should load view-builder");
+assert.match(workbenchHtml, /js\/shared\/view-renderer\.js/, "Workbench should load view-renderer");
+assert.ok(
+  workbenchHtml.indexOf("js/shared/view-builder.js") < workbenchHtml.indexOf("js/shared/view-renderer.js"),
+  "Workbench should load view-builder before view-renderer",
+);
+assert.doesNotMatch(workbenchHtml, /js\/clients-projects\.js/, "Workbench should lazy-load the shared Client/Project dialog code");
+assert.match(readText("public/js/workbench.js"), /src: "js\/clients-projects\.js"/, "Workbench should declare the Client/Project dialog as a lazy module-action dependency");
 assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page should not restore the static Add Client dialog");
 assert.match(clientsScript, /const view = window\.LongtailForge\?\.view/, "Client/Project dialogs should consume the shared view namespace");
 assert.match(functionBlock(clientsScript, "createModalCommitGroup"), /surface-modal-footer-group/, "Converted Client/Project footers should keep framework footer groups");

@@ -47,12 +47,13 @@ try {
   assert.equal(first.semanticFingerprint, demo.semanticFingerprint, "sanitized demo data should use the same reproducible fake scenario contract");
   assert.equal(demo.profile, "sanitized-demo");
   assert.deepEqual(first.counts, second.counts);
-  assert.equal(first.counts.workspaces, 3);
-  assert.equal(first.counts.tasks, 12);
-  assert.equal(first.counts.notes, 4);
-  assert.equal(first.counts.lists, 5);
+  assert.equal(first.counts.workspaces, 5);
+  assert.equal(first.counts.tasks, 400);
+  assert.equal(first.counts.users, 18);
+  assert.equal(first.counts.notes, 200);
+  assert.equal(first.counts.lists, 24);
   assert.equal(first.counts.active_work_timers, 2);
-  assert.equal(first.counts.time_entries, 2);
+  assert.equal(first.counts.time_entries, 602);
   assert.equal(first.search.backend, "sqlite");
   assert.equal(first.search.rebuiltCount, first.counts.search_index);
   assert.equal(first.workbench.focusSelectionUrl, "workbench.html");
@@ -69,7 +70,8 @@ try {
     assert.equal(operator.home_workspace_id, earliestWorkspace.workspace_id, "startup super-admin lookup must remain anchored to the operator's Business workspace");
     const taskStates = database.prepare("SELECT status, due_date, recurrence_template_id, next_action, blocked_reason, resume_note FROM tasks").all();
     assert.ok(taskStates.some((row) => row.status === "blocked" && row.blocked_reason));
-    assert.ok(taskStates.some((row) => row.status === "completed"));
+    assert.ok(taskStates.some((row) => row.status === "complete"), "seeded tasks must use the canonical complete status token");
+    assert.ok(taskStates.some((row) => row.status === "archived"));
     assert.ok(taskStates.some((row) => row.due_date === null));
     assert.ok(taskStates.some((row) => row.recurrence_template_id));
     assert.ok(taskStates.some((row) => row.next_action && row.resume_note));

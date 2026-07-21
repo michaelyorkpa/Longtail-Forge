@@ -71,8 +71,12 @@ function parseDemoDataArgs(args) {
   if (options.target !== DEMO_DATA_TARGET) {
     throw new Error(`--target must be exactly ${DEMO_DATA_TARGET}.`);
   }
+  if (options.anchorDate === "today") {
+    const value = new Date();
+    options.anchorDate = new Date(value.getTime() - value.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(options.anchorDate || "")) || !isCalendarDate(options.anchorDate)) {
-    throw new Error("--anchor-date must be an actual calendar date in YYYY-MM-DD form.");
+    throw new Error("--anchor-date must be an actual calendar date in YYYY-MM-DD form, or the literal \"today\".");
   }
   const expectedConfirmation = action === "provision" ? PROVISION_CONFIRMATION : RESET_CONFIRMATION;
   if (options.confirm !== expectedConfirmation) {
@@ -426,7 +430,7 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
       throw new Error("Candidate demo database failed foreign-key verification.");
     }
     const seedRun = database.prepare("SELECT contract_version, profile, anchor_date, semantic_fingerprint FROM development_data_seed_runs LIMIT 1").get();
-    if (!seedRun || seedRun.contract_version !== "development-data-v1" || seedRun.profile !== DEVELOPMENT_PROFILE
+    if (!seedRun || seedRun.contract_version !== "development-data-v2" || seedRun.profile !== DEVELOPMENT_PROFILE
       || seedRun.anchor_date !== expectedAnchorDate || seedRun.semantic_fingerprint !== expectedFingerprint) {
       throw new Error("Candidate demo database seed identity does not match the requested operation.");
     }
@@ -434,8 +438,8 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
     for (const table of ["workspaces", "users", "tasks", "notes", "lists", "files", "search_index"]) {
       counts[table] = Number(database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count);
     }
-    if (counts.workspaces !== 3 || counts.users !== 5 || counts.tasks !== 12 || counts.notes !== 4
-      || counts.lists !== 5 || counts.files !== 2 || counts.search_index < 21) {
+    if (counts.workspaces !== 5 || counts.users !== 18 || counts.tasks !== 400 || counts.notes !== 200
+      || counts.lists !== 24 || counts.files !== 2 || counts.search_index < 600) {
       throw new Error("Candidate demo database does not match the rich fictional scenario counts.");
     }
     const searchBackendCount = Number(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count);

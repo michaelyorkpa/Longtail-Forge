@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 384,
+  "minimumActiveScripts": 391,
   "minimumAreaScripts": {
     "dashboard": 1,
-    "database": 34,
+    "database": 36,
     "docs": 9,
     "files": 44,
-    "framework": 63,
+    "framework": 64,
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
@@ -17,10 +17,10 @@
     "release": 24,
     "search": 12,
     "tags": 12,
-    "tasks": 51,
+    "tasks": 52,
     "time-tracking": 8,
     "views": 31,
-    "workbench": 27
+    "workbench": 30
   },
   "minimumReleaseGateScripts": 44,
   "requiredReleaseGateIds": [
