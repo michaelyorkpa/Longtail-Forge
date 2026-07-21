@@ -1,5 +1,56 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.19.5 - Files regression isolation and scheduling audit
+
+Completed 0.33.19.5 locally on 2026-07-20. The complete 0.33.19 branch is closed and the live roadmap advances to 0.33.20. The stacked 0.33.19.3-.5 work remains uncommitted and unmerged pending the user's separate publication instruction.
+
+**Model: High Effort** — The audit preserved conservative scheduling wherever mutable file, database, scanner, process, port, environment, worker, or singleton state was not fully proven disposable.
+
+- [x] Inventoried all 29 original serial Files scripts across database, file-storage root, scanner executable/process, network port, environment, worker/child process, and singleton runtime state in `scripts/regression-files-isolation-audit.json`.
+- [x] Reclassified only nine scripts with unique runner- or script-owned database/storage state and no HTTP server, scanner process, worker, nested child process, or ambiguous singleton. The other 20 retain serial scheduling with script-specific reasons.
+- [x] Proved the nine candidates through three complete repeats at concurrency 2, 4, and 6: 81 logical script runs, zero failures, and zero recovered flakes.
+- [x] Added a separate `isolated-files` bucket and dedicated concurrency override while preserving no-retry Files semantics. Only isolated-database failures may enter the existing one-retry scheduler.
+- [x] Reduced the measured complete Files-family wall time from 71.36 seconds serial to 51.43 seconds with the conservative 20/9 split; timing is evidence, not the isolation justification.
+- [x] Added required `release.files-regression-isolation-audit` coverage, advanced the registry to 383 scripts and 44 release gates, retained all regression identities/assertions/families/floors, and left the frozen legacy snapshot unchanged.
+
+Acceptance criteria:
+
+- Every reclassified Files regression passed repeated concurrent stress with unique disposable state; all ambiguous scripts remain serial, and exact membership, timings, concurrency, outcomes, and retained reasons are documented.
+
+## Version 0.33.19.4 - Runtime-configuration pure contract migration
+
+Completed 0.33.19.4 locally on 2026-07-20. The live roadmap advances to 0.33.19.5; the user requested that the stacked 0.33.19.3-.4 work remain uncommitted and unmerged until 0.33.19.5 is complete.
+
+**Model: Medium Effort** — Test ownership changed inside one bounded configuration contract while its process and integration owner remained explicit.
+
+- [x] Inventoried 108 deterministic expectations and measured three unchanged pre-migration samples. Median time was 3,605.82 ms for the child-process pure matrix, 1,791.89 ms for retained setup/integration work, and 5,499.27 ms total.
+- [x] Moved defaults, explicit-value and relative-path normalization, safe-production values and warnings, legacy ignored input, four accepted scanner modes, and 31 expected-error cases to direct `createConfig` Vitest coverage. The 108 expectations run as 36 tests with a 332 ms median focused-suite duration and 16 ms median test execution.
+- [x] Kept `scripts/runtime-configuration-contract-regression.mjs` discovered in the legacy snapshot. It retains fresh child-process environment materialization, startup/import failure propagation, disposable database and live module-registry loading, package/module version identity, runtime docs/source contracts, and sessions, cookies, transport security, authentication throttling, workspace bootstrap, Secure Notes, Files storage, and app-info response integration.
+- [x] Added validated `assertionMovements` evidence to the existing generated coverage ratchet. The record pins the 108-case inventory, existing Vitest target, and retained discovered integration owner; it earns no retirement or floor credit.
+- [x] Measured the same owners after migration: the retained-regression median was 1,030.84 ms, and the combined Vitest plus retained median was 1,362.84 ms, 75.2% below the prior 5,499.27 ms total median. Both layers remain required.
+- [x] Preserved the 382-script registry and 43 required release gates while documenting the exact ownership boundary in Decisions, runtime configuration, regression-suite, performance, and documentation-routing contracts.
+
+Acceptance criteria:
+
+- Pure configuration behavior runs through the faster Vitest layer, while the retained regression still proves every process, environment, database, registry, and runtime integration boundary previously covered.
+
+## Version 0.33.19.3 - Developer Verification Throughput
+
+Completed 0.33.19.3 locally on 2026-07-20. The live roadmap advances to 0.33.19.4; the user requested that this work remain uncommitted and unmerged until 0.33.19.5 is complete.
+
+**Model: High Effort** — It changed release/test orchestration, so the closeout retained complete escalation evidence for every high-risk boundary.
+
+- [x] Made changed-area routing content-aware. Exact `package.json` plus `package-lock.json` application-version-only edits and roadmap/changelog bookkeeping stay focused, while dependency, npm-script, workflow, release-tooling, framework, shared-view, database, Files, security/permissions, generated-contract, and unknown changes still escalate completely.
+- [x] Added narrow Tasks, Notes, owned CSS, and documentation routing without selecting unrelated database, Files, or framework regressions; focused routing regressions prove both narrow and retained escalation matrices.
+- [x] Split the independently runnable full `npm run check` into `check:fast` followed by the complete registry, and added CI's prechecked changed-regression entry point so a full escalation after successful typecheck/unit/lint does not restart those stages.
+- [x] Added explicit local and CI timing for context/setup, closeout, typecheck/unit/lint, regression buckets, permission checks, browser checks, and packaging. Local output shows passed, failed, and skipped stages; regression buckets report actual wall time alongside script time.
+- [x] Added `npm run agent:brief`, generated at runtime from the active roadmap, current decisions, documentation ownership index, and test-routing rules; it creates no maintained parallel plan.
+- [x] Retained independently runnable local/release commands and complete Nightly, promotion, preview, release, browser, permission, packaging, dependency, and protected integration coverage. The required `release.developer-verification-throughput` guardrail advances the registry to 382 scripts and 43 release gates.
+
+Acceptance criteria:
+
+- Narrow Tasks, Notes, owned CSS, and documentation work can reach final local completion through owning checks only; high-risk boundaries retain full escalation, stage timing explains included/skipped cost, and `agent:brief` is generated exclusively from canonical sources.
+
 ## Version 0.33.19.2 - Initial rt-ltf-demo installation, recovery proof, and closeout
 
 Completed 0.33.19.2 on the live demo installation on 2026-07-20. The live roadmap advances to 0.33.19.3; generated host data, credentials, retained prior states, backups, logs, and the private access mechanism remain outside the repository.

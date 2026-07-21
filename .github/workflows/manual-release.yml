@@ -52,14 +52,15 @@ jobs:
         env:
           REVISION: ${{ inputs.revision }}
         run: git checkout --detach "$REVISION"
-      - run: npm ci
-      - run: npm run closeout
-      - run: npm run check
+      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
+      - run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
       - name: Build checksummed release assets
         env:
           REVISION: ${{ inputs.revision }}
         run: |
-          npm run artifact:build -- --source-branch main
+          node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch main
           node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel main --source-branch main --output dist/release-metadata.json
       - name: Create immutable tag and GitHub Release
         env:

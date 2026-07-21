@@ -25,18 +25,16 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Static, unit, schema, and documentation gates
-        run: |
-          npm run typecheck
-          npm run test:unit
-          npm run db:schema:check
-          npm run docs:check
-          npm run lint
+      - name: Context/setup timing
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - name: Closeout gate timing
+        run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - name: Typecheck/unit/lint timing
+        run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
       - name: Run regressions selected from the pull-request diff
         env:
           LTF_REGRESSION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: npm run test:regressions:changed
+        run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions:changed:ci
 
   browser-smoke:
     name: Browser smoke and accessibility
@@ -47,9 +45,11 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - name: Context/setup timing
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: Browser check timing
+        run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
 
   dependency-review:
     name: Dependency review

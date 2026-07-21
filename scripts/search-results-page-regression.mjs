@@ -52,7 +52,7 @@ assert.match(styles, /\.search-result-row/);
 assert.match(styles, /\.search-pagination/);
 assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.search-workspace/);
 
-assert.match(packageJson.scripts.check, /node scripts\/run-regressions\.mjs/);
+assert.equal(packageJson.scripts["test:regressions"], "node scripts/run-regressions.mjs");
 assert.ok(
   REGRESSION_COMMANDS.includes("node scripts/search-results-page-regression.mjs"),
   "Search results page regression must remain in the full regression suite",

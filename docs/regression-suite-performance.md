@@ -1,5 +1,54 @@
 # Regression Suite Performance Baseline
 
+## 0.33.19.5 Files Isolation And Scheduling Audit
+
+All 29 original `serial-files` entries were reviewed across database, file-storage root, scanner executable/process, network port, environment, worker/child process, and singleton runtime state. The machine-readable source is `scripts/regression-files-isolation-audit.json`; the frozen legacy snapshot remains unchanged. Nine scripts with complete runner- or script-owned disposable state and no server, scanner process, worker, nested child, or ambiguous singleton moved to the new no-retry `isolated-files` bucket. Twenty remain serial for their recorded script-specific HTTP, worker, scanner, process, provider-registry, cleanup, or coupled-inventory reasons.
+
+The nine proposed moves passed three complete repeats at concurrency 2, 4, and 6: 27 logical runs per level, 81 total, zero failures, and zero recovered flakes. Files regressions still never enter the isolated-database retry scheduler. The dedicated `LTF_ISOLATED_FILES_PARALLELISM` stress override wins over the shared concurrency override; the normal auto path uses the same conservative six-worker cap. `LTF_REGRESSION_BUCKET=file-storage` continues to select the complete 29-script Files family, while `isolated-files` selects only the audited subset.
+
+On the Windows reference workstation, the unchanged 29-script serial baseline passed in 71.36 seconds at concurrency 1. The post-change complete Files family passed in 51.43 seconds: 20 retained serial scripts took 48.62 seconds, then nine audited isolated scripts took 2.80 seconds at auto-selected concurrency 6. That sample is 19.93 seconds (27.9%) faster. Timing is evidence, not the safety justification; unique mutable state plus clean bounded stress is the reclassification contract.
+
+Moved to `isolated-files`: `file-framework-contract-regression.mjs`, `file-storage-streaming-contract-regression.mjs`, `file-storage-quota-enforcement-regression.mjs`, `files-lifecycle-settings-quota-conversion-regression.mjs`, `files-browse-attachment-reads-conversion-regression.mjs`, `files-context-targets-conversion-regression.mjs`, `file-storage-accounting-regression.mjs`, `file-settings-regression.mjs`, and `files-attachment-readmodel-regression.mjs`.
+
+Retained serial:
+
+| Script | Retained reason |
+| --- | --- |
+| `file-api-lifecycle-regression.mjs` | HTTP application and background job-worker lifecycle share the script's singleton runtime. |
+| `file-storage-provider-configuration-regression.mjs` | Mutates provider configuration and starts a job worker against singleton configuration state. |
+| `file-storage-diagnostics-regression.mjs` | Boots the application diagnostics surface and HTTP server around singleton health state. |
+| `file-streamed-validation-download-metadata-regression.mjs` | Couples HTTP response streaming with post-response storage cleanup. |
+| `file-s3-provider-registration-regression.mjs` | Provider registration and worker startup depend on module registry/configuration semantics. |
+| `file-s3-object-operation-proof-regression.mjs` | Mock S3 registration and worker execution use provider registry state not independently proven isolated. |
+| `file-s3-diagnostics-signed-url-boundary-regression.mjs` | Combines HTTP, job-worker, and S3 registry lifecycles. |
+| `file-multipart-upload-route-regression.mjs` | Boots the multipart HTTP route stack and application runtime. |
+| `file-multipart-batch-upload-helper-regression.mjs` | Exercises batch multipart behavior through the HTTP application runtime. |
+| `file-upload-compatibility-error-hardening-regression.mjs` | Error-path cleanup is coupled to HTTP lifecycle and storage-cleanup timing. |
+| `file-scanner-mode-resolver-regression.mjs` | Spawns multiple processes across scanner modes and worker/runtime combinations. |
+| `file-scanner-health-diagnostics-regression.mjs` | Deliberately exercises scanner network failures in multiple child processes. |
+| `file-clamscan-adapter-regression.mjs` | Creates and executes a scanner program through child-process and executable-path configuration. |
+| `file-clamd-adapter-regression.mjs` | Owns a TCP scanner server and mutates scanner endpoint configuration. |
+| `file-scanner-setup-docs-regression.mjs` | Asserts scanner-family membership/setup; separating the coupled inventory proof has no useful timing value. |
+| `file-scan-job-handoff-regression.mjs` | Background job handoff and worker shutdown are the behavior under test. |
+| `files-attachment-context-route-regression.mjs` | Exercises attachment context through a booted HTTP application. |
+| `files-attachable-target-options-regression.mjs` | Exercises target-option permission shaping through a booted HTTP application. |
+| `files-preview-availability-route-regression.mjs` | Verifies preview availability through the HTTP application lifecycle. |
+| `files-preview-content-route-regression.mjs` | Combines HTTP, storage, scanner, and job-worker lifecycles. |
+
+## 0.33.19.4 Runtime-configuration Pure Contract Result
+
+The unchanged pre-migration regression was sampled three times with internal timing around its deterministic child-process matrix and all retained setup/integration work. The samples were 3,605.82 / 4,738.44 / 2,566.56 ms for the pure matrix, 1,893.45 / 1,791.89 / 1,425.51 ms for retained work, and 5,499.27 / 6,530.34 / 3,992.07 ms total. Medians were therefore 3,605.82 ms pure, 1,791.89 ms retained, and 5,499.27 ms total.
+
+After migration, the 108 deterministic expectations run as 36 Vitest cases. Three focused Vitest samples reported 332 / 334 / 327 ms total duration (16 / 16 / 14 ms test execution), for a 332 ms median. The still-discovered integration regression reported 2,669.15 / 1,030.84 / 1,000.86 ms, for a 1,030.84 ms median including its cold first sample. Summing the median pure and retained paths gives 1,362.84 ms, 75.2% below the prior 5,499.27 ms total median. Timing is descriptive; both owners must pass.
+
+The Vitest owner is `tests/unit/runtime-configuration.test.mjs`: defaults, explicit-value and relative-path normalization, safe-production values and warnings, legacy ignored input, all accepted scanner modes, and all expected configuration errors. `scripts/runtime-configuration-contract-regression.mjs` remains in the legacy discovery snapshot and retains fresh child-process `process.env` materialization, startup/import failure propagation, disposable database and live module-registry loading, canonical package/module version identity, `.env.example` and runtime-document/source contracts, and runtime consumers including app-info response fields, sessions/cookies, trusted transport security, authentication throttling, workspace bootstrap, Secure Notes secrets, and Files local storage. The coverage policy's `assertionMovements` record pins the 108-case disposition and both owners; it provides no retirement or floor credit.
+
+## 0.33.19.3 Verification Throughput Result
+
+Changed-area routing now distinguishes release ceremony from executable risk. Exact application-version-only edits across `package.json` and `package-lock.json`, changelog/roadmap bookkeeping, Tasks, Notes, owned CSS, and documentation can complete through closeout plus focused owners. Dependency or npm-script edits, Files, permissions/security, framework/shared views, database, workflows, release tooling, generated contracts, and unknown paths still escalate completely. CI's `test:regressions:changed:ci` runs the full discovered registry after fast checks have already passed rather than restarting them.
+
+`verify:slice` reports context/setup, closeout, typecheck/unit/lint, regression, permission, browser, and packaging stages as passed, failed, or skipped with elapsed time. CI wraps those same stage families with `run-timed-stage.mjs`, and the regression runner now prints actual bucket wall time in addition to script time. These timings explain cost; command exit status remains authoritative. No coverage or protected gate was removed: the registry is 383 scripts with 44 required release gates.
+
 This document is the 0.33.5.29.1 measurement artifact for the regression and check-suite performance branch. It records the pre-optimization baseline, suite inventory, and target list. This slice intentionally changes no runner behavior and does not drop coverage.
 
 For the current metadata-driven discovery, generated coverage index, exception policy, and runner commands, use [regression-suite.md](regression-suite.md). Counts and manifest shapes below are historical measurements and release records for the 0.33.5.29 branch.
@@ -286,12 +335,14 @@ Current execution model and tuning knobs:
 | `npm run test:permissions` | Runs the standalone `scripts/permission-regression.mjs` harness unchanged. |
 | Static/source bucket | Parallel read-only regressions, including `scripts/check-js.mjs` and the shared-source database guardrails. |
 | Default database bucket | Serial shared-database regressions. |
-| File storage bucket | Serial regressions until storage/database isolation is explicitly re-proven for parallelism. |
+| File storage bucket | Twenty retained serial regressions with script-specific HTTP, scanner, worker, process, registry, cleanup, or coupled-inventory reasons. |
+| Isolated file storage bucket | Nine audited regressions with unique disposable state; parallel with no automatic retry. |
 | Isolated database bucket | Parallel per-script fixture clones with one shared in-flight baseline preparation promise and namespaced bucket/pass fixture paths. |
 
 | Knob | Purpose | Notes |
 | --- | --- | --- |
 | `LTF_ISOLATED_REGRESSION_PARALLELISM` | Explicit isolated-bucket worker override. | Highest-precedence concurrency override for isolated database regressions. |
+| `LTF_ISOLATED_FILES_PARALLELISM` | Explicit isolated-Files worker override. | Highest-precedence concurrency override for bounded Files stress; it does not enable retries. |
 | `LTF_REGRESSION_PARALLELISM` | Shared runner concurrency fallback. | Used when the isolated-specific override is absent. |
 | `LTF_REGRESSION_TIMING_JSON` | Write per-script timing JSON. | Parent directory must exist before the run starts. |
 | `LTF_REGRESSION_BUCKET` | Run one selected bucket or bucket alias. | Useful for bounded targeted reruns such as `isolated`. |

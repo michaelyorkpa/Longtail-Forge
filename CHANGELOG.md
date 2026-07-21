@@ -1,3 +1,30 @@
+## Version 0.33.19.5 - 2026-07-20
+
+- Audited all 29 original serial Files regressions across database, storage root, scanner, port, environment, worker/child-process, and singleton runtime state in a checked-in scheduling contract.
+- Moved only nine fully disposable, uniquely namespaced scripts into a new parallel `isolated-files` bucket; retained 20 HTTP, scanner, worker, process, provider-registry, cleanup, or coupled-inventory cases serial with script-specific reasons.
+- Passed 81 bounded stress runs across concurrency 2, 4, and 6 with zero failures and zero recovered flakes; Files regressions still receive no automatic retry.
+- Reduced the measured complete Files-family wall time from 71.36 seconds to 51.43 seconds while preserving every regression identity, assertion, coverage family, floor, and the frozen legacy snapshot.
+- Added required `release.files-regression-isolation-audit` coverage and advanced the registry to 383 scripts and 44 release gates.
+- Docs updated: `DECISIONS.md`, `docs/docs-ownership.json`, `docs/regression-suite-performance.md`, and `docs/regression-suite.md`.
+
+## Version 0.33.19.4 - 2026-07-20
+
+- Moved the complete 108-expectation deterministic runtime-configuration matrix—defaults, normalization, accepted values, warnings, legacy ignored input, and expected errors—from per-case Node subprocesses into 36 direct `createConfig` Vitest cases.
+- Retained `scripts/runtime-configuration-contract-regression.mjs` as a discovered integration owner for child-process environment materialization and import failure propagation, disposable database/module-registry loading, canonical version and documentation/source contracts, and runtime/app-info consumers.
+- Added validated partial `assertionMovements` evidence to the generated coverage ratchet, keeping both owners and the exact 108-case disposition explicit without granting a retirement or coverage-floor credit.
+- Reduced the comparable median of the pure plus retained paths from 5,499.27 ms to 1,362.84 ms (75.2%) across three before/after samples while preserving all 382 regressions and 43 required release gates.
+- Docs updated: `DECISIONS.md`, `docs/docs-ownership.json`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, and `docs/runtime-configuration.md`.
+
+## Version 0.33.19.3 - 2026-07-20
+
+- Made changed-area routing distinguish exact application-version-only package/lock plus roadmap/changelog ceremony from executable release risk, while retaining full escalation for dependencies/scripts, workflows, release tooling, framework/shared views, database, Files, permissions/security, generated contracts, and unknown paths.
+- Added focused Tasks, Notes, owned CSS, and documentation selection without unrelated database, Files, or framework regressions.
+- Added CI's prechecked regression-only escalation after typecheck/unit/lint, while keeping `npm run check`, protected Nightly/promotion, permissions, browser, and packaging gates complete and independently runnable.
+- Added explicit local and CI stage timing, including actual regression-bucket wall time and visible skipped/failed stages; timing remains explanatory and command status remains authoritative.
+- Added canonical-source-generated `npm run agent:brief` output for the active roadmap slice, relevant decisions, documentation owners, and likely test commands.
+- Added required `release.developer-verification-throughput` coverage and advanced the registry to 382 scripts and 43 release gates without retiring coverage.
+- Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/docs-ownership.json`, `docs/regression-suite.md`, and `docs/regression-suite-performance.md`.
+
 ## Version 0.33.19.2 - 2026-07-20
 
 - Corrected the separately installed demo-data wrapper to use the named demo host's canonical `/usr/local/bin/node` runtime instead of assuming `/usr/bin/node`.

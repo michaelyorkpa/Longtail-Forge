@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { prepareRegressionBaselineDatabase } from "./test-support/database-fixture.mjs";
 import {
+  resolveIsolatedFilesParallelism,
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
@@ -16,6 +17,7 @@ import { filterRegressionBuckets, parseRegressionCliArgs } from "./lib/regressio
 import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
 const ISOLATED_BUCKET_NAME = "isolated database regressions";
+const ISOLATED_FILES_BUCKET_NAME = "isolated file storage regressions";
 const STATIC_BUCKET_NAME = "static/source regressions";
 const DEFAULT_REPEAT_COUNT = 1;
 const MAX_REGRESSION_REPEAT_COUNT = 5;
@@ -102,12 +104,15 @@ try {
 }
 
 async function runBucket(bucket, runContext) {
+  const bucketStarted = performance.now();
   const parallelismResolution = bucket.name === ISOLATED_BUCKET_NAME
     ? resolveIsolatedRegressionParallelism({ fallbackParallelism: bucket.concurrency })
-    : { parallelism: bucket.concurrency, source: "suite" };
+    : bucket.name === ISOLATED_FILES_BUCKET_NAME
+      ? resolveIsolatedFilesParallelism({ fallbackParallelism: bucket.concurrency })
+      : { parallelism: bucket.concurrency, source: "suite" };
   const concurrency = parallelismResolution.parallelism;
   const effectiveConcurrency = bucket.mode === "serial" ? 1 : Math.max(1, concurrency || 1);
-  const concurrencySource = bucket.name === ISOLATED_BUCKET_NAME
+  const concurrencySource = [ISOLATED_BUCKET_NAME, ISOLATED_FILES_BUCKET_NAME].includes(bucket.name)
     ? ` (${parallelismResolution.source})`
     : "";
 
@@ -117,7 +122,7 @@ async function runBucket(bucket, runContext) {
   const results = bucket.name === ISOLATED_BUCKET_NAME
     ? await runIsolatedWithRetry(bucket, effectiveConcurrency, runContext, bucketLabel)
     : await runLimited(bucket, effectiveConcurrency, runContext);
-  printBucketSummary(bucketLabel, results);
+  printBucketSummary(bucketLabel, results, (performance.now() - bucketStarted) / 1000);
 
   const failures = results.filter((result) => result.exitCode !== 0);
 
@@ -309,7 +314,7 @@ async function writeTimingReport(results) {
   await fs.writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
-function printBucketSummary(bucketName, results) {
+function printBucketSummary(bucketName, results, wallSeconds) {
   if (results.length === 0) {
     return;
   }
@@ -317,12 +322,12 @@ function printBucketSummary(bucketName, results) {
   const failed = results.filter((result) => result.exitCode !== 0).length;
   const recovered = results.filter((result) => result.flakyRecovered).length;
   const totalSeconds = results.reduce((sum, result) => sum + result.seconds, 0);
-  const wallSeconds = Math.max(...results.map((result) => result.seconds));
+  const longestScriptSeconds = Math.max(...results.map((result) => result.seconds));
   const status = failed > 0 ? `${failed} failed` : "passed";
 
   const recoveryStatus = recovered > 0 ? `; ${recovered} flaky-recovered` : "";
 
-  console.log(`[${bucketName}] ${status}; ${results.length} completed${recoveryStatus}; ${formatSeconds(totalSeconds)} script time; ${formatSeconds(wallSeconds)} longest script.`);
+  console.log(`[stage:regression bucket:${bucketName}] ${status}; ${results.length} completed${recoveryStatus}; ${formatSeconds(wallSeconds)} wall time; ${formatSeconds(totalSeconds)} script time; ${formatSeconds(longestScriptSeconds)} longest script.`);
 }
 
 function printFlakyRecoveries(results) {
@@ -411,16 +416,18 @@ function filterBuckets(buckets, bucketFilter) {
   const aliases = new Map([
     ["default", "default database regressions"],
     ["default-database", "default database regressions"],
-    ["files", "file storage regressions"],
-    ["file-storage", "file storage regressions"],
-    ["isolated", ISOLATED_BUCKET_NAME],
-    ["isolated-database", ISOLATED_BUCKET_NAME],
-    ["static", STATIC_BUCKET_NAME],
-    ["source", STATIC_BUCKET_NAME],
+    ["files", ["file storage regressions", ISOLATED_FILES_BUCKET_NAME]],
+    ["file-storage", ["file storage regressions", ISOLATED_FILES_BUCKET_NAME]],
+    ["isolated-files", [ISOLATED_FILES_BUCKET_NAME]],
+    ["file-storage-isolated", [ISOLATED_FILES_BUCKET_NAME]],
+    ["isolated", [ISOLATED_BUCKET_NAME]],
+    ["isolated-database", [ISOLATED_BUCKET_NAME]],
+    ["static", [STATIC_BUCKET_NAME]],
+    ["source", [STATIC_BUCKET_NAME]],
   ]);
-  const expectedName = aliases.get(normalizedFilter) || bucketFilter;
+  const expectedNames = aliases.get(normalizedFilter) || [bucketFilter];
   const selectedBuckets = buckets.filter((bucket) => (
-    bucket.name === expectedName ||
+    expectedNames.includes(bucket.name) ||
     normalizeBucketFilter(bucket.name) === normalizedFilter
   ));
 

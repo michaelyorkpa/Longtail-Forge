@@ -30,12 +30,12 @@ for (const narrow of ["test:contracts", "test:files", "test:tasks"]) {
 
 // npm run check fails fast: typecheck, unit tests, and the syntax/lint owner all
 // run before the stateful regression suite.
-const check = String(scripts.check || "");
+const check = `${String(scripts["check:fast"] || "")} ${String(scripts.check || "")}`;
 const checkStages = [
   "npm run typecheck",
   "npm run test:unit",
-  "eslint",
-  "node scripts/run-regressions.mjs",
+  "npm run lint",
+  "npm run test:regressions",
 ];
 let previousIndex = -1;
 for (const stage of checkStages) {
@@ -48,11 +48,11 @@ for (const stage of checkStages) {
   previousIndex = index;
 }
 assert.ok(
-  check.indexOf("eslint") < check.indexOf("node scripts/run-regressions.mjs"),
+  check.indexOf("npm run lint") < check.indexOf("npm run test:regressions"),
   "ESLint must own syntax and lint failure before the stateful regression runner",
 );
 assert.ok(
-  check.indexOf("npm run test:unit") < check.indexOf("node scripts/run-regressions.mjs"),
+  check.indexOf("npm run test:unit") < check.indexOf("npm run test:regressions"),
   "unit tests must run before the regression runner",
 );
 assert.match(check, /&&/, "check stages must be chained so a fast failure stops the slow suite");

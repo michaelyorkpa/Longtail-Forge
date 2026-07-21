@@ -34,6 +34,7 @@ const CANONICAL_REGRESSION_RUN_MODES = Object.freeze([
   "static",
   "serial-database",
   "serial-files",
+  "isolated-files",
   "isolated-database",
 ]);
 
