@@ -80,6 +80,8 @@ LONGTAIL_SESSION_COOKIE_SECURE=true
 LONGTAIL_SESSION_COOKIE_SAMESITE=Lax
 LONGTAIL_HSTS_MAX_AGE_SECONDS=300
 LONGTAIL_AUTH_THROTTLE_ENABLED=true
+LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT=4
+LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT=2
 LONGTAIL_LOG_LEVEL=info
 
 LONGTAIL_DATABASE_PROVIDER=sqlite
@@ -113,6 +115,8 @@ nginx -t
 Direct-edge Caddy deliberately keeps its default `reverse_proxy` behavior: it ignores client-supplied `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host`, then derives the upstream values from the accepted connection, TLS state, and host.
 
 The multi-proxy examples divide that responsibility explicitly. Nginx rejects unknown hosts and overwrites `X-Forwarded-For` with `$remote_addr`, `X-Forwarded-Proto` with literal `https`, and both `Host` and `X-Forwarded-Host` with the matched `$host`; it clears `Forwarded` and `X-Real-IP`. It must never use `$proxy_add_x_forwarded_for` here. The edge disables request buffering so multipart uploads remain streamed and applies a bounded 260 MiB request-body ceiling for the current 50-file, 5 MiB-per-file batch contract; review that ceiling whenever application upload limits change. Caddy accepts forwarding input only from the exact Nginx WireGuard peer, reads `X-Forwarded-For` before the fallback `X-Real-IP`, enables `trusted_proxies_strict`, rejects other peers at the route, resolves `{client_ip}`, and replaces the upstream `X-Forwarded-For` with that one value before Node. This double replacement is deliberate defense in depth.
+
+The maintained Nginx example also applies a defense-in-depth `/api/login` request limit keyed only by `$binary_remote_addr`, never by a forwarded header: 10 requests per minute with a burst of 5, returning the same generic JSON `429` envelope when Nginx rejects excess traffic. Validate that limit for the real expected NAT/user population before rollout. It does not replace the application controls: Longtail Forge first takes a strict process-local global/per-trusted-IP admission lease, then checks the durable IP/account failure throttle, then performs real or dummy password verification, and records failure or resets the durable state before releasing the lease. Direct-Caddy deployments have no checked-in Caddy rate-limit plugin and therefore rely on the application boundary unless the operator separately deploys and reviews an outer limiter.
 
 Because this topology uses `bind {$LONGTAIL_CADDY_WIREGUARD_ADDRESS}`, its global trusted-proxy options must use the address-less `servers` block shown in the checked-in Caddyfile. An address-qualified block such as `servers :8080` does not attach those options to the exact listener created by `bind`; `{client_ip}` then falls back to the WireGuard TCP peer instead of the public address supplied by the trusted Nginx edge. Keep the explicit `client_ip_headers X-Forwarded-For X-Real-IP` order and validate the adapted configuration after any listener change.
 
@@ -163,6 +167,7 @@ For suspected active exploitation, first remove public traffic at the selected T
 - This work has not received external penetration testing, independent security certification, a compliance audit, or a guarantee of perfect internet safety.
 - The supported posture is a small, invitation-only private preview on one server. It is not hosted SaaS, multi-node high availability, an enterprise deployment, or a public launch.
 - SQLite supports one app server and at most one same-host separate worker. Authentication throttle buckets are database-backed and survive an intentional app restart, but multi-app-server coordination is not supported.
+- Login password-verification admission is process-local and deliberately matches that one-app-server support boundary. Do not claim a horizontally scaled deployment is protected until admission and durable throttle state are coordinated across every web node.
 - The only reviewed edges are direct Caddy and the exact Nginx -> WireGuard -> Caddy chain above. CDNs, load balancers, ingress controllers, alternate VPN proxies, extra hops, and generic private-range trust remain unsupported.
 - HSTS begins with the bounded 300-second rollout; preload and long-lived promotion require the documented observation process. CSP retains the reviewed same-origin style compatibility allowance.
 - TOTP, passkeys, SSO, risk scoring, device history, PostgreSQL, S3-backed Files, worker fleets, WAF/IDS integration, and automatic updates/rollback are not part of this release.

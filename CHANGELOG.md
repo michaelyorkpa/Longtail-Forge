@@ -1,3 +1,14 @@
+## Version 0.33.21.21.4 - 2026-07-23
+
+- Confirmed and corrected the login authentication ordering identified by the Codex Security threat model: login now acquires inexpensive process-local admission and checks the durable throttle before any real Argon2id, legacy PBKDF2, or unknown-user dummy verification.
+- Added strict in-flight verification limits with defaults of four globally and two per trusted client IP. Admission remains held until an admitted failure is transactionally recorded or a successful credential check resets the durable throttle, so a concurrent burst cannot queue unbounded password work or pass a check-before-record gap.
+- Kept admission-capacity rejection independent from credential failures: excess requests receive the existing generic `429`, perform no password work, do not increment account buckets, and retain the shared trusted-proxy client-IP boundary.
+- Preserved admitted known/unknown verification, invalid-credential behavior, successful sessions, transparent password-hash migration, audit/security events, durable failure/reset/expiry behavior, password-change throttling, and session revocation.
+- Added a defense-in-depth Nginx/WireGuard `/api/login` request limit keyed by `$binary_remote_addr`, with a conservative rate/burst and the same generic JSON `429`; direct Caddy and application controls remain independently documented.
+- Expanded focused authentication, runtime-configuration, and reference-deployment regressions for pre-verification ordering, zero verifier invocation when blocked, exact global/per-IP concurrency bounds, generic known/unknown throttling, trusted client identity, and the new runtime settings.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/docs-ownership.json`, `docs/internet-deployment.md`, `docs/operational-security.md`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
+- No docs change needed: authentication routes/payloads, password hash formats, session storage, permission names, database schema/migrations, Files behavior, and public API authentication are unchanged.
+
 ## Version 0.33.21.21.3 - 2026-07-23
 
 - Made Task completion final and non-interruptive: the canonical editor closes, the Tasks list refreshes in place, and Workbench returns from Task Focus to Focus Selection without reopening or focusing Next Action.

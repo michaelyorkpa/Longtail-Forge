@@ -91,6 +91,8 @@ for (const key of [
   "LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS=900",
   "LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT=5",
   "LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS=900",
+  "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT=4",
+  "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT=2",
   "# LONGTAIL_SECURE_NOTES_MASTER_KEY=",
   "# SECURE_NOTES_MASTER_KEY=",
   "LONGTAIL_SECURE_NOTES_KEY_VERSION=v1",
@@ -164,6 +166,8 @@ assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_ENABLED/, "config should expo
 assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS/, "config should expose the authentication failure window");
 assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT/, "config should expose the authentication failure threshold");
 assert.match(configSource, /LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS/, "config should expose the authentication lockout duration");
+assert.match(configSource, /LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT/, "config should expose the global expensive-verification admission bound");
+assert.match(configSource, /LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT/, "config should expose the per-IP expensive-verification admission bound");
 assert.match(authenticationThrottleSource, /security\.authentication_throttle\.lockout/, "the throttle should emit a stable security event");
 assert.match(authenticationThrottleSource, /createKey\(scope, "ip"[\s\S]*createKey\(scope, "account"/, "the throttle should own both trusted-IP and account dimensions");
 assert.match(authenticationThrottleSource, /createHash\("sha256"\)[\s\S]*v1\\0install/, "the throttle should hash normalized install-scoped bucket keys before persistence");
@@ -174,7 +178,7 @@ assert.match(secureCrypto, /readRuntimeSecret\("LONGTAIL_SECURE_NOTES_MASTER_KEY
 assert.match(secureCrypto, /readRuntimeSecret\("SECURE_NOTES_MASTER_KEY"\)/, "secure notes should preserve the legacy runtime secret name");
 assert.match(localStorageAdapter, /const LOCAL_FILE_STORAGE_ROOT = config\.storage\.localRoot/, "local file storage root should come from runtime config");
 
-assert.match(pureContractTest, /PURE_ASSERTION_INVENTORY[\s\S]*108/, "Vitest should retain the complete 108-case pure configuration inventory");
+assert.match(pureContractTest, /PURE_ASSERTION_INVENTORY[\s\S]*116/, "Vitest should retain the complete 116-case pure configuration inventory");
 assert.match(pureContractTest, /createConfig\(overrides\)/, "Vitest should own direct expected-error validation without child processes");
 
 const assertionMovement = coveragePolicy.assertionMovements.find((entry) => (
@@ -183,7 +187,7 @@ const assertionMovement = coveragePolicy.assertionMovements.find((entry) => (
 assert.ok(assertionMovement, "coverage policy should record the runtime-configuration assertion movement");
 assert.equal(assertionMovement.movedTo, "tests/unit/runtime-configuration.test.mjs");
 assert.equal(assertionMovement.retainedIntegrationOwner, "scripts/runtime-configuration-contract-regression.mjs");
-assert.equal(assertionMovement.assertionCount, 108);
+assert.equal(assertionMovement.assertionCount, 116);
 
 // Keep a deliberately small child-process seam here. Vitest owns the complete
 // deterministic matrix; this regression owns process.env materialization and
