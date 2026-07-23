@@ -10,6 +10,10 @@ assert.match(taskDialogScript, /icons\.decorateButton\(fields\.fileToggle, \{ ic
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.copyLink, \{ icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false \}\)/, "Copy Link should include visible text");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.cancel, \{ icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true \}\)/, "Cancel should be icon-only");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.save, \{ icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true \}\)/, "Save Task should be icon-only");
+assert.match(taskDialogScript, /const complete = view\.createActionButton\([\s\S]*action: "complete-task"[\s\S]*iconOnly: true[\s\S]*label: "Complete task"/, "Complete should be created as an icon-only header action");
+assert.match(taskDialogScript, /className: "surface-modal-heading-actions"[\s\S]*children: \[block, complete, workbenchOpen, notificationToggle\]/, "Block should sit left of Complete while Complete remains immediately left of the Workbench action");
+assert.match(taskDialogScript, /complete\.dataset\.completeTask = ""[\s\S]*complete\.hidden = true/, "Complete should retain the existing hidden-by-default state until an editable task is eligible");
+assert.doesNotMatch(taskDialogScript, /footerActions: \[[\s\S]*id: "complete"/, "Complete should no longer be declared as a footer action");
 assert.match(taskDialogScript, /notificationToggle\.dataset\.taskNotificationToggle = ""[\s\S]*notificationToggle\.hidden = true[\s\S]*notificationToggle\.setAttribute\("aria-pressed", "false"\)/, "Task notification bell should be the direct follow toggle");
 assert.match(taskDialogScript, /fields\.notificationToggle\?\.addEventListener\("click", toggleTaskNotificationFollow\)/, "Task notification bell should follow or unfollow directly");
 assert.match(taskDialogScript, /fields\.notificationToggle\.classList\.toggle\("is-following", isFollowing\)/, "Task notification bell should expose a following state class");
@@ -32,7 +36,7 @@ assert.match(taskDialogScript, /taskEditorLabel\(view, "Next action", taskEditor
 assert.match(taskDialogScript, /taskEditorLabel\(view, "Blocked reason", taskEditorTextarea\(view, \{[\s\S]*rows: "1",[\s\S]*"data-task-blocked-reason": ""/, "Blocked Reason should be one line tall");
 assert.match(taskDialogScript, /function taskEditorChecklistSection\(view\) \{[\s\S]*className: \["task-checklist-field", "surface-modal-group"\],[\s\S]*attrs: \{ "data-task-checklist-field": "" \}/, "Checklist should not start open in fallback markup");
 assert.doesNotMatch(taskDialogScript, /function taskEditorChecklistSection\(view\) \{[\s\S]*attrs: \{ "data-task-checklist-field": "", open: true \}/, "Checklist should not start open in fallback markup");
-assert.match(taskDialogScript, /Task Details[\s\S]*data-task-assignees[\s\S]*data-task-blocked-reason/, "Assignees should live inside Task Details before the final Blocked Reason field");
+assert.match(taskDialogScript, /function taskEditorContinuitySection[\s\S]*data-task-blocked-reason/, "Blocked Reason should remain in the shared continuity row");
 assert.doesNotMatch(taskDialogScript, /data-task-assignment-schedule-panel|Assignment and Scheduling/, "Assignment should not have a separate modal section");
 assert.doesNotMatch(taskDialogScript, /<h3>Task Tags<\/h3>|<h3>Task Files<\/h3>/, "Tags and Files footer panels should not add boxed headings in the modal");
 

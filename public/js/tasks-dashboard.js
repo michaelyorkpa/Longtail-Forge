@@ -8,7 +8,8 @@ if (!bridge?.importScripts) {
 
 await bridge.importScripts([
   "/js/shared/task-calendar.js",
-  "/js/task-dialog.js",
+  "/js/shared/capture-prompt.js",
+  "/js/task-resume-note-capture.js",
 ]);
 
 const dashboard = window.LongtailForge?.dashboard;
@@ -42,7 +43,10 @@ function renderTasksCalendarContribution(contribution, context) {
     return null;
   }
 
-  const state = { view: "month" };
+  const state = {
+    view: taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView()),
+    viewSelectedByUser: false,
+  };
   let hydrateToken = 0;
   const periodLabel = context.view.createElement("p", {
     className: "dashboard-calendar-period",
@@ -92,10 +96,8 @@ function renderTasksCalendarContribution(contribution, context) {
       }
 
       state.view = viewId;
-
-      for (const other of viewButtons) {
-        other.setAttribute("aria-pressed", other.dataset.dashboardCalendarView === viewId ? "true" : "false");
-      }
+      state.viewSelectedByUser = true;
+      updateViewButtons();
 
       hydrate();
     });
@@ -108,7 +110,9 @@ function renderTasksCalendarContribution(contribution, context) {
 
     try {
       const range = taskCalendar.calendarRange(state.view, new Date());
-      const data = await taskCalendar.fetchCalendarWindow(range);
+      const data = await taskCalendar.fetchCalendarWindow(range, {
+        statuses: ["open", "in_progress", "blocked"],
+      });
 
       if (token !== hydrateToken) {
         return;
@@ -135,22 +139,35 @@ function renderTasksCalendarContribution(contribution, context) {
     }
   }
 
-  function openTask(taskId, trigger) {
-    const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
+  function updateViewButtons() {
+    for (const button of viewButtons) {
+      button.setAttribute("aria-pressed", button.dataset.dashboardCalendarView === state.view ? "true" : "false");
+    }
+  }
 
-    if (typeof opener !== "function" || !taskId) {
+  async function openTask(taskId, trigger) {
+    if (!taskId) {
       return;
     }
 
-    opener({
-      taskId,
-      mode: "edit",
-      returnFocusTo: trigger,
-      onSaved: () => hydrate(),
-    }).catch((error) => {
+    try {
+      await bridge.importScript("/js/task-dialog.js");
+      const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
+
+      if (typeof opener !== "function") {
+        throw new Error("The Task editor did not register its opener.");
+      }
+
+      await opener({
+        taskId,
+        mode: "edit",
+        returnFocusTo: trigger,
+        onSaved: () => hydrate(),
+      });
+    } catch (error) {
       context.setStatus("The task could not be opened.", { isError: true });
       console.error(error);
-    });
+    }
   }
 }
 

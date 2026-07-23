@@ -41,7 +41,7 @@ assert.match(entry, /url\.origin !== window\.location\.origin/);
 assert.ok(entry.includes("!/^\\/(?:css|js)\\//.test(url.pathname)"));
 assert.match(entry, /namespace\.assetVersion\?\.value[\s\S]*meta\[data-asset-version\][\s\S]*url\.searchParams\.set\("v", version\)/);
 assert.match(entry, /loadedScripts\.set\(url, import\(url\)\)/);
-assert.match(entry, /for \(const assetPath of assetPaths\) \{\s*await importScript\(assetPath\)/);
+assert.match(entry, /await Promise\.all\(assetPaths\.map\(\(assetPath\) => importScript\(assetPath\)\)\)/);
 assert.match(entry, /namespace\.esModuleBridge = Object\.freeze/);
 assert.doesNotMatch(entry, /eval\(|new Function\(|https?:\/\//);
 assert.match(eslintConfig, /files: \["public\/js\/dashboard\.entry\.js", "public\/js\/tasks-dashboard\.js"\][\s\S]*sourceType: "module"/);
@@ -59,7 +59,7 @@ checks += explicitImports.length + 4;
 
 assert.match(dashboardService, /listActiveModuleBrowserAssets\(session\.workspace_id, session, "dashboard"\)/);
 assert.match(dashboardService, /extensionPoints:\s*\{\s*browserAssets,\s*dashboardPanels/);
-assert.match(dashboard, /await loadDashboardBrowserAssets\(dashboardData\?\.extensionPoints\?\.browserAssets\)[\s\S]*renderRegisteredDashboardPanels\(\)/);
+assert.match(dashboard, /const browserAssetsReady = loadDashboardBrowserAssets\(dashboardData\?\.extensionPoints\?\.browserAssets\)[\s\S]*await browserAssetsReady;[\s\S]*renderRegisteredDashboardPanels\(\)/);
 assert.match(dashboard, /esModuleBridge\?\.loadContributedAssets/);
 assert.doesNotMatch(dashboard, /tasks\.needs-attention|tasks\.calendar|tasks\.today-upcoming|tasks\.pressure|time-tracking\.active-timers/);
 checks += 5;
@@ -75,13 +75,19 @@ for (const assetPath of [
   await fs.access(path.join(root, "public", assetPath.replace(/^\//, "")));
   checks += 2;
 }
-assert.match(tasksDashboard, /await bridge\.importScripts\(\[[\s\S]*"\/js\/shared\/task-calendar\.js"[\s\S]*"\/js\/task-dialog\.js"/);
+assert.match(tasksDashboard, /await bridge\.importScripts\(\[[\s\S]*"\/js\/shared\/task-calendar\.js"/);
+assert.doesNotMatch(tasksDashboard.slice(0, tasksDashboard.indexOf("function renderTasksNeedsAttentionContribution")), /task-dialog\.js/);
+assert.match(tasksDashboard, /async function openTask\(taskId, trigger\)[\s\S]*await bridge\.importScript\("\/js\/task-dialog\.js"\)/);
 assert.match(tasksDashboard, /dashboard\.registerPanelRenderer\("tasks\.calendar"/);
+assert.match(tasksDashboard, /taskCalendar\.fetchCalendarWindow\(range, \{[\s\S]*statuses: \["open", "in_progress", "blocked"\]/, "Dashboard calendar must request only active task statuses");
+assert.match(tasksDashboard, /taskCalendar\.resolveDefaultView\(taskCalendar\.readPreferredCalendarView\(\)\)/, "Dashboard calendar must apply the saved or responsive default view");
+assert.doesNotMatch(tasksDashboard, /workspaceContextReady|initialViewReady/, "Dashboard calendar must use the already hydrated context without delaying its first read");
 assert.match(tasksDashboard, /attrs: \{ role: "group", "aria-label": "Dashboard calendar view" \}/);
 assert.match(tasksDashboard, /attrs: \{ type: "button", "aria-pressed": viewId === state\.view/);
-assert.match(tasksDashboard, /button\.addEventListener\("click"[\s\S]*other\.setAttribute\("aria-pressed"/);
+assert.match(tasksDashboard, /button\.addEventListener\("click"[\s\S]*state\.viewSelectedByUser = true[\s\S]*updateViewButtons\(\)/);
+assert.match(tasksDashboard, /button\.setAttribute\("aria-pressed", button\.dataset\.dashboardCalendarView === state\.view/);
 assert.match(tasksDashboard, /returnFocusTo: trigger/);
-checks += 6;
+checks += 11;
 
 assert.match(dashboardHtml, /css\/longtail-forge\.css[\s\S]*css\/dashboard\.css/);
 assert.match(dashboardCss, /\.dashboard-page[\s\S]*\.dashboard-region-body--main[\s\S]*@media \(max-width: 720px\)/);

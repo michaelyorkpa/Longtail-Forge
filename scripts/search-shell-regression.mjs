@@ -37,13 +37,14 @@ try {
   assert.match(navigation, /notificationButton\.setAttribute\("aria-label",\s*"Notifications"\)/);
   assert.match(navigation, /role",\s*"search"/);
   assert.match(navigation, /setGlobalSearchOpen\(!isOpen\)/);
-  assert.match(navigation, /links\.append\(searchShell\)[\s\S]*NAV_ITEMS\.forEach[\s\S]*links\.append\(notificationWrap\)/);
-  assert.match(navigation, /navLinks\.replaceChildren\([\s\S]*globalSearchShell[\s\S]*items\.map[\s\S]*notificationBell\?\.parentElement/);
+  assert.match(navigation, /NAV_ITEMS\.forEach[\s\S]*links\.append\(createNavItem[\s\S]*headerControls\.append\(searchShell, links, notificationWrap\)[\s\S]*nav\.append\(brand, headerControls, toggle\)/);
+  assert.match(navigation, /navLinks\.replaceChildren\(\.\.\.items\.map\(\(item\) => createNavItem\(item, currentPage\)\)\)/);
+  assert.doesNotMatch(readFunctionBody(navigation, "renderNavigation"), /globalSearchShell|notificationBell/);
   assert.match(navigation, /params\.set\("text",\s*text\)/);
   assert.match(navigation, /params\.set\("module",\s*selectedOption\.dataset\.moduleId\)/);
   assert.match(navigation, /params\.set\("source",\s*selectedOption\.dataset\.sourceLabel\)/);
   assert.match(navigation, /params\.set\("recordType",\s*selectedOption\.dataset\.recordType\)/);
-  assert.match(navigation, /window\.location\.href = query \? `search\.html\?\$\{query\}` : "search\.html"/);
+  assert.match(navigation, /navigationIntent\.navigate\(query \? `search\.html\?\$\{query\}` : "search\.html"[\s\S]*kind: "global-search"/);
   assert.doesNotMatch(readFunctionBody(navigation, "submitGlobalSearch"), /fetch\("/);
 
   assert.match(styles, /\.global-search-form/);

@@ -46,6 +46,12 @@
       { type: "path", attrs: { d: "M10 11v6" } },
       { type: "path", attrs: { d: "M14 11v6" } },
     ]),
+    "detective-hat": Object.freeze([
+      { type: "path", attrs: { d: "M6.5 14 8 6l4-3 4 3 1.5 8" } },
+      { type: "path", attrs: { d: "M8 6 4 8l3 3" } },
+      { type: "path", attrs: { d: "m16 6 4 2-3 3" } },
+      { type: "path", attrs: { d: "M3 17c3-1 6-1 9 0 3-1 6-1 9 0" } },
+    ]),
     download: Object.freeze([
       { type: "path", attrs: { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" } },
       { type: "path", attrs: { d: "M7 10l5 5 5-5" } },

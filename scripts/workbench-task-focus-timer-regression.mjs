@@ -14,6 +14,7 @@ const regressionManifest = readText("scripts/regression-coverage-manifest.json")
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const tasksDoc = readText("docs/tasks-module.md");
 const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
+const taskTimersService = readText("src/modules/tasks/task-timers.service.js");
 const timeTrackingDoc = readText("docs/time-tracking-module.md");
 const timeTrackingModule = readText("src/modules/time-tracking/module.js");
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
@@ -174,6 +175,16 @@ assert.match(
   /tasksRoutes\.put\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.save[\s\S]*tasksRoutes\.post\("\/tasks\/:taskId\/timer\/finalize"[\s\S]*taskTimersService\.finalize[\s\S]*tasksRoutes\.delete\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.remove/,
   "Task timer routes should remain Tasks-owned",
 );
+assert.match(
+  functionBody(taskTimersService, "transitionTaskToInProgressForTimerStart"),
+  /task\.status !== "open" && task\.status !== "blocked"[\s\S]*previousBlockedReason[\s\S]*blocked_reason: ""[\s\S]*movedTaskToInProgress: true/,
+  "Tasks should own Open/Blocked timer-start transitions and the exact recoverable Blocked reason",
+);
+assert.match(
+  functionBody(taskTimersService, "revertTaskTimerStartTransition"),
+  /taskWorkEvidenceService\.readStartedWorkEvidence[\s\S]*evidence\.hasStartedWork[\s\S]*restoredStatus[\s\S]*previousBlockedReason/,
+  "Task Timer Reset should restore the prior lifecycle only when no independent work evidence remains",
+);
 
 assert.match(
   css,
@@ -184,6 +195,16 @@ assert.match(
   css,
   /\.workbench-task-focus-timer-control-box \{[\s\S]*border: 1px solid var\(--color-border-subtle\);[\s\S]*\.workbench-task-focus-timer-controls \{[\s\S]*align-items: center;/,
   "Task Focus timer styles should align with the Task modal timer controls while staying compact",
+);
+assert.match(
+  functionBody(workbenchScript, "createTimerCard"),
+  /title\.className = "workbench-timer-title";[\s\S]*meta\.className = "workbench-card-meta";[\s\S]*summary\.append\(title, meta\);/,
+  "Each timer card should retain explicit title and badge-group hooks inside its own summary",
+);
+assert.match(
+  css,
+  /@media \(max-width: 700px\) \{[\s\S]*\.workbench-timer-card > summary \{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\);[\s\S]*\.workbench-timer-card > summary \.workbench-card-meta \{[\s\S]*grid-column: 2;[\s\S]*justify-content: flex-start;/,
+  "Phone timer cards should place each card's badges directly below its own title",
 );
 assert.doesNotMatch(
   css,
@@ -214,6 +235,21 @@ assert.match(
   timeTrackingDoc,
   /As of 0\.33\.6\.12k[\s\S]*Task Focus renames the lower timer panel to `Other Active Timers`[\s\S]*Manual timers and other task timers remain eligible/,
   "Time Tracking docs should record the Workbench active-timer contribution boundary",
+);
+assert.match(
+  moduleContract,
+  /As of 0\.33\.21\.4\.3[\s\S]*Task timer start recovers Open or Blocked Tasks into In Progress[\s\S]*Reset restores that state only when Tasks finds no checked checklist item or persisted task time/,
+  "Module contract should pin recoverable Blocked timer lifecycle ownership",
+);
+assert.match(
+  tasksDoc,
+  /As of 0\.33\.21\.4\.3[\s\S]*timer that alone recovered a Blocked Task[\s\S]*Reset restores them only when no checked checklist item or persisted task-linked time/,
+  "Tasks docs should explain the evidence-aware timer reset contract",
+);
+assert.match(
+  timeTrackingDoc,
+  /As of 0\.33\.21\.4\.3[\s\S]*source_metadata_json[\s\S]*prior lifecycle status and exact Blocked Reason[\s\S]*Tasks alone decides whether Reset may restore/,
+  "Time Tracking docs should limit timer metadata persistence to the Tasks-authored lifecycle handoff",
 );
 assert.match(
   viewContract,

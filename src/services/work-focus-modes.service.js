@@ -4,6 +4,14 @@ import { resolveClientProjectFilterScope } from "../core/client-project-filter-s
 import { AppError } from "../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../utils/workspaces.js";
 import {
+  DEFAULT_WORKBENCH_FOCUS_POLICY,
+  WORKBENCH_FOCUS_GROUPS,
+  WORKBENCH_FOCUS_SETTING_IDS,
+  normalizeWorkbenchFocusPolicy,
+  orderedWorkbenchFocusGroups,
+} from "../core/settings/workbench-focus-policy.js";
+import { settingsService } from "./settings.service.js";
+import {
   WORK_CANDIDATE_RANK_BUCKETS,
   WORK_CANDIDATE_SORTS,
   workCandidateService,
@@ -40,25 +48,18 @@ const FOCUS_SCOPES = Object.freeze({
 /** @type {readonly FocusModeInternalDefinition[]} */
 const FOCUS_MODE_DEFINITIONS = Object.freeze([
   Object.freeze({
-    description: "Start with active, due, blocked, and recently touched work.",
+    description: "Start with active, due, stale, and recently touched work.",
     id: FOCUS_MODE_IDS.startMyDay,
     label: "Start my day",
     scope: FOCUS_SCOPES.workspace,
     sortOrder: 10,
-    resolve: ({ dates }) => ({
+    resolve: ({ dates, workspaceContext }) => ({
       filters: {
         excludePassiveRecurringCreated: true,
         includeTaskCandidates: true,
-        rankBuckets: [
-          WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
-          WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
-          WORK_CANDIDATE_RANK_BUCKETS.overdueAssignedWork,
-          WORK_CANDIDATE_RANK_BUCKETS.dueToday,
-          WORK_CANDIDATE_RANK_BUCKETS.blockedOrStale,
-          WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
-        ],
+        rankBuckets: configurableRankBuckets(workspaceContext.focusPolicy),
       },
-      summary: `Active, due, blocked, or recently touched work as of ${dates.today}.`,
+      summary: `Active, due, stale, or recently touched work as of ${dates.today}.`,
     }),
   }),
   Object.freeze({
@@ -67,23 +68,19 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
     label: "Pick up where I left off",
     scope: FOCUS_SCOPES.workspace,
     sortOrder: 20,
-    resolve: () => ({
+    resolve: ({ workspaceContext }) => ({
       filters: {
-        rankBuckets: [
-          WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
-          WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+        rankBuckets: configurableRankBuckets(workspaceContext.focusPolicy, [
           WORK_CANDIDATE_RANK_BUCKETS.overdueAssignedWork,
           WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
-        ],
+        ]),
       },
       resumeStrategy: {
         fallback: "ranked-candidates",
-        fallbackRankBuckets: [
-          WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
-          WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+        fallbackRankBuckets: configurableRankBuckets(workspaceContext.focusPolicy, [
           WORK_CANDIDATE_RANK_BUCKETS.overdueAssignedWork,
           WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
-        ],
+        ]),
         primary: "work-resume",
       },
       summary: "Use resume state first, then recently touched ranked candidates.",
@@ -228,7 +225,10 @@ async function resolveFocusMode(session, input = {}) {
 
   const dates = focusDates(input, workspaceContext);
   const resolved = definition.resolve({ dates, input, workspaceContext }) || {};
-  const filters = normalizeFilters(mergeScopeFilters(resolved.filters, input, workspaceContext));
+  const filters = normalizeFilters(applyRequiredStatusPolicy(
+    definition,
+    mergeScopeFilters(resolved.filters, input, workspaceContext),
+  ));
   const hierarchyScope = await resolveClientProjectFilterScope(session, {
     clientId: filters.clientId,
     hasClientFilter: Boolean(filters.clientId),
@@ -276,19 +276,47 @@ async function executeFocusCandidateStrategy(session, focusContext) {
 
 async function listResumeFocusCandidates(session, focusContext) {
   const primaryQuery = resumePrimaryQuery(focusContext);
-  const primaryResult = await workCandidateService.listResumeCandidates(session, primaryQuery);
+  const [primaryResult, liveTimerCandidates] = await Promise.all([
+    workCandidateService.listResumeCandidates(session, primaryQuery),
+    workCandidateService.listLiveTimerCandidates(session, primaryQuery),
+  ]);
 
   if (primaryResult.items.length > 0) {
-    return mergeSecondMostRecentTaskBoost(session, focusContext, primaryResult, primaryQuery);
+    const resultWithTimers = mergeLiveTimerCandidates(primaryResult, liveTimerCandidates, primaryQuery);
+    return mergeSecondMostRecentTaskBoost(session, focusContext, resultWithTimers, primaryQuery);
   }
 
   if (focusContext.resumeStrategy?.fallback === "ranked-candidates") {
     const fallbackQuery = resumeFallbackQuery(focusContext);
     const fallbackResult = await workCandidateService.listWorkCandidates(session, fallbackQuery);
-    return mergeSecondMostRecentTaskBoost(session, focusContext, fallbackResult, fallbackQuery);
+    const resultWithTimers = mergeLiveTimerCandidates(fallbackResult, liveTimerCandidates, fallbackQuery);
+    if (resultWithTimers.items.length > 0) {
+      return mergeSecondMostRecentTaskBoost(session, focusContext, resultWithTimers, fallbackQuery);
+    }
+
+    const distantFallbackQuery = resumeDistantFallbackQuery(focusContext);
+    const distantFallbackResult = await workCandidateService.listWorkCandidates(session, distantFallbackQuery);
+    const distantResultWithTimers = mergeLiveTimerCandidates(distantFallbackResult, liveTimerCandidates, distantFallbackQuery);
+    return mergeSecondMostRecentTaskBoost(session, focusContext, distantResultWithTimers, distantFallbackQuery);
   }
 
-  return primaryResult;
+  return mergeLiveTimerCandidates(primaryResult, liveTimerCandidates, primaryQuery);
+}
+
+function mergeLiveTimerCandidates(result, liveTimerCandidates, query) {
+  const ranked = workCandidateService.rankWorkCandidates([
+    ...(liveTimerCandidates || []),
+    ...(result.items || []),
+  ], {
+    sort: query.sort,
+    today: query.today,
+    timezone: query.timezone,
+  });
+
+  return {
+    ...result,
+    items: dedupeCandidatesBySource(ranked).slice(0, focusCandidateLimit(query)),
+  };
 }
 
 async function mergeSecondMostRecentTaskBoost(session, focusContext, result, query) {
@@ -332,19 +360,30 @@ function resumePrimaryQuery(focusContext) {
   return {
     ...query,
     excludePassiveRecurringCreated: true,
+    excludePassiveRecurringCreatedAlways: true,
+    excludeDistantCreationOnly: true,
     sort: WORK_CANDIDATE_SORTS.resume,
   };
 }
 
 function resumeFallbackQuery(focusContext) {
-  const fallbackRankBuckets = focusContext.resumeStrategy?.fallbackRankBuckets?.length
-    ? focusContext.resumeStrategy.fallbackRankBuckets
-    : focusContext.candidateQuery?.rankBuckets || [];
-
   return {
     ...(focusContext.candidateQuery || {}),
     excludePassiveRecurringCreated: true,
-    rankBuckets: [...fallbackRankBuckets],
+    excludePassiveRecurringCreatedAlways: true,
+    rankBuckets: [],
+    sort: WORK_CANDIDATE_SORTS.resume,
+  };
+}
+
+function resumeDistantFallbackQuery(focusContext) {
+  return {
+    ...(focusContext.candidateQuery || {}),
+    includeTaskCandidates: true,
+    distantCreationOnlyFallback: true,
+    excludePassiveRecurringCreated: true,
+    excludePassiveRecurringCreatedAlways: true,
+    rankBuckets: [],
     sort: WORK_CANDIDATE_SORTS.resume,
   };
 }
@@ -377,11 +416,23 @@ function normalizeFilters(filters = {}) {
       dueTo: normalizeDateKey(date.dueTo),
     },
     excludePassiveRecurringCreated: Boolean(filters.excludePassiveRecurringCreated),
+    excludeStatus: normalizeTextList(filters.excludeStatus),
     includeTaskCandidates: Boolean(filters.includeTaskCandidates),
     projectId: textValue(filters.projectId, 160),
     rankBuckets: normalizeTextList(filters.rankBuckets),
     sort: normalizeSortMode(filters.sort),
     status: normalizeTextList(filters.status),
+  };
+}
+
+function applyRequiredStatusPolicy(definition, filters = {}) {
+  if (definition.id === FOCUS_MODE_IDS.reviewBlockedWork) {
+    return filters;
+  }
+
+  return {
+    ...filters,
+    excludeStatus: [...new Set([...(filters.excludeStatus || []), "blocked"])],
   };
 }
 
@@ -438,6 +489,9 @@ function buildCandidateQuery(definition, filters, dates, input, workspaceContext
   }
   if (filters.excludePassiveRecurringCreated) {
     query.excludePassiveRecurringCreated = true;
+  }
+  if (filters.excludeStatus.length) {
+    query.excludeStatusFilters = [...filters.excludeStatus];
   }
   if (filters.includeTaskCandidates) {
     query.includeTaskCandidates = true;
@@ -496,13 +550,48 @@ LIMIT 1;
 `, { workspaceId })
     : [];
   const capabilities = getWorkspaceCapabilities(firstValue(options.workspaceType, options.workspace_type, rows[0]?.workspace_type));
+  const focusPolicy = workspaceId
+    ? await readWorkbenchFocusPolicy({ ...session, workspace_id: workspaceId })
+    : normalizeWorkbenchFocusPolicy(DEFAULT_WORKBENCH_FOCUS_POLICY);
 
   return {
     availableTools: capabilities.availableTools || [],
+    focusPolicy,
     timezone: textValue(firstValue(options.timezone, session?.timezone), 80) || DEFAULT_TIMEZONE,
     workspaceId,
     workspaceType: capabilities.workspaceType,
   };
+}
+
+async function readWorkbenchFocusPolicy(context) {
+  const [candidateGroups, priorityOrder] = await Promise.all([
+    readWorkbenchFocusSetting(context, WORKBENCH_FOCUS_SETTING_IDS.candidateGroups),
+    readWorkbenchFocusSetting(context, WORKBENCH_FOCUS_SETTING_IDS.priorityOrder),
+  ]);
+
+  return normalizeWorkbenchFocusPolicy({ candidateGroups, priorityOrder });
+}
+
+async function readWorkbenchFocusSetting(context, settingId) {
+  try {
+    return await settingsService.getFrameworkValue(context, settingId);
+  } catch (error) {
+    if (error instanceof AppError && error.statusCode === 500 && /^Stored setting '.+' is invalid\.$/.test(error.message || "")) {
+      return settingId === WORKBENCH_FOCUS_SETTING_IDS.candidateGroups
+        ? [...DEFAULT_WORKBENCH_FOCUS_POLICY.candidateGroups]
+        : DEFAULT_WORKBENCH_FOCUS_POLICY.priorityOrder;
+    }
+    throw error;
+  }
+}
+
+function configurableRankBuckets(policy, supportedGroups = Object.values(WORKBENCH_FOCUS_GROUPS)) {
+  const supported = new Set(supportedGroups);
+  return [
+    WORK_CANDIDATE_RANK_BUCKETS.runningTimer,
+    WORK_CANDIDATE_RANK_BUCKETS.pausedTimer,
+    ...orderedWorkbenchFocusGroups(policy).filter((group) => supported.has(group)),
+  ];
 }
 
 function focusDates(input = {}, workspaceContext = {}) {

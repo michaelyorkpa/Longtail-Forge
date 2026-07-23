@@ -60,6 +60,7 @@ Use [Reference Internet Deployment](internet-deployment.md) as the authoritative
 - Backup and restore from 0.33.17 have been tested end to end on representative data; the protected backup location, retention, access, and restore owner are recorded.
 - `npm run closeout`, `npm run check`, `npm run test:permissions`, SQLite integrity, the focused security regressions, and the reference-proxy manual review pass on the candidate.
 - `/healthz`, `/readyz`, production JSON logs, `X-Request-ID` correlation, and readiness failure behavior are verified without secret-bearing output.
+- The deferred live HTTPS/proxy session review is recorded for the current candidate when applicable: public sign-in, authenticated refresh/navigation, workspace switching, logout/relogin, cookie persistence, and HTTP-to-HTTPS redirect behavior must be exercised against the real edge; local Caddy smokes are supplementary only.
 - Dependabot/dependency review, vulnerability scanning, CodeQL, secret scanning/push protection, and private vulnerability reporting are reviewed and enabled where available; every open alert has a recorded disposition.
 - The incident owner can execute containment, session/API-key revocation, secret rotation, evidence preservation, participant communication, restoration, and rollback without inventing steps during an incident.
 - Known limitations and low-stakes-data guidance are included in the invitation; the preview makes no certification, perfect-security, uptime, or durability promise.

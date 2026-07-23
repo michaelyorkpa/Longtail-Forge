@@ -1,7 +1,6 @@
-/* global fetch */
-
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { get } from "node:http";
 import { appVersion } from "../src/core/version.js";
 import {
   loadVersionLiteralAllowlist,
@@ -69,9 +68,9 @@ assert.deepEqual(
 
 const server = await listen(createApp());
 try {
-  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/app-info`);
-  assert.equal(response.status, 200);
-  const appInfo = await response.json();
+  const response = await readJson(`http://127.0.0.1:${server.address().port}/api/app-info`);
+  assert.equal(response.statusCode, 200);
+  const appInfo = response.body;
   assert.equal(appInfo.version, packageJson.version, "/api/app-info should report package metadata");
   assert.equal(appInfo.version, appVersion, "/api/app-info should report the runtime helper value");
 } finally {
@@ -88,6 +87,25 @@ function listen(app) {
   return new Promise((resolve, reject) => {
     const server = app.listen(0, "127.0.0.1", () => resolve(server));
     server.on("error", reject);
+  });
+}
+
+function readJson(url) {
+  return new Promise((resolve, reject) => {
+    get(url, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () => {
+        try {
+          resolve({ body: JSON.parse(body), statusCode: response.statusCode });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }).on("error", reject);
   });
 }
 

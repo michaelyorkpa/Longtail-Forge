@@ -83,6 +83,11 @@ async function assertAssignedReminderNotifiesAssignee(fixtures) {
     assigneeIds: [fixtures.assignee.userId],
     title: "Assigned reminder delivery task",
   });
+  assert.equal(
+    await reminderFireJobCount(fixtures.workspaceId, task.task_id),
+    1,
+    "an omitted secondary reminder should not queue a second notification-producing reminder job",
+  );
   await drainDueJobs();
 
   const beforeAssigneeCount = await dueSoonNotificationCount(fixtures.workspaceId, fixtures.assignee.userId, task.task_id);
@@ -301,6 +306,19 @@ LIMIT 1;
 
   assert.ok(rows[0], `expected reminder job for task ${taskId}`);
   return rows[0];
+}
+
+async function reminderFireJobCount(workspaceId, taskId) {
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM jobs
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND job_type = 'task.reminder'
+  AND payload_json LIKE ${sqlText(`%"operation":"fire_reminder"%`)}
+  AND payload_json LIKE ${sqlText(`%${taskId}%`)};
+`);
+
+  return Number(rows[0]?.count || 0);
 }
 
 async function dueSoonNotificationJobCount(workspaceId, taskId) {

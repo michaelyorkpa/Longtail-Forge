@@ -12,6 +12,7 @@ const markdownRenderingForm = document.querySelector("[data-user-markdown-render
 const openExternalLinksNewTabToggle = document.querySelector("[data-open-external-links-new-tab]");
 const preferredLoginLandingSelect = document.querySelector("[data-preferred-login-landing]");
 const preferredWorkspaceSwitchLandingSelect = document.querySelector("[data-preferred-workspace-switch-landing]");
+const preferredCalendarViewSelect = document.querySelector("[data-preferred-calendar-view]");
 const passwordForm = document.querySelector("[data-user-password-form]");
 const currentPasswordInput = document.querySelector("[data-current-password]");
 const newPasswordInput = document.querySelector("[data-new-password]");
@@ -202,6 +203,7 @@ async function saveAllSettings() {
       openExternalLinksNewTab: openExternalLinksNewTabToggle?.checked === true,
       preferredLoginLanding: preferredLoginLandingSelect?.value || "dashboard",
       preferredWorkspaceSwitchLanding: preferredWorkspaceSwitchLandingSelect?.value || "dashboard",
+      preferredCalendarView: normalizeCalendarViewPreference(preferredCalendarViewSelect?.value),
       themeAutoSource: getSelectedThemeAutoSource(),
       themeMode: getSelectedThemeMode(),
       timezone: profileTimezoneSelect.value,
@@ -267,12 +269,20 @@ function applyAppPreferences(settings) {
       settings?.preferredWorkspaceSwitchLanding,
     );
   }
+
+  if (preferredCalendarViewSelect) {
+    preferredCalendarViewSelect.value = normalizeCalendarViewPreference(settings?.preferredCalendarView) || "";
+  }
 }
 
 function normalizeLandingPreference(value) {
   return ["dashboard", "workbench", "tasks", "notes", "lists"].includes(value)
     ? value
     : "dashboard";
+}
+
+function normalizeCalendarViewPreference(value) {
+  return ["day", "week", "month"].includes(value) ? value : null;
 }
 
 function applyWorkspaceCreation(workspaceCreation) {

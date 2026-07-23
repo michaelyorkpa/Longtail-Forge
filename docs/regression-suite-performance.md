@@ -1,5 +1,21 @@
 # Regression Suite Performance Baseline
 
+## 0.33.21.19 Dashboard Load Performance Closeout
+
+The Dashboard branch uses `npm run bench:dashboard` as its reproducible measurement harness. The command opens the configured local database without reseeding it, creates and removes a short-lived operator session, warms each endpoint once, records seven steady-state HTTP samples, and then measures the real browser bootstrap. The closeout run used the canonical `development-data-v2` seed at 5 workspaces, 400 Tasks, and 604 time entries. Its date horizon was anchored to `Today()` at execution, never to a committed calendar date.
+
+The original rendered diagnosis that opened this branch showed all three panel routes at roughly 620-660 ms and no panel request until roughly two seconds after the load event. For a controlled before/after comparison, the same current harness was replayed on the same Windows workstation, Node 24.18.0 process, SQLite database, and Today-anchored seed against the pre-branch source and the completed source. Times below are warm medians with the seven-sample range; bytes are uncompressed JSON response bytes and statements are steady-state per-request SQLite statements.
+
+| Dashboard read | Pre-branch median (range) | 0.33.21.19.5 median (range) | Bytes before -> after | Statements before -> after |
+| --- | ---: | ---: | ---: | ---: |
+| `GET /api/tasks/dashboard-summary` | 211.6 ms (170.4-271.5) | 15.0 ms (11.4-18.4) | 46,679 -> 46,679 | 27 -> 10 |
+| `GET /api/tasks/calendar` | 136.3 ms (121.1-267.5) | 59.4 ms (52.9-70.8) | 348,307 -> 107,115 | 8 -> 7 |
+| `GET /api/time-tracking/dashboard/effort-summary` | 428.6 ms (384.3-565.3) | 15.9 ms (10.3-18.2) | 2,391 -> 2,391 | 10 -> 7 |
+
+The controlled browser replay moved the first panel fetch from 358.1 ms to 126.5 ms after navigation start and cut the load-event-to-first-fetch gap from 307.6 ms to 92.4 ms. The warmed replay is intentionally lower than the original cold rendered observation; both show the same correction, and the rendered regression now fails if the first-fetch gap exceeds 1,000 ms or if contributed asset loading gates the three reads.
+
+`dashboard.hot-endpoint-budgets` is the branch-level HTTP guard. After process caches warm, it caps Tasks summary at 500 ms / 64 KiB / 24 statements, Calendar at 500 ms / 128 KiB / 24 statements, and effort summary at 500 ms / 4 KiB / 20 statements. It then adds 400 terminal Tasks and 500 out-of-window time entries and requires statement growth of at most two, no calendar or effort payload growth, at most 96 bytes of count-digit growth in Tasks summary, and continued timing compliance. The endpoint-owned regressions retain tighter service/repository ceilings, so these deliberately conservative HTTP budgets absorb CI scheduling variance without permitting the former whole-table paths.
+
 ## 0.33.19.5 Files Isolation And Scheduling Audit
 
 All 29 original `serial-files` entries were reviewed across database, file-storage root, scanner executable/process, network port, environment, worker/child process, and singleton runtime state. The machine-readable source is `scripts/regression-files-isolation-audit.json`; the frozen legacy snapshot remains unchanged. Nine scripts with complete runner- or script-owned disposable state and no server, scanner process, worker, nested child, or ambiguous singleton moved to the new no-retry `isolated-files` bucket. Twenty remain serial for their recorded script-specific HTTP, worker, scanner, process, provider-registry, cleanup, or coupled-inventory reasons.

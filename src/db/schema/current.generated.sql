@@ -854,7 +854,11 @@ CREATE TABLE task_recurrence_templates (
   created_by_user_id TEXT,
   updated_by_user_id TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL, estimate_minutes INTEGER
+CHECK (
+  estimate_minutes IS NULL
+  OR (estimate_minutes >= 0 AND estimate_minutes % 15 = 0)
+),
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
 );
 
@@ -914,7 +918,11 @@ CREATE TABLE tasks (
   recurrence_instance_date TEXT,
   billable TEXT NOT NULL DEFAULT 'yes',
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL, next_action TEXT NOT NULL DEFAULT '', blocked_reason TEXT NOT NULL DEFAULT '', resume_note TEXT NOT NULL DEFAULT '', last_worked_at TEXT,
+  updated_at TEXT NOT NULL, next_action TEXT NOT NULL DEFAULT '', blocked_reason TEXT NOT NULL DEFAULT '', resume_note TEXT NOT NULL DEFAULT '', last_worked_at TEXT, estimate_minutes INTEGER
+CHECK (
+  estimate_minutes IS NULL
+  OR (estimate_minutes >= 0 AND estimate_minutes % 15 = 0)
+),
   PRIMARY KEY (workspace_id, task_id),
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
 );
@@ -998,7 +1006,8 @@ CREATE TABLE "users" (
   preferred_login_landing TEXT NOT NULL DEFAULT 'dashboard'
     CHECK (preferred_login_landing IN ('dashboard', 'workbench', 'tasks', 'notes', 'lists')),
   preferred_workspace_switch_landing TEXT NOT NULL DEFAULT 'dashboard'
-    CHECK (preferred_workspace_switch_landing IN ('dashboard', 'workbench', 'tasks', 'notes', 'lists')),
+    CHECK (preferred_workspace_switch_landing IN ('dashboard', 'workbench', 'tasks', 'notes', 'lists')), preferred_calendar_view TEXT
+CHECK (preferred_calendar_view IS NULL OR preferred_calendar_view IN ('day', 'week', 'month')),
   FOREIGN KEY (home_workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (active_workspace_id) REFERENCES workspaces(workspace_id)
 );

@@ -12,17 +12,27 @@ const CALENDAR_VIEW_OPTIONS = [
   { id: "week", label: "Week" },
   { id: "day", label: "Day" },
 ];
+const CALENDAR_STATUS_OPTIONS = [
+  { id: "open", label: "Open" },
+  { id: "in_progress", label: "In Progress" },
+  { id: "blocked", label: "Blocked" },
+  { id: "complete", label: "Completed" },
+  { id: "archived", label: "Archived" },
+];
+const DEFAULT_CALENDAR_STATUSES = ["open", "in_progress", "blocked"];
 
 const calendarState = {
-  view: "month",
+  view: taskCalendar?.resolveDefaultView?.(null) || "month",
   anchor: new Date(),
   data: null,
   workspaceType: "business",
   clientId: "",
   projectId: "",
+  statuses: [...DEFAULT_CALENDAR_STATUSES],
   clients: [],
   projects: [],
 };
+let calendarViewFromQuery = false;
 
 let calendarStatus = null;
 let calendarPeriodLabel = null;
@@ -31,6 +41,7 @@ let calendarBodyRegion = null;
 let calendarClientFilter = null;
 let calendarProjectFilter = null;
 let calendarClientFilterControl = null;
+let calendarStatusFilter = null;
 
 applyCalendarQueryParams();
 buildCalendarHost();
@@ -42,6 +53,10 @@ async function initializeCalendar() {
   }
 
   await Promise.resolve(window.LongtailForge?.workspaceContextReady).catch(() => null);
+  if (!calendarViewFromQuery) {
+    calendarState.view = taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView());
+    updateViewSwitchButtons();
+  }
   applyCalendarWorkspaceContext();
   await loadCalendarFilterOptions();
   populateCalendarFilters();
@@ -58,6 +73,7 @@ function applyCalendarQueryParams() {
 
   if (CALENDAR_VIEW_OPTIONS.some((option) => option.id === requestedView)) {
     calendarState.view = requestedView;
+    calendarViewFromQuery = true;
   }
 
   const requestedDate = String(params.get("date") || "").trim();
@@ -161,6 +177,10 @@ function createCalendarFilterPanel() {
     attrs: { "aria-label": "Project filter" },
     dataset: { calendarProjectFilter: "" },
   });
+  calendarStatusFilter = calendarView.createElement("select", {
+    attrs: { "aria-label": "Task status filter", multiple: true, size: 3 },
+    dataset: { calendarStatusFilter: "" },
+  });
   calendarClientFilterControl = calendarView.createElement("label", {
     className: "calendar-filter-control",
     children: [
@@ -180,6 +200,10 @@ function createCalendarFilterPanel() {
     calendarState.projectId = calendarProjectFilter.value;
     loadCalendarWindow();
   });
+  calendarStatusFilter.addEventListener("change", () => {
+    calendarState.statuses = [...calendarStatusFilter.selectedOptions].map((option) => option.value);
+    loadCalendarWindow();
+  });
 
   return calendarView.createFilterPanel({
     title: "Filters",
@@ -192,6 +216,13 @@ function createCalendarFilterPanel() {
         children: [
           calendarView.createElement("span", { text: "Project" }),
           calendarProjectFilter,
+        ],
+      }),
+      calendarView.createElement("label", {
+        className: "calendar-filter-control",
+        children: [
+          calendarView.createElement("span", { text: "Task status" }),
+          calendarStatusFilter,
         ],
       }),
     ],
@@ -277,6 +308,17 @@ function populateCalendarFilters() {
   }
 
   populateCalendarProjectFilter();
+  if (calendarStatusFilter) {
+    calendarStatusFilter.replaceChildren(
+      ...CALENDAR_STATUS_OPTIONS.map((option) => calendarView.createElement("option", {
+        attrs: { value: option.id },
+        text: option.label,
+      })),
+    );
+    [...calendarStatusFilter.options].forEach((option) => {
+      option.selected = calendarState.statuses.includes(option.value);
+    });
+  }
 }
 
 function populateCalendarProjectFilter() {
@@ -345,6 +387,7 @@ async function loadCalendarWindow() {
     calendarState.data = await taskCalendar.fetchCalendarWindow(range, {
       clientId: calendarState.clientId,
       projectId: calendarState.projectId,
+      statuses: calendarState.statuses,
     });
     calendarPeriodLabel.textContent = range.label;
     taskCalendar.renderCalendarBody(calendarBodyRegion, {

@@ -20,6 +20,7 @@ const css = readText("public/css/longtail-forge.css");
 
 assert.ok(root, "repository root must resolve");
 assert.match(reportingHtml, /<main class="wide-page" data-reporting-host><\/main>/);
+assert.match(reportingHtml, /js\/shared\/tags\.js[\s\S]*js\/reporting\.js/, "Reporting should load the shared tag-picker helper before the framework host");
 assert.match(reportingHtml, /js\/shared\/view-builder\.js[\s\S]*js\/reporting\.js/);
 assert.doesNotMatch(
   reportingHtml,
@@ -47,6 +48,10 @@ assert.match(reportingHost, /reportRenderers\.get\(report\.renderer\)/);
 assert.match(reportingHost, /registerRenderer[\s\S]*reportRenderers\.set/);
 assert.match(reportingHost, /filter\.type === "custom-date-range"[\s\S]*createCustomDateRangeField/);
 assert.match(reportingHost, /filter\.type === "project-multi-select"[\s\S]*\? "multi-select"/);
+assert.match(reportingHost, /filter\.type === "tag"[\s\S]*\? "text"/, "tag metadata should render a typable input rather than a select");
+assert.match(reportingHost, /tags\?\.mountFilterPicker\?\.\(control,[\s\S]*tagFilterController/, "Reporting tag filters should mount the shared searchable picker");
+assert.match(reportingHost, /tagFilterController\?\.readValue[\s\S]*value !== "all"/, "Reporting should submit the picker's canonical selected tag value while omitting All tags");
+assert.match(reportingHost, /field\.tagFilterController\.setTags\(tags\)[\s\S]*field\.tagFilterController\.setValue\(requestedValue\)/, "renderer-supplied tag options should hydrate the shared picker without losing the requested selection");
 assert.match(reportingHost, /createDateField[\s\S]*reportingView\.createField\(\{/);
 assert.match(reportingHost, /function updateConditionalFilterVisibility\(\)/);
 assert.match(reportingHost, /field\.filter\.visibleWhen/);

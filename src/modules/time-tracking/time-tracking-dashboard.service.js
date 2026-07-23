@@ -1,7 +1,8 @@
 import { permissionsService } from "../../core/permissions.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
+import { localDateBoundToUtcIso } from "../../utils/timezones.js";
 import { activeTimersService } from "./active-timers.service.js";
-import { timeEntriesService } from "./time-entries.service.js";
+import { timeEntriesRepository } from "./time-entries.repo.js";
 
 const ACTIVE_TIMER_ROW_LIMIT = 3;
 const RECENT_TIME_ROW_LIMIT = 3;
@@ -12,7 +13,7 @@ const REPORTING_URL = "reporting.html";
 
 async function readDashboardEffortSummary(session) {
   const [settings, canUseTimers, canViewReporting] = await Promise.all([
-    settingsRepository.readWorkspaceSettings(session.workspace_id),
+    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
     permissionsService.canInAnyScope(session, "time_entries.create", {
       workspace_id: session.workspace_id,
       operation: "read",
@@ -22,15 +23,29 @@ async function readDashboardEffortSummary(session) {
       operation: "read",
     }),
   ]);
+  const today = localDateKey(new Date(), session.timezone);
+  const windowStart = addDaysKey(today, -(RECENT_TIME_WINDOW_DAYS - 1));
+  const windowEnd = addDaysKey(today, 1);
+  const visibility = canViewReporting
+    ? await permissionsService.readTimeEntryVisibility(session)
+    : null;
   const [timerResult, entryResult] = await Promise.all([
     canUseTimers ? activeTimersService.listAll(session) : { timers: [] },
-    canViewReporting ? timeEntriesService.list(session) : { entries: [] },
+    canViewReporting
+      ? timeEntriesRepository.readDashboardEffortSummary(session.workspace_id, {
+        limit: RECENT_TIME_ROW_LIMIT,
+        todayStart: localDateBoundToUtcIso(today, session.timezone),
+        visibility,
+        windowEnd: localDateBoundToUtcIso(windowEnd, session.timezone),
+        windowStart: localDateBoundToUtcIso(windowStart, session.timezone),
+      })
+      : { entries: [], entriesCount: 0, todaySeconds: 0, totalSeconds: 0 },
   ]);
   const workspaceType = settings.workspaceType || "business";
   const timers = (timerResult.timers || []).filter(isActiveDashboardTimer);
-  const entries = sortRecentTimeEntries(entryResult.entries || []);
-  const recentWindowEntries = entries.filter((entry) => isEntryInRecentWindow(entry, session.timezone));
-  const todayEntries = entries.filter((entry) => entryLocalDateKey(entry, session.timezone) === localDateKey(new Date(), session.timezone));
+  const entries = canViewReporting
+    ? await permissionsService.filterReadableTimeEntries(session, entryResult.entries || [])
+    : [];
 
   return {
     activeTimers: {
@@ -49,10 +64,10 @@ async function readDashboardEffortSummary(session) {
         { label: "View Time Entries", href: TIME_ENTRIES_URL },
         canViewReporting ? { label: "Open Reporting", href: REPORTING_URL } : null,
       ].filter(Boolean),
-      entriesCount: recentWindowEntries.length,
-      rows: recentWindowEntries.slice(0, RECENT_TIME_ROW_LIMIT).map((entry) => dashboardTimeEntryRow(entry, workspaceType, session.timezone)),
-      todaySeconds: sumDurationSeconds(todayEntries),
-      totalSeconds: sumDurationSeconds(recentWindowEntries),
+      entriesCount: entryResult.entriesCount,
+      rows: entries.map((entry) => dashboardTimeEntryRow(entry, workspaceType, session.timezone)),
+      todaySeconds: entryResult.todaySeconds,
+      totalSeconds: entryResult.totalSeconds,
       windowDays: RECENT_TIME_WINDOW_DAYS,
     },
   };
@@ -90,24 +105,6 @@ function isActiveDashboardTimer(timer) {
   return ["running", "paused"].includes(timer?.timer_status || "");
 }
 
-function sortRecentTimeEntries(entries) {
-  return [...entries].sort((left, right) =>
-    Date.parse(right.end_time || "") - Date.parse(left.end_time || "") ||
-    String(right.entry_id || "").localeCompare(String(left.entry_id || "")),
-  );
-}
-
-function isEntryInRecentWindow(entry, timezone) {
-  const entryDate = entryLocalDateKey(entry, timezone);
-  if (!entryDate) {
-    return false;
-  }
-
-  const today = localDateKey(new Date(), timezone);
-  const windowStart = addDaysKey(today, -(RECENT_TIME_WINDOW_DAYS - 1));
-  return entryDate >= windowStart && entryDate <= today;
-}
-
 function entryLocalDateKey(entry, timezone = "America/New_York") {
   const endedAt = new Date(entry?.end_time || "");
   return Number.isNaN(endedAt.getTime()) ? "" : localDateKey(endedAt, timezone);
@@ -137,10 +134,6 @@ function timerElapsedSeconds(timer) {
   }
 
   return accumulated + Math.max(0, Math.floor((Date.now() - lastStartedAt) / 1000));
-}
-
-function sumDurationSeconds(entries) {
-  return entries.reduce((total, entry) => total + (Number(entry.duration_seconds) || 0), 0);
 }
 
 function durationLabel(seconds) {

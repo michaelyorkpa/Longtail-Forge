@@ -13,6 +13,9 @@ import {
   resolveSeedTarget,
   writeSeedMarker,
 } from "./lib/development-data-safety.mjs";
+import { loadRuntimeEnvFile } from "../src/runtime-env.js";
+
+loadRuntimeEnvFile();
 
 const DISABLED_PERSONA_PASSWORD = "!development-persona-login-disabled!";
 const SEED_CONTRACT = "development-data-v2";
@@ -293,8 +296,20 @@ async function seed(db, target, anchorDate) {
     }
     await add("list_links", { list_link_id: id("list-link", "hero"), workspace_id: business, list_id: lists[1].list_id, module_id: "tasks", target_type: "task", target_id: heroTask, link_role: "related", created_by_user_id: users.alex, created_at: now, removed_at: null, metadata_json: JSON.stringify({ fake: true }) });
 
-    const activeTimer = timerRow("active", business, users.alex, id("task", "due-today"), id("client", "maple"), id("project", "pos"), "Maple Lane Cafe", "POS Setup", now, "active", 780);
-    const pausedTimer = timerRow("paused", business, users.alex, heroTask, id("client", "cedar"), id("project", "website"), "Cedar & Bloom", "Website Refresh", now, "paused", 2460);
+    const activeTimer = timerRow("running", business, users.alex, id("task", "due-today"), id("client", "maple"), id("project", "pos"), "Maple Lane Cafe", "POS Setup", "Validate POS receipt layout", now, "running", 780, {
+      movedTaskToInProgress: true,
+      movedTaskFromOpen: true,
+      movedTaskFromBlocked: false,
+      previousBlockedReason: "",
+      previousStatus: "open",
+    });
+    const pausedTimer = timerRow("paused", business, users.alex, heroTask, id("client", "cedar"), id("project", "website"), "Cedar & Bloom", "Website Refresh", "Fix mobile checkout overlap", now, "paused", 2460, {
+      movedTaskToInProgress: false,
+      movedTaskFromOpen: false,
+      movedTaskFromBlocked: false,
+      previousBlockedReason: "",
+      previousStatus: "in_progress",
+    });
     await add("active_work_timers", activeTimer);
     await add("active_work_timers", pausedTimer);
     await add("time_entries", timeEntry("completed-timer", business, users.alex, id("client", "cedar"), id("project", "website"), heroTask, "Completed task timer: responsive header investigation", `${date(anchorDate, -1)}T14:00:00.000Z`, `${date(anchorDate, -1)}T15:25:00.000Z`, 5100, "yes", now));
@@ -366,7 +381,7 @@ function taskScenarios({ anchorDate, now, business, personal, family, users, rec
   return [
     make("hero", business, "Fix mobile checkout overlap", { client_id: id("client", "cedar"), project_id: id("project", "website"), status: "in_progress", priority: "high", due_date: anchorDate, due_time: "17:00", due_at_utc: `${anchorDate}T21:00:00.000Z`, next_action: "Retest the cart button at 380px and attach the clean capture.", resume_note: "Paused after isolating the narrow-width header collision.", last_worked_at: `${date(anchorDate, -1)}T19:10:00.000Z` }),
     make("overdue", business, "Confirm florist catalog redirects", { client_id: id("client", "cedar"), project_id: id("project", "website"), due_date: date(anchorDate, -2), due_at_utc: `${date(anchorDate, -2)}T21:00:00.000Z`, priority: "high", next_action: "Check the final redirect map." }),
-    make("due-today", business, "Validate POS receipt layout", { client_id: id("client", "maple"), project_id: id("project", "pos"), due_date: anchorDate, due_time: "16:00", due_at_utc: `${anchorDate}T20:00:00.000Z`, next_action: "Print one fake receipt from the test register." }),
+    make("due-today", business, "Validate POS receipt layout", { client_id: id("client", "maple"), project_id: id("project", "pos"), status: "in_progress", due_date: anchorDate, due_time: "16:00", due_at_utc: `${anchorDate}T20:00:00.000Z`, next_action: "Print one fake receipt from the test register." }),
     make("upcoming", business, "Prepare maintenance review", { client_id: id("client", "ridgeline"), project_id: id("project", "maintenance"), due_date: date(anchorDate, 5), due_at_utc: `${date(anchorDate, 5)}T14:00:00.000Z`, next_action: "Summarize the fake uptime checks." }),
     make("blocked", business, "Schedule launch rehearsal", { client_id: id("client", "cedar"), project_id: id("project", "website"), status: "blocked", blocked_reason: "Waiting for the fake content approval.", next_action: "Choose a rehearsal slot after approval." }),
     make("recurring", business, "Review monthly maintenance report", { client_id: id("client", "ridgeline"), project_id: id("project", "maintenance"), recurrence_template_id: recurrenceId, recurrence_instance_date: anchorDate, due_date: date(anchorDate, 2), due_time: "10:00", due_at_utc: `${date(anchorDate, 2)}T14:00:00.000Z` }),
@@ -752,8 +767,8 @@ function clientRow(clientId, workspaceId, name, now) {
   return { id: clientId, workspace_id: workspaceId, parent_client_id: null, name, status: "Active", billable: "yes", billing_rate: null, billing_period_type: null, billing_period_start_day: null, billing_rounding_enabled: null, billing_rounding_increment: null, billing_contact_name: "", billing_contact_email: "", billing_contact_alternate_name: "", billing_contact_alternate_email: "", billing_contact_phone_number: "", billing_contact_alternate_phone_number: "", billing_contact_street_address_1: "", billing_contact_street_address_2: "", billing_contact_city: "", billing_contact_state: "", billing_contact_zip_code: "", created_at: now, updated_at: now };
 }
 
-function timerRow(key, workspaceId, userId, taskId, clientId, projectId, clientName, projectName, now, status, seconds) {
-  return { active_timer_id: id("timer", key), workspace_id: workspaceId, user_id: userId, timer_slot: `task-${key}`, source_module_id: "tasks", source_type: "task", source_id: taskId, source_label: key === "paused" ? "Fix mobile checkout overlap" : "Validate POS receipt layout", source_url: `workbench.html?taskId=${taskId}`, client_id: clientId, client_name: clientName, project_id: projectId, project_name: projectName, description: "Fake task timer for local development.", billable: "yes", accumulated_elapsed_seconds: seconds, last_active_start_time: status === "active" ? now : null, timer_status: status, created_at: now, updated_at: now, source_metadata_json: JSON.stringify({ fake: true }) };
+function timerRow(key, workspaceId, userId, taskId, clientId, projectId, clientName, projectName, taskTitle, now, status, seconds, taskTimerStatusTransition) {
+  return { active_timer_id: id("timer", key), workspace_id: workspaceId, user_id: userId, timer_slot: `source:tasks:task:${taskId}`, source_module_id: "tasks", source_type: "task", source_id: taskId, source_label: taskTitle, source_url: `tasks.html?task=${taskId}`, client_id: clientId, client_name: clientName, project_id: projectId, project_name: projectName, description: taskTitle, billable: "yes", accumulated_elapsed_seconds: seconds, last_active_start_time: status === "running" ? now : null, timer_status: status, created_at: now, updated_at: now, source_metadata_json: JSON.stringify({ fake: true, taskTimerStatusTransition }) };
 }
 
 function timeEntry(key, workspaceId, userId, clientId, projectId, taskId, description, start, end, seconds, billable, now) {

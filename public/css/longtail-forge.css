@@ -678,6 +678,10 @@ details[open] > summary.surface-modal-section-heading::before {
     flex: 1 1 100%;
 }
 
+.view-modal-form-fields > [data-view-field-width="full"] {
+    grid-column: 1 / -1;
+}
+
 .view-filter-panel-fields > button,
 .view-field-grid > button {
     flex: 0 0 auto;
@@ -1074,6 +1078,10 @@ fieldset.view-renderer-field {
     transition: transform 180ms ease, visibility 180ms ease;
 }
 
+.view-slideout-sidebar-drawer.surface-drawer {
+    z-index: 80;
+}
+
 .view-slideout-sidebar-drawer.is-open {
     transform: translateX(0);
     visibility: visible;
@@ -1315,6 +1323,30 @@ fieldset.view-renderer-field {
     gap: 6px;
 }
 
+.client-projects-filter-panel .view-filter-panel-fields {
+    padding: 6px;
+}
+
+.view-data-table tr:has(+ .client-projects-tag-row) > th,
+.view-data-table tr:has(+ .client-projects-tag-row) > td {
+    padding-bottom: 2px;
+    border-bottom: 0;
+}
+
+.client-projects-tag-row .view-table-secondary-row-content,
+.client-projects-tag-row .view-table-chip-list {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.client-projects-tag-row .surface-chip {
+    min-width: 0;
+    max-width: 100%;
+    padding: 2px 8px;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
 .view-detail-action-strip,
 .view-inline-action-row {
     flex-wrap: wrap;
@@ -1480,6 +1512,12 @@ fieldset.view-renderer-field {
     display: flex;
     gap: 12px;
     min-width: 0;
+}
+
+.site-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .notification-shell {
@@ -4542,7 +4580,7 @@ button.danger-button {
     border: 1px solid var(--color-border);
     border-radius: 999px;
     background: var(--color-page-bg);
-    color: var(--color-accent);
+    color: var(--color-text);
     cursor: pointer;
 }
 
@@ -5335,6 +5373,19 @@ dialog .form-actions {
     padding: 0;
 }
 
+.workbench-inspector-open-button,
+.workbench-inspector-close-button {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    padding: 0;
+}
+
+.workbench-inspector-open-button[hidden],
+.workbench-inspector-close-button[hidden] {
+    display: none;
+}
+
 .workbench-inspector[data-workbench-inspector-task-focus="false"] .workbench-inspector-collapse-button {
     display: none;
 }
@@ -5847,6 +5898,64 @@ dialog .form-actions {
     }
 }
 
+@media (max-width: 700px) {
+    .workbench-inspector.workbench-inspector-mobile-drawer {
+        display: grid;
+        align-content: start;
+        gap: 14px;
+    }
+
+    .workbench-inspector-mobile-drawer .workbench-inspector-heading {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
+    .workbench-inspector-mobile-drawer .workbench-inspector-collapse-button {
+        display: none;
+    }
+
+    .workbench-inspector-mobile-drawer .workbench-inspector-list {
+        max-height: none;
+    }
+
+    .workbench-task-focus-summary-header {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .workbench-task-focus-badges {
+        min-width: 0;
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
+    .workbench-task-focus-badges .workbench-badge {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+
+    .workbench-timer-card > summary {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
+        gap: 8px 10px;
+    }
+
+    .workbench-timer-title {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .workbench-timer-card > summary .workbench-card-meta {
+        grid-column: 2;
+        min-width: 0;
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
+    .workbench-timer-body .workbench-actions {
+        justify-content: flex-start;
+    }
+}
+
 .task-form {
     position: relative;
     display: grid;
@@ -5942,19 +6051,48 @@ dialog .form-actions {
 
 .task-details-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 12px;
 }
 
 .task-details-grid > label {
     min-width: 0;
+    grid-column: span 2;
 }
 
-.task-blocked-reason-field,
+.task-due-date-field,
+.task-due-time-field,
 .task-assignee-field,
-.task-parent-field,
 .task-description-field {
-    grid-column: 1 / -1;
+    grid-column: span 3;
+}
+
+.task-continuity-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.task-continuity-row.is-blocked {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.task-continuity-row > label {
+    min-width: 0;
+}
+
+@media (max-width: 700px) {
+    .task-details-grid,
+    .task-continuity-row,
+    .task-continuity-row.is-blocked {
+        grid-template-columns: 1fr;
+    }
+
+    .task-details-grid > label,
+    .task-due-date-field,
+    .task-due-time-field,
+    .task-assignee-field,
+    .task-description-field {
+        grid-column: 1 / -1;
+    }
 }
 
 .task-checklist-field p {
@@ -6047,6 +6185,10 @@ dialog .form-actions {
     color: var(--color-text-secondary);
 }
 
+.project-module-defaults-group > .task-reminder-policy-editor {
+    margin-top: 12px;
+}
+
 .project-defaults-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6090,6 +6232,28 @@ dialog .form-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+}
+
+.task-reminder-offset-field {
+    display: grid;
+    min-width: 0;
+    gap: 6px;
+}
+
+.task-reminder-offset-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.task-reminder-offset-heading .inline-option {
+    flex: 0 0 auto;
+    color: var(--color-text);
+    font-weight: 400;
 }
 
 .project-list-actions {
@@ -6394,6 +6558,11 @@ dialog .form-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.notes-bulk-tags-field {
+    grid-column: 1 / -1;
+    min-width: 0;
 }
 
 .notes-list-row {
@@ -7656,8 +7825,30 @@ summary.view-info-panel-title {
     width: min(92vw, 640px);
 }
 
+.client-add-dialog {
+    width: min(92vw, 640px);
+}
+
 .client-detail-dialog {
     width: min(92vw, 880px);
+}
+
+.project-edit-form {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.project-edit-form > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.project-edit-form .project-edit-tags-field .tag-picker {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
 }
 
 .detail-edit-dialog {
@@ -7677,6 +7868,7 @@ summary.view-info-panel-title {
 
 .project-modal-form {
     grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+    align-items: start;
     padding: 24px;
 }
 
@@ -7692,6 +7884,19 @@ summary.view-info-panel-title {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     align-items: end;
+}
+
+.project-modal-form .project-parent-field {
+    grid-column: 1;
+}
+
+.project-modal-form .project-tags-field {
+    grid-column: 2;
+    align-self: start;
+}
+
+.client-modal-form .view-modal-form-fields {
+    align-items: flex-start;
 }
 
 .project-modal-form .project-status-field {
@@ -8217,10 +8422,12 @@ button:disabled {
 @media (max-width: 700px) {
     /* Collapse the shared nav and single-column the dense editor/report layouts on phones. */
     .site-nav {
+        position: relative;
         min-height: auto;
         padding: 12px 0;
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 4px;
     }
 
     .site-brand {
@@ -8228,18 +8435,15 @@ button:disabled {
         min-width: 0;
     }
 
-    /* The brand name truncates before it can paint underneath the workspace
-       selector on narrow screens. */
+    /* The wordmark is omitted on phones so the workspace selector and the
+       header-level search, notification, and navigation controls all fit. */
     .site-brand a {
-        flex: 0 1 auto;
+        flex: 0 0 auto;
         min-width: 0;
-        overflow: hidden;
     }
 
     .site-brand-name {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: none;
     }
 
     .workspace-selector {
@@ -8247,19 +8451,33 @@ button:disabled {
         min-width: 96px;
     }
 
-    .global-search-shell {
-        width: 100%;
+    .site-header-controls {
+        order: 2;
+        gap: 4px;
+    }
+
+    .global-search-shell,
+    .notification-shell {
+        position: static;
     }
 
     .global-search-form {
-        position: static;
-        width: 100%;
-        margin-top: 8px;
+        top: calc(100% + 8px);
+        right: 0;
+        left: 0;
+        width: auto;
         grid-template-columns: minmax(0, 1fr) minmax(96px, 132px);
     }
 
     .notification-shell {
         justify-self: start;
+    }
+
+    .notification-panel {
+        top: calc(100% + 8px);
+        right: 0;
+        left: 0;
+        width: auto;
     }
 
     .surface-drawer,
@@ -8284,7 +8502,7 @@ button:disabled {
         position: relative;
         z-index: 9910;
         display: flex;
-        order: 2;
+        order: 3;
     }
 
     /* Mobile navigation drawer: the primary menu becomes a fixed left-side
@@ -8534,8 +8752,12 @@ button:disabled {
 
     .project-name-field,
     .project-client-field,
+    .project-parent-field,
+    .project-modal-form .project-parent-field,
     .project-status-field,
     .project-add-client-field,
+    .project-tags-field,
+    .project-modal-form .project-tags-field,
     .project-billing-details,
     .project-actions,
     .project-add-client-actions,
@@ -8640,6 +8862,17 @@ button:disabled {
 .calendar-day-entries {
     display: grid;
     gap: 4px;
+}
+
+.calendar-view-all-tasks {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+.calendar-view-all-tasks:hover {
+    text-decoration: underline;
 }
 
 .calendar-entry,

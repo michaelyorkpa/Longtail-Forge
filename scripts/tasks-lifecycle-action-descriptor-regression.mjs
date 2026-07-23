@@ -31,7 +31,7 @@ const updateLifecycleStatus = functionBlock(tasksScript, "updateTaskLifecycleSta
 const postTaskAction = functionBlock(tasksScript, "postTaskAction");
 
 assert.match(registerBehaviors, /taskLifecycleActionStripDescriptor\(\)\.actions\.forEach[\s\S]*view\.registerBehavior\(action\.behavior, handler\)/, "Lifecycle behaviors should be registered through the view behavior registry");
-assert.match(behaviorHandlers, /"tasks\.lifecycle\.complete": \(\{ record \}\) => postTaskAction\(record, "complete"\)/, "Complete should dispatch through the Tasks-owned complete handler");
+assert.match(behaviorHandlers, /"tasks\.lifecycle\.complete": \(\{ record, trigger \}\) => postTaskAction\(record, "complete", trigger\)/, "Complete should dispatch through the Tasks-owned complete handler with focus-return context");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.reopen": \(\{ record \}\) => postTaskAction\(record, "reopen"\)/, "Reopen should dispatch through the Tasks-owned reopen handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.archive": \(\{ record \}\) => postTaskAction\(record, "archive"\)/, "Archive should dispatch through the Tasks-owned archive handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.restore": \(\{ record \}\) => postTaskAction\(record, "restore"\)/, "Restore should dispatch through the Tasks-owned restore handler");

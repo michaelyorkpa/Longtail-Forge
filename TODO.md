@@ -13,35 +13,27 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-## Notes -> Bulk Actions
+## Playwright needs to include additional browsers
 
-Tags in the Notes -> Bulk Actions area don't allow you to use the native tag picker, instead, it presents a long list in a scroll box. It should use the same flow as everything else.
+Specifically, Firefox/Mozilla and Webkit for further, future testing.
 
-## Reporting module
+## Workbench
 
-The reporting module is not disable-able. It needs to expose that in settings for Workspace and Super admins. 
+### Parent/Child Task identification
 
-## Permissions
+The inspector should specify "Child" when the task context shows a child task of the current, focused task. This should be done in a chip. Same goes the opposite way. When a child task is in focus, the parent task should be displayed with "Parent" in a chip in the inspector.
 
-### Warnings
+### Algorithm
 
-There are no "You don't have permission to do that" messages when a user's permissions don't match the action. There needs to be an in-app modal warning. Security events are logged to the security audit log, but the offending user never sees them.
+Blocked tasks should not show up anywhere other than "Review blocked work".
 
-### Issues
+> The 2026-07-22 promotion batch moved the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Mobile Tweaks -> **0.33.21.10** (children .10.1 notification/search out of the hamburger drawer, .10.2 mobile Day-default calendar with a User App Preferences per-user preference, .10.3 Workbench Inspector mobile slide-out, .10.4 Workbench Task Focus / Other Active Timers chip layout); Clients, Projects, and Tasks -> **0.33.21.11** (children .11.1 Business-only Client exposure in the Project Settings list and project modals, .11.2 Edit Project defaults reorganization, .11.3 Tasks bulk Project assignment, .11.4 Task editor parent-hierarchy ordering + Save-in-place, .11.5 parent-task Project cascade to child tasks); Personal Workspace Module Scope -> **0.33.21.12** (Notes visibility scoped by workspace type). The "Knowledge Base should not be included in personal workspaces" line stayed a forward reference — it is owned by the future 0.35 Knowledge Base work and was recorded as the forward note in 0.33.21.12 rather than an actionable item.
 
-A client administrator should be able to create child clients, but not brand new, top-level clients. Currently they can do neither.
-
-Client administrators and project administrators should have access to the Project settings page. Currently they can access neither.
-
-### Notifications
-
-When a user's permissions are changed, the user needs to be notified. This may have to wait for the cross-workspace workflows we have planned later, because if a user is completely removed from a workspace, they will need to be notified in their other workspaces. Example scenario:
-
-User A is workspace admin for Workspace A. User B is workspace admin for two workspaces, a personal Workspace B Family workspace, Workspace C, and a client admin role in Workspace A. User A hired User B as a freelancer, but has come to the end of the contract, so removes permissions from User B for Workspace A. User B should receieve notifications in both Workspace B and Workspace C about discontinuation of Workspace A access.
+> The 2026-07-21 promotion batch moved the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Calendar (read-only active-task defaults + status multi-selector) -> **0.33.21.9**; Notes -> Bulk Actions tag picker -> **0.33.21.1** (retitled "Reporting and Notes tag-control refinements"); Reporting module disable-ability -> the **0.37.0** opening slice (convert Reporting from framework core into a registered `canDisable` module); Permissions/Warnings (in-app 403 modal) -> **0.33.25.2**; Permissions/Issues (child-client creation scope, Project Settings access for scoped admins) -> the new **0.33.28 - Permissions Role-Capability Alignment** branch, which also owns the additional gaps found in the 2026-07-21 permissions code review (scope-aware nav/hints, client-side `requiredPermissions` wiring, `project_admin` seed drift, `roles.assign` reconciliation); Permissions/Notifications (permission-change and workspace-removal notices) -> **0.36.5** Account Home, which owns the required cross-workspace delivery.
 
 > The 0.33.17.7 pre-preview review batch (2026-07-16) promoted the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Deletion/Edge Cases -> **0.33.17.7.10 and 0.33.17.7.12-.15**; Timer project ordering -> **0.33.17.7.16**; Login throttling persistence -> **0.33.17.7.17**; Workbench (algorithm, In Progress, URL annoyance) and Workbench Timers Tweak -> **0.33.19.3**; Task Reminders and Tasks Status Tweak -> **0.33.19.4**; Secure Catalogs -> the **Committed before 0.4x** unversioned backlog. The prior 0.33.19 calendar branch moved to **0.33.20** in the same batch.
 >
-> Renumber note (2026-07-20): a Workbench/API load-performance branch was inserted as **0.33.19**, moving the former 0.33.19-0.33.24 branches down one to **0.33.20-0.33.25**. The promoted Workbench and Tasks slices above remain owned only by **0.33.20.3** and **0.33.20.4**, and the calendar branch is **0.33.21**; the subsequently reused **0.33.19.3-0.33.19.5** numbers belong to the Developer Verification Throughput follow-ups in `ROADMAP.md`.
+> Renumber note (2026-07-20): a Workbench/API load-performance branch was inserted as **0.33.19**, moving the former 0.33.19-0.33.24 branches down one to **0.33.20-0.33.25**. The promoted Workbench and Tasks slices above remain owned only by the post-preview UX branch (**0.33.21.3** and **0.33.21.4** in the current numbering), and the calendar branch is **0.33.22**; the subsequently reused **0.33.19.3-0.33.19.5** numbers belong to the Developer Verification Throughput follow-ups in `ROADMAP.md`. (Corrected 2026-07-21: this note previously cited 0.33.20.3/.4 and 0.33.21, which drifted from the ROADMAP's current numbering where 0.33.20 is the load-performance branch.)
 
 ## Regression fixture seeding hygiene
 
@@ -111,7 +103,7 @@ This section is to define a series of human testing goals for different sections
 
 ## Mobile Tweaks
 
-Deferred to a future mobile-polish roadmap pass. Re-audit the current rendered surfaces after the completed modal, view-conversion, and responsive-foundation work; do not revive layout requests written against retired page anatomy.
+The 2026-07-22 re-audit of the current rendered surfaces produced the concrete near-term tweaks now promoted to **ROADMAP.md 0.33.21.10** (app-shell notification/search relocation, mobile Day-default calendar, Workbench Inspector slide-out, Workbench chip layout). Broader mobile-polish work beyond those items stays deferred to a future pass: re-audit the current rendered surfaces first, and do not revive layout requests written against retired page anatomy.
 
 # Near Term Ideas
 

@@ -10,6 +10,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Tag-Bulk-Test-123!";
 
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
+const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { timeEntriesService } = await import("../src/modules/time-tracking/time-entries.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -21,6 +22,7 @@ try {
 
   await assertTagFilterSemantics(session, fixtures);
   await assertBulkAssignmentContract(session, fixtures);
+  await assertNotesBulkConsumer(session, fixtures);
   await assertTimeEntriesBulkConsumer(session, fixtures);
   await assertTasksBulkConsumer(session, fixtures);
   await assertBrowserWiring();
@@ -42,6 +44,8 @@ async function seedFixtures(session) {
   const taskA = (await tasksService.create({ title: "Bulk Tag Task A" }, session)).task;
   const taskB = (await tasksService.create({ title: "Bulk Tag Task B" }, session)).task;
   const taskC = (await tasksService.create({ title: "Bulk Tag Task C" }, session)).task;
+  const noteA = (await notesService.create({ title: "Bulk Tag Note A" }, session)).note;
+  const noteB = (await notesService.create({ title: "Bulk Tag Note B" }, session)).note;
   const timeEntryA = (await timeEntriesService.create(timeEntryPayload(project.id, "Bulk Tag Entry A"), session)).entry;
   const timeEntryB = (await timeEntriesService.create(timeEntryPayload(project.id, "Bulk Tag Entry B"), session)).entry;
   const timeEntryC = (await timeEntriesService.create(timeEntryPayload(project.id, "Bulk Tag Entry C"), session)).entry;
@@ -116,10 +120,36 @@ VALUES (
     taskA,
     taskB,
     taskC,
+    noteA,
+    noteB,
     timeEntryA,
     timeEntryB,
     timeEntryC,
   };
+}
+
+async function assertNotesBulkConsumer(session, fixtures) {
+  const added = await tagsService.bulkAssign(session, {
+    action: "add",
+    tagIds: [fixtures.directTag.tag_id],
+    targetIds: [fixtures.noteA.note_id, fixtures.noteB.note_id],
+    targetType: "note",
+  });
+  assert.equal(added.changed_count, 2);
+  assert.equal(added.skipped_count, 0);
+
+  const replaced = await tagsService.bulkAssign(session, {
+    action: "replace",
+    tagIds: [fixtures.replacementTag.tag_id],
+    targetIds: [fixtures.noteA.note_id],
+    targetType: "note",
+  });
+  assert.equal(replaced.changed_count, 1);
+  const assignments = await tagsService.listAssignments(session, {
+    targetId: fixtures.noteA.note_id,
+    targetType: "note",
+  });
+  assert.deepEqual(assignments.directTags.map((tag) => tag.tag_id), [fixtures.replacementTag.tag_id]);
 }
 
 function timeEntryPayload(projectId, description) {
@@ -276,6 +306,7 @@ async function assertTimeEntriesBulkConsumer(session, fixtures) {
 
 async function assertBrowserWiring() {
   const tasksJs = await fs.readFile(path.join(process.cwd(), "public/js/tasks.js"), "utf8");
+  const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   const timeEntriesHtml = await fs.readFile(path.join(process.cwd(), "views/protected/time-entries.html"), "utf8");
   const timeEntriesJs = await fs.readFile(path.join(process.cwd(), "public/js/time-entries.js"), "utf8");
 
@@ -286,6 +317,10 @@ async function assertBrowserWiring() {
   assert.match(tasksJs, /\["tag_replace", "Replace direct tags"\]/);
   assert.match(tasksJs, /bulkTagActionInput/);
   assert.match(tasksJs, /selectedBulkTagIds/);
+  assert.match(notesJs, /tags\.mountPicker\(bulkTagsEditor/);
+  assert.match(notesJs, /\/api\/tags\/bulk-assignments/);
+  assert.match(notesJs, /targetType: "note"/);
+  assert.match(notesJs, /bulkTagPicker\?\.readTagIds/);
   assert.match(timeEntriesHtml, /data-time-entry-select-all/);
   assert.match(timeEntriesHtml, /data-time-entry-bulk-action/);
   assert.match(timeEntriesHtml, /data-time-entry-bulk-tags/);

@@ -335,7 +335,7 @@ async function finalizeSourced(source, rawPayload, session, entryOverrides = {})
 }
 
 async function shapeTimerPayloads(session, timers = []) {
-  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
   const shaped = [];
 
   for (const timer of timers) {

@@ -115,6 +115,7 @@ const RECENTLY_TOUCHED_DAYS = 2;
 const RESUME_SOURCE_KIND = "resume_state";
 const STALE_DAYS = 7;
 const TASK_UPDATED_BOOST_SOURCE_KIND = "task_updated_boost";
+const TASK_COMPLETION_FOLLOW_UP_SOURCE_KIND = "task_completion_follow_up";
 const TASK_WORK_ITEM_SOURCE_KIND = "task_work_item";
 const TASK_WORK_ITEM_SOURCE_KEY = "tasks:task";
 const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
@@ -214,13 +215,34 @@ async function listLiveTimerCandidates(session, query = {}, sourceContext = null
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
 
-  if (!resolvedSourceContext.manualTimerSourceAvailable) {
+  if (resolvedSourceContext.timerSourceKeys.size === 0) {
     return [];
   }
 
   const result = await activeTimersService.listAll(session);
+  const taskTimerIds = [...new Set((result.timers || [])
+    .map((timer) => taskTimerSourceId(timer))
+    .filter(Boolean))];
+  const taskLifecycleById = taskTimerIds.length > 0
+    ? await tasksService.readLifecycleForIds(session, taskTimerIds)
+    : new Map();
+
   return (result.timers || [])
-    .map((timer) => candidateFromTimer(timer))
+    .map((timer) => {
+      const taskId = taskTimerSourceId(timer);
+      if (!taskId) {
+        return candidateFromTimer(timer);
+      }
+
+      const taskLifecycle = taskLifecycleById.get(taskId);
+      if (!taskLifecycle?.readable || taskLifecycle.completed || taskLifecycle.archived) {
+        return null;
+      }
+
+      return candidateFromTimer(timer, { taskLifecycle });
+    })
+    .filter(Boolean)
+    .filter((candidate) => isCandidateSourceAvailable(candidate, resolvedSourceContext))
     .filter((candidate) => matchesCandidateQuery(candidate, normalizedQuery));
 }
 
@@ -249,7 +271,8 @@ async function readSecondMostRecentUpdatedTaskCandidate(session, query = {}, sou
 
   const eligibleTasks = (result.items || [])
     .filter((item) => item?.task_id || item?.source_id)
-    .filter((item) => !["complete", "archived"].includes(normalizeFilterToken(item.status)));
+    .filter((item) => !["complete", "archived"].includes(normalizeFilterToken(item.status)))
+    .filter((item) => matchesCandidateQuery(candidateFromTaskWorkItem(item), normalizedQuery));
   const secondMostRecentTask = eligibleTasks[1];
 
   return secondMostRecentTask
@@ -278,34 +301,41 @@ function rankWorkCandidates(candidates = [], options = {}) {
 
 function candidateFromTaskWorkItem(item = {}, options = {}) {
   const taskId = textValue(firstValue(item.task_id, item.source_id), TEXT_LIMITS.recordId);
+  const recordType = textValue(item.source_type, TEXT_LIMITS.recordType) || "task";
+  const isCompletionFollowUp = recordType === "task_completion_follow_up";
   const sourceUrl = safeUrl(item.source_url) || (taskId ? `tasks.html?task=${encodeURIComponent(taskId)}` : "");
   const title = textValue(firstValue(item.title, item.source_label), TEXT_LIMITS.title) || "Task";
-  const sourceKind = textValue(options.sourceKind, TEXT_LIMITS.sourceKind) || TASK_WORK_ITEM_SOURCE_KIND;
+  const sourceKind = textValue(options.sourceKind, TEXT_LIMITS.sourceKind) || (isCompletionFollowUp
+    ? TASK_COMPLETION_FOLLOW_UP_SOURCE_KIND
+    : TASK_WORK_ITEM_SOURCE_KIND);
 
   return normalizeWorkCandidate({
     blockedReason: item.blocked_reason,
-    candidateId: `${sourceKind}:tasks:task:${taskId}`,
+    candidateId: `${sourceKind}:tasks:${recordType}:${taskId}`,
     clientId: item.client_id,
     contextLabel: taskWorkItemContextLabel(item),
     createdAt: item.created_at,
-    dueAt: firstNonEmptyValue(item.due_at_utc, item.due_at, item.due_date),
+    dueAt: isCompletionFollowUp ? "" : firstNonEmptyValue(item.due_at_utc, item.due_at, item.due_date),
     handoffNote: item.resume_note,
-    lastWorkedAt: item.last_worked_at,
+    lastWorkedAt: isCompletionFollowUp ? item.completed_at : item.last_worked_at,
     metadata: {
       assigned_to_current_user: item.assigned_to_current_user === true,
       checklist_progress: item.checklist_progress || item.checklistProgress || null,
+      completion_task_title: item.completion_task_title || "",
       recurrence_instance_date: item.recurrence_instance_date || "",
       recurrence_template_id: item.recurrence_template_id || "",
       timer_status: item.timer_status || "",
     },
     moduleId: "tasks",
     nextAction: item.next_action,
-    primaryAction: openPrimaryAction(sourceUrl),
+    primaryAction: item.primary_action || openPrimaryAction(sourceUrl),
     priority: item.priority,
     projectId: item.project_id,
-    reason: options.reason || taskWorkItemReason(item),
+    reason: options.reason || (isCompletionFollowUp
+      ? taskCompletionFollowUpReason(item)
+      : taskWorkItemReason(item)),
     recordId: taskId,
-    recordType: "task",
+    recordType,
     sourceKind,
     sourceUrl,
     status: item.status,
@@ -373,13 +403,18 @@ function taskWorkItemReason(item = {}) {
   return "Task work is ready to focus.";
 }
 
-function candidateFromTimer(timer = {}) {
+function candidateFromTimer(timer = {}, options = {}) {
   const resumeContext = timer.resumeContext || timer.resume_context || {};
   const timerStatus = timer.timer_status === "running" || resumeContext.timerStatus === "running"
     ? "running"
     : "paused";
+  const taskId = taskTimerSourceId(timer);
+  const taskLifecycle = options.taskLifecycle || {};
+  const isTaskTimer = Boolean(taskId && taskLifecycle.readable);
   const timerSlot = textValue(timer.timer_slot, 80);
-  const sourceUrl = safeUrl(timer.source_url) || "time-tracker.html";
+  const sourceUrl = safeUrl(timer.source_url) || (isTaskTimer
+    ? `tasks.html?task=${encodeURIComponent(taskId)}`
+    : "time-tracker.html");
   const description = textValue(timer.description, 240);
   const sourceLabel = textValue(timer.source_label || resumeContext.sourceLabel, 240);
   const title = sourceLabel || description || "Active timer";
@@ -390,6 +425,7 @@ function candidateFromTimer(timer = {}) {
   const actionStatus = timerStatus === "running" ? "paused" : "running";
 
   return normalizeWorkCandidate({
+    blockedReason: isTaskTimer && taskLifecycle.status === "blocked" ? "Blocked" : "",
     candidateId: `${LIVE_TIMER_SOURCE_KIND}:${timer.active_timer_id || timerSlot}`,
     clientId: timer.client_id || resumeContext.clientId,
     contextLabel,
@@ -397,31 +433,53 @@ function candidateFromTimer(timer = {}) {
     metadata: {
       accumulated_elapsed_seconds: Number(timer.accumulated_elapsed_seconds) || 0,
       source_module_id: timer.source_module_id || resumeContext.sourceModuleId || "",
+      source_id: timer.source_id || resumeContext.sourceId || "",
       source_type: timer.source_type || resumeContext.sourceType || "manual",
       timer_slot: timerSlot,
       timer_status: timerStatus,
     },
-    moduleId: "time-tracking",
-    primaryAction: {
-      id: timerStatus === "running" ? "timer.pause" : "timer.resume",
-      label: timerStatus === "running" ? "Pause timer" : "Resume timer",
-      method: "POST",
-      params: { timerSlot },
-      payload: { timer_status: actionStatus },
-      route: `/api/active-timers/${encodeURIComponent(timerSlot)}/${timerStatus === "running" ? "pause" : "start"}`,
-      type: "route",
-    },
+    moduleId: isTaskTimer ? "tasks" : "time-tracking",
+    primaryAction: isTaskTimer
+      ? openPrimaryAction(sourceUrl)
+      : {
+          id: timerStatus === "running" ? "timer.pause" : "timer.resume",
+          label: timerStatus === "running" ? "Pause timer" : "Resume timer",
+          method: "POST",
+          params: { timerSlot },
+          payload: { timer_status: actionStatus },
+          route: `/api/active-timers/${encodeURIComponent(timerSlot)}/${timerStatus === "running" ? "pause" : "start"}`,
+          type: "route",
+        },
     projectId: timer.project_id || resumeContext.projectId,
     rankHint: timerStatus === "running" ? 1000 : 800,
     reason: timerStatus === "running" ? "Timer is running." : "Timer is paused.",
-    recordId: timer.active_timer_id,
-    recordType: "active_work_timer",
+    recordId: isTaskTimer ? taskId : timer.active_timer_id,
+    recordType: isTaskTimer ? "task" : "active_work_timer",
     sourceKind: LIVE_TIMER_SOURCE_KIND,
     sourceUrl,
-    status: timerStatus,
+    status: isTaskTimer ? taskLifecycle.status || "in_progress" : timerStatus,
     title,
     updatedAt: timer.updated_at,
   });
+}
+
+function taskCompletionFollowUpReason(item = {}) {
+  const taskTitle = textValue(item.completion_task_title, 160);
+  return taskTitle
+    ? `Follow-up from completed task: ${taskTitle}`.slice(0, TEXT_LIMITS.reason)
+    : "Follow-up saved after completing a task.";
+}
+
+function taskTimerSourceId(timer = {}) {
+  const resumeContext = timer.resumeContext || timer.resume_context || {};
+  const sourceModuleId = textValue(timer.source_module_id || resumeContext.sourceModuleId, TEXT_LIMITS.moduleId);
+  const sourceType = textValue(timer.source_type || resumeContext.sourceType, TEXT_LIMITS.recordType);
+
+  if (sourceModuleId !== "tasks" || sourceType !== "task") {
+    return "";
+  }
+
+  return textValue(timer.source_id || resumeContext.sourceId, TEXT_LIMITS.recordId);
 }
 
 /**
@@ -621,7 +679,10 @@ async function readCandidateSourceContext(session) {
 
 function isCandidateSourceAvailable(candidate, sourceContext) {
   if (candidate.sourceKind === LIVE_TIMER_SOURCE_KIND) {
-    return sourceContext.manualTimerSourceAvailable;
+    const sourceKey = timerCandidateSourceKey(candidate);
+    return sourceKey === "time-tracking:manual"
+      ? sourceContext.manualTimerSourceAvailable
+      : sourceContext.timerSourceKeys.has(sourceKey);
   }
 
   if (isTimerCandidate(candidate)) {
@@ -639,8 +700,11 @@ function matchesCandidateQuery(candidate, query = {}) {
     matchesClientScopeFilter(candidate, normalizedQuery) &&
     matchesProjectScopeFilter(candidate, normalizedQuery) &&
     matchesStatusFilters(candidate, normalizedQuery) &&
+    matchesExcludedStatusFilters(candidate, normalizedQuery) &&
     matchesDueDateFilters(candidate, normalizedQuery) &&
     matchesPassiveRecurringCreated(candidate, normalizedQuery) &&
+    matchesDistantCreationOnly(candidate, normalizedQuery) &&
+    matchesDistantCreationOnlyFallback(candidate, normalizedQuery) &&
     matchesRankBucketFilters(candidate, normalizedQuery);
 }
 
@@ -658,9 +722,27 @@ function normalizeListQuery(query = {}, options = {}) {
     clientIds: normalizeIdList(firstValue(flattenedQuery.clientIds, flattenedQuery.client_ids)),
     clientProjectIds: normalizeIdList(firstValue(flattenedQuery.clientProjectIds, flattenedQuery.client_project_ids)),
     dueBefore: dateKeyFrom(firstValue(flattenedQuery.dueBefore, flattenedQuery.due_before), timezone),
+    excludeStatusFilters: normalizeTextList(firstValue(
+      flattenedQuery.excludeStatusFilters,
+      flattenedQuery.exclude_status_filters,
+      flattenedQuery.excludeStatuses,
+      flattenedQuery.exclude_statuses,
+    )),
     excludePassiveRecurringCreated: booleanFlag(firstValue(
       flattenedQuery.excludePassiveRecurringCreated,
       flattenedQuery.exclude_passive_recurring_created,
+    )),
+    excludePassiveRecurringCreatedAlways: booleanFlag(firstValue(
+      flattenedQuery.excludePassiveRecurringCreatedAlways,
+      flattenedQuery.exclude_passive_recurring_created_always,
+    )),
+    excludeDistantCreationOnly: booleanFlag(firstValue(
+      flattenedQuery.excludeDistantCreationOnly,
+      flattenedQuery.exclude_distant_creation_only,
+    )),
+    distantCreationOnlyFallback: booleanFlag(firstValue(
+      flattenedQuery.distantCreationOnlyFallback,
+      flattenedQuery.distant_creation_only_fallback,
     )),
     dueFrom: dateKeyFrom(firstValue(flattenedQuery.dueFrom, flattenedQuery.due_from), timezone),
     dueOn: dateKeyFrom(firstValue(flattenedQuery.dueOn, flattenedQuery.due_on), timezone),
@@ -726,6 +808,15 @@ function matchesStatusFilters(candidate, query) {
 
   const statusValues = candidateStatusValues(candidate, query);
   return query.statusFilters.some((status) => statusValues.has(status));
+}
+
+function matchesExcludedStatusFilters(candidate, query) {
+  if (!query.excludeStatusFilters.length) {
+    return true;
+  }
+
+  const statusValues = candidateStatusValues(candidate, query);
+  return !query.excludeStatusFilters.some((status) => statusValues.has(status));
 }
 
 function matchesDueDateFilters(candidate, query) {
@@ -973,9 +1064,40 @@ function isInProgressTask(candidate) {
 }
 
 function matchesPassiveRecurringCreated(candidate, query) {
-  return !query.excludePassiveRecurringCreated ||
-    !isPassiveRecurringCreatedCandidate(candidate) ||
+  if (!query.excludePassiveRecurringCreated || !isPassiveRecurringCreatedCandidate(candidate)) {
+    return true;
+  }
+
+  return !query.excludePassiveRecurringCreatedAlways &&
     isOverdueOrWithinRecurringCreatedDueWindow(candidate, rankContext(query));
+}
+
+function matchesDistantCreationOnly(candidate, query) {
+  if (!query.excludeDistantCreationOnly || !isCreationOnlyTaskCandidate(candidate)) {
+    return true;
+  }
+
+  const context = rankContext(query);
+  const dueDateKey = dateKeyFrom(
+    candidate.dueAt || candidate.metadata?.recurrence_instance_date || candidate.metadata?.recurrenceInstanceDate,
+    context.timezone,
+  );
+
+  return !dueDateKey || daysBetweenDateKeys(context.today, dueDateKey) <= DUE_THIS_WEEK_DAYS;
+}
+
+function matchesDistantCreationOnlyFallback(candidate, query) {
+  if (!query.distantCreationOnlyFallback || !isTaskCandidate(candidate)) {
+    return true;
+  }
+
+  if (isPassiveRecurringCreatedCandidate(candidate) || !isCreationOnlyTaskCandidate(candidate)) {
+    return false;
+  }
+
+  const context = rankContext(query);
+  const dueDateKey = dateKeyFrom(candidate.dueAt, context.timezone);
+  return Boolean(dueDateKey && daysBetweenDateKeys(context.today, dueDateKey) > DUE_THIS_WEEK_DAYS);
 }
 
 function isNearDueRecurringCreatedCandidate(candidate, context) {
@@ -989,10 +1111,16 @@ function isNearDueRecurringCreatedCandidate(candidate, context) {
 }
 
 function isPassiveRecurringCreatedCandidate(candidate) {
+  return isCreationOnlyTaskCandidate(candidate) && isRecurringTaskCandidate(candidate);
+}
+
+function isCreationOnlyTaskCandidate(candidate) {
   return isTaskCandidate(candidate) &&
-    isRecurringTaskCandidate(candidate) &&
     isTaskCreatedSignal(candidate) &&
-    !hasResumeNote(candidate);
+    !hasResumeNote(candidate) &&
+    !candidate.nextAction &&
+    !isTimerCandidate(candidate) &&
+    !isInProgressTask(candidate);
 }
 
 function isRecurringTaskCandidate(candidate) {

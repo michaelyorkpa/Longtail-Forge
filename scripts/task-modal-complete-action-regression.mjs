@@ -51,13 +51,15 @@ function assertStaticContract() {
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the task modal complete action version");
   assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module metadata should track the current app version");
 
-  assert.match(taskDialogScript, /\{ id: "complete", label: "Complete", icon: "complete", role: "primary" \}/, "Task editor footer should declare the Complete action");
+  assert.match(taskDialogScript, /const complete = view\.createActionButton\([\s\S]*action: "complete-task"[\s\S]*iconOnly: true[\s\S]*label: "Complete task"/, "Task editor header should declare the icon-only Complete action");
+  assert.match(taskDialogScript, /children: \[block, complete, workbenchOpen, notificationToggle\]/, "Task editor header should place Block left of Complete and Complete immediately left of Workbench");
+  assert.doesNotMatch(taskDialogScript, /function taskEditorModalDescriptor[\s\S]*footerActions: \[[\s\S]*id: "complete"/, "Task editor footer should no longer declare the Complete action");
   assert.match(taskDialogScript, /complete:\s*dialog\.querySelector\("\[data-complete-task\]"\)/, "Task dialog should keep a Complete button hook");
   assert.match(taskDialogScript, /fields\.complete\?\.addEventListener\("click", saveAndCompleteTask\)/, "Complete action should dispatch to the save-and-complete handler");
   assert.match(taskDialogScript, /TASK_COMPLETE_VISIBLE_STATUSES = new Set\(\["open", "in_progress", "blocked"\]\)/, "Complete action should be visible only for active task statuses");
   assert.match(taskDialogScript, /currentTaskId[\s\S]*TASK_COMPLETE_VISIBLE_STATUSES\.has\(status\)[\s\S]*hasTaskCompletePermission\(\)/, "Complete action should require a saved active task and completion permission");
   assert.match(taskDialogScript, /permissions\.has\("tasks\.complete"\)/, "Complete action should check tasks.complete before showing");
-  assert.match(taskDialogScript, /button\.dataset\.completeTask = ""[\s\S]*button\.hidden = true/, "Complete footer button should start hidden until state gating passes");
+  assert.match(taskDialogScript, /complete\.dataset\.completeTask = ""[\s\S]*complete\.hidden = true/, "Complete header button should start hidden until state gating passes");
   assert.match(taskDialogScript, /saveTaskForm\(\{[\s\S]*closeOnSuccess: false,[\s\S]*statusMessage: "Saving task before completion\.\.\."/,
     "Save-and-complete should persist pending edits before completion without closing the modal");
   assert.match(taskDialogScript, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)/,
@@ -80,7 +82,7 @@ function assertStaticContract() {
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
     "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the task modal complete action slice");
-  assert.match(docs, /As of 0\.33\.5\.21\.9\.2[\s\S]*Complete button[\s\S]*dedicated `POST \/api\/tasks\/:taskId\/complete` route/,
+  assert.match(docs, /As of 0\.33\.5\.21\.9\.2[\s\S]*Complete[\s\S]*dedicated `POST \/api\/tasks\/:taskId\/complete` route/,
     "Tasks docs should document the modal Complete action contract");
 }
 

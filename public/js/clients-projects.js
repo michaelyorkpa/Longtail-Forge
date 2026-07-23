@@ -167,7 +167,35 @@ function clientProjectsViewSurfaceDescriptor() {
   const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
   const surface = surfaces.find((candidate) => candidate.id === surfaceId && candidate.moduleId === "client-projects") || null;
   const filteredSurface = isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
-  return withoutUnsupportedBillingFields(filteredSurface);
+  return withoutUnsupportedBillingFields(withoutUnsupportedClientFields(filteredSurface));
+}
+
+function withoutUnsupportedClientFields(surface) {
+  const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
+  if (!surface || workspaceType === "business" || surface.id !== "client-projects.projects") {
+    return surface;
+  }
+
+  const indexPanel = surface.indexPanel ? { ...surface.indexPanel } : surface.indexPanel;
+  if (indexPanel?.itemSubtitleField === "clientName") {
+    delete indexPanel.itemSubtitleField;
+  }
+
+  return {
+    ...surface,
+    filters: (surface.filters || []).filter((filter) => filter.id !== "project-client-filter" && filter.field !== "clientId"),
+    indexPanel,
+    table: surface.table ? {
+      ...surface.table,
+      columns: (surface.table.columns || []).filter((column) => column.id !== "project-client" && column.field !== "clientName"),
+    } : surface.table,
+    dataSource: surface.dataSource ? {
+      ...surface.dataSource,
+      fieldBindings: Object.fromEntries(Object.entries(surface.dataSource.fieldBindings || {}).filter(
+        ([field]) => !["clientId", "clientName"].includes(field),
+      )),
+    } : surface.dataSource,
+  };
 }
 
 function withoutUnsupportedBillingFields(surface) {
@@ -235,22 +263,16 @@ async function hydrateTagFilterOptions({ mountSearchOptions, setOptions } = {}) 
   return undefined;
 }
 
-async function hydrateProjectClientFilterOptions({ control, setOptions } = {}) {
+async function hydrateProjectClientFilterOptions({ setOptions } = {}) {
   if (!clientProjectData.clients.length) {
     await loadClientProjectDialogData();
   }
 
   if (!clientsEnabledForWorkspace()) {
-    hideDescriptorField(control);
-    if (control) {
-      control.value = "All";
-      control.disabled = true;
-    }
     setOptions?.([{ value: "All", label: "All projects", selected: true }]);
     return;
   }
 
-  showDescriptorField(control);
   setOptions?.([
     { value: "All", label: "All clients", selected: true },
     { value: "__workspace_projects__", label: workspaceProjectsLabel() },
@@ -259,26 +281,6 @@ async function hydrateProjectClientFilterOptions({ control, setOptions } = {}) {
       label: `${treeIndent(getClientDepth(client))}${client.name}`,
     })),
   ]);
-}
-
-function hideDescriptorField(control) {
-  const field = control?.closest?.("[data-view-field]");
-  if (field) {
-    field.hidden = true;
-    field.setAttribute("hidden", "");
-  }
-}
-
-function showDescriptorField(control) {
-  const field = control?.closest?.("[data-view-field]");
-  if (field) {
-    field.hidden = false;
-    field.removeAttribute("hidden");
-  }
-  if (control) {
-    control.hidden = false;
-    control.disabled = false;
-  }
 }
 
 function mountClientBulkToolbar(context = {}) {
@@ -396,7 +398,9 @@ function decorateModalFooterButtons(container) {
 function showDialog(dialog, focusTarget = null) {
   document.body.appendChild(dialog);
 
-  if (typeof dialog.showModal === "function") {
+  if (typeof view?.showModal === "function") {
+    view.showModal(dialog);
+  } else if (typeof dialog.showModal === "function") {
     dialog.showModal();
   } else {
     dialog.setAttribute("open", "");
@@ -603,6 +607,7 @@ function openProjectDetailDialog(client, project, options = {}) {
   const projectEditor = createProjectEditor(client, project, {
     actionTarget: closeActions,
     hostContext: options.hostContext,
+    modalLayout: true,
     onSaved: () => {
       completed = true;
       dialog.close("complete");
@@ -611,12 +616,12 @@ function openProjectDetailDialog(client, project, options = {}) {
   decorateModalFooterButtons(closeActions);
   const dialog = requireView().createModal({
     title: `Edit Project: ${project.name}`,
-    className: "project-form-dialog detail-edit-dialog",
+    size: "wide",
+    className: "project-edit-dialog",
     body: [projectEditor],
     footer: [closeActions],
   });
 
-  projectEditor.open = true;
   closeButton.addEventListener("click", () => {
     options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
     dialog.close("cancel");
@@ -987,23 +992,33 @@ function openAddProjectDialog(client, options = {}) {
 
 function openAddClientDialog({ defaultParentClientId = "", hostContext = null } = {}) {
   const modalView = requireView();
-  const nameLabel = modalView.createElement("label", { text: "Client Name" });
-  const nameInput = modalView.createElement("input", {
-    attrs: { required: true, type: "text" },
+  const nameField = modalView.createField({
+    field: "name",
+    label: "Client Name",
+    required: true,
+    type: "text",
+    width: "full",
   });
-  const parentLabel = modalView.createElement("label", { text: "Parent Client" });
-  const parentSelect = modalView.createElement("select");
-  const tagContainer = modalView.createElement("div");
+  const nameInput = nameField.viewParts.control;
+  const parentField = modalView.createField({
+    field: "parentClientId",
+    label: "Parent Client",
+    type: "select",
+    width: "full",
+  });
+  const parentSelect = parentField.viewParts.control;
+  const tagContainer = modalView.createElement("div", {
+    className: "client-add-tags-field",
+    attrs: { "data-view-field-width": "full" },
+  });
   const cancelButton = createModalAction("Cancel", { role: "secondary" });
   const saveButton = createModalAction("Save", { role: "primary", type: "submit" });
   let tagPicker = { readTagIds: () => [] };
 
-  nameLabel.appendChild(nameInput);
   populateParentClientSelect(parentSelect);
   parentSelect.value = [...parentSelect.options].some((option) => option.value === defaultParentClientId)
     ? defaultParentClientId
     : "";
-  parentLabel.appendChild(parentSelect);
   const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
   if (mountedPicker) {
     mountedPicker.then((picker) => {
@@ -1012,9 +1027,9 @@ function openAddClientDialog({ defaultParentClientId = "", hostContext = null } 
   }
   const dialog = modalView.createModalForm({
     title: "Add Client",
-    className: "client-detail-dialog",
-    formClassName: "entry-form client-modal-form",
-    fields: [nameLabel, parentLabel, tagContainer],
+    className: "client-add-dialog",
+    formClassName: "client-modal-form",
+    fields: [nameField, parentField, tagContainer],
     actions: [cancelButton, saveButton],
   });
   const form = dialog.viewParts.form;
@@ -2007,19 +2022,24 @@ function formatProjectTaskDefaultsSummary(project) {
 
 function createProjectEditor(client, project, options = {}) {
   // Project settings sit closest to the work and override client/app defaults.
-  const details = document.createElement("details");
-  details.className = "project-item";
-  details.dataset.projectId = project.id;
-
-  const summary = document.createElement("summary");
-  const summaryLabel = document.createElement("span");
+  const usesModalLayout = options.modalLayout === true;
+  const details = usesModalLayout ? null : document.createElement("details");
   const usesSimplifiedBilling = usesProjectRoundingOnly();
 
-  summaryLabel.textContent = project.name;
-  summary.appendChild(summaryLabel);
+  if (details) {
+    const summary = document.createElement("summary");
+    const summaryLabel = document.createElement("span");
+
+    details.className = "project-item";
+    details.dataset.projectId = project.id;
+    summaryLabel.textContent = project.name;
+    summary.appendChild(summaryLabel);
+    details.appendChild(summary);
+  }
 
   const wrapper = document.createElement("div");
-  wrapper.className = "project-editor";
+  wrapper.className = usesModalLayout ? "project-editor project-edit-form" : "project-editor";
+  wrapper.dataset.projectId = project.id;
 
   const nameLabel = document.createElement("label");
   nameLabel.className = "project-name-field";
@@ -2048,12 +2068,13 @@ function createProjectEditor(client, project, options = {}) {
   const billableInput = billableLabel.querySelector("input");
   const clientAssignmentLabel = createProjectClientAssignment(project);
   const parentProjectLabel = createProjectParentAssignment(project, client);
-  const clientAssignmentSelect = clientAssignmentLabel.querySelector("select");
+  const clientAssignmentSelect = clientAssignmentLabel?.querySelector("select") || null;
   const parentProjectSelect = parentProjectLabel.querySelector("select");
   const clientActions = createProjectClientShortcutActions(project);
   const tagPicker = createTagPickerField("Project Tags", project.tags, "project");
+  tagPicker.element.classList.add("project-edit-tags-field");
 
-  clientAssignmentSelect.addEventListener("change", () => {
+  clientAssignmentSelect?.addEventListener("change", () => {
     populateParentProjectSelect(parentProjectSelect, {
       excludedProjectId: project.id,
       clientId: clientAssignmentSelect.value,
@@ -2064,7 +2085,7 @@ function createProjectEditor(client, project, options = {}) {
   billingDetails.className = "project-billing-details";
 
   const billingSummary = document.createElement("summary");
-  billingSummary.textContent = usesSimplifiedBilling ? "Project Rounding" : "Project Billing Settings";
+  billingSummary.textContent = "Project Billing Settings";
 
   const billingSettings = document.createElement("div");
   billingSettings.className = "project-billing-settings";
@@ -2088,12 +2109,10 @@ function createProjectEditor(client, project, options = {}) {
     inheritLabel: project.client_id ? "Use client task reminder defaults" : "Use workspace task reminder defaults",
     value: project.taskReminderPolicy,
   });
-  const taskDefaultsEditor = createProjectTaskDefaultsEditor(project.taskDefaults);
-
-  billingSettings.append(
-    billingRoundingEditor.element,
-    reminderPolicyEditor.element,
-  );
+  const taskDefaultsEditor = createProjectTaskDefaultsEditor(project.taskDefaults, {
+    reminderPolicyEditor,
+    billingRoundingEditor,
+  });
 
   if (!usesSimplifiedBilling) {
     billingSettings.prepend(
@@ -2132,7 +2151,7 @@ function createProjectEditor(client, project, options = {}) {
 
     const oldProject = { ...project };
     project.name = nameInput.value.trim();
-    project.client_id = clientAssignmentSelect.value;
+    project.client_id = clientAssignmentSelect?.value || "";
     project.parent_project_id = parentProjectSelect.value;
     project.status = statusSelect.value;
     project.billable = usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked);
@@ -2213,25 +2232,31 @@ function createProjectEditor(client, project, options = {}) {
   } else {
     actionGroup.append(saveButton, deleteButton);
   }
-  if (clientAssignmentLabel.hidden) {
+  if (!clientAssignmentLabel) {
     wrapper.classList.add("project-editor-no-client");
   }
+  const identityFields = usesModalLayout
+    ? [statusLabel, clientAssignmentLabel, parentProjectLabel]
+    : [clientAssignmentLabel, parentProjectLabel, statusLabel];
   wrapper.append(
     nameLabel,
-    clientAssignmentLabel,
-    parentProjectLabel,
-    statusLabel,
+    ...identityFields.filter(Boolean),
     clientActions,
     taskDefaultsEditor.element,
     tagPicker.element,
-    billingDetails,
+    ...(!usesSimplifiedBilling ? [billingDetails] : []),
     ...(options.actionTarget ? [] : [actionGroup]),
   );
-  details.append(summary, wrapper);
-  return details;
+
+  if (details) {
+    details.appendChild(wrapper);
+    return details;
+  }
+
+  return wrapper;
 }
 
-function createProjectTaskDefaultsEditor(defaults = {}) {
+function createProjectTaskDefaultsEditor(defaults = {}, { reminderPolicyEditor = null, billingRoundingEditor = null } = {}) {
   const normalized = normalizeProjectTaskDefaults(defaults);
   const details = document.createElement("details");
   const summary = document.createElement("summary");
@@ -2311,6 +2336,12 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
   sortFieldset.append(sortLegend, sortList);
   grid.append(statusLabel, priorityLabel, assigneeLabel, sortFieldset);
   moduleGroup.append(moduleLegend, grid);
+  if (reminderPolicyEditor?.element) {
+    moduleGroup.appendChild(reminderPolicyEditor.element);
+  }
+  if (billingRoundingEditor?.element) {
+    moduleGroup.appendChild(billingRoundingEditor.element);
+  }
   details.append(summary, moduleGroup);
 
   return {
@@ -2325,12 +2356,15 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
 }
 
 function createProjectClientAssignment(project) {
+  if (!clientsEnabledForWorkspace()) {
+    return null;
+  }
+
   const label = document.createElement("label");
   const select = document.createElement("select");
 
   label.className = "project-client-field";
   label.textContent = "Client";
-  label.hidden = !clientsEnabledForWorkspace();
   select.appendChild(createOption("", "Workspace project"));
   sortClientTree(getRealClients()).filter((client) => isActiveStatus(client.status)).forEach((client) => {
     select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
@@ -2377,22 +2411,35 @@ function populateParentProjectSelect(select, { excludedProjectId = "", clientId 
 }
 
 function createAddProjectClientAssignment(client) {
+  if (!clientsEnabledForWorkspace()) {
+    return null;
+  }
+
   const wrapper = document.createElement("div");
   const label = document.createElement("label");
   const select = document.createElement("select");
 
   wrapper.className = "project-add-client-field";
-  wrapper.hidden = !clientsEnabledForWorkspace();
   label.textContent = "Client";
-  select.appendChild(createOption("", "Workspace project"));
-  sortClientTree(getRealClients()).filter((realClient) => isActiveStatus(realClient.status)).forEach((realClient) => {
-    select.appendChild(createOption(realClient.id, `${treeIndent(getClientDepth(realClient))}${realClient.name}`));
-  });
-  select.value = getDefaultProjectClientId(client);
+  const refreshOptions = (selectedClientId = select.value || getDefaultProjectClientId(client)) => {
+    select.replaceChildren(createOption("", workspaceProjectsLabel()));
+    sortClientTree(getRealClients()).filter((realClient) => isActiveStatus(realClient.status)).forEach((realClient) => {
+      select.appendChild(createOption(realClient.id, `${treeIndent(getClientDepth(realClient))}${realClient.name}`));
+    });
+    select.value = [...select.options].some((option) => option.value === selectedClientId)
+      ? selectedClientId
+      : "";
+  };
+  refreshOptions(getDefaultProjectClientId(client));
   label.appendChild(select);
   wrapper.appendChild(label);
 
-  const addClientButton = createAddClientShortcutButton();
+  const addClientButton = createAddClientShortcutButton({
+    onCreated: (clientId) => {
+      refreshOptions(clientId);
+      select.dispatchEvent(new window.Event("change", { bubbles: true }));
+    },
+  });
   if (addClientButton) {
     wrapper.appendChild(addClientButton);
   }
@@ -2502,7 +2549,7 @@ function createProjectContextActionStrip(row) {
   });
 }
 
-function createAddClientShortcutButton() {
+function createAddClientShortcutButton({ onCreated = null } = {}) {
   if (!clientsEnabledForWorkspace()) {
     return null;
   }
@@ -2511,8 +2558,19 @@ function createAddClientShortcutButton() {
 
   button.type = "button";
   button.textContent = "Add Client";
-  button.addEventListener("click", () => {
-    window.location.href = "clients.html?addClient=true";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const result = await openClientProjectModuleAction("clients.add");
+      const clientId = result?.completed ? result.detail?.recordId || "" : "";
+      if (clientId) {
+        onCreated?.(clientId);
+      }
+    } catch (error) {
+      handleClientProjectActionError(error);
+    } finally {
+      button.disabled = false;
+    }
   });
   return button;
 }
@@ -2566,6 +2624,9 @@ function createAddProjectForm(client, {
   const clientAssignment = showClientAssignment && clientsEnabledForWorkspace()
     ? createAddProjectClientAssignment(client)
     : null;
+  const initialTargetClient = clientAssignment
+    ? getProjectTargetClient(clientAssignment.select.value)
+    : client;
   const parentProjectLabel = createProjectParentAssignment({
     id: "",
     client_id: client.isWorkspaceScope ? "" : client.id,
@@ -2593,10 +2654,10 @@ function createAddProjectForm(client, {
   const billingRateInput = document.createElement("input");
   billingRateInput.inputMode = "decimal";
   billingRateInput.value = "";
-  billingRateInput.placeholder = getEffectiveClientBillingRate(client) || "";
+  billingRateInput.placeholder = getEffectiveClientBillingRate(initialTargetClient) || "";
   billingRateLabel.appendChild(billingRateInput);
 
-  const billableLabel = createBillableCheckbox(client.billable);
+  const billableLabel = createBillableCheckbox(initialTargetClient.isWorkspaceScope ? "no" : initialTargetClient.billable);
   const billableInput = billableLabel.querySelector("input");
 
   const billingDetails = document.createElement("details");
@@ -2610,19 +2671,20 @@ function createAddProjectForm(client, {
 
   const billingPeriodEditor = createBillingPeriodEditor({
     legend: "Billing Period",
-    inheritLabel: getProjectBillingPeriodInheritLabel(client),
+    inheritLabel: getProjectBillingPeriodInheritLabel(initialTargetClient),
     value: null,
-    inheritedPeriod: getEffectiveClientBillingPeriod(client),
+    inheritedPeriod: getEffectiveClientBillingPeriod(initialTargetClient),
   });
 
   const billingRoundingEditor = createBillingRoundingEditor({
     legend: "Rounding",
-    inheritLabel: getProjectRoundingInheritLabel(client, { client_id: client.isWorkspaceScope ? "" : client.id }),
+    inheritLabel: getProjectRoundingInheritLabel(initialTargetClient, { client_id: initialTargetClient.isWorkspaceScope ? "" : initialTargetClient.id }),
     value: null,
-    inheritedRounding: client.isWorkspaceScope ? workspaceSettings.billingRounding : getEffectiveClientBillingRounding(client),
+    inheritedRounding: initialTargetClient.isWorkspaceScope ? workspaceSettings.billingRounding : getEffectiveClientBillingRounding(initialTargetClient),
     showModeWhenUnbillable: true,
   });
   const tagPicker = createTagPickerField("Project Tags", [], "project");
+  tagPicker.element.classList.add("project-tags-field");
 
   billingSettings.append(
     billingRoundingEditor.element,
@@ -2671,8 +2733,8 @@ function createAddProjectForm(client, {
   form.append(
     ...formFields,
     parentProjectLabel,
-    statusLabel,
     tagPicker.element,
+    statusLabel,
     billingDetails,
     saveButton,
   );

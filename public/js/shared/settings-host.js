@@ -229,6 +229,17 @@
           type: "select",
           options: userLandingPageOptions(),
         }, "preferredWorkspaceSwitchLanding"),
+        field({
+          id: "preferredCalendarView",
+          label: "Default calendar view",
+          type: "select",
+          options: [
+            { value: "", label: "Automatic (Day on mobile, Month on desktop)" },
+            { value: "day", label: "Day" },
+            { value: "week", label: "Week" },
+            { value: "month", label: "Month" },
+          ],
+        }, "preferredCalendarView"),
       ]),
       settingsForm("userMarkdownRenderingForm", "Markdown Rendering", [
         field({ id: "openExternalLinksNewTab", label: "Open external links in a new tab", type: "boolean" }, "openExternalLinksNewTab"),

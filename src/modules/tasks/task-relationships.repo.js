@@ -150,6 +150,39 @@ ORDER BY child_tasks.status, child_tasks.due_date, child_tasks.title;
   return rows.map(relationshipRowToAppValue);
 }
 
+async function readDescendantTaskIds(workspaceId, parentTaskId) {
+  const rows = await db.query(`
+WITH RECURSIVE task_tree(task_id) AS (
+  SELECT task_relationships.child_task_id
+  FROM task_relationships
+  INNER JOIN tasks AS child_tasks
+    ON child_tasks.workspace_id = task_relationships.workspace_id
+    AND child_tasks.task_id = task_relationships.child_task_id
+  WHERE task_relationships.workspace_id = :workspaceId
+    AND task_relationships.parent_task_id = :parentTaskId
+    AND task_relationships.removed_at IS NULL
+  UNION
+  SELECT task_relationships.child_task_id
+  FROM task_relationships
+  INNER JOIN task_tree
+    ON task_tree.task_id = task_relationships.parent_task_id
+  INNER JOIN tasks AS child_tasks
+    ON child_tasks.workspace_id = task_relationships.workspace_id
+    AND child_tasks.task_id = task_relationships.child_task_id
+  WHERE task_relationships.workspace_id = :workspaceId
+    AND task_relationships.removed_at IS NULL
+)
+SELECT task_id
+FROM task_tree
+ORDER BY task_id;
+`, {
+    parentTaskId: textParam(parentTaskId),
+    workspaceId: textParam(workspaceId),
+  });
+
+  return rows.map((row) => String(row.task_id || "").trim()).filter(Boolean);
+}
+
 async function readParents(workspaceId, childTaskId) {
   const rows = await db.query(relationshipSelectSql(`
 WHERE task_relationships.workspace_id = :workspaceId
@@ -401,6 +434,7 @@ export const taskRelationshipsRepository = {
   readBlockingChildren,
   readById,
   readChildren,
+  readDescendantTaskIds,
   readForTask,
   readParents,
   readParentsForTasks,

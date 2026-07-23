@@ -12,6 +12,59 @@ import { SHELL, SMOKE_SURFACES } from "./support/surfaces.mjs";
 
 const dashboard = SMOKE_SURFACES.find((surface) => surface.name === "Dashboard");
 
+test("mobile header keeps search and notifications outside the navigation drawer", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "the compact app-shell header only applies at the mobile viewport");
+
+  await page.goto(dashboard.path);
+
+  const header = page.locator(SHELL.header);
+  const menu = page.locator(SHELL.primaryMenu);
+  const brandName = header.locator(".site-brand-name");
+  const searchToggle = header.locator("[data-global-search-toggle]");
+  const searchForm = header.locator("[data-global-search-form]");
+  const searchInput = header.locator("[data-global-search-input]");
+  const notificationBell = header.locator("[data-notification-bell]");
+  const notificationPanel = header.locator("[data-notification-panel]");
+  const navToggle = page.locator(SHELL.navToggle);
+
+  await expect(brandName).toBeHidden();
+  await expect(searchToggle).toBeVisible();
+  await expect(notificationBell).toBeVisible();
+  await expect(menu.locator("[data-global-search-shell], [data-notification-bell]")).toHaveCount(0);
+  const [searchBox, notificationBox, toggleBox] = await Promise.all([
+    searchToggle.boundingBox(),
+    notificationBell.boundingBox(),
+    navToggle.boundingBox(),
+  ]);
+  expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(notificationBox.x);
+  expect(notificationBox.x + notificationBox.width).toBeLessThanOrEqual(toggleBox.x);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await searchToggle.click();
+  await expect(searchForm).toBeVisible();
+  await expect(searchInput).toBeFocused();
+  await searchToggle.click();
+  await expect(searchForm).toBeHidden();
+
+  await notificationBell.click();
+  await expect(notificationPanel).toBeVisible();
+  await notificationBell.click();
+  await expect(notificationPanel).toBeHidden();
+});
+
+test("desktop app-shell header layout remains expanded", async ({ page, isMobile }) => {
+  test.skip(isMobile, "the desktop layout is covered by the desktop viewport");
+
+  await page.goto(dashboard.path);
+
+  const header = page.locator(SHELL.header);
+  await expect(header.locator(".site-brand-name")).toBeVisible();
+  await expect(header.locator("[data-global-search-toggle]")).toBeVisible();
+  await expect(header.locator("[data-notification-bell]")).toBeVisible();
+  await expect(page.locator(SHELL.primaryMenu)).toBeVisible();
+  await expect(page.locator(SHELL.navToggle)).toBeHidden();
+});
+
 test("mobile nav toggle opens and closes the primary menu", async ({ page, isMobile }) => {
   test.skip(!isMobile, "the collapsed nav toggle only exists at the mobile viewport");
 

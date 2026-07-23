@@ -77,6 +77,87 @@ try {
     assert.equal(familyClientTargets.targets.length, 0);
   });
 
+  await check("Notes visibility is scoped across Personal, Family, and Business workspaces", async () => {
+    await setWorkspaceType(session.workspace_id, "business");
+    const businessClientVisible = await notesService.create({
+      title: "Business client-visible note",
+      body_markdown: "Business visibility contract.",
+      visibility: "client_visible",
+    }, session);
+    const businessPublic = await notesService.create({
+      title: "Business public note",
+      body_markdown: "Business public contract.",
+      visibility: "public",
+    }, session);
+    assert.equal(businessClientVisible.note.visibility, "client_visible");
+    assert.equal(businessPublic.note.visibility, "public");
+
+    await setWorkspaceType(session.workspace_id, "family");
+    const familyPublic = await notesService.create({
+      title: "Family public note",
+      body_markdown: "Family public contract.",
+      visibility: "public",
+    }, session);
+    assert.equal(familyPublic.note.visibility, "public");
+    await assert.rejects(
+      notesService.create({ title: "Invalid Family client note", body_markdown: "No.", visibility: "client_visible" }, session),
+      /Family workspace notes cannot be client-visible/,
+    );
+    await assert.rejects(
+      notesService.update(familyPublic.note.note_id, { visibility: "client_visible" }, session),
+      /Family workspace notes cannot be client-visible/,
+    );
+    await assert.rejects(
+      notesService.bulkUpdate({ noteIds: [familyPublic.note.note_id], changes: { visibility: "client_visible" } }, session),
+      /Family workspace notes cannot be client-visible/,
+    );
+    await assert.rejects(
+      notesService.list(session, { visibility: "client_visible" }),
+      /Family workspace notes cannot be filtered by Client visibility/,
+    );
+
+    await runSql(`
+UPDATE notes
+SET visibility = 'client_visible'
+WHERE note_id = ${sqlText(familyPublic.note.note_id)};
+`);
+    const familyLegacyRead = await notesService.read(familyPublic.note.note_id, session);
+    assert.equal(familyLegacyRead.note.visibility, "internal");
+    assert.equal(await storedNoteVisibility(familyPublic.note.note_id), "client_visible", "Family legacy visibility should normalize only in the read model");
+
+    await setWorkspaceType(session.workspace_id, "personal");
+    const personalDefault = await notesService.create({
+      title: "Personal default visibility note",
+      body_markdown: "Personal visibility is implicit.",
+    }, session);
+    assert.equal(personalDefault.note.visibility, "internal");
+    for (const visibility of ["private", "workspace", "client_visible", "public"]) {
+      await assert.rejects(
+        notesService.create({ title: `Invalid Personal ${visibility}`, body_markdown: "No.", visibility }, session),
+        /Personal workspace notes do not support visibility choices/,
+      );
+    }
+    await assert.rejects(
+      notesService.list(session, { visibility: "private" }),
+      /Personal workspace notes do not support visibility filters/,
+    );
+
+    await runSql(`
+UPDATE notes
+SET visibility = 'public'
+WHERE note_id = ${sqlText(personalDefault.note.note_id)};
+`);
+    const personalLegacyRead = await notesService.read(personalDefault.note.note_id, session);
+    assert.equal(personalLegacyRead.note.visibility, "internal");
+    assert.equal(await storedNoteVisibility(personalDefault.note.note_id), "public", "Personal legacy visibility should normalize only in the read model");
+
+    const personalUpdate = await notesService.update(personalDefault.note.note_id, {
+      title: "Personal default visibility note updated",
+    }, session);
+    assert.equal(personalUpdate.note.visibility, "internal");
+    assert.equal(await storedNoteVisibility(personalDefault.note.note_id), "public", "An unrelated Personal edit should preserve the legacy stored value when visibility is omitted");
+  });
+
   await check("Personal and Family Lists use workspace project scope without client context", async () => {
     await setWorkspaceType(session.workspace_id, "family");
     const { project } = await clientsService.createProject("", {
@@ -132,6 +213,11 @@ try {
     const listsPage = await fs.readFile(path.join(process.cwd(), "views/protected/lists.html"), "utf8");
     const listsScript = await fs.readFile(path.join(process.cwd(), "public/js/lists.js"), "utf8");
     const notesScript = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
+    const notesModule = modulesService.getModule("notes");
+    const notesSurface = notesModule.viewSurfaces.find((surface) => surface.id === "notes.workspace");
+    const noteEditor = notesSurface.modals.find((modal) => modal.id === "note-editor");
+    const noteBulkEditor = notesSurface.modals.find((modal) => modal.id === "note-bulk-editor");
+    const visibilityValues = (field) => field.options.map((option) => option[0]);
 
     assert.match(filesPage, /data-files-host/);
     assert.match(filesPage, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/);
@@ -155,8 +241,15 @@ try {
     assert.match(notesScript, /primaryClientField\.style\.display = clientAvailable \? "" : "none"/);
     assert.match(notesScript, /return normalizeWorkspaceType\(state\.workspaceType\) === "business" && workspaceHasClientTools\(\)/);
     assert.match(notesScript, /tools\.includes\("clients_projects"\)/);
-    assert.match(notesScript, /\.filter\(\(\[value\]\) => value !== "client_visible" \|\| usesBusinessScope\(\)\)/);
+    assert.match(notesScript, /function scopeNotesVisibilityContributions\(surface = \{\}\)/);
+    assert.match(notesScript, /workspaceType !== "personal" \|\| field\.field !== "visibility"/);
+    assert.match(notesScript, /workspaceType !== "personal" \|\| filter\.field !== "visibility"/);
+    assert.match(notesScript, /normalizeWorkspaceType\(state\.workspaceType\) === "personal"/);
+    assert.match(notesScript, /normalizeWorkspaceType\(state\.workspaceType\) === "personal" \? \{\} : \{ visibility: readEditorVisibility\(\) \}/);
     assert.match(notesScript, /visibility: readEditorVisibility\(\)/);
+    assert.deepEqual(visibilityValues(notesSurface.filters.find((filter) => filter.field === "visibility")), ["all", "internal", "private", "workspace", "client_visible", "public"]);
+    assert.deepEqual(visibilityValues(noteEditor.fields.find((field) => field.field === "visibility")), ["internal", "private", "workspace", "client_visible", "public"]);
+    assert.deepEqual(visibilityValues(noteBulkEditor.fields.find((field) => field.field === "visibility")), ["", "internal", "private", "workspace", "client_visible", "public"]);
   });
 
   console.log(`Personal and Family workspace scope regression passed ${checks} checks.`);
@@ -189,6 +282,15 @@ UPDATE workspaces
 SET workspace_type = ${sqlText(workspaceType)}
 WHERE workspace_id = ${sqlText(workspaceId)};
 `);
+}
+
+async function storedNoteVisibility(noteId) {
+  const rows = await querySql(`
+SELECT visibility
+FROM notes
+WHERE note_id = ${sqlText(noteId)};
+`);
+  return rows[0]?.visibility || "";
 }
 
 async function readProtectedSession() {

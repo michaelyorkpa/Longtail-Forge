@@ -37,6 +37,9 @@ DROP TABLE IF EXISTS account_export_recovery_qualifications;
 DROP TABLE IF EXISTS authentication_throttle_entries;
 DROP TABLE IF EXISTS startup_maintenance_runs;
 
+ALTER TABLE tasks DROP COLUMN estimate_minutes;
+ALTER TABLE task_recurrence_templates DROP COLUMN estimate_minutes;
+
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_month INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_day INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE workspace_settings ADD COLUMN default_billing_rate TEXT;
@@ -304,6 +307,16 @@ ORDER BY version;
       version: "080",
       module_id: "core",
       name: "startup_maintenance_runs",
+    },
+    {
+      version: "081",
+      module_id: "core",
+      name: "task_estimate_minutes",
+    },
+    {
+      version: "082",
+      module_id: "core",
+      name: "user_preferred_calendar_view",
     },
   ]);
 }

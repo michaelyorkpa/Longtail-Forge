@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "workbench",
   tier: "focused",
   tags: ["dashboard", "deep-link", "guardrail", "tasks", "workbench"],
-  description: "Pins the Workbench task-focus deep-link contract: workbench.html?taskId= enters Task Focus through the existing path, every failure falls back to Focus Selection with one generic message that leaks nothing, and dashboard per-task handoffs carry the task while panel-level actions stay generic.",
+  description: "Pins the one-shot Workbench task-focus deep-link contract: taskId/taskID are removed without disturbing other URL state, readable Tasks enter Task Focus, and every failure uses one privacy-safe Focus Selection fallback.",
   runMode: "static",
 });
 
@@ -20,12 +20,12 @@ const tasksService = await readText("src/modules/tasks/tasks.service.js");
 
 let checks = 0;
 
-// The deep link reads exactly the taskId query parameter and is applied as
-// part of the normal Workbench load, after state and candidates exist.
+// The deep link consumes both the canonical spelling and the reported legacy
+// spelling, preserving unrelated query and hash state before focus work starts.
 assert.match(
-  workbenchJs,
-  /function taskFocusDeepLinkTaskId\(\)[\s\S]*?params\.get\("taskId"\)/,
-  "the deep link must read the taskId query parameter",
+  functionBody(workbenchJs, "consumeTaskFocusDeepLink"),
+  /params\.has\("taskId"\) \|\| params\.has\("taskID"\)[\s\S]*params\.get\("taskId"\) \|\| params\.get\("taskID"\)[\s\S]*params\.delete\("taskId"\)[\s\S]*params\.delete\("taskID"\)[\s\S]*window\.location\?\.pathname[\s\S]*window\.location\?\.hash[\s\S]*history\.replaceState/,
+  "the deep link must consume taskId and taskID while preserving unrelated query parameters, pathname, and hash",
 );
 assert.match(
   functionBody(workbenchJs, "loadWorkbench"),
@@ -37,11 +37,12 @@ checks += 2;
 // A readable task enters Task Focus through the existing path — no parallel
 // task-focus implementation and no extra fetch in the deep-link body itself.
 const deepLinkBody = functionBody(workbenchJs, "applyTaskFocusDeepLink");
+assert.match(deepLinkBody, /consumeTaskFocusDeepLink\(\)[\s\S]*if \(!present\)/, "the one-shot URL cleanup must happen before deciding whether focus work exists");
 assert.match(deepLinkBody, /moduleEnabled\("tasks"\)/, "the deep link must respect the Tasks module gate");
 assert.match(deepLinkBody, /candidateTaskId\(entry\) === taskId/, "the deep link should reuse a matching loaded candidate for context");
 assert.match(deepLinkBody, /await enterTaskFocus\(candidate, taskId\)/, "the deep link must enter Task Focus through the existing enterTaskFocus path");
 assert.doesNotMatch(deepLinkBody, /api\.getJson|fetch\(/, "the deep link must not add its own task fetch; enterTaskFocus owns the permission-checked read");
-checks += 4;
+checks += 5;
 
 // Every failure falls back to Focus Selection with one generic message: the
 // module-disabled and unreadable/unknown branches share the same constant, so
@@ -54,15 +55,16 @@ assert.match(
 assert.equal(
   (deepLinkBody.match(/WORKBENCH_TASK_FOCUS_LINK_FALLBACK/g) || []).length,
   2,
-  "the module-disabled and failed-focus branches must share the same generic fallback message",
+  "empty/module-disabled and failed-focus branches must share the same generic fallback message",
 );
+assert.match(deepLinkBody, /if \(!taskId \|\| !moduleEnabled\("tasks"\)\) \{[\s\S]*resetTaskFocusState\(\);[\s\S]*renderWorkbench\(\);/, "empty and disabled-Tasks links must return to the same Focus Selection fallback");
 assert.match(
   deepLinkBody,
   /state\.activeTaskFocus\?\.error[\s\S]*?resetTaskFocusState\(\);[\s\S]*?renderWorkbench\(\);/,
   "a failed deep-link focus must fall back to Focus Selection, not an error page",
 );
 assert.doesNotMatch(deepLinkBody, /taskId\}|\$\{taskId/, "the fallback path must not echo the requested task id into user-facing copy");
-checks += 4;
+checks += 5;
 
 // Dashboard per-task Open Workbench handoffs carry the task into Task Focus;
 // panel-level actions stay generic Workbench/Tasks entries.

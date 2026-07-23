@@ -1,7 +1,7 @@
 (function () {
   const dashboard = window.LongtailForge?.dashboard;
   const formatters = window.LongtailForge?.formatters || {};
-  const effortSummaryPromises = new Map();
+  const effortSummaryPromises = window.LongtailForge?.dashboardBootstrap?.dataPromises || new Map();
   const DEFAULT_EFFORT_SUMMARY_ROUTE = "/api/time-tracking/dashboard/effort-summary";
 
   if (!dashboard?.registerPanelRenderer) {
@@ -49,17 +49,17 @@
     const route = String(contribution?.dataRoute || DEFAULT_EFFORT_SUMMARY_ROUTE);
 
     if (!effortSummaryPromises.has(route)) {
-      effortSummaryPromises.set(route, fetch(route, { cache: "no-store" })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`Could not load Time Tracking summary: ${response.status}`);
-          }
-
-          return response.json();
-        }));
+      effortSummaryPromises.set(route, contextLoad(route));
     }
 
     return effortSummaryPromises.get(route);
+  }
+
+  function contextLoad(route) {
+    const loadRoute = window.LongtailForge?.dashboardBootstrap?.loadRoute;
+    return typeof loadRoute === "function"
+      ? loadRoute(route)
+      : window.LongtailForge.api.getJson(route, { cache: "no-store" });
   }
 
   function createActiveTimersContent(data, context) {

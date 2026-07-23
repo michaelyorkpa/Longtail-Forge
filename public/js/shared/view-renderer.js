@@ -242,8 +242,7 @@
     closeButton.setAttribute("aria-controls", drawerId);
 
     container.append(trigger, backdrop, drawer, main);
-    wireSlideOutSidebar(state, { backdrop, closeButton, drawer, trigger });
-    syncSlideOutSidebarState(state, { backdrop, closeButton, drawer, trigger }, { focus: false });
+    createSlideOutSidebarController({ backdrop, closeButton, drawer, trigger }, { state });
 
     return container;
   }
@@ -309,8 +308,7 @@
     closeButton.setAttribute("aria-controls", drawerId);
 
     container.append(trigger, backdrop, drawer, main);
-    wireSlideOutSidebar(state, { backdrop, closeButton, drawer, trigger });
-    syncSlideOutSidebarState(state, { backdrop, closeButton, drawer, trigger }, { focus: false });
+    createSlideOutSidebarController({ backdrop, closeButton, drawer, trigger }, { state });
 
     return container;
   }
@@ -338,6 +336,31 @@
     return button;
   }
 
+  function createSlideOutSidebarController(elements = {}, options = {}) {
+    for (const name of ["backdrop", "closeButton", "drawer", "trigger"]) {
+      if (!elements[name]?.addEventListener) {
+        throw new Error(`Slide-out sidebar controllers require a ${name} element.`);
+      }
+    }
+
+    const state = options.state || { slideOutSidebarOpen: Boolean(options.open) };
+    state.slideOutSidebarOpen = Boolean(state.slideOutSidebarOpen);
+    wireSlideOutSidebar(state, elements);
+    syncSlideOutSidebarState(state, elements, { focus: false });
+
+    const controller = {
+      close: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, false, syncOptions),
+      open: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, true, syncOptions),
+      sync: (syncOptions = {}) => syncSlideOutSidebarState(state, elements, syncOptions),
+      toggle: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen, syncOptions),
+    };
+    Object.defineProperty(controller, "isOpen", {
+      enumerable: true,
+      get: () => Boolean(state.slideOutSidebarOpen),
+    });
+    return Object.freeze(controller);
+  }
+
   function wireSlideOutSidebar(state, elements) {
     const close = () => setSlideOutSidebarOpen(state, elements, false);
     const toggle = () => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen);
@@ -347,11 +370,17 @@
         close();
       }
     };
+    const containDrawerFocus = (event) => {
+      if (event?.key === "Tab" && state.slideOutSidebarOpen) {
+        containSlideOutSidebarFocus(event, elements.drawer);
+      }
+    };
 
     elements.trigger.addEventListener("click", toggle);
     elements.closeButton.addEventListener("click", close);
     elements.backdrop.addEventListener("click", close);
     elements.drawer.addEventListener("keydown", closeOnEscape);
+    elements.drawer.addEventListener("keydown", containDrawerFocus);
     elements.trigger.addEventListener("keydown", closeOnEscape);
     elements.backdrop.addEventListener("keydown", closeOnEscape);
     elements.drawer.addEventListener("transitionend", () => {
@@ -364,9 +393,9 @@
     elements.closeButton.setAttribute("data-view-slideout-sidebar-close", "");
   }
 
-  function setSlideOutSidebarOpen(state, elements, open) {
+  function setSlideOutSidebarOpen(state, elements, open, options = {}) {
     state.slideOutSidebarOpen = Boolean(open);
-    syncSlideOutSidebarState(state, elements, { focus: true });
+    syncSlideOutSidebarState(state, elements, { focus: options.focus !== false });
   }
 
   function syncSlideOutSidebarState(state, elements, options = {}) {
@@ -417,8 +446,38 @@
   }
 
   function focusSlideOutSidebar(drawer) {
-    const focusTarget = drawer?.querySelector?.("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])") || drawer;
+    const focusTarget = slideOutSidebarFocusTargets(drawer)[0]
+      || drawer?.querySelector?.("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")
+      || drawer;
     focusTarget?.focus?.();
+  }
+
+  function containSlideOutSidebarFocus(event, drawer) {
+    const focusTargets = slideOutSidebarFocusTargets(drawer);
+    if (focusTargets.length === 0) {
+      event.preventDefault?.();
+      drawer?.focus?.();
+      return;
+    }
+
+    const activeElement = global.document?.activeElement;
+    const first = focusTargets[0];
+    const last = focusTargets[focusTargets.length - 1];
+    if (event.shiftKey && (activeElement === first || activeElement === drawer)) {
+      event.preventDefault?.();
+      last.focus?.();
+    } else if (!event.shiftKey && (activeElement === last || !focusTargets.includes(activeElement))) {
+      event.preventDefault?.();
+      first.focus?.();
+    }
+  }
+
+  function slideOutSidebarFocusTargets(drawer) {
+    if (!drawer?.querySelectorAll) {
+      return [];
+    }
+    return [...drawer.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")]
+      .filter((element) => !element.disabled && !element.hidden && element.getAttribute?.("aria-hidden") !== "true");
   }
 
   function renderPageHeader(pageHeader, view, state) {
@@ -842,7 +901,7 @@
     if (selection) {
       columns.unshift({
         key: "__view_row_selection",
-        label: selection.label || "Select",
+        label: Object.hasOwn(selection, "headerLabel") ? selection.headerLabel : selection.label || "Select",
         align: "center",
         render: (record) => renderRowSelection(selection, view, record),
       });
@@ -851,7 +910,7 @@
     if (rowActions.length > 0) {
       columns.push({
         key: "__view_row_actions",
-        label: "Actions",
+        label: Object.hasOwn(table, "rowActionsHeaderLabel") ? table.rowActionsHeaderLabel : "Actions",
         align: "right",
         render: (record) => renderActions(rowActions, view, "Row actions", state, record),
       });
@@ -2000,6 +2059,7 @@
 
   root.view = Object.freeze({
     ...(root.view || {}),
+    createSlideOutSidebarController,
     registerBehavior,
     renderDescriptorActionMenu,
     renderDescriptorActionStrip,

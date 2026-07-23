@@ -402,6 +402,14 @@ function validSurface() {
       collapseOnSelect: true,
     },
     table: {
+      rowActionsHeaderLabel: "",
+      selection: {
+        enabled: true,
+        label: "Select sample",
+        headerLabel: "",
+        recordType: "sample",
+        labelField: "title",
+      },
       columns: [
         {
           field: "title",

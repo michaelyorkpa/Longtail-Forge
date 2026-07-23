@@ -33,8 +33,8 @@ try {
   assert.equal(packageJson.scripts["db:schema:check"], "node scripts/schema-snapshot.mjs --check");
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "081_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "083_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();
@@ -68,9 +68,11 @@ try {
   assert.match(liveSchema.sql, /password_change_required INTEGER NOT NULL DEFAULT 0/);
   assert.match(liveSchema.sql, /preferred_login_landing TEXT NOT NULL DEFAULT 'dashboard'/);
   assert.match(liveSchema.sql, /preferred_workspace_switch_landing TEXT NOT NULL DEFAULT 'dashboard'/);
+  assert.match(liveSchema.sql, /preferred_calendar_view TEXT/);
   assert.match(liveSchema.sql, /CREATE TABLE workspace_purge_tombstones/);
   assert.match(liveSchema.sql, /CREATE TABLE authentication_throttle_entries/);
   assert.match(liveSchema.sql, /CREATE TABLE startup_maintenance_runs/);
+  assert.match(liveSchema.sql, /estimate_minutes INTEGER[\s\S]*estimate_minutes % 15 = 0/);
 
   for (const requiredPath of [
     "scripts/fresh-database-regression.mjs",

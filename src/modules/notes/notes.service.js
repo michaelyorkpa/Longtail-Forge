@@ -4,6 +4,7 @@ import {
   NOTE_IMPORT_METADATA_FIELDS,
   NOTE_PERMISSIONS,
   canAccessNote,
+  normalizeNoteVisibilityForWorkspace,
   sanitizeNoteLifecyclePayload,
 } from "./access-policy.js";
 import {
@@ -195,7 +196,7 @@ async function read(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
 
-  return { note: shapeNoteForBrowser(await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
+  return { note: await shapeNoteForWorkspaceRead(session, await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
 }
 
 async function previewMarkdown(payload = {}, session) {
@@ -240,7 +241,7 @@ async function create(payload, session) {
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.created");
 
   return {
-    note: shapeNoteForBrowser(noteWithLinks, { includeBodyHtml: true }),
+    note: await shapeNoteForWorkspaceRead(session, noteWithLinks, { includeBodyHtml: true }),
     searchDocument: createSearchIndexPayload(noteWithLinks),
   };
 }
@@ -268,7 +269,7 @@ async function update(noteId, payload, session) {
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.updated");
 
   return {
-    note: shapeNoteForBrowser(noteWithLinks, { includeBodyHtml: true }),
+    note: await shapeNoteForWorkspaceRead(session, noteWithLinks, { includeBodyHtml: true }),
     searchDocument: createSearchIndexPayload(noteWithLinks),
   };
 }
@@ -302,7 +303,7 @@ async function archive(noteId, session) {
   await recordNoteAudit(session, "note_archived", "archive", previousNote, note);
   await emitNoteEvent("note.archived", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.archived");
-  return { note: shapeNoteForBrowser(note) };
+  return { note: await shapeNoteForWorkspaceRead(session, note) };
 }
 
 async function restore(noteId, session) {
@@ -322,7 +323,7 @@ async function restore(noteId, session) {
   await recordNoteAudit(session, "note_restored", "restore", previousNote, note);
   await emitNoteEvent("note.restored", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.restored");
-  return { note: shapeNoteForBrowser(note) };
+  return { note: await shapeNoteForWorkspaceRead(session, note) };
 }
 
 async function softDelete(noteId, session) {
@@ -341,7 +342,7 @@ async function softDelete(noteId, session) {
   await recordNoteAudit(session, "note_deleted", "delete", previousNote, note);
   await emitNoteEvent("note.deleted", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.deleted");
-  return { note: shapeNoteForBrowser(note) };
+  return { note: await shapeNoteForWorkspaceRead(session, note) };
 }
 
 async function listRevisions(noteId, session) {
@@ -391,7 +392,7 @@ async function restoreRevision(noteId, revisionId, session) {
     note_type: revision.note_type,
     library_bucket: revision.library_bucket,
     status: revision.status === NOTE_STATUSES.DELETED ? NOTE_STATUSES.ACTIVE : revision.status,
-    visibility: revision.visibility,
+    visibility: await normalizeNoteVisibilityForWrite(session, revision.visibility, { explicit: true }),
     security_mode: revision.security_mode,
     ...securePayload,
     updated_by_user_id: session.user_id,
@@ -403,7 +404,7 @@ async function restoreRevision(noteId, revisionId, session) {
   await emitNoteEvent("note.updated", session, previousNote, note, { restored_revision_id: revisionId });
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.revision_restored");
   return {
-    note: shapeNoteForBrowser(await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }),
+    note: await shapeNoteForWorkspaceRead(session, await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }),
     restoredRevision: shapeRevisionForBrowser(decryptSecureRevisionForRead(revision), { includeBody: false }),
   };
 }
@@ -707,6 +708,76 @@ async function readTaskLinkedNotePropagationStructure(session, taskId) {
   };
 }
 
+async function listCatalogSettings(session) {
+  await assertCatalogSettingsAccess(session);
+  const collections = await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: false,
+  });
+
+  return {
+    catalogs: sortCollectionsForReadModel(collections).map(shapeCatalogSettingsRow),
+    limits: {
+      bulkSelection: 100,
+    },
+  };
+}
+
+async function bulkManageCatalogs(payload = {}, session) {
+  await assertCatalogSettingsAccess(session);
+  const catalogIds = [...new Set(normalizeIdList(payload.catalogIds ?? payload.catalog_ids))];
+  const action = normalizeEnum(payload.action, new Set(["archive", "restore"]), "Catalog bulk action");
+
+  if (catalogIds.length === 0) {
+    throw new AppError("Select at least one Notes catalog.", 400);
+  }
+  if (catalogIds.length > 100) {
+    throw new AppError("Notes catalog bulk management supports at most 100 catalogs at a time.", 400);
+  }
+
+  const collections = await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: false,
+  });
+  const byId = new Map(collections.map((collection) => [collection.note_library_collection_id, collection]));
+  const selectedIds = new Set(catalogIds);
+  const errors = catalogIds
+    .filter((catalogId) => !byId.has(catalogId))
+    .map((catalogId) => ({ catalogId, message: "Note catalog not found." }));
+  let selected = catalogIds.map((catalogId) => byId.get(catalogId)).filter(Boolean);
+
+  if (action === "archive") {
+    selected = selected.filter((collection) => !collectionHasSelectedAncestor(collection, byId, selectedIds));
+  } else {
+    selected.sort((left, right) => Number(left.depth || 0) - Number(right.depth || 0));
+  }
+
+  const catalogs = [];
+  let affectedCount = 0;
+  for (const collection of selected) {
+    try {
+      const result = action === "archive"
+        ? await archiveCollection(collection.note_library_collection_id, session)
+        : await restoreCollection(collection.note_library_collection_id, session);
+      catalogs.push(shapeCatalogSettingsRow(result.collection));
+      affectedCount += Number(result.archivedCount || 1);
+    } catch (error) {
+      errors.push({
+        catalogId: collection.note_library_collection_id,
+        message: error?.statusCode === 404 ? "Note catalog not found." : error.message || "Note catalog could not be updated.",
+      });
+    }
+  }
+
+  return {
+    action,
+    affectedCount,
+    catalogs,
+    errors,
+    requestedCount: catalogIds.length,
+  };
+}
+
 async function bulkUpdate(payload, session) {
   await assertNotesWriteEnabled(session);
   const noteIds = [...new Set(normalizeIdList(payload?.noteIds || payload?.note_ids || []))];
@@ -972,7 +1043,16 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     throw new AppError("Convert-to-secure is deferred; recreate the note through the secure-note flow.", 400);
   }
 
-  const visibility = normalizeEnum(payload.visibility || previousNote?.visibility || NOTE_VISIBILITIES.INTERNAL, NOTE_VISIBILITY_VALUES, "Note visibility");
+  const hasVisibility = Object.hasOwn(payload, "visibility");
+  const requestedVisibility = normalizeEnum(
+    hasVisibility ? payload.visibility : previousNote?.visibility || NOTE_VISIBILITIES.INTERNAL,
+    NOTE_VISIBILITY_VALUES,
+    "Note visibility",
+  );
+  const visibility = await normalizeNoteVisibilityForWrite(session, requestedVisibility, {
+    explicit: hasVisibility,
+    preserveLegacy: Boolean(previousNote) && !hasVisibility,
+  });
   if (securityMode === NOTE_SECURITY_MODES.SECURE && visibility === NOTE_VISIBILITIES.CLIENT_VISIBLE) {
     throw new AppError("Secure notes cannot be client-visible or public in this release.", 400);
   }
@@ -1182,10 +1262,14 @@ async function filterAccessibleNotes(session, notes) {
       linkedRecordAccess,
       notesModuleEnabled: moduleState.enabled,
       historicalReadAccess: moduleState.historicalReadAccess,
+      workspaceType: moduleState.workspaceType,
     });
 
     if (access.allowed) {
-      readable.push({ ...note, links: linksByNoteId.get(note.note_id) || [] });
+      readable.push(normalizeNoteVisibilityForWorkspace({
+        ...note,
+        links: linksByNoteId.get(note.note_id) || [],
+      }, moduleState.workspaceType));
     }
   }
 
@@ -2378,6 +2462,13 @@ function shapeNoteForBrowser(note = {}, { includeBodyHtml = false } = {}) {
   return shaped;
 }
 
+async function shapeNoteForWorkspaceRead(session, note = {}, options = {}) {
+  return shapeNoteForBrowser(
+    normalizeNoteVisibilityForWorkspace(note, await readNotesWorkspaceType(session)),
+    options,
+  );
+}
+
 function shapeLinkedNotePanelItem(note = {}) {
   const shaped = shapeNoteForBrowser(note, { includeBodyHtml: false });
   delete shaped.body_markdown;
@@ -2873,12 +2964,38 @@ async function readNotePermissionSet(session, resource = {}) {
 
 async function readNotesModuleState(session) {
   const moduleDefinition = modulesService.getModule(NOTES_MODULE_ID);
+  const workspaceType = await readNotesWorkspaceType(session);
 
   return {
     notesModuleEnabled: await modulesService.canWriteModule(session.workspace_id, NOTES_MODULE_ID),
     enabled: await modulesService.canWriteModule(session.workspace_id, NOTES_MODULE_ID),
     historicalReadAccess: moduleDefinition?.historicalReadAccess !== false,
+    workspaceType,
   };
+}
+
+async function readNotesWorkspaceType(session) {
+  const workspace = await workspacesRepository.readById(session.workspace_id);
+  return normalizeWorkspaceType(workspace?.workspace_type);
+}
+
+async function normalizeNoteVisibilityForWrite(session, visibility, { explicit = false, preserveLegacy = false } = {}) {
+  const workspaceType = await readNotesWorkspaceType(session);
+
+  if (workspaceType === "personal") {
+    if (explicit && visibility !== NOTE_VISIBILITIES.INTERNAL) {
+      throw new AppError("Personal workspace notes do not support visibility choices.", 400);
+    }
+    return preserveLegacy ? visibility : NOTE_VISIBILITIES.INTERNAL;
+  }
+  if (workspaceType === "family" && visibility === NOTE_VISIBILITIES.CLIENT_VISIBLE) {
+    if (explicit) {
+      throw new AppError("Family workspace notes cannot be client-visible.", 400);
+    }
+    return preserveLegacy ? visibility : NOTE_VISIBILITIES.INTERNAL;
+  }
+
+  return visibility;
 }
 
 async function assertNotesWriteEnabled(session) {
@@ -2891,6 +3008,13 @@ async function assertNotesWriteEnabled(session) {
 
 async function normalizeNoteListQuery(session, query = {}) {
   const filters = normalizeListFilters(query);
+  const workspaceType = await readNotesWorkspaceType(session);
+  if (workspaceType === "personal" && filters.visibility) {
+    throw new AppError("Personal workspace notes do not support visibility filters.", 400);
+  }
+  if (workspaceType === "family" && filters.visibility === NOTE_VISIBILITIES.CLIENT_VISIBLE) {
+    throw new AppError("Family workspace notes cannot be filtered by Client visibility.", 400);
+  }
   const collectionFilter = await resolveCollectionListFilter(session, filters);
   const scope = await resolveClientProjectFilterScope(session, {
     clientId: filters.clientId,
@@ -3090,7 +3214,11 @@ async function normalizeNoteBulkChanges(payload = {}, session) {
     changes.note_type = normalizeEnum(payload.noteType ?? payload.note_type, NOTE_TYPE_VALUES, "Note Kind");
   }
   if (hasVisibility) {
-    changes.visibility = normalizeEnum(payload.visibility, NOTE_VISIBILITY_VALUES, "Note visibility");
+    changes.visibility = await normalizeNoteVisibilityForWrite(
+      session,
+      normalizeEnum(payload.visibility, NOTE_VISIBILITY_VALUES, "Note visibility"),
+      { explicit: true },
+    );
   }
 
   if (Object.keys(changes).length === 0) {
@@ -3191,6 +3319,18 @@ function copyImportMetadata(note = {}) {
 
 async function assertCollectionsWriteEnabled(session) {
   await assertNotesWriteEnabled(session);
+  await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.MANAGE_LIBRARY, {
+    workspace_id: session.workspace_id,
+    operation: "manage_library",
+  });
+}
+
+async function assertCatalogSettingsAccess(session) {
+  await assertNotesWriteEnabled(session);
+  await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.MANAGE_SETTINGS, {
+    workspace_id: session.workspace_id,
+    operation: "manage",
+  });
   await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.MANAGE_LIBRARY, {
     workspace_id: session.workspace_id,
     operation: "manage_library",
@@ -3447,6 +3587,37 @@ function collectionDescendants(collection, collections = []) {
   }
 
   return descendants;
+}
+
+function collectionHasSelectedAncestor(collection, byId, selectedIds) {
+  let parentId = collection.parent_collection_id || "";
+  const visited = new Set();
+
+  while (parentId && !visited.has(parentId)) {
+    if (selectedIds.has(parentId)) {
+      return true;
+    }
+    visited.add(parentId);
+    parentId = byId.get(parentId)?.parent_collection_id || "";
+  }
+
+  return false;
+}
+
+function shapeCatalogSettingsRow(collection = {}) {
+  return {
+    catalogId: collection.note_library_collection_id,
+    title: collection.title,
+    description: collection.description || "",
+    libraryBucket: collection.library_bucket,
+    parentCatalogId: collection.parent_collection_id || null,
+    path: collection.path_cache || collection.title,
+    depth: Number(collection.depth || 0),
+    sortOrder: Number(collection.sort_order || 0),
+    source: collection.collection_source || "manual",
+    status: collection.status || "active",
+    updatedAt: collection.updated_at || null,
+  };
 }
 
 function collectionPath(collection, parent = null) {
@@ -3822,6 +3993,7 @@ export const notesService = {
   archive,
   archiveCollection,
   assignNoteCollection,
+  bulkManageCatalogs,
   bulkUpdate,
   changeLibrary,
   create,
@@ -3835,6 +4007,7 @@ export const notesService = {
   listAll,
   listArchived,
   listByLibraryBucket,
+  listCatalogSettings,
   listCollections,
   listForTarget,
   listLinkTargets,

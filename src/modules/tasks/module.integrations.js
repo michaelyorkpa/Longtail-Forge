@@ -147,6 +147,20 @@ const tasksIntegrations = {
           supported: ["due_at", "priority", "title", "timer_status"],
         },
       },
+      {
+        sourceType: "task_completion_follow_up",
+        moduleId: "tasks",
+        label: "Task completion follow-ups",
+        listRoute: "/api/tasks/workbench-items",
+        requiredPermissions: ["tasks.view"],
+        requiredModules: ["tasks"],
+        filterHints: {
+          supported: ["all", "client", "project"],
+        },
+        sortHints: {
+          supported: ["updated"],
+        },
+      },
     ],
 };
 
