@@ -464,6 +464,7 @@ function buildSiteHeader() {
 
   homeLink.href = "dashboard.html";
   homeLink.className = "site-brand-home";
+  homeLink.setAttribute("aria-label", "Longtail Forge home");
   const brandLogo = document.createElement("img");
   brandLogo.className = "site-brand-logo";
   brandLogo.src = "/assets/logo.webp";

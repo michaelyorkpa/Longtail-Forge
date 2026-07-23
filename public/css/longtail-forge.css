@@ -4580,7 +4580,7 @@ button.danger-button {
     border: 1px solid var(--color-border);
     border-radius: 999px;
     background: var(--color-page-bg);
-    color: var(--color-accent);
+    color: var(--color-text);
     cursor: pointer;
 }
 

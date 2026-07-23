@@ -6,8 +6,10 @@
 - Expanded the development-data and startup-maintenance regressions for configured seed identity, changed-username restarts, existing-install update safety, exactly-one-administrator behavior, and password-output refusal.
 - Guardedly backed up, reset, and reseeded only the canonical local `data/development-seed` world, then verified its configured operator identity, one protected/super-admin account, SQLite integrity, foreign keys, and runtime version.
 - Removed the completed `TODO.md` username-reset report and retained the live roadmap cursor at `0.33.22`.
+- Isolated the rendered password-change proof to a disposable managed-harness user so session revocation cannot invalidate the shared Playwright operator used by parallel viewport tests.
+- Restored phone-width accessibility after the compact app-shell and Task hierarchy work: the hidden wordmark retains an explicit home-link name, parent-task chips use the high-contrast text token, and the keyboard no-trap proof distinguishes icon-only controls by accessible name.
 - Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/development-and-demo-data.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
-- No docs change needed: user-facing Help, public API, permission semantics, schema/migrations, demo-host reset operations, and deployment behavior are unchanged.
+- No docs change needed: `docs/accessibility.md` and `docs/e2e-testing.md` already own the preserved rendered-accessibility and isolated-harness contracts; user-facing Help, public API, permission semantics, schema/migrations, demo-host reset operations, and deployment behavior are unchanged.
 
 ## Version 0.33.21.19.5 - 2026-07-23
 
