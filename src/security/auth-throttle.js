@@ -5,6 +5,9 @@ import { authenticationThrottleRepository } from "../repositories/authentication
 
 const AUTHENTICATION_THROTTLE_MESSAGE = "Too many attempts. Try again later.";
 const DEFAULT_TRACKED_KEY_LIMIT = 10000;
+const DEFAULT_VERIFICATION_CONCURRENCY_LIMIT = 4;
+const DEFAULT_VERIFICATION_CONCURRENCY_PER_IP_LIMIT = 2;
+const NOOP = () => {};
 
 function createAuthenticationThrottle(options = {}) {
   const settings = {
@@ -12,10 +15,26 @@ function createAuthenticationThrottle(options = {}) {
     failureLimit: positiveInteger(options.failureLimit, 5),
     lockoutSeconds: positiveInteger(options.lockoutSeconds, 15 * 60),
     trackedKeyLimit: positiveInteger(options.trackedKeyLimit, DEFAULT_TRACKED_KEY_LIMIT),
+    verificationConcurrencyLimit: positiveInteger(
+      options.verificationConcurrencyLimit,
+      DEFAULT_VERIFICATION_CONCURRENCY_LIMIT,
+    ),
+    verificationConcurrencyPerIpLimit: positiveInteger(
+      options.verificationConcurrencyPerIpLimit,
+      DEFAULT_VERIFICATION_CONCURRENCY_PER_IP_LIMIT,
+    ),
     windowSeconds: positiveInteger(options.windowSeconds, 15 * 60),
   };
+  settings.verificationConcurrencyPerIpLimit = Math.min(
+    settings.verificationConcurrencyPerIpLimit,
+    settings.verificationConcurrencyLimit,
+  );
   const clock = typeof options.clock === "function" ? options.clock : Date.now;
   const store = options.store || authenticationThrottleRepository;
+  const verificationAdmissions = {
+    active: 0,
+    byClient: new Map(),
+  };
 
   async function check(context = {}) {
     if (!settings.enabled) {
@@ -62,6 +81,96 @@ function createAuthenticationThrottle(options = {}) {
     };
   }
 
+  async function admitVerification(context = {}) {
+    const release = tryAcquireVerification(context);
+    if (!release) {
+      return {
+        blocked: true,
+        admissionLimited: true,
+        newlyLockedDimensions: [],
+        release: NOOP,
+        retryAfterSeconds: 1,
+      };
+    }
+
+    try {
+      const throttleStatus = await check(context);
+      if (throttleStatus.blocked) {
+        release();
+        return {
+          ...throttleStatus,
+          admissionLimited: false,
+          release: NOOP,
+        };
+      }
+    } catch (error) {
+      release();
+      throw error;
+    }
+
+    return {
+      blocked: false,
+      admissionLimited: false,
+      newlyLockedDimensions: [],
+      release,
+      retryAfterSeconds: 0,
+    };
+  }
+
+  async function runWithVerificationAdmission(context = {}, operation) {
+    if (typeof operation !== "function") {
+      throw new TypeError("Verification admission requires an operation.");
+    }
+
+    const admission = await admitVerification(context);
+    if (admission.blocked) {
+      return admission;
+    }
+
+    try {
+      return {
+        ...admission,
+        value: await operation(),
+      };
+    } finally {
+      admission.release();
+    }
+  }
+
+  function tryAcquireVerification(context) {
+    const clientKey = createKey(
+      normalizeScope(context.scope),
+      "ip",
+      normalizeIpAddress(context.ipAddress),
+    ).keyHash;
+    const clientActive = verificationAdmissions.byClient.get(clientKey) || 0;
+
+    if (
+      verificationAdmissions.active >= settings.verificationConcurrencyLimit ||
+      clientActive >= settings.verificationConcurrencyPerIpLimit
+    ) {
+      return null;
+    }
+
+    verificationAdmissions.active += 1;
+    verificationAdmissions.byClient.set(clientKey, clientActive + 1);
+    let released = false;
+
+    return () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      verificationAdmissions.active = Math.max(0, verificationAdmissions.active - 1);
+      const remainingForClient = (verificationAdmissions.byClient.get(clientKey) || 1) - 1;
+      if (remainingForClient > 0) {
+        verificationAdmissions.byClient.set(clientKey, remainingForClient);
+      } else {
+        verificationAdmissions.byClient.delete(clientKey);
+      }
+    };
+  }
+
   async function reset(context = {}) {
     await store.removeEntries(contextKeys(context));
   }
@@ -71,11 +180,13 @@ function createAuthenticationThrottle(options = {}) {
   }
 
   return Object.freeze({
+    admitVerification,
     check,
     clear,
     recordFailure,
     recordSensitiveAction: recordFailure,
     reset,
+    runWithVerificationAdmission,
     settings: Object.freeze({ ...settings }),
   });
 }

@@ -28,6 +28,8 @@ const DEFAULT_PRODUCTION_HSTS_MAX_AGE_SECONDS = 300;
 const DEFAULT_AUTH_THROTTLE_WINDOW_SECONDS = 15 * 60;
 const DEFAULT_AUTH_THROTTLE_FAILURE_LIMIT = 5;
 const DEFAULT_AUTH_THROTTLE_LOCKOUT_SECONDS = 15 * 60;
+const DEFAULT_AUTH_VERIFICATION_CONCURRENCY_LIMIT = 4;
+const DEFAULT_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT = 2;
 const DEFAULT_SECURE_NOTES_KEY_VERSION = "v1";
 const DEFAULT_STORAGE_PROVIDER = "local";
 const DEFAULT_FILE_SCANNER = "none";
@@ -126,6 +128,18 @@ function createConfig(env = process.env) {
     "LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS",
     DEFAULT_AUTH_THROTTLE_LOCKOUT_SECONDS,
     { min: 1, max: 60 * 60 * 24 * 7 },
+  );
+  const authenticationVerificationConcurrencyLimit = readInteger(
+    env,
+    "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT",
+    DEFAULT_AUTH_VERIFICATION_CONCURRENCY_LIMIT,
+    { min: 1, max: 64 },
+  );
+  const authenticationVerificationConcurrencyPerIpLimit = readInteger(
+    env,
+    "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT",
+    DEFAULT_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT,
+    { min: 1, max: authenticationVerificationConcurrencyLimit },
   );
   const bootstrapPassword = readRuntimeSecret("SUPER_ADMIN_PASSWORD", env);
   const secureNotesMasterKey = readRuntimeSecret("LONGTAIL_SECURE_NOTES_MASTER_KEY", env)
@@ -288,6 +302,8 @@ function createConfig(env = process.env) {
         enabled: authenticationThrottleEnabled,
         failureLimit: authenticationThrottleFailureLimit,
         lockoutSeconds: authenticationThrottleLockoutSeconds,
+        verificationConcurrencyLimit: authenticationVerificationConcurrencyLimit,
+        verificationConcurrencyPerIpLimit: authenticationVerificationConcurrencyPerIpLimit,
         windowSeconds: authenticationThrottleWindowSeconds,
       },
       hsts: {
