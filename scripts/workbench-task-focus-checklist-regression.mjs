@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
+const tasksHelp = readText("help/framework/tasks-basics.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
@@ -11,6 +12,7 @@ const moduleContract = readText("docs/module-contract.md");
 const tasksModuleDoc = readText("docs/tasks-module.md");
 const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
+const taskWorkEvidenceService = readText("src/modules/tasks/task-work-evidence.service.js");
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -99,8 +101,13 @@ assert.match(
 );
 assert.match(
   tasksService,
-  /function checklistDrivenStatus\(task, checked, currentItems = \[\]\)[\s\S]*checked === true && task\.status === "open"[\s\S]*return "in_progress"[\s\S]*checked === false && task\.status === "in_progress"[\s\S]*hasCheckedItems \? "" : "open"/,
-  "Checklist check/uncheck should own the eligible open/in-progress status transitions in Tasks service code",
+  /async function checklistDrivenStatus\(workspaceId, task, checked, currentItems = \[\]\)[\s\S]*checked === true && \(task\.status === "open" \|\| task\.status === "blocked"\)[\s\S]*return "in_progress"[\s\S]*taskWorkEvidenceService\.readStartedWorkEvidence[\s\S]*evidence\.hasStartedWork \? "" : "open"/,
+  "Checklist check/uncheck should preserve eligible Open/Blocked-to-In Progress transitions through Tasks-owned started-work evidence",
+);
+assert.match(
+  taskWorkEvidenceService,
+  /taskTimersRepository\.hasActiveForTask[\s\S]*timeEntriesService\.hasTaskTime[\s\S]*taskChecklistsRepository\.readForTask[\s\S]*hasCheckedChecklistItem[\s\S]*hasStartedWork: hasActiveTimer \|\| hasPersistedTime \|\| hasCheckedChecklistItem/,
+  "Tasks-owned started-work evidence should combine running or paused timers, persisted task time, and checked checklist work",
 );
 assert.match(
   tasksService,
@@ -115,7 +122,7 @@ assert.match(
 );
 assert.match(
   moduleContract,
-  /As of 0\.33\.6\.12l[\s\S]*Task Focus checklist toggles are status-aware[\s\S]*Open[\s\S]*In Progress[\s\S]*complete[\s\S]*archived[\s\S]*blocked/,
+  /As of 0\.33\.6\.12l[\s\S]*Task Focus checklist toggles are status-aware[\s\S]*As of 0\.33\.21\.3\.3[\s\S]*remaining checked item[\s\S]*running or paused task timer[\s\S]*persisted task-linked time entry[\s\S]*As of 0\.33\.21\.4\.3[\s\S]*checking a Blocked Task returns In Progress[\s\S]*empty active Blocked Reason/,
   "Module contract should record the Task Focus checklist boundary",
 );
 assert.match(
@@ -125,8 +132,13 @@ assert.match(
 );
 assert.match(
   tasksModuleDoc,
-  /As of 0\.33\.6\.12l[\s\S]*[Cc]hecking any checklist item on an Open task moves it to In Progress[\s\S]*unchecking the last checked item on an In Progress task moves it back to Open/,
+  /As of 0\.33\.6\.12l[\s\S]*[Cc]hecking any checklist item on an Open task moves it to In Progress[\s\S]*As of 0\.33\.21\.3\.3[\s\S]*running or paused task timer[\s\S]*persisted task-linked time[\s\S]*As of 0\.33\.21\.4\.3[\s\S]*checking an item on a Blocked Task[\s\S]*clears the active Blocked Reason/,
   "Tasks docs should state the Workbench checklist execution boundary",
+);
+assert.match(
+  tasksHelp,
+  /Unchecking the last checklist item returns an In Progress task to Open only when there is no running or paused task timer, saved task time, or other checked item/,
+  "Tasks Help should explain when clearing checklist work may legitimately return a task to Open",
 );
 assert.match(
   viewContract,

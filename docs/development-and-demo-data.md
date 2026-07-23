@@ -11,28 +11,33 @@ Version 0.33.19.1 reuses the same `development` scenario definition behind a sep
 
 ## Seed a local profile
 
-Choose a unique local operator password and pass it only through the environment. The command does not contain or print a shared password.
+Set the initial operator identity and a unique local password in the untracked root `.env`. The seed CLI loads that file before bootstrap configuration is read; explicit process-environment values take precedence. The command does not contain or print a shared password.
 
 PowerShell:
 
 ```powershell
-$env:SUPER_ADMIN_PASSWORD = '<unique-local-password>'
 npm run dev:data:seed
 ```
 
-POSIX shell:
+Root `.env`:
 
-```sh
-SUPER_ADMIN_PASSWORD='<unique-local-password>' npm run dev:data:seed
+```dotenv
+SUPER_ADMIN_USERNAME='operator@example.test'
+SUPER_ADMIN_DISPLAY_NAME='Local Operator'
+SUPER_ADMIN_PASSWORD='<unique-local-password>'
 ```
 
 For screenshot and recording work, run `npm run demo:data:seed` instead. The commands create only their exact marked directories. An existing or non-empty target is refused rather than merged or overwritten.
 
-The fixed default anchor date is `2026-07-15`, which makes IDs, scenario values, relative due states, and the semantic fingerprint reproducible. To exercise another date while keeping that run deterministic, invoke the CLI directly with `--anchor-date YYYY-MM-DD` and an explicitly marked target:
+Bootstrap creates that protected operator only when the installation has no users. If any protected user, `super_admin` assignment, or other user row already exists, startup does not create or rename a user merely because `SUPER_ADMIN_USERNAME` changed. A fresh install without `SUPER_ADMIN_PASSWORD` fails with an actionable configuration error; it never generates or prints a credential.
 
-```sh
-node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed --anchor-date 2026-07-15
+The canonical local `data/development-seed` world always uses the current local date (`Today()`) so each reset keeps the fictional due/overdue/upcoming states useful. Run it through the normal package command without a fixed date:
+
+```powershell
+npm run dev:data:seed
 ```
+
+The explicit `--anchor-date` CLI option is reserved for isolated regression fixtures and controlled demo/capture operations; do not use it for the canonical local development world.
 
 The result reports counts, a semantic fingerprint, and safe entry points for Dashboard, Workbench Focus Selection, and the seeded Task Focus task. It never reports a password. Seed completion also requires `PRAGMA integrity_check` and zero `PRAGMA foreign_key_check` rows.
 
@@ -71,7 +76,9 @@ The reset command refuses an unmarked directory, a mismatched profile, changed p
 
 ## Seeded product states
 
-The coherent fictional scenarios cover Northwind Studio (Business), a Personal workspace, and a Family workspace. They include fake users and meaningful role assignments, including Priya's Project Administrator assignment scoped to Website Refresh; clients and projects; overdue, due, upcoming, blocked, recurring, completed, in-progress, and undated tasks; checklists; next actions and resume context; Work Resume State; active and paused timers; a completed task-timer entry and manual time; Notes collections, links, tags, revisions, and safe Markdown; reusable, active/partial, and finalized Lists; tiny harmless text/Markdown Files objects; notifications and reminder offsets; Search projections; and the records consumed by Dashboard and Workbench.
+The coherent fictional scenarios cover Northwind Studio (Business), a Personal workspace, and a Family workspace. They include fake users and meaningful role assignments, including Priya's Project Administrator assignment scoped to Website Refresh; clients and projects; overdue, due, upcoming, blocked, recurring, completed, in-progress, and undated tasks; checklists; next actions and resume context; Work Resume State; running and paused timers; a completed task-timer entry and manual time; Notes collections, links, tags, revisions, and safe Markdown; reusable, active/partial, and finalized Lists; tiny harmless text/Markdown Files objects; notifications and reminder offsets; Search projections; and the records consumed by Dashboard and Workbench.
+
+As of 0.33.21.18.1, every seeded Task Timer uses the same persisted contract as a runtime-created Task Timer: `running` or `paused`, the `source:tasks:task:<taskId>` slot, Tasks source identity and labels, matching Client/Project context, and Tasks-authored lifecycle-transition metadata. A Task with seeded timer or checked-checklist evidence is `in_progress`; the seed never relies on an `open` Task plus malformed timer state that runtime code must repair.
 
 All persona names, businesses, content, and `example.com` addresses are fictional. Persona accounts are inactive and contain an invalid non-hash password value, so they cannot be used as shared preview logins. The one active operator is the normal first-install account protected by the unique password supplied at seed time. Real invitees must receive individual accounts through the shipped Users workflow.
 
@@ -79,4 +86,4 @@ No note uses Secure Notes mode. The builder clears Secure Notes key variables be
 
 ## Verification
 
-`database.development-data-seed` creates two disposable installations with different operator passwords and proves their semantic fingerprints and counts match. It also checks target refusal, reset ownership, fake-account login disablement, seeded state coverage, Files bytes, Secure Notes absence, and SQLite integrity.
+`database.development-data-seed` creates two disposable installations with different operator passwords and proves their semantic fingerprints and counts match. It also checks `.env` loading order with explicit-environment precedence, configured operator identity, target refusal, reset ownership, fake-account login disablement, seeded state coverage, Files bytes, Secure Notes absence, and SQLite integrity. Its Task Timer coverage joins every seeded timer to the expected Task, user, workspace, Client, and Project, pins canonical status/slot/transition metadata, and drives the real Tasks service through Start/Resume, Pause, Save Time, and Reset while proving source uniqueness. `database.startup-maintenance-lifecycle` separately proves that a changed configured username and an existing nonempty installation cannot cause another administrator to be invented.

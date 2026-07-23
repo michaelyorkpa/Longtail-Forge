@@ -41,6 +41,7 @@ try {
   await assertResolvedContextsDriveCandidates(session);
   await assertDescendantHierarchyFocusScopes(session);
   await assertPickUpWhereLeftOffExecutesResumeStrategy(session);
+  await assertPickUpWhereLeftOffIncludesTaskTimers(session);
   await assertPickUpWhereLeftOffBoostsSecondUpdatedTask(session);
   await assertClientFocusWorkspaceGating(session);
   await assertDocumentedOverdueFocusContracts();
@@ -87,8 +88,18 @@ async function assertDocumentedOverdueFocusContracts() {
 
   assert.match(
     moduleContract,
-    /"Start with what's due" and "Work this week" include overdue active tasks first/,
+    /"What's due next" and "Work this week" include overdue active tasks first/,
     "module contract should document due-focused modes including overdue work first",
+  );
+  assert.match(
+    moduleContract,
+    /every built-in focus mode explicitly excludes Blocked candidates except "Review blocked work"/,
+    "module contract should document the exclusive blocked-review policy",
+  );
+  assert.match(
+    moduleContract,
+    /focus service also merges permission-shaped live timers into a non-empty resume result/,
+    "module contract should document live timers coexisting with resume state",
   );
   assert.match(
     moduleContract,
@@ -104,6 +115,11 @@ async function assertDocumentedOverdueFocusContracts() {
     uiSurfaceContract,
     /Due-focused modes include overdue active task work before due-today and upcoming work/,
     "UI surface contract should document due-focused overdue ordering",
+  );
+  assert.match(
+    uiSurfaceContract,
+    /due-focused modes also include due In Progress Tasks/,
+    "UI surface contract should document due In Progress eligibility",
   );
   assert.match(
     uiSurfaceContract,
@@ -129,6 +145,16 @@ async function assertDocumentedOverdueFocusContracts() {
     tasksModule,
     /Tasks client\/project filters and Tasks-owned Workbench item reads consume the shared hierarchy scope resolver/,
     "Tasks module guide should document descendant-aware client/project scoping",
+  );
+  assert.match(
+    tasksModule,
+    /batched Tasks lifecycle\/readability provider authorizes task-sourced live timers/,
+    "Tasks module guide should document task-timer candidate readability ownership",
+  );
+  assert.match(
+    await fs.readFile("docs/time-tracking-module.md", "utf8"),
+    /task-sourced timers pass a batched Tasks lifecycle\/readability check and become Task Focus candidates, running before paused/,
+    "Time Tracking guide should document the task-timer recommendation handoff",
   );
 }
 
@@ -181,6 +207,7 @@ async function assertModeResolutionContracts(session) {
   assert.equal(startMyDay.candidateQuery.mode, FOCUS_MODE_IDS.startMyDay);
   assert.equal(startMyDay.candidateQuery.includeTaskCandidates, true);
   assert.equal(startMyDay.candidateQuery.excludePassiveRecurringCreated, true);
+  assert.deepEqual(startMyDay.candidateQuery.excludeStatusFilters, ["blocked"]);
   assert.deepEqual(pickUp.resumeStrategy, {
     fallback: "ranked-candidates",
     fallbackRankBuckets: ["running_timer", "paused_timer", "overdue_assigned_work", "recently_touched"],
@@ -200,6 +227,7 @@ async function assertModeResolutionContracts(session) {
   assert.equal(dueNext.candidateQuery.sort, WORK_CANDIDATE_SORTS.dueDatetime);
   assert.equal(dueNext.candidateQuery.includeTaskCandidates, true);
   assert.equal(dueNext.candidateQuery.excludePassiveRecurringCreated, true);
+  assert.deepEqual(dueNext.candidateQuery.excludeStatusFilters, ["blocked"]);
   assert.equal(week.filters.date.dueFrom, "");
   assert.equal(week.filters.date.dueTo, "2026-07-14");
   assert.equal(week.candidateQuery.dueFrom, undefined);
@@ -209,6 +237,8 @@ async function assertModeResolutionContracts(session) {
   assert.equal(week.candidateQuery.includeTaskCandidates, true);
   assert.equal(week.candidateQuery.excludePassiveRecurringCreated, true);
   assert.deepEqual(blocked.filters.status, ["blocked"]);
+  assert.deepEqual(blocked.filters.excludeStatus, []);
+  assert.equal(blocked.candidateQuery.excludeStatusFilters, undefined);
   assert.equal(blocked.candidateQuery.includeTaskCandidates, true);
   assert.equal(blocked.candidateQuery.excludePassiveRecurringCreated, true);
   assert.deepEqual(inProgress.filters.status, ["running", "paused", "active", "in_progress"]);
@@ -328,6 +358,12 @@ async function assertResolvedContextsDriveCandidates(session) {
     projectId: projectAlpha,
     title: "Task source overdue without resume state",
   });
+  const taskSourceDueInProgressId = await createTaskSourceCandidate(session, {
+    dueDate: "2026-07-06",
+    projectId: projectAlpha,
+    status: "in_progress",
+    title: "Task source due In Progress",
+  });
   const taskSourceLaterId = await createTaskSourceCandidate(session, {
     dueDate: "2026-08-01",
     projectId: projectAlpha,
@@ -376,6 +412,7 @@ async function assertResolvedContextsDriveCandidates(session) {
     taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
+    taskSourceDueInProgressId,
     newerOverdueId,
     dueTodayId,
     dueWeekId,
@@ -383,9 +420,9 @@ async function assertResolvedContextsDriveCandidates(session) {
   ]), [
     oldestOverdueId,
     otherProjectOverdueId,
-    taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
+    taskSourceDueInProgressId,
     newerOverdueId,
     dueTodayId,
     dueWeekId,
@@ -397,6 +434,10 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.equal(dueNext.items.some((candidate) => candidate.recordId === completedOverdueId), false);
   assert.equal(dueNext.items.some((candidate) => candidate.recordId === archivedOverdueId), false);
   assert.equal(dueNext.items.some((candidate) => candidate.recordId === blockedId), false);
+  assert.equal(dueNext.items.some((candidate) => candidate.recordId === taskSourceBlockedOverdueId), false);
+  assert.ok(dueNext.items.some((candidate) => (
+    candidate.recordId === taskSourceDueInProgressId && candidate.status === "in_progress"
+  )), "What's due next should include due In Progress task-source candidates");
 
   const clientScopedDueNext = await workFocusModesService.listFocusCandidates(session, {
     clientId: clientAlpha,
@@ -413,15 +454,16 @@ async function assertResolvedContextsDriveCandidates(session) {
     taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
+    taskSourceDueInProgressId,
     newerOverdueId,
     dueTodayId,
     dueWeekId,
     dueWeekLaterId,
   ]), [
     oldestOverdueId,
-    taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
+    taskSourceDueInProgressId,
     newerOverdueId,
     dueTodayId,
   ]);
@@ -440,6 +482,7 @@ async function assertResolvedContextsDriveCandidates(session) {
     taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
+    taskSourceDueInProgressId,
     newerOverdueId,
     dueTodayId,
     dueWeekId,
@@ -447,9 +490,9 @@ async function assertResolvedContextsDriveCandidates(session) {
   ]), [
     oldestOverdueId,
     otherProjectOverdueId,
-    taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
+    taskSourceDueInProgressId,
     newerOverdueId,
     dueTodayId,
     dueWeekId,
@@ -458,6 +501,7 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.equal(weekFocus.items.some((candidate) => candidate.recordId === laterId), false);
   assert.equal(weekFocus.items.some((candidate) => candidate.recordId === taskSourceLaterId), false);
   assert.equal(weekFocus.items.some((candidate) => candidate.recordId === passiveRecurringFutureId), false);
+  assert.equal(weekFocus.items.some((candidate) => candidate.recordId === taskSourceBlockedOverdueId), false);
 
   const projectScopedWeek = await workFocusModesService.listFocusCandidates(session, {
     limit: 100,
@@ -493,8 +537,8 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.equal(scopedStart.focusContext.scope.projectId, projectAlpha);
   assert.ok(scopedStart.items.some((candidate) => candidate.recordId === taskSourceOverdueId));
   assert.ok(scopedStart.items.some((candidate) => candidate.recordId === dueTodayId));
-  assert.ok(scopedStart.items.some((candidate) => candidate.recordId === blockedId));
-  assert.ok(scopedStart.items.some((candidate) => candidate.recordId === taskSourceBlockedOverdueId));
+  assert.equal(scopedStart.items.some((candidate) => candidate.recordId === blockedId), false);
+  assert.equal(scopedStart.items.some((candidate) => candidate.recordId === taskSourceBlockedOverdueId), false);
   assert.ok(scopedStart.items.some((candidate) => candidate.recordId === activeId));
   assert.equal(scopedStart.items.some((candidate) => candidate.recordId === dueWeekId), false);
   assert.equal(scopedStart.items.some((candidate) => candidate.recordId === otherProjectOverdueId), false);
@@ -509,7 +553,6 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.equal(projectFocus.focusContext.scope.projectId, projectAlpha);
   assert.deepEqual(intersectCandidateIds(projectFocus.items, [
     oldestOverdueId,
-    taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
     newerOverdueId,
@@ -519,7 +562,6 @@ async function assertResolvedContextsDriveCandidates(session) {
     taskSourceNoDueId,
   ]), [
     oldestOverdueId,
-    taskSourceBlockedOverdueId,
     passiveRecurringOverdueId,
     taskSourceOverdueId,
     newerOverdueId,
@@ -532,7 +574,8 @@ async function assertResolvedContextsDriveCandidates(session) {
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === laterId));
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === taskSourceLaterId));
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === taskSourceNoDueId));
-  assert.ok(projectFocus.items.some((candidate) => candidate.recordId === blockedId));
+  assert.equal(projectFocus.items.some((candidate) => candidate.recordId === blockedId), false);
+  assert.equal(projectFocus.items.some((candidate) => candidate.recordId === taskSourceBlockedOverdueId), false);
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === staleId));
   assert.ok(projectFocus.items.some((candidate) => candidate.recordId === activeId));
   assert.equal(projectFocus.items.some((candidate) => candidate.recordId === dueWeekId), false);
@@ -791,6 +834,26 @@ async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
     statusSnapshot: "open",
     title: "Near Due Recurring Created",
   });
+  const exactWeekCreationId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-14",
+    lastActionLabel: "Task Created",
+    lastActionType: "task.created",
+    lastWorkedAt: "2026-07-07T12:45:00.000Z",
+    nextAction: "",
+    projectId,
+    statusSnapshot: "open",
+    title: "Exactly Seven Days Creation",
+  });
+  const distantCreationId = await upsertTaskCandidate(session, {
+    dueAtSnapshot: "2026-07-15",
+    lastActionLabel: "Task Created",
+    lastActionType: "task.created",
+    lastWorkedAt: "2026-07-07T12:50:00.000Z",
+    nextAction: "",
+    projectId,
+    statusSnapshot: "open",
+    title: "Distant Creation Only",
+  });
   const unreadableId = await upsertTaskCandidate(session, {
     lastActionLabel: "Task Updated",
     lastActionType: "task.updated",
@@ -813,7 +876,7 @@ async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
     oldResumeNoteId,
     highInProgressId,
     lowInProgressId,
-    nearRecurringId,
+    exactWeekCreationId,
   ]);
 
   assert.deepEqual(orderedResumeIds, [
@@ -822,10 +885,12 @@ async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
     oldResumeNoteId,
     highInProgressId,
     lowInProgressId,
-    nearRecurringId,
+    exactWeekCreationId,
   ], "Pick up focus should rank resume rows before falling back to recent work buckets");
   assert.equal(resumeFocus.items[0]?.recordId, runningId, "the recommended candidate should be the strongest resume match");
   assert.equal(resumeFocus.items.some((candidate) => candidate.recordId === farRecurringId), false);
+  assert.equal(resumeFocus.items.some((candidate) => candidate.recordId === nearRecurringId), false);
+  assert.equal(resumeFocus.items.some((candidate) => candidate.recordId === distantCreationId), false);
   assert.equal(resumeFocus.items.some((candidate) => candidate.recordId === unreadableId), false);
 
   const dismissedCandidate = resumeFocus.items.find((candidate) => candidate.recordId === oldResumeNoteId);
@@ -868,6 +933,106 @@ async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
 
   assert.equal(fallbackFocus.items[0]?.recordId, fallbackTimerId);
   assert.equal(fallbackFocus.items[0]?.sourceKind, "live_timer");
+
+  const distantFallbackProjectId = `resume-distant-fallback-${randomUUID()}`;
+  await createProject(session.workspace_id, distantFallbackProjectId, "Resume Distant Fallback Project");
+  const distantFallbackId = await createTaskSourceCandidate(session, {
+    dueDate: "2026-07-15",
+    projectId: distantFallbackProjectId,
+    title: "Distant Non-Recurring Fallback",
+  });
+  const distantFallback = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId: distantFallbackProjectId,
+    today,
+  });
+  assert.deepEqual(
+    distantFallback.items.map((candidate) => candidate.recordId),
+    [distantFallbackId],
+    "a distant non-recurring creation-only task should appear only as the empty-mode fallback",
+  );
+}
+
+async function assertPickUpWhereLeftOffIncludesTaskTimers(session) {
+  const today = "2026-07-07";
+  const projectId = `resume-task-timers-${randomUUID()}`;
+  await createProject(session.workspace_id, projectId, "Resume Task Timers");
+
+  const pausedTaskId = await createUpdatedTask(session, {
+    projectId,
+    status: "in_progress",
+    title: "Paused task timer candidate",
+    updatedAt: "2026-07-07T14:00:00.000Z",
+  });
+  const runningTaskId = await createUpdatedTask(session, {
+    projectId,
+    status: "in_progress",
+    title: "Running task timer candidate",
+    updatedAt: "2026-07-07T15:00:00.000Z",
+  });
+  const blockedTaskId = await createTaskSourceCandidate(session, {
+    blockedReason: "Waiting on blocked timer recovery.",
+    projectId,
+    status: "blocked",
+    title: "Blocked paused task timer decoy",
+  });
+  const remainingResumeId = await upsertTaskCandidate(session, {
+    lastWorkedAt: "2026-07-07T16:00:00.000Z",
+    projectId,
+    statusSnapshot: "in_progress",
+    title: "Remaining resume candidate",
+  });
+
+  await upsertTaskTimer(session, {
+    projectId,
+    taskId: pausedTaskId,
+    timerStatus: "paused",
+    title: "Paused task timer candidate",
+  });
+  await upsertTaskTimer(session, {
+    projectId,
+    taskId: blockedTaskId,
+    timerStatus: "paused",
+    title: "Blocked paused task timer decoy",
+  });
+  await upsertTaskTimer(session, {
+    projectId,
+    taskId: runningTaskId,
+    timerStatus: "running",
+    title: "Running task timer candidate",
+  });
+
+  const focus = await workFocusModesService.listFocusCandidates(session, {
+    limit: 100,
+    modeId: FOCUS_MODE_IDS.pickUpWhereLeftOff,
+    projectId,
+    today,
+  });
+  const orderedIds = intersectCandidateIds(focus.items, [
+    runningTaskId,
+    pausedTaskId,
+    remainingResumeId,
+  ]);
+
+  assert.deepEqual(orderedIds, [
+    runningTaskId,
+    pausedTaskId,
+    remainingResumeId,
+  ], "Pick up focus should merge live task timers ahead of existing resume state, running before paused");
+  assert.deepEqual(
+    focus.items.slice(0, 2).map((candidate) => ({
+      moduleId: candidate.moduleId,
+      recordType: candidate.recordType,
+      timerStatus: candidate.metadata?.timer_status,
+    })),
+    [
+      { moduleId: "tasks", recordType: "task", timerStatus: "running" },
+      { moduleId: "tasks", recordType: "task", timerStatus: "paused" },
+    ],
+    "task-sourced live timers should retain timer rank facts while opening readable Task Focus candidates",
+  );
+  assert.equal(focus.items.some((candidate) => candidate.recordId === blockedTaskId), false);
 }
 
 async function assertPickUpWhereLeftOffBoostsSecondUpdatedTask(session) {
@@ -1216,6 +1381,29 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   );
 
   return created.task_id;
+}
+
+async function upsertTaskTimer(session, { projectId, taskId, timerStatus, title }) {
+  await activeTimersRepository.upsert({
+    accumulated_elapsed_seconds: 120,
+    active_timer_id: `task-timer-${taskId}`,
+    billable: "no",
+    client_id: "",
+    client_name: "",
+    description: title,
+    last_active_start_time: timerStatus === "running" ? new Date().toISOString() : null,
+    project_id: projectId,
+    project_name: "Resume Task Timers",
+    source_id: taskId,
+    source_label: title,
+    source_module_id: "tasks",
+    source_type: "task",
+    source_url: `tasks.html?task=${encodeURIComponent(taskId)}`,
+    timer_slot: `source:tasks:task:${taskId}`,
+    timer_status: timerStatus,
+    user_id: session.user_id,
+    workspace_id: session.workspace_id,
+  });
 }
 
 async function upsertResumeTaskCandidate(session, taskId, overrides = {}) {

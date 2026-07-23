@@ -33,7 +33,7 @@ assert.match(calendarHtml, /<main class="calendar-page" data-calendar-host><\/ma
 for (const forbidden of ["<header", "<table", "<dialog", "<select", "<button", "<form", "<section"]) {
   assert.ok(!calendarHtml.includes(forbidden), `calendar.html must not hand-build page anatomy (${forbidden})`);
 }
-for (const requiredScript of ["js/navigation.js", "js/footer.js", "js/shared/view-builder.js", "js/shared/client-project-options.js", "js/shared/notification-subscriptions.js", "js/shared/task-calendar.js", "js/task-dialog.js", "js/calendar.js"]) {
+for (const requiredScript of ["js/navigation.js", "js/footer.js", "js/shared/view-builder.js", "js/shared/client-project-options.js", "js/shared/notification-subscriptions.js", "js/shared/capture-prompt.js", "js/shared/task-calendar.js", "js/task-dialog.js", "js/calendar.js"]) {
   assert.ok(calendarHtml.includes(requiredScript), `calendar.html must load ${requiredScript}`);
 }
 assert.ok(
@@ -58,11 +58,29 @@ for (const requiredSharedCall of [
   "taskCalendar.calendarRange(",
   "taskCalendar.fetchCalendarWindow(",
   "taskCalendar.renderCalendarBody(",
+  "taskCalendar.resolveDefaultView(",
 ]) {
   assert.ok(calendarJs.includes(requiredSharedCall), `calendar.js must delegate the calendar body to ${requiredSharedCall}`);
 }
 assert.ok(taskCalendarJs.includes("view.createEmptyState("), "the shared task-calendar helpers must render the empty state through the view primitive");
 assert.match(taskCalendarJs, /root\.taskCalendar = Object\.freeze\(/, "the shared task-calendar helpers must publish a frozen LongtailForge.taskCalendar namespace");
+assert.match(taskCalendarJs, /const MONTH_TASK_LIMIT = 3/, "month rendering must pin the visible task limit at three");
+assert.match(taskCalendarJs, /dayTasks\.slice\(0, MONTH_TASK_LIMIT\)/, "month rendering must preserve ordering while truncating visible tasks");
+assert.match(taskCalendarJs, /dayTasks\.length > MONTH_TASK_LIMIT/, "dense month days must detect entries beyond the visible task limit");
+assert.match(taskCalendarJs, /text: "View all tasks"/, "dense month days must label the full-list handoff");
+assert.match(taskCalendarJs, /calendar\.html\?view=day&date=\$\{dayKey\}/, "dense month days must target the canonical Day/date handoff");
+assert.match(taskCalendarJs, /const visibleTasks = isMonthGrid \? dayTasks\.slice\(0, MONTH_TASK_LIMIT\) : dayTasks/, "Week and Day grid rendering must remain untruncated");
+assert.match(taskCalendarJs, /matchMedia\("\(max-width: 700px\)"\)/, "automatic calendar view selection must use the canonical mobile breakpoint");
+assert.match(taskCalendarJs, /return isMobile \? "day" : "month"/, "automatic calendar view selection must use Day on mobile and Month on desktop");
+assert.match(calendarJs, /await Promise\.resolve\(window\.LongtailForge\?\.workspaceContextReady\)/, "Calendar must wait for the app-shell preference bootstrap");
+assert.match(calendarJs, /if \(!calendarViewFromQuery\)[\s\S]*readPreferredCalendarView/, "Calendar must apply the saved preference unless the URL supplied a view");
+assert.match(calendarJs, /calendarViewFromQuery = true/, "Calendar query view must keep explicit navigation precedence");
+assert.match(taskCalendarJs, /className: "calendar-day-view"[\s\S]*calendarDay: dayKey/, "the shared renderer must retain its read-only Day layout");
+assert.match(taskCalendarJs, /className: "calendar-day-reminders"[\s\S]*\.\.\.dayReminders\.map/, "mobile Day view must render reminder rows");
+assert.match(calendarJs, /multiple: true[\s\S]*calendarStatusFilter/, "Calendar must expose a task-status multi-select");
+assert.match(calendarJs, /DEFAULT_CALENDAR_STATUSES = \["open", "in_progress", "blocked"\]/, "Calendar must default to active task statuses");
+assert.match(calendarJs, /statuses: calendarState\.statuses/, "Calendar must send its selected statuses through the shared read helper");
+assert.match(taskCalendarJs, /params\.set\("statuses",/, "shared calendar reads must carry status scope to the server");
 for (const [label, source] of [["calendar.js", calendarJs], ["shared/task-calendar.js", taskCalendarJs]]) {
   for (const forbidden of [
     /document\.createElement\(/,
@@ -75,7 +93,7 @@ for (const [label, source] of [["calendar.js", calendarJs], ["shared/task-calend
     assert.doesNotMatch(source, forbidden, `${label} must not hand-build framework-owned anatomy (${forbidden})`);
   }
 }
-checks += 22;
+checks += 30;
 
 // Entries open through the canonical Task editor, never an inline editor.
 assert.match(calendarJs, /tasksDialog\?\.openTaskEditor/, "calendar entries must open through the canonical Task editor opener");
@@ -88,12 +106,13 @@ const adapterFetchCalls = calendarJs.match(/fetch\(/g) || [];
 const adapterAllowedFetches = calendarJs.match(/fetch\("\/api\/client-projects\?view=options"/g) || [];
 assert.equal(adapterFetchCalls.length, adapterAllowedFetches.length, "calendar.js may only fetch the client/project filter options; the shared helpers own the calendar window fetch");
 const sharedFetchCalls = taskCalendarJs.match(/fetch\(/g) || [];
-const sharedAllowedFetches = taskCalendarJs.match(/fetch\(`\/api\/tasks\/calendar\?/g) || [];
+const sharedAllowedFetches = taskCalendarJs.match(/fetch\(route,/g) || [];
 assert.equal(sharedFetchCalls.length, sharedAllowedFetches.length, "shared/task-calendar.js may only fetch the bounded calendar window");
 assert.ok(sharedAllowedFetches.length > 0, "shared/task-calendar.js must own the bounded calendar window fetch");
+assert.match(taskCalendarJs, /const route = `\/api\/tasks\/calendar\?\$\{params\.toString\(\)\}`/, "the shared calendar fetch route must remain bounded by its canonical query params");
 assert.doesNotMatch(calendarJs, /method:\s*"(POST|PUT|PATCH|DELETE)"/i, "calendar.js must stay read-only");
 assert.doesNotMatch(taskCalendarJs, /method:\s*"(POST|PUT|PATCH|DELETE)"/i, "shared/task-calendar.js must stay read-only");
-checks += 5;
+checks += 6;
 
 // No calendar event records, iCal, or external calendar sync anywhere in the
 // Calendar surface or schema: 0.36.0 owns events/iCal and 0.70.x owns

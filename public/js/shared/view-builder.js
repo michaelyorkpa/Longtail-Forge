@@ -1887,7 +1887,11 @@
   }
 
   function columnLabel(column) {
-    return typeof column === "string" ? column : column.label || column.header || column.key || "";
+    return typeof column === "string"
+      ? column
+      : Object.hasOwn(column, "label")
+        ? column.label
+        : column.header || column.key || "";
   }
 
   function columnAlign(column) {

@@ -45,6 +45,7 @@ try {
   await assertBackfillQueuesExistingTask(session, now);
   await assertHorizonDefersAndSweepTopsUp(session, now);
   await assertCompletedArchivedAndFarFutureTasksDoNotQueue(session, now);
+  await assertOptionalSecondaryReminderRoundTrip(session, now);
   await assertIntegrity();
 
   console.log("Task reminder scheduling horizon regression passed.");
@@ -52,6 +53,42 @@ try {
   await stopJobWorker().catch(() => {});
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
+}
+
+async function assertOptionalSecondaryReminderRoundTrip(session, now) {
+  const due = localDateTimeParts(addMinutes(now, 45), session.timezone);
+  const single = (await tasksService.create({
+    due_date: due.date,
+    due_time: due.time,
+    reminderOverrideEnabled: true,
+    reminderPolicy: {
+      dateOnly: [1440],
+      dateTime: [5],
+    },
+    title: "Optional secondary reminder task",
+  }, session)).task;
+  const singleRead = (await tasksService.read(single.task_id, session)).task;
+
+  assert.deepEqual(singleRead.reminderDetails.taskPolicy.dateTime, [5], "a disabled timed secondary reminder should stay omitted after save and read");
+  assert.deepEqual(singleRead.reminderDetails.taskPolicy.dateOnly, [1440], "a disabled date-only secondary reminder should stay omitted after save and read");
+  assert.deepEqual(singleRead.reminderDetails.computedOccurrences.map((item) => item.offset_minutes), [5], "a timed task with its secondary disabled should compute one reminder occurrence");
+  assert.equal(await reminderFireJobCount(session.workspace_id, single.task_id), 1, "an omitted timed secondary reminder should enqueue no second reminder job");
+
+  const dual = (await tasksService.create({
+    due_date: due.date,
+    due_time: due.time,
+    reminderOverrideEnabled: true,
+    reminderPolicy: {
+      dateOnly: [1440, 4320],
+      dateTime: [5, 10],
+    },
+    title: "Enabled secondary reminder task",
+  }, session)).task;
+  const dualRead = (await tasksService.read(dual.task_id, session)).task;
+
+  assert.deepEqual(dualRead.reminderDetails.taskPolicy.dateTime, [5, 10], "enabled timed secondary reminders should preserve the two-offset policy");
+  assert.deepEqual(dualRead.reminderDetails.taskPolicy.dateOnly, [1440, 4320], "enabled date-only secondary reminders should preserve the two-offset policy");
+  assert.equal(await reminderFireJobCount(session.workspace_id, dual.task_id), 2, "enabled timed secondary reminders should retain two scheduled jobs");
 }
 
 function assertStaticContract() {

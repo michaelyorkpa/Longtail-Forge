@@ -1,3 +1,342 @@
+## Version 0.33.21.20 - 2026-07-23
+
+- Made the development/sanitized-demo seed CLI load the untracked root `.env` before bootstrap configuration, while preserving explicit process-environment precedence and the canonical `Today()` anchor.
+- Restricted protected-super-administrator creation to an empty installation. Existing protected users, `super_admin` assignments, or any other user row prevent startup from inventing another identity; changing `SUPER_ADMIN_USERNAME` neither creates nor renames a user.
+- Preserved fail-closed bootstrap secrets: a fresh installation still requires `SUPER_ADMIN_PASSWORD`, never generates or prints a credential, and never silently rotates an existing password.
+- Expanded the development-data and startup-maintenance regressions for configured seed identity, changed-username restarts, existing-install update safety, exactly-one-administrator behavior, and password-output refusal.
+- Guardedly backed up, reset, and reseeded only the canonical local `data/development-seed` world, then verified its configured operator identity, one protected/super-admin account, SQLite integrity, foreign keys, and runtime version.
+- Removed the completed `TODO.md` username-reset report and retained the live roadmap cursor at `0.33.22`.
+- Isolated the rendered password-change proof to a disposable managed-harness user so session revocation cannot invalidate the shared Playwright operator used by parallel viewport tests.
+- Restored phone-width accessibility after the compact app-shell and Task hierarchy work: the hidden wordmark retains an explicit home-link name, parent-task chips use the high-contrast text token, and the keyboard no-trap proof distinguishes icon-only controls by accessible name.
+- Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/development-and-demo-data.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
+- No docs change needed: `docs/accessibility.md` and `docs/e2e-testing.md` already own the preserved rendered-accessibility and isolated-harness contracts; user-facing Help, public API, permission semantics, schema/migrations, demo-host reset operations, and deployment behavior are unchanged.
+
+## Version 0.33.21.19.5 - 2026-07-23
+
+- Added `npm run bench:dashboard` to collect seven-sample warm HTTP timing, response-byte, SQLite-statement, and real-browser first-fetch evidence against the configured local database without reseeding it; the canonical development seed remains anchored to `Today()`.
+- Recorded same-workstation fat-seed pre-branch/completed medians: Tasks summary 211.6 -> 15.0 ms (27 -> 10 statements), Calendar 136.3 -> 59.4 ms (348,307 -> 107,115 bytes; 8 -> 7 statements), and effort summary 428.6 -> 15.9 ms (10 -> 7 statements).
+- Reduced the controlled browser load-event-to-first-fetch gap from 307.6 ms to 92.4 ms and added a one-second rendered ceiling while preserving proof that all three panel reads overlap a held contribution asset.
+- Added `dashboard.hot-endpoint-budgets` for conservative HTTP timing/payload/statement ceilings and near-constant cost after 400 unrelated terminal Tasks plus 500 out-of-window time entries.
+- Raised the discovered regression inventory to 401 and the protected Dashboard floor to 2.
+- Archived the completed 0.33.21.19 Dashboard load-performance branch and advanced the live roadmap cursor to 0.33.22.
+- Docs updated: `DECISIONS.md`, `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`.
+- No docs change needed: Dashboard panel content, Help, public API, permission semantics, database schema/migrations, runtime configuration, and seed-generation behavior are unchanged.
+
+## Version 0.33.21.19.4 - 2026-07-23
+
+- Started the workspace- and release-keyed stale-while-revalidate Dashboard manifest after the navigation/API foundation, then warmed Tasks summary, bounded Today-anchored calendar, and Time Tracking effort routes before the remaining host/contribution asset chain completed.
+- Reused one route-keyed promise map across the generic Dashboard host, shared Task calendar, and Time Tracking renderers; live panel payloads remain `no-store` and no renderer issues a duplicate warm request.
+- Parallelized independent base-script and contributed script/style loads while preserving explicit dependency batches for helpers that capture the API or view primitives at registration time.
+- Removed the canonical Task dialog from Dashboard first paint and lazy-loaded its versioned script only when a Dashboard calendar task is opened.
+- Removed the Dashboard calendar's workspace-context readiness wait while preserving Today anchoring, responsive defaults, saved Day/Week/Month preferences, active-status scope, focus return, and refresh behavior.
+- Added static bootstrap guardrails plus rendered sequencing/lazy-dialog proof, and raised the discovered regression inventory and protected Views floor to 400 and 33 respectively.
+- Docs updated: `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, `docs/ui-layout-guide.md`.
+- No docs change needed: Dashboard panel content, server payload contracts, permissions, Help, public API, database schema/migrations, and runtime configuration are unchanged.
+
+## Version 0.33.21.19.3 - 2026-07-23
+
+- Replaced Tasks dashboard-summary's whole-workspace canonical list/tag/projection pipeline with permission-resource SQL count groups and bounded per-resource candidate windows for its five short lists.
+- Reused one precompiled `tasks.view` evaluator for aggregate groups, candidates, and parent visibility; the shared Task-list candidate filter also no longer performs per-row asynchronous permission calls.
+- Preserved exact active/completed/archived, assigned, timer, blocked, overdue, and due-soon counts plus attention/upcoming/pressure and compatibility-list contents, ordering, safe labels, and handoffs.
+- Reused request-scoped workspace-settings memoization in dashboard-summary; active-timer shaping retains the request-memo fix from 0.33.21.19.1.
+- Added exact-output, 15-statement, one-evaluator, zero-per-row-call, bounded-enrichment, 500-Task growth, and integrity regression proof.
+- Raised the discovered regression inventory and protected Tasks floor to 399 and 54 respectively.
+- Docs updated: `DECISIONS.md`, `docs/regression-suite.md`, `docs/tasks-module.md`.
+- No docs change needed: rendered Dashboard content, Help, public API, permission semantics, database schema/migrations, runtime configuration, and browser layout contracts are unchanged.
+
+## Version 0.33.21.19.2 - 2026-07-22
+
+- Replaced the Tasks calendar endpoint's shared summary expansion with an exact lean renderer row containing only Task identity, title, status, priority, due date/time, readable Client/Project names, and calendar date markers.
+- Added a calendar-specific bounded SQL projection that retains internal permission/reminder inputs without fetching wide Task continuity/detail text.
+- Removed the whole-workspace assignee scan from `readDueBetween`; the repository calendar read now completes in one SQL statement with no assignee hydration.
+- Preserved active-status defaults and explicit status sets, reminder markers/lookahead, single-day semantics, workspace/Client/Project permission scope, and disabled-module reads.
+- Expanded the standing calendar-window regression with exact payload allowlist/denylist and one-statement/no-assignee proof.
+- Docs updated: `DECISIONS.md`, `docs/regression-suite.md`, `docs/tasks-module.md`.
+- No docs change needed: rendered Calendar/Dashboard behavior, Help, public API catalog, permissions, database schema, runtime configuration, and browser layout contracts are unchanged.
+
+## Version 0.33.21.19.1 - 2026-07-22
+
+- Replaced the Time Tracking Dashboard effort-summary full-table list/tag pipeline with an indexed seven-local-day repository read, SQL count/duration aggregates, and a three-row recent-entry limit while preserving exact rendered values.
+- Preserved workspace, owner, Client, and Project visibility in the bounded SQL predicates and retained defense-in-depth authorization over only the displayed rows; inaccessible recent entries cannot affect rows, counts, or totals.
+- Threaded the request session through the Dashboard, shared time-entry list, and active-timer shaping workspace-settings reads so the endpoint performs one physical settings query.
+- Confirmed the required `time_entries (workspace_id, end_time)` index already ships in both schema snapshots and is selected by the bounded query plan, avoiding a redundant no-op migration.
+- Added constant statement/payload, indexed-plan, exact-output, three-row authorization, settings-memo, growth, integrity, and scoped-permission regression proof.
+- Raised the discovered regression inventory and protected Time Tracking floor to 398 and 9 respectively.
+- Docs updated: `docs/longtail_forge_permissions_matrix.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`.
+- No docs change needed: permission semantics, HTTP payload shape, user-facing Dashboard behavior, Help, public API, runtime configuration, and database schema/migration contracts are unchanged.
+
+## Version 0.33.21.18.3 - 2026-07-22
+
+- Added one framework app-shell navigation-intent controller for timed Task Focus exits across Change Focus, app-shell/module links, Search, Notifications, workspace/account actions, Workbench scripted fallbacks, and supported browser history traversal.
+- Held interceptable destinations only for the existing Tasks-owned `Add resume note?` capture, continued the exact first intent once after Yes, No, dismissal, or optional write failure, and kept timer Pause/Save Time capture non-blocking.
+- Added a 12-hour session-only hard-exit marker containing Task ID, timer status, and timestamp; safe Workbench recovery clears it first and re-checks timer truth, Task readability/lifecycle, and current resume-note state.
+- Added executable intent/deduplication/marker coverage plus rendered desktop/mobile Change Focus and Dashboard-navigation proof.
+- Raised the regression inventory floor to 397 scripts for the new Workbench guardrail.
+- Docs updated: `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/view-building-contract.md`, `help/modules/tasks/resuming-task-work.md`.
+
+## Version 0.33.21.18.2 - 2026-07-22
+
+- Made the always-visible Task Work continuity group use the full shared Add/Edit modal width through the framework full-width field contract.
+- Kept Resume note and Next action as practical two-column desktop fields, added the applicable Blocked Reason as a third column, and stacked all continuity fields on phones without changing Task behavior.
+- Expanded Task modal reflow, compact-layout, context-section, and strict guardrail regressions for the outer width and responsive states.
+- Docs updated: `docs/tasks-module.md`.
+
+## Version 0.33.21.18.1 - 2026-07-22
+
+- Corrected deterministic development/sanitized-demo Task Timers to use canonical `running`/`paused` state, `source:tasks:task:<taskId>` slots, Tasks source identity and labels, matching Client/Project context, lifecycle-transition metadata, and coherent `in_progress` Tasks.
+- Reproduced the former Start failure as `SQLITE_CONSTRAINT_UNIQUE` through the real Tasks timer service before changing the fixture; retained the runtime source-unique index without a malformed-seed compatibility path.
+- Expanded `database.development-data-seed` from count checks to relational timer-contract assertions and real Start/Resume, Pause, Save Time, and Reset service flows with duplicate-source protection.
+- Guardedly reset and reseeded only the canonical local `data/development-seed` world with its normal current-local-date (`Today()`) anchor, then verified SQLite integrity, zero foreign-key violations, canonical timer rows, runtime version `0.33.21.18.1`, and the shared Task editor/Workbench timer routes.
+- Docs updated: `docs/development-and-demo-data.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`.
+
+## Version 0.33.21.17.2 - 2026-07-22
+
+- Added the Tasks-owned resume-note capture adapter over the shared capture modal, with a current-Task recheck, existing/just-captured suppression, one-line Yes/No entry, and a partial `resume_note` write through the canonical Tasks service route.
+- Offered `Add resume note?` after successful task-timer Pause and Save Time actions across Tasks and Workbench, while leaving manual timers unchanged until they are linked to a Task.
+- Offered the same capture when Change Focus leaves Workbench Task Focus with a running or paused timer; timer mutations and the focus transition complete without waiting on the prompt, and No performs no write.
+- Extended `scripts/task-resume-context-regression.mjs` with executable Yes/No, correct-task write, suppression, single-line prompt, lifecycle trigger, and non-blocking coverage; retained the existing Workbench timer regression.
+- Stabilized the version guard's loopback `/api/app-info` proof against browser-style blocked-port rules when the operating system assigns an ephemeral test port.
+- Docs updated: `docs/docs-ownership.json`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, `help/modules/tasks/resuming-task-work.md`.
+
+## Version 0.33.21.17.1 - 2026-07-22
+
+- Added the shared `LongtailForge.capturePrompt` modal adapter with one required value, explicit Continue/Cancel results, stacked-dialog support, and framework-owned focus behavior.
+- Routed Task editor status changes, the edit-modal header Block action, Tasks row Block, Workbench Task Focus Block, and bulk Block through the exact `Why is the task now blocked?` prompt when no reason is already present.
+- Made Continue immediately persist Blocked plus `blocked_reason` through the canonical Tasks create/edit/bulk path; Cancel restores the prior editor status or aborts bulk work, while automatic parent rollup remains non-interactive.
+- Added the permission- and status-gated icon-only Block action immediately left of Complete in existing editable Task headers and expanded focused coverage for every trigger, persistence/cancellation, helper anatomy, and automatic-rollup exclusion.
+- Corrected the generated agent brief to recognize active numbered child-slice headers such as 0.33.21.17.2 instead of accepting only third-level roadmap sections.
+- Docs updated: `docs/docs-ownership.json`, `docs/tasks-module.md`, `docs/view-building-contract.md`, `help/framework/tasks-basics.md`, `help/modules/tasks/resuming-task-work.md`.
+
+## Version 0.33.21.16 - 2026-07-22
+
+- Moved the Edit-modal Complete action from the footer into the icon-only header action cluster immediately left of Open in Workbench.
+- Preserved permission/status gating, pending-save behavior, completion side effects, and the Next Action follow-up handoff; the footer now remains Cancel, Save & Close, and Save.
+- Expanded the Task modal follow-up and strict guardrail regressions for header ordering, icon-only labeling, and footer removal.
+- Docs updated: `docs/tasks-module.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.15 - 2026-07-22
+
+- Reflowed the shared Add/Edit Task editor Details grid into Status/Priority/Estimate, Client/Project/Parent Task, Due Date/Due Time, and Description/Assignees desktop rows.
+- Added an always-visible three-column continuity row for Resume note, Next action, and the status-gated Blocked reason without changing payloads, validation, or collapse behavior.
+- Preserved mobile stacking and expanded the modal-layout and strict guardrail regressions for the new grouping and continuity anatomy.
+- Docs updated: `docs/tasks-module.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.14 - 2026-07-22
+
+- Limited Month calendar cells to the first three service-ordered Tasks on both Dashboard and Actions Calendar, with a `View all tasks` handoff to the complete Day view for denser dates.
+- Kept Week and Day views untruncated and preserved the complete bounded calendar-window read contract.
+- Expanded the Calendar host regression to guard the shared cap, canonical Day/date link, and unchanged Week/Day rendering behavior.
+- Docs updated: `docs/tasks-module.md`.
+
+## Version 0.33.21.13 - 2026-07-22
+
+- Tightened Workbench "Pick up where I left off" so passive recurring-created Tasks never count as resumed work, while later timers, resume notes, and Task updates remain eligible.
+- Suppressed creation-only Tasks due more than seven days out during the normal resume pass, preserving the exact seven-day boundary and adding a final non-recurring distant-work fallback only when the mode would otherwise be empty.
+- Expanded the Workbench focus regression for near/distant recurring suppression, exact-week eligibility, distant fallback, and existing timer, ranking, permission, and scope behavior.
+- Docs updated: `docs/module-contract.md`, `docs/tasks-module.md`.
+
+## Version 0.33.21.12 - 2026-07-22
+
+- Scoped Notes visibility contributions by workspace type: Personal removes the filter, editor, bulk, badge, and metadata controls; Family retains Internal, Private, Workspace, and Public; Business retains the complete set including Client Visible.
+- Enforced the same scope in Notes writes, bulk updates, list filters, and access decisions while preserving the existing Business `notes.publish_client_visible` permission boundary.
+- Normalized legacy Personal and Family rows with now-inapplicable visibility values to the implicit `internal` read/access default without rewriting stored rows during reads or unrelated Personal edits.
+- Expanded the existing Notes access and Personal/Family workspace regressions for all three workspace types, direct/bulk/filter rejection, Business authority, legacy read normalization, and storage preservation.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-contract.md`, `docs/notes-module.md`, `help/modules/notes/using-notes.md`.
+
+## Version 0.33.21.11.5 - 2026-07-22
+
+- Made a parent Task Project change cascade to every descendant through one workspace-scoped Tasks repository transaction, with old- and destination-scope authority validated before any write.
+- Derived Business Client and billable context from the destination Project while keeping Personal and Family descendants Client-free, and returned authoritative refreshed parent/descendant Tasks through direct and bulk update responses.
+- Applied canonical audit, `task.updated` event, propagated-tag refresh, Search reindex, and reminder scheduling side effects to every changed descendant.
+- Expanded relationship and bulk regressions for deep descendants, atomic authority failure, leaf isolation, cross-workspace isolation, Business/Personal Client behavior, side effects, and bulk composition.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/module-contract.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.11.4 - 2026-07-22
+
+- Ordered Parent Task choices in the canonical Task editor parent-before-child with the shared hyphen-prefix hierarchy labels and case-insensitive sibling sorting.
+- Changed the primary Task editor Save action to persist Add and Edit changes in place; Save & Close and Cancel remain explicit dismissal paths.
+- Extended the Tasks quick-fix regression and added a desktop/mobile managed-server journey covering hierarchy ordering, edit Save persistence, and modal continuity.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.11.3 - 2026-07-22
+
+- Added required Project assignment to the Tasks-owned controls inside the shared bulk toolbar; Business workspaces receive a Client scope selector that narrows and synchronizes Project choices, while Personal and Family workspaces remove the Client control.
+- Added the `project_assign` action to the existing Tasks bulk route and delegated every selected Task to the canonical update path, retaining old/destination-scope authority, active Project and matching Client validation, per-Task partial errors, audit/events, tag propagation, Search reindexing, and reminder scheduling.
+- Expanded the existing non-destructive bulk regression for Business context derivation, required Project validation, partial success, destination-scope denial, and side effects, plus a desktop/mobile managed-server journey for the rendered workflow.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.11.2 - 2026-07-22
+
+- Reorganized the dedicated Edit Project modal so Rounding and Task Reminder Defaults live in Project Defaults, with Task Reminder Defaults directly beneath the Task module settings.
+- Removed the now-empty Project Rounding disclosure from Personal and Family Edit Project forms while retaining Business billing fields and the existing rounding/reminder persistence, inheritance, validation, and save payloads.
+- Expanded the modal regression and managed-server journey to cover the relocated controls and ordering.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/module-contract.md`, `help/framework/clients-and-projects.md`.
+
+## Version 0.33.21.11.1 - 2026-07-22
+
+- Made the Clients/Projects adapter omit the Project Settings Client filter, Client column, Client index subtitle, and Client read bindings before rendering Personal or Family Project surfaces; Business workspaces retain the full Client-aware descriptor.
+- Made Add Project and Edit Project decline to create or append a Client selector outside Business workspaces instead of rendering a hidden control, while preserving the Business selector, workspace-project option, parent refresh, save, and modal workflows.
+- Enforced the same boundary in the Clients/Projects service: Personal and Family list/detail reads expose project-only context, injected Client filters are ignored, Client-backed list rows stay unavailable, and nonblank Client assignment through route, snake-case payload, or camel-case payload is rejected with 403.
+- Added isolated database/static coverage for Business retention and Personal/Family read/write enforcement, extended the existing descriptor-host guardrail, raised the regression registry to 396 scripts and the permissions floor to 6, aligned the separate permission harness with the shipped active-status Calendar default, and preserved database integrity.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/clients-projects-strict-guardrail-inventory.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-contract.md`, `docs/regression-suite.md`, `help/framework/clients-and-projects.md`.
+
+## Version 0.33.21.10.4 - 2026-07-22
+
+- Made phone-width Workbench Task Focus summaries stack their status, priority, due-date, and direct-tag chips below the task title and Client/Project context, with long labels wrapping inside the summary instead of overlapping the copy.
+- Gave each phone-width `Other Active Timers` card a caret/title row followed by that timer's own wrapping source/status chip row, while keeping its duration, context, description, and actions grouped inside the same card.
+- Kept the correction entirely inside the canonical `max-width: 700px` responsive foundation and preserved the compact desktop Task Focus and timer-card layouts plus all existing Tasks/Time Tracking behavior.
+- Extended the existing Workbench source regressions and added rendered phone/desktop Playwright coverage for long labels, per-card chip grouping, horizontal overflow, console cleanliness, and unchanged desktop placement.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/ui-layout-guide.md`, `docs/ui-surface-contract.md`.
+
+## Version 0.33.21.10.3 - 2026-07-22
+
+- Added a phone-only icon action between the Workbench heading and `Change Focus`, using a shared deerstalker/detective-hat glyph and the accessible name `Open Inspector`.
+- Reused the framework slide-out shell and exposed its shared lifecycle controller for descriptor and imperative framework surfaces, including synchronized ARIA state, body-scroll lock, Tab containment, Escape/close behavior, and focus return.
+- Presented the existing Inspector as a full-screen phone drawer while preserving its unchanged wide desktop grid placement, related-context list, permission-safe content boundary, and intermediate-width behavior.
+- Corrected the shared mobile drawer stacking order so full-screen drawers remain above their backdrop, and added focused source/runtime-shell plus rendered phone/desktop Playwright coverage.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/ui-layout-guide.md`, `docs/ui-surface-contract.md`, `docs/view-building-contract.md`.
+
+## Version 0.33.21.10.2 - 2026-07-22
+
+- Made the shared read-only task calendar choose Day by default at the canonical mobile breakpoint on both Dashboard and Actions -> Calendar, while preserving Month as the automatic desktop default and keeping Day, Week, and Month selectable.
+- Added a nullable per-user Default calendar view preference to User App Preferences, persisted through the Users service/repository and exposed through the app-shell bootstrap; an explicit Calendar `?view=` remains the highest-priority navigation choice.
+- Preserved the active `open`, `in_progress`, and `blocked` default scope and server-honored Calendar status filtering, including reminder rows in the mobile Day layout.
+- Added database/API/static regressions and rendered desktop/mobile Playwright coverage for automatic defaults, preference persistence and precedence, active-status requests, and reminder rendering.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/database.md`, `docs/e2e-testing.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, `docs/ui-layout-guide.md`.
+
+## Version 0.33.21.10.1 - 2026-07-22
+
+- Moved the existing global Search and Notifications controls into a framework-owned app-shell header row outside `#primary-menu`, so both remain directly reachable at phone widths while the drawer contains navigation items only.
+- Hid the Longtail Forge wordmark at the canonical mobile breakpoint and arranged Search, Notifications, and the hamburger toggle in an overflow-safe header order without changing the expanded desktop header.
+- Preserved global-search focus, notification panel/unread-badge behavior, and the existing drawer overlay, Escape/toggle close, focus containment/return, and body-scroll lock contracts.
+- Added a focused static app-shell guardrail and rendered desktop/mobile Playwright coverage for DOM ownership, control behavior, layout order, overflow, wordmark visibility, and unchanged drawer anatomy; raised the discovered regression registry to 395 scripts.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/ui-layout-guide.md`.
+
+## Version 0.33.21.7 - 2026-07-22
+
+- Completed the deferred live HTTPS/proxy session review against `rt-ltf-demo` at `https://demo.longtailforge.com`.
+- Verified public-edge sign-in, authenticated session reads, protected-page refresh/navigation, workspace switching, logout, relogin, cookie persistence, and HTTP-to-HTTPS redirect behavior with no redirect loop or session-loss defect.
+- Confirmed the host's direct Node listener remains loopback-only behind private Caddy/WireGuard; the disposable review password hash was restored to the recorded host backup hash after testing.
+- No product correction was required; local direct-Caddy and bounded multi-proxy smokes remain green alongside the live result.
+- Docs updated: `ROADMAP.md`.
+
+## Version 0.33.21.6 - 2026-07-22
+
+- Reproduced the User Settings password workflow against the managed served asset set and confirmed protected Settings HTML is no-store delivered with canonical asset-version decoration, eliminating stale or mixed host/controller asset proof as an explanation for the current runtime.
+- Kept Current Password, New Password, and Confirm New Password in the independent password action form excluded from universal Save/Revert snapshots, dirty flashes, navigation guards, and `PUT /api/user/settings` payloads.
+- Added a desktop managed-server Playwright regression that changes the disposable account password through exactly one dedicated action, verifies old-password rejection and new-password acceptance, and restores the fixture credential through the newly authenticated session while preserving the existing session-revocation contract.
+- Docs updated: `ROADMAP.md`, `docs/e2e-testing.md`, `docs/settings-ownership.md`.
+
+## Version 0.33.21.5 - 2026-07-21
+
+- Added Settings -> Admin -> Modules -> Notes as a Notes-owned protected destination using the shared module Settings host, permission-filtered manifest information contribution, and shared field/table/bulk-toolbar/action/modal anatomy.
+- Exposed the existing `note_library_collections` hierarchy as Catalog Management without creating a parallel catalog store or renaming the established Collection workflow throughout Notes.
+- Added a safe Notes-owned catalog settings read model requiring both `notes.manage_settings` and `notes.manage_library`; it returns hierarchy, Library, status, description, sorting, source, and update metadata without note content/counts, secure envelopes, runtime configuration, or Secure Notes key material.
+- Preserved canonical collection create/edit validation and added a bounded 100-catalog bulk archive/restore coordinator with parent-subtree deduplication, parent-first restore, canonical audit/search effects, and permission-safe partial-failure recovery.
+- Added an isolated-database regression covering settings navigation/view/asset/contribution registration, shared browser anatomy, safe shaping, per-catalog edit, nested bulk lifecycle behavior, invalid bounds, permission denial, and database integrity; raised the active registry to 394 scripts.
+- Docs updated: `DECISIONS.md`, `docs/module-contract.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `docs/settings-ownership.md`, `help/modules/notes/using-notes.md`.
+
+## Version 0.33.21.4.5 - 2026-07-21
+
+- Added migration 081 with nullable `estimate_minutes` columns on Tasks and recurrence templates, enforcing non-negative 15-minute multiples at the database boundary while leaving existing records null.
+- Carried the canonical integer-or-null estimate through Tasks contracts, repository create/update/list/detail reads, summary/calendar/Workbench read models, audit summaries, and real public API create/update/read/list payloads with server-owned validation.
+- Added an optional Estimate (minutes) control to the canonical Task editor with 15-minute browser hints and compact metadata display; duplicate mode carries the source estimate without adding a parallel form or browser-owned validation.
+- Preserved estimates through recurrence-template creation, `All Future` updates, and generated Task occurrences, while explicitly deferring scheduling, day planning, automatic suggestions, and settings.
+- Added a focused isolated-database regression covering schema constraints, null/zero/valid/invalid service values, storage bypass rejection, read-model round trips, canonical-editor duplication, recurrence preservation, and HTTP public API behavior.
+- Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/module-contract.md`, `docs/public-api.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.4.4 - 2026-07-21
+
+- Made every successful Task completion hand off to the canonical Task editor with Next Action focused: in-editor completion stays open, while Tasks-page and Workbench Task Focus completion reopen the same editor; closing with a blank value leaves the completed Task intact.
+- Added the Tasks-owned `task_completion_follow_up` work-item representation for completed readable Tasks with a nonblank Next Action. Workbench renders the follow-up text as the action, dispatches `tasks.edit` back to Next Action, and never revives the completed Task as an ordinary Task Focus candidate or creates a duplicate Task.
+- Preserved completion audit/event/search effects, recurrence queueing and continuity, Tasks permission pruning, source module availability, caller refresh, lifecycle completion signaling, and focus return across Tasks and Workbench entry points; clearing Next Action retires the follow-up candidate.
+- Added an isolated database-backed Tasks/Workbench regression for canonical modal focus, blank dismissal, saved and cleared follow-up shaping, recurrence compatibility, registered-action dispatch, terminal-task separation, and unreadable-session pruning.
+- Made the existing migration-lock regression coordinate holder release explicitly instead of relying on a two-second race, keeping the full-suite lock-exclusion proof stable as startup coverage grows.
+- Docs updated: `DECISIONS.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `help/modules/tasks/resuming-task-work.md`.
+
+## Version 0.33.21.4.3 - 2026-07-21
+
+- Made Task timer start and checklist check recover a Blocked Task into In Progress through Tasks-owned lifecycle updates, clearing the active Blocked Reason and returning the authoritative refreshed Task to the Tasks page, canonical editor, and Workbench Task Focus.
+- Extended the existing task-timer source metadata to remember whether timer start caused the transition, its Open/Blocked origin, and the exact prior Blocked Reason; no migration or parallel recovery store was needed.
+- Made Task Timer Reset evidence-aware: it restores the prior Open or Blocked state only when the discarded unsaved timer was the sole remaining work-start signal, while checked checklist work or persisted task-linked time keeps the Task In Progress and the old reason cleared.
+- Kept Save Time/finalization non-restoring, preserved transition metadata across pause/resume and manual-to-Task timer conversion, and compensated a failed timer save/link back to the exact prior lifecycle state.
+- Expanded the existing timer, checklist, Task editor, and Workbench regressions for Blocked transition, reason clearing, exact eligible restoration, saved-time/checklist non-restoration, authoritative response refresh, and ownership without adding a new regression identity.
+- Docs updated: `DECISIONS.md`, `docs/module-contract.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, `docs/ui-surface-contract.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.4.2 - 2026-07-21
+
+- Made Workbench Task Focus deep links one-shot: canonical `taskId` and encountered legacy `taskID` parameters are removed with `history.replaceState` before focus work, while unrelated query parameters and hash state remain intact.
+- Kept empty, unknown, unreadable, cross-workspace, and disabled-Tasks links on one generic privacy-safe Focus Selection fallback, preventing both record disclosure and stale focus reapplication after refresh or Change Focus.
+- Replaced the ambiguous manual-timer recommendation action with `Continue in Time Tracking` and a deliberate Time Tracking page handoff; the existing creation-only registered action is not misused for an active timer, and Workbench gains no timer editor.
+- Extended the existing Workbench deep-link and in-place-open regressions for URL cleanup, legacy spelling, fallback privacy, explicit action wording, deliberate navigation, and Time Tracking ownership without adding a new regression identity.
+- Renumbered the deferred Workbench cleanup as the next monotonic `0.33.21.4.2` release and shifted the remaining open `0.33.21.4` children forward without changing their scope.
+- Docs updated: `docs/module-contract.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`.
+
+## Version 0.33.21.4.1 - 2026-07-21
+
+- Added independent Enabled checkboxes beside the second timed and date-only controls in the canonical Task Reminders override grid; disabling one also disables its numeric input and omits that offset instead of silently submitting the fallback value.
+- Hydrated secondary enable state from the saved Task override or inherited effective reminder policy, preserving required primary reminders, override-off inheritance, and existing two-offset behavior.
+- Kept optionality inside the existing Tasks reminder service/repository contract: a saved one-offset policy now reopens as one offset and produces one occurrence, durable reminder job, and notification path, while enabled secondary offsets retain two.
+- Expanded the existing reminder editor, scheduling-horizon, and notification-delivery regressions for independent control wiring, one-offset round trips, omitted-job behavior, and two-offset compatibility without adding a new regression identity.
+- Split the broader 0.33.21.4 umbrella into four ordered implementation children covering optional reminders, Blocked work-start continuity, completion follow-up handoff, and quarter-hour estimates.
+- Docs updated: `docs/module-contract.md`, `docs/tasks-module.md`, `docs/ui-surface-contract.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.3.3 - 2026-07-21
+
+- Centralized Tasks-owned started-work evidence across remaining checked checklist items, running or paused task timers, and persisted task-linked time entries; Time Tracking now exposes the scoped time-existence fact through its public service contract while Tasks remains the sole status authority.
+- Prevented unchecking the last checklist item from erasing truthful In Progress state when timer or historical time evidence exists, while preserving the legitimate no-evidence return to Open and the existing Open-to-In Progress transitions from timer start or first checked item.
+- Kept checklist mutation responses and refreshed Workbench Task Focus items aligned to the authoritative Task status without changing Complete, Archived, Blocked, or the separate timer-cancel lifecycle reserved for the next roadmap branch.
+- Expanded the existing Tasks checklist and Workbench regressions across running timer, paused timer, saved task time, remaining checked items, and no-work-evidence paths without adding a new regression identity.
+- Docs updated: `docs/module-contract.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, `docs/ui-surface-contract.md`, `docs/view-building-contract.md`, `help/framework/tasks-basics.md`.
+
+## Version 0.33.21.3.2 - 2026-07-21
+
+- Added a protected workspace-level Workbench focus policy with a bounded candidate-group multi-select and fixed Balanced, Recently touched first, and Stale recovery first ordering presets; the defaults preserve the 0.33.21.3.1 rank order.
+- Added Settings -> Admin -> Modules -> Workbench through the existing framework registry, authoritative catalog, shared settings host/renderer, and generic module page adapter without creating a Workbench feature-module manifest or a Workbench-specific browser branch.
+- Extended the canonical `PUT /api/settings` service contract with permission-checked `frameworkSettings`, persisting registered values in the reserved framework namespace and rejecting unknown or invalid choices.
+- Made the server-owned focus resolver consume saved policy with deterministic invalid-value fallback while keeping running and paused timers fixed first, Blocked exclusive to its review mode, and permission, visibility, scope, lifecycle, and readable-record eligibility non-negotiable.
+- Added focused database-backed coverage for catalog placement, permission filtering, persistence, validation, compatible defaults, corrupted-value fallback, unchanged eligibility, navigation, and shared-host ownership.
+- Docs updated: `docs/docs-ownership.json`, `docs/module-contract.md`, `docs/regression-suite.md`, `docs/settings-ownership.md`, `docs/ui-layout-guide.md`.
+
+## Version 0.33.21.3.1 - 2026-07-21
+
+- Reserved Blocked candidates for "Review blocked work" across every built-in Workbench focus mode while preserving that mode's blocked-only, overdue-first behavior; due In Progress Tasks remain eligible in "What's due next" and its overdue-through-week-end order.
+- Merged permission-shaped live timers into "Pick up where I left off" even when resume state exists. Readable task-sourced timers now retain timer rank facts while resolving as Task Focus candidates, ordered running before paused; manual timers remain Time Tracking candidates.
+- Kept the second-most-recent updated Task boost after timer precedence and made it honor the same normalized exclusion policy, preserving scope, permissions, terminal-task filtering, passive-recurring suppression, and source-record deduplication.
+- Expanded focused unit and real-database Workbench regressions for blocked exclusivity, due In Progress eligibility, task-timer identity, running-before-paused ordering, resume-state coexistence, and the documented ownership boundary.
+- Docs updated: `docs/module-contract.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, `docs/ui-surface-contract.md`, `docs/view-building-contract.md`.
+
+## Version 0.33.21.2.3 - 2026-07-21
+
+- Reflowed the dedicated Edit Project workflow into the framework wide modal shell and removed the redundant inner Project disclosure/card while retaining the embedded related-Project editor layout elsewhere.
+- Stacked Status, Client, and Parent Project as ordered full-width fields; made Project Tags full-width and unboxed; and moved Task Reminder Defaults from Project Billing Settings into the Task module group under Project Defaults.
+- Preserved the existing Save, Archive, Close, reparent confirmation, billing, defaults, tags, route, payload, permission, refresh, and completion behavior.
+- Expanded focused modal/default/hierarchy regressions and added a managed-server desktop/mobile Playwright journey covering layout, action availability, reminder ownership, responsive overflow, and persisted save behavior.
+- Docs updated: `docs/clients-projects-strict-guardrail-inventory.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `help/framework/clients-and-projects.md`.
+
+## Version 0.33.21.2.2 - 2026-07-21
+
+- Rebuilt Add Client's field body with framework modal-form fields and routed Clients/Projects dialogs through the shared modal stack, eliminating the compressed page-form grid inside the dialog.
+- Kept Add Project open while its Add Client control runs the Clients-owned `clients.add` action as a nested dialog; a successfully created Client now refreshes the active Client choices, becomes selected immediately, and refreshes the Parent Project options.
+- Replaced the generic workspace-project Client label with the readable workspace name, made workspace-level Projects non-billable by default in both browser and service normalization, and top-aligned Parent Project with Project Tags while preserving a one-column mobile layout.
+- Added focused static and real-database regressions plus a managed-server desktop/mobile Playwright journey covering shared modal anatomy, nested ownership, completion handoff, workspace defaults, responsive alignment, and final Project persistence.
+- Docs updated: `docs/clients-projects-strict-guardrail-inventory.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `help/framework/clients-and-projects.md`.
+
+## Version 0.33.21.2.1 - 2026-07-21
+
+- Polished the strict Clients and Projects hierarchy tables: child rows again consume the service-owned hyphenated display label, tag chips wrap directly below record names without a redundant label or divider, and the selection/action columns keep accessible control names while suppressing their redundant visible headings.
+- Fixed the Projects Client filter so the descriptor's workspace-project sentinel is normalized as workspace scope by the service instead of being treated as a literal Client ID.
+- Added Clients/Projects-specific filter-drawer clearance for visible focus outlines and a narrowly reusable declarative-table contract for optional selection and row-action header labels.
+- Expanded focused manifest, real-database Clients/Projects, framework-rendered anatomy, and managed-server Playwright coverage for workspace filtering, hierarchy labels, safe tag-chip containment, focus-ring clearance, and compact table headings.
+- Docs updated: `docs/declarative-view-surfaces.md`, `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/module-contract.md`, `help/framework/clients-and-projects.md`.
+
+## Version 0.33.21.1 - 2026-07-21
+
+- Converted Reporting `tag` filter metadata from a plain select into the shared typable `LongtailForge.tags.mountFilterPicker(...)` interaction, preserving All tags, No Tags, canonical tag IDs, deep-link selection, renderer-owned option hydration, and the framework/module Reporting ownership boundary.
+- Restored tag actions to Notes Bulk Edit through the existing Tags-owned bulk-assignment contract. Add, remove, and replace-direct actions now use the native typable shared picker with tag creation disabled, can run alone or alongside Notes metadata changes, retain per-note permission checks, refresh the selected note, and keep partial failures selected for recovery.
+- Expanded focused Reporting, Notes, tag-usability, and database-backed bulk-assignment regressions to cover the shared-picker wiring and real Note tag mutation path without adding a new regression identity; added rendered Playwright proof of both workflows against the isolated managed server.
+- Docs updated: `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/notes-module.md`, `docs/time-tracking-module.md`, `help/framework/time-tracking-basics.md`, `help/modules/notes/using-notes.md`.
+
 ## Version 0.33.20.7 - 2026-07-21
 
 - Closed the 0.33.20 Workbench and API Load Performance branch with an honest before/after proof: a baseline git worktree at the branch point and the finished branch served the identical fat seeded database (400 tasks) on the same machine, measured by endpoint medians-of-seven and Playwright browser wall-clock medians-of-three.
@@ -5765,3 +6104,15 @@
 - Kept project-level round-hours settings adjustable when client-level rounding is already set.
 - Changed stopwatch save feedback to a concise green "Saved." message.
 - Reset the stopwatch after a successful stop/save.
+## Version 0.33.21.8 - 2026-07-22
+
+- Added the framework-owned declarative `LongtailForge.quickActionRefresh` subscription contract with record-type/action filtering and unsubscribe lifecycle.
+- Workbench now consumes `time-tracking.timer.create` refreshes for `active_timer` records and updates its Timers card in place, preserving Task Focus and disclosure state.
+- Extended the Create Timer regression to prove refresh-event shaping, helper lifecycle, Workbench subscription, and targeted card consumption.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/module-contract.md`, `docs/time-tracking-module.md`, `docs/ui-surface-contract.md`.
+## Version 0.33.21.9 - 2026-07-22
+
+- Defaulted Dashboard and Calendar task reads to active statuses (`open`, `in_progress`, `blocked`), excluding completed and archived tasks from the normal calendar view.
+- Added a Calendar task-status multi-selector that widens or narrows the server-honored status scope without moving filtering into browser code.
+- Kept reminder markers aligned with the filtered readable task set and added regression coverage for defaults, widening, narrowing, and reminder behavior.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/module-contract.md`, `docs/tasks-module.md`, `docs/ui-surface-contract.md`.

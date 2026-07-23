@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "tasks",
   tier: "focused",
   tags: ["blocked-reason", "checklist", "modal", "parent-child", "tags", "tasks", "workbench"],
-  description: "Pins the current Tasks quick-fix contracts for checklist keys and spacing, searchable tag controls, parent-child creation and list anatomy, create-save continuity, workspace project narrowing, and reason-required Block flows.",
+  description: "Pins the current Tasks quick-fix contracts for checklist keys and spacing, searchable tag controls, parent-child creation and list anatomy, create-save continuity, workspace project narrowing, and reason-capture Block flows.",
   runMode: "static",
 });
 
@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const css = await readText("public/css/longtail-forge.css");
+const capturePrompt = await readText("public/js/shared/capture-prompt.js");
 const tags = await readText("public/js/shared/tags.js");
 const taskDialog = await readText("public/js/task-dialog.js");
 const tasks = await readText("public/js/tasks.js");
@@ -45,8 +46,8 @@ assert.match(tags, /input\.addEventListener\("keydown", async \(event\) => \{[\s
 
 assert.match(
   functionBlock(taskDialog, "parentTaskOptions"),
-  /taskId \|\| !\["complete", "archived"\]\.includes\(task\.status\)[\s\S]*!selectedClientId \|\| !task\.client_id \|\| task\.client_id === selectedClientId[\s\S]*selectedProjectId/,
-  "new-task parent choices should exclude terminal tasks while preserving client and project scope filters",
+  /taskId \|\| !\["complete", "archived"\]\.includes\(task\.status\)[\s\S]*!selectedClientId \|\| !task\.client_id \|\| task\.client_id === selectedClientId[\s\S]*selectedProjectId[\s\S]*childrenByParent[\s\S]*appendBranch[\s\S]*optionLabel/,
+  "parent choices should preserve scope filters and render parent-before-child hierarchy labels",
 );
 const inheritance = functionBlock(taskDialog, "applySelectedParentTaskInheritance");
 assert.match(inheritance, /fields\.dueDate\.value = parentTask\.due_date[\s\S]*fields\.dueTime\.value = parentTask\.due_time[\s\S]*fields\.priority\.value/, "selecting a parent should inherit schedule and priority");
@@ -58,19 +59,29 @@ assert.match(functionBlock(tasks, "nestedTaskDisplayRows"), /childrenByParentId[
 assert.match(functionBlock(tasks, "createTaskRow"), /is-task-child[\s\S]*--task-nesting-depth/, "child rows should expose a bounded visual nesting depth");
 assert.match(functionBlock(tasks, "appendParentTaskChip"), /button\.textContent = `Child of: \$\{truncateTaskName\(parentTitle\)\}`[\s\S]*openTaskDialogById\(parentTaskId, button\)/, "the truncated Child of chip should open the canonical parent editor");
 
-assert.match(functionBlock(taskDialog, "saveTask"), /const wasCreating = !currentTaskId[\s\S]*closeOnSuccess: !wasCreating/, "Save should keep a newly created task open");
+assert.match(functionBlock(taskDialog, "saveTask"), /saveTaskForm\(\{ closeOnSuccess: false \}\)/, "primary Save should persist without closing Add or Edit dialogs");
 assert.match(functionBlock(taskDialog, "saveTaskForm"), /!wasEditing[\s\S]*transitionCreatedTaskToEdit\(result\.task\)[\s\S]*Task saved\. Continue editing or choose Save & Close\./, "the create dialog should transition in place to a persisted edit dialog");
 assert.match(functionBlock(taskDialog, "taskEditorModalDescriptor"), /id: "save-close", label: "Save & Close"[\s\S]*id: "save", label: "Save task"/, "the task editor should expose separate Save & Close and Save actions");
 
 assert.match(functionBlock(taskDialog, "populateFormOptions"), /option\("", workspaceProjectsLabel\(\)\)/, "Business task context should identify workspace-level projects explicitly");
 assert.match(functionBlock(taskDialog, "populateProjectInput"), /\(project\.client_id \|\| ""\) === selectedClientId/, "workspace-level context should show only projects without a client association");
 
-assert.match(functionBlock(tasks, "openTaskDialogForBlock"), /focusTarget: "blocked_reason"[\s\S]*status: "blocked"/, "Tasks Block should open the canonical editor focused on Blocked Reason");
-assert.match(functionBlock(workbench, "blockFocusedTask"), /openTaskCandidate\([\s\S]*defaults: \{ status: "blocked" \}[\s\S]*focusTarget: "blocked_reason"/, "Workbench Block should open the canonical editor focused on Blocked Reason");
+assert.match(functionBlock(capturePrompt, "open"), /dataset\.capturePromptInput[\s\S]*Cancel[\s\S]*Continue[\s\S]*createModalForm\([\s\S]*showModal/, "the shared capture prompt should use framework modal primitives with one input and explicit actions");
+assert.match(functionBlock(capturePrompt, "open"), /confirmed: false[\s\S]*if \(!value\)[\s\S]*reportValidity[\s\S]*confirmed: true, value/, "the shared capture prompt should only confirm a non-empty capture and should otherwise resolve as cancelled");
+assert.match(functionBlock(tasks, "openTaskDialogForBlock"), /focusTarget: "blocked_reason"[\s\S]*promptBlockedReason: true[\s\S]*status: "blocked"/, "Tasks Block should open the canonical editor and request the shared Block capture");
+assert.match(functionBlock(workbench, "blockFocusedTask"), /openTaskCandidate\([\s\S]*defaults: \{ status: "blocked" \}[\s\S]*focusTarget: "blocked_reason"[\s\S]*promptBlockedReason: true/, "Workbench Block should open the canonical editor and request the shared Block capture");
 assert.match(functionBlock(taskDialog, "focusTaskEditorTarget"), /blocked_reason: fields\.blockedReason[\s\S]*blocked_reason: fields\.taskDetailsPanel/, "Blocked Reason focus should open Task Details and focus the field");
 assert.match(functionBlock(taskDialog, "updateBlockedReasonState"), /fields\.blockedReason\.required = isBlocked/, "the canonical editor should mark Blocked Reason required while status is Blocked");
+assert.match(functionBlock(taskDialog, "handleTaskStatusChange"), /nextStatus !== "blocked"[\s\S]*promptAndBlockCurrentTask[\s\S]*statusBefore: previousTaskEditorStatus/, "changing the editor status to Blocked should use the shared capture transition");
+assert.match(functionBlock(taskDialog, "performBlockCapture"), /previousReason\.trim\(\)[\s\S]*if \(!blockedReason\)[\s\S]*prompt: "Why is the task now blocked\?"[\s\S]*if \(!result\.confirmed\)[\s\S]*fields\.status\.value = priorStatus[\s\S]*saveTaskForm\([\s\S]*Blocking task/, "Continue should persist Blocked and its reason while Cancel restores the prior editor status, with an existing reason suppressing the prompt");
+assert.match(functionBlock(taskDialog, "createTaskEditorDialog"), /const block = view\.createActionButton\([\s\S]*icon: "pause"[\s\S]*iconOnly: true[\s\S]*children: \[block, complete,[\s\S]*block\.dataset\.blockTask/, "the edit header should place an icon-only Block action immediately left of Complete");
+assert.match(functionBlock(taskDialog, "updateBlockTaskActionState"), /currentTaskId[\s\S]*!\["blocked", "complete", "archived"\]\.includes\(status\)[\s\S]*hasTaskEditPermission/, "the header Block action should be edit-only, permission-gated, and hidden for terminal or already-blocked states");
+assert.match(functionBlock(taskDialog, "hasTaskEditPermission"), /tasks\.edit_all[\s\S]*tasks\.edit_own[\s\S]*created_by_user_id[\s\S]*assignee_ids/, "the header Block action should honor all-task and own-task edit permissions");
 assert.match(functionBlock(taskService, "normalizeTaskPayload"), /status === "blocked" && !blockedReason[\s\S]*Blocked Reason is required when a task is Blocked\.[\s\S]*400/, "the service boundary should reject blocked tasks without a reason");
+assert.match(functionBlock(tasks, "applyBulkAction"), /captureBulkBlockedReason[\s\S]*selectedBulkActions/, "bulk Block should capture a missing reason before constructing status actions");
+assert.match(functionBlock(tasks, "captureBulkBlockedReason"), /value !== "blocked" \|\| bulkBlockedReasonInput\?\.value\.trim\(\)[\s\S]*Why is the task now blocked\?[\s\S]*if \(!result\.confirmed\)[\s\S]*bulkBlockedReasonInput\.value = result\.value/, "bulk Block should reuse an existing reason, cancel cleanly, or capture the shared prompt value");
 assert.match(functionBlock(tasks, "selectedBulkActions"), /blocked_reason: status === "blocked" \? blockedReason : ""/, "bulk Block should send the required reason through the canonical status action");
+assert.doesNotMatch(functionBlock(taskService, "blockParentsForIncompleteChild"), /capturePrompt|Why is the task now blocked/, "automatic parent rollup should remain a non-interactive service transition");
 
 assert.match(
   functionBlock(tasks, "taskWorkflowActionVisible"),

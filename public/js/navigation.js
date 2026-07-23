@@ -50,6 +50,118 @@ let systemThemeModeQuery = null;
 let systemThemeModeListenerAttached = false;
 let sessionAuthWarningPromise = null;
 
+const navigationIntent = createNavigationIntentController();
+window.LongtailForge = window.LongtailForge || {};
+window.LongtailForge.navigationIntent = navigationIntent;
+
+function createNavigationIntentController() {
+  let exitGuard = null;
+  let pendingIntent = null;
+  let committingNavigation = false;
+
+  function registerExitGuard(guard) {
+    exitGuard = guard || null;
+    return () => {
+      if (exitGuard === guard) exitGuard = null;
+    };
+  }
+
+  function shouldHold(intent = {}) {
+    if (committingNavigation || !exitGuard?.shouldHold) return false;
+    if (intent.href) {
+      try {
+        if (new window.URL(intent.href, document.baseURI).pathname === SESSION_LOGIN_PATH) return false;
+      } catch {
+        return false;
+      }
+    }
+    try {
+      return exitGuard.shouldHold(intent) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function holdBeforeContinue(intent = {}) {
+    if (!shouldHold(intent)) return;
+    await exitGuard.beforeContinue?.(intent);
+  }
+
+  function continueIntent(intent = {}) {
+    if (typeof intent.continue === "function") return intent.continue();
+    if (intent.href) {
+      committingNavigation = true;
+      window.location.assign(intent.href);
+    }
+    return undefined;
+  }
+
+  function request(intent = {}) {
+    const normalizedIntent = {
+      ...intent,
+      href: intent.href ? new window.URL(intent.href, document.baseURI).href : "",
+    };
+    if (!shouldHold(normalizedIntent)) return Promise.resolve(continueIntent(normalizedIntent));
+    if (pendingIntent) return pendingIntent;
+
+    pendingIntent = (async () => {
+      try {
+        await holdBeforeContinue(normalizedIntent);
+        if (normalizedIntent.href || normalizedIntent.commitBeforeContinue) exitGuard?.onCommitted?.(normalizedIntent);
+        const result = await continueIntent(normalizedIntent);
+        if (typeof normalizedIntent.continue === "function" && !normalizedIntent.commitBeforeContinue) {
+          exitGuard?.onCommitted?.(normalizedIntent);
+        }
+        return result;
+      } catch (error) {
+        exitGuard?.onContinueError?.(normalizedIntent, error);
+        throw error;
+      } finally {
+        pendingIntent = null;
+      }
+    })();
+    return pendingIntent;
+  }
+
+  function navigate(href, options = {}) {
+    return request({ ...options, href, kind: options.kind || "scripted-navigation" });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target?.closest?.("a[href]");
+    if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+    const url = new window.URL(link.href, document.baseURI);
+    const intent = { href: url.href, kind: "link", trigger: link };
+    if (url.origin !== window.location.origin || url.href === window.location.href || !shouldHold(intent)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void request(intent);
+  }, true);
+
+  if (window.navigation?.addEventListener) {
+    window.navigation.addEventListener("navigate", (event) => {
+      const intent = {
+        href: event.destination?.url || "",
+        kind: event.navigationType === "traverse" ? "history-traversal" : "native-navigation",
+        navigationType: event.navigationType || "",
+      };
+      if (event.navigationType === "reload" || !event.canIntercept || !shouldHold(intent)) return;
+
+      event.intercept({
+        handler: async () => {
+          await holdBeforeContinue(intent);
+          exitGuard?.onCommitted?.(intent);
+          committingNavigation = true;
+        },
+      });
+    });
+  }
+
+  return Object.freeze({ navigate, registerExitGuard, request, shouldHold });
+}
+
 applyCachedWorkspaceContext();
 
 if (navToggle && navLinks) {
@@ -318,6 +430,7 @@ function buildSiteHeader() {
   const header = document.createElement("header");
   const nav = document.createElement("nav");
   const brand = document.createElement("div");
+  const headerControls = document.createElement("div");
   const homeLink = document.createElement("a");
   const workspaceSelect = document.createElement("select");
   const searchShell = document.createElement("div");
@@ -345,11 +458,13 @@ function buildSiteHeader() {
   header.className = "site-header";
   nav.className = "site-nav";
   nav.setAttribute("aria-label", "Primary");
+  headerControls.className = "site-header-controls";
 
   brand.className = "site-brand";
 
   homeLink.href = "dashboard.html";
   homeLink.className = "site-brand-home";
+  homeLink.setAttribute("aria-label", "Longtail Forge home");
   const brandLogo = document.createElement("img");
   brandLogo.className = "site-brand-logo";
   brandLogo.src = "/assets/logo.webp";
@@ -475,13 +590,12 @@ function buildSiteHeader() {
   links.className = "nav-links";
   links.id = "primary-menu";
 
-  links.append(searchShell);
   NAV_ITEMS.forEach((item) => {
     links.append(createNavItem(item, currentPage));
   });
-  links.append(notificationWrap);
 
-  nav.append(brand, toggle, links);
+  headerControls.append(searchShell, links, notificationWrap);
+  nav.append(brand, headerControls, toggle);
   header.append(nav, drawerOverlay);
 
   return header;
@@ -494,11 +608,7 @@ function renderNavigation(items) {
 
   const currentPage = getCurrentPage();
 
-  navLinks.replaceChildren(
-    ...(globalSearchShell ? [globalSearchShell] : []),
-    ...items.map((item) => createNavItem(item, currentPage)),
-    ...(notificationBell?.parentElement ? [notificationBell.parentElement] : []),
-  );
+  navLinks.replaceChildren(...items.map((item) => createNavItem(item, currentPage)));
 }
 
 function createNavItem(item, currentPage) {
@@ -578,6 +688,9 @@ async function loadAppShellBootstrap() {
     }
 
     const shell = await response.json();
+    window.LongtailForge.userPreferences = Object.freeze({
+      preferredCalendarView: shell.user?.preferredCalendarView || null,
+    });
     const workspaceContext = {
       ...(shell.workspaceContext || {}),
       enabledModules: shell.enabledModules || shell.workspaceContext?.enabledModules || [],
@@ -660,7 +773,10 @@ function submitGlobalSearch(event) {
   }
 
   const query = params.toString();
-  window.location.href = query ? `search.html?${query}` : "search.html";
+  void navigationIntent.navigate(query ? `search.html?${query}` : "search.html", {
+    kind: "global-search",
+    trigger: globalSearchInput,
+  });
 }
 
 function setGlobalSearchOpen(isOpen) {
@@ -1318,35 +1434,45 @@ function setNavLinkVisible(href, isVisible) {
 }
 
 if (workspaceSelector) {
-  workspaceSelector.addEventListener("change", async () => {
+  workspaceSelector.addEventListener("change", () => {
     const workspaceId = workspaceSelector.value;
 
     if (!workspaceId) {
       return;
     }
 
-    workspaceSelector.disabled = true;
-
-    try {
-      const response = await fetch("/api/session/workspace", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ workspaceId }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Workspace switch failed.");
-      }
-
-      const body = await response.json().catch(() => ({}));
-      window.localStorage.removeItem(WORKSPACE_CONTEXT_STORAGE_KEY);
-      window.location.assign(normalizeLandingPath(body.landingPath));
-    } catch {
-      await loadSessionWorkspaces();
-    }
+    void navigationIntent.request({
+      commitBeforeContinue: true,
+      kind: "workspace-switch",
+      trigger: workspaceSelector,
+      continue: () => switchWorkspace(workspaceId),
+    }).catch(() => {});
   });
+}
+
+async function switchWorkspace(workspaceId) {
+  workspaceSelector.disabled = true;
+
+  try {
+    const response = await fetch("/api/session/workspace", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ workspaceId }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Workspace switch failed.");
+    }
+
+    const body = await response.json().catch(() => ({}));
+    window.localStorage.removeItem(WORKSPACE_CONTEXT_STORAGE_KEY);
+    window.location.assign(normalizeLandingPath(body.landingPath));
+  } catch (error) {
+    await loadSessionWorkspaces();
+    throw error;
+  }
 }
 
 function normalizeLandingPath(value) {
@@ -1359,11 +1485,21 @@ function normalizeLandingPath(value) {
   ].includes(value) ? value : "/dashboard.html";
 }
 
-async function logOut() {
+function logOut() {
+  return navigationIntent.request({
+    commitBeforeContinue: true,
+    kind: "logout",
+    continue: performLogout,
+  });
+}
+
+async function performLogout() {
   try {
     await fetch("/api/logout", {
       method: "POST",
     });
+  } catch {
+    // The local session is still cleared and the login page remains the safe destination.
   } finally {
     window.localStorage.removeItem(THEME_STORAGE_KEY);
     window.localStorage.removeItem(THEME_AUTO_SOURCE_STORAGE_KEY);

@@ -11,6 +11,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Checklist-Test-Password-123!";
 const { internalEventBus } = await import("../src/core/events/event-bus.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.js");
+const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
 const capturedEvents = [];
@@ -29,9 +30,11 @@ try {
   await initializeDatabase();
   const session = await readSeedSession();
   const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const projectId = await createProject(session.workspace_id);
 
   await assertChecklistLifecycleAndProgress(session);
   await assertChecklistDrivenStatusTransitions(session);
+  await assertStartedWorkEvidenceContinuity(session, projectId);
   await assertChecklistPermissionBoundaries(session, noRoleSession);
   await assertTaskViewDialogIncludesChecklistControls();
 
@@ -158,14 +161,37 @@ async function assertChecklistDrivenStatusTransitions(session) {
 
   await assertChecklistToggleKeepsLifecycleStatus(session, "complete");
   await assertChecklistToggleKeepsLifecycleStatus(session, "archived");
-  await assertChecklistToggleKeepsLifecycleStatus(session, "blocked");
+  await assertBlockedChecklistStart(session);
+}
+
+async function assertBlockedChecklistStart(session) {
+  const task = (await tasksService.create({
+    blocked_reason: "Waiting for checklist prerequisites.",
+    status: "blocked",
+    title: "Checklist recovers blocked task",
+  }, session)).task;
+  const checklist = await tasksService.addChecklistItem(task.task_id, { label: "Begin recoverable work" }, session);
+
+  const checked = await tasksService.checkChecklistItem(task.task_id, checklist.item.task_checklist_item_id, session);
+  assert.equal(checked.task.status, "in_progress", "checking work should recover a blocked task into in progress");
+  assert.equal(checked.task.blocked_reason, "", "checking work should clear the active blocked reason");
+
+  const taskEvents = capturedEvents.filter((event) => event.record_id === task.task_id || event.metadata?.task_id === task.task_id);
+  assert.ok(
+    taskEvents.some((event) => event.name === "task.updated" && event.metadata?.transition === "checklist_started_from_blocked"),
+    "blocked checklist recovery should emit a distinct Tasks-owned transition signal",
+  );
+
+  const unchecked = await tasksService.uncheckChecklistItem(task.task_id, checklist.item.task_checklist_item_id, session);
+  assert.equal(unchecked.task.status, "open", "clearing checklist-only work should use the normal no-evidence Open state, not restore Blocked");
+  assert.equal(unchecked.task.blocked_reason, "", "only timer reset may restore the prior blocked reason");
 }
 
 async function assertChecklistToggleKeepsLifecycleStatus(session, status) {
   const task = (await tasksService.create({
     title: `Checklist ${status} task`,
     status,
-    blocked_reason: status === "blocked" ? "Waiting while checklist state is verified." : "",
+    blocked_reason: "",
   }, session)).task;
   const checklist = await tasksService.addChecklistItem(task.task_id, { label: `Toggle ${status} checklist` }, session);
 
@@ -174,6 +200,104 @@ async function assertChecklistToggleKeepsLifecycleStatus(session, status) {
 
   const unchecked = await tasksService.uncheckChecklistItem(task.task_id, checklist.item.task_checklist_item_id, session);
   assert.equal(unchecked.task.status, status, `${status} tasks should not change status when checklist items are unchecked`);
+}
+
+async function assertStartedWorkEvidenceContinuity(session, projectId) {
+  const running = await createTimerChecklistTask(session, projectId, "Running timer checklist continuity");
+  const runningStart = await taskTimersService.save(running.task.task_id, runningTimerPayload(), session);
+  assert.equal(runningStart.task.status, "in_progress", "starting a timer should move an open task in progress");
+  await tasksService.checkChecklistItem(running.task.task_id, running.item.task_checklist_item_id, session);
+  const runningUnchecked = await tasksService.uncheckChecklistItem(
+    running.task.task_id,
+    running.item.task_checklist_item_id,
+    session,
+  );
+  assert.equal(runningUnchecked.task.status, "in_progress", "a running timer should keep the authoritative checklist response in progress");
+  const runningWorkbenchTask = (await tasksService.listWorkbenchItems(session)).items
+    .find((task) => task.task_id === running.task.task_id);
+  assert.equal(runningWorkbenchTask?.status, "in_progress", "Workbench Task Focus data should refresh with the authoritative in-progress status");
+
+  const paused = await createTimerChecklistTask(session, projectId, "Paused timer checklist continuity");
+  await taskTimersService.save(paused.task.task_id, runningTimerPayload(), session);
+  await taskTimersService.save(paused.task.task_id, {
+    accumulated_elapsed_seconds: 15,
+    timer_status: "paused",
+  }, session);
+  await tasksService.checkChecklistItem(paused.task.task_id, paused.item.task_checklist_item_id, session);
+  const pausedUnchecked = await tasksService.uncheckChecklistItem(
+    paused.task.task_id,
+    paused.item.task_checklist_item_id,
+    session,
+  );
+  assert.equal(pausedUnchecked.task.status, "in_progress", "a paused timer should keep its task in progress after checklist work is unchecked");
+
+  const savedTime = await createTimerChecklistTask(session, projectId, "Saved task time checklist continuity");
+  await taskTimersService.save(savedTime.task.task_id, runningTimerPayload(), session);
+  await taskTimersService.finalize(savedTime.task.task_id, {
+    duration_seconds: 60,
+    end_time: "2026-07-21T15:00:00.000Z",
+  }, session);
+  await tasksService.checkChecklistItem(savedTime.task.task_id, savedTime.item.task_checklist_item_id, session);
+  const savedTimeUnchecked = await tasksService.uncheckChecklistItem(
+    savedTime.task.task_id,
+    savedTime.item.task_checklist_item_id,
+    session,
+  );
+  assert.equal(savedTimeUnchecked.task.status, "in_progress", "persisted task-linked time should keep the task in progress without an active timer");
+  assert.equal(await countTaskTimeEntries(session.workspace_id, savedTime.task.task_id), 1, "the continuity fixture should retain its task-linked time entry");
+}
+
+async function createTimerChecklistTask(session, projectId, title) {
+  const task = (await tasksService.create({
+    assignee_ids: [session.user_id],
+    project_id: projectId,
+    title,
+  }, session)).task;
+  const checklist = await tasksService.addChecklistItem(task.task_id, { label: "Carry truthful work state" }, session);
+
+  return { item: checklist.item, task };
+}
+
+async function createProject(workspaceId) {
+  const projectId = randomUUID();
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO projects (
+  id, workspace_id, client_id, parent_project_id, name, status, billable,
+  billing_rate, billing_period_type, billing_period_start_day,
+  billing_rounding_enabled, billing_rounding_increment,
+  task_default_priority, task_default_status, task_default_sort_order_json,
+  created_at, updated_at
+)
+VALUES (
+  ${sqlText(projectId)}, ${sqlText(workspaceId)}, NULL, NULL,
+  'Task Checklist Continuity Project', 'Active', 'yes', NULL, NULL, NULL, NULL, NULL,
+  'normal', 'open', '["due_date","priority","status"]',
+  ${sqlText(now)}, ${sqlText(now)}
+);
+`);
+
+  return projectId;
+}
+
+async function countTaskTimeEntries(workspaceId, taskId) {
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM time_entries
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND task_id = ${sqlText(taskId)};
+`);
+
+  return Number(rows[0]?.count) || 0;
+}
+
+function runningTimerPayload() {
+  return {
+    accumulated_elapsed_seconds: 1,
+    last_active_start_time: "2026-07-21T14:00:00.000Z",
+    timer_status: "running",
+  };
 }
 
 async function assertChecklistPermissionBoundaries(session, noRoleSession) {

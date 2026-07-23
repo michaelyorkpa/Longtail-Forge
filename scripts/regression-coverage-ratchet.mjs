@@ -14,11 +14,13 @@ validateRegressionCoverage({ entries: REGRESSION_ENTRIES, manifest, policy });
 
 const requiredReleaseGateId = policy.requiredReleaseGateIds[0];
 const withoutReleaseGate = REGRESSION_ENTRIES.filter((entry) => entry.id !== requiredReleaseGateId);
-const uncoveredManifest = buildRegressionManifest({ entries: withoutReleaseGate, policy });
+const uncoveredPolicy = cloneFixture(policy);
+uncoveredPolicy.minimumActiveScripts = REGRESSION_ENTRIES.length + 1;
+const uncoveredManifest = buildRegressionManifest({ entries: withoutReleaseGate, policy: uncoveredPolicy });
 const uncoveredErrors = collectRegressionCoverageErrors({
   entries: withoutReleaseGate,
   manifest: uncoveredManifest,
-  policy,
+  policy: uncoveredPolicy,
 }).join("\n");
 
 assert.match(uncoveredErrors, /active regression count .* below policy floor/);

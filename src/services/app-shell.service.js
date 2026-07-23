@@ -4,7 +4,7 @@ import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.j
 import { usersRepository } from "../repositories/users.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { settingsService } from "./settings.service.js";
-import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
+import { normalizeCalendarViewPreference, normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
 import { notificationsService } from "./notifications.service.js";
 import { searchService } from "./search.service.js";
 
@@ -149,6 +149,7 @@ async function bootstrap(session) {
       username: session.username,
       themeMode: normalizeThemeMode(user?.theme_mode),
       themeAutoSource: normalizeThemeAutoSource(user?.theme_auto_source),
+      preferredCalendarView: normalizeCalendarViewPreference(user?.preferred_calendar_view),
       timezone: session.timezone || user?.timezone || "",
     },
     workspaceContext: {
@@ -410,6 +411,14 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     });
   }
 
+  if (permissionHints.workspaceSettingsManage) {
+    modulesSettingsMenu.items.push({
+      id: "workbench-settings",
+      label: "Workbench",
+      href: "workbench-settings.html",
+    });
+  }
+
   addSettingsModuleNavigation(
     modulesSettingsMenu.items,
     moduleNavigation.filter((item) => item.href !== "user-admin.html"),
@@ -540,8 +549,10 @@ function sortAdminModuleNavigation(items) {
   const order = new Map([
     ["files-settings.html", 0],
     ["tags.html", 1],
-    ["tasks-settings.html", 2],
-    ["time-tracking-settings.html", 3],
+    ["notes-settings.html", 2],
+    ["tasks-settings.html", 3],
+    ["time-tracking-settings.html", 4],
+    ["workbench-settings.html", 5],
     ["developer-example.html", Number.MAX_SAFE_INTEGER],
   ]);
   items.sort((left, right) => (

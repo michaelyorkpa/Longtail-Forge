@@ -132,7 +132,7 @@ assert.match(
 
 assert.match(
   inventoryDoc,
-  /Current as of 0\.33\.5\.18\.15[\s\S]*0\.33\.5\.18\.14\.4 Hierarchy Ordering and Reparent Safety[\s\S]*service-owned Projects read ordering[\s\S]*existing Client\/Project editors/,
+  /Current as of 0\.33\.21\.11\.1[\s\S]*0\.33\.5\.18\.14\.4 Hierarchy Ordering and Reparent Safety[\s\S]*service-owned Projects read ordering[\s\S]*existing Client\/Project editors/,
   "Clients/Projects inventory should document the hierarchy ordering and reparent safety boundary",
 );
 assert.match(

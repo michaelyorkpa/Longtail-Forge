@@ -1,151 +1,11 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.21`.
+Active cursor: `0.33.22`.
+Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.21 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
-
-**Model: High Effort** — This branch batches the pre-preview review findings that were deliberately deferred until after the friends-and-family preview with related short-term TODO work, spanning Reporting, Clients/Projects, Workbench, Tasks, and Notes surfaces.
-
-Purpose:
-
-Land the UI/UX corrections and workflow improvements identified during the `archive/0.33.17.7-pre-testing.md` review that can safely wait until after the friends-and-family preview ships, together with the Workbench and Tasks short-term items promoted from `TODO.md`. This branch also receives review findings that cannot be verified until the app runs behind real TLS on the deployed Linux environment (post-0.33.17.9), such as HTTPS/proxy session behavior.
-
-Non-goals:
-
-- No preview-readiness claims move here; anything required before invitations belongs under 0.33.17.
-- No new module workflows beyond the corrections and settings surfaces named below.
-
-### Version 0.33.21.1 - Reporting refinements
-
-**Model: Medium Effort** — One contained control swap on an already-verified surface with routine shared-picker regression coverage.
-
-- [ ] Convert the Reporting tag filter into the typable search-and-select control used across the rest of the interface.
-
-Acceptance criteria:
-
-- The Reporting tag filter matches the shared tag-picker interaction pattern.
-
-### Version 0.33.21.2 - Clients and Projects list and modal polish
-
-**Model: High Effort** — Many small corrections across the Clients/Projects lists, filters, and add/edit modals with shared-modal and framework-ownership implications.
-
-Filters:
-
-- [ ] Shrink the client/project filter fields slightly so the focus ring is not clipped by the outer box (applies to both Clients filters and Project Settings filters).
-- [ ] Fix the project filter's "Workspace Client" selection displaying no results; it should display workspace projects.
-
-Add Project modal:
-
-- [ ] Vertically top-align the tagging box with "Parent Project" instead of leaving it in its own column.
-- [ ] When adding a workspace project, the client box must show the workspace's name rather than the literal text "Workspace Project".
-- [ ] "Add Client" must open a Clients-owned add-client modal instead of navigating to the Settings -> Admin -> Clients page, and the newly added client must refresh the modal's Client dropdown so it is immediately selectable.
-
-Edit Project modal:
-
-- [ ] Rebuild the edit modal to match the framework: wide-modal width, remove the box that encompasses the modal's interior, and remove the redundant collapsible heading below the project name (the modal's own "Edit Project: {{ projectName }}" heading is sufficient).
-- [ ] Stack Status, Client, and Parent Project as three separate full-width rows in that order.
-- [ ] Make Project tags full-width and unbounded by its own box.
-- [ ] Visually connect Task Reminder defaults to the task-module section under Project defaults.
-
-Billing defaults:
-
-- [ ] Workspace projects default to "Billable" OFF.
-
-List screens (Clients and Projects):
-
-- [ ] Remove the extra horizontal rule separating tags/tag chips from the rest of each row.
-- [ ] Fix text overrunning tag-chip borders and remove the redundant "Tags" label; place chips on the line directly below the client/project name without separation, mimicking the Actions -> Tasks list appearance.
-- [ ] Restore the preceding hyphen "-" on correctly ordered child clients and child projects.
-- [ ] Remove the "Actions", "Select client", and "Select Project" column headings (keep the columns) to eliminate wrapped headings and dead whitespace.
-
-Add Client dialog:
-
-- [ ] Rebuild the hard-coded/hand-built Add Client dialog (currently compressed and shifted) on the framework modal system.
-
-Acceptance criteria:
-
-- Clients/Projects filters, list rows, and add/edit modals match the shared framework modal and list patterns, with correct workspace-project labeling, hierarchy hyphens, default non-billable workspace projects, and no clipped focus rings or orphaned column headings.
-
-### Version 0.33.21.3 - Workbench algorithm, In Progress behavior, and timer-card follow-ups
-
-**Model: High Effort** — Focus-selection algorithm changes affect what work every user is steered toward.
-
-- [ ] Blocked items appear only in "Review blocked work".
-- [ ] "Start with what's due" includes due "In Progress" items (today they only appear in "Pick up where I left off").
-- [ ] Make the Workbench algorithm adjustable: Workbench surfaces a settings section under Settings -> Admin -> Modules -> Workbench.
-- [ ] Tasks with running timers appear in "Pick up where I left off", with running timers taking precedence, followed by active-but-paused timers.
-- [ ] Starting a task timer and then checking/unchecking checklist boxes must preserve "In Progress" status; status must not return to open while a timer is running or time has been attached in the past.
-- [ ] Clear the stale `?taskID=` URL parameter when the user changes focus or navigates to a different view/task (or immediately after load).
-- [ ] Resolve the Focus Selection recommendation for a manual timer: "Open work" currently falls back to the generic Time Tracking page; decide whether Time Tracking exposes a stable modal/opener contract or the recommendation adopts clearer resume/navigation wording. Do not add a Workbench-owned timer editor.
-
-Acceptance criteria:
-
-- Focus modes surface the right work (blocked only in review, due In-Progress items in due mode, running timers prioritized), In Progress status survives checklist edits under a timer, stale task URLs clear, and the manual-timer recommendation has a deliberate, documented behavior.
-
-### Version 0.33.21.4 - Task reminders, status transitions, and time estimates
-
-**Model: High Effort** — Status automation and reminder nullability change task lifecycle behavior across views.
-
-- [ ] Allow canceling individual reminders: a checkbox next to the "Date-Only Reminder 2" and "Timed Reminder 2" headings makes them nullable so they trigger no event notification (a 3-days-before reminder on a weekly task is unnecessary).
-- [ ] Starting a timer or checking off checklist items automatically moves a task from Blocked to In Progress, clearing the blocked reason; if the timer is cancelled before being saved (and that was the cause of the transition), restore Blocked status and its reason.
-- [ ] Promote Next Action: marking a task completed opens the edit-task modal with Next Action focused so the user can specify the follow-up, which is promoted to a "thing to do" in the Workbench; leaving it blank is fine and simply moves on.
-- [ ] Add an estimated-time field on tasks (quarter-hour granularity) as groundwork for future day-planning; eventually estimates can be suggested from task context (client/project/tags) and prior completed time entries.
-
-Acceptance criteria:
-
-- Second reminders are individually cancelable; Blocked/In Progress transitions and blocked-reason restore behave as specified; completion prompts for a Workbench-promoted next action; tasks can carry quarter-hour estimates.
-
-### Version 0.33.21.5 - Notes settings surface
-
-**Model: Medium Effort** — A new module settings contribution following the 0.33.15 settings host contract.
-
-- [ ] Give Notes a settings surface (it currently exposes none, which reads as incomplete): at minimum a notes settings box providing a list view/bulk editing of the catalogs.
-
-Acceptance criteria:
-
-- Notes contributes a settings surface with catalog list/bulk-edit management, following the shared settings anatomy and module-ownership boundaries.
-
-### Version 0.33.21.6 - User Settings password action isolation and runtime repair
-
-**Model: Medium Effort** — This is one contained User Settings action workflow with an intact server-side password-change contract but a reported rendered-runtime failure and stale/mixed-asset risk.
-
-- [ ] Reproduce the reported Settings -> User failure against the actual served asset set before editing and record whether the page loaded stale/mixed Settings host, controller, or User Settings JavaScript; the current disposable Playwright harness passes, so do not treat source-only assertions as proof of the field behavior.
-- [ ] Keep Current Password, New Password, and Confirm New Password inside an independent action form: editing or leaving those fields must not enable or flash either universal Save button, enable Revert, trigger the unsaved-navigation guard, enter the universal settings snapshot, or serialize credentials through `PUT /api/user/settings`.
-- [ ] Repair the dedicated Change Password action wherever the rendered/runtime path is broken so it submits exactly one `PUT /api/user/password`, retains scoped validation and status feedback, resets only after success, preserves the current session, and continues revoking the user's other sessions under the existing authentication-service contract.
-- [ ] Add rendered regression coverage using only the disposable managed-server account: prove the universal actions remain clean throughout password entry, the dedicated button changes the password, the old password is rejected, and the new password is accepted. Include cache/version loading in the proof if stale or mixed assets caused the field failure.
-
-Acceptance criteria:
-
-- Password entry and submission are fully isolated from universal User Settings Save/Revert behavior, the dedicated Change Password button works in the served app, and a rendered disposable-account regression protects both the UI transaction boundary and the completed credential change.
-
-### Version 0.33.21.7 - Deferred TLS/proxy-dependent review findings (placeholder)
-
-**Model: Medium Effort** — Scope is unknown until the review runs against the deployed TLS environment.
-
-- [ ] Reserve this slice for findings from the HTTPS/proxy session-behavior review (`archive/0.33.17.7-pre-testing.md`), which requires the real TLS proxy on the deployed environment after 0.33.17.9: sign-in through the proxy, refresh/navigation, workspace switching, logout/login, and cookie persistence without redirect loops or authentication loss.
-
-Acceptance criteria:
-
-- Every TLS/proxy-dependent review item has a recorded result, and confirmed defects are corrected and regression-covered here.
-
-### Version 0.33.21.8 - Quick-action capture refresh consumption on host pages
-
-**Model: Medium Effort** — The broadcast half of an existing contract already works; this slice designs and lands the missing consumption half as a framework-owned, declarative subscription rather than per-page ad-hoc listeners.
-
-Root cause (confirmed 2026-07-20): the quick-action capture drawer (`public/js/footer.js`) converts every module dialog's host `refresh` callback into a `longtailforge:quick-action-refresh` window CustomEvent, but no page subscribes to that event, so any record created through quick capture leaves the current page stale. The dialogs behave correctly (for example, the create-timer dialog awaits `hostContext.refresh(detail)` after saving), and page-owned openers are unaffected because they pass real callbacks (the Workbench passes `{ refresh: loadWorkbench }` for its own "Add Task"). The reported symptom is the Workbench: creating a timer via quick capture does not update the Timers (`active-work-timers`) card until a manual reload. `scripts/time-tracking-create-timer-modal-regression.mjs` asserts the event is dispatched but nothing asserts it is consumed.
-
-- [ ] Define a framework-owned subscription contract for `longtailforge:quick-action-refresh`: pages or cards declare the record types and/or action ids they display (following the declarative-contribution model), and a shared helper owns the window listener, filtering, and lifecycle instead of each page hand-rolling `window.addEventListener`.
-- [ ] Workbench consumes the contract: a completed `time-tracking.timer.create` quick action (record type `active_timer`) refreshes the active-timer state and Timers card without a page reload, preserving user-toggled card open/closed state and any active Task Focus surface.
-- [ ] Audit the remaining first-party quick actions (`tasks.add`, `time-entries.add`, `notes.add`, `lists.add`, `projects.add`, `clients.add`) for the same stale-host gap on the pages that list those records, and wire the same subscription where the page displays the affected record type.
-- [ ] Regression coverage proves consumption, not just dispatch: extend `scripts/time-tracking-create-timer-modal-regression.mjs` or add a Workbench regression demonstrating that a quick-capture-created timer appears in the Workbench Timers card without a reload.
-
-Acceptance criteria:
-
-- A timer created through the quick-action capture while on the Workbench appears in the Timers card automatically; the refresh contract is framework-owned and declaratively consumed by pages; the dispatch-plus-consumption path is regression-covered.
 
 ## Version 0.33.22 - Recurring Calendar Projection and Private Calendar Subscription Feed
 
@@ -439,11 +299,12 @@ Acceptance criteria:
 - [ ] Keep the fallback shell independent of workspace/module/database reads and optional application assets so a runtime database/dependency failure can still render it while the Node process is alive. Preserve security/no-store headers, keyboard use, responsive layout, theme-safe rendering, and a visible request ID for unexpected failures.
 - [ ] Give each surface one useful recovery action selected by context: sign in, return to the last safe page/dashboard, reload a read, or retry later. Never automatically replay a mutation.
 - [ ] Add a top-level browser rendering/unhandled-rejection boundary plus shared fetch-error presentation so client-rendering failures replace broken content with the recovery surface instead of leaving a blank page. Keep module-specific validation in its owning workflow.
+- [ ] Give permission-denied (403) action failures a shared in-app modal/dialog telling the user they do not have permission for the attempted action (promoted from TODO 2026-07-21), replacing today's per-page inline strings and silent failures; today only 401 has a global interceptor. Use safe generic copy wherever 403/404 must remain indistinguishable for protected resources, and leave the existing server-side `security.authorization.denied` security-event logging unchanged — this slice adds only the user-facing half.
 - [ ] Prove unknown public/protected routes, expired auth, forbidden/hidden records, conflict, thrown errors, database-unavailable reads, failed dynamic rendering, history navigation, focus return, and screen-reader announcements.
 
 Acceptance criteria:
 
-- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, and the fallback remains available without database-backed decoration or protected resource leakage.
+- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, permission-denied actions surface a clear in-app explanation instead of failing silently, and the fallback remains available without database-backed decoration or protected resource leakage.
 
 ### Version 0.33.25.3 - Error-contract documentation, observability proof, and closeout
 
@@ -633,6 +494,163 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Every marketing document's status labels match the shipped app, the claims register is consistent with its evidence, and the branch closes with both documentation-side public-release gates active and green gate/doc checks.
+
+## Version 0.33.28 - Permissions Role-Capability Alignment
+
+**Model: High Effort** — These corrections change what scoped administrator roles can reach; a scope mistake either keeps legitimate admins locked out or over-grants beyond the intended client/project boundary.
+
+Purpose:
+
+Close the gaps between what the seeded role model intends each role to do and what the code actually exposes, found by the 2026-07-21 code review of the role→permission grid (`src/db/schema/current.sql` `role_permissions` seed) against the scope semantics in `src/services/permissions.service.js`. The named defects promoted from `TODO.md`: a Client Administrator cannot create child clients (or any clients), and Client/Project Administrators cannot reach the Project Settings surface despite holding `projects.manage` at their scope. The review also surfaced systemic causes this branch corrects: navigation/permission hints are computed only at workspace level, view-surface `requiredPermissions` declarations are never enforced client-side, the baseline seed and migration 074 disagree on `project_admin` scope, and `roles.assign` is granted to scoped admins with no usable surface.
+
+Decision:
+
+- Child-client creation authorizes against the **parent client's** scope; top-level client creation remains workspace-scoped. A Client Administrator can create child clients under a client they administer and still cannot create top-level clients.
+- Navigation and permission hints become scope-aware rather than workspace-only. This branch grants no role any permission it does not already hold in the seeded grid (except where a slice explicitly says otherwise); it aligns reachability with existing grants, and server-side `assertCan` enforcement remains authoritative throughout.
+- The user-facing permission-denied modal is owned by 0.33.25.2 (branded error surfaces), not this branch; permission-change notifications are owned by 0.36.5 (Account Home), because workspace-removal notice requires cross-workspace delivery.
+
+Dependencies and baseline:
+
+- Builds on the service-layer authorization model (`permissionsService.assertCan`/`can`, scope matching in `assignmentMatchesResource`), the app-shell permission hints (`src/services/app-shell.service.js`), and the view-renderer contribution contract; lands after 0.33.25 so denied actions already have a visible error surface while reachability is being widened.
+
+Non-goals:
+
+- No new roles, no redesign of the role→permission grid, and no changes to workspace-type gating or workspace isolation.
+- No client-side enforcement replacing server checks; browser-side permission filtering is presentation only.
+- No secure-notes permission changes and no Support View interaction; 0.33.24 remains governed by its own catalog.
+- No permission-change notifications (0.36.5) and no in-app 403 modal (0.33.25.2).
+
+### Version 0.33.28.1 - Child-client creation scope correction
+
+**Model: High Effort** — This restructures an authorization gate on a create path; the failure modes are continued lockout or letting scoped admins create top-level clients.
+
+- [ ] Restructure the `createClient` gate (`src/modules/client-projects/clients.service.js` `createClient`): when `parent_client_id` is present, authorize `clients.manage` against the parent client's scope (the check the current code performs second but never reaches, because the unconditional workspace-scoped check fails first for client-scoped assignments); when no parent is given, keep the workspace-scoped check so top-level creation remains Workspace Administrator and above.
+- [ ] Apply the same rule to every create path: the browser route, the public API `POST /api/v1/clients`, and any quick-action capture that creates clients.
+- [ ] Surface the capability in the UI for scoped admins: a Client Administrator sees an add-child-client affordance for clients they administer, consistent with the 0.33.21.2 Clients-owned add-client modal work.
+- [ ] Add regressions: a client_admin creates a child under their own client; a client_admin cannot create a top-level client; a client_admin cannot create a child under a client outside their scope; project_admin still cannot create clients; workspace_admin/super_admin behavior is unchanged; the business-workspace gate still applies.
+
+Acceptance criteria:
+
+- A Client Administrator can create child clients under clients they administer and nothing more; top-level client creation remains workspace-scoped; every create path (browser, public API, capture) enforces the same split.
+
+### Version 0.33.28.2 - Scope-aware navigation, permission hints, and Project Settings access
+
+**Model: High Effort** — A sweep across every admin nav gate; hints that are too generous surface dead-end pages and hints that stay workspace-only preserve the lockout this branch exists to fix.
+
+- [ ] Make the app-shell permission hints scope-aware: compute hints like `projectsManage`/`clientsManage` via an any-scope check (the user holds the permission somewhere in the workspace) instead of a workspace-scoped resource check that client/project-scoped assignments can never satisfy.
+- [ ] Client and Project Administrators get the Projects/Project Settings navigation and page: the page loads for them with scope-filtered data (the APIs already enforce per-scope `projects.manage` and `filterReadableProjects`), and page affordances outside their scope do not render.
+- [ ] Sweep the remaining admin navigation gates for the same asymmetry and make each deliberate: which of Users, Audit Log, Workspace Settings, and module-settings links should appear for scoped admins, given their actual grants (today none appear, and scoped admins hold no `workspace_settings.manage`/`users.manage`/`audit_logs.view`, so those stay hidden — record that as the decided behavior rather than an accident).
+- [ ] Fix the inverse asymmetry: the Clients nav link currently shows on workspace capability alone with no permission check; gate it consistently with the decided hint model.
+- [ ] Add regressions: client_admin and project_admin see the Projects surface and only their scoped data; roles without the underlying grants see no new links; workspace_admin navigation is unchanged.
+
+Acceptance criteria:
+
+- Every admin navigation gate reflects a deliberate, scope-aware decision; Client/Project Administrators can reach and use the Project Settings surface within their scope; no link leads to a surface the role cannot use.
+
+### Version 0.33.28.3 - Client-side permission wiring for view surfaces
+
+**Model: Medium Effort** — Presentation-only filtering with an existing but never-fed contract; the risk is hiding controls a user can actually use, since server enforcement already protects the other direction.
+
+- [ ] Populate the workspace-context permission set that the view renderer's `requiredPermissions` filtering already consumes but that no code currently supplies, so declared button/action requirements take effect instead of short-circuiting to visible-for-everyone.
+- [ ] Define the scope semantics of that browser-side set explicitly (a permission is present when the user holds it in any scope within the workspace, mirroring the 0.33.28.2 hint model), and document that per-record affordances remain server-checked — the browser set is coarse presentation filtering, never authorization.
+- [ ] Convert the known offenders: surface actions such as "Add Client" no longer render for roles that would only receive a 403 on submit.
+- [ ] Add regressions: a role without `clients.manage` does not see the Add Client action; a scoped admin with the grant does; server-side denial behavior is unchanged when the filter is bypassed.
+
+Acceptance criteria:
+
+- View-surface `requiredPermissions` declarations actually filter rendered actions with documented any-scope semantics, users stop meeting 403s behind visible buttons, and server enforcement remains the authority.
+
+### Version 0.33.28.4 - Seed drift, roles.assign reconciliation, documentation, and closeout
+
+**Model: Medium Effort** — Seed and grid corrections plus documentation; the main risk is fresh-install/migrated-install divergence.
+
+- [ ] Fix the baseline-seed/runtime drift for `project_admin`: the schema seed marks it client-scoped while migration 074 and the runtime scope map treat it as project-scoped; align the baseline seed with the runtime so fresh installs and migrated installs agree.
+- [ ] Audit the seeds for any other role/permission rows that migrations have since rewritten, and align them the same way.
+- [ ] Reconcile `roles.assign` for scoped admins: client_admin/project_admin hold the grant (bounded by the role-assignment limits) but have no user-management surface and no `users.manage`. Decide and land the intended behavior — either a scoped role-assignment surface for the sub-roles they may assign, or removal of the grant until such a surface exists — and record the decision.
+- [ ] Document the intended role-capability matrix (per role: scope, grants, and reachable surfaces) in the permissions documentation so future role/module work has an authoritative statement of what each role SHOULD reach, not only the seeded grid.
+- [ ] Run `npm run check`, `npm run test:permissions`, the app-shell/navigation regressions, and the canonical slice verification; update `CHANGELOG.md` and record the scope-model decisions in `DECISIONS.md`.
+
+Acceptance criteria:
+
+- Fresh installs seed the same role scopes the runtime enforces, `roles.assign` for scoped admins has a deliberate landed answer, and the documented role-capability matrix matches the shipped behavior with the release-gate checks green.
+
+## Version 0.33.29 - Centralized Identifier Authority and Forward UUIDv7 Adoption
+
+**Model: High Effort** — Identifier generation is a framework-wide data-integrity contract spanning persistent records, jobs, audit infrastructure, storage metadata, tests, and future database portability; the rollout must distinguish ordinary record identity from security-sensitive opaque values.
+
+Purpose:
+
+Introduce one framework-owned identifier authority and use standards-compliant UUIDv7 values for the majority of newly created persistent records. Time-ordered record identifiers improve insertion/index locality and operational inspection as Longtail Forge grows while preparing ordinary identity columns for the future PostgreSQL/distributed hosted architecture. This is a forward-only policy: existing UUIDv4 identifiers and every relationship that refers to them remain unchanged and valid indefinitely.
+
+Decision:
+
+- Ordinary newly created persistent records use a centralized ordered-record generator backed by a reputable maintained UUIDv7 implementation. Opaque non-secret UUIDs use a separate centralized cryptographically random UUID generator. Bearer credentials and secrets continue through their dedicated cryptographically random token helpers rather than being forced into a UUID abstraction.
+- UUIDv4 and UUIDv7 coexist as canonical opaque identifiers at every API, service, browser, module, backup, export, and database boundary. No migration rewrites existing primary keys, foreign keys, storage keys, URLs, audit history, JSON metadata, backups, seeded records, or development/demo databases merely to normalize UUID versions.
+- UUIDv7 supplies approximate creation-time ordering and insertion locality only. `created_at`, `updated_at`, due dates, explicit sequence fields, and existing canonical sort/paging rules remain authoritative. Application correctness, causal ordering, pagination, and business behavior must never depend on lexical ID order; distributed clock skew is expected.
+- The framework authority is an explicit Two-Module Rule exception because persistent identity spans framework records and every first-party workflow module. Only that authority may directly import the selected UUID package or Node's UUIDv4 generator, apart from a narrowly allowlisted security-specific exception with a documented rationale.
+- Persistent database identity is server-authoritative. The Clients/Projects browser `createUuid()` path must not become a second UUIDv7 implementation; convert those create flows to receive canonical server-generated record IDs while preserving save, optimistic UI, focus, and event behavior.
+- Files keeps record identity separate from object identity: a file/attachment/report database record may use UUIDv7, while local/S3 storage keys and protected paths remain independently random and opaque. An API-key database row may use UUIDv7, while its presented secret remains the existing dedicated random token.
+
+Non-goals:
+
+- No rewriting or replacing existing UUIDv4 primary keys, foreign keys, filenames, object keys, backup contents, exported references, bookmarks, audit rows, or historical metadata; no old-to-new mapping table and no database rebuild for ID normalization.
+- No UUIDv7-only validation. Consumers continue accepting canonical UUIDv4 and UUIDv7 strings, and UUIDs remain opaque rather than exposing decoded timestamps or versions in normal APIs or UI.
+- No replacement of explicit timestamp, ordering, paging, or cursor contracts with `ORDER BY id`; no claim that UUIDv7 is a global sequence, trusted causal clock, bearer-secret format, or unguessable security boundary.
+- No user-facing UUID settings, distributed ID service, network dependency, Snowflake-style custom identifier, sequential-integer replacement, unrelated schema change, or broad repository/service refactor.
+- No hand-rolled UUID bit layout, timestamp encoding, randomness, or monotonic sequencing, and no expansion of the identifier authority into a general secrets service.
+
+Delivery shape:
+
+This version is a three-slice tracking umbrella, not one implementation slice. Complete the children in order. The split follows real isolation boundaries: establish the framework/security policy first, perform the server-side module conversion as one mechanical rollout rather than one slice per module, then change browser/API identity ownership and run the system-level mixed-version closeout proof.
+
+### Version 0.33.29.1 - Identifier authority, framework adoption, and opaque-value boundary
+
+**Model: High Effort** — This slice establishes a framework-wide data-integrity and security classification, selects the UUIDv7 dependency, and changes identity generation for shared persistent records while preserving every credential, storage, lock, and recovery boundary.
+
+- [ ] Re-audit every production UUID generator and record a complete classification in the owning architecture/database documentation. The current framework inventory includes startup maintenance, Workspaces, Users, memberships, assignments, permissions, Tags/relationships, Files records/attachments/reports, Notifications/subscriptions, audit events, jobs, work-resume state, API-key row identity, request correlation, migration-lock ownership, local/S3 storage keys, workspace-backup artifact/package IDs, workspace-purge fencing/tombstones, and any new call sites present when the slice starts.
+- [ ] Select the smallest reputable maintained runtime dependency with standards-compliant UUIDv7 support, install it through npm, and add one framework utility following nearby naming/export conventions (expected shape: `src/core/identifiers.js`) with intent-revealing operations such as `createRecordId()` for UUIDv7 and `createOpaqueId()` for random non-v7 UUIDs. Do not hand-roll UUID layout, timestamp encoding, sequencing, or randomness.
+- [ ] Add focused unit coverage proving canonical UUIDv7 record IDs, canonical random non-v7 opaque UUIDs, meaningful-batch uniqueness, and deterministic timestamp behavior only through supported dependency injection/options rather than a fake UUID format.
+- [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, and other verified durable framework records. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
+- [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` when appropriate, while explicitly preserving their semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, and workspace-purge fencing tokens remain random and non-time-ordered. Classify durable purge tombstone/backup receipt row identity separately from the token or artifact name it accompanies.
+- [ ] Preserve dedicated secret boundaries unchanged, including `randomBytes`-based sessions, CSRF nonces/signatures, API-key secrets, session references, password/reset/invitation/activation material, private calendar-feed tokens, signed-link tokens, authentication challenges, access-bearing idempotency keys, and future bearer credentials. Do not broadly ban `randomBytes` or turn the identifier authority into a secrets service.
+- [ ] Add the initial source guardrail: only the authority may import the UUID dependency; no new production direct `randomUUID` call is allowed; the still-unconverted first-party module files and `public/js/clients-projects.js` are captured in a temporary exact migration baseline that can only shrink in 0.33.29.2/.3. Test/fixture generation may remain a separately documented exception so compatibility tests do not depend on production generation.
+- [ ] Prove representative framework behavior: audit and job rows receive UUIDv7, the API-key record ID is independent from its random secret, Files record IDs are independent from opaque storage keys, and request/lock/fencing examples remain non-time-ordered. Keep SQLite `TEXT` compatibility and future PostgreSQL native `uuid` compatibility without a schema or data-rewrite migration.
+- [ ] Run `npm run docs:suggest`, update the owning database/architecture documentation and `DECISIONS.md` with the durable classification, record the dependency choice and temporary migration baseline, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.1`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- The central authority and its record/opaque operations are implemented and tested; all framework-owned ordinary persistent records in the audited inventory use UUIDv7; security-sensitive and non-record values retain the documented random/token behavior; SQLite and future PostgreSQL representation remain valid; and a no-growth guardrail contains the exact remaining module/browser migration baseline.
+
+### Version 0.33.29.2 - First-party module persistent-record UUIDv7 rollout
+
+**Model: High Effort** — This is a high-volume mechanical conversion across every first-party workflow module; the design is settled by 0.33.29.1, but a missed or misclassified call site could silently fragment the identifier policy or alter record relationships.
+
+- [ ] Convert all verified server-side ordinary persistent-record generators in Clients/Projects, Tasks and its checklist/assignee/relationship/recurrence/reminder children, Time Tracking entries and saved/active timers, Notes/revisions/links/collections, and Lists/items/catalogs/links to `createRecordId()` in one mechanical rollout. Include any newly added first-party module call sites found by the refreshed audit rather than treating the queued inventory as frozen.
+- [ ] Resolve duplicate service/repository generation so one authoritative layer creates each new ID, while preserving accepted caller-supplied UUIDv4 or UUIDv7 identifiers needed by imports, public APIs, recurrence/idempotent retries, restoration, and existing internal contracts. Do not refactor unrelated repository or workflow behavior.
+- [ ] Add representative integration coverage across at least two materially different modules plus persistent child/relationship rows, proving new IDs are UUIDv7 and mixed UUIDv4/UUIDv7 foreign-key relationships work. Avoid exact-random-value assertions and do not infer business chronology from the generated IDs.
+- [ ] Ratchet the source guardrail to zero server-side production bypasses: reject direct `randomUUID`, UUID-package `v4`, and UUID-package `v7` imports/calls outside the central authority and documented test-only exceptions. Keep only the exact temporary browser `createUuid()` exception assigned to 0.33.29.3; fail on any new browser UUID generator.
+- [ ] Prove module ordering and paging remain explicit: Tasks, Time Tracking, Notes, Lists, recurrence/reminder selection, and relationship reads continue to sort/page by their canonical timestamp, due-date, sequence, or module-owned fields rather than UUID lexical order.
+- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.2`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Every audited server-side first-party module record generator uses the central ordered-record authority, caller-supplied legacy IDs remain compatible, representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely, module ordering is unchanged, and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.29.3.
+
+### Version 0.33.29.3 - Server-authoritative browser creation, mixed-version recovery proof, and closeout
+
+**Model: High Effort** — This slice changes the Clients/Projects browser-to-server creation contract and then proves identifier compatibility across APIs, seeds, search, export, and destructive recovery tooling; those behavioral and data-integrity checks must close together.
+
+- [ ] Move new Client/Project persistent identity off `public/js/clients-projects.js` `window.crypto.randomUUID()` and its v4 fallback. Make the server authority generate canonical IDs and return them to the browser while preserving nested create behavior, local collection replacement, audit/event metadata, optimistic status, focus return, deep links, and navigation. Do not introduce a browser UUIDv7 implementation or tighten create payloads in a way that rejects existing UUIDv4 callers.
+- [ ] Remove the final browser migration-baseline exception and prove the guardrail fails on unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` generation while retaining only documented test/fixture or stronger dedicated-token exceptions.
+- [ ] Prove forward compatibility with pre-existing UUIDv4 fixtures across read, update, relate, search, export, and current APIs; create and exercise mixed UUIDv4/UUIDv7 foreign-key relationships; and verify seeded development and sanitized-demo data continue working without regeneration merely to normalize identifier versions.
+- [ ] Prove whole-instance backup/restore and workspace backup/restore preserve every identifier byte-for-byte, retain storage object keys and protected paths, and never rewrite IDs embedded in database rows, manifests, filenames, JSON metadata, audit history, or exported references. Run or document the required SQLite `PRAGMA integrity_check` evidence selected by the recovery paths.
+- [ ] Add/complete ordering guardrails showing canonical list ordering, pagination, cursors, recurrence/job selection, audit chronology, and visible creation order continue using explicit fields. Document that UUIDv7 offers insertion locality and approximate time ordering only, distributed clocks may skew, and two UUIDv7 values do not establish trusted causal order.
+- [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional exceptions/deferred sites, and docs disposition.
+- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.3`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
+
+Acceptance criteria:
+
+- Client/Project creation is server-authoritative without workflow regressions; one framework authority is the only normal production UUID entry point; new ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
 
 ## Version 0.34 - Support Tickets Module
 
@@ -1347,8 +1365,9 @@ The first version should include:
 - Current-user notifications across accessible workspaces.
 - Permission-safe attention items such as overdue tasks, assigned tickets, pending reviews, and stale timers where those modules are enabled.
 - Links that switch/open the correct workspace before navigating to the target record.
+- Permission-change and access-removal notifications (promoted from TODO 2026-07-21): when a user's role or permissions change in a workspace, notify that user; when a user is fully removed from a workspace, deliver the discontinuation notice through their remaining workspaces / Account Home, since the removed workspace can no longer surface it. (Example: a freelancer whose client-admin access to Workspace A ends must see that notice in their own other workspaces.) This item waits here deliberately because the removal case requires exactly this branch's cross-workspace delivery machinery; an in-workspace-only change notice may land earlier if a notification slice wants it, but the removal case is owned here.
 
-Do not expose raw audit records, raw event payloads, private module records, or cross-workspace administrative data. Every item must be visible only if the user could read the source record inside that workspace.
+Do not expose raw audit records, raw event payloads, private module records, or cross-workspace administrative data. Every item must be visible only if the user could read the source record inside that workspace. Permission-change notices must state the change without leaking who else holds which roles.
 
 ## Version 0.36.6 - Asset Registry / Assets Module
 
@@ -2007,6 +2026,7 @@ Acceptance criteria:
 
 ## Version 0.37.0 - Expanded Reporting and Invoicing
 
+- [ ] Opening slice — convert Reporting from hard-wired framework core into a registered first-party module (promoted from TODO 2026-07-21): today Reporting has framework-owned routes/service and a framework-catalog `reporting.view` permission, no module manifest, and no `workspace_modules` lifecycle row, so there is no path to disable it at all. Register it in the module catalog (`enabledByDefault: true`, `canDisable: true`), move `reporting.view` ownership into the module manifest, and backfill existing workspaces' module rows via the registry sync so Workspace and Super admins can disable Reporting from Settings -> Admin -> Modules like every other module.
 - [ ] Expanded reporting
 - [ ] Invoicing
 - [ ] Add Assets as a report-capable module and explicitly keep depreciation/fixed-asset accounting out of scope.

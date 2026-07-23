@@ -27,6 +27,7 @@ import {
   isValidEmail,
   isValidTimezone,
   normalizeBooleanPreference,
+  normalizeCalendarViewPreference,
   normalizeDisplayName,
   normalizeOptionalEmail,
   normalizeProtectedUserFlag,
@@ -717,6 +718,7 @@ async function readSettings(session) {
     themeAutoSource: appUser.themeAutoSource,
     preferredLoginLanding: appUser.preferredLoginLanding,
     preferredWorkspaceSwitchLanding: appUser.preferredWorkspaceSwitchLanding,
+    preferredCalendarView: appUser.preferredCalendarView,
     openExternalLinksNewTab: appUser.openExternalLinksNewTab,
     canEnterAccountExportRecovery: await permissionsService.isWorkspaceAdministrator(session),
     workspaceCreation: await readWorkspaceCreationOptions(session),
@@ -898,6 +900,7 @@ async function saveSettings(payload, session) {
   let themeAutoSource = previousValue.themeAutoSource;
   let preferredLoginLanding = previousValue.preferredLoginLanding;
   let preferredWorkspaceSwitchLanding = previousValue.preferredWorkspaceSwitchLanding;
+  let preferredCalendarView = previousValue.preferredCalendarView;
   let openExternalLinksNewTab = previousValue.openExternalLinksNewTab;
   const metadata = {
     setting_group: "user",
@@ -956,6 +959,16 @@ async function saveSettings(payload, session) {
     metadata.setting_names.push("landingPreferences");
   }
 
+  if (Object.hasOwn(payload, "preferredCalendarView")) {
+    preferredCalendarView = normalizeCalendarViewPreference(payload.preferredCalendarView);
+    await usersRepository.updateCalendarViewPreference(session.workspace_id, session.user_id, preferredCalendarView);
+    nextValue = {
+      ...nextValue,
+      preferredCalendarView,
+    };
+    metadata.setting_names.push("preferredCalendarView");
+  }
+
   if (
     Object.hasOwn(payload, "username") ||
     Object.hasOwn(payload, "displayName") ||
@@ -1009,6 +1022,7 @@ async function saveSettings(payload, session) {
     themeAutoSource,
     preferredLoginLanding,
     preferredWorkspaceSwitchLanding,
+    preferredCalendarView,
     openExternalLinksNewTab,
   };
 }

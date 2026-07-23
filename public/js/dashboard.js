@@ -1,6 +1,7 @@
 // Dashboard renders the workspace overview through contribution-backed panels.
 const dashboardHost = document.querySelector("[data-dashboard-host]");
 const dashboardView = window.LongtailForge?.view;
+const dashboardBootstrap = window.LongtailForge?.dashboardBootstrap;
 
 let dashboardData = null;
 let dashboardPanels = [];
@@ -11,7 +12,7 @@ let dashboardRegionContainer = null;
 
 const dashboardPanelRenderers = {};
 const dashboardRegionBodies = new Map();
-const dashboardDataPromises = new Map();
+const dashboardDataPromises = dashboardBootstrap?.dataPromises || new Map();
 const KNOWN_DASHBOARD_PLACEMENTS = new Set([
   "pulse",
   "attention",
@@ -70,23 +71,55 @@ async function loadDashboardData() {
   setDashboardStatus("Loading dashboard...");
 
   try {
-    const response = await fetch("/api/dashboard", { cache: "no-store" });
+    const manifest = await loadDashboardManifest();
+    await renderDashboardSnapshot(manifest.data);
 
-    if (!response.ok) {
-      throw new Error(`Could not load dashboard data: ${response.status}`);
+    if (manifest.fromCache) {
+      const freshData = await manifest.revalidated.catch(() => manifest.data);
+
+      if (JSON.stringify(freshData) !== JSON.stringify(manifest.data)) {
+        await renderDashboardSnapshot(freshData);
+      }
     }
-
-    dashboardData = await response.json();
-    dashboardPanels = dashboardData?.extensionPoints?.dashboardPanels || [];
-    await loadDashboardBrowserAssets(dashboardData?.extensionPoints?.browserAssets);
-    renderDashboardRegions();
-    renderWorkspacePulse();
-    renderSetupWarnings();
-    renderRegisteredDashboardPanels();
-    setDashboardStatus("");
   } catch (error) {
     setDashboardStatus("Dashboard data could not be loaded.", { isError: true });
     console.error(error);
+  }
+}
+
+async function loadDashboardManifest() {
+  if (dashboardBootstrap?.manifestPromise) {
+    return dashboardBootstrap.manifestPromise;
+  }
+
+  const data = await window.LongtailForge.api.getJson("/api/dashboard", { cache: "no-store" });
+  return {
+    data,
+    fromCache: false,
+    revalidated: Promise.resolve(data),
+  };
+}
+
+async function renderDashboardSnapshot(data) {
+  dashboardData = data;
+  dashboardPanels = dashboardData?.extensionPoints?.dashboardPanels || [];
+  warmDashboardPanelData();
+  const browserAssetsReady = loadDashboardBrowserAssets(dashboardData?.extensionPoints?.browserAssets);
+
+  renderDashboardRegions();
+  renderWorkspacePulse();
+  renderSetupWarnings();
+  setDashboardStatus("");
+
+  await browserAssetsReady;
+  renderRegisteredDashboardPanels();
+}
+
+function warmDashboardPanelData() {
+  for (const panel of dashboardPanels) {
+    const routeForPanel = dashboardBootstrap?.routeForPanel;
+    const route = typeof routeForPanel === "function" ? routeForPanel(panel) : panel?.dataRoute;
+    loadContributionData({ ...panel, dataRoute: route }).catch(() => {});
   }
 }
 
@@ -411,14 +444,13 @@ async function loadContributionData(contribution, fallbackRoute = "") {
   }
 
   if (!dashboardDataPromises.has(route)) {
-    dashboardDataPromises.set(route, fetch(route, { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Could not load Dashboard contribution data: ${response.status}`);
-        }
-
-        return response.json();
-      }));
+    const loadRoute = dashboardBootstrap?.loadRoute;
+    dashboardDataPromises.set(
+      route,
+      typeof loadRoute === "function"
+        ? loadRoute(route)
+        : window.LongtailForge.api.getJson(route, { cache: "no-store" }),
+    );
   }
 
   return dashboardDataPromises.get(route);

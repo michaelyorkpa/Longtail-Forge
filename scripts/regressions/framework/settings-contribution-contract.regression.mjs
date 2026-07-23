@@ -208,7 +208,8 @@ function assertDisabledModuleRecoveryBrowserContract() {
   const footerSource = readFileSync("public/js/footer.js", "utf8");
   const workspaceSettingsSource = readFileSync("public/js/workspace-settings.js", "utf8");
 
-  assert.match(moduleSettingsSource, /moduleDefinition\?\.status !== "enabled"[\s\S]*renderDisabledModuleRecovery/);
+  assert.match(moduleSettingsSource, /moduleDefinition && moduleDefinition\.status !== "enabled"[\s\S]*renderDisabledModuleRecovery/);
+  assert.match(moduleSettingsSource, /setting\.target !== "framework"[\s\S]*frameworkSettings\[setting\.id\]/);
   assert.match(rendererSource, /renderDisabledModuleRecovery[\s\S]*Open Workspace Settings/);
   assert.match(rendererSource, /panel\.dataset\.disabledModuleRecovery = moduleId/);
   assert.match(navigationSource, /refreshAppShell = loadAppShellBootstrap[\s\S]*longtailforge:workspace-context-updated/);

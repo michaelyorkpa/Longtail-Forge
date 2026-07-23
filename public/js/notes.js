@@ -73,6 +73,7 @@ let state = {
   availableTags: [],
   attachmentController: null,
   bulkCollections: [],
+  bulkTagPicker: null,
   collectionDialogMode: "create",
   collectionEditingId: "",
   collections: [],
@@ -194,6 +195,8 @@ const bulkLibraryInput = document.querySelector("[data-note-bulk-library]");
 const bulkCollectionInput = document.querySelector("[data-note-bulk-collection]");
 const bulkTypeInput = document.querySelector("[data-note-bulk-type]");
 const bulkVisibilityInput = document.querySelector("[data-note-bulk-visibility]");
+const bulkTagActionInput = document.querySelector("[data-note-bulk-tag-action]");
+const bulkTagsEditor = document.querySelector("[data-note-bulk-tags]");
 const bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
 const collectionDialog = document.querySelector("[data-note-collection-dialog]");
 const collectionForm = document.querySelector("[data-note-collection-form]");
@@ -698,8 +701,46 @@ function normalizeNoteEditorDefaults(params = {}) {
 
 function notesViewSurfaceDescriptor() {
   const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-  return surfaces.find((surface) => surface.id === "notes.workspace" && surface.moduleId === "notes")
+  const surface = surfaces.find((candidate) => candidate.id === "notes.workspace" && candidate.moduleId === "notes")
     || fallbackNotesViewSurfaceDescriptor();
+  return scopeNotesVisibilityContributions(surface);
+}
+
+function scopeNotesVisibilityContributions(surface = {}) {
+  const workspaceType = normalizeWorkspaceType(
+    state.workspaceType || window.LongtailForge?.workspaceContext?.workspaceType || window.LongtailForge?.workspaceContext?.workspace_type || "",
+  );
+  if (!workspaceType || workspaceType === "business") {
+    return surface;
+  }
+
+  const scopeFields = (fields = []) => fields
+    .filter((field) => workspaceType !== "personal" || field.field !== "visibility")
+    .map((field) => field.field === "visibility" ? {
+      ...field,
+      options: (field.options || []).filter((option) => (Array.isArray(option) ? option[0] : option.value) !== "client_visible"),
+    } : field);
+
+  return {
+    ...surface,
+    filters: (surface.filters || [])
+      .filter((filter) => workspaceType !== "personal" || filter.field !== "visibility")
+      .map((filter) => filter.field === "visibility" ? {
+        ...filter,
+        options: (filter.options || []).filter((option) => (Array.isArray(option) ? option[0] : option.value) !== "client_visible"),
+      } : filter),
+    detail: workspaceType === "personal" && surface.detail ? {
+      ...surface.detail,
+      header: surface.detail.header ? {
+        ...surface.detail.header,
+        badges: (surface.detail.header.badges || []).filter((badge) => badge.field !== "visibility"),
+      } : surface.detail.header,
+    } : surface.detail,
+    modals: (surface.modals || []).map((modal) => ["note-editor", "note-bulk-editor"].includes(modal.id) ? {
+      ...modal,
+      fields: scopeFields(modal.fields),
+    } : modal),
+  };
 }
 
 function fallbackNotesViewSurfaceDescriptor() {
@@ -749,7 +790,7 @@ function fallbackNotesViewSurfaceDescriptor() {
     ],
     filters: [
       notesDescriptorSelect("status", "Status", [["active", "Active", true], ["pinned", "Pinned"], ["archived", "Archived"], ["all", "All visible"]]),
-      notesDescriptorSelect("visibility", "Visibility", [["all", "All visible", true], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]]),
+      notesDescriptorSelect("visibility", "Visibility", [["all", "All visible", true], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]]),
       notesDescriptorSelect("security", "Security", [["all", "All", true], ["normal", "Normal"], ["secure", "Secure"]]),
       notesDescriptorSelect("noteType", "Note Kind", [["all", "All kinds", true], ...Object.entries(NOTE_KIND_LABELS).filter(([value]) => !LEGACY_NOTE_KINDS.has(value)).map(([value, label]) => [value, label])]),
       { id: "context-filter", field: "context", type: "search", label: "Context" },
@@ -776,7 +817,7 @@ function fallbackNotesViewSurfaceDescriptor() {
           { id: "note-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
           { id: "note-collection", field: "collection", type: "select", label: "Collection", options: [["", "Uncategorized"]] },
           { id: "note-kind", field: "noteType", type: "select", label: "Note Kind", options: [["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
-          { id: "note-visibility", field: "visibility", type: "select", label: "Visibility", options: [["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]] },
+          { id: "note-visibility", field: "visibility", type: "select", label: "Visibility", options: [["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]] },
           { id: "note-security", field: "security", type: "select", label: "Security", options: [["normal", "Normal"], ["secure", "Secure"]] },
         ],
         footerActions: [
@@ -792,7 +833,8 @@ function fallbackNotesViewSurfaceDescriptor() {
           { id: "note-bulk-library", field: "library", type: "select", label: "Library", options: [["", "No change"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
           { id: "note-bulk-collection", field: "collection", type: "select", label: "Collection", options: [["", "No change"], ["__uncategorized", "Uncategorized"]] },
           { id: "note-bulk-kind", field: "noteType", type: "select", label: "Note Kind", options: [["", "No change"], ["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
-          { id: "note-bulk-visibility", field: "visibility", type: "select", label: "Visibility", options: [["", "No change"], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]] },
+          { id: "note-bulk-visibility", field: "visibility", type: "select", label: "Visibility", options: [["", "No change"], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]] },
+          { id: "note-bulk-tag-action", field: "tagAction", type: "select", label: "Tag Action", options: [["", "No change"], ["add", "Add tags"], ["remove", "Remove tags"], ["replace", "Replace direct tags"]] },
         ],
         footerActions: [
           { id: "cancel-note-bulk", label: "Cancel", role: "secondary", behavior: "notes.bulk.cancel" },
@@ -1307,15 +1349,18 @@ function createNoteDialogShell() {
   heading.dataset.noteDialogHeading = "";
 
   const titleField = noteFieldLabel("Title", noteInput("noteTitle", { type: "text", required: true }));
+  const visibilityOptions = modalFieldOptions(modal, "visibility");
   const selectGrid = view.createElement("div", {
     className: "notes-form-grid",
     children: [
       noteFieldLabel("Library", noteSelect("noteLibrary", modalFieldOptions(modal, "library"))),
       noteFieldLabel("Collection", noteSelect("noteCollection", modalFieldOptions(modal, "collection"))),
       noteFieldLabel("Note Kind", noteSelect("noteType", modalFieldOptions(modal, "noteType"))),
-      noteFieldLabel("Visibility", noteSelect("noteVisibility", modalFieldOptions(modal, "visibility").filter(([value]) => value !== "client_visible"))),
+      visibilityOptions.length > 0
+        ? noteFieldLabel("Visibility", noteSelect("noteVisibility", visibilityOptions))
+        : null,
       noteFieldLabel("Security", noteSelect("noteSecurity", modalFieldOptions(modal, "security"))),
-    ],
+    ].filter(Boolean),
   });
   const primaryContext = createPrimaryContextSection();
   // Group the note "Details" fields into a collapsible section (openEditor opens it for Add, closes for Edit).
@@ -1383,7 +1428,14 @@ function createNoteBulkDialogShell() {
   dialog.viewParts.form.querySelector('[data-view-input="library"]').dataset.noteBulkLibrary = "";
   dialog.viewParts.form.querySelector('[data-view-input="collection"]').dataset.noteBulkCollection = "";
   dialog.viewParts.form.querySelector('[data-view-input="noteType"]').dataset.noteBulkType = "";
-  dialog.viewParts.form.querySelector('[data-view-input="visibility"]').dataset.noteBulkVisibility = "";
+  const bulkVisibility = dialog.viewParts.form.querySelector('[data-view-input="visibility"]');
+  if (bulkVisibility) {
+    bulkVisibility.dataset.noteBulkVisibility = "";
+  }
+  dialog.viewParts.form.querySelector('[data-view-input="tagAction"]').dataset.noteBulkTagAction = "";
+  const tagsMount = view.createElement("div", { className: "notes-bulk-tags-field" });
+  tagsMount.dataset.noteBulkTags = "";
+  dialog.viewParts.body.appendChild(tagsMount);
   const status = view.createStatusMessage({ attrs: { "aria-live": "polite" } });
   status.dataset.noteBulkFormStatus = "";
   const footer = dialog.viewParts.footer;
@@ -1508,10 +1560,35 @@ async function initialize() {
 function applyWorkspaceContext() {
   const context = window.LongtailForge?.workspaceContext || {};
   state.workspaceType = normalizeWorkspaceType(context.workspaceType || context.workspace_type || "");
+  applyWorkspaceVisibilityControls();
   populateWorkspaceVisibilityOptions();
   populateLinkTargetTypeSelect(contextTargetTypeInput);
   populateLinkClientContextSelect();
   updatePrimaryContextVisibility();
+}
+
+function applyWorkspaceVisibilityControls() {
+  const personalWorkspace = normalizeWorkspaceType(state.workspaceType) === "personal";
+  for (const control of [visibilityFilter, visibilityInput, bulkVisibilityInput]) {
+    const field = control?.closest("label, [data-view-field]");
+    if (field) {
+      field.hidden = personalWorkspace;
+      field.style.display = personalWorkspace ? "none" : "";
+    }
+  }
+
+  if (visibilityFilter && !personalWorkspace) {
+    const selectedValue = visibilityFilter.value || "all";
+    const options = notesViewSurfaceDescriptor().filters
+      ?.find((filter) => filter.field === "visibility")?.options || [];
+    visibilityFilter.replaceChildren(...options.map((option) => {
+      const [value, label] = Array.isArray(option) ? option : [option.value, option.label];
+      return notesOptionElement(value, label);
+    }));
+    visibilityFilter.value = options.some((option) => (Array.isArray(option) ? option[0] : option.value) === selectedValue)
+      ? selectedValue
+      : "all";
+  }
 }
 
 async function loadNotes(cursor = state.notesCurrentCursor || "") {
@@ -1592,7 +1669,9 @@ function buildNotesListQuery(cursor = "") {
   }
   appendNotesQueryParam(params, "libraryBucket", activeLibraryBucketFilter());
   appendNotesQueryParam(params, "status", activeStatusFilter());
-  appendNotesQueryParam(params, "visibility", visibilityFilter?.value, "all");
+  if (normalizeWorkspaceType(state.workspaceType) !== "personal") {
+    appendNotesQueryParam(params, "visibility", visibilityFilter?.value, "all");
+  }
   appendNotesQueryParam(params, "security", securityFilter?.value, "all");
   appendNotesQueryParam(params, "noteType", typeFilter?.value, "all");
   appendNotesQueryParam(params, "context", normalizeText(contextFilter?.value));
@@ -1925,8 +2004,10 @@ async function openBulkEditor() {
     state.bulkCollections = normalizeCollections(result.collections || []);
     bulkLibraryInput.value = "";
     bulkTypeInput.value = "";
+    bulkTagActionInput.value = "";
     populateBulkVisibilityOptions();
     populateBulkCollectionOptions();
+    await mountBulkTagPicker();
     setBulkFormStatus(`${state.selectedNoteIds.size} notes selected.`);
     bulkApplyButton.disabled = false;
     view.showModal(bulkDialog, { trigger: bulkEditButton });
@@ -1976,6 +2057,20 @@ function populateBulkVisibilityOptions() {
   bulkVisibilityInput.value = "";
 }
 
+async function mountBulkTagPicker() {
+  if (!bulkTagsEditor || !window.LongtailForge.tags?.mountPicker) {
+    state.bulkTagPicker = null;
+    return;
+  }
+
+  state.bulkTagPicker = await window.LongtailForge.tags.mountPicker(bulkTagsEditor, {
+    allowCreate: false,
+    label: "Tags",
+    placeholder: "Type to search tags",
+    tags: state.availableTags,
+  });
+}
+
 async function applyBulkEdit(event) {
   event.preventDefault();
   if (state.selectedNoteIds.size === 0) {
@@ -1983,8 +2078,19 @@ async function applyBulkEdit(event) {
     return;
   }
 
+  const targetIds = [...state.selectedNoteIds];
   const changes = readBulkNoteChanges();
-  if (Object.keys(changes).length === 0) {
+  const tagAction = bulkTagActionInput?.value || "";
+  const tagIds = state.bulkTagPicker?.readTagIds?.() || [];
+  if (tagAction && tagIds.length === 0) {
+    setBulkFormStatus("Choose at least one tag for the selected tag action.", true);
+    return;
+  }
+  if (!tagAction && tagIds.length > 0) {
+    setBulkFormStatus("Choose a tag action for the selected tags.", true);
+    return;
+  }
+  if (Object.keys(changes).length === 0 && !tagAction) {
     setBulkFormStatus("Choose at least one field to update.", true);
     return;
   }
@@ -1992,29 +2098,48 @@ async function applyBulkEdit(event) {
   bulkApplyButton.disabled = true;
   setBulkFormStatus("Updating notes...");
   try {
-    const result = await api.postJson("/api/notes/bulk", {
-      noteIds: [...state.selectedNoteIds],
-      changes,
-    });
-    const updatedNotes = result.notes || [];
-    const errors = result.errors || [];
-    state.selectedNoteIds = new Set(errors.map((error) => error.note_id).filter(Boolean));
+    const results = [];
+    if (Object.keys(changes).length > 0) {
+      results.push(await api.postJson("/api/notes/bulk", {
+        noteIds: targetIds,
+        changes,
+      }));
+    }
+    if (tagAction) {
+      results.push(await api.postJson("/api/tags/bulk-assignments", {
+        action: tagAction,
+        tagIds,
+        targetIds,
+        targetType: "note",
+      }));
+    }
+
+    const updatedNoteIds = new Set(results.flatMap((result) => [
+      ...(result.notes || []).map((note) => note.note_id),
+      ...(result.changed || []).map((entry) => entry.target_id),
+    ]).filter(Boolean));
+    const failedNoteIds = new Set(results.flatMap((result) => (result.errors || [])
+      .map((error) => error.note_id || error.target_id)
+      .filter(Boolean)));
+    state.selectedNoteIds = failedNoteIds;
     if (isNotesWorkspaceSurface) {
       await Promise.all([loadCollections(), loadNotes()]);
       renderCollections();
       renderNotes();
-      await refreshSelectedNoteAfterBulk(updatedNotes);
+      await refreshSelectedNoteAfterBulk(updatedNoteIds);
     }
 
-    if (updatedNotes.length > 0) {
+    const fullyUpdatedCount = targetIds.filter((noteId) => !failedNoteIds.has(noteId)).length;
+    if (fullyUpdatedCount > 0) {
       closeBulkEditor();
-      setStatus(errors.length > 0
-        ? `Updated ${updatedNotes.length} notes; ${errors.length} could not be updated.`
-        : `Updated ${updatedNotes.length} notes.`);
+      setStatus(failedNoteIds.size > 0
+        ? `Updated ${fullyUpdatedCount} notes; ${failedNoteIds.size} could not be fully updated.`
+        : `Updated ${fullyUpdatedCount} notes.`);
       return;
     }
 
-    setBulkFormStatus(errors[0]?.message || "Selected notes could not be updated.", true);
+    const firstError = results.flatMap((result) => result.errors || [])[0];
+    setBulkFormStatus(firstError?.message || "Selected notes could not be updated.", true);
     bulkApplyButton.disabled = false;
   } catch (error) {
     setBulkFormStatus(error.message || "Selected notes could not be updated.", true);
@@ -2041,9 +2166,12 @@ function readBulkNoteChanges() {
   return changes;
 }
 
-async function refreshSelectedNoteAfterBulk(updatedNotes = []) {
+async function refreshSelectedNoteAfterBulk(updatedNoteIds = []) {
   const selectedId = state.selectedNote?.note_id || "";
-  if (!selectedId || !updatedNotes.some((note) => note.note_id === selectedId)) {
+  const updatedIds = updatedNoteIds instanceof Set
+    ? updatedNoteIds
+    : new Set((updatedNoteIds || []).map((note) => typeof note === "string" ? note : note?.note_id || note?.target_id).filter(Boolean));
+  if (!selectedId || !updatedIds.has(selectedId)) {
     return;
   }
   const result = await api.getJson(`/api/notes/${encodeURIComponent(selectedId)}`, { cache: "no-store" });
@@ -2285,6 +2413,9 @@ function populateWorkspaceVisibilityOptions(selectedValue = visibilityInput?.val
 }
 
 function workspaceVisibilityOptions() {
+  if (normalizeWorkspaceType(state.workspaceType) === "personal") {
+    return [];
+  }
   return modalFieldOptions(notesEditorModalDescriptor(), "visibility")
     .filter(([value]) => value !== "client_visible" || usesBusinessScope());
 }
@@ -2556,7 +2687,7 @@ function readEditorPayload() {
     library_bucket: libraryInput.value,
     noteCollectionId: collectionInput.value || null,
     note_type: typeInput.value,
-    visibility: readEditorVisibility(),
+    ...(normalizeWorkspaceType(state.workspaceType) === "personal" ? {} : { visibility: readEditorVisibility() }),
     security_mode: securityInput.value,
     tagIds: state.tagPicker?.readTagIds?.() || [],
     client_id: usesBusinessScope() ? normalizeText(clientInput.value) || null : null,
@@ -2568,9 +2699,9 @@ function readEditorPayload() {
 }
 
 function readEditorVisibility() {
-  return !usesBusinessScope() && visibilityInput.value === "client_visible"
+  return !usesBusinessScope() && visibilityInput?.value === "client_visible"
     ? "internal"
-    : visibilityInput.value;
+    : visibilityInput?.value || "internal";
 }
 
 async function loadPrimaryContextOptions(selected = {}) {
@@ -3763,7 +3894,7 @@ function revisionItem(note, revision) {
   meta.textContent = [
     revision.change_summary,
     formatToken(revision.library_bucket),
-    formatToken(revision.visibility),
+    normalizeWorkspaceType(state.workspaceType) === "personal" ? "" : formatToken(revision.visibility),
     formatToken(revision.security_mode),
     formatDate(revision.created_at),
   ].filter(Boolean).join(" - ");
@@ -4322,7 +4453,7 @@ function detailMetaItems(note = {}) {
     ["Library", libraryLabel(note.library_bucket)],
     ["Note Kind", noteKindLabel(note.note_type)],
     ["Status", formatToken(note.status)],
-    ["Visibility", formatToken(note.visibility)],
+    ["Visibility", normalizeWorkspaceType(state.workspaceType) === "personal" ? "" : formatToken(note.visibility)],
     ["Security", formatToken(note.security_mode)],
     ["Ticket", note.ticket_id],
     ["Created", formatDate(note.created_at)],

@@ -305,18 +305,49 @@ async function filterReadableProjects(session, projects) {
 }
 
 async function filterReadableTimeEntries(session, entries) {
-  if (await can(session, "time_entries.edit_all", { workspace_id: session.workspace_id, operation: "read" })) {
+  const visibility = await readTimeEntryVisibility(session);
+
+  if (visibility.all) {
     return entries;
   }
 
-  const readableScopes = await readReadableScopes(session);
   return entries.filter((entry) => (
     (
-      entry.user_id === session.user_id ||
-      canReadAllScopedTimeEntries(readableScopes, entry)
+      entry.user_id === visibility.userId ||
+      visibility.editAllClientIds.includes(entry.client_id) ||
+      visibility.editAllProjectIds.includes(entry.project_id)
     ) &&
-    (readableScopes.clientIds.has(entry.client_id) || readableScopes.projectIds.has(entry.project_id))
+    (
+      visibility.clientIds.includes(entry.client_id) ||
+      visibility.projectIds.includes(entry.project_id)
+    )
   ));
+}
+
+async function readTimeEntryVisibility(session) {
+  if (await can(session, "time_entries.edit_all", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  })) {
+    return {
+      all: true,
+      clientIds: [],
+      editAllClientIds: [],
+      editAllProjectIds: [],
+      projectIds: [],
+      userId: session.user_id,
+    };
+  }
+
+  const readableScopes = await readReadableScopes(session);
+  return {
+    all: false,
+    clientIds: [...readableScopes.clientIds],
+    editAllClientIds: [...readableScopes.editAllClientIds],
+    editAllProjectIds: [...readableScopes.editAllProjectIds],
+    projectIds: [...readableScopes.projectIds],
+    userId: session.user_id,
+  };
 }
 
 async function filterReadableTasks(session, tasks) {
@@ -552,11 +583,6 @@ async function readReadableScopes(session) {
   });
 
   return { clientIds, editAllClientIds, editAllProjectIds, projectIds };
-}
-
-function canReadAllScopedTimeEntries(readableScopes, entry) {
-  return readableScopes.editAllClientIds.has(entry.client_id) ||
-    readableScopes.editAllProjectIds.has(entry.project_id);
 }
 
 async function readCurrentUser(session) {
@@ -799,6 +825,7 @@ export const permissionsService = {
   filterReadableProjects,
   filterReadableTasks,
   filterReadableTimeEntries,
+  readTimeEntryVisibility,
   isSuperAdmin,
   isWorkspaceAdministrator,
   listAssignableRoleOptions,

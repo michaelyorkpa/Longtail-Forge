@@ -107,6 +107,10 @@ function normalizeUserLandingPage(value) {
     : "dashboard";
 }
 
+function normalizeCalendarViewPreference(value) {
+  return ["day", "week", "month"].includes(value) ? value : null;
+}
+
 function normalizeBooleanPreference(value) {
   return value === true || value === 1 || value === "1" || value === "true" || value === "yes" || value === "on";
 }
@@ -122,6 +126,7 @@ function userRowToAppValue(row) {
     themeAutoSource: normalizeThemeAutoSource(row.theme_auto_source),
     preferredLoginLanding: normalizeUserLandingPage(row.preferred_login_landing),
     preferredWorkspaceSwitchLanding: normalizeUserLandingPage(row.preferred_workspace_switch_landing),
+    preferredCalendarView: normalizeCalendarViewPreference(row.preferred_calendar_view),
     openExternalLinksNewTab: normalizeBooleanPreference(row.open_external_links_new_tab),
     passwordChangeRequired: normalizeBooleanPreference(row.password_change_required),
     userStatus: normalizeUserStatus(row.user_status),
@@ -323,6 +328,7 @@ export {
   normalizeBillingRate,
   normalizeBillingRounding,
   normalizeBooleanPreference,
+  normalizeCalendarViewPreference,
   normalizeClientProjectData,
   normalizeDisplayName,
   normalizeEmail,

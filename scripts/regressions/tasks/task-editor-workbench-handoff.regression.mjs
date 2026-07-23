@@ -50,8 +50,8 @@ assert.match(
 );
 assert.match(
   taskDialogJs,
-  /className: "surface-modal-heading-actions",\s*children: \[workbenchOpen, notificationToggle\]/,
-  "the Workbench handoff must sit immediately left of the notification bell in the heading actions group",
+  /className: "surface-modal-heading-actions",\s*children: \[block, complete, workbenchOpen, notificationToggle\]/,
+  "Block must precede Complete while Complete remains immediately left of the Workbench handoff",
 );
 assert.match(
   taskDialogJs,

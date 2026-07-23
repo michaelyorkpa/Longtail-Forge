@@ -7,7 +7,7 @@ const decisions = readFileSync("DECISIONS.md", "utf8");
 const cursor = roadmap.match(/^Active cursor: `([^`]+)`\./m)?.[1];
 if (!cursor) throw new Error("ROADMAP.md must declare an active cursor.");
 const escapedCursor = cursor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const sliceMatch = roadmap.match(new RegExp(`^### Version ${escapedCursor}[^\\n]*[\\s\\S]*?(?=^### Version |^## Version |(?![\\s\\S]))`, "m"));
+const sliceMatch = roadmap.match(new RegExp(`^#{2,4} Version ${escapedCursor}[^\\n]*[\\s\\S]*?(?=^#{2,4} Version |(?![\\s\\S]))`, "m"));
 if (!sliceMatch) throw new Error(`Unable to find active roadmap slice ${cursor}.`);
 const activeSlice = sliceMatch[0].trim();
 const tokens = meaningfulTokens(activeSlice);

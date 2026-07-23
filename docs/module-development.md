@@ -170,7 +170,7 @@ Disabled modules should not contribute normal navigation.
 
 Declare Workbench cards in `workbench` when a module has a live workflow surface. Cards identify the renderer and basic filtering metadata; the Workbench page stays framework-owned.
 
-Declare actionable records in `workItemSources`. A source module should expose its own list route, such as `/api/tasks/workbench-items`, that returns normalized records with `source_module_id`, `source_type`, `source_id`, `source_label`, `source_url`, project context, status, assignment fields, and any attached timer summary.
+Declare actionable records in `workItemSources`. A source module should expose its own list route, such as `/api/tasks/workbench-items`, that returns normalized records with `source_module_id`, `source_type`, `source_id`, `source_label`, `source_url`, project context, status, assignment fields, and any attached timer summary. When a candidate must open a module-owned modal instead of its page fallback, the item may include a sanitized `primary_action` descriptor with `type: "module-action"`, the stable registered action ID, and safe params; the Workbench dispatcher owns dispatch and focus return while the source module still owns the editor and save behavior.
 
 Declare timer-capable records in `timerSources`. Each timer source should publish lifecycle routes for listing, starting, pausing, finalizing, and removing timers. Time Tracking owns active timer persistence and time-entry finalization; source modules provide record context and source-specific permission checks.
 

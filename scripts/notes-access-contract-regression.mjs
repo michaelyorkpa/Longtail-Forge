@@ -17,6 +17,7 @@ const {
   NOTE_RESOURCE_DEFINITION,
   canAccessNote,
   canExposeNoteInAggregate,
+  normalizeNoteVisibilityForWorkspace,
   sanitizeNoteLifecyclePayload,
 } = await import("../src/modules/notes/access-policy.js");
 const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_STATUSES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
@@ -140,6 +141,33 @@ async function assertAccessPolicy() {
     session,
     permissions: [NOTE_PERMISSIONS.VIEW, NOTE_PERMISSIONS.VIEW_PRIVATE],
   }).allowed, true);
+
+  assert.equal(canAccessNote({
+    note: { ...baseNote, visibility: NOTE_VISIBILITIES.PRIVATE, owner_user_id: "other-user", created_by_user_id: "other-user" },
+    operation: "read",
+    session,
+    permissions: [NOTE_PERMISSIONS.VIEW],
+    workspaceType: "personal",
+  }).allowed, true, "Personal workspace access should treat legacy visibility as the implicit default");
+
+  assert.equal(canAccessNote({
+    note: { ...baseNote, visibility: NOTE_VISIBILITIES.CLIENT_VISIBLE },
+    operation: "update",
+    session,
+    permissions: [NOTE_PERMISSIONS.UPDATE],
+    workspaceType: "family",
+  }).allowed, true, "Family workspace access should treat legacy Client visibility as the implicit safe default");
+  assert.equal(canAccessNote({
+    note: { ...baseNote, visibility: NOTE_VISIBILITIES.CLIENT_VISIBLE },
+    operation: "update",
+    session,
+    permissions: [NOTE_PERMISSIONS.UPDATE],
+    workspaceType: "business",
+  }).reason, "client_visible_requires_permission", "Business Client visibility should retain its publication permission");
+
+  assert.equal(normalizeNoteVisibilityForWorkspace({ ...baseNote, visibility: NOTE_VISIBILITIES.PUBLIC }, "personal").visibility, NOTE_VISIBILITIES.INTERNAL);
+  assert.equal(normalizeNoteVisibilityForWorkspace({ ...baseNote, visibility: NOTE_VISIBILITIES.CLIENT_VISIBLE }, "family").visibility, NOTE_VISIBILITIES.INTERNAL);
+  assert.equal(normalizeNoteVisibilityForWorkspace({ ...baseNote, visibility: NOTE_VISIBILITIES.CLIENT_VISIBLE }, "business").visibility, NOTE_VISIBILITIES.CLIENT_VISIBLE);
 
   assert.equal(canAccessNote({
     note: { ...baseNote, security_mode: NOTE_SECURITY_MODES.SECURE },

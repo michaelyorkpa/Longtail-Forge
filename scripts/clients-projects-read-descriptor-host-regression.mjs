@@ -60,7 +60,8 @@ assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\
 assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.clients\.edit", "clients\.edit"\)/, "Clients Edit action should dispatch through the canonical module action");
 assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.projects\.create", "projects\.add"\)/, "Projects Add action should dispatch through the canonical module action");
 assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.projects\.edit", "projects\.edit"\)/, "Projects Edit action should dispatch through the canonical module action");
-assert.match(clientsProjectsScript, /function hydrateProjectClientFilterOptions[\s\S]*!clientsEnabledForWorkspace\(\)[\s\S]*hideDescriptorField/, "Projects Client filter should be hidden/unavailable outside Business workspaces");
+assert.match(clientsProjectsScript, /function withoutUnsupportedClientFields[\s\S]*workspaceType === "business"[\s\S]*project-client-filter[\s\S]*project-client[\s\S]*clientId[\s\S]*clientName/, "Projects should omit Client descriptor contributions outside Business workspaces");
+assert.doesNotMatch(clientsProjectsScript, /function hideDescriptorField|function showDescriptorField/, "Projects should not render and then hide Client filter anatomy outside Business workspaces");
 assert.match(clientsProjectsScript, /function withInitialProjectClientFilter[\s\S]*contextWorkspaceType !== "business"/, "URL Client filter seeding should not submit Client IDs in Personal or Family workspaces");
 assert.match(clientsProjectsScript, /function openClientProjectModuleAction[\s\S]*moduleActions\.open\(actionId, params/, "Descriptor actions should use the shared module action registry");
 assert.match(clientsProjectsScript, /function openAddClientDialog/, "Add Client dialog opener should remain module-owned");
@@ -128,6 +129,7 @@ assert.match(clientsRoutes, /clientsRoutes\.get\("\/clients"/, "Clients canonica
 assert.match(clientsRoutes, /clientsRoutes\.get\("\/projects"/, "Projects canonical read route should remain available");
 assert.match(clientsServiceSource, /async function listClients[\s\S]*assertBusinessWorkspace\(session\)[\s\S]*filterReadableClients[\s\S]*filterRecordsByTags[\s\S]*buildClientShape\(decoratedClients, shapeOptions\)/, "Clients canonical read path should keep Business gating, permission pruning, tag filtering, and hierarchy shaping server-owned");
 assert.match(clientsServiceSource, /async function listProjects[\s\S]*filterReadableProjects[\s\S]*normalizeProjectClientFilter[\s\S]*filterRecordsByTags[\s\S]*buildProjectReadShape\(decoratedProjects, orderingClients, shapeOptions\)/, "Projects canonical read path should keep permission pruning, client/status/tag filtering, and hierarchy shaping server-owned");
+assert.match(clientsServiceSource, /\["workspace", "__workspace_projects__"\][\s\S]*type: "workspace"/, "The service should normalize the descriptor's workspace-project sentinel instead of treating it as a Client ID");
 assert.match(clientsServiceSource, /function buildClientShape[\s\S]*sortHierarchy[\s\S]*decorateClientShape/, "Clients read shape should preserve hierarchy ordering");
 assert.match(clientsServiceSource, /function buildProjectShape[\s\S]*sortProjectHierarchy[\s\S]*decorateProjectShape/, "Project option/dialog reads should preserve hierarchy ordering");
 assert.match(clientsServiceSource, /function buildProjectReadShape[\s\S]*projectReadGroups[\s\S]*sortProjectHierarchy[\s\S]*decorateProjectShape/, "Projects page reads should preserve service-owned workspace and Client group hierarchy ordering");
@@ -160,6 +162,14 @@ try {
   });
   assert.ok(businessRead.clients.some((client) => client.id === "cpd-child-client" && client.depth === 1), "Clients read should expose hierarchy depth for descriptor binding");
   assert.ok(businessRead.clients.some((client) => client.id === "cpd-parent-client" && client.billing_display), "Clients read should expose billing display metadata");
+
+  const workspaceProjectsRead = await clientsService.listProjects(sessionFor(businessWorkspaceId, businessUserId), {
+    clientId: "__workspace_projects__",
+    include_depth: "true",
+    status: "All",
+  });
+  assert.ok(workspaceProjectsRead.projects.some((project) => project.id === "cpd-workspace-project"), "Workspace Client selection should return workspace projects");
+  assert.equal(workspaceProjectsRead.projects.every((project) => !project.client_id), true, "Workspace Client selection should exclude Client-owned projects");
 
   const projectRead = await clientsService.listProjects(sessionFor(personalWorkspaceId, personalUserId), {
     include_depth: "true",
@@ -265,11 +275,17 @@ WHERE workspace_id = ${sqlText(businessWorkspaceId)}
     parent_project_id: parentProject.id,
     name: "Child Project",
   };
+  const workspaceProject = {
+    ...parentProject,
+    id: "cpd-workspace-project",
+    name: "Workspace Project",
+  };
 
   await clientsRepository.create(businessWorkspaceId, parentClient);
   await clientsRepository.create(businessWorkspaceId, childClient);
   await projectsRepository.create(businessWorkspaceId, parentClient.id, parentProject);
   await projectsRepository.create(businessWorkspaceId, parentClient.id, childProject);
+  await projectsRepository.create(businessWorkspaceId, "", workspaceProject);
 }
 
 async function ensureWorkspace(workspaceId, workspaceType, userId) {

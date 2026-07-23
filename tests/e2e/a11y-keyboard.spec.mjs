@@ -23,10 +23,15 @@ async function activeElementInfo(page) {
     const visibleFocus =
       (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) ||
       style.boxShadow !== "none";
+    const accessibleLabel =
+      element.getAttribute("aria-label") ||
+      element.getAttribute("title") ||
+      element.textContent?.trim().slice(0, 20) ||
+      "";
 
     return {
       tag: element.tagName.toLowerCase(),
-      key: `${element.tagName}#${element.id}.${element.className}@${element.textContent?.trim().slice(0, 20)}`,
+      key: `${element.tagName}#${element.id}.${element.className}@${accessibleLabel}`,
       visibleFocus,
       inDialog: Boolean(element.closest("dialog[open]")),
     };

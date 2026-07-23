@@ -33,8 +33,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "candidateActionLabel"),
-  /candidateTaskId\(candidate\)[\s\S]*return "Focus task";[\s\S]*candidateModuleAction\(candidate\) \|\| candidate\.sourceUrl \|\| candidate\.primaryAction\?\.href[\s\S]*return "Open work";/,
-  "Task candidates should now focus the task while non-task candidates keep the Open work fallback label",
+  /candidateTaskId\(candidate\)[\s\S]*return "Focus task";[\s\S]*isManualTimerCandidate\(candidate\)[\s\S]*return "Continue in Time Tracking";[\s\S]*candidateModuleAction\(candidate\)[\s\S]*return candidate\.primaryAction\?\.label \|\| "Open work";[\s\S]*candidate\.sourceUrl \|\| candidate\.primaryAction\?\.href[\s\S]*return "Open work";/,
+  "Task candidates should focus the task, manual timers should name their Time Tracking handoff, module actions may supply a source-owned label, and page fallbacks keep the generic label",
 );
 
 const openCandidateBody = functionBody(workbenchScript, "openCandidate");
@@ -74,13 +74,28 @@ assert.doesNotMatch(
 const fallbackBody = functionBody(workbenchScript, "openNonTaskFocusFallback");
 assert.match(
   fallbackBody,
-  /const href = candidate\.primaryAction\?\.href \|\| candidate\.sourceUrl \|\| "";[\s\S]*Opening this work in its module page until Task Focus supports this type\.[\s\S]*window\.location\.href = href;/,
-  "Non-task primary candidates should keep an explicit temporary page fallback",
+  /const href = candidatePageFallback\(candidate\);[\s\S]*Continuing this timer in Time Tracking\.[\s\S]*Opening this work in its module page until Task Focus supports this type\.[\s\S]*navigateFromWorkbench\(href, "work-candidate-fallback"\);/,
+  "Non-task primary candidates should keep an explicit temporary page fallback through the guarded navigation path",
 );
 assert.match(
   fallbackBody,
   /Task Focus is currently available for task candidates only/,
   "Non-task primary candidates without a page URL should explain the missing Task Focus support",
+);
+assert.match(
+  functionBody(workbenchScript, "isManualTimerCandidate"),
+  /candidate\.moduleId === "time-tracking"[\s\S]*candidate\.recordType === "active_work_timer"[\s\S]*candidate\.metadata\?\.source_type \|\| "manual"/,
+  "only Time Tracking-owned manual active-timer candidates should receive the explicit timer handoff",
+);
+assert.match(
+  functionBody(workbenchScript, "candidatePageFallback"),
+  /isManualTimerCandidate\(candidate\)[\s\S]*return "time-tracker\.html";[\s\S]*candidate\.primaryAction\?\.href \|\| candidate\.sourceUrl/,
+  "manual timers should deliberately navigate to the Time Tracking page without a Workbench-owned editor or unstable record opener",
+);
+assert.doesNotMatch(
+  functionBody(workbenchScript, "candidateModuleAction"),
+  /time-tracking|active_work_timer|timer\.(?:edit|resume)/,
+  "Workbench must not invent a registered manual-timer editor or lifecycle opener",
 );
 
 assert.match(

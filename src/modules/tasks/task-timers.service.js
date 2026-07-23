@@ -8,6 +8,7 @@ import { searchIndexSyncService } from "../../services/search-index-sync.service
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { tasksSettingsService } from "./tasks-settings.service.js";
+import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
 const TASKS_MODULE_ID = "tasks";
@@ -30,21 +31,33 @@ async function save(taskId, payload, session) {
     ? await transitionTaskToInProgressForTimerStart(task, existingTimer, session)
     : taskTimerTransitionMetadata(existingTimer);
   const elapsedSeconds = Math.max(0, Number.parseInt(payload?.accumulated_elapsed_seconds, 10) || 0);
-  const result = await activeTimersService.saveSourced(taskTimerSource(task), {
-    active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id || randomUUID(),
-    client_id: task.client_id,
-    client_name: task.client_name,
-    project_id: task.project_id,
-    project_name: task.project_name,
-    description: task.title,
-    billable: task.billable === "no" ? "no" : "yes",
-    accumulated_elapsed_seconds: elapsedSeconds,
-    last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
-    sourceMetadata: {
-      taskTimerStatusTransition: transition,
-    },
-    timer_status: timerStatus,
-  }, session);
+  let result;
+
+  try {
+    result = await activeTimersService.saveSourced(taskTimerSource(task), {
+      active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id || randomUUID(),
+      client_id: task.client_id,
+      client_name: task.client_name,
+      project_id: task.project_id,
+      project_name: task.project_name,
+      description: task.title,
+      billable: task.billable === "no" ? "no" : "yes",
+      accumulated_elapsed_seconds: elapsedSeconds,
+      last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
+      sourceMetadata: {
+        taskTimerStatusTransition: transition,
+      },
+      timer_status: timerStatus,
+    }, session);
+  } catch (error) {
+    if (transition.movedTaskToInProgress === true) {
+      const transitionedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
+      await revertTaskTimerStartTransition(transitionedTask || task, {
+        sourceMetadata: { taskTimerStatusTransition: transition },
+      }, session, { force: true });
+    }
+    throw error;
+  }
   await markTaskWorked(session, task.task_id, `task_timer_${timerStatus}`);
   const updatedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
 
@@ -91,11 +104,11 @@ async function linkManualTimer(taskId, payload, session) {
       },
     }, session);
   } catch (error) {
-    if (transition.movedTaskFromOpen === true) {
+    if (transition.movedTaskToInProgress === true) {
       const transitionedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
       await revertTaskTimerStartTransition(transitionedTask || task, {
         sourceMetadata: { taskTimerStatusTransition: transition },
-      }, session);
+      }, session, { force: true });
     }
     throw error;
   }
@@ -262,19 +275,26 @@ async function assertCanUseTaskTimer(session, task) {
 async function transitionTaskToInProgressForTimerStart(task, existingTimer, session) {
   const existingTransition = taskTimerTransitionMetadata(existingTimer);
 
-  if (existingTransition.movedTaskFromOpen === true) {
+  if (existingTransition.movedTaskToInProgress === true) {
     return existingTransition;
   }
 
-  if (task.status !== "open") {
+  if (task.status !== "open" && task.status !== "blocked") {
     return {
+      movedTaskToInProgress: false,
       movedTaskFromOpen: false,
+      movedTaskFromBlocked: false,
+      previousBlockedReason: "",
       previousStatus: task.status,
     };
   }
 
+  const previousStatus = task.status;
+  const previousBlockedReason = previousStatus === "blocked" ? task.blocked_reason || "" : "";
+
   const updatedTask = await tasksRepository.update(session.workspace_id, {
     ...task,
+    blocked_reason: "",
     status: "in_progress",
     last_worked_at: new Date().toISOString(),
     updated_by_user_id: session.user_id,
@@ -287,27 +307,40 @@ async function transitionTaskToInProgressForTimerStart(task, existingTimer, sess
     previousTask: task,
     nextTask: updatedTask,
     transition: {
-      from: "open",
+      from: previousStatus,
       to: "in_progress",
     },
   });
 
   return {
-    movedTaskFromOpen: true,
-    previousStatus: "open",
+    movedTaskToInProgress: true,
+    movedTaskFromOpen: previousStatus === "open",
+    movedTaskFromBlocked: previousStatus === "blocked",
+    previousBlockedReason,
+    previousStatus,
   };
 }
 
-async function revertTaskTimerStartTransition(task, timer, session) {
+async function revertTaskTimerStartTransition(task, timer, session, options = {}) {
   const transition = taskTimerTransitionMetadata(timer);
 
-  if (transition.movedTaskFromOpen !== true || task.status !== "in_progress") {
+  if (transition.movedTaskToInProgress !== true || task.status !== "in_progress") {
     return null;
   }
 
+  if (options.force !== true) {
+    const evidence = await taskWorkEvidenceService.readStartedWorkEvidence(session.workspace_id, task.task_id);
+    if (evidence.hasStartedWork) {
+      return null;
+    }
+  }
+
+  const restoredStatus = transition.previousStatus === "blocked" ? "blocked" : "open";
+
   const updatedTask = await tasksRepository.update(session.workspace_id, {
     ...task,
-    status: "open",
+    blocked_reason: restoredStatus === "blocked" ? transition.previousBlockedReason : "",
+    status: restoredStatus,
     last_worked_at: new Date().toISOString(),
     updated_by_user_id: session.user_id,
     assignee_ids: task.assignee_ids,
@@ -320,7 +353,7 @@ async function revertTaskTimerStartTransition(task, timer, session) {
     nextTask: updatedTask,
     transition: {
       from: "in_progress",
-      to: "open",
+      to: restoredStatus,
     },
   });
 
@@ -342,9 +375,20 @@ function taskTimerTransitionMetadata(timer) {
   const metadata = timer?.sourceMetadata || parseTimerSourceMetadata(timer?.source_metadata_json);
   const transition = metadata?.taskTimerStatusTransition || {};
 
+  const previousStatus = transition.previousStatus === "blocked" ? "blocked" : transition.previousStatus === "open" ? "open" : "";
+  const movedTaskFromOpen = transition.movedTaskFromOpen === true || (
+    transition.movedTaskToInProgress === true && previousStatus === "open"
+  );
+  const movedTaskFromBlocked = transition.movedTaskFromBlocked === true || (
+    transition.movedTaskToInProgress === true && previousStatus === "blocked"
+  );
+
   return {
-    movedTaskFromOpen: transition.movedTaskFromOpen === true,
-    previousStatus: transition.previousStatus || "",
+    movedTaskToInProgress: transition.movedTaskToInProgress === true || movedTaskFromOpen || movedTaskFromBlocked,
+    movedTaskFromOpen,
+    movedTaskFromBlocked,
+    previousBlockedReason: movedTaskFromBlocked ? String(transition.previousBlockedReason || "") : "",
+    previousStatus: previousStatus || (movedTaskFromOpen ? "open" : movedTaskFromBlocked ? "blocked" : ""),
   };
 }
 

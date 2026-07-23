@@ -33,6 +33,13 @@ const optionalText = (maxLength, label) =>
 const optionalFlag = (label) =>
   z.union([z.boolean(), z.string(), z.number()], { error: `${label} must be a boolean.` }).optional();
 
+const optionalNullableNumberInput = (label) =>
+  z.union([
+    z.number(),
+    z.string().trim().max(20, `${label} is too long.`),
+    z.null(),
+  ], { error: `${label} must be a number or blank.` }).optional();
+
 // List entries stay liberal on purpose: in-process callers pass ids that may
 // be numeric or nullish, and the service normalizes/filters them as it always
 // has. Only structured junk (objects/arrays as entries) is rejected.
@@ -71,6 +78,7 @@ const taskEditableFields = {
   handoff_note: optionalText(1000, "Handoff note"),
   status: optionalText(40, "Status"),
   priority: optionalText(40, "Priority"),
+  estimate_minutes: optionalNullableNumberInput("Estimate minutes"),
   billable: optionalFlag("Billable"),
   due_date: optionalText(40, "Due date"),
   due_time: optionalText(20, "Due time"),

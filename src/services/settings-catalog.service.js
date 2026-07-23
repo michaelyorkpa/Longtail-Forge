@@ -2,6 +2,7 @@ import { modulesService } from "../core/modules/modules.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { settingsService } from "./settings.service.js";
 import { listFrameworkSettingDefinitions } from "../core/settings/framework-settings-registry.js";
+import "../core/settings/workbench-focus-policy.js";
 
 const SETTINGS_ATTACHMENT_POINTS = Object.freeze([
   Object.freeze({ id: "workspace", label: "Workspace Settings" }),

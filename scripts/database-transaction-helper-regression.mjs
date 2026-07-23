@@ -81,9 +81,11 @@ try {
 
 function assertTaskAssigneePilotSource() {
   const replaceAssignees = functionBlock(tasksSource, "replaceAssignees");
+  const replaceAssigneesWithExecutor = functionBlock(tasksSource, "replaceAssigneesWithExecutor");
   assert.match(replaceAssignees, /db\.transaction\(async \(transaction\)/, "task assignee replacement should use db.transaction");
-  assert.match(replaceAssignees, /transaction\.run\(`[\s\S]*UPDATE task_assignees/, "task assignee replacement should update inside the transaction client");
-  assert.match(replaceAssignees, /transaction\.run\(`[\s\S]*INSERT INTO task_assignees/, "task assignee replacement should insert inside the transaction client");
+  assert.match(replaceAssignees, /replaceAssigneesWithExecutor\(transaction/, "task assignee replacement should delegate through the active transaction client");
+  assert.match(replaceAssigneesWithExecutor, /database\.run\(`[\s\S]*UPDATE task_assignees/, "the shared transaction executor should update task assignees through its provided client");
+  assert.match(replaceAssigneesWithExecutor, /database\.run\(`[\s\S]*INSERT INTO task_assignees/, "the shared transaction executor should insert task assignees through its provided client");
   assert.doesNotMatch(replaceAssignees, /BEGIN TRANSACTION|COMMIT|ROLLBACK/, "task assignee replacement should not keep raw transaction SQL");
 }
 

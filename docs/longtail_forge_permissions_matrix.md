@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-07-16 for version 0.33.17.7.13
+Updated: 2026-07-22 for version 0.33.21.19.1
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -57,7 +57,7 @@ Delete User is workspace-scoped and rejects the signed-in user's own ID. It deac
 | Area | Business | Personal / Family |
 | --- | --- | --- |
 | Clients | Available through browser API and public API when permission/API scope allows it. | Blocked server-side with 403. `/api/client-projects` omits clients. |
-| Projects | Client projects and workspace projects are available. | Workspace projects are available without clients. |
+| Projects | Client projects and workspace projects are available; Project Settings contributes Client filters, columns, labels, and assignment controls. | Workspace projects are available without clients; Project Settings contributes no Client filter, column, label, or assignment control, and nonblank Client writes are rejected with 403. |
 | Tasks | Workspace-only, client-linked, and project-linked tasks are available. Project-linked tasks inherit project client context. | Workspace-only and project-linked tasks are available. Direct client task scopes are blocked server-side with 403. |
 | Reporting | Client filters and workspace-project scopes are available according to readable scope. | Project reporting uses workspace-project scopes only. |
 | Time entries | May attach to a client project or workspace project. | Attach to workspace projects; client fields are empty. |
@@ -80,6 +80,7 @@ Delete User is workspace-scoped and rejects the signed-in user's own ID. It deac
 - Task timers are available only for project-linked tasks, including workspace projects in Personal and Family workspaces.
 - Task timers and normal Time Tracking timers share `active_work_timers` storage and are mutually exclusive for a user.
 - Finalized task timers write normal `time_entries` rows with `task_id` populated for reporting filters.
+- The bounded Dashboard effort summary preserves the normal time-entry visibility rule in SQL: workspace-wide `time_entries.edit_all` can read every entry in the active workspace; otherwise an entry must be inside an assigned readable Client/Project scope and must either belong to the current user or be inside a scope carrying `time_entries.edit_all`. The service rechecks only the at-most-three displayed rows, and inaccessible recent entries do not contribute to counts or duration totals.
 - New project-linked tasks use the project's default task assignee mode when no assignee payload is provided; explicit assignee payloads remain authoritative.
 - Project-owned task defaults may define default task status, default task priority, task sort order, and default task assignee mode.
 
@@ -105,7 +106,7 @@ Delete User is workspace-scoped and rejects the signed-in user's own ID. It deac
 | Browser | GET | /api/client-projects | readable client/project scopes | client/project/workspace projects | Filtered; clients omitted outside Business workspaces |
 | Browser | GET/POST/PUT/DELETE | /api/clients* | clients.manage plus Business workspace | client | Enforced; client task reminder defaults save with client updates |
 | Browser | GET/POST | /api/clients/:clientId/projects | projects.manage plus Business workspace | client | Enforced |
-| Browser | GET/POST/PUT/DELETE | /api/projects* | projects.manage | project/client/workspace | Enforced; Personal/Family projects are workspace-scoped; project task reminder defaults save with project updates |
+| Browser | GET/POST/PUT/DELETE | /api/projects* | projects.manage | project/client/workspace | Enforced; Personal/Family list/detail reads expose project-only context and nonblank Client assignment payloads are rejected with 403; project task reminder defaults save with project updates |
 | Browser | GET | /api/tasks | tasks.view | workspace/client/project | Filtered by readable task scopes; disabled Tasks keeps historical reads |
 | Browser | GET | /api/tasks/calendar | tasks.view | workspace/client/project | Filtered by readable task scopes and due date window |
 | Browser | GET | /api/tasks/timers | authenticated user plus task visibility | self/task workspace/client/project | Self-only active task timer state filtered by visible tasks |
@@ -118,6 +119,8 @@ Delete User is workspace-scoped and rejects the signed-in user's own ID. It deac
 | Browser | POST | /api/tasks/:taskId/archive | tasks.archive | task workspace/client/project | Enforced |
 | Browser | POST | /api/tasks/:taskId/restore | tasks.restore | task workspace/client/project | Enforced |
 | Browser | PUT/POST/DELETE | /api/tasks/:taskId/timer* | tasks.view plus time_entries.create on linked project | task project/client/self | Enforced; Tasks, Time Tracking, and Task Timers must be enabled |
+| Browser | GET | /api/notes* | notes.view plus record-level Notes access | workspace/client/project | Enforced; Personal visibility filters and Family Client-visible filters are rejected, and legacy inapplicable values are normalized in the read model |
+| Browser | POST/PUT | /api/notes* | notes.create/notes.update plus record-level Notes access | workspace/client/project | Enforced; Personal accepts only the implicit `internal` default, Family rejects Client Visible, and Business Client Visible retains notes.publish_client_visible |
 | Browser | GET | /api/time-entries | readable time scopes | client/project | Filtered; scoped admins with edit_all see team entries in scope |
 | Browser | POST | /api/time-entries | time_entries.create | project/client | Enforced; module write must be enabled |
 | Browser | PUT/DELETE | /api/time-entries/:entryId | time_entries.edit_own or time_entries.edit_all | entry project/client | Enforced |

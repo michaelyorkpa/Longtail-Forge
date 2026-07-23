@@ -29,8 +29,8 @@ assert.match(
 
 assert.match(
   functionBody(workbenchScript, "buildWorkbenchHost"),
-  /createActionButton\(\{[\s\S]*label: "Change Focus"[\s\S]*onClick: changeFocus[\s\S]*actions: \[changeFocusButton\]/,
-  "Workbench header should replace the Time Tracker link with the Change Focus action",
+  /label: "Open Inspector"[\s\S]*label: "Change Focus"[\s\S]*onClick: changeFocus[\s\S]*actions: \[workbenchInspectorOpenButton, changeFocusButton\]/,
+  "Workbench header should order the mobile Inspector action immediately before Change Focus",
 );
 assert.doesNotMatch(
   functionBody(workbenchScript, "buildWorkbenchHost"),

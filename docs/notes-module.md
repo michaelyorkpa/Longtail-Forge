@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.18.6. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.21.5. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -26,6 +26,7 @@ Important files:
 - `src/modules/notes/secure-crypto.js`: application-managed secure-note encryption helpers.
 - `src/modules/notes/search-indexers.js`: `notes.records` search indexer.
 - `public/js/notes.js` and `views/protected/notes.html`: browser workspace and UI behavior.
+- `public/js/notes-settings.js` and `views/protected/notes-settings.html`: Notes Settings catalog management through the shared module Settings host.
 - `docs/workflow-context-contract.md`: shared Primary Context / Linked Context terminology and safe label rules.
 - `docs/linked-context-picker-contract.md`: shared Linked Context picker provider/shell contract and normalized target response shape.
 
@@ -60,9 +61,17 @@ Collections are classification metadata only. They do not grant access, override
 
 Archived collections remain attached to notes but are hidden from normal collection tree data unless archived collections are explicitly requested. Deleting a collection is soft-delete only and is allowed only when it has no non-deleted notes and no active child collections.
 
+## Notes Settings And Catalog Management
+
+As of 0.33.21.5, Settings -> Admin -> Modules -> Notes is a Notes-owned protected module destination mounted through the shared Settings host. The page calls the existing Collection hierarchy “Catalogs” to describe the managed classification catalog without renaming Collection throughout the Notes workspace or creating another table. The manifest contributes a permission-filtered read-only information descriptor, while the Notes-owned auxiliary manager uses shared field, table, bulk-toolbar, action, and modal anatomy.
+
+`GET /api/notes/settings/catalogs` returns active and archived catalog metadata only: safe ID values for form selection, title, description, Library bucket, parent, path, depth, sort order, source, status, and update time. It does not return note bodies, titles, counts, secure envelopes, metadata JSON, runtime configuration, or Secure Notes key material. Access requires both `notes.manage_settings` and `notes.manage_library` and an enabled Notes module.
+
+Create and per-catalog edit continue through the canonical collection routes and validation. `POST /api/notes/settings/catalogs/bulk` accepts a unique list of at most 100 catalog IDs and only `archive` or `restore`. Archive removes redundant selected descendants when an ancestor is selected because the canonical archive operation already handles that subtree; restore processes selected parents before children. Every operation retains canonical permission checks, Notes-disabled rejection, audit recording, descendant behavior, and search synchronization. The response reports safe per-catalog failures so the browser can retain failed selections for recovery. Security policy for catalogs is explicitly deferred to 0.33.23 and is not inferred from this management surface.
+
 ## Notes List Read Model
 
-As of 0.33.5.20.3, the protected Notes workspace uses a lightweight server-shaped list read. The browser sends Library, Collection, Status, Visibility, Security mode, Note Kind, owner text, context text, tag text, updated-since date, sort, page `limit`, and opaque `cursor` values to `/api/notes`; the Notes repository applies workspace scope, SQL-friendly filters, stable sorting, `LIMIT`, and `OFFSET`, while the Notes service keeps permission pruning, tag filtering, secure-note shaping, and cursor response metadata authoritative. Collection filters include descendant collections and support Uncategorized.
+As of 0.33.5.20.3, the protected Notes workspace uses a lightweight server-shaped list read. The browser sends Library, Collection, Status, workspace-applicable Visibility, Security mode, Note Kind, owner text, context text, tag text, updated-since date, sort, page `limit`, and opaque `cursor` values to `/api/notes`; the Notes repository applies workspace scope, SQL-friendly filters, stable sorting, `LIMIT`, and `OFFSET`, while the Notes service keeps permission pruning, tag filtering, secure-note shaping, and cursor response metadata authoritative. Collection filters include descendant collections and support Uncategorized. Personal workspaces do not send or accept a Visibility filter, and Family workspaces do not send or accept `client_visible`.
 
 As of 0.33.5.27.14, Notes record list/read/filter SQL is converted to named params and the database dialect comparison seams. `notesRepository.list(...)`, `queryList(...)`, `readById(...)`, and `readByIds(...)` use `db.query(...)` / `db.get(...)`, array-valued note-id and collection-id params, and `db.dialect.comparison` helpers for case-insensitive owner/context/search filters and ordering. Notes writes, revisions, linked-record paths, collection management, and repository count helpers remain assigned to 0.33.5.27.15.
 
@@ -81,6 +90,8 @@ The active sort control lives in the Notes List panel footer, below the scrollab
 Supported Notes List sort modes are `Alphabetical (A-Z)`, `Alphabetical (Z-A)`, `Date Created (Newest First)`, `Date Created (Oldest First)`, `Date Updated (Newest First)`, `Date Updated (Oldest First)`, `Library / Collection, then Date Updated`, `Note Kind, then Date Updated`, and `Primary Context, then Date Updated`. Sort ties fall back deterministically to title and then note id.
 
 As of 0.33.11.2, `POST /api/notes/bulk` accepts at most 100 selected note IDs and explicit changes for Library, Collection, Note Kind, and Visibility. The coordinator normalizes those four fields, derives the selected collection's Library bucket, moves a Library-only change to Uncategorized, and then calls the canonical `notesService.update()` path for each note. Workspace scope, update permissions, private/secure/client-visible rules, collection validation, revisions, audit/events, tag-propagation refreshes, and search reindexing therefore remain identical to individual edits. The response separates updated notes from permission-safe per-note errors so one inaccessible record does not bypass checks or erase the successful results for other selected notes.
+
+As of 0.33.21.1, that same Bulk Edit modal also supports Add tags, Remove tags, and Replace direct tags through the Tags-owned `POST /api/tags/bulk-assignments` contract. Notes mounts `LongtailForge.tags.mountPicker(...)` with creation disabled so users type to search and select existing tags instead of scanning a long multi-select box. Metadata changes stay on the Notes-owned bulk route, tag mutations stay on the framework Tags route, both retain their per-note permission checks, and partial failures keep the affected note rows selected for recovery.
 
 ## Bucket Behavior
 
@@ -141,7 +152,7 @@ Task picker labels also come from provider-owned fields. Task targets keep the f
 
 Note and List picker labels are also provider-owned. Note and List targets keep the plain title as compatibility `label` and full-title metadata, while picker `displayLabel` uses an approximately 20-character title prefix plus readable Primary Context where present. Business client-project records display `Title... - Client Name | Project Name`; Business workspace-project records display `Title... - Workspace Name | Project Name`; Personal/Family project records display `Title... - Project Name`; Business client-only records display `Title... - Client Name`; and records without readable context display only `Title...`. Note/List secondary labels use readable Primary Context when available; Notes may fall back to safe Library/collection context and Lists may fall back to list type. Existing linked rows keep the full safe title as the row label and show readable Primary Context secondary text when available. Note/List options and existing linked rows must not expose UUIDs, raw target ids, or synthetic `Note:` / `List:` prefixes. Note targets sort by context, Library bucket, collection path, note title, and stable id; List targets sort by context, list type label, list title, and stable id.
 
-The Add/Edit Note modal exposes Primary Context inside the Note Details disclosure. Business workspaces show nullable Client and Project selects; the Client select lists active clients only. Personal and Family workspaces hide Client and keep Project available. Missing or unknown browser workspace context is treated as non-Business and must not show Client controls. Browser Client controls require both Business workspace type and the `clients_projects` workspace capability. The Visibility dropdown hides `Client Visible` outside client-capable Business workspaces and normalizes stale non-Business `client_visible` editor values back to `internal`. Resolved single-client labels use the client name, while picker options may use Clients/Projects-owned hierarchy indentation. Project labels are `Project Name - Client Name` for business client projects, `Project Name - Workspace Name` for business workspace projects, and `Project Name` in Personal/Family workspaces.
+The Add/Edit Note modal exposes Primary Context inside the Note Details disclosure. Business workspaces show nullable Client and Project selects; the Client select lists active clients only. Personal and Family workspaces hide Client and keep Project available. Missing or unknown browser workspace context is treated as non-Business and must not show Client controls. Browser Client controls require both Business workspace type and the `clients_projects` workspace capability. Notes scopes its visibility contributions by workspace type: Personal omits the filter, editor field, bulk field, detail metadata, and revision metadata; Family offers Internal, Private, Workspace, and Public; Business also offers Client Visible. The service uses `internal` as Personal's implicit canonical default, rejects non-default Personal writes and all Personal visibility filters, rejects Family `client_visible` writes and filters, and retains the Business `notes.publish_client_visible` permission rule. Existing inapplicable Personal/Family values are treated as `internal` for access decisions and browser reads without modifying the stored row during a read. Resolved single-client labels use the client name, while picker options may use Clients/Projects-owned hierarchy indentation. Project labels are `Project Name - Client Name` for business client projects, `Project Name - Workspace Name` for business workspace projects, and `Project Name` in Personal/Family workspaces.
 
 Task-created notes store the task's readable client/project as Primary Context and the task itself as a normal Linked Context row. The browser no longer writes `notes.task_id` as direct Primary Context; legacy `task_id` payloads are converted into task links, and migration `063_task_note_link_context.sql` repairs existing rows by creating a task link before clearing the direct task column. Removing the task link must not remove Primary Context, and editing Primary Context must not remove unrelated Linked Context.
 
@@ -234,7 +245,7 @@ Operators must back up secure-note keys outside the database. Losing or misconfi
 Notes declares these framework integration points in `module.js`:
 
 - `permissions`, `requiredPermissions`, `defaultRolePermissions`, and `resourceDefinitions`.
-- `browserApiRoutes`, `protectedViews`, `browserAssets`, navigation, and a module-status setting.
+- `browserApiRoutes`, `protectedViews`, `browserAssets`, navigation, the module-status setting, and the read-only catalog-management settings contribution.
 - `auditRecordTypes`, `eventTypes`, `eventSummaries`, `notificationEvents`, and `notificationFollowTargets`.
 - `taggableTypes` for note tags through the framework tag service.
 - `tagPropagation` rules for client/project tags inherited into linked notes through framework propagated-tag assignments.

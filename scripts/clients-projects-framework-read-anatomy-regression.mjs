@@ -7,6 +7,7 @@ import { createDisposableDatabaseFixture } from "./test-support/disposable-datab
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+const css = readText("public/css/longtail-forge.css");
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
@@ -34,6 +35,12 @@ assert.match(clientsProjectsScript, /function openAddProjectActionFromQuery\(\)[
 assert.match(clientsProjectsScript, /function openEditProjectActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("projects\.edit", \{ projectId: match\.project\.id \}/, "Project detail query opener should dispatch the registered module action");
 
 assert.match(renderer, /function tableColumns[\s\S]*table\.rowActions[\s\S]*__view_row_actions/, "Renderer should add a framework-owned table action column from descriptor rowActions");
+assert.match(builder, /Object\.hasOwn\(column, "label"\)[\s\S]*\? column\.label/, "The table builder should preserve an explicitly blank descriptor header instead of falling back to an internal column key");
+assert.match(renderer, /Object\.hasOwn\(selection, "headerLabel"\)[\s\S]*selection\.headerLabel/, "Selection columns should support a blank visible heading without changing checkbox accessible names");
+assert.match(renderer, /Object\.hasOwn\(table, "rowActionsHeaderLabel"\)[\s\S]*table\.rowActionsHeaderLabel/, "Row-action columns should support a blank visible heading without changing action accessible names");
+assert.match(css, /\.client-projects-filter-panel \.view-filter-panel-fields\s*\{[\s\S]*padding: 6px/, "Clients/Projects filter fields should leave focus-ring clearance inside the scrolling drawer");
+assert.match(css, /tr:has\(\+ \.client-projects-tag-row\)[\s\S]*border-bottom: 0/, "Client/Project tag rows should visually join the record-name row without an extra divider");
+assert.match(css, /\.client-projects-tag-row \.surface-chip\s*\{[\s\S]*max-width: 100%[\s\S]*overflow-wrap: anywhere/, "Client/Project tag chips should contain long labels within their borders");
 assert.match(regressionSuite, /scripts\/clients-projects-framework-read-anatomy-regression\.mjs/, "Regression suite should include the Clients/Projects read anatomy regression");
 
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));
@@ -49,6 +56,14 @@ assert.equal(clientsDescriptor.filters.find((filter) => filter.field === "tagIds
 assert.equal(projectsDescriptor.filters.find((filter) => filter.field === "tagIds")?.type, "search", "Projects tag filter should use searchable suggestions instead of a long select");
 assert.ok(clientsDescriptor.table.secondaryRows.some((row) => row.id === "client-tags" && row.formatter === "chip-list"), "Clients should render tags as a secondary table row");
 assert.ok(projectsDescriptor.table.secondaryRows.some((row) => row.id === "project-tags" && row.formatter === "chip-list"), "Projects should render tags as a secondary table row");
+assert.equal(clientsDescriptor.table.selection.headerLabel, "", "Clients should keep the selection column while suppressing its redundant visible heading");
+assert.equal(projectsDescriptor.table.selection.headerLabel, "", "Projects should keep the selection column while suppressing its redundant visible heading");
+assert.equal(clientsDescriptor.table.rowActionsHeaderLabel, "", "Clients should keep row actions while suppressing the redundant Actions heading");
+assert.equal(projectsDescriptor.table.rowActionsHeaderLabel, "", "Projects should keep row actions while suppressing the redundant Actions heading");
+assert.equal(clientsDescriptor.table.columns[0].field, "displayLabel", "Clients table should consume the service-shaped hierarchy label with its child hyphen");
+assert.equal(projectsDescriptor.table.columns[0].field, "displayLabel", "Projects table should consume the service-shaped hierarchy label with its child hyphen");
+assert.equal(clientsDescriptor.table.secondaryRows[0].label, undefined, "Clients tag chips should not repeat a Tags label");
+assert.equal(projectsDescriptor.table.secondaryRows[0].label, undefined, "Projects tag chips should not repeat a Tags label");
 assert.ok(clientsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Clients repeated row actions should be icon-only");
 assert.ok(projectsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Projects repeated row actions should be icon-only");
 
@@ -79,8 +94,10 @@ assert.equal(clientsContext.window.LongtailForge.api.calls[0], "/api/clients?inc
 assert.equal(findFieldControl(clientsSurface, "tagIds")?.tagName, "INPUT", "Clients tag filter should render as a search input");
 assertTextOrder(clientsSurface.textContent, ["Acme Parent", "Acme Child"]);
 const clientHierarchyLabels = clientsSurface.querySelectorAll(".view-hierarchy-label");
-assert.ok(clientHierarchyLabels.some((label) => label.dataset.viewHierarchyDepth === "1" && /Acme Child/.test(label.textContent)), "Client hierarchy labels should carry child indentation metadata");
+assert.ok(clientHierarchyLabels.some((label) => label.dataset.viewHierarchyDepth === "1" && /^- Acme Child$/.test(label.textContent)), "Client hierarchy labels should carry child indentation metadata and the service-shaped child hyphen");
 assert.match(clientsSurface.textContent, /Focus/, "Client tag chips should render readable tag names through chip-list display");
+assert.deepEqual(clientsSurface.querySelectorAll("th").map((header) => header.textContent), ["", "Client", "Status", "Billing", ""], "Clients should retain selection/action columns without redundant visible headings");
+assert.equal(clientsSurface.querySelector(".client-projects-tag-row").textContent, "Focus", "Clients tag row should place chips directly below the name without a redundant Tags label");
 
 await findButtonByText(clientsSurface, "Add Client").click();
 assert.equal(findButtonByLabel(clientsSurface, "Edit Client").textContent, "", "Client edit row action should not render repeated text");
@@ -133,9 +150,11 @@ assert.equal(
 );
 assert.equal(findFieldControl(projectsSurface, "tagIds")?.tagName, "INPUT", "Projects tag filter should render as a search input");
 assertTextOrder(projectsSurface.textContent, ["Buildout", "Launch"]);
-assert.ok(projectsSurface.querySelectorAll(".view-hierarchy-label").some((label) => label.dataset.viewHierarchyDepth === "1" && /Launch/.test(label.textContent)), "Project hierarchy labels should carry child indentation metadata");
+assert.ok(projectsSurface.querySelectorAll(".view-hierarchy-label").some((label) => label.dataset.viewHierarchyDepth === "1" && /^- Launch$/.test(label.textContent)), "Project hierarchy labels should carry child indentation metadata and the service-shaped child hyphen");
 assert.match(projectsSurface.textContent, /Acme Parent/, "Project Client labels should render from module-shaped readable labels");
 assert.match(projectsSurface.textContent, /Focus/, "Project tag chips should render readable tag names through chip-list display");
+assert.deepEqual(projectsSurface.querySelectorAll("th").map((header) => header.textContent), ["", "Project", "Client", "Status", "Billing", ""], "Projects should retain selection/action columns without redundant visible headings");
+assert.equal(projectsSurface.querySelector(".client-projects-tag-row").textContent, "Focus", "Projects tag row should place chips directly below the name without a redundant Tags label");
 
 await findButtonByText(projectsSurface, "Add Project").click();
 assert.equal(findButtonByLabel(projectsSurface, "Edit Project").textContent, "", "Project edit row action should not render repeated text");
@@ -151,13 +170,15 @@ await closeDatabase();
 await fixture.cleanup();
 
 function clientRecord(overrides = {}) {
+  const name = overrides.name || "Client";
+  const depth = overrides.depth || 0;
   return {
     id: overrides.id || "client",
-    name: overrides.name || "Client",
-    display_label: overrides.name || "Client",
+    name,
+    display_label: depth > 0 ? `- ${name}` : name,
     status: "Active",
     parent_client_id: overrides.parent_client_id || "",
-    depth: overrides.depth || 0,
+    depth,
     display_path: overrides.parent_client_id ? "Acme Parent / Acme Child" : "Acme Parent",
     billable: "yes",
     billing_rate: "125",
@@ -170,16 +191,18 @@ function clientRecord(overrides = {}) {
 }
 
 function projectRecord(overrides = {}) {
+  const name = overrides.name || "Project";
+  const depth = overrides.depth || 0;
   return {
     id: overrides.id || "project",
-    name: overrides.name || "Project",
-    display_label: overrides.name || "Project",
+    name,
+    display_label: depth > 0 ? `- ${name}` : name,
     status: "Active",
     client_id: "client-parent",
     client_name: "Acme Parent",
     parent_project_id: overrides.parent_project_id || "",
     parent_project_name: overrides.parent_project_id ? "Buildout" : "",
-    depth: overrides.depth || 0,
+    depth,
     display_path: overrides.parent_project_id ? "Buildout / Launch" : "Buildout",
     billable: "yes",
     billing_rate: "100",

@@ -7,6 +7,7 @@ const routes = readText("src/routes/tags.routes.js");
 const sharedTags = readText("public/js/shared/tags.js");
 const tagsPage = readText("public/js/tags.js");
 const tasksPage = readText("public/js/tasks.js");
+const reportingPage = readText("public/js/reporting.js");
 const timeTrackingReportingPage = readText("public/js/time-tracking-reporting.js");
 const searchPage = readText("public/js/search.js");
 const timeEntriesPage = readText("public/js/time-entries.js");
@@ -43,10 +44,14 @@ assert.match(
   /noTagsFilterValue\(\)[\s\S]*label: "No Tags"/,
   "Time Tracking's Reporting filter adapter should include shared No Tags support",
 );
+assert.match(reportingPage, /filter\.type === "tag"[\s\S]*\? "text"/, "Reporting should render tag filters as typable controls");
+assert.match(reportingPage, /tags\?\.mountFilterPicker\?\.\(control/, "Reporting should mount its tag filter through the shared searchable picker");
 assert.match(searchPage, /tagFilterNoTagsOption/, "Search filter should include shared No Tags support");
 assert.match(timeEntriesPage, /tagFilterNoTagsOption/, "Time Entries filter should include shared No Tags support");
 assert.match(timeEntriesPage, /entry\.tags \|\| \[\]\)\.length === 0/, "Time Entries No Tags filter should match records without effective tags");
 assert.match(notesPage, /appendNotesQueryParam\(params, "tags", normalizeText\(tagFilter\?\.value\)\)/, "Notes tag filter should send tag text to the server-shaped list query");
+assert.match(notesPage, /function mountBulkTagPicker\([\s\S]*tags\.mountPicker\(bulkTagsEditor,[\s\S]*allowCreate: false/, "Notes bulk actions should use the shared typable tag picker");
+assert.doesNotMatch(notesPage, /data-note-bulk-tags[\s\S]{0,250}multiple/, "Notes bulk tags should not return to a long multi-select scroll box");
 assert.match(notesService, /function isNoTagsQuery\(value\)[\s\S]*__no_tags__[\s\S]*__no_effective_tags__[\s\S]*no_tags[\s\S]*none/, "Notes service should recognize no-tags intent for server-side list filtering");
 assert.match(css, /\.tag-chip-inherited/, "Inherited tag chips should be styled");
 assert.match(css, /\.tag-picker-suppress/, "Suppression control should be styled");

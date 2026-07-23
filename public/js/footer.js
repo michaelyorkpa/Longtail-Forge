@@ -110,6 +110,8 @@ const quickActionDependencySets = {
     { src: "js/shared/notes-linked-panel.js", test: () => window.LongtailForge?.notesLinkedPanel },
     { src: "js/shared/view-builder.js", test: () => window.LongtailForge?.view },
     { src: "js/shared/view-renderer.js", test: () => window.LongtailForge?.view?.renderSurface },
+    { src: "js/shared/capture-prompt.js", test: () => window.LongtailForge?.capturePrompt },
+    { src: "js/task-resume-note-capture.js", test: () => window.LongtailForge?.taskResumeNoteCapture },
     { src: "js/shared/file-preview.js", test: () => window.LongtailForge?.filePreview },
     { src: "js/task-dialog.js", test: () => window.LongtailForge?.tasksDialog?.openTaskEditor },
   ],
@@ -326,9 +328,12 @@ async function activateQuickAction(action, button, shell) {
 }
 
 function notifyQuickActionHostRefresh(action, detail = {}) {
+  const registeredAction = window.LongtailForge?.moduleActions?.list?.({ includeUnavailable: true })
+    ?.find((entry) => entry.actionId === action.moduleActionId);
   window.dispatchEvent?.(new CustomEvent("longtailforge:quick-action-refresh", {
     detail: {
       actionId: action.moduleActionId || action.id,
+      recordType: registeredAction?.recordType || "",
       quickActionId: action.id,
       ...detail,
     },

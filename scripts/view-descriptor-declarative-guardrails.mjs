@@ -337,8 +337,8 @@ assert.match(clientsProjectsJs, /function createClientBulkControls\(\)[\s\S]*cre
   "Client bulk meaning should remain a documented module-owned escape hatch");
 assert.doesNotMatch(clientsProjectsJs, /label:\s*"Tags"[\s\S]{0,180}formatter:\s*"chip-list"[\s\S]{0,180}columns/s,
   "Clients/Projects source should not reintroduce standalone Tags table columns");
-assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.5\.18\.15[\s\S]*strict enforcement is active/,
-  "Clients/Projects strict inventory should document active strict enforcement at branch closeout");
+assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.21\.11\.1[\s\S]*strict enforcement is active/,
+  "Clients/Projects strict inventory should document the current active strict enforcement boundary");
 
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");
 assert.match(functionBlock(fileAttachmentsJs, "createAttachmentElement"), /document\.createElement\(tagName\)/, "Attachment helper fallback should centralize native element creation");
@@ -447,8 +447,13 @@ function assertClientProjectsStrictDescriptor(surface, label, actionLabel) {
     `${label} descriptor should not expose Tags as a standalone table column`,
   );
   assert.ok(
-    surface.table.secondaryRows.some((row) => row.id?.endsWith("-tags") && row.formatter === "chip-list" && row.startColumn === "name"),
-    `${label} descriptor should render tags through a secondary table row`,
+    surface.table.secondaryRows.some((row) => (
+      row.id?.endsWith("-tags")
+        && row.formatter === "chip-list"
+        && row.startColumn === "displayLabel"
+        && !Object.hasOwn(row, "label")
+    )),
+    `${label} descriptor should render unlabeled tags below the service-shaped record name`,
   );
   assert.ok(
     surface.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true && action.label === actionLabel),

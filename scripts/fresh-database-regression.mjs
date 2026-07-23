@@ -13,7 +13,7 @@ try {
   await initializeDatabase();
   await assertFreshBaselineMarker();
   await assertCurrentTableSet();
-  await assertUserLandingColumns();
+  await assertUserPreferenceColumns();
   await assertProjectAdministratorScope();
   await assertCurrentIndexes();
   await assertSeedRows();
@@ -117,6 +117,16 @@ ORDER BY version;
       module_id: "core",
       name: "startup_maintenance_runs",
     },
+    {
+      version: "081",
+      module_id: "core",
+      name: "task_estimate_minutes",
+    },
+    {
+      version: "082",
+      module_id: "core",
+      name: "user_preferred_calendar_view",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -129,10 +139,11 @@ WHERE role_id = 'project_admin';
   assert.equal(roles[0]?.assignable_scope_type, "project");
 }
 
-async function assertUserLandingColumns() {
+async function assertUserPreferenceColumns() {
   const columns = await querySql("PRAGMA table_info(users);");
   const preferredLogin = columns.find((column) => column.name === "preferred_login_landing");
   const preferredWorkspaceSwitch = columns.find((column) => column.name === "preferred_workspace_switch_landing");
+  const preferredCalendarView = columns.find((column) => column.name === "preferred_calendar_view");
   const homeWorkspace = columns.find((column) => column.name === "home_workspace_id");
 
   assert.equal(homeWorkspace?.notnull, 0, "a retained zero-workspace identity must not be pointed at an unrelated workspace");
@@ -140,6 +151,8 @@ async function assertUserLandingColumns() {
   assert.equal(preferredLogin?.dflt_value, "'dashboard'");
   assert.equal(preferredWorkspaceSwitch?.notnull, 1);
   assert.equal(preferredWorkspaceSwitch?.dflt_value, "'dashboard'");
+  assert.equal(preferredCalendarView?.notnull, 0);
+  assert.equal(preferredCalendarView?.dflt_value, null);
 }
 
 async function assertCurrentTableSet() {

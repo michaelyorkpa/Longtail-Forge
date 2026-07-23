@@ -56,6 +56,12 @@ async function assertProjectCreationInheritsClientBilling(session) {
   assert.equal(nonBillableProject.billable, "no", "project should inherit a non-billable client default");
   assert.equal(nonBillableProject.billing_rate, null, "non-billable inherited project should not store a rate override");
   assert.equal(nonBillableProject.billing_rounding, null, "non-billable inherited project should keep rounding inherited");
+
+  const workspaceProject = (await clientsService.createProject("", {
+    name: "Workspace Default Project",
+  }, session)).project;
+  assert.equal(workspaceProject.client_id, "", "workspace projects should remain outside Client scope");
+  assert.equal(workspaceProject.billable, "no", "workspace projects should default to non-billable when the payload omits a billable choice");
 }
 
 async function assertClientBillingSavesPreserveTags(session) {
