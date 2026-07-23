@@ -198,7 +198,8 @@ async function assertResumeNoteCaptureBrowserContract() {
   assert.match(taskDialogScript, /timerStatus === "paused"[\s\S]*offerTaskResumeNote\(result\.task \|\| task\)/, "Task dialog Pause should offer resume capture after the timer mutation");
   assert.match(taskDialogScript, /timer\/finalize[\s\S]*offerTaskResumeNote\(result\.task \|\| task/, "Task dialog finalize should offer resume capture");
   assert.match(tasksScript, /if \(!isRunning\) \{[\s\S]*taskResumeNoteCapture\?\.offer/, "Tasks list Pause should offer resume capture");
-  assert.match(workbenchScript, /function changeFocus\([\s\S]*currentTaskFocusTimer\(active\)[\s\S]*offerTaskResumeNote\(active\?\.task[\s\S]*resetTaskFocusState\(\)/, "leaving Task Focus with an active or paused timer should offer capture without delaying the view transition");
+  assert.match(workbenchScript, /async function changeFocus\([\s\S]*navigationIntent\.request\([\s\S]*kind: "workbench-change-focus"[\s\S]*continue: continueChangeFocus/, "Change Focus should hold its exact state transition behind the shared exit intent");
+  assert.match(workbenchScript, /function offerTaskResumeNoteBeforeExit[\s\S]*await window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "interceptable navigation should await resume capture before leaving Task Focus");
   assert.match(workbenchScript, /function offerTaskResumeNote[\s\S]*void window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "Workbench should not await the capture prompt or block the underlying action");
   assert.match(workbenchScript, /saveFocusedTaskTimer[\s\S]*timerStatus === "paused"[\s\S]*offerTaskResumeNote/, "focused-task Pause should offer resume capture");
   assert.match(workbenchScript, /finalizeFocusedTaskTimer[\s\S]*timer\/finalize[\s\S]*offerTaskResumeNote/, "focused-task finalize should offer resume capture");

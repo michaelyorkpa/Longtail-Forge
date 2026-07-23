@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-07-16 for version 0.33.17.7.13
+Updated: 2026-07-22 for version 0.33.21.19.1
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -80,6 +80,7 @@ Delete User is workspace-scoped and rejects the signed-in user's own ID. It deac
 - Task timers are available only for project-linked tasks, including workspace projects in Personal and Family workspaces.
 - Task timers and normal Time Tracking timers share `active_work_timers` storage and are mutually exclusive for a user.
 - Finalized task timers write normal `time_entries` rows with `task_id` populated for reporting filters.
+- The bounded Dashboard effort summary preserves the normal time-entry visibility rule in SQL: workspace-wide `time_entries.edit_all` can read every entry in the active workspace; otherwise an entry must be inside an assigned readable Client/Project scope and must either belong to the current user or be inside a scope carrying `time_entries.edit_all`. The service rechecks only the at-most-three displayed rows, and inaccessible recent entries do not contribute to counts or duration totals.
 - New project-linked tasks use the project's default task assignee mode when no assignee payload is provided; explicit assignee payloads remain authoritative.
 - Project-owned task defaults may define default task status, default task priority, task sort order, and default task assignee mode.
 

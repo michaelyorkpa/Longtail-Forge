@@ -77,7 +77,13 @@ assert.ok(securityAudit.docs.includes("docs/longtail_forge_permissions_matrix.md
 
 const workbench = suggestDocsForPaths(["public/js/workbench.js"], { index: rawIndex });
 assert.deepEqual(workbench.matchedAreas.map((area) => area.id), ["workbench"]);
-assert.deepEqual(workbench.docs, ["docs/ui-layout-guide.md", "docs/workflow-context-contract.md"]);
+assert.deepEqual(workbench.docs, [
+  "docs/tasks-module.md",
+  "docs/ui-layout-guide.md",
+  "docs/view-building-contract.md",
+  "docs/workflow-context-contract.md",
+  "help/modules/tasks/resuming-task-work.md",
+]);
 
 const reporting = suggestDocsForPaths(["public/js/reporting.js"], { index: rawIndex });
 assert.deepEqual(reporting.matchedAreas.map((area) => area.id), ["reporting"]);

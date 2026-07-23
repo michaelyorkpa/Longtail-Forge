@@ -29,6 +29,95 @@ ORDER BY end_time;
   return rows.map(timeEntryRowToAppValue);
 }
 
+async function readDashboardEffortSummary(workspaceId, options = {}) {
+  const limit = normalizeDashboardRowLimit(options.limit);
+  const visibility = options.visibility || {};
+  const params = {
+    canReadAll: visibility.all ? 1 : 0,
+    editAllClientIds: nonEmptyIdList(visibility.editAllClientIds),
+    editAllProjectIds: nonEmptyIdList(visibility.editAllProjectIds),
+    readableClientIds: nonEmptyIdList(visibility.clientIds),
+    readableProjectIds: nonEmptyIdList(visibility.projectIds),
+    visibleUserId: textParam(visibility.userId),
+    windowEnd: textParam(options.windowEnd),
+    windowStart: textParam(options.windowStart),
+    workspaceId: textParam(workspaceId),
+  };
+  const [summary, rows] = await Promise.all([
+    db.get(`
+SELECT
+  COUNT(*) AS entries_count,
+  COALESCE(SUM(CASE WHEN end_time >= :todayStart THEN duration_seconds ELSE 0 END), 0) AS today_seconds,
+  COALESCE(SUM(duration_seconds), 0) AS total_seconds
+FROM time_entries
+WHERE workspace_id = :workspaceId
+  AND end_time >= :windowStart
+  AND end_time < :windowEnd
+  AND (
+    :canReadAll = 1
+    OR (
+      (
+        user_id = :visibleUserId
+        OR client_id IN (:editAllClientIds)
+        OR project_id IN (:editAllProjectIds)
+      )
+      AND (
+        client_id IN (:readableClientIds)
+        OR project_id IN (:readableProjectIds)
+      )
+    )
+  );
+`, { ...params, todayStart: textParam(options.todayStart) }),
+    db.query(`
+SELECT
+  entry_id,
+  workspace_id,
+  user_id,
+  client_id,
+  client_name,
+  project_id,
+  project_name,
+  task_id,
+  description,
+  start_time,
+  end_time,
+  duration_seconds,
+  duration_hours,
+  billable,
+  invoice_status,
+  created_at,
+  updated_at
+FROM time_entries
+WHERE workspace_id = :workspaceId
+  AND end_time >= :windowStart
+  AND end_time < :windowEnd
+  AND (
+    :canReadAll = 1
+    OR (
+      (
+        user_id = :visibleUserId
+        OR client_id IN (:editAllClientIds)
+        OR project_id IN (:editAllProjectIds)
+      )
+      AND (
+        client_id IN (:readableClientIds)
+        OR project_id IN (:readableProjectIds)
+      )
+    )
+  )
+ORDER BY end_time DESC, entry_id DESC
+LIMIT :limit;
+`, { ...params, limit }),
+  ]);
+
+  return {
+    entries: rows.map(timeEntryRowToAppValue),
+    entriesCount: Number(summary?.entries_count) || 0,
+    todaySeconds: Number(summary?.today_seconds) || 0,
+    totalSeconds: Number(summary?.total_seconds) || 0,
+  };
+}
+
 async function readById(workspaceId, entryId) {
   const row = await db.get(`
 SELECT
@@ -288,12 +377,29 @@ function integerParam(value) {
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+function normalizeDashboardRowLimit(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 10) : 3;
+}
+
+function normalizeIdList(values = []) {
+  return [...new Set((Array.isArray(values) ? values : [])
+    .map((value) => textParam(value).trim())
+    .filter(Boolean))];
+}
+
+function nonEmptyIdList(values = []) {
+  const normalized = normalizeIdList(values);
+  return normalized.length > 0 ? normalized : [""];
+}
+
 export const timeEntriesRepository = {
   countByProjectId,
   create,
   hasForTask,
   remove,
   readAll,
+  readDashboardEffortSummary,
   readById,
   readByProjectId,
   update,

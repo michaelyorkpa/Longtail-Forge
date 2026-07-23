@@ -432,8 +432,7 @@ async function readDueBetween(workspaceId, startDate, endDate, options = {}) {
   const statusParams = Object.fromEntries(
     Array.from({ length: 5 }, (_, index) => [`calendarStatus${index}`, statuses[index] || null]),
   );
-  const [tasks, assignees] = await Promise.all([
-    db.query(taskSelectSql(`
+  const tasks = await db.query(taskCalendarSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.due_date IS NOT NULL
   AND tasks.due_date >= :startDate
@@ -445,15 +444,129 @@ ORDER BY
   tasks.priority DESC,
   tasks.updated_at DESC;
 `), {
-      endDate,
-      startDate,
-      workspaceId,
-      ...statusParams,
-    }),
-    readAssigneesForWorkspace(workspaceId),
-  ]);
+    endDate,
+    startDate,
+    workspaceId,
+    ...statusParams,
+  });
 
-  return attachAssignees(tasks.map(taskRowToAppValue), assignees);
+  return tasks.map(taskCalendarRowToAppValue);
+}
+
+async function readDashboardCountGroups(workspaceId, userId, options = {}) {
+  const sql = `
+SELECT
+  tasks.workspace_id,
+  tasks.client_id,
+  tasks.project_id,
+  COUNT(CASE WHEN tasks.status NOT IN ('complete', 'archived') THEN 1 END) AS active_count,
+  COUNT(CASE WHEN tasks.status = 'complete' THEN 1 END) AS completed_count,
+  COUNT(CASE WHEN tasks.status = 'archived' THEN 1 END) AS archived_count,
+  COUNT(CASE
+    WHEN tasks.status NOT IN ('complete', 'archived')
+      AND tasks.status = 'blocked'
+    THEN 1
+  END) AS blocked_count,
+  COUNT(CASE
+    WHEN tasks.status NOT IN ('complete', 'archived')
+      AND ${dashboardOverdueSql()}
+    THEN 1
+  END) AS overdue_count,
+  COUNT(CASE
+    WHEN tasks.status NOT IN ('complete', 'archived')
+      AND ${dashboardDueSoonSql()}
+    THEN 1
+  END) AS due_soon_count,
+  COUNT(CASE
+    WHEN tasks.status NOT IN ('complete', 'archived')
+      AND ${assigneeExistsSql("currentUserId")}
+    THEN 1
+  END) AS assigned_to_me_count,
+  COUNT(CASE
+    WHEN tasks.status NOT IN ('complete', 'archived')
+      AND ${dashboardTimerExistsSql()}
+    THEN 1
+  END) AS active_timer_count
+FROM tasks
+WHERE tasks.workspace_id = :workspaceId
+GROUP BY tasks.workspace_id, tasks.client_id, tasks.project_id;
+`;
+  const rows = await db.query(sql, {
+    currentUserId: userId,
+    dueSoonCutoff: options.dueSoonCutoff || "",
+    nowIso: options.nowIso || new Date().toISOString(),
+    today: options.today || "",
+    workspaceId,
+  });
+
+  return rows.map(dashboardCountGroupRowToAppValue);
+}
+
+async function readDashboardCandidates(workspaceId, userId, options = {}) {
+  const candidateLimit = normalizePositiveInteger(options.candidateLimit, 5);
+  const params = {
+    candidateLimit,
+    currentUserId: userId,
+    dueSoonCutoff: options.dueSoonCutoff || "",
+    nowIso: options.nowIso || new Date().toISOString(),
+    today: options.today || "",
+    workspaceId,
+  };
+  const sql = `
+WITH dashboard_candidate_pool AS (
+  ${dashboardCandidateSelect("attention_overdue", "attention", dashboardOverdueSql())}
+  UNION ALL
+  ${dashboardCandidateSelect("attention_blocked", "attention", "tasks.status = 'blocked'")}
+  UNION ALL
+  ${dashboardCandidateSelect("attention_timer", "attention", dashboardTimerExistsSql(), dashboardTimerRankSql())}
+  UNION ALL
+  ${dashboardCandidateSelect("attention_due_soon", "attention", dashboardDueSoonSql())}
+  UNION ALL
+  ${dashboardCandidateSelect("upcoming", "legacy", `tasks.status != 'blocked'
+      AND ${dashboardDueSoonSql()}`)}
+  UNION ALL
+  ${dashboardCandidateSelect("legacy_overdue", "legacy", dashboardOverdueSql())}
+  UNION ALL
+  ${dashboardCandidateSelect("legacy_due_soon", "legacy", dashboardDueSoonSql())}
+  UNION ALL
+  ${dashboardCandidateSelect("legacy_assigned", "legacy", assigneeExistsSql("currentUserId"))}
+),
+dashboard_ranked_candidates AS (
+  SELECT
+    task_id,
+    ROW_NUMBER() OVER (
+      PARTITION BY
+        workspace_id,
+        COALESCE(client_id, ''),
+        COALESCE(project_id, ''),
+        candidate_category
+      ORDER BY
+        category_rank,
+        CASE WHEN ordering_kind = 'attention' THEN due_sort END,
+        CASE WHEN ordering_kind = 'legacy' THEN due_date END,
+        priority_rank DESC,
+        updated_at DESC,
+        due_sort,
+        title,
+        created_at,
+        task_id
+    ) AS candidate_rank
+  FROM dashboard_candidate_pool
+)
+${taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.task_id IN (
+    SELECT task_id
+    FROM dashboard_ranked_candidates
+    WHERE candidate_rank <= :candidateLimit
+  )
+ORDER BY tasks.updated_at DESC, tasks.title ASC, tasks.task_id ASC;
+`)}
+`;
+  const rows = await db.query(sql, params);
+  const assignees = await readAssigneesForTasks(workspaceId, rows.map((row) => row.task_id));
+
+  return attachAssignees(rows.map(taskRowToAppValue), assignees);
 }
 
 async function readReminderSchedulingCandidates(workspaceId, options = {}) {
@@ -554,6 +667,33 @@ LEFT JOIN projects
 ${whereSql}`;
 }
 
+function taskCalendarSelectSql(whereSql) {
+  return `
+SELECT
+  tasks.task_id,
+  tasks.workspace_id,
+  tasks.client_id,
+  clients.name AS client_name,
+  tasks.project_id,
+  projects.name AS project_name,
+  tasks.title,
+  tasks.status,
+  tasks.priority,
+  tasks.due_date,
+  tasks.due_time,
+  tasks.due_timezone,
+  tasks.due_at_utc,
+  tasks.reminder_override_enabled
+FROM tasks
+LEFT JOIN clients
+  ON clients.workspace_id = tasks.workspace_id
+  AND clients.id = tasks.client_id
+LEFT JOIN projects
+  ON projects.workspace_id = tasks.workspace_id
+  AND projects.id = tasks.project_id
+${whereSql}`;
+}
+
 function taskListWhereSql(options, params) {
   const conditions = ["tasks.workspace_id = :workspaceId"];
 
@@ -567,6 +707,89 @@ function taskListWhereSql(options, params) {
   applyAssigneeFilters(conditions, options, params);
 
   return `WHERE ${conditions.join("\n  AND ")}`;
+}
+
+function dashboardCandidateSelect(category, orderingKind, conditionSql, categoryRankSql = "0") {
+  return `
+SELECT
+  tasks.task_id,
+  tasks.workspace_id,
+  tasks.client_id,
+  tasks.project_id,
+  ${sqlStringLiteral(category)} AS candidate_category,
+  ${sqlStringLiteral(orderingKind)} AS ordering_kind,
+  ${categoryRankSql} AS category_rank,
+  tasks.due_date,
+  COALESCE(
+    tasks.due_at_utc,
+    COALESCE(tasks.due_date, '9999-12-31') || 'T' || COALESCE(tasks.due_time, '23:59') || ':00'
+  ) AS due_sort,
+  CASE tasks.priority
+    WHEN 'urgent' THEN 4
+    WHEN 'high' THEN 3
+    WHEN 'normal' THEN 2
+    WHEN 'low' THEN 1
+    ELSE 0
+  END AS priority_rank,
+  tasks.updated_at,
+  tasks.title,
+  tasks.created_at
+FROM tasks
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.status NOT IN ('complete', 'archived')
+  AND ${conditionSql}`;
+}
+
+function dashboardOverdueSql() {
+  return `tasks.due_date IS NOT NULL
+      AND CASE
+        WHEN tasks.due_time IS NOT NULL
+          AND tasks.due_time != ''
+          AND tasks.due_at_utc IS NOT NULL
+          AND tasks.due_at_utc != ''
+        THEN tasks.due_at_utc < :nowIso
+        ELSE tasks.due_date < :today
+      END`;
+}
+
+function dashboardDueSoonSql() {
+  return `tasks.due_date IS NOT NULL
+      AND tasks.due_date >= :today
+      AND tasks.due_date <= :dueSoonCutoff
+      AND NOT (${dashboardOverdueSql()})`;
+}
+
+function dashboardTimerExistsSql() {
+  return `EXISTS (
+    SELECT 1
+    FROM active_work_timers
+    WHERE active_work_timers.workspace_id = tasks.workspace_id
+      AND active_work_timers.user_id = :currentUserId
+      AND active_work_timers.source_module_id = 'tasks'
+      AND active_work_timers.source_type = 'task'
+      AND active_work_timers.source_id = tasks.task_id
+      AND active_work_timers.timer_status IN ('running', 'paused')
+  )`;
+}
+
+function dashboardTimerRankSql() {
+  return `CASE
+    WHEN EXISTS (
+      SELECT 1
+      FROM active_work_timers
+      WHERE active_work_timers.workspace_id = tasks.workspace_id
+        AND active_work_timers.user_id = :currentUserId
+        AND active_work_timers.source_module_id = 'tasks'
+        AND active_work_timers.source_type = 'task'
+        AND active_work_timers.source_id = tasks.task_id
+        AND active_work_timers.timer_status = 'running'
+    ) THEN 0
+    ELSE 1
+  END`;
+}
+
+function sqlStringLiteral(value) {
+  return `'${String(value || "").replaceAll("'", "''")}'`;
 }
 
 function applyNextActionFilter(conditions, options) {
@@ -1041,6 +1264,41 @@ function taskRowToAppValue(row) {
   };
 }
 
+function taskCalendarRowToAppValue(row) {
+  return {
+    task_id: row.task_id,
+    workspace_id: row.workspace_id,
+    client_id: row.client_id || "",
+    client_name: row.client_name || "",
+    project_id: row.project_id || "",
+    project_name: row.project_name || "",
+    title: row.title,
+    status: row.status || "open",
+    priority: row.priority || "normal",
+    due_date: row.due_date || "",
+    due_time: row.due_time || "",
+    due_timezone: row.due_timezone || "",
+    due_at_utc: row.due_at_utc || "",
+    reminder_override_enabled: db.dialect.boolean.read(row.reminder_override_enabled) === true,
+  };
+}
+
+function dashboardCountGroupRowToAppValue(row) {
+  return {
+    workspace_id: row.workspace_id,
+    client_id: row.client_id || "",
+    project_id: row.project_id || "",
+    active: Number(row.active_count) || 0,
+    assignedToMe: Number(row.assigned_to_me_count) || 0,
+    activeTimers: Number(row.active_timer_count) || 0,
+    blocked: Number(row.blocked_count) || 0,
+    overdue: Number(row.overdue_count) || 0,
+    dueSoon: Number(row.due_soon_count) || 0,
+    completed: Number(row.completed_count) || 0,
+    archived: Number(row.archived_count) || 0,
+  };
+}
+
 function assigneeRowToAppValue(row) {
   return {
     task_assignee_id: row.task_assignee_id,
@@ -1060,6 +1318,8 @@ export const tasksRepository = {
   readByRecurrenceInstance,
   readFutureRecurrenceInstances,
   readDueBetween,
+  readDashboardCandidates,
+  readDashboardCountGroups,
   readRecurrenceInstanceStats,
   readReminderSchedulingCandidates,
   markWorkedAt,

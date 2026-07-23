@@ -103,8 +103,12 @@ async function assertInactiveMembersAreAbsent(session) {
 async function assertPersonalFamilyBillableBoundary(session) {
   for (const workspaceType of ["personal", "family"]) {
     await setWorkspaceType(session.workspace_id, workspaceType);
+    // Production authentication creates a fresh request-session object for
+    // each request. Use a fresh object after this direct fixture mutation so
+    // request-scoped settings memos cannot retain the preceding workspace type.
+    const workspaceSession = { ...session };
     const projectName = `${workspaceType} Billable Boundary`;
-    const { project } = await clientsService.createProject("", { name: projectName }, session);
+    const { project } = await clientsService.createProject("", { name: projectName }, workspaceSession);
 
     await runSql(`UPDATE projects SET billable = 'yes' WHERE workspace_id = ${sqlText(session.workspace_id)} AND id = ${sqlText(project.id)};`);
 
@@ -112,7 +116,7 @@ async function assertPersonalFamilyBillableBoundary(session) {
       billable: "yes",
       project_id: project.id,
       title: `${workspaceType} task`,
-    }, session)).task;
+    }, workspaceSession)).task;
     assert.equal(task.billable, "no", `${workspaceType} tasks should reject Billable yes`);
 
     const timer = (await activeTimersService.save("1", {
@@ -122,7 +126,7 @@ async function assertPersonalFamilyBillableBoundary(session) {
       last_active_start_time: new Date(Date.now() - 15_000).toISOString(),
       project_id: project.id,
       timer_status: "paused",
-    }, session)).timer;
+    }, workspaceSession)).timer;
     assert.equal(timer.billable, "no", `${workspaceType} timers should reject Billable yes`);
 
     const now = Date.now();
@@ -134,24 +138,24 @@ async function assertPersonalFamilyBillableBoundary(session) {
       end_time: new Date(now).toISOString(),
       project_id: project.id,
       start_time: new Date(now - 600_000).toISOString(),
-    }, session);
+    }, workspaceSession);
     assert.equal(created.entry.billable, "no", `${workspaceType} time-entry writes should reject Billable yes`);
 
     const stored = await querySql(`SELECT billable FROM time_entries WHERE workspace_id = ${sqlText(session.workspace_id)} AND entry_id = ${sqlText(created.entry_id)} LIMIT 1;`);
     assert.equal(stored[0]?.billable, "no", `${workspaceType} writes should persist non-billable state`);
 
     await runSql(`UPDATE time_entries SET billable = 'yes' WHERE workspace_id = ${sqlText(session.workspace_id)} AND entry_id = ${sqlText(created.entry_id)};`);
-    const browserRead = await timeEntriesService.list(session);
+    const browserRead = await timeEntriesService.list(workspaceSession);
     const browserEntry = browserRead.entries.find((entry) => entry.entry_id === created.entry_id);
     assert.equal(browserEntry?.billable, "no", `${workspaceType} browser reads should not use a legacy Billable yes value`);
 
-    const publicRead = await timeTrackingPublicApiService.listTimeEntries(session, { limit: 100 });
+    const publicRead = await timeTrackingPublicApiService.listTimeEntries(workspaceSession, { limit: 100 });
     const publicEntry = publicRead.data.find((entry) => entry.entry_id === created.entry_id);
     assert.equal(publicEntry?.billable, "no", `${workspaceType} public API reads should not expose a legacy Billable yes value`);
 
-    const timers = await activeTimersService.list(session);
+    const timers = await activeTimersService.list(workspaceSession);
     assert.equal(timers.timers.find((entry) => entry.active_timer_id === timer.active_timer_id)?.billable, "no", `${workspaceType} timer reads should remain non-billable`);
-    await activeTimersService.remove("1", session);
+    await activeTimersService.remove("1", workspaceSession);
   }
 }
 

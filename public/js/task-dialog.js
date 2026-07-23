@@ -369,6 +369,7 @@
       notificationToggle: dialog.querySelector("[data-task-notification-toggle]"),
       blockedReason: dialog.querySelector("[data-task-blocked-reason]"),
       blockedReasonField: dialog.querySelector("[data-task-blocked-reason-field]"),
+      continuityRow: dialog.querySelector("[data-task-continuity-row]"),
       metadataRibbon: dialog.querySelector("[data-task-metadata-ribbon]"),
       nextAction: dialog.querySelector("[data-task-next-action]"),
       resumeNote: dialog.querySelector("[data-task-resume-note]"),
@@ -2153,6 +2154,7 @@
     fields.blockedReasonField.hidden = !isBlocked;
     fields.blockedReason.disabled = !isBlocked;
     fields.blockedReason.required = isBlocked;
+    fields.continuityRow?.classList.toggle("is-blocked", isBlocked);
 
     if (isBlocked && !fields.blockedReason.value.trim() && document.activeElement === fields.status) {
       fields.blockedReason.focus();
@@ -2984,6 +2986,7 @@
     return view.createElement("section", {
       className: ["task-continuity-row", "surface-modal-group"],
       attrs: {
+        "data-view-field-width": "full",
         "data-task-continuity-row": "",
         "aria-label": "Work continuity",
       },

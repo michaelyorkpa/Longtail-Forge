@@ -44,7 +44,7 @@ try {
   assert.match(navigation, /params\.set\("module",\s*selectedOption\.dataset\.moduleId\)/);
   assert.match(navigation, /params\.set\("source",\s*selectedOption\.dataset\.sourceLabel\)/);
   assert.match(navigation, /params\.set\("recordType",\s*selectedOption\.dataset\.recordType\)/);
-  assert.match(navigation, /window\.location\.href = query \? `search\.html\?\$\{query\}` : "search\.html"/);
+  assert.match(navigation, /navigationIntent\.navigate\(query \? `search\.html\?\$\{query\}` : "search\.html"[\s\S]*kind: "global-search"/);
   assert.doesNotMatch(readFunctionBody(navigation, "submitGlobalSearch"), /fetch\("/);
 
   assert.match(styles, /\.global-search-form/);

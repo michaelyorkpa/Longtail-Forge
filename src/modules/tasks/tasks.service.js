@@ -161,25 +161,20 @@ async function queryTasks(session, query = {}, options = {}) {
 }
 
 async function filterAndShapeTaskListCandidates({ candidates, offset, query, resolvedQuery, session, timerByTaskId }) {
-  const readableTasks = [];
-
-  for (let index = 0; index < candidates.length; index += 1) {
-    const task = {
-      ...candidates[index],
+  const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
+  const readableTasks = candidates
+    .map((candidate, index) => ({
+      ...candidate,
       __candidateOffset: offset + index,
-    };
-
-    if (await canReadTask(session, task)) {
-      readableTasks.push(task);
-    }
-  }
+    }))
+    .filter((task) => canReadTaskRow(taskResource(task)));
 
   const taggedTasks = await tagsService.decorateRecordsForTarget(
     session,
     "task",
     await tagsService.filterRecordsByTags(session, "task", readableTasks, query.tagIds || query.tag_ids || query.tags),
   );
-  const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks, session);
+  const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks, session, { canReadTaskRow });
 
   return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, {
     ...(query || {}),
@@ -321,24 +316,48 @@ function stripTaskListCandidateMetadata(task) {
 }
 
 async function summary(session) {
-  const [{ tasks, timers = [] }, settings] = await Promise.all([
-    queryTasks(session, {}, { includeOptions: false }),
-    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
-  ]);
   const now = new Date();
   const today = localDateKey(now, session.timezone);
   const dueSoonCutoff = addDaysKey(today, 7);
+  const [timerResult, settings, countGroups, candidateTasks, canReadTaskRow] = await Promise.all([
+    taskTimersService.list(session),
+    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
+    tasksRepository.readDashboardCountGroups(session.workspace_id, session.user_id, {
+      dueSoonCutoff,
+      nowIso: now.toISOString(),
+      today,
+    }),
+    tasksRepository.readDashboardCandidates(session.workspace_id, session.user_id, {
+      candidateLimit: Math.max(
+        DASHBOARD_TASK_ATTENTION_LIMIT,
+        DASHBOARD_TASK_UPCOMING_LIMIT,
+        DASHBOARD_TASK_PRESSURE_LIMIT,
+        5,
+      ),
+      dueSoonCutoff,
+      nowIso: now.toISOString(),
+      today,
+    }),
+    permissionsService.createPermissionEvaluator(session, "tasks.view"),
+  ]);
+  const timers = timerResult.timers || [];
+  const counts = reduceDashboardCountGroups(
+    countGroups.filter((group) => canReadTaskRow(taskResource(group))),
+  );
+  const tasks = await attachTaskListProjectionDetails(
+    candidateTasks.filter((task) => canReadTaskRow(taskResource(task))),
+    session,
+    { canReadTaskRow },
+  );
   const timerByTaskId = new Map((timers || [])
     .filter((timer) => timer.task_id)
     .map((timer) => [timer.task_id, timer]));
   const activeTasks = tasks.filter(isActiveTask);
   const assignedToMe = activeTasks.filter((task) => (task.assignee_ids || []).includes(session.user_id));
   const overdue = activeTasks.filter((task) => isTaskOverdue(task, now, today));
-  const blocked = activeTasks.filter((task) => task.status === "blocked");
   const dueSoon = activeTasks.filter((task) =>
     isTaskDueSoon(task, now, today, dueSoonCutoff),
   );
-  const activeTimerTasks = activeTasks.filter((task) => hasDashboardTaskTimer(timerByTaskId.get(task.task_id)));
   const dashboardContext = {
     currentUserId: session.user_id,
     dueSoonCutoff,
@@ -351,21 +370,12 @@ async function summary(session) {
   const upcomingRows = dashboardUpcomingRows(activeTasks, dashboardContext);
 
   return {
-    counts: {
-      active: activeTasks.length,
-      assignedToMe: assignedToMe.length,
-      activeTimers: activeTimerTasks.length,
-      blocked: blocked.length,
-      overdue: overdue.length,
-      dueSoon: dueSoon.length,
-      completed: tasks.filter((task) => task.status === "complete").length,
-      archived: tasks.filter((task) => task.status === "archived").length,
-    },
+    counts,
     metrics: {
-      overdue: dashboardTaskMetric("Overdue", overdue.length),
-      dueSoon: dashboardTaskMetric("Due soon", dueSoon.length),
-      blocked: dashboardTaskMetric("Blocked", blocked.length),
-      assignedToMe: dashboardTaskMetric("Assigned to me", assignedToMe.length, DASHBOARD_TASKS_URL),
+      overdue: dashboardTaskMetric("Overdue", counts.overdue),
+      dueSoon: dashboardTaskMetric("Due soon", counts.dueSoon),
+      blocked: dashboardTaskMetric("Blocked", counts.blocked),
+      assignedToMe: dashboardTaskMetric("Assigned to me", counts.assignedToMe, DASHBOARD_TASKS_URL),
     },
     actions: dashboardTaskActions(),
     attentionRows,
@@ -412,6 +422,27 @@ async function listWorkItems(session, query = {}) {
       })),
     ],
   };
+}
+
+function reduceDashboardCountGroups(groups = []) {
+  const counts = {
+    active: 0,
+    assignedToMe: 0,
+    activeTimers: 0,
+    blocked: 0,
+    overdue: 0,
+    dueSoon: 0,
+    completed: 0,
+    archived: 0,
+  };
+
+  for (const group of groups) {
+    for (const key of Object.keys(counts)) {
+      counts[key] += Number(group[key]) || 0;
+    }
+  }
+
+  return counts;
 }
 
 function taskCompletionFollowUpScopeQuery(query = {}) {
@@ -483,7 +514,7 @@ async function calendarWindow(session, query = {}) {
     source_enabled: moduleStatus === "enabled",
     tasks: readableTasks
       .filter((task) => task.due_date <= endDate)
-      .map((task) => taskCalendarRow(task, session.user_id)),
+      .map(taskCalendarRow),
     reminders: await calendarReminderMarkers(session, readableTasks, startDate, endDate),
   };
 }
@@ -2502,7 +2533,7 @@ async function attachReminderDetailsToTask(task) {
   };
 }
 
-async function attachTaskListProjectionDetails(tasks, session) {
+async function attachTaskListProjectionDetails(tasks, session, { canReadTaskRow = null } = {}) {
   if (!Array.isArray(tasks) || tasks.length === 0) {
     return [];
   }
@@ -2511,7 +2542,7 @@ async function attachTaskListProjectionDetails(tasks, session) {
   const [checklistProgressByTaskId, relationshipSummaryByTaskId, primaryParentByTaskId] = await Promise.all([
     taskChecklistsRepository.readProgressForTasks(tasks[0].workspace_id, batch.ids),
     taskRelationshipsRepository.relationshipSummariesForTasks(tasks[0].workspace_id, batch.ids),
-    readPrimaryParentByTaskId(session, tasks),
+    readPrimaryParentByTaskId(session, tasks, canReadTaskRow),
   ]);
 
   return tasks.map((task) => {
@@ -2553,11 +2584,11 @@ async function attachTaskDetails(task) {
   };
 }
 
-async function readPrimaryParentByTaskId(session, tasks = []) {
+async function readPrimaryParentByTaskId(session, tasks = [], canReadTaskRow = null) {
   const taskIds = tasks.map((task) => task.task_id).filter(Boolean);
-  const [relationships, canReadTaskRow] = await Promise.all([
+  const [relationships, resolvedCanReadTaskRow] = await Promise.all([
     taskRelationshipsRepository.readParentsForTasks(session.workspace_id, taskIds),
-    permissionsService.createPermissionEvaluator(session, "tasks.view"),
+    canReadTaskRow || permissionsService.createPermissionEvaluator(session, "tasks.view"),
   ]);
   const parentByTaskId = new Map();
 
@@ -2565,7 +2596,7 @@ async function readPrimaryParentByTaskId(session, tasks = []) {
     if (parentByTaskId.has(relationship.child_task_id) || !relationship.parent_title) {
       continue;
     }
-    const readable = canReadTaskRow({
+    const readable = resolvedCanReadTaskRow({
       workspace_id: relationship.workspace_id,
       client_id: relationship.parent_client_id || "",
       project_id: relationship.parent_project_id || "",
@@ -3415,25 +3446,19 @@ function descriptionExcerpt(description, maxLength = 160) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}...` : text;
 }
 
-function taskCalendarRow(task, currentUserId = "") {
-  const base = taskSummaryRow(task, currentUserId);
-
+function taskCalendarRow(task) {
   return {
-    ...base,
+    task_id: task.task_id,
     id: task.task_id,
+    title: task.title,
+    status: task.status,
+    priority: task.priority,
+    due_date: task.due_date,
+    due_time: task.due_time,
+    client_name: task.client_name,
+    project_name: task.project_name,
     allDay: !task.due_time,
     startDate: task.due_date,
-    startDateTimeUtc: task.due_at_utc || "",
-    endDate: task.due_date,
-    assignees: (task.assignees || []).map((assignee) => ({
-      user_id: assignee.user_id,
-      username: assignee.username,
-      displayName: assignee.displayName,
-    })),
-    source: {
-      type: "task",
-      id: task.task_id,
-    },
   };
 }
 

@@ -704,8 +704,12 @@ async function runTaskMutationTests(api, fixtures) {
       assert.ok(!taskIds.includes(recurringTask.body.task.task_id), "completed recurrence instances stay out of the active calendar default");
       assert.ok(taskIds.includes(nextRecurringTask.task_id));
       assert.ok(!taskIds.includes(workspaceTask.body.task.task_id));
-      assert.equal(response.body.tasks.find((task) => task.task_id === nextRecurringTask.task_id).source.type, "task");
-      assert.equal(response.body.tasks.find((task) => task.task_id === nextRecurringTask.task_id).url.startsWith("tasks.html?task="), true);
+      const calendarTask = response.body.tasks.find((task) => task.task_id === nextRecurringTask.task_id);
+      assert.equal(calendarTask.id, nextRecurringTask.task_id);
+      assert.equal(calendarTask.startDate, nextRecurringTask.due_date);
+      assert.equal(calendarTask.allDay, true);
+      assert.ok(!("source" in calendarTask), "calendar permission reads keep the lean renderer row");
+      assert.ok(!("url" in calendarTask), "calendar permission reads do not expose unused navigation fields");
     });
   });
   await expectStatus(
@@ -1081,19 +1085,42 @@ async function runTimeEntryMutationTests(api, fixtures) {
     }), { cookie: fixtures.sessions.projectUser }),
     201,
   );
-  await expectStatus(
+  const scopedDashboardBeforeHidden = await expectStatus(
     "dashboard effort summary includes recent saved time",
     api.get("/api/time-tracking/dashboard/effort-summary", { cookie: fixtures.sessions.projectUser }),
     200,
-  ).then((response) => {
-    check("recent time dashboard payload is compact and Dashboard-safe", () => {
-      const row = response.body.recentTime.rows.find((item) => item.id === recentDashboardEntry.body.entry_id);
-      assert.ok(row);
-      assert.equal(row.action.href, "time-entries.html");
-      assert.equal(Object.hasOwn(row, "description"), false);
-      assert.equal(Object.hasOwn(row, "billable"), false);
-      assert.equal(JSON.stringify(response.body).includes("invoice"), false);
-    });
+  );
+  check("recent time dashboard payload is compact and Dashboard-safe", () => {
+    const row = scopedDashboardBeforeHidden.body.recentTime.rows.find((item) => item.id === recentDashboardEntry.body.entry_id);
+    assert.ok(row);
+    assert.equal(row.action.href, "time-entries.html");
+    assert.equal(Object.hasOwn(row, "description"), false);
+    assert.equal(Object.hasOwn(row, "billable"), false);
+    assert.equal(JSON.stringify(scopedDashboardBeforeHidden.body).includes("invoice"), false);
+  });
+  const hiddenDashboardEnd = new Date(recentDashboardEnd.getTime() + 60 * 1000);
+  const hiddenDashboardStart = new Date(hiddenDashboardEnd.getTime() - 35 * 60 * 1000);
+  const hiddenDashboardEntry = await expectStatus(
+    "workspace admin can create recent time outside the project user's scope",
+    api.post("/api/time-entries", timeEntryPayload(fixtures.projects.beta.id, {
+      description: "Dashboard hidden recent time entry",
+      duration_hours: "0.5833",
+      duration_seconds: 2100,
+      end_time: hiddenDashboardEnd.toISOString(),
+      start_time: hiddenDashboardStart.toISOString(),
+    }), { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  const scopedDashboardAfterHidden = await expectStatus(
+    "dashboard effort summary preserves project scope in bounded aggregation",
+    api.get("/api/time-tracking/dashboard/effort-summary", { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  check("bounded dashboard aggregation excludes inaccessible recent time from rows and totals", () => {
+    assert.ok(!scopedDashboardAfterHidden.body.recentTime.rows.some((item) => item.id === hiddenDashboardEntry.body.entry_id));
+    assert.equal(scopedDashboardAfterHidden.body.recentTime.entriesCount, scopedDashboardBeforeHidden.body.recentTime.entriesCount);
+    assert.equal(scopedDashboardAfterHidden.body.recentTime.todaySeconds, scopedDashboardBeforeHidden.body.recentTime.todaySeconds);
+    assert.equal(scopedDashboardAfterHidden.body.recentTime.totalSeconds, scopedDashboardBeforeHidden.body.recentTime.totalSeconds);
   });
   const reporting = await expectStatus(
     "reporting reflects workspace admin time entry correction",

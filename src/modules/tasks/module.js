@@ -165,7 +165,7 @@ const tasksModule = {
       moduleId: "tasks",
       path: "/js/task-dialog.js",
       type: "script",
-      views: ["dashboard", "tasks", "workbench"],
+      views: ["tasks", "workbench"],
       requiredPermissions: ["tasks.view"],
     },
     {

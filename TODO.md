@@ -13,10 +13,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-## Resetting User names
-
-For some reason, the superadmin@longtailforge.local keeps getting added to databases. I do not want users added to databases on updates. If there is a super admin, no new super admins should be invented. If there is not a super admin (new install) the super admin should be whatever is in the .env. If there is nothing in the .env, the user should be notified what the created username and password are.
-
 ## Playwright needs to include additional browsers
 
 Specifically, Firefox/Mozilla and Webkit for further, future testing.

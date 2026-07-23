@@ -84,9 +84,9 @@ assert.throws(
   "duplicate regression IDs should fail generation",
 );
 
-const dashboardEntry = REGRESSION_ENTRIES.find((entry) => entry.area === "dashboard");
-assert.ok(dashboardEntry, "fixture needs an active Dashboard coverage owner");
-const withoutDashboard = REGRESSION_ENTRIES.filter((entry) => entry !== dashboardEntry);
+const dashboardEntries = REGRESSION_ENTRIES.filter((entry) => entry.area === "dashboard");
+assert.equal(dashboardEntries.length, 2, "fixture needs both active Dashboard coverage owners");
+const withoutDashboard = REGRESSION_ENTRIES.filter((entry) => entry.area !== "dashboard");
 const uncoveredPolicy = cloneFixture(policy);
 uncoveredPolicy.minimumActiveScripts += 1;
 const uncoveredManifest = buildRegressionManifest({ entries: withoutDashboard, policy: uncoveredPolicy });
@@ -95,26 +95,28 @@ const uncoveredErrors = collectRegressionCoverageErrors({
   manifest: uncoveredManifest,
   policy: uncoveredPolicy,
 }).join("\n");
-assert.match(uncoveredErrors, /area dashboard has 0 regressions below policy floor 1/);
+assert.match(uncoveredErrors, /area dashboard has 0 regressions below policy floor 2/);
 assert.match(uncoveredErrors, /protected area dashboard has no active regression or credited retirement/);
 assert.match(uncoveredErrors, /active regression count .* below policy floor/);
 
 const retirementPolicy = cloneFixture(policy);
-retirementPolicy.retiredScripts.push({
-  id: dashboardEntry.id,
-  script: dashboardEntry.path,
-  area: dashboardEntry.area,
-  tier: dashboardEntry.tier,
-  tags: [...dashboardEntry.tags],
-  legacy: dashboardEntry.legacy,
-  floorCredit: true,
-  retiredInVersion: "synthetic-test-fixture",
-  retirementType: "assertions-moved",
-  rationale: "Synthetic fixture proves an explicit credited retirement can lower protected floors.",
-  assertionDisposition: "Synthetic Dashboard assertions move to the retained regression discovery owner.",
-  retainedCoverageOwners: ["release.regression-manifest-generation"],
-  verificationPerformed: ["node scripts/regressions/release/regression-manifest-generation.regression.mjs"],
-});
+for (const dashboardEntry of dashboardEntries) {
+  retirementPolicy.retiredScripts.push({
+    id: dashboardEntry.id,
+    script: dashboardEntry.path,
+    area: dashboardEntry.area,
+    tier: dashboardEntry.tier,
+    tags: [...dashboardEntry.tags],
+    legacy: dashboardEntry.legacy,
+    floorCredit: true,
+    retiredInVersion: "synthetic-test-fixture",
+    retirementType: "assertions-moved",
+    rationale: "Synthetic fixture proves explicit credited retirements can lower protected floors.",
+    assertionDisposition: "Synthetic Dashboard assertions move to the retained regression discovery owner.",
+    retainedCoverageOwners: ["release.regression-manifest-generation"],
+    verificationPerformed: ["node scripts/regressions/release/regression-manifest-generation.regression.mjs"],
+  });
+}
 const retiredManifest = buildRegressionManifest({ entries: withoutDashboard, policy: retirementPolicy });
 assert.deepEqual(
   collectRegressionCoverageErrors({ entries: withoutDashboard, manifest: retiredManifest, policy: retirementPolicy }),

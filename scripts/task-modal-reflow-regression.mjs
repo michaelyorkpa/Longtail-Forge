@@ -8,6 +8,8 @@ const iconsScript = readText("public/js/shared/icons.js");
 const tasksModule = readText("src/modules/tasks/module.js");
 assert.match(taskDialogScript, /function taskEditorDetailsSection[\s\S]*className: \["task-details-field", "surface-modal-group"\][\s\S]*"data-task-details-panel": ""[\s\S]*open: true/, "Task Details should be the single collapsible field panel in the page dialog");
 assert.match(taskDialogScript, /function taskEditorContinuitySection[\s\S]*data-task-resume-note[\s\S]*data-task-next-action[\s\S]*data-task-blocked-reason/, "Task continuity fields should live in their own always-visible row above Task Details");
+assert.match(taskDialogScript, /function taskEditorContinuitySection[\s\S]*"data-view-field-width": "full"[\s\S]*"data-task-continuity-row"/, "Task continuity should opt into the shared full-width modal field contract");
+assert.match(taskDialogScript, /fields\.continuityRow\?\.classList\.toggle\("is-blocked", isBlocked\)/, "Task continuity should switch its inner column count with Blocked Reason visibility");
 assert.match(taskDialogScript, /function taskEditorDetailsSection[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-estimate-minutes[\s\S]*data-task-client[\s\S]*data-task-project[\s\S]*data-task-parent-task[\s\S]*data-task-due-date[\s\S]*data-task-due-time[\s\S]*data-task-description[\s\S]*data-task-assignees/, "Task Details should keep the requested desktop field grouping");
 assert.doesNotMatch(taskDialogScript, /Core Task Details|Assignment and Scheduling|<summary class="surface-modal-section-heading">Primary Context<\/summary>|Advanced Details/, "Task Details should not be split into extra modal boxes");
 assert.match(taskDialogScript, /function taskEditorChecklistSection[\s\S]*className: \["task-checklist-field", "surface-modal-group"\][\s\S]*"data-task-checklist-field": ""/, "Checklist should be collapsible");
@@ -35,7 +37,9 @@ assert.match(taskDialogScript, /data-task-details-panel/, "Task-owned editor fie
 assert.match(taskDialogScript, /button\.dataset\.taskTagsToggle/, "Framework-built footer action should include the Tags hook");
 
 assert.match(stylesheet, /\.task-details-grid \{[\s\S]*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/, "Task Details should use a six-track desktop grid for the requested row groupings");
-assert.match(stylesheet, /\.task-continuity-row \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "Continuity fields should use a three-column desktop row");
+assert.match(stylesheet, /\.view-modal-form-fields > \[data-view-field-width="full"\] \{[\s\S]*grid-column: 1 \/ -1;/, "Modal field grids should honor the shared full-width field contract");
+assert.match(stylesheet, /\.task-continuity-row \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/, "Continuity fields should divide the full row into two columns when Blocked Reason is hidden");
+assert.match(stylesheet, /\.task-continuity-row\.is-blocked \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "Continuity fields should use three columns when Blocked Reason is visible");
 assert.match(stylesheet, /\.task-details-field \{[\s\S]*box-sizing: border-box;[\s\S]*min-width: 0;/, "Task Details should stay inside the modal group boundary");
 assert.match(stylesheet, /\.task-details-grid > label \{[\s\S]*min-width: 0;/, "Task Details controls should shrink inside their grid columns");
 assert.match(stylesheet, /\.task-due-date-field,[\s\S]*\.task-due-time-field,[\s\S]*\.task-assignee-field,[\s\S]*\.task-description-field \{[\s\S]*grid-column: span 3;/, "Two-column task rows should span three desktop grid tracks");

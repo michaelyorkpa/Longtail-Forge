@@ -90,7 +90,14 @@
       params.set("statuses", [...new Set(statuses)].join(","));
     }
 
-    const response = await fetch(`/api/tasks/calendar?${params.toString()}`, { cache: "no-store" });
+    const route = `/api/tasks/calendar?${params.toString()}`;
+    const dashboardLoadRoute = root.dashboardBootstrap?.loadRoute;
+
+    if (typeof dashboardLoadRoute === "function") {
+      return dashboardLoadRoute(route);
+    }
+
+    const response = await fetch(route, { cache: "no-store" });
 
     if (response.status === 403) {
       throw new Error("You do not have permission to view tasks.");

@@ -459,8 +459,8 @@ assert.match(
 );
 assert.match(
   files.timeTrackingDashboard,
-  /\/api\/time-tracking\/dashboard\/effort-summary[\s\S]*fetch\(route,[\s\S]*createActiveTimersContent[\s\S]*createRecentTimeContent/,
-  "Time Tracking dashboard asset must load compact effort data from its module route and render both panels",
+  /dashboardBootstrap\?\.dataPromises[\s\S]*\/api\/time-tracking\/dashboard\/effort-summary[\s\S]*loadRoute\(route\)[\s\S]*createActiveTimersContent[\s\S]*createRecentTimeContent/,
+  "Time Tracking dashboard asset must reuse the warm compact-effort promise from its module route and render both panels",
 );
 assert.doesNotMatch(
   files.timeTrackingDashboard,
@@ -469,8 +469,13 @@ assert.doesNotMatch(
 );
 assert.match(
   files.timeTrackingDashboardService,
-  /activeTimersService\.listAll[\s\S]*timeEntriesService\.list[\s\S]*activeTimers:[\s\S]*recentTime:/,
-  "Time Tracking dashboard service must shape active timer and recent saved time cards from owning services",
+  /activeTimersService\.listAll[\s\S]*timeEntriesRepository\.readDashboardEffortSummary[\s\S]*filterReadableTimeEntries[\s\S]*activeTimers:[\s\S]*recentTime:/,
+  "Time Tracking dashboard service must shape active timers and bounded recent saved time from owning module reads",
+);
+assert.doesNotMatch(
+  files.timeTrackingDashboardService,
+  /timeEntriesService\.list|tagsService/,
+  "Time Tracking effort summary must not restore the full time-entry list or tag-decoration pipeline",
 );
 assert.doesNotMatch(
   files.timeTrackingDashboardService,

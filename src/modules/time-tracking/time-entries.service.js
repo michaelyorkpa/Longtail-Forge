@@ -216,7 +216,7 @@ async function remove(entryId, session) {
 async function list(session, query = {}) {
   const [storedEntries, settings] = await Promise.all([
     timeEntriesRepository.readAll(session.workspace_id),
-    settingsRepository.readWorkspaceSettings(session.workspace_id),
+    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
   ]);
   const entries = workspaceSupportsBillable(settings.workspaceType)
     ? storedEntries

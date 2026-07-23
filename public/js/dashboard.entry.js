@@ -62,19 +62,18 @@ async function loadStyle(assetPath) {
 }
 
 async function importScripts(assetPaths) {
-  for (const assetPath of assetPaths) {
-    await importScript(assetPath);
-  }
+  await Promise.all(assetPaths.map((assetPath) => importScript(assetPath)));
 }
 
 async function loadContributedAssets(assets) {
-  for (const asset of Array.isArray(assets) ? assets : []) {
+  await Promise.all((Array.isArray(assets) ? assets : []).map((asset) => {
     if (asset?.type === "style") {
-      await loadStyle(asset.path);
+      return loadStyle(asset.path);
     } else if (asset?.type === "script") {
-      await importScript(asset.path);
+      return importScript(asset.path);
     }
-  }
+    return Promise.resolve();
+  }));
 }
 
 namespace.esModuleBridge = Object.freeze({
@@ -87,20 +86,142 @@ namespace.esModuleBridge = Object.freeze({
 
 await importScripts([
   "/js/navigation.js",
-  "/js/shared/modal.js",
   "/js/shared/api-client.js",
+]);
+await importScript("/js/shared/cached-fetch.js");
+
+const dashboardDataPromises = new Map();
+const dashboardManifestPromise = loadDashboardManifest();
+
+namespace.dashboardBootstrap = Object.freeze({
+  dataPromises: dashboardDataPromises,
+  loadRoute: loadDashboardRoute,
+  manifestPromise: dashboardManifestPromise,
+  routeForPanel: dashboardPanelRoute,
+});
+
+dashboardManifestPromise
+  .then(({ data, revalidated }) => {
+    warmDashboardPanelData(data);
+    revalidated.then(warmDashboardPanelData).catch(() => {});
+  })
+  .catch(() => {});
+
+await importScripts([
+  "/js/shared/modal.js",
   "/js/shared/page-controller.js",
   "/js/shared/module-actions.js",
   "/js/shared/icons.js",
   "/js/shared/formatters.js",
   "/js/shared/timezones.js",
   "/js/shared/tags.js",
+  "/js/shared/view-builder.js",
+]);
+await importScripts([
   "/js/shared/file-attachments.js",
   "/js/shared/notes-linked-panel.js",
   "/js/shared/notification-subscriptions.js",
-  "/js/shared/view-builder.js",
   "/js/shared/view-renderer.js",
   "/js/shared/file-preview.js",
+]);
+await importScripts([
   "/js/dashboard.js",
   "/js/footer.js",
 ]);
+
+async function loadDashboardManifest() {
+  const workspaceId = String(namespace.workspaceContext?.workspaceId || "").trim();
+
+  if (!workspaceId) {
+    const revalidated = namespace.api.getJson("/api/dashboard", { cache: "no-store" });
+    return {
+      data: await revalidated,
+      fromCache: false,
+      revalidated,
+    };
+  }
+
+  return namespace.cachedFetch.getJson("/api/dashboard", {
+    cacheKey: `${workspaceId}:dashboard:${dashboardAssetVersion()}:manifest`,
+  });
+}
+
+function warmDashboardPanelData(data) {
+  const panels = data?.extensionPoints?.dashboardPanels;
+
+  for (const panel of Array.isArray(panels) ? panels : []) {
+    loadDashboardRoute(dashboardPanelRoute(panel)).catch(() => {});
+  }
+
+  return data;
+}
+
+function loadDashboardRoute(routeValue) {
+  const route = String(routeValue || "").trim();
+
+  if (!route) {
+    return Promise.resolve({});
+  }
+
+  if (!dashboardDataPromises.has(route)) {
+    dashboardDataPromises.set(route, namespace.api.getJson(route, { cache: "no-store" }));
+  }
+
+  return dashboardDataPromises.get(route);
+}
+
+function dashboardPanelRoute(panel = {}) {
+  const route = String(panel.dataRoute || "").trim();
+
+  if (panel.renderer !== "tasks.calendar" || route !== "/api/tasks/calendar") {
+    return route;
+  }
+
+  const view = ["day", "week", "month"].includes(namespace.userPreferences?.preferredCalendarView)
+    ? namespace.userPreferences.preferredCalendarView
+    : window.matchMedia?.("(max-width: 700px)")?.matches ? "day" : "month";
+  const range = dashboardCalendarRange(view, new Date());
+  const params = new URLSearchParams({
+    start: range.start,
+    end: range.end,
+    statuses: "open,in_progress,blocked",
+  });
+  return `${route}?${params.toString()}`;
+}
+
+function dashboardCalendarRange(view, anchor) {
+  if (view === "day") {
+    const day = dashboardDateKey(anchor);
+    return { start: day, end: day };
+  }
+
+  if (view === "week") {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - anchor.getDay());
+    return { start: dashboardDateKey(start), end: dashboardDateKey(dashboardAddDays(start, 6)) };
+  }
+
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  const start = dashboardAddDays(monthStart, -monthStart.getDay());
+  const end = dashboardAddDays(monthEnd, 6 - monthEnd.getDay());
+  return { start: dashboardDateKey(start), end: dashboardDateKey(end) };
+}
+
+function dashboardAddDays(date, days) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function dashboardDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dashboardAssetVersion() {
+  return String(
+    namespace.assetVersion?.value ||
+    document.querySelector("meta[data-asset-version]")?.content ||
+    "",
+  ).trim() || "current";
+}

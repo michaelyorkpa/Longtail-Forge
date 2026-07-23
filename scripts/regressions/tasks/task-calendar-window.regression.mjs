@@ -3,12 +3,13 @@ export const regressionMeta = Object.freeze({
   area: "tasks",
   tier: "focused",
   tags: ["bounded-query", "calendar", "permissions", "reminders", "tasks"],
-  description: "Proves the task calendar-window contract: bounded-range enforcement, workspace and permission scoping without cross-workspace or unreadable-task leaks, reminder-marker correctness including the lookahead and completed/archived exclusions, client/project filter scoping, and disabled-module read behavior.",
+  description: "Proves the task calendar-window contract: one-statement lean projection without assignee hydration, exact renderer payload shape, bounded-range enforcement, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
   runMode: "isolated-database",
 });
 
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -18,8 +19,10 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-cal
 process.env.SUPER_ADMIN_PASSWORD = "Task-Calendar-Window-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql } = await import("../../../src/db/index.js");
+const { readSqliteStatementCount } = await import("../../../src/db/sqlite.js");
 const { tasksService } = await import("../../../src/modules/tasks/tasks.service.js");
 const { tasksRepository } = await import("../../../src/modules/tasks/tasks.repo.js");
+const repositorySource = readFileSync("src/modules/tasks/tasks.repo.js", "utf8");
 
 const WINDOW_START = "2026-08-01";
 const WINDOW_END = "2026-08-31";
@@ -29,7 +32,8 @@ try {
   const session = await readSeedSession();
   const fixtures = await createFixtures(session);
 
-  await assertBoundedRangeEnforcement(session);
+  await assertBoundedRangeEnforcement(session, fixtures);
+  await assertCalendarRepositoryProjection(session, fixtures);
   const result = await tasksService.calendarWindow(session, { start: WINDOW_START, end: WINDOW_END });
   assertWorkspaceScoping(result, fixtures);
   await assertStatusFiltering(session, fixtures);
@@ -138,7 +142,7 @@ VALUES ('${otherWorkspaceId}', 'Calendar Other Workspace', 'Active', 'business',
   };
 }
 
-async function assertBoundedRangeEnforcement(session) {
+async function assertBoundedRangeEnforcement(session, fixtures) {
   await assert.rejects(
     tasksService.calendarWindow(session, { start: "2026-08-10", end: "2026-08-01" }),
     (error) => error.statusCode === 400 && /on or after the start date/.test(error.message),
@@ -152,6 +156,12 @@ async function assertBoundedRangeEnforcement(session) {
 
   const maxWindow = await tasksService.calendarWindow(session, { start: "2026-08-01", end: "2026-11-01" });
   assert.deepEqual(maxWindow.range, { startDate: "2026-08-01", endDate: "2026-11-01" }, "a 93-day window must be accepted");
+
+  const singleDay = await tasksService.calendarWindow(session, { start: "2026-08-12", end: "2026-08-12" });
+  assert.deepEqual(singleDay.range, { startDate: "2026-08-12", endDate: "2026-08-12" }, "a single-day window must retain the exact date");
+  assert.ok(singleDay.tasks.some((task) => task.task_id === fixtures.alphaTask.task_id), "a single-day window must retain Tasks due that day");
+  assert.ok(singleDay.tasks.every((task) => task.due_date === "2026-08-12"), "a single-day window must not leak Tasks due on another date");
+  assert.ok(singleDay.reminders.every((marker) => marker.date === "2026-08-12"), "single-day reminder markers must stay inside the requested date");
 }
 
 function assertWorkspaceScoping(result, fixtures) {
@@ -186,21 +196,83 @@ async function assertStatusFiltering(session, fixtures) {
 
 function assertCalendarRowContract(result, fixtures) {
   const row = result.tasks.find((candidate) => candidate.task_id === fixtures.timedTask.task_id);
+  const expectedFields = [
+    "allDay",
+    "client_name",
+    "due_date",
+    "due_time",
+    "id",
+    "priority",
+    "project_name",
+    "startDate",
+    "status",
+    "task_id",
+    "title",
+  ];
+  const droppedFields = [
+    "assigned_to_current_user",
+    "assignee_ids",
+    "assignees",
+    "billable",
+    "blocked_reason",
+    "checklistProgress",
+    "completionMetrics",
+    "description_excerpt",
+    "due_timezone",
+    "endDate",
+    "estimate_minutes",
+    "last_worked_at",
+    "next_action",
+    "relationshipSummary",
+    "resumeContext",
+    "resume_note",
+    "source",
+    "startDateTimeUtc",
+    "url",
+  ];
 
   assert.ok(row, "the timed task should be a calendar row");
-  for (const field of ["id", "title", "status", "priority", "due_date", "due_time", "due_at_utc", "client_id", "client_name", "project_id", "project_name", "assignee_ids", "assignees", "allDay", "startDate", "endDate", "startDateTimeUtc", "url", "source"]) {
-    assert.ok(field in row, `calendar rows must carry ${field}`);
-  }
+  assert.deepEqual(Object.keys(row).sort(), expectedFields, "calendar rows expose only fields the shared renderer consumes");
+  assert.ok(droppedFields.every((field) => !(field in row)), "calendar rows must omit non-rendered task detail fields");
   assert.equal(row.allDay, false, "timed tasks are not all-day entries");
-  assert.equal(row.source.type, "task");
-  assert.ok(row.url.includes(fixtures.timedTask.task_id), "rows must link back to their task");
-  assert.equal(row.assignees.length, 1, "rows must carry the assignee summary");
-  assert.ok(row.assignees[0].displayName, "assignee summaries must carry display names");
+  assert.equal(row.id, row.task_id, "the calendar identity alias must match task_id");
+  assert.equal(row.startDate, row.due_date, "the calendar start date must match the due-date key");
 
   const alphaRow = result.tasks.find((candidate) => candidate.task_id === fixtures.alphaTask.task_id);
   assert.equal(alphaRow.allDay, true, "date-only tasks are all-day entries");
   assert.equal(alphaRow.client_name, fixtures.clients.alpha.name, "rows must carry readable client context");
   assert.equal(alphaRow.project_name, fixtures.projects.alpha.name, "rows must carry readable project context");
+}
+
+async function assertCalendarRepositoryProjection(session, fixtures) {
+  const projectionSource = repositorySource.slice(
+    repositorySource.indexOf("function taskCalendarSelectSql"),
+    repositorySource.indexOf("function taskListWhereSql"),
+  );
+  assert.ok(projectionSource, "the calendar repository must own a dedicated SQL projection");
+  assert.doesNotMatch(
+    projectionSource,
+    /tasks\.(?:description|next_action|blocked_reason|resume_note|estimate_minutes|billable|last_worked_at)/,
+    "the calendar SQL projection must not fetch discarded wide/detail columns",
+  );
+
+  const before = readSqliteStatementCount();
+  const rows = await tasksRepository.readDueBetween(
+    session.workspace_id,
+    WINDOW_START,
+    WINDOW_END,
+    { statuses: ["open", "in_progress", "blocked"] },
+  );
+  const statements = readSqliteStatementCount() - before;
+  const timedTask = rows.find((task) => task.task_id === fixtures.timedTask.task_id);
+
+  assert.equal(statements, 1, "the calendar repository read must issue one bounded task query and no workspace-wide assignee query");
+  assert.ok(timedTask, "the lean repository projection must retain in-window Tasks");
+  assert.ok(!("assignees" in timedTask), "the calendar repository must skip unused assignee hydration");
+  assert.ok(!("description" in timedTask), "the calendar repository must not return discarded wide text");
+  for (const field of ["workspace_id", "client_id", "project_id", "due_timezone", "due_at_utc", "reminder_override_enabled"]) {
+    assert.ok(field in timedTask, `the internal calendar projection must retain ${field} for permission and reminder shaping`);
+  }
 }
 
 function assertReminderMarkers(result, fixtures) {

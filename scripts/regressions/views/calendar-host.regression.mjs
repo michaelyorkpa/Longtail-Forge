@@ -106,12 +106,13 @@ const adapterFetchCalls = calendarJs.match(/fetch\(/g) || [];
 const adapterAllowedFetches = calendarJs.match(/fetch\("\/api\/client-projects\?view=options"/g) || [];
 assert.equal(adapterFetchCalls.length, adapterAllowedFetches.length, "calendar.js may only fetch the client/project filter options; the shared helpers own the calendar window fetch");
 const sharedFetchCalls = taskCalendarJs.match(/fetch\(/g) || [];
-const sharedAllowedFetches = taskCalendarJs.match(/fetch\(`\/api\/tasks\/calendar\?/g) || [];
+const sharedAllowedFetches = taskCalendarJs.match(/fetch\(route,/g) || [];
 assert.equal(sharedFetchCalls.length, sharedAllowedFetches.length, "shared/task-calendar.js may only fetch the bounded calendar window");
 assert.ok(sharedAllowedFetches.length > 0, "shared/task-calendar.js must own the bounded calendar window fetch");
+assert.match(taskCalendarJs, /const route = `\/api\/tasks\/calendar\?\$\{params\.toString\(\)\}`/, "the shared calendar fetch route must remain bounded by its canonical query params");
 assert.doesNotMatch(calendarJs, /method:\s*"(POST|PUT|PATCH|DELETE)"/i, "calendar.js must stay read-only");
 assert.doesNotMatch(taskCalendarJs, /method:\s*"(POST|PUT|PATCH|DELETE)"/i, "shared/task-calendar.js must stay read-only");
-checks += 5;
+checks += 6;
 
 // No calendar event records, iCal, or external calendar sync anywhere in the
 // Calendar surface or schema: 0.36.0 owns events/iCal and 0.70.x owns

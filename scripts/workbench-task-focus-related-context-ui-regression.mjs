@@ -54,8 +54,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "openRelatedContextModuleAction"),
-  /action\.fallbackUrl[\s\S]*window\.location\.href = action\.fallbackUrl/,
-  "Related rows should keep an explicit safe fallback URL path when module action dispatch fails",
+  /action\.fallbackUrl[\s\S]*navigateFromWorkbench\(action\.fallbackUrl, "related-context-error-fallback"\)/,
+  "Related rows should keep an explicit guarded fallback URL path when module action dispatch fails",
 );
 assert.match(
   functionBody(workbenchScript, "ensureWorkbenchFilePreviewAction"),

@@ -84,8 +84,8 @@ function createAppStartupActions() {
       lifecycle: STARTUP_LIFECYCLES.FIRST_INSTALL,
       owner: "app-startup-maintenance",
       async run(context) {
-        const created = await seedSuperAdminUser(context.workspaceId);
-        return created ? undefined : { status: "skipped", reason: "super-admin-exists" };
+        const result = await seedSuperAdminUser(context.workspaceId);
+        return result.created ? undefined : { status: "skipped", reason: result.reason };
       },
     },
     versionedRepair("repair.local-time-entry-user-v1", (context) => repairLocalTimeEntryUser(context.workspaceId)),
@@ -606,26 +606,41 @@ function getDefaultSettings() {
 }
 
 async function seedSuperAdminUser(workspaceId) {
+  const existingAdministrators = await db.query(`
+SELECT users.user_id
+FROM users
+WHERE users.protected_user = 'yes'
+   OR EXISTS (
+     SELECT 1
+     FROM user_role_assignments
+     WHERE user_role_assignments.user_id = users.user_id
+       AND user_role_assignments.role_id = 'super_admin'
+   )
+ORDER BY
+  CASE WHEN users.protected_user = 'yes' THEN 0 ELSE 1 END,
+  users.username,
+  users.user_id
+LIMIT 1;
+`);
+
+  if (existingAdministrators.length > 0) {
+    return { created: false, reason: "super-admin-exists" };
+  }
+
   const existingUsers = await db.query(`
 SELECT user_id
 FROM users
-WHERE home_workspace_id = :workspaceId
-  AND username = :username
 LIMIT 1;
-`, {
-    username: DEFAULT_SUPER_ADMIN_USERNAME,
-    workspaceId,
-  });
+`);
 
-  let userId = existingUsers[0]?.user_id || "";
-  let created = false;
+  if (existingUsers.length > 0) {
+    return { created: false, reason: "existing-install-users" };
+  }
 
-  if (!userId) {
-    const password = getSuperAdminPassword();
-    userId = randomUUID();
-    created = true;
+  const password = getSuperAdminPassword();
+  const userId = randomUUID();
 
-    await db.run(`
+  await db.run(`
 INSERT INTO users (
   user_id,
   home_workspace_id,
@@ -660,10 +675,9 @@ VALUES (
       userId,
       username: DEFAULT_SUPER_ADMIN_USERNAME,
       workspaceId,
-    });
-  }
+  });
 
-  return created;
+  return { created: true };
 }
 
 async function repairLocalTimeEntryUser(workspaceId) {

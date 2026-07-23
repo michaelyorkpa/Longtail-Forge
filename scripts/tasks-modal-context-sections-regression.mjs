@@ -20,6 +20,7 @@ assert.match(taskDialogScript, /Task Details[\s\S]*Checklist[\s\S]*Recurrence[\s
 assert.doesNotMatch(taskDialogScript, /Core Task Details|Assignment and Scheduling|<summary class="surface-modal-section-heading">Primary Context<\/summary>|Advanced Details/, "Task Details should not be split into extra visible section boxes");
 assert.doesNotMatch(taskDialogScript, /task-core-details-field|task-assignment-schedule-field|task-primary-context-field|task-advanced-details-field/, "Task Details should not keep obsolete split-section classes");
 assert.match(taskDialogScript, /function taskEditorContinuitySection[\s\S]*data-task-resume-note[\s\S]*data-task-next-action[\s\S]*data-task-blocked-reason/, "Continuity fields should be outside the collapsible Task Details panel");
+assert.match(taskDialogScript, /function taskEditorContinuitySection[\s\S]*"data-view-field-width": "full"[\s\S]*"data-task-continuity-row"/, "Continuity group should span the full Task editor width");
 assert.match(taskDialogScript, /taskEditorDetailsSection[\s\S]*Task Details[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-estimate-minutes[\s\S]*data-task-client[\s\S]*data-client-workspace-control[\s\S]*data-task-project[\s\S]*data-task-parent-task[\s\S]*data-task-due-date[\s\S]*data-task-due-time[\s\S]*data-task-description[\s\S]*data-task-assignees/, "Task Details should keep the requested status/context/schedule/content grouping");
 assert.match(taskDialogScript, /const isBlocked = fields\.status\?\.value === "blocked"[\s\S]*fields\.blockedReasonField\.hidden = !isBlocked;[\s\S]*fields\.blockedReason\.disabled = !isBlocked;/, "Blocked Reason should only be selectable when status is blocked");
 
@@ -40,7 +41,8 @@ assert.doesNotMatch(taskDialogScript, /return selected(Client|Project)Id/, "Fall
 
 assert.match(stylesheet, /\.task-details-field \{[\s\S]*box-sizing: border-box;[\s\S]*min-width: 0;/, "Task Details should stay inside the modal group boundary");
 assert.match(stylesheet, /\.task-details-grid \{[\s\S]*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/, "Task Details should keep the six-track desktop field layout");
-assert.match(stylesheet, /\.task-continuity-row \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "Continuity fields should keep a three-column desktop row");
+assert.match(stylesheet, /\.task-continuity-row \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/, "Continuity fields should use two columns when Blocked Reason is hidden");
+assert.match(stylesheet, /\.task-continuity-row\.is-blocked \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, "Continuity fields should use three columns when Blocked Reason is visible");
 assert.match(stylesheet, /\.task-details-grid > label \{[\s\S]*min-width: 0;/, "Task Details controls should shrink inside their grid columns");
 assert.match(stylesheet, /\.task-due-date-field,[\s\S]*\.task-due-time-field,[\s\S]*\.task-assignee-field,[\s\S]*\.task-description-field \{[\s\S]*grid-column: span 3;/, "Two-column Task Details rows should span three desktop grid tracks");
 assert.doesNotMatch(stylesheet, /task-core-details-field|task-assignment-schedule-field|task-primary-context-field|task-advanced-details-field/, "Stylesheet should not keep obsolete split-section task modal classes");

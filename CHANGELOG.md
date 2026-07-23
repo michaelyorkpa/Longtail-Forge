@@ -1,3 +1,92 @@
+## Version 0.33.21.20 - 2026-07-23
+
+- Made the development/sanitized-demo seed CLI load the untracked root `.env` before bootstrap configuration, while preserving explicit process-environment precedence and the canonical `Today()` anchor.
+- Restricted protected-super-administrator creation to an empty installation. Existing protected users, `super_admin` assignments, or any other user row prevent startup from inventing another identity; changing `SUPER_ADMIN_USERNAME` neither creates nor renames a user.
+- Preserved fail-closed bootstrap secrets: a fresh installation still requires `SUPER_ADMIN_PASSWORD`, never generates or prints a credential, and never silently rotates an existing password.
+- Expanded the development-data and startup-maintenance regressions for configured seed identity, changed-username restarts, existing-install update safety, exactly-one-administrator behavior, and password-output refusal.
+- Guardedly backed up, reset, and reseeded only the canonical local `data/development-seed` world, then verified its configured operator identity, one protected/super-admin account, SQLite integrity, foreign keys, and runtime version.
+- Removed the completed `TODO.md` username-reset report and retained the live roadmap cursor at `0.33.22`.
+- Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/development-and-demo-data.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
+- No docs change needed: user-facing Help, public API, permission semantics, schema/migrations, demo-host reset operations, and deployment behavior are unchanged.
+
+## Version 0.33.21.19.5 - 2026-07-23
+
+- Added `npm run bench:dashboard` to collect seven-sample warm HTTP timing, response-byte, SQLite-statement, and real-browser first-fetch evidence against the configured local database without reseeding it; the canonical development seed remains anchored to `Today()`.
+- Recorded same-workstation fat-seed pre-branch/completed medians: Tasks summary 211.6 -> 15.0 ms (27 -> 10 statements), Calendar 136.3 -> 59.4 ms (348,307 -> 107,115 bytes; 8 -> 7 statements), and effort summary 428.6 -> 15.9 ms (10 -> 7 statements).
+- Reduced the controlled browser load-event-to-first-fetch gap from 307.6 ms to 92.4 ms and added a one-second rendered ceiling while preserving proof that all three panel reads overlap a held contribution asset.
+- Added `dashboard.hot-endpoint-budgets` for conservative HTTP timing/payload/statement ceilings and near-constant cost after 400 unrelated terminal Tasks plus 500 out-of-window time entries.
+- Raised the discovered regression inventory to 401 and the protected Dashboard floor to 2.
+- Archived the completed 0.33.21.19 Dashboard load-performance branch and advanced the live roadmap cursor to 0.33.22.
+- Docs updated: `DECISIONS.md`, `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`.
+- No docs change needed: Dashboard panel content, Help, public API, permission semantics, database schema/migrations, runtime configuration, and seed-generation behavior are unchanged.
+
+## Version 0.33.21.19.4 - 2026-07-23
+
+- Started the workspace- and release-keyed stale-while-revalidate Dashboard manifest after the navigation/API foundation, then warmed Tasks summary, bounded Today-anchored calendar, and Time Tracking effort routes before the remaining host/contribution asset chain completed.
+- Reused one route-keyed promise map across the generic Dashboard host, shared Task calendar, and Time Tracking renderers; live panel payloads remain `no-store` and no renderer issues a duplicate warm request.
+- Parallelized independent base-script and contributed script/style loads while preserving explicit dependency batches for helpers that capture the API or view primitives at registration time.
+- Removed the canonical Task dialog from Dashboard first paint and lazy-loaded its versioned script only when a Dashboard calendar task is opened.
+- Removed the Dashboard calendar's workspace-context readiness wait while preserving Today anchoring, responsive defaults, saved Day/Week/Month preferences, active-status scope, focus return, and refresh behavior.
+- Added static bootstrap guardrails plus rendered sequencing/lazy-dialog proof, and raised the discovered regression inventory and protected Views floor to 400 and 33 respectively.
+- Docs updated: `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`, `docs/ui-layout-guide.md`.
+- No docs change needed: Dashboard panel content, server payload contracts, permissions, Help, public API, database schema/migrations, and runtime configuration are unchanged.
+
+## Version 0.33.21.19.3 - 2026-07-23
+
+- Replaced Tasks dashboard-summary's whole-workspace canonical list/tag/projection pipeline with permission-resource SQL count groups and bounded per-resource candidate windows for its five short lists.
+- Reused one precompiled `tasks.view` evaluator for aggregate groups, candidates, and parent visibility; the shared Task-list candidate filter also no longer performs per-row asynchronous permission calls.
+- Preserved exact active/completed/archived, assigned, timer, blocked, overdue, and due-soon counts plus attention/upcoming/pressure and compatibility-list contents, ordering, safe labels, and handoffs.
+- Reused request-scoped workspace-settings memoization in dashboard-summary; active-timer shaping retains the request-memo fix from 0.33.21.19.1.
+- Added exact-output, 15-statement, one-evaluator, zero-per-row-call, bounded-enrichment, 500-Task growth, and integrity regression proof.
+- Raised the discovered regression inventory and protected Tasks floor to 399 and 54 respectively.
+- Docs updated: `DECISIONS.md`, `docs/regression-suite.md`, `docs/tasks-module.md`.
+- No docs change needed: rendered Dashboard content, Help, public API, permission semantics, database schema/migrations, runtime configuration, and browser layout contracts are unchanged.
+
+## Version 0.33.21.19.2 - 2026-07-22
+
+- Replaced the Tasks calendar endpoint's shared summary expansion with an exact lean renderer row containing only Task identity, title, status, priority, due date/time, readable Client/Project names, and calendar date markers.
+- Added a calendar-specific bounded SQL projection that retains internal permission/reminder inputs without fetching wide Task continuity/detail text.
+- Removed the whole-workspace assignee scan from `readDueBetween`; the repository calendar read now completes in one SQL statement with no assignee hydration.
+- Preserved active-status defaults and explicit status sets, reminder markers/lookahead, single-day semantics, workspace/Client/Project permission scope, and disabled-module reads.
+- Expanded the standing calendar-window regression with exact payload allowlist/denylist and one-statement/no-assignee proof.
+- Docs updated: `DECISIONS.md`, `docs/regression-suite.md`, `docs/tasks-module.md`.
+- No docs change needed: rendered Calendar/Dashboard behavior, Help, public API catalog, permissions, database schema, runtime configuration, and browser layout contracts are unchanged.
+
+## Version 0.33.21.19.1 - 2026-07-22
+
+- Replaced the Time Tracking Dashboard effort-summary full-table list/tag pipeline with an indexed seven-local-day repository read, SQL count/duration aggregates, and a three-row recent-entry limit while preserving exact rendered values.
+- Preserved workspace, owner, Client, and Project visibility in the bounded SQL predicates and retained defense-in-depth authorization over only the displayed rows; inaccessible recent entries cannot affect rows, counts, or totals.
+- Threaded the request session through the Dashboard, shared time-entry list, and active-timer shaping workspace-settings reads so the endpoint performs one physical settings query.
+- Confirmed the required `time_entries (workspace_id, end_time)` index already ships in both schema snapshots and is selected by the bounded query plan, avoiding a redundant no-op migration.
+- Added constant statement/payload, indexed-plan, exact-output, three-row authorization, settings-memo, growth, integrity, and scoped-permission regression proof.
+- Raised the discovered regression inventory and protected Time Tracking floor to 398 and 9 respectively.
+- Docs updated: `docs/longtail_forge_permissions_matrix.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`.
+- No docs change needed: permission semantics, HTTP payload shape, user-facing Dashboard behavior, Help, public API, runtime configuration, and database schema/migration contracts are unchanged.
+
+## Version 0.33.21.18.3 - 2026-07-22
+
+- Added one framework app-shell navigation-intent controller for timed Task Focus exits across Change Focus, app-shell/module links, Search, Notifications, workspace/account actions, Workbench scripted fallbacks, and supported browser history traversal.
+- Held interceptable destinations only for the existing Tasks-owned `Add resume note?` capture, continued the exact first intent once after Yes, No, dismissal, or optional write failure, and kept timer Pause/Save Time capture non-blocking.
+- Added a 12-hour session-only hard-exit marker containing Task ID, timer status, and timestamp; safe Workbench recovery clears it first and re-checks timer truth, Task readability/lifecycle, and current resume-note state.
+- Added executable intent/deduplication/marker coverage plus rendered desktop/mobile Change Focus and Dashboard-navigation proof.
+- Raised the regression inventory floor to 397 scripts for the new Workbench guardrail.
+- Docs updated: `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/view-building-contract.md`, `help/modules/tasks/resuming-task-work.md`.
+
+## Version 0.33.21.18.2 - 2026-07-22
+
+- Made the always-visible Task Work continuity group use the full shared Add/Edit modal width through the framework full-width field contract.
+- Kept Resume note and Next action as practical two-column desktop fields, added the applicable Blocked Reason as a third column, and stacked all continuity fields on phones without changing Task behavior.
+- Expanded Task modal reflow, compact-layout, context-section, and strict guardrail regressions for the outer width and responsive states.
+- Docs updated: `docs/tasks-module.md`.
+
+## Version 0.33.21.18.1 - 2026-07-22
+
+- Corrected deterministic development/sanitized-demo Task Timers to use canonical `running`/`paused` state, `source:tasks:task:<taskId>` slots, Tasks source identity and labels, matching Client/Project context, lifecycle-transition metadata, and coherent `in_progress` Tasks.
+- Reproduced the former Start failure as `SQLITE_CONSTRAINT_UNIQUE` through the real Tasks timer service before changing the fixture; retained the runtime source-unique index without a malformed-seed compatibility path.
+- Expanded `database.development-data-seed` from count checks to relational timer-contract assertions and real Start/Resume, Pause, Save Time, and Reset service flows with duplicate-source protection.
+- Guardedly reset and reseeded only the canonical local `data/development-seed` world with its normal current-local-date (`Today()`) anchor, then verified SQLite integrity, zero foreign-key violations, canonical timer rows, runtime version `0.33.21.18.1`, and the shared Task editor/Workbench timer routes.
+- Docs updated: `docs/development-and-demo-data.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`.
+
 ## Version 0.33.21.17.2 - 2026-07-22
 
 - Added the Tasks-owned resume-note capture adapter over the shared capture modal, with a current-Task recheck, existing/just-captured suppression, one-line Yes/No entry, and a partial `resume_note` write through the canonical Tasks service route.

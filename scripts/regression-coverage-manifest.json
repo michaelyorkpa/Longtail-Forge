@@ -3,11 +3,11 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 396,
+    "discoveredScripts": 401,
     "legacyScripts": 311,
     "releaseGateScripts": 44,
     "areaCounts": {
-      "dashboard": 1,
+      "dashboard": 2,
       "database": 36,
       "docs": 9,
       "files": 44,
@@ -22,23 +22,23 @@
       "release": 24,
       "search": 12,
       "tags": 12,
-      "tasks": 53,
-      "time-tracking": 8,
-      "views": 32,
-      "workbench": 31
+      "tasks": 54,
+      "time-tracking": 9,
+      "views": 33,
+      "workbench": 32
     },
     "tierCounts": {
-      "focused": 185,
+      "focused": 190,
       "integration": 159,
       "release-gate": 44,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 167,
+      "isolated-database": 170,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 194
+      "static": 196
     }
   },
   "coverageFamilies": [
@@ -2419,6 +2419,24 @@
       "tier": "release-gate"
     },
     {
+      "area": "dashboard",
+      "description": "Pins HTTP timing, statement-count, and payload budgets for the three Dashboard data routes and proves unrelated Task/time-entry growth does not expand their steady-state cost.",
+      "id": "dashboard.hot-endpoint-budgets",
+      "legacy": false,
+      "path": "scripts/regressions/dashboard/hot-endpoint-budgets.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "budgets",
+        "dashboard",
+        "payload",
+        "performance",
+        "query-count",
+        "timing"
+      ],
+      "tier": "focused"
+    },
+    {
       "area": "database",
       "description": "Proves the versioned SQLite plus Files backup format, Secure Notes prerequisite, destructive restore safeguards, and disposable restore drill.",
       "id": "database.backup-restore-foundation",
@@ -3493,7 +3511,25 @@
     },
     {
       "area": "tasks",
-      "description": "Proves the task calendar-window contract: bounded-range enforcement, workspace and permission scoping without cross-workspace or unreadable-task leaks, reminder-marker correctness including the lookahead and completed/archived exclusions, client/project filter scoping, and disabled-module read behavior.",
+      "description": "Pins Tasks dashboard-summary to permission-shaped SQL count groups, bounded ranked row candidates, one precompiled permission evaluator, exact output, and constant statement/enrichment cost as terminal Task volume grows.",
+      "id": "tasks.dashboard-summary-budgets",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/dashboard-summary-budgets.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "dashboard",
+        "payload",
+        "performance",
+        "permissions",
+        "query-count",
+        "tasks"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Proves the task calendar-window contract: one-statement lean projection without assignee hydration, exact renderer payload shape, bounded-range enforcement, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
       "id": "tasks.task-calendar-window",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-calendar-window.regression.mjs",
@@ -3581,6 +3617,23 @@
     },
     {
       "area": "time-tracking",
+      "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
+      "id": "time-tracking.dashboard-effort-summary-budgets",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/dashboard-effort-summary-budgets.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "dashboard",
+        "payload",
+        "performance",
+        "permissions",
+        "query-count"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
       "description": "Proves the module-owned Project Time & Billing runner, recursive mixed-setting rollups, compatibility reads, tag/task behavior, and framework decoupling.",
       "id": "time-tracking.project-time-billing-runner",
       "legacy": false,
@@ -3641,6 +3694,23 @@
         "calendar",
         "dashboard",
         "guardrail",
+        "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
+      "description": "Pins Dashboard warm-first bootstrap sequencing, route-promise reuse, parallel asset loading, the rendered first-fetch gap budget, and lazy Task editor delivery.",
+      "id": "views.dashboard-client-bootstrap",
+      "legacy": false,
+      "path": "scripts/regressions/views/dashboard-client-bootstrap.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "assets",
+        "dashboard",
+        "performance",
+        "sequencing",
         "views"
       ],
       "tier": "focused"
@@ -3773,6 +3843,23 @@
         "dashboard",
         "deep-link",
         "guardrail",
+        "tasks",
+        "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Proves one deduplicated app-shell navigation intent holds timed Task Focus exits for resume-note capture and hard exits use a bounded session marker.",
+      "id": "workbench.task-focus-exit-capture",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "app-shell",
+        "navigation",
+        "resume-context",
         "tasks",
         "workbench"
       ],

@@ -10,7 +10,6 @@ await bridge.importScripts([
   "/js/shared/task-calendar.js",
   "/js/shared/capture-prompt.js",
   "/js/task-resume-note-capture.js",
-  "/js/task-dialog.js",
 ]);
 
 const dashboard = window.LongtailForge?.dashboard;
@@ -45,18 +44,10 @@ function renderTasksCalendarContribution(contribution, context) {
   }
 
   const state = {
-    view: taskCalendar.resolveDefaultView(null),
+    view: taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView()),
     viewSelectedByUser: false,
   };
   let hydrateToken = 0;
-  const initialViewReady = Promise.resolve(window.LongtailForge?.workspaceContextReady)
-    .catch(() => null)
-    .then(() => {
-      if (!state.viewSelectedByUser) {
-        state.view = taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView());
-        updateViewButtons();
-      }
-    });
   const periodLabel = context.view.createElement("p", {
     className: "dashboard-calendar-period",
     dataset: { dashboardCalendarPeriod: "" },
@@ -118,10 +109,6 @@ function renderTasksCalendarContribution(contribution, context) {
     const token = ++hydrateToken;
 
     try {
-      await initialViewReady;
-      if (token !== hydrateToken) {
-        return;
-      }
       const range = taskCalendar.calendarRange(state.view, new Date());
       const data = await taskCalendar.fetchCalendarWindow(range, {
         statuses: ["open", "in_progress", "blocked"],
@@ -158,22 +145,29 @@ function renderTasksCalendarContribution(contribution, context) {
     }
   }
 
-  function openTask(taskId, trigger) {
-    const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
-
-    if (typeof opener !== "function" || !taskId) {
+  async function openTask(taskId, trigger) {
+    if (!taskId) {
       return;
     }
 
-    opener({
-      taskId,
-      mode: "edit",
-      returnFocusTo: trigger,
-      onSaved: () => hydrate(),
-    }).catch((error) => {
+    try {
+      await bridge.importScript("/js/task-dialog.js");
+      const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
+
+      if (typeof opener !== "function") {
+        throw new Error("The Task editor did not register its opener.");
+      }
+
+      await opener({
+        taskId,
+        mode: "edit",
+        returnFocusTo: trigger,
+        onSaved: () => hydrate(),
+      });
+    } catch (error) {
       context.setStatus("The task could not be opened.", { isError: true });
       console.error(error);
-    });
+    }
   }
 }
 

@@ -2,74 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.21.18.1`.
+Active cursor: `0.33.22`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-### Version 0.33.21.18 - Post-update Task Focus, task editor, and development-seed corrections
-
-**Model: High Effort** — This correction umbrella covers three distinct blast radii found during rendered review: canonical task-timer seed/runtime coherence, the Task editor continuity container width, and complete Workbench Task Focus exit capture. Keep the children separate so the destructive local reseed, contained layout repair, and navigation-lifecycle design each receive focused proof without mixing ownership.
-
-Purpose:
-
-Correct the small but consequential regressions found after 0.33.21.15-.17: the deterministic development seed creates an incoherent task timer that cannot resume cleanly, the always-visible Task continuity block is constrained to half of the modal, and resume-note capture only sees the explicit Change Focus path instead of every meaningful loss of Task Focus.
-
-This is a tracking umbrella, not one implementation slice. Complete the children in order: repair and reseed the canonical local development world first so later rendered checks run against coherent Task/timer state; then fix the contained editor layout; then broaden Task Focus exit capture on top of the verified timer fixture. Preserve Tasks ownership of lifecycle and `resume_note`, Time Tracking ownership of persisted timers, Workbench ownership of focused-task state, and framework ownership of app-shell navigation/modal anatomy.
-
-Non-goals:
-
-- No new timer workflow, task status, or resume-note storage; these slices repair existing contracts.
-- No hand-editing the local SQLite rows as the fix. The deterministic seed must reproduce the correct state from a clean reset.
-- No global unsaved-changes framework or generic browser-navigation blocker beyond the bounded Task Focus capture contract.
-- No claim that a custom in-app modal can survive an operating-system kill or browser process termination; hard-exit recovery must use a bounded, non-sensitive drift marker rather than duplicate Task content.
-
-Acceptance criteria:
-
-- A clean deterministic local seed produces resumable canonical task timers with matching Task lifecycle state, the Task continuity block uses the full editor width, and every supported loss of a timed Task Focus offers the same Tasks-owned resume-note capture without duplicate prompts or storage.
-
-#### Version 0.33.21.18.1 - Development-seed task-timer coherence, Start repair, and guarded local reset
-
-**Model: High Effort** — The observed 500 crosses deterministic seed data, Tasks/Time Tracking timer identity and lifecycle metadata, SQLite uniqueness, and an explicitly destructive local reset whose safety and runtime result must be proved.
-
-- [ ] Reproduce and record the seeded `PUT /api/tasks/:taskId/timer` failure before changing the fixture, then reconcile the static audit: the “Validate POS receipt layout” seed currently pairs an `Open` Task with a timer written as noncanonical `active`, uses a noncanonical sourced-timer slot instead of `source:tasks:task:<taskId>`, and omits the Tasks-authored timer-transition metadata expected by normal lifecycle creation.
-- [ ] Make the deterministic development/sanitized-demo seed express task timers through the same canonical persisted contract as runtime: only `running` / `paused` status tokens, canonical sourced-timer identity/slot, matching Client/Project/source labels, valid transition metadata, and an `in_progress` Task whenever seeded timer/checklist evidence means work has started. Do not weaken the runtime unique-source constraint or add a compatibility branch solely for malformed seed rows.
-- [ ] Expand `scripts/regressions/database/development-data-seed.regression.mjs` beyond row counts: assert each seeded task timer has a canonical status and slot, joins to the expected Task and user/workspace, agrees with Task lifecycle state, and can pass through the real Tasks timer Start/Resume, Pause, Save Time/finalize, and Reset paths without a 500 or duplicate-source row. Retain deterministic semantic-fingerprint, safety-refusal, integrity, foreign-key, and disabled-persona coverage.
-- [ ] After the seed implementation and isolated regression are green, perform the user-requested reset of only the guarded local `./data/development-seed` target used by `http://127.0.0.1:8001`: verify `.env` points `LONGTAIL_DATA_DIR`, `LONGTAIL_DATABASE_FILE`, and `LONGTAIL_LOCAL_STORAGE_ROOT` at that target without printing secrets; run the supported confirmed reset and deterministic seed with anchor date `2026-07-19`; do not touch live/demo host data or hand-edit SQLite rows.
-- [ ] Restart the canonical local server and prove the fresh world end to end: `PRAGMA integrity_check = ok`, zero foreign-key violations, `/api/app-info` reports the slice version, “Validate POS receipt layout” is `In Progress` with a real running timer, and Start/Resume, Pause, Save Time, Reset, the Task editor, and Workbench Task Focus all use the same timer successfully. If a 500 remains after the clean seed, diagnose and fix that runtime defect inside this slice rather than declaring the reset sufficient.
-- [ ] Update only the development-data, Tasks, Time Tracking, and local-testing docs that own any changed contract; keep generated database, Files, backups, and credentials out of Git.
-
-Acceptance criteria:
-
-- A guarded reset and deterministic reseed of the local 127.0.0.1 development world produces canonical Task-linked timers and matching `In Progress` Tasks, the previously failing timer can Start/Resume, Pause, Save Time, and Reset from both Workbench and the Task editor without a 500 or duplicate row, and integrity/foreign-key/runtime proof is recorded.
-
-#### Version 0.33.21.18.2 - Full-width Task editor continuity block
-
-**Model: Medium Effort** — This is a contained Task editor layout correction with no route, payload, lifecycle, permission, or storage change.
-
-- [ ] Make the entire always-visible Work continuity group (`Resume note`, `Next action`, and status-gated `Blocked reason`) span the full available width of the shared Add/Edit Task modal instead of occupying one default half-width field-grid cell. Use the existing framework full-width field/group contract; do not add a Task-only modal width override.
-- [ ] Preserve useful inner-field sizing: when Blocked reason is hidden, Resume note and Next action divide the full row into two usable columns; when it is visible, all three fields share the full row without compression. Preserve the current labels, placeholders, values, validation, payload names, and always-visible/status-gated behavior.
-- [ ] Keep phone-width stacking at one field per row and verify intermediate/desktop widths do not overflow, clip focus rings, or leave the continuity group at half width.
-- [ ] Extend the Task modal reflow/compact-layout and rendered editor coverage to assert the full-width outer group, two-column non-Blocked state, three-column Blocked state, and mobile stacking in every host that uses the canonical Task editor.
-
-Acceptance criteria:
-
-- The Task editor’s Work continuity block spans the full modal width in Add and Edit, gives Resume note and Next action practical space when the Task is not Blocked, adds Blocked reason as the third full-row column only when applicable, and stacks cleanly on phones without changing Task behavior.
-
-#### Version 0.33.21.18.3 - Resume-note capture for every supported Task Focus exit
-
-**Model: High Effort** — Correct capture requires one coherent navigation-intent contract across Workbench state changes, app-shell links and scripted navigation, browser history, and hard-exit recovery while preserving the exact destination and avoiding duplicate prompts or Task storage.
-
-- [ ] Inventory every way a timed Task Focus can be lost: Change Focus, Workbench fallback/deep links, app-shell/module links, global Search and Notifications handoffs, workspace/account navigation, browser back/forward, refresh, and tab/window close. Route every interceptable in-app navigation through one bounded intent path instead of adding per-link prompt handlers.
-- [ ] Reuse the exact shared single-line `Add resume note?` Yes/No capture from 0.33.21.17.2 whenever Task Focus has a running or paused timer and the focused Task has no saved or just-entered resume note. Preserve the exact pending destination/action, continue it once after Yes, No, or dismissal, and deduplicate concurrent navigation/timer signals so one drift produces one prompt.
-- [ ] Reconcile the prior non-blocking rule explicitly: timer Pause/Save Time remains complete and non-blocking before capture; an interceptable navigation intent may be held only long enough for the user to answer because navigating first destroys the custom modal. The Tasks write stays canonical, and a failed optional resume-note write must report safely without losing or repeating the original navigation intent.
-- [ ] For refresh, tab/window close, process termination, or another hard exit where browsers cannot reliably complete an async custom modal, store only a bounded session-scoped pending-drift marker (focused Task ID, timer presence, timestamp, and no note text or duplicate business data). On the next safe authenticated Workbench entry, re-check Tasks readability/current `resume_note`/timer state before offering capture once, then clear stale, dismissed, unreadable, completed, or satisfied markers.
-- [ ] Keep ownership clean: Workbench decides whether timed Task Focus is active and registers/unregisters its exit guard; the app shell owns generic navigation intent and destination continuation; Tasks owns readability and `resume_note` validation/write; Time Tracking owns timer truth; the shared modal owns anatomy only. Do not introduce a Workbench task editor, permanent draft store, raw-ID UI, or a global unsaved-changes framework.
-- [ ] Add regressions for Change Focus, each app-shell/scripted navigation class, back/forward, hard-exit marker recovery, correct destination continuation, existing/just-entered-note suppression, Yes write to the correct Task, No/dismissal, write failure, unreadable/stale marker cleanup, and one-prompt deduplication. Add rendered desktop/mobile proof for at least Change Focus plus one real app-shell navigation path.
-
-Acceptance criteria:
-
-- Any supported loss of a running/paused Task Focus either offers `Add resume note?` before continuing the exact in-app navigation or records a bounded hard-exit drift marker and offers it once on safe Workbench return; Yes updates the correct Tasks-owned Resume note, No/dismissal continues cleanly, and no exit loses its destination, nags twice, or creates duplicate Task content.
 
 ## Version 0.33.22 - Recurring Calendar Projection and Private Calendar Subscription Feed
 
@@ -637,6 +573,84 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Fresh installs seed the same role scopes the runtime enforces, `roles.assign` for scoped admins has a deliberate landed answer, and the documented role-capability matrix matches the shipped behavior with the release-gate checks green.
+
+## Version 0.33.29 - Centralized Identifier Authority and Forward UUIDv7 Adoption
+
+**Model: High Effort** — Identifier generation is a framework-wide data-integrity contract spanning persistent records, jobs, audit infrastructure, storage metadata, tests, and future database portability; the rollout must distinguish ordinary record identity from security-sensitive opaque values.
+
+Purpose:
+
+Introduce one framework-owned identifier authority and use standards-compliant UUIDv7 values for the majority of newly created persistent records. Time-ordered record identifiers improve insertion/index locality and operational inspection as Longtail Forge grows while preparing ordinary identity columns for the future PostgreSQL/distributed hosted architecture. This is a forward-only policy: existing UUIDv4 identifiers and every relationship that refers to them remain unchanged and valid indefinitely.
+
+Decision:
+
+- Ordinary newly created persistent records use a centralized ordered-record generator backed by a reputable maintained UUIDv7 implementation. Opaque non-secret UUIDs use a separate centralized cryptographically random UUID generator. Bearer credentials and secrets continue through their dedicated cryptographically random token helpers rather than being forced into a UUID abstraction.
+- UUIDv4 and UUIDv7 coexist as canonical opaque identifiers at every API, service, browser, module, backup, export, and database boundary. No migration rewrites existing primary keys, foreign keys, storage keys, URLs, audit history, JSON metadata, backups, seeded records, or development/demo databases merely to normalize UUID versions.
+- UUIDv7 supplies approximate creation-time ordering and insertion locality only. `created_at`, `updated_at`, due dates, explicit sequence fields, and existing canonical sort/paging rules remain authoritative. Application correctness, causal ordering, pagination, and business behavior must never depend on lexical ID order; distributed clock skew is expected.
+- The framework authority is an explicit Two-Module Rule exception because persistent identity spans framework records and every first-party workflow module. Only that authority may directly import the selected UUID package or Node's UUIDv4 generator, apart from a narrowly allowlisted security-specific exception with a documented rationale.
+- Persistent database identity is server-authoritative. The Clients/Projects browser `createUuid()` path must not become a second UUIDv7 implementation; convert those create flows to receive canonical server-generated record IDs while preserving save, optimistic UI, focus, and event behavior.
+- Files keeps record identity separate from object identity: a file/attachment/report database record may use UUIDv7, while local/S3 storage keys and protected paths remain independently random and opaque. An API-key database row may use UUIDv7, while its presented secret remains the existing dedicated random token.
+
+Non-goals:
+
+- No rewriting or replacing existing UUIDv4 primary keys, foreign keys, filenames, object keys, backup contents, exported references, bookmarks, audit rows, or historical metadata; no old-to-new mapping table and no database rebuild for ID normalization.
+- No UUIDv7-only validation. Consumers continue accepting canonical UUIDv4 and UUIDv7 strings, and UUIDs remain opaque rather than exposing decoded timestamps or versions in normal APIs or UI.
+- No replacement of explicit timestamp, ordering, paging, or cursor contracts with `ORDER BY id`; no claim that UUIDv7 is a global sequence, trusted causal clock, bearer-secret format, or unguessable security boundary.
+- No user-facing UUID settings, distributed ID service, network dependency, Snowflake-style custom identifier, sequential-integer replacement, unrelated schema change, or broad repository/service refactor.
+- No hand-rolled UUID bit layout, timestamp encoding, randomness, or monotonic sequencing, and no expansion of the identifier authority into a general secrets service.
+
+Delivery shape:
+
+This version is a three-slice tracking umbrella, not one implementation slice. Complete the children in order. The split follows real isolation boundaries: establish the framework/security policy first, perform the server-side module conversion as one mechanical rollout rather than one slice per module, then change browser/API identity ownership and run the system-level mixed-version closeout proof.
+
+### Version 0.33.29.1 - Identifier authority, framework adoption, and opaque-value boundary
+
+**Model: High Effort** — This slice establishes a framework-wide data-integrity and security classification, selects the UUIDv7 dependency, and changes identity generation for shared persistent records while preserving every credential, storage, lock, and recovery boundary.
+
+- [ ] Re-audit every production UUID generator and record a complete classification in the owning architecture/database documentation. The current framework inventory includes startup maintenance, Workspaces, Users, memberships, assignments, permissions, Tags/relationships, Files records/attachments/reports, Notifications/subscriptions, audit events, jobs, work-resume state, API-key row identity, request correlation, migration-lock ownership, local/S3 storage keys, workspace-backup artifact/package IDs, workspace-purge fencing/tombstones, and any new call sites present when the slice starts.
+- [ ] Select the smallest reputable maintained runtime dependency with standards-compliant UUIDv7 support, install it through npm, and add one framework utility following nearby naming/export conventions (expected shape: `src/core/identifiers.js`) with intent-revealing operations such as `createRecordId()` for UUIDv7 and `createOpaqueId()` for random non-v7 UUIDs. Do not hand-roll UUID layout, timestamp encoding, sequencing, or randomness.
+- [ ] Add focused unit coverage proving canonical UUIDv7 record IDs, canonical random non-v7 opaque UUIDs, meaningful-batch uniqueness, and deterministic timestamp behavior only through supported dependency injection/options rather than a fake UUID format.
+- [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, and other verified durable framework records. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
+- [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` when appropriate, while explicitly preserving their semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, and workspace-purge fencing tokens remain random and non-time-ordered. Classify durable purge tombstone/backup receipt row identity separately from the token or artifact name it accompanies.
+- [ ] Preserve dedicated secret boundaries unchanged, including `randomBytes`-based sessions, CSRF nonces/signatures, API-key secrets, session references, password/reset/invitation/activation material, private calendar-feed tokens, signed-link tokens, authentication challenges, access-bearing idempotency keys, and future bearer credentials. Do not broadly ban `randomBytes` or turn the identifier authority into a secrets service.
+- [ ] Add the initial source guardrail: only the authority may import the UUID dependency; no new production direct `randomUUID` call is allowed; the still-unconverted first-party module files and `public/js/clients-projects.js` are captured in a temporary exact migration baseline that can only shrink in 0.33.29.2/.3. Test/fixture generation may remain a separately documented exception so compatibility tests do not depend on production generation.
+- [ ] Prove representative framework behavior: audit and job rows receive UUIDv7, the API-key record ID is independent from its random secret, Files record IDs are independent from opaque storage keys, and request/lock/fencing examples remain non-time-ordered. Keep SQLite `TEXT` compatibility and future PostgreSQL native `uuid` compatibility without a schema or data-rewrite migration.
+- [ ] Run `npm run docs:suggest`, update the owning database/architecture documentation and `DECISIONS.md` with the durable classification, record the dependency choice and temporary migration baseline, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.1`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- The central authority and its record/opaque operations are implemented and tested; all framework-owned ordinary persistent records in the audited inventory use UUIDv7; security-sensitive and non-record values retain the documented random/token behavior; SQLite and future PostgreSQL representation remain valid; and a no-growth guardrail contains the exact remaining module/browser migration baseline.
+
+### Version 0.33.29.2 - First-party module persistent-record UUIDv7 rollout
+
+**Model: High Effort** — This is a high-volume mechanical conversion across every first-party workflow module; the design is settled by 0.33.29.1, but a missed or misclassified call site could silently fragment the identifier policy or alter record relationships.
+
+- [ ] Convert all verified server-side ordinary persistent-record generators in Clients/Projects, Tasks and its checklist/assignee/relationship/recurrence/reminder children, Time Tracking entries and saved/active timers, Notes/revisions/links/collections, and Lists/items/catalogs/links to `createRecordId()` in one mechanical rollout. Include any newly added first-party module call sites found by the refreshed audit rather than treating the queued inventory as frozen.
+- [ ] Resolve duplicate service/repository generation so one authoritative layer creates each new ID, while preserving accepted caller-supplied UUIDv4 or UUIDv7 identifiers needed by imports, public APIs, recurrence/idempotent retries, restoration, and existing internal contracts. Do not refactor unrelated repository or workflow behavior.
+- [ ] Add representative integration coverage across at least two materially different modules plus persistent child/relationship rows, proving new IDs are UUIDv7 and mixed UUIDv4/UUIDv7 foreign-key relationships work. Avoid exact-random-value assertions and do not infer business chronology from the generated IDs.
+- [ ] Ratchet the source guardrail to zero server-side production bypasses: reject direct `randomUUID`, UUID-package `v4`, and UUID-package `v7` imports/calls outside the central authority and documented test-only exceptions. Keep only the exact temporary browser `createUuid()` exception assigned to 0.33.29.3; fail on any new browser UUID generator.
+- [ ] Prove module ordering and paging remain explicit: Tasks, Time Tracking, Notes, Lists, recurrence/reminder selection, and relationship reads continue to sort/page by their canonical timestamp, due-date, sequence, or module-owned fields rather than UUID lexical order.
+- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.2`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Every audited server-side first-party module record generator uses the central ordered-record authority, caller-supplied legacy IDs remain compatible, representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely, module ordering is unchanged, and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.29.3.
+
+### Version 0.33.29.3 - Server-authoritative browser creation, mixed-version recovery proof, and closeout
+
+**Model: High Effort** — This slice changes the Clients/Projects browser-to-server creation contract and then proves identifier compatibility across APIs, seeds, search, export, and destructive recovery tooling; those behavioral and data-integrity checks must close together.
+
+- [ ] Move new Client/Project persistent identity off `public/js/clients-projects.js` `window.crypto.randomUUID()` and its v4 fallback. Make the server authority generate canonical IDs and return them to the browser while preserving nested create behavior, local collection replacement, audit/event metadata, optimistic status, focus return, deep links, and navigation. Do not introduce a browser UUIDv7 implementation or tighten create payloads in a way that rejects existing UUIDv4 callers.
+- [ ] Remove the final browser migration-baseline exception and prove the guardrail fails on unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` generation while retaining only documented test/fixture or stronger dedicated-token exceptions.
+- [ ] Prove forward compatibility with pre-existing UUIDv4 fixtures across read, update, relate, search, export, and current APIs; create and exercise mixed UUIDv4/UUIDv7 foreign-key relationships; and verify seeded development and sanitized-demo data continue working without regeneration merely to normalize identifier versions.
+- [ ] Prove whole-instance backup/restore and workspace backup/restore preserve every identifier byte-for-byte, retain storage object keys and protected paths, and never rewrite IDs embedded in database rows, manifests, filenames, JSON metadata, audit history, or exported references. Run or document the required SQLite `PRAGMA integrity_check` evidence selected by the recovery paths.
+- [ ] Add/complete ordering guardrails showing canonical list ordering, pagination, cursors, recurrence/job selection, audit chronology, and visible creation order continue using explicit fields. Document that UUIDv7 offers insertion locality and approximate time ordering only, distributed clocks may skew, and two UUIDv7 values do not establish trusted causal order.
+- [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional exceptions/deferred sites, and docs disposition.
+- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.3`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
+
+Acceptance criteria:
+
+- Client/Project creation is server-authoritative without workflow regressions; one framework authority is the only normal production UUID entry point; new ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
 
 ## Version 0.34 - Support Tickets Module
 

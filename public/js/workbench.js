@@ -2,6 +2,8 @@ const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
 const WORKBENCH_CLIENT_FOCUS_KEY = "lf_workbench_client_focus_v1";
 const WORKBENCH_FOCUS_MODE_KEY = "lf_workbench_focus_mode_v1";
 const WORKBENCH_PROJECT_FOCUS_KEY = "lf_workbench_project_focus_v1";
+const WORKBENCH_TASK_FOCUS_DRIFT_KEY = "lf_workbench_task_focus_drift_v1";
+const WORKBENCH_TASK_FOCUS_DRIFT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const WORKBENCH_VIEW_STATE_FOCUS_SELECTION = "focus-selection";
 const WORKBENCH_VIEW_STATE_TASK_FOCUS = "task-focus";
 const WORKBENCH_MOBILE_INSPECTOR_MEDIA = "(max-width: 700px)";
@@ -150,6 +152,7 @@ let state = {
 };
 let tickIntervalId = null;
 let pendingActivatedTimerKey = "";
+let taskFocusExitCommitted = false;
 const recurrenceContinuityTrackers = new Map();
 let transientStatus = {
   isError: false,
@@ -168,6 +171,7 @@ const workbenchCardDataLoaders = {
 
 buildWorkbenchHost();
 bindWorkbenchEvents();
+installTaskFocusExitGuard();
 window.LongtailForge.quickActionRefresh?.subscribe({
   actionIds: ["time-tracking.timer.create"],
   onRefresh: refreshWorkbenchTimers,
@@ -737,7 +741,9 @@ async function loadWorkbench() {
     renderWorkbench();
     startTicking();
 
-    if (!(await applyTaskFocusDeepLink())) {
+    const deepLinkApplied = await applyTaskFocusDeepLink();
+    const driftCaptureOffered = await recoverPendingTaskFocusDrift();
+    if (!deepLinkApplied && !driftCaptureOffered) {
       setStatus("");
     }
   } catch (error) {
@@ -991,6 +997,133 @@ function resetTaskFocusState() {
   state.viewState = WORKBENCH_VIEW_STATE_FOCUS_SELECTION;
   state.activeTaskFocus = null;
   taskFocusInspectorCollapsed = false;
+}
+
+function installTaskFocusExitGuard() {
+  window.LongtailForge.navigationIntent?.registerExitGuard({
+    shouldHold: () => Boolean(taskFocusExitSnapshot()),
+    beforeContinue: offerTaskResumeNoteBeforeExit,
+    onCommitted() {
+      taskFocusExitCommitted = true;
+      clearPendingTaskFocusDrift();
+    },
+    onContinueError(_intent, error) {
+      taskFocusExitCommitted = false;
+      setStatus(error?.message || "Navigation could not continue.", { isError: true });
+    },
+  });
+  window.addEventListener("beforeunload", writePendingTaskFocusDrift);
+  window.addEventListener("pagehide", writePendingTaskFocusDrift);
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) void recoverPendingTaskFocusDrift();
+  });
+}
+
+function taskFocusExitSnapshot() {
+  if (taskFocusExitCommitted || resolvedWorkbenchViewState() !== WORKBENCH_VIEW_STATE_TASK_FOCUS) {
+    return null;
+  }
+  const taskId = String(state.activeTaskFocus?.taskId || "").trim();
+  const timer = currentTaskFocusTimer();
+  if (!taskId || !["running", "paused"].includes(timer?.timer_status)) {
+    return null;
+  }
+  return {
+    task: state.activeTaskFocus?.task || { task_id: taskId },
+    taskId,
+    timerStatus: timer.timer_status,
+  };
+}
+
+async function offerTaskResumeNoteBeforeExit(intent = {}) {
+  const snapshot = taskFocusExitSnapshot();
+  if (!snapshot) {
+    return { captured: false, reason: "not-applicable" };
+  }
+  const result = await window.LongtailForge.taskResumeNoteCapture?.offer({
+    task: snapshot.task,
+    taskId: snapshot.taskId,
+    trigger: intent.trigger || null,
+    onSaved(updatedTask) {
+      if (updatedTask?.task_id === state.activeTaskFocus?.taskId) {
+        applyActiveTaskFocusTask(updatedTask);
+      }
+    },
+    onError(error) {
+      setStatus(error.message || "Resume note could not be saved. Continuing navigation.", { isError: true });
+    },
+  });
+  clearPendingTaskFocusDrift();
+  return result || { captured: false, reason: "unavailable" };
+}
+
+function writePendingTaskFocusDrift() {
+  const snapshot = taskFocusExitSnapshot();
+  if (!snapshot) return;
+  try {
+    window.sessionStorage.setItem(WORKBENCH_TASK_FOCUS_DRIFT_KEY, JSON.stringify({
+      taskId: snapshot.taskId,
+      timerStatus: snapshot.timerStatus,
+      timestamp: Date.now(),
+    }));
+  } catch {
+    // Hard-exit recovery is best effort; no Task content is duplicated here.
+  }
+}
+
+function clearPendingTaskFocusDrift() {
+  try {
+    window.sessionStorage.removeItem(WORKBENCH_TASK_FOCUS_DRIFT_KEY);
+  } catch {
+    // Session storage can be unavailable under strict browser privacy policies.
+  }
+}
+
+function readPendingTaskFocusDrift() {
+  try {
+    const marker = JSON.parse(window.sessionStorage.getItem(WORKBENCH_TASK_FOCUS_DRIFT_KEY) || "null");
+    const taskId = String(marker?.taskId || "").trim();
+    const timestamp = Number(marker?.timestamp || 0);
+    const timerStatus = String(marker?.timerStatus || "").trim();
+    if (!taskId || !["running", "paused"].includes(timerStatus) || !Number.isFinite(timestamp)
+      || timestamp <= 0 || Date.now() - timestamp > WORKBENCH_TASK_FOCUS_DRIFT_MAX_AGE_MS) {
+      clearPendingTaskFocusDrift();
+      return null;
+    }
+    return { taskId, timestamp, timerStatus };
+  } catch {
+    clearPendingTaskFocusDrift();
+    return null;
+  }
+}
+
+async function recoverPendingTaskFocusDrift() {
+  const marker = readPendingTaskFocusDrift();
+  if (!marker) return false;
+  clearPendingTaskFocusDrift();
+
+  const timer = activeOrPausedTimers(state.timers).find((entry) => taskTimerMatches(entry, marker.taskId));
+  if (!timer) return false;
+
+  try {
+    const result = await api.getJson(`/api/tasks/${encodeURIComponent(marker.taskId)}`, { cache: "no-store" });
+    const task = result?.task || null;
+    if (!task || ["complete", "archived"].includes(String(task.status || "")) || String(task.resume_note || "").trim()) {
+      return false;
+    }
+    setStatus("Recovering work context...");
+    const captureResult = await window.LongtailForge.taskResumeNoteCapture?.offer({
+      task,
+      taskId: marker.taskId,
+      onError(error) {
+        setStatus(error.message || "Resume note could not be saved.", { isError: true });
+      },
+    });
+    if (captureResult?.reason !== "error") setStatus("");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function toggleWorkbenchStatePanel(element, hidden) {
@@ -2263,6 +2396,7 @@ async function enterTaskFocus(candidate, taskId) {
     return;
   }
 
+  taskFocusExitCommitted = false;
   state.viewState = WORKBENCH_VIEW_STATE_TASK_FOCUS;
   state.activeTaskFocus = taskFocusFromCandidate(candidate, taskId);
   taskFocusInspectorCollapsed = false;
@@ -2590,19 +2724,26 @@ function activeTaskFocusCandidate() {
   };
 }
 
-function changeFocus(event) {
+async function changeFocus(event) {
   if (resolvedWorkbenchViewState() !== WORKBENCH_VIEW_STATE_TASK_FOCUS) {
     return;
   }
 
-  const active = state.activeTaskFocus;
-  if (currentTaskFocusTimer(active)) {
-    offerTaskResumeNote(active?.task, event?.currentTarget || null);
+  const continueChangeFocus = () => {
+    resetTaskFocusState();
+    renderWorkbench();
+    setStatus("Choose the next focus.");
+    focusActiveFocusQuestion();
+  };
+  if (window.LongtailForge.navigationIntent) {
+    await window.LongtailForge.navigationIntent.request({
+      kind: "workbench-change-focus",
+      trigger: event?.currentTarget || null,
+      continue: continueChangeFocus,
+    });
+    return;
   }
-  resetTaskFocusState();
-  renderWorkbench();
-  setStatus("Choose the next focus.");
-  focusActiveFocusQuestion();
+  continueChangeFocus();
 }
 
 function focusActiveFocusQuestion() {
@@ -2664,7 +2805,7 @@ function openNonTaskFocusFallback(candidate) {
     setStatus(isManualTimerCandidate(candidate)
       ? "Continuing this timer in Time Tracking."
       : "Opening this work in its module page until Task Focus supports this type.");
-    window.location.href = href;
+    navigateFromWorkbench(href, "work-candidate-fallback");
     return;
   }
 
@@ -2711,7 +2852,7 @@ async function openTaskFocusRelatedContextItem(item = {}, trigger = null) {
 
   if (action.fallbackUrl) {
     setStatus(`Opening ${relatedContextSourceLabel(item).toLowerCase()}...`);
-    window.location.href = action.fallbackUrl;
+    navigateFromWorkbench(action.fallbackUrl, "related-context-fallback");
     return;
   }
 
@@ -2746,7 +2887,7 @@ async function openRelatedContextModuleAction(item = {}, action = {}, trigger = 
   } catch (error) {
     if (action.fallbackUrl) {
       setStatus(`Opening ${sourceLabel.toLowerCase()} in its module page.`);
-      window.location.href = action.fallbackUrl;
+      navigateFromWorkbench(action.fallbackUrl, "related-context-error-fallback");
       return;
     }
     setStatus(error.message || `${sourceLabel} could not be opened.`, { isError: true });
@@ -2791,11 +2932,19 @@ function openCandidateNavigationFallback(candidate) {
     setStatus(isManualTimerCandidate(candidate)
       ? "Continuing this timer in Time Tracking."
       : "Opening this work in its module page.");
-    window.location.href = href;
+    navigateFromWorkbench(href, "work-candidate-navigation");
     return;
   }
 
   setStatus("This recommendation does not have an in-place editor or page fallback yet.", { isError: true });
+}
+
+function navigateFromWorkbench(href, kind = "workbench-navigation") {
+  if (window.LongtailForge.navigationIntent) {
+    void window.LongtailForge.navigationIntent.navigate(href, { kind });
+    return;
+  }
+  window.location.href = href;
 }
 
 function candidateTaskId(candidate = {}) {

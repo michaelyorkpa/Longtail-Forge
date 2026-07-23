@@ -74,8 +74,8 @@ assert.doesNotMatch(
 const fallbackBody = functionBody(workbenchScript, "openNonTaskFocusFallback");
 assert.match(
   fallbackBody,
-  /const href = candidatePageFallback\(candidate\);[\s\S]*Continuing this timer in Time Tracking\.[\s\S]*Opening this work in its module page until Task Focus supports this type\.[\s\S]*window\.location\.href = href;/,
-  "Non-task primary candidates should keep an explicit temporary page fallback",
+  /const href = candidatePageFallback\(candidate\);[\s\S]*Continuing this timer in Time Tracking\.[\s\S]*Opening this work in its module page until Task Focus supports this type\.[\s\S]*navigateFromWorkbench\(href, "work-candidate-fallback"\);/,
+  "Non-task primary candidates should keep an explicit temporary page fallback through the guarded navigation path",
 );
 assert.match(
   fallbackBody,

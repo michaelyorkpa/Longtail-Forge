@@ -13,6 +13,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import Database from "better-sqlite3";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -60,6 +61,7 @@ const EXPECTED_DATABASE_ACTIONS = [
 
 try {
   await assertFreshInstallRejectsMissingBootstrapPassword();
+  await assertExistingInstallationDoesNotInventAdministrator();
   await assertCoordinatorOrderAndFailureBehavior();
   assertLifecycleInventory();
   await assertFreshInstallAndRepeatStartup();
@@ -74,10 +76,12 @@ try {
 async function assertFreshInstallRejectsMissingBootstrapPassword() {
   const probeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-bootstrap-password-required-"));
   const probePassword = "Bootstrap-Password-Required-Probe-123!";
+  const initialUsername = "initial-bootstrap-admin@example.test";
+  const changedUsername = "changed-bootstrap-admin@example.test";
   const source = await fs.readFile(path.join(rootDir, "src", "db", "app-startup-maintenance.js"), "utf8");
   assert.doesNotMatch(source, /createGeneratedPassword|generated password:/i, "startup must not generate or print a bootstrap credential");
 
-  const missingPasswordProbe = runBootstrapProbe(probeRoot);
+  const missingPasswordProbe = runBootstrapProbe(probeRoot, "", initialUsername);
 
   try {
     assert.equal(missingPasswordProbe.status, 0, missingPasswordProbe.stderr || missingPasswordProbe.stdout);
@@ -87,20 +91,113 @@ async function assertFreshInstallRejectsMissingBootstrapPassword() {
     });
     assert.doesNotMatch(missingPasswordProbe.stdout, /generated password|password:/i, "startup output must not disclose a bootstrap credential");
 
-    const configuredPasswordProbe = runBootstrapProbe(probeRoot, probePassword);
+    const configuredPasswordProbe = runBootstrapProbe(probeRoot, probePassword, initialUsername);
     assert.equal(configuredPasswordProbe.status, 0, configuredPasswordProbe.stderr || configuredPasswordProbe.stdout);
     assert.deepEqual(readProbeResult(configuredPasswordProbe), { ok: true });
     assert.doesNotMatch(configuredPasswordProbe.stdout, new RegExp(probePassword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "startup output must not contain the configured bootstrap credential");
 
-    const existingInstallProbe = runBootstrapProbe(probeRoot);
+    const existingInstallProbe = runBootstrapProbe(probeRoot, "", changedUsername);
     assert.equal(existingInstallProbe.status, 0, existingInstallProbe.stderr || existingInstallProbe.stdout);
     assert.deepEqual(readProbeResult(existingInstallProbe), { ok: true });
+
+    const database = new Database(path.join(probeRoot, "bootstrap-password-required.db"), { readonly: true });
+    try {
+      assert.deepEqual(
+        database.prepare(`
+SELECT username, protected_user
+FROM users
+ORDER BY username;
+`).all(),
+        [{ username: initialUsername, protected_user: "yes" }],
+        "changing SUPER_ADMIN_USERNAME after first install must neither rename the protected identity nor create another user",
+      );
+      assert.equal(
+        database.prepare("SELECT COUNT(*) AS count FROM user_role_assignments WHERE role_id = 'super_admin';").get().count,
+        1,
+        "an environment username change must retain exactly one super-admin assignment",
+      );
+    } finally {
+      database.close();
+    }
   } finally {
     await fs.rm(probeRoot, { recursive: true, force: true });
   }
 }
 
-function runBootstrapProbe(probeRoot, password = "") {
+async function assertExistingInstallationDoesNotInventAdministrator() {
+  const probeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-existing-install-bootstrap-"));
+  const databaseFile = path.join(probeRoot, "bootstrap-password-required.db");
+  const configuredUsername = "must-not-be-created@example.test";
+
+  try {
+    const initialProbe = runBootstrapProbe(probeRoot);
+    assert.equal(initialProbe.status, 0, initialProbe.stderr || initialProbe.stdout);
+    assert.equal(readProbeResult(initialProbe).ok, false, "the initial passwordless probe should create the schema but not a user");
+
+    const database = new Database(databaseFile);
+    try {
+      const workspace = database.prepare("SELECT workspace_id FROM workspaces ORDER BY created_at, workspace_id LIMIT 1;").get();
+      assert.ok(workspace?.workspace_id);
+      database.prepare(`
+INSERT INTO users (
+  user_id,
+  home_workspace_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user,
+  active_workspace_id
+)
+VALUES (
+  'existing-install-user',
+  @workspaceId,
+  'existing-user@example.test',
+  'Existing User',
+  NULL,
+  'America/New_York',
+  '!not-a-login-credential!',
+  'light',
+  'active',
+  'no',
+  @workspaceId
+);
+`).run({ workspaceId: workspace.workspace_id });
+    } finally {
+      database.close();
+    }
+
+    const updateProbe = runBootstrapProbe(
+      probeRoot,
+      "Existing-Install-Must-Not-Create-123!",
+      configuredUsername,
+    );
+    assert.equal(updateProbe.status, 0, updateProbe.stderr || updateProbe.stdout);
+    assert.deepEqual(readProbeResult(updateProbe), { ok: true });
+
+    const verification = new Database(databaseFile, { readonly: true });
+    try {
+      assert.deepEqual(
+        verification.prepare("SELECT username, protected_user FROM users ORDER BY username;").all(),
+        [{ username: "existing-user@example.test", protected_user: "no" }],
+        "startup over an existing nonempty installation must not invent a configured administrator",
+      );
+      assert.equal(
+        verification.prepare("SELECT COUNT(*) AS count FROM user_role_assignments WHERE role_id = 'super_admin';").get().count,
+        0,
+      );
+    } finally {
+      verification.close();
+    }
+  } finally {
+    await fs.rm(probeRoot, { recursive: true, force: true });
+  }
+}
+
+function runBootstrapProbe(probeRoot, password = "", username = "missing-bootstrap-password@example.test") {
   const databaseFile = path.join(probeRoot, "bootstrap-password-required.db");
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => key !== "SUPER_ADMIN_PASSWORD"),
@@ -109,7 +206,7 @@ function runBootstrapProbe(probeRoot, password = "") {
     LONGTAIL_DATA_DIR: probeRoot,
     LONGTAIL_DATABASE_FILE: databaseFile,
     LONGTAIL_ENV: "development",
-    SUPER_ADMIN_USERNAME: "missing-bootstrap-password@example.test",
+    SUPER_ADMIN_USERNAME: username,
   });
   if (password) {
     env.SUPER_ADMIN_PASSWORD = password;

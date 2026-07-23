@@ -14,8 +14,11 @@
         "^views/protected/workbench\\.html$"
       ],
       "docs": [
+        "docs/tasks-module.md",
         "docs/ui-layout-guide.md",
-        "docs/workflow-context-contract.md"
+        "docs/view-building-contract.md",
+        "docs/workflow-context-contract.md",
+        "help/modules/tasks/resuming-task-work.md"
       ]
     },
     {
@@ -24,10 +27,14 @@
       "sourcePatterns": [
         "^public/js/dashboard(?:[./-]|$)",
         "^public/css/dashboard\\.css$",
+        "^scripts/(?:measure-dashboard-performance\\.mjs|regressions/dashboard/)",
         "^src/(?:modules|routes|services)/dashboard(?:/|[.-])",
         "^views/protected/dashboard\\.html$"
       ],
       "docs": [
+        "docs/module-contract.md",
+        "docs/regression-suite-performance.md",
+        "docs/regression-suite.md",
         "docs/ui-layout-guide.md",
         "docs/workflow-context-contract.md"
       ]

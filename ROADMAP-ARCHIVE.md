@@ -1,5 +1,189 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.21.20 - Development-seed administrator identity and first-install bootstrap correction
+
+Completed locally on 2026-07-23. This final pre-0.33.22 correction retains the live roadmap cursor at 0.33.22.
+
+**Model: High Effort** — The correction joined root environment loading, first-install identity safety, protected-role invariants, destructive local seed replacement, and reference-bearing SQLite verification.
+
+- [x] Made the development/sanitized-demo CLI load the root `.env` before reading bootstrap config, while retaining explicit process-environment precedence and the canonical `Today()` anchor.
+- [x] Restricted administrator creation to an empty installation: any existing protected user, `super_admin` assignment, or other user row suppresses creation, and a configured username change does not create or rename a user.
+- [x] Kept bootstrap credentials fail-closed and secret-safe; a fresh installation without `SUPER_ADMIN_PASSWORD` reports the required configuration instead of generating or printing a password.
+- [x] Added isolated regressions for configured seed identity, changed-username restarts, exactly one protected/super-admin identity, nonempty-install update safety, and bootstrap-secret output refusal.
+- [x] Backed up the exact canonical development seed, used its guarded reset, reseeded from the untracked `.env`, and verified configured identity, one protected/super-admin user, SQLite integrity, foreign keys, and the running app version.
+- [x] Updated the governing startup/database/development-data/regression docs and removed the completed TODO report.
+
+Acceptance criteria:
+
+- Local reset/reseed reads the configured operator from `.env`, ordinary startup or environment changes cannot invent another user, nonempty installations require explicit administrator repair rather than mutation on update, and the canonical local world contains exactly one protected super administrator with clean database/runtime proof.
+
+## Version 0.33.21.19 - Dashboard load performance
+
+Completed locally on 2026-07-23. All five Dashboard load-performance slices are complete and the live roadmap advances to 0.33.22.
+
+**Model: High Effort** — This umbrella crossed Time Tracking dashboard aggregation, Tasks calendar payload shaping, Tasks summary computation, Dashboard client bootstrap sequencing, and branch-level measured capacity proof.
+
+Purpose:
+
+Restore fast Dashboard first paint on growing workspaces without changing panel content or ownership. The branch replaced the two remaining whole-row hot reads, bounded and permission-shaped Tasks summary work, started live panel reads before contributed assets finish, and closed with repeatable Today-anchored fat-seed measurements plus durable budgets.
+
+- [x] `0.33.21.19.1` replaced Time Tracking effort-summary's full-list/tag path with an indexed seven-day aggregate and three-row read.
+- [x] `0.33.21.19.2` replaced Calendar's wide Task projection and workspace-wide assignee hydration with one bounded lean query.
+- [x] `0.33.21.19.3` replaced Tasks summary's whole-list pipeline with permission-resource count groups and bounded ranked candidates.
+- [x] `0.33.21.19.4` removed the client serial-bootstrap gap through warm-first route promises, parallel asset batches, and an interaction-only Task dialog.
+- [x] `0.33.21.19.5` recorded reproducible before/after evidence and locked the branch with HTTP, payload, statement, data-growth, and rendered first-fetch budgets.
+
+Acceptance criteria:
+
+- The three Dashboard data endpoints return in a fraction of their former time with identical rendered content, Calendar ships a materially smaller payload, the client no longer waits behind the asset chain, and the hot paths are guarded against query, payload, timing, and unrelated-data-growth regressions.
+
+### Version 0.33.21.19.5 - Dashboard load-performance proof and budget closeout
+
+Completed locally on 2026-07-23. The live roadmap advances to 0.33.22.
+
+**Model: Medium Effort** — This was branch-level before/after proof and durable budget closeout across the four implementation children.
+
+- [x] Added `npm run bench:dashboard`, which preserves the configured database, creates and removes a short-lived session, runs seven warm HTTP samples for all three routes, and measures the real browser's navigation/load-to-first-fetch timing.
+- [x] Measured the canonical `development-data-v2` seed at 5 workspaces, 400 Tasks, and 604 time entries with its horizon anchored to `Today()`, never a committed calendar date.
+- [x] Replayed the same harness against pre-branch and completed source on the same workstation: Tasks summary moved from 211.6 ms / 27 statements to 15.0 ms / 10; Calendar from 136.3 ms / 348,307 bytes / 8 statements to 59.4 ms / 107,115 bytes / 7; and effort summary from 428.6 ms / 10 statements to 15.9 ms / 7.
+- [x] Reduced the controlled browser load-event-to-first-fetch gap from 307.6 ms to 92.4 ms, while retaining the original cold rendered observation (~2 seconds) as the motivating diagnostic.
+- [x] Added `dashboard.hot-endpoint-budgets` for all three HTTP routes with conservative timing, payload, statement, and unrelated-growth ceilings; endpoint-owned regressions retain tighter service/repository budgets.
+- [x] Added a one-second rendered first-fetch gap ceiling to the existing Dashboard sequencing proof while preserving the contributed-asset hold and lazy Task-dialog assertions.
+- [x] Added the Dashboard measurement/budget decision, swept Dashboard/Tasks/Time Tracking/performance/E2E/regression docs, raised the discovered suite to 401, and raised the protected Dashboard floor to 2.
+
+Acceptance criteria:
+
+- Before/after Dashboard numbers are recorded, budget regressions guard the three endpoints and client sequencing against regression and unrelated data-growth scaling, and the branch closes through the canonical gate with docs updated.
+
+## Version 0.33.21.19.4 - Dashboard client bootstrap and data-fetch sequencing
+
+Completed locally on 2026-07-23. The live roadmap advances to 0.33.21.19.5.
+
+**Model: High Effort** — This changed the Dashboard browser critical path while preserving contribution ownership, accessibility, CSP, calendar behavior, and versioned assets.
+
+- [x] Started the workspace- and release-keyed stale-while-revalidate `/api/dashboard` manifest after only navigation/API foundations load, then warmed every declared panel route into one shared route-keyed promise map before the remaining host asset chain completed.
+- [x] Kept Tasks summary, bounded Today-anchored active calendar, and Time Tracking effort payloads as live `no-store` reads; Dashboard, shared calendar, and Time Tracking renderers reuse the warm promises without duplicate requests.
+- [x] Parallelized independent base-script and contributed script/style batches with `Promise.all`, while retaining explicit dependency batches where captured helper APIs require ordering.
+- [x] Removed `task-dialog.js` from the Dashboard first-paint browser-asset catalog and lazy-imported it through the versioned bridge only when a Dashboard calendar task is opened.
+- [x] Removed the calendar panel's `workspaceContextReady` wait and preserved responsive defaults plus saved Day/Week/Month preferences from the already hydrated context.
+- [x] Added `views.dashboard-client-bootstrap` static sequencing/guardrail coverage and rendered Playwright proof that all three panel reads begin while a contribution script is held, with exactly one Task-dialog request after interaction.
+- [x] Raised the discovered regression inventory to 400 and the protected Views floor to 33.
+
+Acceptance criteria:
+
+- Dashboard data fetches fire in parallel as soon as their routes are known, overlap asset loading, and reuse one promise per route; first paint omits the Task dialog, while panel registration, region placement, accessibility, CSP, responsive calendar behavior, and versioned assets remain intact.
+
+## Version 0.33.21.19.3 - Tasks dashboard-summary count aggregation and precompiled permission filtering
+
+Completed locally on 2026-07-23. The live roadmap advances to 0.33.21.19.4.
+
+**Model: Medium Effort** — This contained endpoint optimization replaces whole-workspace Task shaping with permission-safe SQL aggregates and bounded list candidates while preserving the complete Dashboard summary contract.
+
+- [x] Replaced dashboard-summary's unbounded `queryTasks` call with SQL `COUNT` groups keyed by workspace/Client/Project permission resources; one precompiled `tasks.view` evaluator filters groups before exact totals are reduced.
+- [x] Added per-resource SQL ranking for attention, upcoming, overdue, due-soon, and assigned-to-me candidate windows, then batch-enriched only readable candidates that can still reach a rendered top-five row.
+- [x] Replaced the shared Task-list candidate loop's per-row `canReadTask` calls with one precompiled evaluator and reused that evaluator for parent visibility during batched projection enrichment.
+- [x] Reused request-scoped workspace-settings memoization in dashboard-summary; active-timer shaping already carried the session from 0.33.21.19.1, while the shared cross-request client/project fixture boundary remained unchanged.
+- [x] Added `tasks.dashboard-summary-budgets` for exact counts, metrics, ordering, timer/timed-overdue behavior, one evaluator, zero per-row permission calls, a 15-statement ceiling, and constant statement/enrichment cost after 500 terminal Tasks.
+- [x] Raised the discovered regression inventory and protected Tasks floor to 399 and 54 respectively.
+
+Acceptance criteria:
+
+- dashboard-summary derives exact permission-safe tiles from SQL aggregates, enriches only bounded candidate rows, preserves all five list contracts and ordering, and keeps statement/enrichment cost constant as total Task volume grows.
+
+## Version 0.33.21.19.2 - Tasks calendar lean projection and scoped assignee read
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.19.3.
+
+**Model: Medium Effort** — This contained payload-shaping correction preserves the shared calendar behavior and read model while removing discarded Task detail and whole-workspace assignee work.
+
+- [x] Replaced the shared Task summary expansion with a purpose-built endpoint row containing only `task_id`/`id`, title, status, priority, due date/time, readable Client/Project names, and the `startDate`/`allDay` markers consumed by the shared renderer.
+- [x] Added a calendar-specific repository SQL projection retaining only internal permission/reminder inputs and public renderer values; wide Task continuity/detail text is neither selected nor returned.
+- [x] Removed assignee hydration from `readDueBetween`, so the repository path is one bounded SQL statement and never scans workspace-wide assignments.
+- [x] Preserved active-status defaults and explicit status sets, reminder markers/lookahead, single-day semantics, workspace/Client/Project permission scope, disabled-module reads, and a lean row shape suitable for later read-time recurrence projection.
+- [x] Expanded `tasks.task-calendar-window` with exact payload allowlist/denylist, internal projection, discarded-column, and one-statement/no-assignee assertions alongside its existing behavior coverage.
+
+Acceptance criteria:
+
+- The calendar endpoint returns only the fields the grid renders, performs no assignee read, and preserves rendered calendar, reminder, status, filter, permission, workspace, and bounded-window behavior.
+
+## Version 0.33.21.19.1 - Time Tracking effort-summary bounded aggregation
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.19.2.
+
+**Model: High Effort** — The `effort-summary` endpoint was the unmigrated legacy path and the strongest single win; the completed replacement preserves exact totals and scoped visibility without disturbing the shared time-entry list contract.
+
+- [x] Replaced the effort-summary full-table `timeEntriesService.list` path with a purpose-built repository read bounded to the displayed seven local days, SQL `COUNT`/`SUM(duration_seconds)` aggregates, and a three-row `LIMIT`; the shared `readAll`/`list` contract remains unchanged for its other consumers.
+- [x] Verified that the required `idx_time_entries_workspace_end` index on `time_entries (workspace_id, end_time)` already exists in both the committed fresh-start baseline and generated final-schema snapshot, and proved the bounded query plan uses it instead of adding a redundant no-op migration.
+- [x] Pushed the existing time-entry visibility contract into the bounded SQL predicates, then retained a defense-in-depth authorization pass over only the at-most-three displayed rows; the Dashboard path no longer filters or decorates tags for the whole table.
+- [x] Threaded `session` through the Dashboard, shared time-entry list, and active-timer shaping workspace-settings reads so the request memo reduces the physical workspace/settings join to one.
+- [x] Added `time-tracking.dashboard-effort-summary-budgets` plus permission-harness coverage for identical totals/recent rows, indexed execution, exact project-scope exclusion, one physical settings read, a three-row authorization ceiling, and constant statement/payload cost after 500 historical entries are added.
+
+Acceptance criteria:
+
+- The effort summary computes its three rows and two totals from a windowed, indexed, aggregated read whose cost no longer scales with total time entries, returns identical values, authorizes only displayed rows, preserves workspace/project visibility, and hits the settings memo once.
+
+## Version 0.33.21.18 - Post-update Task Focus, task editor, and development-seed corrections
+
+Completed locally on 2026-07-22. All three correction slices are complete and the live roadmap advances to 0.33.21.19.1.
+
+**Model: High Effort** — This correction umbrella kept the development-seed timer repair, contained Task editor layout correction, and complete Task Focus exit capture in separate ownership-safe slices.
+
+Purpose:
+
+Correct the post-update seed, Task editor continuity width, and timed Task Focus exit gaps without adding a new timer workflow, Task storage, or global unsaved-changes framework.
+
+Acceptance criteria:
+
+- A clean deterministic local seed produces resumable canonical Task timers with matching lifecycle state, the Task continuity block uses the full editor width, and every supported loss of a timed Task Focus uses the same Tasks-owned resume-note capture without duplicate prompts or storage.
+
+### Version 0.33.21.18.3 - Resume-note capture for every supported Task Focus exit
+
+**Model: High Effort** — The completed contract crosses Workbench state, framework app-shell navigation intent, Tasks-owned resume-note writes, Time Tracking timer truth, browser history, and bounded hard-exit recovery.
+
+- [x] Inventoried Change Focus, app-shell/module links, Search, Notifications, workspace/account actions, Workbench scripted fallbacks, browser history traversal, refresh, and tab/window exit; interceptable paths converge on one app-shell navigation intent.
+- [x] Reused the exact single-line `Add resume note?` Yes/No capture, preserved the first exact destination/action, and deduplicated concurrent exit signals to one prompt and continuation.
+- [x] Kept timer Pause/Save Time complete and non-blocking while holding interceptable navigation only through capture; optional write failures report safely and do not lose the destination.
+- [x] Added a 12-hour session-only marker containing Task ID, timer status, and timestamp for hard exits, with clear-first recovery that re-checks timer truth, readability, lifecycle, and current `resume_note`.
+- [x] Preserved ownership: Workbench decides timed-focus eligibility and marker lifecycle, the app shell owns navigation intent, Tasks owns reads and `resume_note`, Time Tracking owns timer truth, and the shared modal owns capture anatomy.
+- [x] Added executable intent/deduplication/marker coverage and rendered desktop/mobile proof for Change Focus plus a real Dashboard app-shell navigation.
+
+Acceptance criteria:
+
+- Supported loss of a running or paused Task Focus either offers `Add resume note?` before continuing the exact interceptable destination or records a bounded hard-exit marker for one safe Workbench-return offer; Yes updates the correct Tasks-owned Resume note, No/dismissal continues cleanly, and exits do not lose destinations, prompt twice, or duplicate Task content.
+
+## Version 0.33.21.18.2 - Full-width Task editor continuity block
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.18.3.
+
+**Model: Medium Effort** — This contained Task editor layout correction used the shared full-width field contract without changing routes, payloads, lifecycle, permissions, or storage.
+
+- [x] Made the always-visible Work continuity group span the full available width of the shared Add/Edit Task modal.
+- [x] Kept Resume note and Next action in two desktop columns while Blocked Reason is hidden, and switched to three columns when the status-gated field is visible.
+- [x] Preserved labels, placeholders, values, validation, payload names, and always-visible/status-gated behavior; phone layouts stack one field per row.
+- [x] Extended Task modal reflow, compact-layout, context-section, and strict guardrail regressions for the shared outer width and responsive inner columns.
+- [x] Updated the Tasks module handoff documentation; `docs: suggest` found no additional owning doc beyond existing development-data documentation already changed in this worktree.
+
+Acceptance criteria:
+
+- The Task editor’s Work continuity block spans the full modal width in Add and Edit, gives Resume note and Next action practical space when the Task is not Blocked, adds Blocked reason as the third full-row column only when applicable, and stacks cleanly on phones without changing Task behavior.
+
+## Version 0.33.21.18.1 - Development-seed task-timer coherence, Start repair, and guarded local reset
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.18.2.
+
+**Model: High Effort** — The observed 500 crossed deterministic seed data, Tasks/Time Tracking timer identity and lifecycle metadata, SQLite uniqueness, and an explicitly destructive local reset whose safety and runtime result required proof.
+
+- [x] Reproduced the malformed fixture through the real Tasks timer service and recorded the `SQLITE_CONSTRAINT_UNIQUE` failure on sourced-timer identity before changing the seed.
+- [x] Made deterministic development/sanitized-demo Task Timers use `running`/`paused`, canonical `source:tasks:task:<taskId>` slots and source identity, matching Task/Client/Project labels, Tasks-authored transition metadata, and matching `in_progress` Task state.
+- [x] Expanded `database.development-data-seed` to join every seeded timer to its Task, user, workspace, Client, and Project; pin lifecycle/status/slot/metadata coherence; and drive the real Start/Resume, Pause, Save Time, and Reset paths without a duplicate source row.
+- [x] Verified `.env` points the three runtime data paths at guarded `./data/development-seed` without printing secrets, then used the supported confirmed reset and the seed's normal current-local-date (`Today()`) anchor only for the canonical local target.
+- [x] Restarted the canonical local server and proved SQLite integrity, zero foreign-key violations, slice-version runtime metadata, coherent seeded Task/timer state, and successful Task editor/Workbench timer mutations.
+- [x] Updated the owning development-data, Tasks, and Time Tracking documentation; generated database, Files, backups, and credentials remain outside Git.
+
+Acceptance criteria:
+
+- A guarded reset and deterministic reseed of the local 127.0.0.1 development world produces canonical Task-linked timers and matching `In Progress` Tasks, the previously failing timer can Start/Resume, Pause, Save Time, and Reset from both Workbench and the Task editor without a 500 or duplicate row, and integrity/foreign-key/runtime proof is recorded.
+
 ## Version 0.33.21.17.2 - Resume-note capture prompt on timer pause/end and Workbench navigation-away
 
 Completed locally on 2026-07-22. This completes the 0.33.21.17 lifecycle-capture branch; the live roadmap advances to 0.33.22.
