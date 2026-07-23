@@ -5861,10 +5861,6 @@ dialog .form-actions {
     border-color: var(--color-border-strong);
 }
 
-.workbench-badge[data-badge-type="disabled"] {
-    opacity: 0.72;
-}
-
 .workbench-actions {
     display: flex;
     flex-wrap: wrap;
