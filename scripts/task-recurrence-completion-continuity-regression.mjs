@@ -214,7 +214,8 @@ async function assertBrowserContracts() {
   assert.match(service, /completeRecurrenceHandoff\(taskWithDetails, session/);
   assert.match(service, /completeRecurrenceHandoff\(task, session\)/);
   assert.match(service, /recurrenceContinuities\.push/);
-  assert.match(taskDialog, /completedBySave[\s\S]*taskCompletionHostDetail\(result\)/);
+  assert.match(taskDialog, /completedBySave[\s\S]*taskCompletionHostDetail\(result\)[\s\S]*closeTaskModal\(dialog, "complete"\)/);
+  assert.match(taskDialog, /saveAndCompleteTask[\s\S]*taskCompletionHostDetail\(result\)[\s\S]*closeTaskModal\(dialog, "complete"\)/);
   assert.match(taskDialog, /pollRecurrenceContinuity[\s\S]*recurrence-continuity/);
   assert.match(taskDialog, /data-task-recurrence-continuity/);
   assert.match(tasksScript, /postTaskAction[\s\S]*trackTaskRecurrenceContinuity/);

@@ -60,10 +60,14 @@ function assertStaticContract() {
   assert.match(taskDialogScript, /currentTaskId[\s\S]*TASK_COMPLETE_VISIBLE_STATUSES\.has\(status\)[\s\S]*hasTaskCompletePermission\(\)/, "Complete action should require a saved active task and completion permission");
   assert.match(taskDialogScript, /permissions\.has\("tasks\.complete"\)/, "Complete action should check tasks.complete before showing");
   assert.match(taskDialogScript, /complete\.dataset\.completeTask = ""[\s\S]*complete\.hidden = true/, "Complete header button should start hidden until state gating passes");
-  assert.match(taskDialogScript, /saveTaskForm\(\{[\s\S]*closeOnSuccess: false,[\s\S]*statusMessage: "Saving task before completion\.\.\."/,
-    "Save-and-complete should persist pending edits before completion without closing the modal");
+  assert.match(taskDialogScript, /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\(\{[\s\S]*closeOnSuccess: false,[\s\S]*statusMessage: "Saving task before completion\.\.\."/,
+    "Save-and-complete should persist only real pending edits before completion");
   assert.match(taskDialogScript, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)/,
     "Save-and-complete should call the dedicated protected complete route");
+  assert.match(taskDialogScript, /hostContext\?\.complete\?\.\(taskCompletionHostDetail\(result\)\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
+    "Save-and-complete should report completion to its host and close without a follow-up editor state");
+  assert.doesNotMatch(taskDialogScript, /offerCompletionNextAction|pendingTaskCompletionDetail/,
+    "Task completion should not retain or refocus the editor for Next Action");
   assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*taskLifecycleAction: "complete"/,
     "Complete action should pass safe lifecycle detail to host surfaces");
   assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*recurrenceQueued: result\.recurrenceJob\?\.queued === true/,

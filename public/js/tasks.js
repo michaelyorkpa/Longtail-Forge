@@ -9,7 +9,7 @@ const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
   "tasks.lifecycle.complete": ({ record, trigger }) => postTaskAction(record, "complete", trigger),
   "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
   "tasks.lifecycle.block": ({ action, record, trigger }) => openTaskDialogForBlock(record, action, trigger),
-  "tasks.lifecycle.unblock": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "open", blocked_reason: "" }),
+  "tasks.lifecycle.resume": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "in_progress", blocked_reason: "" }),
   "tasks.lifecycle.archive": ({ record }) => postTaskAction(record, "archive"),
   "tasks.lifecycle.restore": ({ record }) => postTaskAction(record, "restore"),
 });
@@ -1498,13 +1498,13 @@ function taskLifecycleActionStripDescriptor() {
         visibleStatuses: ["open", "in_progress"],
       },
       {
-        id: "unblock-task",
-        label: "Unblock",
-        icon: "restore",
+        id: "resume-task",
+        label: "Resume",
+        icon: "start",
         role: "secondary",
-        behavior: "tasks.lifecycle.unblock",
+        behavior: "tasks.lifecycle.resume",
         requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
-        statusPayload: { status: "open", blocked_reason: "" },
+        statusPayload: { status: "in_progress", blocked_reason: "" },
         visibleStatuses: ["blocked"],
       },
       {
@@ -1911,7 +1911,7 @@ function taskActionIcon(label) {
     Block: "pause",
     Reopen: "restore",
     Restore: "restore",
-    Unblock: "restore",
+    Resume: "start",
   }[label] || "more";
 }
 
@@ -2047,7 +2047,7 @@ async function confirmTaskLifecycleAction(action, task) {
   return true;
 }
 
-async function postTaskAction(task, action, trigger = null) {
+async function postTaskAction(task, action) {
   setStatus(`${formatToken(action)} task...`);
 
   try {
@@ -2058,15 +2058,9 @@ async function postTaskAction(task, action, trigger = null) {
       renderTaskRecurrenceContinuity(result.recurrenceContinuity);
       trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
     } else if (action === "complete") {
-      setStatus("Task completed. Add an optional Next Action, or close to move on.");
+      setStatus("Task completed.");
     } else {
       setStatus("");
-    }
-    if (action === "complete" && result.task) {
-      await openTaskDialog(result.task, {
-        focusTarget: "next_action",
-        returnFocusTo: trigger,
-      });
     }
   } catch (error) {
     setStatus(error.message || "Task action failed.", { isError: true });

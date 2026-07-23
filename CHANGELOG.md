@@ -1,3 +1,40 @@
+## Version 0.33.21.21.3 - 2026-07-23
+
+- Made Task completion final and non-interruptive: the canonical editor closes, the Tasks list refreshes in place, and Workbench returns from Task Focus to Focus Selection without reopening or focusing Next Action.
+- Retired the `task_completion_follow_up` Tasks work-item source and framework candidate shape. Completed Tasks remain excluded from active Workbench recommendations even when their ordinary Next Action field is nonblank, and the stored value remains unchanged.
+- Added Task-editor dirty-state comparison. An unchanged recurring occurrence completes without a preliminary save or recurrence-scope question; occurrence-only pending edits save without that question; recurrence-template-backed edits ask Only This Task / All Future once before one save and one completion.
+- Preserved dedicated, generic, bulk, Workbench, and public completion behavior, including permission checks, timer guards, parent recovery, audit/events/search updates, caller refresh, and safe asynchronous recurrence continuity.
+- Added focused service/static regression coverage plus rendered desktop/mobile proof for direct completion from the editor, Tasks rows, and Workbench and for clean, occurrence-only dirty, and template-backed dirty recurring completion.
+- Archived the completed 0.33.21.21.3 patch and left the live roadmap cursor at 0.33.22.
+- Docs updated: `DECISIONS.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `help/modules/tasks/resuming-task-work.md`.
+- No docs change needed: public API routes/payloads, permission names, database schema/migrations, Time Tracking ownership, runtime configuration, seed data, and deployment behavior are unchanged.
+
+## Version 0.33.21.21.2 - 2026-07-23
+
+- Restored bounded accomplishment history to the full Calendar by selecting Open, In Progress, Blocked, and Completed initially while leaving Archived available as an opt-in filter.
+- Kept the Dashboard Calendar explicitly active-only, compact, and on the same Tasks-owned calendar read and shared renderer.
+- Preserved Day's one-date window, Week's seven displayed dates, Month's visible grid dates, and the 93-day server ceiling; no unbounded history query, second endpoint, client-side reconstruction, or repository rewrite was introduced.
+- Preserved server ordering, permission and Client/Project filters, completed-entry styling/open behavior, Month density and Day handoff, untruncated Day/Week views, and the absence of reminder markers for completed or archived Tasks.
+- Added static and rendered proof for the Calendar/Dashboard default split, completed rows across Day/Week/Month, Archived opt-in, and unchanged bounded request sizes.
+- Archived the completed 0.33.21.21.2 patch and left the live roadmap cursor at 0.33.22.
+- Docs updated: `DECISIONS.md`, `docs/tasks-module.md`.
+- No docs change needed: Help, public API, permissions, database schema/migrations, shared Calendar renderer, Dashboard behavior, Time Tracking ownership, runtime configuration, and deployment behavior are unchanged.
+
+## Version 0.33.21.21.1 - 2026-07-23
+
+- Made Resume note a reusable Task Focus handoff: a successful active Task Focus entry consumes the saved note through the canonical Tasks update path and clears only that field without changing Open, In Progress, or Blocked status.
+- Added Tasks-owned conditional `resume_note_action` semantics so a confirmed nonblank capture moves eligible Open or In Progress work to In Progress, rejects Blocked/Blocked-Reason and completed/archived races, and runs the existing permission, transition, audit/event, search, reminder, and resume-state side effects.
+- Extended the existing navigation-intent capture from timed Task Focus to every eligible loaded Open or In Progress Task Focus without blocked context. Timer/checklist state no longer gates Change Focus, app-shell/module navigation, Search, Notifications, workspace/account actions, scripted fallbacks, history traversal, or bounded hard-exit recovery.
+- Reduced the 12-hour hard-exit marker to Task ID and timestamp and retained clear-first readability/lifecycle/current-note revalidation without storing note text or other Task content.
+- Reset per-Task capture suppression after consume so the same Task can repeat focus -> handoff -> re-focus cycles, and rendered saved handoff text in the `Start here` card with the exact `Resume note: ` prefix.
+- Proved that No performs no write and leaves an Open Task Open, confirmed capture moves it to In Progress, re-focus consumes the note without reversing status, Blocked status or a nonblank Blocked Reason suppresses capture, stale Blocked/terminal races cannot revive work, and desktop/mobile destinations remain deduplicated.
+- Made Blocked Tasks explicitly recoverable: Task rows, the Task editor, and the Workbench Task Focus header now show Play/Resume and move the Task to In Progress; checking checklist work immediately synchronizes the open editor with the Tasks-owned transition, and starting or resuming a Task timer applies the transition even when an earlier timer start had already recorded transition metadata.
+- Made Blocked status a timer-stop boundary: every Tasks-owned path that saves Blocked—including editor/list/Workbench/API/bulk writes and automatic blocking-child rollups—pauses every running Task-sourced timer across users, preserves elapsed time, and immediately refreshes the canonical editor timer state.
+- Added rendered desktop/mobile proof that Workbench Task Focus Resume, editor Resume, checklist progress, and paused-timer resume clear the Blocked Reason and persist In Progress, including the compact editor rule that fully removes the conditional Blocked Reason field after recovery.
+- Archived the completed 0.33.21.21.1 slice and handed the remaining Calendar-history correction to 0.33.21.21.2 ahead of 0.33.22.
+- Docs updated: `DECISIONS.md`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/view-building-contract.md`, `help/modules/tasks/resuming-task-work.md`.
+- No docs change needed: Calendar/Dashboard behavior, public API documentation, permission names, database schema/migrations, Time Tracking ownership, runtime configuration, seed data, and deployment behavior are unchanged.
+
 ## Version 0.33.21.20 - 2026-07-23
 
 - Made the development/sanitized-demo seed CLI load the untracked root `.env` before bootstrap configuration, while preserving explicit process-environment precedence and the canonical `Today()` anchor.

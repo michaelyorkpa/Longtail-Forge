@@ -36,7 +36,7 @@ assert.match(behaviorHandlers, /"tasks\.lifecycle\.reopen": \(\{ record \}\) => 
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.archive": \(\{ record \}\) => postTaskAction\(record, "archive"\)/, "Archive should dispatch through the Tasks-owned archive handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.restore": \(\{ record \}\) => postTaskAction\(record, "restore"\)/, "Restore should dispatch through the Tasks-owned restore handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.block"[\s\S]*openTaskDialogForBlock\(record, action, trigger\)/, "Block should dispatch through the canonical Tasks editor so a reason can be entered");
-assert.match(behaviorHandlers, /"tasks\.lifecycle\.unblock"[\s\S]*updateTaskLifecycleStatus\(record, action\.statusPayload \|\| \{ status: "open", blocked_reason: "" \}\)/, "Unblock should dispatch through the Tasks-owned update route handler");
+assert.match(behaviorHandlers, /"tasks\.lifecycle\.resume"[\s\S]*updateTaskLifecycleStatus\(record, action\.statusPayload \|\| \{ status: "in_progress", blocked_reason: "" \}\)/, "Resume should dispatch through the Tasks-owned update route handler");
 
 assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*createTaskLifecycleActionStrip\(task\)/, "Task row utilities should stay module-owned while lifecycle actions move into the framework action strip");
 assert.match(lifecycleStrip, /view\.createDetailActionStrip\(\{[\s\S]*ariaLabel:\s*"Task lifecycle actions"[\s\S]*className:\s*"task-row-lifecycle-actions"[\s\S]*actions/, "Lifecycle placement should use the framework detail action strip");
@@ -54,7 +54,7 @@ assert.match(lifecycleButton, /dataset\.taskLifecycleAction = action\.id[\s\S]*d
 });
 
 assert.match(lifecycleDescriptor, /id:\s*"block-task"[\s\S]*label:\s*"Block"[\s\S]*behavior:\s*"tasks\.lifecycle\.block"[\s\S]*requiredAnyPermissions:\s*\["tasks\.edit_all", "tasks\.edit_own"\][\s\S]*statusPayload:\s*\{ status: "blocked" \}/, "Block should declare edit permission intent and a status payload");
-assert.match(lifecycleDescriptor, /id:\s*"unblock-task"[\s\S]*label:\s*"Unblock"[\s\S]*behavior:\s*"tasks\.lifecycle\.unblock"[\s\S]*requiredAnyPermissions:\s*\["tasks\.edit_all", "tasks\.edit_own"\][\s\S]*statusPayload:\s*\{ status: "open", blocked_reason: "" \}/, "Unblock should declare edit permission intent and clear blocked reason");
+assert.match(lifecycleDescriptor, /id:\s*"resume-task"[\s\S]*label:\s*"Resume"[\s\S]*icon:\s*"start"[\s\S]*behavior:\s*"tasks\.lifecycle\.resume"[\s\S]*requiredAnyPermissions:\s*\["tasks\.edit_all", "tasks\.edit_own"\][\s\S]*statusPayload:\s*\{ status: "in_progress", blocked_reason: "" \}/, "Resume should use the Play icon, declare edit permission intent, move Blocked work to In Progress, and clear its reason");
 assert.match(lifecycleDescriptor, /id:\s*"archive-task"[\s\S]*role:\s*"destructive"[\s\S]*variant:\s*"danger"[\s\S]*confirm:\s*\{[\s\S]*title:\s*"Archive task"[\s\S]*danger:\s*true/, "Archive should stay destructive and confirmed");
 assert.doesNotMatch(lifecycleDescriptor, /delete-task|soft-delete|permanent-delete|tasks\.lifecycle\.delete/, "Lifecycle descriptors should not invent a task delete workflow");
 

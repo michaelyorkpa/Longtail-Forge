@@ -1024,14 +1024,14 @@ function taskFocusExitSnapshot() {
     return null;
   }
   const taskId = String(state.activeTaskFocus?.taskId || "").trim();
-  const timer = currentTaskFocusTimer();
-  if (!taskId || !["running", "paused"].includes(timer?.timer_status)) {
+  const task = state.activeTaskFocus?.task || null;
+  if (!taskId || !task || !["open", "in_progress"].includes(String(task.status || "").trim())
+    || String(task.blocked_reason || "").trim()) {
     return null;
   }
   return {
-    task: state.activeTaskFocus?.task || { task_id: taskId },
+    task,
     taskId,
-    timerStatus: timer.timer_status,
   };
 }
 
@@ -1063,7 +1063,6 @@ function writePendingTaskFocusDrift() {
   try {
     window.sessionStorage.setItem(WORKBENCH_TASK_FOCUS_DRIFT_KEY, JSON.stringify({
       taskId: snapshot.taskId,
-      timerStatus: snapshot.timerStatus,
       timestamp: Date.now(),
     }));
   } catch {
@@ -1084,13 +1083,12 @@ function readPendingTaskFocusDrift() {
     const marker = JSON.parse(window.sessionStorage.getItem(WORKBENCH_TASK_FOCUS_DRIFT_KEY) || "null");
     const taskId = String(marker?.taskId || "").trim();
     const timestamp = Number(marker?.timestamp || 0);
-    const timerStatus = String(marker?.timerStatus || "").trim();
-    if (!taskId || !["running", "paused"].includes(timerStatus) || !Number.isFinite(timestamp)
+    if (!taskId || !Number.isFinite(timestamp)
       || timestamp <= 0 || Date.now() - timestamp > WORKBENCH_TASK_FOCUS_DRIFT_MAX_AGE_MS) {
       clearPendingTaskFocusDrift();
       return null;
     }
-    return { taskId, timestamp, timerStatus };
+    return { taskId, timestamp };
   } catch {
     clearPendingTaskFocusDrift();
     return null;
@@ -1102,13 +1100,11 @@ async function recoverPendingTaskFocusDrift() {
   if (!marker) return false;
   clearPendingTaskFocusDrift();
 
-  const timer = activeOrPausedTimers(state.timers).find((entry) => taskTimerMatches(entry, marker.taskId));
-  if (!timer) return false;
-
   try {
     const result = await api.getJson(`/api/tasks/${encodeURIComponent(marker.taskId)}`, { cache: "no-store" });
     const task = result?.task || null;
-    if (!task || ["complete", "archived"].includes(String(task.status || "")) || String(task.resume_note || "").trim()) {
+    if (!task || !["open", "in_progress"].includes(String(task.status || ""))
+      || String(task.blocked_reason || "").trim() || String(task.resume_note || "").trim()) {
       return false;
     }
     setStatus("Recovering work context...");
@@ -1593,6 +1589,7 @@ function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
         meta: recommendedCandidateMeta(candidate),
         title: safeCandidateText(candidate.title, "Untitled work"),
       }),
+      recommendedCandidateResumeNote(candidate),
       workbenchViewHelpers.createElement("p", {
         className: "workbench-recommended-reason",
         text: safeCandidateText(candidate.reason, "")
@@ -1603,10 +1600,24 @@ function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
         actions: actionElements,
         className: "workbench-recommended-actions",
       }),
-    ],
+    ].filter(Boolean),
   });
 
   return card;
+}
+
+function recommendedCandidateResumeNote(candidate = {}) {
+  const resumeNote = safeCandidateText(
+    candidate.handoffNote || candidate.metadata?.resume_note || candidate.metadata?.resumeNote,
+    "",
+  );
+
+  return resumeNote
+    ? workbenchViewHelpers.createElement("p", {
+        className: "workbench-recommended-resume-note",
+        text: `Resume note: ${resumeNote}`,
+      })
+    : null;
 }
 
 function recommendedCandidateMeta(candidate = {}) {
@@ -1703,6 +1714,22 @@ function renderTaskFocusSurface() {
 }
 
 function createTaskFocusActionStrip(active) {
+  const isBlocked = String(active?.task?.status || "").trim() === "blocked";
+  const blockOrResumeAction = isBlocked
+    ? {
+        disabledReason: taskFocusLifecycleDisabledReason("resume", active),
+        icon: "start",
+        id: "resume",
+        label: "Resume task",
+        onClick: resumeFocusedTask,
+      }
+    : {
+        disabledReason: taskFocusLifecycleDisabledReason("block", active),
+        icon: "pause",
+        id: "block",
+        label: "Block task",
+        onClick: blockFocusedTask,
+      };
   const actions = [
     createTaskFocusActionButton({
       active,
@@ -1721,11 +1748,7 @@ function createTaskFocusActionStrip(active) {
     }),
     createTaskFocusActionButton({
       active,
-      disabledReason: taskFocusLifecycleDisabledReason("block", active),
-      icon: "pause",
-      id: "block",
-      label: "Block task",
-      onClick: blockFocusedTask,
+      ...blockOrResumeAction,
     }),
   ];
 
@@ -2452,7 +2475,11 @@ async function refreshActiveTaskFocus() {
     if (state.activeTaskFocus?.taskId !== taskId) {
       return;
     }
-    applyActiveTaskFocusTask(result.task || null);
+    const task = await consumeTaskFocusResumeNote(result.task || null, taskId);
+    if (state.activeTaskFocus?.taskId !== taskId) {
+      return;
+    }
+    applyActiveTaskFocusTask(task);
     renderTaskFocusSurface();
     renderWorkbenchInspector();
     renderWorkbenchViewState();
@@ -2470,6 +2497,22 @@ async function refreshActiveTaskFocus() {
     renderWorkbenchInspector();
     setStatus(state.activeTaskFocus.error, { isError: true });
   }
+}
+
+async function consumeTaskFocusResumeNote(task, taskId) {
+  const consumer = window.LongtailForge.taskResumeNoteCapture?.consume;
+  if (typeof consumer !== "function") {
+    return task;
+  }
+
+  const result = await consumer({
+    task,
+    taskId,
+  });
+  if (result?.reason === "error") {
+    throw result.error;
+  }
+  return result?.task || task;
 }
 
 async function refreshTaskFocusRelatedContext(taskId = state.activeTaskFocus?.taskId || "") {
@@ -2545,6 +2588,7 @@ function applyActiveTaskFocusTask(task) {
   }
 
   const nextTask = task ? preserveTaskFocusChecklistData(task, state.activeTaskFocus.task) : null;
+  syncTaskCandidateResumeNote(nextTask);
 
   state.activeTaskFocus = {
     ...state.activeTaskFocus,
@@ -2559,6 +2603,23 @@ function applyActiveTaskFocusTask(task) {
     task: nextTask,
     title: safeTaskFocusText(nextTask?.title || state.activeTaskFocus.title, "Focused task"),
   };
+}
+
+function syncTaskCandidateResumeNote(task) {
+  const taskId = String(task?.task_id || "").trim();
+  if (!taskId) {
+    return;
+  }
+
+  const resumeNote = String(task.resume_note || "").trim();
+  const syncCandidates = (candidates) => (Array.isArray(candidates) ? candidates.map((candidate) => (
+    candidateTaskId(candidate) === taskId
+      ? { ...candidate, handoffNote: resumeNote }
+      : candidate
+  )) : []);
+
+  state.focusCandidates = syncCandidates(state.focusCandidates);
+  state.workCandidates = syncCandidates(state.workCandidates);
 }
 
 // Some task payloads (e.g. the task timer endpoints) return the raw task row without the
@@ -2609,7 +2670,7 @@ async function openFocusedTaskEditor(event) {
   }
 }
 
-async function completeFocusedTask(event) {
+async function completeFocusedTask() {
   const taskId = state.activeTaskFocus?.taskId || "";
 
   if (!taskId) {
@@ -2628,20 +2689,8 @@ async function completeFocusedTask(event) {
       recordId: result.task?.task_id || taskId,
     };
     setTaskCompletionStatus(completionDetail);
-    const returnFocusTo = document.querySelector("[data-workbench-focus-mode][data-active=\"true\"]");
-    await openTaskCandidate({
-      candidateId: `task-completion:${taskId}`,
-      moduleId: "tasks",
-      recordId: taskId,
-      recordType: "task_completion_follow_up",
-      title: result.task?.next_action || result.task?.title || "Task follow-up",
-    }, taskId, returnFocusTo || event?.currentTarget || null, {
-      focusTarget: "next_action",
-    });
     if (completionDetail.recurrenceContinuity) {
       renderTaskRecurrenceContinuity(completionDetail.recurrenceContinuity);
-    } else {
-      setStatus("Task completed.");
     }
     focusActiveFocusQuestion();
   } catch (error) {
@@ -2664,6 +2713,37 @@ async function blockFocusedTask(event) {
   });
   if (resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_TASK_FOCUS) {
     await refreshActiveTaskFocus();
+  }
+}
+
+async function resumeFocusedTask() {
+  const taskId = state.activeTaskFocus?.taskId || "";
+
+  if (!taskId) {
+    setStatus("Choose a task before resuming it.", { isError: true });
+    return;
+  }
+
+  setStatus("Resuming task...");
+  try {
+    const result = await api.putJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
+      blocked_reason: "",
+      status: "in_progress",
+    });
+    if (state.activeTaskFocus?.taskId !== taskId) {
+      return;
+    }
+    applyActiveTaskFocusTask(result.task || {
+      ...state.activeTaskFocus.task,
+      blocked_reason: "",
+      status: "in_progress",
+    });
+    renderWorkbench();
+    await refreshFocusCandidates();
+    renderTaskFocusSurface();
+    setStatus("Task resumed.");
+  } catch (error) {
+    setStatus(error.message || "Task could not be resumed.", { isError: true });
   }
 }
 
@@ -3600,6 +3680,11 @@ function offerTaskResumeNote(task, trigger = null) {
     task,
     trigger,
     onSaved(updatedTask) {
+      syncTaskCandidateResumeNote(updatedTask);
+      if (resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_FOCUS_SELECTION) {
+        renderRecommendedAction();
+        renderWorkbenchInspector();
+      }
       if (updatedTask?.task_id === state.activeTaskFocus?.taskId) {
         applyActiveTaskFocusTask(updatedTask);
         renderTaskFocusSurface();

@@ -21,6 +21,8 @@ try {
 
   await assertStartMovesOpenTask(session, context.projectId);
   await assertStartMovesBlockedTask(session, context.projectId);
+  await assertBlockingPausesRunningTimers(session, context.projectId);
+  await assertResumeMovesNewlyBlockedTask(session, context.projectId);
   await assertRecurringStartAuditCarriesReadableContext(session, context);
   await assertPauseLeavesInProgress(session, context.projectId);
   await assertRemoveRevertsOnlyTimerMovedTask(session, context.projectId);
@@ -111,6 +113,59 @@ async function assertStartMovesBlockedTask(session, projectId) {
   assert.equal(transition.movedTaskFromBlocked, true, "timer metadata should distinguish a blocked origin");
   assert.equal(transition.previousStatus, "blocked", "timer metadata should retain the prior lifecycle status");
   assert.equal(transition.previousBlockedReason, blockedReason, "timer metadata should retain the exact recoverable blocked reason");
+}
+
+async function assertBlockingPausesRunningTimers(session, projectId) {
+  const directTask = await createTask(session, projectId, "Direct block pauses timer");
+  await taskTimersService.save(directTask.task_id, runningTimerPayload(), session);
+  await tasksService.update(directTask.task_id, {
+    blocked_reason: "Waiting for the next direct step.",
+    status: "blocked",
+  }, session);
+
+  assert.deepEqual(
+    await readTaskTimerLifecycle(session.workspace_id, session.user_id, directTask.task_id),
+    { last_active_start_time: null, timer_status: "paused" },
+    "every canonical Tasks update that saves Blocked should pause the task timer",
+  );
+
+  const parentTask = await createTask(session, projectId, "Relationship block pauses timer");
+  const childTask = await createTask(session, projectId, "Incomplete blocking child");
+  await taskTimersService.save(parentTask.task_id, runningTimerPayload(), session);
+  await tasksService.addChildTask(parentTask.task_id, {
+    child_task_id: childTask.task_id,
+    is_blocking: true,
+  }, session);
+
+  assert.equal(await readTaskStatus(session.workspace_id, parentTask.task_id), "blocked", "the blocking child should block its parent");
+  assert.deepEqual(
+    await readTaskTimerLifecycle(session.workspace_id, session.user_id, parentTask.task_id),
+    { last_active_start_time: null, timer_status: "paused" },
+    "automatic relationship blocking should use the same timer-pause invariant",
+  );
+}
+
+async function assertResumeMovesNewlyBlockedTask(session, projectId) {
+  const blockedReason = "Waiting after this timer was paused.";
+  const task = await createTask(session, projectId, "Paused timer resumes newly blocked task");
+
+  await taskTimersService.save(task.task_id, runningTimerPayload(), session);
+  await taskTimersService.save(task.task_id, {
+    accumulated_elapsed_seconds: 10,
+    timer_status: "paused",
+  }, session);
+  await tasksService.update(task.task_id, {
+    blocked_reason: blockedReason,
+    status: "blocked",
+  }, session);
+
+  const result = await taskTimersService.save(task.task_id, runningTimerPayload(), session);
+  const transition = await readTimerTransitionMetadata(session.workspace_id, session.user_id, task.task_id);
+
+  assert.equal(result.task?.status, "in_progress", "resuming a paused timer should recover a task blocked after the timer was created");
+  assert.equal(result.task?.blocked_reason, "", "resuming should clear the newly active blocked reason");
+  assert.equal(transition.previousStatus, "blocked", "resuming should replace stale timer transition metadata with the current Blocked origin");
+  assert.equal(transition.previousBlockedReason, blockedReason, "resuming should retain the current blocked reason for eligible Reset recovery");
 }
 
 async function assertPauseLeavesInProgress(session, projectId) {
@@ -426,6 +481,24 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 
   return Number(rows[0]?.count) || 0;
+}
+
+async function readTaskTimerLifecycle(workspaceId, userId, taskId) {
+  const rows = await querySql(`
+SELECT timer_status, last_active_start_time
+FROM active_work_timers
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND user_id = ${sqlText(userId)}
+  AND source_module_id = 'tasks'
+  AND source_type = 'task'
+  AND source_id = ${sqlText(taskId)}
+LIMIT 1;
+`);
+
+  return {
+    last_active_start_time: rows[0]?.last_active_start_time ?? null,
+    timer_status: rows[0]?.timer_status || "",
+  };
 }
 
 async function auditCount(workspaceId, action, taskId) {

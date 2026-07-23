@@ -1,5 +1,79 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.21.21.3 - Direct completion and recurrence-aware dirty saves
+
+Completed locally on 2026-07-23. The monotonic active cursor remains 0.33.22.
+
+**Model: High Effort** — The correction removed a cross-Tasks/Workbench candidate workflow and separated completion from recurrence-template editing while preserving asynchronous recurrence continuity, unsaved edits, and every completion side effect.
+
+Purpose:
+
+Make completion final and non-interruptive. Completing a Task never reopens, retains, or refocuses the Task editor for Next Action, and an unchanged recurring occurrence completes without an Only This Task / All Future question.
+
+Decision:
+
+Next Action remains ordinary Tasks-owned context but has no completion-specific behavior. Completed Tasks with nonblank Next Action do not contribute a Workbench source or candidate. Interactive completion returns to the originating surface and preserves completion/recurrence feedback without opening an editor. The recurring editor asks occurrence/future scope only when a real unsaved recurrence-template-backed field changed; occurrence-only changes never trigger that question.
+
+- [x] Removed `task_completion_follow_up` from Tasks work-item declarations, Tasks list/query shaping, framework candidate normalization/ranking, Workbench dispatch, and completion-specific regression expectations without deleting or rewriting stored `next_action` values.
+- [x] Made the Task editor Complete action finish and close after preserving pending edits, made Tasks-row completion refresh in place, and made Workbench Task Focus completion return to Focus Selection; no completion path reopens or focuses the editor at Next Action.
+- [x] Preserved dedicated/generic/bulk/public completion, permission, audit/event/search, parent recovery, timer guards, caller refresh, and recurring `pending`/`available`/`ended`/`handoff_failed` continuity behavior.
+- [x] Added form dirty-state comparison so unchanged recurring completion calls the completion route without a save or recurrence-scope prompt.
+- [x] Saved real occurrence-only pending edits before completion without asking recurrence scope; Only This Task / All Future appears only when changed fields are backed by the recurrence template, followed by one save and one completion.
+- [x] Kept Next Action storage, editor display, search/resume context, active-task behavior, and historical visibility unchanged; generated recurrence instances still do not inherit Next Action, Resume note, Blocked reason, or checked checklist state.
+- [x] Added focused service/static and rendered desktop/mobile proof for every interactive completion surface, completed Next Action non-promotion, clean recurring completion without a scope prompt, occurrence-only dirty completion without a scope prompt, template-backed dirty completion with exactly one scope choice, and unchanged recurrence continuity.
+
+Acceptance criteria:
+
+- Completing from the Task editor closes it; completing from Tasks refreshes in place; completing from Workbench returns to Focus Selection; none opens or focuses Next Action.
+- Completed Tasks never appear as completion-follow-up Workbench items, while their stored Next Action values remain intact.
+- An unchanged recurring Task completes with no instance/future prompt. Only actual unsaved recurrence-template-backed edits ask scope, and all completion and recurrence side effects still occur exactly once.
+
+## Version 0.33.21.21.2 - Bounded completed-task history on the full Calendar
+
+Completed locally on 2026-07-23. The monotonic active cursor remains 0.33.22.
+
+**Model: Medium Effort** — This was a contained Calendar-host default/filter correction using the already bounded, server-honored status contract while preserving the Dashboard's active-only overview boundary.
+
+- [x] Changed only the full Calendar host's initial status selection to `open`, `in_progress`, `blocked`, and `complete`; `archived` remains available in the existing Task status multi-select but unselected by default.
+- [x] Kept the Dashboard Tasks calendar's explicit `open`, `in_progress`, and `blocked` request unchanged so completed and archived Tasks do not return to the overview surface.
+- [x] Reused `taskCalendar.calendarRange(...)` and `/api/tasks/calendar` without a second endpoint, unbounded lookback, client-side history reconstruction, or repository rewrite: Day requests one displayed date, Week requests its seven displayed dates, and Month requests only its existing visible grid dates, all under the 93-day server ceiling.
+- [x] Preserved current service ordering, Client/Project and permission filters, completed-entry styling/open behavior, Month's three-row density plus `View all tasks` Day handoff, untruncated Week/Day views, and terminal-task exclusion from reminder markers.
+- [x] Updated Calendar host, Dashboard, shared-calendar, and rendered regressions to prove the deliberate default split, bounded completed rows in Day/Week/Month, Archived opt-in, active-only Dashboard requests, and unchanged server-side terminal-reminder/range behavior.
+
+Acceptance criteria:
+
+- Opening the full Calendar shows readable completed Tasks alongside active Tasks for the currently displayed Day, Week, or Month grid and no older history outside that bounded request.
+- Users can still remove Completed or opt into Archived through the existing status filter.
+- Dashboard Calendar content and load budgets remain active-only, compact, and unchanged.
+
+## Version 0.33.21.21.1 - Reusable Resume-note focus handoff
+
+Completed locally on 2026-07-23. The monotonic active cursor remains 0.33.22.
+
+**Model: High Effort** — The correction joined Workbench focus entry/exit state, Tasks lifecycle transitions, navigation-intent and hard-exit recovery, ranking payloads, and repeat-safe capture without reviving terminal work.
+
+- [x] Made every successful readable active Task Focus entry consume a nonblank saved `resume_note` through the canonical Tasks partial-update path before the focus session becomes ready.
+- [x] Added the conditional `resume_note_action` update contract: `consume` changes only the note and preserves Open/In Progress/Blocked state; `capture` requires a nonblank note plus Open/In Progress status with no Blocked Reason, moves eligible work to In Progress, and refuses Blocked/Blocked-Reason and completed/archived races.
+- [x] Reset per-Task browser suppression after consume so repeated focus -> handoff -> re-focus cycles can prompt again without duplicating Task content.
+- [x] Generalized Change Focus, app-shell/module navigation, Search, Notifications, workspace/account actions, Workbench fallbacks, history, and bounded hard-exit recovery from timed-only eligibility to every loaded Open or In Progress Task Focus without blocked context.
+- [x] Reduced the 12-hour hard-exit marker to Task ID and timestamp, with clear-first recovery that re-checks readability, active lifecycle, and current note.
+- [x] Rendered a nonblank candidate handoff in the Focus Selection `Start here` card with the exact visible prefix `Resume note: ` while retaining the existing recommendation reason and safe candidate shaping.
+- [x] Added service/browser/static and rendered desktop/mobile proof for Open status preservation on consume and No, In Progress capture, Blocked/Blocked-Reason suppression, stale Blocked and terminal refusal, repeated cycles, exact copy, destination deduplication, and content-free markers.
+- [x] Replaced the Blocked Pause/Unblock presentation on Task rows, the canonical Task editor, and the Workbench Task Focus header with an explicit Play/Resume lifecycle action that moves the Task to In Progress and clears its Blocked Reason through the existing Tasks update route.
+- [x] Kept checklist and timer recovery aligned across service and rendered editor state: checking checklist work synchronizes Status/Blocked Reason immediately, and resuming a timer after a later manual Block records and applies the current Blocked origin rather than stale transition metadata.
+- [x] Made every Tasks-owned Blocked persistence path pause all running Task-sourced timers through a Time Tracking-owned, workspace/source-scoped operation, including automatic blocking-child parent rollups; elapsed time remains accumulated and the canonical editor immediately renders Paused.
+- [x] Added rendered desktop/mobile recovery proof for Workbench Task Focus Resume, editor Resume, checklist progress, and paused-timer resume, including removal of the conditional Blocked Reason field after recovery.
+- [x] Updated Tasks, Workbench/view, Help, E2E, regression-suite, decision, changelog, and version contracts.
+
+Acceptance criteria:
+
+- Any eligible Task brought into Task Focus consumes its saved Resume note once, keeps its pre-focus lifecycle status, and starts a fresh handoff cycle.
+- Leaving eligible Open or In Progress Task Focus offers the same one-line capture regardless of Task Timer or checklist usage; Blocked status or a nonblank Blocked Reason never requests a Resume note, and every supported exit retains its destination/deduplication guarantees.
+- Saving a nonblank note leaves the Task In Progress; consuming that note on the next focus does not move it back to Open or otherwise change status.
+- Before consumption, `Start here` visibly labels the saved handoff as `Resume note: <note>`.
+- A Blocked Task presents Play/Resume rather than Pause on Task rows, the Task editor, and Workbench Task Focus; manual Resume, starting or resuming its timer, or checking checklist work saves In Progress and clears the Blocked Reason without requiring a separate status edit.
+- Saving Blocked from any Tasks-owned source pauses every running timer linked to that Task, preserves its elapsed duration, and shows Paused immediately on an open canonical editor.
+
 ## Version 0.33.21.20 - Development-seed administrator identity and first-install bootstrap correction
 
 Completed locally on 2026-07-23. This final pre-0.33.22 correction retains the live roadmap cursor at 0.33.22.

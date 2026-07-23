@@ -121,7 +121,11 @@ const CreateTaskSchema = z.object({
  * body id is tolerated (and ignored by the service) for round-trip callers.
  * @typedef {import("zod").infer<typeof UpdateTaskSchema>} UpdateTaskPayload
  */
-const UpdateTaskSchema = CreateTaskSchema;
+const UpdateTaskSchema = CreateTaskSchema.extend({
+  resume_note_action: z.enum(["capture", "consume"], {
+    error: "Resume note action must be 'capture' or 'consume'.",
+  }).optional(),
+});
 
 /**
  * Checklist item create body.
