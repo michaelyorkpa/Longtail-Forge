@@ -103,7 +103,7 @@ try {
   const modulesMenu = adminMenu.items.find((item) => item.id === "module-settings-group");
   assert.deepEqual(
     (modulesMenu?.items || []).map((item) => item.label),
-    ["Files", "Tags", "Tasks", "Time Tracking"],
+    ["Files", "Tags", "Tasks", "Time Tracking", "Workbench"],
     "Admin Modules should keep the specified order while Developer Example is disabled",
   );
   assert.equal(adminMenu.items.find((item) => item.label === "Projects")?.href, "projects.html");
@@ -121,7 +121,7 @@ try {
   const developerModules = developerAdmin?.items.find((item) => item.id === "module-settings-group");
   assert.deepEqual(
     developerModules?.items.map((item) => item.label),
-    ["Files", "Tags", "Tasks", "Time Tracking", "Developer Example"],
+    ["Files", "Tags", "Tasks", "Time Tracking", "Workbench", "Developer Example"],
     "Developer Example should appear last only after it is explicitly enabled",
   );
 

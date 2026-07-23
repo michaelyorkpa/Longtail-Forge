@@ -10,6 +10,7 @@ assert.doesNotMatch(taskDialogScript, /task-dialog-heading/, "Task modal should 
 assert.match(taskDialogScript, /notificationToggle\.dataset\.taskNotificationToggle = ""[\s\S]*notificationToggle\.hidden = true[\s\S]*notificationToggle\.setAttribute\("aria-pressed", "false"\)/, "Task notification settings should be a direct accessible bell toggle");
 assert.doesNotMatch(taskDialogScript, /task-notification-popover|data-task-notification-field|<legend>Notifications<\/legend>/, "Task notification settings should not appear as a popover or separate in-body box");
 assert.match(taskDialogScript, /function taskEditorMetadataRibbon[\s\S]*className: \["task-metadata-ribbon", "view-detail-badges", "surface-chip-row"\][\s\S]*"data-task-metadata-ribbon"[\s\S]*"aria-label": "Task summary"/, "Task modal should expose a framework detail badge row after the title field");
+assert.match(taskDialogScript, /taskEditorMetadataRibbon\(view\),[\s\S]*taskEditorContinuitySection\(view\),[\s\S]*taskEditorDetailsSection\(view\)/, "Task modal should place the always-visible continuity row between the metadata ribbon and collapsible details");
 assert.doesNotMatch(taskDialogScript, /data-task-completion-field/, "Task modal should not keep a separate Time to Completion block");
 assert.match(tasksView, /<script src="js\/task-dialog\.js"><\/script>/, "Task dialog cache bust should advance");
 assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css">/, "Shared stylesheet cache bust should advance");
@@ -32,6 +33,7 @@ assert.match(stylesheet, /\.task-form \{[\s\S]*position: relative;[\s\S]*display
 assert.match(stylesheet, /\.surface-modal-heading \{[\s\S]*justify-content: space-between;/, "Shared modal heading should align the secondary action to the right");
 assert.match(stylesheet, /\.task-metadata-ribbon \{[\s\S]*flex-wrap: wrap;/, "Task metadata ribbon should wrap safely");
 assert.match(stylesheet, /\.task-metadata-chip \{[\s\S]*overflow-wrap: anywhere;/, "Task metadata chips should avoid text overflow");
+assert.match(stylesheet, /@media \(max-width: 700px\) \{[\s\S]*\.task-details-grid,[\s\S]*\.task-continuity-row[\s\S]*grid-template-columns: 1fr;/, "Task details and continuity fields should stack on mobile");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module version should consume the canonical app version");
 

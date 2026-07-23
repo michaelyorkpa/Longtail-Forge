@@ -188,9 +188,9 @@ const VIEW_SIDEBAR_PANEL_FOOTER_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "b
 const VIEW_CHIP_FIELDS = new Set(["field", "label", "labelKey"]);
 const VIEW_VISIBLE_WHEN_FIELDS = new Set(["field", "equals", "in", "truthy", "falsy"]);
 const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "itemDepthField", "itemParentField", "itemPathField", "emptyState", "initialSelection", "collapseOnSelect"]);
-const VIEW_TABLE_FIELDS = new Set(["columns", "secondaryRows", "rowActions", "emptyState", "overflow", "hierarchy", "selection"]);
+const VIEW_TABLE_FIELDS = new Set(["columns", "secondaryRows", "rowActions", "rowActionsHeaderLabel", "emptyState", "overflow", "hierarchy", "selection"]);
 const VIEW_TABLE_HIERARCHY_FIELDS = new Set(["depthField", "parentField", "pathField"]);
-const VIEW_TABLE_SELECTION_FIELDS = new Set(["enabled", "label", "labelKey", "recordType", "labelField"]);
+const VIEW_TABLE_SELECTION_FIELDS = new Set(["enabled", "label", "labelKey", "headerLabel", "recordType", "labelField"]);
 const VIEW_TABLE_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "formatter", "width", "widthHint", "align", "depthField", "chipsField", "chipLabelField"]);
 const VIEW_TABLE_SECONDARY_ROW_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "field", "formatter", "chipsField", "chipLabelField", "startColumn", "endBeforeColumn", "hideWhenEmpty", "className"]);
 const VIEW_TABLE_COLUMN_FORMATTERS = new Set(["text", "hierarchy-label", "chip-list"]);
@@ -852,6 +852,7 @@ function validateTableDescriptor(table, prefix, errors) {
   });
   validateTableSecondaryRowsDescriptor(table.secondaryRows, `${prefix}.secondaryRows`, errors);
   validateActionsDescriptor(table.rowActions, `${prefix}.rowActions`, errors);
+  optionalString(table, "rowActionsHeaderLabel", errors, { prefix });
   optionalPlainObject(table, "emptyState", errors, { prefix });
   optionalBoolean(table, "overflow", errors, { prefix });
 }
@@ -887,6 +888,7 @@ function validateTableSelectionDescriptor(selection, prefix, errors) {
   validateKnownObjectFields(selection, VIEW_TABLE_SELECTION_FIELDS, prefix, errors);
   optionalBoolean(selection, "enabled", errors, { prefix });
   validateLabelDescriptor(selection, prefix, errors);
+  optionalString(selection, "headerLabel", errors, { prefix });
   optionalString(selection, "recordType", errors, { prefix });
   optionalString(selection, "labelField", errors, { prefix });
 }

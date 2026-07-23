@@ -33,10 +33,26 @@
       ]
     },
     {
+      "id": "reporting",
+      "label": "Reporting",
+      "sourcePatterns": [
+        "^public/js/reporting(?:[./-]|$)",
+        "^src/core/reporting/",
+        "^src/(?:routes|services)/reporting(?:[./-]|$)",
+        "^views/protected/reporting\\.html$"
+      ],
+      "docs": [
+        "docs/declarative-view-surfaces.md",
+        "docs/time-tracking-module.md",
+        "help/framework/time-tracking-basics.md"
+      ]
+    },
+    {
       "id": "tasks",
       "label": "Tasks",
       "sourcePatterns": [
         "^public/js/tasks(?:[./-]|$)",
+        "^public/js/task-resume-note-capture\\.js$",
         "^public/css/tasks-dashboard\\.css$",
         "^src/modules/tasks/",
         "^views/protected/tasks\\.html$"
@@ -62,6 +78,21 @@
         "docs/notes-module.md",
         "docs/workflow-context-contract.md",
         "help/modules/notes/using-notes.md"
+      ]
+    },
+    {
+      "id": "clients-projects",
+      "label": "Clients and Projects",
+      "sourcePatterns": [
+        "^public/js/clients-projects(?:[./-]|$)",
+        "^src/modules/client-projects/",
+        "^views/protected/(?:clients|projects)\\.html$"
+      ],
+      "docs": [
+        "docs/clients-projects-strict-guardrail-inventory.md",
+        "docs/declarative-view-surfaces.md",
+        "docs/workflow-context-contract.md",
+        "help/framework/clients-and-projects.md"
       ]
     },
     {
@@ -154,10 +185,12 @@
         "^public/js/shared/settings-host\\.js$",
         "^public/js/shared/settings-(?:controls|normalizers)\\.js$",
         "^src/(?:repositories|routes|services)/(?:app-)?settings(?:[./-]|$)",
+        "^src/core/settings/workbench-focus-policy\\.js$",
+        "^src/services/work-focus-modes\\.service\\.js$",
         "^src/(?:repositories|services)/workspace-(?:backup(?:-exports|-package|s)?|deletion(?:-lifecycle)?|purge)(?:[./-]|$)",
         "^src/repositories/users\\.repo\\.js$",
         "^src/services/users\\.service\\.js$",
-        "^views/protected/(?:tasks|time-tracking|user|workspace)-settings\\.html$"
+        "^views/protected/(?:tasks|time-tracking|user|workspace|workbench)-settings\\.html$"
       ],
       "docs": [
         "docs/settings-control-matrix.md",
@@ -268,7 +301,7 @@
       "id": "view-building",
       "label": "View building and declarative surfaces",
       "sourcePatterns": [
-        "^public/js/shared/(?:view-|modal|drawer|surface)",
+        "^public/js/shared/(?:view-|modal|drawer|surface|capture-prompt)",
         "^src/(?:core|views?)/.*(?:view|descriptor|surface)",
         "^src/modules/[^/]+/.*(?:descriptor|surface)"
       ],

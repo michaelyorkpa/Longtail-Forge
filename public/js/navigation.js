@@ -318,6 +318,7 @@ function buildSiteHeader() {
   const header = document.createElement("header");
   const nav = document.createElement("nav");
   const brand = document.createElement("div");
+  const headerControls = document.createElement("div");
   const homeLink = document.createElement("a");
   const workspaceSelect = document.createElement("select");
   const searchShell = document.createElement("div");
@@ -345,6 +346,7 @@ function buildSiteHeader() {
   header.className = "site-header";
   nav.className = "site-nav";
   nav.setAttribute("aria-label", "Primary");
+  headerControls.className = "site-header-controls";
 
   brand.className = "site-brand";
 
@@ -475,13 +477,12 @@ function buildSiteHeader() {
   links.className = "nav-links";
   links.id = "primary-menu";
 
-  links.append(searchShell);
   NAV_ITEMS.forEach((item) => {
     links.append(createNavItem(item, currentPage));
   });
-  links.append(notificationWrap);
 
-  nav.append(brand, toggle, links);
+  headerControls.append(searchShell, links, notificationWrap);
+  nav.append(brand, headerControls, toggle);
   header.append(nav, drawerOverlay);
 
   return header;
@@ -494,11 +495,7 @@ function renderNavigation(items) {
 
   const currentPage = getCurrentPage();
 
-  navLinks.replaceChildren(
-    ...(globalSearchShell ? [globalSearchShell] : []),
-    ...items.map((item) => createNavItem(item, currentPage)),
-    ...(notificationBell?.parentElement ? [notificationBell.parentElement] : []),
-  );
+  navLinks.replaceChildren(...items.map((item) => createNavItem(item, currentPage)));
 }
 
 function createNavItem(item, currentPage) {
@@ -578,6 +575,9 @@ async function loadAppShellBootstrap() {
     }
 
     const shell = await response.json();
+    window.LongtailForge.userPreferences = Object.freeze({
+      preferredCalendarView: shell.user?.preferredCalendarView || null,
+    });
     const workspaceContext = {
       ...(shell.workspaceContext || {}),
       enabledModules: shell.enabledModules || shell.workspaceContext?.enabledModules || [],

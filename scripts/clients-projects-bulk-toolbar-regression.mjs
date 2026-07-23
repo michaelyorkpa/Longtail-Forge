@@ -20,7 +20,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects bulk-toolbar version");
 assert.match(clientProjectsModule, /version:\s*appVersion/, "Clients/Projects module should report this slice");
 
-assert.match(manifestContract, /const VIEW_TABLE_FIELDS = new Set\(\["columns", "secondaryRows", "rowActions", "emptyState", "overflow", "hierarchy", "selection"\]\)/, "Manifest validation should allow descriptor table selection and secondary-row metadata");
+assert.match(manifestContract, /const VIEW_TABLE_FIELDS = new Set\(\["columns", "secondaryRows", "rowActions", "rowActionsHeaderLabel", "emptyState", "overflow", "hierarchy", "selection"\]\)/, "Manifest validation should allow descriptor table selection, secondary-row metadata, and optional row-action headings");
 assert.match(manifestContract, /function validateTableSelectionDescriptor\(selection, prefix, errors\)[\s\S]*recordType[\s\S]*labelField/, "Manifest validation should keep table selection shape narrow");
 
 assert.match(viewRenderer, /function regionsForPlacement\(regions, placement\)[\s\S]*region\.placement === placement/, "Renderer should route descriptor regions by explicit placement");

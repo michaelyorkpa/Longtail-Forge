@@ -32,6 +32,7 @@ try {
   await assertBoundedRangeEnforcement(session);
   const result = await tasksService.calendarWindow(session, { start: WINDOW_START, end: WINDOW_END });
   assertWorkspaceScoping(result, fixtures);
+  await assertStatusFiltering(session, fixtures);
   assertCalendarRowContract(result, fixtures);
   assertReminderMarkers(result, fixtures);
   await assertScopedPermissionFiltering(fixtures);
@@ -161,7 +162,26 @@ function assertWorkspaceScoping(result, fixtures) {
   assert.ok(!markerIds.includes(fixtures.crossWorkspaceTask.task_id), "cross-workspace tasks must not leak into reminder markers");
   assert.ok(!rowIds.includes(fixtures.archivedTask.task_id), "archived tasks must not appear as calendar rows");
   assert.ok(!rowIds.includes(fixtures.lookaheadTask.task_id), "tasks due after the window must not appear as calendar rows");
-  assert.ok(rowIds.includes(fixtures.completedTask.task_id), "completed tasks stay visible as history rows");
+  assert.ok(!rowIds.includes(fixtures.completedTask.task_id), "completed tasks stay excluded from the active calendar default");
+}
+
+async function assertStatusFiltering(session, fixtures) {
+  const widened = await tasksService.calendarWindow(session, {
+    start: WINDOW_START,
+    end: WINDOW_END,
+    statuses: ["open", "in_progress", "blocked", "complete", "archived"],
+  });
+  const widenedIds = widened.tasks.map((row) => row.task_id);
+  assert.ok(widenedIds.includes(fixtures.completedTask.task_id), "an explicit status set can widen the calendar to completed tasks");
+  assert.ok(widenedIds.includes(fixtures.archivedTask.task_id), "an explicit status set can widen the calendar to archived tasks");
+
+  const completedOnly = await tasksService.calendarWindow(session, {
+    start: WINDOW_START,
+    end: WINDOW_END,
+    statuses: ["complete"],
+  });
+  assert.deepEqual(completedOnly.tasks.map((row) => row.task_id), [fixtures.completedTask.task_id], "a narrowed status set is honored by the server calendar read");
+  assert.equal(completedOnly.reminders.length, 0, "terminal-only calendar reads do not produce reminder markers");
 }
 
 function assertCalendarRowContract(result, fixtures) {

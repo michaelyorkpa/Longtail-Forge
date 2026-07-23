@@ -43,10 +43,12 @@ async function saveSettings() {
     return false;
   }
 
+  const contributedSettings = collectContributedSettingsPayload();
   const payload = {
     workspaceName: currentSettings.workspaceName,
     workspaceType: currentSettings.workspaceType,
-    moduleSettings: window.LongtailForge.settingsRenderer.collectPayload(moduleSettingsForm),
+    moduleSettings: contributedSettings.moduleSettings,
+    frameworkSettings: contributedSettings.frameworkSettings,
     audit: currentSettings.audit,
   };
 
@@ -69,7 +71,7 @@ async function saveSettings() {
 function renderModuleSettings() {
   const moduleId = moduleSettingsForm?.dataset.moduleSettingsForm || "";
   const moduleDefinition = currentSettings?.modules.find((module) => module.id === moduleId) || null;
-  if (moduleDefinition?.status !== "enabled") {
+  if (moduleDefinition && moduleDefinition.status !== "enabled") {
     window.LongtailForge.settingsRenderer.renderDisabledModuleRecovery(moduleSettingsFields, moduleDefinition || {
       id: moduleId,
       displayName: moduleId,
@@ -81,6 +83,26 @@ function renderModuleSettings() {
     window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", moduleId),
     { emptyText: "No configurable module settings are available." },
   );
+}
+
+function collectContributedSettingsPayload() {
+  const moduleSettings = window.LongtailForge.settingsRenderer.collectPayload(moduleSettingsForm);
+  const frameworkSettings = {};
+  const moduleId = moduleSettingsForm?.dataset.moduleSettingsForm || "";
+  const sections = window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", moduleId);
+
+  sections.flatMap((section) => section.settings || []).forEach((setting) => {
+    if (setting.target !== "framework" || !Object.hasOwn(moduleSettings[moduleId] || {}, setting.id)) {
+      return;
+    }
+    frameworkSettings[setting.id] = moduleSettings[moduleId][setting.id];
+    delete moduleSettings[moduleId][setting.id];
+  });
+  if (moduleId && Object.keys(moduleSettings[moduleId] || {}).length === 0) {
+    delete moduleSettings[moduleId];
+  }
+
+  return { frameworkSettings, moduleSettings };
 }
 
 function normalizeSettings(settings) {

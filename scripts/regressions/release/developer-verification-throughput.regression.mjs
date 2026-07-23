@@ -15,7 +15,9 @@ import { isApplicationVersionOnlyChange, suggestRegressionsForPaths } from "../.
 import { createSliceVerificationPlan, executeSliceVerificationPlan, formatSliceVerificationSummary } from "../../lib/slice-verification-plan.mjs";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+const agentBriefSource = readFileSync("scripts/agent-brief.mjs", "utf8");
 assert.equal(packageJson.scripts["agent:brief"], "node scripts/agent-brief.mjs");
+assert.match(agentBriefSource, /\^#\{2,4\} Version/, "agent brief should locate umbrella, branch, and numbered child roadmap cursors");
 assert.equal(packageJson.scripts["test:regressions:changed:ci"], "node scripts/run-changed-regressions.mjs --prechecked");
 
 const beforePackage = { name: "longtail-forge", version: "1.0.0", scripts: { check: "old" } };

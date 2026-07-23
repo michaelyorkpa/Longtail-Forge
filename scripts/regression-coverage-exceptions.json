@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 391,
+  "minimumActiveScripts": 396,
   "minimumAreaScripts": {
     "dashboard": 1,
     "database": 36,
@@ -10,17 +10,17 @@
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
-    "notes": 36,
+    "notes": 37,
     "notifications": 3,
-    "permissions": 5,
+    "permissions": 6,
     "public-api": 3,
     "release": 24,
     "search": 12,
     "tags": 12,
-    "tasks": 52,
+    "tasks": 53,
     "time-tracking": 8,
-    "views": 31,
-    "workbench": 30
+    "views": 32,
+    "workbench": 31
   },
   "minimumReleaseGateScripts": 44,
   "requiredReleaseGateIds": [

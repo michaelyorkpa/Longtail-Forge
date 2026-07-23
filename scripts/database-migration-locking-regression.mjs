@@ -98,13 +98,23 @@ async function assertLockReleasedAfterSuccessfulStartup() {
 
 async function assertSecondStartupFailsClearlyWhileLockHeld() {
   const lockedDatabaseFile = path.join(tempDir, "held-migration-lock.db");
+  const releaseMarkerPath = path.join(tempDir, "release-held-migration-lock");
   const holder = spawn(process.execPath, ["--input-type=module", "--eval", `
     process.env.LONGTAIL_DATABASE_FILE = ${JSON.stringify(lockedDatabaseFile)};
     process.env.SUPER_ADMIN_PASSWORD = "Database-Migration-Locking-Test-123!";
+    const fs = await import("node:fs/promises");
     const { withMigrationLock } = await import("./src/db/migration-lock.js");
     await withMigrationLock(async () => {
       console.log("lock-ready");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      while (true) {
+        try {
+          await fs.access(${JSON.stringify(releaseMarkerPath)});
+          break;
+        } catch (error) {
+          if (error?.code !== "ENOENT") throw error;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      }
     });
   `], {
     cwd: root,
@@ -145,6 +155,7 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
     env: cleanEnv(),
   });
 
+  await fs.writeFile(releaseMarkerPath, "release\n", "utf8");
   assert.notEqual(contender.status, 0, "a second migration startup should fail while the lock is held");
   const contenderOutput = `${contender.stdout}\n${contender.stderr}`;
   assert.match(contenderOutput, /SQLite migration lock is already held/, "held-lock failure should name the migration lock");

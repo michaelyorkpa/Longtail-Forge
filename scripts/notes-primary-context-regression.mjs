@@ -52,8 +52,9 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesJs, /primaryClientField\.hidden = !clientAvailable/);
   assert.match(notesJs, /primaryClientField\.style\.display = clientAvailable \? "" : "none"/);
   assert.match(notesJs, /function populateWorkspaceVisibilityOptions\(selectedValue = visibilityInput\?\.value \|\| "internal"\)/);
-  assert.match(notesJs, /noteSelect\("noteVisibility", modalFieldOptions\(modal, "visibility"\)\.filter\(\(\[value\]\) => value !== "client_visible"\)\)/);
-  assert.match(notesJs, /\.filter\(\(\[value\]\) => value !== "client_visible" \|\| usesBusinessScope\(\)\)/);
+  assert.match(notesJs, /const visibilityOptions = modalFieldOptions\(modal, "visibility"\)/);
+  assert.match(notesJs, /visibilityOptions\.length > 0[\s\S]*noteSelect\("noteVisibility", visibilityOptions\)/);
+  assert.match(notesJs, /function workspaceVisibilityOptions\(\)[\s\S]*normalizeWorkspaceType\(state\.workspaceType\) === "personal"[\s\S]*value !== "client_visible" \|\| usesBusinessScope\(\)/);
   assert.match(notesJs, /function readEditorVisibility\(\)/);
   assert.match(notesJs, /visibility: readEditorVisibility\(\)/);
   assert.match(notesJs, /async function openEditor\(note = null, options = \{\}\) \{\s*note = await hydrateEditorNote\(note\);/, "Edit Note should hydrate saved notes before Primary Context controls are populated");

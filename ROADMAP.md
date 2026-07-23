@@ -1,167 +1,75 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.21`.
+Active cursor: `0.33.21.18.1`.
+Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
-## Version 0.33.21 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
+### Version 0.33.21.18 - Post-update Task Focus, task editor, and development-seed corrections
 
-**Model: High Effort** — This branch batches the pre-preview review findings that were deliberately deferred until after the friends-and-family preview with related short-term TODO work, spanning Reporting, Clients/Projects, Workbench, Tasks, Notes, and Calendar/Dashboard surfaces.
+**Model: High Effort** — This correction umbrella covers three distinct blast radii found during rendered review: canonical task-timer seed/runtime coherence, the Task editor continuity container width, and complete Workbench Task Focus exit capture. Keep the children separate so the destructive local reseed, contained layout repair, and navigation-lifecycle design each receive focused proof without mixing ownership.
 
 Purpose:
 
-Land the UI/UX corrections and workflow improvements identified during the `archive/0.33.17.7-pre-testing.md` review that can safely wait until after the friends-and-family preview ships, together with the Workbench and Tasks short-term items promoted from `TODO.md`. This branch also receives review findings that cannot be verified until the app runs behind real TLS on the deployed Linux environment (post-0.33.17.9), such as HTTPS/proxy session behavior.
+Correct the small but consequential regressions found after 0.33.21.15-.17: the deterministic development seed creates an incoherent task timer that cannot resume cleanly, the always-visible Task continuity block is constrained to half of the modal, and resume-note capture only sees the explicit Change Focus path instead of every meaningful loss of Task Focus.
+
+This is a tracking umbrella, not one implementation slice. Complete the children in order: repair and reseed the canonical local development world first so later rendered checks run against coherent Task/timer state; then fix the contained editor layout; then broaden Task Focus exit capture on top of the verified timer fixture. Preserve Tasks ownership of lifecycle and `resume_note`, Time Tracking ownership of persisted timers, Workbench ownership of focused-task state, and framework ownership of app-shell navigation/modal anatomy.
 
 Non-goals:
 
-- No preview-readiness claims move here; anything required before invitations belongs under 0.33.17.
-- No new module workflows beyond the corrections and settings surfaces named below.
-
-### Version 0.33.21.1 - Reporting and Notes tag-control refinements
-
-**Model: Medium Effort** — Two contained control swaps on already-verified surfaces with routine shared-picker regression coverage.
-
-- [ ] Convert the Reporting tag filter into the typable search-and-select control used across the rest of the interface.
-- [ ] Convert the Notes -> Bulk Actions tag control from its long scroll-box list into the same native typable tag picker used everywhere else, following the shared-picker flow.
+- No new timer workflow, task status, or resume-note storage; these slices repair existing contracts.
+- No hand-editing the local SQLite rows as the fix. The deterministic seed must reproduce the correct state from a clean reset.
+- No global unsaved-changes framework or generic browser-navigation blocker beyond the bounded Task Focus capture contract.
+- No claim that a custom in-app modal can survive an operating-system kill or browser process termination; hard-exit recovery must use a bounded, non-sensitive drift marker rather than duplicate Task content.
 
 Acceptance criteria:
 
-- The Reporting tag filter and the Notes bulk-actions tag control both match the shared tag-picker interaction pattern.
+- A clean deterministic local seed produces resumable canonical task timers with matching Task lifecycle state, the Task continuity block uses the full editor width, and every supported loss of a timed Task Focus offers the same Tasks-owned resume-note capture without duplicate prompts or storage.
 
-### Version 0.33.21.2 - Clients and Projects list and modal polish
+#### Version 0.33.21.18.1 - Development-seed task-timer coherence, Start repair, and guarded local reset
 
-**Model: High Effort** — Many small corrections across the Clients/Projects lists, filters, and add/edit modals with shared-modal and framework-ownership implications.
+**Model: High Effort** — The observed 500 crosses deterministic seed data, Tasks/Time Tracking timer identity and lifecycle metadata, SQLite uniqueness, and an explicitly destructive local reset whose safety and runtime result must be proved.
 
-Filters:
-
-- [ ] Shrink the client/project filter fields slightly so the focus ring is not clipped by the outer box (applies to both Clients filters and Project Settings filters).
-- [ ] Fix the project filter's "Workspace Client" selection displaying no results; it should display workspace projects.
-
-Add Project modal:
-
-- [ ] Vertically top-align the tagging box with "Parent Project" instead of leaving it in its own column.
-- [ ] When adding a workspace project, the client box must show the workspace's name rather than the literal text "Workspace Project".
-- [ ] "Add Client" must open a Clients-owned add-client modal instead of navigating to the Settings -> Admin -> Clients page, and the newly added client must refresh the modal's Client dropdown so it is immediately selectable.
-
-Edit Project modal:
-
-- [ ] Rebuild the edit modal to match the framework: wide-modal width, remove the box that encompasses the modal's interior, and remove the redundant collapsible heading below the project name (the modal's own "Edit Project: {{ projectName }}" heading is sufficient).
-- [ ] Stack Status, Client, and Parent Project as three separate full-width rows in that order.
-- [ ] Make Project tags full-width and unbounded by its own box.
-- [ ] Visually connect Task Reminder defaults to the task-module section under Project defaults.
-
-Billing defaults:
-
-- [ ] Workspace projects default to "Billable" OFF.
-
-List screens (Clients and Projects):
-
-- [ ] Remove the extra horizontal rule separating tags/tag chips from the rest of each row.
-- [ ] Fix text overrunning tag-chip borders and remove the redundant "Tags" label; place chips on the line directly below the client/project name without separation, mimicking the Actions -> Tasks list appearance.
-- [ ] Restore the preceding hyphen "-" on correctly ordered child clients and child projects.
-- [ ] Remove the "Actions", "Select client", and "Select Project" column headings (keep the columns) to eliminate wrapped headings and dead whitespace.
-
-Add Client dialog:
-
-- [ ] Rebuild the hard-coded/hand-built Add Client dialog (currently compressed and shifted) on the framework modal system.
+- [ ] Reproduce and record the seeded `PUT /api/tasks/:taskId/timer` failure before changing the fixture, then reconcile the static audit: the “Validate POS receipt layout” seed currently pairs an `Open` Task with a timer written as noncanonical `active`, uses a noncanonical sourced-timer slot instead of `source:tasks:task:<taskId>`, and omits the Tasks-authored timer-transition metadata expected by normal lifecycle creation.
+- [ ] Make the deterministic development/sanitized-demo seed express task timers through the same canonical persisted contract as runtime: only `running` / `paused` status tokens, canonical sourced-timer identity/slot, matching Client/Project/source labels, valid transition metadata, and an `in_progress` Task whenever seeded timer/checklist evidence means work has started. Do not weaken the runtime unique-source constraint or add a compatibility branch solely for malformed seed rows.
+- [ ] Expand `scripts/regressions/database/development-data-seed.regression.mjs` beyond row counts: assert each seeded task timer has a canonical status and slot, joins to the expected Task and user/workspace, agrees with Task lifecycle state, and can pass through the real Tasks timer Start/Resume, Pause, Save Time/finalize, and Reset paths without a 500 or duplicate-source row. Retain deterministic semantic-fingerprint, safety-refusal, integrity, foreign-key, and disabled-persona coverage.
+- [ ] After the seed implementation and isolated regression are green, perform the user-requested reset of only the guarded local `./data/development-seed` target used by `http://127.0.0.1:8001`: verify `.env` points `LONGTAIL_DATA_DIR`, `LONGTAIL_DATABASE_FILE`, and `LONGTAIL_LOCAL_STORAGE_ROOT` at that target without printing secrets; run the supported confirmed reset and deterministic seed with anchor date `2026-07-19`; do not touch live/demo host data or hand-edit SQLite rows.
+- [ ] Restart the canonical local server and prove the fresh world end to end: `PRAGMA integrity_check = ok`, zero foreign-key violations, `/api/app-info` reports the slice version, “Validate POS receipt layout” is `In Progress` with a real running timer, and Start/Resume, Pause, Save Time, Reset, the Task editor, and Workbench Task Focus all use the same timer successfully. If a 500 remains after the clean seed, diagnose and fix that runtime defect inside this slice rather than declaring the reset sufficient.
+- [ ] Update only the development-data, Tasks, Time Tracking, and local-testing docs that own any changed contract; keep generated database, Files, backups, and credentials out of Git.
 
 Acceptance criteria:
 
-- Clients/Projects filters, list rows, and add/edit modals match the shared framework modal and list patterns, with correct workspace-project labeling, hierarchy hyphens, default non-billable workspace projects, and no clipped focus rings or orphaned column headings.
+- A guarded reset and deterministic reseed of the local 127.0.0.1 development world produces canonical Task-linked timers and matching `In Progress` Tasks, the previously failing timer can Start/Resume, Pause, Save Time, and Reset from both Workbench and the Task editor without a 500 or duplicate row, and integrity/foreign-key/runtime proof is recorded.
 
-### Version 0.33.21.3 - Workbench algorithm, In Progress behavior, and timer-card follow-ups
+#### Version 0.33.21.18.2 - Full-width Task editor continuity block
 
-**Model: High Effort** — Focus-selection algorithm changes affect what work every user is steered toward.
+**Model: Medium Effort** — This is a contained Task editor layout correction with no route, payload, lifecycle, permission, or storage change.
 
-- [ ] Blocked items appear only in "Review blocked work".
-- [ ] "Start with what's due" includes due "In Progress" items (today they only appear in "Pick up where I left off").
-- [ ] Make the Workbench algorithm adjustable: Workbench surfaces a settings section under Settings -> Admin -> Modules -> Workbench.
-- [ ] Tasks with running timers appear in "Pick up where I left off", with running timers taking precedence, followed by active-but-paused timers.
-- [ ] Starting a task timer and then checking/unchecking checklist boxes must preserve "In Progress" status; status must not return to open while a timer is running or time has been attached in the past.
-- [ ] Clear the stale `?taskID=` URL parameter when the user changes focus or navigates to a different view/task (or immediately after load).
-- [ ] Resolve the Focus Selection recommendation for a manual timer: "Open work" currently falls back to the generic Time Tracking page; decide whether Time Tracking exposes a stable modal/opener contract or the recommendation adopts clearer resume/navigation wording. Do not add a Workbench-owned timer editor.
+- [ ] Make the entire always-visible Work continuity group (`Resume note`, `Next action`, and status-gated `Blocked reason`) span the full available width of the shared Add/Edit Task modal instead of occupying one default half-width field-grid cell. Use the existing framework full-width field/group contract; do not add a Task-only modal width override.
+- [ ] Preserve useful inner-field sizing: when Blocked reason is hidden, Resume note and Next action divide the full row into two usable columns; when it is visible, all three fields share the full row without compression. Preserve the current labels, placeholders, values, validation, payload names, and always-visible/status-gated behavior.
+- [ ] Keep phone-width stacking at one field per row and verify intermediate/desktop widths do not overflow, clip focus rings, or leave the continuity group at half width.
+- [ ] Extend the Task modal reflow/compact-layout and rendered editor coverage to assert the full-width outer group, two-column non-Blocked state, three-column Blocked state, and mobile stacking in every host that uses the canonical Task editor.
 
 Acceptance criteria:
 
-- Focus modes surface the right work (blocked only in review, due In-Progress items in due mode, running timers prioritized), In Progress status survives checklist edits under a timer, stale task URLs clear, and the manual-timer recommendation has a deliberate, documented behavior.
+- The Task editor’s Work continuity block spans the full modal width in Add and Edit, gives Resume note and Next action practical space when the Task is not Blocked, adds Blocked reason as the third full-row column only when applicable, and stacks cleanly on phones without changing Task behavior.
 
-### Version 0.33.21.4 - Task reminders, status transitions, and time estimates
+#### Version 0.33.21.18.3 - Resume-note capture for every supported Task Focus exit
 
-**Model: High Effort** — Status automation and reminder nullability change task lifecycle behavior across views.
+**Model: High Effort** — Correct capture requires one coherent navigation-intent contract across Workbench state changes, app-shell links and scripted navigation, browser history, and hard-exit recovery while preserving the exact destination and avoiding duplicate prompts or Task storage.
 
-- [ ] Allow canceling individual reminders: a checkbox next to the "Date-Only Reminder 2" and "Timed Reminder 2" headings makes them nullable so they trigger no event notification (a 3-days-before reminder on a weekly task is unnecessary).
-- [ ] Starting a timer or checking off checklist items automatically moves a task from Blocked to In Progress, clearing the blocked reason; if the timer is cancelled before being saved (and that was the cause of the transition), restore Blocked status and its reason.
-- [ ] Promote Next Action: marking a task completed opens the edit-task modal with Next Action focused so the user can specify the follow-up, which is promoted to a "thing to do" in the Workbench; leaving it blank is fine and simply moves on.
-- [ ] Add an estimated-time field on tasks (quarter-hour granularity) as groundwork for future day-planning; eventually estimates can be suggested from task context (client/project/tags) and prior completed time entries.
-
-Acceptance criteria:
-
-- Second reminders are individually cancelable; Blocked/In Progress transitions and blocked-reason restore behave as specified; completion prompts for a Workbench-promoted next action; tasks can carry quarter-hour estimates.
-
-### Version 0.33.21.5 - Notes settings surface
-
-**Model: Medium Effort** — A new module settings contribution following the 0.33.15 settings host contract.
-
-- [ ] Give Notes a settings surface (it currently exposes none, which reads as incomplete): at minimum a notes settings box providing a list view/bulk editing of the catalogs.
+- [ ] Inventory every way a timed Task Focus can be lost: Change Focus, Workbench fallback/deep links, app-shell/module links, global Search and Notifications handoffs, workspace/account navigation, browser back/forward, refresh, and tab/window close. Route every interceptable in-app navigation through one bounded intent path instead of adding per-link prompt handlers.
+- [ ] Reuse the exact shared single-line `Add resume note?` Yes/No capture from 0.33.21.17.2 whenever Task Focus has a running or paused timer and the focused Task has no saved or just-entered resume note. Preserve the exact pending destination/action, continue it once after Yes, No, or dismissal, and deduplicate concurrent navigation/timer signals so one drift produces one prompt.
+- [ ] Reconcile the prior non-blocking rule explicitly: timer Pause/Save Time remains complete and non-blocking before capture; an interceptable navigation intent may be held only long enough for the user to answer because navigating first destroys the custom modal. The Tasks write stays canonical, and a failed optional resume-note write must report safely without losing or repeating the original navigation intent.
+- [ ] For refresh, tab/window close, process termination, or another hard exit where browsers cannot reliably complete an async custom modal, store only a bounded session-scoped pending-drift marker (focused Task ID, timer presence, timestamp, and no note text or duplicate business data). On the next safe authenticated Workbench entry, re-check Tasks readability/current `resume_note`/timer state before offering capture once, then clear stale, dismissed, unreadable, completed, or satisfied markers.
+- [ ] Keep ownership clean: Workbench decides whether timed Task Focus is active and registers/unregisters its exit guard; the app shell owns generic navigation intent and destination continuation; Tasks owns readability and `resume_note` validation/write; Time Tracking owns timer truth; the shared modal owns anatomy only. Do not introduce a Workbench task editor, permanent draft store, raw-ID UI, or a global unsaved-changes framework.
+- [ ] Add regressions for Change Focus, each app-shell/scripted navigation class, back/forward, hard-exit marker recovery, correct destination continuation, existing/just-entered-note suppression, Yes write to the correct Task, No/dismissal, write failure, unreadable/stale marker cleanup, and one-prompt deduplication. Add rendered desktop/mobile proof for at least Change Focus plus one real app-shell navigation path.
 
 Acceptance criteria:
 
-- Notes contributes a settings surface with catalog list/bulk-edit management, following the shared settings anatomy and module-ownership boundaries.
-
-### Version 0.33.21.6 - User Settings password action isolation and runtime repair
-
-**Model: Medium Effort** — This is one contained User Settings action workflow with an intact server-side password-change contract but a reported rendered-runtime failure and stale/mixed-asset risk.
-
-- [ ] Reproduce the reported Settings -> User failure against the actual served asset set before editing and record whether the page loaded stale/mixed Settings host, controller, or User Settings JavaScript; the current disposable Playwright harness passes, so do not treat source-only assertions as proof of the field behavior.
-- [ ] Keep Current Password, New Password, and Confirm New Password inside an independent action form: editing or leaving those fields must not enable or flash either universal Save button, enable Revert, trigger the unsaved-navigation guard, enter the universal settings snapshot, or serialize credentials through `PUT /api/user/settings`.
-- [ ] Repair the dedicated Change Password action wherever the rendered/runtime path is broken so it submits exactly one `PUT /api/user/password`, retains scoped validation and status feedback, resets only after success, preserves the current session, and continues revoking the user's other sessions under the existing authentication-service contract.
-- [ ] Add rendered regression coverage using only the disposable managed-server account: prove the universal actions remain clean throughout password entry, the dedicated button changes the password, the old password is rejected, and the new password is accepted. Include cache/version loading in the proof if stale or mixed assets caused the field failure.
-
-Acceptance criteria:
-
-- Password entry and submission are fully isolated from universal User Settings Save/Revert behavior, the dedicated Change Password button works in the served app, and a rendered disposable-account regression protects both the UI transaction boundary and the completed credential change.
-
-### Version 0.33.21.7 - Deferred TLS/proxy-dependent review findings (placeholder)
-
-**Model: Medium Effort** — Scope is unknown until the review runs against the deployed TLS environment.
-
-- [ ] Reserve this slice for findings from the HTTPS/proxy session-behavior review (`archive/0.33.17.7-pre-testing.md`), which requires the real TLS proxy on the deployed environment after 0.33.17.9: sign-in through the proxy, refresh/navigation, workspace switching, logout/login, and cookie persistence without redirect loops or authentication loss.
-
-Acceptance criteria:
-
-- Every TLS/proxy-dependent review item has a recorded result, and confirmed defects are corrected and regression-covered here.
-
-### Version 0.33.21.8 - Quick-action capture refresh consumption on host pages
-
-**Model: Medium Effort** — The broadcast half of an existing contract already works; this slice designs and lands the missing consumption half as a framework-owned, declarative subscription rather than per-page ad-hoc listeners.
-
-Root cause (confirmed 2026-07-20): the quick-action capture drawer (`public/js/footer.js`) converts every module dialog's host `refresh` callback into a `longtailforge:quick-action-refresh` window CustomEvent, but no page subscribes to that event, so any record created through quick capture leaves the current page stale. The dialogs behave correctly (for example, the create-timer dialog awaits `hostContext.refresh(detail)` after saving), and page-owned openers are unaffected because they pass real callbacks (the Workbench passes `{ refresh: loadWorkbench }` for its own "Add Task"). The reported symptom is the Workbench: creating a timer via quick capture does not update the Timers (`active-work-timers`) card until a manual reload. `scripts/time-tracking-create-timer-modal-regression.mjs` asserts the event is dispatched but nothing asserts it is consumed.
-
-- [ ] Define a framework-owned subscription contract for `longtailforge:quick-action-refresh`: pages or cards declare the record types and/or action ids they display (following the declarative-contribution model), and a shared helper owns the window listener, filtering, and lifecycle instead of each page hand-rolling `window.addEventListener`.
-- [ ] Workbench consumes the contract: a completed `time-tracking.timer.create` quick action (record type `active_timer`) refreshes the active-timer state and Timers card without a page reload, preserving user-toggled card open/closed state and any active Task Focus surface.
-- [ ] Audit the remaining first-party quick actions (`tasks.add`, `time-entries.add`, `notes.add`, `lists.add`, `projects.add`, `clients.add`) for the same stale-host gap on the pages that list those records, and wire the same subscription where the page displays the affected record type.
-- [ ] Regression coverage proves consumption, not just dispatch: extend `scripts/time-tracking-create-timer-modal-regression.mjs` or add a Workbench regression demonstrating that a quick-capture-created timer appears in the Workbench Timers card without a reload.
-
-Acceptance criteria:
-
-- A timer created through the quick-action capture while on the Workbench appears in the Timers card automatically; the refresh contract is framework-owned and declaratively consumed by pages; the dispatch-plus-consumption path is regression-covered.
-
-### Version 0.33.21.9 - Read-only calendar active-task defaults and status filter
-
-**Model: Medium Effort** — A contained default-scope and filter change on the two existing read-only calendar surfaces; the risk is filter/default drift between the Dashboard panel and the Calendar page rather than data-model change.
-
-- [ ] The Dashboard calendar panel displays only active tasks (open, in progress, blocked); completed and archived tasks no longer appear there.
-- [ ] Actions -> Calendar defaults to the same active-status set on load.
-- [ ] Add a task-status multi-selector to the Calendar page's filters so users can widen or narrow the displayed statuses (for example, to include completed tasks); follow the shared filter-control patterns.
-- [ ] Keep the status scoping server-honored in the calendar read path rather than client-side-only, so the window query does not fetch rows the surface will discard.
-- [ ] Add regressions: the Dashboard panel excludes completed/archived tasks; the Calendar page defaults to active statuses; the multi-selector widens the set; reminder markers still render for the visible tasks.
-- [ ] Forward note for 0.33.22: the read-time recurrence projection must compose with this status scoping (virtual occurrences carry active status by construction, and the materialized-instance dedup must not resurrect filtered-out completed instances).
-
-Acceptance criteria:
-
-- Both read-only calendar surfaces default to active tasks only, the Calendar page can adjust the status set through a shared multi-selector, and the defaults/filters are regression-covered on both surfaces.
+- Any supported loss of a running/paused Task Focus either offers `Add resume note?` before continuing the exact in-app navigation or records a bounded hard-exit drift marker and offers it once on safe Workbench return; Yes updates the correct Tasks-owned Resume note, No/dismissal continues cleanly, and no exit loses its destination, nags twice, or creates duplicate Task content.
 
 ## Version 0.33.22 - Recurring Calendar Projection and Private Calendar Subscription Feed
 

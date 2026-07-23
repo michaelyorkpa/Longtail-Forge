@@ -77,11 +77,15 @@ for (const assetPath of [
 }
 assert.match(tasksDashboard, /await bridge\.importScripts\(\[[\s\S]*"\/js\/shared\/task-calendar\.js"[\s\S]*"\/js\/task-dialog\.js"/);
 assert.match(tasksDashboard, /dashboard\.registerPanelRenderer\("tasks\.calendar"/);
+assert.match(tasksDashboard, /taskCalendar\.fetchCalendarWindow\(range, \{[\s\S]*statuses: \["open", "in_progress", "blocked"\]/, "Dashboard calendar must request only active task statuses");
+assert.match(tasksDashboard, /taskCalendar\.resolveDefaultView\(taskCalendar\.readPreferredCalendarView\(\)\)/, "Dashboard calendar must apply the saved or responsive default view");
+assert.match(tasksDashboard, /await initialViewReady/, "Dashboard calendar must wait for the app-shell preference bootstrap before its first read");
 assert.match(tasksDashboard, /attrs: \{ role: "group", "aria-label": "Dashboard calendar view" \}/);
 assert.match(tasksDashboard, /attrs: \{ type: "button", "aria-pressed": viewId === state\.view/);
-assert.match(tasksDashboard, /button\.addEventListener\("click"[\s\S]*other\.setAttribute\("aria-pressed"/);
+assert.match(tasksDashboard, /button\.addEventListener\("click"[\s\S]*state\.viewSelectedByUser = true[\s\S]*updateViewButtons\(\)/);
+assert.match(tasksDashboard, /button\.setAttribute\("aria-pressed", button\.dataset\.dashboardCalendarView === state\.view/);
 assert.match(tasksDashboard, /returnFocusTo: trigger/);
-checks += 6;
+checks += 9;
 
 assert.match(dashboardHtml, /css\/longtail-forge\.css[\s\S]*css\/dashboard\.css/);
 assert.match(dashboardCss, /\.dashboard-page[\s\S]*\.dashboard-region-body--main[\s\S]*@media \(max-width: 720px\)/);

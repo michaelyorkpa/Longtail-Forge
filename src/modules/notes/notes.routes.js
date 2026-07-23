@@ -61,6 +61,17 @@ notesRoutes.get("/notes/collections", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+notesRoutes.get("/notes/settings/catalogs", asyncRoute(async (request, response) => {
+  const result = await notesService.listCatalogSettings(request.session);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/settings/catalogs/bulk", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notesService.bulkManageCatalogs(payload, request.session);
+  response.status(200).json(result);
+}));
+
 notesRoutes.get("/notes/secure/health", asyncRoute(async (request, response) => {
   const result = await notesService.secureHealth(request.session);
   response.status(200).json(result);

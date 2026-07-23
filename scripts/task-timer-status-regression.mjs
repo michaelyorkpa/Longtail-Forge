@@ -12,6 +12,7 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 const { auditService } = await import("../src/core/audit.js");
 const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
+const { timeEntriesService } = await import("../src/modules/time-tracking/time-entries.service.js");
 
 try {
   await initializeDatabase();
@@ -19,9 +20,11 @@ try {
   const context = await createClientProject(session.workspace_id);
 
   await assertStartMovesOpenTask(session, context.projectId);
+  await assertStartMovesBlockedTask(session, context.projectId);
   await assertRecurringStartAuditCarriesReadableContext(session, context);
   await assertPauseLeavesInProgress(session, context.projectId);
   await assertRemoveRevertsOnlyTimerMovedTask(session, context.projectId);
+  await assertBlockedResetRestorationRules(session, context.projectId);
   await assertFinalizeLeavesInProgress(session, context.projectId);
   await assertCompletedAndArchivedTasksRejectTimers(session, context.projectId);
   await assertAuditBrowserFallback();
@@ -90,6 +93,26 @@ async function assertStartMovesOpenTask(session, projectId) {
   );
 }
 
+async function assertStartMovesBlockedTask(session, projectId) {
+  const blockedReason = "Waiting for the reviewed source package.";
+  const task = await createTask(session, projectId, "Blocked timer start transition", {
+    blocked_reason: blockedReason,
+    status: "blocked",
+  });
+
+  const result = await taskTimersService.save(task.task_id, runningTimerPayload(), session);
+  const storedTask = await readTaskLifecycle(session.workspace_id, task.task_id);
+  const transition = await readTimerTransitionMetadata(session.workspace_id, session.user_id, task.task_id);
+
+  assert.equal(result.task?.status, "in_progress", "timer start should recover a blocked task into in progress");
+  assert.equal(result.task?.blocked_reason, "", "timer start response should clear the active blocked reason");
+  assert.deepEqual(storedTask, { blocked_reason: "", status: "in_progress" }, "timer start should persist the authoritative cleared blocked state");
+  assert.equal(transition.movedTaskToInProgress, true, "timer metadata should record that it caused the lifecycle transition");
+  assert.equal(transition.movedTaskFromBlocked, true, "timer metadata should distinguish a blocked origin");
+  assert.equal(transition.previousStatus, "blocked", "timer metadata should retain the prior lifecycle status");
+  assert.equal(transition.previousBlockedReason, blockedReason, "timer metadata should retain the exact recoverable blocked reason");
+}
+
 async function assertPauseLeavesInProgress(session, projectId) {
   const task = await createTask(session, projectId, "Timer pause transition");
 
@@ -133,6 +156,56 @@ async function assertRemoveRevertsOnlyTimerMovedTask(session, projectId) {
   );
 }
 
+async function assertBlockedResetRestorationRules(session, projectId) {
+  const restorableReason = "Waiting for the client decision.";
+  const restorable = await createTask(session, projectId, "Blocked timer reset restores reason", {
+    blocked_reason: restorableReason,
+    status: "blocked",
+  });
+  await taskTimersService.save(restorable.task_id, runningTimerPayload(), session);
+  const restored = await taskTimersService.remove(restorable.task_id, session);
+
+  assert.equal(restored.task?.status, "blocked", "reset should restore Blocked when the unsaved timer was the only work-start signal");
+  assert.equal(restored.task?.blocked_reason, restorableReason, "reset should restore the exact prior blocked reason");
+  assert.deepEqual(
+    await readTaskLifecycle(session.workspace_id, restorable.task_id),
+    { blocked_reason: restorableReason, status: "blocked" },
+    "restored Blocked state should be authoritative in storage",
+  );
+
+  const checklistEvidence = await createTask(session, projectId, "Blocked reset keeps checklist-started work", {
+    blocked_reason: "Waiting before checklist work starts.",
+    status: "blocked",
+  });
+  const checklist = await tasksService.addChecklistItem(checklistEvidence.task_id, { label: "Record independent progress" }, session);
+  await taskTimersService.save(checklistEvidence.task_id, runningTimerPayload(), session);
+  await tasksService.checkChecklistItem(checklistEvidence.task_id, checklist.item.task_checklist_item_id, session);
+  const checklistReset = await taskTimersService.remove(checklistEvidence.task_id, session);
+
+  assert.equal(checklistReset.task?.status, "in_progress", "checked checklist work should prevent reset from restoring Blocked");
+  assert.equal(checklistReset.task?.blocked_reason, "", "independently started work should keep the old blocked reason cleared");
+
+  const savedTimeEvidence = await createTask(session, projectId, "Blocked reset keeps persisted-time work", {
+    blocked_reason: "Waiting before earlier tracked work is reviewed.",
+    status: "blocked",
+  });
+  await timeEntriesService.create({
+    billable: "yes",
+    description: "Persisted task work",
+    duration_hours: "0.0167",
+    duration_seconds: 60,
+    end_time: "2026-07-21T16:01:00.000Z",
+    project_id: projectId,
+    start_time: "2026-07-21T16:00:00.000Z",
+    task_id: savedTimeEvidence.task_id,
+  }, session);
+  await taskTimersService.save(savedTimeEvidence.task_id, runningTimerPayload(), session);
+  const savedTimeReset = await taskTimersService.remove(savedTimeEvidence.task_id, session);
+
+  assert.equal(savedTimeReset.task?.status, "in_progress", "persisted task time should prevent reset from restoring Blocked");
+  assert.equal(savedTimeReset.task?.blocked_reason, "", "persisted work should keep the old blocked reason cleared");
+}
+
 async function assertFinalizeLeavesInProgress(session, projectId) {
   const task = await createTask(session, projectId, "Timer finalize transition");
 
@@ -173,6 +246,7 @@ async function createTask(session, projectId, title, overrides = {}) {
     title,
     project_id: projectId,
     status: overrides.status || "open",
+    blocked_reason: overrides.blocked_reason || "",
     assignee_ids: [session.user_id],
     ...(overrides.recurrence ? {
       due_date: "2026-07-03",
@@ -304,7 +378,27 @@ LIMIT 1;
   return rows[0]?.status || "";
 }
 
+async function readTaskLifecycle(workspaceId, taskId) {
+  const rows = await querySql(`
+SELECT status, blocked_reason
+FROM tasks
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND task_id = ${sqlText(taskId)}
+LIMIT 1;
+`);
+
+  return {
+    blocked_reason: rows[0]?.blocked_reason || "",
+    status: rows[0]?.status || "",
+  };
+}
+
 async function readTimerTransitionFlag(workspaceId, userId, taskId) {
+  const metadata = await readTimerTransitionMetadata(workspaceId, userId, taskId);
+  return metadata.movedTaskFromOpen === true;
+}
+
+async function readTimerTransitionMetadata(workspaceId, userId, taskId) {
   const rows = await querySql(`
 SELECT source_metadata_json
 FROM active_work_timers
@@ -317,7 +411,7 @@ LIMIT 1;
 `);
   const metadata = JSON.parse(rows[0]?.source_metadata_json || "{}");
 
-  return metadata.taskTimerStatusTransition?.movedTaskFromOpen === true;
+  return metadata.taskTimerStatusTransition || {};
 }
 
 async function readTaskTimerCount(workspaceId, userId, taskId) {

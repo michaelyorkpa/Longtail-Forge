@@ -9,6 +9,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const appShellService = readText("src/services/app-shell.service.js");
 const changelog = readText("CHANGELOG.md");
 const footer = readText("public/js/footer.js");
+const quickActionRefresh = readText("public/js/shared/quick-action-refresh.js");
+const workbench = readText("public/js/workbench.js");
+const workbenchView = readText("views/protected/workbench.html");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const timerDialog = readText("public/js/time-tracking-timer-dialog.js");
 const quickActionCaptureRegression = readText("scripts/quick-action-capture-regression.mjs");
@@ -52,6 +55,18 @@ assert.match(
   /const moduleActionBaseDependencies = \[[\s\S]*js\/shared\/module-actions\.js/,
   "QAC should keep module action registry loading in the shared dependency base",
 );
+assert.match(footer, /recordType: registeredAction\?\.recordType \|\| ""/,
+  "QAC refresh events should carry the registered module-action record type");
+assert.match(quickActionRefresh, /longtailforge:quick-action-refresh/,
+  "framework refresh helper should own the QAC event name");
+assert.match(quickActionRefresh, /function subscribe\(options = \{\}\)[\s\S]*global\.addEventListener\(EVENT_NAME, listener\)[\s\S]*return \(\) => global\.removeEventListener/,
+  "framework refresh helper should own filtered listener lifecycle");
+assert.match(workbenchView, /js\/shared\/quick-action-refresh\.js[\s\S]*js\/workbench\.js/,
+  "Workbench should load the shared refresh helper before its page script");
+assert.match(workbench, /quickActionRefresh\?\.subscribe\(\{[\s\S]*actionIds: \["time-tracking\.timer\.create"\][\s\S]*onRefresh: refreshWorkbenchTimers[\s\S]*recordTypes: \["active_timer"\]/,
+  "Workbench should declaratively consume timer quick-action refreshes");
+assert.match(workbench, /async function refreshWorkbenchTimers\(\)[\s\S]*state\.timers = sourceData\.timers[\s\S]*renderTimers\(\)/,
+  "Workbench quick-action consumption should refresh only timer card state");
 assert.match(
   footer,
   /"time-tracking\.timer\.create": \[[\s\S]*js\/shared\/page-controller\.js[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*js\/shared\/client-project-options\.js[\s\S]*js\/time-tracking-timer-dialog\.js/,

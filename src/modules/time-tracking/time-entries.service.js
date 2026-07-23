@@ -234,6 +234,10 @@ async function list(session, query = {}) {
   };
 }
 
+async function hasTaskTime(workspaceId, taskId) {
+  return timeEntriesRepository.hasForTask(workspaceId, taskId);
+}
+
 async function saveTargetTags(session, targetType, targetId, payload = {}) {
   if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
     return;
@@ -360,6 +364,7 @@ async function syncTimeEntrySearchIndex(workspaceId, entryId, reason) {
 export const timeEntriesService = {
   create,
   createFromActiveTimer,
+  hasTaskTime,
   list,
   remove,
   update,

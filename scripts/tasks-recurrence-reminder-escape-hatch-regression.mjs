@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const taskDialogScript = readText("public/js/task-dialog.js");
+const moduleContract = readText("docs/module-contract.md");
+const tasksDocs = readText("docs/tasks-module.md");
+const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
 const taskRemindersService = readText("src/modules/tasks/task-reminders.service.js");
 const tasksModalShellRegression = readText("scripts/tasks-modal-shell-regression.mjs");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
+const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 
 assert.match(
   taskDialogScript,
@@ -45,8 +49,8 @@ assert.match(
 
 assert.match(
   taskDialogScript,
-  /function writeReminderFields\(details = \{\}\)[\s\S]*taskPolicy = normalizeReminderPolicy\(details\?\.taskPolicy \|\| details\?\.effectivePolicy\?\.offsets \|\| \{\}\)[\s\S]*effectivePolicy = normalizeReminderPolicy\(details\?\.effectivePolicy\?\.offsets \|\| \{\}\)[\s\S]*fields\.reminderOverride\.checked = Boolean\(details\?\.overrideEnabled\)[\s\S]*updateReminderOverrideState\(\)/,
-  "Reminder overrides should still hydrate from task reminder details.",
+  /function writeReminderFields\(details = \{\}\)[\s\S]*details\?\.overrideEnabled[\s\S]*details\?\.taskPolicy[\s\S]*details\?\.effectivePolicy\?\.offsets[\s\S]*reminderDateTimeHours2Enabled\.checked = timedHours\.length > 1[\s\S]*reminderDateOnlyDays2Enabled\.checked = dateOnlyDays\.length > 1[\s\S]*updateSecondaryReminderState\(\)/,
+  "Reminder overrides should hydrate each secondary enable state from the saved override or effective policy.",
 );
 assert.match(
   taskDialogScript,
@@ -59,6 +63,16 @@ assert.match(
   "Task save payload should continue to submit recurrence and reminder override data.",
 );
 assert.match(
+  taskDialogScript,
+  /function readReminderPolicy\(\)[\s\S]*reminderDateTimeHours2Enabled\.checked[\s\S]*reminderDateTimeHours2[\s\S]*reminderDateOnlyDays2Enabled\.checked[\s\S]*reminderDateOnlyDays2/,
+  "Disabled secondary reminders should be omitted independently from the Tasks-owned reminder policy payload.",
+);
+assert.match(
+  taskDialogScript,
+  /taskEditorOptionalReminderField\(view, "Timed Reminder 2 \(hours before\)"[\s\S]*"data-task-reminder-date-time-hours-2-enabled"[\s\S]*taskEditorOptionalReminderField\(view, "Date-Only Reminder 2 \(days before\)"[\s\S]*"data-task-reminder-date-only-days-2-enabled"/,
+  "The Task editor should place explicit enable checkboxes beside both secondary reminder headings.",
+);
+assert.match(
   tasksService,
   /async function saveTaskReminderOverride\(workspaceId, taskId, payload = \{\}\)[\s\S]*hasReminderPayload[\s\S]*readReminderOverrideEnabled\(payload, \{\}\)[\s\S]*taskRemindersService\.saveTargetPolicy\(workspaceId, "task", taskId, policy, !overrideEnabled\)/,
   "Tasks service should continue to save task reminder overrides through the reminder service.",
@@ -67,6 +81,26 @@ assert.match(
   taskRemindersService,
   /async function readTaskReminderDetails\(task\)[\s\S]*overrideEnabled: Boolean\(task\.reminder_override_enabled\)[\s\S]*effectivePolicy[\s\S]*taskPolicy/,
   "Reminder details should continue to expose override, effective policy, and task policy data to the modal.",
+);
+assert.match(
+  tasksDocs,
+  /As of 0\.33\.21\.4\.1[\s\S]*secondary timed and date-only reminder[\s\S]*omitted from the saved offset list[\s\S]*no occurrence, reminder job, or notification/,
+  "Tasks docs should explain optional secondary reminder persistence and delivery behavior.",
+);
+assert.match(
+  moduleContract,
+  /As of 0\.33\.21\.4\.1[\s\S]*Enabled checkbox[\s\S]*omits only that offset from `reminderPolicy`/,
+  "The module contract should retain Tasks ownership of optional secondary reminders.",
+);
+assert.match(
+  uiSurfaceContract,
+  /As of 0\.33\.21\.4\.1[\s\S]*Enabled checkbox beside each secondary offset heading[\s\S]*persists omission rather than a hidden fallback value/,
+  "The UI surface contract should pin the secondary reminder control anatomy.",
+);
+assert.match(
+  tasksHelp,
+  /second timed and date-only reminders each have an Enabled checkbox/,
+  "Tasks Help should explain how to disable an unnecessary secondary reminder.",
 );
 assert.match(
   tasksModalShellRegression,

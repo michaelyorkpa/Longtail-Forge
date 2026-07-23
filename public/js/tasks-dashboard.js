@@ -8,6 +8,8 @@ if (!bridge?.importScripts) {
 
 await bridge.importScripts([
   "/js/shared/task-calendar.js",
+  "/js/shared/capture-prompt.js",
+  "/js/task-resume-note-capture.js",
   "/js/task-dialog.js",
 ]);
 
@@ -42,8 +44,19 @@ function renderTasksCalendarContribution(contribution, context) {
     return null;
   }
 
-  const state = { view: "month" };
+  const state = {
+    view: taskCalendar.resolveDefaultView(null),
+    viewSelectedByUser: false,
+  };
   let hydrateToken = 0;
+  const initialViewReady = Promise.resolve(window.LongtailForge?.workspaceContextReady)
+    .catch(() => null)
+    .then(() => {
+      if (!state.viewSelectedByUser) {
+        state.view = taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView());
+        updateViewButtons();
+      }
+    });
   const periodLabel = context.view.createElement("p", {
     className: "dashboard-calendar-period",
     dataset: { dashboardCalendarPeriod: "" },
@@ -92,10 +105,8 @@ function renderTasksCalendarContribution(contribution, context) {
       }
 
       state.view = viewId;
-
-      for (const other of viewButtons) {
-        other.setAttribute("aria-pressed", other.dataset.dashboardCalendarView === viewId ? "true" : "false");
-      }
+      state.viewSelectedByUser = true;
+      updateViewButtons();
 
       hydrate();
     });
@@ -107,8 +118,14 @@ function renderTasksCalendarContribution(contribution, context) {
     const token = ++hydrateToken;
 
     try {
+      await initialViewReady;
+      if (token !== hydrateToken) {
+        return;
+      }
       const range = taskCalendar.calendarRange(state.view, new Date());
-      const data = await taskCalendar.fetchCalendarWindow(range);
+      const data = await taskCalendar.fetchCalendarWindow(range, {
+        statuses: ["open", "in_progress", "blocked"],
+      });
 
       if (token !== hydrateToken) {
         return;
@@ -132,6 +149,12 @@ function renderTasksCalendarContribution(contribution, context) {
         message: "Task calendar data could not be loaded.",
       }));
       console.error(error);
+    }
+  }
+
+  function updateViewButtons() {
+    for (const button of viewButtons) {
+      button.setAttribute("aria-pressed", button.dataset.dashboardCalendarView === state.view ? "true" : "false");
     }
   }
 

@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "focused",
   tags: ["authentication", "database", "navigation", "permissions", "settings", "workspaces"],
-  description: "Proves per-user login and workspace-switch landing preferences resolve only to enabled, authorized protected pages with Dashboard fallback.",
+  description: "Proves per-user app preferences persist calendar defaults and resolve login and workspace-switch landings only to enabled, authorized protected pages with Dashboard fallback.",
   runMode: "isolated-database",
 });
 
@@ -42,14 +42,21 @@ try {
   assert.equal(defaultSettings.status, 200, JSON.stringify(defaultSettings.body));
   assert.equal(defaultSettings.body.preferredLoginLanding, "dashboard");
   assert.equal(defaultSettings.body.preferredWorkspaceSwitchLanding, "dashboard");
+  assert.equal(defaultSettings.body.preferredCalendarView, null);
 
   const saved = await api.put("/api/user/settings", {
     preferredLoginLanding: "tasks",
     preferredWorkspaceSwitchLanding: "notes",
+    preferredCalendarView: "week",
   }, { cookie: adminCookie });
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   assert.equal(saved.body.preferredLoginLanding, "tasks");
   assert.equal(saved.body.preferredWorkspaceSwitchLanding, "notes");
+  assert.equal(saved.body.preferredCalendarView, "week");
+  assert.equal((await api.get("/api/user/settings", { cookie: adminCookie })).body.preferredCalendarView, "week");
+  const shellBootstrap = await api.get("/api/app-shell/bootstrap", { cookie: adminCookie });
+  assert.equal(shellBootstrap.status, 200, JSON.stringify(shellBootstrap.body));
+  assert.equal(shellBootstrap.body.user.preferredCalendarView, "week");
 
   const configuredLogin = await login(api, ADMIN_USERNAME, ADMIN_PASSWORD);
   assert.equal(configuredLogin.body.user.loginLandingPath, "/tasks.html");
@@ -108,24 +115,31 @@ WHERE workspace_id = :workspaceId
   const invalidSaved = await api.put("/api/user/settings", {
     preferredLoginLanding: "not-a-page",
     preferredWorkspaceSwitchLanding: "/external",
+    preferredCalendarView: "agenda",
   }, { cookie: adminCookie });
   assert.equal(invalidSaved.status, 200, JSON.stringify(invalidSaved.body));
   assert.equal(invalidSaved.body.preferredLoginLanding, "dashboard");
   assert.equal(invalidSaved.body.preferredWorkspaceSwitchLanding, "dashboard");
+  assert.equal(invalidSaved.body.preferredCalendarView, null);
   await assert.rejects(
     db.run("UPDATE users SET preferred_login_landing = 'invalid';"),
+    /CHECK constraint failed/,
+  );
+  await assert.rejects(
+    db.run("UPDATE users SET preferred_calendar_view = 'agenda';"),
     /CHECK constraint failed/,
   );
 
   const integrity = await db.query("PRAGMA integrity_check;");
   assert.deepEqual(integrity, [{ integrity_check: "ok" }]);
 
-  const [hostSource, userSettingsSource, loginSource, navigationSource, authSource] = await Promise.all([
+  const [hostSource, userSettingsSource, loginSource, navigationSource, authSource, calendarSource] = await Promise.all([
     fs.readFile("public/js/shared/settings-host.js", "utf8"),
     fs.readFile("public/js/user-settings.js", "utf8"),
     fs.readFile("public/js/login.js", "utf8"),
     fs.readFile("public/js/navigation.js", "utf8"),
     fs.readFile("src/services/auth.service.js", "utf8"),
+    fs.readFile("public/js/shared/task-calendar.js", "utf8"),
   ]);
   assert.match(hostSource, /"User App Preferences"/);
   for (const label of ["Dashboard", "Workbench", "Actions: Tasks", "Actions: Notes", "Actions: Lists"]) {
@@ -133,6 +147,11 @@ WHERE workspace_id = :workspaceId
   }
   assert.match(userSettingsSource, /preferredLoginLanding/);
   assert.match(userSettingsSource, /preferredWorkspaceSwitchLanding/);
+  assert.match(hostSource, /"Default calendar view"/);
+  assert.match(hostSource, /Automatic \(Day on mobile, Month on desktop\)/);
+  assert.match(userSettingsSource, /preferredCalendarView/);
+  assert.match(navigationSource, /preferredCalendarView: shell\.user\?\.preferredCalendarView \|\| null/);
+  assert.match(calendarSource, /resolveDefaultView/);
   assert.match(loginSource, /body\.user\?\.loginLandingPath/);
   assert.match(navigationSource, /body\.landingPath/);
   assert.doesNotMatch(navigationSource, /window\.location\.reload\(\)/);

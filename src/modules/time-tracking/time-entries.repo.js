@@ -176,6 +176,21 @@ WHERE workspace_id = :workspaceId
   return Number.parseInt(row?.total, 10) || 0;
 }
 
+async function hasForTask(workspaceId, taskId) {
+  const row = await db.get(`
+SELECT 1 AS has_entry
+FROM time_entries
+WHERE workspace_id = :workspaceId
+  AND task_id = :taskId
+LIMIT 1;
+`, {
+    taskId: textParam(taskId),
+    workspaceId: textParam(workspaceId),
+  });
+
+  return Boolean(row?.has_entry);
+}
+
 async function updateProjectScope(workspaceId, projectId, scope) {
   const now = new Date().toISOString();
 
@@ -276,6 +291,7 @@ function integerParam(value) {
 export const timeEntriesRepository = {
   countByProjectId,
   create,
+  hasForTask,
   remove,
   readAll,
   readById,

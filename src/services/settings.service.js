@@ -128,9 +128,11 @@ async function save(payload, session) {
     throw new AppError("Only a Workspace Administrator or Super Admin may rename a workspace.", 403);
   }
   const moduleSettingChanges = resolveModuleSettingChanges(payload, previousSettings);
+  const frameworkSettingChanges = await resolveFrameworkSettingChanges(payload, session);
+  const contributedSettingChanges = [...moduleSettingChanges, ...frameworkSettingChanges];
   const auditSettingChanged = previousSettings.audit.loggingEnabled !== data.audit.loggingEnabled ||
     previousSettings.audit.retentionDays !== data.audit.retentionDays;
-  const moduleSettingChanged = moduleSettingChanges.length > 0;
+  const moduleSettingChanged = contributedSettingChanges.length > 0;
   const auditDisabled = previousSettings.audit.loggingEnabled && !data.audit.loggingEnabled;
   const auditEnabled = !previousSettings.audit.loggingEnabled && data.audit.loggingEnabled;
 
@@ -160,9 +162,9 @@ async function save(payload, session) {
   }
 
   await settingsRepository.saveWorkspaceSettings(session.workspace_id, data);
-  await persistModuleSettingChanges(session, moduleSettingChanges);
-  await runModuleSettingEffects(session, moduleSettingChanges);
-  await recordModuleSettingChanges(session, moduleSettingChanges);
+  await persistModuleSettingChanges(session, contributedSettingChanges);
+  await runModuleSettingEffects(session, contributedSettingChanges);
+  await recordModuleSettingChanges(session, contributedSettingChanges);
 
   if (auditEnabled) {
     await auditService.record({
@@ -255,6 +257,63 @@ function resolveModuleSettingChanges(payload, previousSettings) {
   }
 
   return changes;
+}
+
+async function resolveFrameworkSettingChanges(payload, session) {
+  const submittedSettings = readSubmittedFrameworkSettings(payload);
+  const changes = [];
+
+  for (const [settingId, rawValue] of submittedSettings.entries()) {
+    const definition = readFrameworkSettingDefinition(settingId);
+    if (definition.readOnly === true || definition.type === "info") {
+      throw new AppError(`Framework setting '${settingId}' is read-only.`, 400);
+    }
+    for (const permissionId of definition.requiredPermissions || []) {
+      await permissionsService.assertCan(session, permissionId, {
+        workspace_id: session.workspace_id,
+        operation: "update",
+      });
+    }
+
+    const value = validateSettingValue(definition, rawValue, FRAMEWORK_SETTING_NAMESPACE);
+    const previousValue = await readSettingValue(
+      session.workspace_id,
+      FRAMEWORK_SETTING_NAMESPACE,
+      definition,
+    );
+    if (settingValuesEqual(previousValue, value)) {
+      continue;
+    }
+
+    const handler = getPersistenceHandler(`${FRAMEWORK_SETTING_NAMESPACE}.${settingId}`);
+    changes.push({
+      moduleId: FRAMEWORK_SETTING_NAMESPACE,
+      moduleName: definition.moduleName || "Framework",
+      previousValue,
+      recordUrl: handler?.recordUrl || definition.recordUrl || "workspace-settings.html",
+      setting: definition,
+      value,
+    });
+  }
+
+  return changes;
+}
+
+function readSubmittedFrameworkSettings(payload) {
+  if (payload?.frameworkSettings === undefined) {
+    return new Map();
+  }
+  if (!isPlainObject(payload.frameworkSettings)) {
+    throw new AppError("frameworkSettings must be an object keyed by setting ID.", 400);
+  }
+
+  return new Map(Object.entries(payload.frameworkSettings).map(([settingId, value]) => {
+    const normalizedSettingId = String(settingId || "").trim();
+    if (!normalizedSettingId) {
+      throw new AppError("Framework setting IDs are required.", 400);
+    }
+    return [normalizedSettingId, value];
+  }));
 }
 
 function readSubmittedModuleSettings(payload) {

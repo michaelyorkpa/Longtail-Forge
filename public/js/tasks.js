@@ -1,11 +1,12 @@
 const TASK_FILTER_STORAGE_KEY = "lf_tasks_filters_v1";
 const DEFAULT_TASK_VIEW = "my";
 const TASK_LIST_PAGE_SIZE = 100;
+const BULK_CLIENT_ALL_VALUE = "__all_clients__";
 const QUICK_FILTERS = new Set(["my", "unassigned", "overdue", "today", "week", "complete", "archived"]);
 const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
 const view = window.LongtailForge?.view;
 const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
-  "tasks.lifecycle.complete": ({ record }) => postTaskAction(record, "complete"),
+  "tasks.lifecycle.complete": ({ record, trigger }) => postTaskAction(record, "complete", trigger),
   "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
   "tasks.lifecycle.block": ({ action, record, trigger }) => openTaskDialogForBlock(record, action, trigger),
   "tasks.lifecycle.unblock": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "open", blocked_reason: "" }),
@@ -80,6 +81,10 @@ const bulkBlockedReasonControl = document.querySelector("[data-task-bulk-blocked
 const bulkBlockedReasonInput = document.querySelector("[data-task-bulk-blocked-reason]");
 const bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
 const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
+const bulkClientControl = document.querySelector("[data-task-bulk-client-control]");
+const bulkClientInput = document.querySelector("[data-task-bulk-client]");
+const bulkProjectControl = document.querySelector("[data-task-bulk-project-control]");
+const bulkProjectInput = document.querySelector("[data-task-bulk-project]");
 const bulkDueDateControl = document.querySelector("[data-task-bulk-due-date-control]");
 const bulkDueDateInput = document.querySelector("[data-task-bulk-due-date]");
 const bulkClearDueDateInput = document.querySelector("[data-task-bulk-clear-due-date]");
@@ -110,6 +115,8 @@ resetTaskFiltersButton?.addEventListener("click", resetAdvancedTaskFilters);
 bulkStatusInput?.addEventListener("change", updateBulkControls);
 bulkBlockedReasonInput?.addEventListener("input", updateBulkControls);
 bulkPriorityInput?.addEventListener("change", updateBulkControls);
+bulkClientInput?.addEventListener("change", handleBulkClientChange);
+bulkProjectInput?.addEventListener("change", handleBulkProjectChange);
 bulkDueDateInput?.addEventListener("change", updateBulkControls);
 bulkClearDueDateInput?.addEventListener("change", updateBulkControls);
 bulkDueTimeInput?.addEventListener("change", updateBulkControls);
@@ -469,6 +476,15 @@ function taskBulkToolbarControls() {
       ["high", "High"],
       ["urgent", "Urgent"],
     ]), { attrs: { "data-task-bulk-priority-control": "" } }),
+    taskControlLabel("Client", taskSelect({ "data-task-bulk-client": "" }, [
+      [BULK_CLIENT_ALL_VALUE, "Choose Client scope", true],
+    ]), {
+      attrs: { "data-task-bulk-client-control": "" },
+      hidden: true,
+    }),
+    taskControlLabel("Project", taskSelect({ "data-task-bulk-project": "" }, [
+      ["", "Choose Project", true],
+    ]), { attrs: { "data-task-bulk-project-control": "" } }),
     taskControlLabel("Due Date", [
       view.createElement("input", {
         attrs: {
@@ -803,6 +819,77 @@ function populateFilters() {
   populateTagFilter();
   populateBulkTagOptions();
   renderBulkAssigneeOptions();
+  populateBulkContextOptions();
+}
+
+function populateBulkContextOptions() {
+  const selectedProjectId = bulkProjectInput?.value || "";
+
+  if (usesClientScope()) {
+    bulkClientControl?.removeAttribute("hidden");
+    replaceOptions(bulkClientInput, [
+      option(BULK_CLIENT_ALL_VALUE, "Choose Client scope"),
+      option("", getWorkspaceScopeLabel()),
+      ...state.options.clients.map((client) => option(client.id, optionLabel(client))),
+    ]);
+    if (![...bulkClientInput.options].some((entry) => entry.value === bulkClientInput.value)) {
+      bulkClientInput.value = BULK_CLIENT_ALL_VALUE;
+    }
+  } else {
+    bulkClientControl?.remove();
+  }
+
+  populateBulkProjectOptions(selectedProjectId);
+}
+
+function populateBulkProjectOptions(selectedProjectId = "") {
+  if (!bulkProjectInput) {
+    return;
+  }
+
+  const selectedClientId = usesClientScope()
+    ? bulkClientInput?.value ?? BULK_CLIENT_ALL_VALUE
+    : BULK_CLIENT_ALL_VALUE;
+  const projects = (state.options.projects || []).filter((project) => (
+    selectedClientId === BULK_CLIENT_ALL_VALUE || (project.client_id || "") === selectedClientId
+  ));
+  const placeholder = projects.length > 0 ? "Choose Project" : "No active Projects";
+
+  bulkProjectInput.replaceChildren(
+    option("", placeholder),
+    ...projects.map((project) => option(project.id, bulkProjectOptionLabel(project, selectedClientId))),
+  );
+  bulkProjectInput.value = projects.some((project) => project.id === selectedProjectId)
+    ? selectedProjectId
+    : "";
+}
+
+function bulkProjectOptionLabel(project, selectedClientId) {
+  const projectLabel = optionLabel(project);
+
+  if (!usesClientScope() || selectedClientId !== BULK_CLIENT_ALL_VALUE) {
+    return projectLabel;
+  }
+
+  const clientLabel = project.client_id
+    ? optionLabel((state.options.clients || []).find((client) => client.id === project.client_id))
+    : getWorkspaceScopeLabel();
+  return clientLabel ? `${clientLabel} / ${projectLabel}` : projectLabel;
+}
+
+function handleBulkClientChange() {
+  populateBulkProjectOptions();
+  updateBulkControls();
+}
+
+function handleBulkProjectChange() {
+  const project = (state.options.projects || []).find((entry) => entry.id === bulkProjectInput?.value);
+
+  if (project && usesClientScope() && bulkClientInput) {
+    bulkClientInput.value = project.client_id || "";
+    populateBulkProjectOptions(project.id);
+  }
+  updateBulkControls();
 }
 
 function selectedClientFilterValue() {
@@ -1589,6 +1676,7 @@ function openTaskDialogForWorkflow(task, action, trigger = null, defaults = {}) 
   return openTaskDialog(task, {
     defaults,
     focusTarget: action.focusTarget || "",
+    promptBlockedReason: action.promptBlockedReason === true,
     returnFocusTo: trigger || document.activeElement,
   });
 }
@@ -1597,6 +1685,7 @@ function openTaskDialogForBlock(task, action = {}, trigger = null) {
   return openTaskDialogForWorkflow(task, {
     ...action,
     focusTarget: "blocked_reason",
+    promptBlockedReason: true,
   }, trigger, {
     status: "blocked",
   });
@@ -1627,6 +1716,19 @@ async function saveTaskTimerAction(task, timerStatus) {
     }
     if (result.timer) {
       upsertTaskTimerState(result.timer);
+    }
+    if (!isRunning) {
+      void window.LongtailForge.taskResumeNoteCapture?.offer({
+        task: result.task || task,
+        onSaved(updatedTask) {
+          if (updatedTask) {
+            upsertTask(updatedTask);
+          }
+        },
+        onError(error) {
+          setStatus(error.message || "Resume note could not be saved.", { isError: true });
+        },
+      });
     }
     await reloadTaskList();
     setStatus("");
@@ -1945,7 +2047,7 @@ async function confirmTaskLifecycleAction(action, task) {
   return true;
 }
 
-async function postTaskAction(task, action) {
+async function postTaskAction(task, action, trigger = null) {
   setStatus(`${formatToken(action)} task...`);
 
   try {
@@ -1955,8 +2057,16 @@ async function postTaskAction(task, action) {
     if (action === "complete" && result.recurrenceContinuity) {
       renderTaskRecurrenceContinuity(result.recurrenceContinuity);
       trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
+    } else if (action === "complete") {
+      setStatus("Task completed. Add an optional Next Action, or close to move on.");
     } else {
       setStatus("");
+    }
+    if (action === "complete" && result.task) {
+      await openTaskDialog(result.task, {
+        focusTarget: "next_action",
+        returnFocusTo: trigger,
+      });
     }
   } catch (error) {
     setStatus(error.message || "Task action failed.", { isError: true });
@@ -2047,6 +2157,7 @@ function openTaskDialog(task = null, options = {}) {
     focusNotes: options.focusNotes === true,
     focusTarget: options.focusTarget || "",
     mode: task && options.duplicate !== true ? "edit" : "add",
+    promptBlockedReason: options.promptBlockedReason === true,
     returnFocusTo: options.returnFocusTo || document.activeElement,
     task,
   }, options.hostContext || null);
@@ -2132,7 +2243,10 @@ function appendTagChips(container, tags) {
   container.appendChild(list);
 }
 
-async function applyBulkAction() {
+async function applyBulkAction(event) {
+  if (!await captureBulkBlockedReason(event?.currentTarget || bulkApplyButton)) {
+    return;
+  }
   const taskIds = [...state.selectedTaskIds];
   const actions = selectedBulkActions(taskIds);
 
@@ -2180,6 +2294,27 @@ async function applyBulkAction() {
   }
 }
 
+async function captureBulkBlockedReason(trigger = null) {
+  if (bulkStatusInput?.value !== "blocked" || bulkBlockedReasonInput?.value.trim()) {
+    return true;
+  }
+
+  const result = await window.LongtailForge.capturePrompt.open({
+    cancelLabel: "Cancel",
+    confirmLabel: "Continue",
+    label: "Blocked reason",
+    prompt: "Why is the task now blocked?",
+    trigger,
+  });
+  if (!result.confirmed) {
+    return false;
+  }
+
+  bulkBlockedReasonInput.value = result.value;
+  updateBulkControls();
+  return true;
+}
+
 function updateBulkControls() {
   const taskIds = [...state.selectedTaskIds];
   const selectedCount = taskIds.length;
@@ -2188,16 +2323,16 @@ function updateBulkControls() {
   updateBulkLifecycleOptions(taskIds);
   const hasSelectedAction = selectedBulkActions(taskIds).length > 0;
   const blockedStatusSelected = bulkStatusInput?.value === "blocked";
-  const hasBlockedReason = Boolean(bulkBlockedReasonInput?.value.trim());
   bulkStatusControl?.removeAttribute("hidden");
   if (bulkBlockedReasonControl) {
     bulkBlockedReasonControl.hidden = !blockedStatusSelected;
   }
   if (bulkBlockedReasonInput) {
-    bulkBlockedReasonInput.required = blockedStatusSelected;
-    bulkBlockedReasonInput.setAttribute("aria-invalid", blockedStatusSelected && !hasBlockedReason ? "true" : "false");
+    bulkBlockedReasonInput.required = false;
+    bulkBlockedReasonInput.removeAttribute("aria-invalid");
   }
   bulkPriorityControl?.removeAttribute("hidden");
+  bulkProjectControl?.removeAttribute("hidden");
   bulkDueDateControl?.removeAttribute("hidden");
   bulkDueTimeControl?.removeAttribute("hidden");
   bulkAssigneeControl?.removeAttribute("hidden");
@@ -2208,7 +2343,7 @@ function updateBulkControls() {
   }
 
   if (bulkApplyButton) {
-    bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction || (blockedStatusSelected && !hasBlockedReason);
+    bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction;
     bulkApplyButton.textContent = `Apply to ${selectedCount}`;
   }
 
@@ -2236,6 +2371,7 @@ function selectedBulkActions(taskIds) {
   const status = bulkStatusInput?.value || "";
   const blockedReason = bulkBlockedReasonInput?.value.trim() || "";
   const priority = bulkPriorityInput?.value || "";
+  const projectId = bulkProjectInput?.value || "";
   const dueDate = bulkDueDateInput?.value || "";
   const shouldClearDueDate = Boolean(bulkClearDueDateInput?.checked);
   const dueTime = bulkDueTimeInput?.value || "";
@@ -2259,6 +2395,16 @@ function selectedBulkActions(taskIds) {
 
   if (priority) {
     actions.push({ action: "priority", task_ids: taskIds, priority });
+  }
+
+  if (projectId) {
+    const project = (state.options.projects || []).find((entry) => entry.id === projectId);
+    actions.push({
+      action: "project_assign",
+      task_ids: taskIds,
+      project_id: projectId,
+      ...(usesClientScope() ? { client_id: project?.client_id || "" } : {}),
+    });
   }
 
   if (shouldClearDueDate || dueDate) {
@@ -2389,6 +2535,10 @@ function mixedBulkActionWarnings(actions, taskIds) {
     warnings.push("Selected tasks currently have different due times.");
   }
 
+  if (actions.some((action) => action.action === "project_assign") && hasMixedValues(selectedTasks, "project_id")) {
+    warnings.push("Selected tasks currently have different Projects.");
+  }
+
   if (actions.some((action) => ["tag_add", "tag_remove", "tag_replace"].includes(action.action)) && hasMixedTagValues(selectedTasks)) {
     warnings.push("Selected tasks currently have different tags.");
   }
@@ -2452,6 +2602,10 @@ function resetBulkInputs() {
   if (bulkPriorityInput) {
     bulkPriorityInput.value = "";
   }
+  if (bulkClientInput?.isConnected) {
+    bulkClientInput.value = BULK_CLIENT_ALL_VALUE;
+  }
+  populateBulkProjectOptions();
   if (bulkDueDateInput) {
     bulkDueDateInput.value = "";
   }

@@ -26,8 +26,10 @@ assert.deepEqual(
   [
     "workbench",
     "dashboard",
+    "reporting",
     "tasks",
     "notes",
+    "clients-projects",
     "lists",
     "files",
     "search",
@@ -76,6 +78,16 @@ assert.ok(securityAudit.docs.includes("docs/longtail_forge_permissions_matrix.md
 const workbench = suggestDocsForPaths(["public/js/workbench.js"], { index: rawIndex });
 assert.deepEqual(workbench.matchedAreas.map((area) => area.id), ["workbench"]);
 assert.deepEqual(workbench.docs, ["docs/ui-layout-guide.md", "docs/workflow-context-contract.md"]);
+
+const reporting = suggestDocsForPaths(["public/js/reporting.js"], { index: rawIndex });
+assert.deepEqual(reporting.matchedAreas.map((area) => area.id), ["reporting"]);
+assert.ok(reporting.docs.includes("docs/time-tracking-module.md"));
+assert.ok(reporting.docs.includes("help/framework/time-tracking-basics.md"));
+
+const clientsProjects = suggestDocsForPaths(["src/modules/client-projects/clients.service.js"], { index: rawIndex });
+assert.deepEqual(clientsProjects.matchedAreas.map((area) => area.id), ["clients-projects"]);
+assert.ok(clientsProjects.docs.includes("docs/clients-projects-strict-guardrail-inventory.md"));
+assert.ok(clientsProjects.docs.includes("help/framework/clients-and-projects.md"));
 
 const settings = suggestDocsForPaths(["src/services/settings.service.js"], { index: rawIndex });
 assert.deepEqual(settings.matchedAreas.map((area) => area.id), ["settings"]);

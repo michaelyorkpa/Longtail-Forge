@@ -1,6 +1,6 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.5.18.15. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path.
+Current as of 0.33.21.11.1. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path. Client-aware Project descriptor/modal fields are contributed only in Business workspaces; project-only workspace enforcement stays module- and service-owned.
 
 This inventory records the active strict boundary for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
 
@@ -49,7 +49,7 @@ This slice renders the Clients and Projects read pages through `LongtailForge.vi
 - `client-projects.clients` binds to `/api/clients?include_depth=true` and declares status/tag filters, hierarchy metadata, billing display fields, and tag display inputs.
 - `client-projects.projects` binds to `/api/projects?include_depth=true` and declares Client/status/tag filters, hierarchy metadata, readable Client context, billing display fields, task-default bindings, and tag display inputs.
 - page headers, loading/error/empty/status placement, filter controls, hierarchy display, table wrappers, chip display, page Add actions, and row action placement are descriptor/framework-rendered.
-- Clients/Projects-owned browser behaviors hydrate Notes-style tag suggestions and Client filter options, hide/disable Client filters outside Business workspaces, call the existing Add/Edit dialog API, preserve query-param openers after descriptor render, and refresh the descriptor surface after saves. Typed tag filter text resolves to matching active tag IDs in the service before the canonical tag filter runs.
+- Clients/Projects-owned browser behaviors hydrate Notes-style tag suggestions and Business-only Client filter options, omit Client filter/column/read bindings outside Business workspaces before descriptor render, call the existing Add/Edit dialog API, preserve query-param openers after descriptor render, and refresh the descriptor surface after saves. Typed tag filter text resolves to matching active tag IDs in the service before the canonical tag filter runs.
 - The `/api/client-projects` route remains available for existing dialog and cross-module option workflows; it is not the new page read source of truth.
 - `clients.html` and `projects.html` are minimal hosts that load `view-builder.js`, `view-renderer.js`, and the Clients/Projects adapter in that order.
 - These minimal hosts still leave the canonical list routes, `/api/clients` and `/api/projects`, as the page read sources.
@@ -117,6 +117,36 @@ This slice promotes Clients and Projects from reporting-only descriptors to stri
 The 0.33.5.18 closeout keeps this inventory as the Clients/Projects-specific developer map for the completed view-conversion branch. The shipped Clients/Projects boundary is strict descriptor-mounted read pages, slide-out filters, secondary tag rows, icon-only repeated edit actions, shared related/bulk shells, service-owned Project ordering, Notes-style searchable tag filters with service-side tag text resolution, and module-owned dialogs/routes/payloads/permissions.
 
 Future Clients/Projects work should update this inventory before changing that boundary. Admin/Settings, Reporting, Dashboard, Workbench, pagination/server-side paging, Inspector behavior, drag/drop hierarchy editing, new payloads, and new workflow semantics remain out of this closeout unless a later roadmap slice explicitly adds them.
+
+## 0.33.21.2.2 Add Client and Add Project Dialog Flow
+
+This slice applies the existing framework dialog contract without moving Clients/Projects workflow meaning into the framework:
+
+- Add Client builds its Name and Parent fields through `LongtailForge.view.createField(...)`, mounts those fields and the module-owned tag picker through `createModalForm(...)`, and opens through the shared modal stack.
+- Add Project invokes the Clients-owned `clients.add` registered module action as a stacked child dialog. A completed result returns only the created Client ID; the still-open Project form refreshes its active Client options, selects that Client, and refreshes its Parent Project choices.
+- The Project Client control uses the readable workspace name for workspace scope. Workspace-level Projects default non-billable in both browser initialization and server normalization when the payload omits the value.
+- Parent Project and Project Tags share a top-aligned desktop row and collapse to full-width rows at the supported mobile breakpoint.
+- Clients/Projects retains ownership of tags, readable labels, active-Client filtering, routes, payloads, billing semantics, parent options, validation, persistence, and refresh behavior. No route, schema, or permission contract changed.
+
+## 0.33.21.2.3 Edit Project Modal Reflow
+
+This slice keeps the Project workflow intact while bringing its dedicated editor onto the current framework layout:
+
+- `projects.edit` requests the existing framework `size: "wide"` modal and a modal-only Project editor layout. Related Project editor rows keep their prior disclosure/card anatomy.
+- The modal-specific body removes the redundant inner Project disclosure and border, then renders Project Name followed by Status, Client, and Parent Project as separate full-width rows.
+- Project Tags stays Tags-owned but fills the modal width without an additional bordered picker box.
+- Task Reminder Defaults keeps its existing Clients/Projects payload and Tasks-owned policy behavior, but now renders inside the Task module fieldset under Project Defaults instead of inside Project Billing Settings.
+- Save, Archive, Close, hierarchy confirmation, Client/parent option refresh, billing/default values, tag assignment, routes, payloads, audit/search/event effects, host completion, and permissions are unchanged. No route, schema, or permission contract changed.
+
+## 0.33.21.11.1 Business-Only Client Project Context
+
+This slice makes the existing project-only workspace rule explicit at every Project Settings boundary:
+
+- The Clients/Projects adapter resolves `client-projects.projects` before the framework renderer receives it. Personal and Family descriptors omit `project-client-filter`, `project-client`, the Client index subtitle, and Client read bindings; Business retains them.
+- Add Project and Edit Project return no Client assignment field outside Business. No hidden selector is created or appended, while Business keeps the workspace-project choice, Client options, and Client-to-parent refresh behavior.
+- Personal and Family Project list reads ignore injected Client filters, expose only workspace Projects, and carry no Client context. Project detail reads likewise strip Client identity and labels.
+- Client-scoped Project create routes and nonblank `client_id` or `clientId` create/update payloads fail with 403 outside Business. Blank Client values remain the valid project-only write contract.
+- The shared view renderer remains generic and contains no Clients/Projects workspace-type branch.
 
 ## Not In Scope
 

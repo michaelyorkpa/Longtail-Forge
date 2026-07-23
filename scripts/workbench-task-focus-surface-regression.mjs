@@ -72,8 +72,8 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "completeFocusedTask"),
-  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*setTaskCompletionStatus\(\{[\s\S]*\.\.\.result,[\s\S]*recordId: result\.task\?\.task_id \|\| taskId/,
-  "Task Focus Complete should call the existing Tasks complete route, return to Focus Selection, and retain continuity polling identity",
+  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: result\.task\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*recordType: "task_completion_follow_up"[\s\S]*focusTarget: "next_action"/,
+  "Task Focus Complete should call the existing route, return to Focus Selection, retain continuity identity, and open canonical Next Action follow-up capture",
 );
 assert.match(
   functionBody(workbenchScript, "blockFocusedTask"),
@@ -100,6 +100,11 @@ assert.match(
   functionBody(workbenchScript, "taskFocusTagBadges"),
   /task\.directTags[\s\S]*task\.direct_tags[\s\S]*tag\.name \|\| tag\.slug[\s\S]*badge\(label, "tag"\)/,
   "Task Focus summary tag badges should come from safe direct-tag labels, not IDs",
+);
+assert.match(
+  css,
+  /@media \(max-width: 700px\) \{[\s\S]*\.workbench-task-focus-summary-header \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*\.workbench-task-focus-badges \{[\s\S]*justify-content: flex-start;/,
+  "Task Focus should stack its summary badges below the title and context at the canonical phone breakpoint",
 );
 assert.match(
   functionBody(workbenchScript, "createTaskDetailsSection"),

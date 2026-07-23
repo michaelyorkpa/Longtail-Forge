@@ -7,11 +7,13 @@ const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const css = readText("public/css/longtail-forge.css");
+const icons = readText("public/js/shared/icons.js");
 const moduleContract = readText("docs/module-contract.md");
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
+const viewRenderer = readText("public/js/shared/view-renderer.js");
 
 assert.equal(packageJson.version, appVersion, "package.json should report the Workbench Inspector version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Workbench Inspector version");
@@ -28,6 +30,23 @@ assert.match(
   /const WORKBENCH_INSPECTOR_LIMIT = 6;/,
   "Workbench should bound Inspector rows instead of turning the panel into another full index",
 );
+assert.match(
+  workbenchScript,
+  /createPageHeader\(\{[\s\S]*actions: \[workbenchInspectorOpenButton, changeFocusButton\][\s\S]*title: "Workbench"/,
+  "The mobile Inspector action should be immediately before Change Focus in the Workbench page header",
+);
+assert.match(
+  workbenchScript,
+  /className: "workbench-inspector-open-button"[\s\S]*icon: "detective-hat"[\s\S]*iconOnly: true[\s\S]*label: "Open Inspector"/,
+  "Workbench should expose an accessible icon-only mobile Inspector action",
+);
+assert.match(icons, /"detective-hat": Object\.freeze\(\[/, "the shared icon registry should own the deerstalker hat glyph");
+assert.match(
+  workbenchScript,
+  /createSlideOutSidebarController\(\{[\s\S]*backdrop: workbenchInspectorBackdrop[\s\S]*closeButton: workbenchInspectorCloseButton[\s\S]*drawer: workbenchInspectorElement[\s\S]*trigger: workbenchInspectorOpenButton/,
+  "Workbench should reuse the shared slide-out lifecycle controller",
+);
+assert.match(viewRenderer, /function containSlideOutSidebarFocus\([\s\S]*event\.shiftKey[\s\S]*first[\s\S]*last/, "the shared drawer controller should contain Tab focus");
 assert.match(
   workbenchScript,
   /function createWorkbenchShell\(\)[\s\S]*className: "workbench-shell"[\s\S]*className: "workbench-main-column"[\s\S]*createWorkbenchInspectorPanel\(\)/,
@@ -108,14 +127,11 @@ assert.match(
 );
 assert.match(
   css,
-  /@media \(max-width: 1099px\) \{[\s\S]*\.workbench-inspector \{[\s\S]*display: none;/,
-  "Workbench Inspector should hide gracefully on narrow screens",
+  /@media \(max-width: 1099px\) \{[\s\S]*\.workbench-inspector \{[\s\S]*display: none;[\s\S]*@media \(max-width: 700px\) \{[\s\S]*\.workbench-inspector\.workbench-inspector-mobile-drawer \{[\s\S]*display: grid;/,
+  "Workbench Inspector should remain hidden at intermediate widths and reuse the drawer at phone widths",
 );
-assert.doesNotMatch(
-  css,
-  /\.workbench-inspector\s*\{[^}]*position:\s*fixed/i,
-  "Workbench Inspector should not compete with the fixed QAC drawer space",
-);
+assert.match(workbenchScript, /workbenchInspectorElement\.classList\.toggle\("view-slideout-sidebar-drawer", isMobile\)/, "Workbench should apply the framework drawer shell only at mobile width");
+assert.match(workbenchScript, /workbenchInspectorController\.close\(\{ focus: false \}\)[\s\S]*if \(isWide\)[\s\S]*removeAttribute\("aria-hidden"\)/, "leaving mobile should close the drawer without hiding the desktop Inspector from assistive technology");
 
 assert.match(
   moduleContract,
@@ -124,8 +140,8 @@ assert.match(
 );
 assert.match(
   uiSurfaceContract,
-  /As of 0\.33\.6\.12c-1[\s\S]*Workbench Inspector[\s\S]*bounded "More in this focus" overflow panel/,
-  "UI surface contract should record the Inspector layout/QAC boundary",
+  /As of 0\.33\.21\.10\.3[\s\S]*Workbench Inspector[\s\S]*full-screen drawer[\s\S]*bounded "More in this focus" overflow panel/,
+  "UI surface contract should record the phone drawer and unchanged Inspector content boundary",
 );
 assert.match(
   viewContract,

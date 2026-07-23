@@ -13,6 +13,26 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Resetting User names
+
+For some reason, the superadmin@longtailforge.local keeps getting added to databases. I do not want users added to databases on updates. If there is a super admin, no new super admins should be invented. If there is not a super admin (new install) the super admin should be whatever is in the .env. If there is nothing in the .env, the user should be notified what the created username and password are.
+
+## Playwright needs to include additional browsers
+
+Specifically, Firefox/Mozilla and Webkit for further, future testing.
+
+## Workbench
+
+### Parent/Child Task identification
+
+The inspector should specify "Child" when the task context shows a child task of the current, focused task. This should be done in a chip. Same goes the opposite way. When a child task is in focus, the parent task should be displayed with "Parent" in a chip in the inspector.
+
+### Algorithm
+
+Blocked tasks should not show up anywhere other than "Review blocked work".
+
+> The 2026-07-22 promotion batch moved the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Mobile Tweaks -> **0.33.21.10** (children .10.1 notification/search out of the hamburger drawer, .10.2 mobile Day-default calendar with a User App Preferences per-user preference, .10.3 Workbench Inspector mobile slide-out, .10.4 Workbench Task Focus / Other Active Timers chip layout); Clients, Projects, and Tasks -> **0.33.21.11** (children .11.1 Business-only Client exposure in the Project Settings list and project modals, .11.2 Edit Project defaults reorganization, .11.3 Tasks bulk Project assignment, .11.4 Task editor parent-hierarchy ordering + Save-in-place, .11.5 parent-task Project cascade to child tasks); Personal Workspace Module Scope -> **0.33.21.12** (Notes visibility scoped by workspace type). The "Knowledge Base should not be included in personal workspaces" line stayed a forward reference — it is owned by the future 0.35 Knowledge Base work and was recorded as the forward note in 0.33.21.12 rather than an actionable item.
+
 > The 2026-07-21 promotion batch moved the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Calendar (read-only active-task defaults + status multi-selector) -> **0.33.21.9**; Notes -> Bulk Actions tag picker -> **0.33.21.1** (retitled "Reporting and Notes tag-control refinements"); Reporting module disable-ability -> the **0.37.0** opening slice (convert Reporting from framework core into a registered `canDisable` module); Permissions/Warnings (in-app 403 modal) -> **0.33.25.2**; Permissions/Issues (child-client creation scope, Project Settings access for scoped admins) -> the new **0.33.28 - Permissions Role-Capability Alignment** branch, which also owns the additional gaps found in the 2026-07-21 permissions code review (scope-aware nav/hints, client-side `requiredPermissions` wiring, `project_admin` seed drift, `roles.assign` reconciliation); Permissions/Notifications (permission-change and workspace-removal notices) -> **0.36.5** Account Home, which owns the required cross-workspace delivery.
 
 > The 0.33.17.7 pre-preview review batch (2026-07-16) promoted the following Short Term sections into `ROADMAP.md` and removed them from this file to prevent drift: Deletion/Edge Cases -> **0.33.17.7.10 and 0.33.17.7.12-.15**; Timer project ordering -> **0.33.17.7.16**; Login throttling persistence -> **0.33.17.7.17**; Workbench (algorithm, In Progress, URL annoyance) and Workbench Timers Tweak -> **0.33.19.3**; Task Reminders and Tasks Status Tweak -> **0.33.19.4**; Secure Catalogs -> the **Committed before 0.4x** unversioned backlog. The prior 0.33.19 calendar branch moved to **0.33.20** in the same batch.
@@ -87,7 +107,7 @@ This section is to define a series of human testing goals for different sections
 
 ## Mobile Tweaks
 
-Deferred to a future mobile-polish roadmap pass. Re-audit the current rendered surfaces after the completed modal, view-conversion, and responsive-foundation work; do not revive layout requests written against retired page anatomy.
+The 2026-07-22 re-audit of the current rendered surfaces produced the concrete near-term tweaks now promoted to **ROADMAP.md 0.33.21.10** (app-shell notification/search relocation, mobile Day-default calendar, Workbench Inspector slide-out, Workbench chip layout). Broader mobile-polish work beyond those items stays deferred to a future pass: re-audit the current rendered surfaces first, and do not revive layout requests written against retired page anatomy.
 
 # Near Term Ideas
 

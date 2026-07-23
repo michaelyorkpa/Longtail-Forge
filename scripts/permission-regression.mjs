@@ -499,6 +499,36 @@ async function runTaskMutationTests(api, fixtures) {
     });
   });
   await expectStatus(
+    "project user bulk Project move reports denied destination scope",
+    api.post("/api/tasks/bulk", {
+      action: "project_assign",
+      project_id: fixtures.projects.beta.id,
+      task_ids: [scopedTask.body.task.task_id],
+    }, { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("bulk Project move keeps destination authority server-owned", () => {
+      assert.equal(response.body.tasks.length, 0);
+      assert.equal(response.body.errors[0].status, 403);
+    });
+  });
+  await expectStatus(
+    "workspace admin can bulk assign Task Project and derived Client",
+    api.post("/api/tasks/bulk", {
+      action: "project_assign",
+      client_id: fixtures.clients.beta.id,
+      project_id: fixtures.projects.beta.id,
+      task_ids: [workspaceTask.body.task.task_id],
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("bulk Project assignment returns canonical destination context", () => {
+      assert.equal(response.body.tasks[0].project_id, fixtures.projects.beta.id);
+      assert.equal(response.body.tasks[0].client_id, fixtures.clients.beta.id);
+      assert.equal(response.body.errors.length, 0);
+    });
+  });
+  await expectStatus(
     "workspace admin can bulk replace task assignees",
     api.post("/api/tasks/bulk", {
       action: "assignee_replace",
@@ -671,11 +701,11 @@ async function runTaskMutationTests(api, fixtures) {
   ).then((response) => {
     check("task calendar payload is calendar-ready and scope filtered", () => {
       const taskIds = response.body.tasks.map((task) => task.task_id);
-      assert.ok(taskIds.includes(recurringTask.body.task.task_id));
+      assert.ok(!taskIds.includes(recurringTask.body.task.task_id), "completed recurrence instances stay out of the active calendar default");
       assert.ok(taskIds.includes(nextRecurringTask.task_id));
       assert.ok(!taskIds.includes(workspaceTask.body.task.task_id));
-      assert.equal(response.body.tasks.find((task) => task.task_id === recurringTask.body.task.task_id).source.type, "task");
-      assert.equal(response.body.tasks.find((task) => task.task_id === recurringTask.body.task.task_id).url.startsWith("tasks.html?task="), true);
+      assert.equal(response.body.tasks.find((task) => task.task_id === nextRecurringTask.task_id).source.type, "task");
+      assert.equal(response.body.tasks.find((task) => task.task_id === nextRecurringTask.task_id).url.startsWith("tasks.html?task="), true);
     });
   });
   await expectStatus(

@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 390,
+    "discoveredScripts": 396,
     "legacyScripts": 311,
     "releaseGateScripts": 44,
     "areaCounts": {
@@ -11,34 +11,34 @@
       "database": 36,
       "docs": 9,
       "files": 44,
-      "framework": 64,
+      "framework": 65,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
-      "notes": 36,
+      "notes": 37,
       "notifications": 3,
-      "permissions": 5,
+      "permissions": 6,
       "public-api": 3,
       "release": 24,
       "search": 12,
       "tags": 12,
-      "tasks": 52,
+      "tasks": 53,
       "time-tracking": 8,
-      "views": 31,
-      "workbench": 30
+      "views": 32,
+      "workbench": 31
     },
     "tierCounts": {
-      "focused": 180,
-      "integration": 158,
+      "focused": 185,
+      "integration": 159,
       "release-gate": 44,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 162,
+      "isolated-database": 167,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 193
+      "static": 194
     }
   },
   "coverageFamilies": [
@@ -3108,7 +3108,7 @@
     },
     {
       "area": "framework",
-      "description": "Proves per-user login and workspace-switch landing preferences resolve only to enabled, authorized protected pages with Dashboard fallback.",
+      "description": "Proves per-user app preferences persist calendar defaults and resolve login and workspace-switch landings only to enabled, authorized protected pages with Dashboard fallback.",
       "id": "framework.user-landing-preferences",
       "legacy": false,
       "path": "scripts/regressions/framework/user-landing-preferences.regression.mjs",
@@ -3121,6 +3121,21 @@
         "permissions",
         "settings",
         "workspaces"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the protected Workbench focus-policy catalog, persistence, validation, defaults, and server-owned ordering contract.",
+      "id": "framework.workbench-focus-policy",
+      "legacy": false,
+      "path": "scripts/regressions/framework/workbench-focus-policy.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "permissions",
+        "settings",
+        "workbench"
       ],
       "tier": "focused"
     },
@@ -3155,6 +3170,41 @@
         "selection"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Proves the Notes Settings catalog surface, permission-gated safe read model, canonical row editing, and bounded bulk archive/restore behavior.",
+      "id": "notes.notes-settings-catalog-management",
+      "legacy": false,
+      "path": "scripts/regressions/notes/notes-settings-catalog-management.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "bulk-edit",
+        "catalogs",
+        "navigation",
+        "notes",
+        "permissions",
+        "settings"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Proves Client project context is contributed and accepted only in Business workspaces.",
+      "id": "permissions.client-project-business-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/client-project-business-boundary.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "client-projects",
+        "database",
+        "permissions",
+        "views",
+        "workspaces"
+      ],
+      "tier": "integration"
     },
     {
       "area": "permissions",
@@ -3460,7 +3510,7 @@
     },
     {
       "area": "tasks",
-      "description": "Pins the current Tasks quick-fix contracts for checklist keys and spacing, searchable tag controls, parent-child creation and list anatomy, create-save continuity, workspace project narrowing, and reason-required Block flows.",
+      "description": "Pins the current Tasks quick-fix contracts for checklist keys and spacing, searchable tag controls, parent-child creation and list anatomy, create-save continuity, workspace project narrowing, and reason-capture Block flows.",
       "id": "tasks.task-critical-quick-fixes",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-critical-quick-fixes.regression.mjs",
@@ -3491,6 +3541,24 @@
         "modal",
         "tasks",
         "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Proves nullable quarter-hour Task estimates across storage constraints, service and public API payloads, the canonical editor duplicate flow, read models, and recurrence materialization.",
+      "id": "tasks.task-estimate-minutes",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-estimate-minutes.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "api",
+        "contracts",
+        "editor",
+        "migration",
+        "recurrence",
+        "tasks"
       ],
       "tier": "focused"
     },
@@ -3613,6 +3681,23 @@
     },
     {
       "area": "views",
+      "description": "Pins the mobile app-shell header boundary: Search and Notifications stay outside the primary-menu drawer, the phone wordmark is hidden, and the established drawer lifecycle remains intact.",
+      "id": "views.mobile-app-shell-header",
+      "legacy": false,
+      "path": "scripts/regressions/views/mobile-app-shell-header.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "app-shell",
+        "mobile",
+        "navigation",
+        "responsive",
+        "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "views",
       "description": "Pins the mobile foundation: exact viewport meta on every view, shared breakpoint/tap-target tokens, base media constraints, and a frozen media-query allowlist in the framework CSS.",
       "id": "views.mobile-foundation",
       "legacy": false,
@@ -3624,6 +3709,23 @@
         "mobile",
         "responsive",
         "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
+      "description": "Proves Task completion hands off to the canonical Next Action field and saved follow-ups become distinct permission-safe Workbench candidates without reviving completed Tasks.",
+      "id": "workbench.completion-next-action-follow-up",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/completion-next-action-follow-up.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "completion",
+        "permissions",
+        "recurrence",
+        "tasks",
+        "workbench"
       ],
       "tier": "focused"
     },
@@ -3661,7 +3763,7 @@
     },
     {
       "area": "workbench",
-      "description": "Pins the Workbench task-focus deep-link contract: workbench.html?taskId= enters Task Focus through the existing path, every failure falls back to Focus Selection with one generic message that leaks nothing, and dashboard per-task handoffs carry the task while panel-level actions stay generic.",
+      "description": "Pins the one-shot Workbench task-focus deep-link contract: taskId/taskID are removed without disturbing other URL state, readable Tasks enter Task Focus, and every failure uses one privacy-safe Focus Selection fallback.",
       "id": "workbench.task-focus-deep-link",
       "legacy": false,
       "path": "scripts/regressions/workbench/task-focus-deep-link.regression.mjs",

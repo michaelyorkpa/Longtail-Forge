@@ -16,6 +16,7 @@ import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 import { tasksSettingsService } from "./tasks-settings.service.js";
 import { taskTimersService } from "./task-timers.service.js";
+import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import {
   queueTaskRecurrenceGeneration,
   queueTaskReminderJobsForTask,
@@ -237,6 +238,7 @@ async function taskListRepositoryQuery(session, query = {}) {
     projectId: scope.projectId,
     projectIds: scope.projectIds,
     quickFilter,
+    requireNextAction: query.requireNextAction === true || query.require_next_action === true,
     sort: normalizedTaskSort(query.sort || query.sort_by || query.order),
     statusFilter: normalizedTaskFilter(query.status || query.status_filter || query.filter),
     taskView,
@@ -376,25 +378,52 @@ async function summary(session) {
 }
 
 async function listWorkItems(session, query = {}) {
-  const result = await queryTasks(session, {
-    limit: TASK_WORK_ITEM_MAX_ITEMS,
-    status: "active",
-    sort: "due_at",
-    ...query,
-  }, {
-    includeOptions: false,
-    paginate: true,
-  });
+  const [result, completionFollowUps] = await Promise.all([
+    queryTasks(session, {
+      limit: TASK_WORK_ITEM_MAX_ITEMS,
+      status: "active",
+      sort: "due_at",
+      ...query,
+    }, {
+      includeOptions: false,
+      paginate: true,
+    }),
+    queryTasks(session, {
+      ...taskCompletionFollowUpScopeQuery(query),
+      limit: TASK_WORK_ITEM_MAX_ITEMS,
+      requireNextAction: true,
+      sort: "updated",
+      status: "complete",
+    }, {
+      includeOptions: false,
+      paginate: true,
+    }),
+  ]);
   const timerByTaskId = new Map((result.timers || []).map((timer) => [timer.task_id, timer]));
 
   return {
     source_module_id: TASKS_MODULE_ID,
     source_type: "task",
-    items: result.tasks.map((task) => taskWorkItemSummary(task, {
-      currentUserId: session.user_id,
-      timer: timerByTaskId.get(task.task_id),
-    })),
+    items: [
+      ...completionFollowUps.tasks.map((task) => taskCompletionFollowUpWorkItemSummary(task)),
+      ...result.tasks.map((task) => taskWorkItemSummary(task, {
+        currentUserId: session.user_id,
+        timer: timerByTaskId.get(task.task_id),
+      })),
+    ],
   };
+}
+
+function taskCompletionFollowUpScopeQuery(query = {}) {
+  return {
+    ...optionalTaskQueryValue("clientId", query.clientId || query.client_id),
+    ...optionalTaskQueryValue("projectId", query.projectId || query.project_id),
+  };
+}
+
+function optionalTaskQueryValue(key, value) {
+  const normalized = String(value || "").trim();
+  return normalized ? { [key]: normalized } : {};
 }
 
 async function listOptions(session) {
@@ -430,6 +459,7 @@ async function calendarWindow(session, query = {}) {
   }
 
   const reminderLookaheadEndDate = addCalendarDaysKey(endDate, TASK_CALENDAR_REMINDER_LOOKAHEAD_DAYS);
+  const statuses = normalizeCalendarStatuses(query.statuses || query.status);
   const [scope, moduleStatus, dueTasks] = await Promise.all([
     resolveClientProjectFilterScope(session, {
       clientId: String(query.clientId || query.client_id || "").trim(),
@@ -438,7 +468,7 @@ async function calendarWindow(session, query = {}) {
       projectId: String(query.projectId || query.project_id || "").trim(),
     }),
     modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
-    tasksRepository.readDueBetween(session.workspace_id, startDate, reminderLookaheadEndDate),
+    tasksRepository.readDueBetween(session.workspace_id, startDate, reminderLookaheadEndDate, { statuses }),
   ]);
   const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
   const readableTasks = dueTasks.filter((task) => (
@@ -643,6 +673,10 @@ async function update(taskId, rawPayload, session) {
     await permissionsService.assertCan(session, "tasks.assign", taskResource(normalizedTask));
   }
 
+  const projectCascade = previousProjectId !== normalizedTask.project_id
+    ? await prepareProjectCascade(session, previousTask.task_id, normalizedTask)
+    : emptyProjectCascade();
+
   const recurrence = readRecurrencePayload(payload);
   if (previousTask.recurrence_template_id && recurrence.hasPayload && recurrence.applyTo === "future") {
     await taskRecurrenceService.updateTemplateFromTask({
@@ -688,7 +722,10 @@ async function update(taskId, rawPayload, session) {
     normalizedTask.recurrence_instance_date = "";
   }
 
-  const task = await tasksRepository.update(session.workspace_id, normalizedTask);
+  const updatedTaskRows = projectCascade.allPreviousTasks.length > 0
+    ? await tasksRepository.updateProjectCascade(session.workspace_id, normalizedTask, projectCascade.changedTasks)
+    : [await tasksRepository.update(session.workspace_id, normalizedTask)];
+  const task = updatedTaskRows.find((candidate) => candidate.task_id === normalizedTask.task_id) || updatedTaskRows[0];
   await saveTaskReminderOverride(session.workspace_id, task.task_id, payload);
   await saveTargetTags(session, "task", task.task_id, payload);
   if (previousProjectId !== (task.project_id || "")) {
@@ -727,6 +764,12 @@ async function update(taskId, rawPayload, session) {
     });
   }
 
+  const cascadedTasks = await finalizeProjectCascadeSideEffects({
+    cascade: projectCascade,
+    rootTaskId: taskWithDetails.task_id,
+    session,
+  });
+
   // A task can also reach "complete" through this generic update path (edit-dialog status
   // dropdown, bulk status action), not just the dedicated complete() endpoint. Queue the next
   // recurrence instance here too so the chain never silently stalls. Safe for non-recurring
@@ -745,6 +788,10 @@ async function update(taskId, rawPayload, session) {
     task: recurrenceContinuity
       ? { ...taskWithDetails, recurrenceContinuity }
       : taskWithDetails,
+    tasks: [
+      recurrenceContinuity ? { ...taskWithDetails, recurrenceContinuity } : taskWithDetails,
+      ...cascadedTasks,
+    ],
     recurrenceContinuity,
     recurrenceJob,
   };
@@ -1221,7 +1268,7 @@ async function bulkUpdate(payload, session) {
   for (const taskId of taskIds) {
     try {
       const result = await applyBulkAction(taskId, action, payload, session);
-      results.push(result.task);
+      appendUniqueTasks(results, result.tasks || [result.task]);
       if (result.recurrenceContinuity) {
         recurrenceContinuities.push({
           task_id: result.task?.task_id || taskId,
@@ -1481,6 +1528,19 @@ async function applyBulkAction(taskId, action, payload, session) {
     return update(taskId, { priority: payload.priority }, session);
   }
 
+  if (action === "project_assign") {
+    const projectId = String(payload.project_id || payload.projectId || "").trim();
+
+    if (!projectId) {
+      throw new AppError("Project is required for bulk Project assignment.", 400);
+    }
+
+    return update(taskId, {
+      client_id: String(payload.client_id || payload.clientId || "").trim(),
+      project_id: projectId,
+    }, session);
+  }
+
   if (action === "due_date") {
     const dueDate = normalizeDueDate(payload.due_date || payload.dueDate);
     return update(taskId, {
@@ -1519,6 +1579,108 @@ async function applyBulkAction(taskId, action, payload, session) {
   throw new AppError("Unsupported bulk task action.", 400);
 }
 
+function emptyProjectCascade() {
+  return {
+    allPreviousTasks: [],
+    changedTasks: [],
+  };
+}
+
+async function prepareProjectCascade(session, rootTaskId, normalizedRootTask) {
+  const descendantTaskIds = await taskRelationshipsRepository.readDescendantTaskIds(
+    session.workspace_id,
+    rootTaskId,
+  );
+  if (descendantTaskIds.length === 0) {
+    return emptyProjectCascade();
+  }
+
+  const descendantRows = await tasksRepository.readByIds(session.workspace_id, descendantTaskIds);
+  const descendantById = new Map(descendantRows.map((task) => [task.task_id, task]));
+  const allPreviousTasks = descendantTaskIds.map((taskId) => descendantById.get(taskId)).filter(Boolean);
+  const changedTasks = [];
+
+  for (const previousTask of allPreviousTasks) {
+    if (
+      previousTask.project_id === normalizedRootTask.project_id &&
+      previousTask.client_id === normalizedRootTask.client_id
+    ) {
+      continue;
+    }
+
+    await assertCanEditTask(session, previousTask);
+    const normalizedTask = await normalizeTaskPayload({
+      payload: {
+        client_id: normalizedRootTask.client_id,
+        project_id: normalizedRootTask.project_id,
+      },
+      session,
+      fallback: {
+        ...previousTask,
+        task_id: previousTask.task_id,
+        updated_by_user_id: session.user_id,
+      },
+    });
+    normalizedTask.last_worked_at = normalizedRootTask.last_worked_at;
+    await assertCanEditTask(session, normalizedTask);
+    changedTasks.push(normalizedTask);
+  }
+
+  return { allPreviousTasks, changedTasks };
+}
+
+async function finalizeProjectCascadeSideEffects({ cascade, rootTaskId, session }) {
+  if (cascade.allPreviousTasks.length === 0) {
+    return [];
+  }
+
+  const changedById = new Map(cascade.changedTasks.map((task) => [task.task_id, task]));
+  const refreshedTasks = [];
+
+  for (const previousTask of cascade.allPreviousTasks) {
+    if (changedById.has(previousTask.task_id)) {
+      await requestTagPropagationRefresh(session, "task", previousTask.task_id, "task.project_cascaded");
+    }
+    const refreshedTask = await readTaggedTaskWithDetails(session, previousTask.task_id);
+    refreshedTasks.push(refreshedTask);
+
+    if (!changedById.has(previousTask.task_id)) {
+      continue;
+    }
+
+    await recordTaskAudit({
+      session,
+      action: "task_updated",
+      changeType: "update",
+      previousValue: previousTask,
+      newValue: refreshedTask,
+    });
+    await emitTaskEvent("task.updated", {
+      session,
+      previousValue: previousTask,
+      newValue: refreshedTask,
+      metadata: {
+        project_cascade_root_task_id: rootTaskId,
+      },
+    });
+    await syncTaskSearchIndex(session.workspace_id, refreshedTask.task_id, "task.project_cascaded");
+    await queueTaskReminderJobsForTask(refreshedTask, {
+      reason: "task.project_cascaded",
+      session,
+    });
+  }
+
+  return refreshedTasks;
+}
+
+function appendUniqueTasks(target, tasks) {
+  for (const task of tasks || []) {
+    if (task?.task_id && !target.some((candidate) => candidate.task_id === task.task_id)) {
+      target.push(task);
+    }
+  }
+}
+
 async function normalizeTaskPayload({ payload = {}, session, fallback }) {
   const scope = await resolveTaskScope({
     session,
@@ -1535,6 +1697,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
   const title = String(valueOrFallback(payload, "title", fallback.title) || "").trim();
   const status = normalizeStatus(valueOrFallback(payload, "status", fallback.status));
   const priority = normalizePriority(valueOrFallback(payload, "priority", fallback.priority));
+  const estimateMinutes = normalizeTaskEstimateMinutes(valueOrFallback(payload, "estimate_minutes", fallback.estimate_minutes));
   const billable = scope.billableAllowed ? normalizeBillableFlag(billableSource) : "no";
   const dueDate = normalizeDueDate(valueOrFallback(payload, "due_date", fallback.due_date));
   const dueTime = normalizeDueTime(valueOrFallback(payload, "due_time", fallback.due_time));
@@ -1576,6 +1739,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     ),
     status,
     priority,
+    estimate_minutes: estimateMinutes,
     billable,
     due_date: dueDate,
     due_time: dueTime,
@@ -2156,6 +2320,7 @@ function taskRelationshipTaskSummary(task) {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
+    estimate_minutes: task.estimate_minutes,
     client_id: task.client_id || "",
     client_name: task.client_name || "",
     project_id: task.project_id || "",
@@ -2267,7 +2432,7 @@ async function finalizeChecklistMutation({ session, task, action, checked = null
 }
 
 async function applyChecklistDrivenStatusTransition({ session, task, checked, currentItems, workedAt }) {
-  const nextStatus = checklistDrivenStatus(task, checked, currentItems);
+  const nextStatus = await checklistDrivenStatus(session.workspace_id, task, checked, currentItems);
 
   if (!nextStatus) {
     return null;
@@ -2275,6 +2440,7 @@ async function applyChecklistDrivenStatusTransition({ session, task, checked, cu
 
   await tasksRepository.update(session.workspace_id, {
     ...task,
+    blocked_reason: nextStatus === "in_progress" ? "" : task.blocked_reason,
     status: nextStatus,
     last_worked_at: workedAt,
     updated_by_user_id: session.user_id,
@@ -2295,7 +2461,7 @@ async function applyChecklistDrivenStatusTransition({ session, task, checked, cu
     newValue: taskWithDetails,
     metadata: {
       transition: nextStatus === "in_progress"
-        ? "checklist_started"
+        ? task.status === "blocked" ? "checklist_started_from_blocked" : "checklist_started"
         : "checklist_cleared",
     },
   });
@@ -2308,14 +2474,18 @@ async function applyChecklistDrivenStatusTransition({ session, task, checked, cu
   return taskWithDetails;
 }
 
-function checklistDrivenStatus(task, checked, currentItems = []) {
-  if (checked === true && task.status === "open") {
+async function checklistDrivenStatus(workspaceId, task, checked, currentItems = []) {
+  if (checked === true && (task.status === "open" || task.status === "blocked")) {
     return "in_progress";
   }
 
   if (checked === false && task.status === "in_progress") {
-    const hasCheckedItems = currentItems.some((currentItem) => currentItem.is_checked);
-    return hasCheckedItems ? "" : "open";
+    const evidence = await taskWorkEvidenceService.readStartedWorkEvidence(
+      workspaceId,
+      task.task_id,
+      currentItems,
+    );
+    return evidence.hasStartedWork ? "" : "open";
   }
 
   return "";
@@ -2438,6 +2608,29 @@ function normalizeStatus(value) {
 function normalizePriority(value) {
   const priority = String(value || "").trim();
   return PRIORITIES.has(priority) ? priority : "normal";
+}
+
+function normalizeCalendarStatuses(value) {
+  const values = (Array.isArray(value) ? value : [value])
+    .flatMap((entry) => String(entry || "").split(","))
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => STATUSES.has(entry));
+  const uniqueValues = [...new Set(values)];
+
+  return uniqueValues.length ? uniqueValues : ["open", "in_progress", "blocked"];
+}
+
+function normalizeTaskEstimateMinutes(value) {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+
+  const minutes = Number(value);
+  if (!Number.isSafeInteger(minutes) || minutes < 0 || minutes % 15 !== 0) {
+    throw new AppError("Task estimate must be blank or a non-negative multiple of 15 minutes.", 400);
+  }
+
+  return minutes;
 }
 
 function normalizeDueDate(value) {
@@ -2588,6 +2781,7 @@ function dashboardTaskRow(task, context) {
     title: task.title || "Untitled task",
     status: task.status || "open",
     priority: task.priority || "normal",
+    estimate_minutes: task.estimate_minutes,
     reasonBadge,
     reasons,
     horizon: context.horizon || "",
@@ -3083,6 +3277,7 @@ function taskSummaryRow(task, currentUserId = "") {
     resume_note: task.resume_note || "",
     status: task.status,
     priority: task.priority,
+    estimate_minutes: task.estimate_minutes,
     billable: task.billable,
     due_date: task.due_date,
     due_time: task.due_time,
@@ -3129,6 +3324,7 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     description_excerpt: descriptionExcerpt(task.description),
     status: task.status || "open",
     priority: task.priority || "normal",
+    estimate_minutes: task.estimate_minutes,
     due_date: task.due_date || "",
     due_time: task.due_time || "",
     due_at: task.due_at_utc || task.due_date || "",
@@ -3158,6 +3354,48 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     completion_metrics: taskCompletionMetrics(task),
     active_candidate: resumeContext.active_candidate,
     resume_context: resumeContext,
+  };
+}
+
+function taskCompletionFollowUpWorkItemSummary(task) {
+  const sourceUrl = taskUrl(task);
+  const nextAction = String(task.next_action || "").replace(/\s+/g, " ").trim();
+
+  return {
+    source_module_id: TASKS_MODULE_ID,
+    source_type: "task_completion_follow_up",
+    source_id: task.task_id,
+    source_label: nextAction,
+    source_url: sourceUrl,
+    source: {
+      module_id: TASKS_MODULE_ID,
+      type: "task_completion_follow_up",
+      id: task.task_id,
+      label: nextAction,
+      url: sourceUrl,
+      enabled: true,
+    },
+    task_id: task.task_id,
+    title: nextAction,
+    completion_task_title: task.title || "Completed task",
+    status: "open",
+    priority: task.priority || "normal",
+    client_id: task.client_id || "",
+    client_name: task.client_name || "",
+    project_id: task.project_id || "",
+    project_name: task.project_name || "",
+    next_action: nextAction,
+    completed_at: task.completed_at || "",
+    updated_at: task.updated_at || task.completed_at || "",
+    primary_action: {
+      id: "tasks.edit",
+      label: "Review follow-up",
+      params: {
+        focusTarget: "next_action",
+        taskId: task.task_id,
+      },
+      type: "module-action",
+    },
   };
 }
 
@@ -3495,6 +3733,10 @@ function taskAuditSummary(previousTask, nextTask) {
     changes.push(`priority ${formatAuditToken(previousTask?.priority)} to ${formatAuditToken(nextTask?.priority)}`);
   }
 
+  if (previousTask?.estimate_minutes !== nextTask?.estimate_minutes) {
+    changes.push(`estimate ${formatAuditEstimate(previousTask)} to ${formatAuditEstimate(nextTask)}`);
+  }
+
   if (previousTask?.due_date !== nextTask?.due_date || previousTask?.due_time !== nextTask?.due_time) {
     changes.push(`due ${formatAuditDue(previousTask)} to ${formatAuditDue(nextTask)}`);
   }
@@ -3536,6 +3778,12 @@ function formatAuditDue(task) {
   return task.due_time ? `${task.due_date} ${task.due_time}` : task.due_date;
 }
 
+function formatAuditEstimate(task) {
+  return task?.estimate_minutes === null || task?.estimate_minutes === undefined
+    ? "none"
+    : `${task.estimate_minutes} minutes`;
+}
+
 function formatAuditScope(task) {
   if (task?.client_name && task?.project_name) {
     return `${task.client_name} / ${task.project_name}`;
@@ -3554,6 +3802,7 @@ function taskResumeContext(task = {}) {
     source_label: task.title || "",
     source_url: task.task_id ? taskUrl(task) : "",
     status: task.status || "open",
+    estimate_minutes: task.estimate_minutes,
     last_worked_at: task.last_worked_at || task.updated_at || task.created_at || "",
     completion_metrics: taskCompletionMetrics(task),
     next_action: task.next_action || "",

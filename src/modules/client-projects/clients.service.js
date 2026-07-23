@@ -492,7 +492,7 @@ function normalizeProjectClientFilter(clientFilter) {
     return { type: "all", value: "" };
   }
 
-  if (value.toLowerCase() === "workspace") {
+  if (["workspace", "__workspace_projects__"].includes(value.toLowerCase())) {
     return { type: "workspace", value: "" };
   }
 
@@ -723,17 +723,26 @@ async function archiveClient(clientId, payload, session) {
 }
 
 async function listProjects(session, query = {}) {
-  const clients = await clientsRepository.readAll(session.workspace_id);
+  const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
+  const clientsEnabled = workspaceSettings.workspaceType === "business";
+  const clients = clientsEnabled ? await clientsRepository.readAll(session.workspace_id) : [];
   const projects = await projectsRepository.readAll(session.workspace_id);
-  const readableClients = await permissionsService.filterReadableClients(session, clients);
-  const readableProjects = await permissionsService.filterReadableProjects(session, projects);
+  const readableClients = clientsEnabled
+    ? await permissionsService.filterReadableClients(session, clients)
+    : [];
+  const permissionFilteredProjects = await permissionsService.filterReadableProjects(session, projects);
+  const readableProjects = clientsEnabled
+    ? permissionFilteredProjects
+    : permissionFilteredProjects.filter((project) => !project.client_id).map(stripProjectClientContext);
   const readableClientIds = new Set(readableClients.map((client) => client.id));
   const readableProjectClientIds = new Set(readableProjects.map((project) => project.client_id).filter(Boolean));
   const orderingClients = clients.filter((client) => (
     readableClientIds.has(client.id) || readableProjectClientIds.has(client.id)
   ));
   const status = normalizeProjectStatusFilter(query.status);
-  const clientFilter = normalizeProjectClientFilter(query.client || query.client_id || query.clientId);
+  const clientFilter = clientsEnabled
+    ? normalizeProjectClientFilter(query.client || query.client_id || query.clientId)
+    : { type: "all", value: "" };
   const shapeOptions = normalizeProjectShapeOptions(query);
   const statusFilteredProjects = status === "All"
     ? readableProjects
@@ -794,12 +803,18 @@ async function readProject(projectId, session) {
     operation: "read",
   });
 
-  return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
+  const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
+  const readableProject = workspaceSettings.workspaceType === "business"
+    ? project
+    : stripProjectClientContext(project);
+
+  return { project: (await tagsService.decorateRecordsForTarget(session, "project", [readableProject]))[0] };
 }
 
 async function createProject(clientId, payload, session) {
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
+  assertProjectClientAssignmentAllowed(workspaceSettings.workspaceType, clientId, payload);
   const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
   const projectId = normalizedPayload?.id || randomUUID();
   const decodedClientId = usesProjectRoundingOnly
@@ -836,7 +851,7 @@ async function createProject(clientId, payload, session) {
   const project = normalizeProjectPayload(normalizedPayload, {
     id: projectId,
     client_id: decodedClientId,
-  }, client?.billable || "yes");
+  }, client?.billable || (decodedClientId ? "yes" : "no"));
   project.workspace_id = session.workspace_id;
   project.parent_project_id = parentProject?.id || "";
 
@@ -878,6 +893,7 @@ async function assertBusinessWorkspace(session) {
 async function updateProject(projectId, payload, session) {
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
+  assertProjectClientAssignmentAllowed(workspaceSettings.workspaceType, "", payload);
   const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
   const decodedProjectId = decodeURIComponent(projectId || "");
   const updatePlan = await planProjectUpdate({
@@ -1310,6 +1326,25 @@ function normalizeProjectPayloadForWorkspace(payload = {}, usesProjectRoundingOn
     billing_rate: null,
     billing_period: null,
     billingPeriod: null,
+  };
+}
+
+function assertProjectClientAssignmentAllowed(workspaceType, routeClientId, payload = {}) {
+  if (workspaceType === "business") {
+    return;
+  }
+
+  const requestedClientId = String(routeClientId || payload.client_id || payload.clientId || "").trim();
+  if (requestedClientId) {
+    throw new AppError("Clients are only available in Business workspaces.", 403);
+  }
+}
+
+function stripProjectClientContext(project) {
+  return {
+    ...project,
+    client_id: "",
+    client_name: "",
   };
 }
 

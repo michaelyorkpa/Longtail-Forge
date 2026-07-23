@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
 import {
+  normalizeCalendarViewPreference,
   normalizeDisplayName,
   normalizeOptionalEmail,
   normalizeThemeAutoSource,
@@ -24,6 +25,7 @@ const USER_SELECT_COLUMNS = `
   theme_auto_source,
   preferred_login_landing,
   preferred_workspace_switch_landing,
+  preferred_calendar_view,
   open_external_links_new_tab,
   user_status,
   protected_user,
@@ -297,6 +299,27 @@ WHERE user_id = :userId
   });
 }
 
+async function updateCalendarViewPreference(workspaceId, userId, preferredCalendarView) {
+  await db.run(`
+UPDATE users
+SET preferred_calendar_view = :preferredCalendarView
+WHERE user_id = :userId
+  AND (
+    home_workspace_id = :workspaceId
+    OR EXISTS (
+      SELECT 1
+      FROM user_workspaces
+      WHERE user_workspaces.user_id = users.user_id
+        AND user_workspaces.workspace_id = :workspaceId
+    )
+  );
+`, {
+    preferredCalendarView: normalizeCalendarViewPreference(preferredCalendarView),
+    userId,
+    workspaceId,
+  });
+}
+
 async function updateStatus(workspaceId, userId, userStatus) {
   await db.run(`
 UPDATE users
@@ -456,6 +479,7 @@ export const usersRepository = {
   updatePasswordByUserId,
   updateActiveWorkspace,
   updateLandingPreferences,
+  updateCalendarViewPreference,
   updateThemeAutoSource,
   updateOpenExternalLinksNewTab,
   updateProfile,

@@ -15,6 +15,7 @@ INSERT INTO task_recurrence_templates (
   description,
   status,
   priority,
+  estimate_minutes,
   recurrence_anchor_date,
   due_time,
   due_timezone,
@@ -36,6 +37,7 @@ VALUES (
   :description,
   :status,
   :priority,
+  :estimateMinutes,
   :recurrenceAnchorDate,
   :dueTime,
   :dueTimezone,
@@ -72,6 +74,7 @@ SET
   description = :description,
   status = :status,
   priority = :priority,
+  estimate_minutes = :estimateMinutes,
   recurrence_anchor_date = :recurrenceAnchorDate,
   due_time = :dueTime,
   due_timezone = :dueTimezone,
@@ -490,6 +493,7 @@ SELECT
   description,
   status,
   priority,
+  estimate_minutes,
   recurrence_anchor_date,
   due_time,
   due_timezone,
@@ -531,6 +535,9 @@ function templateRowToAppValue(row) {
     description: row.description || "",
     status: row.status || "open",
     priority: row.priority || "normal",
+    estimate_minutes: row.estimate_minutes === null || row.estimate_minutes === undefined
+      ? null
+      : Number(row.estimate_minutes),
     recurrence_anchor_date: row.recurrence_anchor_date || "",
     due_time: row.due_time || "",
     due_timezone: row.due_timezone || "",
@@ -619,6 +626,7 @@ function templateWriteParams({ includeCreatedByUserId = false, now, template, te
     dueAtUtc: nullableTextParam(template.due_at_utc),
     dueTime: nullableTextParam(template.due_time),
     dueTimezone: nullableTextParam(template.due_timezone),
+    estimateMinutes: nullableIntegerParam(template.estimate_minutes),
     priority: textParam(template.priority || "normal"),
     projectId: nullableTextParam(template.project_id),
     recurrenceAnchorDate: textParam(template.recurrence_anchor_date),
@@ -647,6 +655,12 @@ function textParam(value) {
 function nullableTextParam(value) {
   const text = String(value ?? "").trim();
   return text ? text : null;
+}
+
+function nullableIntegerParam(value) {
+  return value === null || value === undefined || value === ""
+    ? null
+    : Number(value);
 }
 
 function integerParam(value) {

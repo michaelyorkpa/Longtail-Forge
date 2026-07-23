@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  candidateFromTimer,
   normalizeWorkCandidate,
   rankWorkCandidates,
   resolveWorkCandidateRankBucket,
@@ -87,5 +88,28 @@ describe("normalizeWorkCandidate", () => {
 
   it("keeps the supported sort modes stable", () => {
     expect(Object.values(WORK_CANDIDATE_SORTS).sort()).toEqual(["due_datetime", "ranked", "resume"]);
+  });
+});
+
+describe("candidateFromTimer", () => {
+  it("shapes a readable task-sourced timer as a Task Focus candidate", () => {
+    const shaped = candidateFromTimer({
+      active_timer_id: "timer-1",
+      source_id: "task-1",
+      source_label: "Continue the task",
+      source_module_id: "tasks",
+      source_type: "task",
+      timer_slot: "source:tasks:task:task-1",
+      timer_status: "running",
+    }, {
+      taskLifecycle: { readable: true, status: "in_progress" },
+    });
+
+    expect(shaped.moduleId).toBe("tasks");
+    expect(shaped.recordType).toBe("task");
+    expect(shaped.recordId).toBe("task-1");
+    expect(shaped.status).toBe("in_progress");
+    expect(shaped.metadata.timer_status).toBe("running");
+    expect(shaped.primaryAction.href).toBe("tasks.html?task=task-1");
   });
 });

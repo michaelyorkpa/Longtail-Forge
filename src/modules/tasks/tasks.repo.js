@@ -124,6 +124,7 @@ INSERT INTO tasks (
   resume_note,
   status,
   priority,
+  estimate_minutes,
   billable,
   due_date,
   due_time,
@@ -156,6 +157,7 @@ VALUES (
   :resumeNote,
   :status,
   :priority,
+  :estimateMinutes,
   :billable,
   :dueDate,
   :dueTime,
@@ -185,7 +187,65 @@ VALUES (
 async function update(workspaceId, task) {
   const now = new Date().toISOString();
 
-  await db.run(`
+  await db.run(taskUpdateSql(), taskWriteParams({ now, task, taskId: task.task_id, workspaceId }));
+
+  if (Array.isArray(task.assignee_ids)) {
+    await replaceAssignees(workspaceId, task.task_id, task.assignee_ids, task.updated_by_user_id);
+  }
+
+  return readById(workspaceId, task.task_id);
+}
+
+async function updateProjectCascade(workspaceId, rootTask, descendantTasks = []) {
+  const now = new Date().toISOString();
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(taskUpdateSql(), taskWriteParams({
+      now,
+      task: rootTask,
+      taskId: rootTask.task_id,
+      workspaceId,
+    }));
+    if (Array.isArray(rootTask.assignee_ids)) {
+      await replaceAssigneesWithExecutor(
+        transaction,
+        workspaceId,
+        rootTask.task_id,
+        rootTask.assignee_ids,
+        rootTask.updated_by_user_id,
+        now,
+      );
+    }
+
+    for (const task of descendantTasks) {
+      await transaction.run(`
+UPDATE tasks
+SET client_id = :clientId,
+    project_id = :projectId,
+    billable = :billable,
+    updated_by_user_id = :updatedByUserId,
+    last_worked_at = :lastWorkedAt,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND task_id = :taskId;
+`, {
+        billable: task.billable,
+        clientId: task.client_id || null,
+        lastWorkedAt: task.last_worked_at || now,
+        projectId: task.project_id || null,
+        taskId: task.task_id,
+        updatedAt: now,
+        updatedByUserId: task.updated_by_user_id || null,
+        workspaceId,
+      });
+    }
+  });
+
+  return readByIds(workspaceId, [rootTask.task_id, ...descendantTasks.map((task) => task.task_id)]);
+}
+
+function taskUpdateSql() {
+  return `
 UPDATE tasks
 SET
   client_id = :clientId,
@@ -197,6 +257,7 @@ SET
   resume_note = :resumeNote,
   status = :status,
   priority = :priority,
+  estimate_minutes = :estimateMinutes,
   billable = :billable,
   due_date = :dueDate,
   due_time = :dueTime,
@@ -216,13 +277,7 @@ SET
   updated_at = :updatedAt
 WHERE workspace_id = :workspaceId
   AND task_id = :taskId;
-`, taskWriteParams({ now, task, taskId: task.task_id, workspaceId }));
-
-  if (Array.isArray(task.assignee_ids)) {
-    await replaceAssignees(workspaceId, task.task_id, task.assignee_ids, task.updated_by_user_id);
-  }
-
-  return readById(workspaceId, task.task_id);
+`;
 }
 
 async function replaceAssignees(workspaceId, taskId, assigneeIds, assignedByUserId) {
@@ -230,7 +285,12 @@ async function replaceAssignees(workspaceId, taskId, assigneeIds, assignedByUser
   const uniqueAssigneeIds = [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
 
   await db.transaction(async (transaction) => {
-    await transaction.run(`
+    await replaceAssigneesWithExecutor(transaction, workspaceId, taskId, uniqueAssigneeIds, assignedByUserId, now);
+  });
+}
+
+async function replaceAssigneesWithExecutor(database, workspaceId, taskId, assigneeIds, assignedByUserId, now) {
+  await database.run(`
 UPDATE task_assignees
 SET removed_at = :removedAt
 WHERE workspace_id = :workspaceId
@@ -238,8 +298,8 @@ WHERE workspace_id = :workspaceId
   AND removed_at IS NULL;
 `, { removedAt: now, taskId, workspaceId });
 
-    for (const userId of uniqueAssigneeIds) {
-      await transaction.run(`
+  for (const userId of assigneeIds) {
+    await database.run(`
 INSERT INTO task_assignees (
   task_assignee_id,
   workspace_id,
@@ -270,8 +330,7 @@ VALUES (
         userId,
         workspaceId,
       });
-    }
-  });
+  }
 }
 
 async function readAssigneesForWorkspace(workspaceId) {
@@ -366,14 +425,20 @@ WHERE tasks.workspace_id = :workspaceId
   };
 }
 
-async function readDueBetween(workspaceId, startDate, endDate) {
+async function readDueBetween(workspaceId, startDate, endDate, options = {}) {
+  const statuses = Array.isArray(options.statuses) && options.statuses.length
+    ? options.statuses
+    : ["open", "in_progress", "blocked"];
+  const statusParams = Object.fromEntries(
+    Array.from({ length: 5 }, (_, index) => [`calendarStatus${index}`, statuses[index] || null]),
+  );
   const [tasks, assignees] = await Promise.all([
     db.query(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.due_date IS NOT NULL
   AND tasks.due_date >= :startDate
   AND tasks.due_date <= :endDate
-  AND tasks.status != 'archived'
+  AND tasks.status IN (:calendarStatus0, :calendarStatus1, :calendarStatus2, :calendarStatus3, :calendarStatus4)
 ORDER BY
   tasks.due_date,
   COALESCE(tasks.due_time, '23:59'),
@@ -383,6 +448,7 @@ ORDER BY
       endDate,
       startDate,
       workspaceId,
+      ...statusParams,
     }),
     readAssigneesForWorkspace(workspaceId),
   ]);
@@ -458,6 +524,7 @@ SELECT
   tasks.resume_note,
   tasks.status,
   tasks.priority,
+  tasks.estimate_minutes,
   tasks.billable,
   tasks.due_date,
   tasks.due_time,
@@ -495,10 +562,17 @@ function taskListWhereSql(options, params) {
   applyQuickFilter(conditions, options, params);
   applyDueFilter(conditions, options, params);
   applyDueWindowFilter(conditions, options, params);
+  applyNextActionFilter(conditions, options);
   applyContextFilters(conditions, options, params);
   applyAssigneeFilters(conditions, options, params);
 
   return `WHERE ${conditions.join("\n  AND ")}`;
+}
+
+function applyNextActionFilter(conditions, options) {
+  if (options.requireNextAction === true) {
+    conditions.push("TRIM(COALESCE(tasks.next_action, '')) <> ''");
+  }
 }
 
 function applyDueWindowFilter(conditions, options, params) {
@@ -852,6 +926,7 @@ function taskWriteParams({ includeCreatedAt = false, now, task, taskId, workspac
     dueDate: nullableTextParam(task.due_date),
     dueTime: nullableTextParam(task.due_time),
     dueTimezone: nullableTextParam(task.due_timezone),
+    estimateMinutes: nullableIntegerParam(task.estimate_minutes),
     lastWorkedAt: nullableTextParam(task.last_worked_at),
     nextAction: textParam(task.next_action),
     priority: textParam(task.priority),
@@ -886,6 +961,12 @@ function nullableTextParam(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
+}
+
+function nullableIntegerParam(value) {
+  return value === null || value === undefined || value === ""
+    ? null
+    : Number(value);
 }
 
 function assigneeSelectSql(whereSql) {
@@ -935,6 +1016,9 @@ function taskRowToAppValue(row) {
     resume_note: row.resume_note || "",
     status: row.status || "open",
     priority: row.priority || "normal",
+    estimate_minutes: row.estimate_minutes === null || row.estimate_minutes === undefined
+      ? null
+      : Number(row.estimate_minutes),
     billable: row.billable === "no" ? "no" : "yes",
     due_date: row.due_date || "",
     due_time: row.due_time || "",
@@ -980,4 +1064,5 @@ export const tasksRepository = {
   readReminderSchedulingCandidates,
   markWorkedAt,
   update,
+  updateProjectCascade,
 };

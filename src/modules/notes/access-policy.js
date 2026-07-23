@@ -151,12 +151,14 @@ function canAccessNote({
   operation = "read",
   session = {},
   permissions = [],
+  workspaceType = "business",
   linkedRecordAccess = true,
   notesModuleEnabled = true,
   historicalReadAccess = true,
 } = {}) {
   const permissionSet = createPermissionSet(permissions);
   const normalizedOperation = String(operation || "read").trim();
+  const effectiveVisibility = noteVisibilityForWorkspace(note.visibility, workspaceType);
 
   if (!notesModuleEnabled && WRITE_OPERATIONS.has(normalizedOperation)) {
     return deny("module_disabled");
@@ -187,11 +189,11 @@ function canAccessNote({
     return deny("linked_record_hidden");
   }
 
-  if (note.visibility === NOTE_VISIBILITIES.PRIVATE && !canReadPrivateNote(note, session, permissionSet)) {
+  if (effectiveVisibility === NOTE_VISIBILITIES.PRIVATE && !canReadPrivateNote(note, session, permissionSet)) {
     return deny("private_note");
   }
 
-  if (note.visibility === "client_visible" && WRITE_OPERATIONS.has(normalizedOperation) && !permissionSet.has(NOTE_PERMISSIONS.PUBLISH_CLIENT_VISIBLE)) {
+  if (effectiveVisibility === NOTE_VISIBILITIES.CLIENT_VISIBLE && WRITE_OPERATIONS.has(normalizedOperation) && !permissionSet.has(NOTE_PERMISSIONS.PUBLISH_CLIENT_VISIBLE)) {
     return deny("client_visible_requires_permission");
   }
 
@@ -209,12 +211,33 @@ function canAccessNote({
   return allow();
 }
 
+function noteVisibilityForWorkspace(visibility, workspaceType = "business") {
+  const normalizedWorkspaceType = String(workspaceType || "").trim().toLowerCase();
+
+  if (normalizedWorkspaceType === "personal") {
+    return NOTE_VISIBILITIES.INTERNAL;
+  }
+  if (normalizedWorkspaceType === "family" && visibility === NOTE_VISIBILITIES.CLIENT_VISIBLE) {
+    return NOTE_VISIBILITIES.INTERNAL;
+  }
+
+  return visibility || NOTE_VISIBILITIES.INTERNAL;
+}
+
+function normalizeNoteVisibilityForWorkspace(note = {}, workspaceType = "business") {
+  return {
+    ...note,
+    visibility: noteVisibilityForWorkspace(note.visibility, workspaceType),
+  };
+}
+
 function canExposeNoteInAggregate({
   note = {},
   session = {},
   permissions = [],
   linkedRecordAccess = true,
   includeSecureMetadata = false,
+  workspaceType = "business",
 } = {}) {
   const access = canAccessNote({
     note,
@@ -222,6 +245,7 @@ function canExposeNoteInAggregate({
     session,
     permissions,
     linkedRecordAccess,
+    workspaceType,
   });
 
   if (!access.allowed) {
@@ -342,5 +366,7 @@ export {
   canAccessNote,
   canExposeNoteInAggregate,
   createPermissionSet,
+  normalizeNoteVisibilityForWorkspace,
+  noteVisibilityForWorkspace,
   sanitizeNoteLifecyclePayload,
 };

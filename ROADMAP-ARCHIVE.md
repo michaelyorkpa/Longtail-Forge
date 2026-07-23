@@ -1,5 +1,222 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.21.17.2 - Resume-note capture prompt on timer pause/end and Workbench navigation-away
+
+Completed locally on 2026-07-22. This completes the 0.33.21.17 lifecycle-capture branch; the live roadmap advances to 0.33.22.
+
+**Model: High Effort** — The second shared-prompt consumer crossed Time Tracking timer lifecycle, Workbench focused-task navigation state, and the Tasks-owned `resume_note` write while preserving non-blocking behavior.
+
+- [x] Added a Tasks-owned resume-note capture adapter that re-reads the target Task, suppresses an existing or just-captured note, and reuses the shared capture modal with the exact `Add resume note?` prompt, one line, and Yes/No actions.
+- [x] Offered capture after successful task-timer Pause and Save Time/finalize actions across the Tasks page, Task editor hosts, focused Workbench timer, and other readable task-timer cards.
+- [x] Offered capture when Change Focus leaves Workbench Task Focus with a running or paused timer, while immediately completing the focus-state transition and never awaiting the modal.
+- [x] Kept Yes on the canonical partial Tasks update path for the correct linked Task, kept No side-effect free, and left manual timers outside the flow until they are linked to a Task.
+- [x] Reconciled capture with the always-visible Resume note field and the existing manual-timer/Task deep-link ownership boundary; no duplicate storage or Workbench task editor was added.
+- [x] Extended the resume-context regression with executable prompt, suppression, Yes/No, correct-task write, trigger, and non-blocking coverage, and retained the existing Task Focus timer proof.
+
+Acceptance criteria:
+
+- Pausing/ending a task timer or leaving the Workbench with active Task Focus offers a single-line "Add resume note?" prompt (on the shared capture-prompt modal) that writes back to the focused task on Yes and dismisses cleanly on No, without nagging, blocking, or duplicating the Tasks-owned resume note.
+
+## Version 0.33.21 - Post-Preview UX Comprehensive Build and Deferred Review Fixes
+
+Completed locally before the roadmap cursor advanced to 0.33.21.14. This completed branch covered the shipped 0.33.21.1 through 0.33.21.13 corrections across Reporting, Notes, Clients/Projects, Workbench, Tasks, Calendar/Dashboard, mobile responsive behavior, and workspace-type module scope. The detailed child slices remain represented in CHANGELOG.md and the corresponding owning docs; ROADMAP.md now begins at the active 0.33.21.14 cursor.
+
+Completed children:
+
+- 0.33.21.1 — Reporting and Notes tag-control refinements.
+- 0.33.21.2.1–0.33.21.2.3 — Clients/Projects filter, hierarchy, dialog, and editor polish.
+- 0.33.21.3.1–0.33.21.3.3 — Workbench candidate eligibility/timer precedence, focus policy settings, and Task In Progress continuity.
+- 0.33.21.4.1–0.33.21.4.5 — Task reminders, Workbench handoff, blocked continuity, completion follow-up, and quarter-hour estimates.
+- 0.33.21.5–0.33.21.10.4 — Notes settings, User Settings password isolation, TLS review, quick-action refresh, calendar status/mobile behavior, and Workbench responsive fixes.
+- 0.33.21.11.1–0.33.21.11.5 — Clients/Projects and Tasks correction slices.
+- 0.33.21.12 — Personal and Family Notes visibility scope.
+
+## Version 0.33.21.17.1 - Blocked-reason capture modal and header quick-action
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.17.2.
+
+**Model: High Effort** — Intercepting every user-initiated Blocked transition crossed the Tasks editor, edit-modal header, Workbench, bulk actions, and the Tasks status service while preserving automatic parent-rollup behavior.
+
+- [x] Added `LongtailForge.capturePrompt.open()` as a shared one-value modal adapter built on the existing framework view/modal primitives, with required input, explicit Continue/Cancel results, stacked-parent support, and focus return.
+- [x] Routed Task editor status changes, the Tasks row Block action, Workbench Task Focus Block, and bulk Block through the exact `Why is the task now blocked?` capture when no reason already exists.
+- [x] Made Continue persist Blocked plus the captured `blocked_reason` immediately through the canonical Tasks create/edit/bulk path; Cancel restores the editor's prior status or aborts bulk work; an existing reason suppresses the extra prompt.
+- [x] Added the edit-only icon Block action immediately left of Complete in the modal heading, gated by `tasks.edit_all` or eligible `tasks.edit_own` and hidden for Blocked, Complete, or Archived Tasks.
+- [x] Preserved the existing Blocked-reason field, service validation, timer/checklist reason restore contracts, and non-interactive `blockParentsForIncompleteChild` rollup path.
+- [x] Expanded focused Tasks and Calendar-host regressions and re-ran the relationship and resume-context suites.
+
+Acceptance criteria:
+
+- Every user-initiated blocking path captures the exact reason prompt and persists or cancels safely, automatic parent blocking remains unaffected, and the shared helper is ready for the 0.33.21.17.2 resume-note consumer.
+
+## Version 0.33.21.16 - Edit-modal Complete relocation to the header
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.17.
+
+**Model: Medium Effort** — A contained Edit-modal action relocation preserving the existing Tasks completion path, permission gates, and follow-up behavior.
+
+- [x] Moved the `complete` action from the footer into the `surface-modal-heading-actions` cluster immediately left of the Workbench action, rendered icon-only with the accessible label/title "Complete task".
+- [x] Preserved `saveAndCompleteTask`, `updateCompleteTaskActionState`, `hasTaskCompletePermission`, pending-save behavior, completion side effects, and the Next Action follow-up handoff.
+- [x] Kept the footer to Cancel / Save & Close / Save and left the header cluster ordering accessible for the later Blocked quick-action.
+- [x] Expanded the modal-action regressions for header ordering, icon-only labeling, and footer removal.
+
+Acceptance criteria:
+
+- Existing editable tasks expose Complete as an icon-only header control left of Workbench, with completion and follow-up behavior intact; the footer no longer offers Complete.
+
+## Version 0.33.21.15 - Task editor field-layout reflow and continuity row
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.16.
+
+**Model: Medium Effort** — A contained desktop-width layout reflow of the shared Task editor modal used by both Add and Edit, with no route, validation, payload, or data change.
+
+- [x] Regrouped the Task Details grid into Status/Priority/Estimate, Client/Project/Parent Task, Due Date/Due Time, and Description/Assignees desktop rows while preserving each control's existing behavior.
+- [x] Moved Resume note, Next action, and Blocked reason into an always-visible three-column continuity row immediately above the collapsible Task Details box.
+- [x] Preserved status-driven Blocked reason visibility and the existing Task Details collapse rules.
+- [x] Added desktop grid sizing with mobile stacking through the shared stylesheet.
+- [x] Expanded the modal reflow, compact-layout, context-sections, and strict guardrail regressions for the new anatomy.
+
+Acceptance criteria:
+
+- Add and Edit Task modals share the requested desktop grouping and always-visible continuity row, with Blocked reason still status-gated, unchanged collapse behavior, mobile stacking, and regression coverage.
+
+## Version 0.33.21.14 - Bounded task density in calendar month views
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.15.
+
+**Model: Medium Effort** — A contained shared-calendar rendering change used by the Dashboard and Actions -> Calendar, with no calendar read-model or task-ordering change.
+
+- [x] In Month view only, show at most three Task entries in each day cell on both the Dashboard calendar and Actions -> Calendar; preserve the existing service-provided ordering before truncating the rendered entries.
+- [x] When a day contains more than three Tasks, append a visible "View all tasks" link at the bottom of that day cell. The link opens the full Actions -> Calendar Day view for that date through the canonical `calendar.html?view=day&date=YYYY-MM-DD` handoff.
+- [x] Keep Week and Day views untruncated, keep reminder indicators and empty/outside-month day anatomy unchanged, and continue fetching the complete bounded calendar window rather than turning the browser truncation into a data-limit or paging contract.
+- [x] Implement the cap and handoff once in `public/js/shared/task-calendar.js` so both hosts use the same behavior; Dashboard and Calendar host adapters must not duplicate month-density logic.
+- [x] Regressions: a day with three Tasks shows all three and no link; a day with four or more shows exactly three plus "View all tasks" targeting the correct Day/date; both hosts share the behavior; Week and Day views still show every Task.
+
+Acceptance criteria:
+
+- Month grids on the Dashboard and Actions -> Calendar stay compact at three visible Tasks per day, and any denser day offers the exact "View all tasks" handoff to its complete Day view without changing Week/Day rendering or the server read contract.
+
+## Version 0.33.21.13 - Workbench Pick up where I left off candidate suppression and distant-due fallback
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.14.
+
+**Model: Medium Effort** — A contained server-owned candidate-selection correction for one Workbench focus mode, preserving the existing resume ranking and permission-shaped read model.
+
+- [x] Excluded passive recurring-created Task candidates whose only resume signal is Task creation, including overdue and near-due instances, while preserving later timer, resume-note, and Task-update evidence.
+- [x] Omitted creation-only Tasks due more than seven calendar days out during the normal resume pass while preserving the exact seven-day boundary.
+- [x] Added an empty-mode fallback for non-recurring creation-only Tasks due more than seven days out; passive recurring-created Tasks remain excluded.
+- [x] Kept the policy in shared server-owned focus/candidate services and left other focus modes unchanged.
+- [x] Expanded Workbench regressions for recurring suppression, exact-week eligibility, distant fallback, ranking, scope, readability, and timer behavior.
+
+Acceptance criteria:
+
+- "Pick up where I left off" does not treat newly created recurring instances as resumed work, suppresses creation-only Tasks due more than one week out while nearer or stronger work exists, and uses distant non-recurring due work only when the mode would otherwise be empty.
+
+## Version 0.33.21.12 - Personal and Family workspace Notes visibility scope
+
+Completed locally on 2026-07-22. The live roadmap advances to 0.33.21.13.
+
+**Model: High Effort** — A Notes-module-owned workspace-type scoping of note visibility spanning the editor contribution, service validation, and read model; it extends the existing Business-only client-visibility gate and must be module-decided rather than framework-hidden.
+
+Purpose:
+
+Scope note visibility controls to the workspace type inside the Notes module: Personal workspaces need no visibility controls at all, Family workspaces do not offer Client visibility, and Business workspaces are unchanged. This continues the already-decided project-only / Business-only boundary and extends the Notes module's existing `workspaceVisibilityOptions()` / `usesBusinessScope()` / `workspaceSupportsClientTargets(session)` gating rather than adding framework hard-coding.
+
+- [x] In Personal workspaces, the Notes module must not offer any visibility control: Internal, Private, Workspace, Client Visible, and Public do not apply. Notes declines to contribute the visibility selector (browser `public/js/notes.js` `workspaceVisibilityOptions` / `populateWorkspaceVisibilityOptions` and the `src/modules/notes/module.js` editor/bulk/filter visibility descriptors) for Personal workspaces, and the service resolves such notes to a single personal-appropriate default rather than requiring a choice.
+- [x] In Family workspaces, continue to omit the Client Visible (`client_visible`) option — the browser already filters it via `usesBusinessScope` — and verify and enforce the same omission across the editor descriptor, the bulk variant, the filter, and the server so Family notes cannot be assigned Client visibility. The remaining Internal/Private/Workspace/Public options stay as applicable.
+- [x] Enforce the scope server-side in the Notes service and access policy (`src/modules/notes/notes.service.js` `NOTE_VISIBILITY_VALUES` validation and `workspaceSupportsClientTargets`; `src/modules/notes/access-policy.js` visibility rules): a Personal-workspace note rejects any non-default visibility and a Family-workspace note rejects Client visibility, validated on write rather than only hidden in the browser. Handle any pre-existing note rows carrying now-inapplicable visibility gracefully (normalize on read to the workspace-appropriate default without data loss).
+- [x] Keep the Business-workspace visibility contract (including Client Visible under `PUBLISH_CLIENT_VISIBLE`) unchanged.
+- [x] Regressions: Personal workspaces expose no note visibility control and reject visibility values; Family workspaces omit Client Visible and reject a Client-visible assignment; Business workspaces retain the full set; pre-existing inapplicable values normalize safely.
+- [x] Forward note: excluding Knowledge Base from Personal workspaces is intentionally NOT part of this slice; it remains a forward reference for the 0.35 Knowledge Base work (KB is not built yet) and needs no change now.
+
+Acceptance criteria:
+
+- Note visibility controls and validation are scoped by workspace type inside the Notes module — Personal has none, Family drops Client Visible, Business is unchanged — with no framework hard-coding, server-side enforcement, and safe handling of pre-existing values.
+
+## Version 0.33.21.11 - Clients, Projects, and Tasks corrections
+
+**Model: High Effort** — This umbrella crosses Clients/Projects module workspace-type gating and modal layout, Tasks bulk assignment, the Task editor picker/save behavior, and a Tasks project cascade; each child isolates one behavior and regression boundary.
+
+Purpose:
+
+Land the Short Term "Clients, Projects, and Tasks" corrections: keep Client exposure Business-only inside the Clients/Projects module itself (not framework tricks), finish the Edit Project defaults reorganization, add Tasks bulk Project assignment, fix the Parent Task selector ordering and the edit-Task save behavior, and cascade a parent task's Project change to its child tasks. This extends the already-decided boundary that Personal and Family workspaces are project-only (the Clients/Projects canonical pattern in `DECISIONS.md`) and reuses the module's existing `workspaceType === "business"` branching rather than adding new framework hard-coding.
+
+This is a tracking umbrella, not one implementation slice. Complete the numbered children below in order. Each child includes its focused regressions, owning-doc disposition, version/changelog bookkeeping, canonical `npm run verify:slice`, and runtime proof. Keep Clients/Projects record semantics, hierarchy, and billing/task-default ownership in the Clients/Projects module, and keep Tasks status/lifecycle and relationship writes Tasks-owned.
+
+Non-goals:
+
+- No new Client/Project record semantics, drag/drop hierarchy editing, or persistent Inspector panes.
+- No Tasks status/lifecycle changes beyond the named Save-in-place behavior and the Project cascade.
+- No exposure or acceptance of Client on Personal or Family workspaces on any path.
+
+Acceptance criteria:
+
+- Personal and Family workspaces never expose or accept a Client on the Project Settings list or the project modals (module-decided, server-enforced); the Edit Project defaults are reorganized; Tasks supports bulk Project assignment; the Parent Task selector follows hierarchy ordering; the edit-Task Save persists in place; and a parent task's Project change cascades to its children.
+
+### Version 0.33.21.11.1 - Business-only Client exposure in Project Settings list and project modals (module-owned)
+
+**Model: High Effort** — Clients/Projects owns the decision; Personal and Family workspaces are project-only, so the module must not contribute the Client column or Client selector there and must reject a Client on write, rather than the framework hiding rendered controls.
+
+- [x] In the Project Settings read surface (`src/modules/client-projects/module.js` `viewSurfaces` `client-projects.projects`, the `project-client` column and `project-client-filter`), the Clients/Projects module must not contribute the "Client" column or Client filter for Personal or Family workspaces — decided in the module's descriptor/read-model contribution (extending the existing `withInitialProjectClientFilter` / `withoutUnsupportedBillingFields` / `clientsEnabledForWorkspace()` business branching), not blocked in the framework view renderer.
+- [x] In the Add Project and Edit Project modals (`public/js/clients-projects.js` `createAddProjectClientAssignment` / `createProjectClientAssignment`), offer the Client selector only in Business workspaces; the module omits it from its contributed modal fields for Personal and Family workspaces rather than the framework hiding a rendered control.
+- [x] Enforce server-side that a Personal or Family project cannot be assigned a Client on any path (read model, write validation, and payload in `clients.service.js`), consistent with the existing Business-only Client filter/reassignment visibility.
+- [x] Regressions: Personal and Family workspaces omit the Client column, filter, and modal selector (module-decided, server-owned) and reject a Client assignment; Business workspaces retain all three.
+
+Acceptance criteria:
+
+- The Client column, filter, and project-modal selector appear only in Business workspaces because the Clients/Projects module declines to contribute them elsewhere, and the server rejects a Client on a Personal/Family project.
+
+### Version 0.33.21.11.2 - Edit Project defaults reorganization
+
+**Model: Medium Effort** — A contained Edit Project modal layout continuation of 0.33.21.2.3 with no route or validation change.
+
+- [x] Move both "Rounding" and "Task Reminder Defaults" out of the "Project Rounding" section into the "Project Defaults" collapsible box, collapsing the now-empty "Project Rounding" grouping.
+- [x] Place Task Reminder Defaults directly below the "Task Module" settings within the Project Defaults box (completing the 0.33.21.2.3 intent to visually connect Task Reminder defaults to the task-module section; verify against what 0.33.21.2.3 already landed and finish any remaining relocation).
+- [x] Preserve all existing rounding and reminder-default persistence, validation, and inheritance behavior.
+- [x] Regression: the Edit Project modal renders Rounding and Task Reminder Defaults inside Project Defaults with Task Reminder Defaults beneath the Task Module settings, and rounding/reminder persistence is unchanged.
+
+Acceptance criteria:
+
+- The Edit Project modal shows Rounding and Task Reminder Defaults within the Project Defaults box (Task Reminder Defaults beneath Task Module settings) with no separate Project Rounding section and unchanged persistence.
+
+### Version 0.33.21.11.3 - Tasks bulk Project assignment
+
+**Model: High Effort** — A new Tasks bulk-edit capability spanning the bulk toolbar, a bulk route/service path, permission/authority, and audit/search side effects; Project is required and Client stays Business-only.
+
+- [x] Add Tasks bulk editing for Project assignment across selected tasks (at minimum Project) through the shared bulk-toolbar contract (`public/js/tasks.js` `createTaskBulkToolbarChrome` / `taskBulkToolbarControls` / `applyBulkAction`), mirroring the Clients/Projects bulk reassignment pattern.
+- [x] Support bulk Client assignment only where Client applies, keeping Client Business-only consistent with 0.33.21.11.1 (no Client bulk control on Personal/Family).
+- [x] Enforce permission, workspace, and project-move authority server-side in the Tasks service, with partial-failure messaging and audit/search/event side effects; do not move filtering or authority into the browser. This composes with the parent-task Project cascade in 0.33.21.11.5 when a bulk-selected task is a parent.
+- [x] Regressions: bulk Project assignment updates the selected tasks with authority enforced and partial failures surfaced; the Client bulk control is absent on Personal/Family.
+
+Acceptance criteria:
+
+- Users can bulk-assign a Project (and, in Business workspaces, a Client) to selected tasks through the shared bulk toolbar, with server-owned permission/authority, partial-failure messaging, and side effects.
+
+### Version 0.33.21.11.4 - Task editor: Parent Task hierarchy ordering and Save-in-place
+
+**Model: Medium Effort** — Two contained corrections in the canonical Task editor (`public/js/task-dialog.js`): the Parent Task selector ordering and the Save submit lifecycle, both within the existing opener and validation contract.
+
+- [x] Order the Parent Task selector (`public/js/task-dialog.js` `parentTaskOptions`, currently a flat alphabetical list) by the established parent-before-child hierarchy with the hyphen-prefix indentation convention, mirroring the shared project hierarchy ordering (`public/js/shared/client-project-options.js` `orderProjectHierarchy` / `withProjectHierarchyLabel`; `docs/view-building-contract.md`) so alphabetical is only the secondary sort.
+- [x] Make the edit-Task Save persist changes in place without closing the modal (route the primary Save through the existing save-in-place path `saveTask` rather than `saveAndCloseTask`), keeping an explicit close/cancel to dismiss; confirm this stays consistent with the framework modal Save convention or record it as the deliberate Task-editor contract.
+- [x] Preserve the canonical `LongtailForge.tasksDialog.openTaskEditor()` opener contract, existing validation, and the add flow.
+- [x] Regressions: the Parent Task selector renders hierarchy-ordered indented options; the edit-Task Save persists and leaves the modal open with refreshed state; add/duplicate flows are unaffected.
+
+Acceptance criteria:
+
+- The Parent Task selector follows the hierarchy ordering convention and the edit-Task Save persists without closing the modal, with the canonical opener and validation intact.
+
+### Version 0.33.21.11.5 - Parent-task Project change cascades to child tasks
+
+**Model: High Effort** — A Tasks-owned service cascade: changing a parent task's Project propagates to its descendant tasks transactionally, with permission checks and audit/search consistency.
+
+- [x] When a task's Project changes and that task has child tasks (`task_relationships`; `src/modules/tasks/tasks.service.js` relationship reads/writes and project-reassignment side effects), cascade the Project change to all descendant tasks through the Tasks service path within one transaction, with permission/authority checks and audit/search/event updates.
+- [x] Define and implement the cascade scope as all descendants (not only immediate children), and specify how it composes with the bulk Project assignment in 0.33.21.11.3 and with the Business-only Client rule (a child's Client follows its Project where Client is derived, and stays absent on Personal/Family).
+- [x] Return the authoritative refreshed tasks so consuming surfaces (Tasks list, Workbench) cannot retain stale Project/Client state.
+- [x] Regressions: a parent Project change updates every descendant with authority enforced and no cross-workspace leak; a non-parent task's Project change touches only itself; Client stays absent on Personal/Family descendants.
+
+Acceptance criteria:
+
+- Changing a parent task's Project cascades to all descendant tasks transactionally and permission-safely, keeps Client derivation consistent and Business-only, and returns refreshed canonical tasks.
+
 ## Version 0.33.20 - Workbench and API Load Performance
 
 Completed the full branch locally on 2026-07-21 on `perf/0.33.20-workbench-api-load` and published as one unit per the standing instruction. Measured on the fat Northwind dataset (400 tasks, same machine, baseline worktree at the branch point versus the finished branch): Workbench cold first render 1152 to 209 ms and cold settled 1613 to 668 ms; warm first render 995 to 146 ms and warm settled 1384 to 648 ms — meeting the ~1.5 s cold / sub-second warm acceptance bar. Endpoint medians: bootstrap 65.1 to 13.4 ms, workbench-items 409.8 to 94.1 ms, focus-candidates 625.2 to 317.4 ms, tasks page 646.3 to 209.3 ms, the Workbench card options fetch 402.8 to 37.8 ms, and the client-projects dropdown 27.1 to 16 ms. The complete recorded numbers live in the CHANGELOG 0.33.20.7 entry.

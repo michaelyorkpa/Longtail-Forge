@@ -31,6 +31,7 @@ const frameworkProtectedViews = new Map([
   ["search.html", { id: "search", file: "search.html" }],
   ["user-settings.html", { id: "user-settings", file: "user-settings.html" }],
   ["workbench.html", { id: "workbench", file: "workbench.html" }],
+  ["workbench-settings.html", { id: "workbench-settings", file: "workbench-settings.html" }],
   ["workspace-settings.html", { id: "workspace-settings", file: "workspace-settings.html" }],
 ]);
 const publicPages = new Set(["index.html", "login.html"]);

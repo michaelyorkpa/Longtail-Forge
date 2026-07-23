@@ -6,9 +6,32 @@
 (function attachTaskCalendar(global) {
   const root = global.LongtailForge = global.LongtailForge || {};
   const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const CALENDAR_VIEW_IDS = new Set(["day", "week", "month"]);
+  const MONTH_TASK_LIMIT = 3;
 
   function viewBuilder() {
     return root.view;
+  }
+
+  function normalizeCalendarView(value) {
+    return CALENDAR_VIEW_IDS.has(value) ? value : null;
+  }
+
+  function readPreferredCalendarView() {
+    return normalizeCalendarView(root.userPreferences?.preferredCalendarView);
+  }
+
+  function resolveDefaultView(preferredView, options = {}) {
+    const normalizedPreference = normalizeCalendarView(preferredView);
+
+    if (normalizedPreference) {
+      return normalizedPreference;
+    }
+
+    const isMobile = typeof options.isMobile === "boolean"
+      ? options.isMobile
+      : typeof global.matchMedia === "function" && global.matchMedia("(max-width: 700px)").matches;
+    return isMobile ? "day" : "month";
   }
 
   function calendarRange(viewId, anchor) {
@@ -57,6 +80,14 @@
 
     if (filters.projectId) {
       params.set("projectId", filters.projectId);
+    }
+
+    const statuses = (Array.isArray(filters.statuses) ? filters.statuses : [filters.statuses])
+      .flatMap((entry) => String(entry || "").split(","))
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (statuses.length) {
+      params.set("statuses", [...new Set(statuses)].join(","));
     }
 
     const response = await fetch(`/api/tasks/calendar?${params.toString()}`, { cache: "no-store" });
@@ -166,6 +197,19 @@
         headerChildren.push(createReminderIndicator(dayReminders));
       }
 
+      const visibleTasks = isMonthGrid ? dayTasks.slice(0, MONTH_TASK_LIMIT) : dayTasks;
+      const entryChildren = visibleTasks.map((task) => createTaskEntry(task, onOpenTask));
+
+      if (isMonthGrid && dayTasks.length > MONTH_TASK_LIMIT) {
+        entryChildren.push(view.createElement("a", {
+          className: "calendar-view-all-tasks",
+          attrs: {
+            href: `calendar.html?view=day&date=${dayKey}`,
+          },
+          text: "View all tasks",
+        }));
+      }
+
       grid.appendChild(view.createElement("section", {
         className: classNames,
         attrs: { "aria-label": formatFullDate(dayDate) },
@@ -177,7 +221,7 @@
           }),
           view.createElement("div", {
             className: "calendar-day-entries",
-            children: dayTasks.map((task) => createTaskEntry(task, onOpenTask)),
+            children: entryChildren,
           }),
         ],
       }));
@@ -388,7 +432,10 @@
     calendarRange,
     dateKeyOf,
     fetchCalendarWindow,
+    normalizeCalendarView,
     parseDateKey,
+    readPreferredCalendarView,
     renderCalendarBody,
+    resolveDefaultView,
   });
 })(window);

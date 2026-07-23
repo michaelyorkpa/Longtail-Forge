@@ -235,7 +235,9 @@ function createReportFilterField(filter) {
     ? "multi-select"
     : filter.type === "boolean"
       ? "boolean"
-      : "select";
+      : filter.type === "tag"
+        ? "text"
+        : "select";
   const wrapper = reportingView.createField({
     field: filter.id,
     type: fieldType,
@@ -247,16 +249,25 @@ function createReportFilterField(filter) {
     ] : [],
     default: filter.defaultValue,
   }, {
+    className: filter.type === "tag" ? "tag-filter-control" : "",
+    controlAttrs: filter.type === "tag" ? { placeholder: "Type to search tags" } : {},
     disabled: filter.type === "project-multi-select",
     dataset: { reportingFilter: filter.id },
     controlDataset: { reportingFilterControl: filter.id },
   });
   const control = wrapper.viewParts.control;
-  reportingState.filterFields.set(filter.id, {
+  const fieldState = {
     controls: new Map([[filter.queryKeys[0], control]]),
     filter,
     wrapper,
-  });
+  };
+  if (filter.type === "tag") {
+    fieldState.tagFilterController = window.LongtailForge?.tags?.mountFilterPicker?.(control, {
+      tags: [],
+      value: filter.defaultValue,
+    }) || null;
+  }
+  reportingState.filterFields.set(filter.id, fieldState);
   setFilterValue(filter.id, filter.defaultValue);
   return wrapper;
 }
@@ -369,7 +380,8 @@ function getFilterValue(filterId) {
     return [...control.selectedOptions].map((option) => option.value);
   }
   if (field.filter.type === "tag") {
-    return control?.value ? [control.value] : [];
+    const value = field.tagFilterController?.readValue?.() || control?.dataset?.tagFilterValue || "all";
+    return value && value !== "all" ? [value] : [];
   }
   return control?.value || "";
 }
@@ -402,15 +414,38 @@ function setFilterValue(filterId, value) {
     });
     return;
   }
-  if (field.filter.type === "tag" && Array.isArray(value)) {
-    setSelectValueWhenAvailable(control, value[0] || "");
+  if (field.filter.type === "tag") {
+    const nextValue = Array.isArray(value) ? value[0] || "all" : value || "all";
+    if (field.tagFilterController) {
+      field.tagFilterController.setValue(nextValue);
+    } else {
+      control.value = String(nextValue);
+    }
     return;
   }
   setSelectValueWhenAvailable(control, String(value || ""));
 }
 
 function setFilterOptions(filterId, options, config = {}) {
+  const field = reportingState.filterFields.get(filterId);
   const control = getFilterControl(filterId);
+  if (field?.filter.type === "tag" && field.tagFilterController) {
+    const noTagsValue = window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
+    const tags = (Array.isArray(options) ? options : [])
+      .map((option) => ({
+        tag_id: String(option?.value ?? option?.id ?? ""),
+        name: String(option?.label ?? option?.name ?? ""),
+      }))
+      .filter((tag) => tag.tag_id && tag.tag_id !== noTagsValue && tag.tag_id !== "all");
+    const requestedValue = config.value !== undefined
+      ? config.value
+      : config.selectedValues !== undefined
+        ? normalizeListValue(config.selectedValues)[0] || "all"
+        : field.tagFilterController.readValue();
+    field.tagFilterController.setTags(tags);
+    field.tagFilterController.setValue(requestedValue);
+    return;
+  }
   if (!control || control.tagName !== "SELECT") {
     return;
   }

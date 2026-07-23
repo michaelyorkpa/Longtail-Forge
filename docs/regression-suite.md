@@ -1,6 +1,6 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.20.7. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.21.5. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 ## Streamlining Review Policy And Budget
 
@@ -87,7 +87,7 @@ Current package commands:
 
 ## Current Execution Model
 
-The current suite contains 390 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 79 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful script and all high-risk contract coverage remain registered.
+The current suite contains 396 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 85 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful script and all high-risk contract coverage remain registered.
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |
@@ -95,15 +95,15 @@ The current suite contains 390 discovered scripts: 311 active paths in `scripts/
 | `default database regressions` | 6 | serial | 1 | Search/database checks whose current ordering and shared-state assumptions remain serial. |
 | `file storage regressions` | 20 | serial | 1 | HTTP applications, workers, scanners, child processes, provider registries, and coupled scanner-inventory proof remain serial for the script-specific reasons in the audit. |
 | `isolated file storage regressions` | 9 | parallel | 4 fallback | Only repeat-stressed Files checks with unique runner/script database and storage roots and no server, scanner process, worker, nested child, or ambiguous singleton state. Auto-tunes up to six workers and never retries failures. |
-| `isolated database regressions` | 155 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
+| `isolated database regressions` | 166 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.
 
 ### Fast-fail bucket order
 
-The default full run uses the table order above: 193 cheap static/source checks run first, followed by 6 serial default-database checks, 20 retained serial Files checks, 9 isolated Files checks with adaptive safe parallelism, and 155 isolated-database checks with adaptive safe parallelism. Each bucket prints actual wall time as well as summed script time and its longest script. The runner executes buckets sequentially and stops after the first failing bucket.
+The default full run uses the table order above: 193 cheap static/source checks run first, followed by 6 serial default-database checks, 20 retained serial Files checks, 9 isolated Files checks with adaptive safe parallelism, and 166 isolated-database checks with adaptive safe parallelism. Each bucket prints actual wall time as well as summed script time and its longest script. The runner executes buckets sequentially and stops after the first failing bucket.
 
-This is an explicit ordering guarantee, not a coverage reduction. The flattened bucket paths must remain exactly equal to the 383 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. `LTF_REGRESSION_BUCKET=file-storage` selects both Files buckets; `isolated-files` selects only the audited parallel subset. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
+This is an explicit ordering guarantee, not a coverage reduction. The flattened bucket paths must remain exactly equal to the 396 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. `LTF_REGRESSION_BUCKET=file-storage` selects both Files buckets; `isolated-files` selects only the audited parallel subset. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
 
 ### Canonical database isolation
 

@@ -21,6 +21,9 @@
   let form = null;
   let fields = {};
   let currentTaskEditorRequest = null;
+  let pendingTaskCompletionDetail = null;
+  let previousTaskEditorStatus = "open";
+  let activeBlockCapture = null;
   const TASK_COMPLETE_VISIBLE_STATUSES = new Set(["open", "in_progress", "blocked"]);
 
   function configure(options = {}) {
@@ -69,6 +72,7 @@
       focusNotes: request.focusNotes,
       focusTarget: request.focusTarget,
       hostContext,
+      promptBlockedReason: request.promptBlockedReason,
       returnFocusTo: request.returnFocusTo,
       task: request.task,
     });
@@ -104,6 +108,7 @@
       mode: duplicate ? "add" : mode,
       needsStandaloneContext: Boolean(hostContext) || !context || needsTaskFetch,
       onSaved: typeof params.onSaved === "function" ? params.onSaved : null,
+      promptBlockedReason: params.promptBlockedReason === true,
       refresh: typeof params.refresh === "function" ? params.refresh : null,
       returnFocusTo,
       task,
@@ -143,6 +148,9 @@
       duedate: "due_date",
       due_time: "due_time",
       duetime: "due_time",
+      next: "next_action",
+      next_action: "next_action",
+      nextaction: "next_action",
       notes: "notes",
       recurrence: "recurrence",
       recurring: "recurrence",
@@ -166,6 +174,8 @@
       "due_date",
       "dueTime",
       "due_time",
+      "estimateMinutes",
+      "estimate_minutes",
       "nextAction",
       "next_action",
       "priority",
@@ -209,7 +219,7 @@
     };
   }
 
-  async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, focusTarget = "", hostContext = null, returnFocusTo = null } = {}) {
+  async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, focusTarget = "", hostContext = null, promptBlockedReason = false, returnFocusTo = null } = {}) {
     ensureDialog();
     const isDuplicate = duplicate === true;
     const statusDefault = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "";
@@ -218,6 +228,7 @@
     currentTask = isDuplicate ? null : task;
     currentTaskId = isDuplicate ? "" : task?.task_id || "";
     currentParentTaskId = "";
+    pendingTaskCompletionDetail = null;
     context = {
       ...context,
       hostContext: hostContext || context?.hostContext || null,
@@ -231,7 +242,9 @@
     fields.workbenchOpen.hidden = !currentTaskId;
     fields.titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || defaults.title || "";
     fields.status.value = isDuplicate ? "open" : statusDefault || task?.status || "open";
+    previousTaskEditorStatus = isDuplicate ? "open" : task?.status || fields.status.value || "open";
     fields.priority.value = task?.priority || priorityDefault || "normal";
+    fields.estimate.value = task?.estimate_minutes ?? defaults.estimateMinutes ?? defaults.estimate_minutes ?? "";
     const selectedClientId = task ? task.client_id || "" : defaults.clientId || defaults.client_id || "";
     const selectedProjectId = task?.project_id || defaults.projectId || defaults.project_id || "";
     ensureClientOption(selectedClientId, task);
@@ -264,10 +277,17 @@
     mountTaskNotesPanel(isDuplicate ? null : task, { focus: focusNotes === true });
     writeTaskNotificationFollowFields(isDuplicate ? null : task);
     updateCompleteTaskActionState();
+    updateBlockTaskActionState();
 
     showTaskModal(dialog, { trigger: returnFocusTo });
 
     focusTaskEditorTarget(focusNotes ? "notes" : focusTarget);
+    if (promptBlockedReason) {
+      void promptAndBlockCurrentTask({
+        statusBefore: previousTaskEditorStatus,
+        trigger: returnFocusTo,
+      });
+    }
     return new Promise((resolve) => {
       dialog.addEventListener("close", () => {
         closeTaskUtilityDialogs();
@@ -305,6 +325,7 @@
     form = dialog.querySelector("[data-task-form]");
     fields = {
       assignees: dialog.querySelector("[data-task-assignees]"),
+      block: dialog.querySelector("[data-block-task]"),
       cancel: dialog.querySelector("[data-cancel-task]"),
       client: dialog.querySelector("[data-task-client]"),
       checklistAdd: dialog.querySelector("[data-task-checklist-add]"),
@@ -317,6 +338,7 @@
       description: dialog.querySelector("[data-task-description]"),
       dueDate: dialog.querySelector("[data-task-due-date]"),
       dueTime: dialog.querySelector("[data-task-due-time]"),
+      estimate: dialog.querySelector("[data-task-estimate-minutes]"),
       effectiveReminders: dialog.querySelector("[data-task-effective-reminders]"),
       fileContainer: filesDialog?.querySelector("[data-task-files]"),
       fileDialogClose: filesDialog?.querySelector("[data-task-files-dialog-close]"),
@@ -333,8 +355,10 @@
       recurring: dialog.querySelector("[data-task-recurring]"),
       reminderDateOnlyDays1: dialog.querySelector("[data-task-reminder-date-only-days-1]"),
       reminderDateOnlyDays2: dialog.querySelector("[data-task-reminder-date-only-days-2]"),
+      reminderDateOnlyDays2Enabled: dialog.querySelector("[data-task-reminder-date-only-days-2-enabled]"),
       reminderDateTimeHours1: dialog.querySelector("[data-task-reminder-date-time-hours-1]"),
       reminderDateTimeHours2: dialog.querySelector("[data-task-reminder-date-time-hours-2]"),
+      reminderDateTimeHours2Enabled: dialog.querySelector("[data-task-reminder-date-time-hours-2-enabled]"),
       reminderOverride: dialog.querySelector("[data-task-reminder-override]"),
       reminderOverrideFields: dialog.querySelector("[data-task-reminder-override-fields]"),
       status: dialog.querySelector("[data-task-form-status]"),
@@ -379,7 +403,11 @@
     form.dataset.taskDialogBound = "true";
     form.addEventListener("submit", saveTask);
     fields.cancel?.addEventListener("click", () => {
-      context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
+      if (pendingTaskCompletionDetail) {
+        context?.hostContext?.complete?.(pendingTaskCompletionDetail);
+      } else {
+        context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
+      }
       closeTaskModal(dialog, "cancel");
     });
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
@@ -393,15 +421,16 @@
       refreshParentTaskOptions();
     });
     fields.parentTask?.addEventListener("change", applySelectedParentTaskInheritance);
-    fields.status?.addEventListener("change", updateBlockedReasonState);
-    fields.status?.addEventListener("change", writeTaskMetadataRibbon);
-    fields.status?.addEventListener("change", updateCompleteTaskActionState);
+    fields.status?.addEventListener("change", handleTaskStatusChange);
     fields.priority?.addEventListener("change", writeTaskMetadataRibbon);
+    fields.estimate?.addEventListener("change", writeTaskMetadataRibbon);
     fields.client?.addEventListener("change", writeTaskMetadataRibbon);
     fields.project?.addEventListener("change", writeTaskMetadataRibbon);
     fields.dueDate?.addEventListener("change", writeTaskMetadataRibbon);
     fields.dueTime?.addEventListener("change", writeTaskMetadataRibbon);
     fields.reminderOverride?.addEventListener("change", updateReminderOverrideState);
+    fields.reminderDateTimeHours2Enabled?.addEventListener("change", updateSecondaryReminderState);
+    fields.reminderDateOnlyDays2Enabled?.addEventListener("change", updateSecondaryReminderState);
     fields.recurring?.addEventListener("change", updateRecurrenceState);
     fields.checklistAdd?.addEventListener("click", addChecklistItem);
     fields.checklistInput?.addEventListener("keydown", handleChecklistInputKeydown);
@@ -414,6 +443,10 @@
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
     fields.complete?.addEventListener("click", saveAndCompleteTask);
+    fields.block?.addEventListener("click", (event) => promptAndBlockCurrentTask({
+      statusBefore: previousTaskEditorStatus,
+      trigger: event.currentTarget,
+    }));
     fields.saveClose?.addEventListener("click", saveAndCloseTask);
     fields.tagToggle?.addEventListener("click", openTaskTagsDialog);
     fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
@@ -439,7 +472,7 @@
     icons.decorateButton(fields.tagToggle, { icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false });
     icons.decorateButton(fields.fileToggle, { icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false });
     icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false });
-    icons.decorateButton(fields.complete, { icon: "complete", label: "Complete task", text: "Complete", title: "Complete task", iconOnly: false });
+    icons.decorateButton(fields.complete, { icon: "complete", label: "Complete task", text: "", title: "Complete task", iconOnly: true });
     icons.decorateButton(fields.cancel, { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
     icons.decorateButton(fields.save, { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
     icons.decorateButton(fields.saveClose, { icon: "save", label: "Save and close task", text: "Save & Close", title: "Save and close task", iconOnly: false });
@@ -585,9 +618,8 @@
 
   async function saveTask(event) {
     event.preventDefault();
-    const wasCreating = !currentTaskId;
     try {
-      await saveTaskForm({ closeOnSuccess: !wasCreating });
+      await saveTaskForm({ closeOnSuccess: false });
     } catch {
       // saveTaskForm reports validation and route errors through the modal status.
     }
@@ -628,25 +660,26 @@
       currentTaskId = result.task?.task_id || "";
       rememberTaskInContext(currentTask);
       updateCompleteTaskActionState();
+      updateBlockTaskActionState();
       if (!wasEditing) {
         await transitionCreatedTaskToEdit(result.task);
       }
       await notifyTaskEditorSaved(result);
       if (closeOnSuccess) {
         const completedBySave = wasEditing && editingTask?.status !== "complete" && result.task?.status === "complete";
-        context?.hostContext?.complete?.(completedBySave
-          ? taskCompletionHostDetail(result)
-          : {
+        if (completedBySave) {
+          pendingTaskCompletionDetail = taskCompletionHostDetail(result);
+          applyTaskCompletionResult(result);
+          offerCompletionNextAction(result);
+          return result;
+        }
+        context?.hostContext?.complete?.(pendingTaskCompletionDetail || {
               actionId: wasEditing ? "tasks.edit" : "tasks.add",
               recordId: result.task?.task_id || "",
               title: result.task?.title || "",
             });
         closeTaskModal(dialog, "complete");
-        if (completedBySave) {
-          setTaskCompletionStatus(result);
-        } else {
-          setStatus("");
-        }
+        setStatus("");
       }
       if (!closeOnSuccess && !wasEditing) {
         setStatus("Task saved. Continue editing or choose Save & Close.");
@@ -666,6 +699,7 @@
     fields.title.textContent = "Edit Task";
     fields.copyLink.hidden = false;
     fields.workbenchOpen.hidden = false;
+    updateBlockTaskActionState();
     currentTaskEditorRequest = currentTaskEditorRequest
       ? { ...currentTaskEditorRequest, mode: "edit", task, taskId: task.task_id }
       : currentTaskEditorRequest;
@@ -699,9 +733,7 @@
       const result = await api.postJson(`/api/tasks/${encodeURIComponent(taskId)}/complete`, {});
       applyTaskCompletionResult(result);
       await notifyTaskEditorSaved(result);
-      context?.hostContext?.complete?.(taskCompletionHostDetail(result));
-      setTaskCompletionStatus(result);
-      closeTaskModal(dialog, "complete");
+      offerCompletionNextAction(result);
     } catch (error) {
       setStatus(error.message || "Task was not completed.", { isError: true });
       updateCompleteTaskActionState();
@@ -745,11 +777,17 @@
 
   function setTaskCompletionStatus(result = {}) {
     const continuityMessage = recurrenceContinuityMessage(result.recurrenceContinuity);
-    if (continuityMessage) {
-      setStatus(continuityMessage);
-      return;
+    const followUpMessage = "Add an optional Next Action, or close to move on.";
+    setStatus([continuityMessage || "Task completed.", followUpMessage].filter(Boolean).join(" "));
+  }
+
+  function offerCompletionNextAction(result = {}) {
+    pendingTaskCompletionDetail = taskCompletionHostDetail(result);
+    setTaskCompletionStatus(result);
+    if (fields.taskDetailsPanel) {
+      fields.taskDetailsPanel.open = true;
     }
-    setStatus("");
+    focusTaskEditorTarget("next_action");
   }
 
   async function writeParentTaskFields(task) {
@@ -760,7 +798,7 @@
     currentParentTaskId = task?.task_id ? await readCurrentParentTaskId(task.task_id) : "";
     replaceOptions(fields.parentTask, [
       option("", "No parent task"),
-      ...parentTaskOptions(task?.task_id || "").map((candidate) => option(candidate.task_id, candidate.title)),
+      ...parentTaskOptions(task?.task_id || "").map((candidate) => option(candidate.task_id, candidate.optionLabel || candidate.title)),
     ]);
     fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === currentParentTaskId)
       ? currentParentTaskId
@@ -775,7 +813,7 @@
     const previousValue = fields.parentTask.value;
     replaceOptions(fields.parentTask, [
       option("", "No parent task"),
-      ...parentTaskOptions(currentTaskId).map((candidate) => option(candidate.task_id, candidate.title)),
+      ...parentTaskOptions(currentTaskId).map((candidate) => option(candidate.task_id, candidate.optionLabel || candidate.title)),
     ]);
     fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === previousValue)
       ? previousValue
@@ -796,12 +834,40 @@
     const selectedClientId = fields.client?.value === "all" ? "" : fields.client?.value || "";
     const selectedProjectId = fields.project?.value || "";
 
-    return (context?.tasks || [])
+    const candidates = (context?.tasks || [])
       .filter((task) => task?.task_id && task.task_id !== taskId)
       .filter((task) => taskId || !["complete", "archived"].includes(task.status))
       .filter((task) => !selectedClientId || !task.client_id || task.client_id === selectedClientId)
-      .filter((task) => !selectedProjectId || !task.project_id || task.project_id === selectedProjectId)
-      .sort((left, right) => String(left.title || "").localeCompare(String(right.title || "")));
+      .filter((task) => !selectedProjectId || !task.project_id || task.project_id === selectedProjectId);
+
+    const byId = new Map(candidates.map((task) => [task.task_id, task]));
+    const childrenByParent = new Map();
+    candidates.forEach((task) => {
+      const parentId = task.parent_task_id || task.parentTask?.task_id || task.parent_task?.task_id || "";
+      const key = byId.has(parentId) ? parentId : "";
+      if (!childrenByParent.has(key)) {
+        childrenByParent.set(key, []);
+      }
+      childrenByParent.get(key).push(task);
+    });
+    const compareByTitle = (left, right) => String(left?.title || "").localeCompare(String(right?.title || ""), undefined, { sensitivity: "base" });
+    childrenByParent.forEach((children) => children.sort(compareByTitle));
+    const ordered = [];
+    const visited = new Set();
+    const appendBranch = (task, depth) => {
+      if (!task?.task_id || visited.has(task.task_id)) {
+        return;
+      }
+      visited.add(task.task_id);
+      ordered.push({
+        ...task,
+        optionLabel: `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${task.title || "Untitled Task"}`,
+      });
+      (childrenByParent.get(task.task_id) || []).forEach((child) => appendBranch(child, depth + 1));
+    };
+    (childrenByParent.get("") || []).forEach((task) => appendBranch(task, 0));
+    candidates.filter((task) => !visited.has(task.task_id)).sort(compareByTitle).forEach((task) => appendBranch(task, 0));
+    return ordered;
   }
 
   function applySelectedParentTaskInheritance() {
@@ -860,6 +926,7 @@
       title: fields.titleInput.value,
       status: fields.status.value,
       priority: fields.priority.value,
+      estimate_minutes: fields.estimate.value === "" ? null : Number(fields.estimate.value),
       client_id: usesClientScope() ? fields.client.value : "",
       project_id: fields.project.value,
       due_date: fields.dueDate.value,
@@ -1139,13 +1206,16 @@
         last_active_start_time: new Date().toISOString(),
       });
       applyTaskTimerMutationResult(result, task);
+      if (timerStatus === "paused") {
+        offerTaskResumeNote(result.task || task);
+      }
       setStatus("");
     } catch (error) {
       setStatus(error.message || "Task timer was not saved.", { isError: true });
     }
   }
 
-  async function finalizeTaskTimer() {
+  async function finalizeTaskTimer(event) {
     const task = currentTask;
     const timer = task ? currentTaskTimer(task.task_id) : null;
 
@@ -1164,6 +1234,7 @@
       });
       removeTaskTimer(task.task_id);
       applyTaskTimerMutationResult(result, task);
+      offerTaskResumeNote(result.task || task, event?.currentTarget || null);
       setStatus("Task time saved.");
     } catch (error) {
       setStatus(error.message || "Task time was not saved.", { isError: true });
@@ -1231,8 +1302,29 @@
 
     if ([...fields.status.options].some((item) => item.value === task.status)) {
       fields.status.value = task.status;
+      previousTaskEditorStatus = task.status;
     }
     updateCompleteTaskActionState();
+    updateBlockTaskActionState();
+  }
+
+  function offerTaskResumeNote(task, trigger = null) {
+    void namespace.taskResumeNoteCapture?.offer({
+      task,
+      parent: dialog,
+      trigger,
+      onSaved(updatedTask) {
+        if (updatedTask?.task_id === currentTask?.task_id) {
+          applyTaskTimerMutationResult({ task: updatedTask }, currentTask);
+          if (fields.resumeNote) {
+            fields.resumeNote.value = updatedTask.resume_note || "";
+          }
+        }
+      },
+      onError(error) {
+        setStatus(error.message || "Resume note could not be saved.", { isError: true });
+      },
+    });
   }
 
   function updateCompleteTaskActionState() {
@@ -1243,6 +1335,21 @@
     const visible = canCompleteCurrentTask();
     fields.complete.hidden = !visible;
     fields.complete.disabled = !visible;
+  }
+
+  function updateBlockTaskActionState() {
+    if (!fields.block) {
+      return;
+    }
+
+    const status = fields.status?.value || currentTask?.status || "";
+    const visible = Boolean(
+      currentTaskId &&
+      !["blocked", "complete", "archived"].includes(status) &&
+      hasTaskEditPermission(),
+    );
+    fields.block.hidden = !visible;
+    fields.block.disabled = !visible;
   }
 
   function canCompleteCurrentTask() {
@@ -1257,6 +1364,25 @@
   function hasTaskCompletePermission() {
     const permissions = taskDialogWorkspacePermissionSet();
     return !permissions || permissions.has("tasks.complete");
+  }
+
+  function hasTaskEditPermission() {
+    const permissions = taskDialogWorkspacePermissionSet();
+    if (!permissions) {
+      return true;
+    }
+    if (permissions.has("tasks.edit_all")) {
+      return true;
+    }
+    if (!permissions.has("tasks.edit_own")) {
+      return false;
+    }
+
+    const userId = currentUserId();
+    return Boolean(userId && (
+      currentTask?.created_by_user_id === userId ||
+      (currentTask?.assignee_ids || []).includes(userId)
+    ));
   }
 
   function taskDialogWorkspacePermissionSet() {
@@ -1792,7 +1918,10 @@
   }
 
   function writeReminderFields(details = {}) {
-    const taskPolicy = normalizeReminderPolicy(details?.taskPolicy || details?.effectivePolicy?.offsets || {});
+    const policySource = details?.overrideEnabled
+      ? details?.taskPolicy
+      : details?.effectivePolicy?.offsets;
+    const taskPolicy = normalizeReminderPolicy(policySource || {});
     const effectivePolicy = normalizeReminderPolicy(details?.effectivePolicy?.offsets || {});
     const timedHours = taskPolicy.dateTime.map((minutes) => Math.round(minutes / 60));
     const dateOnlyDays = taskPolicy.dateOnly.map((minutes) => Math.round(minutes / 1440));
@@ -1800,25 +1929,37 @@
     fields.reminderOverride.checked = Boolean(details?.overrideEnabled);
     fields.reminderDateTimeHours1.value = String(timedHours[0] || 2);
     fields.reminderDateTimeHours2.value = String(timedHours[1] || 24);
+    fields.reminderDateTimeHours2Enabled.checked = timedHours.length > 1;
     fields.reminderDateOnlyDays1.value = String(dateOnlyDays[0] || 3);
     fields.reminderDateOnlyDays2.value = String(dateOnlyDays[1] || 1);
+    fields.reminderDateOnlyDays2Enabled.checked = dateOnlyDays.length > 1;
     fields.effectiveReminders.textContent = `Effective: timed ${formatOffsetList(effectivePolicy.dateTime, "hours")}; date-only ${formatOffsetList(effectivePolicy.dateOnly, "days")}.`;
     updateReminderOverrideState();
+    updateSecondaryReminderState();
   }
 
   function updateReminderOverrideState() {
     fields.reminderOverrideFields.hidden = !fields.reminderOverride.checked;
   }
 
+  function updateSecondaryReminderState() {
+    fields.reminderDateTimeHours2.disabled = !fields.reminderDateTimeHours2Enabled.checked;
+    fields.reminderDateOnlyDays2.disabled = !fields.reminderDateOnlyDays2Enabled.checked;
+  }
+
   function readReminderPolicy() {
     return {
       dateTime: [
         readPositiveInteger(fields.reminderDateTimeHours1, 2) * 60,
-        readPositiveInteger(fields.reminderDateTimeHours2, 24) * 60,
+        ...(fields.reminderDateTimeHours2Enabled.checked
+          ? [readPositiveInteger(fields.reminderDateTimeHours2, 24) * 60]
+          : []),
       ],
       dateOnly: [
         readPositiveInteger(fields.reminderDateOnlyDays1, 3) * 1440,
-        readPositiveInteger(fields.reminderDateOnlyDays2, 1) * 1440,
+        ...(fields.reminderDateOnlyDays2Enabled.checked
+          ? [readPositiveInteger(fields.reminderDateOnlyDays2, 1) * 1440]
+          : []),
       ],
     };
   }
@@ -1973,6 +2114,7 @@
       blocked_reason: fields.blockedReason,
       due_date: fields.dueDate,
       due_time: fields.dueTime,
+      next_action: fields.nextAction,
       recurrence: fields.recurring || fields.recurrenceDetails,
       timer: fields.timerStart,
     };
@@ -1981,6 +2123,7 @@
       blocked_reason: fields.taskDetailsPanel,
       due_date: fields.taskDetailsPanel,
       due_time: fields.taskDetailsPanel,
+      next_action: fields.taskDetailsPanel,
       recurrence: fields.recurrenceField,
       timer: fields.timerField,
     };
@@ -2013,6 +2156,92 @@
 
     if (isBlocked && !fields.blockedReason.value.trim() && document.activeElement === fields.status) {
       fields.blockedReason.focus();
+    }
+  }
+
+  async function handleTaskStatusChange(event) {
+    const nextStatus = fields.status?.value || "";
+    updateBlockedReasonState();
+    writeTaskMetadataRibbon();
+    updateCompleteTaskActionState();
+    updateBlockTaskActionState();
+
+    if (nextStatus !== "blocked") {
+      previousTaskEditorStatus = nextStatus || previousTaskEditorStatus;
+      return;
+    }
+
+    await promptAndBlockCurrentTask({
+      statusBefore: previousTaskEditorStatus,
+      trigger: event?.currentTarget || fields.status,
+    });
+  }
+
+  function promptAndBlockCurrentTask(options = {}) {
+    if (activeBlockCapture) {
+      return activeBlockCapture;
+    }
+
+    activeBlockCapture = performBlockCapture(options).finally(() => {
+      activeBlockCapture = null;
+    });
+    return activeBlockCapture;
+  }
+
+  async function performBlockCapture({ statusBefore = "open", trigger = null } = {}) {
+    const priorStatus = statusBefore && statusBefore !== "blocked" ? statusBefore : "open";
+    const previousReason = fields.blockedReason?.value || "";
+    let blockedReason = previousReason.trim();
+
+    fields.status.value = "blocked";
+    updateBlockedReasonState();
+    writeTaskMetadataRibbon();
+    updateCompleteTaskActionState();
+    updateBlockTaskActionState();
+
+    if (!blockedReason) {
+      const capturePrompt = namespace.capturePrompt;
+      if (!capturePrompt?.open) {
+        throw new Error("Blocking a task requires the shared capture prompt.");
+      }
+      const result = await capturePrompt.open({
+        cancelLabel: "Cancel",
+        confirmLabel: "Continue",
+        label: "Blocked reason",
+        parent: dialog,
+        prompt: "Why is the task now blocked?",
+        trigger,
+      });
+      if (!result.confirmed) {
+        fields.status.value = priorStatus;
+        fields.blockedReason.value = previousReason;
+        previousTaskEditorStatus = priorStatus;
+        updateBlockedReasonState();
+        writeTaskMetadataRibbon();
+        updateCompleteTaskActionState();
+        updateBlockTaskActionState();
+        setStatus("");
+        return false;
+      }
+      blockedReason = result.value;
+      fields.blockedReason.value = blockedReason;
+    }
+
+    try {
+      await saveTaskForm({
+        closeOnSuccess: false,
+        statusMessage: "Blocking task...",
+      });
+      previousTaskEditorStatus = "blocked";
+      updateBlockedReasonState();
+      writeTaskMetadataRibbon(currentTask);
+      updateCompleteTaskActionState();
+      updateBlockTaskActionState();
+      setStatus("Task blocked.");
+      return true;
+    } catch {
+      updateBlockTaskActionState();
+      return false;
     }
   }
 
@@ -2135,6 +2364,7 @@
     const badges = [
       { label: "Status", value: selectedText(fields.status) || formatToken(fields.status?.value) },
       { label: "Priority", value: selectedText(fields.priority) || formatToken(fields.priority?.value) },
+      fields.estimate?.value !== "" ? { label: "Estimate", value: formatEstimateMinutes(fields.estimate.value) } : null,
       usesClientScope() ? { label: "Client", value: selectedText(fields.client) || "No client" } : null,
       { label: "Project", value: selectedText(fields.project) || "No project" },
       fields.dueDate?.value ? { label: "Due Date", value: fields.dueDate.value } : null,
@@ -2191,6 +2421,16 @@
     return `${days}:${hours}:${minutes}:${remainder}`;
   }
 
+  function formatEstimateMinutes(value) {
+    const minutes = Math.max(0, Number(value) || 0);
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+
+    return hours > 0
+      ? [`${hours}h`, remainder ? `${remainder}m` : ""].filter(Boolean).join(" ")
+      : `${minutes}m`;
+  }
+
   function defaultTaskOptions() {
     return {
       clients: [],
@@ -2245,13 +2485,31 @@
       role: "utility",
       title: "Open in Workbench",
     });
+    const complete = view.createActionButton({
+      action: "complete-task",
+      className: "task-complete-action",
+      icon: "complete",
+      iconOnly: true,
+      label: "Complete task",
+      role: "primary",
+      title: "Complete task",
+    });
+    const block = view.createActionButton({
+      action: "block-task",
+      className: "task-block-action",
+      icon: "pause",
+      iconOnly: true,
+      label: "Block task",
+      role: "secondary",
+      title: "Block task",
+    });
     const heading = view.createElement("div", {
       className: "surface-modal-heading",
       children: [
         dialog.viewParts.title,
         view.createElement("div", {
           className: "surface-modal-heading-actions",
-          children: [workbenchOpen, notificationToggle],
+          children: [block, complete, workbenchOpen, notificationToggle],
         }),
       ],
     });
@@ -2264,6 +2522,10 @@
     dialog.viewParts.footer.classList.add("form-actions", "task-modal-actions", "surface-modal-footer--dense");
     dialog.viewParts.footer.dataset.modalFooter = "";
     heading.dataset.taskDialogHeading = "";
+    block.dataset.blockTask = "";
+    block.hidden = true;
+    complete.dataset.completeTask = "";
+    complete.hidden = true;
     workbenchOpen.dataset.taskWorkbenchOpen = "";
     workbenchOpen.hidden = true;
     notificationToggle.dataset.taskNotificationToggle = "";
@@ -2350,7 +2612,6 @@
         { id: "copy-link", label: "Copy task link", icon: "copy", role: "utility", text: "Copy Link" },
       ],
       footerActions: [
-        { id: "complete", label: "Complete", icon: "complete", role: "primary" },
         { id: "cancel", label: "Cancel", role: "secondary" },
         { id: "save-close", label: "Save & Close", icon: "save", role: "secondary" },
         { id: "save", label: "Save task", role: "primary" },
@@ -2418,6 +2679,7 @@
     return [
       taskEditorTitleField(view),
       taskEditorMetadataRibbon(view),
+      taskEditorContinuitySection(view),
       taskEditorDetailsSection(view),
       taskEditorChecklistSection(view),
       taskEditorRecurrenceSection(view),
@@ -2472,26 +2734,26 @@
               ["high", "High"],
               ["urgent", "Urgent"],
             ])),
-            taskEditorLabel(view, "Parent Task", taskEditorSelect(view, { "data-task-parent-task": "" }), {
-              className: "task-parent-field",
-            }),
-            taskEditorLabel(view, "Due Date", taskEditorInput(view, "date", { "data-task-due-date": "" })),
-            taskEditorLabel(view, "Due Time", taskEditorInput(view, "time", { "data-task-due-time": "" })),
-            taskEditorLabel(view, "Resume note", taskEditorTextarea(view, {
-              rows: "2",
-              "data-task-resume-note": "",
-              placeholder: "Where did you leave off?",
-            }), { className: "task-resume-note-field" }),
-            taskEditorLabel(view, "Next action", taskEditorTextarea(view, {
-              rows: "2",
-              maxlength: "240",
-              "data-task-next-action": "",
-              placeholder: "What's the next thing?",
-            }), { className: "task-next-action-field" }),
+            taskEditorLabel(view, "Estimate (minutes)", taskEditorInput(view, "number", {
+              "data-task-estimate-minutes": "",
+              inputmode: "numeric",
+              min: "0",
+              placeholder: "15-minute increments",
+              step: "15",
+            })),
             taskEditorLabel(view, "Client", taskEditorSelect(view, { "data-task-client": "" }), {
               attrs: { "data-client-workspace-control": "" },
             }),
             taskEditorLabel(view, "Project", taskEditorSelect(view, { "data-task-project": "" })),
+            taskEditorLabel(view, "Parent Task", taskEditorSelect(view, { "data-task-parent-task": "" }), {
+              className: "task-parent-field",
+            }),
+            taskEditorLabel(view, "Due Date", taskEditorInput(view, "date", { "data-task-due-date": "" }), {
+              className: "task-due-date-field",
+            }),
+            taskEditorLabel(view, "Due Time", taskEditorInput(view, "time", { "data-task-due-time": "" }), {
+              className: "task-due-time-field",
+            }),
             taskEditorLabel(view, "Description", taskEditorTextarea(view, {
               rows: "5",
               "data-task-description": "",
@@ -2501,14 +2763,6 @@
               "aria-label": "Assignees",
               multiple: true,
             }), { className: "task-assignee-field" }),
-            taskEditorLabel(view, "Blocked reason", taskEditorTextarea(view, {
-              rows: "1",
-              "data-task-blocked-reason": "",
-            }), {
-              className: "task-blocked-reason-field",
-              attrs: { "data-task-blocked-reason-field": "" },
-              hidden: true,
-            }),
           ],
         }),
       ],
@@ -2638,21 +2892,29 @@
               step: "1",
               "data-task-reminder-date-time-hours-1": "",
             })),
-            taskEditorLabel(view, "Timed Reminder 2 (hours before)", taskEditorInput(view, "number", {
+            taskEditorOptionalReminderField(view, "Timed Reminder 2 (hours before)", taskEditorInput(view, "number", {
+              id: "task-reminder-date-time-hours-2",
               min: "1",
               step: "1",
               "data-task-reminder-date-time-hours-2": "",
-            })),
+            }), {
+              "aria-label": "Enable Timed Reminder 2",
+              "data-task-reminder-date-time-hours-2-enabled": "",
+            }),
             taskEditorLabel(view, "Date-Only Reminder 1 (days before)", taskEditorInput(view, "number", {
               min: "1",
               step: "1",
               "data-task-reminder-date-only-days-1": "",
             })),
-            taskEditorLabel(view, "Date-Only Reminder 2 (days before)", taskEditorInput(view, "number", {
+            taskEditorOptionalReminderField(view, "Date-Only Reminder 2 (days before)", taskEditorInput(view, "number", {
+              id: "task-reminder-date-only-days-2",
               min: "1",
               step: "1",
               "data-task-reminder-date-only-days-2": "",
-            })),
+            }), {
+              "aria-label": "Enable Date-Only Reminder 2",
+              "data-task-reminder-date-only-days-2-enabled": "",
+            }),
           ],
         }),
       ],
@@ -2695,6 +2957,56 @@
       children: [
         taskEditorInput(view, "checkbox", attrs),
         label,
+      ],
+    });
+  }
+
+  function taskEditorOptionalReminderField(view, label, control, enableAttrs) {
+    return view.createElement("div", {
+      className: "task-reminder-offset-field",
+      children: [
+        view.createElement("div", {
+          className: "task-reminder-offset-heading",
+          children: [
+            view.createElement("label", {
+              attrs: { for: control.id },
+              text: label,
+            }),
+            taskEditorInlineCheckbox(view, "Enabled", enableAttrs),
+          ],
+        }),
+        control,
+      ],
+    });
+  }
+
+  function taskEditorContinuitySection(view) {
+    return view.createElement("section", {
+      className: ["task-continuity-row", "surface-modal-group"],
+      attrs: {
+        "data-task-continuity-row": "",
+        "aria-label": "Work continuity",
+      },
+      children: [
+        taskEditorLabel(view, "Resume note", taskEditorTextarea(view, {
+          rows: "2",
+          "data-task-resume-note": "",
+          placeholder: "Where did you leave off?",
+        }), { className: "task-resume-note-field" }),
+        taskEditorLabel(view, "Next action", taskEditorTextarea(view, {
+          rows: "2",
+          maxlength: "240",
+          "data-task-next-action": "",
+          placeholder: "What's the next thing?",
+        }), { className: "task-next-action-field" }),
+        taskEditorLabel(view, "Blocked reason", taskEditorTextarea(view, {
+          rows: "1",
+          "data-task-blocked-reason": "",
+        }), {
+          className: "task-blocked-reason-field",
+          attrs: { "data-task-blocked-reason-field": "" },
+          hidden: true,
+        }),
       ],
     });
   }

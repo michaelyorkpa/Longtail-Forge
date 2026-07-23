@@ -14,6 +14,7 @@ describe("resolveFocusMode", () => {
     expect(resolved.id).toBe(FOCUS_MODE_IDS.startMyDay);
     expect(resolved.scope.type).toBe("workspace");
     expect(resolved.candidateQuery.rankBuckets.length).toBeGreaterThan(0);
+    expect(resolved.candidateQuery.excludeStatusFilters).toEqual(["blocked"]);
     expect(resolved.summary).toContain("as of");
   });
 
@@ -39,6 +40,21 @@ describe("resolveFocusMode", () => {
     const clientFocus = modes.find((mode) => mode.id === FOCUS_MODE_IDS.clientFocus);
     expect(clientFocus?.requiredSelection).toBe("client");
     expect(clientFocus?.scope).toBe("client");
+  });
+
+  it("reserves blocked candidates for the blocked-review mode", async () => {
+    const blocked = await resolveFocusMode({}, {
+      modeId: FOCUS_MODE_IDS.reviewBlockedWork,
+      workspaceType: "business",
+    });
+    const due = await resolveFocusMode({}, {
+      modeId: FOCUS_MODE_IDS.whatsDueNext,
+      workspaceType: "business",
+    });
+
+    expect(blocked.candidateQuery.statusFilters).toEqual(["blocked"]);
+    expect(blocked.candidateQuery.excludeStatusFilters).toBeUndefined();
+    expect(due.candidateQuery.excludeStatusFilters).toEqual(["blocked"]);
   });
 });
 

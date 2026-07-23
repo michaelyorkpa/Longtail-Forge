@@ -42,6 +42,7 @@ vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 const { view } = context.window.LongtailForge;
 assert.equal(typeof view.renderSurface, "function", "LongtailForge.view.renderSurface should be exposed");
+assert.equal(typeof view.createSlideOutSidebarController, "function", "LongtailForge.view should expose the shared slide-out lifecycle controller");
 view.registerBehavior("sample.library", ({ container }) => {
   container.appendChild(context.document.createElement("nav"));
 });
@@ -179,6 +180,7 @@ assert(slideOutDrawer, "Slide-out sidebar layout should render an off-canvas dra
 assert.equal(slideOutDrawer.getAttribute("aria-hidden"), "true", "Slide-out drawer should start hidden to assistive tech");
 assert.equal(slideOutTrigger.getAttribute("aria-controls"), slideOutDrawer.id, "Slide-out trigger should control the drawer");
 const slideOutBackdrop = slideOutSurface.querySelector(".view-slideout-sidebar-backdrop");
+const slideOutClose = slideOutSurface.querySelector(".view-slideout-sidebar-close");
 assert(slideOutBackdrop.hidden, "Slide-out backdrop should start hidden");
 const slideOutBody = slideOutSurface.querySelector(".view-slideout-sidebar-body");
 const slideOutPanels = slideOutBody.children;
@@ -199,7 +201,29 @@ assert.equal(slideOutDrawer.getAttribute("aria-hidden"), "false", "Open drawer s
 assert(slideOutDrawer.classList.contains("is-open"), "Open drawer should receive the open class");
 assert.equal(slideOutBackdrop.hidden, false, "Open drawer should reveal the backdrop");
 assert(context.document.body.classList.contains("view-slideout-sidebar-lock"), "Open drawer should lock page scrolling");
-assert.equal(context.document.activeElement, slideOutDrawer, "Open drawer should receive focus");
+assert.equal(context.document.activeElement, slideOutClose, "Open drawer should focus its first interactive control");
+
+const slideOutFocusTargets = slideOutDrawer.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+const lastSlideOutFocusTarget = slideOutFocusTargets[slideOutFocusTargets.length - 1];
+lastSlideOutFocusTarget.focus();
+let tabPrevented = false;
+slideOutDrawer.dispatchEvent({
+  type: "keydown",
+  key: "Tab",
+  preventDefault() {
+    tabPrevented = true;
+  },
+});
+assert.equal(tabPrevented, true, "Tab from the final drawer control should stay contained");
+assert.equal(context.document.activeElement, slideOutClose, "Tab containment should cycle to the first drawer control");
+slideOutClose.focus();
+slideOutDrawer.dispatchEvent({
+  type: "keydown",
+  key: "Tab",
+  shiftKey: true,
+  preventDefault() {},
+});
+assert.equal(context.document.activeElement, lastSlideOutFocusTarget, "Shift+Tab containment should cycle to the final drawer control");
 
 slideOutTrigger.dispatchEvent({ type: "click" });
 assert.equal(slideOutTrigger.getAttribute("aria-expanded"), "false", "Trigger should close an open slide-out drawer");
@@ -243,6 +267,7 @@ assert.match(footerScript, /Math\.min\(viewportHeight, footerBottom\) - Math\.ma
 assert.match(css, /\.site-footer\s*\{[\s\S]*margin-top:\s*auto;/, "Footer should stay at the bottom of short pages");
 assert.match(css, /\.view-slideout-sidebar-backdrop\s*\{[\s\S]*position:\s*fixed;[\s\S]*z-index:\s*75;/, "CSS should render a fixed backdrop under the drawer");
 assert.match(css, /\.view-slideout-sidebar-drawer\s*\{[\s\S]*position:\s*fixed;[\s\S]*transform:\s*translateX\(-105%\);/, "CSS should keep the drawer off-canvas while closed");
+assert.match(css, /\.view-slideout-sidebar-drawer\.surface-drawer\s*\{[\s\S]*z-index:\s*80;/, "A mobile full-screen drawer should remain above the shared slide-out backdrop");
 assert.match(css, /\.view-slideout-sidebar-drawer\.is-open\s*\{[\s\S]*transform:\s*translateX\(0\);/, "CSS should slide the drawer into view when open");
 const slideOutCssBlock = css.match(/\.view-slideout-sidebar\s*\{[\s\S]*?\n\}/)?.[0] || "";
 assert.doesNotMatch(slideOutCssBlock, /grid-template-columns:/, "Slide-out sidebar layout should not allocate a permanent split grid column");
@@ -448,6 +473,7 @@ function FakeElement(tagName, ownerDocument) {
   };
 
   this.querySelector = (selector) => findElement(this, selector);
+  this.querySelectorAll = (selector) => findElements(this, selector);
 
   Object.defineProperty(this, "firstChild", {
     get: () => this.children[0] || null,
@@ -525,11 +551,34 @@ function findElement(root, selector) {
   return null;
 }
 
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
+function findElements(root, selector) {
+  const matches = [];
+  const queue = [...root.children];
+  while (queue.length) {
+    const element = queue.shift();
+    if (matchesSelector(element, selector)) {
+      matches.push(element);
+    }
+    queue.push(...element.children);
   }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
+  return matches;
+}
+
+function matchesSelector(element, selector) {
+  return String(selector).split(",").some((entry) => {
+    const candidate = entry.trim();
+    if (candidate.startsWith(".")) {
+      return element.classList.contains(candidate.slice(1));
+    }
+    if (candidate === "[href]") {
+      return element.getAttribute("href") !== null;
+    }
+    if (candidate.startsWith("[tabindex]")) {
+      return element.getAttribute("tabindex") !== null && element.getAttribute("tabindex") !== "-1";
+    }
+    const tagName = candidate.match(/^[a-z]+/i)?.[0] || candidate;
+    return element.tagName.toLowerCase() === tagName.toLowerCase();
+  });
 }
 
 function readText(path) {

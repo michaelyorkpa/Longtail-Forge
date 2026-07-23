@@ -14,6 +14,8 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Relationships-Repository-Test-123!";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const taskRelationshipsRepoSource = readText("src/modules/tasks/task-relationships.repo.js");
+const tasksRepoSource = readText("src/modules/tasks/tasks.repo.js");
+const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const tasksDocs = readText("docs/tasks-module.md");
@@ -51,6 +53,9 @@ function assertStaticContract() {
   assert.match(taskRelationshipsRepoSource, /db\.dialect\.boolean\.bind\(Boolean\(value\)\)/, "Relationship writes should bind logical blocking booleans through the dialect seam");
   assert.match(taskRelationshipsRepoSource, /db\.dialect\.boolean\.read\(row\.is_blocking\)/, "Relationship row mapping should read blocking state through the boolean seam");
   assert.match(taskRelationshipsRepoSource, /async function hasPath[\s\S]*db\.get\(`/, "Cycle/path checks should use the provider-neutral single-row read helper");
+  assert.match(taskRelationshipsRepoSource, /async function readDescendantTaskIds[\s\S]*WITH RECURSIVE task_tree[\s\S]*child_tasks\.workspace_id = task_relationships\.workspace_id/, "Project cascades should traverse every descendant through a workspace-scoped recursive relationship read");
+  assert.match(tasksRepoSource, /async function updateProjectCascade[\s\S]*db\.transaction\(async \(transaction\)[\s\S]*transaction\.run\(taskUpdateSql\(\)[\s\S]*for \(const task of descendantTasks\)[\s\S]*UPDATE tasks/, "parent and descendant Project context writes should share one repository transaction");
+  assert.match(tasksServiceSource, /prepareProjectCascade[\s\S]*assertCanEditTask\(session, previousTask\)[\s\S]*assertCanEditTask\(session, normalizedTask\)/, "Project cascades should enforce old- and destination-scope edit authority for changed descendants");
   assert.doesNotMatch(taskRelationshipsRepoSource, /is_blocking\s*(?:=|!=)\s*1|Number\(row\.is_blocking\)\s*===\s*1/, "Relationship blocking logic should not spell SQLite boolean storage directly");
 
   assert.match(auditDocs, /0\.33\.5\.27\.10 Task Relationships Repository Conversion[\s\S]*`tasks\/task-relationships\.repo`[\s\S]*1,285 runtime literal-helper invocations[\s\S]*204 direct interpolated SQL operation sites[\s\S]*134 existing bound operation sites/, "audit docs should retain the Task relationships conversion ratchet");

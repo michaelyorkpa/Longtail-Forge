@@ -87,11 +87,13 @@ assert.throws(
 const dashboardEntry = REGRESSION_ENTRIES.find((entry) => entry.area === "dashboard");
 assert.ok(dashboardEntry, "fixture needs an active Dashboard coverage owner");
 const withoutDashboard = REGRESSION_ENTRIES.filter((entry) => entry !== dashboardEntry);
-const uncoveredManifest = buildRegressionManifest({ entries: withoutDashboard, policy });
+const uncoveredPolicy = cloneFixture(policy);
+uncoveredPolicy.minimumActiveScripts += 1;
+const uncoveredManifest = buildRegressionManifest({ entries: withoutDashboard, policy: uncoveredPolicy });
 const uncoveredErrors = collectRegressionCoverageErrors({
   entries: withoutDashboard,
   manifest: uncoveredManifest,
-  policy,
+  policy: uncoveredPolicy,
 }).join("\n");
 assert.match(uncoveredErrors, /area dashboard has 0 regressions below policy floor 1/);
 assert.match(uncoveredErrors, /protected area dashboard has no active regression or credited retirement/);

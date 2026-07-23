@@ -1,0 +1,365 @@
+/* global window, document */
+
+const notesSettingsFields = document.querySelector('[data-settings-attachment="module"][data-settings-module-id="notes"]');
+const notesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='notes']");
+const notesSettingsStatus = document.querySelector("[data-module-settings-status]");
+const notesSettingsHost = document.querySelector("[data-settings-host='module']");
+const api = window.LongtailForge.api;
+const view = window.LongtailForge.view;
+
+const state = {
+  catalogs: [],
+  selectedCatalogIds: new Set(),
+  statusFilter: "all",
+};
+
+const settingsPageController = window.LongtailForge.settingsPageController.create({
+  root: notesSettingsHost,
+  onSave: async () => true,
+});
+
+mountCatalogManager();
+loadNotesSettings();
+
+async function loadNotesSettings() {
+  setPageStatus("Loading Notes settings...");
+  try {
+    const [settings, settingsCatalog] = await Promise.all([
+      api.getJson("/api/settings", { cache: "no-store" }),
+      api.getJson("/api/settings/catalog", { cache: "no-store" }),
+    ]);
+    const notesModule = (settings.modules || []).find((moduleDefinition) => moduleDefinition.id === "notes");
+    if (notesModule?.status !== "enabled") {
+      window.LongtailForge.settingsRenderer.renderDisabledModuleRecovery(notesSettingsFields, notesModule || {
+        id: "notes",
+        displayName: "Notes",
+      });
+      notesSettingsAuxiliary?.replaceChildren();
+      setPageStatus("");
+      settingsPageController.setClean();
+      return;
+    }
+
+    window.LongtailForge.settingsRenderer.renderSections(
+      notesSettingsFields,
+      window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", "notes"),
+      { emptyText: "No configurable Notes settings are available." },
+    );
+    await loadCatalogs();
+    setPageStatus("");
+    settingsPageController.setClean();
+  } catch (error) {
+    if (error.status === 401) {
+      window.location.replace("/login.html");
+      return;
+    }
+    setPageStatus(error.message || "Notes settings could not be loaded.", { isError: true });
+  }
+}
+
+async function loadCatalogs() {
+  const result = await api.getJson("/api/notes/settings/catalogs", { cache: "no-store" });
+  state.catalogs = Array.isArray(result.catalogs) ? result.catalogs : [];
+  state.selectedCatalogIds = new Set([...state.selectedCatalogIds].filter((catalogId) => (
+    state.catalogs.some((catalog) => catalog.catalogId === catalogId)
+  )));
+  renderCatalogManager();
+}
+
+function mountCatalogManager() {
+  if (!notesSettingsAuxiliary) {
+    return;
+  }
+
+  const statusField = view.createField({
+    field: "catalogStatus",
+    type: "select",
+    label: "Show catalogs",
+    options: [
+      { value: "all", label: "Active and archived" },
+      { value: "active", label: "Active" },
+      { value: "archived", label: "Archived" },
+    ],
+  }, { value: state.statusFilter });
+  statusField.viewParts.control.dataset.notesCatalogStatusFilter = "";
+  statusField.viewParts.control.addEventListener("change", () => {
+    state.statusFilter = statusField.viewParts.control.value || "all";
+    renderCatalogManager();
+  });
+
+  const createButton = view.createActionButton({ label: "Create Catalog", role: "primary", type: "button" });
+  createButton.dataset.notesCatalogCreate = "";
+  createButton.addEventListener("click", () => openCatalogEditor());
+
+  const controls = view.createInlineActionRow({
+    className: "notes-catalog-settings-controls",
+    children: [statusField, createButton],
+  });
+  const fieldset = view.createElement("fieldset", {
+    className: "view-settings-section notes-catalog-settings",
+    dataset: { settingsActionForm: "" },
+    children: [
+      view.createElement("legend", { className: "view-settings-section-legend", text: "Catalog Management" }),
+      view.createElement("p", {
+        className: "settings-help",
+        text: "Catalogs are the Collections shown in the Notes Library. Create or edit one catalog at a time, or select up to 100 catalogs for bulk archive or restore.",
+      }),
+      controls,
+      view.createElement("div", { dataset: { notesCatalogBulk: "" } }),
+      view.createElement("div", { dataset: { notesCatalogTable: "" } }),
+      view.createElement("p", {
+        className: "view-list-shell-status",
+        attrs: { role: "status", "aria-live": "polite" },
+        dataset: { notesCatalogStatus: "" },
+        hidden: true,
+      }),
+    ],
+  });
+  notesSettingsAuxiliary.replaceChildren(fieldset);
+  renderCatalogManager();
+}
+
+function renderCatalogManager() {
+  const bulkMount = notesSettingsAuxiliary?.querySelector("[data-notes-catalog-bulk]");
+  const tableMount = notesSettingsAuxiliary?.querySelector("[data-notes-catalog-table]");
+  if (!bulkMount || !tableMount) {
+    return;
+  }
+
+  const visibleCatalogs = state.catalogs.filter((catalog) => (
+    state.statusFilter === "all" || catalog.status === state.statusFilter
+  ));
+  const selectedCount = state.selectedCatalogIds.size;
+  const archiveButton = catalogBulkButton("Archive selected", "archive", selectedCount === 0);
+  const restoreButton = catalogBulkButton("Restore selected", "restore", selectedCount === 0);
+  const clearButton = view.createActionButton({ label: "Clear selection", role: "secondary", type: "button", disabled: selectedCount === 0 });
+  clearButton.addEventListener("click", () => {
+    state.selectedCatalogIds.clear();
+    renderCatalogManager();
+  });
+  bulkMount.replaceChildren(view.createBulkActionToolbar({
+    label: "Bulk Catalog Actions",
+    selectedCount,
+    open: selectedCount > 0,
+    body: [archiveButton, restoreButton, clearButton],
+    bodyClassName: "notes-catalog-bulk-actions",
+  }));
+
+  tableMount.replaceChildren(view.createDataTable({
+    caption: "Notes catalogs",
+    className: "notes-catalog-table-wrap",
+    tableClassName: "notes-catalog-table",
+    hierarchy: { depthField: "depth", parentField: "parentCatalogId" },
+    columns: [
+      { key: "selection", label: "Select", render: (catalog) => catalogSelectionControl(catalog) },
+      { key: "path", label: "Catalog", header: true },
+      { key: "library", label: "Library", render: (catalog) => libraryLabel(catalog.libraryBucket) },
+      { key: "status", label: "Status", render: (catalog) => statusChip(catalog.status) },
+      { key: "updated", label: "Updated", render: (catalog) => formatDateTime(catalog.updatedAt) },
+      { key: "actions", label: "Actions", align: "right", render: (catalog) => catalogActions(catalog) },
+    ],
+    rows: visibleCatalogs,
+    emptyMessage: "No Notes catalogs match this status filter.",
+  }));
+}
+
+function catalogSelectionControl(catalog) {
+  const control = document.createElement("input");
+  control.type = "checkbox";
+  control.checked = state.selectedCatalogIds.has(catalog.catalogId);
+  control.setAttribute("aria-label", `Select ${catalog.path || catalog.title || "catalog"}`);
+  control.addEventListener("change", () => {
+    if (control.checked) {
+      state.selectedCatalogIds.add(catalog.catalogId);
+    } else {
+      state.selectedCatalogIds.delete(catalog.catalogId);
+    }
+    renderCatalogManager();
+  });
+  return control;
+}
+
+function catalogActions(catalog) {
+  const editButton = view.createActionButton({
+    label: "Edit",
+    role: "utility",
+    type: "button",
+    disabled: catalog.status !== "active",
+  });
+  editButton.title = catalog.status === "active" ? `Edit ${catalog.title}` : "Restore this catalog before editing it.";
+  editButton.addEventListener("click", () => openCatalogEditor(catalog));
+  return view.createDetailActionStrip({
+    ariaLabel: `Catalog actions for ${catalog.title}`,
+    actions: [editButton],
+  });
+}
+
+function catalogBulkButton(label, action, disabled) {
+  const button = view.createActionButton({ label, role: action === "archive" ? "destructive" : "primary", type: "button", disabled });
+  button.addEventListener("click", () => runBulkCatalogAction(action));
+  return button;
+}
+
+async function runBulkCatalogAction(action) {
+  const catalogIds = [...state.selectedCatalogIds];
+  if (catalogIds.length === 0) {
+    return;
+  }
+  const actionLabel = action === "archive" ? "archive" : "restore";
+  if (!window.confirm(`${actionLabel[0].toUpperCase()}${actionLabel.slice(1)} ${catalogIds.length} selected catalog${catalogIds.length === 1 ? "" : "s"}?`)) {
+    return;
+  }
+
+  setCatalogStatus(`${actionLabel[0].toUpperCase()}${actionLabel.slice(1)}ing selected catalogs...`);
+  try {
+    const result = await api.postJson("/api/notes/settings/catalogs/bulk", { action, catalogIds });
+    const failedIds = new Set((result.errors || []).map((error) => error.catalogId));
+    state.selectedCatalogIds = failedIds;
+    await loadCatalogs();
+    if (result.errors?.length) {
+      setCatalogStatus(`${result.affectedCount || 0} catalog${result.affectedCount === 1 ? "" : "s"} updated; ${result.errors.length} could not be updated.`, { isError: true });
+    } else {
+      setCatalogStatus(`${result.affectedCount || 0} catalog${result.affectedCount === 1 ? "" : "s"} ${action === "archive" ? "archived" : "restored"}.`, { type: "success" });
+    }
+  } catch (error) {
+    setCatalogStatus(error.message || "Selected catalogs could not be updated.", { isError: true });
+  }
+}
+
+function openCatalogEditor(catalog = null) {
+  const titleField = view.createField({ field: "title", type: "text", label: "Name", required: true }, { value: catalog?.title || "" });
+  const descriptionField = view.createField({ field: "description", type: "textarea", label: "Description", rows: 3 }, { value: catalog?.description || "" });
+  const libraryField = view.createField({
+    field: "libraryBucket",
+    type: "select",
+    label: "Library",
+    options: libraryOptions(),
+    required: true,
+  }, { value: catalog?.libraryBucket || "reference", disabled: Boolean(catalog) });
+  const parentField = view.createField({ field: "parentCatalogId", type: "select", label: "Parent Catalog" });
+  const sortOrderField = view.createField({ field: "sortOrder", type: "number", label: "Sort Order", step: 1 }, { value: catalog?.sortOrder || 0 });
+  const cancelButton = view.createActionButton({ label: "Cancel", role: "secondary", type: "button" });
+  const saveButton = view.createActionButton({ label: catalog ? "Save Catalog" : "Create Catalog", role: "primary", type: "submit" });
+  const dialog = view.createModalForm({
+    title: catalog ? "Edit Catalog" : "Create Catalog",
+    className: "notes-catalog-editor",
+    formClassName: "notes-catalog-editor-form",
+    fields: [titleField, descriptionField, libraryField, parentField, sortOrderField],
+    actions: [cancelButton, saveButton],
+  });
+  const parentControl = parentField.viewParts.control;
+  const libraryControl = libraryField.viewParts.control;
+
+  const populateParents = () => {
+    const excludedIds = catalog ? catalogDescendantIds(catalog.catalogId) : new Set();
+    excludedIds.add(catalog?.catalogId);
+    const parentOptions = [viewOption("", "Root catalog")];
+    state.catalogs
+      .filter((candidate) => candidate.status === "active" && candidate.libraryBucket === libraryControl.value && !excludedIds.has(candidate.catalogId))
+      .forEach((candidate) => parentOptions.push(viewOption(candidate.catalogId, candidate.path || candidate.title)));
+    parentControl.replaceChildren(...parentOptions);
+    parentControl.value = parentOptions.some((option) => option.value === catalog?.parentCatalogId) ? catalog.parentCatalogId : "";
+  };
+  populateParents();
+  libraryControl.addEventListener("change", populateParents);
+  cancelButton.addEventListener("click", () => closeDialog(dialog));
+  dialog.viewParts.form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!dialog.viewParts.form.reportValidity()) {
+      return;
+    }
+    saveButton.disabled = true;
+    const payload = {
+      title: titleField.viewParts.control.value,
+      description: descriptionField.viewParts.control.value,
+      libraryBucket: libraryControl.value,
+      parentCollectionId: parentControl.value || null,
+      sortOrder: Number(sortOrderField.viewParts.control.value || 0),
+    };
+    try {
+      if (catalog) {
+        await api.putJson(`/api/notes/collections/${encodeURIComponent(catalog.catalogId)}`, payload);
+      } else {
+        await api.postJson("/api/notes/collections", payload);
+      }
+      closeDialog(dialog);
+      await loadCatalogs();
+      setCatalogStatus(catalog ? "Catalog saved." : "Catalog created.", { type: "success" });
+    } catch (error) {
+      saveButton.disabled = false;
+      setCatalogStatus(error.message || "Catalog could not be saved.", { isError: true });
+    }
+  });
+
+  notesSettingsHost.appendChild(dialog);
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+  titleField.viewParts.control.focus();
+}
+
+function closeDialog(dialog) {
+  if (typeof dialog.close === "function") {
+    dialog.close();
+  } else {
+    dialog.removeAttribute("open");
+  }
+  dialog.remove();
+}
+
+function catalogDescendantIds(catalogId) {
+  const descendants = new Set();
+  const queue = [catalogId];
+  while (queue.length > 0) {
+    const parentId = queue.shift();
+    state.catalogs.filter((catalog) => catalog.parentCatalogId === parentId).forEach((catalog) => {
+      if (!descendants.has(catalog.catalogId)) {
+        descendants.add(catalog.catalogId);
+        queue.push(catalog.catalogId);
+      }
+    });
+  }
+  return descendants;
+}
+
+function statusChip(status) {
+  return view.createElement("span", { className: "surface-chip", text: status === "archived" ? "Archived" : "Active" });
+}
+
+function libraryOptions() {
+  return [
+    { value: "active_work", label: "Active Work" },
+    { value: "ongoing_area", label: "Ongoing Areas" },
+    { value: "reference", label: "Reference Library" },
+  ];
+}
+
+function libraryLabel(value) {
+  return new Map(libraryOptions().map((option) => [option.value, option.label])).get(value) || "Reference Library";
+}
+
+function viewOption(value, label) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "-" : parsed.toLocaleString();
+}
+
+function setCatalogStatus(message, options = {}) {
+  const element = notesSettingsAuxiliary?.querySelector("[data-notes-catalog-status]");
+  window.LongtailForge.status.set(element, message, options.isError ? { type: "error" } : options);
+}
+
+function setPageStatus(message, options = {}) {
+  window.LongtailForge.status.set(notesSettingsStatus, message, options.isError ? { type: "error" } : options);
+}

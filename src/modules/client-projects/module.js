@@ -79,6 +79,7 @@ const clientProjectsModule = {
           type: "filters",
           title: "Filters",
           open: true,
+          className: "client-projects-filter-panel",
         },
       ],
       pageHeader: {
@@ -137,13 +138,14 @@ const clientProjectsModule = {
         selection: {
           enabled: true,
           label: "Select Client",
+          headerLabel: "",
           recordType: "client",
           labelField: "name",
         },
         columns: [
           {
             id: "client-name",
-            field: "name",
+            field: "displayLabel",
             label: "Client",
             formatter: "hierarchy-label",
             depthField: "depth",
@@ -154,14 +156,14 @@ const clientProjectsModule = {
         secondaryRows: [
           {
             id: "client-tags",
-            label: "Tags",
             field: "tags",
             formatter: "chip-list",
             chipsField: "tags",
             chipLabelField: "name",
-            startColumn: "name",
+            startColumn: "displayLabel",
             endBeforeColumn: "__view_row_actions",
             hideWhenEmpty: true,
+            className: "client-projects-tag-row",
           },
         ],
         rowActions: [
@@ -176,6 +178,7 @@ const clientProjectsModule = {
             requiredPermissions: ["clients.manage"],
           },
         ],
+        rowActionsHeaderLabel: "",
         emptyState: {
           title: "No clients",
         },
@@ -223,6 +226,7 @@ const clientProjectsModule = {
           type: "filters",
           title: "Filters",
           open: true,
+          className: "client-projects-filter-panel",
         },
       ],
       pageHeader: {
@@ -292,13 +296,14 @@ const clientProjectsModule = {
         selection: {
           enabled: true,
           label: "Select Project",
+          headerLabel: "",
           recordType: "project",
           labelField: "name",
         },
         columns: [
           {
             id: "project-name",
-            field: "name",
+            field: "displayLabel",
             label: "Project",
             formatter: "hierarchy-label",
             depthField: "depth",
@@ -310,14 +315,14 @@ const clientProjectsModule = {
         secondaryRows: [
           {
             id: "project-tags",
-            label: "Tags",
             field: "tags",
             formatter: "chip-list",
             chipsField: "tags",
             chipLabelField: "name",
-            startColumn: "name",
+            startColumn: "displayLabel",
             endBeforeColumn: "__view_row_actions",
             hideWhenEmpty: true,
+            className: "client-projects-tag-row",
           },
         ],
         rowActions: [
@@ -332,6 +337,7 @@ const clientProjectsModule = {
             requiredPermissions: ["projects.manage"],
           },
         ],
+        rowActionsHeaderLabel: "",
         emptyState: {
           title: "No projects",
         },
