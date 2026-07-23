@@ -388,39 +388,24 @@ async function summary(session) {
 }
 
 async function listWorkItems(session, query = {}) {
-  const [result, completionFollowUps] = await Promise.all([
-    queryTasks(session, {
-      limit: TASK_WORK_ITEM_MAX_ITEMS,
-      status: "active",
-      sort: "due_at",
-      ...query,
-    }, {
-      includeOptions: false,
-      paginate: true,
-    }),
-    queryTasks(session, {
-      ...taskCompletionFollowUpScopeQuery(query),
-      limit: TASK_WORK_ITEM_MAX_ITEMS,
-      requireNextAction: true,
-      sort: "updated",
-      status: "complete",
-    }, {
-      includeOptions: false,
-      paginate: true,
-    }),
-  ]);
+  const result = await queryTasks(session, {
+    limit: TASK_WORK_ITEM_MAX_ITEMS,
+    status: "active",
+    sort: "due_at",
+    ...query,
+  }, {
+    includeOptions: false,
+    paginate: true,
+  });
   const timerByTaskId = new Map((result.timers || []).map((timer) => [timer.task_id, timer]));
 
   return {
     source_module_id: TASKS_MODULE_ID,
     source_type: "task",
-    items: [
-      ...completionFollowUps.tasks.map((task) => taskCompletionFollowUpWorkItemSummary(task)),
-      ...result.tasks.map((task) => taskWorkItemSummary(task, {
-        currentUserId: session.user_id,
-        timer: timerByTaskId.get(task.task_id),
-      })),
-    ],
+    items: result.tasks.map((task) => taskWorkItemSummary(task, {
+      currentUserId: session.user_id,
+      timer: timerByTaskId.get(task.task_id),
+    })),
   };
 }
 
@@ -443,18 +428,6 @@ function reduceDashboardCountGroups(groups = []) {
   }
 
   return counts;
-}
-
-function taskCompletionFollowUpScopeQuery(query = {}) {
-  return {
-    ...optionalTaskQueryValue("clientId", query.clientId || query.client_id),
-    ...optionalTaskQueryValue("projectId", query.projectId || query.project_id),
-  };
-}
-
-function optionalTaskQueryValue(key, value) {
-  const normalized = String(value || "").trim();
-  return normalized ? { [key]: normalized } : {};
 }
 
 async function listOptions(session) {
@@ -675,7 +648,19 @@ async function update(taskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanEditTask(session, previousTask);
-  const payload = parseTasksEdgePayload(UpdateTaskSchema, rawPayload);
+  const payload = applyResumeNoteAction(
+    parseTasksEdgePayload(UpdateTaskSchema, rawPayload),
+    previousTask,
+  );
+  if (payload.resume_note_action === "consume" && !String(previousTask.resume_note || "").trim()) {
+    const unchangedTask = await readTaggedTaskWithDetails(session, previousTask.task_id);
+    return {
+      task: unchangedTask,
+      tasks: [unchangedTask],
+      recurrenceContinuity: null,
+      recurrenceJob: null,
+    };
+  }
   const previousProjectId = previousTask.project_id || "";
 
   const normalizedTask = await normalizeTaskPayload({
@@ -757,6 +742,7 @@ async function update(taskId, rawPayload, session) {
     ? await tasksRepository.updateProjectCascade(session.workspace_id, normalizedTask, projectCascade.changedTasks)
     : [await tasksRepository.update(session.workspace_id, normalizedTask)];
   const task = updatedTaskRows.find((candidate) => candidate.task_id === normalizedTask.task_id) || updatedTaskRows[0];
+  await pauseRunningTimersForBlockedTask(task, session);
   await saveTaskReminderOverride(session.workspace_id, task.task_id, payload);
   await saveTargetTags(session, "task", task.task_id, payload);
   if (previousProjectId !== (task.project_id || "")) {
@@ -825,6 +811,44 @@ async function update(taskId, rawPayload, session) {
     ],
     recurrenceContinuity,
     recurrenceJob,
+  };
+}
+
+function applyResumeNoteAction(payload, previousTask) {
+  const action = String(payload.resume_note_action || "").trim();
+
+  if (!action) {
+    return payload;
+  }
+
+  if (["complete", "archived"].includes(String(previousTask.status || ""))) {
+    throw new AppError("Resume notes can only change while a task is active.", 409);
+  }
+
+  if (action === "consume") {
+    return {
+      resume_note: "",
+      resume_note_action: action,
+    };
+  }
+
+  if (String(previousTask.status || "").trim() === "blocked"
+    || String(previousTask.blocked_reason || "").trim()) {
+    throw new AppError("Blocked tasks do not accept resume-note capture.", 409);
+  }
+
+  const resumeNote = normalizeTaskContextText(payload.resume_note);
+  if (!resumeNote) {
+    throw new AppError("Resume note is required.", 400);
+  }
+  if (String(previousTask.resume_note || "").trim()) {
+    throw new AppError("This task already has a resume note.", 409);
+  }
+
+  return {
+    resume_note: resumeNote,
+    resume_note_action: action,
+    status: "in_progress",
   };
 }
 
@@ -2019,7 +2043,7 @@ async function blockParentForChild(session, parentTask, childTask) {
   const now = new Date().toISOString();
   const blockedReason = parentTask.blocked_reason ||
     autoBlockedReason([childTask.title || childTask.task_id]);
-  await tasksRepository.update(session.workspace_id, {
+  const blockedParent = await tasksRepository.update(session.workspace_id, {
     ...parentTask,
     status: "blocked",
     blocked_reason: blockedReason,
@@ -2027,6 +2051,7 @@ async function blockParentForChild(session, parentTask, childTask) {
     updated_by_user_id: session.user_id,
     assignee_ids: parentTask.assignee_ids || [],
   });
+  await pauseRunningTimersForBlockedTask(blockedParent, session);
   const updatedTask = await readTaggedTaskWithDetails(session, parentTask.task_id);
   await emitTaskEvent("task.updated", {
     session,
@@ -2039,6 +2064,14 @@ async function blockParentForChild(session, parentTask, childTask) {
     },
   });
   await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.blocked_by_child");
+}
+
+async function pauseRunningTimersForBlockedTask(task, session) {
+  if (task?.status !== "blocked") {
+    return;
+  }
+
+  await taskTimersService.pauseRunningForBlockedTask(task, session);
 }
 
 async function recoverParentsAfterChildStatusChange(session, childTask) {
@@ -3385,48 +3418,6 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     completion_metrics: taskCompletionMetrics(task),
     active_candidate: resumeContext.active_candidate,
     resume_context: resumeContext,
-  };
-}
-
-function taskCompletionFollowUpWorkItemSummary(task) {
-  const sourceUrl = taskUrl(task);
-  const nextAction = String(task.next_action || "").replace(/\s+/g, " ").trim();
-
-  return {
-    source_module_id: TASKS_MODULE_ID,
-    source_type: "task_completion_follow_up",
-    source_id: task.task_id,
-    source_label: nextAction,
-    source_url: sourceUrl,
-    source: {
-      module_id: TASKS_MODULE_ID,
-      type: "task_completion_follow_up",
-      id: task.task_id,
-      label: nextAction,
-      url: sourceUrl,
-      enabled: true,
-    },
-    task_id: task.task_id,
-    title: nextAction,
-    completion_task_title: task.title || "Completed task",
-    status: "open",
-    priority: task.priority || "normal",
-    client_id: task.client_id || "",
-    client_name: task.client_name || "",
-    project_id: task.project_id || "",
-    project_name: task.project_name || "",
-    next_action: nextAction,
-    completed_at: task.completed_at || "",
-    updated_at: task.updated_at || task.completed_at || "",
-    primary_action: {
-      id: "tasks.edit",
-      label: "Review follow-up",
-      params: {
-        focusTarget: "next_action",
-        taskId: task.task_id,
-      },
-      type: "module-action",
-    },
   };
 }
 

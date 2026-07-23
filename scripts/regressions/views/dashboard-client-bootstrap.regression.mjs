@@ -43,7 +43,7 @@ assert.doesNotMatch(
 );
 
 const manifestStart = dashboardEntry.indexOf("const dashboardManifestPromise = loadDashboardManifest()");
-const warmStart = dashboardEntry.indexOf("dashboardManifestPromise\n  .then");
+const warmStart = dashboardEntry.search(/dashboardManifestPromise\r?\n  \.then/);
 const remainingHostAssets = dashboardEntry.indexOf('"/js/shared/modal.js"');
 assert.ok(manifestStart >= 0 && warmStart > manifestStart, "Dashboard entry must start and warm the manifest");
 assert.ok(

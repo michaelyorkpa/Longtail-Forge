@@ -299,6 +299,37 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+async function pauseRunningBySource(workspaceId, source) {
+  const now = new Date().toISOString();
+
+  await db.run(pauseRunningBySourceSql(), {
+    sourceId: textParam(source.sourceId),
+    sourceModuleId: textParam(source.sourceModuleId),
+    sourceType: textParam(source.sourceType),
+    updatedAt: now,
+    workspaceId: textParam(workspaceId),
+  });
+}
+
+function pauseRunningBySourceSql() {
+  return `
+UPDATE active_work_timers
+SET accumulated_elapsed_seconds = accumulated_elapsed_seconds +
+      CASE
+        WHEN last_active_start_time IS NULL THEN 0
+        ELSE ${db.dialect.time.elapsedSecondsSince("last_active_start_time", ":updatedAt")}
+      END,
+    last_active_start_time = NULL,
+    timer_status = 'paused',
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND source_module_id = :sourceModuleId
+  AND source_type = :sourceType
+  AND source_id = :sourceId
+  AND timer_status = 'running';
+`;
+}
+
 async function remove(workspaceId, userId, timerSlot) {
   await db.run(`
 DELETE FROM active_work_timers
@@ -532,6 +563,7 @@ export const activeTimersRepository = {
   readBySource,
   remove,
   removeBySource,
+  pauseRunningBySource,
   pauseRunningForUser,
   upsert,
 };

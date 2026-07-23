@@ -20,6 +20,8 @@ const taskDialog = await readText("public/js/task-dialog.js");
 const tasks = await readText("public/js/tasks.js");
 const workbench = await readText("public/js/workbench.js");
 const taskService = await readText("src/modules/tasks/tasks.service.js");
+const taskTimerService = await readText("src/modules/tasks/task-timers.service.js");
+const activeTimerRepository = await readText("src/modules/time-tracking/active-timers.repo.js");
 
 assert.match(
   functionBlock(taskDialog, "handleChecklistInputKeydown"),
@@ -74,8 +76,16 @@ assert.match(functionBlock(taskDialog, "focusTaskEditorTarget"), /blocked_reason
 assert.match(functionBlock(taskDialog, "updateBlockedReasonState"), /fields\.blockedReason\.required = isBlocked/, "the canonical editor should mark Blocked Reason required while status is Blocked");
 assert.match(functionBlock(taskDialog, "handleTaskStatusChange"), /nextStatus !== "blocked"[\s\S]*promptAndBlockCurrentTask[\s\S]*statusBefore: previousTaskEditorStatus/, "changing the editor status to Blocked should use the shared capture transition");
 assert.match(functionBlock(taskDialog, "performBlockCapture"), /previousReason\.trim\(\)[\s\S]*if \(!blockedReason\)[\s\S]*prompt: "Why is the task now blocked\?"[\s\S]*if \(!result\.confirmed\)[\s\S]*fields\.status\.value = priorStatus[\s\S]*saveTaskForm\([\s\S]*Blocking task/, "Continue should persist Blocked and its reason while Cancel restores the prior editor status, with an existing reason suppressing the prompt");
-assert.match(functionBlock(taskDialog, "createTaskEditorDialog"), /const block = view\.createActionButton\([\s\S]*icon: "pause"[\s\S]*iconOnly: true[\s\S]*children: \[block, complete,[\s\S]*block\.dataset\.blockTask/, "the edit header should place an icon-only Block action immediately left of Complete");
-assert.match(functionBlock(taskDialog, "updateBlockTaskActionState"), /currentTaskId[\s\S]*!\["blocked", "complete", "archived"\]\.includes\(status\)[\s\S]*hasTaskEditPermission/, "the header Block action should be edit-only, permission-gated, and hidden for terminal or already-blocked states");
+assert.match(functionBlock(taskDialog, "createTaskEditorDialog"), /const block = view\.createActionButton\([\s\S]*icon: "pause"[\s\S]*iconOnly: true[\s\S]*children: \[block, complete,[\s\S]*block\.dataset\.blockTask/, "the edit header should place the icon-only Block/Resume action immediately left of Complete");
+assert.match(functionBlock(taskDialog, "updateBlockTaskActionState"), /isBlocked[\s\S]*!\["complete", "archived"\]\.includes\(status\)[\s\S]*hasTaskEditPermission[\s\S]*icon: isBlocked \? "start" : "pause"[\s\S]*label/, "the header action should be edit-only, permission-gated, Play/Resume while Blocked, Pause/Block while active, and hidden only for terminal states");
+assert.match(functionBlock(taskDialog, "resumeBlockedTask"), /fields\.status\.value = "in_progress"[\s\S]*fields\.blockedReason\.value = ""[\s\S]*saveTaskForm\([\s\S]*Resuming task/, "the header Play action should persist Blocked work as In Progress and clear its Blocked Reason");
+assert.match(functionBlock(taskDialog, "applyChecklistResult"), /syncTaskStatusField\(currentTask\)[\s\S]*updateBlockedReasonState\(\)[\s\S]*writeTaskMetadataRibbon\(currentTask\)/, "checklist mutations should synchronize the open editor lifecycle controls with the authoritative Task response");
+assert.match(functionBlock(taskDialog, "saveTaskForm"), /currentTask\?\.status === "blocked"[\s\S]*await refreshTaskTimers\(\)/, "saving Blocked in the canonical editor should reload its automatically paused timer state");
+assert.match(functionBlock(taskService, "pauseRunningTimersForBlockedTask"), /task\?\.status !== "blocked"[\s\S]*taskTimersService\.pauseRunningForBlockedTask\(task, session\)/, "every Tasks-owned Blocked persistence path should use the task-timer pause boundary");
+assert.match(functionBlock(taskTimerService, "pauseRunningForBlockedTask"), /activeTimersService\.pauseRunningSourced\(taskTimerSource\(task\), session\)/, "Tasks should request source-scoped pause through the Time Tracking service");
+assert.match(functionBlock(activeTimerRepository, "pauseRunningBySource"), /db\.run\(pauseRunningBySourceSql\(\), \{[\s\S]*sourceId:[\s\S]*sourceModuleId:[\s\S]*sourceType:/, "source-scoped pause should use named parameters through the reviewed dialect-aware SQL builder");
+assert.match(functionBlock(activeTimerRepository, "pauseRunningBySourceSql"), /source_module_id = :sourceModuleId[\s\S]*source_type = :sourceType[\s\S]*source_id = :sourceId[\s\S]*timer_status = 'running'/, "source-scoped pause should cover every running timer for the Task");
+assert.doesNotMatch(functionBlock(activeTimerRepository, "pauseRunningBySourceSql"), /user_id/, "source-scoped pause should not leave another user's running timer active on the Blocked Task");
 assert.match(functionBlock(taskDialog, "hasTaskEditPermission"), /tasks\.edit_all[\s\S]*tasks\.edit_own[\s\S]*created_by_user_id[\s\S]*assignee_ids/, "the header Block action should honor all-task and own-task edit permissions");
 assert.match(functionBlock(taskService, "normalizeTaskPayload"), /status === "blocked" && !blockedReason[\s\S]*Blocked Reason is required when a task is Blocked\.[\s\S]*400/, "the service boundary should reject blocked tasks without a reason");
 assert.match(functionBlock(tasks, "applyBulkAction"), /captureBulkBlockedReason[\s\S]*selectedBulkActions/, "bulk Block should capture a missing reason before constructing status actions");

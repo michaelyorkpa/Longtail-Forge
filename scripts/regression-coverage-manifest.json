@@ -3784,15 +3784,14 @@
     },
     {
       "area": "workbench",
-      "description": "Proves Task completion hands off to the canonical Next Action field and saved follow-ups become distinct permission-safe Workbench candidates without reviving completed Tasks.",
-      "id": "workbench.completion-next-action-follow-up",
+      "description": "Proves Task completion closes directly, preserves recurrence continuity, and never promotes a completed Next Action into Workbench.",
+      "id": "workbench.direct-task-completion",
       "legacy": false,
-      "path": "scripts/regressions/workbench/completion-next-action-follow-up.regression.mjs",
+      "path": "scripts/regressions/workbench/direct-task-completion.regression.mjs",
       "releaseGate": false,
       "runMode": "isolated-database",
       "tags": [
         "completion",
-        "permissions",
         "recurrence",
         "tasks",
         "workbench"
@@ -3850,7 +3849,7 @@
     },
     {
       "area": "workbench",
-      "description": "Proves one deduplicated app-shell navigation intent holds timed Task Focus exits for resume-note capture and hard exits use a bounded session marker.",
+      "description": "Proves one deduplicated app-shell navigation intent holds eligible non-blocked Task Focus exits for reusable resume-note capture and hard exits use a bounded content-free session marker.",
       "id": "workbench.task-focus-exit-capture",
       "legacy": false,
       "path": "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs",

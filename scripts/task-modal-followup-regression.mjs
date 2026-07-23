@@ -42,6 +42,7 @@ assert.doesNotMatch(taskDialogScript, /<h3>Task Tags<\/h3>|<h3>Task Files<\/h3>/
 
 assert.match(stylesheet, /\.task-resume-note-field textarea,[\s\S]*\.task-next-action-field textarea \{[\s\S]*min-height: 54px;/, "Resume Note and Next Action should share a compact two-line height");
 assert.match(stylesheet, /\.task-blocked-reason-field textarea \{[\s\S]*min-height: 40px;/, "Blocked Reason should use a compact one-line height");
+assert.match(stylesheet, /\.task-blocked-reason-field\[hidden\] \{[\s\S]*display: none;/, "Blocked Reason should leave the rendered layout when the task is not blocked");
 assert.doesNotMatch(stylesheet, /\.task-footer-panel \{[\s\S]*background: transparent;/, "Tags and Files should not rely on parent-body footer panel styling");
 assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following,[\s\S]*\[data-note-notification-toggle\]\.is-following \{[\s\S]*color: var\(--color-danger\);/, "Followed task and note notification bells should be red");
 

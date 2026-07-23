@@ -20,6 +20,10 @@ async function list(session) {
   };
 }
 
+async function pauseRunningForBlockedTask(task, session) {
+  return activeTimersService.pauseRunningSourced(taskTimerSource(task), session);
+}
+
 async function save(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -275,12 +279,8 @@ async function assertCanUseTaskTimer(session, task) {
 async function transitionTaskToInProgressForTimerStart(task, existingTimer, session) {
   const existingTransition = taskTimerTransitionMetadata(existingTimer);
 
-  if (existingTransition.movedTaskToInProgress === true) {
-    return existingTransition;
-  }
-
   if (task.status !== "open" && task.status !== "blocked") {
-    return {
+    return existingTransition.movedTaskToInProgress === true ? existingTransition : {
       movedTaskToInProgress: false,
       movedTaskFromOpen: false,
       movedTaskFromBlocked: false,
@@ -455,6 +455,7 @@ export const taskTimersService = {
   hasActiveTaskTimers,
   linkManualTimer,
   list,
+  pauseRunningForBlockedTask,
   remove,
   save,
 };

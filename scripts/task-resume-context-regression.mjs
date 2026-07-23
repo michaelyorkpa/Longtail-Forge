@@ -17,6 +17,7 @@ try {
   const session = await readSeedSession();
 
   await assertTaskContextFieldsSurviveCreateUpdateRead(session);
+  await assertResumeNoteFocusLifecycle(session);
   await assertTaskContextFeedsSafeSummaries(session);
   await assertArchivedTasksAreNotActiveResumeCandidates(session);
   await assertTaskViewDialogIncludesResumeFields();
@@ -57,6 +58,69 @@ async function assertTaskContextFieldsSurviveCreateUpdateRead(session) {
   assert.equal(read.next_action, updated.next_action);
   assert.equal(read.blocked_reason, updated.blocked_reason);
   assert.equal(read.resume_note, updated.resume_note);
+}
+
+async function assertResumeNoteFocusLifecycle(session) {
+  const openTask = (await tasksService.create({
+    title: "Reusable resume-note task",
+    resume_note: "Pick up with the pricing comparison.",
+    status: "open",
+  }, session)).task;
+
+  const consumedOpenTask = (await tasksService.update(openTask.task_id, {
+    blocked_reason: "This must not be applied.",
+    priority: "urgent",
+    resume_note_action: "consume",
+    status: "blocked",
+  }, session)).task;
+  assert.equal(consumedOpenTask.resume_note, "", "focusing should consume the saved resume note");
+  assert.equal(consumedOpenTask.status, "open", "consuming a resume note must preserve Open status");
+  assert.equal(consumedOpenTask.blocked_reason, "", "consume must ignore unrelated lifecycle fields");
+  assert.equal(consumedOpenTask.priority, openTask.priority, "consume must clear only the resume note");
+
+  const capturedOpenTask = (await tasksService.update(openTask.task_id, {
+    resume_note: "Continue with the vendor response.",
+    resume_note_action: "capture",
+  }, session)).task;
+  assert.equal(capturedOpenTask.resume_note, "Continue with the vendor response.");
+  assert.equal(capturedOpenTask.status, "in_progress", "capturing a nonblank resume note should move Open to In Progress");
+
+  const consumedInProgressTask = (await tasksService.update(openTask.task_id, {
+    resume_note_action: "consume",
+  }, session)).task;
+  assert.equal(consumedInProgressTask.resume_note, "");
+  assert.equal(consumedInProgressTask.status, "in_progress", "consuming a note must not move In Progress back to Open");
+
+  const blockedTask = (await tasksService.create({
+    title: "Blocked resume-note task",
+    status: "blocked",
+    blocked_reason: "Waiting for a decision.",
+  }, session)).task;
+  await assert.rejects(
+    () => tasksService.update(blockedTask.task_id, {
+      resume_note: "Decision received; prepare the final draft.",
+      resume_note_action: "capture",
+    }, session),
+    (error) => error?.statusCode === 409 && /blocked tasks do not accept/i.test(error.message),
+    "a stale capture must not replace Blocked status or its reason",
+  );
+  const unchangedBlockedTask = (await tasksService.read(blockedTask.task_id, session)).task;
+  assert.equal(unchangedBlockedTask.status, "blocked");
+  assert.equal(unchangedBlockedTask.blocked_reason, "Waiting for a decision.");
+  assert.equal(unchangedBlockedTask.resume_note, "");
+
+  const completedTask = (await tasksService.create({
+    title: "Terminal resume-note race task",
+  }, session)).task;
+  await tasksService.complete(completedTask.task_id, session);
+  await assert.rejects(
+    () => tasksService.update(completedTask.task_id, {
+      resume_note: "Do not revive this task.",
+      resume_note_action: "capture",
+    }, session),
+    (error) => error?.statusCode === 409 && /only change while a task is active/i.test(error.message),
+    "a stale capture must not revive a completed task",
+  );
 }
 
 async function assertTaskContextFeedsSafeSummaries(session) {
@@ -135,12 +199,25 @@ async function assertResumeNoteCaptureBrowserContract() {
   const reads = [];
   const writes = [];
   const tasks = new Map([
-    ["task-yes", { task_id: "task-yes", resume_note: "" }],
-    ["task-no", { task_id: "task-no", resume_note: "" }],
-    ["task-existing", { task_id: "task-existing", resume_note: "Context already saved." }],
+    ["task-yes", { task_id: "task-yes", resume_note: "", status: "open" }],
+    ["task-no", { task_id: "task-no", resume_note: "", status: "open" }],
+    ["task-existing", { task_id: "task-existing", resume_note: "Context already saved.", status: "open" }],
+    ["task-blocked", {
+      blocked_reason: "Waiting for approval.",
+      resume_note: "",
+      status: "blocked",
+      task_id: "task-blocked",
+    }],
+    ["task-blocked-note", {
+      blocked_reason: "Waiting for approval.",
+      resume_note: "",
+      status: "open",
+      task_id: "task-blocked-note",
+    }],
   ]);
   const promptResults = [
     { confirmed: true, value: "Continue with the reconciled totals." },
+    { confirmed: false, value: "" },
     { confirmed: false, value: "" },
   ];
   const browserWindow = {
@@ -154,7 +231,11 @@ async function assertResumeNoteCaptureBrowserContract() {
         async putJson(url, payload) {
           writes.push({ payload, url });
           const taskId = decodeURIComponent(url.split("/").at(-1));
-          const task = { ...tasks.get(taskId), ...payload };
+          const task = payload.resume_note_action === "consume"
+            ? { ...tasks.get(taskId), resume_note: "" }
+            : payload.resume_note_action === "capture"
+              ? { ...tasks.get(taskId), resume_note: payload.resume_note, status: "in_progress" }
+              : { ...tasks.get(taskId), ...payload };
           tasks.set(taskId, task);
           return { task };
         },
@@ -176,7 +257,8 @@ async function assertResumeNoteCaptureBrowserContract() {
   assert.equal(writes[0].url, "/api/tasks/task-yes", "Yes should write to the correct task");
   assert.equal(JSON.stringify(writes[0].payload), JSON.stringify({
     resume_note: "Continue with the reconciled totals.",
-  }), "Yes should write only resume_note through the Tasks route");
+    resume_note_action: "capture",
+  }), "Yes should write the note plus its canonical capture action through the Tasks route");
   assert.equal(promptCalls[0].prompt, "Add resume note?");
   assert.equal(promptCalls[0].multiline, false, "resume capture should use one single-line entry");
   assert.equal(promptCalls[0].confirmLabel, "Yes");
@@ -190,10 +272,38 @@ async function assertResumeNoteCaptureBrowserContract() {
   assert.equal(existingResult.reason, "suppressed", "an existing resume note should suppress capture before another read");
   assert.equal(promptCalls.length, 1);
 
-  const noResult = await capture.offer({ task: { task_id: "task-no", resume_note: "" } });
+  const noResult = await capture.offer({ task: { task_id: "task-no", resume_note: "", status: "open" } });
   assert.equal(noResult.reason, "dismissed", "No should dismiss cleanly");
   assert.equal(writes.length, 1, "No should have no write side effect");
   assert.deepEqual(reads, ["/api/tasks/task-yes", "/api/tasks/task-no"]);
+
+  const blockedResult = await capture.offer({ task: tasks.get("task-blocked") });
+  assert.equal(blockedResult.reason, "blocked-task", "Blocked status should suppress resume capture");
+  const blockedNoteResult = await capture.offer({ task: tasks.get("task-blocked-note") });
+  assert.equal(blockedNoteResult.reason, "blocked-task", "a Blocked Reason should suppress resume capture");
+  assert.equal(promptCalls.length, 2, "blocked context should not open the capture prompt");
+  assert.deepEqual(reads, ["/api/tasks/task-yes", "/api/tasks/task-no"], "known blocked context should not need another read");
+  assert.equal(writes.length, 1, "blocked context should not write a resume note");
+
+  tasks.set("task-yes", {
+    ...tasks.get("task-yes"),
+    resume_note: "Continue with the reconciled totals.",
+    status: "in_progress",
+  });
+  const consumeResult = await capture.consume({ task: tasks.get("task-yes") });
+  assert.equal(consumeResult.consumed, true, "re-focusing should consume the prior resume note");
+  assert.equal(JSON.stringify(writes.at(-1)), JSON.stringify({
+    payload: { resume_note_action: "consume" },
+    url: "/api/tasks/task-yes",
+  }));
+
+  const repeatedAfterConsume = await capture.offer({ task: {
+    ...tasks.get("task-yes"),
+    resume_note: "",
+  } });
+  assert.equal(repeatedAfterConsume.captured, false, "the next focus exit should be allowed to prompt again");
+  assert.equal(repeatedAfterConsume.reason, "dismissed");
+  assert.equal(promptCalls.length, 3, "consume should reset the per-task in-memory capture suppression");
 
   assert.match(taskDialogScript, /timerStatus === "paused"[\s\S]*offerTaskResumeNote\(result\.task \|\| task\)/, "Task dialog Pause should offer resume capture after the timer mutation");
   assert.match(taskDialogScript, /timer\/finalize[\s\S]*offerTaskResumeNote\(result\.task \|\| task/, "Task dialog finalize should offer resume capture");
