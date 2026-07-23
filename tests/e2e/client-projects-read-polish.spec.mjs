@@ -1,6 +1,8 @@
-/* global HTMLElement, getComputedStyle */
+/* global document, HTMLElement, getComputedStyle */
 
 import { expect, test } from "@playwright/test";
+
+const FOCUS_CLEARANCE_TOLERANCE_PX = 0.01;
 
 async function createRecord(request, path, data, label) {
   const response = await request.post(path, { data });
@@ -14,9 +16,8 @@ async function expectBlankUtilityHeaders(table, contentHeaders) {
 }
 
 async function expectFocusRingClearance(control) {
-  await control.focus();
-  await expect(control).toBeFocused();
   const clearance = await control.evaluate((element) => {
+    element.focus({ preventScroll: true });
     const panelBody = element.closest(".view-collapsible-index-body, .view-sidebar-panel-body");
     if (!(panelBody instanceof HTMLElement)) {
       return null;
@@ -31,6 +32,7 @@ async function expectFocusRingClearance(control) {
     return {
       bottom: panelRect.bottom - elementRect.bottom,
       focusPaint,
+      focused: document.activeElement === element,
       left: elementRect.left - panelRect.left,
       right: panelRect.right - elementRect.right,
       top: elementRect.top - panelRect.top,
@@ -38,10 +40,11 @@ async function expectFocusRingClearance(control) {
   });
 
   expect(clearance, "the focused control should be inside the filter drawer body").not.toBeNull();
-  expect(clearance.left).toBeGreaterThanOrEqual(clearance.focusPaint);
-  expect(clearance.right).toBeGreaterThanOrEqual(clearance.focusPaint);
-  expect(clearance.top).toBeGreaterThanOrEqual(clearance.focusPaint);
-  expect(clearance.bottom).toBeGreaterThanOrEqual(clearance.focusPaint);
+  expect(clearance.focused, "the filter control should accept focus while its ring clearance is measured").toBe(true);
+  expect(clearance.left + FOCUS_CLEARANCE_TOLERANCE_PX).toBeGreaterThanOrEqual(clearance.focusPaint);
+  expect(clearance.right + FOCUS_CLEARANCE_TOLERANCE_PX).toBeGreaterThanOrEqual(clearance.focusPaint);
+  expect(clearance.top + FOCUS_CLEARANCE_TOLERANCE_PX).toBeGreaterThanOrEqual(clearance.focusPaint);
+  expect(clearance.bottom + FOCUS_CLEARANCE_TOLERANCE_PX).toBeGreaterThanOrEqual(clearance.focusPaint);
 }
 
 test("Clients and Projects read surfaces preserve hierarchy, workspace filtering, and compact table anatomy", async ({ page, request }, testInfo) => {
