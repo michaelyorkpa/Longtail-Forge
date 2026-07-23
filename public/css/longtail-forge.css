@@ -5503,6 +5503,12 @@ dialog .form-actions {
     color: var(--color-text-secondary);
 }
 
+.workbench-recommended-resume-note {
+    margin: 0;
+    color: var(--color-text);
+    font-weight: 600;
+}
+
 .workbench-task-focus-panel {
     display: grid;
     gap: 14px;
@@ -5855,10 +5861,6 @@ dialog .form-actions {
     border-color: var(--color-border-strong);
 }
 
-.workbench-badge[data-badge-type="disabled"] {
-    opacity: 0.72;
-}
-
 .workbench-actions {
     display: flex;
     flex-wrap: wrap;
@@ -6033,6 +6035,10 @@ dialog .form-actions {
 
 .task-blocked-reason-field textarea {
     min-height: 40px;
+}
+
+.task-blocked-reason-field[hidden] {
+    display: none;
 }
 
 .task-details-field,

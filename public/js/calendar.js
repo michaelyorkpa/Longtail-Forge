@@ -19,7 +19,7 @@ const CALENDAR_STATUS_OPTIONS = [
   { id: "complete", label: "Completed" },
   { id: "archived", label: "Archived" },
 ];
-const DEFAULT_CALENDAR_STATUSES = ["open", "in_progress", "blocked"];
+const DEFAULT_CALENDAR_STATUSES = ["open", "in_progress", "blocked", "complete"];
 
 const calendarState = {
   view: taskCalendar?.resolveDefaultView?.(null) || "month",

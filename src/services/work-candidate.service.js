@@ -115,7 +115,6 @@ const RECENTLY_TOUCHED_DAYS = 2;
 const RESUME_SOURCE_KIND = "resume_state";
 const STALE_DAYS = 7;
 const TASK_UPDATED_BOOST_SOURCE_KIND = "task_updated_boost";
-const TASK_COMPLETION_FOLLOW_UP_SOURCE_KIND = "task_completion_follow_up";
 const TASK_WORK_ITEM_SOURCE_KIND = "task_work_item";
 const TASK_WORK_ITEM_SOURCE_KEY = "tasks:task";
 const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
@@ -302,12 +301,9 @@ function rankWorkCandidates(candidates = [], options = {}) {
 function candidateFromTaskWorkItem(item = {}, options = {}) {
   const taskId = textValue(firstValue(item.task_id, item.source_id), TEXT_LIMITS.recordId);
   const recordType = textValue(item.source_type, TEXT_LIMITS.recordType) || "task";
-  const isCompletionFollowUp = recordType === "task_completion_follow_up";
   const sourceUrl = safeUrl(item.source_url) || (taskId ? `tasks.html?task=${encodeURIComponent(taskId)}` : "");
   const title = textValue(firstValue(item.title, item.source_label), TEXT_LIMITS.title) || "Task";
-  const sourceKind = textValue(options.sourceKind, TEXT_LIMITS.sourceKind) || (isCompletionFollowUp
-    ? TASK_COMPLETION_FOLLOW_UP_SOURCE_KIND
-    : TASK_WORK_ITEM_SOURCE_KIND);
+  const sourceKind = textValue(options.sourceKind, TEXT_LIMITS.sourceKind) || TASK_WORK_ITEM_SOURCE_KIND;
 
   return normalizeWorkCandidate({
     blockedReason: item.blocked_reason,
@@ -315,13 +311,12 @@ function candidateFromTaskWorkItem(item = {}, options = {}) {
     clientId: item.client_id,
     contextLabel: taskWorkItemContextLabel(item),
     createdAt: item.created_at,
-    dueAt: isCompletionFollowUp ? "" : firstNonEmptyValue(item.due_at_utc, item.due_at, item.due_date),
+    dueAt: firstNonEmptyValue(item.due_at_utc, item.due_at, item.due_date),
     handoffNote: item.resume_note,
-    lastWorkedAt: isCompletionFollowUp ? item.completed_at : item.last_worked_at,
+    lastWorkedAt: item.last_worked_at,
     metadata: {
       assigned_to_current_user: item.assigned_to_current_user === true,
       checklist_progress: item.checklist_progress || item.checklistProgress || null,
-      completion_task_title: item.completion_task_title || "",
       recurrence_instance_date: item.recurrence_instance_date || "",
       recurrence_template_id: item.recurrence_template_id || "",
       timer_status: item.timer_status || "",
@@ -331,9 +326,7 @@ function candidateFromTaskWorkItem(item = {}, options = {}) {
     primaryAction: item.primary_action || openPrimaryAction(sourceUrl),
     priority: item.priority,
     projectId: item.project_id,
-    reason: options.reason || (isCompletionFollowUp
-      ? taskCompletionFollowUpReason(item)
-      : taskWorkItemReason(item)),
+    reason: options.reason || taskWorkItemReason(item),
     recordId: taskId,
     recordType,
     sourceKind,
@@ -461,13 +454,6 @@ function candidateFromTimer(timer = {}, options = {}) {
     title,
     updatedAt: timer.updated_at,
   });
-}
-
-function taskCompletionFollowUpReason(item = {}) {
-  const taskTitle = textValue(item.completion_task_title, 160);
-  return taskTitle
-    ? `Follow-up from completed task: ${taskTitle}`.slice(0, TEXT_LIMITS.reason)
-    : "Follow-up saved after completing a task.";
 }
 
 function taskTimerSourceId(timer = {}) {

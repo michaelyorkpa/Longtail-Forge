@@ -46,14 +46,14 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "refreshActiveTaskFocus"),
-  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`,[\s\S]*cache: "no-store"[\s\S]*applyActiveTaskFocusTask\(result\.task \|\| null\)/,
-  "Task Focus should load focused task details through the existing Tasks read route",
+  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`,[\s\S]*cache: "no-store"[\s\S]*consumeTaskFocusResumeNote\(result\.task \|\| null, taskId\)[\s\S]*applyActiveTaskFocusTask\(task\)/,
+  "Task Focus should load focused task details through the existing Tasks read route, consume any resume note, and apply the resulting task",
 );
 
 assert.match(
   functionBody(workbenchScript, "createTaskFocusActionStrip"),
-  /id: "edit"[\s\S]*label: "Edit task"[\s\S]*id: "complete"[\s\S]*label: "Complete task"[\s\S]*id: "block"[\s\S]*label: "Block task"/,
-  "Task Focus should render Edit, Complete, and Block actions",
+  /isBlocked[\s\S]*icon: "start"[\s\S]*id: "resume"[\s\S]*label: "Resume task"[\s\S]*onClick: resumeFocusedTask[\s\S]*icon: "pause"[\s\S]*id: "block"[\s\S]*label: "Block task"/,
+  "Task Focus should switch its lifecycle control from Pause/Block to Play/Resume while the focused Task is Blocked",
 );
 assert.match(
   functionBody(workbenchScript, "createTaskFocusActionButton"),
@@ -72,13 +72,23 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "completeFocusedTask"),
-  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: result\.task\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*recordType: "task_completion_follow_up"[\s\S]*focusTarget: "next_action"/,
-  "Task Focus Complete should call the existing route, return to Focus Selection, retain continuity identity, and open canonical Next Action follow-up capture",
+  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: result\.task\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
+  "Task Focus Complete should call the existing route, return directly to Focus Selection, and retain completion continuity",
+);
+assert.doesNotMatch(
+  functionBody(workbenchScript, "completeFocusedTask"),
+  /openTaskCandidate|task_completion_follow_up|next_action/,
+  "Task Focus Complete should not open or synthesize a Next Action follow-up",
 );
 assert.match(
   functionBody(workbenchScript, "blockFocusedTask"),
   /openTaskCandidate\(activeTaskFocusCandidate\(\), taskId,[\s\S]*defaults: \{ status: "blocked" \},[\s\S]*focusTarget: "blocked_reason"[\s\S]*refreshActiveTaskFocus\(\)/,
   "Task Focus Block should open the canonical Tasks editor in blocked state focused on Blocked Reason",
+);
+assert.match(
+  functionBody(workbenchScript, "resumeFocusedTask"),
+  /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`, \{[\s\S]*blocked_reason: ""[\s\S]*status: "in_progress"[\s\S]*applyActiveTaskFocusTask[\s\S]*refreshFocusCandidates\(\)[\s\S]*Task resumed\./,
+  "Task Focus Play/Resume should use the canonical Tasks update route, clear Blocked Reason, save In Progress, and refresh the focused surface",
 );
 
 assert.match(

@@ -78,7 +78,16 @@ assert.match(calendarJs, /calendarViewFromQuery = true/, "Calendar query view mu
 assert.match(taskCalendarJs, /className: "calendar-day-view"[\s\S]*calendarDay: dayKey/, "the shared renderer must retain its read-only Day layout");
 assert.match(taskCalendarJs, /className: "calendar-day-reminders"[\s\S]*\.\.\.dayReminders\.map/, "mobile Day view must render reminder rows");
 assert.match(calendarJs, /multiple: true[\s\S]*calendarStatusFilter/, "Calendar must expose a task-status multi-select");
-assert.match(calendarJs, /DEFAULT_CALENDAR_STATUSES = \["open", "in_progress", "blocked"\]/, "Calendar must default to active task statuses");
+assert.match(
+  calendarJs,
+  /DEFAULT_CALENDAR_STATUSES = \["open", "in_progress", "blocked", "complete"\]/,
+  "the full Calendar must default to active and completed task statuses",
+);
+assert.match(
+  calendarJs,
+  /\{ id: "archived", label: "Archived" \}/,
+  "Archived must remain available as an opt-in Calendar status",
+);
 assert.match(calendarJs, /statuses: calendarState\.statuses/, "Calendar must send its selected statuses through the shared read helper");
 assert.match(taskCalendarJs, /params\.set\("statuses",/, "shared calendar reads must carry status scope to the server");
 for (const [label, source] of [["calendar.js", calendarJs], ["shared/task-calendar.js", taskCalendarJs]]) {
@@ -93,7 +102,7 @@ for (const [label, source] of [["calendar.js", calendarJs], ["shared/task-calend
     assert.doesNotMatch(source, forbidden, `${label} must not hand-build framework-owned anatomy (${forbidden})`);
   }
 }
-checks += 30;
+checks += 31;
 
 // Entries open through the canonical Task editor, never an inline editor.
 assert.match(calendarJs, /tasksDialog\?\.openTaskEditor/, "calendar entries must open through the canonical Task editor opener");

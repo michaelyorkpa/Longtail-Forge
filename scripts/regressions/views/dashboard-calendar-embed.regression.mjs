@@ -131,6 +131,11 @@ for (const requiredSharedCall of [
 ]) {
   assert.ok(tasksDashboardJs.includes(requiredSharedCall), `Tasks Dashboard must delegate calendar rendering to ${requiredSharedCall}`);
 }
+assert.match(
+  tasksDashboardJs,
+  /statuses: \["open", "in_progress", "blocked"\]/,
+  "Dashboard calendar requests must remain explicitly active-only",
+);
 assert.doesNotMatch(
   tasksDashboardJs,
   /fetch\([^)]*\/api\/tasks\/calendar/,
@@ -151,7 +156,7 @@ assert.match(
   /label: "Open full calendar", href: "calendar\.html"/,
   "the dashboard calendar panel must link out to the full Calendar page",
 );
-checks += 8;
+checks += 9;
 
 // The protected host has one ES-module entry. The entry owns framework
 // compatibility imports, and the Tasks-owned asset imports its calendar and

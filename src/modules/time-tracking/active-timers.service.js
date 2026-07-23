@@ -202,6 +202,23 @@ async function updateStatus(timerSlot, rawPayload, session) {
   };
 }
 
+async function pauseRunningSourced(source, session) {
+  const normalizedSource = normalizeSource(source);
+
+  await activeTimersRepository.pauseRunningBySource(session.workspace_id, {
+    sourceId: normalizedSource.source_id,
+    sourceModuleId: normalizedSource.source_module_id,
+    sourceType: normalizedSource.source_type,
+  });
+
+  return {
+    paused: true,
+    source_id: normalizedSource.source_id,
+    source_module_id: normalizedSource.source_module_id,
+    source_type: normalizedSource.source_type,
+  };
+}
+
 async function removeSourced(source, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedSource = normalizeSource(source);
@@ -591,6 +608,7 @@ export const activeTimersService = {
   finalizeSourced,
   list,
   listAll,
+  pauseRunningSourced,
   remove,
   removeSourced,
   save,

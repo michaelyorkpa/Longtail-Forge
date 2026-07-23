@@ -196,6 +196,11 @@ assert.match(
   /\.workbench-task-focus-timer-control-box \{[\s\S]*border: 1px solid var\(--color-border-subtle\);[\s\S]*\.workbench-task-focus-timer-controls \{[\s\S]*align-items: center;/,
   "Task Focus timer styles should align with the Task modal timer controls while staying compact",
 );
+assert.doesNotMatch(
+  css,
+  /\.workbench-badge\[data-badge-type="disabled"\]\s*\{[\s\S]*?opacity\s*:/,
+  "Disabled Workbench badges should retain the accessible secondary-text contrast instead of dimming the whole badge",
+);
 assert.match(
   functionBody(workbenchScript, "createTimerCard"),
   /title\.className = "workbench-timer-title";[\s\S]*meta\.className = "workbench-card-meta";[\s\S]*summary\.append\(title, meta\);/,

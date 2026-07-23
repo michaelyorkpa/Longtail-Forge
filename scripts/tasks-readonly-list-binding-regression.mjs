@@ -50,7 +50,7 @@ assert.match(createTaskRow, /contentCell\.colSpan = 6/, "Task rows should keep t
 const createActions = functionBlock(tasksScript, "createActions");
 assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*createTaskLifecycleActionStrip\(task\)/, "Existing row utility actions should still appear while lifecycle actions use the framework action strip");
 const lifecycleDescriptor = functionBlock(tasksScript, "taskLifecycleActionStripDescriptor");
-assert.match(lifecycleDescriptor, /id:\s*"complete-task"[\s\S]*id:\s*"reopen-task"[\s\S]*id:\s*"block-task"[\s\S]*id:\s*"unblock-task"[\s\S]*id:\s*"archive-task"[\s\S]*id:\s*"restore-task"/, "Completed, blocked, archived, and active lifecycle row actions should still appear when applicable");
+assert.match(lifecycleDescriptor, /id:\s*"complete-task"[\s\S]*id:\s*"reopen-task"[\s\S]*id:\s*"block-task"[\s\S]*id:\s*"resume-task"[\s\S]*id:\s*"archive-task"[\s\S]*id:\s*"restore-task"/, "Completed, blocked, archived, and active lifecycle row actions should still appear when applicable");
 
 const buildTaskQuery = functionBlock(tasksScript, "buildTaskQuery");
 assert.match(buildTaskQuery, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Saved task view should still affect visible task reads");

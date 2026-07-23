@@ -123,139 +123,7 @@ Acceptance criteria:
 - Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
 - The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, and the release-gate checks pass.
 
-## Version 0.33.23 - Secure Notes Catalog Policy and Inherited Protection
-
-**Model: High Effort** — Catalog-level authorization, encryption transitions, search suppression, and non-exposure across every Notes consumer carry security and data-integrity risk.
-
-Purpose:
-
-Make a Notes catalog a first-class security boundary. A secure catalog protects every note in its subtree without using tags as authorization and without copying an ordinary security flag onto every child while it remains inside that protected tree.
-
-Decision:
-
-Notes owns one effective-security calculation: a note is secure when it has explicit note-level security or when its current catalog or any ancestor catalog has an active secure policy. A secure ancestor always wins; a child catalog cannot weaken it. Effective security drives authorization, encrypted-at-rest body/revision handling, shaping, and every downstream consumer. Catalog membership is never itself permission to read secure content.
-
-Dependencies and baseline:
-
-- Build on the existing `notes.security_mode`, secure-note permissions, encrypted payload/revision path, `note_library_collections` hierarchy, Notes access policy, and framework audit/event contracts.
-- Preserve the current rule that secure Notes content and attachments do not enter normal Files, Search, notification, public API, resume-context, or export flows without an explicitly designed secure equivalent.
-- Land before Support View (0.33.24), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
-
-Non-goals:
-
-- Do not represent security as a tag, visibility value, naming convention, client-side filter, or copied catalog label.
-- Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
-- Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
-
-### Version 0.33.23.1 - Catalog policy, effective-security projection, and migration
-
-**Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
-
-- [ ] Add a forward migration for a first-class catalog security policy and any transition state required for fail-closed conversion; refresh/check the schema and preserve SQLite/provider-neutral repository seams.
-- [ ] Define one Notes-owned effective-security resolver covering explicit secure notes, direct secure catalogs, and secure ancestors. Secure inheritance must be cycle-safe, workspace-scoped, deterministic, and returned as authorization state rather than as a decorative tag.
-- [ ] Extend collection and note read projections so services can enforce effective security without browser-side tree reconstruction or per-consumer ad hoc joins.
-- [ ] Make note creation inside an effectively secure catalog encrypt the body and initial revision immediately. Make a move into a secure catalog encrypt the note and affected revision content before the new membership becomes readable.
-- [ ] Add repository/service tests for nested catalogs, archived catalogs, cross-workspace IDs, missing ancestors, cycles rejected by the existing hierarchy boundary, explicit-secure notes in normal catalogs, and normal notes under secure ancestors.
-
-Acceptance criteria:
-
-- One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
-
-### Version 0.33.23.2 - Fail-closed catalog transitions and deliberate downgrade
-
-**Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
-
-- [ ] Add an explicit catalog-security change service with preflight counts, permission checks, reauthentication for downgrade, audit metadata, and transaction/job ownership appropriate to the measured catalog size; do not perform an unbounded browser-request loop.
-- [ ] If conversion cannot finish atomically, use a durable `securing` state that applies secure authorization immediately, blocks unsafe content reads/exports/indexing, resumes idempotently through the framework jobs boundary, and becomes `secure` only after every affected note/revision is encrypted and stale search documents are removed. A failed transition remains fail-closed and operator-visible.
-- [ ] Preserve protection when content leaves a secure boundary: moving a note out gives it explicit note-level security before the move commits; moving a catalog subtree out preserves secure policy at the moved subtree root. Neither action is an implicit downgrade.
-- [ ] Add a separate, explicit remove-security action. It must require `notes.secure.manage`, current-password reauthentication, a clear affected-content preview/confirmation, safe decryption/revision handling, and an audit event. Clearing a catalog policy must preserve explicit security for any note/subtree not deliberately included in the downgrade.
-- [ ] Prove rollback/retry behavior, concurrent moves/policy edits, transition-state reads, partial job failure, and a representative large catalog without exposing plaintext or duplicating revisions.
-
-Acceptance criteria:
-
-- Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
-
-### Version 0.33.23.3 - Consumer enforcement, management UI, and closeout
-
-**Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
-
-- [ ] Route Notes list/detail/title shaping, attachments, previews, revisions, backlinks/wiki links, activity/events, notifications, Search/index jobs, resume state/Workbench, exports, browser/public APIs, and connector/provider declarations through the effective-security policy. Secure titles, counts, existence, and relationship labels must not leak to unauthorized callers.
-- [ ] Keep effectively secure notes out of normal search documents, notification payloads, excerpts, public APIs, exports, and future indexing/AI/provider catalogs; add a source/manifest guardrail so a new Notes consumer must declare and test secure-content behavior.
-- [ ] Add catalog management UI that clearly shows inherited versus explicit secure policy, prevents a child override under a secure ancestor, explains transition/failure state without exposing content, and keeps downgrade separate from ordinary edit/move controls.
-- [ ] Record catalog policy enable/complete/failure, subtree-preservation, and explicit downgrade events without note bodies, keys, plaintext, or secret metadata. Update Notes, security, module-contract, Help, and operator recovery documentation.
-- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.24 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
-
-Acceptance criteria:
-
-- Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
-
-## Version 0.33.24 - Read-Only Support View
-
-**Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
-
-Purpose:
-
-Give specifically authorized installation/platform support administrators a short-lived, read-only way to reproduce what an existing user can see without replacing the administrator's identity, granting the target new permissions, or enabling general impersonation.
-
-Decision:
-
-The authenticated administrator remains the actor for the entire session. A separate effective user and effective workspace shape permission-checked reads only. Support View is denied unless an install-level runtime gate is enabled and the actor has a dedicated support permission that ordinary workspace administrators never receive. The server rejects mutation; disabled buttons and hidden controls are only presentation.
-
-Dependencies and baseline:
-
-- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.23 effective Notes security.
-- Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
-- Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
-
-Non-goals:
-
-- No write-capable impersonation, nested support sessions, automatic rollback-on-exit, generalized before/after JSON restoration, hidden support bypass, or workspace clone implementation.
-- No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
-- No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
-
-### Version 0.33.24.1 - Durable support-session and actor/effective identity contract
-
-**Model: High Effort** — Session identity, workspace scope, expiration, and rotation mistakes can become privilege escalation or attribution failures.
-
-- [ ] Add an explicit runtime configuration gate (disabled by default for self-hosted installs), a dedicated support permission granted only to the intended install-level administrator role, and diagnostics that reveal enabled/disabled state without exposing session details.
-- [ ] Add a forward migration for durable support-session state and append-only support-view events. Store actor, effective user, effective workspace, bounded reason/reference, start/expiry/end timestamps, request IDs, and safe outcome metadata; never store credentials, session tokens, response bodies, secure content, or request bodies.
-- [ ] Enter Support View only after current-password reauthentication through the existing trusted-IP/account throttle, active target membership validation, and a fresh session-ID rotation. Keep actor identity immutable, expose effective identity separately in request/session context, and reject actor=target, nesting, disabled users/workspaces, or unsupported session modes.
-- [ ] Exit and expiry must rotate the session identifier again, restore the actor's normal context deliberately, and append an attributable exit/expiry event. A revoked/deactivated actor or target ends Support View immediately and fail-closed.
-- [ ] Add service/session tests for reauthentication failure, throttle behavior, expiry boundaries, concurrent sessions, target workspace switching, role changes, revocation, cookie security, no nesting, and actor/effective attribution.
-
-Acceptance criteria:
-
-- Every support request carries separate immutable actor and effective-user identities, a short expiry, and one effective workspace; entering/leaving rotates the session and cannot grant either identity new permissions.
-
-### Version 0.33.24.2 - Server read-only enforcement and protected-data exclusions
-
-**Model: High Effort** — Read-only enforcement must cover framework and module routes without trusting UI state or accidentally creating a universal hook.
-
-- [ ] Add one framework request gate after authentication and before protected framework/module routes. In Support View it permits only explicitly read-safe methods/actions, rejects every mutation with a stable error, and records the attempted action. Audit all existing GET/HEAD routes for side effects and bring the allowlist/guardrail to zero unexplained exceptions.
-- [ ] Shape ordinary reads using the target user's active memberships, roles, permissions, module enablement, record scope, and workspace boundaries. The actor's administrator permissions must never bleed into effective reads, and the target must never inherit the actor's cross-workspace reach.
-- [ ] Add a centrally testable sensitive-read exclusion catalog for secure Notes/catalogs, API key/token/recovery/auth-factor material, account/workspace exports and backups, billing/payment secrets, integration credentials, security configuration, and other explicitly protected surfaces. Preserve normal not-found/non-enumeration behavior.
-- [ ] Ensure audit/security/operational logging attributes the support actor, target, workspace, support-session ID, request ID, route/action ID, outcome, and reason reference without logging query secrets, bodies, content, or raw session IDs.
-- [ ] Add a manifest/source guardrail requiring new protected routes/actions to declare Support View read/mutation/sensitive-read behavior, without allowing modules to override the central deny rules.
-
-Acceptance criteria:
-
-- Direct HTTP calls cannot mutate state in Support View, the rendered data never exceeds the target user's normal readable scope, protected secrets/secure Notes remain absent, and every allowed or denied action remains attributable to the administrator.
-
-### Version 0.33.24.3 - Support View UX, audit review, documentation, and closeout
-
-**Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
-
-- [ ] Add an administrator-only entry flow with target user/workspace selection, current password, required reason/reference, explicit read-only warning, and visible expiry. Do not expose unavailable targets or use raw IDs as labels.
-- [ ] Display a persistent, accessible, non-dismissible Support View banner on every protected page naming the viewed user/workspace, identifying the administrator as the actor, showing remaining time, and providing one immediate Exit action. Restore focus and the actor's prior safe landing page after exit.
-- [ ] Hide/disable write controls for clarity while retaining server denial as authoritative. Present a stable explanation when a protected surface or action is unavailable, and never render a secret before hiding its control.
-- [ ] Add an append-only administrator audit view/filter for support sessions and attempted actions with bounded retention/export policy; Support View itself cannot open that administrative audit surface through the target identity.
-- [ ] Update authentication/session, permission, audit, operational-security, module-development, and Help documentation. Run permission, workspace-isolation, session, CSRF, route-declaration, secure-catalog, secret-exclusion, accessibility, and browser journey regressions plus canonical slice verification.
-
-Acceptance criteria:
-
-- An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
-
-## Version 0.33.25 - Branded Error Surfaces and Correlated Failure Handling
+## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
 
 **Model: High Effort** — Error classification sits on every route and must improve recovery without leaking protected resource existence or production diagnostics.
 
@@ -270,14 +138,14 @@ Route class determines response format; API paths never receive HTML and browser
 Dependencies and baseline:
 
 - Build on `AppError`, `attachRequestContext`, operational JSON logging, transport-security headers, `staticService`, and the existing `/api/v1` versioned envelope.
-- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.26.
+- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.24.
 
 Non-goals:
 
 - No stack traces, SQL details, filesystem paths, environment values, credentials, raw errors, hidden record labels, or resource-existence confirmation in production responses.
 - No new telemetry vendor, hosted error-reporting service, automatic retry of unsafe mutations, or attempt to keep the Node process alive after an unrecoverable startup failure.
 
-### Version 0.33.25.1 - Server error taxonomy, API envelopes, and final route ordering
+### Version 0.33.23.1 - Server error taxonomy, API envelopes, and final route ordering
 
 **Model: High Effort** — A framework-wide middleware change can break every API client or weaken non-enumerating authorization behavior.
 
@@ -291,7 +159,7 @@ Acceptance criteria:
 
 - Every API failure has one documented JSON shape and request ID, every browser navigation failure has the correct status/HTML class, and route ordering plus non-enumeration are regression-locked.
 
-### Version 0.33.25.2 - Resilient branded pages and browser recovery boundary
+### Version 0.33.23.2 - Resilient branded pages and browser recovery boundary
 
 **Model: High Effort** — Failure UI must remain usable when normal rendering/data dependencies are broken and must not create retry loops or duplicate unsafe writes.
 
@@ -306,11 +174,11 @@ Acceptance criteria:
 
 - Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, permission-denied actions surface a clear in-app explanation instead of failing silently, and the fallback remains available without database-backed decoration or protected resource leakage.
 
-### Version 0.33.25.3 - Error-contract documentation, observability proof, and closeout
+### Version 0.33.23.3 - Error-contract documentation, observability proof, and closeout
 
 **Model: High Effort** — Closeout must prove both user recovery and diagnostic correlation across public, protected, API, and dependency-failure paths.
 
-- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.26 proxy maintenance.
+- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.24 proxy maintenance.
 - [ ] Add module-development guardrails so new routes use `AppError`/registered error codes rather than raw production diagnostics, and so new browser entries install the shared recovery boundary.
 - [ ] Add regressions that correlate a shown request ID with exactly one safe structured server diagnostic while asserting responses/logs omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers.
 - [ ] Run API contract, permission, workspace-isolation, security-header, static-fallback, accessibility, browser recovery, production-log, and canonical slice verification.
@@ -319,7 +187,7 @@ Acceptance criteria:
 
 - The server and browser share a documented failure contract, support can correlate a user-visible ID to protected diagnostics, and all error surfaces preserve security, accessibility, and recovery behavior.
 
-## Version 0.33.26 - Operator Maintenance Mode and Deployment Outage Curtain
+## Version 0.33.24 - Operator Maintenance Mode and Deployment Outage Curtain
 
 **Model: High Effort** — Proxy routing, deploy/rollback failure handling, root-owned host assets, and truthful readiness checks directly affect release safety and public availability.
 
@@ -334,7 +202,7 @@ Maintenance mode is an operator/deployment concern at the reviewed proxy boundar
 Dependencies and baseline:
 
 - Build on the two supported topologies in `docs/internet-deployment.md`, the checked-in Caddy/Nginx examples and proxy smoke, and `scripts/release/longtail-forge-deploy-host.example` backup-first deploy/rollback behavior.
-- Reuse 0.33.25 safe 503 language and styling principles, but keep the proxy page fully independent of Node, the database, Files, sessions, and normal application assets.
+- Reuse 0.33.23 safe 503 language and styling principles, but keep the proxy page fully independent of Node, the database, Files, sessions, and normal application assets.
 - The real-client-IP forwarding correction is explicitly out of this branch; preserve the settled Nginx -> WireGuard -> Caddy header contract and its existing regression while that host configuration is completed separately.
 
 Non-goals:
@@ -343,7 +211,7 @@ Non-goals:
 - Maintenance mode curtains public traffic; it does not by itself stop Node/workers or prove a backup is complete. Operators still use the reviewed service/backup procedures when quiescence is required.
 - Do not claim maintenance is scheduled, data is safe, or a backup is running unless the helper actually has evidence for that statement; default page copy stays truthful and generic.
 
-### Version 0.33.26.1 - Generic maintenance assets, marker ownership, and proxy contract
+### Version 0.33.24.1 - Generic maintenance assets, marker ownership, and proxy contract
 
 **Model: High Effort** — A proxy matcher or filesystem-permission error can bypass maintenance, expose host paths, or give an operator account unintended content/configuration write access.
 
@@ -359,7 +227,7 @@ Acceptance criteria:
 
 - An authorized operator can toggle a root-controlled maintenance curtain without reload or content/config write access; normal requests receive the reviewed 503 while diagnostic endpoints report the underlying app truthfully.
 
-### Version 0.33.26.2 - Backup-first deploy/rollback integration and failure safety
+### Version 0.33.24.2 - Backup-first deploy/rollback integration and failure safety
 
 **Model: High Effort** — Candidate failure and rollback recovery must never reopen traffic to a stopped, unverified, or partially restored application.
 
@@ -373,7 +241,7 @@ Acceptance criteria:
 
 - Deploys and rollbacks show maintenance instead of raw 502s, never clear someone else's hold, and reopen traffic only after the intended known-good app passes direct and public identity/readiness checks.
 
-### Version 0.33.26.3 - Public-edge fallback, operator runbook, live proof, and closeout
+### Version 0.33.24.3 - Public-edge fallback, operator runbook, live proof, and closeout
 
 **Model: High Effort** — The outer fallback and live rollout touch the real multi-proxy availability boundary and require host evidence beyond local configuration tests.
 
@@ -388,13 +256,13 @@ Acceptance criteria:
 
 - Both supported proxy topologies have a tested maintenance response for planned Node downtime, the multi-proxy path has a tested outer fallback for upstream failure, host permissions are least-privilege, and live preview/demo evidence proves traffic reopens only to a verified app.
 
-## Version 0.33.27 - Legal and Policy Surfaces, Help Coverage, and Marketing Refresh
+## Version 0.33.25 - Legal and Policy Surfaces, Help Coverage, and Marketing Refresh
 
 **Model: Medium Effort** — This branch is documentation and one small framework Help surface; the risk is accuracy drift (legal statements, third-party license attribution, and Help/marketing claims that do not match shipped behavior), not runtime regression.
 
 Purpose:
 
-Activate the two documentation-side public-release gates already defined in `docs/licensing.md` — the in-app legal/about surface and a reviewed `THIRD_PARTY_NOTICES.md` — add publicly visible Terms and Conditions and Privacy Policy pages linked from the footer, and bring the in-app Help Center to full coverage of the shipped app: what every framework and first-party action is intended to do, task-oriented "What do you want to do?" guidance, and how-features-work explanations (for example, what the Workbench focus modes are and why to use each). Refresh the marketing foundation, whose status labels froze at 0.33.13.5, to reflect everything shipped through 0.33.26.
+Activate the two documentation-side public-release gates already defined in `docs/licensing.md` — the in-app legal/about surface and a reviewed `THIRD_PARTY_NOTICES.md` — add publicly visible Terms and Conditions and Privacy Policy pages linked from the footer, and bring the in-app Help Center to full coverage of the shipped app: what every framework and first-party action is intended to do, task-oriented "What do you want to do?" guidance, and how-features-work explanations (for example, what the Workbench focus modes are and why to use each). Refresh the marketing foundation, whose status labels froze at 0.33.13.5, to reflect everything shipped through 0.33.24.
 
 Public-exposure decision:
 
@@ -403,7 +271,7 @@ Public-exposure decision:
 
 Sequencing decision:
 
-- Lands after 0.33.26 so Help and marketing document the app as it exists after the performance (0.33.20), UX (0.33.21), calendar (0.33.22), secure-catalog (0.33.23), support-view (0.33.24), error-surface (0.33.25), and maintenance-mode (0.33.26) branches, instead of documenting behavior those branches immediately change.
+- Lands after 0.33.24 so Help and marketing document the app as it exists after the performance (0.33.20), UX (0.33.21), calendar (0.33.22), error-surface (0.33.23), and maintenance-mode (0.33.24) branches, instead of documenting behavior those branches immediately change. Secure Catalogs (0.33.29) and Support View (0.33.30) now land after this branch, so their Help/marketing coverage is picked up by the conditional "where those branches landed" clauses in 0.33.25.5/0.33.25.6 and by the 0.39.9 stabilization pass rather than here.
 - This branch is the intentional public-release-preparation work that the licensing maintenance rule in `docs/licensing.md` reserves licensing edits for; it activates the "Public app legal/about notice" and "Third-party notices" gates and updates the `npm run licensing:gates` readout accordingly. It does not change the license stack itself.
 - The 0.39.9 User Documentation and Stabilization Checkpoint remains the later consolidation pass over the full 0.3x feature set once Support Tickets (0.34), Knowledge Base (0.35), and Calendars (0.36) exist; this branch establishes the article inventory, action catalog, and coverage conventions that 0.39.9 re-verifies and extends rather than repeating this pass.
 
@@ -415,7 +283,7 @@ Non-goals:
 - The in-app legal surface states rights and points to authoritative sources; it does not attempt to render legal advice, replace the attorney-review checklist, or embed a source-distribution mechanism beyond a version-accurate repository reference.
 - Help documents shipped behavior only; anything not landed by the time this branch runs is excluded rather than pre-documented.
 
-### Version 0.33.27.1 - Reviewed third-party notices
+### Version 0.33.25.1 - Reviewed third-party notices
 
 **Model: Medium Effort** — License identification and attribution must be individually verified; a wrong or missing notice is a compliance defect that ships with every release.
 
@@ -428,35 +296,35 @@ Acceptance criteria:
 
 - `THIRD_PARTY_NOTICES.md` covers every shipped dependency and bundled asset with hand-reviewed license and attribution data, regeneration/drift detection is repeatable, and the licensing gate readout reflects the completed gate.
 
-### Version 0.33.27.2 - In-app legal and licensing surface in Help
+### Version 0.33.25.2 - In-app legal and licensing surface in Help
 
 **Model: Medium Effort** — A small framework-owned surface, but its statements are legally meaningful and its version identity must never go stale.
 
 - [ ] Add a framework-owned legal/about surface in the Help section covering the items the repo-integration checklist specifies: project name and running version, copyright notice ("Michael York d/b/a Raymond Tec" per the ownership plan), the `AGPL-3.0-only` license notice with the user's source-access rights and how to obtain the Corresponding Source for the running version (a version-accurate repository/release reference, not a hard-coded link to `main`), the AGPL no-warranty statement, third-party notices, and the trademark notice per `docs/licensing/trademark-policy.md`.
 - [ ] Source the version from the existing runtime version identity (the same source `/api/app-info` reports), consistent with the version-literal guardrail — no hand-maintained version strings in the legal surface.
-- [ ] Serve the third-party notices content from the reviewed `THIRD_PARTY_NOTICES.md` (0.33.27.1) rather than duplicating it by hand; keep all legal text sourced from tracked files so legal edits are reviewable diffs, not string edits in JavaScript.
-- [ ] Keep the surface framework-owned and workspace-independent (like the Help Center itself), reachable from the Help table of contents, and indexed by Help search; pre-authentication exposure follows the branch-level public-exposure decision, with the public pieces implemented in 0.33.27.3.
+- [ ] Serve the third-party notices content from the reviewed `THIRD_PARTY_NOTICES.md` (0.33.25.1) rather than duplicating it by hand; keep all legal text sourced from tracked files so legal edits are reviewable diffs, not string edits in JavaScript.
+- [ ] Keep the surface framework-owned and workspace-independent (like the Help Center itself), reachable from the Help table of contents, and indexed by Help search; pre-authentication exposure follows the branch-level public-exposure decision, with the public pieces implemented in 0.33.25.3.
 - [ ] Update the `docs/licensing.md` gate table for the activated legal/about gate and add regression coverage: the surface renders, reports the true running version, and links resolve to the tracked notices and policy documents.
 
 Acceptance criteria:
 
 - The Help section contains a legal/licensing surface with version, copyright, AGPL source-access, warranty, third-party notices, and trademark content, all sourced from tracked files with a live version identity, and the public-app legal gate reads satisfied.
 
-### Version 0.33.27.3 - Public terms, privacy, and pre-authentication legal footer
+### Version 0.33.25.3 - Public terms, privacy, and pre-authentication legal footer
 
 **Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
 
 - [ ] Add publicly reachable, session-less Terms and Conditions and Privacy Policy pages, linked from the footer on both pre-authentication surfaces (login and other public pages) and the authenticated app shell, served with the same security-header posture as other public responses and no session, workspace, or user data.
 - [ ] Decide content ownership operator-truthfully: the repo ships neutral, clearly labeled default/template documents; each deployment's operator supplies the governing terms/privacy content through a documented override (runtime configuration or content path), because self-hosted operators — not Raymond Tec — are the data controllers for their installs. First-party terms must never present as binding on third-party installs.
 - [ ] Draft Raymond Tec's actual hosted-instance terms and privacy documents (data collected, credentials/cookies/session behavior, retention, backups, contact) for the preview/demo hosts, run them through `docs/licensing/attorney-review-checklist.md` before public exposure, and keep deployment-specific detail in the private operational record rather than tracked examples.
-- [ ] Add the short public AGPL notice from the branch-level public-exposure decision: project name, `AGPL-3.0-only`, and a version-accurate Corresponding Source reference in the public footer or a linked public legal line, sourced from the runtime version identity so it stays install-truthful for modified downstream copies; the full legal article and third-party notices remain in the authenticated Help surface (0.33.27.2).
+- [ ] Add the short public AGPL notice from the branch-level public-exposure decision: project name, `AGPL-3.0-only`, and a version-accurate Corresponding Source reference in the public footer or a linked public legal line, sourced from the runtime version identity so it stays install-truthful for modified downstream copies; the full legal article and third-party notices remain in the authenticated Help surface (0.33.25.2).
 - [ ] Regressions: the public pages render without a session, footer links resolve pre- and post-authentication, operator-overridden content is served when configured and the neutral default otherwise, security headers match other public endpoints, and no authenticated data appears on any public page.
 
 Acceptance criteria:
 
 - Terms and Privacy are publicly reachable from the footer without authentication, content ownership is operator-scoped with attorney-reviewed first-party documents for the hosted instances, and the public AGPL/source notice satisfies the prominent-offer intent while the full legal article and third-party notices stay authenticated.
 
-### Version 0.33.27.4 - Help action catalog and task-oriented guidance
+### Version 0.33.25.4 - Help action catalog and task-oriented guidance
 
 **Model: Medium Effort** — High-volume content authoring against shipped behavior; the risk is coverage gaps and drift, controlled by working from the real contribution registries rather than memory.
 
@@ -467,14 +335,14 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Every framework and first-party action shipped through 0.33.26 has a Help home stating its intent and location, goal-oriented articles route users from "what do you want to do" to concrete steps, and the settings/admin/roles surfaces are documented within the existing ownership boundaries.
+- Every framework and first-party action shipped through 0.33.24 has a Help home stating its intent and location, goal-oriented articles route users from "what do you want to do" to concrete steps, and the settings/admin/roles surfaces are documented within the existing ownership boundaries.
 
-### Version 0.33.27.5 - Help feature and concept coverage, and drift audit
+### Version 0.33.25.5 - Help feature and concept coverage, and drift audit
 
 **Model: Medium Effort** — Explaining why features exist requires verified behavior claims; stale existing articles are as damaging as missing ones.
 
 - [ ] Add how-it-works articles for the app's conceptual features: the Workbench focus modes (what each mode surfaces and why a user would choose it), resume/pick-up-where-I-left-off behavior, Dashboard versus Workbench, notifications and reminders, tags and search behavior, and the recurring-calendar/subscription and secure-catalog models where those branches landed — written for users, with behavior claims verified against the shipped app rather than the roadmap.
-- [ ] Audit every existing Help article for drift against behavior changed by 0.33.20 through 0.33.26 and correct it; remove or rewrite anything describing pre-change behavior.
+- [ ] Audit every existing Help article for drift against behavior changed by 0.33.20 through 0.33.24 and correct it; remove or rewrite anything describing pre-change behavior.
 - [ ] Verify the Help table of contents has no dangling entries and no orphaned articles, and that module-gated articles appear and disappear correctly with module enable/disable.
 - [ ] Add or extend the Help regression so table-of-contents integrity (every entry resolves, every article is reachable) is checked mechanically rather than by review.
 
@@ -482,7 +350,7 @@ Acceptance criteria:
 
 - A user can learn what the focus modes and other conceptual features are for, not just where their buttons live; no Help article describes superseded behavior; and table-of-contents integrity is regression-checked.
 
-### Version 0.33.27.6 - Marketing refresh and closeout
+### Version 0.33.25.6 - Marketing refresh and closeout
 
 **Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
 
@@ -495,7 +363,7 @@ Acceptance criteria:
 
 - Every marketing document's status labels match the shipped app, the claims register is consistent with its evidence, and the branch closes with both documentation-side public-release gates active and green gate/doc checks.
 
-## Version 0.33.28 - Permissions Role-Capability Alignment
+## Version 0.33.26 - Permissions Role-Capability Alignment
 
 **Model: High Effort** — These corrections change what scoped administrator roles can reach; a scope mistake either keeps legitimate admins locked out or over-grants beyond the intended client/project boundary.
 
@@ -507,20 +375,20 @@ Decision:
 
 - Child-client creation authorizes against the **parent client's** scope; top-level client creation remains workspace-scoped. A Client Administrator can create child clients under a client they administer and still cannot create top-level clients.
 - Navigation and permission hints become scope-aware rather than workspace-only. This branch grants no role any permission it does not already hold in the seeded grid (except where a slice explicitly says otherwise); it aligns reachability with existing grants, and server-side `assertCan` enforcement remains authoritative throughout.
-- The user-facing permission-denied modal is owned by 0.33.25.2 (branded error surfaces), not this branch; permission-change notifications are owned by 0.36.5 (Account Home), because workspace-removal notice requires cross-workspace delivery.
+- The user-facing permission-denied modal is owned by 0.33.23.2 (branded error surfaces), not this branch; permission-change notifications are owned by 0.36.5 (Account Home), because workspace-removal notice requires cross-workspace delivery.
 
 Dependencies and baseline:
 
-- Builds on the service-layer authorization model (`permissionsService.assertCan`/`can`, scope matching in `assignmentMatchesResource`), the app-shell permission hints (`src/services/app-shell.service.js`), and the view-renderer contribution contract; lands after 0.33.25 so denied actions already have a visible error surface while reachability is being widened.
+- Builds on the service-layer authorization model (`permissionsService.assertCan`/`can`, scope matching in `assignmentMatchesResource`), the app-shell permission hints (`src/services/app-shell.service.js`), and the view-renderer contribution contract; lands after 0.33.23 so denied actions already have a visible error surface while reachability is being widened.
 
 Non-goals:
 
 - No new roles, no redesign of the role→permission grid, and no changes to workspace-type gating or workspace isolation.
 - No client-side enforcement replacing server checks; browser-side permission filtering is presentation only.
-- No secure-notes permission changes and no Support View interaction; 0.33.24 remains governed by its own catalog.
-- No permission-change notifications (0.36.5) and no in-app 403 modal (0.33.25.2).
+- No secure-notes permission changes and no Support View interaction; 0.33.30 remains governed by its own catalog.
+- No permission-change notifications (0.36.5) and no in-app 403 modal (0.33.23.2).
 
-### Version 0.33.28.1 - Child-client creation scope correction
+### Version 0.33.26.1 - Child-client creation scope correction
 
 **Model: High Effort** — This restructures an authorization gate on a create path; the failure modes are continued lockout or letting scoped admins create top-level clients.
 
@@ -533,7 +401,7 @@ Acceptance criteria:
 
 - A Client Administrator can create child clients under clients they administer and nothing more; top-level client creation remains workspace-scoped; every create path (browser, public API, capture) enforces the same split.
 
-### Version 0.33.28.2 - Scope-aware navigation, permission hints, and Project Settings access
+### Version 0.33.26.2 - Scope-aware navigation, permission hints, and Project Settings access
 
 **Model: High Effort** — A sweep across every admin nav gate; hints that are too generous surface dead-end pages and hints that stay workspace-only preserve the lockout this branch exists to fix.
 
@@ -547,12 +415,12 @@ Acceptance criteria:
 
 - Every admin navigation gate reflects a deliberate, scope-aware decision; Client/Project Administrators can reach and use the Project Settings surface within their scope; no link leads to a surface the role cannot use.
 
-### Version 0.33.28.3 - Client-side permission wiring for view surfaces
+### Version 0.33.26.3 - Client-side permission wiring for view surfaces
 
 **Model: Medium Effort** — Presentation-only filtering with an existing but never-fed contract; the risk is hiding controls a user can actually use, since server enforcement already protects the other direction.
 
 - [ ] Populate the workspace-context permission set that the view renderer's `requiredPermissions` filtering already consumes but that no code currently supplies, so declared button/action requirements take effect instead of short-circuiting to visible-for-everyone.
-- [ ] Define the scope semantics of that browser-side set explicitly (a permission is present when the user holds it in any scope within the workspace, mirroring the 0.33.28.2 hint model), and document that per-record affordances remain server-checked — the browser set is coarse presentation filtering, never authorization.
+- [ ] Define the scope semantics of that browser-side set explicitly (a permission is present when the user holds it in any scope within the workspace, mirroring the 0.33.26.2 hint model), and document that per-record affordances remain server-checked — the browser set is coarse presentation filtering, never authorization.
 - [ ] Convert the known offenders: surface actions such as "Add Client" no longer render for roles that would only receive a 403 on submit.
 - [ ] Add regressions: a role without `clients.manage` does not see the Add Client action; a scoped admin with the grant does; server-side denial behavior is unchanged when the filter is bypassed.
 
@@ -560,7 +428,7 @@ Acceptance criteria:
 
 - View-surface `requiredPermissions` declarations actually filter rendered actions with documented any-scope semantics, users stop meeting 403s behind visible buttons, and server enforcement remains the authority.
 
-### Version 0.33.28.4 - Seed drift, roles.assign reconciliation, documentation, and closeout
+### Version 0.33.26.4 - Seed drift, roles.assign reconciliation, documentation, and closeout
 
 **Model: Medium Effort** — Seed and grid corrections plus documentation; the main risk is fresh-install/migrated-install divergence.
 
@@ -574,7 +442,7 @@ Acceptance criteria:
 
 - Fresh installs seed the same role scopes the runtime enforces, `roles.assign` for scoped admins has a deliberate landed answer, and the documented role-capability matrix matches the shipped behavior with the release-gate checks green.
 
-## Version 0.33.29 - Centralized Identifier Authority and Forward UUIDv7 Adoption
+## Version 0.33.27 - Centralized Identifier Authority and Forward UUIDv7 Adoption
 
 **Model: High Effort** — Identifier generation is a framework-wide data-integrity contract spanning persistent records, jobs, audit infrastructure, storage metadata, tests, and future database portability; the rollout must distinguish ordinary record identity from security-sensitive opaque values.
 
@@ -603,7 +471,7 @@ Delivery shape:
 
 This version is a three-slice tracking umbrella, not one implementation slice. Complete the children in order. The split follows real isolation boundaries: establish the framework/security policy first, perform the server-side module conversion as one mechanical rollout rather than one slice per module, then change browser/API identity ownership and run the system-level mixed-version closeout proof.
 
-### Version 0.33.29.1 - Identifier authority, framework adoption, and opaque-value boundary
+### Version 0.33.27.1 - Identifier authority, framework adoption, and opaque-value boundary
 
 **Model: High Effort** — This slice establishes a framework-wide data-integrity and security classification, selects the UUIDv7 dependency, and changes identity generation for shared persistent records while preserving every credential, storage, lock, and recovery boundary.
 
@@ -613,30 +481,30 @@ This version is a three-slice tracking umbrella, not one implementation slice. C
 - [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, and other verified durable framework records. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
 - [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` when appropriate, while explicitly preserving their semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, and workspace-purge fencing tokens remain random and non-time-ordered. Classify durable purge tombstone/backup receipt row identity separately from the token or artifact name it accompanies.
 - [ ] Preserve dedicated secret boundaries unchanged, including `randomBytes`-based sessions, CSRF nonces/signatures, API-key secrets, session references, password/reset/invitation/activation material, private calendar-feed tokens, signed-link tokens, authentication challenges, access-bearing idempotency keys, and future bearer credentials. Do not broadly ban `randomBytes` or turn the identifier authority into a secrets service.
-- [ ] Add the initial source guardrail: only the authority may import the UUID dependency; no new production direct `randomUUID` call is allowed; the still-unconverted first-party module files and `public/js/clients-projects.js` are captured in a temporary exact migration baseline that can only shrink in 0.33.29.2/.3. Test/fixture generation may remain a separately documented exception so compatibility tests do not depend on production generation.
+- [ ] Add the initial source guardrail: only the authority may import the UUID dependency; no new production direct `randomUUID` call is allowed; the still-unconverted first-party module files and `public/js/clients-projects.js` are captured in a temporary exact migration baseline that can only shrink in 0.33.27.2/.3. Test/fixture generation may remain a separately documented exception so compatibility tests do not depend on production generation.
 - [ ] Prove representative framework behavior: audit and job rows receive UUIDv7, the API-key record ID is independent from its random secret, Files record IDs are independent from opaque storage keys, and request/lock/fencing examples remain non-time-ordered. Keep SQLite `TEXT` compatibility and future PostgreSQL native `uuid` compatibility without a schema or data-rewrite migration.
-- [ ] Run `npm run docs:suggest`, update the owning database/architecture documentation and `DECISIONS.md` with the durable classification, record the dependency choice and temporary migration baseline, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.1`, and run `npm run verify:slice` exactly once at final closeout.
+- [ ] Run `npm run docs:suggest`, update the owning database/architecture documentation and `DECISIONS.md` with the durable classification, record the dependency choice and temporary migration baseline, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.1`, and run `npm run verify:slice` exactly once at final closeout.
 
 Acceptance criteria:
 
 - The central authority and its record/opaque operations are implemented and tested; all framework-owned ordinary persistent records in the audited inventory use UUIDv7; security-sensitive and non-record values retain the documented random/token behavior; SQLite and future PostgreSQL representation remain valid; and a no-growth guardrail contains the exact remaining module/browser migration baseline.
 
-### Version 0.33.29.2 - First-party module persistent-record UUIDv7 rollout
+### Version 0.33.27.2 - First-party module persistent-record UUIDv7 rollout
 
-**Model: High Effort** — This is a high-volume mechanical conversion across every first-party workflow module; the design is settled by 0.33.29.1, but a missed or misclassified call site could silently fragment the identifier policy or alter record relationships.
+**Model: High Effort** — This is a high-volume mechanical conversion across every first-party workflow module; the design is settled by 0.33.27.1, but a missed or misclassified call site could silently fragment the identifier policy or alter record relationships.
 
 - [ ] Convert all verified server-side ordinary persistent-record generators in Clients/Projects, Tasks and its checklist/assignee/relationship/recurrence/reminder children, Time Tracking entries and saved/active timers, Notes/revisions/links/collections, and Lists/items/catalogs/links to `createRecordId()` in one mechanical rollout. Include any newly added first-party module call sites found by the refreshed audit rather than treating the queued inventory as frozen.
 - [ ] Resolve duplicate service/repository generation so one authoritative layer creates each new ID, while preserving accepted caller-supplied UUIDv4 or UUIDv7 identifiers needed by imports, public APIs, recurrence/idempotent retries, restoration, and existing internal contracts. Do not refactor unrelated repository or workflow behavior.
 - [ ] Add representative integration coverage across at least two materially different modules plus persistent child/relationship rows, proving new IDs are UUIDv7 and mixed UUIDv4/UUIDv7 foreign-key relationships work. Avoid exact-random-value assertions and do not infer business chronology from the generated IDs.
-- [ ] Ratchet the source guardrail to zero server-side production bypasses: reject direct `randomUUID`, UUID-package `v4`, and UUID-package `v7` imports/calls outside the central authority and documented test-only exceptions. Keep only the exact temporary browser `createUuid()` exception assigned to 0.33.29.3; fail on any new browser UUID generator.
+- [ ] Ratchet the source guardrail to zero server-side production bypasses: reject direct `randomUUID`, UUID-package `v4`, and UUID-package `v7` imports/calls outside the central authority and documented test-only exceptions. Keep only the exact temporary browser `createUuid()` exception assigned to 0.33.27.3; fail on any new browser UUID generator.
 - [ ] Prove module ordering and paging remain explicit: Tasks, Time Tracking, Notes, Lists, recurrence/reminder selection, and relationship reads continue to sort/page by their canonical timestamp, due-date, sequence, or module-owned fields rather than UUID lexical order.
-- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.2`, and run `npm run verify:slice` exactly once at final closeout.
+- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.2`, and run `npm run verify:slice` exactly once at final closeout.
 
 Acceptance criteria:
 
-- Every audited server-side first-party module record generator uses the central ordered-record authority, caller-supplied legacy IDs remain compatible, representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely, module ordering is unchanged, and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.29.3.
+- Every audited server-side first-party module record generator uses the central ordered-record authority, caller-supplied legacy IDs remain compatible, representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely, module ordering is unchanged, and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.27.3.
 
-### Version 0.33.29.3 - Server-authoritative browser creation, mixed-version recovery proof, and closeout
+### Version 0.33.27.3 - Server-authoritative browser creation, mixed-version recovery proof, and closeout
 
 **Model: High Effort** — This slice changes the Clients/Projects browser-to-server creation contract and then proves identifier compatibility across APIs, seeds, search, export, and destructive recovery tooling; those behavioral and data-integrity checks must close together.
 
@@ -646,11 +514,227 @@ Acceptance criteria:
 - [ ] Prove whole-instance backup/restore and workspace backup/restore preserve every identifier byte-for-byte, retain storage object keys and protected paths, and never rewrite IDs embedded in database rows, manifests, filenames, JSON metadata, audit history, or exported references. Run or document the required SQLite `PRAGMA integrity_check` evidence selected by the recovery paths.
 - [ ] Add/complete ordering guardrails showing canonical list ordering, pagination, cursors, recurrence/job selection, audit chronology, and visible creation order continue using explicit fields. Document that UUIDv7 offers insertion locality and approximate time ordering only, distributed clocks may skew, and two UUIDv7 values do not establish trusted causal order.
 - [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional exceptions/deferred sites, and docs disposition.
-- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.29.3`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
+- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.3`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
 
 Acceptance criteria:
 
 - Client/Project creation is server-authoritative without workflow regressions; one framework authority is the only normal production UUID entry point; new ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
+
+## Version 0.33.28 - Docker and Docker Compose Preview-Release Readiness
+
+**Model: High Effort** — This turns the smoke-proven 0.33.17 container packaging into the actually-published, security-reviewed image and Compose stack that carries the August 31, 2026 friends-and-family preview; a mistake in image provenance, secret handling, persistence, or the proxy/scanner boundary ships a broken or unsafe internet-reachable release.
+
+Purpose:
+
+Take the existing container path — the checked-in `Dockerfile`, `compose.yaml`, `.dockerignore`, `npm run container:build`, and `npm run container:smoke` delivered in 0.33.17 — from proven packaging mechanics to a finished, published, gate-passed containerized deployment, and cut the August 31, 2026 limited private preview from it. This is the packaging-and-release-readiness branch that makes Docker Compose the primary reproducible preview path in practice, not just in principle.
+
+Decision:
+
+The 0.33.17 Docker Compose and manual bare-metal paths remain the only supported packaging contract; this branch hardens, publishes, and exercises them rather than creating a second one. The container keeps its established security posture (non-root UID/GID 10001, read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, bounded `/tmp` tmpfs, a named data volume, and a separate root-only backup mount) and its topology (Node reachable only through loopback port 8001 behind the reviewed Caddy edge; the fixed bridge gateway is the sole trusted proxy peer). Release identity stays immutable — a pinned base digest, a versioned runtime-artifact checksum, and a published image digest — with no mutable `latest` deploy tag. The preview ships everything through 0.33.27; Secure Catalogs (0.33.29) and Support View (0.33.30) are deliberately post-preview and are not required for August 31.
+
+Dependencies and baseline:
+
+- Builds directly on 0.33.17 preview operations (the container assets, the runtime-artifact build, the backup-first deploy/rollback helper, and the container/bare-metal smokes) and 0.33.16 security hardening (trusted-proxy client-IP resolution, sensitive-endpoint throttling, and secret handling).
+- Consumes the branded error/503 surfaces from 0.33.23 and the operator maintenance-mode curtain from 0.33.24 so the containerized topology presents the reviewed maintenance and failure pages, and ships the reviewed `THIRD_PARTY_NOTICES.md` from 0.33.25 inside the distribution alongside the root `LICENSE`.
+- Assumes the calendar work (0.33.22), legal/help/marketing (0.33.25), permissions alignment (0.33.26), and identifier authority (0.33.27) have landed, since the preview image packages the app as of 0.33.27.
+- Honors the existing preview-deployment contract (`docs/preview-deployment.md`), the GitHub promotion/handoff boundary (`docs/development/github-workflow.md`), and the "one Node server, one local SQLite database, local Files, roughly 50 users" shared boundary.
+
+Non-goals:
+
+- No second packaging contract, no application-embedded updater, no Kubernetes/Swarm/Helm, no horizontal scaling, no multi-container app tier, and no PostgreSQL service; SQLite on a local Docker volume or local block filesystem remains the only supported data path.
+- No mutable `latest` release tag, no registry-pull auto-deploy that bypasses the reviewed backup-first handoff, and no in-image compiler, test runner, browser harness, source checkout, `.env`, live data, backup, or Caddy process.
+- No public DNS/certificate issuance, external penetration test, or production ClamAV build in this branch beyond confirming the scanner-handoff contract; those remain their own operational steps.
+- No change to the Caddy/Nginx edge ownership or the settled forwarding-header contract; the container consumes that boundary rather than redefining it.
+- Do not weaken the read-only, non-root, capability-dropped, secret-isolated posture to simplify the build or the live cutover.
+
+### Version 0.33.28.1 - Image and Compose finalization, provenance, and security review
+
+**Model: High Effort** — The image is the internet-reachable release artifact; a provenance, base-pin, or secret-handling defect ships everywhere the preview runs.
+
+- [ ] Re-review the checked-in `Dockerfile`, `compose.yaml`, and `.dockerignore` against the current app: confirm the pinned `node:24` base digest is the intended reviewed runtime base, the runtime artifact installs with `npm ci --omit=dev`, the application tree is read-only, and the container runs as UID/GID 10001 with no build-time secret, `.env`, `.git`, or dev tooling in any layer.
+- [ ] Ship `THIRD_PARTY_NOTICES.md` (0.33.25) and the root `LICENSE` inside the image, and confirm the OCI image labels (title, version, `AGPL-3.0-only` licenses) are accurate and sourced from the runtime version identity rather than a hand-maintained string.
+- [ ] Decide and record the target platform set: confirm whether the preview and self-hosted audience needs `linux/amd64` only or `linux/amd64` plus `linux/arm64`, and make `container:build` produce exactly the reviewed set with pinned digests rather than an accidental single-architecture build.
+- [ ] Produce and retain build provenance for each release image — source artifact checksum, resolved base digest, app version/branch identity, and image digest — and generate an SBOM (or document the deferral with rationale) so the published image is auditable.
+- [ ] Confirm the Compose secret and network contract: required secrets loaded only from the root `0600` `.env`, the bridge subnet/gateway/`TRUST_PROXY` triple validated for non-overlap, only `127.0.0.1:${LONGTAIL_HOST_PORT}:8001` published, and the `clamd` scanner handoff reachable with production startup failing closed when the scanner is absent or unhealthy.
+- [ ] Complete the manual container security review the preview contract still requires (image contents, runtime user/filesystem/capabilities, secret isolation, exposed surface, and log/secret hygiene) and record the outcome.
+
+Acceptance criteria:
+
+- The image and Compose stack are reviewed and reproducible, carry accurate license/notice/version metadata and retained provenance, build for exactly the intended platform set, and pass a recorded manual container security review with no unexplained privilege, secret, or exposure finding.
+
+### Version 0.33.28.2 - Container maintenance, error surfaces, and backup-first upgrade proof
+
+**Model: High Effort** — Containerized failure and upgrade behavior must present the reviewed curtains and never reopen traffic to a stopped or unverified app or destroy the data volume.
+
+- [ ] Prove the 0.33.24 operator maintenance curtain and the 0.33.23 branded error/503 surfaces behave correctly in the container topology: a stopped or unhealthy container yields the reviewed 503 at the edge, while `/healthz`, `/readyz`, and `/api/app-info` still report the underlying container truthfully (non-200 when Node is down, real machine-readable responses when up), consistent with the container HEALTHCHECK.
+- [ ] Exercise the documented Docker backup-first upgrade end to end on disposable data: record current version/image digest/volume identity, run and verify the tested complete backup, stop the app without deleting the data volume, swap only `LONGTAIL_IMAGE`, force-recreate, let normal startup own forward migrations, and verify health/readiness/version/schema/login/workflow before restoring traffic.
+- [ ] Prove restored rollback: when candidate verification fails, restore the verified pre-upgrade database and Files together into a clean recovery volume, select the previous image, and re-verify — never combining an old database with newer Files data or reversing migrations by hand.
+- [ ] Confirm the persistence and isolation guarantees: the named data volume retains the SQLite database, WAL/SHM sidecars, and Files across image replacement; the separate root-only backup mount is never served from `public/`; and the data path is never placed on NFS/SMB/cloud-synced/object-storage mounts.
+- [ ] Wire `npm run container:smoke` (clean build, non-root/read-only boot, persistence, replacement, health/readiness, backup-first upgrade, and restored-rollback rehearsal) into the release gates as a required Docker-engine acceptance proof, treating a missing engine as a failed prerequisite rather than a passing skip.
+
+Acceptance criteria:
+
+- Container maintenance and error surfaces match the reviewed pages, the backup-first upgrade and restored rollback are proven on the container path, persistence and backup isolation hold across image replacement, and the container acceptance smoke is a required, non-skippable gate.
+
+### Version 0.33.28.3 - Image publishing and reviewed deployment transport
+
+**Model: High Effort** — Choosing how the image reaches the preview host is the deferred 0.33.17 transport decision; the wrong choice grants an unintended standing pull path or an interactive deployment shell into the release boundary.
+
+- [ ] Make the deliberate, least-privilege transport decision 0.33.17 explicitly refused to preselect: whether the preview pulls a published immutable image digest from a registry (for example GHCR) or continues to stage a checksummed image/artifact through the existing reviewed root-owned deploy helper — and record the rationale, secret isolation, and revocation story.
+- [ ] If publishing to a registry, publish only immutable, digest-addressable release images (no mutable `latest` deploy reference), scope registry credentials to least privilege, and keep the published image free of secrets and live data; the deploy references images by digest.
+- [ ] Preserve the reviewed stop → backup → stage → start → verify → restore boundary and the disabled-by-default GitHub Environments; image delivery must not introduce a general-purpose runner, a root SSH login, or an interactive deployment shell, and must not expose Node, Caddy administration, data, or runtime secrets.
+- [ ] Extend the release workflow to attach or reference the appropriate GitHub Release / runtime / image assets and their checksums/digests for a container release, consistent with the immutable-tag/digest release-identity rule.
+- [ ] Update the container/preview smoke or release regressions to prove the chosen transport delivers exactly the reviewed image digest and rejects an unverified or non-`main` image.
+
+Acceptance criteria:
+
+- The image-delivery transport is chosen, documented, and least-privilege; released images are immutable and digest-addressable with no secrets and no `latest` deploy tag; and the reviewed backup-first deployment boundary and the disabled-until-ready posture are preserved.
+
+### Version 0.33.28.4 - Live preview cutover, documentation, and closeout
+
+**Model: High Effort** — This is the exceptional live rollout to the internet-reachable preview hosts and requires host evidence beyond local proofs, because the August 31 preview depends on it.
+
+- [ ] Roll the containerized stack out to the `rt-ltf` preview and `rt-ltf-demo` demo hosts behind their reviewed Caddy (or Nginx → WireGuard → Caddy) edge after root-owned asset/config review and a verified backup, keeping the demo-only data-provisioning helper off the friends-and-family preview.
+- [ ] Capture live evidence for the branch: image digest and `/api/app-info` identity, direct-loopback and public health/readiness, container non-root/read-only/capability inspection, maintenance-curtain and error-surface behavior, a successful backup-first upgrade/rollback exercise on a preview host, and firewall proof that port 8001 stays loopback-only.
+- [ ] Confirm the August 31, 2026 preview scope and cut line: the running image packages the app through 0.33.27, Secure Catalogs (0.33.29) and Support View (0.33.30) are explicitly out of the preview, and the limitations/readiness statement matches what actually shipped.
+- [ ] Reconcile and update `docs/preview-deployment.md`, `docs/self-hosting.md`, `docs/runtime-artifact.md`, the GitHub workflow doc, and the marketing packaging status so the container path is documented as shipped-and-primary; retire or clearly label any host-specific staging copies; and record the packaging decisions in `DECISIONS.md`.
+- [ ] Run `npm run docs:check`, the container acceptance smoke, and the canonical slice verification; update `CHANGELOG.md`; and do not close the branch on repo-local proof alone.
+
+Acceptance criteria:
+
+- The August 31, 2026 private preview runs from the reviewed, published container stack on the preview/demo hosts with captured live evidence, traffic reopens only to a verified app, the packaging path is documented as primary, and the preview's feature cut line (through 0.33.27, excluding Secure Catalogs and Support View) is recorded and accurate.
+
+## Version 0.33.29 - Secure Notes Catalog Policy and Inherited Protection
+
+**Model: High Effort** — Catalog-level authorization, encryption transitions, search suppression, and non-exposure across every Notes consumer carry security and data-integrity risk.
+
+Purpose:
+
+Make a Notes catalog a first-class security boundary. A secure catalog protects every note in its subtree without using tags as authorization and without copying an ordinary security flag onto every child while it remains inside that protected tree.
+
+Decision:
+
+Notes owns one effective-security calculation: a note is secure when it has explicit note-level security or when its current catalog or any ancestor catalog has an active secure policy. A secure ancestor always wins; a child catalog cannot weaken it. Effective security drives authorization, encrypted-at-rest body/revision handling, shaping, and every downstream consumer. Catalog membership is never itself permission to read secure content.
+
+Dependencies and baseline:
+
+- Build on the existing `notes.security_mode`, secure-note permissions, encrypted payload/revision path, `note_library_collections` hierarchy, Notes access policy, and framework audit/event contracts.
+- Preserve the current rule that secure Notes content and attachments do not enter normal Files, Search, notification, public API, resume-context, or export flows without an explicitly designed secure equivalent.
+- Land before Support View (0.33.30), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
+
+Non-goals:
+
+- Do not represent security as a tag, visibility value, naming convention, client-side filter, or copied catalog label.
+- Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
+- Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
+
+### Version 0.33.29.1 - Catalog policy, effective-security projection, and migration
+
+**Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
+
+- [ ] Add a forward migration for a first-class catalog security policy and any transition state required for fail-closed conversion; refresh/check the schema and preserve SQLite/provider-neutral repository seams.
+- [ ] Define one Notes-owned effective-security resolver covering explicit secure notes, direct secure catalogs, and secure ancestors. Secure inheritance must be cycle-safe, workspace-scoped, deterministic, and returned as authorization state rather than as a decorative tag.
+- [ ] Extend collection and note read projections so services can enforce effective security without browser-side tree reconstruction or per-consumer ad hoc joins.
+- [ ] Make note creation inside an effectively secure catalog encrypt the body and initial revision immediately. Make a move into a secure catalog encrypt the note and affected revision content before the new membership becomes readable.
+- [ ] Add repository/service tests for nested catalogs, archived catalogs, cross-workspace IDs, missing ancestors, cycles rejected by the existing hierarchy boundary, explicit-secure notes in normal catalogs, and normal notes under secure ancestors.
+
+Acceptance criteria:
+
+- One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
+
+### Version 0.33.29.2 - Fail-closed catalog transitions and deliberate downgrade
+
+**Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
+
+- [ ] Add an explicit catalog-security change service with preflight counts, permission checks, reauthentication for downgrade, audit metadata, and transaction/job ownership appropriate to the measured catalog size; do not perform an unbounded browser-request loop.
+- [ ] If conversion cannot finish atomically, use a durable `securing` state that applies secure authorization immediately, blocks unsafe content reads/exports/indexing, resumes idempotently through the framework jobs boundary, and becomes `secure` only after every affected note/revision is encrypted and stale search documents are removed. A failed transition remains fail-closed and operator-visible.
+- [ ] Preserve protection when content leaves a secure boundary: moving a note out gives it explicit note-level security before the move commits; moving a catalog subtree out preserves secure policy at the moved subtree root. Neither action is an implicit downgrade.
+- [ ] Add a separate, explicit remove-security action. It must require `notes.secure.manage`, current-password reauthentication, a clear affected-content preview/confirmation, safe decryption/revision handling, and an audit event. Clearing a catalog policy must preserve explicit security for any note/subtree not deliberately included in the downgrade.
+- [ ] Prove rollback/retry behavior, concurrent moves/policy edits, transition-state reads, partial job failure, and a representative large catalog without exposing plaintext or duplicating revisions.
+
+Acceptance criteria:
+
+- Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
+
+### Version 0.33.29.3 - Consumer enforcement, management UI, and closeout
+
+**Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
+
+- [ ] Route Notes list/detail/title shaping, attachments, previews, revisions, backlinks/wiki links, activity/events, notifications, Search/index jobs, resume state/Workbench, exports, browser/public APIs, and connector/provider declarations through the effective-security policy. Secure titles, counts, existence, and relationship labels must not leak to unauthorized callers.
+- [ ] Keep effectively secure notes out of normal search documents, notification payloads, excerpts, public APIs, exports, and future indexing/AI/provider catalogs; add a source/manifest guardrail so a new Notes consumer must declare and test secure-content behavior.
+- [ ] Add catalog management UI that clearly shows inherited versus explicit secure policy, prevents a child override under a secure ancestor, explains transition/failure state without exposing content, and keeps downgrade separate from ordinary edit/move controls.
+- [ ] Record catalog policy enable/complete/failure, subtree-preservation, and explicit downgrade events without note bodies, keys, plaintext, or secret metadata. Update Notes, security, module-contract, Help, and operator recovery documentation.
+- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.30 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
+
+Acceptance criteria:
+
+- Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
+
+## Version 0.33.30 - Read-Only Support View
+
+**Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
+
+Purpose:
+
+Give specifically authorized installation/platform support administrators a short-lived, read-only way to reproduce what an existing user can see without replacing the administrator's identity, granting the target new permissions, or enabling general impersonation.
+
+Decision:
+
+The authenticated administrator remains the actor for the entire session. A separate effective user and effective workspace shape permission-checked reads only. Support View is denied unless an install-level runtime gate is enabled and the actor has a dedicated support permission that ordinary workspace administrators never receive. The server rejects mutation; disabled buttons and hidden controls are only presentation.
+
+Dependencies and baseline:
+
+- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.29 effective Notes security.
+- Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
+- Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
+
+Non-goals:
+
+- No write-capable impersonation, nested support sessions, automatic rollback-on-exit, generalized before/after JSON restoration, hidden support bypass, or workspace clone implementation.
+- No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
+- No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
+
+### Version 0.33.30.1 - Durable support-session and actor/effective identity contract
+
+**Model: High Effort** — Session identity, workspace scope, expiration, and rotation mistakes can become privilege escalation or attribution failures.
+
+- [ ] Add an explicit runtime configuration gate (disabled by default for self-hosted installs), a dedicated support permission granted only to the intended install-level administrator role, and diagnostics that reveal enabled/disabled state without exposing session details.
+- [ ] Add a forward migration for durable support-session state and append-only support-view events. Store actor, effective user, effective workspace, bounded reason/reference, start/expiry/end timestamps, request IDs, and safe outcome metadata; never store credentials, session tokens, response bodies, secure content, or request bodies.
+- [ ] Enter Support View only after current-password reauthentication through the existing trusted-IP/account throttle, active target membership validation, and a fresh session-ID rotation. Keep actor identity immutable, expose effective identity separately in request/session context, and reject actor=target, nesting, disabled users/workspaces, or unsupported session modes.
+- [ ] Exit and expiry must rotate the session identifier again, restore the actor's normal context deliberately, and append an attributable exit/expiry event. A revoked/deactivated actor or target ends Support View immediately and fail-closed.
+- [ ] Add service/session tests for reauthentication failure, throttle behavior, expiry boundaries, concurrent sessions, target workspace switching, role changes, revocation, cookie security, no nesting, and actor/effective attribution.
+
+Acceptance criteria:
+
+- Every support request carries separate immutable actor and effective-user identities, a short expiry, and one effective workspace; entering/leaving rotates the session and cannot grant either identity new permissions.
+
+### Version 0.33.30.2 - Server read-only enforcement and protected-data exclusions
+
+**Model: High Effort** — Read-only enforcement must cover framework and module routes without trusting UI state or accidentally creating a universal hook.
+
+- [ ] Add one framework request gate after authentication and before protected framework/module routes. In Support View it permits only explicitly read-safe methods/actions, rejects every mutation with a stable error, and records the attempted action. Audit all existing GET/HEAD routes for side effects and bring the allowlist/guardrail to zero unexplained exceptions.
+- [ ] Shape ordinary reads using the target user's active memberships, roles, permissions, module enablement, record scope, and workspace boundaries. The actor's administrator permissions must never bleed into effective reads, and the target must never inherit the actor's cross-workspace reach.
+- [ ] Add a centrally testable sensitive-read exclusion catalog for secure Notes/catalogs, API key/token/recovery/auth-factor material, account/workspace exports and backups, billing/payment secrets, integration credentials, security configuration, and other explicitly protected surfaces. Preserve normal not-found/non-enumeration behavior.
+- [ ] Ensure audit/security/operational logging attributes the support actor, target, workspace, support-session ID, request ID, route/action ID, outcome, and reason reference without logging query secrets, bodies, content, or raw session IDs.
+- [ ] Add a manifest/source guardrail requiring new protected routes/actions to declare Support View read/mutation/sensitive-read behavior, without allowing modules to override the central deny rules.
+
+Acceptance criteria:
+
+- Direct HTTP calls cannot mutate state in Support View, the rendered data never exceeds the target user's normal readable scope, protected secrets/secure Notes remain absent, and every allowed or denied action remains attributable to the administrator.
+
+### Version 0.33.30.3 - Support View UX, audit review, documentation, and closeout
+
+**Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
+
+- [ ] Add an administrator-only entry flow with target user/workspace selection, current password, required reason/reference, explicit read-only warning, and visible expiry. Do not expose unavailable targets or use raw IDs as labels.
+- [ ] Display a persistent, accessible, non-dismissible Support View banner on every protected page naming the viewed user/workspace, identifying the administrator as the actor, showing remaining time, and providing one immediate Exit action. Restore focus and the actor's prior safe landing page after exit.
+- [ ] Hide/disable write controls for clarity while retaining server denial as authoritative. Present a stable explanation when a protected surface or action is unavailable, and never render a secret before hiding its control.
+- [ ] Add an append-only administrator audit view/filter for support sessions and attempted actions with bounded retention/export policy; Support View itself cannot open that administrative audit surface through the target identity.
+- [ ] Update authentication/session, permission, audit, operational-security, module-development, and Help documentation. Run permission, workspace-isolation, session, CSRF, route-declaration, secure-catalog, secret-exclusion, accessibility, and browser journey regressions plus canonical slice verification.
+
+Acceptance criteria:
+
+- An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
 
 ## Version 0.34 - Support Tickets Module
 

@@ -21,7 +21,7 @@
   let form = null;
   let fields = {};
   let currentTaskEditorRequest = null;
-  let pendingTaskCompletionDetail = null;
+  let initialTaskFormSnapshot = null;
   let previousTaskEditorStatus = "open";
   let activeBlockCapture = null;
   const TASK_COMPLETE_VISIBLE_STATUSES = new Set(["open", "in_progress", "blocked"]);
@@ -228,7 +228,7 @@
     currentTask = isDuplicate ? null : task;
     currentTaskId = isDuplicate ? "" : task?.task_id || "";
     currentParentTaskId = "";
-    pendingTaskCompletionDetail = null;
+    initialTaskFormSnapshot = null;
     context = {
       ...context,
       hostContext: hostContext || context?.hostContext || null,
@@ -272,12 +272,13 @@
     writeRecurrenceContinuity(isDuplicate ? null : task?.recurrenceContinuity);
     writeReminderFields(task?.reminderDetails);
     writeTaskTimerFields(isDuplicate ? null : task);
-    mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
+    await mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
     mountTaskFileAttachments(isDuplicate ? null : task);
     mountTaskNotesPanel(isDuplicate ? null : task, { focus: focusNotes === true });
     writeTaskNotificationFollowFields(isDuplicate ? null : task);
     updateCompleteTaskActionState();
     updateBlockTaskActionState();
+    initialTaskFormSnapshot = taskFormSnapshot();
 
     showTaskModal(dialog, { trigger: returnFocusTo });
 
@@ -404,11 +405,7 @@
     form.dataset.taskDialogBound = "true";
     form.addEventListener("submit", saveTask);
     fields.cancel?.addEventListener("click", () => {
-      if (pendingTaskCompletionDetail) {
-        context?.hostContext?.complete?.(pendingTaskCompletionDetail);
-      } else {
-        context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
-      }
+      context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
       closeTaskModal(dialog, "cancel");
     });
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
@@ -444,10 +441,7 @@
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
     fields.complete?.addEventListener("click", saveAndCompleteTask);
-    fields.block?.addEventListener("click", (event) => promptAndBlockCurrentTask({
-      statusBefore: previousTaskEditorStatus,
-      trigger: event.currentTarget,
-    }));
+    fields.block?.addEventListener("click", handleBlockResumeAction);
     fields.saveClose?.addEventListener("click", saveAndCloseTask);
     fields.tagToggle?.addEventListener("click", openTaskTagsDialog);
     fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
@@ -639,8 +633,9 @@
     const payload = readTaskFormPayload();
     const editingTask = currentTask || (context?.tasks || []).find((task) => task.task_id === currentTaskId);
     const wasEditing = Boolean(currentTaskId);
+    const formChanges = taskFormChangeState(payload);
 
-    if (editingTask?.recurrence_template_id) {
+    if (editingTask?.recurrence_template_id && formChanges.recurrenceTemplateChanged) {
       const applyFuture = await modal.confirm({
         title: "Update recurring task",
         message: "Apply these changes to all future tasks in this recurrence?",
@@ -660,25 +655,30 @@
       currentTask = result.task;
       currentTaskId = result.task?.task_id || "";
       rememberTaskInContext(currentTask);
+      if (currentTask?.status === "blocked") {
+        await refreshTaskTimers();
+      }
       updateCompleteTaskActionState();
       updateBlockTaskActionState();
       if (!wasEditing) {
         await transitionCreatedTaskToEdit(result.task);
       }
+      initialTaskFormSnapshot = taskFormSnapshot(payload);
       await notifyTaskEditorSaved(result);
       if (closeOnSuccess) {
         const completedBySave = wasEditing && editingTask?.status !== "complete" && result.task?.status === "complete";
         if (completedBySave) {
-          pendingTaskCompletionDetail = taskCompletionHostDetail(result);
           applyTaskCompletionResult(result);
-          offerCompletionNextAction(result);
+          setTaskCompletionStatus(result);
+          context?.hostContext?.complete?.(taskCompletionHostDetail(result));
+          closeTaskModal(dialog, "complete");
           return result;
         }
-        context?.hostContext?.complete?.(pendingTaskCompletionDetail || {
-              actionId: wasEditing ? "tasks.edit" : "tasks.add",
-              recordId: result.task?.task_id || "",
-              title: result.task?.title || "",
-            });
+        context?.hostContext?.complete?.({
+          actionId: wasEditing ? "tasks.edit" : "tasks.add",
+          recordId: result.task?.task_id || "",
+          title: result.task?.title || "",
+        });
         closeTaskModal(dialog, "complete");
         setStatus("");
       }
@@ -725,16 +725,20 @@
     }
 
     try {
-      const saveResult = await saveTaskForm({
-        closeOnSuccess: false,
-        statusMessage: "Saving task before completion...",
-      });
-      const taskId = saveResult.task?.task_id || currentTaskId;
+      if (taskFormChangeState().hasChanges) {
+        await saveTaskForm({
+          closeOnSuccess: false,
+          statusMessage: "Saving task before completion...",
+        });
+      }
+      const taskId = currentTask?.task_id || currentTaskId;
       setStatus("Completing task...");
       const result = await api.postJson(`/api/tasks/${encodeURIComponent(taskId)}/complete`, {});
       applyTaskCompletionResult(result);
       await notifyTaskEditorSaved(result);
-      offerCompletionNextAction(result);
+      setTaskCompletionStatus(result);
+      context?.hostContext?.complete?.(taskCompletionHostDetail(result));
+      closeTaskModal(dialog, "complete");
     } catch (error) {
       setStatus(error.message || "Task was not completed.", { isError: true });
       updateCompleteTaskActionState();
@@ -778,17 +782,7 @@
 
   function setTaskCompletionStatus(result = {}) {
     const continuityMessage = recurrenceContinuityMessage(result.recurrenceContinuity);
-    const followUpMessage = "Add an optional Next Action, or close to move on.";
-    setStatus([continuityMessage || "Task completed.", followUpMessage].filter(Boolean).join(" "));
-  }
-
-  function offerCompletionNextAction(result = {}) {
-    pendingTaskCompletionDetail = taskCompletionHostDetail(result);
-    setTaskCompletionStatus(result);
-    if (fields.taskDetailsPanel) {
-      fields.taskDetailsPanel.open = true;
-    }
-    focusTaskEditorTarget("next_action");
+    setStatus(continuityMessage || "Task completed.");
   }
 
   async function writeParentTaskFields(task) {
@@ -941,6 +935,55 @@
       reminderOverrideEnabled: fields.reminderOverride.checked,
       reminderPolicy: readReminderPolicy(),
       tagIds: readTaskTagIds(),
+    };
+  }
+
+  function taskFormChangeState(payload = readTaskFormPayload()) {
+    const snapshot = taskFormSnapshot(payload);
+
+    if (!initialTaskFormSnapshot) {
+      return {
+        hasChanges: true,
+        recurrenceTemplateChanged: Boolean(currentTask?.recurrence_template_id),
+      };
+    }
+
+    return {
+      hasChanges: snapshot.all !== initialTaskFormSnapshot.all,
+      recurrenceTemplateChanged: snapshot.recurrenceTemplate !== initialTaskFormSnapshot.recurrenceTemplate,
+    };
+  }
+
+  function taskFormSnapshot(payload = readTaskFormPayload()) {
+    const recurrence = payload.recurrence || {};
+    const normalized = {
+      ...payload,
+      assignee_ids: [...(payload.assignee_ids || [])].sort(),
+      parent_task_id: fields.parentTask?.value || "",
+      recurrence: {
+        enabled: recurrence.enabled === true,
+        endDate: recurrence.endDate || "",
+        frequency: recurrence.frequency || "WEEKLY",
+        interval: Number.parseInt(recurrence.interval, 10) || 1,
+      },
+      tagIds: [...(payload.tagIds || [])].sort(),
+    };
+    const recurrenceTemplate = {
+      assignee_ids: normalized.assignee_ids,
+      client_id: normalized.client_id || "",
+      description: normalized.description || "",
+      due_date: normalized.due_date || "",
+      due_time: normalized.due_time || "",
+      estimate_minutes: normalized.estimate_minutes,
+      priority: normalized.priority || "normal",
+      project_id: normalized.project_id || "",
+      recurrence: normalized.recurrence,
+      title: normalized.title || "",
+    };
+
+    return {
+      all: JSON.stringify(normalized),
+      recurrenceTemplate: JSON.stringify(recurrenceTemplate),
     };
   }
 
@@ -1187,6 +1230,13 @@
     }
   }
 
+  async function refreshTaskTimers() {
+    const result = await loadTaskTimers();
+    taskTimers = Array.isArray(result.timers) ? result.timers : [];
+    context.taskTimers = taskTimers;
+    writeTaskTimerFields(currentTask);
+  }
+
   async function saveTaskTimer(timerStatus) {
     const task = currentTask;
 
@@ -1344,11 +1394,21 @@
     }
 
     const status = fields.status?.value || currentTask?.status || "";
+    const isBlocked = status === "blocked";
     const visible = Boolean(
       currentTaskId &&
-      !["blocked", "complete", "archived"].includes(status) &&
+      !["complete", "archived"].includes(status) &&
       hasTaskEditPermission(),
     );
+    const label = isBlocked ? "Resume task" : "Block task";
+    namespace.icons?.decorateButton?.(fields.block, {
+      icon: isBlocked ? "start" : "pause",
+      iconOnly: true,
+      label,
+      text: "",
+      title: label,
+    });
+    fields.block.dataset.taskBlockMode = isBlocked ? "resume" : "block";
     fields.block.hidden = !visible;
     fields.block.disabled = !visible;
   }
@@ -1624,6 +1684,7 @@
     if (result?.task) {
       currentTask = result.task;
       currentTaskId = result.task.task_id || currentTaskId;
+      rememberTaskInContext(currentTask);
     } else if (currentTask) {
       currentTask = {
         ...currentTask,
@@ -1635,6 +1696,10 @@
     writeChecklistFields(currentTask);
 
     if (result?.task) {
+      syncTaskStatusField(currentTask);
+      updateBlockedReasonState();
+      writeTaskMetadataRibbon(currentTask);
+      writeTaskTimerFields(currentTask);
       notifyTaskEditorSaved(result).catch((error) => {
         setStatus(error.message || "Task refresh hook failed.", { isError: true });
       });
@@ -2177,6 +2242,48 @@
       statusBefore: previousTaskEditorStatus,
       trigger: event?.currentTarget || fields.status,
     });
+  }
+
+  async function handleBlockResumeAction(event) {
+    const status = fields.status?.value || currentTask?.status || "";
+    if (status === "blocked") {
+      await resumeBlockedTask();
+      return;
+    }
+    await promptAndBlockCurrentTask({
+      statusBefore: previousTaskEditorStatus,
+      trigger: event?.currentTarget || fields.block,
+    });
+  }
+
+  async function resumeBlockedTask() {
+    const previousReason = fields.blockedReason?.value || currentTask?.blocked_reason || "";
+
+    fields.status.value = "in_progress";
+    fields.blockedReason.value = "";
+    updateBlockedReasonState();
+    writeTaskMetadataRibbon();
+    updateCompleteTaskActionState();
+    updateBlockTaskActionState();
+
+    try {
+      await saveTaskForm({
+        closeOnSuccess: false,
+        statusMessage: "Resuming task...",
+      });
+      previousTaskEditorStatus = "in_progress";
+      setStatus("Task resumed.");
+      return true;
+    } catch {
+      fields.status.value = "blocked";
+      fields.blockedReason.value = previousReason;
+      previousTaskEditorStatus = "blocked";
+      updateBlockedReasonState();
+      writeTaskMetadataRibbon();
+      updateCompleteTaskActionState();
+      updateBlockTaskActionState();
+      return false;
+    }
   }
 
   function promptAndBlockCurrentTask(options = {}) {
