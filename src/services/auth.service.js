@@ -48,16 +48,44 @@ async function login(payload, context = {}) {
   }
 
   const user = await usersRepository.readByUsername(username);
-  const passwordVerification = await verifyPassword(password, user?.password || DUMMY_PASSWORD_HASH);
-  const passwordMatches = passwordVerification.matches;
   const throttleContext = {
     ipAddress: context.ipAddress,
     scope: "login",
     username,
   };
-  const throttleStatus = await authenticationThrottle.check(throttleContext);
+  const verificationAttempt = await authenticationThrottle.runWithVerificationAdmission(
+    throttleContext,
+    async () => {
+      const passwordVerification = await verifyPassword(password, user?.password || DUMMY_PASSWORD_HASH);
+      const passwordMatches = passwordVerification.matches;
 
-  if (throttleStatus.blocked) {
+      if (!user || !passwordMatches || normalizeUserStatus(user.user_status) !== "active") {
+        const failure = await authenticationThrottle.recordFailure(throttleContext);
+        await emitAuthenticationThrottleLockout(throttleContext, failure);
+
+        await recordLoginSecurityEvent({
+          context,
+          outcome: "failure",
+          reasonClass: failure.blocked
+            ? "throttled"
+            : (!user || !passwordMatches ? "bad_credentials" : "inactive_user"),
+          user,
+          username,
+        });
+
+        if (failure.blocked) {
+          throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
+        }
+
+        throw new AppError(INVALID_LOGIN_MESSAGE, 401);
+      }
+
+      await authenticationThrottle.reset(throttleContext);
+      return passwordVerification;
+    },
+  );
+
+  if (verificationAttempt.blocked) {
     await recordLoginSecurityEvent({
       context,
       outcome: "blocked",
@@ -68,29 +96,7 @@ async function login(payload, context = {}) {
     throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
   }
 
-  if (!user || !passwordMatches || normalizeUserStatus(user.user_status) !== "active") {
-    const failure = await authenticationThrottle.recordFailure(throttleContext);
-    await emitAuthenticationThrottleLockout(throttleContext, failure);
-
-    await recordLoginSecurityEvent({
-      context,
-      outcome: "failure",
-      reasonClass: failure.blocked
-        ? "throttled"
-        : (!user || !passwordMatches ? "bad_credentials" : "inactive_user"),
-      user,
-      username,
-    });
-
-    if (failure.blocked) {
-      throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
-    }
-
-    throw new AppError(INVALID_LOGIN_MESSAGE, 401);
-  }
-
-  await authenticationThrottle.reset(throttleContext);
-
+  const passwordVerification = verificationAttempt.value;
   const workspaceMemberships = await userWorkspacesRepository.readForUser(user.user_id);
   const activeWorkspaceId = resolveActiveWorkspaceId(user, workspaceMemberships);
   if (!activeWorkspaceId) {

@@ -2,10 +2,31 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.22`.
+Active cursor: `0.33.21.21.4`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
+
+## Version 0.33.21.21.4 - Pre-verification login admission and flood resistance
+
+**Model: High Effort** — This changes the unauthenticated login security boundary around intentionally expensive password work; ordering, concurrency, generic responses, trusted client identity, and credential-migration behavior must all remain exact.
+
+Purpose:
+
+Close the Codex Security threat-model finding before the Docker preview rollout in 0.33.28. The current login path reads the submitted account and performs real Argon2id or legacy PBKDF2 verification (or the Argon2id dummy verification for an unknown account) before checking the durable authentication throttle. An already-blocked or highly concurrent unauthenticated flood can therefore consume or queue expensive password work before the existing failure record is consulted.
+
+- [ ] Put an inexpensive login-verification admission boundary before every real, legacy, and dummy password verification. Keep the existing database-backed IP/account failure throttle and its reset/expiry/event semantics after admitted verification attempts.
+- [ ] Strictly bound simultaneous admitted verification work globally and per trusted client IP for the supported one-app-server SQLite topology. Hold each admission until the attempt has recorded its failure or reset the durable throttle so a concurrent burst cannot pass a check-before-record gap; admission-capacity rejection must not increment account failures or create a new account-lockout vector.
+- [ ] Keep allowed known and unknown usernames on their existing real/dummy verification paths, preserve generic `401`/`429` envelopes, successful login/session creation, transparent PBKDF2/outdated-Argon2 migration, audit/security events, password-change/session-revocation behavior, and the shared trusted-proxy request context.
+- [ ] Add conservative IP-based `/api/login` request limiting to the maintained Nginx/WireGuard preview template as defense in depth, without treating the proxy as the application control or trusting forwarded headers at the edge/application boundary.
+- [ ] Add focused proof for admitted valid and invalid logins, unknown-user dummy work, zero verifier calls after durable or admission blocking, strict concurrent bounds, equivalent throttled known/unknown responses, password migration, failure/reset/expiry/event persistence, and direct/trusted-proxy client-IP behavior. Run the focused authentication/security checks, then the canonical slice verification.
+- [ ] Update the owning security/runtime/deployment documentation, `DECISIONS.md`, and `CHANGELOG.md`; advance the application version only through `npm run version:bump -- 0.33.21.21.4`.
+
+Acceptance criteria:
+
+- A blocked request cannot start Argon2id, PBKDF2, or dummy-hash verification; admitted verification is strictly concurrency-bounded before any password work and remains bounded until the durable post-attempt state is written.
+- Known, unknown, inactive, valid, invalid, migrated, and throttled login outcomes retain their existing non-enumerating behavior, session/audit/security side effects, and trusted client-IP semantics.
+- The maintained Nginx preview edge carries a conservative IP request limit for `/api/login`, while application-level admission and durable failure throttling remain independently authoritative.
 
 ## Version 0.33.22 - Recurring Calendar Projection and Private Calendar Subscription Feed
 

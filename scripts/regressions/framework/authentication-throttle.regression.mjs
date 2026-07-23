@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "focused",
   tags: ["authentication", "security", "throttling"],
-  description: "Proves login and password-sensitive throttling is durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, bounded, and event emitting.",
+  description: "Proves login verification admission and password-sensitive throttling are pre-verification, concurrency-bounded, durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, and event emitting.",
   runMode: "isolated-database",
 });
 
@@ -25,6 +25,8 @@ process.env.LONGTAIL_AUTH_THROTTLE_ENABLED = "true";
 process.env.LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT = "3";
 process.env.LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS = "60";
 process.env.LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS = "120";
+process.env.LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT = "1";
+process.env.LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT = "1";
 
 const { createApp } = await import("../../../src/core/app.js");
 const { closeDatabase, initializeDatabase } = await import("../../../src/db/index.js");
@@ -42,6 +44,19 @@ assert.match(
   authServiceSource,
   /verifyPassword\(password, user\?\.password \|\| DUMMY_PASSWORD_HASH\)/,
   "missing accounts should still take the password-verification path",
+);
+const loginSource = authServiceSource.slice(
+  authServiceSource.indexOf("async function login("),
+  authServiceSource.indexOf("async function logout("),
+);
+assert.ok(
+  loginSource.indexOf("runWithVerificationAdmission(") < loginSource.indexOf("verifyPassword("),
+  "login should acquire verification admission before real or dummy password work",
+);
+assert.match(
+  loginSource,
+  /runWithVerificationAdmission\([\s\S]*verifyPassword\([\s\S]*recordFailure\([\s\S]*authenticationThrottle\.reset/,
+  "admission should remain held through the admitted attempt's durable failure record or success reset",
 );
 assert.doesNotMatch(
   authServiceSource,
@@ -87,6 +102,32 @@ try {
     missingFailure.body,
     knownFailure.body,
     "known and missing accounts should receive the same invalid-credential envelope",
+  );
+
+  await authenticationThrottle.clear();
+  const floodResponses = await Promise.all(
+    Array.from({ length: 12 }, (_, index) => api.post("/api/login", {
+      username: `concurrent-flood-${index}@example.test`,
+      password: "Wrong-Concurrent-Flood-1!",
+    })),
+  );
+  assert.equal(
+    floodResponses.filter((response) => response.status === 401).length,
+    1,
+    "the configured one-slot route admission should start only one dummy verification",
+  );
+  assert.equal(
+    floodResponses.filter((response) => response.status === 429).length,
+    11,
+    "concurrent excess requests should be rejected before entering password verification",
+  );
+  assert.ok(
+    floodResponses
+      .filter((response) => response.status === 429)
+      .every((response) => JSON.stringify(response.body) === JSON.stringify({
+        error: "Too many attempts. Try again later.",
+      })),
+    "admission-limited requests should use the generic throttle envelope",
   );
 
   await authenticationThrottle.clear();
@@ -230,6 +271,19 @@ async function runDeterministicThrottleChecks() {
 
   await throttle.recordFailure(resetContext);
   assert.equal((await throttle.check(resetContext)).blocked, true);
+  let blockedVerificationCalls = 0;
+  const blockedVerification = await throttle.runWithVerificationAdmission(
+    resetContext,
+    async () => {
+      blockedVerificationCalls += 1;
+    },
+  );
+  assert.equal(blockedVerification.blocked, true);
+  assert.equal(
+    blockedVerificationCalls,
+    0,
+    "a durably throttled request must not invoke real, legacy, or dummy password verification",
+  );
 
   await closeDatabase();
   await initializeDatabase();
@@ -272,6 +326,82 @@ ORDER BY scope, dimension;
   assert.ok(persistedRows.every((row) => /^[0-9a-f]{64}$/.test(row.key_hash)), "throttle keys should be stored only as SHA-256 digests");
   assert.equal(JSON.stringify(persistedRows).includes("concurrent@example.test"), false, "the throttle store must not persist submitted usernames");
   assert.equal(JSON.stringify(persistedRows).includes("192.0.2.44"), false, "the throttle store must not persist client IP addresses");
+
+  await throttle.clear();
+  const verificationThrottle = createAuthenticationThrottle({
+    clock: () => now,
+    enabled: true,
+    failureLimit: 100,
+    verificationConcurrencyLimit: 2,
+    verificationConcurrencyPerIpLimit: 1,
+    windowSeconds: 60,
+  });
+  let releaseVerifications;
+  const verificationGate = new Promise((resolve) => {
+    releaseVerifications = resolve;
+  });
+  let activeVerifications = 0;
+  let maximumActiveVerifications = 0;
+  let verificationStarts = 0;
+  const verificationFlood = Array.from({ length: 20 }, (_, index) => (
+    verificationThrottle.runWithVerificationAdmission({
+      ipAddress: `192.0.2.${100 + index}`,
+      scope: "login",
+      username: `verification-${index}@example.test`,
+    }, async () => {
+      verificationStarts += 1;
+      activeVerifications += 1;
+      maximumActiveVerifications = Math.max(maximumActiveVerifications, activeVerifications);
+      await verificationGate;
+      activeVerifications -= 1;
+      return index;
+    })
+  ));
+  await waitFor(() => verificationStarts === 2);
+  assert.equal(verificationStarts, 2, "the global verification admission limit should be exact");
+  assert.equal(maximumActiveVerifications, 2, "expensive verification concurrency must stay bounded");
+  releaseVerifications();
+  const verificationFloodResults = await Promise.all(verificationFlood);
+  assert.equal(
+    verificationFloodResults.filter((result) => result.blocked).length,
+    18,
+    "a concurrent flood must not queue unbounded expensive verification work",
+  );
+
+  const perIpThrottle = createAuthenticationThrottle({
+    clock: () => now,
+    enabled: true,
+    failureLimit: 100,
+    verificationConcurrencyLimit: 4,
+    verificationConcurrencyPerIpLimit: 1,
+    windowSeconds: 60,
+  });
+  let releasePerIpVerification;
+  const perIpGate = new Promise((resolve) => {
+    releasePerIpVerification = resolve;
+  });
+  let perIpVerificationStarts = 0;
+  const firstPerIpVerification = perIpThrottle.runWithVerificationAdmission({
+    ipAddress: "192.0.2.250",
+    scope: "login",
+    username: "first-per-ip@example.test",
+  }, async () => {
+    perIpVerificationStarts += 1;
+    await perIpGate;
+  });
+  const secondPerIpVerification = perIpThrottle.runWithVerificationAdmission({
+    ipAddress: "192.0.2.250",
+    scope: "login",
+    username: "second-per-ip@example.test",
+  }, async () => {
+    perIpVerificationStarts += 1;
+  });
+  await waitFor(() => perIpVerificationStarts === 1);
+  const secondPerIpResult = await secondPerIpVerification;
+  assert.equal(secondPerIpResult.blocked, true, "one client IP should not fill every global verification slot");
+  assert.equal(perIpVerificationStarts, 1);
+  releasePerIpVerification();
+  await firstPerIpVerification;
 
   await throttle.clear();
   const boundedThrottle = createAuthenticationThrottle({
@@ -349,4 +479,14 @@ function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());
   });
+}
+
+async function waitFor(predicate, timeoutMilliseconds = 2000) {
+  const deadline = Date.now() + timeoutMilliseconds;
+  while (!predicate()) {
+    if (Date.now() >= deadline) {
+      throw new Error("Timed out waiting for the verification admission probe.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
 }

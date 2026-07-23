@@ -67,6 +67,9 @@ for (const requirement of [
   /proxy_set_header Forwarded ""/,
   /client_max_body_size 260m/,
   /proxy_request_buffering off/,
+  /limit_req_zone \$binary_remote_addr zone=longtail_forge_login:10m rate=10r\/m/,
+  /location = \/api\/login \{[\s\S]*limit_req zone=longtail_forge_login burst=5 nodelay;[\s\S]*limit_req_status 429/,
+  /location @longtail_forge_login_limited \{[\s\S]*return 429 '\{"error":"Too many attempts\. Try again later\."\}'/,
   /listen 443 ssl default_server/,
   /ssl_reject_handshake on/,
   /return 444/,
@@ -75,6 +78,11 @@ for (const requirement of [
   assert.match(nginx, requirement);
 }
 assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/, "the public edge must replace, never append, client forwarding input");
+assert.doesNotMatch(
+  nginx,
+  /limit_req_zone\s+\$(?:http_|proxy_|sent_http_)/,
+  "the login request limit must use the accepted connection IP rather than a client-supplied forwarding header",
+);
 
 for (const requirement of [
   /auto_https off/,
