@@ -24,6 +24,7 @@ Dependencies and baseline:
 - Builds on the existing Tasks calendar read path and recurrence engine; extends `calendarWindow` and reuses `buildRRule`/`parseRRule`/`nextOccurrenceDate` and `materializeInstance` rather than adding a second recurrence implementation.
 - The feed endpoint is an internet-reachable, session-less, token-authenticated surface, so it depends on the 0.33.16 security hardening (trusted-proxy client-IP resolution, sensitive-endpoint throttling, secret handling, and the security-event stream) and lands after 0.33.17 preview readiness. Its token is hashed at rest and never logged, consistent with 0.33.16.8/0.33.16.9.
 - Honors the calendar's current single-day model (`endDate === startDate`); this version does not introduce multi-day/spanning events.
+- Execution order is `0.33.22.1` through `0.33.22.4`, then routine GitHub Actions maintenance in `0.33.22.6`, the isolated native `better-sqlite3` upgrade in `0.33.22.7`, and final subscription/documentation/branch closeout in `0.33.22.8`. The closeout slice must not start until both dependency-maintenance slices are complete and independently evidenced.
 
 Key decisions:
 
@@ -110,18 +111,67 @@ Acceptance criteria:
 - Recurring tasks appear as native RRULE events with per-instance overrides expressed as RECURRENCE-ID exceptions.
 - The feed exposes only tasks the token's user may read, within a bounded window.
 
-### Version 0.33.22.5 - Subscription UI, documentation, and closeout
+### Version 0.33.22.6 - Atomic GitHub Actions minor maintenance
 
+**Model: Medium Effort** — This is a contained SHA-pin maintenance rollout across the existing workflow surface, with low design risk but required clean-Linux proof.
+
+- [ ] Incorporate Dependabot PRs #39, #40, and #41 as one atomic maintenance change: update every tracked `actions/checkout` use from the reviewed `v7.0.0` SHA `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0` to the reviewed `v7.0.1` SHA `3d3c42e5aac5ba805825da76410c181273ba90b1`, including any new workflow use that lands before this slice starts.
+- [ ] Update `github/codeql-action/init` and `github/codeql-action/analyze` together from the `v4.37.0` SHA `99df26d4f13ea111d4ec1a7dddef6063f76b97e9` to the `v4.37.3` SHA `e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81`. Never ship either half independently: PRs #39 and #41 currently fail CodeQL because mixed action versions reject each other's configuration.
+- [ ] Extend `scripts/regressions/release/github-release-operations.regression.mjs` to prove all tracked workflows use one reviewed checkout pin and that CodeQL `init` and `analyze` use the same immutable SHA, while retaining the existing full-SHA and unsafe-trigger guardrails.
+- [ ] Keep Dependabot PR #42 (`better-sqlite3` 12.11.1 to 13.0.1) completely outside this slice; its major native-runtime/database compatibility work belongs exclusively to 0.33.22.7 and must remain independently revertible.
+- [ ] Run `npm run docs:suggest` and update only an owning document if the workflow contract changes; otherwise record `No docs change needed: reviewed action versions changed without changing the GitHub workflow contract.` Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.22.6`, and run `npm run verify:slice` exactly once at final local closeout.
+- [ ] Publish the combined change through the normal pull request path to `nightly` and require the clean-Linux Development gate, Browser smoke and accessibility, Dependency review, and CodeQL JavaScript analysis to pass with the paired pins. After the combined change lands, close Dependabot PRs #39, #40, and #41 as superseded rather than merging their partial diffs separately.
+
+Acceptance criteria:
+
+- Every tracked GitHub workflow uses the reviewed `actions/checkout@v7.0.1` immutable SHA, and no prior checkout SHA or stale version annotation remains.
+- CodeQL initialization and analysis use the same reviewed `v4.37.3` immutable SHA, with regression coverage preventing another split-version update.
+- The combined `nightly` pull request passes all required clean-Linux checks; PRs #39, #40, and #41 are then closed as superseded, while PR #42 remains explicitly untouched for the independent 0.33.22.7 implementation.
+
+### Version 0.33.22.7 - better-sqlite3 13 native-driver compatibility
+
+**Model: High Effort** — This is a major native persistence dependency upgrade across Windows development, Linux/container packaging, existing databases, recovery tooling, and every SQLite-backed workflow; default Dependabot checks cannot establish data safety.
+
+- [ ] Before changing package metadata, review the official `better-sqlite3` 13.0.0 breaking changes, release notes, supported Node versions, N-API/native-component and prebuilt-binary changes, operating-system/architecture coverage, build-toolchain fallbacks, and the specific regression corrected in 13.0.1. Record which changes apply to Longtail Forge's pinned Node `>=24.7 <25` runtime and current `better-sqlite3` adapter usage.
+- [ ] Upgrade only `better-sqlite3` from `12.11.1` to `13.0.1` in `package.json` and the lockfile. Do not combine it with PRs #39-#41, another npm package, a Node-range change, schema work, or unrelated lockfile churn; review the resolved native package and transitive diff explicitly.
+- [ ] Prove clean normal development installation on the supported Windows environment and clean native installation on every supported Linux/container architecture. Run `npm run test:sqlite-driver`, record whether a prebuilt binary or local compilation was used, and document any changed Node, npm, Python, compiler/build-tools, libc, operating-system, CPU-architecture, or packaging requirement.
+- [ ] Preserve and verify the packaging chain: normal `npm ci`, checksummed `npm run artifact:build`, clean `npm run artifact:smoke`, Docker image build, and `npm run container:smoke` on the actual supported container architecture. Confirm the runtime artifact still carries the exact production dependency graph and the image installs/loads the native module without repository development tooling.
+- [ ] Prove a fresh empty-data startup creates the expected database, applies the complete migration chain once, enables foreign keys, establishes the expected WAL/busy behavior, reports the unchanged schema/migration identity, and passes `PRAGMA integrity_check` plus `PRAGMA foreign_key_check`.
+- [ ] Create a verified backup of a realistic existing Longtail Forge database and Files set, copy it to a disposable target, then start the candidate against that copy. Prove startup and pending/no-op migrations complete without data loss, unintended schema changes, duplicate migration records, rewritten identifiers, missing Files metadata, lost Search rows, or changed workspace isolation; never test the upgrade by mutating the sole live copy.
+- [ ] Exercise the database behaviors most exposed to a native-driver change: explicit commit/rollback transactions, foreign-key enforcement and deferred constraints, WAL creation/checkpoint/reopen behavior, busy timeout/lock contention and concurrent readers/writers, migration locking and failure rollback, statement/result fidelity, parameter binding, FTS5 `MATCH`/`bm25()` Search indexing and rebuild, Secure Notes encrypted payload/revision persistence, jobs/audit/events, and representative Tasks, Notes, Files, Lists, Clients/Projects, Time Tracking, Users, and workspace CRUD.
+- [ ] Run the existing SQLite-relevant permission and isolation proof, including `npm run test:permissions`, workspace isolation/lifecycle coverage, fresh-database and migration regressions, database adapter/transaction/result/cache tests, backup and workspace-backup drills, Search lifecycle/rebuild coverage, Secure Notes persistence/recovery coverage, production configuration/runtime startup checks, and packaging/release regressions.
+- [ ] Perform a basic running-application smoke on the upgraded driver: authenticate with a test account, read representative existing records, create/update/read/delete representative safe test records, exercise Search, restart the app, and confirm persistence plus `/healthz`, `/readyz`, and `/api/app-info`.
+- [ ] Treat this as executable dependency/database/release work: the reduced documentation-only pull-request path is not sufficient. Run focused diagnostics while iterating, then run the full canonical `npm run verify:slice` exactly once on the final unchanged tree, together with the separately required native-driver, permission, backup/restore, artifact, container, realistic-database, integrity/foreign-key, and application-smoke evidence above. Require the normal clean-Linux Development, Browser, Dependency review, CodeQL, packaging, and supported-container checks before accepting the result.
+- [ ] Keep the upgrade independently revertible at the package/lock/regression/documentation boundary and record the rollback decision. Reverting package files can select the previous driver but cannot reverse a database migration or repair data; because this slice must not add or redesign schema, any unexpected database-format/schema/migration change blocks acceptance and recovery uses the verified pre-upgrade database and Files backup together.
+- [ ] Do not accept or merge Dependabot PR #42 solely because its default checks pass. Land only the independently reviewed 0.33.22.7 change after the native install, realistic-database, recovery, full-suite, packaging, container, and application evidence is green.
+- [ ] Run `npm run docs:suggest`; update only the owning database/runtime/artifact/deployment documentation when compatibility or prerequisites actually change, otherwise record the no-docs disposition. Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.22.7`, and preserve the planned Docker-only rollout for 0.33.28 without implementing it here.
+
+Non-goals:
+
+- No database-adapter abstraction refactor, SQLite-to-PostgreSQL work, schema redesign, migration rewrite, query/API redesign, broad performance tuning, or Docker-only deployment rollout.
+- No unrelated dependency, Node-version, workflow-action, feature, UI, permission-model, or storage-provider change.
+
+Acceptance criteria:
+
+- `better-sqlite3` is upgraded independently from `12.11.1` to `13.0.1`; applicable breaking/native changes and the 13.0.1 regression fix are reviewed; clean Windows and supported native Linux/container installs succeed; normal development, runtime-artifact, artifact-smoke, Docker, and running-application paths load the new driver; and all changed platform/toolchain requirements are documented.
+- Fresh and realistic existing databases start safely with the expected migration/schema identity, intact records and workspace boundaries, healthy foreign keys/integrity, working WAL/busy/concurrency/transaction behavior, preserved Search and Secure Notes data, representative CRUD, and successful backup, restore, and restored-database startup.
+- Full repository, permission, isolation, migration, production/runtime, packaging, recovery, and supported-container evidence passes without using the documentation-only fast path; the change remains independently revertible; rollback never claims that reverting package files reverses migrations; and no abstraction, PostgreSQL, schema-redesign, or Docker-rollout scope is introduced.
+
+### Version 0.33.22.8 - Subscription UI, documentation, and closeout
+
+**Model: High Effort** — Final closeout spans the internet-reachable calendar feed, user-facing subscription workflow, permissions, recurrence integrity, and the two independently evidenced dependency-maintenance slices.
+
+- [ ] Start only after 0.33.22.6 and 0.33.22.7 are complete with their independent version, regression, clean-environment, and runtime evidence recorded; do not carry unresolved routine-action or native-driver work into branch closeout.
 - [ ] Add a user-facing "Calendar subscription" control (in user settings, aligned with the 0.33.15 settings host if landed) to reveal, copy, rotate, and disable the private feed URL, described as a read-only subscription and never as "Google Calendar sync."
 - [ ] Provide short in-product guidance/links for adding the URL to Google Calendar, Apple Calendar, Outlook, and Thunderbird, and set expectations that client refresh is periodic (not real-time).
 - [ ] Document the recurrence projection model (read-time virtual occurrences, materialize-on-touch), the feed auth surface, and the deferral of Google OAuth/two-way sync in `docs/tasks-module.md` and the relevant architecture/security docs; update `DECISIONS.md` and `CHANGELOG.md`.
 - [ ] Record the Two-Module outcome at closeout: name the feed-auth seam as a framework-wide authentication exception and keep iCalendar content module-owned until a second real content consumer exists.
-- [ ] Run `npm run check`, `npm run test:permissions`, the calendar/recurrence regressions, and the feed auth/throttle/serialization regressions; confirm `/api/app-info` after implementation.
+- [ ] Run focused calendar/recurrence and feed auth/throttle/serialization regressions while iterating, then update only through `npm run version:bump -- 0.33.22.8` and run `npm run verify:slice` exactly once on the final unchanged tree. Include the separate permission harness and confirm `/api/app-info` after restart.
 
 Acceptance criteria:
 
 - Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
-- The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, and the release-gate checks pass.
+- The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, 0.33.22.6 and 0.33.22.7 are complete and independently evidenced, the release-gate checks pass, and 0.33.22.8 remains the final 0.33.22 closeout slice.
 
 ## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
 
@@ -520,89 +570,118 @@ Acceptance criteria:
 
 - Client/Project creation is server-authoritative without workflow regressions; one framework authority is the only normal production UUID entry point; new ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
 
-## Version 0.33.28 - Docker and Docker Compose Preview-Release Readiness
+## Version 0.33.28 - Docker Compose-Only Public Preview Production Support
 
-**Model: High Effort** — This turns the smoke-proven 0.33.17 container packaging into the actually-published, security-reviewed image and Compose stack that carries the August 31, 2026 friends-and-family preview; a mistake in image provenance, secret handling, persistence, or the proxy/scanner boundary ships a broken or unsafe internet-reachable release.
+**Model: High Effort** — This replaces a live bare-metal production-support contract with one published Compose contract, including native-dependency architecture proof, migration-safe recovery, host cutover, and sequenced retirement of the old path.
 
 Purpose:
 
-Take the existing container path — the checked-in `Dockerfile`, `compose.yaml`, `.dockerignore`, `npm run container:build`, and `npm run container:smoke` delivered in 0.33.17 — from proven packaging mechanics to a finished, published, gate-passed containerized deployment, and cut the August 31, 2026 limited private preview from it. This is the packaging-and-release-readiness branch that makes Docker Compose the primary reproducible preview path in practice, not just in principle.
+Take the checked-in `Dockerfile`, `compose.yaml`, `.dockerignore`, `npm run container:build`, and `npm run container:smoke` delivered in 0.33.17 from packaging mechanics to the sole supported production/self-hosted deployment for the Longtail Forge public preview. Keep the checksummed runtime artifact as the controlled application payload used to build the image, then publish and prove one operator contract for Compose installation, deployment, upgrade, backup, restore, rollback, and recovery.
 
 Decision:
 
-The 0.33.17 Docker Compose and manual bare-metal paths remain the only supported packaging contract; this branch hardens, publishes, and exercises them rather than creating a second one. The container keeps its established security posture (non-root UID/GID 10001, read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, bounded `/tmp` tmpfs, a named data volume, and a separate root-only backup mount) and its topology (Node reachable only through loopback port 8001 behind the reviewed Caddy edge; the fixed bridge gateway is the sole trusted proxy peer). Release identity stays immutable — a pinned base digest, a versioned runtime-artifact checksum, and a published image digest — with no mutable `latest` deploy tag. The preview ships everything through 0.33.27; Secure Catalogs (0.33.29) and Support View (0.33.30) are deliberately post-preview and are not required for August 31.
+**Docker Compose is the sole supported production deployment. Running Longtail Forge directly through Node/systemd remains technically possible but is unsupported.** Normal npm installation and `npm start` remain available for development, testing, and advanced experimentation; they are not a second supported production installation, upgrade, rollback, or recovery path.
+
+The current bare-metal `rt-ltf` preview and `rt-ltf-demo` demo hosts remain in place while the replacement is built. Do not retire their service definitions, deployment helper behavior, smoke/release gates, instructions, retained releases, backups, or recovery material until the 0.33.28 Compose path has successfully proven deployment, upgrade, durable data persistence, backup, restore, and restored rollback on the actual supported Linux/container architecture. After that replacement gate passes and the live cutover is verified, retire bare-metal-specific production support and duplicated promises as a separate final slice.
+
+The container keeps the established security posture (non-root UID/GID 10001, read-only root/application filesystem, dropped Linux capabilities, `no-new-privileges`, bounded private `/tmp`, one durable data volume, and a separate protected backup mount) and topology (Node published on host loopback only behind the reviewed Caddy edge; the fixed bridge gateway is the sole trusted proxy peer). Release identity remains immutable through the checksummed runtime artifact, pinned base digest, exact source revision, and published image digest; no supported deployment uses a mutable `latest` reference.
 
 Dependencies and baseline:
 
-- Builds directly on 0.33.17 preview operations (the container assets, the runtime-artifact build, the backup-first deploy/rollback helper, and the container/bare-metal smokes) and 0.33.16 security hardening (trusted-proxy client-IP resolution, sensitive-endpoint throttling, and secret handling).
-- Consumes the branded error/503 surfaces from 0.33.23 and the operator maintenance-mode curtain from 0.33.24 so the containerized topology presents the reviewed maintenance and failure pages, and ships the reviewed `THIRD_PARTY_NOTICES.md` from 0.33.25 inside the distribution alongside the root `LICENSE`.
-- Assumes the calendar work (0.33.22), legal/help/marketing (0.33.25), permissions alignment (0.33.26), and identifier authority (0.33.27) have landed, since the preview image packages the app as of 0.33.27.
-- Honors the existing preview-deployment contract (`docs/preview-deployment.md`), the GitHub promotion/handoff boundary (`docs/development/github-workflow.md`), and the "one Node server, one local SQLite database, local Files, roughly 50 users" shared boundary.
+- Builds directly on the 0.33.17 runtime artifact, Compose assets, backup/restore format, root-owned preview handoff, container and bare-metal smokes, and the live bare-metal preview hosts. Existing bare-metal machinery is transition safety until 0.33.28.4 proves the replacement, not the future supported format.
+- Keeps `npm run artifact:smoke` (or its current equivalent) as the clean extract/install/boot proof that the packaged application payload is complete before the Docker build consumes it.
+- Consumes the branded error/503 surfaces from 0.33.23 and the operator maintenance curtain from 0.33.24; ships the reviewed `THIRD_PARTY_NOTICES.md` and root `LICENSE` from 0.33.25; and keeps the preview's product-feature cut through 0.33.27 while 0.33.28 adds the deployment/release contract.
+- Preserves the one-server SQLite/local-Files boundary and requires native `better-sqlite3` installation and runtime proof on every published Linux/container architecture rather than treating a cross-build or emulated build as sufficient.
+- Keeps the GitHub `nightly` → `main` promotion and manual immutable preview-release boundary. The deployment transport may be adapted to deliver a Compose image by digest, but it must remain disabled until the isolated environment, host, credentials, data, and recovery material are ready.
 
 Non-goals:
 
-- No second packaging contract, no application-embedded updater, no Kubernetes/Swarm/Helm, no horizontal scaling, no multi-container app tier, and no PostgreSQL service; SQLite on a local Docker volume or local block filesystem remains the only supported data path.
-- No mutable `latest` release tag, no registry-pull auto-deploy that bypasses the reviewed backup-first handoff, and no in-image compiler, test runner, browser harness, source checkout, `.env`, live data, backup, or Caddy process.
-- No public DNS/certificate issuance, external penetration test, or production ClamAV build in this branch beyond confirming the scanner-handoff contract; those remain their own operational steps.
-- No change to the Caddy/Nginx edge ownership or the settled forwarding-header contract; the container consumes that boundary rather than redefining it.
-- Do not weaken the read-only, non-root, capability-dropped, secret-isolated posture to simplify the build or the live cutover.
+- No second supported production packaging contract, application-embedded updater, Kubernetes/Swarm/Helm, horizontal scaling, multi-container app tier, or PostgreSQL service in this version.
+- No removal of npm development/test workflows or the runtime artifact. The artifact is the controlled image payload and provenance input, not a supported direct-production promise after 0.33.28.
+- No image-only rollback claim across incompatible database migrations. Forward migrations are not reversed by selecting an older image; recovery must restore the verified pre-upgrade database and Files together when compatibility is not explicitly proven.
+- No implication that Docker owns public DNS, TLS certificates, durable storage selection, backups/off-host export, malware scanning, secrets, Secure Notes recovery keys, monitoring, firewalling, or recovery decisions. Those remain operator responsibilities.
+- No mutable `latest` deploy reference, in-image compiler/test/browser/source checkout, embedded `.env`, live data, backup, Caddy process, or weakened non-root/read-only/capability-restricted posture.
+- No premature shutdown or deletion of the current bare-metal preview/demo installations or their recovery material before the Compose replacement and restored-rollback gates pass.
 
-### Version 0.33.28.1 - Image and Compose finalization, provenance, and security review
+### Version 0.33.28.1 - Supported Compose contract, controlled payload, and architecture baseline
 
-**Model: High Effort** — The image is the internet-reachable release artifact; a provenance, base-pin, or secret-handling defect ships everywhere the preview runs.
+**Model: High Effort** — The first slice fixes the support boundary and validates the image payload on the real native platform before later deployment and recovery work can be trusted.
 
-- [ ] Re-review the checked-in `Dockerfile`, `compose.yaml`, and `.dockerignore` against the current app: confirm the pinned `node:24` base digest is the intended reviewed runtime base, the runtime artifact installs with `npm ci --omit=dev`, the application tree is read-only, and the container runs as UID/GID 10001 with no build-time secret, `.env`, `.git`, or dev tooling in any layer.
-- [ ] Ship `THIRD_PARTY_NOTICES.md` (0.33.25) and the root `LICENSE` inside the image, and confirm the OCI image labels (title, version, `AGPL-3.0-only` licenses) are accurate and sourced from the runtime version identity rather than a hand-maintained string.
-- [ ] Decide and record the target platform set: confirm whether the preview and self-hosted audience needs `linux/amd64` only or `linux/amd64` plus `linux/arm64`, and make `container:build` produce exactly the reviewed set with pinned digests rather than an accidental single-architecture build.
-- [ ] Produce and retain build provenance for each release image — source artifact checksum, resolved base digest, app version/branch identity, and image digest — and generate an SBOM (or document the deferral with rationale) so the published image is auditable.
-- [ ] Confirm the Compose secret and network contract: required secrets loaded only from the root `0600` `.env`, the bridge subnet/gateway/`TRUST_PROXY` triple validated for non-overlap, only `127.0.0.1:${LONGTAIL_HOST_PORT}:8001` published, and the `clamd` scanner handoff reachable with production startup failing closed when the scanner is absent or unhealthy.
-- [ ] Complete the manual container security review the preview contract still requires (image contents, runtime user/filesystem/capabilities, secret isolation, exposed surface, and log/secret hygiene) and record the outcome.
-
-Acceptance criteria:
-
-- The image and Compose stack are reviewed and reproducible, carry accurate license/notice/version metadata and retained provenance, build for exactly the intended platform set, and pass a recorded manual container security review with no unexplained privilege, secret, or exposure finding.
-
-### Version 0.33.28.2 - Container maintenance, error surfaces, and backup-first upgrade proof
-
-**Model: High Effort** — Containerized failure and upgrade behavior must present the reviewed curtains and never reopen traffic to a stopped or unverified app or destroy the data volume.
-
-- [ ] Prove the 0.33.24 operator maintenance curtain and the 0.33.23 branded error/503 surfaces behave correctly in the container topology: a stopped or unhealthy container yields the reviewed 503 at the edge, while `/healthz`, `/readyz`, and `/api/app-info` still report the underlying container truthfully (non-200 when Node is down, real machine-readable responses when up), consistent with the container HEALTHCHECK.
-- [ ] Exercise the documented Docker backup-first upgrade end to end on disposable data: record current version/image digest/volume identity, run and verify the tested complete backup, stop the app without deleting the data volume, swap only `LONGTAIL_IMAGE`, force-recreate, let normal startup own forward migrations, and verify health/readiness/version/schema/login/workflow before restoring traffic.
-- [ ] Prove restored rollback: when candidate verification fails, restore the verified pre-upgrade database and Files together into a clean recovery volume, select the previous image, and re-verify — never combining an old database with newer Files data or reversing migrations by hand.
-- [ ] Confirm the persistence and isolation guarantees: the named data volume retains the SQLite database, WAL/SHM sidecars, and Files across image replacement; the separate root-only backup mount is never served from `public/`; and the data path is never placed on NFS/SMB/cloud-synced/object-storage mounts.
-- [ ] Wire `npm run container:smoke` (clean build, non-root/read-only boot, persistence, replacement, health/readiness, backup-first upgrade, and restored-rollback rehearsal) into the release gates as a required Docker-engine acceptance proof, treating a missing engine as a failed prerequisite rather than a passing skip.
+- [ ] Inventory the current 0.33.17 deployment surface and classify each item as retained, adapted, or retired after cutover: runtime artifact and `artifact:smoke`; Dockerfile/Compose/container build and smoke; bare-metal smoke; systemd example; root-owned host helper and SSH handoff; release workflows/regressions; and installation, upgrade, rollback, self-hosting, and recovery documentation. Record dependencies so no transition-safety asset is removed early.
+- [ ] Establish the support matrix in operator/developer wording: Docker Compose is the sole supported production/self-hosted deployment for the public preview; direct Node/systemd operation is technically possible but unsupported; npm install/start remains documented only for development, testing, and advanced experimentation.
+- [ ] Preserve the checksummed runtime artifact as the only reviewed application payload accepted by the Docker build. Keep `artifact:smoke` proving a disposable `npm ci --omit=dev` install and successful boot, without presenting the extracted tarball as a supported production installation.
+- [ ] Re-review `Dockerfile`, `compose.yaml`, and `.dockerignore`: pinned Node base digest, root-owned read-only application tree, UID/GID 10001, read-only root filesystem, dropped capabilities, `no-new-privileges`, bounded private `/tmp`, health check, loopback-only port, durable data volume, protected backup mount, and absence of build-time secrets, `.env`, `.git`, dev tooling, live data, or backup material.
+- [ ] Decide and record the published platform set (`linux/amd64` only or `linux/amd64` plus `linux/arm64`) from the actual preview hosts and intended self-hosted support. On every supported architecture, perform a native clean image build/install and boot that exercises `better-sqlite3`; a manifest-only build, QEMU-only build, or successful JavaScript test on another architecture is not release proof.
+- [ ] Confirm Compose retains operator-owned integration points: root `0600` secrets/environment, non-overlapping bridge/gateway/`TRUST_PROXY`, loopback-only Node, Caddy/TLS edge, reachable protected `clamd` with fail-closed production readiness, durable local-block storage, off-container backups, and separate Secure Notes recovery material.
+- [ ] Produce retained provenance for each candidate image (source revision, runtime-artifact checksum, resolved base digest, application/branch identity, platform, and image digest), accurate OCI license/version labels, and an SBOM or an explicit reviewed deferral.
+- [ ] Run `npm run docs:suggest`, update the owning contract docs for decisions made in this slice, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.1`, and run `npm run verify:slice` exactly once at final local closeout.
 
 Acceptance criteria:
 
-- Container maintenance and error surfaces match the reviewed pages, the backup-first upgrade and restored rollback are proven on the container path, persistence and backup isolation hold across image replacement, and the container acceptance smoke is a required, non-skippable gate.
+- The support matrix, asset transition inventory, image security baseline, controlled runtime-artifact payload, provenance, and exact supported Linux architectures are recorded; `artifact:smoke` passes; and `better-sqlite3` installs and boots natively on every architecture that will receive a published image.
 
-### Version 0.33.28.3 - Image publishing and reviewed deployment transport
+### Version 0.33.28.2 - Supported Compose install, upgrade, backup, restore, and recovery proof
 
-**Model: High Effort** — Choosing how the image reaches the preview host is the deferred 0.33.17 transport decision; the wrong choice grants an unintended standing pull path or an interactive deployment shell into the release boundary.
+**Model: High Effort** — This makes one Compose lifecycle the production contract and must prove data durability and migration-safe recovery rather than only proving that a container starts.
 
-- [ ] Make the deliberate, least-privilege transport decision 0.33.17 explicitly refused to preselect: whether the preview pulls a published immutable image digest from a registry (for example GHCR) or continues to stage a checksummed image/artifact through the existing reviewed root-owned deploy helper — and record the rationale, secret isolation, and revocation story.
-- [ ] If publishing to a registry, publish only immutable, digest-addressable release images (no mutable `latest` deploy reference), scope registry credentials to least privilege, and keep the published image free of secrets and live data; the deploy references images by digest.
-- [ ] Preserve the reviewed stop → backup → stage → start → verify → restore boundary and the disabled-by-default GitHub Environments; image delivery must not introduce a general-purpose runner, a root SSH login, or an interactive deployment shell, and must not expose Node, Caddy administration, data, or runtime secrets.
-- [ ] Extend the release workflow to attach or reference the appropriate GitHub Release / runtime / image assets and their checksums/digests for a container release, consistent with the immutable-tag/digest release-identity rule.
-- [ ] Update the container/preview smoke or release regressions to prove the chosen transport delivers exactly the reviewed image digest and rejects an unverified or non-`main` image.
-
-Acceptance criteria:
-
-- The image-delivery transport is chosen, documented, and least-privilege; released images are immutable and digest-addressable with no secrets and no `latest` deploy tag; and the reviewed backup-first deployment boundary and the disabled-until-ready posture are preserved.
-
-### Version 0.33.28.4 - Live preview cutover, documentation, and closeout
-
-**Model: High Effort** — This is the exceptional live rollout to the internet-reachable preview hosts and requires host evidence beyond local proofs, because the August 31 preview depends on it.
-
-- [ ] Roll the containerized stack out to the `rt-ltf` preview and `rt-ltf-demo` demo hosts behind their reviewed Caddy (or Nginx → WireGuard → Caddy) edge after root-owned asset/config review and a verified backup, keeping the demo-only data-provisioning helper off the friends-and-family preview.
-- [ ] Capture live evidence for the branch: image digest and `/api/app-info` identity, direct-loopback and public health/readiness, container non-root/read-only/capability inspection, maintenance-curtain and error-surface behavior, a successful backup-first upgrade/rollback exercise on a preview host, and firewall proof that port 8001 stays loopback-only.
-- [ ] Confirm the August 31, 2026 preview scope and cut line: the running image packages the app through 0.33.27, Secure Catalogs (0.33.29) and Support View (0.33.30) are explicitly out of the preview, and the limitations/readiness statement matches what actually shipped.
-- [ ] Reconcile and update `docs/preview-deployment.md`, `docs/self-hosting.md`, `docs/runtime-artifact.md`, the GitHub workflow doc, and the marketing packaging status so the container path is documented as shipped-and-primary; retire or clearly label any host-specific staging copies; and record the packaging decisions in `DECISIONS.md`.
-- [ ] Run `npm run docs:check`, the container acceptance smoke, and the canonical slice verification; update `CHANGELOG.md`; and do not close the branch on repo-local proof alone.
+- [ ] Finalize one operator procedure for Compose installation and deployment by immutable image digest: validate configuration, create/protect the data volume and backup destination, start without exposing Node publicly, require container health, and verify direct-loopback plus public `/healthz`, `/readyz`, `/api/app-info`, login/session, workspace, Files, and one representative workflow before opening traffic.
+- [ ] Exercise the supported backup-first Compose upgrade end to end on disposable native Linux/container infrastructure: record version/image digest/volume/schema identity, enter maintenance, create and inspect the complete whole-instance backup plus separate recovery-key prerequisite, stop without deleting data, select the candidate digest, force-recreate, let startup own forward migrations, and verify before restoring traffic.
+- [ ] State and prove the rollback rule explicitly: selecting the prior image does not reverse migrations. Permit image-only rollback only when every applied migration is explicitly backward-compatible; otherwise restore the verified pre-upgrade database and Files together into a clean recovery volume, select the prior image, and re-run full verification. Never reverse migrations by hand or combine an older database with newer Files.
+- [ ] Prove durable persistence across stop/start, image replacement, failed candidate, restore, and restored rollback: SQLite database plus WAL/SHM and local Files remain together on local block-backed storage; backup output remains separate and protected; volumes are never shared by multiple app containers or placed on NFS/SMB/cloud-synced/object-storage mounts.
+- [ ] Prove the 0.33.23 error pages and 0.33.24 maintenance curtain through the Compose/Caddy topology, including truthful health/readiness behavior while Node is stopped or unhealthy and no traffic reopening before identity and workflow verification.
+- [ ] Expand `npm run container:smoke` as the required production-deployment acceptance proof for clean native build, non-root/read-only/capability-restricted boot, health, persistence, replacement, backup-first upgrade, restore, and restored rollback. A missing Docker engine or unavailable supported architecture is a failed prerequisite, not a passing skip.
+- [ ] Run `npm run docs:suggest`, update the supported lifecycle/recovery documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.2`, and run `npm run verify:slice` exactly once at final local closeout.
 
 Acceptance criteria:
 
-- The August 31, 2026 private preview runs from the reviewed, published container stack on the preview/demo hosts with captured live evidence, traffic reopens only to a verified app, the packaging path is documented as primary, and the preview's feature cut line (through 0.33.27, excluding Secure Catalogs and Support View) is recorded and accurate.
+- One documented Compose lifecycle covers supported installation, deployment, upgrade, backup, restore, rollback, and recovery; durable state survives image operations; migration-incompatible rollback restores the verified backup; maintenance/error surfaces and ClamAV readiness behave correctly; and the native container acceptance gate is required and green.
+
+### Version 0.33.28.3 - Immutable image publishing and supported deployment transport
+
+**Model: High Effort** — The public release must deliver the exact reviewed image without creating a standing broad credential, interactive shell, or artifact-based alternate production path.
+
+- [ ] Choose and document the least-privilege image transport: an immutable digest-addressed registry pull (for example GHCR) or a checksummed image transfer through the existing constrained host handoff. The supported result deploys Compose by image digest; it does not extract the runtime tarball as a direct production release.
+- [ ] Publish only reviewed platform manifests and immutable release images, with no mutable `latest` deployment reference. Scope registry or transport credentials to the minimum host/repository action, keep secrets/live data out of image layers, and document credential rotation and revocation.
+- [ ] Adapt the root-owned preview helper and manual workflow only as needed to preserve the reviewed stop → backup → deploy Compose digest → start → verify → restore boundary. Retain pinned host keys, the non-interactive low-privilege deployment account, isolated disabled-by-default GitHub Environments, and no root SSH login, general-purpose runner, Caddy administration, data access, or runtime-secret exposure.
+- [ ] Keep the checksummed runtime artifact and `artifact:smoke` in release production as image-build inputs/provenance evidence. Update GitHub Release metadata to bind source revision, artifact checksum, platform manifest, and image digest without advertising the tarball as a supported production installer.
+- [ ] Update release and preview regressions to reject an unverified/non-`main`/mutable image, identity mismatch, unsupported platform, missing native `better-sqlite3` proof, or a deployment transport that bypasses backup-first verification.
+- [ ] Run `npm run docs:suggest`, update the image publication/transport/release documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.3`, and run `npm run verify:slice` exactly once at final local closeout.
+
+Acceptance criteria:
+
+- The reviewed image reaches the host by a least-privilege immutable-digest transport; release metadata binds source, artifact, platform, and image identities; deployment remains backup-first and non-interactive; and neither the runtime tarball nor a mutable tag becomes a second supported production path.
+
+### Version 0.33.28.4 - Live Compose cutover and replacement-gate proof
+
+**Model: High Effort** — This changes the actual preview/demo runtime while deliberately retaining the known recovery path until the replacement proves every destructive lifecycle operation.
+
+- [ ] Keep the current bare-metal `rt-ltf` and `rt-ltf-demo` installations, service definitions, retained releases, backups, deployment helper behavior, and recovery material intact until the Compose replacement gate below passes. Do not remove or disable bare-metal support assets in this slice.
+- [ ] Prove the complete Compose lifecycle first on `rt-ltf-demo` using its actual supported Linux/container architecture: deployment, upgrade, container/data-volume replacement, durable database/Files persistence, complete backup and inspection, restore into a clean recovery volume, migration-aware image rollback, restored rollback, ClamAV handoff, and maintenance/error behavior.
+- [ ] After the demo proof succeeds, cut `rt-ltf` over behind its reviewed Caddy (or Nginx → WireGuard → Caddy) edge using a verified whole-instance backup and separately protected recovery material. Keep the prior bare-metal release stopped but recoverable through the observation period; never run both app instances against the same SQLite/Files state.
+- [ ] Capture live evidence on both hosts: exact image digest/platform and `/api/app-info` identity, direct-loopback and public health/readiness, non-root/read-only/capability inspection, persistent-volume identity, protected backup destination, scanner readiness, maintenance curtain, firewall proof that port 8001 is loopback-only, and successful representative workflows.
+- [ ] Perform and record a live backup-first upgrade and a restored-rollback exercise against retained pre-upgrade state. Selecting an older image alone is insufficient evidence when forward migrations ran.
+- [ ] Confirm the August 31, 2026 private-preview host cut carries product features through 0.33.27 plus the 0.33.28 deployment/release work, while Secure Catalogs (0.33.29) and Support View (0.33.30) remain excluded, or update the target/status wording to match what actually shipped. Treat this live-host proof as a prerequisite for the broader public self-hosted preview, not as automatic authorization to announce or invite.
+- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.4`, run the named live/container proofs plus `npm run verify:slice` exactly once for the final unchanged repository state, and do not close on repo-local evidence alone.
+
+Acceptance criteria:
+
+- The Compose path has passed deployment, upgrade, persistence, backup, restore, migration-aware rollback, and restored-rollback gates on the actual supported host architecture; both preview/demo hosts run the verified immutable image; the prior bare-metal runtime remains stopped but recoverable through the observation window; and no retirement work has started early.
+
+### Version 0.33.28.5 - Bare-metal production-support retirement, documentation, and closeout
+
+**Model: High Effort** — This removes a security- and recovery-sensitive production contract only after its replacement is live, while preserving development access and the artifact payload the image still requires.
+
+- [ ] Start only after 0.33.28.4 records a successful observation period and confirms the retained bare-metal runtime is no longer needed for recovery. Preserve required historical deployment evidence, backups, Secure Notes recovery material, and operator records according to their retention rules.
+- [ ] Retire bare-metal-specific production implementation and release ceremony: `bare-metal:smoke` and its package/workflow/release-gate wiring, bare-metal-only regression assertions, the systemd service example, root-owned immutable Node-release installation path, direct-artifact production deploy/upgrade/rollback behavior, and duplicated support promises. Adapt rather than remove any constrained SSH/host-helper capability still required to deploy Compose by digest safely.
+- [ ] Keep `npm install`/`npm start`, local Node execution, and any needed Linux packaging validation for development, testing, and advanced experimentation, but label them unsupported for production/self-hosting. Do not remove the checksummed runtime artifact, `artifact:smoke`, native Linux dependency proof, image build, container smoke, or Compose release gates.
+- [ ] Rewrite the governing operator set around the sole supported Compose contract: `docs/preview-deployment.md`, `docs/self-hosting.md`, `docs/runtime-artifact.md`, `docs/versioning.md`, `docs/releasing.md`, `docs/development/github-workflow.md`, `docs/upgrading.md`, `docs/internet-deployment.md`, `docs/private-preview-readiness.md`, README release links/status, and directly related marketing/commercial packaging promises. Remove bare-metal installation, systemd, upgrade, rollback, and duplicated support language only after the replacement proof.
+- [ ] Ensure the final docs state that Docker does not assume operator ownership of DNS, TLS, firewalling, durable local storage, backup/export/restore, malware scanning, secrets, monitoring, Secure Notes recovery keys, or disaster-recovery decisions.
+- [ ] Reconcile the runtime-artifact allowlist and release metadata so the artifact remains the controlled image payload and `artifact:smoke` owner without carrying systemd/bare-metal production instructions solely to sustain a retired contract.
+- [ ] Run `npm run docs:suggest`, update `DECISIONS.md` and `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.5`, run the container/release/documentation regressions selected by the retirement, and run `npm run verify:slice` exactly once at final local closeout. Require live `/api/app-info` and supported Compose identity evidence before archiving 0.33.28.
+
+Acceptance criteria:
+
+- Docker Compose is the sole documented and release-gated production/self-hosted deployment for the public preview; direct Node/systemd operation is explicitly unsupported; the runtime artifact and `artifact:smoke` remain as controlled image-payload proof; bare-metal-specific support code, gates, examples, procedures, and promises are retired only after successful live replacement; operator responsibilities and migration-aware restored rollback remain explicit; and 0.33.28 closes only with both repository and live-host evidence. Public announcement or invitations remain a separate readiness decision.
 
 ## Version 0.33.29 - Secure Notes Catalog Policy and Inherited Protection
 
@@ -735,6 +814,141 @@ Acceptance criteria:
 Acceptance criteria:
 
 - An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
+
+## Version 0.33.31 - Public Demo Hardening and Hourly Reset
+
+**Model: High Effort** — This public-internet boundary combines authentication, permissions, data integrity, native SQLite lifecycle, deployment recovery, and abuse-resistance risk.
+
+Purpose:
+
+Make `https://demo.longtailforge.com` safe to publish as an August 31, 2026 public-preview release blocker: visitors can explore realistic permission-scoped workflows through shared fictional accounts, while dangerous capabilities are unavailable and all mutable demo state returns to a repository-reproducible known-good baseline every hour.
+
+Decision:
+
+Public-demo behavior is one explicit, fail-closed runtime capability profile enabled by `DEMO_MODE=true`, not hostname checks or scattered UI exceptions. The demo uses no real customer, friends-and-family, development, or operator data and exposes no installation Super Admin. An externally scheduled, lock-protected operator operation rebuilds and validates database plus Files from reviewed migrations and deterministic seed definitions, quiesces every SQLite user, promotes the matched candidate as one unit, expires all sessions, and restores the previous known-good unit if restart or health proof fails. The reset limits damage; it never substitutes for server-side capability denial, rate limits, input limits, or infrastructure isolation.
+
+Release priority and dependencies:
+
+- This slice is explicitly eligible to execute before 0.33.29 and 0.33.30 when the August 31 public-demo deadline requires it. Do not renumber those slices. 0.33.31 neither depends on Secure Notes catalog policy nor Support View and must not partially implement either; if they have landed when final proof runs, demo-mode exclusions must cover their new sensitive capabilities.
+- Build on the existing fail-closed production configuration, database-backed sessions and authentication throttling, framework permission catalog, deterministic Northwind scenario, guarded `rt-ltf-demo` provision/reset helper, whole-instance database-and-Files backup contract, health/readiness/app-identity probes, Files service boundary, and structured production logging.
+- Repository implementation may begin before 0.33.28 is fully closed. Live release acceptance must use the deployment format supported when the public demo launches—expected to be the 0.33.28 Docker Compose contract—and must repeat reset, persistence, rollback, and scheduler proof if the demo moves from the retained bare-metal host during this work.
+- 0.33.31 is complete only as a coordinated release after 0.33.31.1-.6 pass. Completing its planning or any individual sub-slice does not authorize publication of the URL.
+
+Non-goals:
+
+- Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
+- Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
+- Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or a public installation Super Admin.
+
+### Version 0.33.31.1 - Fail-closed public-demo configuration and capability boundary
+
+**Model: High Effort** — A configuration mistake here could expose administrative, credential, export, integration, or outbound capabilities on a public shared installation.
+
+- [ ] Add one typed runtime `DEMO_MODE` setting, default false, and a framework-owned demo capability catalog consumed by server services/routes and browser-safe diagnostics. Do not branch on `demo.longtailforge.com` inside feature modules; the hostname/origin may be one production startup identity assertion, not the behavior switch.
+- [ ] Make production startup reject contradictory or incomplete demo configuration before listening: demo mode must require the exact intended deployment identity and an explicitly demo-owned data root/marker, while ordinary production must reject demo credentials, seed controls, reset metadata, or demo-only login assistance when demo mode is false. Diagnostics expose only safe enabled/disabled classifications.
+- [ ] Define and document the permitted, read-only, disabled, and hourly-resettable capability matrix. Audit API-key creation/use, integrations, webhooks, outbound mail and invitations, password/email/authentication changes, backup/export/restore, installation administration, workspace creation/deletion, recovery paths, arbitrary outbound requests, and every other capability that could escape or persist beyond the shared demo.
+- [ ] Isolate the public demo runtime, database, Files tree, backups, secrets, network reach, logs, and deployment identity from development, friends-and-family, customer, and ordinary self-hosted installations. Seed and preflight proof must reject real domains/data, active external destinations, genuine credentials, key/recovery material, and any unreviewed environment inheritance.
+- [ ] Add focused unit and startup/integration tests for default-off behavior, exact demo enablement, contradictory settings, wrong host/origin/data marker, accidental demo credentials outside demo mode, redacted diagnostics, and unchanged normal development/self-hosted/SaaS configuration behavior.
+
+Acceptance criteria:
+
+- One explicit, default-off, fail-closed capability profile governs all public-demo exceptions; unsafe or ambiguous production configuration prevents startup, no feature module relies on hostname checks, and the reviewed matrix proves that no demo action can administer or communicate outside the isolated installation.
+
+### Version 0.33.31.2 - Deterministic permission-showcase accounts and login guidance
+
+**Model: High Effort** — Shared authentication combined with scoped role assignments requires exact permission and credential-mutation denial rather than illustrative labels.
+
+- [ ] Extend the deterministic fictional scenario with active public-demo-only accounts using the shipped role model and scopes: a workspace owner represented by a Workspace Administrator assignment, an elevated Client Administrator and/or project-scoped Project Administrator, a standard Client User and/or Project User, and a limited Client User (External) where the seeded records support a meaningful comparison. Do not seed or publish `super_admin`, invent a Manager role, or broaden any role's permissions.
+- [ ] Use fake names and reserved non-deliverable example-domain addresses only. Keep user IDs, memberships, role scopes, records, and public demo-only credentials deterministic across resets; treat those public credentials as non-secret demo fixtures that are valid only when the exact fail-closed demo profile is active and are never copied into another environment.
+- [ ] Make shared account credentials immutable in demo mode: deny password, username/email, alternate-email, authentication setting, recovery, session-management, API-key, and equivalent account takeover paths on the server even if a role would ordinarily permit one. Do not depend on outbound email or invitation delivery.
+- [ ] Provide a clear accessible mapping from each demo account to its real role name, scope, representative records, allowed examples, and expected denials. Optionally add a demo-only login account selector or credential panel after security/accessibility review; ordinary login markup and behavior must remain unchanged when demo mode is false.
+- [ ] Add a permission matrix regression that authenticates every shared account, proves representative allowed reads/writes and forbidden cross-scope/admin/credential actions, verifies workspace isolation, and proves no public Super Admin credential or privilege path exists.
+
+Acceptance criteria:
+
+- Visitors can deliberately choose among real, accurately scoped Longtail Forge roles using reproducible fictional accounts; every account demonstrates both allowed and denied behavior, cannot change shared credentials, needs no real email, and has no path to installation-level authority.
+
+### Version 0.33.31.3 - Reproducible golden baseline and hourly reset operator
+
+**Model: High Effort** — Safe replacement of a live native SQLite database and Files tree requires exclusive coordination, service quiescence, integrity proof, and tested automatic recovery.
+
+- [ ] Add a dedicated reviewed CLI/package entry such as `npm run demo:reset`, with explicit manual reset and non-destructive `--dry-run`/baseline-validation modes. Reuse or carefully extend the guarded `rt-ltf-demo` operator boundary rather than creating an unscoped general production reset command.
+- [ ] Build each candidate in a new same-filesystem staging location through the normal migration runner and deterministic public-demo seeder. Validate complete migration identity, expected semantic fingerprint/counts, SQLite `PRAGMA integrity_check`, zero foreign-key violations, seeded Files bytes/checksums, demo ownership marker, empty session state, and the absence of real credentials, Secure Notes recovery material, analytics, newsletter signups, or other external-interest data before promotion. A reviewed prebuilt artifact may accelerate startup but cannot be the sole or undocumented source of truth.
+- [ ] Acquire an exclusive host-level reset lock before staging and retain it through recovery/cleanup; overlapping scheduled/manual resets must fail or exit safely with a distinct status. Make retries idempotent, detect interrupted/partial state, retain the last known-good unit, and cover lock ownership/staleness without allowing two promoters.
+- [ ] Put the demo into a brief explicit maintenance/unavailable state, stop and prove quiescent every Node app/worker process that can hold SQLite or Files handles, checkpoint/close or discard the active database/WAL/SHM only under that stopped boundary, and promote database plus Files as one matched data-root unit using same-filesystem atomic renames where supported. Never replace a database beneath an open `better-sqlite3` connection or mix one reset's database with another reset's Files.
+- [ ] Start the previously active runtime, require direct and public health/readiness plus exact `/api/app-info`, migration, semantic-baseline, and representative login/read/write proof, then retire only transient candidate state. If restart or verification fails, close traffic, restore the retained previous known-good unit atomically, restart it, verify recovery, and preserve the whole-instance backup and failure evidence when automatic recovery cannot complete.
+- [ ] Ensure every prior demo session expires at promotion and no session from the previous database becomes valid again after rollback decisions. Record structured, secret-free reset start/end, trigger, operation ID, scheduled boundary, lock outcome, duration, fingerprint, health outcome, failure class, rollback, and recovery status; define retention and an actionable failure alert without logging credentials, content, raw paths, or session IDs.
+- [ ] Install the hourly schedule outside the application process using the mechanism appropriate to the supported deployment—host `systemd` timer/cron while the retained service host is active, or a reviewed host/container scheduler around Compose. Document the manual command, schedule/time zone, expected downtime, missed-run/catch-up policy, health alert, disable/recovery procedure, and scheduler ownership. Optionally expose a safe next-reset timestamp and accessible “changes are temporary” warning if user testing shows material value.
+- [ ] Add reset lifecycle tests for successful mutation-to-exact-baseline restoration, dry-run, repeat/idempotent runs, invalid/mismatched baseline, interrupted staging/promotion, lock contention, stale partial state, failed stop/start/readiness, automatic prior-state recovery, WAL/SHM handling, session expiry, Files/database pairing, log redaction, and alert invocation.
+
+Acceptance criteria:
+
+- An external hourly schedule and the same manual operator entry rebuild a fresh candidate from repository-controlled migrations and seed definitions, prove its exact database-and-Files fingerprint, swap only while native SQLite users are stopped, invalidate sessions, and either return healthy on the new baseline or automatically return healthy on the retained prior unit with actionable secret-free evidence.
+
+### Version 0.33.31.4 - Public-demo file-ingress shutdown
+
+**Model: High Effort** — Missing one alternate upload or attachment path would turn a shared public account into an untrusted storage and malware-ingress service.
+
+- [ ] Add a server-authoritative demo capability denial at the Files/service boundary before bytes, streams, metadata, quotas, storage objects, scan jobs, or attachment records can be created. Return one stable machine-readable error code/status and a user-facing explanation that uploads are unavailable in the public demo.
+- [ ] Cover current JSON single/batch and multipart single/batch Files routes plus attachment helpers and direct service callers. Audit Quick Capture, Notes, Tasks, Client/Project actions, Lists, Time Tracking, profile/avatar surfaces, imports, rich-text attachments, drag-and-drop, pasted files, module contributions, and any other ingress; explicitly record paths that do not currently exist so future additions cannot bypass the gate.
+- [ ] Keep API v1 file upload absent/denied in demo mode and add route/catalog guardrails so a later public upload contribution must declare and test demo capability behavior. Direct HTTP, API-key, alternate content type, malformed multipart, and internal attachment calls must not bypass rejection.
+- [ ] Hide or disable every applicable upload control and drop/paste target for clarity while keeping the server denial authoritative and ordinary development, self-hosted, and future SaaS behavior unchanged when demo mode is false.
+- [ ] Permit existing sanitized seeded attachments to remain viewable/downloadable/previewable only through the normal permission, scanner, safe-preview, and storage boundaries. Prove they cannot be replaced, extended, relinked through new bytes, or used to expose protected storage metadata.
+- [ ] Add configuration, permission, service, direct-route, multipart/JSON, browser, and source/catalog regressions covering every discovered ingress and normal-mode non-regression.
+
+Acceptance criteria:
+
+- No public-demo request or UI path can ingest file bytes or create an upload/scan artifact, seeded safe attachments remain read-only where authorized, bypass attempts receive stable safe feedback, and the same routes behave normally outside demo mode.
+
+### Version 0.33.31.5 - Public-internet abuse resistance and infrastructure isolation
+
+**Model: High Effort** — Shared credentials and a public URL require layered resource, content, network, and observability controls independent of the hourly reset.
+
+- [ ] Threat-model the shared demo and record bounded controls for credential stuffing, shared-account contention, mutation floods, record amplification, expensive reads/search, stored content abuse, XSS, outbound abuse, disk/database exhaustion, reset interference, and attempts to reach private infrastructure.
+- [ ] Retain database-backed authentication throttling and add measured reverse-proxy and/or application request and mutation limits appropriate to public shared accounts, trusted proxy identity, NAT/shared-IP fairness, and generic non-enumerating `429` responses. Define limits and alert thresholds from a reproducible public-demo smoke/load probe rather than arbitrary hidden constants.
+- [ ] Enforce server-side per-account/workspace caps on mutable record growth between resets, bounded query/page sizes, request/body/field/rich-text limits even with uploads disabled, and safe failure behavior before expensive parsing or durable writes. The hourly rebuild is recovery depth, not quota enforcement.
+- [ ] Exercise existing Markdown/HTML sanitization, escaping, CSP/security-header, and stored-XSS coverage against every representative demo-editable text surface and seeded cross-role reader. Do not add a demo-only renderer or weaken normal validation.
+- [ ] Disable or deny outbound email, invitations, webhooks, integrations, arbitrary URL fetches, SSRF-capable features, and unreviewed background work through the capability catalog plus network egress policy. Prove the demo host/container has no customer network route, private service credential, production secret, or writable production storage.
+- [ ] Define useful reverse-proxy/application/security logging, request correlation, retention, redaction, reset-event linkage, operational dashboards/alerts, and incident response without recording shared passwords or user content. Keep anonymous product analytics conceptually and technically separate from security/audit logs; analytics/provider work remains 0.33.32.
+
+Acceptance criteria:
+
+- The published demo has layered authentication, mutation, record, input, content, outbound-network, and infrastructure controls that remain effective for the full hour; logging supports abuse response without becoming analytics or exposing sensitive data.
+
+### Version 0.33.31.6 - Deployment proof, runbook, and public-demo release gate
+
+**Model: High Effort** — Closure requires reproducible repository proof and live public-host evidence across configuration, permissions, reset recovery, deployment, and unaffected environments.
+
+- [ ] Add the redacted deployment-environment example and manual/operator runbook for the actual supported demo deployment. Document demo capability classifications, shared-account ownership, scheduler installation, lock/maintenance behavior, expected reset downtime, next-reset visitor messaging if shipped, backups/retained states, alerts, rollback/recovery, log locations/retention, and escalation without including secrets or public account credentials in operator-only material.
+- [ ] Run unit/integration configuration tests, the complete shared-account permission matrix, direct upload-bypass coverage, abuse/input/XSS/outbound denials, and reset success/failure/recovery tests. Verify ordinary development, friends-and-family, supported self-hosted production, and future SaaS/default configuration remain unchanged when `DEMO_MODE` is false.
+- [ ] Add a release-owned public-demo smoke test covering each role login, representative scoped reads/writes/denials, attachment read-only behavior, disabled dangerous capabilities, health/readiness/app identity, rate-limit behavior, safe visitor messaging, and logout without exposing secrets in output.
+- [ ] Mutate representative records through real routes as multiple demo roles, create state up to configured caps, hold an old session, run the scheduled-equivalent reset, and prove the exact expected semantic/database-and-Files baseline returns, the old session is rejected, fresh role logins work, and no mutation survives unintentionally.
+- [ ] Prove analytics events, feedback, and newsletter/email interest are either disabled or sent only to the separately governed external boundary; none may be stored in the hourly-reset demo database. Defer provider operation, permanent interest capture, consent policy, and final privacy copy to 0.33.32.
+- [ ] Exercise deployment, hourly scheduling, missed/failing reset alerts, last-known-good rollback, whole-instance backup recovery, and public smoke on the real `demo.longtailforge.com` architecture. If the deployment format changes during the branch, repeat these live proofs on the supported replacement before launch.
+- [ ] Run `npm run docs:suggest`, update only owning configuration/security/demo/deployment/testing docs plus `DECISIONS.md` and `CHANGELOG.md` during implementation closeout, run database integrity proof, and run `npm run verify:slice` exactly once on the final unchanged worktree. Do not mark the release complete from documentation or local simulation alone.
+
+Acceptance criteria:
+
+- Repository verification and retained live evidence prove the public demo is isolated, capability-restricted, permission-accurate, upload-free, abuse-bounded, externally reset every hour to an exact reproducible baseline, recoverable from reset failure, session-invalidating, and safe to operate without affecting any non-demo environment. Publication remains blocked until that evidence and the August 31 launch readiness review are recorded.
+
+## Version 0.33.32 - Public Demo Analytics, Privacy, and Interest Capture
+
+**Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
+
+Purpose:
+
+Preserve the August 31, 2026 public-demo launch follow-on for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
+
+Dependencies and planned boundary:
+
+- [ ] Build on 0.33.31's explicit demo profile and external-integration capability catalog. Keep analytics and interest capture disabled until this slice selects and documents the independently operated external boundaries.
+- [ ] Define privacy-respecting analytics for the root marketing domain and demo subdomain, UTM campaign attribution, and anonymous demo-login/role-selection events with no record content, shared credential, stable user profiling, or cross-workspace identifier.
+- [ ] Provide a permanent external mailing-list signup path and reset-surviving feedback channel; neither writes subscriber email, feedback, consent, or analytics data to the demo SQLite database.
+- [ ] Document privacy/cookie notices, consent gating for all nonessential storage or tracking, retention/deletion ownership, IP and reverse-proxy log treatment, cross-domain data flow, and the separation between product analytics and security/audit logging.
+
+Acceptance criteria:
+
+- The August 31 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
 
 ## Version 0.34 - Support Tickets Module
 
@@ -2462,10 +2676,10 @@ Review, consolidate, and verify the complete 0.3x documentation and stabilizatio
 
 Purpose:
 
-Re-evaluate update assistance only after at least two real release/upgrade/restore cycles have used the manual Docker and bare-metal paths from 0.33.17. Do not implement an in-app updater merely because an earlier roadmap specified one.
+Re-evaluate update assistance only after at least two real release/upgrade/restore cycles have used the supported Docker Compose path established in 0.33.28. Do not implement an in-app updater merely because an earlier roadmap specified one.
 
 - [ ] Review real operator friction and decide whether users need passive update notifications, a CLI update helper, a Docker-oriented helper, an in-app updater, signed artifacts, and/or automatic rollback.
-- [ ] Treat manual Docker and bare-metal upgrades as the supported initial paths until evidence justifies a safer alternative.
+- [ ] Treat the backup-first Docker Compose upgrade and migration-aware restored-rollback path as the supported initial contract until evidence justifies a safer assistant.
 - [ ] Build any future implementation on proven artifact, checksum/signing, backup, restore, release, health/readiness, migration, restart, and rollback contracts.
 - [ ] Require explicit threat modeling, permissions, failure-state tests, air-gapped behavior if needed, and a kill switch before authorizing self-modifying behavior.
 - [ ] Keep hosted/SaaS deployment and fleet orchestration as a separate private operations concern.
@@ -2711,7 +2925,7 @@ Grounding (re-verify at implementation time - code will have drifted):
 
 - [ ] Expand from the limited 0.33.17 private preview to a broader public self-hosted release only after measured upgrade, restore, security, and support evidence.
 - [ ] Make PostgreSQL the preferred production database for this release (the SQLite/PostgreSQL adapter, dialect, and dual-backend work is built earlier in 0.40.0 - Database extraction layer; SQLite stays the lightweight self-hosted default)
-- [ ] Harden and document the proven 0.33.17 Docker Compose and manual deployment paths rather than creating a second packaging contract.
+- [ ] Harden and document the Docker Compose-only production/self-hosted contract established in 0.33.28 rather than reviving a second bare-metal packaging contract.
 - [ ] Setup wizard
 - [ ] Consolidated public-release admin/operator docs
 - [ ] Re-verify the 0.33.16 production cookie, trusted-proxy, CSRF, security-header, and fail-closed configuration posture at broader-release scale.
