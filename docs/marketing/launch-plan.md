@@ -31,7 +31,7 @@ It aligns with the release lanes in [../licensing/commercial-viability-plan.md](
 
 ## Stage 2 — Public self-hosted technical preview
 
-- **Prerequisites:** Stage 1 learnings addressed; self-hosting install/upgrade/backup docs in place; a security-disclosure path published; a clear limitations statement; packaging (Docker + bare-metal) from 0.33.17.
+- **Prerequisites:** Stage 1 learnings addressed; the Docker Compose-only production/self-hosted install, upgrade, backup, restore, and migration-aware rollback contract from 0.33.28 is proven and documented; a security-disclosure path is published; and the limitations statement keeps operator responsibilities explicit.
 - **Audience:** self-hosters, open-source-curious developers, privacy-conscious small operators willing to run early software.
 - **Message:** "Longtail Forge is an open-source, self-hosted work hub in **technical preview**. Run it yourself, kick the tires, tell us what breaks."
 - **Assets:** README + install/self-hosting docs, [website copy draft](website-copy-draft.md), Workbench-first screenshots ([screenshot plan](screenshot-and-demo-data-plan.md)), Demo A, FAQ, security-disclosure page, AGPL/source notices.
@@ -42,7 +42,7 @@ It aligns with the release lanes in [../licensing/commercial-viability-plan.md](
 
 ## Stage 3 — Stable community self-hosted release
 
-- **Prerequisites (from Lane 1 of the commercial plan):** tested manual Docker and bare-metal install/upgrade/rollback; clear SQLite/Postgres support statement; backup/restore docs; admin/bootstrap docs; license/source notices; security-disclosure path; basic migration testing; clear limitations.
+- **Prerequisites (from Lane 1 of the commercial plan):** tested Docker Compose install/deploy/upgrade/backup/restore and migration-aware restored rollback; clear SQLite/Postgres support statement; admin/bootstrap docs; license/source notices; security-disclosure path; native supported-architecture validation; and clear operator-owned limitations.
 - **Audience:** self-hosters and small teams wanting a dependable self-hosted tool.
 - **Message:** "Longtail Forge — a stable, open-source, self-hosted work hub for freelancers and small service teams."
 - **Assets:** polished README, full self-hosting/operations docs, refreshed screenshots and demo, FAQ, versioned release artifacts + changelog.
