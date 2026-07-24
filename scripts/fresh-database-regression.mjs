@@ -127,6 +127,16 @@ ORDER BY version;
       module_id: "core",
       name: "user_preferred_calendar_view",
     },
+    {
+      version: "083",
+      module_id: "core",
+      name: "task_recurrence_instance_uniqueness",
+    },
+    {
+      version: "084",
+      module_id: "core",
+      name: "private_feed_tokens",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -195,6 +205,7 @@ ORDER BY name;
     "notification_workspace_defaults",
     "notifications",
     "permissions",
+    "private_feed_tokens",
     "projects",
     "role_permissions",
     "roles",
@@ -339,6 +350,8 @@ WHERE type = 'index'
     'idx_notifications_workspace_module',
     'idx_notification_user_preferences_user',
     'idx_notification_workspace_defaults_workspace',
+    'idx_private_feed_tokens_authentication',
+    'idx_private_feed_tokens_user_workspace',
     'idx_search_index_workspace_body',
     'idx_search_index_workspace_client',
     'idx_search_index_workspace_indexed_at',
@@ -364,6 +377,7 @@ WHERE type = 'index'
     'idx_task_checklist_items_workspace_updated',
     'idx_task_recurrence_note_links_note',
     'idx_task_recurrence_note_links_template',
+    'idx_tasks_recurrence_instance_unique',
     'idx_task_relationships_active_pair',
     'idx_task_relationships_child',
     'idx_task_relationships_parent',
@@ -488,6 +502,8 @@ ORDER BY name;
     "idx_notifications_recipient_status_created",
     "idx_notifications_record",
     "idx_notifications_workspace_module",
+    "idx_private_feed_tokens_authentication",
+    "idx_private_feed_tokens_user_workspace",
     "idx_search_index_workspace_body",
     "idx_search_index_workspace_client",
     "idx_search_index_workspace_indexed_at",
@@ -516,6 +532,7 @@ ORDER BY name;
     "idx_task_relationships_active_pair",
     "idx_task_relationships_child",
     "idx_task_relationships_parent",
+    "idx_tasks_recurrence_instance_unique",
     "idx_tasks_workspace_due_date",
     "idx_tasks_workspace_last_worked_at",
     "idx_tasks_workspace_resume_context",

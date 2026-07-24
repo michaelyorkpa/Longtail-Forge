@@ -26,7 +26,7 @@ The runtime `src/` payload includes the generated bundled-module catalog and eve
 
 ## Install and start
 
-Use Node 24.7 or newer within the Node 24 line and a matching npm release. In a new non-public staging directory:
+Use Node 24.7 or newer within the Node 24 line and a matching npm release. The currently qualified Linux target is Debian 12 Bookworm/glibc on `linux/amd64`; arm64 and musl/Alpine are not supported by this release proof. Install Python 3, `make`, and a C/C++ compiler before `npm ci`: `better-sqlite3` loads its bundled `linux-x64` N-API prebuild at runtime, but its package install lifecycle still invokes `node-gyp`. In a new non-public staging directory:
 
 ```sh
 tar -xzf longtail-forge-<version>.tgz --strip-components=1
@@ -34,7 +34,7 @@ npm ci --omit=dev
 npm start
 ```
 
-The tarball contains `npm-shrinkwrap.json`, so `npm ci --omit=dev` is the settled runtime install command. Do not replace it with an unconstrained `npm install`, and do not run the application from the public web root. Supply the real `.env` or service-manager environment separately; never add secrets to the artifact.
+The tarball contains `npm-shrinkwrap.json`, so `npm ci --omit=dev` is the settled runtime install command. Do not replace it with an unconstrained `npm install`, and do not run the application from the public web root. The compiler, Python, and `make` are installation prerequisites, not application runtime dependencies; they may be absent from an immutable final runtime after the dependency tree has been installed successfully. Supply the real `.env` or service-manager environment separately; never add secrets to the artifact.
 
 `npm run start:worker` starts the optional same-host separate worker from the same installed artifact. Docker Compose, the systemd supervisor example, persistence, upgrade/rollback, and the host Caddy boundary are documented in [Docker and Bare-Metal Preview Deployment](preview-deployment.md); this artifact does not expose the Node listener directly to the internet.
 

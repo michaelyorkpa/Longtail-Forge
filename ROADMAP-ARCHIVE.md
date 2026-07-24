@@ -1,5 +1,168 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.22.7.3 - Linux artifact, container, runtime, and upgrade closeout
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.8` next.
+
+**Model: High Effort** — Final acceptance crossed clean Linux production installation, checksummed artifact packaging, hardened container execution, restored rollback, and real running-application behavior.
+
+- [x] Started from the unchanged `0.33.22.7.2` stack and constrained the supported deployment claim to the architecture actually proved by current CI and deployment: Debian 12 Bookworm/glibc `linux/amd64`. Arm64 and musl/Alpine remain unqualified rather than inferred from upstream package or base-image manifests.
+- [x] Proved a clean Node 24.18.0/npm 11.16.0 installation on Debian 12 x86_64 with glibc 2.36. The install required Python 3, `make`, and `g++` because npm invokes the package's `node-gyp` lifecycle; runtime loading selected the bundled `prebuilds/linux-x64.node`, and `npm run test:sqlite-driver` retained SQLite 3.53.3, FTS5/`bm25()`, `RETURNING`, binding, and platform tripwires.
+- [x] Preserved the checksummed runtime-artifact chain and exact production dependency graph. The hardened two-stage image installs through a disposable toolchain-bearing builder and runs without Python, compiler, `make`, Vitest, TypeScript, or ESLint.
+- [x] Reconstructed and checksum-verified an ignored `0.33.22.6` rollback fixture from the unchanged runtime payload and exact prior `better-sqlite3@12.11.1` production graph because no saved prior tarball was present. This is an honest rehearsal fixture, not a claim that a published artifact was recovered.
+- [x] Strengthened `container:smoke` around Docker-managed backup state, bounded post-restart endpoint readiness, and restart-time published-port resolution while retaining non-root, read-only, capability-dropped, no-new-privileges, private tmpfs, persistent database/Files, health/readiness/version, backup-first replacement, and restored prior-version rollback checks.
+- [x] Proved the candidate running application with a disposable authenticated administrator, representative existing-record reads, List create/update/read/Search, restart persistence and Search, soft delete, and exact health/readiness/application identity before restoring the prior image with its pre-upgrade data.
+- [x] Ran `npm run docs:suggest`; updated `docs/database.md`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/runtime-artifact.md`, and `docs/runtime-configuration.md` for the real Linux/toolchain/architecture boundary. Backup/recovery procedure owners remained unchanged because the supported whole-instance backup-first contract did not change.
+- [x] Advanced only through `npm run version:bump -- 0.33.22.7.3`, ran the artifact/image/container qualification plus the canonical final verification, and left `0.33.22.8` as the next active slice.
+- [x] Prepared the complete three-checkpoint stack for the normal pull-request path to `nightly`; protected clean-Linux Development, Browser, Dependency review, CodeQL, packaging, container, and recovery checks remain mandatory before merge.
+
+Acceptance criteria:
+
+- Clean supported `linux/amd64` loads `better-sqlite3@13.0.1`; the runtime artifact and hardened image install the exact production graph and pass candidate upgrade plus restored rollback.
+- The running application preserves representative CRUD, Search, persistence, readiness, and exact version identity after restart.
+- The complete stack passes local and protected clean-Linux release gates, remains independently revertible at the package/lock/regression/documentation boundary, introduces no database abstraction/schema/Docker-rollout scope, and leaves no unresolved native-driver work for `0.33.22.8`.
+
+Shared non-goals retained across `0.33.22.7.1` through `0.33.22.7.3`:
+
+- No database-adapter abstraction refactor, SQLite-to-PostgreSQL work, schema redesign, migration rewrite, query/API redesign, broad performance tuning, or Docker-only deployment rollout.
+- No unrelated dependency, Node-version, workflow-action, feature, UI, permission-model, or storage-provider change.
+
+## Version 0.33.22.7.2 - SQLite data, concurrency, and recovery compatibility
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.7.3` next.
+
+**Model: High Effort** — This checkpoint decided whether existing Longtail Forge databases and protected data remain safe under the new native driver.
+
+- [x] Started from the completed `0.33.22.7.1` dependency checkpoint and added no schema or migration file. Fresh startup retained the exact 21-migration identity through `084` and its checksum `3d0091a4b021dac5b5a3d11ba8c0e8d7079a12231db5d8418e538747db53522b`.
+- [x] Proved fresh startup under `better-sqlite3@13.0.1` with foreign keys on, WAL, configured synchronous `full`, 125 ms busy timeout, 4096 KiB cache, memory temp store, zero-byte mmap, `PRAGMA integrity_check = ok`, and zero `PRAGMA foreign_key_check` rows.
+- [x] Created and verified a stopped-app whole-instance backup of the realistic development seed plus Files (`e08f2353-c855-431c-8350-8d58cf980558`, SHA-256 `ab662fdbc6f2a5af2252f06eaa8e324f076ea6a6733817651fa6136ade4f8e4d`), restored it into a disposable target, and started only that target. Pre/post inventories matched exactly for 21 migration receipts, 5 workspaces, 18 users, 24 workspace memberships, 20 clients, 46 projects, 400 tasks, 200 notes, 201 note revisions, 24 lists, 131 list items, 604 time entries, 2 Files rows/objects, 626 Search rows, 628 FTS rows, and 38 jobs; both physical file lengths and SHA-256 hashes also matched.
+- [x] Recorded the realistic-source limitation honestly: it contained no encrypted Secure Notes rows. The generated whole-instance/workspace backup drills and focused Secure Notes owner separately proved encrypted payload/key prerequisites, persistence, revision behavior, restore, rejection, and rollback.
+- [x] Added one isolated release-gate compatibility regression for adapter/native commit and rollback, deferred foreign keys, WAL reader/writer concurrency, busy timeout, named/positional and cross-realm bindings, `RETURNING`, BLOB fidelity, FTS5 `MATCH`/`bm25()`, checkpoint/reopen persistence, fresh migration identity, and explicit integrity/foreign-key results.
+- [x] Ran the existing whole-instance and workspace backup/restore drills plus fresh-database, migration compatibility/locking, adapter, transaction, result, statement-cache, Search lifecycle/rebuild, and Secure Notes owners. The canonical slice verification supplied the full changed-area representative-module coverage and the separate permission harness exactly once.
+- [x] Recorded rollback accurately: reverting package files only reselects the prior driver and cannot undo migrations or repair data. Because this checkpoint introduced no schema or data rewrite, any unexpected mutation blocks continuation; recovery restores the verified database and Files backup together.
+- [x] Ran `npm run docs:suggest`, updated only `docs/regression-suite.md`, recorded that database/backup/recovery behavior and prerequisites did not change, updated `CHANGELOG.md`, and advanced only through `0.33.22.7.2`.
+- [x] Kept the checkpoint stacked and unmerged. Database compatibility is not clean Linux artifact/container/runtime proof.
+
+Acceptance criteria:
+
+- Fresh and realistically restored databases start with the unchanged schema/migration identity, exact representative record/File/Search inventories, separately proved Secure Notes recovery behavior, preserved workspace boundaries, and clean integrity/foreign-key results.
+- Transaction, binding, result, FTS5, WAL, busy/concurrency, migration-locking, backup/restore, permission, isolation, and representative module behavior pass under `13.0.1`.
+- No schema/migration redesign or data rewrite was introduced; rollback treats the database and Files as one recovery unit, and the checkpoint remains unmerged pending `0.33.22.7.3` release proof.
+
+## Version 0.33.22.7.1 - better-sqlite3 13 package and native-install qualification
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.7.2` next.
+
+**Model: High Effort** — The dependency changes its native ABI and prebuild delivery model, so package selection and installation evidence had to be exact before database compatibility work could start.
+
+- [x] Recorded the official upstream change analysis before editing package metadata: `13.0.0` moved the addon to N-API through `node-addon-api`, removed `prebuild-install`, bundled platform prebuilds with the package, declared Node `>=22`, added platform exports, and retained source compilation as the fallback when no matching prebuild exists. `13.0.1` fixed over-strict plain-object parameter binding across JavaScript realms and bundles SQLite 3.53.3.
+- [x] Mapped those changes to Longtail Forge: the unchanged Node `>=24.7 <25` range is inside the new driver range; normal imports use the package root; the SQLite adapter primarily emits positional bindings; direct adapter, helper, backup/restore, development-data, migration, and regression consumers retain named bindings, FTS5/`bm25()`, `RETURNING`, and BLOB/result fidelity as load-bearing contracts.
+- [x] Upgraded only `better-sqlite3` from `12.11.1` to `13.0.1` in `package.json` and the lockfile. The reviewed production graph is `better-sqlite3@13.0.1` to `node-addon-api@8.9.0`; `prebuild-install`, `bindings`, and dependencies reachable only through that retired path left the graph without changing the Node range, schema, workflow actions, or package scripts.
+- [x] Extended `scripts/better-sqlite3-install-smoke.mjs` to pin driver `13.0.1`, Node `>=22`, SQLite 3.53.3, required compile options, FTS5/`bm25()`, `RETURNING`, the selected platform export/prebuild, and a cross-realm plain-object named-binding case that detects the `13.0.0` regression.
+- [x] Proved a clean disposable Windows 10 Pro x64 `npm ci` under Node `24.18.0`, npm `11.16.0`, and an Intel64 CPU. The bundled `win32-x64` N-API prebuild loaded and no local build output existed, so no Python, compiler, or Visual Studio Build Tools were required; the normal repository install also loaded successfully from its path containing spaces.
+- [x] Ran the focused install smoke, production dependency-tree review, and `npm run docs:suggest`; updated `docs/database.md` and `docs/runtime-configuration.md`, recorded the change in `CHANGELOG.md`, and advanced only through `0.33.22.7.1`.
+- [x] Kept this checkpoint stacked and unmerged. Dependabot PR #42 remains untouched, and successful installation is not treated as database compatibility or release proof.
+
+Acceptance criteria:
+
+- The exact package/lock diff selects only `better-sqlite3@13.0.1` and its necessary transitive graph, with no `prebuild-install` residue reachable only from the old driver.
+- Official N-API, bundled-prebuild, engine, platform, compilation-fallback, SQLite, and `13.0.1` binding-fix changes are mapped to actual Longtail Forge consumers.
+- A clean supported Windows x64 install loads the bundled driver and the focused install contract passes; the checkpoint remains unmerged pending data and release proof.
+
+## Version 0.33.22.6 - Atomic GitHub Actions minor maintenance
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.7` next.
+
+**Model: Medium Effort** — This was a contained SHA-pin maintenance rollout across the existing workflow surface, with low design risk and focused release-regression proof.
+
+- [x] Incorporated Dependabot PRs #39, #40, and #41 as one atomic maintenance change by updating every tracked `actions/checkout` reference to reviewed `v7.0.1` SHA `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+- [x] Updated CodeQL `init` and `analyze` together to reviewed `v4.37.3` SHA `e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81`.
+- [x] Extended `github-release-operations.regression.mjs` to enforce one reviewed checkout pin and matching immutable CodeQL init/analyze pins across tracked workflows while retaining existing guardrails.
+- [x] Kept Dependabot PR #42 (`better-sqlite3` 13.0.1) outside this slice for independent 0.33.22.7 review.
+- [x] Ran the required local closeout and recorded the no-docs disposition because action versions changed without changing the GitHub workflow contract.
+
+Acceptance criteria:
+
+- Every tracked GitHub workflow uses the reviewed checkout SHA with no prior checkout SHA or stale annotation.
+- CodeQL initialization and analysis use the same reviewed immutable SHA, with regression coverage preventing split-version updates.
+- The combined maintenance change remains independently reviewable for normal publication to `nightly`; Dependabot PR #42 remains untouched.
+
+## Version 0.33.22.4 - Tasks iCalendar content serialization
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.6` next.
+
+**Model: High Effort** — iCalendar correctness (RRULE, RECURRENCE-ID overrides, time zones, escaping) determines whether real calendar clients render the feed without corruption.
+
+- [x] Replaced the placeholder Tasks provider with bounded `VCALENDAR`/`VEVENT` serialization over a rolling 90-day past and 365-day future horizon, using one feed-specific Task projection plus active templates and the same compiled `tasks.view` workspace/Client/Project permission resources as the in-app calendar.
+- [x] Emitted recurring Tasks as one native master with the stored RRULE and an `UNTIL` capped by `recurrence_end_date` or the last occurrence inside the horizon. Materialized changes use the same stable series UID plus original-start `RECURRENCE-ID`; unchanged rows rely on the master, while inaccessible/archived/out-of-window instances use title-free cancellations.
+- [x] Added opaque SHA-256-derived provider-neutral UIDs, required timestamps, canonical UTC timed one-offs, date-valued all-day start/exclusive end, local-TZID timed recurrence, finite DST-aware `VTIMEZONE`, escaped TEXT, CRLF, and UTF-8 75-octet folding without adding durations or exposing raw identifiers.
+- [x] Kept the framework token lifecycle/authentication/throttle/serving seam unchanged. Tasks continues to own query scope, permission shaping, recurrence semantics, and content; no provider OAuth, write-back, external API, standalone event record, or generalized feed-content framework was added.
+- [x] Added `tasks.task-calendar-feed-serialization` with single, all-day, timed, ended/open-ended recurring, moved override, hidden, archived, and out-of-horizon fixtures; RFC structure/folding/escaping/timezone/identity assertions; and disposable-database proof that a Project-scoped user receives only the readable Project Task.
+- [x] Validated the emitted common RFC 5545 profile against the documented `.ics` import/subscription contracts for Google Calendar, Apple Calendar, Outlook, and Thunderbird while keeping client UI setup and refresh guidance in 0.33.22.8.
+
+Acceptance criteria:
+
+- The emitted feed matches the documented `.ics` import/subscription profile used by Google Calendar, Apple Calendar, Outlook, and Thunderbird and renders one-off, all-day, timed, and recurring Tasks through standards-defined properties.
+- Recurring Tasks are native RRULE events with materialized changes expressed as same-UID RECURRENCE-ID exceptions.
+- The feed exposes only Tasks the token's user may read and only inside the fixed rolling window.
+
+## Version 0.33.22.3 - Framework private calendar-feed subscription and token authentication
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.4` next.
+
+**Model: High Effort** — This added a sessionless, internet-reachable authenticated read surface whose token, revocation, throttling, and content boundary must remain exact.
+
+- [x] Added one framework-owned private calendar token per user, workspace, and provider. Raw high-entropy tokens are returned only on generate/rotate; persistence keeps a selector plus SHA-256 digest, verification uses a constant-time comparison, and active user/workspace membership is resolved without a session cookie.
+- [x] Added `GET /feeds/calendar/:token.ics` before the browser session gate. It authenticates only the bearer URL, dispatches by stable `tasks.calendar` provider ID, returns `text/calendar` with private no-store caching and a 900-second refresh hint, and performs no state change.
+- [x] Reused the trusted request IP and durable sensitive-endpoint throttle with an IP-only dimension. Malformed, unknown, rotated, disabled, inaccessible, and permission-denied tokens share one `404` envelope; forged forwarding headers cannot choose buckets when the direct peer is not trusted.
+- [x] Added session-owned status, generate, rotate, and disable lifecycle routes under `/api/private-feeds/calendar`. Rotation replaces the selector/digest atomically, disablement is immediate, and generate/rotate/disable emit secret-free security events.
+- [x] Registered the initial Tasks provider during app activation. Tasks owns `tasks.view` authorization and currently returns only a minimal valid `VCALENDAR` container; Task serialization, recurrence, time zones, line folding, and client compatibility remain exclusively in 0.33.22.4.
+- [x] Recorded private feed authentication in the governing decisions and architecture contract as an intrinsically framework-wide Two-Module exception while retaining module ownership of content. Operational guidance treats the complete URL as a bearer secret and requires upstream path redaction.
+- [x] Added isolated database/HTTP regression proof for hashed-only storage, sessionless valid reads, stable provider dispatch, permission/workspace scope, immediate rotation/disable revocation, rejection parity, trusted-IP throttling, secret-free audit/runtime output, lifecycle security events, and SQLite integrity.
+
+Acceptance criteria:
+
+- A per-user, rotatable, hashed feed token authenticates a sessionless read of the user's calendar, permission- and workspace-scoped.
+- The feed endpoint is throttled, non-enumerating, secret-free in logs, and revocation takes effect immediately.
+- The framework owns only the feed auth/serving seam and dispatches content to a registered provider by ID.
+
+## Version 0.33.22.2 - Per-instance overrides via materialize-on-touch
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.3` next.
+
+**Model: High Effort** — Promotion-on-edit is permission-checked and database-enforced so instance-specific work cannot silently apply to the wrong date or create duplicate rows.
+
+- [x] Added the Tasks-owned materialize-on-touch route and service. Opening a virtual occurrence validates its active `(templateId, instanceDate)`, requires the normal module-write and Task-edit permission boundary, reuses `materializeInstance`, and returns the resulting canonical Task detail.
+- [x] Carried `templateId` plus `instanceDate` through the shared Calendar/Dashboard entry callback and canonical Task editor. The host refreshes after the explicit touch, even when the editor closes without another edit, so the real row replaces its ghost while siblings stay virtual.
+- [x] Added migration 083's unique `(workspace_id, recurrence_template_id, recurrence_instance_date)` index and a provider-neutral conflict/`RETURNING` repository insert. Interactive touch, completion generation, and the recurrence sweep now share that race-safe path; only the winning writer copies recurrence structure and emits creation side effects.
+- [x] Preserved per-instance description, checklist, linked-note, assignee, reschedule, and completion behavior through the existing Task editor/routes. A rescheduled occurrence retains its recurrence identity, completion still queues the next scheduled instance, and the 12-hour sweep leaves existing open rows healthy.
+- [x] Added isolated regression proof for permission denial, one-date promotion, independent edits, real-row/ghost replacement, eight concurrent touches converging on one row and one audit, database uniqueness, sweep stability, completion continuity, and clean integrity/foreign keys.
+- [x] Added rendered desktop proof that opening `Planned occurrence` sends one materialization request, opens the canonical editor, and replaces the ghost with a normal task entry; updated shared Calendar guardrails and mobile affordance coverage.
+
+Acceptance criteria:
+
+- A user can attach instance-specific data to a single occurrence of a recurring task, and only that occurrence becomes a real, independently editable row.
+- Promotion is exactly once, permission checked, and does not disrupt recurrence generation or continuity.
+
+## Version 0.33.22.1 - Read-time recurrence projection on the calendar
+
+Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.2` next.
+
+**Model: High Effort** — This changed the calendar read to merge computed virtual occurrences with real rows while preserving real-instance precedence, permission scope, and read-only behavior.
+
+- [x] Extended `tasksService.calendarWindow` to expand each active, in-window recurrence template into virtual occurrences with the existing Tasks recurrence math, bounded by `TASK_CALENDAR_WINDOW_MAX_DAYS` and the earlier of `recurrence_end_date` or RRULE `UNTIL`.
+- [x] Deduplicated virtual occurrences against every materialized `(recurrence_template_id, recurrence_instance_date)`, with the real row always taking precedence and excluded real statuses never reappearing as open ghosts.
+- [x] Added the virtual calendar-row shape with `templateId`, `instanceDate`, `virtual: true`, and the same single-day `allDay`/`startDate`/`endDate` semantics as real rows.
+- [x] Applied the existing descendant-aware Client/Project scope and `tasks.view` permission evaluator to templates before projection.
+- [x] Rendered virtual entries through the shared task-calendar helper with a visible, accessible `Planned occurrence` affordance in both the Calendar page and Dashboard panel; entries remain read-only until materialize-on-touch.
+- [x] Added focused service/static and rendered browser proof for weekly open-ended expansion, stored/RRULE end bounds, materialized-instance suppression, hidden-template filtering, unchanged reminder lookahead, shared rendering, and zero task-row writes.
+
+Acceptance criteria:
+
+- A recurring task appears on every applicable date within the calendar window, not only on its single materialized instance.
+- Virtual occurrences respect end dates, permission/scope filters, and never duplicate a materialized instance.
+- No new rows are created by opening or paging the calendar.
+
 ## Version 0.33.21.21.4 - Pre-verification login admission and flood resistance
 
 Completed and published on 2026-07-23. The monotonic active cursor advances to `0.33.22`.

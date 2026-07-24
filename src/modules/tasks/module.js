@@ -13,9 +13,11 @@ import { tasksPermissions } from "./module.permissions.js";
 import { tasksEvents } from "./module.events.js";
 import { tasksIntegrations } from "./module.integrations.js";
 import { tasksSettings } from "./module.settings.js";
+import { registerTasksPrivateCalendarFeedProvider } from "./private-calendar-feed.provider.js";
 
 function activateTasksAppRuntime(context) {
   registerTasksSearchIndexers();
+  registerTasksPrivateCalendarFeedProvider();
   taskRemindersService.registerSettingsHandlers();
   registerTaskJobHandlers();
   registerTasksStartupSweeps(context, "startup");

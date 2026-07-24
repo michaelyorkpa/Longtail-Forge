@@ -608,7 +608,7 @@ function recurrenceCreateTaskAdapter(workspaceId, session, createdByUserId) {
     findExisting: async (templateId, instanceDate) =>
       tasksRepository.readByRecurrenceInstance(workspaceId, templateId, instanceDate),
     create: async (nextTask) =>
-      tasksRepository.create(workspaceId, {
+      tasksRepository.createRecurrenceInstance(workspaceId, {
         ...nextTask,
         created_by_user_id: normalizeText(createdByUserId) || session.user_id,
         updated_by_user_id: session.user_id,

@@ -157,6 +157,8 @@ As of 0.33.16.8, security events remain framework-owned and use `audit_logs` as 
 
 Authentication throttle state is a separate framework security concern, not reconstructed from the audit stream. As of 0.33.17.7.17, `src/security/auth-throttle.js` owns normalization, hashed installation-scoped bucket identities, configuration, and response/event semantics, while `src/repositories/authentication-throttle.repo.js` owns transaction-serialized persistence in the dedicated expiry-indexed table. Login, current-password verification, and administrator reset retain the existing trusted-IP plus account dimensions and non-enumerating behavior across restart without persisting raw usernames, IP addresses, credentials, sessions, or tokens. SQLite support remains one app server; cross-node atomic throttling belongs to the future hosted database implementation.
 
+As of 0.33.22.3, private calendar-feed authentication is another explicit framework-wide authentication/security exception to the Two-Module Rule. Framework storage owns one rotatable selector/digest per user, workspace, and provider; the public read route uses the trusted client IP, an IP-only durable sensitive-endpoint bucket, constant-time digest comparison, one generic rejection envelope, secret-free logging, and stable-ID provider dispatch. Tasks is the only provider and retains `tasks.view` enforcement plus all iCalendar content semantics. The framework does not query Tasks storage, and this narrow auth/serving seam must not become a general feed-content abstraction without a second real consumer.
+
 ---
 
 ## What Belongs in First-Party Modules

@@ -27,6 +27,12 @@ tasksRoutes.get("/tasks/calendar", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+tasksRoutes.post("/tasks/recurrence-instances/materialize", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await tasksService.materializeRecurrenceInstance(payload, request.session);
+  response.status(200).json(result);
+}));
+
 tasksRoutes.get("/tasks/timers", asyncRoute(async (request, response) => {
   const result = await taskTimersService.list(request.session);
   response.status(200).json(result);

@@ -16,10 +16,11 @@ jobs:
     name: Classify pull-request changes
     runs-on: ubuntu-24.04
     outputs:
-      docs_only: ${{ steps.changes.outputs.docs_only }}
+      github_only_docs: ${{ steps.changes.outputs.github_only_docs }}
+      runtime_help_changed: ${{ steps.changes.outputs.runtime_help_changed }}
     steps:
       - name: Check out the proposed revision and complete pull-request history
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Use the supported Node runtime
@@ -30,7 +31,7 @@ jobs:
         id: changes
         env:
           LTF_REGRESSION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: node scripts/classify-pull-request-changes.mjs --github-output
+        run: node scripts/classify-github-changes.mjs --github-output
 
   development-gate:
     name: Development gate
@@ -39,7 +40,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the proposed revision
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Use the supported Node runtime
@@ -51,12 +52,16 @@ jobs:
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - name: Closeout gate timing
         run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
-      - name: Docs-only validation scope
-        if: needs.classify_changes.outputs.docs_only == 'true'
+      - name: GitHub-only documentation validation scope
+        if: needs.classify_changes.outputs.github_only_docs == 'true'
         run: |
-          echo "Docs-only fast path - closeout/documentation consistency and changed-area regressions remain required; application typecheck, unit tests, and lint are not required."
+          echo "GitHub-only documentation fast path - closeout/documentation consistency and changed-area regressions remain required; application typecheck, unit tests, and lint are not required."
+      - name: Runtime Help validation scope
+        if: needs.classify_changes.outputs.runtime_help_changed == 'true'
+        run: |
+          echo "Runtime Help changed - full application and browser validation remain required so the updated Help can deploy after merge."
       - name: Typecheck/unit/lint timing
-        if: needs.classify_changes.outputs.docs_only != 'true'
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
       - name: Run regressions selected from the pull-request diff
         env:
@@ -69,29 +74,29 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
-      - name: Docs-only browser fast path
-        if: needs.classify_changes.outputs.docs_only == 'true'
+      - name: GitHub-only documentation browser fast path
+        if: needs.classify_changes.outputs.github_only_docs == 'true'
         run: |
-          echo "Docs-only fast path: Playwright browser installation and smoke/accessibility execution are not required."
-      - if: needs.classify_changes.outputs.docs_only != 'true'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - if: needs.classify_changes.outputs.docs_only != 'true'
+          echo "GitHub-only documentation fast path: Playwright browser installation and smoke/accessibility execution are not required."
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - name: Context/setup timing
-        if: needs.classify_changes.outputs.docs_only != 'true'
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - if: needs.classify_changes.outputs.docs_only != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: npx playwright install --with-deps chromium
       - name: Browser check timing
-        if: needs.classify_changes.outputs.docs_only != 'true'
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
 
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

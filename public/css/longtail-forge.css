@@ -8931,6 +8931,17 @@ button:disabled {
     border-left-style: solid;
 }
 
+.calendar-entry[data-virtual="true"] {
+    border-style: dashed;
+    border-left-style: solid;
+    cursor: pointer;
+    opacity: 1;
+}
+
+.calendar-entry[data-virtual="true"]:hover {
+    background: var(--color-surface-muted);
+}
+
 .calendar-entry-time {
     font-size: 0.72rem;
     color: var(--color-muted);
@@ -8945,6 +8956,12 @@ button:disabled {
     font-size: 0.75rem;
     color: var(--color-text-secondary);
     overflow-wrap: anywhere;
+}
+
+.calendar-entry-virtual {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
 }
 
 .calendar-reminder-indicator {

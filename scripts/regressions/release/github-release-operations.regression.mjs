@@ -20,6 +20,8 @@ const workflowPaths = [
   ".github/workflows/manual-preview.yml",
   ".github/workflows/codeql.yml",
 ];
+const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
+const REVIEWED_CODEQL_SHA = "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81";
 const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, packageSource] = await Promise.all([
   ...workflowPaths.map(read),
   read(".github/dependabot.yml"),
@@ -40,6 +42,12 @@ for (const [index, source] of workflows.entries()) {
   const uses = [...source.matchAll(/^\s*-\s+uses:\s*([^\s#]+)/gm)].map((match) => match[1]);
   assert.ok(uses.length > 0, `${workflowPaths[index]} should use at least one reviewed action`);
   assert.ok(uses.every((value) => /@[a-f0-9]{40}$/.test(value)), `${workflowPaths[index]} actions must use full immutable SHAs`);
+  const checkoutUses = uses.filter((value) => value.startsWith("actions/checkout@"));
+  assert.ok(checkoutUses.length > 0, `${workflowPaths[index]} should use the reviewed checkout action`);
+  assert.ok(
+    checkoutUses.every((value) => value === `actions/checkout@${REVIEWED_CHECKOUT_SHA}`),
+    `${workflowPaths[index]} must use one reviewed actions/checkout SHA`,
+  );
   assert.doesNotMatch(source, /pull_request_target|permissions:\s*write-all/);
 }
 
@@ -70,7 +78,11 @@ for (const requirement of [
 assert.match(nightly, /push:[\s\S]*branches: \[nightly\]/);
 assert.match(nightly, /schedule:[\s\S]*cron:/);
 assert.match(nightly, /environment: demo-development/);
-assert.match(nightly, /if: github\.event_name == 'push'/);
+assert.match(
+  nightly,
+  /name: Deploy demo development[\s\S]*github\.event_name == 'push'[\s\S]*needs\.classify_changes\.outputs\.github_only_docs != 'true'/,
+);
+assert.match(nightly, /name: GitHub-only docs - no deployment/);
 assert.match(nightly, /DEPLOY_ENABLED/);
 assert.match(nightly, /release-metadata\.json/);
 assert.match(nightly, /deploy-via-ssh/);
@@ -104,7 +116,17 @@ for (const requirement of [
 ]) assert.match(manualPreview, requirement);
 assert.doesNotMatch(manualPreview, /^\s*push:/m);
 
-assert.match(codeql, /github\/codeql-action\/init@[a-f0-9]{40}/);
+assert.equal(
+  (codeql.match(new RegExp(`github/codeql-action/init@${REVIEWED_CODEQL_SHA}`, "g")) || []).length,
+  1,
+  "CodeQL init must use the reviewed immutable SHA exactly once",
+);
+assert.equal(
+  (codeql.match(new RegExp(`github/codeql-action/analyze@${REVIEWED_CODEQL_SHA}`, "g")) || []).length,
+  1,
+  "CodeQL analyze must use the reviewed immutable SHA exactly once",
+);
+assert.doesNotMatch(codeql, /github\/codeql-action\/(?:init|analyze)@99df26d4f13ea111d4ec1a7dddef6063f76b97e9/);
 assert.match(codeql, /security-events: write/);
 assert.match(dependabot, /package-ecosystem: npm/);
 assert.match(dependabot, /package-ecosystem: github-actions/);

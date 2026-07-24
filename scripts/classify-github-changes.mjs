@@ -1,12 +1,12 @@
 import { appendFileSync } from "node:fs";
-import { collectPullRequestChangeClassification } from "./lib/pull-request-change-classification.mjs";
+import { collectGitHubChangeClassification } from "./lib/github-change-classification.mjs";
 
 const args = process.argv.slice(2);
 if (args.some((argument) => !["--github-output", "--json"].includes(argument)) || new Set(args).size !== args.length) {
-  throw new Error("Usage: node scripts/classify-pull-request-changes.mjs [--github-output] [--json]");
+  throw new Error("Usage: node scripts/classify-github-changes.mjs [--github-output] [--json]");
 }
 
-const classification = collectPullRequestChangeClassification();
+const classification = collectGitHubChangeClassification();
 
 if (args.includes("--json")) {
   console.log(JSON.stringify(classification, null, 2));
@@ -25,7 +25,8 @@ if (args.includes("--github-output")) {
   appendFileSync(
     outputPath,
     [
-      `docs_only=${classification.docsOnly}`,
+      `github_only_docs=${classification.githubOnlyDocs}`,
+      `runtime_help_changed=${classification.runtimeHelpChanged}`,
       `changed_entries=${classification.entries.length}`,
       "",
     ].join("\n"),

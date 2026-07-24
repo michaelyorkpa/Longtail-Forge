@@ -21,6 +21,12 @@ test("mobile Dashboard and Actions Calendar default to Day with their deliberate
     await expect(page.locator(surface.activeView)).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".calendar-day-view")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open task: Mobile reminder proof" })).toBeVisible();
+    const plannedOccurrence = page.getByRole("button", {
+      name: "Open planned occurrence: Mobile planned recurrence proof",
+    });
+    await expect(plannedOccurrence).toBeVisible();
+    await expect(plannedOccurrence).toBeEnabled();
+    await expect(plannedOccurrence.locator(".calendar-entry-virtual")).toHaveText("Planned occurrence");
     if (surface.path === "/calendar.html") {
       await expect(page.getByRole("button", { name: "Open task: Mobile completed proof" })).toBeVisible();
     } else {
@@ -33,6 +39,36 @@ test("mobile Dashboard and Actions Calendar default to Day with their deliberate
   expect(requests[0].searchParams.get("statuses")).toBe("open,in_progress,blocked");
   expect(requests[1].searchParams.get("start")).toBe(requests[1].searchParams.get("end"));
   expect(requests[1].searchParams.get("statuses")).toBe("open,in_progress,blocked,complete");
+});
+
+test("opening a planned occurrence materializes it once and replaces the ghost", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "one viewport is sufficient for materialize-on-touch behavior");
+
+  const state = { materialized: false, materializationRequests: [] };
+  await stubCalendarPreference(page, "day");
+  await stubCalendarReads(page, [], state);
+  await stubOccurrenceMaterialization(page, state);
+  await page.goto("/calendar.html?view=day&date=2026-07-23");
+
+  const plannedOccurrence = page.getByRole("button", {
+    name: "Open planned occurrence: Mobile planned recurrence proof",
+  });
+  await expect(plannedOccurrence).toBeVisible();
+  await plannedOccurrence.click();
+
+  await expect.poll(() => state.materializationRequests).toEqual([{
+    instanceDate: "2026-07-23",
+    templateId: "mobile-calendar-template",
+  }]);
+  const dialog = page.locator("[data-task-dialog]");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("[data-task-dialog-title]")).toHaveText("Edit Task");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(page.getByRole("button", { name: "Open task: Mobile planned recurrence proof" })).toBeVisible();
+  await expect(page.getByRole("button", {
+    name: "Open planned occurrence: Mobile planned recurrence proof",
+  })).toHaveCount(0);
 });
 
 test("saved calendar preference wins on Dashboard and Actions Calendar", async ({ page }, testInfo) => {
@@ -119,10 +155,11 @@ async function stubCalendarPreference(page, preferredCalendarView) {
   });
 }
 
-async function stubCalendarReads(page, requests = []) {
+async function stubCalendarReads(page, requests = [], state = {}) {
   await page.route("**/api/tasks/calendar?*", async (route) => {
     const requestUrl = new URL(route.request().url());
     const date = requestUrl.searchParams.get("start");
+    const endDate = requestUrl.searchParams.get("end");
     const statuses = String(requestUrl.searchParams.get("statuses") || "").split(",");
     requests.push(requestUrl);
     await route.fulfill({
@@ -139,6 +176,20 @@ async function stubCalendarReads(page, requests = []) {
             status: "open",
             priority: "normal",
           },
+          ...(date === endDate ? [state.materialized
+            ? materializedCalendarTask(date)
+            : {
+                task_id: "",
+                id: `recurrence:mobile-calendar-template:${date}`,
+                templateId: "mobile-calendar-template",
+                instanceDate: date,
+                virtual: true,
+                title: "Mobile planned recurrence proof",
+                due_date: date,
+                due_time: "",
+                status: "open",
+                priority: "normal",
+              }] : []),
           ...(statuses.includes("complete") ? [{
             task_id: "mobile-calendar-completed-task",
             title: "Mobile completed proof",
@@ -165,6 +216,80 @@ async function stubCalendarReads(page, requests = []) {
       },
     });
   });
+}
+
+async function stubOccurrenceMaterialization(page, state) {
+  await page.route("**/api/tasks/recurrence-instances/materialize", async (route) => {
+    const payload = route.request().postDataJSON();
+    state.materializationRequests.push(payload);
+    state.materialized = true;
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        task: materializedTaskDetail(payload.instanceDate),
+        wasCreated: true,
+      },
+    });
+  });
+  await page.route(/\/api\/tasks\/mobile-calendar-materialized-task$/, async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        currentUserId: "mobile-calendar-user",
+        options: {
+          clients: [],
+          projects: [],
+          taskTimersEnabled: true,
+          timeTrackingEnabled: true,
+          users: [],
+          workspaceType: "business",
+        },
+        task: materializedTaskDetail(state.materializationRequests[0]?.instanceDate || "2026-07-23"),
+      },
+    });
+  });
+}
+
+function materializedCalendarTask(date) {
+  return {
+    task_id: "mobile-calendar-materialized-task",
+    title: "Mobile planned recurrence proof",
+    due_date: date,
+    due_time: "",
+    status: "open",
+    priority: "normal",
+  };
+}
+
+function materializedTaskDetail(date) {
+  return {
+    ...materializedCalendarTask(date),
+    workspace_id: "mobile-calendar-workspace",
+    description: "",
+    next_action: "",
+    blocked_reason: "",
+    resume_note: "",
+    estimate_minutes: null,
+    billable: "no",
+    due_timezone: "America/New_York",
+    due_at_utc: "",
+    source_type: "recurrence",
+    source_id: "mobile-calendar-template",
+    recurrence_template_id: "mobile-calendar-template",
+    recurrence_instance_date: date,
+    created_by_user_id: "mobile-calendar-user",
+    updated_by_user_id: "mobile-calendar-user",
+    assignee_ids: [],
+    assignees: [],
+    checklistItems: [],
+    tags: [],
+    recurrenceDetails: {
+      enabled: true,
+      frequency: "WEEKLY",
+      interval: 1,
+      endDate: "",
+    },
+  };
 }
 
 async function selectedValues(locator) {

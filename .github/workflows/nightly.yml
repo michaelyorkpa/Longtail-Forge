@@ -15,36 +15,83 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  classify_changes:
+    name: Classify nightly changes
+    runs-on: ubuntu-24.04
+    outputs:
+      github_only_docs: ${{ steps.changes.outputs.github_only_docs }}
+      runtime_help_changed: ${{ steps.changes.outputs.runtime_help_changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || 'nightly' }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Classify the pushed range or select the full scheduled/manual path
+        id: changes
+        env:
+          LTF_CHANGE_BASE_SHA: ${{ github.event.before }}
+          LTF_CHANGE_COMPARISON: range
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            node scripts/classify-github-changes.mjs --github-output
+          else
+            echo "github_only_docs=false" >> "$GITHUB_OUTPUT"
+            echo "runtime_help_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   integration-gate:
     name: Nightly full gate
+    needs: classify_changes
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     outputs:
       revision: ${{ steps.revision.outputs.sha }}
       artifact: ${{ steps.artifact.outputs.path }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: GitHub-only documentation integration fast path
+        if: needs.classify_changes.outputs.github_only_docs == 'true'
+        run: |
+          echo "GitHub-only documentation changed; no runtime artifact, browser gate, or deployment is required."
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: nightly
+          ref: ${{ github.event_name == 'push' && github.sha || 'nightly' }}
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
-      - run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
-      - run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
-      - run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
-      - run: node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch nightly
+      - name: Runtime Help deployment route
+        if: needs.classify_changes.outputs.runtime_help_changed == 'true'
+        run: |
+          echo "Runtime Help changed; full validation, artifact creation, browser proof, and demo deployment remain required."
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch nightly
       - id: revision
         name: Record the exact nightly revision
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - id: artifact
         name: Locate and describe the immutable artifact
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: |
           echo "path=dist/longtail-forge-$(node -p "require('./package.json').version").tgz" >> "$GITHUB_OUTPUT"
           node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$(git rev-parse HEAD)" --channel nightly --source-branch nightly --output dist/release-metadata.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nightly-${{ steps.revision.outputs.sha }}
           if-no-files-found: error
@@ -56,23 +103,58 @@ jobs:
 
   browser-gate:
     name: Nightly browser gate
+    needs: classify_changes
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: GitHub-only documentation browser fast path
+        if: needs.classify_changes.outputs.github_only_docs == 'true'
+        run: |
+          echo "GitHub-only documentation changed; no Playwright installation or browser execution is required."
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: nightly
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          ref: ${{ github.event_name == 'push' && github.sha || 'nightly' }}
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
+
+  github-docs-no-deploy:
+    name: GitHub-only docs - no deployment
+    if: >-
+      ${{
+        always()
+        && github.event_name == 'push'
+        && needs.classify_changes.result == 'success'
+        && needs.classify_changes.outputs.github_only_docs == 'true'
+        && needs.integration-gate.result == 'success'
+        && needs.browser-gate.result == 'success'
+      }}
+    needs: [classify_changes, integration-gate, browser-gate]
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "GitHub-only documentation is complete; no environment deployment was created."
 
   deploy-demo:
     name: Deploy demo development
-    if: github.event_name == 'push'
-    needs: [integration-gate, browser-gate]
+    if: >-
+      ${{
+        always()
+        && github.event_name == 'push'
+        && needs.classify_changes.result == 'success'
+        && needs.classify_changes.outputs.github_only_docs != 'true'
+        && needs.integration-gate.result == 'success'
+        && needs.browser-gate.result == 'success'
+      }}
+    needs: [classify_changes, integration-gate, browser-gate]
     runs-on: ubuntu-24.04
     environment: demo-development
     steps:
@@ -82,7 +164,7 @@ jobs:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
         run: echo "value=$DEPLOY_ENABLED" >> "$GITHUB_OUTPUT"
       - if: steps.enabled.outputs.value == 'true'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: steps.enabled.outputs.value == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

@@ -405,15 +405,19 @@ async function loadCalendarWindow() {
   }
 }
 
-function openCalendarTask(taskId, trigger) {
+function openCalendarTask(taskId, trigger, occurrence = null) {
   const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
+  const templateId = String(occurrence?.templateId || "").trim();
+  const instanceDate = String(occurrence?.instanceDate || "").trim();
 
-  if (typeof opener !== "function" || !taskId) {
+  if (typeof opener !== "function" || (!taskId && (!templateId || !instanceDate))) {
     return;
   }
 
   opener({
+    instanceDate,
     taskId,
+    templateId,
     mode: "edit",
     returnFocusTo: trigger,
     onSaved: () => loadCalendarWindow(),

@@ -22,7 +22,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 45,
+  "minimumReleaseGateScripts": 46,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -32,6 +32,7 @@
     "legacy.regression.suite.inventory",
     "licensing.public-release-gates",
     "database.migration-schema-workflow",
+    "database.better-sqlite3-13-data-compatibility",
     "database.startup-maintenance-lifecycle",
     "database.backup-restore-foundation",
     "database.development-data-seed",
@@ -48,7 +49,7 @@
     "legacy.version.literal.guardrail",
     "release.regression-discovery-runner",
     "release.changed-regression-auto-run",
-    "release.development-pr-docs-fast-path",
+    "release.github-only-docs-workflow-routing",
     "release.closeout-conductor",
     "release.regression-manifest-generation",
     "release.regression-routing-commands",

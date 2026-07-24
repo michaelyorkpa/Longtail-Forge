@@ -1,11 +1,100 @@
+## Version 0.33.22.7.3 - 2026-07-24
+
+- Qualified the native-driver upgrade on the deployment architecture the repository actually claims: Node 24.18.0 and npm 11.16.0 on Debian 12 Bookworm x86_64 with glibc 2.36. The installed application loads the bundled `better-sqlite3@13.0.1` `prebuilds/linux-x64.node`; arm64 and musl/Alpine remain explicitly unqualified rather than inferred from upstream package or image manifests.
+- Recorded the real clean-Linux prerequisite change. `npm ci` failed without Python and a compiler because the package's `binding.gyp` activates its `node-gyp` install lifecycle; it passed with Python 3, `make`, and `g++`, while runtime loading still selected the bundled N-API prebuild rather than a local build output.
+- Built and clean-installed the 451-file `nightly` runtime artifact with final SHA-256 `61be2d5c33543f9982bba208e5f1f6b1310805f5f8b92d5771e26be9c040c486`, then converted the Dockerfile to a two-stage install. The disposable Bookworm builder contains the native install toolchain; the final non-root image contains neither Python/compiler/`make` nor Vitest, TypeScript, or ESLint, and retains the read-only application tree, UID/GID 10001, capability drop, no-new-privileges, bounded tmpfs, health check, and persistent data/Files volume contract.
+- Extended the Docker release rehearsal to use a Docker-managed backup volume and prove a prior-version start, stopped-volume snapshot, candidate replacement, authenticated session, representative List read/create/update/read/Search, restart with preserved data and Search, audited soft delete, health/readiness/version identity, and restored prior-version rollback. The harness now tolerates Docker Desktop's restart-time anonymous host-port reassignment without weakening its bounded startup failure.
+- Reconstructed the ignored `0.33.22.6` rollback fixture from the unchanged runtime payload plus its exact `better-sqlite3@12.11.1` production dependency graph because no saved release tarball existed locally; its verified SHA-256 is `f41ac984e79967545d84e1b6db49bf98140a9150ffca122b82c14afcada226c2`. It is qualification evidence, not a claim that an earlier published artifact was recovered.
+- Docs updated: `docs/database.md`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/runtime-artifact.md`, and `docs/runtime-configuration.md`. Backup/recovery procedure docs did not change because the supported whole-instance backup-first contract is unchanged; only the disposable container rehearsal transport moved from a Windows host bind to a Docker volume.
+- Closed and archived the three-checkpoint native-driver stack with `0.33.22.8` next. The complete stack uses the normal pull-request path to `nightly`; protected clean-Linux Development, Browser, Dependency review, CodeQL, packaging, container, and recovery checks remain mandatory before merge.
+
+## Version 0.33.22.7.2 - 2026-07-24
+
+- Qualified `better-sqlite3@13.0.1` against a fresh Longtail Forge database without adding or changing any schema or migration file. Fresh startup applied the unchanged 21-migration chain once through migration `084` (`3d0091a4b021dac5b5a3d11ba8c0e8d7079a12231db5d8418e538747db53522b`), enabled foreign keys and WAL, retained the configured synchronous, busy-timeout, cache, temp-store, and mmap behavior, and returned `ok` from `PRAGMA integrity_check` with zero foreign-key violations.
+- Created and verified a stopped-app whole-instance backup of the realistic development seed plus Files (`e08f2353-c855-431c-8350-8d58cf980558`, SHA-256 `ab662fdbc6f2a5af2252f06eaa8e324f076ea6a6733817651fa6136ade4f8e4d`), restored it into a disposable target, and started only that target under the candidate driver. Pre/post counts matched across migrations, workspaces, users/memberships, Clients/Projects, Tasks, Notes/revisions, Lists/items, Time Tracking, Files, Search/FTS, and jobs; both physical Files objects matched by length and SHA-256 before and after restore.
+- The realistic source contained no encrypted Secure Notes rows, so that restore was not misrepresented as Secure Notes evidence. The generated whole-instance/workspace backup drills and the focused Secure Notes regression separately proved encrypted payload/key prerequisites, persistence, revision behavior, restore, rejection, and rollback.
+- Added an isolated release-gate compatibility owner for adapter and native commit/rollback, deferred foreign keys, a concurrent WAL reader and busy-timeout writer, named/positional and cross-realm bindings, `RETURNING`, BLOB fidelity, FTS5 `MATCH`/`bm25()`, checkpoint/reopen persistence, the unchanged migration identity, and explicit clean integrity/foreign-key results. Existing focused backup, workspace, fresh-database, migration-locking/compatibility, adapter/transaction/result/cache, Search lifecycle/rebuild, and Secure Notes owners also passed.
+- Rollback remains backup-first: reverting package files can reselect the prior driver but cannot undo a migration or repair mutated data. This checkpoint introduced no migration or data rewrite; any unexpected mutation blocks continuation, and recovery restores the verified database and Files backup together.
+- Docs updated: `docs/regression-suite.md`. No database, backup, or recovery documentation change was needed because observed behavior and prerequisites are unchanged; this checkpoint adds qualification evidence only.
+- Kept the checkpoint stacked and unmerged. Database safety does not substitute for the clean Linux artifact, container, rollback, and running-application proof still owned by `0.33.22.7.3`.
+
+## Version 0.33.22.7.1 - 2026-07-24
+
+- Upgraded only the pinned native SQLite dependency from `better-sqlite3@12.11.1` to `13.0.1`. The production graph now resolves `better-sqlite3@13.0.1` to `node-addon-api@8.9.0`; `prebuild-install`, `bindings`, and packages reachable only through the retired delivery path left the production lock graph.
+- Qualified the upstream N-API delivery change against Longtail Forge's unchanged Node `>=24.7 <25` range and package-root imports. The adapter remains primarily positional-binding based, while the audited direct driver consumers retain their existing named bindings, plain-object results, BLOBs, FTS5/`bm25()`, and `RETURNING` contracts for the data-compatibility checkpoint.
+- Extended the focused install smoke to pin driver `13.0.1`, Node `>=22`, SQLite `3.53.3`, required compile options, FTS5/`bm25()`, `RETURNING`, the selected platform export/prebuild, and a cross-realm plain-object named-binding case that detects the `13.0.0` regression.
+- A clean disposable Windows 10 Pro x64 `npm ci` passed under Node `24.18.0`, npm `11.16.0`, and an Intel64 CPU. The bundled `win32-x64` N-API prebuild loaded with no local build output, so Python, a compiler, and Visual Studio Build Tools were not required; the normal repository install also loaded from its path containing spaces.
+- Docs updated: `docs/database.md` and `docs/runtime-configuration.md`.
+- Kept the checkpoint stacked and unmerged. Installation success is not SQLite data/recovery or clean-Linux artifact/container proof; those remain `0.33.22.7.2` and `0.33.22.7.3`, and Dependabot PR #42 remains untouched.
+
 ## Unversioned CI maintenance - 2026-07-24
 
-- Added a rename-aware, fail-closed pull-request classifier that inspects the complete diff from the exact PR base SHA and admits only root Markdown, ordinary `docs/**` documentation, and the reviewed non-runtime `LICENSE` path while excluding deployment/runtime configuration contracts.
-- Kept the protected `Development gate`, `Browser smoke and accessibility`, `Dependency review`, and `CodeQL JavaScript analysis` check contracts intact. Documentation-only pull requests still run closeout and changed-area regressions, while application fast checks, Playwright installation, and browser execution are skipped with explicit successful job output.
+- Added one rename-aware, fail-closed GitHub change classifier shared by pull-request and Nightly-push workflows. It admits only repository documentation absent from the canonical runtime-artifact allowlist, while runtime/deployment configuration and unknown paths retain full validation.
+- Kept the protected `Development gate`, `Browser smoke and accessibility`, `Dependency review`, and `CodeQL JavaScript analysis` check contracts intact. GitHub-only documentation pull requests still run closeout and changed-area regressions, while application fast checks, Playwright installation, and browser execution are skipped with explicit successful job output.
+- Added an explicit GitHub-only Nightly path that creates no runtime artifact and no GitHub Environment deployment. The ordinary Nightly artifact and automated demo deployment remain unchanged for every other successful push.
+- Defined `help/**` as runtime Help rather than GitHub-only documentation. Help changes retain full Development/browser validation and the normal post-merge Nightly artifact/deployment path so updated in-app Help reaches the demo promptly.
+- Excluded `README.md`, `SECURITY.md`, `LICENSE`, packaged operator documents, machine-readable documentation configuration, and every other runtime-artifact path from the GitHub-only fast path.
 - Preserved `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, and `CHANGELOG.md` as focused release-regression owners without implying a GitHub Release, deployment, artifact rebuild, application build, or Longtail Forge version bump.
-- Added focused coverage for bookkeeping/docs-only, mixed runtime, workflow, package, script, deployment, migration, test, public-asset, added-file, and rename cases.
+- Added focused coverage for GitHub-only bookkeeping/docs, runtime Help, packaged documentation, mixed runtime, workflow, package, script, deployment, migration, test, public-asset, added-file, push-range, and rename cases.
 - Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/docs-ownership.json`, and `docs/regression-suite.md`.
 - No application version change: this is CI orchestration and documentation behavior only; runtime behavior and assets are unchanged.
+
+## Version 0.33.22.6 - 2026-07-24
+
+- Updated every tracked `actions/checkout` reference to the reviewed immutable `v7.0.1` SHA `3d3c42e5aac5ba805825da76410c181273ba90b1` across the GitHub Actions workflow surface.
+- Paired CodeQL `init` and `analyze` on the reviewed immutable `v4.37.3` SHA `e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81`, eliminating the mixed-version configuration failure.
+- Extended `github-release-operations.regression.mjs` to enforce one reviewed checkout pin and the matching CodeQL init/analyze pin in every tracked workflow while retaining full-SHA and unsafe-trigger guardrails.
+- Kept Dependabot PR #42 (`better-sqlite3` 13.0.1) outside this atomic Actions maintenance slice for independent 0.33.22.7 review.
+- No docs change needed: reviewed action versions changed without changing the GitHub workflow contract.
+- Archived the completed 0.33.22.6 slice and left the live roadmap cursor at 0.33.22 with 0.33.22.7 next.
+
+## Version 0.33.22.4 - 2026-07-24
+
+- Replaced the placeholder Tasks calendar provider with bounded RFC 5545 content over a rolling 90-day past and 365-day future horizon. One bounded Task read plus active recurrence templates are workspace-scoped and filtered through the token owner's compiled `tasks.view` resource permissions, including Project-only users.
+- Added opaque stable UIDs, required event timestamps, escaped summaries, CRLF and UTF-8 75-octet line folding, exclusive next-day `DTEND` for all-day Tasks, canonical UTC for timed one-offs, and transparent free/busy behavior without inventing Task durations.
+- Added native recurring `VEVENT`s from the stored RRULE. Template `recurrence_end_date` and the rolling future horizon bound `UNTIL`; timed series carry their local `due_timezone` and finite `VTIMEZONE` observances so daylight-saving changes retain the intended wall-clock due time.
+- Added same-UID `RECURRENCE-ID` exceptions for materialized title, lifecycle, priority, date, time, and timezone overrides. Unreadable, archived, or out-of-window-rescheduled materialized instances emit title-free cancellations so the master RRULE cannot resurrect a hidden ghost.
+- Preserved the framework authentication boundary: token lifecycle, hashing, throttling, endpoint headers, and provider dispatch are unchanged, while all Task queries, permission shaping, recurrence meaning, and iCalendar serialization remain Tasks-owned.
+- Added disposable-database and fixed-fixture proof for single, all-day, timed, ended/open-ended recurring, moved override, hidden, archived, and out-of-horizon content; balanced components; bounded recurrence; stable secret-free identities; correct DST onset semantics; and real Project-scoped feed reads.
+- Validated the emitted common RFC 5545 profile against the documented `.ics` import/subscription contracts for Google Calendar, Apple Calendar, Outlook, and Thunderbird.
+- Docs updated: `DECISIONS.md`, `docs/docs-ownership.json`, `docs/regression-suite.md`, and `docs/tasks-module.md`.
+- No docs change needed: user-facing Help and client setup steps remain intentionally deferred to the 0.33.22.8 subscription-control closeout.
+- Archived the completed 0.33.22.4 slice and left the live roadmap cursor at 0.33.22 with 0.33.22.6 next.
+
+## Version 0.33.22.3 - 2026-07-24
+
+- Added one private calendar subscription token per user, workspace, and provider. Generate and rotate return the bearer URL once, while migration 084 persists only a random selector and SHA-256 digest; constant-time verification resolves only active users with active workspace membership.
+- Added session-owned status, generate, rotate, and disable routes under `/api/private-feeds/calendar`. Rotation atomically revokes the former URL, disablement takes effect on the next request, and each changed lifecycle emits a forced, secret-free security event.
+- Added sessionless `GET /feeds/calendar/:token.ics` with trusted-client-IP sensitive-endpoint throttling, an IP-only durable bucket, generic invalid/rotated/disabled/inaccessible rejection, no-store private caching, `text/calendar`, and a conservative 900-second refresh hint.
+- Added the framework private-feed provider registry and stable `tasks.calendar` dispatch. Tasks rechecks `tasks.view` and supplies only a minimal valid calendar container in this slice; Task event, recurrence, time-zone, escaping, folding, horizon, and client-compatibility serialization remain in 0.33.22.4.
+- Preserved bearer secrecy by keeping secret-bearing request paths out of production logs, excluding tokens/selectors/hashes from audit metadata, returning status reads without a URL, and documenting matching upstream proxy/observability redaction requirements.
+- Added isolated database/HTTP proof for hashed-only storage, valid cookie-free reads, provider registration, permission/workspace scope, immediate revoke, rejection parity, forged-header-resistant throttling, lifecycle events, log secrecy, and `PRAGMA integrity_check`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/module-contract.md`, `docs/operational-security.md`, `docs/regression-suite.md`, and `docs/tasks-module.md`.
+- No docs change needed: Help and calendar-client setup remain deferred until the user-facing subscription control and full iCalendar content ship.
+- Archived the completed 0.33.22.3 slice and left the live roadmap cursor at 0.33.22 with 0.33.22.4 next.
+
+## Version 0.33.22.2 - 2026-07-24
+
+- Added permission-checked materialize-on-touch for planned recurring Task occurrences. Calendar and Dashboard now carry `templateId` plus `instanceDate` into the canonical Task editor, which creates or resolves the one real occurrence before exposing editable fields.
+- Made `Planned occurrence` entries actionable and refresh their originating host after the explicit touch, including close-without-edit. The materialized row replaces only its matching ghost; untouched sibling dates remain virtual.
+- Added migration 083's unique `(workspace_id, recurrence_template_id, recurrence_instance_date)` index and a provider-neutral conflict/`RETURNING` insert shared by interactive touch, completion generation, and the 12-hour sweep. Concurrent writers converge on one Task and only the winner emits creation side effects.
+- Preserved independent occurrence description, checklist, linked-note, assignee, reschedule, and completion behavior through existing Task routes. Rescheduling retains recurrence identity, and completing a touched occurrence still generates the normal next scheduled instance.
+- Added isolated service/database proof for permission denial, exact-date promotion, sibling preservation, concurrent convergence, sweep stability, completion continuity, and database health, plus rendered desktop/mobile Calendar proof and updated static guardrails.
+- Docs updated: `docs/tasks-module.md`, `docs/database.md`, `docs/declarative-view-surfaces.md`, `docs/e2e-testing.md`, and `help/framework/tasks-basics.md`.
+- No docs change needed: public API exposure, permission names, feed authentication/iCalendar content, runtime configuration, deployment behavior, and provider support are unchanged.
+- Archived the completed 0.33.22.2 slice and left the live roadmap cursor at 0.33.22 with 0.33.22.3 next.
+
+## Version 0.33.22.1 - 2026-07-24
+
+- Expanded active recurring-task templates into bounded read-time calendar occurrences with the existing Tasks recurrence math. Open-ended templates fill only the requested window, while `recurrence_end_date` and RRULE `UNTIL` stop projection without creating future Task rows.
+- Added recurrence-instance identity reads and real-row precedence: any materialized `(recurrence_template_id, recurrence_instance_date)` suppresses its virtual twin, including completed, archived, rescheduled, filtered, or inaccessible real instances.
+- Applied the existing workspace, descendant-aware Client/Project filter, and `tasks.view` permission resource checks to recurrence templates before projection; lean template reads avoid assignee, checklist, and note hydration.
+- Added the virtual calendar-row contract (`templateId`, `instanceDate`, `virtual: true`) with the same single-day all-day/start/end semantics as real rows. The shared Calendar/Dashboard renderer shows a dashed, accessible, disabled `Planned occurrence` entry until materialize-on-touch lands in 0.33.22.2.
+- Preserved active/completed/archived status selection, bounded Calendar and Dashboard windows, reminder-marker batching and seven-day lookahead, disabled-module reads, and the canonical editor opener for real Tasks.
+- Expanded focused Tasks/view regressions and rendered desktop/mobile proof for weekly open-ended and ended series, RRULE `UNTIL`, real-instance deduplication, hidden-template filtering, zero read-side writes, and the shared planned-occurrence affordance.
+- Docs updated: `docs/tasks-module.md`, `docs/declarative-view-surfaces.md`, and `docs/e2e-testing.md`.
+- No docs change needed: Help, public API routes, permission names, database schema/migrations, recurrence materialize-on-touch behavior, feed authentication/iCalendar, runtime configuration, and deployment behavior are unchanged.
+- Archived the completed 0.33.22.1 slice and left the live roadmap cursor at 0.33.22 with 0.33.22.2 next.
 
 ## Version 0.33.21.21.4 - 2026-07-23
 

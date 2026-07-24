@@ -34,9 +34,13 @@ const packageJson = JSON.parse(packageJsonSource);
 
 for (const requirement of [
   /node:24\.18\.0-bookworm-slim@sha256:[a-f0-9]{64}/,
+  /FROM \$\{NODE_IMAGE\} AS runtime-build/,
+  /apt-get install --yes --no-install-recommends python3 make g\+\+/,
   /ARG LTF_RUNTIME_ARTIFACT/,
   /COPY \$\{LTF_RUNTIME_ARTIFACT\} \/tmp\/longtail-forge-runtime\.tgz/,
   /npm ci --omit=dev --no-audit --no-fund/,
+  /FROM \$\{NODE_IMAGE\} AS runtime/,
+  /COPY --from=runtime-build \/opt\/longtail-forge \/opt\/longtail-forge/,
   /USER 10001:10001/,
   /VOLUME \["\/var\/lib\/longtail-forge", "\/var\/backups\/longtail-forge"\]/,
   /HEALTHCHECK[\s\S]*\/readyz/,
@@ -74,6 +78,10 @@ for (const requirement of [
   /restore the verified pre-upgrade database and Files backup together/i,
   /Bare-metal installation/i,
   /npm ci --omit=dev/,
+  /supported and release-qualified image target is `linux\/amd64` on Debian Bookworm\/glibc/i,
+  /do not make arm64 or musl\/Alpine supported/i,
+  /disposable builder stage installs Python 3, `make`, and `g\+\+`/i,
+  /final stage copies only the installed application tree/i,
   /systemd/i,
   /absence of an engine is a failed prerequisite/i,
   /does not authorize invitations/i,
@@ -92,10 +100,22 @@ assert.equal(packageJson.scripts["container:smoke"], "node scripts/container-dep
 assert.equal(packageJson.scripts["bare-metal:smoke"], "node scripts/bare-metal-deployment-smoke.mjs");
 assert.match(containerSmoke, /--read-only/);
 assert.match(containerSmoke, /10001:10001/);
+assert.match(containerSmoke, /nativeBinding[\s\S]*linux-x64/);
+assert.match(containerSmoke, /the final runtime image should contain neither the native build toolchain nor repository development dependencies/);
 assert.match(containerSmoke, /snapshotVolume/);
 assert.match(containerSmoke, /restoreVolume/);
-assert.match(containerSmoke, /cleanupBindMountedBackup\(\);[\s\S]*cleanupDockerObjects\(\);[\s\S]*fs\.rm\(workspace/);
-assert.match(containerSmoke, /previousImage, "-c", "rm -rf \/backup\/data"/);
+assert.match(containerSmoke, /exerciseCandidateWorkflow/);
+assert.match(containerSmoke, /verifyCandidateWorkflowAfterRestart/);
+assert.match(containerSmoke, /const restartedCandidatePort = resolveContainerPort\(candidateContainer\)/);
+assert.match(containerSmoke, /waitForJson\(port, "\/healthz"\)/);
+assert.match(containerSmoke, /\/api\/login/);
+assert.match(containerSmoke, /\/api\/search/);
+assert.match(containerSmoke, /method: "DELETE"/);
+assert.match(containerSmoke, /const backupVolume = `ltf-smoke-backup-\$\{token\}`/);
+assert.match(containerSmoke, /runDocker\(\["volume", "create", destination\]\)/);
+assert.match(containerSmoke, /for \(const volume of \[dataVolume, backupVolume, restoredVolume\]\)/);
+assert.match(containerSmoke, /finally \{[\s\S]*cleanupDockerObjects\(\);[\s\S]*\}/);
+assert.doesNotMatch(containerSmoke, /cleanupBindMountedBackup|fs\.mkdtemp|os\.tmpdir/);
 assert.match(containerSmoke, /deployment-smoke-marker/);
 assert.match(bareMetalSmoke, /previousArtifact/);
 assert.match(bareMetalSmoke, /backupData/);

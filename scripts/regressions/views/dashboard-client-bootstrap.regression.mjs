@@ -96,9 +96,10 @@ assert.doesNotMatch(
 );
 assert.match(
   tasksDashboard,
-  /async function openTask\(taskId, trigger\)[\s\S]*await bridge\.importScript\("\/js\/task-dialog\.js"\)[\s\S]*openTaskEditor/,
+  /async function openTask\(taskId, trigger, occurrence = null\)[\s\S]*await bridge\.importScript\("\/js\/task-dialog\.js"\)[\s\S]*openTaskEditor/,
   "the Task editor must load only when a Dashboard calendar item is opened",
 );
+assert.match(tasksDashboard, /templateId = String\(occurrence[\s\S]*instanceDate = String\(occurrence[\s\S]*await opener\(\{[\s\S]*instanceDate,[\s\S]*templateId,/, "planned Dashboard occurrences must carry their recurrence identity into the lazy Task editor");
 assert.doesNotMatch(
   tasksDashboard,
   /workspaceContextReady/,

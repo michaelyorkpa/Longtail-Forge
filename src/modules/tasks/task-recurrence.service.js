@@ -7,6 +7,7 @@ import { normalizeUtcIso } from "../../utils/timezones.js";
 const FREQUENCIES = new Set(["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY", "MONTHLY"]);
 const WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR"];
 const WEEKEND_CODES = ["SA", "SU"];
+const MAX_PROJECTED_OCCURRENCE_STEPS = 36600;
 
 async function createTemplateFromTask({ session, task, recurrence }) {
   const normalized = normalizeRecurrencePayload(recurrence);
@@ -222,7 +223,7 @@ async function materializeInstance({ session, template, instanceDate, createTask
     ? normalizeUtcIso(`${instanceDate}T${template.due_time}:00`, template.due_timezone || session.timezone)
     : "";
 
-  const task = await createTask.create({
+  const creationResult = await createTask.create({
     client_id: template.client_id,
     project_id: template.project_id,
     title: template.title,
@@ -241,6 +242,16 @@ async function materializeInstance({ session, template, instanceDate, createTask
     reminder_override_enabled: false,
     assignee_ids: template.assignee_ids || [],
   });
+  const task = creationResult?.task || creationResult;
+  const wasCreated = creationResult?.wasCreated !== false;
+
+  if (!wasCreated) {
+    return {
+      task,
+      wasCreated: false,
+    };
+  }
+
   await copyTemplateChecklistToTask({
     session,
     task,
@@ -255,7 +266,7 @@ async function materializeInstance({ session, template, instanceDate, createTask
 
   return {
     task,
-    wasCreated: true,
+    wasCreated,
   };
 }
 
@@ -418,6 +429,46 @@ function nextOccurrenceDate(currentDate, rrule, endDate) {
   return finalEndDate && nextDate > finalEndDate ? "" : nextDate;
 }
 
+function projectOccurrenceDates(template, startDate, endDate) {
+  const anchorDate = normalizeDate(template?.recurrence_anchor_date);
+  const rangeStart = normalizeDate(startDate);
+  const rangeEnd = normalizeDate(endDate);
+
+  if (!anchorDate || !rangeStart || !rangeEnd || rangeEnd < rangeStart) {
+    return [];
+  }
+
+  const parsedEndDate = parseRRule(template?.rrule || "").endDate;
+  const storedEndDate = normalizeDate(template?.recurrence_end_date);
+  const recurrenceEndDate = [parsedEndDate, storedEndDate].filter(Boolean).sort()[0] || "";
+  const boundedEndDate = recurrenceEndDate && recurrenceEndDate < rangeEnd ? recurrenceEndDate : rangeEnd;
+
+  if (anchorDate > boundedEndDate) {
+    return [];
+  }
+
+  const dates = [];
+  let cursor = anchorDate;
+
+  for (let step = 0; step < MAX_PROJECTED_OCCURRENCE_STEPS; step += 1) {
+    if (cursor >= rangeStart && cursor <= boundedEndDate) {
+      dates.push(cursor);
+    }
+
+    if (cursor >= boundedEndDate) {
+      break;
+    }
+
+    const nextDate = nextOccurrenceDate(cursor, template?.rrule || "", recurrenceEndDate);
+    if (!nextDate || nextDate <= cursor) {
+      break;
+    }
+    cursor = nextDate;
+  }
+
+  return dates;
+}
+
 // Walk the recurrence forward from `fromDate` and return the first occurrence on or after
 // `today` (skipping every occurrence that was missed while the chain was stalled). Returns ""
 // if the recurrence ends before reaching `today`.
@@ -488,8 +539,10 @@ export const taskRecurrenceService = {
   createNextInstance,
   createTemplateFromTask,
   ensureUpcomingInstance,
+  materializeInstance,
   parseRRule,
   prepareCompletionContinuity,
+  projectOccurrenceDates,
   readCompletionContinuity,
   readTaskRecurrenceDetails,
   updateTemplateFromTask,
