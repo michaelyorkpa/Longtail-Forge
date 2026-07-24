@@ -8,6 +8,7 @@
 - Expanded focused authentication, runtime-configuration, and reference-deployment regressions for pre-verification ordering, zero verifier invocation when blocked, exact global/per-IP concurrency bounds, generic known/unknown throttling, trusted client identity, and the new runtime settings.
 - Docs updated: `DECISIONS.md`, `ROADMAP.md`, `docs/docs-ownership.json`, `docs/internet-deployment.md`, `docs/operational-security.md`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
 - No docs change needed: authentication routes/payloads, password hash formats, session storage, permission names, database schema/migrations, Files behavior, and public API authentication are unchanged.
+- Archived the completed 0.33.21.21.4 slice and advanced the live roadmap cursor to 0.33.22.
 
 ## Version 0.33.21.21.3 - 2026-07-23
 

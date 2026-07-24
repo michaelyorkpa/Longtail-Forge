@@ -1,5 +1,28 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.21.21.4 - Pre-verification login admission and flood resistance
+
+Completed and published on 2026-07-23. The monotonic active cursor advances to `0.33.22`.
+
+**Model: High Effort** — This changed the unauthenticated login security boundary around intentionally expensive password work; ordering, concurrency, generic responses, trusted client identity, and credential-migration behavior remained exact.
+
+Purpose:
+
+Close the Codex Security threat-model finding before the Docker preview rollout in 0.33.28. The prior login path read the submitted account and performed real Argon2id or legacy PBKDF2 verification (or the Argon2id dummy verification for an unknown account) before checking the durable authentication throttle.
+
+- [x] Put an inexpensive login-verification admission boundary before every real, legacy, and dummy password verification while keeping the existing database-backed IP/account failure throttle and its reset/expiry/event semantics after admitted verification attempts.
+- [x] Strictly bound simultaneous admitted verification work globally and per trusted client IP for the supported one-app-server SQLite topology. Hold each admission until the attempt records its failure or resets the durable throttle; admission-capacity rejection does not increment account failures or create an account-lockout vector.
+- [x] Keep known and unknown usernames on their existing real/dummy verification paths, preserving generic `401`/`429` envelopes, successful login/session creation, transparent PBKDF2/outdated-Argon2 migration, audit/security events, password-change/session-revocation behavior, and the shared trusted-proxy request context.
+- [x] Add conservative IP-based `/api/login` request limiting to the maintained Nginx/WireGuard preview template as defense in depth without trusting forwarded headers at the edge/application boundary.
+- [x] Add focused proof for admitted valid and invalid logins, unknown-user dummy work, zero verifier calls after durable or admission blocking, strict concurrent bounds, equivalent throttled known/unknown responses, password migration, failure/reset/expiry/event persistence, and direct/trusted-proxy client-IP behavior; run the focused authentication/security checks and canonical slice verification.
+- [x] Update the owning security/runtime/deployment documentation, `DECISIONS.md`, and `CHANGELOG.md`; advance the application version through `npm run version:bump -- 0.33.21.21.4`.
+
+Acceptance criteria:
+
+- A blocked request cannot start Argon2id, PBKDF2, or dummy-hash verification; admitted verification is strictly concurrency-bounded before any password work and remains bounded until the durable post-attempt state is written.
+- Known, unknown, inactive, valid, invalid, migrated, and throttled login outcomes retain their existing non-enumerating behavior, session/audit/security side effects, and trusted client-IP semantics.
+- The maintained Nginx preview edge carries a conservative IP request limit for `/api/login`, while application-level admission and durable failure throttling remain independently authoritative.
+
 ## Version 0.33.21.21.3 - Direct completion and recurrence-aware dirty saves
 
 Completed locally on 2026-07-23. The monotonic active cursor remains 0.33.22.
