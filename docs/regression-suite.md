@@ -107,7 +107,7 @@ Current package commands:
 
 ## Current Execution Model
 
-The current suite contains 401 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 90 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful script and all high-risk contract coverage remain registered.
+The current suite contains 402 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 91 convention-path metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful script and all high-risk contract coverage remain registered. The 45 required release-gate entries include the rename-aware protected-Development docs-only classifier contract.
 
 | Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
 | --- | ---: | --- | ---: | --- |
@@ -123,7 +123,7 @@ The runner no longer uses hand-maintained arrays as its source of truth. Discove
 
 The default full run uses the table order above: 196 cheap static/source checks run first, followed by 6 serial default-database checks, 20 retained serial Files checks, 9 isolated Files checks with adaptive safe parallelism, and 170 isolated-database checks with adaptive safe parallelism. Each bucket prints actual wall time as well as summed script time and its longest script. The runner executes buckets sequentially and stops after the first failing bucket.
 
-This is an explicit ordering guarantee, not a coverage reduction. The flattened bucket paths must remain exactly equal to the 401 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. `LTF_REGRESSION_BUCKET=file-storage` selects both Files buckets; `isolated-files` selects only the audited parallel subset. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
+This is an explicit ordering guarantee, not a coverage reduction. The flattened bucket paths must remain exactly equal to the 402 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. `LTF_REGRESSION_BUCKET=file-storage` selects both Files buckets; `isolated-files` selects only the audited parallel subset. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
 
 ### Canonical database isolation
 

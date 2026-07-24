@@ -1,3 +1,12 @@
+## Unversioned CI maintenance - 2026-07-24
+
+- Added a rename-aware, fail-closed pull-request classifier that inspects the complete diff from the exact PR base SHA and admits only root Markdown, ordinary `docs/**` documentation, and the reviewed non-runtime `LICENSE` path while excluding deployment/runtime configuration contracts.
+- Kept the protected `Development gate`, `Browser smoke and accessibility`, `Dependency review`, and `CodeQL JavaScript analysis` check contracts intact. Documentation-only pull requests still run closeout and changed-area regressions, while application fast checks, Playwright installation, and browser execution are skipped with explicit successful job output.
+- Preserved `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, and `CHANGELOG.md` as focused release-regression owners without implying a GitHub Release, deployment, artifact rebuild, application build, or Longtail Forge version bump.
+- Added focused coverage for bookkeeping/docs-only, mixed runtime, workflow, package, script, deployment, migration, test, public-asset, added-file, and rename cases.
+- Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/docs-ownership.json`, and `docs/regression-suite.md`.
+- No application version change: this is CI orchestration and documentation behavior only; runtime behavior and assets are unchanged.
+
 ## Version 0.33.21.21.4 - 2026-07-23
 
 - Confirmed and corrected the login authentication ordering identified by the Codex Security threat model: login now acquires inexpensive process-local admission and checks the durable throttle before any real Argon2id, legacy PBKDF2, or unknown-user dummy verification.

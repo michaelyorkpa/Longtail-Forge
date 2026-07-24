@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 401,
+  "minimumActiveScripts": 402,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 36,
@@ -14,7 +14,7 @@
     "notifications": 3,
     "permissions": 6,
     "public-api": 3,
-    "release": 24,
+    "release": 25,
     "search": 12,
     "tags": 12,
     "tasks": 54,
@@ -22,7 +22,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 44,
+  "minimumReleaseGateScripts": 45,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -48,6 +48,7 @@
     "legacy.version.literal.guardrail",
     "release.regression-discovery-runner",
     "release.changed-regression-auto-run",
+    "release.development-pr-docs-fast-path",
     "release.closeout-conductor",
     "release.regression-manifest-generation",
     "release.regression-routing-commands",

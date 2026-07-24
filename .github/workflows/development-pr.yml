@@ -12,8 +12,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  classify_changes:
+    name: Classify pull-request changes
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.changes.outputs.docs_only }}
+    steps:
+      - name: Check out the proposed revision and complete pull-request history
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Use the supported Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Classify the complete pull-request diff
+        id: changes
+        env:
+          LTF_REGRESSION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/classify-pull-request-changes.mjs --github-output
+
   development-gate:
     name: Development gate
+    needs: classify_changes
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the proposed revision
@@ -29,7 +51,12 @@ jobs:
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - name: Closeout gate timing
         run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - name: Docs-only validation scope
+        if: needs.classify_changes.outputs.docs_only == 'true'
+        run: |
+          echo "Docs-only fast path - closeout/documentation consistency and changed-area regressions remain required; application typecheck, unit tests, and lint are not required."
       - name: Typecheck/unit/lint timing
+        if: needs.classify_changes.outputs.docs_only != 'true'
         run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
       - name: Run regressions selected from the pull-request diff
         env:
@@ -38,17 +65,28 @@ jobs:
 
   browser-smoke:
     name: Browser smoke and accessibility
+    needs: classify_changes
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Docs-only browser fast path
+        if: needs.classify_changes.outputs.docs_only == 'true'
+        run: |
+          echo "Docs-only fast path: Playwright browser installation and smoke/accessibility execution are not required."
+      - if: needs.classify_changes.outputs.docs_only != 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - if: needs.classify_changes.outputs.docs_only != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - name: Context/setup timing
+        if: needs.classify_changes.outputs.docs_only != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - run: npx playwright install --with-deps chromium
+      - if: needs.classify_changes.outputs.docs_only != 'true'
+        run: npx playwright install --with-deps chromium
       - name: Browser check timing
+        if: needs.classify_changes.outputs.docs_only != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
 
   dependency-review:
