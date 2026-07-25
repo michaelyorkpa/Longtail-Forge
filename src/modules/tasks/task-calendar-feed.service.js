@@ -84,7 +84,9 @@ function serializeTasksCalendar({
     )
   )));
   const eventComponents = [];
-  const timezoneIds = new Set();
+  const calendarName = subscription?.name || TASK_CALENDAR_NAME;
+  const calendarTimezone = normalizeTimezone(session?.timezone);
+  const timezoneIds = new Set([calendarTimezone]);
 
   for (const template of readableTemplates) {
     const occurrences = taskRecurrenceService.projectOccurrenceDates(
@@ -169,7 +171,9 @@ function serializeTasksCalendar({
     `PRODID:${ICALENDAR_PRODID}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeICalendarText(subscription?.name || TASK_CALENDAR_NAME)}`,
+    `NAME:${escapeICalendarText(calendarName)}`,
+    `X-WR-CALNAME:${escapeICalendarText(calendarName)}`,
+    `X-WR-TIMEZONE:${escapeICalendarText(calendarTimezone)}`,
     `X-LONGTAIL-FORGE-WINDOW-START:${toICalendarDate(window.startDate)}`,
     `X-LONGTAIL-FORGE-WINDOW-END:${toICalendarDate(window.endDate)}`,
     ...Array.from(timezoneIds)

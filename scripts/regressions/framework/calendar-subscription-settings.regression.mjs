@@ -60,11 +60,11 @@ assert.doesNotMatch(userSettings, /calendarSubscription|private-feeds\/calendar/
 assert.match(settingsHost, /placement === "calendar"[^]*mountCalendarHost\(hostElement\)/, "the shared Settings host should mount the Calendar destination");
 assert.match(settingsHost, /function mountCalendarHost\(hostElement\)[^]*title: "Calendar"/, "the Calendar destination should use framework-owned page anatomy");
 assert.match(settingsHost, /settingsSection\("Create Calendar Subscription"/, "creation should use shared Settings section anatomy");
-assert.match(settingsHost, /id: "calendarSubscriptionName"[^]*maxlength: "120"/, "creation should require a bounded name");
+assert.match(settingsHost, /id: "calendarSubscriptionName"[^]*calendar metadata[^]*maxlength: "120"/, "creation should require a bounded published name");
 assert.match(settingsHost, /id: "calendarSubscriptionScope"[^]*Workspace[^]*Client[^]*Project/, "scope selection should begin at Workspace and allow Client or Project");
 assert.match(settingsHost, /calendarSubscriptionClientField[^]*calendarSubscriptionProjectField/, "hierarchical Client and Project fields should be explicit");
 assert.match(settingsHost, /inputType: "password"[^]*readonly: ""[^]*calendarSubscriptionUrlField/, "the one-time URL should start masked and read-only");
-assert.match(settingsHost, /children: \["Name", "Owner", "Scope", "Status", "Created", "Rotated", "Revoked", "Actions"\]/, "the workspace list should expose the complete safe metadata shape");
+assert.match(settingsHost, /children: \["Name", "Owner", "Scope", "Timezone", "Status", "Created", "Rotated", "Revoked", "Actions"\]/, "the workspace list should expose the complete safe metadata shape");
 assert.match(settingsHost, /readoutSection\("Workspace Calendar Subscriptions"/, "the safe metadata table should have a workspace-rooted heading");
 assert.doesNotMatch(settingsHost, /grid\.append\([^]*calendarSubscriptionForm\(\)/, "User Settings anatomy should no longer include Calendar Subscription");
 
@@ -77,6 +77,7 @@ for (const officialUrl of [
   assert.match(settingsHost, new RegExp(escapeRegExp(officialUrl)), `Calendar Settings should link to ${officialUrl}`);
 }
 assert.match(settingsHost, /refresh subscriptions periodically, not in real time/, "in-product guidance should set periodic refresh expectations");
+assert.match(settingsHost, /owner's current profile timezone[^]*Google reports a subscribed calendar's timezone as read-only/, "in-product guidance should explain effective timezone and Google ownership");
 
 assert.match(calendarSettings, /let currentSecret = "";/, "the raw bearer URL should live only in page memory");
 assert.match(calendarSettings, /window\.addEventListener\("pagehide", clearSecret\)/, "leaving the page should clear the one-time URL");
@@ -105,7 +106,7 @@ assert.match(privateFeedRoutes, /calendar-subscriptions\/:subscriptionId\/rotate
 assert.match(privateFeedRoutes, /delete\("\/private-feeds\/calendar-subscriptions\/:subscriptionId"/, "revocation should remain uniquely addressed");
 assert.doesNotMatch(privateFeedRoutes, /["']\/private-feeds\/calendar["']/, "the singular management endpoint should be retired");
 assert.doesNotMatch(privateFeedService, /\b(?:getCalendarStatus|generateCalendar|rotateCalendar|disableCalendar)\b/, "singular lifecycle service methods should be retired");
-assert.match(privateFeedService, /function toPublicSubscription\(token, session\)[^]*ownedByCurrentUser[^]*owner[^]*scope[^]*status[^]*subscriptionId/, "metadata reads should remain safe and action-shaping");
+assert.match(privateFeedService, /function toPublicSubscription\(token, session\)[^]*ownedByCurrentUser[^]*owner[^]*scope[^]*status[^]*subscriptionId[^]*timezone/, "metadata reads should include the safe effective timezone");
 assert.doesNotMatch(privateFeedService.match(/function toPublicSubscription\(token, session\)[^]*?\n\}/)?.[0] || "", /feedUrl|token_selector|token_hash/, "metadata must never expose or reconstruct a bearer secret");
 
 assert.match(frameworkCss, /\.calendar-settings-page\s*\{[^}]*width: min\(94vw/, "Calendar Settings should remain bounded");
@@ -129,7 +130,8 @@ const packageLockData = JSON.parse(packageLock);
 assert.equal(packageLockData.version, packageData.version, "package and lockfile versions should match");
 assert.equal(packageLockData.packages[""].version, packageData.version, "lockfile root package version should match");
 assertRoadmapCursorAtLeast(packageData.version, "the Calendar administration correction should not move the roadmap backward");
-assert.doesNotMatch(roadmap, /^## Version 0\.33\.22\.9(?:\s|-)/m, "the completed Calendar correction stack should leave the live roadmap");
+assert.doesNotMatch(roadmap, /^## Version 0\.33\.22\.9(?:\.1|\.2|\s|-)/m, "completed Calendar correction slices should leave the live roadmap");
+assert.match(roadmap, /^## Version 0\.33\.22\.9\.3 - Calendar client metadata and subscription refinement/m, "the client-tested refinement should remain open in the live roadmap");
 assert.match(roadmapArchive, /^## Version 0\.33\.22\.9\.2 - Admin Calendar module surface, User Settings removal, and closeout/m, "the completed slice should be archived");
 assert.match(changelog, /^## Version 0\.33\.22\.9\.2 - 2026-07-25/m, "the completed slice should be recorded in the changelog");
 

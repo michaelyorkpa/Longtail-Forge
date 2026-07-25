@@ -315,6 +315,7 @@
         required: true,
         autocomplete: "off",
         placeholder: "Team planning calendar",
+        description: "Published as calendar metadata. Some calendar clients may keep their own display-name override.",
       }, "calendarSubscriptionName", {
         controlAttrs: { maxlength: "120" },
       }),
@@ -387,6 +388,9 @@
       element("p", {
         text: "Calendar clients refresh subscriptions periodically, not in real time. Subscribe to the URL instead of importing a one-time .ics file.",
       }),
+      element("p", {
+        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Calendar clients may keep a local name override; Google reports a subscribed calendar's timezone as read-only.",
+      }),
       calendarClientGuidance(),
       element("p", {
         children: [
@@ -404,7 +408,7 @@
         element("thead", {
           children: [
             element("tr", {
-              children: ["Name", "Owner", "Scope", "Status", "Created", "Rotated", "Revoked", "Actions"]
+              children: ["Name", "Owner", "Scope", "Timezone", "Status", "Created", "Rotated", "Revoked", "Actions"]
                 .map((label) => element("th", { attrs: { scope: "col" }, text: label })),
             }),
           ],

@@ -2,10 +2,31 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.23`.
+Active cursor: `0.33.22.9.3`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
+
+## Version 0.33.22.9.3 - Calendar client metadata and subscription refinement
+
+**Model: High Effort** — Calendar-client compatibility crosses a bearer-authenticated public feed, timezone correctness, administrator guidance, and provider-specific behavior that must not be overstated.
+
+Purpose:
+
+Refine the named Calendar subscription contract from real client testing without weakening the provider-neutral feed, scope, permission, or revocation boundaries completed in `0.33.22.9` through `0.33.22.9.2`.
+
+- [x] Record the confirmed Google Calendar behavior: the current URL subscription uses the URL as its initial display name and reports a read-only timezone instead of consuming the intended subscription metadata.
+- [x] Publish the RFC 7986 `NAME` property alongside the retained compatibility `X-WR-CALNAME`, publish the owner timezone as `X-WR-TIMEZONE`, and include its matching `VTIMEZONE` even when the feed has no timed recurrence.
+- [x] Show the effective owner timezone in the Admin Calendar subscription list and explain that name/timezone metadata is published by the feed while calendar clients may retain their own display-name override.
+- [ ] Re-test a newly added Google Calendar URL subscription after deployment. If Google still ignores the standard name, document the required local rename honestly rather than adding OAuth/provider APIs to this provider-neutral slice.
+- [ ] Complete operator testing for Workspace, Client, and Project subscriptions and incorporate any additional confirmed compatibility or scope defects before closeout.
+- [ ] Run the canonical slice verification, bump the release version, update shipped documentation/changelog, archive this slice, and restore `0.33.23` as the active cursor only after the operator test pass is complete.
+
+Acceptance criteria:
+
+- New feeds carry standards-compatible name metadata, an explicit owner-timezone compatibility hint, and a matching timezone definition without changing event instants, permission intersection, bearer secrecy, or subscription lifecycle behavior.
+- Calendar Settings identifies the effective timezone and sets honest expectations about client-owned overrides.
+- This slice remains open until Workspace, Client, and Project subscription testing is complete; the draft PR must not represent it as shipped or ready to merge.
 
 ## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
 
