@@ -192,7 +192,9 @@ const lines = unfoldLines(calendar);
 assertBalancedComponents(lines);
 assert.ok(lines.includes("CALSCALE:GREGORIAN"));
 assert.ok(lines.includes("METHOD:PUBLISH"));
+assert.ok(lines.includes("NAME:Client delivery\\, east\\; priority\\ncalendar"));
 assert.ok(lines.includes("X-WR-CALNAME:Client delivery\\, east\\; priority\\ncalendar"));
+assert.ok(lines.includes("X-WR-TIMEZONE:America/New_York"));
 assert.ok(lines.includes("X-LONGTAIL-FORGE-WINDOW-START:20260425"));
 assert.ok(lines.includes("X-LONGTAIL-FORGE-WINDOW-END:20270724"));
 assert.ok(lines.includes("BEGIN:VTIMEZONE"));
@@ -201,6 +203,17 @@ assert.ok(lines.includes("BEGIN:DAYLIGHT"));
 assert.ok(lines.includes("BEGIN:STANDARD"));
 assert.ok(lines.includes("DTSTART:20260308T020000"), "daylight onset must use the pre-transition local wall time");
 assert.ok(lines.includes("DTSTART:20261101T020000"), "standard onset must use the pre-transition local wall time");
+
+const emptyCalendarLines = unfoldLines(serializeTasksCalendar({
+  now: NOW,
+  session: SESSION,
+  subscription: SUBSCRIPTION,
+  window: WINDOW,
+}));
+assert.ok(emptyCalendarLines.includes("NAME:Client delivery\\, east\\; priority\\ncalendar"));
+assert.ok(emptyCalendarLines.includes("X-WR-TIMEZONE:America/New_York"));
+assert.ok(emptyCalendarLines.includes("BEGIN:VTIMEZONE"), "an empty feed should still define its owner timezone");
+assert.ok(emptyCalendarLines.includes("TZID:America/New_York"));
 
 const events = readComponents(lines, "VEVENT");
 assert.equal(events.length, 8, "the feed should contain two one-offs, two series, one override, and three cancellations");

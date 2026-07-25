@@ -296,7 +296,7 @@ function renderSubscriptions() {
   if (state.subscriptions.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 8;
+    cell.colSpan = 9;
     cell.textContent = "No calendar subscriptions yet.";
     row.appendChild(cell);
     subscriptionList.appendChild(row);
@@ -311,6 +311,7 @@ function renderSubscriptions() {
       cell(subscription.name),
       cell(subscription.ownerLabel),
       cell(subscription.scopeLabel),
+      cell(subscription.timezone),
       cell(formatStatus(subscription.status)),
       cell(formatDate(subscription.createdAt)),
       cell(formatDate(subscription.rotatedAt)),
@@ -459,6 +460,7 @@ function normalizeSubscriptions(subscriptions) {
     scopeLabel: String(subscription?.scope?.label || "Unavailable scope"),
     status: String(subscription?.status || "revoked"),
     subscriptionId: String(subscription?.subscriptionId || ""),
+    timezone: String(subscription?.timezone || "Unavailable"),
   })).filter((subscription) => subscription.subscriptionId) : [];
 }
 

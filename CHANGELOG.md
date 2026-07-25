@@ -1,3 +1,14 @@
+## Version 0.33.22.9.3 - 2026-07-25
+
+- Added the standard RFC 7986 `NAME` calendar property alongside the retained compatibility `X-WR-CALNAME`, so named subscriptions provide both standards-based and legacy client metadata.
+- Added the owner's current profile timezone as `X-WR-TIMEZONE` and now include its matching finite `VTIMEZONE` even when a feed has no timed recurrence, without changing canonical UTC event instants or recurrence-local `TZID` behavior.
+- Added the effective owner timezone to the Admin Calendar subscription list and clarified that calendar clients may retain a local name override while Google reports a subscribed calendar's timezone as read-only.
+- Preserved Workspace/Client/Project scope ceilings, live permission intersection, owner/membership/module/target invalidation, one-time bearer-secret handling, and generic public rejection.
+- Expanded focused feed serialization, scope, authentication, Settings, and desktop/mobile browser coverage for the new metadata contract.
+- This Nightly version is a demo testing candidate. The live `0.33.22.9.3` roadmap slice remains open for operator Workspace, Client, Project, and Google Calendar validation.
+- Docs updated: `docs/e2e-testing.md`, `docs/operational-security.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, and `help/framework/settings-and-user-preferences.md`.
+- No docs change needed: database schema/migrations, permission identifiers, runtime configuration, deployment topology, backup behavior, public API scopes, and two-way provider integration are unchanged.
+
 ## Version 0.33.22.9.2 - 2026-07-25
 
 - Added the sole Calendar subscription manager at Settings → Admin → Modules → Calendar. The framework-owned protected view requires `workspace_settings.manage`, stays reachable for safe listing and revocation while Tasks is disabled, and does not create a second Calendar model or a disableable provider module.

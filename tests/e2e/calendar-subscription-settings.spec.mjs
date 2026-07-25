@@ -154,6 +154,7 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   await expect(rows).toHaveCount(4);
   await expect(rows.nth(0)).toContainText("Project delivery");
   await expect(rows.nth(0)).toContainText("Alpha Client / Alpha Project");
+  await expect(rows.nth(0)).toContainText("America/New_York");
   const anotherOwner = rows.filter({ hasText: "Another Owner" });
   await expect(anotherOwner.getByRole("button", { name: "Rotate" })).toHaveCount(0);
   await expect(anotherOwner.getByRole("button", { name: "Revoke" })).toHaveCount(1);
@@ -260,5 +261,6 @@ function subscription({
     scope: { label: scope, type: scope === "Workspace" ? "workspace" : "project" },
     status,
     subscriptionId: id,
+    timezone: "America/New_York",
   };
 }

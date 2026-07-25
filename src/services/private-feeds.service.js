@@ -374,6 +374,7 @@ function toPublicSubscription(token, session) {
     },
     status: token?.status || "revoked",
     subscriptionId: token?.private_feed_token_id || null,
+    timezone: normalizeTimezone(token?.timezone),
   };
 }
 
