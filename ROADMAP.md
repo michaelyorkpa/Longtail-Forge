@@ -2,29 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.22.9.1`.
+Active cursor: `0.33.22.9.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.22.9.1 - Tasks content scoping and live permission intersection
-
-**Model: High Effort** — Client/Project filtering must cover one-off and recurring Tasks, materialized exceptions, cancellations, and current permission changes without leaking cross-scope titles or resurrecting hidden occurrences.
-
-- [ ] Extend the stable private-feed provider context with an immutable, validated subscription descriptor containing only subscription ID, safe name, owner/workspace identity, and normalized scope. Keep framework code out of Tasks storage and keep provider registration by stable ID.
-- [ ] Require the Tasks provider to authorize the owner against the exact stored scope before rendering. Workspace means the complete workspace only for a user with workspace-scoped `tasks.view`; Client means that Client plus its current child Projects; Project means that Project only. Client/Project access inherited from a broader live role is valid, while a narrower or unrelated assignment is not.
-- [ ] Push the subscription ceiling into the Tasks-owned calendar candidate and recurrence-template reads so the database returns only the selected workspace/Client/Project rows before serialization. Continue applying the canonical permission evaluator as a second live intersection; browser filtering or framework queries against Tasks tables are prohibited.
-- [ ] Apply identical scope and permission rules to one-off Tasks, native recurrence masters, materialized overrides, and title-free cancellations. A hidden or newly inaccessible instance must not leak through a master, exception, Client hierarchy mismatch, moved Project, stale template, or raw identifier.
-- [ ] Use the safe subscription name as the escaped calendar display name so multiple subscribed calendars are distinguishable in clients. Preserve stable opaque event UIDs, the rolling window, RFC 5545 structure, refresh hints, and provider-neutral behavior.
-- [ ] Treat an inactive/deleted/moved cross-workspace Client or Project, disabled Tasks module, or lost exact-scope authority as generic feed rejection rather than an empty success that hides a broken credential. Ordinary empty calendars remain valid when the subscription is authorized but no Tasks match.
-- [ ] Add disposable-database coverage for workspace, Client, and Project subscriptions; parent-Client Project inclusion; sibling exclusion; recurring series and moved/materialized exceptions; live role reduction; module disablement; inactive/moved scope targets; duplicate subscriptions over different scopes; generic rejection parity; and zero title/ID leakage.
-- [ ] Run focused Tasks calendar-feed, permission, workspace-isolation, recurrence, and private-feed authentication regressions, then the canonical slice verifier and database integrity checks required by the migration-bearing stack.
-
-Acceptance criteria:
-
-- Every emitted event is inside both the subscription's stored scope and the owner's current effective Tasks permission.
-- Permission or hierarchy changes take effect on the next feed request; a subscription whose required scope is no longer authorized fails closed with the generic missing-feed response.
-- Multiple feeds for the same owner can expose different workspace/Client/Project ceilings without changing Task identity or recurrence behavior.
 
 ## Version 0.33.22.9.2 - Admin Calendar module surface, User Settings removal, and closeout
 

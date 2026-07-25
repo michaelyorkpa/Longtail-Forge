@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 408,
+    "discoveredScripts": 409,
     "legacyScripts": 311,
     "releaseGateScripts": 47,
     "areaCounts": {
@@ -22,19 +22,19 @@
       "release": 25,
       "search": 12,
       "tags": 12,
-      "tasks": 56,
+      "tasks": 57,
       "time-tracking": 9,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 193,
+      "focused": 194,
       "integration": 160,
       "release-gate": 47,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 175,
+      "isolated-database": 176,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
@@ -3617,7 +3617,25 @@
     },
     {
       "area": "tasks",
-      "description": "Proves bounded, permission-shaped Tasks iCalendar serialization for one-off, all-day, timed, recurring, overridden, hidden, and cancelled occurrences.",
+      "description": "Proves Workspace, Client, and Project calendar subscriptions apply a Tasks-owned SQL ceiling plus current permission and hierarchy intersection.",
+      "id": "tasks.private-calendar-feed-scope",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/private-calendar-feed-scope.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "calendar",
+        "permissions",
+        "recurrence",
+        "scope",
+        "tasks",
+        "workspace-isolation"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Proves bounded, subscription-scoped, permission-shaped Tasks iCalendar serialization for one-off, recurring, moved, hidden, and cancelled occurrences.",
       "id": "tasks.task-calendar-feed-serialization",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs",

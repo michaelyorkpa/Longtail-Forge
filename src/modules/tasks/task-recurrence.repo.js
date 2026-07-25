@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../../core/database.js";
+import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
 
 async function createTemplate(workspaceId, template) {
   const now = new Date().toISOString();
@@ -129,9 +130,14 @@ LIMIT 1;
 async function readActiveTemplates(workspaceId, options = {}) {
   const fromDate = String(options.fromDate || "").trim();
   const throughDate = String(options.throughDate || "").trim();
-  const rows = await db.query(templateSelectSql(`
+  const scope = taskCalendarFeedScopeSql(options.scope, {
+    projectAlias: "projects",
+    recordAlias: "task_recurrence_templates",
+  });
+  const query = templateSelectSql(`
 WHERE task_recurrence_templates.workspace_id = :workspaceId
   AND task_recurrence_templates.template_status = 'active'
+  AND ${scope.sql}
   AND (
     :throughDate = ''
     OR task_recurrence_templates.recurrence_anchor_date <= :throughDate
@@ -143,10 +149,12 @@ WHERE task_recurrence_templates.workspace_id = :workspaceId
     OR task_recurrence_templates.recurrence_end_date >= :fromDate
   )
 ORDER BY task_recurrence_templates.created_at, task_recurrence_templates.recurrence_template_id;
-`), {
+`);
+  const rows = await db.query(query, {
     fromDate: textParam(fromDate),
     throughDate: textParam(throughDate),
     workspaceId: textParam(workspaceId),
+    ...scope.params,
   });
 
   if (rows.length === 0) {
@@ -509,6 +517,7 @@ SELECT
   clients.name AS client_name,
   task_recurrence_templates.project_id,
   projects.name AS project_name,
+  projects.client_id AS project_client_id,
   task_recurrence_templates.title,
   task_recurrence_templates.description,
   task_recurrence_templates.status,
@@ -559,6 +568,7 @@ function templateRowToAppValue(row) {
     client_name: row.client_name || "",
     project_id: row.project_id || "",
     project_name: row.project_name || "",
+    project_client_id: row.project_client_id || "",
     title: row.title,
     description: row.description || "",
     status: row.status || "open",

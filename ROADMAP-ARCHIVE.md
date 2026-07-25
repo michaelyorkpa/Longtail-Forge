@@ -1,5 +1,27 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.22.9.1 - Tasks content scoping and live permission intersection
+
+Completed locally on 2026-07-25. Workspace, Client, and Project subscription content is now Tasks-owned and permission-intersected; the active cursor advances to `0.33.22.9.2` for the dedicated Admin Calendar surface and User Settings removal.
+
+**Model: High Effort** — Client/Project filtering must cover one-off and recurring Tasks, materialized exceptions, cancellations, and current permission changes without leaking cross-scope titles or resurrecting hidden occurrences.
+
+- [x] Extended the stable private-feed provider context with an immutable, validated subscription descriptor containing only subscription ID, safe name, owner/workspace identity, and normalized scope. Framework code remains outside Tasks storage and provider registration remains by stable ID.
+- [x] Required the Tasks provider to authorize the owner against the exact stored scope before rendering. Workspace means the complete workspace only for a user with workspace-scoped `tasks.view`; Client means that Client plus its current child Projects; Project means that Project only. Client/Project access inherited from a broader live role is valid, while a narrower or unrelated assignment is not.
+- [x] Pushed the subscription ceiling into the Tasks-owned calendar candidate and recurrence-template reads so the database returns only the selected Workspace/Client/Project content before serialization. The canonical permission evaluator remains the second live intersection; browser filtering and framework Tasks queries remain prohibited.
+- [x] Applied identical scope and permission rules to one-off Tasks, native recurrence masters, materialized overrides, and title-free cancellations. Project moves use the current Project-to-Client relationship, and out-of-scope materialized instances contribute only suppression markers so a master cannot leak their title.
+- [x] Used the safe subscription name as the escaped calendar display name so multiple subscribed calendars are distinguishable. Stable opaque event UIDs, rolling windows, RFC 5545 structure, refresh hints, and provider-neutral behavior remain unchanged.
+- [x] Kept inactive/deleted/cross-workspace targets, disabled Tasks, descriptor/session mismatch, and lost exact-scope authority on the generic missing-feed path rather than returning an empty success. Authorized scopes with no matching Tasks still return valid empty calendars.
+- [x] Added disposable-database coverage for Workspace, Client, and Project subscriptions; direct Client and current child-Project inclusion; sibling exclusion; recurring series and moved/materialized exceptions; live role reduction; Project moves; duplicate scope identities; provider rejection; and zero title/raw-ID leakage.
+- [x] Ran focused Tasks calendar-feed, private-feed authentication, permission, recurrence, scope, and workspace-isolation proofs before the canonical slice verifier and database/runtime closeout.
+
+Acceptance criteria:
+
+- Every emitted event is inside both the subscription's stored scope and the owner's current effective Tasks permission.
+- Permission or hierarchy changes take effect on the next feed request; a subscription whose required scope is no longer authorized fails closed with the generic missing-feed response.
+- Multiple feeds for the same owner can expose different Workspace/Client/Project ceilings without changing Task identity or recurrence behavior.
+
+
 ## Version 0.33.22.9 - Named workspace calendar subscriptions and revocation lifecycle
 
 Completed locally on 2026-07-25. The backend credential and revocation lifecycle is complete; the active cursor advances to `0.33.22.9.1` for Tasks-owned content scoping.

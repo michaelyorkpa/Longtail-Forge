@@ -1,7 +1,10 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { config } from "../config.js";
 import { modulesService } from "../core/modules/modules.service.js";
-import { getPrivateFeedProvider } from "../core/private-feeds/private-feed-providers.js";
+import {
+  createPrivateFeedSubscriptionDescriptor,
+  getPrivateFeedProvider,
+} from "../core/private-feeds/private-feed-providers.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { privateFeedTokensRepository } from "../repositories/private-feed-tokens.repo.js";
@@ -183,9 +186,6 @@ async function renderCalendar(rawToken) {
   if (!authentication) {
     return null;
   }
-  if (authentication.subscription.scopeType !== "workspace") {
-    return null;
-  }
 
   const provider = getPrivateFeedProvider(PRIVATE_CALENDAR_PROVIDER_ID);
   if (!provider) {
@@ -194,6 +194,7 @@ async function renderCalendar(rawToken) {
   const content = await provider.render(Object.freeze({
     providerId: PRIVATE_CALENDAR_PROVIDER_ID,
     session: authentication.session,
+    subscription: authentication.subscription,
   }));
   if (content === null) {
     return null;
@@ -225,9 +226,19 @@ async function authenticateToken(rawToken, providerId) {
   }
   return {
     session: sessionFromToken(row),
-    subscription: {
-      scopeType: row.scope_type,
-    },
+    subscription: createPrivateFeedSubscriptionDescriptor({
+      name: row.name,
+      ownerUserId: row.user_id,
+      scope: {
+        clientId: row.scope_type === "project"
+          ? row.project_client_id
+          : row.scope_client_id,
+        projectId: row.scope_project_id,
+        type: row.scope_type,
+      },
+      subscriptionId: row.private_feed_token_id,
+      workspaceId: row.workspace_id,
+    }),
   };
 }
 
@@ -268,7 +279,7 @@ async function readEligibility(row) {
   if (row.tasks_module_status !== "enabled") return { allowed: false, reason: "tasks_module_disabled" };
   if (row.scope_type === "client" && row.scope_client_status === "Inactive") return { allowed: false, reason: "client_inactive" };
   if (row.scope_type === "project" && row.scope_project_status === "Inactive") return { allowed: false, reason: "project_inactive" };
-  if (row.scope_type === "project" && row.project_client_id && row.scope_client_status === "Inactive") {
+  if (row.scope_type === "project" && row.project_client_id && row.project_client_status === "Inactive") {
     return { allowed: false, reason: "client_inactive" };
   }
   const allowed = await permissionsService.can(sessionFromToken(row), "tasks.view", permissionResource(row));
@@ -341,7 +352,9 @@ async function resolveScope(payload, session) {
 
 function permissionResource(row) {
   return {
-    client_id: row.scope_client_id || row.project_client_id || undefined,
+    client_id: row.scope_type === "project"
+      ? row.project_client_id || undefined
+      : row.scope_client_id || undefined,
     operation: "read",
     project_id: row.scope_project_id || undefined,
     workspace_id: row.workspace_id,

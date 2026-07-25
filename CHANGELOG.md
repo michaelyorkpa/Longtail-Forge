@@ -1,3 +1,14 @@
+## Version 0.33.22.9.1 - 2026-07-25
+
+- Extended the stable private-feed provider context with a validated, deep-frozen, secret-free subscription descriptor carrying only subscription/name, owner/workspace identity, and normalized Workspace/Client/Project scope.
+- Activated Client- and Project-scoped public feeds. Tasks independently reauthorizes the owner against the exact descriptor, applies the subscription ceiling inside both Task-candidate and recurrence-template SQL, and intersects the returned rows with the canonical live `tasks.view` evaluator.
+- Made Client scope follow each Project's current Client relationship rather than stale Task/template Client columns. Project subscriptions stay Project-exact while accepting current broader Workspace/Client authority; unrelated, narrower, stale-parent, inactive, and permission-reduced scopes fail with the generic missing-feed response.
+- Added title-free cancellation markers for materialized recurrence instances that move outside the subscription ceiling, preventing native RRULE masters from resurrecting hidden titles. One-off Tasks, recurrence masters, materialized overrides, cancellations, and moved Projects now share the same scope and permission rules.
+- Used each safe subscription name as the escaped `X-WR-CALNAME`, preserving opaque stable event UIDs, the rolling window, RFC 5545 structure, refresh hints, and provider-neutral behavior.
+- Added disposable-database coverage for Workspace/Client/Project feeds, direct Client Tasks, current child Projects, sibling exclusion, duplicate scope identities, live role reduction, Project moves, recurring masters, moved materialized exceptions, generic provider denial, and zero title/raw-ID leakage.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-contract.md`, `docs/operational-security.md`, `docs/regression-suite.md`, and `docs/tasks-module.md`.
+- No docs change needed: user Help and Settings ownership remain unchanged because the dedicated Admin Calendar manager and User Settings removal are owned by `0.33.22.9.2`; no schema, migration, permission identifier, backup, deployment, or runtime-configuration contract changed.
+
 ## Version 0.33.22.9 - 2026-07-25
 
 - Replaced the single-row calendar credential model with migration 085's independently identified, named, creator-bound active-or-revoked subscriptions. Eligible legacy selectors and digests keep their existing public URLs; disabled, ineligible, or orphaned legacy rows become revoked history with safe reason classes.

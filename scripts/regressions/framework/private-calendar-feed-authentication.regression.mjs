@@ -249,16 +249,13 @@ WHERE workspace_id = :workspaceId
   await authenticationThrottle.clear();
   assert.equal((await api.raw(new URL(workspaceSubscription.body.feedUrl).pathname)).status, 200);
   await authenticationThrottle.clear();
-  assert.equal(
-    (await api.raw(new URL(clientSubscription.body.feedUrl).pathname)).status,
-    404,
-    "client-scoped subscriptions must fail closed until the next Tasks content-scoping slice applies the provider ceiling",
-  );
-  assert.equal(
-    (await api.raw(new URL(projectSubscription.body.feedUrl).pathname)).status,
-    404,
-    "project-scoped subscriptions must fail closed until the next Tasks content-scoping slice applies the provider ceiling",
-  );
+  const clientScopedFeed = await api.raw(new URL(clientSubscription.body.feedUrl).pathname);
+  assert.equal(clientScopedFeed.status, 200, clientScopedFeed.text);
+  assert.match(clientScopedFeed.text, /X-WR-CALNAME:Client delivery/);
+  await authenticationThrottle.clear();
+  const projectScopedFeed = await api.raw(new URL(projectSubscription.body.feedUrl).pathname);
+  assert.equal(projectScopedFeed.status, 200, projectScopedFeed.text);
+  assert.match(projectScopedFeed.text, /X-WR-CALNAME:Workspace planning/);
 
   const collection = await api.get("/api/private-feeds/calendar-subscriptions", { cookie: sessionCookie });
   assert.equal(collection.status, 200, JSON.stringify(collection.body));

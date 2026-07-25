@@ -27,11 +27,15 @@ SELECT
   workspaces.status AS workspace_status,
   workspaces.workspace_type,
   tasks_module.status AS tasks_module_status,
-  clients.name AS scope_client_name,
+  CASE
+    WHEN tokens.scope_type = 'project' THEN project_clients.name
+    ELSE clients.name
+  END AS scope_client_name,
   clients.status AS scope_client_status,
   projects.name AS scope_project_name,
   projects.status AS scope_project_status,
-  projects.client_id AS project_client_id
+  projects.client_id AS project_client_id,
+  project_clients.status AS project_client_status
 FROM private_feed_tokens AS tokens
 LEFT JOIN users ON users.user_id = tokens.user_id
 LEFT JOIN user_workspaces AS memberships
@@ -46,7 +50,10 @@ LEFT JOIN clients
   AND clients.id = tokens.scope_client_id
 LEFT JOIN projects
   ON projects.workspace_id = tokens.workspace_id
-  AND projects.id = tokens.scope_project_id`;
+  AND projects.id = tokens.scope_project_id
+LEFT JOIN clients AS project_clients
+  ON project_clients.workspace_id = projects.workspace_id
+  AND project_clients.id = projects.client_id`;
 
 async function listForWorkspace(workspaceId, providerId, database = db) {
   return database.query(`${CALENDAR_SELECT}
@@ -102,6 +109,11 @@ WHERE tokens.provider_id = :providerId
   AND tasks_module.status = 'enabled'
   AND (tokens.scope_type <> 'client' OR clients.status <> 'Inactive')
   AND (tokens.scope_type <> 'project' OR projects.status <> 'Inactive')
+  AND (
+    tokens.scope_type <> 'project'
+    OR projects.client_id IS NULL
+    OR project_clients.status <> 'Inactive'
+  )
 LIMIT 1;`, { providerId, tokenSelector });
 }
 
