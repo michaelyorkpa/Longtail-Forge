@@ -408,6 +408,7 @@ async function deactivate(session, userId, context = {}) {
   });
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
   const nextMembership = await userWorkspacesRepository.updateStatus(userId, session.workspace_id, "inactive");
+  await reconcilePrivateCalendarSubscriptions(session.workspace_id, userId, session);
   const updatedUser = {
     ...userRowToAppValue(user),
     userStatus: "inactive",
@@ -542,6 +543,7 @@ async function remove(session, userId, context = {}) {
   });
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
   const nextMembership = await userWorkspacesRepository.deactivateAccess(userId, session.workspace_id);
+  await reconcilePrivateCalendarSubscriptions(session.workspace_id, userId, session);
   const activeMemberships = await userWorkspacesRepository.readActiveForUser(userId);
 
   if (activeMemberships.length === 0) {
@@ -658,6 +660,9 @@ async function retireAccount({ actorSession, context, targetUser, selfService })
   });
   const retiredPasswordHash = await hashPassword(createGeneratedPassword());
   await usersRepository.retireAccount(targetUser.user_id, retiredPasswordHash);
+  for (const membership of memberships) {
+    await reconcilePrivateCalendarSubscriptions(membership.workspace_id, targetUser.user_id, actorSession);
+  }
   const previousUser = userRowToAppValue(targetUser);
   const retiredUser = {
     ...previousUser,
@@ -1027,6 +1032,15 @@ async function saveSettings(payload, session) {
   };
 }
 
+async function reconcilePrivateCalendarSubscriptions(workspaceId, userId, session) {
+  const { privateFeedsService } = await import("./private-feeds.service.js");
+  await privateFeedsService.reconcileCalendarSubscriptions({
+    session: session?.workspace_id === workspaceId ? session : undefined,
+    userId,
+    workspaceId,
+  });
+}
+
 async function recordWorkspaceMembershipChange({
   session,
   action,
@@ -1061,7 +1075,9 @@ async function deactivateWorkspaceMembershipWithLifecycle(session, user, workspa
     action: "deactivate",
   });
 
-  return userWorkspacesRepository.updateStatus(user.user_id, workspace.workspaceId, "inactive");
+  const membership = await userWorkspacesRepository.updateStatus(user.user_id, workspace.workspaceId, "inactive");
+  await reconcilePrivateCalendarSubscriptions(workspace.workspaceId, user.user_id, session);
+  return membership;
 }
 
 async function transferOrBlockWorkspaceOwnership({ session, workspaceId, ownerUserId, action }) {

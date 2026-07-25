@@ -94,6 +94,7 @@ function createAppStartupActions() {
     versionedRepair("repair.user-active-workspaces-v1", repairUserActiveWorkspaces),
     versionedRepair("repair.workspace-type-v1", (context) => ensureWorkspaceType(context.workspaceId)),
     recurringCheck("app.sync-workspace-permission-contracts", ensureWorkspacePermissionContracts),
+    recurringCheck("app.reconcile-calendar-subscriptions", reconcileCalendarSubscriptions),
     versionedRepair("repair.personal-workspace-memberships-v1", repairPersonalWorkspaceMemberships),
     recurringCheck("app.ensure-protected-user-roles", (context) => ensureProtectedUserRoles(context.workspaceId)),
   ];
@@ -250,6 +251,14 @@ WHERE ${databaseDialect.identity.rowId()} IN (:duplicateRowIds);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_unique_user_id
 ON users (user_id);
 `);
+}
+
+async function reconcileCalendarSubscriptions() {
+  if (!(await tableExists("private_feed_tokens"))) {
+    return;
+  }
+  const { privateFeedsService } = await import("../services/private-feeds.service.js");
+  await privateFeedsService.reconcileCalendarSubscriptions();
 }
 
 async function ensureWorkspacePermissionContracts() {

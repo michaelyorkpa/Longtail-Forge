@@ -152,6 +152,13 @@ async function replaceUserAssignments(session, userId, payload) {
     },
   });
 
+  const { privateFeedsService } = await import("./private-feeds.service.js");
+  await privateFeedsService.reconcileCalendarSubscriptions({
+    session,
+    userId,
+    workspaceId: session.workspace_id,
+  });
+
   return { assignments: nextAssignments };
 }
 

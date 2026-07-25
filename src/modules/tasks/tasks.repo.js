@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../../core/database.js";
+import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
 
 const TASK_RECURRENCE_INSTANCE_INSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoNothing({
   columns: [
@@ -538,9 +539,14 @@ ORDER BY recurrence_instance_date, recurrence_template_id, task_id;
   }));
 }
 
-async function readCalendarFeedCandidates(workspaceId, startDate, endDate) {
-  const tasks = await db.query(taskCalendarSelectSql(`
+async function readCalendarFeedCandidates(workspaceId, startDate, endDate, options = {}) {
+  const scope = taskCalendarFeedScopeSql(options.scope, {
+    projectAlias: "projects",
+    recordAlias: "tasks",
+  });
+  const query = taskCalendarSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
+  AND ${scope.sql}
   AND (
     (
       tasks.due_date IS NOT NULL
@@ -559,13 +565,58 @@ ORDER BY
   COALESCE(tasks.due_time, '23:59'),
   tasks.updated_at,
   tasks.task_id;
-`), {
+`);
+  const tasks = await db.query(query, {
     endDate,
     startDate,
     workspaceId,
+    ...scope.params,
   });
 
   return tasks.map(taskCalendarRowToAppValue);
+}
+
+async function readCalendarFeedSuppressedInstances(
+  workspaceId,
+  startDate,
+  endDate,
+  templateIds,
+  options = {},
+) {
+  if (!Array.isArray(templateIds) || templateIds.length === 0) {
+    return [];
+  }
+  const scope = taskCalendarFeedScopeSql(options.scope, {
+    projectAlias: "projects",
+    recordAlias: "tasks",
+  });
+  if (scope.sql === "1 = 1") {
+    return [];
+  }
+  const query = `
+SELECT
+  tasks.recurrence_template_id,
+  tasks.recurrence_instance_date
+FROM tasks
+LEFT JOIN projects
+  ON projects.workspace_id = tasks.workspace_id
+  AND projects.id = tasks.project_id
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.recurrence_template_id IN (:templateIds)
+  AND tasks.recurrence_instance_date IS NOT NULL
+  AND tasks.recurrence_instance_date != ''
+  AND tasks.recurrence_instance_date >= :startDate
+  AND tasks.recurrence_instance_date <= :endDate
+  AND NOT (${scope.sql})
+ORDER BY tasks.recurrence_instance_date, tasks.recurrence_template_id;
+`;
+  return db.query(query, {
+    endDate,
+    startDate,
+    templateIds,
+    workspaceId,
+    ...scope.params,
+  });
 }
 
 async function readDashboardCountGroups(workspaceId, userId, options = {}) {
@@ -791,6 +842,7 @@ SELECT
   clients.name AS client_name,
   tasks.project_id,
   projects.name AS project_name,
+  projects.client_id AS project_client_id,
   tasks.title,
   tasks.status,
   tasks.priority,
@@ -1390,6 +1442,7 @@ function taskCalendarRowToAppValue(row) {
     client_name: row.client_name || "",
     project_id: row.project_id || "",
     project_name: row.project_name || "",
+    project_client_id: row.project_client_id || "",
     title: row.title,
     status: row.status || "open",
     priority: row.priority || "normal",
@@ -1441,6 +1494,7 @@ export const tasksRepository = {
   readFutureRecurrenceInstances,
   readDueBetween,
   readCalendarFeedCandidates,
+  readCalendarFeedSuppressedInstances,
   readDashboardCandidates,
   readDashboardCountGroups,
   readRecurrenceInstanceStats,

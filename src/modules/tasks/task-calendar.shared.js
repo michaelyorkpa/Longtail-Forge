@@ -5,7 +5,9 @@ function taskCalendarRecurrenceInstanceKey(templateId, instanceDate) {
 function taskCalendarResource(record) {
   return {
     workspace_id: record?.workspace_id || "",
-    client_id: record?.client_id || "",
+    client_id: record?.project_id
+      ? record?.project_client_id || ""
+      : record?.client_id || "",
     project_id: record?.project_id || "",
   };
 }

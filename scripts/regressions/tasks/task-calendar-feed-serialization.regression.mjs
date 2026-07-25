@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "tasks",
   tier: "focused",
   tags: ["calendar", "icalendar", "permissions", "recurrence", "tasks", "timezones"],
-  description: "Proves bounded, permission-shaped Tasks iCalendar serialization for one-off, all-day, timed, recurring, overridden, hidden, and cancelled occurrences.",
+  description: "Proves bounded, subscription-scoped, permission-shaped Tasks iCalendar serialization for one-off, recurring, moved, hidden, and cancelled occurrences.",
   runMode: "isolated-database",
 });
 
@@ -35,6 +35,9 @@ const WINDOW = calendarFeedWindow(NOW, SESSION.timezone);
 const HIDDEN_PROJECT_ID = "calendar-feed-hidden-project-private";
 const RECURRING_TEMPLATE_ID = "calendar-feed-template-private";
 const OPEN_ENDED_TEMPLATE_ID = "calendar-feed-open-ended-template-private";
+const SUBSCRIPTION = {
+  name: "Client delivery, east; priority\ncalendar",
+};
 const LONG_TITLE = "Quarterly review, decisions; follow-up\n"
   + "Résumé and launch readiness for a deliberately long UTF-8 calendar summary";
 
@@ -153,6 +156,11 @@ const calendar = serializeTasksCalendar({
   canReadTask: (resource) => resource.project_id !== HIDDEN_PROJECT_ID,
   now: NOW,
   session: SESSION,
+  subscription: SUBSCRIPTION,
+  suppressedInstances: [{
+    recurrence_instance_date: "2026-08-24",
+    recurrence_template_id: RECURRING_TEMPLATE_ID,
+  }],
   tasks,
   templates,
   window: WINDOW,
@@ -161,6 +169,11 @@ const repeatedCalendar = serializeTasksCalendar({
   canReadTask: (resource) => resource.project_id !== HIDDEN_PROJECT_ID,
   now: NOW,
   session: SESSION,
+  subscription: SUBSCRIPTION,
+  suppressedInstances: [{
+    recurrence_instance_date: "2026-08-24",
+    recurrence_template_id: RECURRING_TEMPLATE_ID,
+  }],
   tasks,
   templates,
   window: WINDOW,
@@ -179,6 +192,7 @@ const lines = unfoldLines(calendar);
 assertBalancedComponents(lines);
 assert.ok(lines.includes("CALSCALE:GREGORIAN"));
 assert.ok(lines.includes("METHOD:PUBLISH"));
+assert.ok(lines.includes("X-WR-CALNAME:Client delivery\\, east\\; priority\\ncalendar"));
 assert.ok(lines.includes("X-LONGTAIL-FORGE-WINDOW-START:20260425"));
 assert.ok(lines.includes("X-LONGTAIL-FORGE-WINDOW-END:20270724"));
 assert.ok(lines.includes("BEGIN:VTIMEZONE"));
@@ -189,7 +203,7 @@ assert.ok(lines.includes("DTSTART:20260308T020000"), "daylight onset must use th
 assert.ok(lines.includes("DTSTART:20261101T020000"), "standard onset must use the pre-transition local wall time");
 
 const events = readComponents(lines, "VEVENT");
-assert.equal(events.length, 7, "the feed should contain two one-offs, two series, one override, and two cancellations");
+assert.equal(events.length, 8, "the feed should contain two one-offs, two series, one override, and three cancellations");
 for (const event of events) {
   assert.ok(event.some((line) => line.startsWith("UID:")), "every VEVENT needs a stable UID");
   assert.ok(event.some((line) => line.startsWith("DTSTAMP:")), "every VEVENT needs DTSTAMP");
@@ -235,8 +249,9 @@ assert.deepEqual(
   [
     "RECURRENCE-ID;TZID=America/New_York:20260810T090000",
     "RECURRENCE-ID;TZID=America/New_York:20260817T090000",
+    "RECURRENCE-ID;TZID=America/New_York:20260824T090000",
   ],
-  "unreadable and archived real instances must suppress their native RRULE occurrences without leaking titles",
+  "unreadable, archived, and out-of-scope real instances must suppress native RRULE occurrences without leaking titles",
 );
 assert.ok(cancellations.every((event) => readProperty(event, "UID") === seriesUid));
 
@@ -345,6 +360,9 @@ function readProperty(event, propertyName) {
 
 async function assertRepositoryAndPermissionIntegration() {
   await initializeDatabase();
+  const { createPrivateFeedSubscriptionDescriptor } = await import(
+    "../../../src/core/private-feeds/private-feed-providers.js"
+  );
   const { renderTasksPrivateCalendarFeed } = await import(
     "../../../src/modules/tasks/private-calendar-feed.provider.js"
   );
@@ -427,7 +445,18 @@ VALUES (
       username: scopedUsername,
       workspace_id: workspaceId,
     },
+    subscription: createPrivateFeedSubscriptionDescriptor({
+      name: "Scoped project calendar",
+      ownerUserId: scopedUserId,
+      scope: {
+        projectId: visibleProjectId,
+        type: "project",
+      },
+      subscriptionId: randomUUID(),
+      workspaceId,
+    }),
   });
+  assert.match(scopedContent, /X-WR-CALNAME:Scoped project calendar/);
   assert.match(scopedContent, /SUMMARY:Scoped readable feed task/);
   assert.doesNotMatch(scopedContent, /Scoped unreadable feed task/);
   assert.equal(scopedContent.includes(scopedUserId), false);

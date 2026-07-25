@@ -603,22 +603,33 @@ CREATE TABLE permissions (
   description TEXT NOT NULL
 );
 
-CREATE TABLE private_feed_tokens (
+CREATE TABLE "private_feed_tokens" (
   private_feed_token_id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
   provider_id TEXT NOT NULL,
+  name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
+  scope_type TEXT NOT NULL DEFAULT 'workspace' CHECK (scope_type IN ('workspace', 'client', 'project')),
+  scope_client_id TEXT,
+  scope_project_id TEXT,
   token_selector TEXT NOT NULL,
   token_hash TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
+  revocation_reason TEXT,
   created_at TEXT NOT NULL,
   rotated_at TEXT,
-  disabled_at TEXT,
+  revoked_at TEXT,
   updated_at TEXT NOT NULL,
-  UNIQUE (workspace_id, user_id, provider_id),
+  CHECK (
+    (scope_type = 'workspace' AND scope_client_id IS NULL AND scope_project_id IS NULL)
+    OR (scope_type = 'client' AND scope_client_id IS NOT NULL AND scope_project_id IS NULL)
+    OR (scope_type = 'project' AND scope_project_id IS NOT NULL)
+  ),
   UNIQUE (provider_id, token_selector),
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
-  FOREIGN KEY (user_id) REFERENCES users(user_id)
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (workspace_id, scope_client_id) REFERENCES clients(workspace_id, id),
+  FOREIGN KEY (workspace_id, scope_project_id) REFERENCES projects(workspace_id, id)
 );
 
 CREATE TABLE projects (
@@ -1536,8 +1547,14 @@ ON notifications (workspace_id, module_id);
 CREATE INDEX idx_private_feed_tokens_authentication
 ON private_feed_tokens (provider_id, token_selector, status);
 
-CREATE INDEX idx_private_feed_tokens_user_workspace
-ON private_feed_tokens (user_id, workspace_id, provider_id);
+CREATE INDEX idx_private_feed_tokens_owner
+ON private_feed_tokens (user_id, workspace_id, provider_id, status);
+
+CREATE INDEX idx_private_feed_tokens_scope
+ON private_feed_tokens (workspace_id, provider_id, scope_type, scope_client_id, scope_project_id, status);
+
+CREATE INDEX idx_private_feed_tokens_workspace
+ON private_feed_tokens (workspace_id, provider_id, status, created_at);
 
 CREATE INDEX idx_projects_workspace_client_parent
 ON projects (workspace_id, client_id, parent_project_id, status, name);

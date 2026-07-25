@@ -6,6 +6,7 @@ import {
   taskCalendarRecurrenceInstanceKey,
   taskCalendarResource,
 } from "./task-calendar.shared.js";
+import { normalizeTaskCalendarFeedScope } from "./task-calendar-feed.scope.js";
 import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
 import { tasksRepository } from "./tasks.repo.js";
@@ -16,26 +17,38 @@ const TASK_CALENDAR_NAME = "Longtail Forge Tasks";
 const ICALENDAR_PRODID = "-//Longtail Forge//Tasks Calendar//EN";
 const ACTIVE_FEED_STATUSES = new Set(["open", "in_progress", "blocked", "complete"]);
 
-async function buildTasksPrivateCalendarContent({ now = new Date(), session }) {
+async function buildTasksPrivateCalendarContent({ now = new Date(), session, subscription }) {
   const window = calendarFeedWindow(now, session.timezone);
+  const scope = normalizeTaskCalendarFeedScope(subscription?.scope);
   const [tasks, templates, canReadTask] = await Promise.all([
     tasksRepository.readCalendarFeedCandidates(
       session.workspace_id,
       window.startDate,
       window.endDate,
+      { scope },
     ),
     taskRecurrenceRepository.readActiveTemplates(session.workspace_id, {
       fromDate: window.startDate,
       includeAssignees: false,
+      scope,
       throughDate: window.endDate,
     }),
     permissionsService.createPermissionEvaluator(session, "tasks.view"),
   ]);
+  const suppressedInstances = await tasksRepository.readCalendarFeedSuppressedInstances(
+    session.workspace_id,
+    window.startDate,
+    window.endDate,
+    templates.map((template) => template.recurrence_template_id),
+    { scope },
+  );
 
   return serializeTasksCalendar({
     canReadTask,
     now,
     session,
+    subscription,
+    suppressedInstances,
     tasks,
     templates,
     window,
@@ -46,6 +59,8 @@ function serializeTasksCalendar({
   canReadTask = () => true,
   now = new Date(),
   session,
+  subscription,
+  suppressedInstances = [],
   tasks = [],
   templates = [],
   window = calendarFeedWindow(now, session?.timezone),
@@ -62,6 +77,12 @@ function serializeTasksCalendar({
       ),
       task,
     ]));
+  const suppressedInstanceKeys = new Set(suppressedInstances.map((instance) => (
+    taskCalendarRecurrenceInstanceKey(
+      instance.recurrence_template_id,
+      instance.recurrence_instance_date,
+    )
+  )));
   const eventComponents = [];
   const timezoneIds = new Set();
 
@@ -84,10 +105,18 @@ function serializeTasksCalendar({
     });
 
     for (const instanceDate of occurrences) {
-      const task = tasksByInstance.get(taskCalendarRecurrenceInstanceKey(
+      const instanceKey = taskCalendarRecurrenceInstanceKey(
         template.recurrence_template_id,
         instanceDate,
-      ));
+      );
+      if (suppressedInstanceKeys.has(instanceKey)) {
+        eventComponents.push({
+          key: `exception:${instanceDate}:${template.recurrence_template_id}`,
+          lines: cancelledRecurrenceLines(template, instanceDate, template, now, session),
+        });
+        continue;
+      }
+      const task = tasksByInstance.get(instanceKey);
       if (!task) {
         continue;
       }
@@ -140,7 +169,7 @@ function serializeTasksCalendar({
     `PRODID:${ICALENDAR_PRODID}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeICalendarText(TASK_CALENDAR_NAME)}`,
+    `X-WR-CALNAME:${escapeICalendarText(subscription?.name || TASK_CALENDAR_NAME)}`,
     `X-LONGTAIL-FORGE-WINDOW-START:${toICalendarDate(window.startDate)}`,
     `X-LONGTAIL-FORGE-WINDOW-END:${toICalendarDate(window.endDate)}`,
     ...Array.from(timezoneIds)

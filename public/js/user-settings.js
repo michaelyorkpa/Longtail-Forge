@@ -37,17 +37,6 @@ const deleteAccountButton = document.querySelector("[data-delete-account]");
 const workspaceRemovalDialog = document.querySelector("[data-workspace-removal-dialog]");
 const workspaceRemovalList = document.querySelector("[data-workspace-removal-list]");
 const closeWorkspaceRemovalButton = document.querySelector("[data-close-workspace-removal]");
-const calendarSubscriptionForm = document.querySelector("[data-calendar-subscription-form]");
-const calendarSubscriptionState = document.querySelector("[data-calendar-subscription-state]");
-const calendarSubscriptionDetail = document.querySelector("[data-calendar-subscription-detail]");
-const calendarSubscriptionUrlField = document.querySelector("[data-calendar-subscription-url-field]");
-const calendarSubscriptionUrlInput = document.querySelector("[data-calendar-subscription-url]");
-const calendarSubscriptionStatus = document.querySelector("[data-calendar-subscription-status]");
-const enableCalendarSubscriptionButton = document.querySelector("[data-enable-calendar-subscription]");
-const revealCalendarSubscriptionButton = document.querySelector("[data-reveal-calendar-subscription]");
-const copyCalendarSubscriptionButton = document.querySelector("[data-copy-calendar-subscription]");
-const rotateCalendarSubscriptionButton = document.querySelector("[data-rotate-calendar-subscription]");
-const disableCalendarSubscriptionButton = document.querySelector("[data-disable-calendar-subscription]");
 const userSettingsStatus = document.querySelector("[data-user-settings-status]");
 let workspaceCreationTypes = [];
 let currentWorkspaces = [];
@@ -58,8 +47,6 @@ let workspaceNameEditedByUser = false;
 let systemThemeModeQuery = null;
 let systemThemeModeListenerAttached = false;
 let settingsCatalog = null;
-let calendarSubscriptionEnabled = false;
-let calendarSubscriptionUrl = "";
 const settingsPageController = window.LongtailForge.settingsPageController.create({
   root: document.querySelector("[data-settings-host='user']"),
   onSave: saveAllSettings,
@@ -68,7 +55,6 @@ const settingsPageController = window.LongtailForge.settingsPageController.creat
 
 loadUserSettings();
 loadNotificationPreferences();
-loadCalendarSubscription();
 
 themeForm.addEventListener("change", (event) => {
   if (event.target.matches("[data-theme-mode-option], [data-theme-auto-source]")) {
@@ -112,12 +98,6 @@ newWorkspaceTypeSelect.addEventListener("change", () => {
 openWorkspaceRemovalButton?.addEventListener("click", openWorkspaceRemovalDialog);
 deleteAccountButton?.addEventListener("click", deleteAccount);
 closeWorkspaceRemovalButton?.addEventListener("click", () => workspaceRemovalDialog?.close());
-calendarSubscriptionForm?.addEventListener("submit", (event) => event.preventDefault());
-enableCalendarSubscriptionButton?.addEventListener("click", enableCalendarSubscription);
-revealCalendarSubscriptionButton?.addEventListener("click", toggleCalendarSubscriptionVisibility);
-copyCalendarSubscriptionButton?.addEventListener("click", copyCalendarSubscriptionUrl);
-rotateCalendarSubscriptionButton?.addEventListener("click", rotateCalendarSubscription);
-disableCalendarSubscriptionButton?.addEventListener("click", disableCalendarSubscription);
 
 async function deleteAccount() {
   const confirmed = await window.LongtailForge.modal.confirm({
@@ -191,215 +171,6 @@ async function loadNotificationPreferences() {
     notificationPreferenceList.replaceChildren(createPlaceholder("Notification preferences could not be loaded."));
     handleApiError(error, "Notification preferences could not be loaded.");
   }
-}
-
-async function loadCalendarSubscription() {
-  if (!calendarSubscriptionForm) {
-    return;
-  }
-
-  setCalendarSubscriptionStatus("Loading calendar subscription...");
-  setCalendarSubscriptionBusy(true);
-
-  try {
-    const body = await window.LongtailForge.api.getJson("/api/private-feeds/calendar", { cache: "no-store" });
-    applyCalendarSubscriptionStatus(body.status);
-    setCalendarSubscriptionStatus("");
-  } catch (error) {
-    handleCalendarSubscriptionError(error, "Calendar subscription could not be loaded.");
-  } finally {
-    setCalendarSubscriptionBusy(false);
-  }
-}
-
-async function enableCalendarSubscription() {
-  setCalendarSubscriptionStatus("Enabling calendar subscription...");
-  setCalendarSubscriptionBusy(true);
-
-  try {
-    const body = await window.LongtailForge.api.postJson("/api/private-feeds/calendar");
-    applyCalendarSubscriptionStatus(body.status, body.feedUrl);
-    setCalendarSubscriptionStatus("Calendar subscription enabled. Copy the private URL now.", {
-      clearAfter: 2400,
-      type: "success",
-    });
-  } catch (error) {
-    handleCalendarSubscriptionError(error, "Calendar subscription could not be enabled.");
-  } finally {
-    setCalendarSubscriptionBusy(false);
-  }
-}
-
-async function rotateCalendarSubscription() {
-  const confirmed = await window.LongtailForge.modal.confirm({
-    title: "Rotate calendar subscription URL?",
-    message: "The current private URL will stop working immediately. Calendar apps using it will no longer receive updates until you replace it with the new URL.",
-    confirmLabel: "Rotate URL",
-    cancelLabel: "Cancel",
-    danger: true,
-  });
-
-  if (!confirmed) {
-    return;
-  }
-
-  setCalendarSubscriptionStatus("Rotating calendar subscription URL...");
-  setCalendarSubscriptionBusy(true);
-
-  try {
-    const body = await window.LongtailForge.api.postJson("/api/private-feeds/calendar/rotate");
-    applyCalendarSubscriptionStatus(body.status, body.feedUrl);
-    setCalendarSubscriptionStatus("Calendar subscription URL rotated. Copy the replacement URL now.", {
-      clearAfter: 2400,
-      type: "success",
-    });
-  } catch (error) {
-    handleCalendarSubscriptionError(error, "Calendar subscription URL could not be rotated.");
-  } finally {
-    setCalendarSubscriptionBusy(false);
-  }
-}
-
-async function disableCalendarSubscription() {
-  const confirmed = await window.LongtailForge.modal.confirm({
-    title: "Disable calendar subscription?",
-    message: "The current private URL will stop working immediately. You can enable a new subscription later.",
-    confirmLabel: "Disable Subscription",
-    cancelLabel: "Cancel",
-    danger: true,
-  });
-
-  if (!confirmed) {
-    return;
-  }
-
-  setCalendarSubscriptionStatus("Disabling calendar subscription...");
-  setCalendarSubscriptionBusy(true);
-
-  try {
-    const body = await window.LongtailForge.api.deleteJson("/api/private-feeds/calendar");
-    applyCalendarSubscriptionStatus(body.status);
-    setCalendarSubscriptionStatus("Calendar subscription disabled.", {
-      clearAfter: 2000,
-      type: "success",
-    });
-  } catch (error) {
-    handleCalendarSubscriptionError(error, "Calendar subscription could not be disabled.");
-  } finally {
-    setCalendarSubscriptionBusy(false);
-  }
-}
-
-function applyCalendarSubscriptionStatus(status, feedUrl = "") {
-  calendarSubscriptionEnabled = status?.enabled === true;
-  calendarSubscriptionUrl = calendarSubscriptionEnabled ? String(feedUrl || "") : "";
-
-  if (calendarSubscriptionState) {
-    calendarSubscriptionState.textContent = calendarSubscriptionEnabled ? "Enabled" : "Disabled";
-  }
-
-  if (calendarSubscriptionDetail) {
-    calendarSubscriptionDetail.textContent = calendarSubscriptionEnabled
-      ? (calendarSubscriptionUrl
-        ? "Copy this URL now. For security, Longtail Forge stores only its hash and will not show it again after you leave this page."
-        : "The subscription is active. Its existing URL cannot be shown again because Longtail Forge stores only its hash. Rotate it to issue a replacement URL.")
-      : "No private calendar subscription URL is active for this workspace.";
-  }
-
-  if (calendarSubscriptionUrlInput) {
-    calendarSubscriptionUrlInput.value = calendarSubscriptionUrl;
-    calendarSubscriptionUrlInput.type = "password";
-  }
-  if (calendarSubscriptionUrlField) {
-    calendarSubscriptionUrlField.hidden = !calendarSubscriptionUrl;
-  }
-  if (revealCalendarSubscriptionButton) {
-    revealCalendarSubscriptionButton.textContent = "Reveal URL";
-  }
-
-  renderCalendarSubscriptionActions();
-}
-
-function renderCalendarSubscriptionActions() {
-  if (enableCalendarSubscriptionButton) {
-    enableCalendarSubscriptionButton.hidden = calendarSubscriptionEnabled;
-  }
-  for (const button of [
-    revealCalendarSubscriptionButton,
-    copyCalendarSubscriptionButton,
-    rotateCalendarSubscriptionButton,
-    disableCalendarSubscriptionButton,
-  ]) {
-    if (button) {
-      button.hidden = !calendarSubscriptionEnabled;
-    }
-  }
-  if (revealCalendarSubscriptionButton) {
-    revealCalendarSubscriptionButton.disabled = !calendarSubscriptionUrl;
-  }
-  if (copyCalendarSubscriptionButton) {
-    copyCalendarSubscriptionButton.disabled = !calendarSubscriptionUrl;
-  }
-}
-
-function setCalendarSubscriptionBusy(isBusy) {
-  for (const button of [
-    enableCalendarSubscriptionButton,
-    revealCalendarSubscriptionButton,
-    copyCalendarSubscriptionButton,
-    rotateCalendarSubscriptionButton,
-    disableCalendarSubscriptionButton,
-  ]) {
-    if (button) {
-      button.disabled = isBusy;
-    }
-  }
-
-  if (!isBusy) {
-    renderCalendarSubscriptionActions();
-  }
-}
-
-function toggleCalendarSubscriptionVisibility() {
-  if (!calendarSubscriptionUrlInput || !calendarSubscriptionUrl) {
-    return;
-  }
-
-  const reveal = calendarSubscriptionUrlInput.type === "password";
-  calendarSubscriptionUrlInput.type = reveal ? "text" : "password";
-  revealCalendarSubscriptionButton.textContent = reveal ? "Hide URL" : "Reveal URL";
-}
-
-async function copyCalendarSubscriptionUrl() {
-  if (!calendarSubscriptionUrlInput || !calendarSubscriptionUrl) {
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(calendarSubscriptionUrl);
-  } catch {
-    calendarSubscriptionUrlInput.select();
-    document.execCommand("copy");
-    calendarSubscriptionUrlInput.setSelectionRange(0, 0);
-  }
-
-  setCalendarSubscriptionStatus("Calendar subscription URL copied.", {
-    clearAfter: 1600,
-    type: "success",
-  });
-}
-
-function setCalendarSubscriptionStatus(message, options = {}) {
-  window.LongtailForge.status.set(calendarSubscriptionStatus, message, options);
-}
-
-function handleCalendarSubscriptionError(error, fallbackMessage) {
-  if (error?.status === 401) {
-    window.location.replace("/login.html");
-    return;
-  }
-
-  setCalendarSubscriptionStatus(error?.message || fallbackMessage, { type: "error" });
 }
 
 function applyPendingPreferencePreview() {
