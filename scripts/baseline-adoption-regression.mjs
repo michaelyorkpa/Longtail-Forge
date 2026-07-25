@@ -329,6 +329,11 @@ ORDER BY version;
       module_id: "core",
       name: "private_feed_tokens",
     },
+    {
+      version: "085",
+      module_id: "core",
+      name: "named_calendar_subscriptions",
+    },
   ]);
 }
 

@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 407,
+    "discoveredScripts": 408,
     "legacyScripts": 311,
     "releaseGateScripts": 47,
     "areaCounts": {
       "dashboard": 2,
-      "database": 37,
+      "database": 38,
       "docs": 9,
       "files": 44,
       "framework": 67,
@@ -28,13 +28,13 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 192,
+      "focused": 193,
       "integration": 160,
       "release-gate": 47,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 174,
+      "isolated-database": 175,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
@@ -2538,6 +2538,23 @@
         "modules",
         "performance",
         "workspace"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves legacy private calendar rows migrate with URL continuity only when still eligible, while invalid and disabled rows become revoked history under scoped workspace constraints.",
+      "id": "database.private-calendar-subscriptions-migration",
+      "legacy": false,
+      "path": "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "calendar",
+        "migration",
+        "permissions",
+        "security",
+        "workspace-isolation"
       ],
       "tier": "focused"
     },

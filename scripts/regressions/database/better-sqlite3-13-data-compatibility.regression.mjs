@@ -74,13 +74,13 @@ SELECT version, module_id, name, checksum
 FROM schema_migrations
 ORDER BY applied_at, version;
 `);
-  assert.equal(migrations.length, 21, "fresh startup should preserve the complete migration identity");
+  assert.equal(migrations.length, 22, "fresh startup should preserve the complete migration identity");
   assert.deepEqual(migrations.at(-1), {
-    checksum: "3d0091a4b021dac5b5a3d11ba8c0e8d7079a12231db5d8418e538747db53522b",
+    checksum: "0edcdf7564ced0efae2b85cc215d7dd7dc1802a642b5ab00b611543fbcc2bef3",
     module_id: "core",
-    name: "private_feed_tokens",
-    version: "084",
-  }, "migration 084 should remain the unchanged latest migration");
+    name: "named_calendar_subscriptions",
+    version: "085",
+  }, "migration 085 should remain the unchanged latest migration");
 
   const pragmaRows = {
     busyTimeout: await querySql("PRAGMA busy_timeout;"),

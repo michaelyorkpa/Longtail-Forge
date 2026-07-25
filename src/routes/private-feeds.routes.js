@@ -6,7 +6,7 @@ import {
   emitAuthenticationThrottleLockout,
 } from "../security/auth-throttle.js";
 import { privateFeedsService } from "../services/private-feeds.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { asyncRoute, readJsonBody } from "../utils/http.js";
 
 const privateFeedPublicRoutes = Router();
 const privateFeedLifecycleRoutes = Router();
@@ -43,6 +43,37 @@ privateFeedPublicRoutes.get("/feeds/calendar/:token.ics", asyncRoute(async (requ
   response.status(200).send(content);
 }));
 
+privateFeedLifecycleRoutes.get("/private-feeds/calendar-subscriptions", asyncRoute(async (request, response) => {
+  response.set("Cache-Control", "no-store");
+  response.status(200).json(await privateFeedsService.listCalendarSubscriptions(request.session));
+}));
+
+privateFeedLifecycleRoutes.post("/private-feeds/calendar-subscriptions", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  response.set("Cache-Control", "no-store");
+  response.status(201).json(await privateFeedsService.createCalendarSubscription(
+    payload,
+    request.session,
+    getRequestContext(request).origin,
+  ));
+}));
+
+privateFeedLifecycleRoutes.post("/private-feeds/calendar-subscriptions/:subscriptionId/rotate", asyncRoute(async (request, response) => {
+  response.set("Cache-Control", "no-store");
+  response.status(200).json(await privateFeedsService.rotateCalendarSubscription(
+    request.params.subscriptionId,
+    request.session,
+    getRequestContext(request).origin,
+  ));
+}));
+
+privateFeedLifecycleRoutes.delete("/private-feeds/calendar-subscriptions/:subscriptionId", asyncRoute(async (request, response) => {
+  response.set("Cache-Control", "no-store");
+  response.status(200).json(await privateFeedsService.revokeCalendarSubscription(
+    request.params.subscriptionId,
+    request.session,
+  ));
+}));
 privateFeedLifecycleRoutes.get("/private-feeds/calendar", asyncRoute(async (request, response) => {
   response.set("Cache-Control", "no-store");
   response.status(200).json({

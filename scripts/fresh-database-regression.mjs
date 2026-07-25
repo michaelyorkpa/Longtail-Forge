@@ -137,6 +137,11 @@ ORDER BY version;
       module_id: "core",
       name: "private_feed_tokens",
     },
+    {
+      version: "085",
+      module_id: "core",
+      name: "named_calendar_subscriptions",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -351,7 +356,9 @@ WHERE type = 'index'
     'idx_notification_user_preferences_user',
     'idx_notification_workspace_defaults_workspace',
     'idx_private_feed_tokens_authentication',
-    'idx_private_feed_tokens_user_workspace',
+    'idx_private_feed_tokens_owner',
+    'idx_private_feed_tokens_scope',
+    'idx_private_feed_tokens_workspace',
     'idx_search_index_workspace_body',
     'idx_search_index_workspace_client',
     'idx_search_index_workspace_indexed_at',
@@ -503,7 +510,9 @@ ORDER BY name;
     "idx_notifications_record",
     "idx_notifications_workspace_module",
     "idx_private_feed_tokens_authentication",
-    "idx_private_feed_tokens_user_workspace",
+    "idx_private_feed_tokens_owner",
+    "idx_private_feed_tokens_scope",
+    "idx_private_feed_tokens_workspace",
     "idx_search_index_workspace_body",
     "idx_search_index_workspace_client",
     "idx_search_index_workspace_indexed_at",

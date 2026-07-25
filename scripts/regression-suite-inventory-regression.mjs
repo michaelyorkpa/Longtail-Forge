@@ -84,10 +84,10 @@ assert.ok(
   "inventory contract guardrail should be registered",
 );
 assert.equal(legacySnapshot.scripts.length, 311, "the legacy migration snapshot should preserve its baseline minus the documented syntax-gate retirement");
-assert.equal(REGRESSION_ENTRIES.length, 407, "auto-discovery should retain existing coverage plus Calendar Subscription, private feed, and native SQLite compatibility proof");
+assert.equal(REGRESSION_ENTRIES.length, 408, "auto-discovery should retain existing coverage plus named calendar migration and native SQLite compatibility proof");
 assert.deepEqual(
   REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [198, 6, 20, 9, 174],
+  [198, 6, 20, 9, 175],
   "auto-discovery must preserve every script while moving only the nine audited Files regressions into isolated scheduling",
 );
 assert.match(suite, /discoverRegressionEntries/);

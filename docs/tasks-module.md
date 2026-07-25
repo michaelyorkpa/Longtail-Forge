@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.22.8. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.22.9. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -202,6 +202,8 @@ Materialized recurrence rows reuse the shared `(recurrence_template_id, recurren
 Compatibility targets the documented `.ics` import/subscription surfaces in Google Calendar, Apple Calendar, Outlook, and Thunderbird and the common RFC 5545 subset they consume: `VCALENDAR` 2.0, `PRODID`, balanced `VEVENT` components, required event identity/timestamps/start values, exclusive all-day ends, UTC or `TZID` date-times, complete `VTIMEZONE`, RRULE, RECURRENCE-ID, CRLF, folding, and escaping. `tasks.task-calendar-feed-serialization` exercises single, all-day, timed, ended/open-ended recurring, moved override, hidden, archived, and out-of-horizon fixtures plus a real project-scoped permission/repository read. This is provider-neutral feed validation, not Google/Microsoft OAuth or a two-way provider API handshake. Framework code must not query Tasks storage or acquire Task calendar semantics.
 
 As of 0.33.22.8, User Settings supplies the framework-owned self-service lifecycle for that provider-neutral subscription. Users can generate, reveal, copy, rotate, or disable the private URL; because only its selector and digest are stored, an existing raw URL cannot be recovered after the page is left and must instead be replaced through rotation. The UI and Help link to current subscription instructions for Google Calendar, Apple Calendar, Outlook, and Thunderbird, describe refresh as periodic rather than real-time, and do not promise account connection, OAuth, write-back, or two-way editing.
+
+As of 0.33.22.9, framework authentication can also persist named Client- and Project-scoped credentials and rechecks their exact live `tasks.view` entitlement before dispatch. The Tasks provider still receives only the workspace session in this slice, so non-workspace credentials fail closed rather than risk emitting broader content. `0.33.22.9.1` owns the immutable subscription descriptor and Tasks-query content ceiling for those scopes; this slice does not move filtering into framework code.
 
 The in-app calendar and private feed deliberately preserve two representations of the same recurrence contract. Bounded in-app reads project virtual occurrences from templates and materialize exactly one normal Task when the user touches that occurrence. The feed instead publishes a native RRULE master plus materialized exceptions and cancellations so subscribed clients can project the series without eager future-row creation. Neither surface changes the completion-driven next-instance generator or the recovery sweep.
 

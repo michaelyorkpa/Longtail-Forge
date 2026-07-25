@@ -55,6 +55,7 @@ const EXPECTED_DATABASE_ACTIONS = [
   "repair.user-active-workspaces-v1",
   "repair.workspace-type-v1",
   "app.sync-workspace-permission-contracts",
+  "app.reconcile-calendar-subscriptions",
   "repair.personal-workspace-memberships-v1",
   "app.ensure-protected-user-roles",
 ];

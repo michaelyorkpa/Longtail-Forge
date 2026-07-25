@@ -99,7 +99,7 @@ const packageData = JSON.parse(packageJson);
 const packageLockData = JSON.parse(packageLock);
 assert.equal(packageLockData.version, packageData.version, "package and lockfile versions should match");
 assert.equal(packageLockData.packages[""].version, packageData.version, "lockfile root package version should match");
-assertRoadmapCursorAtLeast("0.33.23", "the completed calendar-subscription branch should hand off to branded error surfaces");
+assertRoadmapCursorAtLeast(packageData.version, "the completed User Settings slice should remain closed while the operator-requested calendar correction stack advances");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.22 /m, "the completed 0.33.22 branch should leave the live roadmap");
 assert.match(roadmapArchive, /^## Version 0\.33\.22\.8 - Subscription UI, documentation, and closeout/m, "the completed slice should be archived");
 assert.match(changelog, /^## Version 0\.33\.22\.8 - 2026-07-24/m, "the shipped slice should be recorded in the changelog");
