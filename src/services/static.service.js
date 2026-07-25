@@ -8,6 +8,7 @@ import {
 import { modulesService } from "../core/modules/modules.service.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
+import { permissionsService } from "./permissions.service.js";
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -22,6 +23,11 @@ const frameworkProtectedViews = new Map([
   ["account-recovery.html", { id: "account-recovery", file: "account-recovery.html" }],
   ["audit-log.html", { id: "audit-log", file: "audit-log.html" }],
   ["calendar.html", { id: "calendar", file: "calendar.html" }],
+  ["calendar-settings.html", {
+    id: "calendar-settings",
+    file: "calendar-settings.html",
+    requiredPermission: "workspace_settings.manage",
+  }],
   ["dashboard.html", { id: "dashboard", file: "dashboard.html" }],
   ["files.html", { id: "files", file: "files.html" }],
   ["files-settings.html", { id: "files-settings", file: "files-settings.html" }],
@@ -105,7 +111,17 @@ async function resolveRequestPath(requestPath, session) {
   }
 
   if (frameworkProtectedViews.has(pageName)) {
-    return resolveViewPath("protected", frameworkProtectedViews.get(pageName).file, { protectedHtml: true });
+    const view = frameworkProtectedViews.get(pageName);
+    if (
+      view.requiredPermission
+      && !(await permissionsService.can(session, view.requiredPermission, {
+        operation: "update",
+        workspace_id: session.workspace_id,
+      }))
+    ) {
+      return { statusCode: 403, message: "Forbidden" };
+    }
+    return resolveViewPath("protected", view.file, { protectedHtml: true });
   }
 
   const moduleView = await modulesService.resolveProtectedModuleView(session.workspace_id, session, requestPath);

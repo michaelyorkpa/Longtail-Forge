@@ -89,15 +89,6 @@ WHERE tokens.workspace_id = :workspaceId
 LIMIT 1;`, { providerId, subscriptionId, workspaceId });
 }
 
-async function readForUser(workspaceId, userId, providerId, database = db) {
-  return database.get(`${CALENDAR_SELECT}
-WHERE tokens.workspace_id = :workspaceId
-  AND tokens.user_id = :userId
-  AND tokens.provider_id = :providerId
-ORDER BY CASE tokens.status WHEN 'active' THEN 0 ELSE 1 END, tokens.created_at
-LIMIT 1;`, { providerId, userId, workspaceId });
-}
-
 async function readForAuthentication(providerId, tokenSelector, database = db) {
   return database.get(`${CALENDAR_SELECT}
 WHERE tokens.provider_id = :providerId
@@ -227,7 +218,6 @@ export const privateFeedTokensRepository = {
   listForWorkspace,
   readById,
   readForAuthentication,
-  readForUser,
   revoke,
   revokeMany,
   rotate,

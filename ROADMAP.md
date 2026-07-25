@@ -2,29 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.22.9.2`.
+Active cursor: `0.33.23`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.22.9.2 - Admin Calendar module surface, User Settings removal, and closeout
-
-**Model: High Effort** — The final surface moves a bearer-secret lifecycle into an administrator-only module destination and must keep one-time display, hierarchy-safe scope selection, and revocation behavior correct across desktop and mobile.
-
-- [ ] Add a dedicated framework-owned `Calendar` destination at Settings → Admin → Modules → Calendar, permission-gated by `workspace_settings.manage`. Keep it available for safe listing/revocation when Tasks is disabled, while creation/rotation clearly fail closed until Tasks and the owner's required `tasks.view` scope are active. Do not create a second Calendar data model or a disableable provider module solely to obtain navigation.
-- [ ] Build the page through the shared Settings host/anatomy as an immediate lifecycle manager outside the universal Save/Revert transaction. Use a named create form and a hierarchical scope picker that starts at Workspace, then allows one readable Client or one readable Project; selecting a Client constrains Project choices to that Client, and the server remains canonical for all options and validation.
-- [ ] Show the new URL once in a masked, revealable, copyable field after creation or owner rotation. Navigating away clears it. Metadata reloads never recover a URL, and official client-help links never receive or embed the secret.
-- [ ] Render an API-key-style workspace list with safe Name, Owner, Scope, Status, Created, Rotated, and Revoked fields plus individually permission-checked Rotate/Revoke actions. Use readable Client/Project labels or a safe unavailable state; never show raw target IDs, selectors, hashes, token prefixes, or another owner's secret.
-- [ ] Remove Calendar Subscription markup, lifecycle calls, state, browser tests, and Help placement from User Settings. Retire the singular lifecycle endpoints after migrated public URLs and the new collection API are proven; do not leave two active management surfaces.
-- [ ] Update Help and the owning database, architecture, module-contract, Tasks, Settings ownership/control-matrix, operational-security, regression-suite, and E2E documentation selected by `npm run docs:suggest`. Explain workspace-first Client/Project scoping, multiple subscriptions, one-time URLs, live permission invalidation, administrator visibility, periodic client refresh, and provider deferrals.
-- [ ] Add static and rendered desktop/mobile coverage for navigation placement, permission gating, Workspace → Client → Project selection, one-time URL handling, multiple-row identity, per-row rotation/revocation, another owner's secret boundary, disabled-Tasks recovery, User Settings removal, focus return, keyboard use, confirmations, and no horizontal overflow.
-- [ ] Close the correction only after migration-upgrade proof from `0.33.22.8`, focused security/permission/browser regressions, `npm run docs:suggest`, canonical `npm run verify:slice`, `PRAGMA integrity_check`, version bump/restart, and `/api/app-info` proof. Archive the completed `0.33.22.9` stack and restore `0.33.23` as the active cursor.
-
-Acceptance criteria:
-
-- Calendar subscription links are managed only at Settings → Admin → Modules → Calendar, not User Settings.
-- An administrator can create multiple self-owned, uniquely addressed subscriptions with different Workspace/Client/Project scopes, see safe workspace metadata, and revoke any row without ever recovering another user's secret.
-- Lifecycle, permission, scope, migration, documentation, accessibility, browser, integrity, and runtime-version proofs pass; there are no active orphan subscriptions; and `0.33.23` resumes next.
 
 ## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
 

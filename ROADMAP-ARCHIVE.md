@@ -1,5 +1,26 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.22.9.2 - Admin Calendar module surface, User Settings removal, and closeout
+
+Completed locally on 2026-07-25. The `0.33.22.9` correction stack is complete and the active cursor returns to `0.33.23`.
+
+**Model: High Effort** — The final surface moves a bearer-secret lifecycle into an administrator-only module destination and must keep one-time display, hierarchy-safe scope selection, and revocation behavior correct across desktop and mobile.
+
+- [x] Added a dedicated framework-owned `Calendar` destination at Settings → Admin → Modules → Calendar, permission-gated by `workspace_settings.manage`. It remains available for safe listing/revocation when Tasks is disabled, while creation/rotation fail closed until Tasks and the owner's required `tasks.view` scope are active. It is not a second Calendar data model or a disableable provider module.
+- [x] Built the page through the shared Settings host/anatomy as an immediate lifecycle manager outside the universal Save/Revert transaction. The named create form starts at Workspace and allows one readable Client or Project from canonical server options; selecting a Client constrains Project choices to that Client.
+- [x] Showed the new URL once in a masked, revealable, copyable field after creation or owner rotation. Navigating away clears it, metadata reloads never recover it, and official client-help links never receive or embed the secret.
+- [x] Rendered an API-key-style workspace list with safe Name, Owner, Scope, Status, Created, Rotated, and Revoked fields plus individually permission-checked Rotate/Revoke actions. Readable Client/Project labels or a safe unavailable state replace raw target IDs; selectors, hashes, token prefixes, and another owner's secret remain hidden.
+- [x] Removed Calendar Subscription markup, lifecycle calls, state, browser tests, and Help placement from User Settings. Retired the singular lifecycle endpoints so the collection API and dedicated Admin Calendar surface are the only active management path.
+- [x] Updated Help and the owning database, architecture, module-contract, Tasks, Settings ownership/control-matrix, operational-security, regression-suite, and E2E documentation. The final contract explains workspace-first Client/Project scoping, multiple subscriptions, one-time URLs, live permission invalidation, administrator visibility, periodic client refresh, and provider deferrals.
+- [x] Added static and rendered desktop/mobile coverage for navigation placement, permission gating, Workspace → Client → Project selection, one-time URL handling, multiple-row identity, per-row rotation/revocation, another owner's secret boundary, disabled-Tasks recovery, User Settings removal, focus return, keyboard use, confirmations, and no horizontal overflow.
+- [x] Closed the correction after inherited migration-upgrade proof from `0.33.22.8`, focused security/permission/browser regressions, `npm run docs:suggest`, canonical `npm run verify:slice`, `PRAGMA integrity_check`, version bump/restart, and `/api/app-info` proof.
+
+Acceptance criteria:
+
+- Calendar subscription links are managed only at Settings → Admin → Modules → Calendar, not User Settings.
+- An administrator can create multiple self-owned, uniquely addressed subscriptions with different Workspace/Client/Project scopes, see safe workspace metadata, and revoke any row without ever recovering another user's secret.
+- Lifecycle, permission, scope, migration, documentation, accessibility, browser, integrity, and runtime-version proofs pass; there are no active orphan subscriptions; and `0.33.23` resumes next.
+
 ## Version 0.33.22.9.1 - Tasks content scoping and live permission intersection
 
 Completed locally on 2026-07-25. Workspace, Client, and Project subscription content is now Tasks-owned and permission-intersected; the active cursor advances to `0.33.22.9.2` for the dedicated Admin Calendar surface and User Settings removal.

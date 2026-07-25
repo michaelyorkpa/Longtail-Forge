@@ -1,3 +1,15 @@
+## Version 0.33.22.9.2 - 2026-07-25
+
+- Added the sole Calendar subscription manager at Settings → Admin → Modules → Calendar. The framework-owned protected view requires `workspace_settings.manage`, stays reachable for safe listing and revocation while Tasks is disabled, and does not create a second Calendar model or a disableable provider module.
+- Added named Workspace-first creation with canonical readable Client/Project options, Client-constrained Project selection, multiple independently addressed subscriptions, and an API-key-style workspace list containing safe owner, scope, lifecycle, and timestamp metadata.
+- Preserved the bearer-secret boundary: create and owner-only rotation return one masked, revealable, copyable URL in current-page memory; navigation clears it; metadata reloads, official help links, browser storage, logs, and another administrator never receive it.
+- Added uniquely addressed per-row actions. Owners may rotate their active subscriptions, workspace administrators may revoke any active row, and Tasks-disable or live permission/scope loss makes creation, rotation, and public calendar reads fail closed without preventing cleanup.
+- Removed Calendar Subscription from User Settings and retired the singular lifecycle routes, service methods, repository read, browser state, and rendered lifecycle test so the collection API and dedicated Admin destination are the only management path.
+- Added focused static, authentication, and desktop/mobile rendered coverage for permission gating, navigation, hierarchy selection, one-time URLs, multiple-row identity, cross-owner boundaries, disabled-Tasks recovery, focus return, keyboard use, confirmations, User Settings removal, and bounded overflow.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/e2e-testing.md`, `docs/module-contract.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, and `help/framework/settings-and-user-preferences.md`.
+- No docs change needed: `SECURITY.md`, internet deployment, runtime configuration, workspace backup, and workspace deletion contracts are unchanged because this slice moves an existing protected lifecycle to its final Settings destination without changing deployment, host, backup, or deletion behavior.
+- Archived the completed `0.33.22.9` correction stack and restored `0.33.23` as the active roadmap cursor.
+
 ## Version 0.33.22.9.1 - 2026-07-25
 
 - Extended the stable private-feed provider context with a validated, deep-frozen, secret-free subscription descriptor carrying only subscription/name, owner/workspace identity, and normalized Workspace/Client/Project scope.

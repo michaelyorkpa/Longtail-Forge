@@ -67,8 +67,8 @@ try {
     "the Tasks provider should refuse content when the resolved owner lacks tasks.view",
   );
 
-  const unauthenticatedStatus = await api.get("/api/private-feeds/calendar");
-  assert.equal(unauthenticatedStatus.status, 401, "feed lifecycle reads should require a browser session");
+  const unauthenticatedCollection = await api.get("/api/private-feeds/calendar-subscriptions");
+  assert.equal(unauthenticatedCollection.status, 401, "feed lifecycle reads should require a browser session");
 
   const loginResponse = await api.post("/api/login", {
     password: ADMIN_PASSWORD,
@@ -78,28 +78,27 @@ try {
   const sessionCookie = readSessionCookie(loginResponse);
   const ownerUserId = loginResponse.body.user.user_id;
   const ownerWorkspaceId = loginResponse.body.user.workspace_id;
+  assert.equal(
+    (await api.raw("/calendar-settings.html", { cookie: sessionCookie })).status,
+    200,
+    "workspace settings managers should reach the dedicated Calendar administration page",
+  );
 
-  const initialStatus = await api.get("/api/private-feeds/calendar", { cookie: sessionCookie });
-  assert.deepEqual(initialStatus.body.status, {
-    createdAt: null,
-    disabledAt: null,
-    enabled: false,
-    rotatedAt: null,
-  });
+  const initialCollection = await api.get("/api/private-feeds/calendar-subscriptions", { cookie: sessionCookie });
+  assert.deepEqual(initialCollection.body.subscriptions, []);
 
-  const generated = await api.post("/api/private-feeds/calendar", undefined, { cookie: sessionCookie });
+  const generated = await api.post("/api/private-feeds/calendar-subscriptions", {
+    name: "Initial workspace",
+    scopeType: "workspace",
+  }, { cookie: sessionCookie });
   assert.equal(generated.status, 201, JSON.stringify(generated.body));
-  assert.equal(generated.body.status.enabled, true);
+  assert.equal(generated.body.subscription.status, "active");
   assert.match(generated.body.feedUrl, /^http:\/\/127\.0\.0\.1:\d+\/feeds\/calendar\/ltf_feed_[A-Za-z0-9_-]{16}_[A-Za-z0-9_-]{43}\.ics$/);
   const firstRawToken = readRawToken(generated.body.feedUrl);
-  const generatedStatus = await api.get("/api/private-feeds/calendar", { cookie: sessionCookie });
-  assert.equal(generatedStatus.body.status.enabled, true);
-  assert.equal(Object.hasOwn(generatedStatus.body, "feedUrl"), false, "status reads must never recover the raw bearer URL");
-  assert.deepEqual(
-    Object.keys(generatedStatus.body.status).sort(),
-    ["createdAt", "disabledAt", "enabled", "rotatedAt"],
-    "status reads should expose lifecycle state only",
-  );
+  const generatedCollection = await api.get("/api/private-feeds/calendar-subscriptions", { cookie: sessionCookie });
+  assert.equal(generatedCollection.body.subscriptions.length, 1);
+  assert.equal(generatedCollection.body.subscriptions[0].name, "Initial workspace");
+  assert.equal(Object.hasOwn(generatedCollection.body, "feedUrl"), false, "metadata reads must never recover the raw bearer URL");
 
   const stored = await db.get(`
 SELECT provider_id, token_selector, token_hash, status
@@ -123,10 +122,11 @@ WHERE workspace_id = :workspaceId
   assert.match(sessionlessFeed.text, /\r?\nEND:VCALENDAR\r?\n$/);
   assert.equal(sessionlessFeed.text.includes(ownerUserId), false, "feed content must not expose raw owner IDs");
 
-  const duplicateGenerate = await api.post("/api/private-feeds/calendar", undefined, { cookie: sessionCookie });
-  assert.equal(duplicateGenerate.status, 409, "an enabled feed should require explicit rotation");
-
-  const rotated = await api.post("/api/private-feeds/calendar/rotate", undefined, { cookie: sessionCookie });
+  const rotated = await api.post(
+    `/api/private-feeds/calendar-subscriptions/${generated.body.subscription.subscriptionId}/rotate`,
+    undefined,
+    { cookie: sessionCookie },
+  );
   assert.equal(rotated.status, 200, JSON.stringify(rotated.body));
   const secondRawToken = readRawToken(rotated.body.feedUrl);
   assert.notEqual(secondRawToken, firstRawToken);
@@ -137,9 +137,12 @@ WHERE workspace_id = :workspaceId
   const currentFeed = await api.raw(new URL(rotated.body.feedUrl).pathname);
   assert.equal(currentFeed.status, 200, "the replacement URL should serve immediately");
 
-  const disabled = await api.delete("/api/private-feeds/calendar", { cookie: sessionCookie });
+  const disabled = await api.delete(
+    `/api/private-feeds/calendar-subscriptions/${generated.body.subscription.subscriptionId}`,
+    { cookie: sessionCookie },
+  );
   assert.equal(disabled.status, 200, JSON.stringify(disabled.body));
-  assert.equal(disabled.body.status.enabled, false);
+  assert.equal(disabled.body.subscription.status, "revoked");
 
   await authenticationThrottle.clear();
   const disabledResponse = await api.raw(new URL(rotated.body.feedUrl).pathname);
@@ -194,7 +197,10 @@ WHERE scope = 'private-calendar-feed';
   assert.deepEqual(throttleRows, [{ dimension: "ip", scope: "private-calendar-feed" }]);
 
   await authenticationThrottle.clear();
-  const regenerated = await api.post("/api/private-feeds/calendar", undefined, { cookie: sessionCookie });
+  const regenerated = await api.post("/api/private-feeds/calendar-subscriptions", {
+    name: "Recovered membership",
+    scopeType: "workspace",
+  }, { cookie: sessionCookie });
   assert.equal(regenerated.status, 201);
   await db.run(`
 UPDATE user_workspaces
@@ -262,7 +268,7 @@ WHERE workspace_id = :workspaceId
   assert.equal(collection.body.subscriptions.filter((subscription) => subscription.status === "active").length, 4);
   assert.deepEqual(
     new Set(collection.body.subscriptions.filter((subscription) => subscription.status === "active").map((subscription) => subscription.name)),
-    new Set(["Calendar subscription", "Workspace planning", "Client delivery"]),
+    new Set(["Recovered membership", "Workspace planning", "Client delivery"]),
   );
   assert.equal(JSON.stringify(collection.body).includes("ltf_feed_"), false, "collection reads must not recover bearer URLs");
   assert.equal(JSON.stringify(collection.body).includes("token_hash"), false, "collection reads must not expose hashes");
@@ -392,6 +398,16 @@ INSERT INTO user_role_assignments (
     assignments: [],
   }, { cookie: sessionCookie });
   assert.equal(assignmentsRemoved.status, 200, JSON.stringify(assignmentsRemoved.body));
+  assert.equal(
+    (await api.raw("/calendar-settings.html", { cookie: delegatedCookie })).status,
+    403,
+    "the Calendar administration page must fail closed without workspace_settings.manage",
+  );
+  assert.equal(
+    (await api.get("/api/private-feeds/calendar-subscriptions", { cookie: delegatedCookie })).status,
+    403,
+    "the Calendar collection must share the page's workspace settings gate",
+  );
   assert.equal(
     (await api.raw(new URL(permissionLossSubscription.body.feedUrl).pathname)).status,
     404,

@@ -2776,7 +2776,7 @@
     },
     {
       "area": "framework",
-      "description": "Pins the User Settings calendar-subscription lifecycle, transient bearer-URL handling, client guidance, and framework/Tasks ownership boundary.",
+      "description": "Pins the administrator-only Calendar lifecycle manager, hierarchy-safe scopes, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
       "id": "framework.calendar-subscription-settings",
       "legacy": false,
       "path": "scripts/regressions/framework/calendar-subscription-settings.regression.mjs",

@@ -16,7 +16,6 @@ import { permissionsService } from "./permissions.service.js";
 const PRIVATE_CALENDAR_PROVIDER_ID = "tasks.calendar";
 const RAW_TOKEN_PREFIX = "ltf_feed";
 const DUMMY_TOKEN_HASH = createHash("sha256").update("longtail-forge-private-feed-dummy").digest();
-const DEFAULT_CALENDAR_NAME = "Calendar subscription";
 const VALID_SCOPE_TYPES = new Set(["workspace", "client", "project"]);
 
 async function listCalendarSubscriptions(session) {
@@ -100,85 +99,6 @@ async function revokeCalendarSubscription(subscriptionId, session) {
     await recordLifecycleSecurityEvent(session, "security.private_feed.revoked", "revoke", current.scope_type);
   }
   return { subscription: toPublicSubscription(result.token, session) };
-}
-
-async function getCalendarStatus(session) {
-  const token = await privateFeedTokensRepository.readForUser(
-    session.workspace_id,
-    session.user_id,
-    PRIVATE_CALENDAR_PROVIDER_ID,
-  );
-  return toPublicStatus(token);
-}
-
-async function generateCalendar(session, requestOrigin) {
-  const existing = await privateFeedTokensRepository.readForUser(
-    session.workspace_id,
-    session.user_id,
-    PRIVATE_CALENDAR_PROVIDER_ID,
-  );
-  if (existing?.status === "active") {
-    throw new AppError("The private calendar feed is already enabled. Rotate it to issue a new URL.", 409);
-  }
-  const scope = await resolveScope({ scopeType: "workspace" }, session);
-  const rawToken = createRawToken();
-  const parsedToken = parseRawToken(rawToken);
-  const token = await privateFeedTokensRepository.create({
-    name: DEFAULT_CALENDAR_NAME,
-    providerId: PRIVATE_CALENDAR_PROVIDER_ID,
-    scopeClientId: scope.clientId,
-    scopeProjectId: scope.projectId,
-    scopeType: scope.type,
-    tokenHash: hashTokenSecret(parsedToken.secret).toString("hex"),
-    tokenSelector: parsedToken.selector,
-    userId: session.user_id,
-    workspaceId: session.workspace_id,
-  });
-  await recordLifecycleSecurityEvent(session, "security.private_feed.created", "create", "workspace");
-  return { feedUrl: buildFeedUrl(rawToken, requestOrigin), status: toPublicStatus(token) };
-}
-
-async function rotateCalendar(session, requestOrigin) {
-  const current = await privateFeedTokensRepository.readForUser(
-    session.workspace_id,
-    session.user_id,
-    PRIVATE_CALENDAR_PROVIDER_ID,
-  );
-  if (!current || current.status !== "active") {
-    throw new AppError("The private calendar feed is not enabled.", 409);
-  }
-  const rawToken = createRawToken();
-  const parsedToken = parseRawToken(rawToken);
-  const result = await privateFeedTokensRepository.rotate(
-    session.workspace_id,
-    current.private_feed_token_id,
-    PRIVATE_CALENDAR_PROVIDER_ID,
-    parsedToken.selector,
-    hashTokenSecret(parsedToken.secret).toString("hex"),
-  );
-  await recordLifecycleSecurityEvent(session, "security.private_feed.rotated", "rotate", current.scope_type);
-  return { feedUrl: buildFeedUrl(rawToken, requestOrigin), status: toPublicStatus(result.token) };
-}
-
-async function disableCalendar(session) {
-  const current = await privateFeedTokensRepository.readForUser(
-    session.workspace_id,
-    session.user_id,
-    PRIVATE_CALENDAR_PROVIDER_ID,
-  );
-  if (!current) {
-    return { status: toPublicStatus(null) };
-  }
-  const result = await privateFeedTokensRepository.revoke(
-    session.workspace_id,
-    current.private_feed_token_id,
-    PRIVATE_CALENDAR_PROVIDER_ID,
-    "manual_revocation",
-  );
-  if (result.changed) {
-    await recordLifecycleSecurityEvent(session, "security.private_feed.revoked", "revoke", current.scope_type);
-  }
-  return { status: toPublicStatus(result.token) };
 }
 
 async function renderCalendar(rawToken) {
@@ -466,15 +386,6 @@ function scopeLabel(token) {
   return "Workspace";
 }
 
-function toPublicStatus(token) {
-  return {
-    createdAt: token?.created_at || null,
-    disabledAt: token?.revoked_at || null,
-    enabled: token?.status === "active",
-    rotatedAt: token?.rotated_at || null,
-  };
-}
-
 async function recordLifecycleSecurityEvent(session, eventType, operation, scopeType) {
   await securityEventsService.record({
     eventType,
@@ -491,14 +402,10 @@ async function recordLifecycleSecurityEvent(session, eventType, operation, scope
 
 export const privateFeedsService = {
   createCalendarSubscription,
-  disableCalendar,
-  generateCalendar,
-  getCalendarStatus,
   listCalendarSubscriptions,
   reconcileCalendarSubscriptions,
   renderCalendar,
   revokeCalendarSubscription,
-  rotateCalendar,
   rotateCalendarSubscription,
 };
 

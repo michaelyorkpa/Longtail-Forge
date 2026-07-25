@@ -74,33 +74,6 @@ privateFeedLifecycleRoutes.delete("/private-feeds/calendar-subscriptions/:subscr
     request.session,
   ));
 }));
-privateFeedLifecycleRoutes.get("/private-feeds/calendar", asyncRoute(async (request, response) => {
-  response.set("Cache-Control", "no-store");
-  response.status(200).json({
-    status: await privateFeedsService.getCalendarStatus(request.session),
-  });
-}));
-
-privateFeedLifecycleRoutes.post("/private-feeds/calendar", asyncRoute(async (request, response) => {
-  response.set("Cache-Control", "no-store");
-  response.status(201).json(await privateFeedsService.generateCalendar(
-    request.session,
-    getRequestContext(request).origin,
-  ));
-}));
-
-privateFeedLifecycleRoutes.post("/private-feeds/calendar/rotate", asyncRoute(async (request, response) => {
-  response.set("Cache-Control", "no-store");
-  response.status(200).json(await privateFeedsService.rotateCalendar(
-    request.session,
-    getRequestContext(request).origin,
-  ));
-}));
-
-privateFeedLifecycleRoutes.delete("/private-feeds/calendar", asyncRoute(async (request, response) => {
-  response.set("Cache-Control", "no-store");
-  response.status(200).json(await privateFeedsService.disableCalendar(request.session));
-}));
 
 function sendMissingResponse(response) {
   response.set({
