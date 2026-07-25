@@ -2,10 +2,89 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.23`.
+Active cursor: `0.33.22.9`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
+
+## Version 0.33.22.9 - Named workspace calendar subscriptions and revocation lifecycle
+
+**Model: High Effort** — This slice replaces a one-row bearer-secret model with multiple independently scoped credentials and must preserve immediate revocation, migration safety, and non-enumerating public reads.
+
+Purpose:
+
+Replace the single User Settings calendar URL with a workspace-rooted collection of named subscriptions. Every subscription remains bound to the user who created it, has its own secret and lifecycle, and carries one maximum content scope: the workspace, one Client, or one Project.
+
+Decision:
+
+Calendar subscriptions are framework-owned bearer credentials whose content is supplied by Tasks. They are managed as independent named records, similar to API keys, but they never become workspace service accounts: creation binds the subscription to the authenticated creator, and every public feed read rechecks that user's current account, membership, module, and `tasks.view` authority. Workspace administrators may inspect safe metadata and revoke any workspace subscription, but this branch does not let an administrator mint or reveal a subscription on behalf of another user.
+
+The stored scope is both a content ceiling and a live entitlement requirement. A workspace subscription requires current workspace-scoped `tasks.view`; a Client subscription requires current access to that Client; and a Project subscription requires current access to that Project. If the owner is deactivated, leaves or is removed from the workspace, loses the required scope, loses `tasks.view`, or can no longer use Tasks, the URL returns the same generic missing-feed response as an invalid token. No credential keeps a snapshot of former permissions.
+
+Dependencies and baseline:
+
+- Build on the shipped hash-only selector/digest storage, trusted-client-IP throttle, generic public rejection envelope, sessionless provider dispatch, Tasks RFC 5545 serializer, and the canonical user, membership, role-assignment, module-lifecycle, Client, and Project owners.
+- Keep the public `/feeds/calendar/:token.ics` URL shape stable so a safely migrated subscription does not require a calendar-client edit.
+- This operator-requested correction takes priority over `0.33.23`; resume the existing `0.33.23` branch after `0.33.22.9.2` closes.
+
+Non-goals:
+
+- No Google, Apple, Microsoft, or Thunderbird account connection; OAuth; provider API; push refresh; write-back; two-way editing; standalone calendar-event records; public API-key reuse; or generic service-account framework.
+- No administrator impersonation or recovery of an existing raw URL. A raw subscription URL is still shown only after creation or rotation.
+- No browser-side permission filtering, raw Client/Project IDs as visible labels, storage of the raw token, token selector/hash in audit metadata, or weakening of path-redacted production logging.
+
+- [ ] Create the next forward migration through the canonical migration command. Replace the unique `(workspace_id, user_id, provider_id)` lifecycle with independently identified rows that retain workspace, owner user, provider, selector/digest, required name, scope type, nullable normalized scope target, status, and lifecycle timestamps. Add the constraints and indexes needed for bounded workspace listing and selector authentication without allowing cross-workspace Client/Project targets.
+- [ ] Migrate each existing row deterministically as a named workspace subscription without changing its selector/digest or public URL. Preserve active status only when the owner is active, the membership/workspace/Tasks module are active, and the owner still has workspace-scoped `tasks.view`; otherwise revoke it during migration with a safe reason class. Preserve already disabled rows as revoked history rather than reactivating or deleting them.
+- [ ] Replace the singular status/generate/rotate/disable lifecycle with permission-checked collection/item operations for list, create, rotate, and revoke. Require `workspace_settings.manage` for the Admin surface; bind create to `session.user_id`; allow administrators to list safe metadata and revoke across the current workspace; allow rotation only for the subscription owner; and address every mutation by opaque subscription ID plus workspace.
+- [ ] Keep create/rotate one-time and hash-only. Ordinary reads and list responses return name, owner label, readable scope label/type, status, and safe lifecycle timestamps only—never the URL, raw token, selector, digest, hidden target label, or inaccessible target existence.
+- [ ] Recheck active user, active workspace membership, active workspace, enabled Tasks module, active scope target, and the exact current subscription scope on every public request before provider dispatch. Malformed, unknown, revoked, migrated-invalid, cross-workspace, inactive-target, module-disabled, membership-invalid, and permission-invalid subscriptions retain one timing-conscious `404` response and the existing IP throttle.
+- [ ] Integrate durable revocation/reconciliation with the canonical user deactivation, membership removal/departure, account retirement, role-assignment replacement, module disablement, and Client/Project lifecycle paths. Read-time checks remain the security boundary even if reconciliation fails; a bounded startup/admin repair finds and revokes any active orphan or now-invalid scope without restoring access.
+- [ ] Emit secret-free audit/security events for create, rotate, revoke, and automatic invalidation, using subscription ID, safe reason class, scope type, and actor/owner IDs only where those identifiers are already allowed. Never record the URL, selector, digest, request path, or token-derived prefix.
+- [ ] Add migration, repository, service, route, authentication, lifecycle, throttle, logging, audit, workspace-isolation, and SQLite integrity/foreign-key regressions. Prove multiple same-owner subscriptions, duplicate human names with distinct opaque identities, independent rotation/revocation, legacy-token continuity when eligible, and fail-closed invalidation for every owner/scope lifecycle.
+
+Acceptance criteria:
+
+- One user can hold multiple independently named and revocable calendar subscriptions in one workspace, and each active row has one valid workspace/Client/Project scope plus an active owner.
+- Existing eligible URLs survive migration unchanged; ineligible or orphaned legacy rows are safely revoked.
+- Removing or deactivating the owner, removing the membership, disabling Tasks, removing the required permission/scope, or invalidating the Client/Project makes the affected URL immediately inoperable without leaking why.
+
+### Version 0.33.22.9.1 - Tasks content scoping and live permission intersection
+
+**Model: High Effort** — Client/Project filtering must cover one-off and recurring Tasks, materialized exceptions, cancellations, and current permission changes without leaking cross-scope titles or resurrecting hidden occurrences.
+
+- [ ] Extend the stable private-feed provider context with an immutable, validated subscription descriptor containing only subscription ID, safe name, owner/workspace identity, and normalized scope. Keep framework code out of Tasks storage and keep provider registration by stable ID.
+- [ ] Require the Tasks provider to authorize the owner against the exact stored scope before rendering. Workspace means the complete workspace only for a user with workspace-scoped `tasks.view`; Client means that Client plus its current child Projects; Project means that Project only. Client/Project access inherited from a broader live role is valid, while a narrower or unrelated assignment is not.
+- [ ] Push the subscription ceiling into the Tasks-owned calendar candidate and recurrence-template reads so the database returns only the selected workspace/Client/Project rows before serialization. Continue applying the canonical permission evaluator as a second live intersection; browser filtering or framework queries against Tasks tables are prohibited.
+- [ ] Apply identical scope and permission rules to one-off Tasks, native recurrence masters, materialized overrides, and title-free cancellations. A hidden or newly inaccessible instance must not leak through a master, exception, Client hierarchy mismatch, moved Project, stale template, or raw identifier.
+- [ ] Use the safe subscription name as the escaped calendar display name so multiple subscribed calendars are distinguishable in clients. Preserve stable opaque event UIDs, the rolling window, RFC 5545 structure, refresh hints, and provider-neutral behavior.
+- [ ] Treat an inactive/deleted/moved cross-workspace Client or Project, disabled Tasks module, or lost exact-scope authority as generic feed rejection rather than an empty success that hides a broken credential. Ordinary empty calendars remain valid when the subscription is authorized but no Tasks match.
+- [ ] Add disposable-database coverage for workspace, Client, and Project subscriptions; parent-Client Project inclusion; sibling exclusion; recurring series and moved/materialized exceptions; live role reduction; module disablement; inactive/moved scope targets; duplicate subscriptions over different scopes; generic rejection parity; and zero title/ID leakage.
+- [ ] Run focused Tasks calendar-feed, permission, workspace-isolation, recurrence, and private-feed authentication regressions, then the canonical slice verifier and database integrity checks required by the migration-bearing stack.
+
+Acceptance criteria:
+
+- Every emitted event is inside both the subscription's stored scope and the owner's current effective Tasks permission.
+- Permission or hierarchy changes take effect on the next feed request; a subscription whose required scope is no longer authorized fails closed with the generic missing-feed response.
+- Multiple feeds for the same owner can expose different workspace/Client/Project ceilings without changing Task identity or recurrence behavior.
+
+### Version 0.33.22.9.2 - Admin Calendar module surface, User Settings removal, and closeout
+
+**Model: High Effort** — The final surface moves a bearer-secret lifecycle into an administrator-only module destination and must keep one-time display, hierarchy-safe scope selection, and revocation behavior correct across desktop and mobile.
+
+- [ ] Add a dedicated framework-owned `Calendar` destination at Settings → Admin → Modules → Calendar, permission-gated by `workspace_settings.manage`. Keep it available for safe listing/revocation when Tasks is disabled, while creation/rotation clearly fail closed until Tasks and the owner's required `tasks.view` scope are active. Do not create a second Calendar data model or a disableable provider module solely to obtain navigation.
+- [ ] Build the page through the shared Settings host/anatomy as an immediate lifecycle manager outside the universal Save/Revert transaction. Use a named create form and a hierarchical scope picker that starts at Workspace, then allows one readable Client or one readable Project; selecting a Client constrains Project choices to that Client, and the server remains canonical for all options and validation.
+- [ ] Show the new URL once in a masked, revealable, copyable field after creation or owner rotation. Navigating away clears it. Metadata reloads never recover a URL, and official client-help links never receive or embed the secret.
+- [ ] Render an API-key-style workspace list with safe Name, Owner, Scope, Status, Created, Rotated, and Revoked fields plus individually permission-checked Rotate/Revoke actions. Use readable Client/Project labels or a safe unavailable state; never show raw target IDs, selectors, hashes, token prefixes, or another owner's secret.
+- [ ] Remove Calendar Subscription markup, lifecycle calls, state, browser tests, and Help placement from User Settings. Retire the singular lifecycle endpoints after migrated public URLs and the new collection API are proven; do not leave two active management surfaces.
+- [ ] Update Help and the owning database, architecture, module-contract, Tasks, Settings ownership/control-matrix, operational-security, regression-suite, and E2E documentation selected by `npm run docs:suggest`. Explain workspace-first Client/Project scoping, multiple subscriptions, one-time URLs, live permission invalidation, administrator visibility, periodic client refresh, and provider deferrals.
+- [ ] Add static and rendered desktop/mobile coverage for navigation placement, permission gating, Workspace → Client → Project selection, one-time URL handling, multiple-row identity, per-row rotation/revocation, another owner's secret boundary, disabled-Tasks recovery, User Settings removal, focus return, keyboard use, confirmations, and no horizontal overflow.
+- [ ] Close the correction only after migration-upgrade proof from `0.33.22.8`, focused security/permission/browser regressions, `npm run docs:suggest`, canonical `npm run verify:slice`, `PRAGMA integrity_check`, version bump/restart, and `/api/app-info` proof. Archive the completed `0.33.22.9` stack and restore `0.33.23` as the active cursor.
+
+Acceptance criteria:
+
+- Calendar subscription links are managed only at Settings → Admin → Modules → Calendar, not User Settings.
+- An administrator can create multiple self-owned, uniquely addressed subscriptions with different Workspace/Client/Project scopes, see safe workspace metadata, and revoke any row without ever recovering another user's secret.
+- Lifecycle, permission, scope, migration, documentation, accessibility, browser, integrity, and runtime-version proofs pass; there are no active orphan subscriptions; and `0.33.23` resumes next.
 
 ## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
 
