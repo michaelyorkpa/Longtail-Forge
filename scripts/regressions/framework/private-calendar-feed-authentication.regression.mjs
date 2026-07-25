@@ -1,0 +1,294 @@
+export const regressionMeta = Object.freeze({
+  id: "framework.private-calendar-feed-authentication",
+  area: "framework",
+  tier: "focused",
+  tags: ["authentication", "calendar", "security", "tasks", "throttling", "workspace-isolation"],
+  description: "Proves private calendar feed token lifecycle, hashed storage, sessionless provider dispatch, immediate revocation, rejection parity, trusted-IP throttling, and secret-free logs.",
+  runMode: "isolated-database",
+});
+
+/* global fetch */
+
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import http from "node:http";
+import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+
+const fixture = await createDisposableDatabaseFixture("private-calendar-feed-authentication");
+const ADMIN_USERNAME = "private-feed-admin@example.test";
+const ADMIN_PASSWORD = "Private-Feed-Admin-123!";
+
+process.env.SUPER_ADMIN_USERNAME = ADMIN_USERNAME;
+process.env.SUPER_ADMIN_PASSWORD = ADMIN_PASSWORD;
+process.env.TRUST_PROXY = "false";
+process.env.LONGTAIL_AUTH_THROTTLE_ENABLED = "true";
+process.env.LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT = "3";
+process.env.LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS = "60";
+process.env.LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS = "120";
+
+const { createApp } = await import("../../../src/core/app.js");
+const { closeDatabase, initializeDatabase } = await import("../../../src/db/index.js");
+const { db } = await import("../../../src/core/database.js");
+const { authenticationThrottle } = await import("../../../src/security/auth-throttle.js");
+const {
+  getPrivateFeedProvider,
+  listPrivateFeedProviders,
+} = await import("../../../src/core/private-feeds/private-feed-providers.js");
+
+let server;
+const capturedConsole = [];
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+try {
+  console.error = (...values) => capturedConsole.push(values.map(String).join(" "));
+  console.warn = (...values) => capturedConsole.push(values.map(String).join(" "));
+
+  await initializeDatabase();
+  server = await listen(createApp());
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const api = createApi(baseUrl);
+
+  assert.deepEqual(
+    listPrivateFeedProviders().map((provider) => provider.id),
+    ["tasks.calendar"],
+    "Tasks should register the initial calendar content provider by stable ID",
+  );
+  assert.equal(
+    await getPrivateFeedProvider("tasks.calendar").render({
+      session: {
+        user_id: "missing-private-feed-user",
+        username: "missing@example.test",
+        workspace_id: "missing-private-feed-workspace",
+      },
+    }),
+    null,
+    "the Tasks provider should refuse content when the resolved owner lacks tasks.view",
+  );
+
+  const unauthenticatedStatus = await api.get("/api/private-feeds/calendar");
+  assert.equal(unauthenticatedStatus.status, 401, "feed lifecycle reads should require a browser session");
+
+  const loginResponse = await api.post("/api/login", {
+    password: ADMIN_PASSWORD,
+    username: ADMIN_USERNAME,
+  });
+  assert.equal(loginResponse.status, 200, JSON.stringify(loginResponse.body));
+  const sessionCookie = readSessionCookie(loginResponse);
+  const ownerUserId = loginResponse.body.user.user_id;
+  const ownerWorkspaceId = loginResponse.body.user.workspace_id;
+
+  const initialStatus = await api.get("/api/private-feeds/calendar", { cookie: sessionCookie });
+  assert.deepEqual(initialStatus.body.status, {
+    createdAt: null,
+    disabledAt: null,
+    enabled: false,
+    rotatedAt: null,
+  });
+
+  const generated = await api.post("/api/private-feeds/calendar", undefined, { cookie: sessionCookie });
+  assert.equal(generated.status, 201, JSON.stringify(generated.body));
+  assert.equal(generated.body.status.enabled, true);
+  assert.match(generated.body.feedUrl, /^http:\/\/127\.0\.0\.1:\d+\/feeds\/calendar\/ltf_feed_[A-Za-z0-9_-]{16}_[A-Za-z0-9_-]{43}\.ics$/);
+  const firstRawToken = readRawToken(generated.body.feedUrl);
+  const generatedStatus = await api.get("/api/private-feeds/calendar", { cookie: sessionCookie });
+  assert.equal(generatedStatus.body.status.enabled, true);
+  assert.equal(Object.hasOwn(generatedStatus.body, "feedUrl"), false, "status reads must never recover the raw bearer URL");
+  assert.deepEqual(
+    Object.keys(generatedStatus.body.status).sort(),
+    ["createdAt", "disabledAt", "enabled", "rotatedAt"],
+    "status reads should expose lifecycle state only",
+  );
+
+  const stored = await db.get(`
+SELECT provider_id, token_selector, token_hash, status
+FROM private_feed_tokens
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId;
+`, { userId: ownerUserId, workspaceId: ownerWorkspaceId });
+  assert.equal(stored.provider_id, "tasks.calendar");
+  assert.equal(stored.status, "active");
+  assert.match(stored.token_hash, /^[a-f0-9]{64}$/);
+  assert.equal(JSON.stringify(stored).includes(firstRawToken), false, "the raw private feed token must not be stored");
+  assert.equal(stored.token_hash.includes(firstRawToken), false);
+
+  await authenticationThrottle.clear();
+  const sessionlessFeed = await api.raw(new URL(generated.body.feedUrl).pathname);
+  assert.equal(sessionlessFeed.status, 200, sessionlessFeed.text);
+  assert.match(sessionlessFeed.headers.get("content-type") || "", /^text\/calendar;\s*charset=utf-8$/i);
+  assert.equal(sessionlessFeed.headers.get("cache-control"), "private, no-store");
+  assert.equal(sessionlessFeed.headers.get("x-calendar-refresh-interval"), "900");
+  assert.match(sessionlessFeed.text, /^BEGIN:VCALENDAR\r?\n/);
+  assert.match(sessionlessFeed.text, /\r?\nEND:VCALENDAR\r?\n$/);
+  assert.equal(sessionlessFeed.text.includes(ownerUserId), false, "feed content must not expose raw owner IDs");
+
+  const duplicateGenerate = await api.post("/api/private-feeds/calendar", undefined, { cookie: sessionCookie });
+  assert.equal(duplicateGenerate.status, 409, "an enabled feed should require explicit rotation");
+
+  const rotated = await api.post("/api/private-feeds/calendar/rotate", undefined, { cookie: sessionCookie });
+  assert.equal(rotated.status, 200, JSON.stringify(rotated.body));
+  const secondRawToken = readRawToken(rotated.body.feedUrl);
+  assert.notEqual(secondRawToken, firstRawToken);
+
+  await authenticationThrottle.clear();
+  const rotatedAway = await api.raw(new URL(generated.body.feedUrl).pathname);
+  assert.equal(rotatedAway.status, 404, "rotation should revoke the old URL immediately");
+  const currentFeed = await api.raw(new URL(rotated.body.feedUrl).pathname);
+  assert.equal(currentFeed.status, 200, "the replacement URL should serve immediately");
+
+  const disabled = await api.delete("/api/private-feeds/calendar", { cookie: sessionCookie });
+  assert.equal(disabled.status, 200, JSON.stringify(disabled.body));
+  assert.equal(disabled.body.status.enabled, false);
+
+  await authenticationThrottle.clear();
+  const disabledResponse = await api.raw(new URL(rotated.body.feedUrl).pathname);
+  const unknownResponse = await api.raw("/feeds/calendar/ltf_feed_aaaaaaaaaaaaaaaa_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ics");
+  const malformedResponse = await api.raw("/feeds/calendar/not-a-private-feed-token.ics");
+  for (const response of [disabledResponse, unknownResponse, malformedResponse]) {
+    assert.equal(response.status, 404);
+    assert.equal(response.text, "Calendar feed not found.");
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
+    assert.match(response.headers.get("content-type") || "", /^text\/plain;\s*charset=utf-8$/i);
+  }
+
+  const auditRows = await db.query(`
+SELECT action, previous_value_json, new_value_json, metadata_json
+FROM audit_logs
+WHERE record_type = 'security_event'
+  AND action LIKE 'security.private_feed.%'
+ORDER BY created_at, action;
+`);
+  assert.deepEqual(
+    new Set(auditRows.map((row) => row.action)),
+    new Set([
+      "security.private_feed.disabled",
+      "security.private_feed.generated",
+      "security.private_feed.rotated",
+    ]),
+  );
+  const serializedAudit = JSON.stringify(auditRows);
+  assert.equal(serializedAudit.includes(firstRawToken), false);
+  assert.equal(serializedAudit.includes(secondRawToken), false);
+
+  await authenticationThrottle.clear();
+  for (let index = 0; index < 3; index += 1) {
+    const rejected = await api.raw(
+      `/feeds/calendar/ltf_feed_aaaaaaaaaaaaaaaa_${String(index).padStart(43, "c")}.ics`,
+      { headers: { "x-forwarded-for": `203.0.113.${index + 10}` } },
+    );
+    assert.equal(rejected.status, 404);
+  }
+  const throttled = await api.raw(
+    "/feeds/calendar/ltf_feed_aaaaaaaaaaaaaaaa_ddddddddddddddddddddddddddddddddddddddddddd.ics",
+    { headers: { "x-forwarded-for": "198.51.100.99" } },
+  );
+  assert.equal(throttled.status, 429, "forged forwarding headers must not evade the trusted-IP throttle");
+  assert.equal(throttled.text, "Too many attempts. Try again later.");
+  assert.equal(throttled.headers.get("retry-after"), "120");
+  const throttleRows = await db.query(`
+SELECT scope, dimension
+FROM authentication_throttle_entries
+WHERE scope = 'private-calendar-feed';
+`);
+  assert.deepEqual(throttleRows, [{ dimension: "ip", scope: "private-calendar-feed" }]);
+
+  await authenticationThrottle.clear();
+  const regenerated = await api.post("/api/private-feeds/calendar", undefined, { cookie: sessionCookie });
+  assert.equal(regenerated.status, 201);
+  await db.run(`
+UPDATE user_workspaces
+SET status = 'inactive'
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId;
+`, { userId: ownerUserId, workspaceId: ownerWorkspaceId });
+  const inactiveMembership = await api.raw(new URL(regenerated.body.feedUrl).pathname);
+  assert.equal(inactiveMembership.status, 404, "feed authentication must stop when the owner loses workspace membership");
+
+  const secretSources = await Promise.all([
+    fs.readFile("src/core/operational-logger.js", "utf8"),
+    fs.readFile("src/routes/private-feeds.routes.js", "utf8"),
+    fs.readFile("src/services/private-feeds.service.js", "utf8"),
+  ]);
+  assert.doesNotMatch(secretSources[0], /request\.(?:originalUrl|path|url)/, "request logging must not include secret-bearing feed paths");
+  assert.doesNotMatch(secretSources[1], /console\.(?:debug|error|info|log|warn)/, "the feed route must not log tokens");
+  assert.match(secretSources[2], /timingSafeEqual\(candidateHash, storedHash\)/);
+  const serializedConsole = JSON.stringify(capturedConsole);
+  assert.equal(serializedConsole.includes(firstRawToken), false, "runtime diagnostics must not contain the original token");
+  assert.equal(serializedConsole.includes(secondRawToken), false, "runtime diagnostics must not contain the rotated token");
+
+  const integrity = await db.get("PRAGMA integrity_check;");
+  assert.equal(integrity.integrity_check, "ok");
+
+  console.log("Private calendar feed authentication regression passed.");
+} finally {
+  console.error = originalConsoleError;
+  console.warn = originalConsoleWarn;
+  if (server) {
+    await closeServer(server);
+  }
+  await closeDatabase();
+  await fixture.cleanup();
+}
+
+function createApi(baseUrl) {
+  async function request(method, url, body, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (body !== undefined) {
+      headers["content-type"] = "application/json";
+    }
+    if (options.cookie) {
+      headers.cookie = `longtail_forge_session=${options.cookie}`;
+    }
+    const response = await fetch(`${baseUrl}${url}`, {
+      body: body === undefined ? undefined : JSON.stringify(body),
+      headers,
+      method,
+    });
+    const text = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+    return {
+      body: text && contentType.includes("application/json") ? JSON.parse(text) : null,
+      headers: response.headers,
+      status: response.status,
+      text,
+    };
+  }
+
+  return {
+    delete(url, options) {
+      return request("DELETE", url, undefined, options);
+    },
+    get(url, options) {
+      return request("GET", url, undefined, options);
+    },
+    post(url, body, options) {
+      return request("POST", url, body, options);
+    },
+    raw(url, options) {
+      return request("GET", url, undefined, options);
+    },
+  };
+}
+
+function readSessionCookie(response) {
+  return (response.headers.get("set-cookie") || "")
+    .match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
+}
+
+function readRawToken(feedUrl) {
+  const filename = new URL(feedUrl).pathname.split("/").at(-1);
+  return decodeURIComponent(filename.slice(0, -4));
+}
+
+function listen(app) {
+  return new Promise((resolve) => {
+    const nextServer = http.createServer(app);
+    nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
+  });
+}
+
+function closeServer(serverInstance) {
+  return new Promise((resolve, reject) => {
+    serverInstance.close((error) => error ? reject(error) : resolve());
+  });
+}

@@ -77,7 +77,8 @@ for (const assetPath of [
 }
 assert.match(tasksDashboard, /await bridge\.importScripts\(\[[\s\S]*"\/js\/shared\/task-calendar\.js"/);
 assert.doesNotMatch(tasksDashboard.slice(0, tasksDashboard.indexOf("function renderTasksNeedsAttentionContribution")), /task-dialog\.js/);
-assert.match(tasksDashboard, /async function openTask\(taskId, trigger\)[\s\S]*await bridge\.importScript\("\/js\/task-dialog\.js"\)/);
+assert.match(tasksDashboard, /async function openTask\(taskId, trigger, occurrence = null\)[\s\S]*await bridge\.importScript\("\/js\/task-dialog\.js"\)/);
+assert.match(tasksDashboard, /await opener\(\{[\s\S]*instanceDate,[\s\S]*taskId,[\s\S]*templateId,/);
 assert.match(tasksDashboard, /dashboard\.registerPanelRenderer\("tasks\.calendar"/);
 assert.match(tasksDashboard, /taskCalendar\.fetchCalendarWindow\(range, \{[\s\S]*statuses: \["open", "in_progress", "blocked"\]/, "Dashboard calendar must request only active task statuses");
 assert.match(tasksDashboard, /taskCalendar\.resolveDefaultView\(taskCalendar\.readPreferredCalendarView\(\)\)/, "Dashboard calendar must apply the saved or responsive default view");
@@ -87,7 +88,7 @@ assert.match(tasksDashboard, /attrs: \{ type: "button", "aria-pressed": viewId =
 assert.match(tasksDashboard, /button\.addEventListener\("click"[\s\S]*state\.viewSelectedByUser = true[\s\S]*updateViewButtons\(\)/);
 assert.match(tasksDashboard, /button\.setAttribute\("aria-pressed", button\.dataset\.dashboardCalendarView === state\.view/);
 assert.match(tasksDashboard, /returnFocusTo: trigger/);
-checks += 11;
+checks += 12;
 
 assert.match(dashboardHtml, /css\/longtail-forge\.css[\s\S]*css\/dashboard\.css/);
 assert.match(dashboardCss, /\.dashboard-page[\s\S]*\.dashboard-region-body--main[\s\S]*@media \(max-width: 720px\)/);

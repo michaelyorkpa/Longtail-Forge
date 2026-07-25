@@ -260,6 +260,7 @@
     grid.append(
       primary,
       secondary,
+      calendarSubscriptionForm(),
       notificationPreferences,
       leaveWorkspaceForm(),
       deleteAccountForm(),
@@ -269,6 +270,128 @@
     const status = view.createStatusMessage({ className: "settings-page-status", hidden: true });
     status.dataset.userSettingsStatus = "";
     hostElement.append(grid, settingsPageFooter(), status, workspaceRemovalDialog(), unsavedChangesDialog());
+  }
+
+  function calendarSubscriptionForm() {
+    const form = element("form", {
+      className: ["settings-form", "user-settings-wide"],
+      dataset: { calendarSubscriptionForm: "", settingsActionForm: "" },
+    });
+    const subscriptionUrlField = field({
+      id: "calendarSubscriptionUrl",
+      label: "Private subscription URL",
+      type: "text",
+      autocomplete: "off",
+    }, "calendarSubscriptionUrl", {
+      inputType: "password",
+      controlAttrs: {
+        readonly: "",
+        spellcheck: "false",
+      },
+      shellDataset: { calendarSubscriptionUrlField: "" },
+    });
+    subscriptionUrlField.hidden = true;
+
+    const guidanceLinks = [
+      {
+        href: "https://support.google.com/calendar/answer/37100",
+        label: "Google Calendar",
+        text: "On a computer, choose Other calendars, Add other calendars, then From URL.",
+      },
+      {
+        href: "https://support.apple.com/guide/calendar/subscribe-to-calendars-icl1022/mac",
+        label: "Apple Calendar",
+        text: "On Mac, choose File, then New Calendar Subscription.",
+      },
+      {
+        href: "https://support.microsoft.com/en-US/Outlook/import-or-subscribe-to-a-calendar-in-outlook-com-or-outlook-on-the-web",
+        label: "Outlook",
+        text: "Choose Add calendar, then Subscribe from web.",
+      },
+      {
+        href: "https://support.mozilla.org/en-US/kb/creating-new-calendars",
+        label: "Thunderbird",
+        text: "Choose New Calendar, On the Network, then paste the URL.",
+      },
+    ];
+    const guidanceList = element("ul", {
+      className: "calendar-subscription-client-list",
+      children: guidanceLinks.map((item) => element("li", {
+        children: [
+          element("a", {
+            attrs: {
+              href: item.href,
+              rel: "noopener noreferrer",
+              target: "_blank",
+            },
+            text: item.label,
+          }),
+          document.createTextNode(` - ${item.text}`),
+        ],
+      })),
+    });
+
+    form.appendChild(settingsSection("Calendar Subscription", [
+      element("p", {
+        className: "calendar-subscription-intro",
+        text: "Subscribe to your permission-scoped Tasks in another calendar app. This private URL is a read-only bearer secret: anyone who has it can read the calendar.",
+      }),
+      element("div", {
+        className: "settings-summary-grid calendar-subscription-summary",
+        children: [
+          element("div", {
+            className: "settings-summary-item",
+            children: [
+              element("span", { text: "Status" }),
+              element("strong", {
+                dataset: { calendarSubscriptionState: "" },
+                text: "Loading...",
+              }),
+            ],
+          }),
+        ],
+      }),
+      element("p", {
+        className: "runtime-diagnostics-note",
+        dataset: { calendarSubscriptionDetail: "" },
+        text: "Checking the current subscription...",
+      }),
+      subscriptionUrlField,
+      element("div", {
+        className: "calendar-subscription-guidance",
+        children: [
+          element("p", {
+            text: "Calendar clients refresh subscriptions periodically, not in real time. Use a URL subscription rather than importing a one-time .ics file.",
+          }),
+          guidanceList,
+          element("p", {
+            children: [
+              element("a", {
+                attrs: { href: "help.html?article=settings-and-user-preferences" },
+                text: "Open Calendar subscription help",
+              }),
+            ],
+          }),
+        ],
+      }),
+      element("p", {
+        attrs: { "aria-live": "polite", role: "status" },
+        className: "calendar-subscription-status",
+        dataset: { calendarSubscriptionStatus: "" },
+      }),
+    ], {
+      actions: [
+        action("Enable Subscription", "enableCalendarSubscription", { role: "primary" }),
+        action("Reveal URL", "revealCalendarSubscription", { hidden: true }),
+        action("Copy URL", "copyCalendarSubscription", { hidden: true }),
+        action("Rotate URL", "rotateCalendarSubscription", { hidden: true }),
+        action("Disable Subscription", "disableCalendarSubscription", {
+          className: "danger-button",
+          hidden: true,
+        }),
+      ],
+    }));
+    return form;
   }
 
   function workspaceCreateForm() {

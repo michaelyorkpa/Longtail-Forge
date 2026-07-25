@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "views",
   tier: "focused",
   tags: ["anatomy", "calendar", "guardrail", "views"],
-  description: "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
+  description: "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with planned-occurrence affordances, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
   runMode: "static",
 });
 
@@ -77,6 +77,11 @@ assert.match(calendarJs, /if \(!calendarViewFromQuery\)[\s\S]*readPreferredCalen
 assert.match(calendarJs, /calendarViewFromQuery = true/, "Calendar query view must keep explicit navigation precedence");
 assert.match(taskCalendarJs, /className: "calendar-day-view"[\s\S]*calendarDay: dayKey/, "the shared renderer must retain its read-only Day layout");
 assert.match(taskCalendarJs, /className: "calendar-day-reminders"[\s\S]*\.\.\.dayReminders\.map/, "mobile Day view must render reminder rows");
+assert.match(taskCalendarJs, /const isVirtual = task\.virtual === true/, "the shared renderer must recognize projected recurrence occurrences");
+assert.match(taskCalendarJs, /className: "calendar-entry-virtual"[\s\S]*text: "Planned occurrence"/, "virtual entries must carry one clear shared planned-occurrence affordance");
+assert.match(taskCalendarJs, /Open planned occurrence:/, "virtual occurrences must expose one clear open action");
+assert.match(taskCalendarJs, /onOpenTask\(task\.task_id, entry, isVirtual[\s\S]*templateId: task\.templateId/, "planned occurrences must carry their template identity through the canonical editor opener");
+assert.doesNotMatch(taskCalendarJs, /disabled: isVirtual/, "planned occurrences must remain actionable for materialize-on-touch");
 assert.match(calendarJs, /multiple: true[\s\S]*calendarStatusFilter/, "Calendar must expose a task-status multi-select");
 assert.match(
   calendarJs,
@@ -102,7 +107,7 @@ for (const [label, source] of [["calendar.js", calendarJs], ["shared/task-calend
     assert.doesNotMatch(source, forbidden, `${label} must not hand-build framework-owned anatomy (${forbidden})`);
   }
 }
-checks += 31;
+checks += 36;
 
 // Entries open through the canonical Task editor, never an inline editor.
 assert.match(calendarJs, /tasksDialog\?\.openTaskEditor/, "calendar entries must open through the canonical Task editor opener");
@@ -149,7 +154,9 @@ checks += 2;
 for (const selector of [".calendar-page", ".calendar-grid", ".calendar-day", ".calendar-entry"]) {
   assert.ok(frameworkCss.includes(selector), `framework CSS must own the ${selector} calendar anatomy`);
 }
-checks += 4;
+assert.match(frameworkCss, /\.calendar-entry\[data-virtual="true"\][\s\S]*border-style: dashed/, "framework CSS must distinguish virtual calendar occurrences without new host-specific styling");
+assert.ok(frameworkCss.includes(".calendar-entry-virtual"), "framework CSS must own the planned-occurrence label");
+checks += 6;
 
 // Workbench keeps its lightweight entry point and never duplicates calendar
 // logic. The entry point is an icon-only calendar button in the top-right of

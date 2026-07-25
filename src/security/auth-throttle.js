@@ -211,10 +211,19 @@ async function emitAuthenticationThrottleLockout(context = {}, result = {}) {
 
 function contextKeys(context) {
   const scope = normalizeScope(context.scope);
-  return [
-    createKey(scope, "ip", normalizeIpAddress(context.ipAddress)),
-    createKey(scope, "account", normalizeUsername(context.username)),
-  ];
+  const dimensions = normalizeDimensions(context.dimensions);
+  return dimensions.map((dimension) => dimension === "ip"
+    ? createKey(scope, "ip", normalizeIpAddress(context.ipAddress))
+    : createKey(scope, "account", normalizeUsername(context.username)));
+}
+
+function normalizeDimensions(value) {
+  if (!Array.isArray(value)) {
+    return ["ip", "account"];
+  }
+
+  const dimensions = Array.from(new Set(value.filter((dimension) => dimension === "ip" || dimension === "account")));
+  return dimensions.length ? dimensions : ["ip", "account"];
 }
 
 function createKey(scope, dimension, value) {

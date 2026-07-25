@@ -10,6 +10,16 @@ Production logging uses a strict field allowlist. It deliberately omits request 
 
 Collect stdout and stderr through the service manager or container runtime, restrict log access to operators, set an explicit retention period, and protect exported logs as potentially sensitive operational data even though the application redacts its structured fields.
 
+## Private calendar feed bearer URLs
+
+As of 0.33.22.3, `GET /feeds/calendar/:token.ics` is a sessionless, read-only authentication surface. Its URL is a bearer secret: anyone who receives the complete URL can request the owner's permission-scoped Tasks calendar for that workspace. Do not put it in tickets, chat, screenshots, analytics, proxy access logs, browser telemetry, or monitoring labels. Longtail Forge's production request logger omits paths, queries, headers, cookies, and bodies, and lifecycle security events record only the generate/rotate/disable classification. Operators must configure every upstream proxy and observability layer with the same path-redaction rule.
+
+The database stores one active-or-disabled row per user, workspace, and provider. Only a random selector and SHA-256 digest of a separate high-entropy secret are stored; the raw token is returned only when generated or rotated. Verification uses a constant-time digest comparison, rotation immediately replaces the stored selector/digest, and disablement immediately makes the current URL fail on its next request. Invalid, malformed, rotated, disabled, inaccessible, and unknown tokens receive the same `404` body. The endpoint ignores session cookies, performs no mutation, and is deliberately outside the browser CSRF path.
+
+Requests use the existing trusted client-IP resolver and durable sensitive-endpoint throttle with an IP-only dimension. Forged forwarding headers do not create a new bucket unless the direct proxy peer is explicitly trusted under the deployment contract. Successful and rejected reads both consume the conservative throttle budget. A `429` includes `Retry-After`; valid calendar responses are `text/calendar`, `private, no-store`, and advertise a 900-second refresh interval. Generate, rotate, disable, and status routes remain under `/api/private-feeds/calendar` behind the user's own browser session and normal CSRF/origin protections.
+
+User Settings exposes those lifecycle routes as Calendar Subscription. A status read never returns the bearer URL. The raw URL is displayed only after generation or rotation, remains masked until the user reveals it, and is held only for the current page; revisiting an enabled subscription requires rotation if the URL was not saved. The client-help links open documentation only and never transmit the private URL. Users paste the URL into a client's subscription workflow themselves and should expect periodic rather than real-time refresh. Rotation and disablement confirmations state that the old URL stops working immediately.
+
 ## Health and readiness
 
 The unauthenticated probes are intentionally minimal and always set `Cache-Control: no-store`:

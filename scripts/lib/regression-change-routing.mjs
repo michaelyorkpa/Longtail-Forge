@@ -74,8 +74,8 @@ const ROUTE_RULES = Object.freeze([
     /^docs\/(?:backup-and-restore|self-hosting|upgrading)\.md$/,
     /^docs\/development\/github-workflow\.md$/,
     /^scripts\/release\//,
-    /^scripts\/(?:bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|container-deployment-smoke|version-literal|run-(?:regressions|slice-verification)|runtime-artifact-smoke|regression-(?:suite|runner|coverage|clean-clone)|generate-regression-manifest)/,
-    /^scripts\/lib\/(?:changed-regression-runner|regression-change-routing|slice-verification-plan)\.mjs$/,
+    /^scripts\/(?:bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|classify-github-changes|container-deployment-smoke|version-literal|run-(?:regressions|slice-verification)|runtime-artifact-smoke|regression-(?:suite|runner|coverage|clean-clone)|generate-regression-manifest)/,
+    /^scripts\/lib\/(?:changed-regression-runner|github-change-classification|regression-change-routing|slice-verification-plan)\.mjs$/,
     /^scripts\/regressions\/release\//,
   ], ["release"], "release, version, or regression-infrastructure path"),
   route([/^src\/modules\/dashboard\//, /^public\/js\/dashboard(?:[./-]|$)/], ["dashboard"], "Dashboard-owned path"),
@@ -85,7 +85,11 @@ const ROUTE_RULES = Object.freeze([
     /^src\/core\//,
     /^src\/(?:routes|services)\/[^/]*shared/,
   ], ["framework"], "shared framework path"),
-  route([/^docs\//], ["docs"], "documentation-owned path", { fullCheck: false }),
+  route([
+    /^docs\//,
+    /^(?!(?:CHANGELOG|ROADMAP|ROADMAP-ARCHIVE)\.md$)[^/]+\.md$/,
+    /^LICENSE$/,
+  ], ["docs"], "documentation-owned path", { fullCheck: false }),
 ]);
 
 function route(patterns, areas, reason, { fullCheck } = {}) {

@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 401,
+    "discoveredScripts": 407,
     "legacyScripts": 311,
-    "releaseGateScripts": 44,
+    "releaseGateScripts": 47,
     "areaCounts": {
       "dashboard": 2,
-      "database": 36,
+      "database": 37,
       "docs": 9,
       "files": 44,
-      "framework": 65,
+      "framework": 67,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -19,26 +19,26 @@
       "notifications": 3,
       "permissions": 6,
       "public-api": 3,
-      "release": 24,
+      "release": 25,
       "search": 12,
       "tags": 12,
-      "tasks": 54,
+      "tasks": 56,
       "time-tracking": 9,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 190,
-      "integration": 159,
-      "release-gate": 44,
+      "focused": 192,
+      "integration": 160,
+      "release-gate": 47,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 170,
+      "isolated-database": 174,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 196
+      "static": 198
     }
   },
   "coverageFamilies": [
@@ -2455,6 +2455,25 @@
     },
     {
       "area": "database",
+      "description": "Proves better-sqlite3 13.0.1 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
+      "id": "database.better-sqlite3-13-data-compatibility",
+      "legacy": false,
+      "path": "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "adapter",
+        "backup",
+        "bindings",
+        "concurrency",
+        "migration",
+        "recovery",
+        "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
       "description": "Proves the named demo host can be provisioned/reset only through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
       "id": "database.demo-data-host-operation",
       "legacy": false,
@@ -2740,6 +2759,24 @@
     },
     {
       "area": "framework",
+      "description": "Pins the User Settings calendar-subscription lifecycle, transient bearer-URL handling, client guidance, and framework/Tasks ownership boundary.",
+      "id": "framework.calendar-subscription-settings",
+      "legacy": false,
+      "path": "scripts/regressions/framework/calendar-subscription-settings.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "calendar",
+        "help",
+        "security",
+        "settings",
+        "tasks",
+        "views"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
       "description": "Proves the slim client-project options projection renders dropdowns identical to the full management payload at a fraction of its size, the management shape keeps gated batched reminder policies, and reminder-policy queries stay constant-count.",
       "id": "framework.client-project-options-projection",
       "legacy": false,
@@ -2863,6 +2900,24 @@
         "passwords",
         "permissions",
         "security"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves private calendar feed token lifecycle, hashed storage, sessionless provider dispatch, immediate revocation, rejection parity, trusted-IP throttling, and secret-free logs.",
+      "id": "framework.private-calendar-feed-authentication",
+      "legacy": false,
+      "path": "scripts/regressions/framework/private-calendar-feed-authentication.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "calendar",
+        "security",
+        "tasks",
+        "throttling",
+        "workspace-isolation"
       ],
       "tier": "focused"
     },
@@ -3351,6 +3406,22 @@
     },
     {
       "area": "release",
+      "description": "Proves GitHub-only documentation uses fail-closed PR and nightly fast paths while runtime Help retains artifact and deployment routing.",
+      "id": "release.github-only-docs-workflow-routing",
+      "legacy": false,
+      "path": "scripts/regressions/release/github-only-docs-workflow-routing.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "ci",
+        "docs",
+        "github-actions",
+        "routing"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
       "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
       "id": "release.github-release-operations",
       "legacy": false,
@@ -3529,7 +3600,25 @@
     },
     {
       "area": "tasks",
-      "description": "Proves the task calendar-window contract: one-statement lean projection without assignee hydration, exact renderer payload shape, bounded-range enforcement, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
+      "description": "Proves bounded, permission-shaped Tasks iCalendar serialization for one-off, all-day, timed, recurring, overridden, hidden, and cancelled occurrences.",
+      "id": "tasks.task-calendar-feed-serialization",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "calendar",
+        "icalendar",
+        "permissions",
+        "recurrence",
+        "tasks",
+        "timezones"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "description": "Proves the task calendar-window contract: lean real rows plus bounded read-time recurrence projection, real-instance deduplication, exact renderer payload shape, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
       "id": "tasks.task-calendar-window",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-calendar-window.regression.mjs",
@@ -3616,6 +3705,23 @@
       "tier": "focused"
     },
     {
+      "area": "tasks",
+      "description": "Proves permission-checked, exactly-once recurrence materialization, independent occurrence edits, calendar replacement, and completion/sweep continuity.",
+      "id": "tasks.task-recurrence-materialize-on-touch-permissions",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-recurrence-materialize-on-touch-permissions.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "calendar",
+        "jobs",
+        "permissions",
+        "recurrence",
+        "tasks"
+      ],
+      "tier": "integration"
+    },
+    {
       "area": "time-tracking",
       "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
       "id": "time-tracking.dashboard-effort-summary-budgets",
@@ -3667,7 +3773,7 @@
     },
     {
       "area": "views",
-      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
+      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with planned-occurrence affordances, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
       "id": "views.calendar-host",
       "legacy": false,
       "path": "scripts/regressions/views/calendar-host.regression.mjs",

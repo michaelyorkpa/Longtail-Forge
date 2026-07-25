@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "tasks",
   tier: "focused",
   tags: ["bounded-query", "calendar", "permissions", "reminders", "tasks"],
-  description: "Proves the task calendar-window contract: one-statement lean projection without assignee hydration, exact renderer payload shape, bounded-range enforcement, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
+  description: "Proves the task calendar-window contract: lean real rows plus bounded read-time recurrence projection, real-instance deduplication, exact renderer payload shape, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
   runMode: "isolated-database",
 });
 
@@ -20,6 +20,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-Calendar-Window-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql } = await import("../../../src/db/index.js");
 const { readSqliteStatementCount } = await import("../../../src/db/sqlite.js");
+const { taskRecurrenceService } = await import("../../../src/modules/tasks/task-recurrence.service.js");
 const { tasksService } = await import("../../../src/modules/tasks/tasks.service.js");
 const { tasksRepository } = await import("../../../src/modules/tasks/tasks.repo.js");
 const repositorySource = readFileSync("src/modules/tasks/tasks.repo.js", "utf8");
@@ -38,7 +39,9 @@ try {
   assertWorkspaceScoping(result, fixtures);
   await assertStatusFiltering(session, fixtures);
   assertCalendarRowContract(result, fixtures);
+  assertRecurrenceProjection(result, fixtures);
   assertReminderMarkers(result, fixtures);
+  await assertCalendarProjectionIsReadOnly(session);
   await assertScopedPermissionFiltering(fixtures);
   await assertClientProjectFilters(session, fixtures);
   await assertDisabledModuleRead(session, fixtures);
@@ -113,6 +116,55 @@ VALUES ('${otherWorkspaceId}', 'Calendar Other Workspace', 'Active', 'business',
     title: "Calendar lookahead task",
     due_date: "2026-09-02",
   }, session)).task;
+  const weeklyRecurringTask = (await tasksService.create({
+    title: "Calendar weekly recurring task",
+    client_id: clients.alpha.id,
+    project_id: projects.alpha.id,
+    due_date: "2026-08-03",
+    recurrence: {
+      enabled: true,
+      frequency: "WEEKLY",
+      interval: 1,
+      endDate: "",
+    },
+  }, session)).task;
+  const weeklyMaterializedTask = await tasksRepository.create(workspaceId, {
+    task_id: `task-weekly-materialized-${randomUUID()}`,
+    client_id: clients.alpha.id,
+    project_id: projects.alpha.id,
+    title: "Calendar weekly materialized override",
+    status: "open",
+    priority: "high",
+    billable: "no",
+    due_date: "2026-08-17",
+    due_timezone: "America/New_York",
+    recurrence_template_id: weeklyRecurringTask.recurrence_template_id,
+    recurrence_instance_date: "2026-08-17",
+    created_by_user_id: session.user_id,
+    updated_by_user_id: session.user_id,
+  });
+  const endedRecurringTask = (await tasksService.create({
+    title: "Calendar ended recurring task",
+    due_date: "2026-08-05",
+    recurrence: {
+      enabled: true,
+      frequency: "WEEKLY",
+      interval: 1,
+      endDate: "2026-08-19",
+    },
+  }, session)).task;
+  const hiddenRecurringTask = (await tasksService.create({
+    title: "Calendar hidden recurring task",
+    client_id: clients.beta.id,
+    project_id: projects.beta.id,
+    due_date: "2026-08-06",
+    recurrence: {
+      enabled: true,
+      frequency: "WEEKLY",
+      interval: 1,
+      endDate: "",
+    },
+  }, session)).task;
   const crossWorkspaceTask = await tasksRepository.create(otherWorkspaceId, {
     task_id: `task-cross-workspace-${randomUUID()}`,
     title: "Calendar cross-workspace task",
@@ -132,11 +184,15 @@ VALUES ('${otherWorkspaceId}', 'Calendar Other Workspace', 'Active', 'business',
     clients,
     completedTask,
     crossWorkspaceTask,
+    endedRecurringTask,
+    hiddenRecurringTask,
     lookaheadTask,
     otherWorkspaceId,
     projects,
     scopedUser,
     timedTask,
+    weeklyMaterializedTask,
+    weeklyRecurringTask,
     workspaceId,
     session,
   };
@@ -201,6 +257,7 @@ function assertCalendarRowContract(result, fixtures) {
     "client_name",
     "due_date",
     "due_time",
+    "endDate",
     "id",
     "priority",
     "project_name",
@@ -219,7 +276,6 @@ function assertCalendarRowContract(result, fixtures) {
     "completionMetrics",
     "description_excerpt",
     "due_timezone",
-    "endDate",
     "estimate_minutes",
     "last_worked_at",
     "next_action",
@@ -237,11 +293,92 @@ function assertCalendarRowContract(result, fixtures) {
   assert.equal(row.allDay, false, "timed tasks are not all-day entries");
   assert.equal(row.id, row.task_id, "the calendar identity alias must match task_id");
   assert.equal(row.startDate, row.due_date, "the calendar start date must match the due-date key");
+  assert.equal(row.endDate, row.due_date, "the calendar end date must match the single-day due-date key");
 
   const alphaRow = result.tasks.find((candidate) => candidate.task_id === fixtures.alphaTask.task_id);
   assert.equal(alphaRow.allDay, true, "date-only tasks are all-day entries");
   assert.equal(alphaRow.client_name, fixtures.clients.alpha.name, "rows must carry readable client context");
   assert.equal(alphaRow.project_name, fixtures.projects.alpha.name, "rows must carry readable project context");
+}
+
+function assertRecurrenceProjection(result, fixtures) {
+  assert.deepEqual(
+    taskRecurrenceService.projectOccurrenceDates({
+      recurrence_anchor_date: "2026-08-05",
+      recurrence_end_date: "",
+      rrule: "FREQ=WEEKLY;INTERVAL=1;UNTIL=20260819",
+    }, WINDOW_START, WINDOW_END),
+    ["2026-08-05", "2026-08-12", "2026-08-19"],
+    "an RRULE UNTIL must bound projection when the separate end-date column is blank",
+  );
+
+  const weeklyRows = result.tasks.filter((row) => (
+    row.task_id === fixtures.weeklyRecurringTask.task_id
+    || row.task_id === fixtures.weeklyMaterializedTask.task_id
+    || row.templateId === fixtures.weeklyRecurringTask.recurrence_template_id
+  ));
+  assert.deepEqual(
+    weeklyRows.map((row) => row.due_date),
+    ["2026-08-03", "2026-08-10", "2026-08-17", "2026-08-24", "2026-08-31"],
+    "an open-ended weekly template must appear once per week across the bounded window",
+  );
+  assert.deepEqual(
+    weeklyRows.filter((row) => row.virtual).map((row) => row.instanceDate),
+    ["2026-08-10", "2026-08-24", "2026-08-31"],
+    "only recurrence dates without materialized rows should remain virtual",
+  );
+
+  const materializedDateRows = weeklyRows.filter((row) => row.due_date === "2026-08-17");
+  assert.equal(materializedDateRows.length, 1, "a materialized recurrence instance must suppress its virtual twin");
+  assert.equal(
+    materializedDateRows[0].task_id,
+    fixtures.weeklyMaterializedTask.task_id,
+    "the real materialized row must take precedence over the virtual occurrence",
+  );
+
+  const endedRows = result.tasks.filter((row) => (
+    row.task_id === fixtures.endedRecurringTask.task_id
+    || row.templateId === fixtures.endedRecurringTask.recurrence_template_id
+  ));
+  assert.deepEqual(
+    endedRows.map((row) => row.due_date),
+    ["2026-08-05", "2026-08-12", "2026-08-19"],
+    "a recurrence end date must stop projection after its final occurrence",
+  );
+
+  const virtualRow = weeklyRows.find((row) => row.virtual);
+  assert.deepEqual(
+    Object.keys(virtualRow).sort(),
+    [
+      "allDay",
+      "client_name",
+      "due_date",
+      "due_time",
+      "endDate",
+      "id",
+      "instanceDate",
+      "priority",
+      "project_name",
+      "startDate",
+      "status",
+      "task_id",
+      "templateId",
+      "title",
+      "virtual",
+    ],
+    "virtual rows must expose only renderer fields plus recurrence instance identity",
+  );
+  assert.equal(virtualRow.task_id, "", "a virtual occurrence must not invent a materialized task id");
+  assert.equal(virtualRow.allDay, true, "date-only virtual occurrences retain the all-day contract");
+  assert.equal(virtualRow.startDate, virtualRow.instanceDate);
+  assert.equal(virtualRow.endDate, virtualRow.instanceDate);
+}
+
+async function assertCalendarProjectionIsReadOnly(session) {
+  const before = await querySql("SELECT COUNT(*) AS total FROM tasks;");
+  await tasksService.calendarWindow(session, { start: WINDOW_START, end: WINDOW_END });
+  const after = await querySql("SELECT COUNT(*) AS total FROM tasks;");
+  assert.equal(after[0].total, before[0].total, "reading projected calendar occurrences must not create task rows");
 }
 
 async function assertCalendarRepositoryProjection(session, fixtures) {
@@ -270,7 +407,16 @@ async function assertCalendarRepositoryProjection(session, fixtures) {
   assert.ok(timedTask, "the lean repository projection must retain in-window Tasks");
   assert.ok(!("assignees" in timedTask), "the calendar repository must skip unused assignee hydration");
   assert.ok(!("description" in timedTask), "the calendar repository must not return discarded wide text");
-  for (const field of ["workspace_id", "client_id", "project_id", "due_timezone", "due_at_utc", "reminder_override_enabled"]) {
+  for (const field of [
+    "workspace_id",
+    "client_id",
+    "project_id",
+    "due_timezone",
+    "due_at_utc",
+    "reminder_override_enabled",
+    "recurrence_template_id",
+    "recurrence_instance_date",
+  ]) {
     assert.ok(field in timedTask, `the internal calendar projection must retain ${field} for permission and reminder shaping`);
   }
 }
@@ -328,6 +474,14 @@ async function assertScopedPermissionFiltering(fixtures) {
   assert.ok(rowIds.includes(fixtures.alphaTask.task_id), "a project-scoped user reads tasks inside the granted project scope");
   assert.ok(!rowIds.includes(fixtures.betaTask.task_id), "unreadable tasks must not leak into calendar rows");
   assert.ok(!markerIds.includes(fixtures.betaTask.task_id), "unreadable tasks must not leak into reminder markers");
+  assert.ok(
+    scoped.tasks.some((row) => row.templateId === fixtures.weeklyRecurringTask.recurrence_template_id),
+    "a project-scoped user reads virtual occurrences inside the granted project scope",
+  );
+  assert.ok(
+    !scoped.tasks.some((row) => row.templateId === fixtures.hiddenRecurringTask.recurrence_template_id),
+    "an unreadable recurrence template must not leak virtual occurrences",
+  );
 }
 
 async function assertClientProjectFilters(session, fixtures) {
@@ -341,6 +495,10 @@ async function assertClientProjectFilters(session, fixtures) {
   assert.ok(!projectRowIds.includes(fixtures.betaTask.task_id), "the project filter drops other projects");
   assert.ok(!projectRowIds.includes(fixtures.timedTask.task_id), "the project filter drops project-less tasks");
   assert.ok(
+    projectScoped.tasks.some((row) => row.templateId === fixtures.weeklyRecurringTask.recurrence_template_id),
+    "the project filter keeps in-scope virtual occurrences",
+  );
+  assert.ok(
     projectScoped.reminders.every((marker) => marker.task_id !== fixtures.betaTask.task_id),
     "reminder markers must follow the project filter",
   );
@@ -353,6 +511,10 @@ async function assertClientProjectFilters(session, fixtures) {
   const clientRowIds = clientScoped.tasks.map((row) => row.task_id);
   assert.ok(clientRowIds.includes(fixtures.betaTask.task_id), "the client filter keeps in-scope tasks");
   assert.ok(!clientRowIds.includes(fixtures.alphaTask.task_id), "the client filter drops other clients");
+  assert.ok(
+    clientScoped.tasks.some((row) => row.templateId === fixtures.hiddenRecurringTask.recurrence_template_id),
+    "the client filter keeps matching virtual occurrences",
+  );
 }
 
 async function assertDisabledModuleRead(session, fixtures) {

@@ -5,6 +5,7 @@ import {
   TaskChecklistItemUpdateSchema,
   TaskChecklistReorderSchema,
   TaskChildRelationshipSchema,
+  TaskRecurrenceMaterializeSchema,
   UpdateTaskSchema,
   parseTasksEdgePayload,
 } from "./tasks.contracts.js";
@@ -17,6 +18,7 @@ import { taskRemindersService } from "./task-reminders.service.js";
 import { tasksSettingsService } from "./tasks-settings.service.js";
 import { taskTimersService } from "./task-timers.service.js";
 import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
+import { taskCalendarRecurrenceInstanceKey } from "./task-calendar.shared.js";
 import {
   queueTaskRecurrenceGeneration,
   queueTaskReminderJobsForTask,
@@ -464,7 +466,7 @@ async function calendarWindow(session, query = {}) {
 
   const reminderLookaheadEndDate = addCalendarDaysKey(endDate, TASK_CALENDAR_REMINDER_LOOKAHEAD_DAYS);
   const statuses = normalizeCalendarStatuses(query.statuses || query.status);
-  const [scope, moduleStatus, dueTasks] = await Promise.all([
+  const [scope, moduleStatus, dueTasks, activeTemplates, materializedInstances] = await Promise.all([
     resolveClientProjectFilterScope(session, {
       clientId: String(query.clientId || query.client_id || "").trim(),
       hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
@@ -473,11 +475,37 @@ async function calendarWindow(session, query = {}) {
     }),
     modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
     tasksRepository.readDueBetween(session.workspace_id, startDate, reminderLookaheadEndDate, { statuses }),
+    statuses.includes("open")
+      ? taskRecurrenceRepository.readActiveTemplates(session.workspace_id, {
+          fromDate: startDate,
+          includeAssignees: false,
+          throughDate: endDate,
+        })
+      : Promise.resolve([]),
+    tasksRepository.readRecurrenceInstancesBetween(session.workspace_id, startDate, endDate),
   ]);
   const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
   const readableTasks = dueTasks.filter((task) => (
     matchesTaskContextFilters(task, scope) && canReadTaskRow(taskResource(task))
   ));
+  const readableTemplates = activeTemplates.filter((template) => (
+    matchesTaskContextFilters(template, scope) && canReadTaskRow(taskResource(template))
+  ));
+  const materializedInstanceKeys = new Set(materializedInstances.map((task) => (
+    taskCalendarRecurrenceInstanceKey(task.recurrence_template_id, task.recurrence_instance_date)
+  )));
+  const calendarRows = [
+    ...readableTasks
+      .filter((task) => task.due_date <= endDate)
+      .map(taskCalendarRow),
+    ...readableTemplates.flatMap((template) => (
+      taskRecurrenceService.projectOccurrenceDates(template, startDate, endDate)
+        .filter((instanceDate) => !materializedInstanceKeys.has(
+          taskCalendarRecurrenceInstanceKey(template.recurrence_template_id, instanceDate),
+        ))
+        .map((instanceDate) => virtualTaskCalendarRow(template, instanceDate))
+    )),
+  ].sort(compareTaskCalendarRows);
 
   return {
     range: {
@@ -485,10 +513,107 @@ async function calendarWindow(session, query = {}) {
       endDate,
     },
     source_enabled: moduleStatus === "enabled",
-    tasks: readableTasks
-      .filter((task) => task.due_date <= endDate)
-      .map(taskCalendarRow),
+    tasks: calendarRows,
     reminders: await calendarReminderMarkers(session, readableTasks, startDate, endDate),
+  };
+}
+
+async function materializeRecurrenceInstance(rawPayload, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const payload = parseTasksEdgePayload(TaskRecurrenceMaterializeSchema, rawPayload);
+  const templateId = String(payload.templateId || payload.template_id || "").trim();
+  const instanceDate = normalizeDueDate(payload.instanceDate || payload.instance_date);
+
+  if (!templateId || !instanceDate) {
+    throw new AppError("Recurrence template ID and instance date are required.", 400);
+  }
+
+  const existing = await tasksRepository.readByRecurrenceInstance(
+    session.workspace_id,
+    templateId,
+    instanceDate,
+  );
+  if (existing) {
+    await assertCanEditTask(session, existing);
+    return {
+      task: await readTaggedTaskWithDetails(session, existing.task_id),
+      wasCreated: false,
+    };
+  }
+
+  const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, templateId);
+  const isProjectedOccurrence = template?.template_status === "active"
+    && taskRecurrenceService.projectOccurrenceDates(template, instanceDate, instanceDate).includes(instanceDate);
+
+  if (!template || !isProjectedOccurrence) {
+    throw new AppError("Planned recurrence occurrence not found.", 404);
+  }
+
+  await assertCanEditTask(session, template);
+  const result = await taskRecurrenceService.materializeInstance({
+    session,
+    template,
+    instanceDate,
+    createTask: {
+      findExisting: (candidateTemplateId, candidateInstanceDate) => (
+        tasksRepository.readByRecurrenceInstance(
+          session.workspace_id,
+          candidateTemplateId,
+          candidateInstanceDate,
+        )
+      ),
+      create: (nextTask) => tasksRepository.createRecurrenceInstance(session.workspace_id, {
+        ...nextTask,
+        created_by_user_id: template.created_by_user_id || session.user_id,
+        updated_by_user_id: session.user_id,
+        completed_at: "",
+        completed_by_user_id: "",
+        archived_at: "",
+        archived_by_user_id: "",
+        last_worked_at: new Date().toISOString(),
+      }),
+    },
+  });
+
+  if (!result?.task?.task_id) {
+    throw new AppError("The planned recurrence occurrence could not be opened.", 409);
+  }
+
+  await assertCanEditTask(session, result.task);
+  const taskWithDetails = await readTaggedTaskWithDetails(session, result.task.task_id);
+
+  if (result.wasCreated) {
+    await recordTaskAudit({
+      session,
+      action: "task_recurrence_instance_materialized",
+      changeType: "create",
+      previousValue: null,
+      newValue: taskWithDetails,
+    });
+    await emitTaskEvent("task.created", {
+      session,
+      previousValue: null,
+      newValue: taskWithDetails,
+      metadata: {
+        materialized_on_touch: true,
+        recurrence_instance_date: instanceDate,
+        recurrence_template_id: templateId,
+      },
+    });
+    await syncTaskSearchIndex(
+      session.workspace_id,
+      taskWithDetails.task_id,
+      "task.recurrence_instance_materialized",
+    );
+    await queueTaskReminderJobsForTask(taskWithDetails, {
+      reason: "task.recurrence_instance_materialized",
+      session,
+    });
+  }
+
+  return {
+    task: taskWithDetails,
+    wasCreated: result.wasCreated,
   };
 }
 
@@ -3449,8 +3574,34 @@ function taskCalendarRow(task) {
     client_name: task.client_name,
     project_name: task.project_name,
     allDay: !task.due_time,
+    endDate: task.due_date,
     startDate: task.due_date,
   };
+}
+
+function virtualTaskCalendarRow(template, instanceDate) {
+  return {
+    task_id: "",
+    id: `recurrence:${template.recurrence_template_id}:${instanceDate}`,
+    title: template.title,
+    status: template.status || "open",
+    priority: template.priority || "normal",
+    due_date: instanceDate,
+    due_time: template.due_time || "",
+    client_name: template.client_name || "",
+    project_name: template.project_name || "",
+    allDay: !template.due_time,
+    startDate: instanceDate,
+    endDate: instanceDate,
+    templateId: template.recurrence_template_id,
+    instanceDate,
+    virtual: true,
+  };
+}
+
+function compareTaskCalendarRows(first, second) {
+  return first.due_date.localeCompare(second.due_date)
+    || String(first.due_time || "23:59").localeCompare(String(second.due_time || "23:59"));
 }
 
 function taskUrl(task) {
@@ -3925,6 +4076,7 @@ export const tasksService = {
   listWorkbenchItems,
   listWorkItems,
   listRelationships,
+  materializeRecurrenceInstance,
   read,
   readCore,
   readLifecycleForIds,

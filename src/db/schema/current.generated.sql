@@ -603,6 +603,24 @@ CREATE TABLE permissions (
   description TEXT NOT NULL
 );
 
+CREATE TABLE private_feed_tokens (
+  private_feed_token_id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  token_selector TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  created_at TEXT NOT NULL,
+  rotated_at TEXT,
+  disabled_at TEXT,
+  updated_at TEXT NOT NULL,
+  UNIQUE (workspace_id, user_id, provider_id),
+  UNIQUE (provider_id, token_selector),
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
 CREATE TABLE projects (
   id TEXT NOT NULL,
   workspace_id TEXT NOT NULL,
@@ -1515,6 +1533,12 @@ ON notifications (workspace_id, record_type, record_id);
 CREATE INDEX idx_notifications_workspace_module
 ON notifications (workspace_id, module_id);
 
+CREATE INDEX idx_private_feed_tokens_authentication
+ON private_feed_tokens (provider_id, token_selector, status);
+
+CREATE INDEX idx_private_feed_tokens_user_workspace
+ON private_feed_tokens (user_id, workspace_id, provider_id);
+
 CREATE INDEX idx_projects_workspace_client_parent
 ON projects (workspace_id, client_id, parent_project_id, status, name);
 
@@ -1663,6 +1687,9 @@ ON task_reminder_offsets (workspace_id, target_type, target_id, due_kind, sort_o
 
 CREATE INDEX idx_task_reminder_offsets_workspace
 ON task_reminder_offsets (workspace_id, due_kind);
+
+CREATE UNIQUE INDEX idx_tasks_recurrence_instance_unique
+ON tasks (workspace_id, recurrence_template_id, recurrence_instance_date);
 
 CREATE INDEX idx_tasks_recurrence_template
 ON tasks (workspace_id, recurrence_template_id, recurrence_instance_date);

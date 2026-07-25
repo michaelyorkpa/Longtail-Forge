@@ -167,6 +167,17 @@ const TaskChildRelationshipSchema = z.object({
 });
 
 /**
+ * Materialize one planned recurrence occurrence before opening its editor.
+ * @typedef {import("zod").infer<typeof TaskRecurrenceMaterializeSchema>} TaskRecurrenceMaterializePayload
+ */
+const TaskRecurrenceMaterializeSchema = z.object({
+  templateId: optionalText(160, "Recurrence template ID"),
+  template_id: optionalText(160, "Recurrence template ID"),
+  instanceDate: optionalText(40, "Recurrence instance date"),
+  instance_date: optionalText(40, "Recurrence instance date"),
+});
+
+/**
  * Validate an untrusted Tasks edge payload: strips unknown (including
  * server-managed audit) fields and converts the first validation issue into
  * the existing AppError envelope.
@@ -191,6 +202,7 @@ export {
   TaskChecklistItemUpdateSchema,
   TaskChecklistReorderSchema,
   TaskChildRelationshipSchema,
+  TaskRecurrenceMaterializeSchema,
   TaskRecurrenceSchema,
   UpdateTaskSchema,
   parseTasksEdgePayload,

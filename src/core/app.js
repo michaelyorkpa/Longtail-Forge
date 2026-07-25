@@ -16,6 +16,10 @@ import { filesRoutes } from "../routes/files.routes.js";
 import { helpRoutes } from "../routes/help.routes.js";
 import { jobsRoutes } from "../routes/jobs.routes.js";
 import { publicApiRoutes } from "../routes/public-api.routes.js";
+import {
+  privateFeedLifecycleRoutes,
+  privateFeedPublicRoutes,
+} from "../routes/private-feeds.routes.js";
 import { notificationsRoutes } from "../routes/notifications.routes.js";
 import { operationalHealthRoutes } from "../routes/operational-health.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
@@ -75,6 +79,7 @@ function createApp() {
   app.use("/api", appInfoRoutes);
   app.use("/api", authRoutes);
   app.use(publicApiRoutes);
+  app.use(privateFeedPublicRoutes);
   for (const moduleRoutes of modulesService.listModuleRoutes("public")) {
     app.use(moduleRoutes);
   }
@@ -88,6 +93,7 @@ function createApp() {
   app.use("/api", helpRoutes);
   app.use("/api", jobsRoutes);
   app.use("/api", notificationsRoutes);
+  app.use("/api", privateFeedLifecycleRoutes);
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);
   app.use("/api", runtimeDiagnosticsRoutes);
