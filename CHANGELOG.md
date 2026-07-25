@@ -1,3 +1,14 @@
+## Version 0.33.22.8 - 2026-07-24
+
+- Added a full-width Calendar Subscription workflow to User Settings. Users can enable, reveal, copy, rotate, and disable their private, permission-scoped Tasks feed through immediate lifecycle actions outside the universal Settings Save/Revert transaction.
+- Preserved the bearer-secret boundary in the browser and API: status reads never return a feed URL, newly generated or rotated URLs remain only in current-page memory, the field stays masked until explicitly revealed, and losing an enabled URL requires rotation. Rotation and disablement confirm that the former URL stops working immediately.
+- Added concise read-only setup guidance and official documentation links for Google Calendar, Apple Calendar, Outlook, and Thunderbird, with explicit periodic-not-real-time refresh expectations and no provider account connection, OAuth, write-back, or two-way-editing claim.
+- Closed the recurrence and Two-Module documentation contract. In-app bounded reads project virtual occurrences and materialize one Task on touch; the private feed publishes native RRULE masters plus materialized exceptions. Authentication, secret lifecycle, and Settings-host anatomy remain explicit framework-wide exceptions, while Tasks owns permission shaping and RFC 5545 content until a second content consumer exists.
+- Added `framework.calendar-subscription-settings`, strengthened the private-feed authentication owner to reject secret-bearing status responses, and rendered enable/reveal/rotate/disable behavior in `user-settings-appearance.spec.mjs`.
+- Confirmed the prerequisite `0.33.22.6` and `0.33.22.7.1` through `0.33.22.7.3` evidence stack and its protected Browser, Development, Dependency review, and CodeQL checks before branch closeout.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/e2e-testing.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, and `help/framework/settings-and-user-preferences.md`. No `SECURITY.md`, internet-deployment, runtime-configuration, workspace-backup, or workspace-deletion change was needed because those governing contracts are unchanged.
+- Archived the completed `0.33.22` branch and advanced the active roadmap cursor to `0.33.23`.
+
 ## Version 0.33.22.7.3 - 2026-07-24
 
 - Qualified the native-driver upgrade on the deployment architecture the repository actually claims: Node 24.18.0 and npm 11.16.0 on Debian 12 Bookworm x86_64 with glibc 2.36. The installed application loads the bundled `better-sqlite3@13.0.1` `prebuilds/linux-x64.node`; arm64 and musl/Alpine remain explicitly unqualified rather than inferred from upstream package or image manifests.

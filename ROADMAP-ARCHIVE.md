@@ -1,5 +1,26 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.22.8 - Subscription UI, documentation, and closeout
+
+Completed locally on 2026-07-24. The completed `0.33.22` branch is archived and the monotonic active cursor advances to `0.33.23`.
+
+**Model: High Effort** — Final closeout spanned the internet-reachable calendar feed, user-facing subscription workflow, permissions, recurrence integrity, and independently evidenced dependency-maintenance slices.
+
+- [x] Started only after `0.33.22.6` and `0.33.22.7.1` through `0.33.22.7.3` had independent version, regression, clean-environment, data/recovery, packaging, container, rollback, and runtime evidence. Their stacked pull request's protected Browser, Development, Dependency review, and CodeQL checks were all successful before this closeout began.
+- [x] Added a full-width Calendar Subscription action form to User Settings through the shared Settings host. Users can enable, reveal, copy, rotate, and disable their permission-scoped private Tasks feed without placing the action in the universal Save/Revert transaction.
+- [x] Kept the bearer URL one-time and hash-only: ordinary status reads return lifecycle metadata but no URL; generation and rotation keep the raw value only in current-page memory; revisiting an enabled subscription requires rotation if the URL was not saved; rotation and disablement immediately revoke the former URL.
+- [x] Added concise read-only, provider-neutral guidance and official setup links for Google Calendar, Apple Calendar, Outlook, and Thunderbird. Both UI and Help set the expectation that subscribed clients refresh periodically rather than in real time.
+- [x] Documented the read-time virtual-occurrence/materialize-on-touch model alongside the feed's native RRULE master and materialized exception model. Provider OAuth, APIs, write-back, and two-way editing remain deferred.
+- [x] Closed the Two-Module review: authentication, secret lifecycle, sessionless serving, and Settings-host anatomy are an explicit framework-wide exception; Tasks owns permission shaping, recurrence, and RFC 5545 content until a second real content consumer exists.
+- [x] Added a focused static Settings closeout owner, strengthened lifecycle-status secret-exposure coverage, and rendered the complete masked URL lifecycle in Playwright. Existing feed authentication/throttle and Tasks serialization/recurrence owners remain the canonical backend proofs.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`, `docs/architecture.md`, `docs/e2e-testing.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, and `help/framework/settings-and-user-preferences.md`. `SECURITY.md`, internet-deployment, runtime-configuration, workspace-backup, and workspace-deletion contracts did not change.
+- [x] Advanced only through `npm run version:bump -- 0.33.22.8`, ran the canonical final slice verification with its changed-area and permission routing, and reserved running-app identity proof for the post-verification restart.
+
+Acceptance criteria:
+
+- Users can self-serve a private calendar subscription URL, rotate or disable it, and add it to major clients with accurate read-only Calendar Subscription framing.
+- Recurrence projection, feed authentication/content ownership, secret lifecycle, and provider deferrals are documented; prerequisite maintenance evidence is complete; focused and canonical release gates pass; and `0.33.22.8` closes the `0.33.22` branch with `0.33.23` active.
+
 ## Version 0.33.22.7.3 - Linux artifact, container, runtime, and upgrade closeout
 
 Completed locally on 2026-07-24. The monotonic active cursor remains `0.33.22`, with `0.33.22.8` next.

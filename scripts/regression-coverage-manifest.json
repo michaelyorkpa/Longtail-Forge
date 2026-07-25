@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 406,
+    "discoveredScripts": 407,
     "legacyScripts": 311,
-    "releaseGateScripts": 46,
+    "releaseGateScripts": 47,
     "areaCounts": {
       "dashboard": 2,
       "database": 37,
       "docs": 9,
       "files": 44,
-      "framework": 66,
+      "framework": 67,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,7 +30,7 @@
     "tierCounts": {
       "focused": 192,
       "integration": 160,
-      "release-gate": 46,
+      "release-gate": 47,
       "slow": 8
     },
     "runModeCounts": {
@@ -38,7 +38,7 @@
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 197
+      "static": 198
     }
   },
   "coverageFamilies": [
@@ -2754,6 +2754,24 @@
         "packaging",
         "registry",
         "startup"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Pins the User Settings calendar-subscription lifecycle, transient bearer-URL handling, client guidance, and framework/Tasks ownership boundary.",
+      "id": "framework.calendar-subscription-settings",
+      "legacy": false,
+      "path": "scripts/regressions/framework/calendar-subscription-settings.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "calendar",
+        "help",
+        "security",
+        "settings",
+        "tasks",
+        "views"
       ],
       "tier": "release-gate"
     },

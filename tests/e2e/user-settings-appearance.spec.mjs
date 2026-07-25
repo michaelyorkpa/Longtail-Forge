@@ -77,8 +77,11 @@ test("User Settings lays out profile, notifications, workspace lifecycle, and co
   expect(await appearance.evaluate((element) => element.closest("form")?.nextElementSibling?.querySelector("legend")?.textContent)).toBe("Profile");
 
   const notificationForm = page.locator("[data-user-notification-preferences-form]");
+  const calendarSubscriptionForm = page.locator("[data-calendar-subscription-form]");
   const leaveForm = page.locator("[data-settings-action-form]").filter({ has: page.getByRole("button", { name: "Leave Workspace", exact: true }) });
   const workspaceCreation = page.locator("[data-workspace-creation-disclosure]");
+  await expect(calendarSubscriptionForm).toBeVisible();
+  await expect(calendarSubscriptionForm.getByText("Calendar Subscription", { exact: true })).toBeVisible();
   await expect(notificationForm).toBeVisible();
   await expect(notificationForm.getByText("Notification Grouping", { exact: true })).toBeVisible();
   const notificationFields = notificationForm.locator(".view-settings-section-fields > *");
@@ -90,7 +93,7 @@ test("User Settings lays out profile, notifications, workspace lifecycle, and co
   await expect(workspaceCreation).not.toHaveAttribute("open", "");
   await expect(workspaceCreation.locator("summary")).toHaveText("Workspace Creation");
 
-  const widths = await Promise.all([grid, notificationForm, leaveForm, workspaceCreation].map(async (locator) => {
+  const widths = await Promise.all([grid, calendarSubscriptionForm, notificationForm, leaveForm, workspaceCreation].map(async (locator) => {
     const box = await locator.boundingBox();
     return box?.width || 0;
   }));
@@ -123,6 +126,111 @@ test("User Settings lays out profile, notifications, workspace lifecycle, and co
   const dialog = page.locator("[data-workspace-removal-dialog]");
   await expect(dialog).toBeVisible();
   await expect(dialog.locator(".workspace-membership-warning")).toHaveText(warning);
+});
+
+test("Calendar Subscription can be enabled, revealed, rotated, and disabled without recovering an old secret", async ({ page }) => {
+  let enabled = false;
+  let issuedUrl = "";
+  let issueNumber = 0;
+
+  await page.route("**/api/private-feeds/calendar**", async (route) => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+
+    if (!pathname.startsWith("/api/private-feeds/calendar")) {
+      await route.continue();
+      return;
+    }
+
+    if (request.method() === "GET") {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: {
+            createdAt: enabled ? "2026-07-24T12:00:00.000Z" : null,
+            disabledAt: enabled ? null : "2026-07-24T13:00:00.000Z",
+            enabled,
+            rotatedAt: issueNumber > 1 ? "2026-07-24T14:00:00.000Z" : null,
+          },
+        }),
+      });
+      return;
+    }
+
+    if (request.method() === "DELETE") {
+      enabled = false;
+      issuedUrl = "";
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ status: { enabled: false } }),
+      });
+      return;
+    }
+
+    if (request.method() === "POST") {
+      issueNumber += 1;
+      enabled = true;
+      issuedUrl = `https://example.test/feeds/calendar/ltf_feed_test_${issueNumber}.ics`;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          feedUrl: issuedUrl,
+          status: {
+            createdAt: "2026-07-24T12:00:00.000Z",
+            disabledAt: null,
+            enabled: true,
+            rotatedAt: pathname.endsWith("/rotate") ? "2026-07-24T14:00:00.000Z" : null,
+          },
+        }),
+        status: pathname.endsWith("/rotate") ? 200 : 201,
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+
+  const response = await page.goto("/user-settings.html");
+  expect(response.status()).toBe(200);
+
+  const form = page.locator("[data-calendar-subscription-form]");
+  const state = form.locator("[data-calendar-subscription-state]");
+  const detail = form.locator("[data-calendar-subscription-detail]");
+  const urlInput = form.locator("[data-calendar-subscription-url]");
+
+  await expect(state).toHaveText("Disabled");
+  await expect(form.getByRole("button", { name: "Enable Subscription" })).toBeVisible();
+  await expect(urlInput).toBeHidden();
+  await expect(form.getByRole("link", { name: "Google Calendar" })).toHaveAttribute("href", "https://support.google.com/calendar/answer/37100");
+  await expect(form.getByRole("link", { name: "Apple Calendar" })).toHaveAttribute("href", "https://support.apple.com/guide/calendar/subscribe-to-calendars-icl1022/mac");
+  await expect(form.getByRole("link", { name: "Outlook" })).toHaveAttribute("href", /support\.microsoft\.com/);
+  await expect(form.getByRole("link", { name: "Thunderbird" })).toHaveAttribute("href", "https://support.mozilla.org/en-US/kb/creating-new-calendars");
+
+  await form.getByRole("button", { name: "Enable Subscription" }).click();
+  await expect(state).toHaveText("Enabled");
+  await expect(urlInput).toBeVisible();
+  await expect(urlInput).toHaveAttribute("type", "password");
+  await expect(urlInput).toHaveValue("https://example.test/feeds/calendar/ltf_feed_test_1.ics");
+  await expect(detail).toContainText("stores only its hash");
+
+  await form.getByRole("button", { name: "Reveal URL" }).click();
+  await expect(urlInput).toHaveAttribute("type", "text");
+  await expect(form.getByRole("button", { name: "Hide URL" })).toBeVisible();
+
+  await form.getByRole("button", { name: "Rotate URL" }).click();
+  const rotateDialog = page.getByRole("dialog").filter({ hasText: "Rotate calendar subscription URL?" });
+  await expect(rotateDialog).toBeVisible();
+  await rotateDialog.getByRole("button", { name: "Rotate URL", exact: true }).click();
+  await expect(urlInput).toHaveValue("https://example.test/feeds/calendar/ltf_feed_test_2.ics");
+  await expect(urlInput).toHaveAttribute("type", "password");
+
+  await form.getByRole("button", { name: "Disable Subscription" }).click();
+  const disableDialog = page.getByRole("dialog").filter({ hasText: "Disable calendar subscription?" });
+  await expect(disableDialog).toBeVisible();
+  await disableDialog.getByRole("button", { name: "Disable Subscription", exact: true }).click();
+  await expect(state).toHaveText("Disabled");
+  await expect(urlInput).toBeHidden();
+  await expect(urlInput).toHaveValue("");
 });
 
 async function assertBoundedControl(control) {

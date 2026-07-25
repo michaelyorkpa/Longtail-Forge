@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 402,
+  "minimumActiveScripts": 403,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 36,
     "docs": 9,
     "files": 44,
-    "framework": 65,
+    "framework": 66,
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
@@ -22,7 +22,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 46,
+  "minimumReleaseGateScripts": 47,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -43,6 +43,7 @@
     "database.workspace-final-purge",
     "docs.ownership-routing",
     "framework.asset-cache-version",
+    "framework.calendar-subscription-settings",
     "framework.account-export-recovery",
     "framework.express-5-http-contract",
     "framework.bundled-module-registry",

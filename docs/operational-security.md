@@ -18,6 +18,8 @@ The database stores one active-or-disabled row per user, workspace, and provider
 
 Requests use the existing trusted client-IP resolver and durable sensitive-endpoint throttle with an IP-only dimension. Forged forwarding headers do not create a new bucket unless the direct proxy peer is explicitly trusted under the deployment contract. Successful and rejected reads both consume the conservative throttle budget. A `429` includes `Retry-After`; valid calendar responses are `text/calendar`, `private, no-store`, and advertise a 900-second refresh interval. Generate, rotate, disable, and status routes remain under `/api/private-feeds/calendar` behind the user's own browser session and normal CSRF/origin protections.
 
+User Settings exposes those lifecycle routes as Calendar Subscription. A status read never returns the bearer URL. The raw URL is displayed only after generation or rotation, remains masked until the user reveals it, and is held only for the current page; revisiting an enabled subscription requires rotation if the URL was not saved. The client-help links open documentation only and never transmit the private URL. Users paste the URL into a client's subscription workflow themselves and should expect periodic rather than real-time refresh. Rotation and disablement confirmations state that the old URL stops working immediately.
+
 ## Health and readiness
 
 The unauthenticated probes are intentionally minimal and always set `Cache-Control: no-store`:

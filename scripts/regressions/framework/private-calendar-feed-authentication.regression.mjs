@@ -91,6 +91,14 @@ try {
   assert.equal(generated.body.status.enabled, true);
   assert.match(generated.body.feedUrl, /^http:\/\/127\.0\.0\.1:\d+\/feeds\/calendar\/ltf_feed_[A-Za-z0-9_-]{16}_[A-Za-z0-9_-]{43}\.ics$/);
   const firstRawToken = readRawToken(generated.body.feedUrl);
+  const generatedStatus = await api.get("/api/private-feeds/calendar", { cookie: sessionCookie });
+  assert.equal(generatedStatus.body.status.enabled, true);
+  assert.equal(Object.hasOwn(generatedStatus.body, "feedUrl"), false, "status reads must never recover the raw bearer URL");
+  assert.deepEqual(
+    Object.keys(generatedStatus.body.status).sort(),
+    ["createdAt", "disabledAt", "enabled", "rotatedAt"],
+    "status reads should expose lifecycle state only",
+  );
 
   const stored = await db.get(`
 SELECT provider_id, token_selector, token_hash, status

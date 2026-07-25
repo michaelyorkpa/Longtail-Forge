@@ -2,64 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.22`.
+Active cursor: `0.33.23`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.22 - Recurring Calendar Projection and Private Calendar Subscription Feed
-
-Purpose:
-
-Make the task calendar show recurring work the way users expect — every future occurrence of a repeating task visible up to its end date — and give users a read-only private calendar subscription they can add to Google Calendar, Apple Calendar, Outlook, or Thunderbird. Both are early-value calendar improvements built on the existing Tasks-owned calendar (`src/modules/tasks/tasks.service.js` `calendarWindow`/`taskCalendarRow`, `src/modules/tasks/tasks.repo.js` `readDueBetween`, `public/js/shared/task-calendar.js`) and the existing task recurrence engine (`src/modules/tasks/task-recurrence.service.js`, `task-recurrence.repo.js`, `task-jobs.service.js`, `task_recurrence_templates`).
-
-Today the calendar only shows already-materialized task rows with a concrete `due_date`, and recurrence is materialized one open instance at a time (completion-driven, with a 12-hour backfill sweep). A weekly task therefore appears once and does not march forward across the grid. This version keeps that materialize-on-completion model but adds a read-time projection so the calendar and the feed can display future occurrences that have not been generated as rows yet, without mass-materializing them.
-
-Decision:
-
-Recurrence projection is a read-time concern owned by the Tasks module: the calendar read expands a recurrence template's RRULE across the requested window into virtual (ghost) occurrences and merges them with real rows, rather than pre-creating rows. A virtual occurrence is promoted to a real `tasks` row only when a user attaches instance-specific data to it (materialize-on-touch), reusing the existing `recurrence_template_id` / `recurrence_instance_date` linkage and `materializeInstance`. The subscription feed is split by ownership per the framework's Two-Module boundaries: the framework owns the private tokenized feed endpoint and its authentication/throttling (an intrinsically framework-wide auth surface, and an explicit Two-Module exception), and the Tasks module owns turning tasks into iCalendar content. The feed is read-only and provider-neutral; no two-way sync, no per-provider OAuth.
-
-Dependencies and baseline:
-
-- Builds on the existing Tasks calendar read path and recurrence engine; extends `calendarWindow` and reuses `buildRRule`/`parseRRule`/`nextOccurrenceDate` and `materializeInstance` rather than adding a second recurrence implementation.
-- The feed endpoint is an internet-reachable, session-less, token-authenticated surface, so it depends on the 0.33.16 security hardening (trusted-proxy client-IP resolution, sensitive-endpoint throttling, secret handling, and the security-event stream) and lands after 0.33.17 preview readiness. Its token is hashed at rest and never logged, consistent with 0.33.16.8/0.33.16.9.
-- Honors the calendar's current single-day model (`endDate === startDate`); this version does not introduce multi-day/spanning events.
-- Execution order is `0.33.22.1` through `0.33.22.4`, then routine GitHub Actions maintenance in `0.33.22.6`, the three-checkpoint native `better-sqlite3` upgrade in `0.33.22.7.1` through `0.33.22.7.3`, and final subscription/documentation/branch closeout in `0.33.22.8`. The closeout slice must not start until the Actions maintenance and all native-driver checkpoints are complete and independently evidenced.
-
-Key decisions:
-
-- **Projection is read-time, not eager materialization.** The calendar continues to generate at most one open real instance per chain on completion; virtual occurrences are computed on read and are never persisted unless touched. This avoids row bloat and preserves the existing completion-continuity and sweep behavior (`task-jobs.service.js`).
-- **Dedup by instance identity.** A virtual occurrence for a given date is suppressed when a real row already exists for the same `(recurrence_template_id, recurrence_instance_date)`; the materialized row (which may carry an override) always wins. This dedup is shared by the calendar read and the feed serialization.
-- **Materialize-on-touch preserves per-instance editing.** Adding a note, description, checklist change, assignee change, reschedule, or completion to a virtual occurrence first promotes it to a real row for that date, then applies the edit; all other occurrences stay virtual. This is the workaround for "attach data to one occurrence of a recurring task."
-- **Bounded expansion.** Virtual expansion is capped by the existing `TASK_CALENDAR_WINDOW_MAX_DAYS` for the calendar and by a defined rolling window (past/future horizon) for the feed; open-ended templates (no `recurrence_end_date`) simply fill whatever bounded window is requested.
-- **Feed content is native iCalendar with RRULE.** A recurring task serializes to one `VEVENT` with an `RRULE`; a materialized instance-override serializes as a `RECURRENCE-ID` exception to that series. Non-recurring tasks serialize as single `VEVENT`s. All-day vs timed derives from `due_time`, matching `taskCalendarRow`.
-- **Per-user, single rotatable token.** Each user has one private feed URL scoped to the tasks they can read across the workspace; regenerating the token immediately revokes the old URL. The feed respects the same per-task read permission and workspace scope as the in-app calendar.
-- **Provider-neutral, one-way, described as "Calendar subscription."** The UI and docs describe this as a read-only calendar subscription, never "Google Calendar sync." Google OAuth/API integration and any two-way editing are explicitly deferred.
-
-Non-goals:
-
-- Do not switch recurrence to eager mass materialization of many future rows, and do not change the completion-driven generation or the backfill sweep.
-- Do not add multi-day/spanning calendar events, durations, or a standalone non-task event entity; a calendar entry remains a task.
-- Do not build two-way calendar sync, write-back, free/busy publishing, or per-provider OAuth/API integration in this version.
-- Do not add email/notification transport, `VALARM`-based push reminders as a delivery channel, or provider-specific feed variants.
-- Do not weaken per-task read permission, workspace isolation, private/secure-content, or audit guardrails to serve the calendar projection or the feed.
-- Do not generalize a framework "feed serving" facility for tasks alone; the framework owns only the tokenized-feed auth surface (a framework-wide exception), while iCalendar content stays module-owned until a second real content consumer exists.
-
-### Version 0.33.22.8 - Subscription UI, documentation, and closeout
-
-**Model: High Effort** — Final closeout spans the internet-reachable calendar feed, user-facing subscription workflow, permissions, recurrence integrity, and the two independently evidenced dependency-maintenance slices.
-
-- [ ] Start only after 0.33.22.6 and 0.33.22.7.1 through 0.33.22.7.3 are complete with their independent version, regression, clean-environment, data/recovery, packaging, and runtime evidence recorded; do not carry unresolved routine-action or native-driver work into branch closeout.
-- [ ] Add a user-facing "Calendar subscription" control (in user settings, aligned with the 0.33.15 settings host if landed) to reveal, copy, rotate, and disable the private feed URL, described as a read-only subscription and never as "Google Calendar sync."
-- [ ] Provide short in-product guidance/links for adding the URL to Google Calendar, Apple Calendar, Outlook, and Thunderbird, and set expectations that client refresh is periodic (not real-time).
-- [ ] Document the recurrence projection model (read-time virtual occurrences, materialize-on-touch), the feed auth surface, and the deferral of Google OAuth/two-way sync in `docs/tasks-module.md` and the relevant architecture/security docs; update `DECISIONS.md` and `CHANGELOG.md`.
-- [ ] Record the Two-Module outcome at closeout: name the feed-auth seam as a framework-wide authentication exception and keep iCalendar content module-owned until a second real content consumer exists.
-- [ ] Run focused calendar/recurrence and feed auth/throttle/serialization regressions while iterating, then update only through `npm run version:bump -- 0.33.22.8` and run `npm run verify:slice` exactly once on the final unchanged tree. Include the separate permission harness and confirm `/api/app-info` after restart.
-
-Acceptance criteria:
-
-- Users can self-serve a private calendar subscription URL, rotate/disable it, and add it to major clients, with accurate read-only "Calendar subscription" framing.
-- The recurrence-projection and feed contracts are documented, the Two-Module exception is recorded explicitly, 0.33.22.6 and all three 0.33.22.7 native-driver checkpoints are complete and independently evidenced, the release-gate checks pass, and 0.33.22.8 remains the final 0.33.22 closeout slice.
 
 ## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
 
