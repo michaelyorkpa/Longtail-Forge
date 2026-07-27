@@ -12,7 +12,10 @@ const privateFeedPublicRoutes = Router();
 const privateFeedLifecycleRoutes = Router();
 const CALENDAR_REFRESH_SECONDS = 15 * 60;
 
-const servePrivateCalendarFeed = asyncRoute(async (request, response) => {
+privateFeedPublicRoutes.get([
+  "/feeds/calendar/:token/:calendarName.ics",
+  "/feeds/calendar/:token.ics",
+], asyncRoute(async (request, response) => {
   const requestContext = getRequestContext(request);
   const throttleContext = {
     dimensions: ["ip"],
@@ -41,10 +44,7 @@ const servePrivateCalendarFeed = asyncRoute(async (request, response) => {
     "X-Calendar-Refresh-Interval": String(CALENDAR_REFRESH_SECONDS),
   });
   response.status(200).send(content);
-});
-
-privateFeedPublicRoutes.get("/feeds/calendar/:token/:calendarName.ics", servePrivateCalendarFeed);
-privateFeedPublicRoutes.get("/feeds/calendar/:token.ics", servePrivateCalendarFeed);
+}));
 
 privateFeedLifecycleRoutes.get("/private-feeds/calendar-subscriptions", asyncRoute(async (request, response) => {
   response.set("Cache-Control", "no-store");
