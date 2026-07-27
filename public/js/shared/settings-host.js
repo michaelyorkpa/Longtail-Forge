@@ -28,6 +28,8 @@
       mountWorkspaceHost(hostElement);
     } else if (placement === "user") {
       mountUserHost(hostElement);
+    } else if (placement === "calendar") {
+      mountCalendarHost(hostElement);
     } else if (placement === "module") {
       mountModuleHost(hostElement);
     } else {
@@ -269,6 +271,189 @@
     const status = view.createStatusMessage({ className: "settings-page-status", hidden: true });
     status.dataset.userSettingsStatus = "";
     hostElement.append(grid, settingsPageFooter(), status, workspaceRemovalDialog(), unsavedChangesDialog());
+  }
+
+  function mountCalendarHost(hostElement) {
+    hostElement.appendChild(view.createPageHeader({ title: "Calendar" }));
+
+    const form = element("form", {
+      className: ["settings-form", "calendar-subscription-create-form"],
+      dataset: { calendarSubscriptionCreateForm: "", settingsActionForm: "" },
+    });
+    const clientField = field({
+      id: "calendarSubscriptionClient",
+      label: "Client",
+      type: "select",
+      options: [{ value: "", label: "Choose a client" }],
+    }, "calendarSubscriptionClient", {
+      hidden: true,
+      shellDataset: { calendarSubscriptionClientField: "" },
+    });
+    const projectField = field({
+      id: "calendarSubscriptionProject",
+      label: "Project",
+      type: "select",
+      options: [{ value: "", label: "Choose a project" }],
+    }, "calendarSubscriptionProject", {
+      hidden: true,
+      shellDataset: { calendarSubscriptionProjectField: "" },
+    });
+    form.appendChild(settingsSection("Create Calendar Subscription", [
+      element("p", {
+        className: "calendar-subscription-intro",
+        text: "Create a named, read-only Tasks calendar URL for this workspace. Each URL is a bearer secret and follows its owner's current permissions.",
+      }),
+      element("p", {
+        className: "runtime-diagnostics-note",
+        dataset: { calendarSubscriptionAvailability: "" },
+        text: "Checking Tasks availability...",
+      }),
+      field({
+        id: "calendarSubscriptionName",
+        label: "Name",
+        type: "text",
+        required: true,
+        autocomplete: "off",
+        placeholder: "Team planning calendar",
+        description: "Published as calendar metadata. Some calendar clients may keep their own display-name override.",
+      }, "calendarSubscriptionName", {
+        controlAttrs: { maxlength: "120" },
+      }),
+      field({
+        id: "calendarSubscriptionScope",
+        label: "Scope",
+        type: "select",
+        required: true,
+        options: [
+          { value: "workspace", label: "Workspace" },
+          { value: "client", label: "Client" },
+          { value: "project", label: "Project" },
+        ],
+        description: "Business workspaces can narrow this subscription to one readable Client or Project. Personal and Family workspaces can narrow it to one readable Project; Client scope is Business-only.",
+      }, "calendarSubscriptionScope"),
+      clientField,
+      projectField,
+      element("p", {
+        attrs: { "aria-live": "polite", role: "status" },
+        className: "calendar-subscription-status",
+        dataset: { calendarSubscriptionCreateStatus: "" },
+      }),
+    ], {
+      actions: [
+        action("Create Subscription", "createCalendarSubscription", {
+          role: "primary",
+          type: "submit",
+        }),
+      ],
+    }));
+
+    const subscriptionUrlField = field({
+      id: "calendarSubscriptionUrl",
+      label: "Private subscription URL",
+      type: "text",
+      autocomplete: "off",
+    }, "calendarSubscriptionUrl", {
+      inputType: "password",
+      controlAttrs: {
+        readonly: "",
+        spellcheck: "false",
+      },
+      shellDataset: { calendarSubscriptionUrlField: "" },
+    });
+    const secretPanel = readoutSection("New Calendar Subscription", "calendar-subscription-secret-panel", [
+      element("p", {
+        className: "calendar-subscription-intro",
+        dataset: { calendarSubscriptionSecretDetail: "" },
+        text: "Copy this private URL now.",
+      }),
+      element("p", {
+        className: "calendar-subscription-secret-warning",
+        text: "Longtail Forge will not show this link again. Please copy it and install it now or store it for safe keeping.",
+      }),
+      subscriptionUrlField,
+      view.createInlineActionRow({
+        className: "view-settings-section-actions",
+        children: [
+          action("Reveal URL", "revealCalendarSubscription"),
+          action("Copy URL", "copyCalendarSubscription"),
+        ],
+      }),
+      element("p", {
+        attrs: { "aria-live": "polite", role: "status" },
+        className: "calendar-subscription-status",
+        dataset: { calendarSubscriptionSecretStatus: "" },
+      }),
+    ], {
+      calendarSubscriptionSecretPanel: "",
+    });
+    secretPanel.hidden = true;
+
+    const guidance = readoutSection("Use the URL", "calendar-subscription-guidance", [
+      element("p", {
+        text: "Calendar clients refresh subscriptions periodically, not in real time. Subscribe to the URL instead of importing a one-time .ics file.",
+      }),
+      element("p", {
+        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Current testing confirms Google Calendar uses both values and Apple Calendar on iPhone uses the friendly name. New and rotated URLs also end with a path-safe version of the subscription name; current Thunderbird testing confirms the friendly-name fallback works.",
+      }),
+      calendarClientGuidance(),
+      element("p", {
+        children: [
+          element("a", {
+            attrs: { href: "help.html?article=settings-and-user-preferences" },
+            text: "Open Calendar subscription help",
+          }),
+        ],
+      }),
+    ]);
+
+    const table = element("table", {
+      className: ["report-table", "calendar-subscription-table"],
+      children: [
+        element("thead", {
+          children: [
+            element("tr", {
+              children: ["Name", "Owner", "Scope", "Timezone", "Status", "Created", "Rotated", "Revoked", "Actions"]
+                .map((label) => element("th", { attrs: { scope: "col" }, text: label })),
+            }),
+          ],
+        }),
+        element("tbody", { dataset: { calendarSubscriptionList: "" } }),
+      ],
+    });
+    const listSection = readoutSection("Workspace Calendar Subscriptions", "calendar-subscription-list-section", [
+      element("div", {
+        className: ["report-table-wrap", "calendar-subscription-table-wrap"],
+        children: [table],
+      }),
+      element("p", {
+        attrs: { "aria-live": "polite", role: "status" },
+        className: "calendar-subscription-status",
+        dataset: { calendarSubscriptionListStatus: "" },
+      }),
+    ]);
+
+    hostElement.append(form, secretPanel, guidance, listSection);
+  }
+
+  function calendarClientGuidance() {
+    const links = [
+      ["Google Calendar", "https://support.google.com/calendar/answer/37100", "On a computer, choose Other calendars, Add other calendars, then From URL."],
+      ["Apple Calendar", "https://support.apple.com/guide/calendar/subscribe-to-calendars-icl1022/mac", "On Mac, choose File, then New Calendar Subscription."],
+      ["Outlook", "https://support.microsoft.com/en-US/Outlook/import-or-subscribe-to-a-calendar-in-outlook-com-or-outlook-on-the-web", "Choose Add calendar, then Subscribe from web, and enter the URL and calendar name."],
+      ["Thunderbird", "https://support.mozilla.org/en-US/kb/creating-new-calendars", "Choose New Calendar, On the Network, then paste the URL."],
+    ];
+    return element("ul", {
+      className: "calendar-subscription-client-list",
+      children: links.map(([label, href, text]) => element("li", {
+        children: [
+          element("a", {
+            attrs: { href, rel: "noopener noreferrer", target: "_blank" },
+            text: label,
+          }),
+          document.createTextNode(` - ${text}`),
+        ],
+      })),
+    });
   }
 
   function workspaceCreateForm() {

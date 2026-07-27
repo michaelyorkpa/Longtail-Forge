@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.21.21.4",
+  "version": "0.33.22.9.3",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -87,11 +87,12 @@
     "version:guard": "node scripts/version-literal-guardrail-regression.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "12.11.1",
+    "better-sqlite3": "13.0.1",
     "busboy": "^1.6.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.6.1",
     "markdown-it": "^14.3.0",
     "zod": "^4.4.3"
   },

@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-07-22 for version 0.33.21.19.1
+Updated: 2026-07-25 for version 0.33.22.9
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -47,6 +47,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 Workspace backup creation and latest-receipt reads are administrative capabilities, not a new assignable permission key. The service requires the existing effective Workspace Administrator boundary for the active workspace or installation Super Admin authority. Client Administrators, Project Administrators, Client Users, Project Users, and external users cannot invoke either route even if they hold unrelated record permissions. A successful response contains only the safe receipt/checksum summary; archive access stays on the protected host operator boundary.
 
 Workspace-deletion lifecycle reads, requests, and cancellation use that same non-assignable active-workspace administrator boundary. The request additionally requires the exact workspace name and either a successful backup from the previous 24 hours or the exact no-current-backup acknowledgement. The service never accepts a browser-supplied workspace ID, and the safe response exposes no workspace, requester, or backup IDs. Pending state does not broaden or narrow any existing record permission.
+
+Named calendar-subscription collection operations reuse `workspace_settings.manage`; no new role permission is introduced. Creation binds the credential to the current actor. Business workspaces accept Workspace/Client/Project scope, while Personal and Family workspaces accept Workspace/Project scope and reject Client. Any workspace administrator may list safe metadata or revoke a row, and rotation additionally requires that actor to be the owner. Public bearer reads require an active user, membership, workspace, Tasks module, active target, supported workspace-type scope, and exact current `tasks.view` at the stored scope. Workspace requires workspace authority; Business Client includes direct Client Tasks and current child Projects; Project includes that Project and accepts broader live Workspace authority (or Business Client authority where applicable). Tasks applies the stored ceiling in SQL and intersects it with current record permissions. Role replacement and other canonical lifecycle changes revoke rows that no longer qualify; read-time denial remains authoritative.
 
 Add User uses the same service-owned assignment rules. Its workspace catalog contains only active workspaces where the actor has `users.manage` (or every active workspace for an installation Super Admin), and its role catalog contains only assignable roles with authorized concrete scopes. Exact-email lookup returns no suggestions or membership inventory. Personal workspaces cannot add users; Family workspaces can offer Workspace Administrator and Project User but never a client-scoped role. Only a Super Admin can assign Super Admin.
 
@@ -103,6 +105,8 @@ Delete User is workspace-scoped and rejects the signed-in user's own ID. It deac
 | Browser | GET/POST | /api/settings/workspace-deletion* | Workspace Administrator or Super Admin | active workspace | Reads, schedules, or cancels the dedicated 30-day lifecycle; no browser route performs final purge |
 | Operator CLI/job | queue/run | `workspace.purge` | protected-host operator after an authorized lifecycle | exact expired workspace | Fences sessions, API keys, and jobs, drains running work, then irreversibly removes only that workspace's records and artifacts |
 | Browser | GET/POST/PUT | /api/api-keys* | workspace_settings.manage | workspace | Enforced |
+| Browser | GET/POST/DELETE | /api/private-feeds/calendar-subscriptions* | workspace_settings.manage; rotate also requires owner | Workspace/Project in Personal/Family; Workspace/Client/Project in Business | Safe metadata list, self-bound creation, owner-only rotation, administrator revocation, and server-side workspace-type scope enforcement |
+| Public bearer | GET | /feeds/calendar/:token.ics or /feeds/calendar/:token/:calendarName.ics | active owner plus exact tasks.view entitlement | stored Workspace/Client/Project scope intersected with live record access | Tasks-owned SQL ceiling and permission evaluator; the optional friendly filename does not affect authentication or scope; generic rejection when the required scope is invalid or unauthorized |
 | Browser | GET | /api/client-projects | readable client/project scopes | client/project/workspace projects | Filtered; clients omitted outside Business workspaces |
 | Browser | GET/POST/PUT/DELETE | /api/clients* | clients.manage plus Business workspace | client | Enforced; client task reminder defaults save with client updates |
 | Browser | GET/POST | /api/clients/:clientId/projects | projects.manage plus Business workspace | client | Enforced |

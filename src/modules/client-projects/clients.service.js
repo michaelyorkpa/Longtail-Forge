@@ -698,6 +698,11 @@ async function archiveClient(clientId, payload, session) {
   });
 
   await clientsRepository.archive(session.workspace_id, decodedClientId);
+  const { privateFeedsService } = await import("../../services/private-feeds.service.js");
+  await privateFeedsService.reconcileCalendarSubscriptions({
+    session,
+    workspaceId: session.workspace_id,
+  });
   await recordAudit(payload?.action, {
     session,
     action: "client_archived",
@@ -1098,6 +1103,11 @@ async function archiveProject(projectId, payload, session) {
   const client = await clientsRepository.readById(session.workspace_id, previousProject.client_id);
 
   await projectsRepository.archive(session.workspace_id, decodedProjectId);
+  const { privateFeedsService } = await import("../../services/private-feeds.service.js");
+  await privateFeedsService.reconcileCalendarSubscriptions({
+    session,
+    workspaceId: session.workspace_id,
+  });
   await recordAudit(payload?.action, {
     session,
     action: "project_archived",

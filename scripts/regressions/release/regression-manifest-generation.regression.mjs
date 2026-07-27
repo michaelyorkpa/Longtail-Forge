@@ -88,7 +88,9 @@ const dashboardEntries = REGRESSION_ENTRIES.filter((entry) => entry.area === "da
 assert.equal(dashboardEntries.length, 2, "fixture needs both active Dashboard coverage owners");
 const withoutDashboard = REGRESSION_ENTRIES.filter((entry) => entry.area !== "dashboard");
 const uncoveredPolicy = cloneFixture(policy);
-uncoveredPolicy.minimumActiveScripts += 1;
+uncoveredPolicy.minimumActiveScripts = REGRESSION_ENTRIES.length
+  + uncoveredPolicy.retiredScripts.filter((entry) => entry.floorCredit === true).length
+  + 1;
 const uncoveredManifest = buildRegressionManifest({ entries: withoutDashboard, policy: uncoveredPolicy });
 const uncoveredErrors = collectRegressionCoverageErrors({
   entries: withoutDashboard,

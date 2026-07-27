@@ -145,8 +145,11 @@ function renderTasksCalendarContribution(contribution, context) {
     }
   }
 
-  async function openTask(taskId, trigger) {
-    if (!taskId) {
+  async function openTask(taskId, trigger, occurrence = null) {
+    const templateId = String(occurrence?.templateId || "").trim();
+    const instanceDate = String(occurrence?.instanceDate || "").trim();
+
+    if (!taskId && (!templateId || !instanceDate)) {
       return;
     }
 
@@ -159,7 +162,9 @@ function renderTasksCalendarContribution(contribution, context) {
       }
 
       await opener({
+        instanceDate,
         taskId,
+        templateId,
         mode: "edit",
         returnFocusTo: trigger,
         onSaved: () => hydrate(),

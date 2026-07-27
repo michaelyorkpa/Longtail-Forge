@@ -4,6 +4,8 @@ Current as of 0.33.21.11.1. Clients and Projects strict enforcement is active fo
 
 This inventory records the active strict boundary for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
 
+Calendar-subscription entitlement is a framework credential concern, not a Clients/Projects workflow. As of 0.33.22.9, the canonical Client and Project archive paths notify the framework reconciliation owner after their existing status changes, audits, Search updates, and hierarchy rules. Any active subscription whose required target is now inactive is revoked with a safe reason; no calendar selector, digest, URL, or Tasks content enters this module.
+
 ## Inventoried Surfaces
 
 | Surface | Current Owner | Future Framework-Owned Anatomy | Clients/Projects-Owned Meaning |

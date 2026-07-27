@@ -275,6 +275,7 @@
 
   function createTaskEntry(task, onOpenTask, options = {}) {
     const view = viewBuilder();
+    const isVirtual = task.virtual === true;
     const timeLabel = task.due_time ? formatDueTime(task.due_time) : "";
     const contextLabel = [task.client_name, task.project_name].filter(Boolean).join(" / ");
     const tooltip = [
@@ -283,6 +284,7 @@
       `Priority: ${formatToken(task.priority)}`,
       contextLabel,
       timeLabel ? `Due ${timeLabel}` : "Due all day",
+      isVirtual ? "Planned recurring occurrence; no task has been created for this date yet." : "",
     ].filter(Boolean).join("\n");
     const children = [];
 
@@ -291,6 +293,13 @@
     }
 
     children.push(view.createElement("span", { className: "calendar-entry-title", text: task.title }));
+
+    if (isVirtual) {
+      children.push(view.createElement("span", {
+        className: "calendar-entry-virtual",
+        text: "Planned occurrence",
+      }));
+    }
 
     if (options.showMeta) {
       const metaText = [formatToken(task.status), formatToken(task.priority), contextLabel].filter(Boolean).join(" - ");
@@ -302,17 +311,26 @@
       attrs: {
         type: "button",
         title: tooltip,
-        "aria-label": `Open task: ${task.title}`,
+        "aria-label": isVirtual
+          ? `Open planned occurrence: ${task.title}`
+          : `Open task: ${task.title}`,
       },
       dataset: {
-        calendarEntry: task.task_id,
+        calendarEntry: isVirtual ? task.id : task.task_id,
         priority: task.priority || "normal",
         status: task.status || "open",
+        virtual: isVirtual ? "true" : "false",
       },
       children,
     });
 
-    entry.addEventListener("click", () => onOpenTask(task.task_id, entry));
+    entry.addEventListener("click", () => onOpenTask(task.task_id, entry, isVirtual
+      ? {
+          instanceDate: task.instanceDate,
+          templateId: task.templateId,
+          virtual: true,
+        }
+      : null));
     return entry;
   }
 

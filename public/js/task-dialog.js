@@ -50,32 +50,61 @@
     const request = normalizeTaskEditorRequest(params, hostContext);
     currentTaskEditorRequest = request;
 
-    if (request.needsStandaloneContext) {
-      const prepared = await prepareStandaloneContext({ hostContext, params: request.defaults, taskId: request.taskId });
-      configure(prepared);
-      // Prefer the freshly fetched task detail (which includes checklistItems and
-      // other detail-only fields) over any list-row object passed in by the caller.
-      request.task = prepared.task || request.task || null;
-    } else {
-      configure({ hostContext: hostContext || context?.hostContext || null });
-      if (request.taskId && request.mode === "edit") {
-        // The caller may have handed us a list-row payload (checklistProgress but no
-        // checklistItems). Refresh the single task detail so the editor renders items.
-        const detail = await api.getJson(`/api/tasks/${encodeURIComponent(request.taskId)}`, { cache: "no-store" });
-        request.task = detail?.task || request.task;
-      }
-    }
+    try {
+      let materializationResult = null;
+      if (!request.taskId && request.templateId && request.instanceDate) {
+        materializationResult = await api.postJson("/api/tasks/recurrence-instances/materialize", {
+          instanceDate: request.instanceDate,
+          templateId: request.templateId,
+        });
+        request.task = materializationResult?.task || null;
+        request.taskId = request.task?.task_id || "";
+        request.needsStandaloneContext = true;
+        request.materializationRefreshPending = true;
 
-    return open({
-      defaults: request.defaults,
-      duplicate: request.duplicate,
-      focusNotes: request.focusNotes,
-      focusTarget: request.focusTarget,
-      hostContext,
-      promptBlockedReason: request.promptBlockedReason,
-      returnFocusTo: request.returnFocusTo,
-      task: request.task,
-    });
+        if (!request.taskId) {
+          throw new Error("The planned recurrence occurrence could not be opened.");
+        }
+      }
+
+      if (request.needsStandaloneContext) {
+        const prepared = await prepareStandaloneContext({ hostContext, params: request.defaults, taskId: request.taskId });
+        configure(prepared);
+        // Prefer the freshly fetched task detail (which includes checklistItems and
+        // other detail-only fields) over any list-row object passed in by the caller.
+        request.task = prepared.task || request.task || null;
+      } else {
+        configure({ hostContext: hostContext || context?.hostContext || null });
+        if (request.taskId && request.mode === "edit") {
+          // The caller may have handed us a list-row payload (checklistProgress but no
+          // checklistItems). Refresh the single task detail so the editor renders items.
+          const detail = await api.getJson(`/api/tasks/${encodeURIComponent(request.taskId)}`, { cache: "no-store" });
+          request.task = detail?.task || request.task;
+        }
+      }
+
+      const closeResult = await open({
+        defaults: request.defaults,
+        duplicate: request.duplicate,
+        focusNotes: request.focusNotes,
+        focusTarget: request.focusTarget,
+        hostContext,
+        promptBlockedReason: request.promptBlockedReason,
+        returnFocusTo: request.returnFocusTo,
+        task: request.task,
+      });
+
+      if (request.materializationRefreshPending) {
+        await refreshMaterializedTaskRequest(request, materializationResult);
+      }
+
+      return closeResult;
+    } catch (error) {
+      if (currentTaskEditorRequest === request) {
+        currentTaskEditorRequest = null;
+      }
+      throw error;
+    }
   }
 
   function openAdd(params = {}, hostContext = null) {
@@ -91,11 +120,14 @@
     const duplicate = params.duplicate === true || mode === "duplicate";
     const task = params.task || null;
     const taskId = task?.task_id || params.taskId || params.task_id || params.recordId || params.id || "";
+    const templateId = String(params.templateId || params.template_id || "").trim();
+    const instanceDate = String(params.instanceDate || params.instance_date || "").trim();
+    const hasPlannedOccurrence = Boolean(templateId && instanceDate);
     const defaults = normalizeTaskEditorDefaults(params);
     const returnFocusTo = params.returnFocusTo || params.trigger || hostContext?.trigger || document.activeElement || null;
     const needsTaskFetch = Boolean(taskId) && !task && (mode === "edit" || duplicate);
 
-    if (mode === "edit" && !task && !taskId) {
+    if (mode === "edit" && !task && !taskId && !hasPlannedOccurrence) {
       throw new Error("Task ID is required.");
     }
 
@@ -105,6 +137,7 @@
       duplicate,
       focusNotes: params.focusNotes === true,
       focusTarget: normalizeTaskEditorFocusTarget(params.focusTarget || params.focusField || params.focus),
+      instanceDate,
       mode: duplicate ? "add" : mode,
       needsStandaloneContext: Boolean(hostContext) || !context || needsTaskFetch,
       onSaved: typeof params.onSaved === "function" ? params.onSaved : null,
@@ -113,6 +146,7 @@
       returnFocusTo,
       task,
       taskId,
+      templateId,
     };
   }
 
@@ -1707,6 +1741,9 @@
   }
 
   async function notifyTaskEditorSaved(result) {
+    if (currentTaskEditorRequest) {
+      currentTaskEditorRequest.materializationRefreshPending = false;
+    }
     const configuredCallback = context?.onSaved;
     const requestCallback = currentTaskEditorRequest?.onSaved;
     const requestRefresh = currentTaskEditorRequest?.refresh;
@@ -1723,6 +1760,15 @@
     }
     if (typeof hostRefresh === "function" && hostRefresh !== requestRefresh) {
       await hostRefresh(result);
+    }
+  }
+
+  async function refreshMaterializedTaskRequest(request, result) {
+    if (typeof request?.onSaved === "function") {
+      await request.onSaved(result);
+    }
+    if (typeof request?.refresh === "function" && request.refresh !== request.onSaved) {
+      await request.refresh(result);
     }
   }
 

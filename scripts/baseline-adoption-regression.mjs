@@ -36,6 +36,7 @@ DROP TABLE IF EXISTS workspace_backup_exports;
 DROP TABLE IF EXISTS account_export_recovery_qualifications;
 DROP TABLE IF EXISTS authentication_throttle_entries;
 DROP TABLE IF EXISTS startup_maintenance_runs;
+DROP TABLE IF EXISTS private_feed_tokens;
 
 ALTER TABLE tasks DROP COLUMN estimate_minutes;
 ALTER TABLE task_recurrence_templates DROP COLUMN estimate_minutes;
@@ -317,6 +318,21 @@ ORDER BY version;
       version: "082",
       module_id: "core",
       name: "user_preferred_calendar_view",
+    },
+    {
+      version: "083",
+      module_id: "core",
+      name: "task_recurrence_instance_uniqueness",
+    },
+    {
+      version: "084",
+      module_id: "core",
+      name: "private_feed_tokens",
+    },
+    {
+      version: "085",
+      module_id: "core",
+      name: "named_calendar_subscriptions",
     },
   ]);
 }

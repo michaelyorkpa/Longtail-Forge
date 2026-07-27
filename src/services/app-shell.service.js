@@ -413,6 +413,11 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
 
   if (permissionHints.workspaceSettingsManage) {
     modulesSettingsMenu.items.push({
+      id: "calendar-settings",
+      label: "Calendar",
+      href: "calendar-settings.html",
+    });
+    modulesSettingsMenu.items.push({
       id: "workbench-settings",
       label: "Workbench",
       href: "workbench-settings.html",
@@ -547,12 +552,13 @@ function addSettingsModuleNavigation(targetItems, moduleNavigation) {
 
 function sortAdminModuleNavigation(items) {
   const order = new Map([
-    ["files-settings.html", 0],
-    ["tags.html", 1],
-    ["notes-settings.html", 2],
-    ["tasks-settings.html", 3],
-    ["time-tracking-settings.html", 4],
-    ["workbench-settings.html", 5],
+    ["calendar-settings.html", 0],
+    ["files-settings.html", 1],
+    ["tags.html", 2],
+    ["notes-settings.html", 3],
+    ["tasks-settings.html", 4],
+    ["time-tracking-settings.html", 5],
+    ["workbench-settings.html", 6],
     ["developer-example.html", Number.MAX_SAFE_INTEGER],
   ]);
   items.sort((left, right) => (

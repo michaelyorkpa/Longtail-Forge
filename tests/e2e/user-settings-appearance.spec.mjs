@@ -79,6 +79,8 @@ test("User Settings lays out profile, notifications, workspace lifecycle, and co
   const notificationForm = page.locator("[data-user-notification-preferences-form]");
   const leaveForm = page.locator("[data-settings-action-form]").filter({ has: page.getByRole("button", { name: "Leave Workspace", exact: true }) });
   const workspaceCreation = page.locator("[data-workspace-creation-disclosure]");
+  await expect(page.getByText("Calendar Subscription", { exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-calendar-subscription-form]")).toHaveCount(0);
   await expect(notificationForm).toBeVisible();
   await expect(notificationForm.getByText("Notification Grouping", { exact: true })).toBeVisible();
   const notificationFields = notificationForm.locator(".view-settings-section-fields > *");

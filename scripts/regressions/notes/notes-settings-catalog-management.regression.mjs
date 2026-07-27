@@ -46,7 +46,7 @@ try {
 
 function assertStaticContract() {
   assert.match(moduleSource, /id: "notes-settings"[\s\S]*href: "notes-settings\.html"[\s\S]*parent: "settings\.html"[\s\S]*MANAGE_SETTINGS[\s\S]*MANAGE_LIBRARY/);
-  assert.match(appShellSource, /\["files-settings\.html", 0\][\s\S]*\["tags\.html", 1\][\s\S]*\["notes-settings\.html", 2\][\s\S]*\["tasks-settings\.html", 3\]/);
+  assert.match(appShellSource, /\["calendar-settings\.html", 0\][\s\S]*\["files-settings\.html", 1\][\s\S]*\["tags\.html", 2\][\s\S]*\["notes-settings\.html", 3\][\s\S]*\["tasks-settings\.html", 4\]/);
   assert.match(moduleSource, /id: "notes-settings"[\s\S]*path: "\/notes-settings\.html"[\s\S]*file: "notes-settings\.html"/);
   assert.match(moduleSource, /id: "catalogManagement"[\s\S]*type: "info"[\s\S]*placement: "module"[\s\S]*runtime secrets|Catalogs are the collection hierarchy/i);
   assert.match(routesSource, /get\("\/notes\/settings\/catalogs"[\s\S]*listCatalogSettings/);

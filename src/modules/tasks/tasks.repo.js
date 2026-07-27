@@ -1,5 +1,28 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../../core/database.js";
+import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
+
+const TASK_RECURRENCE_INSTANCE_INSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoNothing({
+  columns: [
+    "task_id", "workspace_id", "client_id", "project_id", "title", "description",
+    "next_action", "blocked_reason", "resume_note", "status", "priority", "estimate_minutes",
+    "billable", "due_date", "due_time", "due_timezone", "due_at_utc", "source_type",
+    "source_id", "archived_at", "reminder_override_enabled", "recurrence_template_id",
+    "recurrence_instance_date", "completed_at", "created_by_user_id", "updated_by_user_id",
+    "completed_by_user_id", "archived_by_user_id", "last_worked_at", "created_at", "updated_at",
+  ],
+  conflictColumns: ["workspace_id", "recurrence_template_id", "recurrence_instance_date"],
+  returningColumns: ["task_id"],
+  tableName: "tasks",
+  valueExpressions: [
+    ":taskId", ":workspaceId", ":clientId", ":projectId", ":title", ":description",
+    ":nextAction", ":blockedReason", ":resumeNote", ":status", ":priority", ":estimateMinutes",
+    ":billable", ":dueDate", ":dueTime", ":dueTimezone", ":dueAtUtc", ":sourceType",
+    ":sourceId", ":archivedAt", ":reminderOverrideEnabled", ":recurrenceTemplateId",
+    ":recurrenceInstanceDate", ":completedAt", ":createdByUserId", ":updatedByUserId",
+    ":completedByUserId", ":archivedByUserId", ":lastWorkedAt", ":createdAt", ":updatedAt",
+  ],
+});
 
 async function queryList(workspaceId, options = {}) {
   const normalizedLimit = normalizePositiveInteger(options.limit, 0);
@@ -182,6 +205,42 @@ VALUES (
 
   await replaceAssignees(workspaceId, taskId, task.assignee_ids || [], task.updated_by_user_id || task.created_by_user_id);
   return readById(workspaceId, taskId);
+}
+
+async function createRecurrenceInstance(workspaceId, task) {
+  const now = new Date().toISOString();
+  const taskId = task.task_id || randomUUID();
+  const params = taskWriteParams({ includeCreatedAt: true, now, task, taskId, workspaceId });
+  let wasCreated = false;
+
+  await db.transaction(async (transaction) => {
+    const rows = await transaction.query(TASK_RECURRENCE_INSTANCE_INSERT_SQL, params);
+    wasCreated = rows.some((row) => row.task_id === taskId);
+
+    if (wasCreated) {
+      await replaceAssigneesWithExecutor(
+        transaction,
+        workspaceId,
+        taskId,
+        task.assignee_ids || [],
+        task.updated_by_user_id || task.created_by_user_id,
+        now,
+      );
+    }
+  });
+
+  const materializedTask = wasCreated
+    ? await readById(workspaceId, taskId)
+    : await readByRecurrenceInstance(
+        workspaceId,
+        task.recurrence_template_id,
+        task.recurrence_instance_date,
+      );
+
+  return {
+    task: materializedTask,
+    wasCreated,
+  };
 }
 
 async function update(workspaceId, task) {
@@ -453,6 +512,113 @@ ORDER BY
   return tasks.map(taskCalendarRowToAppValue);
 }
 
+async function readRecurrenceInstancesBetween(workspaceId, startDate, endDate) {
+  const rows = await db.query(`
+SELECT
+  task_id,
+  recurrence_template_id,
+  recurrence_instance_date
+FROM tasks
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id IS NOT NULL
+  AND recurrence_template_id != ''
+  AND recurrence_instance_date IS NOT NULL
+  AND recurrence_instance_date >= :startDate
+  AND recurrence_instance_date <= :endDate
+ORDER BY recurrence_instance_date, recurrence_template_id, task_id;
+`, {
+    endDate,
+    startDate,
+    workspaceId,
+  });
+
+  return rows.map((row) => ({
+    task_id: row.task_id,
+    recurrence_template_id: row.recurrence_template_id,
+    recurrence_instance_date: row.recurrence_instance_date,
+  }));
+}
+
+async function readCalendarFeedCandidates(workspaceId, startDate, endDate, options = {}) {
+  const scope = taskCalendarFeedScopeSql(options.scope, {
+    projectAlias: "projects",
+    recordAlias: "tasks",
+  });
+  const query = taskCalendarSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND ${scope.sql}
+  AND (
+    (
+      tasks.due_date IS NOT NULL
+      AND tasks.due_date >= :startDate
+      AND tasks.due_date <= :endDate
+    )
+    OR (
+      tasks.recurrence_instance_date IS NOT NULL
+      AND tasks.recurrence_instance_date != ''
+      AND tasks.recurrence_instance_date >= :startDate
+      AND tasks.recurrence_instance_date <= :endDate
+    )
+  )
+ORDER BY
+  COALESCE(tasks.due_date, tasks.recurrence_instance_date),
+  COALESCE(tasks.due_time, '23:59'),
+  tasks.updated_at,
+  tasks.task_id;
+`);
+  const tasks = await db.query(query, {
+    endDate,
+    startDate,
+    workspaceId,
+    ...scope.params,
+  });
+
+  return tasks.map(taskCalendarRowToAppValue);
+}
+
+async function readCalendarFeedSuppressedInstances(
+  workspaceId,
+  startDate,
+  endDate,
+  templateIds,
+  options = {},
+) {
+  if (!Array.isArray(templateIds) || templateIds.length === 0) {
+    return [];
+  }
+  const scope = taskCalendarFeedScopeSql(options.scope, {
+    projectAlias: "projects",
+    recordAlias: "tasks",
+  });
+  if (scope.sql === "1 = 1") {
+    return [];
+  }
+  const query = `
+SELECT
+  tasks.recurrence_template_id,
+  tasks.recurrence_instance_date
+FROM tasks
+LEFT JOIN projects
+  ON projects.workspace_id = tasks.workspace_id
+  AND projects.id = tasks.project_id
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.recurrence_template_id IN (:templateIds)
+  AND tasks.recurrence_instance_date IS NOT NULL
+  AND tasks.recurrence_instance_date != ''
+  AND tasks.recurrence_instance_date >= :startDate
+  AND tasks.recurrence_instance_date <= :endDate
+  AND NOT (${scope.sql})
+ORDER BY tasks.recurrence_instance_date, tasks.recurrence_template_id;
+`;
+  return db.query(query, {
+    endDate,
+    startDate,
+    templateIds,
+    workspaceId,
+    ...scope.params,
+  });
+}
+
 async function readDashboardCountGroups(workspaceId, userId, options = {}) {
   const sql = `
 SELECT
@@ -676,6 +842,7 @@ SELECT
   clients.name AS client_name,
   tasks.project_id,
   projects.name AS project_name,
+  projects.client_id AS project_client_id,
   tasks.title,
   tasks.status,
   tasks.priority,
@@ -683,7 +850,10 @@ SELECT
   tasks.due_time,
   tasks.due_timezone,
   tasks.due_at_utc,
-  tasks.reminder_override_enabled
+  tasks.reminder_override_enabled,
+  tasks.recurrence_template_id,
+  tasks.recurrence_instance_date,
+  tasks.updated_at
 FROM tasks
 LEFT JOIN clients
   ON clients.workspace_id = tasks.workspace_id
@@ -1272,6 +1442,7 @@ function taskCalendarRowToAppValue(row) {
     client_name: row.client_name || "",
     project_id: row.project_id || "",
     project_name: row.project_name || "",
+    project_client_id: row.project_client_id || "",
     title: row.title,
     status: row.status || "open",
     priority: row.priority || "normal",
@@ -1280,6 +1451,9 @@ function taskCalendarRowToAppValue(row) {
     due_timezone: row.due_timezone || "",
     due_at_utc: row.due_at_utc || "",
     reminder_override_enabled: db.dialect.boolean.read(row.reminder_override_enabled) === true,
+    recurrence_template_id: row.recurrence_template_id || "",
+    recurrence_instance_date: row.recurrence_instance_date || "",
+    updated_at: row.updated_at || "",
   };
 }
 
@@ -1310,6 +1484,7 @@ function assigneeRowToAppValue(row) {
 
 export const tasksRepository = {
   create,
+  createRecurrenceInstance,
   queryList,
   readAll,
   readById,
@@ -1318,9 +1493,12 @@ export const tasksRepository = {
   readByRecurrenceInstance,
   readFutureRecurrenceInstances,
   readDueBetween,
+  readCalendarFeedCandidates,
+  readCalendarFeedSuppressedInstances,
   readDashboardCandidates,
   readDashboardCountGroups,
   readRecurrenceInstanceStats,
+  readRecurrenceInstancesBetween,
   readReminderSchedulingCandidates,
   markWorkedAt,
   update,

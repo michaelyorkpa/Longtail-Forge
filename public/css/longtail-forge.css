@@ -2906,6 +2906,10 @@ a.search-result-title:hover {
     width: min(94vw, var(--page-standard-width));
 }
 
+.calendar-settings-page {
+    width: min(94vw, var(--page-standard-width));
+}
+
 .user-settings-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3031,6 +3035,102 @@ a.search-result-title:hover {
 
 .user-settings-disclosure > .settings-form {
     padding: 0 16px 16px;
+}
+
+.calendar-subscription-intro,
+.calendar-subscription-guidance p,
+.calendar-subscription-status {
+    margin: 0;
+}
+
+.calendar-subscription-guidance {
+    display: grid;
+    gap: 10px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.calendar-subscription-client-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding-left: 22px;
+}
+
+.calendar-subscription-client-list a,
+.calendar-subscription-guidance a {
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+    font-weight: 700;
+    text-underline-offset: 3px;
+}
+
+[data-calendar-subscription-url] {
+    min-width: 0;
+    width: 100%;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+[data-calendar-subscription-url-field][hidden] {
+    display: none;
+}
+
+[data-calendar-subscription-client-field][hidden],
+[data-calendar-subscription-project-field][hidden],
+[data-calendar-subscription-secret-panel][hidden] {
+    display: none;
+}
+
+.calendar-subscription-status {
+    min-height: 20px;
+    color: var(--color-muted);
+}
+
+.calendar-subscription-status.is-error {
+    color: var(--color-danger);
+}
+
+.calendar-subscription-secret-warning {
+    margin: 0;
+    color: var(--color-danger);
+    font-weight: 700;
+}
+
+.calendar-subscription-create-form,
+.calendar-subscription-secret-panel,
+.calendar-subscription-guidance,
+.calendar-subscription-list-section {
+    min-width: 0;
+}
+
+.calendar-subscription-table-wrap {
+    width: 100%;
+    max-width: 100%;
+}
+
+.calendar-subscription-table {
+    min-width: 980px;
+}
+
+.calendar-subscription-table th,
+.calendar-subscription-table td {
+    text-align: left !important;
+    white-space: normal !important;
+}
+
+.calendar-subscription-table td:last-child {
+    min-width: 156px;
+}
+
+.calendar-subscription-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+}
+
+.calendar-subscription-row-actions button {
+    margin: 0;
 }
 
 .workspace-membership-warning {
@@ -8931,6 +9031,17 @@ button:disabled {
     border-left-style: solid;
 }
 
+.calendar-entry[data-virtual="true"] {
+    border-style: dashed;
+    border-left-style: solid;
+    cursor: pointer;
+    opacity: 1;
+}
+
+.calendar-entry[data-virtual="true"]:hover {
+    background: var(--color-surface-muted);
+}
+
 .calendar-entry-time {
     font-size: 0.72rem;
     color: var(--color-muted);
@@ -8945,6 +9056,12 @@ button:disabled {
     font-size: 0.75rem;
     color: var(--color-text-secondary);
     overflow-wrap: anywhere;
+}
+
+.calendar-entry-virtual {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
 }
 
 .calendar-reminder-indicator {

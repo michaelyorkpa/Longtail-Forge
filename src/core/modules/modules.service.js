@@ -674,6 +674,7 @@ async function ensureWorkspaceModuleRows(workspaceId, modules) {
     await repairRequiredWorkspaceModules(workspaceId, moduleDefinitions, now, transaction);
   });
   invalidateWorkspaceModuleContext(workspaceId);
+
 }
 
 async function ensureAllWorkspaceModuleRows() {
@@ -764,6 +765,14 @@ WHERE workspace_id = :workspaceId
     workspaceId: text(workspaceId),
   });
   invalidateWorkspaceModuleContext(workspaceId);
+
+  if (moduleId === "tasks" && nextStatus === "disabled") {
+    const { privateFeedsService } = await import("../../services/private-feeds.service.js");
+    await privateFeedsService.reconcileCalendarSubscriptions({
+      session: options.session || undefined,
+      workspaceId,
+    });
+  }
 
   await runModuleLifecycleHook(moduleDefinition, enabled ? "onModuleEnabled" : "onModuleDisabled", {
     moduleId,

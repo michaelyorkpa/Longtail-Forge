@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../../core/database.js";
+import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
 
 async function createTemplate(workspaceId, template) {
   const now = new Date().toISOString();
@@ -126,13 +127,34 @@ LIMIT 1;
   };
 }
 
-async function readActiveTemplates(workspaceId) {
-  const rows = await db.query(templateSelectSql(`
+async function readActiveTemplates(workspaceId, options = {}) {
+  const fromDate = String(options.fromDate || "").trim();
+  const throughDate = String(options.throughDate || "").trim();
+  const scope = taskCalendarFeedScopeSql(options.scope, {
+    projectAlias: "projects",
+    recordAlias: "task_recurrence_templates",
+  });
+  const query = templateSelectSql(`
 WHERE task_recurrence_templates.workspace_id = :workspaceId
   AND task_recurrence_templates.template_status = 'active'
+  AND ${scope.sql}
+  AND (
+    :throughDate = ''
+    OR task_recurrence_templates.recurrence_anchor_date <= :throughDate
+  )
+  AND (
+    :fromDate = ''
+    OR task_recurrence_templates.recurrence_end_date IS NULL
+    OR task_recurrence_templates.recurrence_end_date = ''
+    OR task_recurrence_templates.recurrence_end_date >= :fromDate
+  )
 ORDER BY task_recurrence_templates.created_at, task_recurrence_templates.recurrence_template_id;
-`), {
+`);
+  const rows = await db.query(query, {
+    fromDate: textParam(fromDate),
+    throughDate: textParam(throughDate),
     workspaceId: textParam(workspaceId),
+    ...scope.params,
   });
 
   if (rows.length === 0) {
@@ -140,6 +162,10 @@ ORDER BY task_recurrence_templates.created_at, task_recurrence_templates.recurre
   }
 
   const templates = rows.map(templateRowToAppValue);
+  if (options.includeAssignees === false) {
+    return templates;
+  }
+
   const assignees = await Promise.all(
     templates.map((template) => readTemplateAssignees(workspaceId, template.recurrence_template_id)),
   );
@@ -485,27 +511,36 @@ ORDER BY assigned_at;
 function templateSelectSql(whereSql) {
   return `
 SELECT
-  recurrence_template_id,
-  workspace_id,
-  client_id,
-  project_id,
-  title,
-  description,
-  status,
-  priority,
-  estimate_minutes,
-  recurrence_anchor_date,
-  due_time,
-  due_timezone,
-  due_at_utc,
-  rrule,
-  recurrence_end_date,
-  template_status,
-  created_by_user_id,
-  updated_by_user_id,
-  created_at,
-  updated_at
+  task_recurrence_templates.recurrence_template_id,
+  task_recurrence_templates.workspace_id,
+  task_recurrence_templates.client_id,
+  clients.name AS client_name,
+  task_recurrence_templates.project_id,
+  projects.name AS project_name,
+  projects.client_id AS project_client_id,
+  task_recurrence_templates.title,
+  task_recurrence_templates.description,
+  task_recurrence_templates.status,
+  task_recurrence_templates.priority,
+  task_recurrence_templates.estimate_minutes,
+  task_recurrence_templates.recurrence_anchor_date,
+  task_recurrence_templates.due_time,
+  task_recurrence_templates.due_timezone,
+  task_recurrence_templates.due_at_utc,
+  task_recurrence_templates.rrule,
+  task_recurrence_templates.recurrence_end_date,
+  task_recurrence_templates.template_status,
+  task_recurrence_templates.created_by_user_id,
+  task_recurrence_templates.updated_by_user_id,
+  task_recurrence_templates.created_at,
+  task_recurrence_templates.updated_at
 FROM task_recurrence_templates
+LEFT JOIN clients
+  ON clients.workspace_id = task_recurrence_templates.workspace_id
+  AND clients.id = task_recurrence_templates.client_id
+LEFT JOIN projects
+  ON projects.workspace_id = task_recurrence_templates.workspace_id
+  AND projects.id = task_recurrence_templates.project_id
 ${whereSql}`;
 }
 
@@ -530,7 +565,10 @@ function templateRowToAppValue(row) {
     recurrence_template_id: row.recurrence_template_id,
     workspace_id: row.workspace_id,
     client_id: row.client_id || "",
+    client_name: row.client_name || "",
     project_id: row.project_id || "",
+    project_name: row.project_name || "",
+    project_client_id: row.project_client_id || "",
     title: row.title,
     description: row.description || "",
     status: row.status || "open",

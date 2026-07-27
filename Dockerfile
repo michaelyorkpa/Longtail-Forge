@@ -1,9 +1,26 @@
 # syntax=docker/dockerfile:1.7
 
 ARG NODE_IMAGE=node:24.18.0-bookworm-slim@sha256:cb4e8f7c443347358b7875e717c29e27bf9befc8f5a26cf18af3c3dec80e58c5
-FROM ${NODE_IMAGE}
+FROM ${NODE_IMAGE} AS runtime-build
 
 ARG LTF_RUNTIME_ARTIFACT
+
+WORKDIR /opt/longtail-forge
+
+COPY ${LTF_RUNTIME_ARTIFACT} /tmp/longtail-forge-runtime.tgz
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends python3 make g++ \
+    && test -n "${LTF_RUNTIME_ARTIFACT}" \
+    && tar -xzf /tmp/longtail-forge-runtime.tgz --strip-components=1 \
+    && npm ci --omit=dev --no-audit --no-fund \
+    && npm cache clean --force \
+    && rm -rf /tmp/longtail-forge-runtime.tgz /var/lib/apt/lists/* \
+    && chown -R root:root /opt/longtail-forge \
+    && chmod -R a-w /opt/longtail-forge
+
+FROM ${NODE_IMAGE} AS runtime
+
 ARG LTF_APP_VERSION=unknown
 
 LABEL org.opencontainers.image.title="Longtail Forge" \
@@ -25,15 +42,7 @@ RUN groupadd --gid 10001 longtail-forge \
     && chown -R 10001:10001 /var/lib/longtail-forge /var/backups/longtail-forge \
     && chmod 0700 /var/lib/longtail-forge /var/backups/longtail-forge
 
-COPY ${LTF_RUNTIME_ARTIFACT} /tmp/longtail-forge-runtime.tgz
-
-RUN test -n "${LTF_RUNTIME_ARTIFACT}" \
-    && tar -xzf /tmp/longtail-forge-runtime.tgz --strip-components=1 \
-    && npm ci --omit=dev --no-audit --no-fund \
-    && npm cache clean --force \
-    && rm /tmp/longtail-forge-runtime.tgz \
-    && chown -R root:root /opt/longtail-forge \
-    && chmod -R a-w /opt/longtail-forge
+COPY --from=runtime-build /opt/longtail-forge /opt/longtail-forge
 
 USER 10001:10001
 

@@ -19,7 +19,7 @@ import { createDisposableDatabaseFixture } from "../../test-support/disposable-d
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
-const EXPECTED_INVENTORY_SHA256 = "38c814a7e757938cd5e7b25aa9a15846a27eb6ecab3890a2d97c9facc9fff0ee";
+const EXPECTED_INVENTORY_SHA256 = "b1d745bd05ea7c00199d9586aec2ea3695d7cf8ca8ceea20d0dc3bcfabd93f1e";
 const fixture = await createDisposableDatabaseFixture("bundled-module-registry-regression");
 const { listModuleEntries, listModules } = await import("../../../src/core/modules/registry.js");
 const { createModuleEntry, validateAndOrderBundledModuleCatalog } = await import("../../../src/core/modules/module-entry.js");
