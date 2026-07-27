@@ -201,7 +201,7 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
     await expect(page.getByRole("link", { name })).toHaveAttribute("href", href);
   }
   await expect(page.getByText(/Current testing confirms Google Calendar uses both values/)).toBeVisible();
-  await expect(page.getByText(/Thunderbird shows a friendly name during setup/)).toBeVisible();
+  await expect(page.getByText(/current Thunderbird testing confirms the friendly-name fallback works/)).toBeVisible();
 
   const overflow = await page.evaluate(() => ({
     innerWidth,
@@ -219,6 +219,56 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   await page.goto("/calendar-settings.html");
   await expect(page.locator("[data-calendar-subscription-secret-panel]")).toBeHidden();
   await expect(secretInput).toHaveValue("");
+});
+
+test("Personal and Family Calendar Settings offer Workspace and Project without Client", async ({ page }) => {
+  let workspaceType = "personal";
+  let clientProjectOptionRequests = 0;
+
+  await page.route("**/api/app-shell/bootstrap", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.workspaceContext.workspaceType = workspaceType;
+    await route.fulfill({ response, json: body });
+  });
+  await page.route("**/api/client-projects?view=options", (route) => {
+    clientProjectOptionRequests += 1;
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        clients: [{ id: "hidden-client", name: "Hidden Client", projects: [{ id: "hidden-client-project", name: "Hidden Client Project" }] }],
+        view: "options",
+        workspaceProjects: [{ id: "workspace-project", name: "Readable Project" }],
+      }),
+    });
+  });
+  await page.route("**/api/private-feeds/calendar-subscriptions", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ subscriptions: [] }),
+  }));
+
+  for (const type of ["personal", "family"]) {
+    workspaceType = type;
+    const response = await page.goto("/calendar-settings.html");
+    expect(response.status()).toBe(200);
+
+    const scope = page.locator("[data-calendar-subscription-scope]");
+    await expect(scope.locator("option")).toHaveText(["Workspace", "Project"]);
+    await expect(scope.locator('option[value="client"]')).toHaveCount(0);
+    await expect(page.locator("[data-calendar-subscription-client-field]")).toBeHidden();
+    await scope.selectOption("project");
+    await expect(page.locator("[data-calendar-subscription-client-field]")).toBeHidden();
+    await expect(page.locator("[data-calendar-subscription-project-field]")).toBeVisible();
+    await expect(page.locator("[data-calendar-subscription-project] option")).toHaveText([
+      "Choose a project",
+      "Workspace / Readable Project",
+    ]);
+    await expect(page.locator("[data-calendar-subscription-availability]")).toHaveText(
+      `${type === "family" ? "Family" : "Personal"} workspaces can use Workspace or Project scope. Client scope is available only in Business workspaces.`,
+    );
+  }
+
+  expect(clientProjectOptionRequests).toBe(2);
 });
 
 test("disabled Tasks keeps Calendar metadata and revocation available", async ({ page }) => {

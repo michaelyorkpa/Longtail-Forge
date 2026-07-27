@@ -329,7 +329,7 @@
           { value: "client", label: "Client" },
           { value: "project", label: "Project" },
         ],
-        description: "Start with the workspace, or narrow this subscription to one readable Client or Project.",
+        description: "Business workspaces can narrow this subscription to one readable Client or Project. Personal and Family workspaces can narrow it to one readable Project; Client scope is Business-only.",
       }, "calendarSubscriptionScope"),
       clientField,
       projectField,
@@ -393,7 +393,7 @@
         text: "Calendar clients refresh subscriptions periodically, not in real time. Subscribe to the URL instead of importing a one-time .ics file.",
       }),
       element("p", {
-        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Current testing confirms Google Calendar uses both values. New and rotated URLs also end with a path-safe version of the subscription name so Thunderbird shows a friendly name during setup.",
+        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Current testing confirms Google Calendar uses both values and Apple Calendar on iPhone uses the friendly name. New and rotated URLs also end with a path-safe version of the subscription name; current Thunderbird testing confirms the friendly-name fallback works.",
       }),
       calendarClientGuidance(),
       element("p", {

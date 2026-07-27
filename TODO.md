@@ -19,6 +19,10 @@ Specifically, Firefox/Mozilla and Webkit for further, future testing.
 
 ## Workbench
 
+### Manual timer Recovery chip
+
+Investigate why a manually created timer can display a `Recovery` chip in **Other Active Timers**. Confirm whether recovery state or metadata is being assigned incorrectly, or whether the chip renderer is classifying a normal manual timer incorrectly.
+
 ### Parent/Child Task identification
 
 The inspector should specify "Child" when the task context shows a child task of the current, focused task. This should be done in a chip. Same goes the opposite way. When a child task is in focus, the parent task should be displayed with "Parent" in a chip in the inspector.

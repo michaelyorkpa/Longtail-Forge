@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "release-gate",
   tags: ["calendar", "help", "security", "settings", "tasks", "views"],
-  description: "Pins the administrator-only Calendar lifecycle manager, hierarchy-safe scopes, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
+  description: "Pins the administrator-only Calendar lifecycle manager, Business-only Client scope, all-workspace Project scope, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
   runMode: "static",
 });
 
@@ -80,7 +80,7 @@ for (const officialUrl of [
   assert.match(settingsHost, new RegExp(escapeRegExp(officialUrl)), `Calendar Settings should link to ${officialUrl}`);
 }
 assert.match(settingsHost, /refresh subscriptions periodically, not in real time/, "in-product guidance should set periodic refresh expectations");
-assert.match(settingsHost, /owner's current profile timezone[^]*Google Calendar uses both values[^]*Thunderbird shows a friendly name during setup/, "in-product guidance should report the confirmed Google metadata behavior and Thunderbird filename compatibility");
+assert.match(settingsHost, /owner's current profile timezone[^]*Google Calendar uses both values[^]*Apple Calendar on iPhone[^]*Thunderbird testing confirms the friendly-name fallback works/, "in-product guidance should report confirmed Google, Apple, and Thunderbird behavior");
 
 assert.match(calendarSettings, /let currentSecret = "";/, "the raw bearer URL should live only in page memory");
 assert.match(calendarSettings, /window\.addEventListener\("pagehide", clearSecret\)/, "leaving the page should clear the one-time URL");
@@ -93,6 +93,11 @@ assert.match(calendarSettings, /subscription\.status === "active" && subscriptio
 assert.match(calendarSettings, /subscription\.status === "active"[^]*rowAction\("Revoke"/, "administrators should be able to revoke any active row");
 assert.match(calendarSettings, /else \{[^]*rowAction\("Delete", "delete"/, "already-revoked rows should remain explicitly deletable");
 assert.match(calendarSettings, /state\.tasksEnabled[^]*creation and rotation are unavailable/, "disabled Tasks should preserve listing/revocation while explaining lifecycle closure");
+assert.match(calendarSettings, /getJson\("\/api\/client-projects\?view=options"/, "all workspace types should request permission-pruned Project scope options");
+assert.match(calendarSettings, /state\.clients = usesBusinessScopes\(\) \? normalizeClients\(optionsBody\.clients\) : \[\]/, "Personal and Family workspaces should discard Client options");
+assert.match(calendarSettings, /renderScopeOptions\(\)[^]*usesBusinessScopes\(\)[^]*\["workspace", "Workspace"\][^]*\["project", "Project"\]/, "Personal and Family scope selection should contain Workspace and Project");
+assert.match(calendarSettings, /workspaces can use Workspace or Project scope\. Client scope is available only in Business workspaces/, "non-Business scope guidance should explain Project availability and the Business-only Client rule");
+assert.match(calendarSettings, /value === "family" \? "Family" : "Personal"/, "non-Business scope guidance should name both supported workspace types");
 assert.match(calendarSettings, /selectedClientId[^]*state\.clients\.find[^]*projects/, "selecting a Client should constrain Project options");
 assert.match(calendarSettings, /navigator\.clipboard\.writeText\(currentSecret\)[^]*document\.execCommand\("copy"\)/, "copy should use the clipboard with the existing fallback");
 assert.match(calendarSettings, /title: "Rotate calendar subscription URL\?"[^]*stop working immediately/, "rotation should require an explicit revocation warning");
@@ -113,6 +118,8 @@ assert.match(privateFeedRoutes, /delete\("\/private-feeds\/calendar-subscription
 assert.doesNotMatch(privateFeedRoutes, /["']\/private-feeds\/calendar["']/, "the singular management endpoint should be retired");
 assert.doesNotMatch(privateFeedService, /\b(?:getCalendarStatus|generateCalendar|rotateCalendar|disableCalendar)\b/, "singular lifecycle service methods should be retired");
 assert.match(privateFeedService, /function removeCalendarSubscription\(subscriptionId, session\)[^]*privateFeedTokensRepository\.remove[^]*security\.private_feed\.revoked[^]*security\.private_feed\.deleted[^]*removed: true/, "manual revoke should remove active rows while revoked-row cleanup remains audited");
+assert.match(privateFeedService, /scopeType === "client"[^]*workspacesRepository\.readById\(session\.workspace_id\)[^]*workspace_type !== "business"[^]*Client calendar scope is available only in Business workspaces/, "the service should reject forged non-Business Client scope creation");
+assert.match(privateFeedService, /workspace_type !== "business" && row\.scope_type === "client"[^]*workspace_scope_not_supported/, "existing non-Business Client links should fail eligibility and reconcile closed");
 assert.match(privateFeedService, /function toPublicSubscription\(token, session\)[^]*ownedByCurrentUser[^]*owner[^]*scope[^]*status[^]*subscriptionId[^]*timezone/, "metadata reads should include the safe effective timezone");
 assert.doesNotMatch(privateFeedService.match(/function toPublicSubscription\(token, session\)[^]*?\n\}/)?.[0] || "", /feedUrl|token_selector|token_hash/, "metadata must never expose or reconstruct a bearer secret");
 assert.match(privateFeedRepository, /function remove\(workspaceId, subscriptionId, providerId[^]*DELETE FROM private_feed_tokens[^]*token: current/, "manual removal should delete exactly the selected workspace/provider credential");
@@ -124,6 +131,7 @@ assert.match(frameworkCss, /\[data-calendar-subscription-url\]\s*\{[^}]*min-widt
 assert.match(frameworkCss, /\.calendar-subscription-secret-warning\s*\{[^}]*color: var\(--color-danger\);[^}]*font-weight: 700;/, "the one-time-link warning should be prominent and theme-safe");
 
 assert.match(renderedSpec, /Calendar subscriptions support Workspace, Client, and Project lifecycle/, "Playwright should render the complete administrator lifecycle");
+assert.match(renderedSpec, /Personal and Family Calendar Settings offer Workspace and Project without Client[^]*Readable Project[^]*clientProjectOptionRequests[^]*toBe\(2\)/, "Playwright should prove non-Business workspaces expose Project but never Client scope");
 assert.match(renderedSpec, /toHaveAttribute\("type", "password"\)[^]*toHaveAttribute\("type", "text"\)/, "rendered proof should cover reveal masking");
 assert.match(renderedSpec, /Longtail Forge will not show this link again[^]*toHaveCSS\("color", "rgb\(143, 47, 45\)"\)/, "rendered proof should cover the standalone red one-time warning");
 assert.match(renderedSpec, /another owner[^]*Rotate[^]*toHaveCount\(0\)/i, "rendered proof should preserve another owner's secret boundary");
@@ -141,10 +149,9 @@ const packageLockData = JSON.parse(packageLock);
 assert.equal(packageLockData.version, packageData.version, "package and lockfile versions should match");
 assert.equal(packageLockData.packages[""].version, packageData.version, "lockfile root package version should match");
 assertRoadmapCursorAtLeast(packageData.version, "the Calendar administration correction should not move the roadmap backward");
-assert.doesNotMatch(roadmap, /^## Version 0\.33\.22\.9(?:\.1|\.2|\s|-)/m, "completed Calendar correction slices should leave the live roadmap");
-assert.match(roadmap, /^## Version 0\.33\.22\.9\.3 - Calendar client metadata and subscription refinement/m, "the client-tested refinement should remain open in the live roadmap");
-assert.match(roadmapArchive, /^## Version 0\.33\.22\.9\.2 - Admin Calendar module surface, User Settings removal, and closeout/m, "the completed slice should be archived");
-assert.match(changelog, /^## Version 0\.33\.22\.9\.2 - 2026-07-25/m, "the completed slice should be recorded in the changelog");
+assert.doesNotMatch(roadmap, /^## Version 0\.33\.22\.9(?:\.1|\.2|\.3|\s|-)/m, "completed Calendar correction slices should leave the live roadmap");
+assert.match(roadmapArchive, /^## Version 0\.33\.22\.9\.3 - Calendar client metadata and subscription refinement/m, "the completed client-tested refinement should be archived");
+assert.match(changelog, /^## Version 0\.33\.22\.9\.3 - 2026-07-27/m, "the completed refinement should be recorded in the changelog");
 
 console.log("Calendar subscription settings regression passed.");
 

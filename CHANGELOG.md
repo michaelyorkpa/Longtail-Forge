@@ -1,12 +1,16 @@
-## Version 0.33.22.9.3 - 2026-07-25
+## Version 0.33.22.9.3 - 2026-07-27
 
 - Added the standard RFC 7986 `NAME` calendar property alongside the retained compatibility `X-WR-CALNAME`, so named subscriptions provide both standards-based and legacy client metadata.
 - Added the owner's current profile timezone as `X-WR-TIMEZONE` and now include its matching finite `VTIMEZONE` even when a feed has no timed recurrence, without changing canonical UTC event instants or recurrence-local `TZID` behavior.
 - Added the effective owner timezone to the Admin Calendar subscription list and clarified that calendar clients may retain a local name override while Google reports a subscribed calendar's timezone as read-only.
+- Added Thunderbird-friendly new/rotated URLs whose final path filename carries the safe subscription name while the opaque bearer token remains independently authenticated; legacy one-segment URLs remain valid.
+- Moved the one-time-link warning to its own danger-colored line in user language, made manual Revoke remove the credential row, and added audited Delete cleanup for automatically revoked rows.
+- Kept Calendar Settings Client-free in Personal and Family workspaces while preserving both Workspace and Project scopes; the browser discards Client options and the service rejects forged non-Business Client creation.
 - Preserved Workspace/Client/Project scope ceilings, live permission intersection, owner/membership/module/target invalidation, one-time bearer-secret handling, and generic public rejection.
-- Expanded focused feed serialization, scope, authentication, Settings, and desktop/mobile browser coverage for the new metadata contract.
-- This Nightly version is a demo testing candidate. The live `0.33.22.9.3` roadmap slice remains open for operator Workspace, Client, Project, and Google Calendar validation.
-- Docs updated: `docs/e2e-testing.md`, `docs/operational-security.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, and `help/framework/settings-and-user-preferences.md`.
+- Expanded focused feed serialization, scope, authentication, Settings, workspace-type, and desktop/mobile browser coverage for the final metadata contract.
+- Completed operator validation: Google Calendar consumes the friendly name and owner timezone; Google and Outlook honor tested Project filtering; Thunderbird consumes the friendly filename; and Apple Calendar on iPhone subscribes with a friendly title. The isolated regression retains Client-scope proof.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.23`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/e2e-testing.md`, `docs/operational-security.md`, `docs/settings-control-matrix.md`, `docs/settings-ownership.md`, `docs/tasks-module.md`, and `help/framework/settings-and-user-preferences.md`.
 - No docs change needed: database schema/migrations, permission identifiers, runtime configuration, deployment topology, backup behavior, public API scopes, and two-way provider integration are unchanged.
 
 ## Version 0.33.22.9.2 - 2026-07-25
