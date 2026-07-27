@@ -1,5 +1,6 @@
 ## Version 0.33.22.9.3 - 2026-07-27
 
+- Updated the locked transitive `brace-expansion`, `postcss`, and `nanoid` releases to their patched versions after new high-severity advisories reached the promotion audit feed; no direct dependency or runtime contract changed.
 - Added the standard RFC 7986 `NAME` calendar property alongside the retained compatibility `X-WR-CALNAME`, so named subscriptions provide both standards-based and legacy client metadata.
 - Added the owner's current profile timezone as `X-WR-TIMEZONE` and now include its matching finite `VTIMEZONE` even when a feed has no timed recurrence, without changing canonical UTC event instants or recurrence-local `TZID` behavior.
 - Added the effective owner timezone to the Admin Calendar subscription list and clarified that calendar clients may retain a local name override while Google reports a subscribed calendar's timezone as read-only.
