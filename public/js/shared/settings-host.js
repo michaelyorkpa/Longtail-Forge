@@ -393,7 +393,7 @@
         text: "Calendar clients refresh subscriptions periodically, not in real time. Subscribe to the URL instead of importing a one-time .ics file.",
       }),
       element("p", {
-        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Google Calendar does not use the published name when adding from a URL, so rename it after adding; Google also reports a subscribed calendar's timezone as read-only.",
+        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Current testing confirms Google Calendar uses both values. New and rotated URLs also end with a path-safe version of the subscription name so Thunderbird shows a friendly name during setup.",
       }),
       calendarClientGuidance(),
       element("p", {
