@@ -160,26 +160,20 @@ WHERE workspace_id = :workspaceId
   });
 }
 
-async function revoke(workspaceId, subscriptionId, providerId, reason, database = db) {
+async function remove(workspaceId, subscriptionId, providerId, database = db) {
   return database.transaction(async (transaction) => {
     const current = await readById(workspaceId, subscriptionId, providerId, transaction);
-    if (!current || current.status !== "active") {
+    if (!current) {
       return { changed: false, token: current };
     }
-    const now = new Date().toISOString();
     await transaction.run(`
-UPDATE private_feed_tokens
-SET status = 'revoked',
-    revocation_reason = :reason,
-    revoked_at = :now,
-    updated_at = :now
+DELETE FROM private_feed_tokens
 WHERE workspace_id = :workspaceId
   AND private_feed_token_id = :subscriptionId
-  AND provider_id = :providerId
-  AND status = 'active';`, { now, providerId, reason, subscriptionId, workspaceId });
+  AND provider_id = :providerId;`, { providerId, subscriptionId, workspaceId });
     return {
       changed: true,
-      token: await readById(workspaceId, subscriptionId, providerId, transaction),
+      token: current,
     };
   });
 }
@@ -218,7 +212,7 @@ export const privateFeedTokensRepository = {
   listForWorkspace,
   readById,
   readForAuthentication,
-  revoke,
+  remove,
   revokeMany,
   rotate,
 };

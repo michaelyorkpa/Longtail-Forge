@@ -99,12 +99,11 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
     }
     if (request.method() === "DELETE") {
       const id = pathname.split("/").at(-1);
-      const item = subscriptions.find((entry) => entry.subscriptionId === id);
-      item.status = "revoked";
-      item.revokedAt = "2026-07-25T16:00:00.000Z";
+      const index = subscriptions.findIndex((entry) => entry.subscriptionId === id);
+      subscriptions.splice(index, 1);
       await route.fulfill({
         contentType: "application/json",
-        body: JSON.stringify({ subscription: item }),
+        body: JSON.stringify({ removed: true, subscriptionId: id }),
       });
       return;
     }
@@ -145,6 +144,11 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   await expect(secretInput).toBeVisible();
   await expect(secretInput).toHaveAttribute("type", "password");
   await expect(secretInput).toHaveValue("https://example.test/feeds/calendar/ltf_feed_created_1.ics");
+  const secretWarning = page.locator(".calendar-subscription-secret-warning");
+  await expect(secretWarning).toHaveText(
+    "Longtail Forge will not show this link again. Please copy it and install it now or store it for safe keeping.",
+  );
+  await expect(secretWarning).toHaveCSS("color", "rgb(143, 47, 45)");
   await page.getByRole("button", { name: "Reveal URL" }).click();
   await expect(secretInput).toHaveAttribute("type", "text");
   await page.getByRole("button", { name: "Copy URL" }).click();
@@ -158,6 +162,8 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   const anotherOwner = rows.filter({ hasText: "Another Owner" });
   await expect(anotherOwner.getByRole("button", { name: "Rotate" })).toHaveCount(0);
   await expect(anotherOwner.getByRole("button", { name: "Revoke" })).toHaveCount(1);
+  const oldCalendar = rows.filter({ hasText: "Old calendar" });
+  await expect(oldCalendar.getByRole("button", { name: "Delete" })).toHaveCount(1);
   await expect(page.locator("body")).not.toContainText("sub-other");
   await expect(page.locator("body")).not.toContainText("client-alpha");
   await expect(page.locator("body")).not.toContainText("project-alpha");
@@ -171,13 +177,21 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   await expect(secretInput).toHaveAttribute("type", "password");
   await expect(ownRow.getByRole("button", { name: "Rotate" })).toBeFocused();
 
+  await oldCalendar.getByRole("button", { name: "Delete" }).click();
+  const deleteDialog = page.getByRole("dialog").filter({ hasText: "Delete calendar subscription?" });
+  await expect(deleteDialog).toBeVisible();
+  await deleteDialog.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(oldCalendar).toHaveCount(0);
+  await expect(rows).toHaveCount(3);
+  await expect(anotherOwner).toBeFocused();
+
   await anotherOwner.getByRole("button", { name: "Revoke" }).click();
   const revokeDialog = page.getByRole("dialog").filter({ hasText: "Revoke calendar subscription?" });
   await expect(revokeDialog).toBeVisible();
-  await revokeDialog.getByRole("button", { name: "Revoke", exact: true }).click();
-  await expect(anotherOwner).toContainText("Revoked");
-  await expect(anotherOwner.getByRole("button", { name: "Revoke" })).toHaveCount(0);
-  await expect(anotherOwner).toBeFocused();
+  await revokeDialog.getByRole("button", { name: "Revoke and Remove", exact: true }).click();
+  await expect(anotherOwner).toHaveCount(0);
+  await expect(rows).toHaveCount(2);
+  await expect(ownRow).toBeFocused();
 
   for (const [name, href] of [
     ["Google Calendar", "https://support.google.com/calendar/answer/37100"],
