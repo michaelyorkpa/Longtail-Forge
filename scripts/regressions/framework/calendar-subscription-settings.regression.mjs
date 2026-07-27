@@ -80,7 +80,7 @@ for (const officialUrl of [
   assert.match(settingsHost, new RegExp(escapeRegExp(officialUrl)), `Calendar Settings should link to ${officialUrl}`);
 }
 assert.match(settingsHost, /refresh subscriptions periodically, not in real time/, "in-product guidance should set periodic refresh expectations");
-assert.match(settingsHost, /owner's current profile timezone[^]*Google Calendar does not use the published name when adding from a URL[^]*subscribed calendar's timezone as read-only/, "in-product guidance should explain effective timezone and Google's manual rename");
+assert.match(settingsHost, /owner's current profile timezone[^]*Google Calendar uses both values[^]*Thunderbird shows a friendly name during setup/, "in-product guidance should report the confirmed Google metadata behavior and Thunderbird filename compatibility");
 
 assert.match(calendarSettings, /let currentSecret = "";/, "the raw bearer URL should live only in page memory");
 assert.match(calendarSettings, /window\.addEventListener\("pagehide", clearSecret\)/, "leaving the page should clear the one-time URL");

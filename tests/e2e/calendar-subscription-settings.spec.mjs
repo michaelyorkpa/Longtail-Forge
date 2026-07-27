@@ -77,7 +77,7 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
         contentType: "application/json",
         status: 201,
         body: JSON.stringify({
-          feedUrl: `https://example.test/feeds/calendar/ltf_feed_created_${issueNumber}.ics`,
+          feedUrl: `https://example.test/feeds/calendar/ltf_feed_created_${issueNumber}/${encodeURIComponent(payload.name)}.ics`,
           subscription: created,
         }),
       });
@@ -91,7 +91,7 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
       await route.fulfill({
         contentType: "application/json",
         body: JSON.stringify({
-          feedUrl: `https://example.test/feeds/calendar/ltf_feed_rotated_${issueNumber}.ics`,
+          feedUrl: `https://example.test/feeds/calendar/ltf_feed_rotated_${issueNumber}/${encodeURIComponent(item.name)}.ics`,
           subscription: item,
         }),
       });
@@ -143,7 +143,7 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   const secretInput = page.locator("[data-calendar-subscription-url]");
   await expect(secretInput).toBeVisible();
   await expect(secretInput).toHaveAttribute("type", "password");
-  await expect(secretInput).toHaveValue("https://example.test/feeds/calendar/ltf_feed_created_1.ics");
+  await expect(secretInput).toHaveValue("https://example.test/feeds/calendar/ltf_feed_created_1/Project%20delivery.ics");
   const secretWarning = page.locator(".calendar-subscription-secret-warning");
   await expect(secretWarning).toHaveText(
     "Longtail Forge will not show this link again. Please copy it and install it now or store it for safe keeping.",
@@ -173,7 +173,7 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   const rotateDialog = page.getByRole("dialog").filter({ hasText: "Rotate calendar subscription URL?" });
   await expect(rotateDialog).toBeVisible();
   await rotateDialog.getByRole("button", { name: "Rotate URL", exact: true }).click();
-  await expect(secretInput).toHaveValue("https://example.test/feeds/calendar/ltf_feed_rotated_2.ics");
+  await expect(secretInput).toHaveValue("https://example.test/feeds/calendar/ltf_feed_rotated_2/Workspace%20overview.ics");
   await expect(secretInput).toHaveAttribute("type", "password");
   await expect(ownRow.getByRole("button", { name: "Rotate" })).toBeFocused();
 
@@ -200,6 +200,8 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   ]) {
     await expect(page.getByRole("link", { name })).toHaveAttribute("href", href);
   }
+  await expect(page.getByText(/Current testing confirms Google Calendar uses both values/)).toBeVisible();
+  await expect(page.getByText(/Thunderbird shows a friendly name during setup/)).toBeVisible();
 
   const overflow = await page.evaluate(() => ({
     innerWidth,

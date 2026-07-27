@@ -47,7 +47,7 @@ async function createCalendarSubscription(payload, session, requestOrigin) {
   });
   await recordLifecycleSecurityEvent(session, "security.private_feed.created", "create", scope.type);
   return {
-    feedUrl: buildFeedUrl(rawToken, requestOrigin),
+    feedUrl: buildFeedUrl(rawToken, token.name, requestOrigin),
     subscription: toPublicSubscription(token, session),
   };
 }
@@ -81,7 +81,7 @@ async function rotateCalendarSubscription(subscriptionId, session, requestOrigin
   }
   await recordLifecycleSecurityEvent(session, "security.private_feed.rotated", "rotate", current.scope_type);
   return {
-    feedUrl: buildFeedUrl(rawToken, requestOrigin),
+    feedUrl: buildFeedUrl(rawToken, result.token.name, requestOrigin),
     subscription: toPublicSubscription(result.token, session),
   };
 }
@@ -359,10 +359,21 @@ function readStoredHash(value) {
   return hash.length === DUMMY_TOKEN_HASH.length ? hash : DUMMY_TOKEN_HASH;
 }
 
-function buildFeedUrl(rawToken, requestOrigin) {
+function buildFeedUrl(rawToken, calendarName, requestOrigin) {
   const baseUrl = String(config.publicUrl || requestOrigin || "").replace(/\/+$/, "");
   if (!baseUrl) throw new AppError("The private calendar feed URL could not be resolved.", 500);
-  return `${baseUrl}/feeds/calendar/${encodeURIComponent(rawToken)}.ics`;
+  return `${baseUrl}/feeds/calendar/${encodeURIComponent(rawToken)}/${encodeURI(calendarFeedFilename(calendarName))}.ics`;
+}
+
+function calendarFeedFilename(value) {
+  const fallback = "Longtail Forge Calendar";
+  const name = String(value || fallback)
+    .toWellFormed()
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001f\u007f/\\?#%[\]]+/g, " - ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return name || fallback;
 }
 
 function toPublicSubscription(token, session) {

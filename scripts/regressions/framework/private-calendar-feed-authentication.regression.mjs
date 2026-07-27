@@ -88,16 +88,25 @@ try {
   assert.deepEqual(initialCollection.body.subscriptions, []);
 
   const generated = await api.post("/api/private-feeds/calendar-subscriptions", {
-    name: "Initial workspace",
+    name: "Initial workspace & planning / North",
     scopeType: "workspace",
   }, { cookie: sessionCookie });
   assert.equal(generated.status, 201, JSON.stringify(generated.body));
   assert.equal(generated.body.subscription.status, "active");
-  assert.match(generated.body.feedUrl, /^http:\/\/127\.0\.0\.1:\d+\/feeds\/calendar\/ltf_feed_[A-Za-z0-9_-]{16}_[A-Za-z0-9_-]{43}\.ics$/);
+  assert.match(
+    generated.body.feedUrl,
+    /^http:\/\/127\.0\.0\.1:\d+\/feeds\/calendar\/ltf_feed_[A-Za-z0-9_-]{16}_[A-Za-z0-9_-]{43}\/Initial%20workspace%20&%20planning%20-%20North\.ics$/,
+    "new subscription URLs should end in a path-safe encoded friendly name Thunderbird uses during ICS discovery",
+  );
+  assert.equal(
+    thunderbirdIcsDisplayName(generated.body.feedUrl),
+    "Initial workspace & planning - North",
+    "Thunderbird's HEAD-based ICS detector should derive the friendly subscription name from the final URL segment",
+  );
   const firstRawToken = readRawToken(generated.body.feedUrl);
   const generatedCollection = await api.get("/api/private-feeds/calendar-subscriptions", { cookie: sessionCookie });
   assert.equal(generatedCollection.body.subscriptions.length, 1);
-  assert.equal(generatedCollection.body.subscriptions[0].name, "Initial workspace");
+  assert.equal(generatedCollection.body.subscriptions[0].name, "Initial workspace & planning / North");
   assert.equal(Object.hasOwn(generatedCollection.body, "feedUrl"), false, "metadata reads must never recover the raw bearer URL");
 
   const stored = await db.get(`
@@ -113,7 +122,11 @@ WHERE workspace_id = :workspaceId
   assert.equal(stored.token_hash.includes(firstRawToken), false);
 
   await authenticationThrottle.clear();
-  const sessionlessFeed = await api.raw(new URL(generated.body.feedUrl).pathname);
+  const friendlyFeedPath = new URL(generated.body.feedUrl).pathname;
+  const thunderbirdHead = await api.head(friendlyFeedPath);
+  assert.equal(thunderbirdHead.status, 200, "the friendly-name URL should support Thunderbird's initial HEAD probe");
+  assert.match(thunderbirdHead.headers.get("content-type") || "", /^text\/calendar;\s*charset=utf-8$/i);
+  const sessionlessFeed = await api.raw(friendlyFeedPath);
   assert.equal(sessionlessFeed.status, 200, sessionlessFeed.text);
   assert.match(sessionlessFeed.headers.get("content-type") || "", /^text\/calendar;\s*charset=utf-8$/i);
   assert.equal(sessionlessFeed.headers.get("cache-control"), "private, no-store");
@@ -121,6 +134,9 @@ WHERE workspace_id = :workspaceId
   assert.match(sessionlessFeed.text, /^BEGIN:VCALENDAR\r?\n/);
   assert.match(sessionlessFeed.text, /\r?\nEND:VCALENDAR\r?\n$/);
   assert.equal(sessionlessFeed.text.includes(ownerUserId), false, "feed content must not expose raw owner IDs");
+
+  const legacyFeed = await api.raw(`/feeds/calendar/${encodeURIComponent(firstRawToken)}.ics`);
+  assert.equal(legacyFeed.status, 200, "existing one-segment bearer URLs should remain valid");
 
   const rotated = await api.post(
     `/api/private-feeds/calendar-subscriptions/${generated.body.subscription.subscriptionId}/rotate`,
@@ -159,7 +175,9 @@ WHERE workspace_id = :workspaceId
   const disabledResponse = await api.raw(new URL(rotated.body.feedUrl).pathname);
   const unknownResponse = await api.raw("/feeds/calendar/ltf_feed_aaaaaaaaaaaaaaaa_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ics");
   const malformedResponse = await api.raw("/feeds/calendar/not-a-private-feed-token.ics");
-  for (const response of [disabledResponse, unknownResponse, malformedResponse]) {
+  await authenticationThrottle.clear();
+  const malformedFriendlyResponse = await api.raw("/feeds/calendar/not-a-private-feed-token/Friendly%20name.ics");
+  for (const response of [disabledResponse, unknownResponse, malformedResponse, malformedFriendlyResponse]) {
     assert.equal(response.status, 404);
     assert.equal(response.text, "Calendar feed not found.");
     assert.equal(response.headers.get("cache-control"), "private, no-store");
@@ -567,6 +585,9 @@ function createApi(baseUrl) {
     get(url, options) {
       return request("GET", url, undefined, options);
     },
+    head(url, options) {
+      return request("HEAD", url, undefined, options);
+    },
     post(url, body, options) {
       return request("POST", url, body, options);
     },
@@ -585,8 +606,18 @@ function readSessionCookie(response) {
 }
 
 function readRawToken(feedUrl) {
-  const filename = new URL(feedUrl).pathname.split("/").at(-1);
-  return decodeURIComponent(filename.slice(0, -4));
+  const tokenSegment = new URL(feedUrl).pathname
+    .split("/")
+    .find((segment) => segment.startsWith("ltf_feed_"));
+  return decodeURIComponent(String(tokenSegment || "").replace(/\.ics$/i, ""));
+}
+
+function thunderbirdIcsDisplayName(feedUrl) {
+  const lastPath = decodeURI(new URL(feedUrl).pathname)
+    .split("/")
+    .filter(Boolean)
+    .pop() || "";
+  return lastPath.split(".").slice(0, -1).join(".") || lastPath;
 }
 
 function listen(app) {
