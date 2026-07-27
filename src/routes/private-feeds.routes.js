@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { rateLimit } from "express-rate-limit";
 import { getRequestContext } from "../core/request-context.js";
 import {
   AUTHENTICATION_THROTTLE_MESSAGE,
@@ -11,11 +12,20 @@ import { asyncRoute, readJsonBody } from "../utils/http.js";
 const privateFeedPublicRoutes = Router();
 const privateFeedLifecycleRoutes = Router();
 const CALENDAR_REFRESH_SECONDS = 15 * 60;
+const privateCalendarFeedRateLimit = rateLimit({
+  handler: (_request, response) => {
+    sendThrottleResponse(response, CALENDAR_REFRESH_SECONDS);
+  },
+  legacyHeaders: false,
+  limit: 120,
+  standardHeaders: "draft-8",
+  windowMs: CALENDAR_REFRESH_SECONDS * 1000,
+});
 
 privateFeedPublicRoutes.get([
   "/feeds/calendar/:token/:calendarName.ics",
   "/feeds/calendar/:token.ics",
-], asyncRoute(async (request, response) => {
+], privateCalendarFeedRateLimit, asyncRoute(async (request, response) => {
   const requestContext = getRequestContext(request);
   const throttleContext = {
     dimensions: ["ip"],
