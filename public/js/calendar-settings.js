@@ -25,6 +25,7 @@ const state = {
   clients: [],
   subscriptions: [],
   tasksEnabled: true,
+  workspaceType: "business",
   workspaceProjects: [],
 };
 let currentSecret = "";
@@ -44,14 +45,15 @@ async function initialize() {
   setCreateBusy(true);
 
   try {
+    await readWorkspaceContext();
     const [subscriptionsBody, optionsBody] = await Promise.all([
       api.getJson("/api/private-feeds/calendar-subscriptions", { cache: "no-store" }),
       api.getJson("/api/client-projects?view=options", { cache: "no-store" }),
-      readTasksAvailability(),
     ]);
     state.subscriptions = normalizeSubscriptions(subscriptionsBody.subscriptions);
-    state.clients = normalizeClients(optionsBody.clients);
+    state.clients = usesBusinessScopes() ? normalizeClients(optionsBody.clients) : [];
     state.workspaceProjects = normalizeProjects(optionsBody.workspaceProjects);
+    renderScopeOptions();
     renderClientOptions();
     renderScopeFields();
     renderSubscriptions();
@@ -64,9 +66,12 @@ async function initialize() {
   }
 }
 
-async function readTasksAvailability() {
+async function readWorkspaceContext() {
   try {
     await window.LongtailForge?.workspaceContextReady;
+    state.workspaceType = normalizeWorkspaceType(
+      window.LongtailForge?.workspaceContext?.workspaceType,
+    );
     const enabledModules = window.LongtailForge?.workspaceContext?.enabledModules;
     if (Array.isArray(enabledModules)) {
       state.tasksEnabled = enabledModules.includes("tasks");
@@ -237,7 +242,7 @@ async function reloadSubscriptionsAfterRemoval(subscriptionId) {
 function renderScopeFields() {
   const scopeType = String(scopeSelect?.value || "workspace");
   if (clientField) {
-    clientField.hidden = scopeType === "workspace";
+    clientField.hidden = !usesBusinessScopes() || scopeType === "workspace";
   }
   if (clientSelect) {
     clientSelect.required = scopeType === "client";
@@ -253,6 +258,24 @@ function renderScopeFields() {
   }
   renderClientOptions();
   renderProjectOptions();
+}
+
+function renderScopeOptions() {
+  if (!scopeSelect) {
+    return;
+  }
+  const choices = usesBusinessScopes()
+    ? [
+        ["workspace", "Workspace"],
+        ["client", "Client"],
+        ["project", "Project"],
+      ]
+    : [
+        ["workspace", "Workspace"],
+        ["project", "Project"],
+      ];
+  scopeSelect.replaceChildren(...choices.map(([value, label]) => option(value, label)));
+  scopeSelect.value = "workspace";
 }
 
 function renderClientOptions() {
@@ -448,8 +471,10 @@ function renderAvailability() {
   if (!availability) {
     return;
   }
-  availability.textContent = state.tasksEnabled
-    ? "Workspace, Client, and Project scopes are limited to Tasks the subscription owner can currently read."
+  availability.textContent = state.tasksEnabled && !usesBusinessScopes()
+    ? `${formatWorkspaceType(state.workspaceType)} workspaces can use Workspace or Project scope. Client scope is available only in Business workspaces.`
+    : state.tasksEnabled
+      ? "Workspace, Client, and Project scopes are limited to Tasks the subscription owner can currently read."
     : "Tasks is disabled. Existing metadata remains available for revocation, but creation and rotation are unavailable until Tasks is enabled.";
   if (createButton) {
     createButton.disabled = !state.tasksEnabled;
@@ -492,6 +517,21 @@ function normalizeProjects(projects) {
     id: String(project?.id || ""),
     label: String(project?.name || "Untitled Project"),
   })).filter((project) => project.id) : [];
+}
+
+function normalizeWorkspaceType(value) {
+  const workspaceType = String(value || "").trim().toLowerCase();
+  return ["business", "personal", "family"].includes(workspaceType)
+    ? workspaceType
+    : "business";
+}
+
+function usesBusinessScopes() {
+  return state.workspaceType === "business";
+}
+
+function formatWorkspaceType(value) {
+  return value === "family" ? "Family" : "Personal";
 }
 
 function option(value, label) {

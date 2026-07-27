@@ -262,6 +262,39 @@ WHERE workspace_id = :workspaceId
     name: "Calendar Project",
     status: "Active",
   });
+  for (const workspaceType of ["personal", "family"]) {
+    await db.run(`
+UPDATE workspaces
+SET workspace_type = :workspaceType
+WHERE workspace_id = :workspaceId;
+`, { workspaceId: ownerWorkspaceId, workspaceType });
+    const rejectedScope = await api.post(
+      "/api/private-feeds/calendar-subscriptions",
+      { clientId, name: `Invalid ${workspaceType} client scope`, scopeType: "client" },
+      { cookie: sessionCookie },
+    );
+    assert.equal(rejectedScope.status, 400);
+    assert.equal(
+      rejectedScope.body?.error,
+      "Client calendar scope is available only in Business workspaces.",
+    );
+    const projectScope = await api.post(
+      "/api/private-feeds/calendar-subscriptions",
+      { name: `${workspaceType} project scope`, projectId, scopeType: "project" },
+      { cookie: sessionCookie },
+    );
+    assert.equal(projectScope.status, 201, `${workspaceType} workspaces should allow Project calendar scope`);
+    const removedProjectScope = await api.delete(
+      `/api/private-feeds/calendar-subscriptions/${projectScope.body.subscription.subscriptionId}`,
+      { cookie: sessionCookie },
+    );
+    assert.equal(removedProjectScope.status, 200, `${workspaceType} Project calendar proof should clean up`);
+  }
+  await db.run(`
+UPDATE workspaces
+SET workspace_type = 'business'
+WHERE workspace_id = :workspaceId;
+`, { workspaceId: ownerWorkspaceId });
 
   const workspaceSubscription = await api.post("/api/private-feeds/calendar-subscriptions", {
     name: "Workspace planning",

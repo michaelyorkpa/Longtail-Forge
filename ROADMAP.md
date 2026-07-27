@@ -2,38 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.22.9.3`.
+Active cursor: `0.33.23`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.22.9.3 - Calendar client metadata and subscription refinement
-
-**Model: High Effort** — Calendar-client compatibility crosses a bearer-authenticated public feed, timezone correctness, administrator guidance, and provider-specific behavior that must not be overstated.
-
-Purpose:
-
-Refine the named Calendar subscription contract from real client testing without weakening the provider-neutral feed, scope, permission, or revocation boundaries completed in `0.33.22.9` through `0.33.22.9.2`.
-
-- [x] Record the confirmed Google Calendar behavior: the current URL subscription uses the URL as its initial display name and reports a read-only timezone instead of consuming the intended subscription metadata.
-- [x] Publish the RFC 7986 `NAME` property alongside the retained compatibility `X-WR-CALNAME`, publish the owner timezone as `X-WR-TIMEZONE`, and include its matching `VTIMEZONE` even when the feed has no timed recurrence.
-- [x] Show the effective owner timezone in the Admin Calendar subscription list and explain that name/timezone metadata is published by the feed while calendar clients may retain their own display-name override.
-- [x] Re-test a newly added Google Calendar URL subscription after deployment. After propagation, Google Calendar consumes the published subscription name and owner timezone correctly; retain the provider-neutral metadata contract rather than adding OAuth/provider APIs.
-- [x] Confirm Workspace and Project filtering in Google Calendar and confirm Project filtering in Outlook. Outlook requires a local calendar name before it queries the URL, so feed-provided naming is not part of that client workflow.
-- [x] Put the one-time-link warning on its own red line using plain user language, without hash/storage implementation jargon.
-- [x] Make manual Revoke invalidate and remove the credential row in one action, and give already-revoked rows an audited Delete cleanup action so inactive entries do not remain as `No actions`.
-- [x] Diagnose the first Thunderbird test: its ICS discovery performs `HEAD` and derives the displayed calendar name from the last URL path segment without reading the feed's `NAME` or `X-WR-CALNAME`. Make new and rotated URLs end in a path-safe encoded subscription name while preserving the opaque bearer token and existing one-segment URLs.
-- [ ] Re-test a newly rotated friendly-name URL in Thunderbird, complete Client-scope testing, and incorporate any additional confirmed compatibility or scope defects before closeout.
-- [x] Publish package version `0.33.22.9.3` through the protected `nightly` path and prove the exact demo artifact identity. This makes the refinement available for testing; it does not close the slice.
-- [ ] After the operator test pass, incorporate any findings, rerun canonical verification if tracked files changed, archive this slice, and restore `0.33.23` as the active cursor.
-
-Acceptance criteria:
-
-- New feeds carry standards-compatible name metadata, an explicit owner-timezone compatibility hint, and a matching timezone definition without changing event instants, permission intersection, bearer secrecy, or subscription lifecycle behavior.
-- Calendar Settings identifies the effective timezone, reports the confirmed Google metadata behavior, explains Thunderbird-friendly new/rotated URLs, and gives the one-time URL warning the requested prominent placement and wording.
-- Manual revocation emits its lifecycle security classification and removes the credential row; automatically revoked legacy/ineligible rows can be explicitly deleted.
-- New and rotated URLs supply Thunderbird's discovery fallback with a friendly path filename while legacy one-segment bearer URLs remain valid and equally permission-checked.
-- A verified `0.33.22.9.3-nightly` demo deployment may land solely to support operator testing. The slice remains open until Client-scope and Thunderbird subscription testing is complete.
 
 ## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
 

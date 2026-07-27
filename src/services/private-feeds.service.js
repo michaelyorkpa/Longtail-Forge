@@ -8,6 +8,7 @@ import {
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { privateFeedTokensRepository } from "../repositories/private-feed-tokens.repo.js";
+import { workspacesRepository } from "../repositories/workspaces.repo.js";
 import { securityEventsService } from "../security/security-events.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeTimezone } from "../utils/normalizers.js";
@@ -206,6 +207,9 @@ async function readEligibility(row) {
   if (row.membership_status !== "active") return { allowed: false, reason: "membership_inactive" };
   if (String(row.workspace_status || "").toLowerCase() !== "active") return { allowed: false, reason: "workspace_inactive" };
   if (row.tasks_module_status !== "enabled") return { allowed: false, reason: "tasks_module_disabled" };
+  if (row.workspace_type !== "business" && row.scope_type === "client") {
+    return { allowed: false, reason: "workspace_scope_not_supported" };
+  }
   if (row.scope_type === "client" && row.scope_client_status === "Inactive") return { allowed: false, reason: "client_inactive" };
   if (row.scope_type === "project" && row.scope_project_status === "Inactive") return { allowed: false, reason: "project_inactive" };
   if (row.scope_type === "project" && row.project_client_id && row.project_client_status === "Inactive") {
@@ -248,6 +252,12 @@ async function resolveScope(payload, session) {
   }
   if ((await modulesService.readModuleStatus(session.workspace_id, "tasks")) !== "enabled") {
     throw new AppError("Enable the Tasks module before creating a calendar subscription.", 409);
+  }
+  if (scopeType === "client") {
+    const workspace = await workspacesRepository.readById(session.workspace_id);
+    if (workspace?.workspace_type !== "business") {
+      throw new AppError("Client calendar scope is available only in Business workspaces.", 400);
+    }
   }
 
   let clientId = null;

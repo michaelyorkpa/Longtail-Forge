@@ -1,5 +1,28 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.22.9.3 - Calendar client metadata and subscription refinement
+
+Completed and operator-accepted on 2026-07-27. Google Calendar, Outlook, Thunderbird, and Apple Calendar on iPhone consumed the provider-neutral subscription successfully; the active cursor advances to `0.33.23`.
+
+**Model: High Effort** — Calendar-client compatibility crosses a bearer-authenticated public feed, timezone correctness, administrator guidance, workspace-type semantics, and provider-specific behavior that must not be overstated.
+
+- [x] Published RFC 7986 `NAME` alongside compatibility `X-WR-CALNAME`, the owner's current profile timezone as `X-WR-TIMEZONE`, and a matching `VTIMEZONE` even when the feed has no timed recurrence.
+- [x] Confirmed after demo deployment that Google Calendar consumes the published friendly name and owner timezone. Workspace and Project filtering worked in Google Calendar, and Project filtering worked in Outlook; Outlook collects its local name before reading the URL.
+- [x] Diagnosed Thunderbird's `HEAD`-first ICS discovery and changed new/rotated URLs to append a path-safe encoded subscription-name filename after the opaque bearer token. The legacy one-segment route remains valid and equally permission-checked. Operator retesting confirmed Thunderbird now shows the friendly name.
+- [x] Confirmed the same subscription works in Apple Calendar on iPhone with a friendly title. Mac-specific testing remains unnecessary for this provider-neutral URL-subscription closeout.
+- [x] Kept Client-scope content bounded by the existing isolated authentication/scope regression. Fixed the final demo defect so Personal and Family Calendar Settings expose Workspace and Project scopes without Client, discard Client options, and reject forged non-Business Client subscription creation server-side.
+- [x] Put the one-time-link warning on its own danger-colored line in plain user language without hash/storage implementation jargon.
+- [x] Made manual Revoke invalidate and remove the credential row in one action, and gave already-revoked rows an audited Delete cleanup action.
+- [x] Preserved multiple uniquely addressed Workspace/Client/Project subscriptions, live permission intersection, owner/membership/module/target invalidation, one-time bearer-secret handling, generic public rejection, and no-orphan lifecycle behavior.
+- [x] Published and verified `0.33.22.9.3-nightly` on the demo, incorporated the operator test pass, ran canonical verification for the final tracked state, and restored `0.33.23` as the active cursor.
+
+Acceptance criteria:
+
+- New feeds carry standards-compatible name metadata, an explicit owner-timezone compatibility hint, a matching timezone definition, and a Thunderbird-friendly filename without changing event instants, permission intersection, bearer secrecy, or subscription lifecycle behavior.
+- Calendar Settings identifies the effective timezone, gives the one-time URL warning the requested placement and wording, exposes Project narrowing in every workspace type, and exposes Client narrowing only in Business workspaces.
+- Manual revocation removes active credentials with its lifecycle classification; automatically revoked rows remain explicitly deletable; legacy links remain valid; and no orphan subscription survives authority loss.
+- Google Calendar, Outlook, Thunderbird, and Apple Calendar on iPhone have successful operator evidence, while automated regression coverage proves Client/Project scope ceilings and Personal/Family Project-without-Client enforcement.
+
 ## Version 0.33.22.9.2 - Admin Calendar module surface, User Settings removal, and closeout
 
 Completed locally on 2026-07-25. The `0.33.22.9` correction stack is complete and the active cursor returns to `0.33.23`.

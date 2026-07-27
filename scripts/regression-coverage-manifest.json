@@ -2776,7 +2776,7 @@
     },
     {
       "area": "framework",
-      "description": "Pins the administrator-only Calendar lifecycle manager, hierarchy-safe scopes, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
+      "description": "Pins the administrator-only Calendar lifecycle manager, Business-only Client scope, all-workspace Project scope, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
       "id": "framework.calendar-subscription-settings",
       "legacy": false,
       "path": "scripts/regressions/framework/calendar-subscription-settings.regression.mjs",
