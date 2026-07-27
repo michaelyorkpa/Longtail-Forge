@@ -3090,6 +3090,12 @@ a.search-result-title:hover {
     color: var(--color-danger);
 }
 
+.calendar-subscription-secret-warning {
+    margin: 0;
+    color: var(--color-danger);
+    font-weight: 700;
+}
+
 .calendar-subscription-create-form,
 .calendar-subscription-secret-panel,
 .calendar-subscription-guidance,

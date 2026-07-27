@@ -142,7 +142,18 @@ WHERE workspace_id = :workspaceId
     { cookie: sessionCookie },
   );
   assert.equal(disabled.status, 200, JSON.stringify(disabled.body));
-  assert.equal(disabled.body.subscription.status, "revoked");
+  assert.deepEqual(disabled.body, {
+    removed: true,
+    subscriptionId: generated.body.subscription.subscriptionId,
+  });
+  assert.equal(
+    await db.get(
+      "SELECT private_feed_token_id FROM private_feed_tokens WHERE private_feed_token_id = :subscriptionId;",
+      { subscriptionId: generated.body.subscription.subscriptionId },
+    ),
+    null,
+    "manual revocation should remove the credential row after recording the lifecycle event",
+  );
 
   await authenticationThrottle.clear();
   const disabledResponse = await api.raw(new URL(rotated.body.feedUrl).pathname);
@@ -294,7 +305,7 @@ WHERE workspace_id = :workspaceId
     { cookie: sessionCookie },
   );
   assert.equal(revokedClient.status, 200, JSON.stringify(revokedClient.body));
-  assert.equal(revokedClient.body.subscription.status, "revoked");
+  assert.equal(revokedClient.body.removed, true);
   const { clientsService } = await import("../../../src/modules/client-projects/clients.service.js");
   await clientsService.archiveClient(clientId, {}, {
     user_id: ownerUserId,
@@ -317,6 +328,32 @@ WHERE private_feed_token_id = :subscriptionId;
     revocation_reason: "project_inactive",
     status: "revoked",
   });
+  const deletedArchivedProject = await api.delete(
+    `/api/private-feeds/calendar-subscriptions/${projectSubscription.body.subscription.subscriptionId}`,
+    { cookie: sessionCookie },
+  );
+  assert.deepEqual(deletedArchivedProject.body, {
+    removed: true,
+    subscriptionId: projectSubscription.body.subscription.subscriptionId,
+  });
+  assert.equal(
+    await db.get(
+      "SELECT private_feed_token_id FROM private_feed_tokens WHERE private_feed_token_id = :subscriptionId;",
+      { subscriptionId: projectSubscription.body.subscription.subscriptionId },
+    ),
+    null,
+    "an automatically revoked credential should remain explicitly deletable from Calendar Settings",
+  );
+  const deletedSubscriptionAudit = await db.get(`
+SELECT action, metadata_json
+FROM audit_logs
+WHERE record_type = 'security_event'
+  AND action = 'security.private_feed.deleted'
+ORDER BY created_at DESC
+LIMIT 1;
+`);
+  assert.equal(deletedSubscriptionAudit.action, "security.private_feed.deleted");
+  assert.equal(JSON.parse(deletedSubscriptionAudit.metadata_json).operation, "delete");
 
   const delegatedUserId = randomUUID();
   const delegatedUsername = "calendar-admin@example.test";

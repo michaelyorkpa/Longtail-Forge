@@ -153,8 +153,8 @@ async function handleSubscriptionAction(event) {
   }
   if (button.dataset.calendarSubscriptionAction === "rotate") {
     await rotateSubscription(subscription, button);
-  } else if (button.dataset.calendarSubscriptionAction === "revoke") {
-    await revokeSubscription(subscription, button);
+  } else if (["revoke", "delete"].includes(button.dataset.calendarSubscriptionAction)) {
+    await removeSubscription(subscription, button);
   }
 }
 
@@ -191,11 +191,14 @@ async function rotateSubscription(subscription, trigger) {
   }
 }
 
-async function revokeSubscription(subscription, trigger) {
+async function removeSubscription(subscription, trigger) {
+  const isActive = subscription.status === "active";
   const confirmed = await window.LongtailForge.modal.confirm({
-    title: "Revoke calendar subscription?",
-    message: `Revoke ${subscription.name}? Its private URL will stop working immediately.`,
-    confirmLabel: "Revoke",
+    title: isActive ? "Revoke calendar subscription?" : "Delete calendar subscription?",
+    message: isActive
+      ? `Revoke ${subscription.name}? Its private URL will stop working immediately and the subscription will be removed from this list.`
+      : `Delete ${subscription.name} from this list? Its private URL is already inoperable.`,
+    confirmLabel: isActive ? "Revoke and Remove" : "Delete",
     cancelLabel: "Cancel",
     danger: true,
   });
@@ -205,22 +208,30 @@ async function revokeSubscription(subscription, trigger) {
   }
 
   setListBusy(subscription.subscriptionId, true);
-  setStatus(listStatus, `Revoking ${subscription.name}...`);
+  setStatus(listStatus, `${isActive ? "Revoking" : "Deleting"} ${subscription.name}...`);
   try {
     await api.deleteJson(
       `/api/private-feeds/calendar-subscriptions/${encodeURIComponent(subscription.subscriptionId)}`,
     );
-    await reloadSubscriptions({ subscriptionId: subscription.subscriptionId });
-    setStatus(listStatus, `Revoked ${subscription.name}.`, {
+    await reloadSubscriptionsAfterRemoval(subscription.subscriptionId);
+    setStatus(listStatus, `${isActive ? "Revoked and removed" : "Deleted"} ${subscription.name}.`, {
       clearAfter: 2000,
       type: "success",
     });
   } catch (error) {
-    handleApiError(error, listStatus, "Calendar subscription could not be revoked.");
+    handleApiError(error, listStatus, `Calendar subscription could not be ${isActive ? "revoked" : "deleted"}.`);
     trigger.focus();
   } finally {
     setListBusy(subscription.subscriptionId, false);
   }
+}
+
+async function reloadSubscriptionsAfterRemoval(subscriptionId) {
+  const removedIndex = state.subscriptions.findIndex((item) => item.subscriptionId === subscriptionId);
+  await reloadSubscriptions();
+  const rows = [...(subscriptionList?.querySelectorAll("tr[data-subscription-id]") || [])];
+  const focusRow = rows[Math.min(Math.max(removedIndex, 0), rows.length - 1)];
+  (focusRow || createButton)?.focus();
 }
 
 function renderScopeFields() {
@@ -335,6 +346,10 @@ function actionCell(subscription) {
     actions.appendChild(rowAction("Revoke", "revoke", subscription.subscriptionId, {
       danger: true,
     }));
+  } else {
+    actions.appendChild(rowAction("Delete", "delete", subscription.subscriptionId, {
+      danger: true,
+    }));
   }
   if (actions.childElementCount === 0) {
     tableCell.textContent = "No actions";
@@ -387,7 +402,7 @@ function showSecret(feedUrl, subscription, operation) {
   secretInput.type = "password";
   revealButton.textContent = "Reveal URL";
   secretPanel.hidden = false;
-  secretDetail.textContent = `${subscription?.name || "This subscription"} was ${operation}. Copy this private URL now. Longtail Forge stores only its hash and cannot show it again.`;
+  secretDetail.textContent = `${subscription?.name || "This subscription"} was ${operation}. Copy this private URL now.`;
   setStatus(secretStatus, "");
   secretInput.focus();
 }

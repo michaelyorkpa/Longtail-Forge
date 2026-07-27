@@ -69,7 +69,7 @@ privateFeedLifecycleRoutes.post("/private-feeds/calendar-subscriptions/:subscrip
 
 privateFeedLifecycleRoutes.delete("/private-feeds/calendar-subscriptions/:subscriptionId", asyncRoute(async (request, response) => {
   response.set("Cache-Control", "no-store");
-  response.status(200).json(await privateFeedsService.revokeCalendarSubscription(
+  response.status(200).json(await privateFeedsService.removeCalendarSubscription(
     request.params.subscriptionId,
     request.session,
   ));

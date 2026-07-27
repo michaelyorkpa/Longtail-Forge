@@ -86,19 +86,28 @@ async function rotateCalendarSubscription(subscriptionId, session, requestOrigin
   };
 }
 
-async function revokeCalendarSubscription(subscriptionId, session) {
+async function removeCalendarSubscription(subscriptionId, session) {
   await assertCanManageCalendarSubscriptions(session);
   const current = await readManagedSubscription(subscriptionId, session);
-  const result = await privateFeedTokensRepository.revoke(
+  const result = await privateFeedTokensRepository.remove(
     session.workspace_id,
     current.private_feed_token_id,
     PRIVATE_CALENDAR_PROVIDER_ID,
-    "manual_revocation",
   );
-  if (result.changed) {
-    await recordLifecycleSecurityEvent(session, "security.private_feed.revoked", "revoke", current.scope_type);
+  if (!result.changed) {
+    throw new AppError("Calendar subscription not found.", 404);
   }
-  return { subscription: toPublicSubscription(result.token, session) };
+  const wasActive = current.status === "active";
+  await recordLifecycleSecurityEvent(
+    session,
+    wasActive ? "security.private_feed.revoked" : "security.private_feed.deleted",
+    wasActive ? "revoke" : "delete",
+    current.scope_type,
+  );
+  return {
+    removed: true,
+    subscriptionId: current.private_feed_token_id,
+  };
 }
 
 async function renderCalendar(rawToken) {
@@ -404,9 +413,9 @@ async function recordLifecycleSecurityEvent(session, eventType, operation, scope
 export const privateFeedsService = {
   createCalendarSubscription,
   listCalendarSubscriptions,
+  removeCalendarSubscription,
   reconcileCalendarSubscriptions,
   renderCalendar,
-  revokeCalendarSubscription,
   rotateCalendarSubscription,
 };
 

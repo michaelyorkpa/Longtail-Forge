@@ -364,7 +364,11 @@
       element("p", {
         className: "calendar-subscription-intro",
         dataset: { calendarSubscriptionSecretDetail: "" },
-        text: "Copy this private URL now. Longtail Forge stores only its hash and cannot show it again.",
+        text: "Copy this private URL now.",
+      }),
+      element("p", {
+        className: "calendar-subscription-secret-warning",
+        text: "Longtail Forge will not show this link again. Please copy it and install it now or store it for safe keeping.",
       }),
       subscriptionUrlField,
       view.createInlineActionRow({
@@ -389,7 +393,7 @@
         text: "Calendar clients refresh subscriptions periodically, not in real time. Subscribe to the URL instead of importing a one-time .ics file.",
       }),
       element("p", {
-        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Calendar clients may keep a local name override; Google reports a subscribed calendar's timezone as read-only.",
+        text: "Longtail Forge publishes the subscription name and the owner's current profile timezone. Google Calendar does not use the published name when adding from a URL, so rename it after adding; Google also reports a subscribed calendar's timezone as read-only.",
       }),
       calendarClientGuidance(),
       element("p", {
@@ -435,7 +439,7 @@
     const links = [
       ["Google Calendar", "https://support.google.com/calendar/answer/37100", "On a computer, choose Other calendars, Add other calendars, then From URL."],
       ["Apple Calendar", "https://support.apple.com/guide/calendar/subscribe-to-calendars-icl1022/mac", "On Mac, choose File, then New Calendar Subscription."],
-      ["Outlook", "https://support.microsoft.com/en-US/Outlook/import-or-subscribe-to-a-calendar-in-outlook-com-or-outlook-on-the-web", "Choose Add calendar, then Subscribe from web."],
+      ["Outlook", "https://support.microsoft.com/en-US/Outlook/import-or-subscribe-to-a-calendar-in-outlook-com-or-outlook-on-the-web", "Choose Add calendar, then Subscribe from web, and enter the URL and calendar name."],
       ["Thunderbird", "https://support.mozilla.org/en-US/kb/creating-new-calendars", "Choose New Calendar, On the Network, then paste the URL."],
     ];
     return element("ul", {

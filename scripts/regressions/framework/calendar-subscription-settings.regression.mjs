@@ -21,6 +21,7 @@ const [
   frameworkCss,
   privateFeedRoutes,
   privateFeedService,
+  privateFeedRepository,
   staticService,
   appShellService,
   renderedSpec,
@@ -39,6 +40,7 @@ const [
   readText("public/css/longtail-forge.css"),
   readText("src/routes/private-feeds.routes.js"),
   readText("src/services/private-feeds.service.js"),
+  readText("src/repositories/private-feed-tokens.repo.js"),
   readText("src/services/static.service.js"),
   readText("src/services/app-shell.service.js"),
   readText("tests/e2e/calendar-subscription-settings.spec.mjs"),
@@ -64,6 +66,7 @@ assert.match(settingsHost, /id: "calendarSubscriptionName"[^]*calendar metadata[
 assert.match(settingsHost, /id: "calendarSubscriptionScope"[^]*Workspace[^]*Client[^]*Project/, "scope selection should begin at Workspace and allow Client or Project");
 assert.match(settingsHost, /calendarSubscriptionClientField[^]*calendarSubscriptionProjectField/, "hierarchical Client and Project fields should be explicit");
 assert.match(settingsHost, /inputType: "password"[^]*readonly: ""[^]*calendarSubscriptionUrlField/, "the one-time URL should start masked and read-only");
+assert.match(settingsHost, /calendar-subscription-secret-warning"[^]*Longtail Forge will not show this link again\. Please copy it and install it now or store it for safe keeping\.[^]*subscriptionUrlField/, "the one-time warning should use the requested plain-language copy on its own line before the URL field");
 assert.match(settingsHost, /children: \["Name", "Owner", "Scope", "Timezone", "Status", "Created", "Rotated", "Revoked", "Actions"\]/, "the workspace list should expose the complete safe metadata shape");
 assert.match(settingsHost, /readoutSection\("Workspace Calendar Subscriptions"/, "the safe metadata table should have a workspace-rooted heading");
 assert.doesNotMatch(settingsHost, /grid\.append\([^]*calendarSubscriptionForm\(\)/, "User Settings anatomy should no longer include Calendar Subscription");
@@ -77,7 +80,7 @@ for (const officialUrl of [
   assert.match(settingsHost, new RegExp(escapeRegExp(officialUrl)), `Calendar Settings should link to ${officialUrl}`);
 }
 assert.match(settingsHost, /refresh subscriptions periodically, not in real time/, "in-product guidance should set periodic refresh expectations");
-assert.match(settingsHost, /owner's current profile timezone[^]*Google reports a subscribed calendar's timezone as read-only/, "in-product guidance should explain effective timezone and Google ownership");
+assert.match(settingsHost, /owner's current profile timezone[^]*Google Calendar does not use the published name when adding from a URL[^]*subscribed calendar's timezone as read-only/, "in-product guidance should explain effective timezone and Google's manual rename");
 
 assert.match(calendarSettings, /let currentSecret = "";/, "the raw bearer URL should live only in page memory");
 assert.match(calendarSettings, /window\.addEventListener\("pagehide", clearSecret\)/, "leaving the page should clear the one-time URL");
@@ -85,14 +88,17 @@ assert.doesNotMatch(calendarSettings, /(?:localStorage|sessionStorage)[^\n]*cale
 assert.match(calendarSettings, /getJson\("\/api\/private-feeds\/calendar-subscriptions"/, "ordinary loads should use the safe collection endpoint");
 assert.match(calendarSettings, /postJson\("\/api\/private-feeds\/calendar-subscriptions", payload\)[^]*showSecret\(body\.feedUrl/, "creation should consume the one-time URL response");
 assert.match(calendarSettings, /calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}\/rotate[^]*showSecret\(body\.feedUrl/, "owner rotation should consume the replacement URL");
-assert.match(calendarSettings, /deleteJson\([^]*calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}/, "row revocation should use the unique collection item");
+assert.match(calendarSettings, /deleteJson\([^]*calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}[^]*reloadSubscriptionsAfterRemoval/, "row revocation and deletion should remove the unique collection item and refresh the list");
 assert.match(calendarSettings, /subscription\.status === "active" && subscription\.ownedByCurrentUser/, "only an active owner row should render Rotate");
 assert.match(calendarSettings, /subscription\.status === "active"[^]*rowAction\("Revoke"/, "administrators should be able to revoke any active row");
+assert.match(calendarSettings, /else \{[^]*rowAction\("Delete", "delete"/, "already-revoked rows should remain explicitly deletable");
 assert.match(calendarSettings, /state\.tasksEnabled[^]*creation and rotation are unavailable/, "disabled Tasks should preserve listing/revocation while explaining lifecycle closure");
 assert.match(calendarSettings, /selectedClientId[^]*state\.clients\.find[^]*projects/, "selecting a Client should constrain Project options");
 assert.match(calendarSettings, /navigator\.clipboard\.writeText\(currentSecret\)[^]*document\.execCommand\("copy"\)/, "copy should use the clipboard with the existing fallback");
 assert.match(calendarSettings, /title: "Rotate calendar subscription URL\?"[^]*stop working immediately/, "rotation should require an explicit revocation warning");
-assert.match(calendarSettings, /title: "Revoke calendar subscription\?"[^]*stop working immediately/, "revocation should require explicit confirmation");
+assert.match(calendarSettings, /"Revoke calendar subscription\?"[^]*stop working immediately and the subscription will be removed from this list/, "revocation should require explicit removal confirmation");
+assert.match(calendarSettings, /"Delete calendar subscription\?"[^]*private URL is already inoperable/, "revoked-row deletion should require explicit confirmation");
+assert.doesNotMatch(calendarSettings, /stores only its hash/, "browser copy should not expose implementation jargon");
 assert.doesNotMatch(calendarSettings, /token_selector|token_hash|tokenPrefix|scopeClientId|scopeProjectId/, "the browser must not consume secret storage fields or raw scope IDs");
 
 assert.match(appShellService, /id: "calendar-settings"[^]*label: "Calendar"[^]*href: "calendar-settings\.html"/, "Admin Modules navigation should include Calendar");
@@ -106,17 +112,22 @@ assert.match(privateFeedRoutes, /calendar-subscriptions\/:subscriptionId\/rotate
 assert.match(privateFeedRoutes, /delete\("\/private-feeds\/calendar-subscriptions\/:subscriptionId"/, "revocation should remain uniquely addressed");
 assert.doesNotMatch(privateFeedRoutes, /["']\/private-feeds\/calendar["']/, "the singular management endpoint should be retired");
 assert.doesNotMatch(privateFeedService, /\b(?:getCalendarStatus|generateCalendar|rotateCalendar|disableCalendar)\b/, "singular lifecycle service methods should be retired");
+assert.match(privateFeedService, /function removeCalendarSubscription\(subscriptionId, session\)[^]*privateFeedTokensRepository\.remove[^]*security\.private_feed\.revoked[^]*security\.private_feed\.deleted[^]*removed: true/, "manual revoke should remove active rows while revoked-row cleanup remains audited");
 assert.match(privateFeedService, /function toPublicSubscription\(token, session\)[^]*ownedByCurrentUser[^]*owner[^]*scope[^]*status[^]*subscriptionId[^]*timezone/, "metadata reads should include the safe effective timezone");
 assert.doesNotMatch(privateFeedService.match(/function toPublicSubscription\(token, session\)[^]*?\n\}/)?.[0] || "", /feedUrl|token_selector|token_hash/, "metadata must never expose or reconstruct a bearer secret");
+assert.match(privateFeedRepository, /function remove\(workspaceId, subscriptionId, providerId[^]*DELETE FROM private_feed_tokens[^]*token: current/, "manual removal should delete exactly the selected workspace/provider credential");
 
 assert.match(frameworkCss, /\.calendar-settings-page\s*\{[^}]*width: min\(94vw/, "Calendar Settings should remain bounded");
 assert.match(frameworkCss, /\.calendar-subscription-table-wrap\s*\{[^}]*max-width: 100%/, "the workspace list should contain horizontal overflow");
 assert.match(frameworkCss, /\.calendar-subscription-row-actions\s*\{[^}]*flex-wrap: wrap/, "row actions should wrap on narrow screens");
 assert.match(frameworkCss, /\[data-calendar-subscription-url\]\s*\{[^}]*min-width: 0;[^}]*width: 100%;/, "long subscription URLs should stay bounded");
+assert.match(frameworkCss, /\.calendar-subscription-secret-warning\s*\{[^}]*color: var\(--color-danger\);[^}]*font-weight: 700;/, "the one-time-link warning should be prominent and theme-safe");
 
 assert.match(renderedSpec, /Calendar subscriptions support Workspace, Client, and Project lifecycle/, "Playwright should render the complete administrator lifecycle");
 assert.match(renderedSpec, /toHaveAttribute\("type", "password"\)[^]*toHaveAttribute\("type", "text"\)/, "rendered proof should cover reveal masking");
+assert.match(renderedSpec, /Longtail Forge will not show this link again[^]*toHaveCSS\("color", "rgb\(143, 47, 45\)"\)/, "rendered proof should cover the standalone red one-time warning");
 assert.match(renderedSpec, /another owner[^]*Rotate[^]*toHaveCount\(0\)/i, "rendered proof should preserve another owner's secret boundary");
+assert.match(renderedSpec, /Old calendar[^]*Delete[^]*Delete calendar subscription\?[^]*toHaveCount\(0\)/, "rendered proof should delete an existing revoked row");
 assert.match(renderedSpec, /scrollWidth[^]*innerWidth/, "rendered proof should check page overflow");
 
 assert.match(settingsHelp, /## Calendar subscription/i, "Help should document the shipped subscription workflow");
